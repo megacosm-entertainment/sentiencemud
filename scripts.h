@@ -1189,6 +1189,7 @@ enum entity_mobindex_enum {
     ENTITY_MOBINDEX_VNUM = ESCAPE_EXTRA,
     ENTITY_MOBINDEX_LOADED,
     ENTITY_MOBINDEX_LEVEL,
+    ENTITY_MOBINDEX_WNUM,
 };
 
 enum entity_objindex_enum {
@@ -1200,6 +1201,7 @@ enum entity_objindex_enum {
     ENTITY_OBJINDEX_LOCKERED,
     ENTITY_OBJINDEX_INCONTAINER,
     ENTITY_OBJINDEX_LEVEL,
+    ENTITY_OBJINDEX_WNUM,
 };
 
 
@@ -1207,6 +1209,10 @@ enum entity_instance_section_enum {
     ENTITY_SECTION_ROOMS = ESCAPE_EXTRA,
     ENTITY_SECTION_INSTANCE,
     ENTITY_SECTION_MAP,
+    ENTITY_SECTION_MAP_OBJ,
+    ENTITY_SECTION_MAP_MOB,
+    ENTITY_SECTION_MAP_OBJ_INDEX,
+    ENTITY_SECTION_MAP_MOB_INDEX,
 };
 
 
@@ -2470,6 +2476,7 @@ DECL_IFC_FUN(ifc_dungeonflag);
 DECL_IFC_FUN(ifc_instanceflag);
 DECL_IFC_FUN(ifc_sectionflag);
 DECL_IFC_FUN(ifc_isareaunlocked);
+DECL_IFC_FUN(ifc_isdungeonunlocked);
 
 DECL_IFC_FUN(ifc_reckoningcooldown);
 DECL_IFC_FUN(ifc_reckoningduration);
@@ -3225,6 +3232,7 @@ SCRIPT_CMD(scriptcmd_spawndungeon);
 SCRIPT_CMD(scriptcmd_mute);
 SCRIPT_CMD(scriptcmd_unmute);
 SCRIPT_CMD(scriptcmd_unlockarea);
+SCRIPT_CMD(scriptcmd_unlockdungeon);
 SCRIPT_CMD(scriptcmd_sendfloor);
 SCRIPT_CMD(scriptcmd_reckoning);
 SCRIPT_CMD(scriptcmd_lockadd);

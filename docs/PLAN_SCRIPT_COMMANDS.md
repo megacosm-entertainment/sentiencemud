@@ -1,5 +1,8 @@
 # Plan: Script Commands & Ifchecks for New Systems
 
+> Superseded by `docs/PLAN_SCRIPT_AUDIT_CONSOLIDATED.md` for consolidated
+> prioritization and sequencing.
+
 ## Overview
 
 Wire up the scripting engine to support race, class, skill, song, and trait

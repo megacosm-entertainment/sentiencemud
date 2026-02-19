@@ -2927,7 +2927,29 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     pexit->short_desc[0] != '\0'
                     ? pexit->short_desc : "(none).\n\r");
             }
-            else if ((location->wilds == NULL && !IS_SET(pexit->exit_info, EX_VLINK)) ||
+                else if (location->wilds != NULL
+                     && IS_SET(pexit->exit_info, EX_VLINK)
+                     && pexit->wilds.wilds_uid == 0
+                     && pexit->u1.to_room == NULL)
+                {
+                sprintf(buf,
+                    "{x%s {Yto dungeon vnum {x%ld {Yin Area uid:{x %ld {Yfloor:{x %d\n\r"
+                    "    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+                    "    {YLock Flags: {x%s\n\r"
+                    "    {YExit flags: {x%s\n\r"
+                    "    {YKeyword:{x '%s'  {YDescription: {x%s",
+                    dir_name[door],
+                    pexit->u1.vnum,
+                    pexit->wilds.area_uid,
+                    UMAX(1, pexit->wilds.y),
+                    pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
+                    flag_string(lock_flags, pexit->door.lock.flags),
+                    flag_string(exit_flags, pexit->exit_info),
+                    pexit->keyword,
+                    pexit->short_desc[0] != '\0'
+                    ? pexit->short_desc : "(none).\n\r");
+                }
+                else if ((location->wilds == NULL && !IS_SET(pexit->exit_info, EX_VLINK)) ||
                     (location->wilds != NULL && IS_SET(pexit->exit_info, EX_VLINK)))
             {
                 ROOM_INDEX_DATA *dest = pexit->u1.to_room;
@@ -6936,6 +6958,9 @@ void do_set(CHAR_DATA *ch, char *argument)
     send_to_char("  set sky   <cloudless|cloudy|rainy|stormy>\n\r", ch);
     send_to_char("  set time  <hour|day|month|year> <#>\n\r", ch);
     send_to_char("  set token <char name> <token vnum> <v#|timer> <op> <value>\n\r", ch);
+    send_to_char("  set unlock <player> list\n\r", ch);
+    send_to_char("  set unlock <player> area <unlock|lock> <area_uid|wnum>\n\r", ch);
+    send_to_char("  set unlock <player> dungeon <unlock|lock> <wnum|reserved_name>\n\r", ch);
     send_to_char("  set reputation <name> <reputation> add [rank#] [value]\n\r", ch);
     send_to_char("  set reputation <name> <reputation> <rank#> [value]\n\r", ch);
     send_to_char("  set reputation <name> <reputation> remove\n\r", ch);
@@ -7020,6 +7045,12 @@ void do_set(CHAR_DATA *ch, char *argument)
     return;
     }
 
+    if (!str_prefix(arg, "unlock"))
+    {
+        do_function(ch, &do_unlockset, argument);
+        return;
+    }
+
     if (!str_prefix(arg, "account") || !str_prefix(arg, "acct"))
     {
         do_function(ch, &do_accset, argument);
@@ -7028,6 +7059,185 @@ void do_set(CHAR_DATA *ch, char *argument)
 
     /* echo syntax */
     do_function(ch, &do_set, "");
+}
+
+void do_unlockset(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    char arg4[MAX_INPUT_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    CHAR_DATA *victim;
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+    one_argument(argument, arg4);
+
+    if (IS_NULLSTR(arg1) || IS_NULLSTR(arg2))
+    {
+        send_to_char("Syntax:\n\r", ch);
+        send_to_char("  set unlock <player> list\n\r", ch);
+        send_to_char("  set unlock <player> area <unlock|lock> <area_uid|wnum>\n\r", ch);
+        send_to_char("  set unlock <player> dungeon <unlock|lock> <wnum|reserved_name>\n\r", ch);
+        return;
+    }
+
+    victim = get_char_world(ch, arg1);
+    if (!IS_VALID(victim))
+    {
+        send_to_char("They aren't here.\n\r", ch);
+        return;
+    }
+
+    if (IS_NPC(victim) || !IS_VALID(victim->pcdata))
+    {
+        send_to_char("Only player characters can have unlock entries.\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg2, "list"))
+    {
+        ITERATOR it;
+        AREA_DATA *area;
+        DUNGEON_INDEX_DATA *dungeon_index;
+        int count = 0;
+
+        printf_to_char(ch, "Unlocked areas for %s:\n\r", victim->name);
+        iterator_start(&it, victim->pcdata->unlocked_areas);
+        while ((area = (AREA_DATA *)iterator_nextdata(&it)))
+        {
+            printf_to_char(ch, "  %-18s %s\n\r", widevnum_string(area, 0, NULL), area->name);
+            ++count;
+        }
+        iterator_stop(&it);
+
+        if (count < 1)
+            send_to_char("  (none)\n\r", ch);
+
+        count = 0;
+        printf_to_char(ch, "Unlocked dungeons for %s:\n\r", victim->name);
+        iterator_start(&it, victim->pcdata->unlocked_dungeons);
+        while ((dungeon_index = (DUNGEON_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            printf_to_char(ch, "  %-18s %s\n\r",
+                widevnum_string(dungeon_index->area, dungeon_index->vnum, NULL),
+                dungeon_index->name);
+            ++count;
+        }
+        iterator_stop(&it);
+
+        if (count < 1)
+            send_to_char("  (none)\n\r", ch);
+
+        return;
+    }
+
+    if (!str_prefix(arg2, "area"))
+    {
+        AREA_DATA *area = NULL;
+        WNUM wnum = wnum_zero;
+        bool is_unlock;
+        bool is_lock;
+
+        if (IS_NULLSTR(arg3) || IS_NULLSTR(arg4))
+        {
+            send_to_char("Syntax: set unlock <player> area <unlock|lock> <area_uid|wnum>\n\r", ch);
+            return;
+        }
+
+        is_unlock = !str_prefix(arg3, "unlock");
+        is_lock = !str_prefix(arg3, "lock") || !str_prefix(arg3, "relock");
+
+        if (!is_unlock && !is_lock)
+        {
+            send_to_char("Action must be 'unlock' or 'lock'.\n\r", ch);
+            return;
+        }
+
+        if (is_number(arg4))
+            area = get_area_index(atol(arg4));
+
+        if (!area
+            && parse_widevnum(arg4, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg4), &wnum)
+            && wnum.pArea)
+            area = wnum.pArea;
+
+        if (!area)
+        {
+            send_to_char("No such area.\n\r", ch);
+            return;
+        }
+
+        if (is_unlock)
+            player_unlock_area(victim, area);
+        else
+            player_relock_area(victim, area);
+
+        snprintf(buf, sizeof(buf), "%s %s area %s (%s).\n\r",
+            is_unlock ? "Unlocked" : "Relocked",
+            victim->name,
+            area->name,
+            widevnum_string(area, 0, NULL));
+        send_to_char(buf, ch);
+        return;
+    }
+
+    if (!str_prefix(arg2, "dungeon"))
+    {
+        DUNGEON_INDEX_DATA *dungeon_index = NULL;
+        WNUM wnum = wnum_zero;
+        bool is_unlock;
+        bool is_lock;
+
+        if (IS_NULLSTR(arg3) || IS_NULLSTR(arg4))
+        {
+            send_to_char("Syntax: set unlock <player> dungeon <unlock|lock> <wnum|reserved_name>\n\r", ch);
+            return;
+        }
+
+        is_unlock = !str_prefix(arg3, "unlock");
+        is_lock = !str_prefix(arg3, "lock") || !str_prefix(arg3, "relock");
+
+        if (!is_unlock && !is_lock)
+        {
+            send_to_char("Action must be 'unlock' or 'lock'.\n\r", ch);
+            return;
+        }
+
+        if (parse_widevnum(arg4, relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, arg4), &wnum)
+            && wnum.pArea)
+            dungeon_index = get_dungeon_index_for_area(wnum.pArea, wnum.vnum);
+        else if (is_number(arg4))
+            dungeon_index = get_dungeon_index(atol(arg4));
+        else
+            dungeon_index = get_reserved_dungeon_index(arg4);
+
+        if (!IS_VALID(dungeon_index))
+        {
+            send_to_char("No such dungeon index.\n\r", ch);
+            return;
+        }
+
+        if (is_unlock)
+            player_unlock_dungeon(victim, dungeon_index);
+        else
+            player_relock_dungeon(victim, dungeon_index);
+
+        snprintf(buf, sizeof(buf), "%s %s dungeon %s (%s).\n\r",
+            is_unlock ? "Unlocked" : "Relocked",
+            victim->name,
+            dungeon_index->name,
+            widevnum_string(dungeon_index->area, dungeon_index->vnum, NULL));
+        send_to_char(buf, ch);
+        return;
+    }
+
+    send_to_char("Syntax:\n\r", ch);
+    send_to_char("  set unlock <player> list\n\r", ch);
+    send_to_char("  set unlock <player> area <unlock|lock> <area_uid|wnum>\n\r", ch);
+    send_to_char("  set unlock <player> dungeon <unlock|lock> <wnum|reserved_name>\n\r", ch);
 }
 
 

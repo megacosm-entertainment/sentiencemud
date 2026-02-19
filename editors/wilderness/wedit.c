@@ -1024,6 +1024,8 @@ WEDIT ( wedit_vlink )
        send_to_char("               - Change the direction of the unlinked vlink.\n\r", ch);
        send_to_char("       [wedit] vlink destination <vlinknum> <vnum>\n\r", ch);
        send_to_char("               - Sets the destination of the unlinked vlink.\n\r", ch);
+    send_to_char("       [wedit] vlink destination <vlinknum> dungeon <wnum|$name> [floor]\n\r", ch);
+    send_to_char("               - Sets the destination of the unlinked vlink to a dungeon.\n\r", ch);
        send_to_char("       [wedit] vlink location <vlinknum> <x> <y>\n\r", ch);
        send_to_char("               - Sets the location of the vlink.\n\r", ch);
        send_to_char("       [wedit] vlink maptile <vlinknum> <tile>\n\r", ch);
@@ -1145,13 +1147,22 @@ WEDIT ( wedit_vlink )
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
         if(pVLink->current_linkage == VLINK_UNLINKED) {
-            if(!str_prefix(arg3,"to_wilds")) pVLink->default_linkage = VLINK_TO_WILDS;
-            else if(!str_prefix(arg3,"from_wilds")) pVLink->default_linkage = VLINK_FROM_WILDS;
-            else if(!str_prefix(arg3,"two_way")) pVLink->default_linkage = VLINK_TO_WILDS|VLINK_FROM_WILDS;
+            int new_linkage = VLINK_UNLINKED;
+
+            if(!str_prefix(arg3,"to_wilds")) new_linkage = VLINK_TO_WILDS;
+            else if(!str_prefix(arg3,"from_wilds")) new_linkage = VLINK_FROM_WILDS;
+            else if(!str_prefix(arg3,"two_way")) new_linkage = VLINK_TO_WILDS|VLINK_FROM_WILDS;
             else {
                 printf_to_char(ch, "Wedit vlink: Invalid linkage.  Valid values are {Wto_wilds{x, {Wfrom_wilds{x and {Wtwo_way{x.\n\r", vlnum);
                 return false;
             }
+
+            if (pVLink->destination_mode == VLINK_DEST_DUNGEON && IS_SET(new_linkage, VLINK_TO_WILDS)) {
+                send_to_char("Wedit vlink: Dungeon destinations only support {Wfrom_wilds{x linkage.\n\r", ch);
+                return false;
+            }
+
+            pVLink->default_linkage = new_linkage;
             send_to_char("Wedit vlink: Linkage set.\n\r", ch);
             return true;
         } else
@@ -1201,7 +1212,6 @@ WEDIT ( wedit_vlink )
     if (!str_cmp(arg, "destination"))
     {
         int vlnum = 0;
-        int value;
 
         if (!pWilds)
         {
@@ -1218,11 +1228,58 @@ WEDIT ( wedit_vlink )
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
         if(pVLink->current_linkage == VLINK_UNLINKED) {
-            WNUM room_wnum;
             AREA_DATA *context = ch->in_room->area;
-            if (parse_widevnum(arg3, context, &room_wnum) && room_wnum.vnum > 0) {
-                value = room_wnum.vnum;
-                ROOM_INDEX_DATA *destRoom = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            if (!str_cmp(arg3, "dungeon")) {
+                DUNGEON_INDEX_DATA *dest_dungeon = NULL;
+                WNUM dng_wnum = { NULL, 0 };
+                int floor = 1;
+
+                if (!arg4[0]) {
+                    send_to_char("Wedit vlink: Syntax is vlink destination <vlinknum> dungeon <wnum|$name> [floor]\n\r", ch);
+                    return false;
+                }
+
+                if (argument[0]) {
+                    if (!is_number(argument)) {
+                        send_to_char("Wedit vlink: Floor must be a number.\n\r", ch);
+                        return false;
+                    }
+                    floor = UMAX(1, atoi(argument));
+                }
+
+                if (parse_widevnum(arg4, context, &dng_wnum) && dng_wnum.vnum > 0)
+                    dest_dungeon = get_dungeon_index_for_area(dng_wnum.pArea, dng_wnum.vnum);
+
+                if (!dest_dungeon) {
+                    send_to_char("Wedit vlink: Invalid dungeon destination.\n\r", ch);
+                    return false;
+                }
+
+                if (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS)) {
+                    send_to_char("Wedit vlink: Dungeon destinations require {Wfrom_wilds{x linkage.\n\r", ch);
+                    return false;
+                }
+
+                pVLink->destination_mode = VLINK_DEST_DUNGEON;
+                pVLink->dungeon_floor = floor;
+                pVLink->destvnum = dest_dungeon->vnum;
+                pVLink->dest_load.auid = dest_dungeon->area ? dest_dungeon->area->uid : 0;
+                pVLink->dest_load.vnum = dest_dungeon->vnum;
+                pVLink->dest_wnum.pArea = dest_dungeon->area;
+                pVLink->dest_wnum.vnum = dest_dungeon->vnum;
+
+                send_to_char("Wedit vlink: Dungeon destination set.\n\r", ch);
+                return true;
+            } else {
+                WNUM room_wnum;
+                ROOM_INDEX_DATA *destRoom;
+
+                if (!(parse_widevnum(arg3, context, &room_wnum) && room_wnum.vnum > 0)) {
+                    send_to_char("Wedit vlink: Invalid destination", ch);
+                    return false;
+                }
+
+                destRoom = get_room_index(room_wnum.pArea, room_wnum.vnum);
 
                 if( !destRoom )
                 {
@@ -1237,11 +1294,15 @@ WEDIT ( wedit_vlink )
                     return false;
                 }
 
-                pVLink->destvnum = value;
+                pVLink->destination_mode = VLINK_DEST_ROOM;
+                pVLink->dungeon_floor = 1;
+                pVLink->destvnum = room_wnum.vnum;
+                pVLink->dest_load.auid = room_wnum.pArea ? room_wnum.pArea->uid : 0;
+                pVLink->dest_load.vnum = room_wnum.vnum;
+                pVLink->dest_wnum = room_wnum;
                 send_to_char("Wedit vlink: Destination set.\n\r", ch);
                 return true;
-            } else
-                send_to_char("Wedit vlink: Invalid destination", ch);
+            }
         } else
             printf_to_char(ch, "Wedit vlink: Found vlink %d, but it needs to be unlinked first.\n\r", vlnum);
     } else {
@@ -1341,17 +1402,26 @@ WEDIT ( wedit_vlink )
 
         send_to_char("{x[ {Wwedit vlink{x ]\n\r\n\r", ch);
         send_to_char("[num] [uid]   [x coor] [y coor] [direction] "
-                     "[destvnum] [default] [current] [maptile]\n\r", ch);
+                     "[dest] [default] [current] [maptile]\n\r", ch);
 
         for(vlnum = 0,pVLink=pWilds?pWilds->pVLink:ch->in_room->area->wilds->pVLink;pVLink!=NULL;pVLink = pVLink->next)
         {
-            printf_to_char(ch, "%-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-8ld   %10s%10s%s{x\n\r",
+            char dest_buf[MSL];
+            if (pVLink->destination_mode == VLINK_DEST_DUNGEON) {
+                snprintf(dest_buf, sizeof(dest_buf), "dng %ld#%ld f%d",
+                    pVLink->dest_load.auid, pVLink->dest_load.vnum, UMAX(1, pVLink->dungeon_floor));
+            } else {
+                snprintf(dest_buf, sizeof(dest_buf), "%ld#%ld",
+                    pVLink->dest_load.auid, pVLink->dest_load.vnum);
+            }
+
+            printf_to_char(ch, "%-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-14s %10s%10s%s{x\n\r",
                        vlnum++,
                            pVLink->uid,
                            pVLink->wildsorigin_x,
                            pVLink->wildsorigin_y,
                            dir_name[pVLink->door],
-                           pVLink->destvnum,
+                           dest_buf,
                            vlinkage_bit_name(pVLink->default_linkage),
                            vlinkage_bit_name(pVLink->current_linkage),
                            pVLink->map_tile);

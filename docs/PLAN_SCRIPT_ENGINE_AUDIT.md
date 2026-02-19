@@ -1,5 +1,8 @@
 # Script Engine Audit Plan
 
+> Superseded by `docs/PLAN_SCRIPT_AUDIT_CONSOLIDATED.md` as the canonical
+> script audit and execution roadmap.
+
 ## Goal
 Perform a full end-to-end audit of the script engine for correctness, safety, maintainability, and selective backports from `src_20_dev`.
 

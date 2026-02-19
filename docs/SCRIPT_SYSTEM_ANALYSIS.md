@@ -1,5 +1,8 @@
 # Script System Analysis & Improvement Plan
 
+> Planning authority for execution order is now
+> `docs/PLAN_SCRIPT_AUDIT_CONSOLIDATED.md`.
+
 ## Overview
 
 The scripting system (`scripts.h`, `scripts.c`, `script_*.c`) is a large,

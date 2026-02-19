@@ -153,6 +153,7 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "ungroup",			do_opungroup,			false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,		false,	true	},
     { "usecatalyst",		do_opusecatalyst,		false,	true	},
     { "varclear",			do_opvarclear,			false,	true	},

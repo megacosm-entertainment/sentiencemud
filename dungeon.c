@@ -1240,9 +1240,76 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
     return leader;
 }
 
+static int dungeon_group_members_inside(DUNGEON *dungeon, CHAR_DATA *leader)
+{
+    ITERATOR it;
+    CHAR_DATA *member;
+    int count = 0;
+
+    if (!IS_VALID(dungeon) || !IS_VALID(leader))
+        return 0;
+
+    iterator_start(&it, dungeon->players);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it)))
+    {
+        if (!IS_NPC(member) && is_same_group(member, leader))
+            ++count;
+    }
+    iterator_stop(&it);
+
+    return count;
+}
+
+bool can_access_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *index, DUNGEON *dungeon)
+{
+    if (!IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(index))
+        return false;
+
+    if (!is_dungeon_unlocked(ch, index))
+    {
+        send_to_char("You cannot enter that dungeon yet.\n\r", ch);
+        return false;
+    }
+
+    if (!IS_VALID(dungeon))
+        return true;
+
+    if (dungeon_isowner_player(dungeon, ch))
+        return true;
+
+    if (index->max_players > 0 && list_size(dungeon->players) >= index->max_players)
+    {
+        send_to_char("The dungeon is full.\n\r", ch);
+        return false;
+    }
+
+    if (!IS_SET(dungeon->flags, DUNGEON_SHARED) && index->max_group > 0)
+    {
+        CHAR_DATA *leader = get_player_leader(ch);
+        int group_size = dungeon_group_members_inside(dungeon, leader);
+
+        if (!list_hasdata(dungeon->players, ch) && is_same_group(ch, leader))
+            ++group_size;
+
+        if (group_size > index->max_group)
+        {
+            send_to_char("Your group cannot fit into that dungeon.\n\r", ch);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor)
 {
     CHAR_DATA *leader = get_player_leader(ch);
+    DUNGEON_INDEX_DATA *target_index = wnum.pArea
+        ? get_dungeon_index_for_area(wnum.pArea, wnum.vnum)
+        : get_dungeon_index(wnum.vnum);
+
+    if (!IS_VALID(target_index))
+        return NULL;
 
     DUNGEON *leader_dng = find_dungeon_byplayer(leader, wnum);
     DUNGEON *ch_dng = find_dungeon_byplayer(ch, wnum);
@@ -1271,6 +1338,9 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor)
             return NULL;
         }
 
+        if (!can_access_dungeon(ch, target_index, NULL))
+            return NULL;
+
         leader_dng = create_dungeon(wnum);
 
         if( !leader_dng )
@@ -1290,14 +1360,8 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor)
     }
     else
     {
-        // Check max_players for shared dungeons
-        if (IS_SET(leader_dng->flags, DUNGEON_SHARED) &&
-            leader_dng->index->max_players > 0 &&
-            list_size(leader_dng->players) >= leader_dng->index->max_players)
-        {
-            send_to_char("The dungeon is full.\n\r", ch);
+        if (!can_access_dungeon(ch, leader_dng->index, leader_dng))
             return NULL;
-        }
     }
 
     dungeon_addowner_player(leader_dng, ch);

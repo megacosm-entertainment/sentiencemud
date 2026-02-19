@@ -695,12 +695,14 @@ ENT_FIELD entity_dice[] = {
 
 ENT_FIELD entity_mobindex[] = {
     {"vnum",			ENTITY_MOBINDEX_VNUM,			ENT_NUMBER },
+    {"wnum",			ENTITY_MOBINDEX_WNUM,			ENT_WIDEVNUM },
     {"level",			ENTITY_MOBINDEX_LEVEL,			ENT_NUMBER },
     {"loaded",			ENTITY_MOBINDEX_LOADED,			ENT_NUMBER },
 };
 
 ENT_FIELD entity_objindex[] = {
     {"vnum",			ENTITY_OBJINDEX_VNUM,			ENT_NUMBER },
+    {"wnum",			ENTITY_OBJINDEX_WNUM,			ENT_WIDEVNUM },
     {"level",			ENTITY_OBJINDEX_LEVEL,			ENT_NUMBER },
     {"loaded",			ENTITY_OBJINDEX_LOADED,			ENT_NUMBER },
     {"inrooms",			ENTITY_OBJINDEX_INROOMS,		ENT_NUMBER },
@@ -715,6 +717,18 @@ ENT_FIELD entity_instance_section[] = {
     {"rooms",			ENTITY_SECTION_ROOMS,			ENT_PLLIST_ROOM	},
     {"instance",		ENTITY_SECTION_INSTANCE,		ENT_INSTANCE },
     {"map",				ENTITY_SECTION_MAP,				ENT_STRING },
+    {"mapobj",			ENTITY_SECTION_MAP_OBJ,			ENT_OBJECT },
+    {"mapobject",		ENTITY_SECTION_MAP_OBJ,			ENT_OBJECT },
+    {"map_obj",		ENTITY_SECTION_MAP_OBJ,			ENT_OBJECT },
+    {"mapobjindex",	ENTITY_SECTION_MAP_OBJ_INDEX,	ENT_OBJINDEX },
+    {"map_objindex",	ENTITY_SECTION_MAP_OBJ_INDEX,	ENT_OBJINDEX },
+    {"mapobjectindex", ENTITY_SECTION_MAP_OBJ_INDEX,	ENT_OBJINDEX },
+    {"mapmob",			ENTITY_SECTION_MAP_MOB,			ENT_MOBILE },
+    {"mapmobile",		ENTITY_SECTION_MAP_MOB,			ENT_MOBILE },
+    {"map_mob",		ENTITY_SECTION_MAP_MOB,			ENT_MOBILE },
+    {"mapmobindex",	ENTITY_SECTION_MAP_MOB_INDEX,	ENT_MOBINDEX },
+    {"map_mobindex",	ENTITY_SECTION_MAP_MOB_INDEX,	ENT_MOBINDEX },
+    {"mapmobileindex", ENTITY_SECTION_MAP_MOB_INDEX,	ENT_MOBINDEX },
     {NULL,				0,								ENT_UNKNOWN	}
 };
 
@@ -1538,6 +1552,7 @@ IFCHECK_DATA ifcheck_table[] = {
     { "isaffectwhere",		IFC_ANY,	"E",	false,	ifc_isaffectwhere,		"ifcheck isaffectwhere" },
     { "isangel",			IFC_ANY,	"E",	false,	ifc_isangel,			"ifcheck isangel" },
     { "isareaunlocked",		IFC_ANY,	"E",	false,	ifc_isareaunlocked,		"ifcheck isareaunlocked" },
+    { "isdungeonunlocked",	IFC_ANY,	"E",	false,	ifc_isdungeonunlocked,	"ifcheck isdungeonunlocked" },
     { "isboss",				IFC_ANY,	"E",	false,	ifc_isboss,				"ifcheck isboss" },
     { "isbrewing",			IFC_ANY,	"Es",	false,	ifc_isbrewing,			"ifcheck isbrewing" },
     { "isbusy",				IFC_ANY,	"E",	false,	ifc_isbusy,				"ifcheck isbusy" },

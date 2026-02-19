@@ -153,6 +153,8 @@ const struct script_cmd_type token_cmd_table[] = {
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "ungroup",			do_tpungroup,				false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "usecatalyst",		do_tpusecatalyst,			false,	true	},
     { "varclear",			do_tpvarclear,				false,	true	},

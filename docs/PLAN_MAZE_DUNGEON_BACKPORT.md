@@ -16,6 +16,15 @@
 4. **Add script commands** for spawning and managing dungeons/instances
 5. **Update OLC editors** (bsedit, dngedit) to support maze configuration and shared dungeon settings
 
+### Follow-up Note (2026-02-19)
+
+- Add a dedicated **PoA mob loot table audit** pass.
+- Compare legacy `maze1-5` reset-based loot distribution (bottled souls + named mob gear) against current `poa.json` repop-script behavior.
+- Decide long-term source of truth for mob loot in instanced dungeons:
+  - reset parity emulation, or
+  - explicit per-mob/scripted loot table definitions.
+- Implement consistent floor-aware loot rules once the model is chosen.
+
 ---
 
 ## 2. Current State

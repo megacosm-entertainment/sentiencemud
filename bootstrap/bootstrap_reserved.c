@@ -188,6 +188,20 @@ static const reserved_entity_t required_entities[] = {
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
+typedef struct {
+    const char *name;
+    long area_uid;
+    long vnum;
+    bool removable;
+    const char *description;
+} reserved_dungeon_t;
+
+static const reserved_dungeon_t required_dungeons[] = {
+    {"maze_death", 1299, 1, false, "Geldoff's Maze dungeon"},
+    {"maze_poa",   1557, 1, false, "Pyramid of the Abyss dungeon"},
+    {NULL, 0, 0, false, NULL}
+};
+
 /**
  * create_reserved_entities - Generate reserved entities in limbo area
  *
@@ -234,6 +248,7 @@ bool create_reserved_entities(void)
     int obj_count = 0;
     int mob_count = 0;
     int room_count = 0;
+    int dungeon_count = 0;
     int obj_vnum = 0;
     int mob_vnum = 0;
     int room_vnum = 0;
@@ -248,6 +263,20 @@ bool create_reserved_entities(void)
                 if (vnum > obj_vnum) obj_vnum = vnum;
             }
         }
+    }
+
+    for (int i = 0; required_dungeons[i].name != NULL; i++) {
+        const reserved_dungeon_t *dng = &required_dungeons[i];
+
+        json_t *reserved_entry = json_object();
+        json_object_set_new(reserved_entry, "name", json_string(dng->name));
+        json_object_set_new(reserved_entry, "type", json_string("dungeon"));
+        json_object_set_new(reserved_entry, "area_uid", json_integer(dng->area_uid));
+        json_object_set_new(reserved_entry, "vnum", json_integer(dng->vnum));
+        json_object_set_new(reserved_entry, "removable", json_boolean(dng->removable));
+        json_object_set_new(reserved_entry, "description", json_string(dng->description));
+        json_array_append_new(reserved_entities, reserved_entry);
+        dungeon_count++;
     }
 
     if (limbo_mobs && json_is_array(limbo_mobs)) {
@@ -324,7 +353,7 @@ bool create_reserved_entities(void)
     json_decref(limbo_root);
 
     /* Save reserved.json */
-    json_object_set_new(reserved_root, "count", json_integer(obj_count + mob_count + room_count));
+    json_object_set_new(reserved_root, "count", json_integer(obj_count + mob_count + room_count + dungeon_count));
     json_object_set_new(reserved_root, "entities", reserved_entities);
 
     if (json_dump_file(reserved_root, "data/system/reserved.json", JSON_INDENT(2)) != 0) {
@@ -335,7 +364,7 @@ bool create_reserved_entities(void)
     json_decref(reserved_root);
 
     printf("  Created %d objects, %d mobs, %d rooms in limbo\n", obj_count, mob_count, room_count);
-    printf("  Added %d entities to reserved list\n", obj_count + mob_count + room_count);
+    printf("  Added %d entities to reserved list\n", obj_count + mob_count + room_count + dungeon_count);
 
     return true;
 }

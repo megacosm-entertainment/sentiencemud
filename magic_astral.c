@@ -17,6 +17,37 @@
 #include "tables.h"
 #include "wilds.h"
 
+static ROOM_INDEX_DATA *maze_spawn_destination(CHAR_DATA *victim, const char *reserved_dungeon)
+{
+    DUNGEON_INDEX_DATA *index;
+    WNUM wnum;
+    ROOM_INDEX_DATA *room;
+    DUNGEON *dungeon;
+
+    if (!IS_VALID(victim) || IS_NPC(victim) || IS_NULLSTR(reserved_dungeon))
+        return NULL;
+
+    index = get_reserved_dungeon_index(reserved_dungeon);
+    if (!IS_VALID(index) || !index->area)
+        return NULL;
+
+    wnum.pArea = index->area;
+    wnum.vnum = index->vnum;
+
+    room = spawn_dungeon_player(victim, wnum, 1);
+    if (!room)
+        return NULL;
+
+    dungeon = find_dungeon_byplayer(victim, wnum);
+    if (IS_VALID(dungeon)) {
+        ROOM_INDEX_DATA *random_room = dungeon_random_room(victim, dungeon);
+        if (random_room)
+            room = random_room;
+    }
+
+    return room;
+}
+
 
 SPELL_FUNC(spell_gate)
 {
@@ -82,9 +113,10 @@ SPELL_FUNC(spell_maze)
     int sn __attribute__((unused)) = skill->uid;
     int skill_pct;
     CHAR_DATA *victim = NULL;
-    ROOM_INDEX_DATA *room;
+    ROOM_INDEX_DATA *room = NULL;
     AREA_DATA *area;
     int lvl, catalyst;
+    bool combat_maze;
 
     victim = (CHAR_DATA *) vo;
 
@@ -118,22 +150,32 @@ SPELL_FUNC(spell_maze)
         return false;
     }
 
-    skill_pct = get_skill(ch, skill_resolve_gsn("maze"));
-    if (!(area = find_area("Maze-Level1")) || !(area = find_area("Geldoff's Maze"))) {
-        send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
-        ch->daze += 10 - number_range(0, skill_pct/10);
-        return false;
-    }
-    if (victim->fighting == ch || ch->fighting)
-    {
-        area = find_area("Geldoff's Maze");
+    combat_maze = (victim->fighting == ch || ch->fighting);
+
+    if (combat_maze) {
+        room = maze_spawn_destination(victim, "maze_death");
         victim->maze_time_left = 3;
-    } 
-    else
-    {
-        area = find_area("Maze-Level1");
+    } else {
+        room = maze_spawn_destination(victim, "maze_poa");
     }
-    while(!(room = get_room_index(area, number_range(area->min_vnum, area->max_vnum))));
+
+    if (!room) {
+        AREA_DATA *poa_area;
+        AREA_DATA *geldoff_area;
+
+        skill_pct = get_skill(ch, skill_resolve_gsn("maze"));
+        poa_area = find_area("Maze-Level1");
+        geldoff_area = find_area("Geldoff's Maze");
+
+        if (!poa_area || !geldoff_area) {
+            send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
+            ch->daze += 10 - number_range(0, skill_pct/10);
+            return false;
+        }
+
+        area = combat_maze ? geldoff_area : poa_area;
+        while (!(room = get_room_index(area, number_range(area->min_vnum, area->max_vnum))));
+    }
 
     if (victim->fighting) stop_fighting(victim, true);
 

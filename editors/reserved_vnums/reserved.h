@@ -22,6 +22,9 @@ typedef struct area_data AREA_DATA;
 #define RESERVED_RPROG   7
 #define RESERVED_TPROG   8
 #define RESERVED_APROG   9
+#define RESERVED_BLUEPRINT 10
+#define RESERVED_DUNGEON   11
+#define RESERVED_SHIP      12
 
 /* Security level needed for the reserved editor */
 #define MIN_SECURITY_RESERVED 8

@@ -5439,6 +5439,16 @@ char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.mobindex ? arg->d.mobindex->vnum: 0;
         break;
+    case ENTITY_MOBINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        if (arg->d.mobindex) {
+            arg->d.wnum.pArea = arg->d.mobindex->area;
+            arg->d.wnum.vnum = arg->d.mobindex->vnum;
+        } else {
+            arg->d.wnum.pArea = NULL;
+            arg->d.wnum.vnum = 0;
+        }
+        break;
     case ENTITY_MOBINDEX_LOADED:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.mobindex ? arg->d.mobindex->count : 0;
@@ -5462,6 +5472,16 @@ char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJINDEX_VNUM:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.objindex ? arg->d.objindex->vnum: 0;
+        break;
+    case ENTITY_OBJINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        if (arg->d.objindex) {
+            arg->d.wnum.pArea = arg->d.objindex->area;
+            arg->d.wnum.vnum = arg->d.objindex->vnum;
+        } else {
+            arg->d.wnum.pArea = NULL;
+            arg->d.wnum.vnum = 0;
+        }
         break;
     case ENTITY_OBJINDEX_LOADED:
         arg->type = ENT_NUMBER;
@@ -5501,6 +5521,9 @@ char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_instance_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     INSTANCE_SECTION *section = arg->d.section;
+    MAZE_MAP_DATA *map_data = (section && section->section) ? section->section->map_data : NULL;
+    OBJ_INDEX_DATA *map_obj_index = map_data ? map_data->obj : NULL;
+    MOB_INDEX_DATA *map_mob_index = map_data ? map_data->mob : NULL;
 
     switch(*str) {
     case ENTITY_SECTION_ROOMS:
@@ -5514,6 +5537,70 @@ char *expand_entity_instance_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
     case ENTITY_SECTION_MAP:
         arg->type = ENT_STRING;
         arg->d.str = (section && section->map_text) ? section->map_text : &str_empty[0];
+        break;
+    case ENTITY_SECTION_MAP_OBJ:
+    {
+        ROOM_INDEX_DATA *room;
+        OBJ_DATA *object;
+        ITERATOR it;
+
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+
+        if (!section || !map_obj_index || !section->rooms)
+            break;
+
+        iterator_start(&it, section->rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            for (object = room->contents; object; object = object->next_content)
+            {
+                if (object->pIndexData == map_obj_index)
+                {
+                    arg->d.obj = object;
+                    iterator_stop(&it);
+                    return str + 1;
+                }
+            }
+        }
+        iterator_stop(&it);
+        break;
+    }
+    case ENTITY_SECTION_MAP_MOB:
+    {
+        ROOM_INDEX_DATA *room;
+        CHAR_DATA *mob;
+        ITERATOR it;
+
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+
+        if (!section || !map_mob_index || !section->rooms)
+            break;
+
+        iterator_start(&it, section->rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            for (mob = room->people; mob; mob = mob->next_in_room)
+            {
+                if (IS_NPC(mob) && mob->pIndexData == map_mob_index)
+                {
+                    arg->d.mob = mob;
+                    iterator_stop(&it);
+                    return str + 1;
+                }
+            }
+        }
+        iterator_stop(&it);
+        break;
+    }
+    case ENTITY_SECTION_MAP_OBJ_INDEX:
+        arg->type = ENT_OBJINDEX;
+        arg->d.objindex = map_obj_index;
+        break;
+    case ENTITY_SECTION_MAP_MOB_INDEX:
+        arg->type = ENT_MOBINDEX;
+        arg->d.mobindex = map_mob_index;
         break;
     default: return NULL;
     }
@@ -7403,6 +7490,16 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
     switch(arg->type) {
     default:
         add_buf(buffer, "{D<{x@{W@{x@{D>{x ");
+        break;
+
+    case ENT_WIDEVNUM:
+        if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0)
+        {
+            sprintf(buf, "%ld#%ld", arg->d.wnum.pArea->uid, arg->d.wnum.vnum);
+            add_buf(buffer, buf);
+        }
+        else
+            add_buf(buffer, "0#0");
         break;
 
     case ENT_BOOLEAN:

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 180,
+  "count": 182,
   "entities": [
     {
       "name": "mob_death",
@@ -1441,6 +1441,22 @@
       "vnum": 5,
       "removable": false,
       "description": "Where do we send remorts?\n\r"
+    },
+    {
+      "name": "maze_death",
+      "type": "dungeon",
+      "area_uid": 1299,
+      "vnum": 1,
+      "removable": false,
+      "description": "Geldoff combat maze dungeon"
+    },
+    {
+      "name": "maze_poa",
+      "type": "dungeon",
+      "area_uid": 1557,
+      "vnum": 1,
+      "removable": false,
+      "description": "Pyramid of the Abyss maze dungeon"
     }
   ]
 }

@@ -10306,11 +10306,45 @@ bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
     if( !room ||											// Phantom room
         room_is_clone(room) ||								// General clone
-        IS_SET(room->room_flag[1],ROOM_VIRTUAL_ROOM) ||		// Wilderness room
-        IS_VALID(room->instance_section) )					// Instance room (should count as clone, though)
+        IS_SET(room->room_flag[1],ROOM_VIRTUAL_ROOM) )		// Wilderness room
         return true;
 
+    if( IS_VALID(room->instance_section) )
+    {
+        DUNGEON *dungeon = get_room_dungeon(room);
+
+        if( IS_VALID(dungeon) )
+            return is_dungeon_unlocked(ch, dungeon->index);
+
+        return true;
+    }
+
     return is_area_unlocked(ch, room->area);
+}
+
+bool is_dungeon_unlocked(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index)
+{
+    if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || (IS_IMMORTAL(ch) && IS_SET(ch->act[1], PLR_HOLYWARP)) )
+        return true;
+
+    if( !dungeon_index || !IS_SET(dungeon_index->flags, DUNGEON_LOCKED) )
+        return true;
+
+    ITERATOR it;
+    DUNGEON_INDEX_DATA *unlocked;
+
+    iterator_start(&it, ch->pcdata->unlocked_dungeons);
+    while( (unlocked = (DUNGEON_INDEX_DATA *)iterator_nextdata(&it)) )
+    {
+        if( unlocked == dungeon_index )
+        {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+
+    return false;
 }
 
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area)
@@ -10318,6 +10352,33 @@ void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area)
     if( is_area_unlocked(ch, area) ) return;
 
     list_appendlink(ch->pcdata->unlocked_areas, area);
+}
+
+void player_relock_area(CHAR_DATA *ch, AREA_DATA *area)
+{
+    if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || !area )
+        return;
+
+    list_remlink(ch->pcdata->unlocked_areas, area, false);
+}
+
+void player_unlock_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index)
+{
+    if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || !IS_VALID(dungeon_index) )
+        return;
+
+    if( is_dungeon_unlocked(ch, dungeon_index) )
+        return;
+
+    list_appendlink(ch->pcdata->unlocked_dungeons, dungeon_index);
+}
+
+void player_relock_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index)
+{
+    if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || !IS_VALID(dungeon_index) )
+        return;
+
+    list_remlink(ch->pcdata->unlocked_dungeons, dungeon_index, false);
 }
 
 bool lockstate_functional(LOCK_STATE *lock)
@@ -12963,6 +13024,84 @@ ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
     return NULL;
 }
 
+BLUEPRINT *get_reserved_blueprint(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    WNUM wnum;
+
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_BLUEPRINT &&
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            wnum.pArea = get_area_index(reserved->wnum.auid);
+            if (!wnum.pArea)
+                wnum.pArea = get_system_area_fallback();
+            wnum.vnum = reserved->wnum.vnum;
+            return get_blueprint_for_area(wnum.pArea, wnum.vnum);
+        }
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
+DUNGEON_INDEX_DATA *get_reserved_dungeon_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    WNUM wnum;
+
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_DUNGEON &&
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            wnum.pArea = get_area_index(reserved->wnum.auid);
+            if (!wnum.pArea)
+                wnum.pArea = get_system_area_fallback();
+            wnum.vnum = reserved->wnum.vnum;
+            return get_dungeon_index_for_area(wnum.pArea, wnum.vnum);
+        }
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
+SHIP_INDEX_DATA *get_reserved_ship_index(const char *name)
+{
+    ITERATOR it;
+    RESERVED_DATA *reserved;
+    WNUM wnum;
+
+    if (!name || !*name || !reserved_vnums)
+        return NULL;
+
+    iterator_start(&it, reserved_vnums);
+    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
+        if (reserved->type == RESERVED_SHIP &&
+            !str_cmp(name, reserved->name)) {
+            iterator_stop(&it);
+            wnum.pArea = get_area_index(reserved->wnum.auid);
+            if (!wnum.pArea)
+                wnum.pArea = get_system_area_fallback();
+            wnum.vnum = reserved->wnum.vnum;
+            return get_ship_index_for_area(wnum.pArea, wnum.vnum);
+        }
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
 /*
  * Helper function to get area index by id
  */
@@ -13014,6 +13153,77 @@ AREA_DATA *find_area_by_vnum(long vnum, AREA_DATA *current_area)
 }
 
 /**
+ * parse_reserved_wnum_reference - Parse reserved syntax into a WNUM
+ *
+ * Supported forms:
+ * - $name
+ *
+ * @param argument  Input token
+ * @param wnum      Output WNUM to populate
+ * @return          true if successfully resolved, false otherwise
+ */
+static bool parse_reserved_wnum_reference(const char *argument, WNUM *wnum)
+{
+    const char *name_start = NULL;
+    const char *trim_start;
+    const char *trim_end;
+    size_t argument_len;
+    size_t name_len = 0;
+    char reserved_name[MSL];
+    RESERVED_DATA *reserved;
+    AREA_DATA *area;
+
+    if (!argument || !wnum || argument[0] != '$')
+        return false;
+
+    argument_len = strlen(argument);
+    if (argument_len < 2)
+        return false;
+
+    name_start = argument + 1;
+    name_len = argument_len - 1;
+
+    if (name_len == 0 || name_len >= sizeof(reserved_name))
+        return false;
+
+    strncpy(reserved_name, name_start, name_len);
+    reserved_name[name_len] = '\0';
+
+    trim_start = reserved_name;
+    while (*trim_start && isspace((unsigned char)*trim_start))
+        trim_start++;
+
+    if (!*trim_start)
+        return false;
+
+    trim_end = trim_start + strlen(trim_start);
+    while (trim_end > trim_start && isspace((unsigned char)*(trim_end - 1)))
+        trim_end--;
+
+    name_len = (size_t)(trim_end - trim_start);
+    if (name_len == 0 || name_len >= sizeof(reserved_name))
+        return false;
+
+    memmove(reserved_name, trim_start, name_len);
+    reserved_name[name_len] = '\0';
+
+    reserved = find_reserved(reserved_name);
+    if (!reserved || reserved->wnum.vnum < 1)
+        return false;
+
+    area = get_area_index(reserved->wnum.auid);
+    if (!area)
+        area = find_area_by_vnum(reserved->wnum.vnum, NULL);
+
+    if (!area)
+        return false;
+
+    wnum->pArea = area;
+    wnum->vnum = reserved->wnum.vnum;
+    return true;
+}
+
+/**
  * parse_widevnum - Parse a widevnum string into a WNUM structure
  *
  * Converts user input into a WNUM structure that identifies an entity
@@ -13024,6 +13234,7 @@ AREA_DATA *find_area_by_vnum(long vnum, AREA_DATA *current_area)
  * - "5#1234"          : Absolute (area UID 5, vnum 1234)
  * - "Plith#1234"      : Area name (finds area by name)
  * - "'Multi Word'#42" : Quoted area name for names with spaces
+ * - "$name"           : Reserved entity name
  * - "1234"            : Bare vnum - looks up which area contains it
  *
  * Legacy support (bare vnums):
@@ -13056,6 +13267,11 @@ bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum)
     // Clear output
     wnum->pArea = NULL;
     wnum->vnum = 0;
+
+    // Reserved entity reference support: $name
+    if (parse_reserved_wnum_reference(argument, wnum)) {
+        return true;
+    }
     
     // Look for hash separator
     hash_pos = strchr(argument, '#');

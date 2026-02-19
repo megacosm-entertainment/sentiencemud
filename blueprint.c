@@ -668,6 +668,20 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
     return NULL;
 }
 
+static BLUEPRINT_LINK *get_section_link_by_name(BLUEPRINT_SECTION *bs, const char *name)
+{
+    if (!IS_VALID(bs) || IS_NULLSTR(name))
+        return NULL;
+
+    for (BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
+    {
+        if (!str_cmp(bl->name, name))
+            return bl;
+    }
+
+    return NULL;
+}
+
 /**
  * valid_static_link - Validate a connection between two sections in static mode
  *
@@ -1983,7 +1997,9 @@ bool generate_static_instance(INSTANCE *instance)
             INSTANCE_SECTION *section = instance_get_section(instance, bex->section);
             if( section )
             {
-                BLUEPRINT_LINK *bl = get_section_link(section->section, bex->link);
+                BLUEPRINT_LINK *bl = get_section_link_by_name(section->section, bex->name);
+                if (!bl)
+                    bl = get_section_link(section->section, bex->link);
 
                 if( bl )
                 {
@@ -2019,7 +2035,9 @@ bool generate_static_instance(INSTANCE *instance)
             INSTANCE_SECTION *section = instance_get_section(instance, bex->section);
             if( section )
             {
-                BLUEPRINT_LINK *bl = get_section_link(section->section, bex->link);
+                BLUEPRINT_LINK *bl = get_section_link_by_name(section->section, bex->name);
+                if (!bl)
+                    bl = get_section_link(section->section, bex->link);
 
                 if( bl )
                 {

@@ -1035,6 +1035,7 @@ PC_DATA *new_pcdata(void)
     pcdata->second_sub_class_warrior = -1;
 
     pcdata->unlocked_areas = list_create(false);
+    pcdata->unlocked_dungeons = list_create(false);
     pcdata->ships = list_create(false);
     pcdata->classes = list_create(false);
     pcdata->current_class = NULL;
@@ -1132,6 +1133,7 @@ void free_pcdata(PC_DATA *pcdata)
     list_destroy(pcdata->known_groups);
 
     list_destroy(pcdata->unlocked_areas);
+    list_destroy(pcdata->unlocked_dungeons);
     list_destroy(pcdata->ships);
 
     INVALIDATE(pcdata);
@@ -4853,7 +4855,7 @@ void free_instance_section(INSTANCE_SECTION *section)
     iterator_start(&rit,section->rooms);
     while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
     {
-        extract_clone_room(room->source,room->id[0],room->id[1],true);
+        queue_clone_room_extract(room->source, room->id[0], room->id[1], true);
     }
     iterator_stop(&rit);
 

@@ -261,6 +261,7 @@ const struct script_cmd_type area_cmd_table[] = {
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "varclear",			scriptcmd_varclear,			false,	true	},
     { "varclearon",			scriptcmd_varclearon,		false,	true	},
@@ -300,6 +301,7 @@ const struct script_cmd_type instance_cmd_table[] = {
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "varclear",			scriptcmd_varclear,			false,	true	},
     { "varclearon",			scriptcmd_varclearon,		false,	true	},
@@ -339,6 +341,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "varclear",			scriptcmd_varclear,			false,	true	},
     { "varclearon",			scriptcmd_varclearon,		false,	true	},
@@ -2739,6 +2742,10 @@ SCRIPT_CMD(scriptcmd_grantskill)
         token_index = get_token_index_from_info(info, arg->d.num);
 
         if( !token_index ) return;
+    } else if( arg->type == ENT_WIDEVNUM ) {
+        token_index = get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+
+        if( !token_index ) return;
     }
     else
         return;
@@ -4299,12 +4306,16 @@ SCRIPT_CMD(scriptcmd_revokeskill)
         token_index = get_token_index_from_info(info, arg->d.num);
 
         if( !token_index ) return;
+    } else if( arg->type == ENT_WIDEVNUM ) {
+        token_index = get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
 
-        entry = skill_entry_findtokenindex(mob->sorted_skills, token_index);
-
+        if( !token_index ) return;
     }
     else
         return;
+
+    if( token_index )
+        entry = skill_entry_findtokenindex(mob->sorted_skills, token_index);
 
     if( !entry ) return;
 
@@ -5246,6 +5257,53 @@ SCRIPT_CMD(scriptcmd_unlockarea)
         return;
 
     player_unlock_area(player, area);
+
+    info->progs->lastreturn = 1;
+}
+
+// UNLOCKDUNGEON $PLAYER $DUNGEON|$ROOM|$WNUM|$VNUM
+SCRIPT_CMD(scriptcmd_unlockdungeon)
+{
+    char *rest;
+    CHAR_DATA *player;
+    DUNGEON_INDEX_DATA *dungeon_index = NULL;
+
+    if(!info) return;
+
+    info->progs->lastreturn = 0;
+
+    if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_MOBILE || IS_NPC(arg->d.mob) )
+        return;
+
+    player = arg->d.mob;
+
+    if(!expand_argument(info,rest,arg))
+        return;
+
+    if( arg->type == ENT_DUNGEON )
+    {
+        dungeon_index = arg->d.dungeon ? arg->d.dungeon->index : NULL;
+    }
+    else if( arg->type == ENT_ROOM )
+    {
+        DUNGEON *dng = arg->d.room ? get_room_dungeon(arg->d.room) : NULL;
+        dungeon_index = dng ? dng->index : NULL;
+    }
+    else if( arg->type == ENT_NUMBER )
+    {
+        dungeon_index = get_dungeon_index(arg->d.num);
+    }
+    else if( arg->type == ENT_STRING )
+    {
+        WNUM wnum;
+        if( parse_widevnum(arg->d.str, player->in_room ? player->in_room->area : NULL, &wnum) )
+            dungeon_index = get_dungeon_index_for_area(wnum.pArea, wnum.vnum);
+    }
+
+    if( !dungeon_index )
+        return;
+
+    player_unlock_dungeon(player, dungeon_index);
 
     info->progs->lastreturn = 1;
 }

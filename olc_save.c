@@ -968,10 +968,6 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 //	pVARIABLE var;
     int i;
 
-    /* hack to not save maps in the abyss as they are generated each reboot */
-    if (!str_prefix("Maze-Level", obj->area->name) && obj->vnum == obj->area->max_vnum)
-        return;
-
     fprintf(fp, "#OBJECT %ld\n", obj->vnum);
     fprintf(fp, "Name %s~\n", obj->name);
     fprintf(fp, "ShortDesc %s~\n", obj->short_descr);

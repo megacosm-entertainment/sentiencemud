@@ -76,7 +76,7 @@ int             get_wilds_vroom_x_by_dir args ((WILDS_DATA *pWilds, int x, int y
 int             get_wilds_vroom_y_by_dir args ((WILDS_DATA *pWilds, int x, int y, int door));
 void            do_vlinks args ((CHAR_DATA *ch, char *argument));
 WILDS_VLINK     *NEW_Vlink args ((void));
-WILDS_VLINK     *fread_vlink args ((FILE *fp));
+WILDS_VLINK     *fread_vlink args ((FILE *fp, WILDS_DATA *pWilds));
 WILDS_VLINK     *get_vlink_from_uid args((WILDS_DATA *pWilds, long uid));
 WILDS_VLINK     *get_vlink_from_index args((WILDS_DATA *pWilds, long index));
 void            free_vlink args ((WILDS_VLINK *pVLink));
@@ -98,6 +98,63 @@ WILDS_REGION    *new_region args ((WILDS_DATA *pWilds));
 void            free_region args ((WILDS_REGION *pRegion));
 bool            add_region args ((WILDS_DATA *pWilds, WILDS_REGION *pRegion));
 bool            del_region args ((WILDS_DATA *pWilds, WILDS_REGION *pRegion));
+static bool     resolve_vlink_dest_wnum(WILDS_VLINK *pVLink);
+
+static bool resolve_vlink_dest_wnum(WILDS_VLINK *pVLink)
+{
+    WNUM parsed = { NULL, 0 };
+    DUNGEON_INDEX_DATA *dng = NULL;
+
+    if (!pVLink)
+        return false;
+
+    if (pVLink->dest_wnum.pArea && pVLink->dest_wnum.vnum > 0)
+        return true;
+
+    if (pVLink->dest_load.vnum > 0)
+    {
+        if (pVLink->dest_load.auid > 0)
+            pVLink->dest_wnum.pArea = get_area_from_uid(pVLink->dest_load.auid);
+        else if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
+        {
+            dng = get_dungeon_index(pVLink->dest_load.vnum);
+            if (dng && dng->area)
+                pVLink->dest_wnum.pArea = dng->area;
+        }
+        else if (pVLink->pWilds)
+            pVLink->dest_wnum.pArea = pVLink->pWilds->pArea;
+
+        pVLink->dest_wnum.vnum = pVLink->dest_load.vnum;
+    }
+
+    if ((!pVLink->dest_wnum.pArea || pVLink->dest_wnum.vnum < 1) && pVLink->destvnum > 0)
+    {
+        if (resolve_widevnum(pVLink->destvnum, NULL, &parsed))
+            pVLink->dest_wnum = parsed;
+        else if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
+        {
+            dng = get_dungeon_index(pVLink->destvnum);
+            if (dng && dng->area)
+            {
+                pVLink->dest_wnum.pArea = dng->area;
+                pVLink->dest_wnum.vnum = dng->vnum;
+            }
+        }
+        else if (pVLink->pWilds)
+        {
+            pVLink->dest_wnum.pArea = pVLink->pWilds->pArea;
+            pVLink->dest_wnum.vnum = pVLink->destvnum;
+        }
+    }
+
+    if (!pVLink->dest_wnum.pArea || pVLink->dest_wnum.vnum < 1)
+        return false;
+
+    pVLink->destvnum = pVLink->dest_wnum.vnum;
+    pVLink->dest_load.auid = pVLink->dest_wnum.pArea->uid;
+    pVLink->dest_load.vnum = pVLink->dest_wnum.vnum;
+    return true;
+}
 
 
 int dir_offsets[MAX_DIR][2] = {
@@ -567,7 +624,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
         else {
                 if ( !str_cmp( word, "#VLINK" ) )
                 {
-                    temp_pVLink = fread_vlink(fp);
+                    temp_pVLink = fread_vlink(fp, pWilds);
                     add_vlink(pWilds, temp_pVLink);
                 }
         }
@@ -786,7 +843,7 @@ WILDS_TERRAIN *get_terrain_by_token (WILDS_DATA *pWilds, char token)
     return NULL;
 }
 
-WILDS_VLINK *fread_vlink(FILE *fp)
+WILDS_VLINK *fread_vlink(FILE *fp, WILDS_DATA *pWilds)
 {
     WILDS_VLINK *pVLink;
     char      *word;
@@ -798,6 +855,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
     }
 
     pVLink = new_vlink();
+    pVLink->pWilds = pWilds;
 
     for ( ; ; )
     {
@@ -826,8 +884,34 @@ WILDS_VLINK *fread_vlink(FILE *fp)
                     pVLink->current_linkage = VLINK_UNLINKED;
                 }
                 else
+                if (!str_cmp(word, "Dest"))
+                {
+                    WNUM parsed = { NULL, 0 };
+                    char *dest_word = fread_word(fp);
+
+                    if (parse_widevnum(dest_word, pWilds ? pWilds->pArea : NULL, &parsed))
+                    {
+                        pVLink->dest_wnum = parsed;
+                        pVLink->dest_load.auid = parsed.pArea ? parsed.pArea->uid : 0;
+                        pVLink->dest_load.vnum = parsed.vnum;
+                        pVLink->destvnum = parsed.vnum;
+                    }
+                }
+                else
+                if (!str_cmp(word, "Destmode"))
+                {
+                    pVLink->destination_mode = fread_number(fp);
+                }
+                else
                 if (!str_cmp(word, "Destvnum"))
+                {
                     pVLink->destvnum = fread_number (fp);
+                    if (pVLink->dest_load.vnum < 1)
+                    {
+                        pVLink->dest_load.auid = 0;
+                        pVLink->dest_load.vnum = pVLink->destvnum;
+                    }
+                }
                 else
                 if (!str_cmp(word, "Door"))
                 {
@@ -838,6 +922,11 @@ WILDS_VLINK *fread_vlink(FILE *fp)
                         pbugf(LOG_ERROR, "vlink has bad door number.");
                         abort();
                     }
+                }
+                else
+                if (!str_cmp(word, "Dngfloor"))
+                {
+                    pVLink->dungeon_floor = UMAX(1, fread_number(fp));
                 }
 
             break;
@@ -914,7 +1003,13 @@ void fwrite_vlink (FILE *fp, WILDS_VLINK *pVLink)
     fprintf(fp, "Wildsorigin_x %d\n", pVLink->wildsorigin_x);
     fprintf(fp, "Wildsorigin_y %d\n", pVLink->wildsorigin_y);
     fprintf(fp, "Door %d\n", pVLink->door);
+    if (resolve_vlink_dest_wnum(pVLink))
+        fprintf(fp, "Dest %ld#%ld\n", pVLink->dest_wnum.pArea->uid, pVLink->dest_wnum.vnum);
+    else if (pVLink->dest_load.auid > 0 && pVLink->dest_load.vnum > 0)
+        fprintf(fp, "Dest %ld#%ld\n", pVLink->dest_load.auid, pVLink->dest_load.vnum);
     fprintf(fp, "Destvnum %ld\n", pVLink->destvnum);
+    fprintf(fp, "Destmode %d\n", pVLink->destination_mode);
+    fprintf(fp, "Dngfloor %d\n", UMAX(1, pVLink->dungeon_floor));
 
     // Vizz - maptile is a raw string, so we deliberately don't use fix_string().
     fprintf(fp, "Map_tile %s\n", pVLink->map_tile);
@@ -1215,6 +1310,12 @@ bool link_vlink(WILDS_VLINK *pVLink)
         return (false);
     }
 
+    if (!resolve_vlink_dest_wnum(pVLink))
+    {
+        pwarnf(LOG_WARN, "Could not resolve vlink destination for uid %ld.", pVLink->uid);
+        return (false);
+    }
+
     pWilds = pVLink->pWilds;
     pWildsRoom = get_wilds_vroom (pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y);
         portal_x = get_wilds_vroom_x_by_dir(pWilds,
@@ -1241,8 +1342,9 @@ bool link_vlink(WILDS_VLINK *pVLink)
                 if(pExit->short_desc) { free_string(pExit->short_desc); pExit->short_desc=NULL; }
                 if(pExit->keyword) { free_string(pExit->keyword); pExit->keyword=NULL; }
             } else {
-                pwarnf(LOG_WARN, "Wilds-side vlink exit already exists.");
-                return (false);
+                if(pExit->long_desc) { free_string(pExit->long_desc); pExit->long_desc=NULL; }
+                if(pExit->short_desc) { free_string(pExit->short_desc); pExit->short_desc=NULL; }
+                if(pExit->keyword) { free_string(pExit->keyword); pExit->keyword=NULL; }
             }
 
             found = true;
@@ -1255,18 +1357,31 @@ bool link_vlink(WILDS_VLINK *pVLink)
             pExit->door.rs_lock.flags = pVLink->orig_lock;
             pExit->door.rs_lock.pick_chance = pVLink->orig_pick;
             pExit->door.lock = pExit->door.rs_lock;
-            pExit->u1.vnum = pVLink->destvnum;
-            AREA_DATA *dest_area = NULL;
-            WNUM dest_wnum;
-            if (resolve_widevnum(pExit->u1.vnum, NULL, &dest_wnum))
-                dest_area = dest_wnum.pArea;
-            if (!dest_area) dest_area = get_system_area_fallback();
-            pExit->u1.to_room = get_room_index(dest_area, pExit->u1.vnum);
             pExit->orig_door = pVLink->door;    /* OLC */
-            pExit->wilds.x = 0;
-            pExit->wilds.y = 0;
-            pExit->wilds.area_uid = 0;
-            pExit->wilds.wilds_uid = 0;
+
+            if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
+            {
+                pExit->u1.vnum = pVLink->dest_wnum.vnum;
+                pExit->u1.to_room = NULL;
+                pExit->wilds.x = 0;
+                pExit->wilds.y = UMAX(1, pVLink->dungeon_floor);
+                pExit->wilds.area_uid = pVLink->dest_wnum.pArea ? pVLink->dest_wnum.pArea->uid : 0;
+                pExit->wilds.wilds_uid = 0;
+            }
+            else
+            {
+                if (!resolve_vlink_dest_wnum(pVLink))
+                    return false;
+                pExit->u1.vnum = pVLink->dest_wnum.vnum;
+                AREA_DATA *dest_area = pVLink->dest_wnum.pArea;
+                if (!dest_area)
+                    dest_area = get_system_area_fallback();
+                pExit->u1.to_room = get_room_index(dest_area, pExit->u1.vnum);
+                pExit->wilds.x = 0;
+                pExit->wilds.y = 0;
+                pExit->wilds.area_uid = 0;
+                pExit->wilds.wilds_uid = 0;
+            }
 
             pWildsRoom->exit[pVLink->door] = pExit;
             pExit->from_room = pWildsRoom;
@@ -1276,13 +1391,19 @@ bool link_vlink(WILDS_VLINK *pVLink)
 
     if (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS))
     {
+        if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
+        {
+            pwarnf(LOG_WARN, "Dungeon-destination vlinks do not support to_wilds linkage.");
+        }
+        else
+        {
         // if the static room happens to be loaded up
-        AREA_DATA *rev_area = NULL;
-        WNUM rev_wnum;
-        if (resolve_widevnum(pVLink->destvnum, NULL, &rev_wnum))
-            rev_area = rev_wnum.pArea;
-        if (!rev_area) rev_area = get_system_area_fallback();
-        if ((pRevRoom=get_room_index(rev_area, pVLink->destvnum))!=NULL)
+        if (!resolve_vlink_dest_wnum(pVLink))
+            return false;
+        AREA_DATA *rev_area = pVLink->dest_wnum.pArea;
+        if (!rev_area)
+            rev_area = get_system_area_fallback();
+        if ((pRevRoom=get_room_index(rev_area, pVLink->dest_wnum.vnum))!=NULL)
         {
             if( IS_SET(pRevRoom->room_flag[1], ROOM_BLUEPRINT) ||
                 IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
@@ -1324,6 +1445,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
         else
         {
             pwarnf(LOG_WARN, "Static room not found.");
+        }
         }
 
     }
@@ -1397,12 +1519,12 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
     if (IS_SET(pVLink->current_linkage, VLINK_TO_WILDS))
     {
         /* Check if reverse-side exit exists */
-        AREA_DATA *rev_area2 = NULL;
-        WNUM rev_wnum2;
-        if (resolve_widevnum(pVLink->destvnum, NULL, &rev_wnum2))
-            rev_area2 = rev_wnum2.pArea;
-        if (!rev_area2) rev_area2 = get_system_area_fallback();
-        if ((pRevRoom = get_room_index(rev_area2, pVLink->destvnum)) !=NULL)
+        if (!resolve_vlink_dest_wnum(pVLink))
+            return false;
+        AREA_DATA *rev_area2 = pVLink->dest_wnum.pArea;
+        if (!rev_area2)
+            rev_area2 = get_system_area_fallback();
+        if ((pRevRoom = get_room_index(rev_area2, pVLink->dest_wnum.vnum)) !=NULL)
         {
             rev = rev_dir[pVLink->door];
             if ((pExit = pRevRoom->exit[rev]) != NULL)
@@ -2977,6 +3099,12 @@ WILDS_VLINK *new_vlink ()
 
     pVLink->next = NULL;
     pVLink->pWilds = NULL;
+    pVLink->dest_wnum.pArea = NULL;
+    pVLink->dest_wnum.vnum = 0;
+    pVLink->dest_load.auid = 0;
+    pVLink->dest_load.vnum = 0;
+    pVLink->destination_mode = VLINK_DEST_ROOM;
+    pVLink->dungeon_floor = 1;
     pVLink->orig_pick = 100;
     pVLink->rev_pick = 100;
 
@@ -3188,6 +3316,7 @@ void free_terrain (WILDS_TERRAIN *pTerrain)
 void link_vlinks (WILDS_DATA *pWilds)
 {
     ROOM_INDEX_DATA *pRevLinkRoomIndex;
+    DUNGEON_INDEX_DATA *pDungeonIndex;
     WILDS_VLINK *pVLink = NULL;
 
     if (pWilds == NULL)
@@ -3204,22 +3333,45 @@ void link_vlinks (WILDS_DATA *pWilds)
 
     for (pVLink = pWilds->pVLink;pVLink;pVLink = pVLink->next)
     {
-        AREA_DATA *vlink_area = NULL;
-        WNUM vlink_wnum;
-        if (resolve_widevnum(pVLink->destvnum, NULL, &vlink_wnum))
-            vlink_area = vlink_wnum.pArea;
-        if (!vlink_area) vlink_area = get_system_area_fallback();
-        if ((pRevLinkRoomIndex = get_room_index(vlink_area, pVLink->destvnum)) == NULL)
+        pVLink->current_linkage = VLINK_UNLINKED;
+
+        if (!resolve_vlink_dest_wnum(pVLink))
         {
-            perrf(LOG_ERROR, "destvnum %ld does not exist.", pVLink->destvnum);
+            perrf(LOG_ERROR, "destvnum %ld could not be resolved.", pVLink->destvnum);
             continue;
         }
 
-        if (IS_SET(pRevLinkRoomIndex->room_flag[1], ROOM_BLUEPRINT) ||
-            IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
+        AREA_DATA *vlink_area = pVLink->dest_wnum.pArea;
+        if (!vlink_area)
+            vlink_area = get_system_area_fallback();
+
+        if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
         {
-            plogf(LOG_INFO, "destvnum %ld involved in blueprints.", pVLink->destvnum);
-            continue;
+            pDungeonIndex = get_dungeon_index_for_area(vlink_area, pVLink->dest_wnum.vnum);
+            if (!pDungeonIndex)
+            {
+                perrf(LOG_ERROR, "dest dungeon %ld#%ld does not exist.",
+                    pVLink->dest_load.auid,
+                    pVLink->dest_wnum.vnum);
+                continue;
+            }
+        }
+        else
+        {
+            if ((pRevLinkRoomIndex = get_room_index(vlink_area, pVLink->dest_wnum.vnum)) == NULL)
+            {
+                perrf(LOG_ERROR, "destvnum %ld#%ld does not exist.",
+                    pVLink->dest_load.auid,
+                    pVLink->dest_wnum.vnum);
+                continue;
+            }
+
+            if (IS_SET(pRevLinkRoomIndex->room_flag[1], ROOM_BLUEPRINT) ||
+                IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
+            {
+                plogf(LOG_INFO, "destvnum %ld involved in blueprints.", pVLink->destvnum);
+                continue;
+            }
         }
 
         if (IS_SET(pVLink->default_linkage, (VLINK_FROM_WILDS|VLINK_TO_WILDS)))

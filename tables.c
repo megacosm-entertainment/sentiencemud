@@ -2922,6 +2922,7 @@ const struct flag_type dungeon_flags[] =
     { "failure_on_wipe",	DUNGEON_FAILURE_ON_WIPE,	true	},
     { "group_commence",		DUNGEON_GROUP_COMMENCE,		true	},
     { "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	true	},
+    { "locked",			DUNGEON_LOCKED,			true	},
     { "no_idle",			DUNGEON_NO_IDLE,			true	},
     { "no_save",			DUNGEON_NO_SAVE,			true	},
     { "scripted_levels",    DUNGEON_SCRIPTED_LEVELS,    false   },

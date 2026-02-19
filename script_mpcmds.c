@@ -159,6 +159,7 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "ungroup",			do_mpungroup,				false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "usecatalyst",		do_mpusecatalyst,			false,	true	},
     { "varclear",			do_mpvarclear,				false,	true	},

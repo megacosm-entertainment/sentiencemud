@@ -548,6 +548,7 @@ DECLARE_DO_FUN(	do_unlock	);
 DECLARE_DO_FUN( do_ungroup	);
 DECLARE_DO_FUN( do_unread	);
 DECLARE_DO_FUN( do_unrestring   );
+DECLARE_DO_FUN( do_unlockset    );
 DECLARE_DO_FUN(	do_up		);
 DECLARE_DO_FUN(	do_use		);
 DECLARE_DO_FUN(	do_value	);

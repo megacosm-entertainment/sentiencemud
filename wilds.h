@@ -59,7 +59,7 @@ bool            add_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
 bool            del_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
 
 WILDS_VLINK     *new_vlink args(( void ));
-WILDS_VLINK     *fread_vlink args(( FILE *fp ));
+WILDS_VLINK     *fread_vlink args(( FILE *fp, WILDS_DATA *pWilds ));
 WILDS_VLINK	*get_vlink_from_uid args ((WILDS_DATA *pWilds, long uid));
 WILDS_VLINK	*get_vlink_from_index args ((WILDS_DATA *pWilds, long index));
 void            add_vlink args (( WILDS_DATA *pWilds, WILDS_VLINK *pVLink ));
@@ -173,6 +173,10 @@ struct wilds_vlink
     int             door;
     char            *map_tile;
     long            destvnum;
+    WNUM_LOAD       dest_load;
+    WNUM            dest_wnum;
+    int             destination_mode;
+    int             dungeon_floor;
     int             default_linkage;
     int             current_linkage;
     char            *orig_description;
@@ -188,6 +192,9 @@ struct wilds_vlink
     int             rev_lock;
     int             rev_pick;
 };
+
+#define VLINK_DEST_ROOM     0
+#define VLINK_DEST_DUNGEON  1
 
 struct wilds_region
 {

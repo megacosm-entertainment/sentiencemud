@@ -5521,6 +5521,7 @@ struct	pc_data
     int         pwd_vers; /* Password version, added for sha256 */
 
     LLIST *unlocked_areas;
+    LLIST *unlocked_dungeons;
 
     LLIST *ships;
 
@@ -7106,6 +7107,7 @@ struct instance_data {
 #define DUNGEON_GROUP_COMMENCE		(H)		// Auto-commence when min_group is satisfied
 #define DUNGEON_FAILURE_ON_WIPE		(I)		// Failure when all players die in boss encounter
 #define DUNGEON_FAILURE_ON_EMPTY	(J)		// Failure if commenced and everyone leaves
+#define DUNGEON_LOCKED			(W)		// Requires per-player unlock to enter
 #define DUNGEON_SOLO_INSTANCE		(X)		// On-demand, player-owned instance with idle timeout
 #define DUNGEON_SHARED				(Y)		// One instance for all players
 #define DUNGEON_DESTROY				(Z)		// Flagged for destruction.
@@ -9630,6 +9632,9 @@ SCRIPT_DATA *get_reserved_oprog_index(const char *name);
 SCRIPT_DATA *get_reserved_mprog_index(const char *name);
 SCRIPT_DATA *get_reserved_tprog_index(const char *name);
 SCRIPT_DATA *get_reserved_aprog_index(const char *name);
+BLUEPRINT *get_reserved_blueprint(const char *name);
+DUNGEON_INDEX_DATA *get_reserved_dungeon_index(const char *name);
+SHIP_INDEX_DATA *get_reserved_ship_index(const char *name);
 const struct game_setting_type *get_game_setting(const char *name);
 OBJ_INDEX_DATA *get_reserved_obj_index(const char *name);
 ROOM_INDEX_DATA *get_reserved_room_index(const char *name);
@@ -10505,6 +10510,7 @@ ROOM_INDEX_DATA *create_virtual_room(ROOM_INDEX_DATA *source,bool links,bool res
 ROOM_INDEX_DATA *get_clone_room(register ROOM_INDEX_DATA *source, register unsigned long id1, register unsigned long id2);
 bool room_is_clone(ROOM_INDEX_DATA *room);
 bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long id2, bool destruct);
+void queue_clone_room_extract(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long id2, bool destruct);
 bool check_vision(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool blind, bool dark);
 void room_from_environment(ROOM_INDEX_DATA *room);
 bool room_to_environment(ROOM_INDEX_DATA *clone,CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token);
@@ -10752,6 +10758,7 @@ bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long
 bool dungeon_canswitch_player(DUNGEON *dungeon, CHAR_DATA *ch);
 bool dungeon_isorphaned(DUNGEON *dungeon);
 bool dungeon_can_idle(DUNGEON *dungeon);
+bool can_access_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *index, DUNGEON *dungeon);
 
 
 bool can_room_update(ROOM_INDEX_DATA *room);
@@ -10774,6 +10781,10 @@ extern long top_dprog_index;
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
 bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
+void player_relock_area(CHAR_DATA *ch, AREA_DATA *area);
+bool is_dungeon_unlocked(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index);
+void player_unlock_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index);
+void player_relock_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index);
 void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer);
 
 

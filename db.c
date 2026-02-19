@@ -992,8 +992,6 @@ void boot_db(void)
     fixup_area_reset_references();
 
     fBootDb	= false;
-    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing generate_poa_resets");
-    generate_poa_resets(-1);
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing area_update");
     area_update(true);
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing load_notes");
@@ -2760,15 +2758,12 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
     CHAR_DATA   *pMob;
     CHAR_DATA	*mob;
     OBJ_DATA    *pObj;
-    OBJ_DATA    *obj;
     CHAR_DATA   *LastMob = NULL;
     OBJ_DATA    *LastObj = NULL;
     int iExit;
     int level = 0;
     bool last;
     bool instanced = false;
-    int i;
-    int c;
 
     // Invalid room or the room is persistant (and not forced)
     if (!pRoom || (pRoom->persist && !force))
@@ -2896,58 +2891,6 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 
             char_to_room(pMob, pRoom);
             pMob->home_room = pRoom;
-
-            /* Give some pneuma to POA mobs.*/
-            OBJ_INDEX_DATA *pneuma_index = get_reserved_obj_index("obj_pneuma_item");
-            if (!pneuma_index)
-            {
-                log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "reset_area: Cannot find pneuma item object.");
-            }
-            else if (!str_cmp(pMob->in_room->area->name, "Maze-Level1"))
-            {
-                i = number_range(1,2);
-                for (c = 0; c < i; c++)
-                {
-                    obj = create_object(pneuma_index, 1, false);
-                    obj_to_char(obj, pMob);
-                }
-            }
-            else if (!str_cmp(pMob->in_room->area->name, "Maze-Level2"))
-            {
-                i = number_range(2,3);
-                for (c = 0; c < i; c++)
-                {
-                    obj = create_object(pneuma_index, 1, false);
-                    obj_to_char(obj, pMob);
-                }
-            }
-            else if (!str_cmp(pMob->in_room->area->name, "Maze-Level3"))
-            {
-                i = number_range(3,4);
-                for (c = 0; c < i; c++)
-                {
-                    obj = create_object(pneuma_index, 1, false);
-                    obj_to_char(obj, pMob);
-                }
-            }
-            else if (!str_cmp(pMob->in_room->area->name, "Maze-Level4"))
-            {
-                i = number_range(4,6);
-                for (c = 0; c < i; c++)
-                {
-                    obj = create_object(pneuma_index, 1, false);
-                    obj_to_char(obj, pMob);
-                }
-            }
-            else if (!str_cmp(pMob->in_room->area->name, "Maze-Level5"))
-            {
-                i = number_range(10,15);
-                for (c = 0; c < i; c++)
-                {
-                    obj = create_object(pneuma_index, 1, false);
-                    obj_to_char(obj, pMob);
-                }
-            }
 
             LastMob = pMob;
             level  = URANGE(0, pMob->level - 2, LEVEL_HERO - 1); /* -1 ROM */
@@ -6647,6 +6590,80 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
     return true;
 }
 
+typedef struct clone_extract_task_data CLONE_EXTRACT_TASK;
+struct clone_extract_task_data {
+    CLONE_EXTRACT_TASK *next;
+    ROOM_INDEX_DATA *room;
+    unsigned long id1;
+    unsigned long id2;
+    bool destruct;
+};
+
+static CLONE_EXTRACT_TASK *clone_extract_task_head = NULL;
+static CLONE_EXTRACT_TASK *clone_extract_task_tail = NULL;
+
+void queue_clone_room_extract(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long id2, bool destruct)
+{
+    CLONE_EXTRACT_TASK *task;
+
+    if (!room)
+        return;
+
+    if (room->source)
+        room = room->source;
+
+    task = alloc_mem(sizeof(CLONE_EXTRACT_TASK));
+    if (!task)
+        return;
+
+    task->next = NULL;
+    task->room = room;
+    task->id1 = id1;
+    task->id2 = id2;
+    task->destruct = destruct;
+
+    if (clone_extract_task_tail)
+        clone_extract_task_tail->next = task;
+    else
+        clone_extract_task_head = task;
+
+    clone_extract_task_tail = task;
+}
+
+static int process_clone_extract_queue(struct timeval *start_time, long *elapsed_ms)
+{
+    struct timeval current_time;
+    const long max_gc_time_ms = 5;
+    const int max_gc_items = 100;
+    int processed = 0;
+
+    while (clone_extract_task_head && processed < max_gc_items)
+    {
+        CLONE_EXTRACT_TASK *task = clone_extract_task_head;
+
+        gettimeofday(&current_time, NULL);
+        *elapsed_ms = (current_time.tv_sec - start_time->tv_sec) * 1000 +
+                      (current_time.tv_usec - start_time->tv_usec) / 1000;
+
+        if (*elapsed_ms >= max_gc_time_ms)
+            break;
+
+        clone_extract_task_head = task->next;
+        if (!clone_extract_task_head)
+            clone_extract_task_tail = NULL;
+
+        extract_clone_room(task->room, task->id1, task->id2, task->destruct);
+        free_mem(task, sizeof(CLONE_EXTRACT_TASK));
+        processed++;
+    }
+
+    gettimeofday(&current_time, NULL);
+    *elapsed_ms = (current_time.tv_sec - start_time->tv_sec) * 1000 +
+                  (current_time.tv_usec - start_time->tv_usec) / 1000;
+
+    return processed;
+}
+
 
 //#if 0
 //void fwrite_persist_obj_new(OBJ_DATA *obj, FILE *fp, int iNest)
@@ -9821,6 +9838,12 @@ int process_garbage_collection(void)
     
     // Start the timer
     gettimeofday(&start_time, NULL);
+
+    // Process deferred clone extraction first (can be expensive)
+    processed = process_clone_extract_queue(&start_time, &elapsed_ms);
+    total_processed += processed;
+    if (elapsed_ms >= MAX_GC_TIME_PER_TICK)
+        return total_processed;
     
     // Process tokens first (usually lightweight)
     processed = 0;

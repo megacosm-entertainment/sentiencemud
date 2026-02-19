@@ -149,6 +149,8 @@ const struct script_cmd_type room_cmd_table[] = {
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "ungroup",			do_rpungroup,			false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
+    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "usecatalyst",		do_rpusecatalyst,		false,	true	},
     { "varclear",			do_rpvarclear,			false,	true	},

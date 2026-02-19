@@ -524,7 +524,69 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
         }
     }
 
-    if(!(to_room = exit_destination(pexit))) {
+    if (IS_SET(pexit->exit_info, EX_VLINK)
+        && in_room->wilds
+        && pexit->wilds.wilds_uid == 0
+        && pexit->u1.to_room == NULL)
+    {
+        AREA_DATA *dungeon_area = NULL;
+        DUNGEON_INDEX_DATA *dungeon_index = NULL;
+        WILDS_VLINK *dungeon_vlink = NULL;
+        long dungeon_area_uid = pexit->wilds.area_uid;
+        long dungeon_vnum = pexit->u1.vnum;
+        WNUM dungeon_wnum;
+        int floor = UMAX(1, pexit->wilds.y);
+
+        if (dungeon_vnum < 1 || dungeon_area_uid < 1)
+        {
+            dungeon_vlink = vroom_get_to_vlink(in_room->wilds, in_room->x, in_room->y, door);
+            if (dungeon_vlink && dungeon_vlink->destination_mode == VLINK_DEST_DUNGEON)
+            {
+                if (dungeon_vlink->dest_wnum.vnum > 0)
+                    dungeon_vnum = dungeon_vlink->dest_wnum.vnum;
+                else if (dungeon_vlink->dest_load.vnum > 0)
+                    dungeon_vnum = dungeon_vlink->dest_load.vnum;
+                else if (dungeon_vlink->destvnum > 0)
+                    dungeon_vnum = dungeon_vlink->destvnum;
+
+                if (dungeon_vlink->dest_wnum.pArea)
+                    dungeon_area_uid = dungeon_vlink->dest_wnum.pArea->uid;
+                else if (dungeon_vlink->dest_load.auid > 0)
+                    dungeon_area_uid = dungeon_vlink->dest_load.auid;
+
+                floor = UMAX(1, dungeon_vlink->dungeon_floor);
+            }
+        }
+
+        if (dungeon_area_uid > 0)
+            dungeon_area = get_area_index(dungeon_area_uid);
+
+        if (!dungeon_area && dungeon_vnum > 0)
+        {
+            dungeon_index = get_dungeon_index(dungeon_vnum);
+            if (dungeon_index)
+                dungeon_area = dungeon_index->area;
+        }
+
+        dungeon_wnum.pArea = dungeon_area;
+        dungeon_wnum.vnum = dungeon_vnum;
+
+        to_room = (dungeon_wnum.pArea && dungeon_wnum.vnum > 0)
+            ? spawn_dungeon_player(ch, dungeon_wnum, floor)
+            : NULL;
+        if (!to_room) {
+            send_to_char("Alas, you cannot go that way.\n\r", ch);
+            return;
+        }
+
+        if (IS_VALID(to_room->instance_section)
+            && IS_VALID(to_room->instance_section->instance)
+            && IS_VALID(to_room->instance_section->instance->dungeon))
+        {
+            to_room->instance_section->instance->dungeon->entry_room = in_room;
+        }
+    }
+    else if(!(to_room = exit_destination(pexit))) {
         send_to_char ("Alas, you cannot go that way.\n\r", ch);
 /*		wiznet("move_char()-> NULL to_room",NULL,NULL,WIZ_TESTING,0,0); */
         return;

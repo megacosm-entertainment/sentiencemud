@@ -990,6 +990,16 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     }
     iterator_stop(&uait);
 
+    ITERATOR udit;
+    DUNGEON_INDEX_DATA *unlocked_dungeon;
+    iterator_start(&udit, ch->pcdata->unlocked_dungeons);
+    while( (unlocked_dungeon = (DUNGEON_INDEX_DATA *)iterator_nextdata(&udit)) )
+    {
+        if (unlocked_dungeon->area)
+            fprintf(fp, "UnlockedDungeon %ld %ld\n", unlocked_dungeon->area->uid, unlocked_dungeon->vnum);
+    }
+    iterator_stop(&udit);
+
     for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next)
     fprintf(fp, "GrantedCommand %s~\n", cmd->name);
     fprintf(fp, "End\n\n");
@@ -2850,6 +2860,24 @@ if (!str_cmp(word, "Room"))
             {
                 // This will prevent duplication
                 player_unlock_area(ch, unlocked_area);
+            }
+
+            fMatch = true;
+            break;
+        }
+
+        if(!str_cmp(word, "UnlockedDungeon"))
+        {
+            long area_uid = fread_number(fp);
+            long vnum = fread_number(fp);
+            AREA_DATA *area = get_area_from_uid(area_uid);
+            DUNGEON_INDEX_DATA *dungeon_index = area
+                ? get_dungeon_index_for_area(area, vnum)
+                : get_dungeon_index(vnum);
+
+            if( dungeon_index )
+            {
+                player_unlock_dungeon(ch, dungeon_index);
             }
 
             fMatch = true;

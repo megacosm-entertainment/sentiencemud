@@ -160,6 +160,12 @@ RESERVED_DATA *json_reserved_deserialize(json_t *json)
             type = RESERVED_TPROG;
         else if (!str_cmp(type_str, "aprog"))
             type = RESERVED_APROG;
+        else if (!str_cmp(type_str, "blueprint"))
+            type = RESERVED_BLUEPRINT;
+        else if (!str_cmp(type_str, "dungeon"))
+            type = RESERVED_DUNGEON;
+        else if (!str_cmp(type_str, "ship"))
+            type = RESERVED_SHIP;
         
         reserved->type = type;
     } else {

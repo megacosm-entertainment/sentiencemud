@@ -68,18 +68,17 @@ static json_t *wilds_vlink_to_json(WILDS_VLINK *vlink) {
     json_object_set_new(json, "wildsorigin_y", json_integer(vlink->wildsorigin_y));
     json_object_set_new(json, "door", json_integer(vlink->door));
     json_object_set_new(json, "map_tile", json_string_safe(vlink->map_tile));
-    /* Use widevnum format for destination room */
-    if (vlink->pDestRoom) {
+    if (vlink->dest_load.auid > 0 && vlink->dest_load.vnum > 0) {
+        char wnum_buf[MIL];
+        snprintf(wnum_buf, sizeof(wnum_buf), "%ld#%ld", vlink->dest_load.auid, vlink->dest_load.vnum);
+        json_object_set_new(json, "destvnum", json_string(wnum_buf));
+    } else if (vlink->pDestRoom) {
         json_object_set_new(json, "destvnum", json_string(widevnum_string_room(vlink->pDestRoom, NULL)));
     } else if (vlink->destvnum > 0) {
-        /* Fallback: try to find the room to get its area */
-        ROOM_INDEX_DATA *dest = get_room_index_global(vlink->destvnum);
-        if (dest) {
-            json_object_set_new(json, "destvnum", json_string(widevnum_string_room(dest, NULL)));
-        } else {
-            json_object_set_new(json, "destvnum", json_integer(vlink->destvnum));
-        }
+        json_object_set_new(json, "destvnum", json_integer(vlink->destvnum));
     }
+    json_object_set_new(json, "destination_mode", json_integer(vlink->destination_mode));
+    json_object_set_new(json, "dungeon_floor", json_integer(UMAX(1, vlink->dungeon_floor)));
     json_object_set_new(json, "default_linkage", json_integer(vlink->default_linkage));
     json_object_set_new(json, "current_linkage", json_integer(vlink->current_linkage));
     json_object_set_new(json, "orig_description", json_string_safe(vlink->orig_description));
@@ -114,12 +113,17 @@ static WILDS_VLINK *json_to_wilds_vlink(json_t *json, WILDS_DATA *pWilds) {
             WNUM_LOAD wload;
             if (parse_widevnum_load(json_string_value(destvnum_val), &wload)) {
                 vlink->destvnum = wload.vnum;
+                vlink->dest_load = wload;
                 vlink->pDestRoom = NULL;
             }
         } else {
             vlink->destvnum = json_get_int_default(json, "destvnum", 0);
+            vlink->dest_load.auid = 0;
+            vlink->dest_load.vnum = vlink->destvnum;
         }
     }
+    vlink->destination_mode = json_get_int_default(json, "destination_mode", VLINK_DEST_ROOM);
+    vlink->dungeon_floor = UMAX(1, json_get_int_default(json, "dungeon_floor", 1));
     vlink->default_linkage = json_get_int_default(json, "default_linkage", 0);
     vlink->current_linkage = json_get_int_default(json, "current_linkage", 0);
     vlink->orig_description = str_dup(json_get_string_default(json, "orig_description", ""));
@@ -1519,6 +1523,7 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
             link->name = str_dup(json_get_string_default(link_json, "name", ""));
             link->door = json_get_int_default(link_json, "door", 0);
             link->used = false;
+            link->next = NULL;
             
             // Room reference - handle widevnum string or legacy integer
             json_t *room_json = json_object_get(link_json, "room");
@@ -1535,9 +1540,15 @@ BLUEPRINT_SECTION *json_area_deserialize_blueprint_section(json_t *json, AREA_DA
             link->room = NULL;  // Will be resolved in fix pass
             link->ex = NULL;
             
-            // Add to section's link list
-            link->next = section->links;
-            section->links = link;
+            // Add to section's link list preserving JSON order
+            if (!section->links) {
+                section->links = link;
+            } else {
+                BLUEPRINT_LINK *tail = section->links;
+                while (tail->next)
+                    tail = tail->next;
+                tail->next = link;
+            }
         }
     }
     

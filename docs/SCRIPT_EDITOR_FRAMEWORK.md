@@ -1,5 +1,8 @@
 # Script Editor Framework & Player-Accessible Scripting
 
+> Consolidated implementation sequencing now lives in
+> `docs/PLAN_SCRIPT_AUDIT_CONSOLIDATED.md`.
+
 **Author**: AI Analysis  
 **Date**: January 28, 2026  
 **Status**: Extension of Editor Framework Analysis  

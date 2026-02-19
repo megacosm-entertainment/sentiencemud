@@ -172,6 +172,9 @@ const struct reserved_type_name {
     { "rprog", RESERVED_RPROG },
     { "tprog", RESERVED_TPROG },
     { "aprog", RESERVED_APROG },
+    { "blueprint", RESERVED_BLUEPRINT },
+    { "dungeon", RESERVED_DUNGEON },
+    { "ship", RESERVED_SHIP },
     { NULL,     -1              }
 };
 
@@ -473,7 +476,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
         send_to_char("  reserved import          - Import defines from code\n\r", ch);
         send_to_char("  reserved export          - Export as define statements\n\r", ch);
         send_to_char("\n\r", ch);
-        send_to_char("Reserved Types: mob, obj, room, area, skill, flag, command\n\r", ch);
+        send_to_char("Reserved Types: mob, obj, room, area, token, mprog, oprog, rprog, tprog, aprog, blueprint, dungeon, ship\n\r", ch);
     }
     
     return;
@@ -503,7 +506,7 @@ RESERVED(reserved_listvnums)
         }
         
         if (type == -1) {
-            send_to_char("Unknown reserved type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
+            send_to_char("Unknown reserved type. Valid types are: mob, obj, room, area, token, mprog, oprog, rprog, tprog, aprog, blueprint, dungeon, ship\n\r", ch);
             return false;
         }
     }
@@ -776,7 +779,7 @@ RESERVED(reserved_add)
     
     if (name[0] == '\0' || type_str[0] == '\0' || id_str[0] == '\0') {
         send_to_char("Syntax: reserved add <name> <type> <wnum> [removable]\n\r", ch);
-        send_to_char("Types: mob, obj, room, area, skill, flag, command\n\r", ch);
+        send_to_char("Types: mob, obj, room, area, token, mprog, oprog, rprog, tprog, aprog, blueprint, dungeon, ship\n\r", ch);
         return false;
     }
     
@@ -795,7 +798,7 @@ RESERVED(reserved_add)
     }
     
     if (type == -1) {
-        send_to_char("Invalid type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
+        send_to_char("Invalid type. Valid types are: mob, obj, room, area, token, mprog, oprog, rprog, tprog, aprog, blueprint, dungeon, ship\n\r", ch);
         return false;
     }
     
@@ -958,7 +961,7 @@ RESERVED(reserved_edit)
         int type = -1;
         
         if (argument[0] == '\0') {
-            send_to_char("You must specify a type: mob, obj, room, area, skill, flag, command\n\r", ch);
+            send_to_char("You must specify a type: mob, obj, room, area, token, mprog, oprog, rprog, tprog, aprog, blueprint, dungeon, ship\n\r", ch);
             return false;
         }
         
@@ -971,7 +974,7 @@ RESERVED(reserved_edit)
         }
         
         if (type == -1) {
-            send_to_char("Invalid type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
+            send_to_char("Invalid type. Valid types are: mob, obj, room, area, token, mprog, oprog, rprog, tprog, aprog, blueprint, dungeon, ship\n\r", ch);
             return false;
         }
         
@@ -1429,7 +1432,7 @@ RESERVED(reserved_listid)
         }
         
         if (type == -1) {
-            send_to_char("Unknown reserved type. Valid types are: mob, obj, room, area, skill, flag, command\n\r", ch);
+            send_to_char("Unknown reserved type. Valid types are: mob, obj, room, area, token, mprog, oprog, rprog, tprog, aprog, blueprint, dungeon, ship\n\r", ch);
             return false;
         }
     }
