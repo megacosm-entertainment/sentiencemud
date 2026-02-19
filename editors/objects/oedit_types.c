@@ -1352,17 +1352,22 @@ OEDIT(oedit_portal)
 
     /* Contextual display based on portal flags */
     if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON)) {
+        AREA_DATA *dng_area = PORTAL(pObj)->params[4] > 0 ? get_area_index(PORTAL(pObj)->params[4]) : NULL;
+        const char *dng_dest = (PORTAL(pObj)->params[0] > 0)
+            ? widevnum_string(dng_area, PORTAL(pObj)->params[0], pObj->area)
+            : "none";
+
         sprintf(buf,
             "{WPortal (Dungeon):{x\n\r"
             "  {Gcharges      {x [%d]\n\r"
             "  {Gexit         {x %s\n\r"
             "  {Gflags        {x %s\n\r"
-            "  {Gdestination  {x [%ld] (dungeon)\n\r"
+            "  {Gdestination  {x [%s] (dungeon)\n\r"
             "  {Gparam1       {x [%ld] (floor)\n\r",
             PORTAL(pObj)->charges,
             flag_string(portal_exit_flags, PORTAL(pObj)->exit),
             flag_string(portal_flags, PORTAL(pObj)->flags),
-            PORTAL(pObj)->params[0],
+            dng_dest,
             PORTAL(pObj)->params[1]);
     } else if (IS_SET(PORTAL(pObj)->flags, GATE_AREARANDOM) || PORTAL(pObj)->params[0] == -1) {
         sprintf(buf,

@@ -890,7 +890,7 @@ static bool add_dungeon_level(DUNGEON *dng, DUNGEON_INDEX_LEVEL_DATA *level)
     switch(level->mode)
     {
         case LEVELMODE_STATIC:
-            bp = (BLUEPRINT *)list_nthdata(dng->floors, level->floor);
+            bp = (BLUEPRINT *)list_nthdata(dng->index->floors, level->floor);
             return add_dungeon_instance(dng, bp);
 
         case LEVELMODE_WEIGHTED:
@@ -905,7 +905,7 @@ static bool add_dungeon_level(DUNGEON *dng, DUNGEON_INDEX_LEVEL_DATA *level)
             {
                 if (w <= weighted->weight)
                 {
-                    bp = (BLUEPRINT *)list_nthdata(dng->floors, weighted->floor);
+                    bp = (BLUEPRINT *)list_nthdata(dng->index->floors, weighted->floor);
                     break;
                 }
 
