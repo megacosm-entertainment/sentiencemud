@@ -1784,7 +1784,7 @@ IFCHECK_DATA ifcheck_table[] = {
     { "valueweapon",		IFC_ANY,	"",		true,	ifc_value_weapon,		"ifcheck valueweapon" },
     { "valuewear",			IFC_ANY,	"",		true,	ifc_value_wear,			"ifcheck valuewear" },
     { "varbool",			IFC_ANY,	"S",	false,	ifc_varbool,			"ifcheck varbool" },
-    { "vardefined",			IFC_ANY,	"SS",	false,	ifc_vardefined,			"ifcheck vardefined" },
+    { "vardefined",			IFC_ANY,	"S",	false,	ifc_vardefined,			"ifcheck vardefined" },
     { "varexit",			IFC_ANY,	"SS",	false,	ifc_varexit,			"ifcheck varexit" },
     { "varnumber",			IFC_ANY,	"S",	true,	ifc_varnumber,			"ifcheck varnumber" },
     { "varstring",			IFC_ANY,	"SS",	false,	ifc_varstring,			"ifcheck varstring" },
