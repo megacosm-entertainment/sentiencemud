@@ -8,6 +8,9 @@ on:
       - legacy_server
       - olc_blueprints
       - feature/widevnum-migration
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   merge_group:
   push:
     branches:
@@ -16,6 +19,9 @@ on:
       - legacy_server
       - olc_blueprints
       - feature/widevnum-migration
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
