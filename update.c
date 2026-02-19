@@ -3375,6 +3375,74 @@ void update_hunting(void)
 }
 
 
+#define HUNT_WILDS_MAX_RANGE 60
+
+static int update_hunt_wilds_distance(ROOM_INDEX_DATA *from_room, ROOM_INDEX_DATA *to_room)
+{
+    int dx;
+    int dy;
+    int adx;
+    int ady;
+
+    if (!from_room || !to_room)
+        return -1;
+
+    if (!from_room->wilds || !to_room->wilds)
+        return -1;
+
+    if (from_room->wilds != to_room->wilds)
+        return -1;
+
+    dx = to_room->x - from_room->x;
+    dy = to_room->y - from_room->y;
+    adx = abs(dx);
+    ady = abs(dy);
+
+    return (adx > ady) ? adx : ady;
+}
+
+static int update_hunt_wilds_direction(ROOM_INDEX_DATA *from_room, ROOM_INDEX_DATA *to_room)
+{
+    int dx;
+    int dy;
+
+    if (!from_room || !to_room)
+        return -1;
+
+    dx = to_room->x - from_room->x;
+    dy = to_room->y - from_room->y;
+
+    if (dx == 0 && dy == 0)
+        return -1;
+
+    if (dx > 0 && dy < 0) return DIR_NORTHEAST;
+    if (dx < 0 && dy < 0) return DIR_NORTHWEST;
+    if (dx > 0 && dy > 0) return DIR_SOUTHEAST;
+    if (dx < 0 && dy > 0) return DIR_SOUTHWEST;
+    if (dx > 0) return DIR_EAST;
+    if (dx < 0) return DIR_WEST;
+    if (dy < 0) return DIR_NORTH;
+    return DIR_SOUTH;
+}
+
+static bool update_hunt_can_track_between_instances(INSTANCE *hunter_instance, INSTANCE *victim_instance)
+{
+    if (!IS_VALID(hunter_instance) && !IS_VALID(victim_instance))
+        return true;
+
+    if (!IS_VALID(hunter_instance) || !IS_VALID(victim_instance))
+        return false;
+
+    if (hunter_instance == victim_instance)
+        return true;
+
+    if (IS_VALID(hunter_instance->dungeon) && hunter_instance->dungeon == victim_instance->dungeon)
+        return true;
+
+    return false;
+}
+
+
 // Auto-hunt, PC version.
 void update_hunting_pc(CHAR_DATA *ch)
 {
@@ -3408,13 +3476,63 @@ void update_hunting_pc(CHAR_DATA *ch)
     return;
     }
 
-    if (IN_WILDERNESS(ch) || IN_WILDERNESS(victim))
+    if (ch->in_room == victim->in_room)
     {
-        send_to_char("You lost the trail.\n\r", ch);
         ch->hunting = NULL;
         return;
     }
-    
+
+    {
+        INSTANCE *ch_instance = get_room_instance(ch->in_room);
+        INSTANCE *victim_instance = get_room_instance(victim->in_room);
+
+        if (!update_hunt_can_track_between_instances(ch_instance, victim_instance))
+        {
+            send_to_char("You lost the trail.\n\r", ch);
+            ch->hunting = NULL;
+            return;
+        }
+    }
+
+    if (IN_WILDERNESS(ch) || IN_WILDERNESS(victim))
+    {
+        int wilds_distance;
+
+        if (!IN_WILDERNESS(ch) || !IN_WILDERNESS(victim))
+        {
+            send_to_char("You lost the trail.\n\r", ch);
+            ch->hunting = NULL;
+            return;
+        }
+
+        wilds_distance = update_hunt_wilds_distance(ch->in_room, victim->in_room);
+        if (wilds_distance < 0 || wilds_distance > HUNT_WILDS_MAX_RANGE)
+        {
+            send_to_char("You lost the trail.\n\r", ch);
+            ch->hunting = NULL;
+            return;
+        }
+
+        direction = update_hunt_wilds_direction(ch->in_room, victim->in_room);
+        if (direction < 0 || direction >= MAX_DIR)
+        {
+            send_to_char("You lost the trail.\n\r", ch);
+            ch->hunting = NULL;
+            return;
+        }
+
+        if (number_percent() < 5)
+            send_to_char("You get the feeling that someone is following you.\n\r", victim);
+
+        deduct_move(ch, 5);
+        move_char(ch, direction, true);
+
+        if (ch->in_room == victim->in_room)
+            ch->hunting = NULL;
+
+        return;
+    }
+
     // Chance of failing
     chance = get_skill(ch, skill_resolve_gsn("hunt")) * 3/4
              + (get_curr_stat(ch, STAT_INT)

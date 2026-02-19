@@ -1573,17 +1573,24 @@ void fix_mobprogs(void)
                     iterator_start(&it, mob->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
+                        AREA_DATA *script_area = NULL;
                         trigger->script = NULL;
                         if (trigger->script_is_widevnum) {
-                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
-                            if (sArea)
-                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_MPROG);
+                            script_area = get_area_index(trigger->script_load.auid);
+                            if (script_area)
+                                trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_MPROG);
                         }
                         if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_MPROG);
 
                         if (!trigger->script) {
-                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_mobprogs: code vnum %d not found on mobile %ld", trigger->vnum, mob->vnum);
+                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                                "Fix_mobprogs: script %s not found for mobile %s (%s)",
+                                trigger->script_is_widevnum
+                                    ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                                    : widevnum_string(pArea, trigger->vnum, NULL),
+                                widevnum_string_mobile(mob, NULL),
+                                mob->short_descr ? mob->short_descr : "(no short description)");
                             exit(1);
                         }
 
@@ -1621,17 +1628,23 @@ void fix_objprogs(void)
                     iterator_start(&it, obj->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
+                        AREA_DATA *script_area = NULL;
                         trigger->script = NULL;
                         if (trigger->script_is_widevnum) {
-                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
-                            if (sArea)
-                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_OPROG);
+                            script_area = get_area_index(trigger->script_load.auid);
+                            if (script_area)
+                                trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_OPROG);
                         }
                         if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_OPROG);
 
                         if (!trigger->script) {
-                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_objprogs: code vnum %d not found on object %ld", trigger->vnum, obj->vnum);
+                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                                "Fix_objprogs: script %s not found for object %s",
+                                trigger->script_is_widevnum
+                                    ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                                    : widevnum_string(pArea, trigger->vnum, NULL),
+                                widevnum_string_object(obj, NULL));
                             exit(1);
                         }
 
@@ -1668,17 +1681,23 @@ void fix_roomprogs(void)
                     iterator_start(&it, room->progs->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
+                        AREA_DATA *script_area = NULL;
                         trigger->script = NULL;
                         if (trigger->script_is_widevnum) {
-                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
-                            if (sArea)
-                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_RPROG);
+                            script_area = get_area_index(trigger->script_load.auid);
+                            if (script_area)
+                                trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_RPROG);
                         }
                         if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_RPROG);
 
                         if (!trigger->script) {
-                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_roomprogs: code vnum %d not found on room %ld", trigger->vnum, room->vnum);
+                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                                "Fix_roomprogs: script %s not found for room %s",
+                                trigger->script_is_widevnum
+                                    ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                                    : widevnum_string(pArea, trigger->vnum, NULL),
+                                widevnum_string_room(room, NULL));
                             exit(1);
                         }
 
@@ -1716,17 +1735,23 @@ void fix_tokenprogs(void)
                     iterator_start(&it, token->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
+                        AREA_DATA *script_area = NULL;
                         trigger->script = NULL;
                         if (trigger->script_is_widevnum) {
-                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
-                            if (sArea)
-                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_TPROG);
+                            script_area = get_area_index(trigger->script_load.auid);
+                            if (script_area)
+                                trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_TPROG);
                         }
                         if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_TPROG);
 
                         if (!trigger->script) {
-                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_tokenprogs: code vnum %d not found on token %ld", trigger->vnum, token->vnum);
+                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                                "Fix_tokenprogs: script %s not found for token %s",
+                                trigger->script_is_widevnum
+                                    ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                                    : widevnum_string(pArea, trigger->vnum, NULL),
+                                widevnum_string_token(token, NULL));
                             exit(1);
                         }
 
@@ -1763,17 +1788,24 @@ void fix_areaprogs(void)
             iterator_start(&it, pArea->progs->progs[slot]);
             while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                 WNUM script_wnum;
+                AREA_DATA *script_area = NULL;
                 trigger->script = NULL;
                 if (trigger->script_is_widevnum) {
-                    AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
-                    if (sArea)
-                        trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_APROG);
+                    script_area = get_area_index(trigger->script_load.auid);
+                    if (script_area)
+                        trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_APROG);
                 }
                 if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                     trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_APROG);
 
                 if (!trigger->script) {
-                    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "fix_areaprogs: code vnum %d not found on area %ld", trigger->vnum, pArea->uid);
+                    log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                        "fix_areaprogs: script %s not found for area %ld (%s)",
+                        trigger->script_is_widevnum
+                            ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                            : widevnum_string(pArea, trigger->vnum, NULL),
+                        pArea->uid,
+                        pArea->name ? pArea->name : "(unnamed area)");
                     exit(1);
                 }
 
@@ -1808,17 +1840,23 @@ void fix_instanceprogs(void)
                     iterator_start(&it, blueprint->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
+                        AREA_DATA *script_area = NULL;
                         trigger->script = NULL;
                         if (trigger->script_is_widevnum) {
-                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
-                            if (sArea)
-                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_IPROG);
+                            script_area = get_area_index(trigger->script_load.auid);
+                            if (script_area)
+                                trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_IPROG);
                         }
                         if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_IPROG);
 
                         if (!trigger->script) {
-                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_instanceprogs: code vnum %d not found on blueprint %ld", trigger->vnum, blueprint->vnum);
+                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                                "Fix_instanceprogs: script %s not found for blueprint %s",
+                                trigger->script_is_widevnum
+                                    ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                                    : widevnum_string(pArea, trigger->vnum, NULL),
+                                widevnum_string_blueprint(blueprint, NULL));
                             exit(1);
                         }
 
@@ -1856,17 +1894,23 @@ void fix_dungeonprogs(void)
                     iterator_start(&it, dungeon_index->progs[slot]);
                     while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
                         WNUM script_wnum;
+                        AREA_DATA *script_area = NULL;
                         trigger->script = NULL;
                         if (trigger->script_is_widevnum) {
-                            AREA_DATA *sArea = get_area_index(trigger->script_load.auid);
-                            if (sArea)
-                                trigger->script = get_script_index(sArea, trigger->script_load.vnum, PRG_DPROG);
+                            script_area = get_area_index(trigger->script_load.auid);
+                            if (script_area)
+                                trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_DPROG);
                         }
                         if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
                             trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_DPROG);
 
                         if (!trigger->script) {
-                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Fix_dungeonprogs: code vnum %d not found on dungeon_index %ld", trigger->vnum, dungeon_index->vnum);
+                            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                                "Fix_dungeonprogs: script %s not found for dungeon_index %s",
+                                trigger->script_is_widevnum
+                                    ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                                    : widevnum_string(pArea, trigger->vnum, NULL),
+                                widevnum_string_dungeon(dungeon_index, NULL));
                             exit(1);
                         }
 
