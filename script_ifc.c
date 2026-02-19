@@ -2644,13 +2644,13 @@ DECL_IFC_FUN(ifc_vardefined)
     else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
     else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
     else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
-    else if(mob) progs = mob->progs;
-    else if(obj) progs = obj->progs;
-    else if(room) progs = room->progs;
-    else if(token) progs = token->progs;
-    else if(area) progs = area->progs;
-    else if(IS_VALID(info->instance)) progs = info->instance->progs;
-    else if(IS_VALID(info->dungeon)) progs = info->dungeon->progs;
+    else if(mob) { progs = mob->progs; }
+    else if(obj) { progs = obj->progs; }
+    else if(room) { progs = room->progs; }
+    else if(token) { progs = token->progs; }
+    else if(area) { progs = area->progs; }
+    else if(IS_VALID(info->instance)) { progs = info->instance->progs; }
+    else if(IS_VALID(info->dungeon)) { progs = info->dungeon->progs; }
 
     if (IS_VALID(info->instance))
         fallback_progs = info->instance->progs;

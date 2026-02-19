@@ -3618,6 +3618,8 @@ void do_toggle(CHAR_DATA *ch, char *argument)
     pref_set_bool(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
         pc_set_table[i].name, new_state);
 
+    save_char_obj(ch);
+
     sprintf(buf, "%s is now %s. {Y(character override){x\n\r",
         pc_set_table[i].name,
         new_state ? "{WON{x" : "{DOFF{x");
@@ -3682,6 +3684,8 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 
     pref_set_bool(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
     pc_set_table[i].name, is_on);
+
+    save_char_obj(ch);
 }
 
 /**

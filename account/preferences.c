@@ -427,6 +427,9 @@ void pref_snapshot_toggles(CHAR_DATA *ch, PREF_ENTRY **list)
             is_set = IS_SET(ch->act[1], pc_set_table[i].vector2);
         else if (pc_set_table[i].vector_comm)
             is_set = IS_SET(ch->comm, pc_set_table[i].vector_comm);
+        else
+            is_set = pref_get_bool(NULL, ch, pc_set_table[i].name,
+                                   pc_set_table[i].default_state == SETTING_ON);
 
         /* Inverted flags: bit set = feature disabled */
         if (pc_set_table[i].inverted)
@@ -2208,6 +2211,8 @@ void do_prefs(CHAR_DATA *ch, char *argument)
                 pref_set_bool(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
                               pc_set_table[i].name, is_on);
 
+                save_char_obj(ch);
+
                 sprintf(buf, "%s is now %s. {Y(character override){x\n\r",
                         pc_set_table[i].name,
                         is_on ? "{WON{x" : "{DOFF{x");
@@ -2247,6 +2252,8 @@ void do_prefs(CHAR_DATA *ch, char *argument)
             pref_set_bool(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
                           pc_set_table[i].name, is_on);
 
+                save_char_obj(ch);
+
             sprintf(buf, "%s is now %s. {Y(character override){x\n\r",
                     pc_set_table[i].name,
                     is_on ? "{WON{x" : "{DOFF{x");
@@ -2278,6 +2285,8 @@ void do_prefs(CHAR_DATA *ch, char *argument)
             bool enabled = !IS_SET(ch->comm, channel_mute_table[i].flag);
             pref_set_bool(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
                           pref_key, enabled);
+
+            save_char_obj(ch);
             return;
         }
     }
@@ -2289,6 +2298,7 @@ void do_prefs(CHAR_DATA *ch, char *argument)
             ch->wimpy = URANGE(0, val, ch->max_hit);
             pref_set_int(&ch->pcdata->preferences, PREF_CAT_TOGGLE,
                          "wimpy", ch->wimpy);
+                save_char_obj(ch);
             sprintf(buf, "Wimpy set to %d. {Y(character override){x\n\r",
                     ch->wimpy);
         } else {

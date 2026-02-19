@@ -318,6 +318,7 @@ char *expand_number(char *str, int *num)
 char *expand_ifcheck(SCRIPT_VARINFO *info,char *str,int *value)
 {
     int xifc;
+    int max_ifchecks = 0;
     char *rest;
     IFCHECK_DATA *ifc;
     bool valid;
@@ -328,7 +329,10 @@ char *expand_ifcheck(SCRIPT_VARINFO *info,char *str,int *value)
         xifc = (((str[0] - ESCAPE_EXTRA)&0x3F) |
             (((str[1] - ESCAPE_EXTRA)&0x3F)<<6));	// 0 - 4095
 
-        if(xifc >= 0 && xifc < CHK_MAXIFCHECKS) {
+        while (ifcheck_table[max_ifchecks].name)
+            ++max_ifchecks;
+
+        if(xifc >= 0 && xifc < max_ifchecks) {
             ifc = &ifcheck_table[xifc];
 
             rest = ifcheck_get_value(info,ifc,str+2,value,&valid);

@@ -473,10 +473,14 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
     char *text, *p, buf[MIL], buf2[MSL];
     bool valid;
     IFCHECK_DATA *ifc;
+    int max_ifchecks = 0;
 
     if(!info) return -1;	// Error
 
-    if(param < -1 || param >= CHK_MAXIFCHECKS)
+    while (ifcheck_table[max_ifchecks].name)
+        ++max_ifchecks;
+
+    if(param < -1 || param >= max_ifchecks)
          return -1;
 
     if(param == -1) {
