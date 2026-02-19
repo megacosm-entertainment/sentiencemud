@@ -340,12 +340,16 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
         }
         else
         {
-            /* Use portal's area as context for dungeon lookup */
-            WNUM wnum = { portal->pIndexData ? portal->pIndexData->area : NULL, PORTAL(portal)->params[0] };
+            /* Prefer explicit dungeon area UID in params[4], otherwise use portal object's area */
+            AREA_DATA *dungeon_area = NULL;
+            if (PORTAL(portal)->params[4] > 0)
+                dungeon_area = get_area_index(PORTAL(portal)->params[4]);
+
+            WNUM wnum = { dungeon_area ? dungeon_area : (portal->pIndexData ? portal->pIndexData->area : NULL), PORTAL(portal)->params[0] };
             int floor = PORTAL(portal)->params[1];
 
             /* Legacy compatibility: older dungeon portals stored floor in params[4] */
-            if (floor < 1 && PORTAL(portal)->params[4] > 0)
+            if (floor < 1 && !dungeon_area && PORTAL(portal)->params[4] > 0)
                 floor = PORTAL(portal)->params[4];
 
             if (floor < 1)

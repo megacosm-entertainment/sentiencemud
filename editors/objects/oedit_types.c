@@ -1279,6 +1279,7 @@ OEDIT(oedit_portal)
                 }
 
                 PORTAL(pObj)->params[0] = dng->vnum;
+                PORTAL(pObj)->params[4] = dng->area ? dng->area->uid : 0;
 
                 if (PORTAL(pObj)->params[1] < 1)
                     PORTAL(pObj)->params[1] = 1;

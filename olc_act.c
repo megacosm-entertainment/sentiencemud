@@ -2512,6 +2512,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 }
 
                 PORTAL(pObj)->params[0] = dng->vnum;
+                PORTAL(pObj)->params[4] = dng->area ? dng->area->uid : 0;
                 if( PORTAL(pObj)->params[1] < 1 )
                     PORTAL(pObj)->params[1] = 1;
                 send_to_char("DUNGEON DESTINATION SET.\n\r\n\r", ch);
