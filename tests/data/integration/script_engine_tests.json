@@ -1,0 +1,72 @@
+{
+  "type": "test_suite",
+  "test_suite": "script_engine_tests",
+  "description": "Script engine Phase 0 regression tests for lookup parity and compile bounds",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "script_entity_lookup_mobile_fields",
+      "description": "Verify hash-backed entity lookup returns expected mobile fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "mobile",
+        "test_cases": [
+          {"name": "name", "should_exist": true},
+          {"name": "level", "should_exist": true},
+          {"name": "fulldesc", "should_exist": true},
+          {"name": "no_such_mobile_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_lookup_type_masks",
+      "description": "Verify ifcheck lookup obeys type masks and remains case-insensitive",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_lookup_test",
+      "input": {
+        "test_cases": [
+          {"name": "abs", "ifc_type": "IFC_M", "should_exist": true},
+          {"name": "AbS", "ifc_type": "IFC_O", "should_exist": true},
+          {"name": "clones", "ifc_type": "IFC_M", "should_exist": true},
+          {"name": "clones", "ifc_type": "IFC_O", "should_exist": false},
+          {"name": "definitely_not_ifcheck", "ifc_type": "IFC_ANY", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_string_bounds",
+      "description": "Verify compile string succeeds below cap and fails beyond cap",
+      "dependencies": [],
+      "test_type": "script_engine_compile_bounds_test",
+      "input": {
+        "safe_len": 4096,
+        "overflow_len": 70000
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_table_validation",
+      "description": "Verify runtime entity table validator reports healthy registry",
+      "dependencies": [],
+      "test_type": "script_engine_entity_table_validation_test",
+      "input": {
+        "strict": true
+      },
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

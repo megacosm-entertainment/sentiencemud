@@ -298,6 +298,7 @@ if(BUILD_TESTS)
         tests/integration/class_data_tests.c
         tests/integration/item_type_tests.c
         tests/integration/lookup_table_tests.c
+        tests/integration/script_engine_tests.c
         tests/integration/song_data_tests.c
         tests/integration/skill_group_tests.c
         tests/integration/trait_system_tests.c

@@ -2590,6 +2590,8 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 ENT_FIELD *script_entity_fields(int type);
 bool script_entity_allow_vars(int type);
+bool script_validate_entity_tables(void);
+void script_lookup_profile_report(const char *tag);
 void script_entity_info(int type, ENT_FIELD **fields, bool *vars);
 
 /* Expansion */

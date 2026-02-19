@@ -6,6 +6,8 @@
  **************************************************************************/
 
 #include "strings.h"
+#include <ctype.h>
+#include <time.h>
 #include "merc.h"
 #include "traits.h"
 #include "tables.h"
@@ -33,6 +35,226 @@ ROOM_INDEX_DATA room_pointer_environment;
 
 bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock);
 bool is_stat( const struct flag_type *flag_table );
+
+#define SCRIPT_ENTITY_HASH_SIZE 257
+#define SCRIPT_ENTITY_LIST_CACHE_MAX 256
+#define SCRIPT_IFCHECK_HASH_SIZE 257
+#define SCRIPT_LOOKUP_REPORT_INTERVAL 50000UL
+
+typedef struct script_entity_lookup_node SCRIPT_ENTITY_LOOKUP_NODE;
+struct script_entity_lookup_node {
+    ENT_FIELD *field;
+    SCRIPT_ENTITY_LOOKUP_NODE *next;
+};
+
+typedef struct script_entity_list_cache SCRIPT_ENTITY_LIST_CACHE;
+struct script_entity_list_cache {
+    ENT_FIELD *list;
+    SCRIPT_ENTITY_LOOKUP_NODE *buckets[SCRIPT_ENTITY_HASH_SIZE];
+};
+
+typedef struct script_ifcheck_lookup_node SCRIPT_IFCHECK_LOOKUP_NODE;
+struct script_ifcheck_lookup_node {
+    int index;
+    SCRIPT_IFCHECK_LOOKUP_NODE *next;
+};
+
+static SCRIPT_ENTITY_LIST_CACHE script_entity_list_caches[SCRIPT_ENTITY_LIST_CACHE_MAX];
+static int script_entity_list_cache_count = 0;
+static bool script_entity_list_cache_full_logged = false;
+static SCRIPT_IFCHECK_LOOKUP_NODE *script_ifcheck_buckets[SCRIPT_IFCHECK_HASH_SIZE];
+static bool script_ifcheck_cache_built = false;
+static bool script_ifcheck_cache_failed = false;
+
+typedef struct script_lookup_profile_data SCRIPT_LOOKUP_PROFILE;
+struct script_lookup_profile_data {
+    unsigned long entity_calls;
+    unsigned long entity_hash_hits;
+    unsigned long entity_linear_fallbacks;
+    unsigned long entity_probe_steps;
+    unsigned long entity_hash_calls;
+    unsigned long entity_linear_calls;
+    unsigned long long entity_hash_time_ns;
+    unsigned long long entity_linear_time_ns;
+
+    unsigned long ifcheck_calls;
+    unsigned long ifcheck_hash_hits;
+    unsigned long ifcheck_linear_fallbacks;
+    unsigned long ifcheck_probe_steps;
+    unsigned long ifcheck_hash_calls;
+    unsigned long ifcheck_linear_calls;
+    unsigned long long ifcheck_hash_time_ns;
+    unsigned long long ifcheck_linear_time_ns;
+};
+
+static SCRIPT_LOOKUP_PROFILE script_lookup_profile = {0};
+
+static unsigned long long script_profile_now_ns(void)
+{
+    struct timespec ts;
+
+    if(clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+        return 0ULL;
+
+    return ((unsigned long long)ts.tv_sec * 1000000000ULL) + (unsigned long long)ts.tv_nsec;
+}
+
+void script_lookup_profile_report(const char *tag)
+{
+    const char *label = IS_NULLSTR(tag) ? "runtime" : tag;
+    double entity_hash_avg_us = 0.0;
+    double entity_linear_avg_us = 0.0;
+    double ifcheck_hash_avg_us = 0.0;
+    double ifcheck_linear_avg_us = 0.0;
+
+    if(script_lookup_profile.entity_hash_calls > 0)
+        entity_hash_avg_us = ((double)script_lookup_profile.entity_hash_time_ns /
+            (double)script_lookup_profile.entity_hash_calls) / 1000.0;
+    if(script_lookup_profile.entity_linear_calls > 0)
+        entity_linear_avg_us = ((double)script_lookup_profile.entity_linear_time_ns /
+            (double)script_lookup_profile.entity_linear_calls) / 1000.0;
+    if(script_lookup_profile.ifcheck_hash_calls > 0)
+        ifcheck_hash_avg_us = ((double)script_lookup_profile.ifcheck_hash_time_ns /
+            (double)script_lookup_profile.ifcheck_hash_calls) / 1000.0;
+    if(script_lookup_profile.ifcheck_linear_calls > 0)
+        ifcheck_linear_avg_us = ((double)script_lookup_profile.ifcheck_linear_time_ns /
+            (double)script_lookup_profile.ifcheck_linear_calls) / 1000.0;
+
+    pbugf(LOG_SCRIPTS,
+        "Lookup profile[%s]: entity calls=%lu hash_hits=%lu fallback=%lu avg_probe=%.2f hash_avg=%.2fus linear_avg=%.2fus | ifcheck calls=%lu hash_hits=%lu fallback=%lu avg_probe=%.2f hash_avg=%.2fus linear_avg=%.2fus",
+        label,
+        script_lookup_profile.entity_calls,
+        script_lookup_profile.entity_hash_hits,
+        script_lookup_profile.entity_linear_fallbacks,
+        (script_lookup_profile.entity_calls > 0)
+            ? ((double)script_lookup_profile.entity_probe_steps / (double)script_lookup_profile.entity_calls)
+            : 0.0,
+        entity_hash_avg_us,
+        entity_linear_avg_us,
+        script_lookup_profile.ifcheck_calls,
+        script_lookup_profile.ifcheck_hash_hits,
+        script_lookup_profile.ifcheck_linear_fallbacks,
+        (script_lookup_profile.ifcheck_calls > 0)
+            ? ((double)script_lookup_profile.ifcheck_probe_steps / (double)script_lookup_profile.ifcheck_calls)
+            : 0.0,
+        ifcheck_hash_avg_us,
+        ifcheck_linear_avg_us);
+}
+
+static unsigned int script_hash_ci(const char *name, unsigned int size)
+{
+    unsigned int hash = 5381;
+    const unsigned char *ptr = (const unsigned char *)name;
+
+    while(*ptr)
+        hash = ((hash << 5) + hash) + (unsigned char)tolower(*ptr++);
+
+    return hash % size;
+}
+
+static ENT_FIELD *entity_type_lookup_linear(char *name, ENT_FIELD *list)
+{
+    int i;
+
+    if(!list || !name)
+        return NULL;
+
+    for(i = 0; list[i].name; i++)
+        if(!str_cmp(name, list[i].name))
+            return &list[i];
+
+    return NULL;
+}
+
+static SCRIPT_ENTITY_LIST_CACHE *script_get_entity_list_cache(ENT_FIELD *list)
+{
+    int i;
+    int count;
+
+    for(i = 0; i < script_entity_list_cache_count; i++)
+        if(script_entity_list_caches[i].list == list)
+            return &script_entity_list_caches[i];
+
+    if(script_entity_list_cache_count >= SCRIPT_ENTITY_LIST_CACHE_MAX) {
+        if(!script_entity_list_cache_full_logged) {
+            pbugf(LOG_SCRIPTS,
+                "Entity lookup cache exhausted at %d distinct tables; using linear fallback.",
+                SCRIPT_ENTITY_LIST_CACHE_MAX);
+            script_entity_list_cache_full_logged = true;
+        }
+        return NULL;
+    }
+
+    SCRIPT_ENTITY_LIST_CACHE *cache = &script_entity_list_caches[script_entity_list_cache_count++];
+    memset(cache, 0, sizeof(*cache));
+    cache->list = list;
+
+    for(count = 0; list[count].name; count++)
+        ;
+
+    for(i = count - 1; i >= 0; i--) {
+        SCRIPT_ENTITY_LOOKUP_NODE *node;
+        unsigned int bucket;
+
+        node = alloc_mem(sizeof(*node));
+        if(!node)
+            return NULL;
+
+        node->field = &list[i];
+        bucket = script_hash_ci(list[i].name, SCRIPT_ENTITY_HASH_SIZE);
+        node->next = cache->buckets[bucket];
+        cache->buckets[bucket] = node;
+    }
+
+    return cache;
+}
+
+static int ifcheck_lookup_linear(char *name, int type)
+{
+    int i;
+
+    for(i = 0; ifcheck_table[i].name; i++)
+        if((ifcheck_table[i].type & type) && !str_cmp(name, ifcheck_table[i].name))
+            return i;
+
+    return -1;
+}
+
+static bool script_build_ifcheck_cache(void)
+{
+    int count;
+    int i;
+
+    if(script_ifcheck_cache_built)
+        return true;
+    if(script_ifcheck_cache_failed)
+        return false;
+
+    memset(script_ifcheck_buckets, 0, sizeof(script_ifcheck_buckets));
+
+    for(count = 0; ifcheck_table[count].name; count++)
+        ;
+
+    for(i = count - 1; i >= 0; i--) {
+        SCRIPT_IFCHECK_LOOKUP_NODE *node;
+        unsigned int bucket;
+
+        node = alloc_mem(sizeof(*node));
+        if(!node) {
+            script_ifcheck_cache_failed = true;
+            pbugf(LOG_SCRIPTS, "Ifcheck lookup cache allocation failed; using linear fallback.");
+            return false;
+        }
+
+        node->index = i;
+        bucket = script_hash_ci(ifcheck_table[i].name, SCRIPT_IFCHECK_HASH_SIZE);
+        node->next = script_ifcheck_buckets[bucket];
+        script_ifcheck_buckets[bucket] = node;
+    }
+
+    script_ifcheck_cache_built = true;
+    return true;
+}
 
 char *	const	dir_name_phrase	[]		=
 {
@@ -357,26 +579,231 @@ bool script_entity_allow_vars(int type)
     return false;
 }
 
-//void compile_error_show(char *msg);
-ENT_FIELD *entity_type_lookup(char *name, ENT_FIELD *list)
+bool script_validate_entity_tables(void)
 {
+    int errors = 0;
+    int warnings = 0;
+    int table_count = 0;
+    int field_count = 0;
+    int highest_pressure_pct = -1;
+    int highest_pressure_table_index = -1;
+    int highest_pressure_type_min = ENT_UNKNOWN;
+    int highest_pressure_type_max = ENT_UNKNOWN;
     int i;
-//	char buf[MSL];
 
-    if(!list) return NULL;
+    for(i = 0; entity_type_info[i].type_min < ENT_MAX; i++) {
+        ENT_FIELD *fields;
+        int j;
 
-    for(i=0;list[i].name;i++) {
-//		compile_error_show(buf);
-//		sprintf(buf,"entity_type_lookup: '%s' '%s'",list[i].name,name);
-        if(!str_cmp(name,list[i].name)) {
-//			sprintf(buf,"entity_type_lookup: '%s' found",name);
-//			compile_error_show(buf);
-            return &list[i];
+        if(entity_type_info[i].type_min > entity_type_info[i].type_max) {
+            pbugf(LOG_SCRIPTS,
+                "Entity table registry invalid range: min=%d max=%d (index=%d)",
+                entity_type_info[i].type_min,
+                entity_type_info[i].type_max,
+                i);
+            errors++;
+        }
+
+        if(entity_type_info[i].type_min < ENT_NONE || entity_type_info[i].type_max >= ENT_MAX) {
+            pbugf(LOG_SCRIPTS,
+                "Entity table registry out-of-range types: min=%d max=%d (index=%d)",
+                entity_type_info[i].type_min,
+                entity_type_info[i].type_max,
+                i);
+            errors++;
+        }
+
+        for(j = i + 1; entity_type_info[j].type_min < ENT_MAX; j++) {
+            if(entity_type_info[i].type_min <= entity_type_info[j].type_max
+            && entity_type_info[j].type_min <= entity_type_info[i].type_max) {
+                pbugf(LOG_SCRIPTS,
+                    "Entity table registry overlap: [%d..%d] with [%d..%d]",
+                    entity_type_info[i].type_min,
+                    entity_type_info[i].type_max,
+                    entity_type_info[j].type_min,
+                    entity_type_info[j].type_max);
+                errors++;
+            }
+        }
+
+        fields = entity_type_info[i].fields;
+        if(!fields)
+            continue;
+
+        table_count++;
+        {
+            const char *first_name_for_code[256] = {0};
+            bool warned_code_reuse[256] = {0};
+            bool used_code[256] = {0};
+            int unique_code_count = 0;
+            int reuse_count = 0;
+            int max_code = -1;
+            const int usable_codes = (int)ESCAPE_UA - (int)ESCAPE_EXTRA;
+
+        for(j = 0; fields[j].name; j++) {
+            int k;
+            field_count++;
+
+            if(fields[j].name[0] == '\0') {
+                pbugf(LOG_SCRIPTS,
+                    "Entity field has empty name in table index=%d field_index=%d",
+                    i,
+                    j);
+                errors++;
+            }
+
+            if(fields[j].code < ESCAPE_EXTRA || fields[j].code >= ESCAPE_UA) {
+                pbugf(LOG_SCRIPTS,
+                    "Entity field '%s' has out-of-band code=%u (valid range %u..%u)",
+                    fields[j].name,
+                    (unsigned int)fields[j].code,
+                    (unsigned int)ESCAPE_EXTRA,
+                    (unsigned int)(ESCAPE_UA - 1));
+                errors++;
+            }
+
+            if(fields[j].type != ENT_UNKNOWN
+            && (fields[j].type < ENT_NONE || fields[j].type >= ENT_MAX)) {
+                pbugf(LOG_SCRIPTS,
+                    "Entity field '%s' has invalid result type=%u",
+                    fields[j].name,
+                    (unsigned int)fields[j].type);
+                errors++;
+            }
+
+            if(first_name_for_code[fields[j].code] == NULL) {
+                first_name_for_code[fields[j].code] = fields[j].name;
+            } else if(!warned_code_reuse[fields[j].code]
+                && str_cmp(first_name_for_code[fields[j].code], fields[j].name)) {
+                pbugf(LOG_SCRIPTS,
+                    "WARNING: Entity table index=%d reuses field code=%u for '%s' and '%s'",
+                    i,
+                    (unsigned int)fields[j].code,
+                    first_name_for_code[fields[j].code],
+                    fields[j].name);
+                warned_code_reuse[fields[j].code] = true;
+                warnings++;
+                reuse_count++;
+            }
+
+            if(!used_code[fields[j].code]) {
+                used_code[fields[j].code] = true;
+                unique_code_count++;
+            }
+            if((int)fields[j].code > max_code)
+                max_code = (int)fields[j].code;
+
+            for(k = j + 1; fields[k].name; k++) {
+                if(!str_cmp(fields[j].name, fields[k].name)) {
+                    pbugf(LOG_SCRIPTS,
+                        "Duplicate entity field name '%s' within table index=%d",
+                        fields[j].name,
+                        i);
+                    errors++;
+                }
+            }
+        }
+
+            if(usable_codes > 0) {
+                int pressure_pct = (unique_code_count * 100) / usable_codes;
+
+                if(pressure_pct > highest_pressure_pct) {
+                    highest_pressure_pct = pressure_pct;
+                    highest_pressure_table_index = i;
+                    highest_pressure_type_min = entity_type_info[i].type_min;
+                    highest_pressure_type_max = entity_type_info[i].type_max;
+                }
+
+                if(pressure_pct >= 70) {
+                    pbugf(LOG_SCRIPTS,
+                        "Entity field pressure: table_index=%d type_range=[%d..%d] unique_codes=%d/%d (%d%%) max_code=%d reuses=%d",
+                        i,
+                        entity_type_info[i].type_min,
+                        entity_type_info[i].type_max,
+                        unique_code_count,
+                        usable_codes,
+                        pressure_pct,
+                        max_code,
+                        reuse_count);
+                }
+            }
         }
     }
 
-//	sprintf(buf,"entity_type_lookup: '%s' NOT found",name);
-//	compile_error_show(buf);
+    pbugf(LOG_SCRIPTS,
+        "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
+        table_count,
+        field_count,
+        errors,
+        warnings);
+
+    if(highest_pressure_table_index >= 0) {
+        pbugf(LOG_SCRIPTS,
+            "Entity field pressure peak: table_index=%d type_range=[%d..%d] pressure=%d%%",
+            highest_pressure_table_index,
+            highest_pressure_type_min,
+            highest_pressure_type_max,
+            highest_pressure_pct);
+    }
+
+    return (errors == 0);
+}
+
+//void compile_error_show(char *msg);
+ENT_FIELD *entity_type_lookup(char *name, ENT_FIELD *list)
+{
+    SCRIPT_ENTITY_LIST_CACHE *cache;
+    SCRIPT_ENTITY_LOOKUP_NODE *node;
+    unsigned int bucket;
+    unsigned long long t0;
+    unsigned long long t1;
+
+    if(!list || !name)
+        return NULL;
+
+    script_lookup_profile.entity_calls++;
+
+    cache = script_get_entity_list_cache(list);
+    if(!cache) {
+        ENT_FIELD *field;
+
+        t0 = script_profile_now_ns();
+        field = entity_type_lookup_linear(name, list);
+        t1 = script_profile_now_ns();
+
+        script_lookup_profile.entity_linear_calls++;
+        if(t1 >= t0)
+            script_lookup_profile.entity_linear_time_ns += (t1 - t0);
+        script_lookup_profile.entity_linear_fallbacks++;
+        if(script_lookup_profile.entity_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+            script_lookup_profile_report("entity_lookup");
+        return field;
+    }
+
+    bucket = script_hash_ci(name, SCRIPT_ENTITY_HASH_SIZE);
+    t0 = script_profile_now_ns();
+    for(node = cache->buckets[bucket]; node; node = node->next) {
+        script_lookup_profile.entity_probe_steps++;
+        if(!str_cmp(name, node->field->name)) {
+            t1 = script_profile_now_ns();
+            script_lookup_profile.entity_hash_calls++;
+            if(t1 >= t0)
+                script_lookup_profile.entity_hash_time_ns += (t1 - t0);
+            script_lookup_profile.entity_hash_hits++;
+            if(script_lookup_profile.entity_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+                script_lookup_profile_report("entity_lookup");
+            return node->field;
+        }
+    }
+
+    t1 = script_profile_now_ns();
+    script_lookup_profile.entity_hash_calls++;
+    if(t1 >= t0)
+        script_lookup_profile.entity_hash_time_ns += (t1 - t0);
+
+    if(script_lookup_profile.entity_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+        script_lookup_profile_report("entity_lookup");
+
     return NULL;
 }
 
@@ -405,11 +832,56 @@ int get_operator(char *keyword)
 
 int ifcheck_lookup(char *name, int type)
 {
-    register int i;
+    unsigned int bucket;
+    SCRIPT_IFCHECK_LOOKUP_NODE *node;
+    unsigned long long t0;
+    unsigned long long t1;
 
-    for(i=0;ifcheck_table[i].name;i++)
-        if((ifcheck_table[i].type & type) && !str_cmp(name,ifcheck_table[i].name))
-            return i;
+    if(!name)
+        return -1;
+
+    script_lookup_profile.ifcheck_calls++;
+
+    if(!script_build_ifcheck_cache()) {
+        int index;
+
+        t0 = script_profile_now_ns();
+        index = ifcheck_lookup_linear(name, type);
+        t1 = script_profile_now_ns();
+
+        script_lookup_profile.ifcheck_linear_calls++;
+        if(t1 >= t0)
+            script_lookup_profile.ifcheck_linear_time_ns += (t1 - t0);
+        script_lookup_profile.ifcheck_linear_fallbacks++;
+        if(script_lookup_profile.ifcheck_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+            script_lookup_profile_report("ifcheck_lookup");
+        return index;
+    }
+
+    bucket = script_hash_ci(name, SCRIPT_IFCHECK_HASH_SIZE);
+    t0 = script_profile_now_ns();
+    for(node = script_ifcheck_buckets[bucket]; node; node = node->next) {
+        script_lookup_profile.ifcheck_probe_steps++;
+        if((ifcheck_table[node->index].type & type)
+        && !str_cmp(name, ifcheck_table[node->index].name)) {
+            t1 = script_profile_now_ns();
+            script_lookup_profile.ifcheck_hash_calls++;
+            if(t1 >= t0)
+                script_lookup_profile.ifcheck_hash_time_ns += (t1 - t0);
+            script_lookup_profile.ifcheck_hash_hits++;
+            if(script_lookup_profile.ifcheck_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+                script_lookup_profile_report("ifcheck_lookup");
+            return node->index;
+        }
+    }
+
+    t1 = script_profile_now_ns();
+    script_lookup_profile.ifcheck_hash_calls++;
+    if(t1 >= t0)
+        script_lookup_profile.ifcheck_hash_time_ns += (t1 - t0);
+
+    if(script_lookup_profile.ifcheck_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+        script_lookup_profile_report("ifcheck_lookup");
 
     return -1;
 }

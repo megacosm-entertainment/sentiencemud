@@ -108,6 +108,10 @@ A feature from `src_20_dev` is accepted only if all are true:
 
 **Goal**: freeze terminology and expected behavior before heavy code movement.
 
+**Current Phase 0 starting point**: `docs/AUDIT_PHASE0_ENTITY_ENCODING_EXPANSION.md`
+prioritizes entity encoding/expansion safety and compile-time lookup efficiency
+as the first major tranche.
+
 - Build issue catalog for:
   - trigger fallback/context integrity
   - variable ownership resolution
@@ -251,10 +255,11 @@ Definition of done for each phase includes test coverage for changed surfaces.
 
 ## 9) Immediate Next Actions (Start Here)
 
-1. Create initial issue catalog from current known hotspots (`test_vnumname_trigger` first).
-2. Land first command-consolidation tranche (trivial wrappers) to establish shared helper patterns.
-3. Write backport decision table for xtriggers + variable types with explicit dependencies.
-4. Draft `eprog` design brief (scope, trigger model, command policy) before implementation.
+1. Execute entity encoding/expansion tranche from `docs/AUDIT_PHASE0_ENTITY_ENCODING_EXPANSION.md` (EEF-001 then EEF-005).
+2. Continue issue catalog expansion with trigger-context hotspots (`test_vnumname_trigger` first).
+3. Land first command-consolidation tranche (trivial wrappers) to establish shared helper patterns.
+4. Write backport decision table for xtriggers + variable types with explicit dependencies.
+5. Draft `eprog` design brief (scope, trigger model, command policy) before implementation.
 
 ---
 

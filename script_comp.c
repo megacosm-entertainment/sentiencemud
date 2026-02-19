@@ -24,7 +24,23 @@
 
 static BUFFER *compile_err_buffer = NULL;
 static int compile_current_line = 0;
+static char *compile_store_limit = NULL;
 
+void compile_error_show(char *msg);
+
+static bool compile_emit_byte(char **store, unsigned char value)
+{
+    char buf[MSL];
+
+    if (compile_store_limit && (*store >= compile_store_limit)) {
+        sprintf(buf, "Line %d: Script line too long after escape compilation.", compile_current_line);
+        compile_error_show(buf);
+        return false;
+    }
+
+    *(*store)++ = (char)value;
+    return true;
+}
 
 void compile_error(char *msg)
 {
@@ -107,8 +123,8 @@ char *compile_ifcheck(char *str,int type, char **store)
         compile_error_show(buf2);
         return NULL;
     }
-    *p++ = (ifc & 0x3F) + ESCAPE_EXTRA;	// ????______LLLLLL
-    *p++ = ((ifc>>6) & 0x3F) + ESCAPE_EXTRA;	// ????HHHHHH______
+    if(!compile_emit_byte(&p, (ifc & 0x3F) + ESCAPE_EXTRA)) return NULL;
+    if(!compile_emit_byte(&p, ((ifc>>6) & 0x3F) + ESCAPE_EXTRA)) return NULL;
 
     str = compile_substring(str,type,&p,true,true,false);
     if(!str) {
@@ -133,7 +149,7 @@ char *compile_expression(char *str,int type, char **store)
 
     str = skip_whitespace(str);	// Process to the first non-whitespace
 
-    *p++ = ESCAPE_EXPRESSION;
+    if(!compile_emit_byte(&p, ESCAPE_EXPRESSION)) return NULL;
 
     optr.t = 0;
 
@@ -146,7 +162,9 @@ char *compile_expression(char *str,int type, char **store)
                 return NULL;
             }
 
-            while(ISDIGIT(*str)) *p++ = *str++;
+            while(ISDIGIT(*str)) {
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+            }
             ++opnds;
             expect = true;
         } else if(ISALPHA(*str)) {	// Variable (simple, alpha-only)
@@ -155,9 +173,11 @@ char *compile_expression(char *str,int type, char **store)
                 compile_error_show(buf);
                 return NULL;
             }
-            *p++ = ESCAPE_VARIABLE;
-            while(ISALPHA(*str)) *p++ = *str++;
-            *p++ = ESCAPE_END;
+            if(!compile_emit_byte(&p, ESCAPE_VARIABLE)) return NULL;
+            while(ISALPHA(*str)) {
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+            }
+            if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
             ++opnds;
             expect = true;
         } else if(*str == '"') {	// Variable (long, any character)
@@ -166,16 +186,18 @@ char *compile_expression(char *str,int type, char **store)
                 compile_error_show(buf);
                 return NULL;
             }
-            *p++ = ESCAPE_VARIABLE;
+            if(!compile_emit_byte(&p, ESCAPE_VARIABLE)) return NULL;
             ++str;
-            while(*str && *str != '"' && ISPRINT(*str)) *p++ = *str++;
+            while(*str && *str != '"' && ISPRINT(*str)) {
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+            }
             if(*str != '"') {
                 sprintf(buf,"Line %d: Missing quote around long variable name in expression.", compile_current_line);
                 compile_error_show(buf);
                 return NULL;
             }
             ++str;
-            *p++ = ESCAPE_END;
+            if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
             ++opnds;
             expect = true;
         } else if(*str == '[') {
@@ -185,14 +207,14 @@ char *compile_expression(char *str,int type, char **store)
                 return NULL;
             }
 
-            *p++ = ESCAPE_EXPRESSION;
+            if(!compile_emit_byte(&p, ESCAPE_EXPRESSION)) return NULL;
             rest = compile_ifcheck(str+1,type,&p);
             if(!rest) {
                 // Error message handled by compile_ifcheck
                 return NULL;
             }
             str = rest;
-            *p++ = ESCAPE_END;
+            if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
             ++opnds;
             expect = true;
         } else if(*str != ']') {
@@ -240,7 +262,7 @@ char *compile_expression(char *str,int type, char **store)
                 compile_error_show(buf);
                 return NULL;
             }
-            *p++ = *str++;
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
         }
     }
 
@@ -265,7 +287,7 @@ char *compile_expression(char *str,int type, char **store)
         return NULL;
     }
 
-    *p++ = ESCAPE_END;
+    if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
 
     *store = p;
     return str+1;
@@ -274,16 +296,20 @@ char *compile_expression(char *str,int type, char **store)
 char *compile_variable(char *str, char **store, int type, bool bracket, bool anychar)
 {
     char *p = *store;
-    *p++ = ESCAPE_VARIABLE;
+    if(!compile_emit_byte(&p, ESCAPE_VARIABLE)) return NULL;
     while(str && *str && *str != '>') {
-        if(ISALPHA(*str)) *p++ = *str++;
+        if(ISALPHA(*str)) {
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+        }
         else if(*str == '<') {
             str = compile_variable(str+1,&p, type,true,true);
             if(!str) return NULL;
         } else if(*str == '[') {
             str = compile_expression(str+1,type,&p);
             if(!str) return NULL;
-        } else if(anychar && ISPRINT(*str)) *p++ = *str++;
+        } else if(anychar && ISPRINT(*str)) {
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+        }
         else {
             char buf[MIL];
             sprintf(buf,"Line %d: Invalid character in variable name.", compile_current_line);
@@ -291,7 +317,7 @@ char *compile_variable(char *str, char **store, int type, bool bracket, bool any
             return NULL;
         }
     }
-    *p++ = ESCAPE_END;
+    if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
     if(bracket) {
         if(*str != '>') {
             char buf[MIL];
@@ -352,7 +378,7 @@ char *compile_entity(char *str,int type, char **store)
 
     DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
 
-    *p++ = ESCAPE_ENTITY;
+    if(!compile_emit_byte(&p, ESCAPE_ENTITY)) return NULL;
     while(*str && *str != ')') {
         str = skip_whitespace(str);
 
@@ -394,7 +420,7 @@ char *compile_entity(char *str,int type, char **store)
             }
             if(!compile_variable(field,&p,type,false,true))
                 return NULL;
-            *p++ = ENTITY_VAR_STR;
+            if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
             next_ent = ENT_STRING;
 
         } else if(ent == ENT_BITVECTOR || ent == ENT_BITMATRIX) {
@@ -405,7 +431,7 @@ char *compile_entity(char *str,int type, char **store)
             }
             if(!compile_variable(field,&p,type,false,true))
                 return NULL;
-            *p++ = ENTITY_VAR_BOOLEAN;
+            if(!compile_emit_byte(&p, ENTITY_VAR_BOOLEAN)) return NULL;
             next_ent = ENT_BOOLEAN;
 
         } else if(ent == ENT_STRING) {
@@ -443,15 +469,15 @@ char *compile_entity(char *str,int type, char **store)
                     return NULL;
                 }
 
-                *p++ = paddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT;
-                *p++ = padding + ESCAPE_EXTRA;
+                if(!compile_emit_byte(&p, paddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT)) return NULL;
+                if(!compile_emit_byte(&p, padding + ESCAPE_EXTRA)) return NULL;
 
                 next_ent = ENT_STRING;
             }
             else
             {
                 if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-                    *p++ = ftype->code;
+                    if(!compile_emit_byte(&p, ftype->code)) return NULL;
                     next_ent = ftype->type;
                 }
                 else
@@ -497,20 +523,20 @@ char *compile_entity(char *str,int type, char **store)
                     return NULL;
                 }
 
-                *p++ = paddir ? ENTITY_NUM_PADRIGHT : ENTITY_NUM_PADLEFT;
-                *p++ = padding + ESCAPE_EXTRA;
+                if(!compile_emit_byte(&p, paddir ? ENTITY_NUM_PADRIGHT : ENTITY_NUM_PADLEFT)) return NULL;
+                if(!compile_emit_byte(&p, padding + ESCAPE_EXTRA)) return NULL;
 
                 next_ent = ENT_STRING;
             }
             else
             {
                 if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-                    *p++ = ftype->code;
+                    if(!compile_emit_byte(&p, ftype->code)) return NULL;
                     next_ent = ftype->type;
                 } 
                 else if(ent == ENT_GAME && (!str_cmp(field, "settings") || !str_cmp(field, "setting"))) {
                     // Special handling for game.settings
-                    *p++ = ENTITY_GAME_SETTINGS;  // Use the ENTITY_GAME_SETTINGS constant
+                    if(!compile_emit_byte(&p, ENTITY_GAME_SETTINGS)) return NULL;  // Use the ENTITY_GAME_SETTINGS constant
                     next_ent = ENT_GAME_SETTING;  // Set the next entity type to ENT_GAME_SETTING
                 }
                 else {
@@ -538,7 +564,7 @@ char *compile_entity(char *str,int type, char **store)
 
                 if(!compile_variable(field,&p,type,false,true))
                     return NULL;
-                *p++ = ftype->code;
+                if(!compile_emit_byte(&p, ftype->code)) return NULL;
                 next_ent = ftype->type;
             } else {
                 sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
@@ -546,11 +572,11 @@ char *compile_entity(char *str,int type, char **store)
                 return NULL;
             }
         } else if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-            *p++ = ftype->code;
+            if(!compile_emit_byte(&p, ftype->code)) return NULL;
             next_ent = ftype->type;
         } else if(ent == ENT_GAME && (!str_cmp(field, "settings") || !str_cmp(field, "setting"))) {
             // Special handling for game.settings
-            *p++ = ENTITY_GAME_SETTINGS;
+            if(!compile_emit_byte(&p, ENTITY_GAME_SETTINGS)) return NULL;
             next_ent = ENT_GAME_SETTING;
         } else if(ent == ENT_GAME_SETTING) {
             // Special handling for game settings fields - accept any valid settings name
@@ -565,21 +591,21 @@ char *compile_entity(char *str,int type, char **store)
                 // Set appropriate type based on the setting
                 switch (setting->type) {
                     case SETTING_TYPE_BOOL:
-                        *p++ = ENTITY_VAR_BOOLEAN;
+                        if(!compile_emit_byte(&p, ENTITY_VAR_BOOLEAN)) return NULL;
                         next_ent = ENT_BOOLEAN;
                         break;
                     case SETTING_TYPE_INT:
-                        *p++ = ENTITY_VAR_NUM;
+                        if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;
                         next_ent = ENT_NUMBER;
                         break;
                     case SETTING_TYPE_FLOAT:
-                        *p++ = ENTITY_VAR_NUM;  // Treat floats as numbers
+                        if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;  // Treat floats as numbers
                         next_ent = ENT_NUMBER;
                         break;
                     case SETTING_TYPE_STRING:
                     case SETTING_TYPE_EXTSTR:
                     default:
-                        *p++ = ENTITY_VAR_STR;
+                        if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
                         next_ent = ENT_STRING;
                         break;
                 }
@@ -602,7 +628,7 @@ char *compile_entity(char *str,int type, char **store)
                 return NULL;
             }
 
-            *p++ = ESCAPE_EXTRA + wearloc - WEAR_NONE;
+            if(!compile_emit_byte(&p, ESCAPE_EXTRA + wearloc - WEAR_NONE)) return NULL;
             next_ent = ENT_OBJECT;
 
         } else if(ent == ENT_RESERVED_MOBILE || ent == ENT_RESERVED_OBJECT || 
@@ -715,7 +741,7 @@ switch(ent) {
                     return NULL;
                 
                 // All reserved entities are integers (VNUMs)
-                *p++ = ENTITY_VAR_NUM;
+                if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;
                 next_ent = ENT_NUMBER;
             } else {
                 sprintf(buf, "Line %d: Invalid reserved name '%s'.", compile_current_line, field);
@@ -768,21 +794,21 @@ switch(ent) {
                     // Set appropriate type based on the setting
                     switch (setting->type) {
                         case SETTING_TYPE_BOOL:
-                            *p++ = ENTITY_VAR_BOOLEAN;
+                            if(!compile_emit_byte(&p, ENTITY_VAR_BOOLEAN)) return NULL;
                             ent = ENT_BOOLEAN;
                             break;
                         case SETTING_TYPE_INT:
-                            *p++ = ENTITY_VAR_NUM;
+                            if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;
                             ent = ENT_NUMBER;
                             break;
                         case SETTING_TYPE_FLOAT:
-                            *p++ = ENTITY_VAR_NUM;  // Treat floats as numbers
+                            if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;  // Treat floats as numbers
                             ent = ENT_NUMBER;
                             break;
                         case SETTING_TYPE_STRING:
                         case SETTING_TYPE_EXTSTR:
                         default:
-                            *p++ = ENTITY_VAR_STR;
+                            if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
                             ent = ENT_STRING;
                             break;
                     }
@@ -790,7 +816,7 @@ switch(ent) {
                     // For unknown settings, default to string
                     if(!compile_variable(field, &p, type, false, true))
                         return NULL;
-                    *p++ = ENTITY_VAR_STR;
+                    if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
                     ent = ENT_STRING;
                 }
                 break;
@@ -836,7 +862,7 @@ switch(ent) {
         return NULL;
     }
 
-    *p++ = ESCAPE_END;
+    if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
     *store = p;
     return str+1;
 }
@@ -861,10 +887,10 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
             else if(str[1] == '<') {
                 str = compile_variable(str+2,&p,type,true,true);
             } else if(ISALPHA(str[1])) {
-                *p++ = ESCAPE_UA + str[1] - 'A';
+                if(!compile_emit_byte(&p, ESCAPE_UA + str[1] - 'A')) return NULL;
                 str += 2;
             } else if(str[1] == '$') {
-                *p++ = '$';
+                if(!compile_emit_byte(&p, '$')) return NULL;
                 str += 2;
             } else {
                 sprintf(buf2,"Line %d: Invalid $-escape sequence.", compile_current_line);
@@ -881,38 +907,84 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
             break;
         else if(doquotes) {
             if(ISSPACE(*str)) {
-                *p++ = *str++;
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
                 startword = true;
             } else {
-                s = recursed ? p : buf;
                 // Taken from one_argument_norm, except it doesn't skip trailing whitespace
                 ch = ' ';
-                if(!recursed && doquotes && startword && (*str == '\'' || *str == '"')) {
-                    inquote = true;
-                    *s++ = (ch = *str++);
-                }
-                while(*str && *str != ch) {
-                    if(ifc && *str == ']') break;
-                    *s++ = *str++;
-                }
-                if(*str && inquote) {
-                    if(ifc && *str == ']') {
+
+                if(recursed) {
+                    if(doquotes && startword && (*str == '\'' || *str == '"')) {
+                        inquote = true;
+                        ch = *str++;
+                        if(!compile_emit_byte(&p, (unsigned char)ch)) return NULL;
+                    }
+
+                    while(*str && *str != ch) {
+                        if(ifc && *str == ']') break;
+                        if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+                    }
+
+                    if(*str && inquote) {
+                        if(ifc && *str == ']') {
+                            sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        inquote = false;
+                        if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+                    }
+
+                    if(!*str && inquote) {
                         sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
                         compile_error_show(buf2);
                         return NULL;
                     }
-                    inquote = false;
-                    *s++ = *str++;
-                }
-                if(!*str && inquote) {
-                    sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
-                    compile_error_show(buf2);
-                    return NULL;
-                }
+                } else {
+                    s = buf;
 
-                if(recursed)
-                    p = s;
-                else {
+                    if(doquotes && startword && (*str == '\'' || *str == '"')) {
+                        inquote = true;
+                        ch = *str++;
+                        if(s >= buf + sizeof(buf) - 1) {
+                            sprintf(buf2,"Line %d: Script token too long during quote parsing.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        *s++ = ch;
+                    }
+
+                    while(*str && *str != ch) {
+                        if(ifc && *str == ']') break;
+                        if(s >= buf + sizeof(buf) - 1) {
+                            sprintf(buf2,"Line %d: Script token too long during quote parsing.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        *s++ = *str++;
+                    }
+
+                    if(*str && inquote) {
+                        if(ifc && *str == ']') {
+                            sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        inquote = false;
+                        if(s >= buf + sizeof(buf) - 1) {
+                            sprintf(buf2,"Line %d: Script token too long during quote parsing.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        *s++ = *str++;
+                    }
+
+                    if(!*str && inquote) {
+                        sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
+                        compile_error_show(buf2);
+                        return NULL;
+                    }
+
                     *s = 0;
                     s = compile_substring(buf, type, &p, ifc, false, true);
                     if(!s) {
@@ -923,7 +995,9 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
                 }
             }
         } else
-            *p++ = *str++;
+        {
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+        }
     }
 
     *store = p;
@@ -960,11 +1034,15 @@ char *compile_string(char *str, int type, int *length, bool doquotes)
 {
     char buf[MSL*2+1];
     char *result, *p;
+    char *saved_limit;
 
     DBG2ENTRY3(PTR,str,NUM,type,PTR,length);
 
     p = buf;
+    saved_limit = compile_store_limit;
+    compile_store_limit = buf + sizeof(buf) - 1;
     str = compile_substring(str,type,&p,false,doquotes,false);
+    compile_store_limit = saved_limit;
 //_D_
     if(!str) {
         *p = 0;
@@ -1041,6 +1119,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
     int i, x, y, level, loop, nswitch, nswitches, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
     char *type_name;
     const struct script_cmd_type *cmd;
+    static unsigned long compile_success_count = 0;
 
     DBG2ENTRY4(PTR,err_buf,PTR,script,PTR,source,NUM,type);
 
@@ -2421,6 +2500,9 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
             script->switch_table[nswitch].cases = case_head;
         }
     }
+
+    if((++compile_success_count % 100UL) == 0UL)
+        script_lookup_profile_report("compile_script");
 
     return true;
 }

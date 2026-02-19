@@ -720,6 +720,7 @@ void boot_db(void)
     }
 
     load_reserved();
+    script_validate_entity_tables();
     resolve_newbie_tables();
 
     /* Load settings and changesets */

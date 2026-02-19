@@ -386,14 +386,19 @@ bool seed_from_bootstrap_data(void)
             return true;
         }
     } else {
-        const char *source_candidates[] = {
-            "bootstrap/bootstrap_data",
-            "src/bootstrap/bootstrap_data",
-            workspace_candidate_a[0] ? workspace_candidate_a : NULL,
-            workspace_candidate_b[0] ? workspace_candidate_b : NULL,
-            "/sentience/src/bootstrap/bootstrap_data",
-            NULL
-        };
+        const char *source_candidates[7];
+        int candidate_count = 0;
+
+        source_candidates[candidate_count++] = "bootstrap/bootstrap_data";
+        source_candidates[candidate_count++] = "src/bootstrap/bootstrap_data";
+        if (workspace_candidate_a[0]) {
+            source_candidates[candidate_count++] = workspace_candidate_a;
+        }
+        if (workspace_candidate_b[0]) {
+            source_candidates[candidate_count++] = workspace_candidate_b;
+        }
+        source_candidates[candidate_count++] = "/sentience/src/bootstrap/bootstrap_data";
+        source_candidates[candidate_count] = NULL;
 
         if (!find_existing_directory(source_root, sizeof(source_root), source_candidates)) {
             fprintf(stderr, "No bootstrap_data source directory found; continuing with generated minimums\n");
@@ -1070,14 +1075,19 @@ bool create_ci_test_data_files(void)
             snprintf(workspace_src_tests_data, sizeof(workspace_src_tests_data), "%s/src/tests/data", workspace);
         }
 
-        const char *source_candidates[] = {
-            "tests/data",
-            "src/tests/data",
-            workspace_tests_data[0] ? workspace_tests_data : NULL,
-            workspace_src_tests_data[0] ? workspace_src_tests_data : NULL,
-            "/sentience/src/tests/data",
-            NULL
-        };
+        const char *source_candidates[7];
+        int candidate_count = 0;
+
+        source_candidates[candidate_count++] = "tests/data";
+        source_candidates[candidate_count++] = "src/tests/data";
+        if (workspace_tests_data[0]) {
+            source_candidates[candidate_count++] = workspace_tests_data;
+        }
+        if (workspace_src_tests_data[0]) {
+            source_candidates[candidate_count++] = workspace_src_tests_data;
+        }
+        source_candidates[candidate_count++] = "/sentience/src/tests/data";
+        source_candidates[candidate_count] = NULL;
 
         if (!find_existing_directory(source_dir, sizeof(source_dir), source_candidates)) {
             source_dir[0] = '\0';

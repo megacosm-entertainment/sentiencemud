@@ -694,23 +694,24 @@ ENT_FIELD entity_dice[] = {
 };
 
 ENT_FIELD entity_mobindex[] = {
-    {"vnum",			ENTITY_MOBINDEX_VNUM,			ENT_NUMBER },
-    {"wnum",			ENTITY_MOBINDEX_WNUM,			ENT_WIDEVNUM },
-    {"level",			ENTITY_MOBINDEX_LEVEL,			ENT_NUMBER },
-    {"loaded",			ENTITY_MOBINDEX_LOADED,			ENT_NUMBER },
+    {"vnum",                    ENTITY_MOBINDEX_VNUM,                   ENT_NUMBER },
+    {"wnum",                    ENTITY_MOBINDEX_WNUM,                   ENT_WIDEVNUM },
+    {"level",                   ENTITY_MOBINDEX_LEVEL,                  ENT_NUMBER },
+    {"loaded",                  ENTITY_MOBINDEX_LOADED,                 ENT_NUMBER },
+    {NULL,                       0,                                       ENT_UNKNOWN },
 };
 
 ENT_FIELD entity_objindex[] = {
-    {"vnum",			ENTITY_OBJINDEX_VNUM,			ENT_NUMBER },
-    {"wnum",			ENTITY_OBJINDEX_WNUM,			ENT_WIDEVNUM },
-    {"level",			ENTITY_OBJINDEX_LEVEL,			ENT_NUMBER },
-    {"loaded",			ENTITY_OBJINDEX_LOADED,			ENT_NUMBER },
-    {"inrooms",			ENTITY_OBJINDEX_INROOMS,		ENT_NUMBER },
-    {"inmail",			ENTITY_OBJINDEX_INMAIL,			ENT_NUMBER },
-    {"carried",			ENTITY_OBJINDEX_CARRIED,		ENT_NUMBER },
-    {"lockered",		ENTITY_OBJINDEX_LOCKERED,		ENT_NUMBER },
-    {"incontainer",		ENTITY_OBJINDEX_INCONTAINER,	ENT_NUMBER },
-    {NULL,				0,								ENT_UNKNOWN	}
+    {"vnum",                    ENTITY_OBJINDEX_VNUM,                   ENT_NUMBER },
+    {"wnum",                    ENTITY_OBJINDEX_WNUM,                   ENT_WIDEVNUM },
+    {"level",                   ENTITY_OBJINDEX_LEVEL,                  ENT_NUMBER },
+    {"loaded",                  ENTITY_OBJINDEX_LOADED,                 ENT_NUMBER },
+    {"inrooms",                 ENTITY_OBJINDEX_INROOMS,                ENT_NUMBER },
+    {"inmail",                  ENTITY_OBJINDEX_INMAIL,                 ENT_NUMBER },
+    {"carried",                 ENTITY_OBJINDEX_CARRIED,                ENT_NUMBER },
+    {"lockered",                ENTITY_OBJINDEX_LOCKERED,               ENT_NUMBER },
+    {"incontainer",             ENTITY_OBJINDEX_INCONTAINER,            ENT_NUMBER },
+    {NULL,                       0,                                       ENT_UNKNOWN },
 };
 
 ENT_FIELD entity_instance_section[] = {
@@ -1106,7 +1107,7 @@ struct _entity_type_info entity_type_info[] = {
     { ENT_SKILLENTRY,	ENT_SKILLENTRY,		entity_skillentry,			false	},
     
     { ENT_RESERVED_MOBILE,  ENT_RESERVED_MOBILE,  NULL,                    false },
-    { ENT_RESERVED_OBJECT,  ENT_NUMBER,  NULL,                    false },
+    { ENT_RESERVED_OBJECT,  ENT_RESERVED_OBJECT,  NULL,            false },
     { ENT_RESERVED_ROOM,    ENT_RESERVED_ROOM,    NULL,                    false },
     { ENT_RESERVED_AREA,    ENT_RESERVED_AREA,    NULL,                    false },
     { ENT_RESERVED_TOKEN,   ENT_RESERVED_TOKEN,   NULL,                    false },
