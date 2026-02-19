@@ -36,6 +36,15 @@ This worklog records the event editor/runtime closure pass focused on script sup
 - `progressagg` now validates allowed values:
   - `total`, `per_bracket`, `per_bracket_all_required`
 
+### Roster + phase runtime slice
+- Added structured event roster support in `evtedit`:
+  - NPC/object entries with `vnum`, `count`, `chance`, `min_level`, `max_level`
+  - NPC boss designation
+  - phase targeting (`any` or named phase)
+- Added roster JSON persistence (`events.json` save/load).
+- Added runtime roster spawn execution at phase entry (including default start/active phase).
+- Added boss-aware kill completion filtering using roster-designated boss entries when present.
+
 ## Build/Validation
 
 - Debug builds completed successfully after integration patches.
@@ -47,6 +56,17 @@ This worklog records the event editor/runtime closure pass focused on script sup
 - Deeper scope enforcement semantics in runtime eligibility/dispatch.
 - Full reward policy orchestration tied to completion outcomes.
 - Rich custom/worldstate completion policy presets beyond script/manual controls.
+- `eprogs` lifecycle hook system and scoped map mutation filters.
+- Advanced roster placement/filter modes (every-room/sector-filtered behavior).
+
+## Pause/Handoff Snapshot
+
+Work is paused with runtime-stable roster + phase integration in place.
+
+Recommended resume order:
+1. Add placement/filter controls for roster entries.
+2. Implement first `eprogs` runtime hooks.
+3. Align scope semantics for non-area scopes (`region`, `zones`, `battlefield`).
 
 ## Documentation Added
 

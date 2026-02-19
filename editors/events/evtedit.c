@@ -21,6 +21,19 @@
 typedef struct evtedit_data EVTEDIT_DATA;
 typedef struct event_instance EVENT_INSTANCE;
 typedef struct event_part EVENT_PART;
+typedef struct evt_roster_entry EVT_ROSTER_ENTRY;
+
+struct evt_roster_entry {
+    EVT_ROSTER_ENTRY *next;
+    int kind;
+    long vnum;
+    int count;
+    int chance;
+    int min_level;
+    int max_level;
+    bool boss;
+    char phase[MIL];
+};
 
 struct evtedit_data {
     long uid;
@@ -31,6 +44,8 @@ struct evtedit_data {
     char *join_msg;
     int16_t event_type;
     int16_t scope_type;
+    long scope_area_uid;
+    bool scope_floating;
     int16_t sched_type;
     int16_t sched_interval;
     int16_t sched_variance;
@@ -58,6 +73,7 @@ struct evtedit_data {
     bool enabled;
     long flags;
     char *comments;
+    EVT_ROSTER_ENTRY *roster;
 
     time_t scheduled_time;
     time_t cooldown_until;
@@ -77,6 +93,8 @@ struct event_instance {
     int progress_kills;
     int progress_items;
     int progress_goal;
+    long scope_area_uid;
+    bool scope_floating;
     bool leader_phase;
     int phase_index;
     time_t phase_due;
@@ -150,6 +168,11 @@ enum {
     EVTS_CANCELLED,
 };
 
+enum {
+    EVT_ROSTER_NPC = 0,
+    EVT_ROSTER_OBJECT,
+};
+
 EVTEDIT(evtedit_list);
 EVTEDIT(evtedit_create);
 EVTEDIT(evtedit_delete);
@@ -162,6 +185,8 @@ EVTEDIT(evtedit_joinmsg);
 EVTEDIT(evtedit_type);
 EVTEDIT(evtedit_enabled);
 EVTEDIT(evtedit_scope);
+EVTEDIT(evtedit_scopeanchor);
+EVTEDIT(evtedit_scopefloating);
 EVTEDIT(evtedit_schedule);
 EVTEDIT(evtedit_interval);
 EVTEDIT(evtedit_variance);
@@ -179,6 +204,7 @@ EVTEDIT(evtedit_newsslug);
 EVTEDIT(evtedit_newsannounce);
 EVTEDIT(evtedit_newsbody);
 EVTEDIT(evtedit_themetags);
+EVTEDIT(evtedit_roster);
 EVTEDIT(evtedit_spawnbrackets);
 EVTEDIT(evtedit_collectionbrackets);
 EVTEDIT(evtedit_bracketmode);
@@ -247,6 +273,12 @@ static const struct flag_type evt_flags[] = {
     { NULL, 0, false, NULL },
 };
 
+static const struct flag_type evt_roster_kind_flags[] = {
+    { "npc", EVT_ROSTER_NPC, true, NULL },
+    { "object", EVT_ROSTER_OBJECT, true, NULL },
+    { NULL, 0, false, NULL },
+};
+
 static const char *event_format_time_short(time_t when)
 {
     static char buf[64];
@@ -269,6 +301,136 @@ static const char *event_enum_name(const struct flag_type *table, int value)
 {
     const char *name = flag_name(table, value);
     return IS_NULLSTR(name) ? "(unknown)" : name;
+}
+
+static bool event_scope_requires_anchor(const EVTEDIT_DATA *evt)
+{
+    return evt && evt->scope_type != EVT_SCOPE_GLOBAL;
+}
+
+static bool event_character_in_scope(const EVENT_INSTANCE *inst, const CHAR_DATA *ch)
+{
+    if (!inst || !inst->def)
+        return false;
+
+    if (inst->def->scope_type == EVT_SCOPE_GLOBAL)
+        return true;
+
+    if (!ch || !ch->in_room || !ch->in_room->area)
+        return false;
+
+    if (inst->scope_area_uid <= 0)
+        return false;
+
+    return ch->in_room->area->uid == inst->scope_area_uid;
+}
+
+static void evtedit_roster_free(EVT_ROSTER_ENTRY **head)
+{
+    EVT_ROSTER_ENTRY *entry;
+    EVT_ROSTER_ENTRY *next;
+
+    if (!head)
+        return;
+
+    for (entry = *head; entry; entry = next) {
+        next = entry->next;
+        free_mem(entry, sizeof(*entry));
+    }
+
+    *head = NULL;
+}
+
+static int evtedit_roster_count(const EVT_ROSTER_ENTRY *head)
+{
+    const EVT_ROSTER_ENTRY *entry;
+    int count = 0;
+
+    for (entry = head; entry; entry = entry->next)
+        count++;
+
+    return count;
+}
+
+static EVT_ROSTER_ENTRY *evtedit_roster_find(EVT_ROSTER_ENTRY *head, int index)
+{
+    EVT_ROSTER_ENTRY *entry;
+    int current = 1;
+
+    if (index <= 0)
+        return NULL;
+
+    for (entry = head; entry; entry = entry->next, current++)
+        if (current == index)
+            return entry;
+
+    return NULL;
+}
+
+static void evtedit_roster_append(EVTEDIT_DATA *evt, EVT_ROSTER_ENTRY *entry)
+{
+    EVT_ROSTER_ENTRY *tail;
+
+    if (!evt || !entry)
+        return;
+
+    entry->next = NULL;
+
+    if (!evt->roster) {
+        evt->roster = entry;
+        return;
+    }
+
+    for (tail = evt->roster; tail->next; tail = tail->next)
+        ;
+
+    tail->next = entry;
+}
+
+static const char *evtedit_roster_level_window(const EVT_ROSTER_ENTRY *entry)
+{
+    static char window[64];
+
+    if (!entry)
+        return "any";
+
+    if (entry->min_level <= 0 && entry->max_level <= 0)
+        return "any";
+
+    if (entry->max_level <= 0) {
+        snprintf(window, sizeof(window), "%d+", UMAX(1, entry->min_level));
+        return window;
+    }
+
+    snprintf(window, sizeof(window), "%d-%d",
+        UMAX(1, entry->min_level), UMAX(entry->min_level, entry->max_level));
+    return window;
+}
+
+static const char *evtedit_roster_phase_name(const EVT_ROSTER_ENTRY *entry)
+{
+    if (!entry || IS_NULLSTR(entry->phase))
+        return "any";
+
+    return entry->phase;
+}
+
+static bool evtedit_parse_onoff_token(const char *token, bool *value)
+{
+    if (IS_NULLSTR(token) || !value)
+        return false;
+
+    if (!str_cmp(token, "on") || !str_cmp(token, "yes") || !str_cmp(token, "true") || !str_cmp(token, "1")) {
+        *value = true;
+        return true;
+    }
+
+    if (!str_cmp(token, "off") || !str_cmp(token, "no") || !str_cmp(token, "false") || !str_cmp(token, "0")) {
+        *value = false;
+        return true;
+    }
+
+    return false;
 }
 
 static void evtedit_show_identity_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
@@ -301,6 +463,7 @@ static void evtedit_free_item(EVTEDIT_DATA *evt)
     free_string(evt->progress_aggregation);
     free_string(evt->phase_plan);
     free_string(evt->comments);
+    evtedit_roster_free(&evt->roster);
     free_mem(evt, sizeof(*evt));
 }
 
@@ -333,6 +496,8 @@ static EVTEDIT_DATA *evtedit_new(const char *name)
     evt->join_msg = str_dup("");
     evt->event_type = EVT_TYPE_COLLECTION;
     evt->scope_type = EVT_SCOPE_GLOBAL;
+    evt->scope_area_uid = 0;
+    evt->scope_floating = false;
     evt->sched_type = EVT_SCHED_MANUAL;
     evt->sched_interval = 60;
     evt->sched_variance = 0;
@@ -793,6 +958,153 @@ static bool event_level_bracket_index(const char *spec, int level, int *index_ou
     return false;
 }
 
+static bool event_roster_phase_matches(const EVT_ROSTER_ENTRY *entry, const char *phase_name)
+{
+    if (!entry || IS_NULLSTR(entry->phase)
+        || !str_cmp(entry->phase, "any")
+        || !str_cmp(entry->phase, "all")
+        || !str_cmp(entry->phase, "*"))
+        return true;
+
+    if (IS_NULLSTR(phase_name))
+        return false;
+
+    return !str_cmp(entry->phase, phase_name);
+}
+
+static int event_roster_entry_bracket(const EVTEDIT_DATA *evt, const EVT_ROSTER_ENTRY *entry)
+{
+    const char *spec;
+    int level;
+    int index = 0;
+
+    if (!evt || !entry)
+        return 0;
+
+    spec = event_bracket_spec_for(evt);
+    if (IS_NULLSTR(spec))
+        return 0;
+
+    if (entry->min_level > 0 && entry->max_level > 0)
+        level = (entry->min_level + entry->max_level) / 2;
+    else if (entry->min_level > 0)
+        level = entry->min_level;
+    else if (entry->max_level > 0)
+        level = entry->max_level;
+    else
+        return 0;
+
+    if (!event_level_bracket_index(spec, level, &index))
+        return 0;
+
+    return index + 1;
+}
+
+static int event_runtime_spawn_roster_for_phase(EVENT_INSTANCE *inst, const char *phase_name)
+{
+    AREA_DATA *area;
+    EVT_ROSTER_ENTRY *entry;
+    int spawned = 0;
+
+    if (!inst || !inst->def || inst->state != EVTS_ACTIVE)
+        return 0;
+
+    area = get_area_from_uid(inst->scope_area_uid);
+    if (!area)
+        return 0;
+
+    for (entry = inst->def->roster; entry; entry = entry->next) {
+        int i;
+        int bracket;
+
+        if (!event_roster_phase_matches(entry, phase_name))
+            continue;
+
+        bracket = event_roster_entry_bracket(inst->def, entry);
+
+        for (i = 0; i < UMAX(1, entry->count); i++) {
+            ROOM_INDEX_DATA *room;
+
+            if (entry->chance < 100 && number_percent() > entry->chance)
+                continue;
+
+            room = get_random_room_area(NULL, area);
+            if (!room)
+                continue;
+
+            if (entry->kind == EVT_ROSTER_NPC) {
+                MOB_INDEX_DATA *mob_index = get_mob_index(area, entry->vnum);
+                CHAR_DATA *mob;
+
+                if (!mob_index)
+                    continue;
+
+                mob = create_mobile(mob_index, false);
+                if (!mob)
+                    continue;
+
+                char_to_room(mob, room);
+                event_tag_mobile_spawn(mob, inst->def->uid, inst->instance_id);
+                if (bracket > 0)
+                    event_set_mobile_spawn_bracket(mob, bracket);
+                spawned++;
+            } else {
+                OBJ_INDEX_DATA *obj_index = get_obj_index(area, entry->vnum);
+                OBJ_DATA *obj;
+
+                if (!obj_index)
+                    continue;
+
+                obj = create_object(obj_index, 0, true);
+                if (!obj)
+                    continue;
+
+                obj_to_room(obj, room);
+                event_tag_object_spawn(obj, inst->def->uid, inst->instance_id);
+                if (bracket > 0)
+                    event_set_object_spawn_bracket(obj, bracket);
+                spawned++;
+            }
+        }
+    }
+
+    return spawned;
+}
+
+static bool event_roster_has_boss_for_phase(const EVENT_INSTANCE *inst, const char *phase_name)
+{
+    EVT_ROSTER_ENTRY *entry;
+
+    if (!inst || !inst->def)
+        return false;
+
+    for (entry = inst->def->roster; entry; entry = entry->next)
+        if (entry->kind == EVT_ROSTER_NPC
+            && entry->boss
+            && event_roster_phase_matches(entry, phase_name))
+            return true;
+
+    return false;
+}
+
+static bool event_mobile_matches_roster_boss(const EVENT_INSTANCE *inst,
+    const CHAR_DATA *mob, const char *phase_name)
+{
+    EVT_ROSTER_ENTRY *entry;
+
+    if (!inst || !inst->def || !mob || !mob->pIndexData)
+        return false;
+
+    for (entry = inst->def->roster; entry; entry = entry->next)
+        if (entry->kind == EVT_ROSTER_NPC
+            && entry->boss
+            && entry->vnum == mob->pIndexData->vnum
+            && event_roster_phase_matches(entry, phase_name))
+            return true;
+
+    return false;
+}
+
 static int event_count_brackets(const char *spec)
 {
     const char *cursor;
@@ -1042,6 +1354,15 @@ static bool event_add_participant(EVENT_INSTANCE *inst, CHAR_DATA *ch)
     if (IS_SET(inst->def->flags, EVT_FLAG_EXCLUSIVE_PLAYER) && event_player_in_exclusive(ch))
         return false;
 
+    if (event_scope_requires_anchor(inst->def)
+    && inst->scope_area_uid <= 0
+    && inst->scope_floating
+    && ch->in_room && ch->in_room->area)
+        inst->scope_area_uid = ch->in_room->area->uid;
+
+    if (!event_character_in_scope(inst, ch))
+        return false;
+
     if (!event_assign_participant_bracket(inst, ch, &team))
         return false;
 
@@ -1196,6 +1517,9 @@ static void event_runtime_apply_phase_step(EVENT_INSTANCE *inst, int phase_index
             inst->phase_name));
     }
 
+    if (phase_changed)
+        event_runtime_spawn_roster_for_phase(inst, inst->phase_name);
+
     if (phase_script_vnum > 0)
         event_runtime_run_phase_script(inst, phase_script_vnum, inst->phase_name);
 }
@@ -1318,7 +1642,7 @@ static void event_runtime_update_phase_timers(EVENT_INSTANCE *inst)
     }
 }
 
-static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt)
+static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt, CHAR_DATA *starter)
 {
     EVENT_INSTANCE *inst;
 
@@ -1340,6 +1664,18 @@ static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt)
     inst->progress_kills = 0;
     inst->progress_items = 0;
     inst->progress_goal = event_default_kill_goal(evt);
+    inst->scope_area_uid = evt->scope_area_uid;
+    inst->scope_floating = evt->scope_floating;
+
+    if (inst->scope_floating && starter && starter->in_room && starter->in_room->area)
+        inst->scope_area_uid = starter->in_room->area->uid;
+
+    if (event_scope_requires_anchor(evt) && inst->scope_area_uid <= 0)
+    {
+        free_mem(inst, sizeof(*inst));
+        return NULL;
+    }
+
     inst->leader_phase = false;
     inst->phase_index = -1;
     inst->phase_due = 0;
@@ -1349,11 +1685,9 @@ static EVENT_INSTANCE *event_start_definition(EVTEDIT_DATA *evt)
     event_active_head = inst;
 
     if (!event_runtime_apply_phase_by_index(inst, 0)) {
-        if (evt->event_type == EVT_TYPE_INVASION)
-            strncpy(inst->phase_name, "active", sizeof(inst->phase_name) - 1);
-        else
-            strncpy(inst->phase_name, "active", sizeof(inst->phase_name) - 1);
+        strncpy(inst->phase_name, "active", sizeof(inst->phase_name) - 1);
         inst->phase_name[sizeof(inst->phase_name) - 1] = '\0';
+        event_runtime_spawn_roster_for_phase(inst, inst->phase_name);
     }
 
     if (evt->sched_cooldown > 0)
@@ -1570,7 +1904,7 @@ void event_runtime_update(void)
             && evt->scheduled_time <= current_time
             && !event_find_active_def(evt)
             && evt->cooldown_until <= current_time) {
-            if (event_start_definition(evt)
+            if (event_start_definition(evt, NULL)
                 && !IS_SET(evt->flags, EVT_FLAG_NOANNOUNCE)
                 && !IS_NULLSTR(evt->announce_msg))
                 event_broadcast(evt->announce_msg);
@@ -1602,7 +1936,7 @@ void event_runtime_update(void)
             if (evt->cooldown_until > current_time)
                 continue;
 
-            if (event_start_definition(evt)
+            if (event_start_definition(evt, NULL)
                 && !IS_SET(evt->flags, EVT_FLAG_NOANNOUNCE)
                 && !IS_NULLSTR(evt->announce_msg))
                 event_broadcast(evt->announce_msg);
@@ -1633,7 +1967,7 @@ void event_runtime_update(void)
         if (evt->cooldown_until > current_time)
             continue;
 
-        if (event_start_definition(evt)
+        if (event_start_definition(evt, NULL)
             && !IS_SET(evt->flags, EVT_FLAG_NOANNOUNCE)
             && !IS_NULLSTR(evt->announce_msg))
             event_broadcast(evt->announce_msg);
@@ -1658,6 +1992,23 @@ void event_runtime_update(void)
     }
 }
 
+static void event_runtime_activate_leader_phase(EVENT_INSTANCE *inst)
+{
+    if (!inst || !inst->def || inst->state != EVTS_ACTIVE)
+        return;
+
+    if (inst->leader_phase)
+        return;
+
+    inst->leader_phase = true;
+    inst->phase_index = -1;
+    inst->phase_due = 0;
+    strncpy(inst->phase_name, "leader", sizeof(inst->phase_name) - 1);
+    inst->phase_name[sizeof(inst->phase_name) - 1] = '\0';
+    inst->dirty = true;
+    event_runtime_spawn_roster_for_phase(inst, inst->phase_name);
+}
+
 void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
 {
     EVENT_INSTANCE *inst;
@@ -1673,6 +2024,9 @@ void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
 
         part = event_find_participant(inst, killer);
         if (!part)
+            continue;
+
+        if (!event_character_in_scope(inst, killer))
             continue;
 
         switch (inst->def->event_type) {
@@ -1692,7 +2046,7 @@ void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
                             ? event_any_bracket_met_goal(inst, inst->progress_goal, false)
                             : (inst->progress_kills >= inst->progress_goal)))) {
                     if (inst->def->leader_required) {
-                        inst->leader_phase = true;
+                        event_runtime_activate_leader_phase(inst);
                         event_broadcast("{YThe invasion leader has emerged! Slay the leader to end the invasion.{x\n\r");
                     } else if (event_runtime_complete_instance(inst, true, NULL,
                             "{YThe invasion force has been defeated. The invasion is over!{x\n\r")) {
@@ -1726,7 +2080,9 @@ void event_progress_record_kill(CHAR_DATA *killer, CHAR_DATA *victim)
         case EVT_TYPE_BOSS:
             if (IS_NPC(victim)
                 && event_mobile_matches_instance(victim, inst)
-                && event_mobile_matches_participant_bracket(victim, part)) {
+                && event_mobile_matches_participant_bracket(victim, part)
+                && (!event_roster_has_boss_for_phase(inst, inst->phase_name)
+                    || event_mobile_matches_roster_boss(inst, victim, inst->phase_name))) {
                 int goal = inst->def->completion_goal > 0 ? inst->def->completion_goal : 1;
 
                 part->kills++;
@@ -1766,6 +2122,9 @@ void event_progress_record_collection_turnin(CHAR_DATA *ch, int items_turned)
         if (!part)
             continue;
 
+        if (!event_character_in_scope(inst, ch))
+            continue;
+
         part->items_turned += items_turned;
         inst->progress_items += items_turned;
         inst->dirty = true;
@@ -1786,6 +2145,7 @@ void event_progress_record_collection_turnin(CHAR_DATA *ch, int items_turned)
 bool event_progress_complete_invasion_leader(CHAR_DATA *killer, CHAR_DATA *victim)
 {
     EVENT_INSTANCE *inst;
+    const char *leader_phase_name = "leader";
 
     if (!killer || !victim || IS_NPC(killer) || !IS_NPC(victim))
         return false;
@@ -1800,6 +2160,9 @@ bool event_progress_complete_invasion_leader(CHAR_DATA *killer, CHAR_DATA *victi
         if (!event_mobile_matches_instance(victim, inst))
             continue;
         if (!event_find_participant(inst, killer))
+            continue;
+        if (event_roster_has_boss_for_phase(inst, leader_phase_name)
+            && !event_mobile_matches_roster_boss(inst, victim, leader_phase_name))
             continue;
 
         if (event_runtime_complete_instance(inst, true, NULL,
@@ -2023,8 +2386,7 @@ static void event_runtime_resolve_completion(EVENT_INSTANCE *inst)
         goal = inst->progress_goal;
         if (!inst->leader_phase && event_runtime_goal_met(inst, goal, false)) {
             if (inst->def->leader_required) {
-                inst->leader_phase = true;
-                inst->dirty = true;
+                event_runtime_activate_leader_phase(inst);
                 event_broadcast("{YThe invasion leader has emerged! Slay the leader to end the invasion.{x\n\r");
             } else if (event_stop_definition(inst->def)) {
                 if (!IS_NULLSTR(inst->def->end_msg))
@@ -2308,6 +2670,84 @@ bool event_runtime_finish(const char *event_token, bool success, const char *rea
     return event_runtime_complete_instance(inst, success, reason, NULL);
 }
 
+static json_t *evtedit_roster_to_json(const EVT_ROSTER_ENTRY *head)
+{
+    const EVT_ROSTER_ENTRY *entry;
+    json_t *array = json_array();
+
+    for (entry = head; entry; entry = entry->next) {
+        json_t *obj = json_object();
+        json_object_set_new(obj, "kind", json_integer(entry->kind));
+        json_object_set_new(obj, "vnum", json_integer(entry->vnum));
+        json_object_set_new(obj, "count", json_integer(entry->count));
+        json_object_set_new(obj, "chance", json_integer(entry->chance));
+        json_object_set_new(obj, "min_level", json_integer(entry->min_level));
+        json_object_set_new(obj, "max_level", json_integer(entry->max_level));
+        json_object_set_new(obj, "boss", json_integer(entry->boss ? 1 : 0));
+        json_object_set_new(obj, "phase", json_string_safe(entry->phase));
+        json_array_append_new(array, obj);
+    }
+
+    return array;
+}
+
+static void evtedit_roster_load_json(EVTEDIT_DATA *evt, json_t *array)
+{
+    size_t i;
+    json_t *entry_obj;
+
+    if (!evt)
+        return;
+
+    evtedit_roster_free(&evt->roster);
+
+    if (!json_is_array(array))
+        return;
+
+    json_array_foreach(array, i, entry_obj) {
+        EVT_ROSTER_ENTRY *entry;
+
+        if (!json_is_object(entry_obj))
+            continue;
+
+        entry = alloc_mem(sizeof(*entry));
+        memset(entry, 0, sizeof(*entry));
+
+        entry->kind = json_get_int(entry_obj, "kind", EVT_ROSTER_NPC);
+        if (entry->kind != EVT_ROSTER_NPC && entry->kind != EVT_ROSTER_OBJECT)
+            entry->kind = EVT_ROSTER_NPC;
+
+        entry->vnum = (long)json_get_int(entry_obj, "vnum", 0);
+        entry->count = json_get_int(entry_obj, "count", 1);
+        entry->chance = json_get_int(entry_obj, "chance", 100);
+        entry->min_level = json_get_int(entry_obj, "min_level", 0);
+        entry->max_level = json_get_int(entry_obj, "max_level", 0);
+        entry->boss = json_get_int(entry_obj, "boss", 0) != 0;
+        event_copy_trimmed(entry->phase, sizeof(entry->phase),
+            json_get_string(entry_obj, "phase", "any"));
+
+        entry->count = URANGE(1, entry->count, 10000);
+        entry->chance = URANGE(1, entry->chance, 100);
+        entry->min_level = URANGE(0, entry->min_level, 32767);
+        entry->max_level = URANGE(0, entry->max_level, 32767);
+        if (entry->max_level > 0 && entry->min_level > entry->max_level)
+            entry->min_level = entry->max_level;
+        if (entry->kind != EVT_ROSTER_NPC)
+            entry->boss = false;
+        if (IS_NULLSTR(entry->phase)) {
+            strncpy(entry->phase, "any", sizeof(entry->phase) - 1);
+            entry->phase[sizeof(entry->phase) - 1] = '\0';
+        }
+
+        if (entry->vnum <= 0) {
+            free_mem(entry, sizeof(*entry));
+            continue;
+        }
+
+        evtedit_roster_append(evt, entry);
+    }
+}
+
 static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
 {
     json_t *obj = json_object();
@@ -2320,6 +2760,8 @@ static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
     json_object_set_new(obj, "join_msg", json_string_safe(evt->join_msg));
     json_object_set_new(obj, "event_type", json_integer(evt->event_type));
     json_object_set_new(obj, "scope_type", json_integer(evt->scope_type));
+    json_object_set_new(obj, "scope_area_uid", json_integer(evt->scope_area_uid));
+    json_object_set_new(obj, "scope_floating", json_integer(evt->scope_floating ? 1 : 0));
     json_object_set_new(obj, "sched_type", json_integer(evt->sched_type));
     json_object_set_new(obj, "sched_interval", json_integer(evt->sched_interval));
     json_object_set_new(obj, "sched_variance", json_integer(evt->sched_variance));
@@ -2347,6 +2789,7 @@ static json_t *evtedit_item_to_json(const EVTEDIT_DATA *evt)
     json_object_set_new(obj, "enabled", json_integer(evt->enabled ? 1 : 0));
     json_object_set_new(obj, "flags", json_integer(evt->flags));
     json_object_set_new(obj, "comments", json_string_safe(evt->comments));
+    json_object_set_new(obj, "roster", evtedit_roster_to_json(evt->roster));
     json_object_set_new(obj, "scheduled_time", json_integer((json_int_t)evt->scheduled_time));
 
     return obj;
@@ -2409,6 +2852,8 @@ static bool evtedit_load_from_json(void)
         evt->join_msg = str_dup(json_get_string(entry, "join_msg", ""));
         evt->event_type = (int16_t)json_get_int(entry, "event_type", EVT_TYPE_COLLECTION);
         evt->scope_type = (int16_t)json_get_int(entry, "scope_type", EVT_SCOPE_GLOBAL);
+        evt->scope_area_uid = (long)json_get_int(entry, "scope_area_uid", 0);
+        evt->scope_floating = json_get_int(entry, "scope_floating", 0) != 0;
         evt->sched_type = (int16_t)json_get_int(entry, "sched_type", EVT_SCHED_MANUAL);
         evt->sched_interval = (int16_t)json_get_int(entry, "sched_interval", 60);
         evt->sched_variance = (int16_t)json_get_int(entry, "sched_variance", 0);
@@ -2436,6 +2881,7 @@ static bool evtedit_load_from_json(void)
         evt->enabled = json_get_int(entry, "enabled", 1) != 0;
         evt->flags = (long)json_get_int(entry, "flags", 0);
         evt->comments = str_dup(json_get_string(entry, "comments", ""));
+        evtedit_roster_load_json(evt, json_object_get(entry, "roster"));
         evt->scheduled_time = (time_t)json_get_int(entry, "scheduled_time", 0);
         evt->cooldown_until = 0;
         evt->next_auto_time = 0;
@@ -2490,6 +2936,8 @@ static const struct olc_cmd_type evtedit_table[] = {
     { "type",      evtedit_type },
     { "enabled",   evtedit_enabled },
     { "scope",     evtedit_scope },
+    { "scopeanchor", evtedit_scopeanchor },
+    { "scopefloating", evtedit_scopefloating },
     { "schedule",  evtedit_schedule },
     { "interval",  evtedit_interval },
     { "variance",  evtedit_variance },
@@ -2507,6 +2955,7 @@ static const struct olc_cmd_type evtedit_table[] = {
     { "newsannounce", evtedit_newsannounce },
     { "newsbody",  evtedit_newsbody },
     { "themetags", evtedit_themetags },
+    { "roster",    evtedit_roster },
     { "spawnbrackets", evtedit_spawnbrackets },
     { "collectionbrackets", evtedit_collectionbrackets },
     { "bracketmode", evtedit_bracketmode },
@@ -2570,6 +3019,9 @@ void do_evtedit(CHAR_DATA *ch, char *argument)
         send_to_char("\n\r", ch);
         send_to_char("Bracket format: ordered non-overlapping ranges (example: 1-50,51-90,91+).\n\r", ch);
         send_to_char("bracketmode: auto_by_level|open|manual\n\r", ch);
+        send_to_char("scopeanchor: <area_uid|here|clear>\n\r", ch);
+        send_to_char("scopefloating: [on|off]\n\r", ch);
+        send_to_char("roster: list|addnpc|addobj|boss|phase|remove|clear\n\r", ch);
         send_to_char("progressagg: shared|total|per_bracket_any|per_bracket|per_bracket_all_required\n\r", ch);
         send_to_char("phaseplan: use subcommands (list/add/insert/set/name/minutes/script/remove/clear)\n\r", ch);
         send_to_char("rewardsuccess/rewardfail: <scriptvnum|0>\n\r", ch);
@@ -2897,6 +3349,9 @@ void do_event(CHAR_DATA *ch, char *argument)
             event_enum_name(evt_type_flags, evt->event_type),
             event_enum_name(evt_scope_flags, evt->scope_type),
             event_enum_name(evt_sched_flags, evt->sched_type));
+        printf_to_char(ch, "{WScope Anchor:{x area_uid=%ld  floating=%s\n\r",
+            evt->scope_area_uid,
+            evt->scope_floating ? "{GYes{x" : "{RNo{x");
         printf_to_char(ch, "{WTiming:{x interval=%d variance=%d duration=%d cooldown=%d\n\r",
             evt->sched_interval, evt->sched_variance,
             evt->sched_duration, evt->sched_cooldown);
@@ -2923,6 +3378,11 @@ void do_event(CHAR_DATA *ch, char *argument)
         if (rem > 0)
             printf_to_char(ch, " {W(remaining %ldm%02lds){x", rem / 60, rem % 60);
         send_to_char("\n\r", ch);
+
+        if (inst)
+            printf_to_char(ch, "{WRuntime Scope Anchor:{x area_uid=%ld (floating=%s)\n\r",
+                inst->scope_area_uid,
+                inst->scope_floating ? "{GYes{x" : "{RNo{x");
 
         if (inst) {
             self = event_find_participant(inst, ch);
@@ -3008,9 +3468,23 @@ void do_event(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        inst = event_start_definition(evt);
+        if (event_scope_requires_anchor(evt)
+        && !evt->scope_floating
+        && evt->scope_area_uid <= 0) {
+            send_to_char("This scoped event needs a scopeanchor before it can start.\n\r", ch);
+            return;
+        }
+
+        if (event_scope_requires_anchor(evt)
+        && evt->scope_floating
+        && (!ch->in_room || !ch->in_room->area)) {
+            send_to_char("Floating scoped events must be started from a valid room.\n\r", ch);
+            return;
+        }
+
+        inst = event_start_definition(evt, ch);
         if (!inst) {
-            send_to_char("Event is already active.\n\r", ch);
+            send_to_char("Event could not be started (already active or missing scope anchor).\n\r", ch);
             return;
         }
 
@@ -3235,6 +3709,9 @@ static void evtedit_show_identity_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
     olc_display_string(ctx, theme, "Enabled:", "enabled",
         evt->enabled ? "Yes" : "No");
     olc_display_type(ctx, theme, "Scope:", "scope", evt_scope_flags, evt->scope_type);
+    olc_display_number(ctx, theme, "Scope Anchor Area UID:", "scopeanchor", evt->scope_area_uid);
+    olc_display_string(ctx, theme, "Scope Floating:", "scopefloating",
+        evt->scope_floating ? "Yes" : "No");
     olc_display_flags(ctx, theme, "Flags:", "flags", evt_flags, evt->flags);
 }
 
@@ -3298,6 +3775,8 @@ static void evtedit_show_messages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
         IS_NULLSTR(evt->spawn_brackets) ? NULL : evt->spawn_brackets);
     olc_display_text(ctx, theme, "Collection Brackets:", "collectionbrackets",
         IS_NULLSTR(evt->collection_brackets) ? NULL : evt->collection_brackets);
+    olc_display_number(ctx, theme, "Roster Entries:", "roster list",
+        evtedit_roster_count(evt->roster));
 }
 
 static void evtedit_show_meta_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
@@ -3441,6 +3920,63 @@ EVTEDIT(evtedit_scope)
     if (!olc_cmd_type_set_i16(ch, argument, "scope",
             "scope <global|area|region|zones|battlefield>",
             &evt->scope_type, evt_scope_flags, NULL, NULL))
+        return false;
+
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_scopeanchor)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    AREA_DATA *area;
+
+    if (!evt)
+        return false;
+
+    if (IS_NULLSTR(argument)) {
+        send_to_char("scopeanchor <area_uid|here|clear>\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "clear") || !str_cmp(argument, "none")) {
+        evt->scope_area_uid = 0;
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_cmp(argument, "here")) {
+        if (!ch->in_room || !ch->in_room->area) {
+            send_to_char("You are not in a valid room/area.\n\r", ch);
+            return false;
+        }
+
+        evt->scope_area_uid = ch->in_room->area->uid;
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!is_number(argument)) {
+        send_to_char("scopeanchor expects an area uid, 'here', or 'clear'.\n\r", ch);
+        return false;
+    }
+
+    area = get_area_from_uid(atol(argument));
+    if (!area) {
+        send_to_char("No area exists with that uid.\n\r", ch);
+        return false;
+    }
+
+    evt->scope_area_uid = area->uid;
+    return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_scopefloating)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+
+    if (!evt)
+        return false;
+
+    if (!olc_cmd_bool(ch, argument, "scopefloating", "scopefloating [on|off]",
+            &evt->scope_floating, NULL, NULL))
         return false;
 
     return evtedit_save_after_change(ch);
@@ -3761,6 +4297,296 @@ EVTEDIT(evtedit_themetags)
         return false;
 
     return evtedit_save_after_change(ch);
+}
+
+EVTEDIT(evtedit_roster)
+{
+    EVTEDIT_DATA *evt = (EVTEDIT_DATA *)ch->desc->pEdit;
+    char cmd[MIL];
+
+    if (!evt)
+        return false;
+
+    argument = one_argument(argument, cmd);
+
+    if (IS_NULLSTR(cmd)) {
+        send_to_char("Syntax: roster list\n\r", ch);
+        send_to_char("        roster addnpc <vnum> [count] [chance] [minlevel] [maxlevel] [boss|on|off] [phase=<name|any>]\n\r", ch);
+        send_to_char("        roster addobj <vnum> [count] [chance] [minlevel] [maxlevel] [phase=<name|any>]\n\r", ch);
+        send_to_char("        roster boss <index> <on|off>\n\r", ch);
+        send_to_char("        roster phase <index> <name|any>\n\r", ch);
+        send_to_char("        roster remove <index>\n\r", ch);
+        send_to_char("        roster clear\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(cmd, "list")) {
+        EVT_ROSTER_ENTRY *entry;
+        int index = 1;
+
+        if (!evt->roster) {
+            send_to_char("Roster is empty.\n\r", ch);
+            return false;
+        }
+
+        send_to_char("#   Type     Vnum      Count Chance Level    Boss Phase\n\r", ch);
+        send_to_char("------------------------------------------------------\n\r", ch);
+
+        for (entry = evt->roster; entry; entry = entry->next, index++) {
+            printf_to_char(ch, "%-3d %-8s %-9ld %-5d %-6d %-8s %-4s %s\n\r",
+                index,
+                event_enum_name(evt_roster_kind_flags, entry->kind),
+                entry->vnum,
+                entry->count,
+                entry->chance,
+                evtedit_roster_level_window(entry),
+                entry->boss ? "yes" : "no",
+                evtedit_roster_phase_name(entry));
+        }
+
+        return false;
+    }
+
+    if (!str_prefix(cmd, "clear")) {
+        evtedit_roster_free(&evt->roster);
+        send_to_char("Roster cleared.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "remove")) {
+        char index_arg[MIL];
+        EVT_ROSTER_ENTRY *entry;
+        EVT_ROSTER_ENTRY *prev = NULL;
+        int target;
+
+        one_argument(argument, index_arg);
+        if (!is_number(index_arg)) {
+            send_to_char("Syntax: roster remove <index>\n\r", ch);
+            return false;
+        }
+
+        target = atoi(index_arg);
+        if (target <= 0) {
+            send_to_char("Index must be 1 or greater.\n\r", ch);
+            return false;
+        }
+
+        for (entry = evt->roster; entry; entry = entry->next) {
+            if (--target == 0)
+                break;
+            prev = entry;
+        }
+
+        if (!entry) {
+            send_to_char("No roster entry at that index.\n\r", ch);
+            return false;
+        }
+
+        if (prev)
+            prev->next = entry->next;
+        else
+            evt->roster = entry->next;
+
+        free_mem(entry, sizeof(*entry));
+        send_to_char("Roster entry removed.\n\r", ch);
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "boss")) {
+        char index_arg[MIL];
+        char value_arg[MIL];
+        EVT_ROSTER_ENTRY *entry;
+        bool boss_value = false;
+
+        argument = one_argument(argument, index_arg);
+        argument = one_argument(argument, value_arg);
+
+        if (!is_number(index_arg) || IS_NULLSTR(value_arg)) {
+            send_to_char("Syntax: roster boss <index> <on|off>\n\r", ch);
+            return false;
+        }
+
+        entry = evtedit_roster_find(evt->roster, atoi(index_arg));
+        if (!entry) {
+            send_to_char("No roster entry at that index.\n\r", ch);
+            return false;
+        }
+
+        if (!evtedit_parse_onoff_token(value_arg, &boss_value)) {
+            send_to_char("Boss expects on/off (or yes/no).\n\r", ch);
+            return false;
+        }
+
+        if (entry->kind != EVT_ROSTER_NPC && boss_value) {
+            send_to_char("Only NPC roster entries can be marked as boss.\n\r", ch);
+            return false;
+        }
+
+        entry->boss = (entry->kind == EVT_ROSTER_NPC) ? boss_value : false;
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "phase")) {
+        char index_arg[MIL];
+        char phase_arg[MIL];
+        EVT_ROSTER_ENTRY *entry;
+        char error[MSL];
+
+        argument = one_argument(argument, index_arg);
+        argument = one_argument(argument, phase_arg);
+
+        if (!is_number(index_arg) || IS_NULLSTR(phase_arg)) {
+            send_to_char("Syntax: roster phase <index> <name|any>\n\r", ch);
+            return false;
+        }
+
+        entry = evtedit_roster_find(evt->roster, atoi(index_arg));
+        if (!entry) {
+            send_to_char("No roster entry at that index.\n\r", ch);
+            return false;
+        }
+
+        if (str_cmp(phase_arg, "any")
+            && !event_validate_phase_name(phase_arg, error, sizeof(error))) {
+            printf_to_char(ch, "Invalid phase name: %s\n\r", error);
+            return false;
+        }
+
+        if (!str_cmp(phase_arg, "any"))
+            strncpy(entry->phase, "any", sizeof(entry->phase) - 1);
+        else
+            event_copy_trimmed(entry->phase, sizeof(entry->phase), phase_arg);
+
+        entry->phase[sizeof(entry->phase) - 1] = '\0';
+
+        return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "addnpc") || !str_prefix(cmd, "addobj")) {
+        bool adding_npc = !str_prefix(cmd, "addnpc");
+        char vnum_arg[MIL];
+        char token[MIL];
+        int numeric_values[4];
+        int numeric_count = 0;
+        int count = 1;
+        int chance = 100;
+        int min_level = 0;
+        int max_level = 0;
+        bool boss = false;
+        char phase[MIL] = "any";
+        EVT_ROSTER_ENTRY *entry;
+
+        argument = one_argument(argument, vnum_arg);
+        if (!is_number(vnum_arg) || atol(vnum_arg) <= 0) {
+            send_to_char("Syntax: roster addnpc <vnum> [count] [chance] [minlevel] [maxlevel] [boss|on|off] [phase=<name|any>]\n\r", ch);
+            send_to_char("        roster addobj <vnum> [count] [chance] [minlevel] [maxlevel] [phase=<name|any>]\n\r", ch);
+            return false;
+        }
+
+        while (!IS_NULLSTR(argument)) {
+            argument = one_argument(argument, token);
+            if (IS_NULLSTR(token))
+                break;
+
+            if (is_number(token)) {
+                if (numeric_count >= 4) {
+                    send_to_char("Too many numeric arguments. Max is [count] [chance] [minlevel] [maxlevel].\n\r", ch);
+                    return false;
+                }
+
+                numeric_values[numeric_count++] = atoi(token);
+                continue;
+            }
+
+            if (adding_npc && !str_cmp(token, "boss")) {
+                boss = true;
+                continue;
+            }
+
+            if (!str_prefix(token, "phase=")) {
+                char *phase_value = token + 6;
+                char error[MSL];
+
+                if (IS_NULLSTR(phase_value)) {
+                    send_to_char("phase= expects a phase name or 'any'.\n\r", ch);
+                    return false;
+                }
+
+                if (str_cmp(phase_value, "any")
+                    && !event_validate_phase_name(phase_value, error, sizeof(error))) {
+                    printf_to_char(ch, "Invalid phase name: %s\n\r", error);
+                    return false;
+                }
+
+                event_copy_trimmed(phase, sizeof(phase), phase_value);
+                continue;
+            }
+
+            if (adding_npc && evtedit_parse_onoff_token(token, &boss))
+                continue;
+
+            send_to_char("Invalid token in roster add.\n\r", ch);
+            return false;
+        }
+
+        if (numeric_count >= 1)
+            count = numeric_values[0];
+        if (numeric_count >= 2)
+            chance = numeric_values[1];
+        if (numeric_count >= 3)
+            min_level = numeric_values[2];
+        if (numeric_count >= 4)
+            max_level = numeric_values[3];
+
+        if (count <= 0 || count > 10000) {
+            send_to_char("Count must be between 1 and 10000.\n\r", ch);
+            return false;
+        }
+
+        if (chance <= 0 || chance > 100) {
+            send_to_char("Chance must be between 1 and 100.\n\r", ch);
+            return false;
+        }
+
+        if (min_level < 0 || max_level < 0 || min_level > 32767 || max_level > 32767) {
+            send_to_char("Level bounds must be in range 0-32767.\n\r", ch);
+            return false;
+        }
+
+        if (max_level > 0 && min_level > max_level) {
+            send_to_char("Min level cannot exceed max level.\n\r", ch);
+            return false;
+        }
+
+        entry = alloc_mem(sizeof(*entry));
+        memset(entry, 0, sizeof(*entry));
+        entry->kind = adding_npc ? EVT_ROSTER_NPC : EVT_ROSTER_OBJECT;
+        entry->vnum = atol(vnum_arg);
+        entry->count = count;
+        entry->chance = chance;
+        entry->min_level = min_level;
+        entry->max_level = max_level;
+        entry->boss = adding_npc ? boss : false;
+        event_copy_trimmed(entry->phase, sizeof(entry->phase), phase);
+        if (IS_NULLSTR(entry->phase)) {
+            strncpy(entry->phase, "any", sizeof(entry->phase) - 1);
+            entry->phase[sizeof(entry->phase) - 1] = '\0';
+        }
+        evtedit_roster_append(evt, entry);
+
+        printf_to_char(ch, "Added %s roster entry: vnum=%ld count=%d chance=%d level=%s boss=%s\n\r",
+            adding_npc ? "npc" : "object",
+            entry->vnum,
+            entry->count,
+            entry->chance,
+            evtedit_roster_level_window(entry),
+            entry->boss ? "yes" : "no");
+
+        return evtedit_save_after_change(ch);
+    }
+
+    send_to_char("Unknown roster subcommand. Use: list, addnpc, addobj, boss, remove, clear.\n\r", ch);
+    return false;
 }
 
 EVTEDIT(evtedit_spawnbrackets)

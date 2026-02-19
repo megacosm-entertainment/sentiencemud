@@ -60,6 +60,12 @@ Chronological summary of what was implemented in the event runtime closure pass:
 - Script integration updates
 - Validation behavior and known deferred items
 
+### [Event Eprogs Plan](PLAN_EVENT_EPROGS.md)
+Design stub for future definition-level event program hooks:
+- Lifecycle trigger model (`on_start`, `on_tick`, `on_complete`, etc.)
+- Scope-aware execution contract for area/zone-limited effects
+- Proposed `evtedit` command surface and phased implementation plan
+
 ## Developer How-To Guides
 
 ### [Adding Skills, Spells, and Commands](SKILL_SPELL_COMMAND_GUIDE.md)

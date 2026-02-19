@@ -23,6 +23,7 @@ Editable fields include:
 - Eligibility: min/max level, min/max players
 - Completion controls: goal, leaderrequired
 - Messaging/news: description, announce, endmsg, joinmsg, newsslug, newsannounce, newsbody, themetags
+- Roster: `roster` subcommands for NPC/object entry CRUD, boss designation, level-window metadata, and phase targeting (`roster phase` / `phase=<name>`)
 - Brackets/progress: spawnbrackets, collectionbrackets, bracketmode, progressagg
 - Phase plan: managed via `phaseplan` indexed subcommands (`list/add/insert/set/name/minutes/script/remove/clear`)
 
@@ -48,7 +49,9 @@ Allowed values:
 
 ### Progress aggregation
 Allowed values:
+- `shared`
 - `total`
+- `per_bracket_any`
 - `per_bracket`
 - `per_bracket_all_required`
 
@@ -74,6 +77,7 @@ Implemented progression paths:
 - Invasion: NPC kills + optional leader phase and leader completion
 - War variants (`war-ffa`, `war-genocide`, `war-jihad`): player kill score progression
 - Boss: NPC kill progression with goal-based completion (default goal fallback = 1)
+- Roster runtime spawning: scoped roster entries spawn at phase entry (including event start/default `active` and later phase changes), with phase filtering and event provenance tagging
 
 Bracket-aware aggregation is applied when configured (`per_bracket*`).
 
@@ -118,6 +122,7 @@ Mobile/object fields include event provenance and runtime snapshots:
 These are intentionally left for a later phase:
 - Automatic evaluators for `worldcondition` and `triggered` schedule modes
 - Scope-driven enforcement logic beyond current metadata/display usage
+- Definition-level `eprogs` (event-program hooks) for map-wide procedural effects (for example: spawn a mist object in all rooms matching sector filters inside scoped zones/areas)
 - Rich custom completion policies for `custom`/`worldstate` definitions beyond script/manual control
 - Reward policy integration and payout orchestration from runtime outcomes
 

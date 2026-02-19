@@ -53,6 +53,91 @@ Think of `evtedit` as design-time and `event` as live operations.
 
 ---
 
+## 2.1) GQ-Style Events (Old GQ Migration)
+
+Short answer: old `gq` mob/object lists are not edited in `evtedit` anymore.
+
+`gq` now routes to the event system, and the old legacy setup flow is deprecated. In the new model:
+- `evtedit` defines event metadata/scheduling/progress policy
+- scripts handle spawn/turn-in logic and progress updates
+
+### What exists now
+
+- You can define a `collection` event (GQ-like) and set brackets/goals in `evtedit`.
+- You can define roster entries in `evtedit` for NPC/object spawns, including count/chance and level windows.
+- Roster entries can be phase-specific (`active`, `leader`, custom phase names, or `any`).
+- NPC roster entries can be designated as bosses.
+- You can tag spawned mobs/objects with event provenance via script `event` command.
+- You can advance progress from scripts via script `event progress ...`.
+
+### What does *not* exist as built-in editor flow
+
+- Automatic runtime spawn execution from roster entries is still deferred (definitions exist; scripts/runtime hooks still own actual spawning).
+- No automatic collection turn-in pipeline wired to item templates by default.
+
+### Practical recipe for a GQ-like collection event
+
+1. Create definition:
+
+   ```
+   evtedit create gq_hunt
+   type collection
+   scope global
+   schedule manual
+   goal 100
+   bracketmode auto_by_level
+   progressagg total
+   collectionbrackets 1-50,51-90,91+
+   phaseplan clear
+   phaseplan add active 60 <script_vnum_for_spawn_loop>
+   rewardsuccess <script_vnum_reward_success>
+   rewardfail <script_vnum_reward_fail>
+   enabled on
+   save
+   ```
+
+2. Start runtime:
+
+   ```
+   event start gq_hunt
+   ```
+
+3. In scripts that spawn event mobs/objects, set event provenance on each spawned entity:
+
+   ```
+   event set $MOB <event_uid> <instance_id> <bracket>
+   event set $OBJ <event_uid> <instance_id> <bracket>
+   ```
+
+   Or copy/inherit from source entity:
+
+   ```
+   event copy $OBJ $MOB
+   event inherit $MOB
+   ```
+
+4. On kill/turn-in scripts, advance progress explicitly:
+
+   ```
+   event progress gq_hunt addkills 1
+   event progress gq_hunt additems 1
+   ```
+
+5. Optional runtime control from scripts:
+
+   ```
+   event progress gq_hunt setgoal 150
+   event phase gq_hunt set leader
+   event complete gq_hunt "Objective complete"
+   event fail gq_hunt "Timed out"
+   ```
+
+### Important operational note
+
+Use `event info gq_hunt` and `event status` to confirm active instance and progress. If progress never changes, your scripts are not issuing `event progress ...` updates for the active event token.
+
+---
+
 ## 3) `evtedit` Command Surface (Definition Editing)
 
 ## Entry and selection
@@ -112,6 +197,13 @@ themetags <text>
 ## Brackets/progress/phases
 
 ```
+roster list
+roster addnpc <vnum> [count] [chance] [minlevel] [maxlevel] [boss|on|off] [phase=<name|any>]
+roster addobj <vnum> [count] [chance] [minlevel] [maxlevel] [phase=<name|any>]
+roster boss <index> <on|off>
+roster phase <index> <name|any>
+roster remove <index>
+roster clear
 spawnbrackets <spec>
 collectionbrackets <spec>
 bracketmode <auto_by_level|open|manual>
@@ -381,3 +473,50 @@ event schedule <uid|name> +1m
 event tick
 event status
 ```
+
+---
+
+## 11) Deferred Roadmap: `eprogs`
+
+Planned later-phase enhancement: definition-level `eprogs` (event program space) attached to event definitions.
+
+Intended use case examples:
+
+- area/zone scoped procedural spawns (for example, create a mist object in every room with matching sector flags)
+- “Reckoning-style” effects constrained to a specific event scope, instead of global behavior
+- reusable per-event lifecycle hooks for map mutation and cleanup
+
+Current status: not yet implemented in EVTEdit/runtime; tracked as deferred work.
+
+---
+
+## 12) Pause Point / Handoff (Current State)
+
+This section records where event-system work is intentionally paused.
+
+### Implemented in current pass
+
+- Scope anchor + floating scope behavior is implemented and enforced at runtime join/progress paths.
+- Structured roster exists in `evtedit` for NPC/object entries.
+- Roster supports:
+   - `count`, `chance`, `min/max level`
+   - boss designation (NPC only)
+   - phase targeting (`phase=<name|any>` and `roster phase <index> ...`)
+- Runtime roster spawning is wired to phase entry:
+   - event start/default active phase
+   - subsequent phase transitions
+- Spawned entities are event-tagged (uid/instance/bracket) for progress attribution.
+- Boss completion paths now respect roster-designated boss entries when present for the active/leader phase.
+
+### Intentionally deferred
+
+- `eprogs` implementation (definition data + runtime execution hooks).
+- Advanced placement modes beyond current random-room-in-scope area spawn behavior.
+- Rich room/sector filter targeting for map-wide effect patterns.
+- Expanded scope semantics for region/zones/battlefield beyond current area-anchor enforcement model.
+
+### Next recommended slice when resuming
+
+1. Add roster placement modes (`random_room`, `every_room`, and filtered variants).
+2. Add room/sector/flag filters to roster or `eprogs` payload.
+3. Implement first `eprogs` trigger set (`on_start`, `on_phase_change`, `on_tick`).

@@ -26,6 +26,32 @@ Still needed:
 - Reward policy binding to completion outcomes.
 - Script-visible progress/phase controls.
 
+## Current Pause Snapshot (2026-02-19)
+
+This plan remains active, but implementation is intentionally paused at the following boundary:
+
+### Implemented
+- Scope anchor/floating behavior wired in event runtime.
+- Structured event roster in `evtedit` for NPC/object entries.
+- Roster entries support:
+  - count/chance
+  - min/max level windows
+  - boss designation (NPC only)
+  - phase targeting (`any` or named phase)
+- Runtime roster spawning on phase entry (including default `active` start path).
+- Boss completion checks can require roster-designated phase boss entries when configured.
+
+### Deferred from this point
+- `eprogs` lifecycle hooks (`on_start`, `on_phase_change`, `on_tick`, etc.).
+- Advanced placement/filtering modes (for example every-room or sector-filtered spawn behavior).
+- Full non-area scope semantics (`region`, `zones`, `battlefield`).
+- Expanded reward/winner policy orchestration and tie-break strategies.
+
+### Recommended resume order
+1. Add roster placement/filter controls.
+2. Implement initial `eprogs` execution model.
+3. Complete completion policy matrix (winner/tie-break/reward timing).
+
 ## Design Principles
 1. Event runtime is source-of-truth for progress/completion.
 2. Completion logic must be deterministic and visible in `event info`/`event status`.
