@@ -1262,15 +1262,28 @@ OEDIT(oedit_portal)
             return true;
         }
         if (!str_prefix(field, "destination")) {
-            if (argument[0] == '\0') { send_to_char("Syntax: portal destination <widevnum|-1>\n\r", ch); return false; }
+            if (argument[0] == '\0') { send_to_char("Syntax: portal destination <dungeon_vnum|area#vnum|widevnum|-1>\n\r", ch); return false; }
             if (IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON)) {
-                if (!get_dungeon_index(atoi(argument))) {
+                DUNGEON_INDEX_DATA *dng = NULL;
+                WNUM dng_wnum = { NULL, 0 };
+                AREA_DATA *context = ch->in_room ? ch->in_room->area : pObj->area;
+
+                if (parse_widevnum(argument, context, &dng_wnum) && dng_wnum.pArea != NULL)
+                    dng = get_dungeon_index_for_area(dng_wnum.pArea, dng_wnum.vnum);
+                else if (is_number(argument))
+                    dng = get_dungeon_index(atol(argument));
+
+                if (!dng) {
                     send_to_char("There is no such dungeon.\n\r", ch);
                     return false;
                 }
-                PORTAL(pObj)->params[0] = atol(argument);
-                PORTAL(pObj)->params[4] = 0;
-                send_to_char("Dungeon vnum set.\n\r", ch);
+
+                PORTAL(pObj)->params[0] = dng->vnum;
+
+                if (PORTAL(pObj)->params[1] < 1)
+                    PORTAL(pObj)->params[1] = 1;
+
+                send_to_char("Dungeon destination set.\n\r", ch);
                 return true;
             }
 

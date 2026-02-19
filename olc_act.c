@@ -2496,14 +2496,25 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
         case 3:
             if( IS_SET(PORTAL(pObj)->flags, GATE_DUNGEON) )
             {
-                if( !get_dungeon_index(atoi(argument)) )
+                DUNGEON_INDEX_DATA *dng = NULL;
+                WNUM dng_wnum = { NULL, 0 };
+                AREA_DATA *context = ch->in_room ? ch->in_room->area : pObj->area;
+
+                if( parse_widevnum(argument, context, &dng_wnum) && dng_wnum.pArea )
+                    dng = get_dungeon_index_for_area(dng_wnum.pArea, dng_wnum.vnum);
+                else if( is_number(argument) )
+                    dng = get_dungeon_index(atol(argument));
+
+                if( !dng )
                 {
                     send_to_char("THERE IS NO SUCH DUNGEON.\n\r\n\r", ch);
                     return false;
                 }
-                PORTAL(pObj)->params[0] = atol(argument);
-                PORTAL(pObj)->params[4] = 0;
-                send_to_char("DUNGEON VNUM SET.\n\r\n\r", ch);
+
+                PORTAL(pObj)->params[0] = dng->vnum;
+                if( PORTAL(pObj)->params[1] < 1 )
+                    PORTAL(pObj)->params[1] = 1;
+                send_to_char("DUNGEON DESTINATION SET.\n\r\n\r", ch);
             }
             else if( !str_cmp(argument, "-1") )
             {

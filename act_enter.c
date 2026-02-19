@@ -342,7 +342,16 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
         {
             /* Use portal's area as context for dungeon lookup */
             WNUM wnum = { portal->pIndexData ? portal->pIndexData->area : NULL, PORTAL(portal)->params[0] };
-            location = spawn_dungeon_player(ch, wnum, PORTAL(portal)->params[4]);
+            int floor = PORTAL(portal)->params[1];
+
+            /* Legacy compatibility: older dungeon portals stored floor in params[4] */
+            if (floor < 1 && PORTAL(portal)->params[4] > 0)
+                floor = PORTAL(portal)->params[4];
+
+            if (floor < 1)
+                floor = 1;
+
+            location = spawn_dungeon_player(ch, wnum, floor);
         }
     } else if (IS_SET(PORTAL(portal)->flags,GATE_DUNGEONRANDOM)) {
         if( IS_VALID(old_room->instance_section) )
