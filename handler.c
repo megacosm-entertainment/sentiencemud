@@ -5783,9 +5783,39 @@ bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
 
 int get_region_wyx(long wuid, int x, int y)
 {
+    AREA_DATA *pArea;
+    WILDS_DATA *pWilds;
+    WILDS_REGION *pRegion;
 
     if( wuid < 1 )
         return -1;
+
+    for (pArea = area_first; pArea; pArea = pArea->next)
+    {
+        for (pWilds = pArea->wilds; pWilds; pWilds = pWilds->next)
+        {
+            if (pWilds->uid != wuid)
+                continue;
+
+            pRegion = get_region_by_coors(pWilds, x, y);
+            if (pRegion != NULL)
+                return pRegion->region;
+
+            if (pWilds->defaultRegion != REGION_UNKNOWN)
+                return pWilds->defaultRegion;
+
+            switch (pWilds->defaultPlaceFlags)
+            {
+                case PLACE_FIRST_CONTINENT: return REGION_FIRST_CONTINENT;
+                case PLACE_SECOND_CONTINENT: return REGION_SECOND_CONTINENT;
+                case PLACE_THIRD_CONTINENT: return REGION_THIRD_CONTINENT;
+                case PLACE_FOURTH_CONTINENT: return REGION_FOURTH_CONTINENT;
+                default: break;
+            }
+
+            break;
+        }
+    }
 
     // Small Wilds
     if( wuid == 6 )
@@ -13291,6 +13321,67 @@ void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum)
             wnum->vnum = 0;
         }
     }
+}
+
+AREA_REGION *get_room_region(ROOM_INDEX_DATA *room)
+{
+    if (!room) return NULL;
+
+    if (room->source) return NULL;
+    if (!room->area) return NULL;
+
+    if (!room->region) return &room->area->region;
+
+    return room->region;
+}
+
+void area_region_add_room(AREA_REGION *region, ROOM_INDEX_DATA *room)
+{
+    if (!IS_VALID(region) || !room || !room->area)
+        return;
+
+    if (room->region == region)
+        return;
+
+    if (IS_VALID(room->region) && room->region->rooms)
+        list_remlink(room->region->rooms, room, false);
+
+    room->region = region;
+
+    if (region->rooms)
+        list_appendlink(region->rooms, room);
+}
+
+void area_region_remove_room(ROOM_INDEX_DATA *room)
+{
+    if (!room)
+        return;
+
+    if (IS_VALID(room->region) && room->region->rooms)
+        list_remlink(room->region->rooms, room, false);
+
+    room->region = NULL;
+}
+
+AREA_REGION *get_area_region_by_uid(AREA_DATA *area, long uid)
+{
+    if (!area) return NULL;
+
+    if (!uid) return &area->region;
+    if (!area->regions) return NULL;
+
+    ITERATOR it;
+    AREA_REGION *region;
+
+    iterator_start(&it, area->regions);
+    while((region = (AREA_REGION *)iterator_nextdata(&it)))
+    {
+        if (region->uid == uid)
+            break;
+    }
+    iterator_stop(&it);
+
+    return region;
 }
 
 /**

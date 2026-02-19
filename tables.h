@@ -233,6 +233,8 @@ extern  const   struct  string_type     object_damage_table[];
 extern  const   struct  flag_type       token_flags[];
 extern  const   struct  flag_type       area_flags[];
 extern	const	struct	flag_type	place_flags[];
+extern	const	struct	flag_type	area_region_flags[];
+extern	const	struct	flag_type	wilderness_regions[];
 extern	const	struct	flag_type	act_flags[];
 extern	const	struct	flag_type	act2_flags[];
 extern	const	struct	flag_type   *act_flagbank[];

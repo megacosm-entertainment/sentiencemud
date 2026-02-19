@@ -77,6 +77,7 @@ const struct olc_cmd_type redit_table[] =
     {   "owner",        redit_owner         },
     {   "persist",      redit_persist       },
     {   "recall",       redit_recall        },
+    {   "region",       redit_region        },
     {   "room",         redit_room          },
     {   "sector",       redit_sector        },
     {   "show",         redit_show          },
@@ -227,6 +228,7 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 {
     ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)pEdit;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+    AREA_REGION *region = get_room_region(pRoom);
 
     olc_display_string(ctx, theme, "Name:", "name", pRoom->name);
     olc_display_string(ctx, theme, "Area:", NULL,
@@ -303,6 +305,13 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         pRoom->description);
     olc_display_text(ctx, theme, "Builder Comments:", "comments",
         pRoom->comments);
+
+    if (region == &pRoom->area->region)
+        olc_display_string(ctx, theme, "Region:", "region", "default");
+    else if (IS_VALID(region))
+        olc_display_string(ctx, theme, "Region:", "region", formatf("%s (uid %ld)", region->name, region->uid));
+    else
+        olc_display_string(ctx, theme, "Region:", "region", "(unset)");
 }
 
 static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
@@ -1739,6 +1748,69 @@ REDIT(redit_locale)
 
     pRoom->locale = atoi(argument);
     send_to_char("Locale set.\n\r", ch);
+    return true;
+}
+
+REDIT(redit_region)
+{
+    ROOM_INDEX_DATA *room;
+    AREA_REGION *region = NULL;
+    char buf[MSL];
+
+    EDIT_ROOM(ch, room);
+
+    if (IS_NULLSTR(argument))
+    {
+        AREA_REGION *current = get_room_region(room);
+        if (!current)
+        {
+            send_to_char("Room has no resolved region.\n\r", ch);
+            return false;
+        }
+
+        if (current == &room->area->region)
+            send_to_char("Room region is default.\n\r", ch);
+        else
+            printf_to_char(ch, "Room region: %s (uid %ld).\n\r", current->name, current->uid);
+        return false;
+    }
+
+    if (!str_prefix(argument, "default"))
+    {
+        region = &room->area->region;
+    }
+    else if (is_number(argument))
+    {
+        int region_no = atoi(argument);
+        if (region_no < 1 || region_no > list_size(room->area->regions))
+        {
+            sprintf(buf, "Please specify a number from 1 to %d.\n\r", (int)list_size(room->area->regions));
+            send_to_char(buf, ch);
+            return false;
+        }
+
+        region = (AREA_REGION *)list_nthdata(room->area->regions, region_no);
+    }
+    else
+    {
+        send_to_char("Syntax: region <#|default>\n\r", ch);
+        return false;
+    }
+
+    if (!IS_VALID(region))
+    {
+        send_to_char("That is not a valid region.\n\r", ch);
+        return false;
+    }
+
+    if (room->region == region || (region == &room->area->region && room->region == NULL))
+    {
+        send_to_char("The room is already in that region.\n\r", ch);
+        return false;
+    }
+
+    area_region_add_room(region, room);
+    send_to_char("Room region set.\n\r", ch);
     return true;
 }
 

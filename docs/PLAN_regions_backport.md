@@ -1,6 +1,21 @@
 # Region System Backport Analysis and Plan
 
-This document analyzes the "region" systems implemented in the `src_20_dev` branch and proposes a plan to backport them to the main `src` branch.
+## Status (2026-02-19)
+
+This backport is **complete for the current milestone** and is being called done for now.
+
+Completed in this milestone:
+- Wilderness region core model and legacy wilds persistence path
+- `AREA_REGION` core structs, lifecycle, and runtime lookup helpers
+- OLC region management commands (`aedit regions`, `redit region`, `wedit region`, `wedit placetype`)
+- JSON persistence for area regions and room-to-region assignment in `io/json/json_area.c`
+
+Deferred by design (future work, optional):
+- Additional region gameplay semantics not currently supported in runtime (e.g. savage behavior)
+- Expanded per-region OLC fields beyond currently backported command set
+- Broader system adoption of area/wilds region data in unrelated subsystems
+
+This document records the analysis that guided the region backport from `src_20_dev` into `src`.
 
 ## 1. Summary of Region Systems in `src_20_dev`
 
@@ -46,45 +61,38 @@ This system defines rectangular zones on a large, coordinate-based wilderness ma
     - To control game mechanics (like allowed travel or weather) based on a player's location.
     - The documentation also suggests this was intended to be used for performance optimization, allowing a web client to load the map in chunks (regions).
 
-## 2. Current State of Regions in `src`
+## 2. Current State in `src` (After Backport)
 
-The `src` codebase has a significantly stripped-down implementation:
+The region system is now present and operational in the active branch:
 
-- **No `AREA_REGION` or `WILDS_REGION` Structs:** The core data structures for both systems are completely absent from `merc.h`.
-- **Enum Only:** The `REGION_*` enum (e.g., `REGION_FIRST_CONTINENT`) exists, but it's used as a simple classification for an entire `AREA_DATA`, derived from the area's `place_flags` or its x/y coordinates.
-- **No OLC Management:** The `aedit regions`, `redit region`, and `wedit region` commands do not exist. There is no way for builders to create or manage sub-zones or wilderness zones.
-- **Legacy Hints:** Comments in `act_info.c` and documentation in `src/docs/` refer to a more advanced wilderness system, indicating that the feature was either abandoned, removed, or never fully ported from `src_20_dev`.
-- **Specialized `shipyard_region`:** A simple integer array `shipyard_region[2][2]` exists on the `SHOP_DATA` struct to define a rectangular area for shipyards. This is a very limited, feature-specific implementation and not a general-purpose region system.
+- `AREA_REGION` and `WILDS_REGION` data models are available.
+- Areas support a default region plus custom region lists.
+- Rooms support explicit region assignment.
+- Wilderness supports rectangular region definitions and defaults.
+- OLC surfaces for region editing are in place.
+- JSON area persistence includes region definitions and room `region_uid` assignment.
 
-## 3. Backporting Plan
+## 3. Milestone Outcome
 
-The region systems in `src_20_dev` are well-developed and align with the apparent design goals found in the `src` documentation. Backporting them would provide significant new functionality for builders and enable future features like a web-based map.
+### Completed
 
-The following steps are proposed:
+1. **Core model and lifecycle**
+   - Region structs/fields, allocation/free, and runtime lookup helpers were backported.
 
-1.  **File & Structure Migration:**
-    -   Copy `struct area_region_data` and `struct wilds_region` definitions from `src_20_dev/merc.h` to `src/merc.h`.
-    -   Add `AREA_REGION region;` and `LLIST *regions;` to the `AREA_DATA` struct in `src/merc.h`.
-    -   Add `WILDS_REGION *pRegion;` to the `wilds_data` struct in `src/wilds.h`.
+2. **Editor support**
+   - Region editing commands are available in area/room/wilderness editors for current milestone needs.
 
-2.  **Memory Management & Initialization:**
-    -   Port `new_area_region()`, `free_area_region()`, `new_region()`, and `free_region()` functions from `src_20_dev/mem.c` and `src_20_dev/wilds.c` to their counterparts in `src`.
-    -   Update the `new_area()` function in `src/mem.c` to initialize the default region and the regions list.
+3. **Persistence**
+   - Area JSON now persists default/custom regions and room region assignments.
+   - Wilds region persistence exists in the wilds serialization path.
 
-3.  **OLC Command Integration:**
-    -   Copy the `aedit_regions`, `redit_region`, and `wedit_region` functions from `src_20_dev/olc_act.c` into the appropriate files in `src/editors/`.
-    -   Add the new commands to the corresponding command tables in `olc.c`.
+4. **Compatibility posture**
+   - Existing behavior remains intact where region-aware logic is not yet adopted.
 
-4.  **Persistence:**
-    -   Port the save/load logic for area regions and wilds regions from `src_20_dev/olc_save.c` and `src_20_dev/wilds.c` to the JSON-based I/O functions in `src/io/json/`. This will require adapting the logic to work with the Jansson library instead of the old `fprintf`-based format.
-    -   Update the area JSON schema to include a `regions: []` array and a default region object.
-    -   Update the wilds JSON schema to include a `regions: []` array.
+### Deferred / Future Candidates
 
-5.  **Supporting Functions:**
-    -   Port `get_room_region()`, `get_area_region_by_uid()`, and `get_region_by_coors()` from `src_20_dev/handler.c` and `src_20_dev/wilds.c` to `src/handler.c`.
-    -   Review all files that use the `REGION_*` enum and update them to use the new, more powerful region structs and functions where appropriate.
+- Add additional region-aware gameplay semantics only where runtime support exists and is desired.
+- Expand region command surface if needed by builders.
+- Introduce wider subsystem adoption of region data (selectively, based on concrete feature goals).
 
-6.  **Build System Update:**
-    -   Update `Makefile` and `CMakeLists.txt` to include any new `.c` files that are created or copied during this process.
-
-By following this plan, we can re-introduce the powerful and flexible region systems, enabling more dynamic and interesting world-building possibilities.
+This plan is now considered **executed for this tranche**.

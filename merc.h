@@ -358,6 +358,7 @@ struct json_t;
 typedef struct	affect_data		AFFECT_DATA;
 typedef struct	catalyst_data		CATALYST_DATA;
 typedef struct	area_data		AREA_DATA;
+typedef struct area_region_data AREA_REGION;
 typedef struct	auction_data		AUCTION_DATA;
 typedef struct	auto_war		AUTO_WAR;
 typedef struct	ban_data		BAN_DATA;
@@ -476,6 +477,7 @@ typedef struct cmd_data CMD_DATA;
 typedef struct    wilds_vlink      WILDS_VLINK;
 typedef struct    wilds_data       WILDS_DATA;
 typedef struct    wilds_terrain    WILDS_TERRAIN;
+typedef struct    wilds_region     WILDS_REGION;
 typedef struct wilds_coord {
     WILDS_DATA *wilds;
     int w;
@@ -5999,6 +6001,54 @@ struct reset_data
     long        arg4;      // Count (P command) or other values
 };
 
+struct area_region_data
+{
+    AREA_REGION *next;
+    bool valid;
+
+    AREA_DATA *area;
+
+    long uid;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    int area_who;
+
+    long post_office;
+
+    long flags;
+
+    LLIST *players;
+    LLIST *rooms;
+
+    int rs_place_flags;
+    int rs_savage_level;
+
+    RS_LOCATION rs_recall;
+
+    int rs_x;
+    int rs_y;
+    int rs_land_x;
+    int rs_land_y;
+    long rs_airship_land_spot;
+
+    int place_flags;
+    int savage_level;
+
+    LOCATION recall;
+
+    int x;
+    int y;
+    int land_x;
+    int land_y;
+    long airship_land_spot;
+};
+
+#define AREA_REGION_NO_RECALL (A)
+#define AREA_REGION_KEEP_LIVE (B)
+
 /*
  * Area definition.
  */
@@ -6099,6 +6149,10 @@ struct	area_data
 
     SHIP_DATA *ship_list;
     TRADE_ITEM *trade_list;
+
+    AREA_REGION region;
+    LLIST *regions;
+    long top_region_uid;
 
     WNUM_LOAD post_office_load;
     WNUM      post_office_wnum;
@@ -6651,6 +6705,7 @@ struct	room_index_data
     CONDITIONAL_DESCR_DATA *conditional_descr;
     AREA_DATA *		area;
     ROOM_INDEX_DATA *	source;
+    AREA_REGION *       region;
     INSTANCE_SECTION		*instance_section;
     bool		persist;
     int version;
@@ -9187,6 +9242,7 @@ AFFECT_DATA *new_affect(void);
 CATALYST_DATA *new_catalyst(void);
 AMBUSH_DATA *new_ambush( void );
 AREA_DATA *new_area( void );
+AREA_REGION *new_area_region( void );
 AUTO_WAR *new_auto_war  args( ( int war_type, int min_players, int min_level, int max_level ) );
 CHAT_BAN_DATA *new_chat_ban( void );
 CHAT_OP_DATA *new_chat_op( void );
@@ -9227,6 +9283,7 @@ void free_storm_data( STORM_DATA *storm_data );
 void free_affect( AFFECT_DATA *af );
 void free_catalyst( CATALYST_DATA *cat );
 void free_ambush( AMBUSH_DATA *ambush );
+void free_area_region( AREA_REGION *region );
 void free_auto_war  args( ( AUTO_WAR *auto_war ) );
 void free_chat_ban( CHAT_BAN_DATA *pBan );
 void free_chat_op( CHAT_OP_DATA *pOp );
@@ -9600,6 +9657,10 @@ bool wnum_match_token(WNUM wnum, TOKEN_DATA *token);
 
 /* WNUM extraction - populate WNUM from entity */
 void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum);
+AREA_REGION *get_room_region(ROOM_INDEX_DATA *room);
+AREA_REGION *get_area_region_by_uid(AREA_DATA *area, long uid);
+void area_region_add_room(AREA_REGION *region, ROOM_INDEX_DATA *room);
+void area_region_remove_room(ROOM_INDEX_DATA *room);
 void get_mob_wnum(MOB_INDEX_DATA *mob, WNUM *wnum);
 void get_obj_wnum(OBJ_INDEX_DATA *obj, WNUM *wnum);
 void get_token_wnum(TOKEN_INDEX_DATA *token, WNUM *wnum);

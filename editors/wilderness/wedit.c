@@ -53,6 +53,8 @@ const struct olc_cmd_type wedit_table[] = {
     {   "create",       wedit_create    },
     {   "delete",       wedit_delete    },
     {   "name",         wedit_name      },
+    {   "placetype",    wedit_placetype },
+    {   "region",       wedit_region    },
     {   "show",         wedit_show      },
     {   "terrain",      wedit_terrain   },
     {   "vlink",        wedit_vlink     },
@@ -340,6 +342,10 @@ static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_infof(ctx, theme, "Map size:", "%d x %d (%ld vrooms)",
         pWilds->map_size_x, pWilds->map_size_y,
         (long)(pWilds->map_size_x * pWilds->map_size_y));
+    olc_display_string(ctx, theme, "Default region:", "region default",
+        flag_string(wilderness_regions, pWilds->defaultRegion));
+    olc_display_string(ctx, theme, "Default place:", "placetype",
+        flag_string(place_flags, pWilds->defaultPlaceFlags));
 
     /* Show default terrain if one is set */
     for (pTerrain = pWilds->pTerrain; pTerrain; pTerrain = pTerrain->next)
@@ -531,6 +537,213 @@ WEDIT (wedit_name)
 
     return olc_cmd_string(ch, argument, "Name", "name <string>",
                           &pWilds->name, OLC_STR_DEFAULT, NULL, NULL);
+}
+
+WEDIT (wedit_region)
+{
+    WILDS_DATA *pWilds;
+    WILDS_REGION *pRegion;
+    char buf[MSL];
+    char arg[MIL];
+
+    EDIT_WILDS(ch, pWilds);
+
+    argument = one_argument(argument, arg);
+    if (arg[0] != '\0')
+    {
+        if (!str_prefix(arg, "list"))
+        {
+            BUFFER *buffer = new_buf();
+            int i = 0;
+
+            sprintf(buf, "Default Region:  %s\n\r\n\r", flag_string(wilderness_regions, pWilds->defaultRegion));
+            add_buf(buffer, buf);
+            add_buf(buffer, "     [Start X] [Start Y] [ End X ] [ End Y ] [      Region      ] [     Place     ]\n\r");
+            add_buf(buffer, "====================================================================================\n\r");
+
+            for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+            {
+                sprintf(buf, "%4d  %7d   %7d   %7d   %7d   %-18s   %-15s\n\r", ++i,
+                    pRegion->startx, pRegion->starty,
+                    pRegion->endx, pRegion->endy,
+                    flag_string(wilderness_regions, pRegion->region),
+                    flag_string(place_flags, pRegion->area_place_flags));
+                add_buf(buffer, buf);
+            }
+
+            page_to_char(buf_string(buffer), ch);
+            free_buf(buffer);
+            return false;
+        }
+
+        if (!str_prefix(arg, "default"))
+        {
+            if (argument[0] != '\0')
+            {
+                if (!str_cmp(argument, "none"))
+                {
+                    pWilds->defaultRegion = REGION_UNKNOWN;
+                    send_to_char("Default region cleared.\n\r", ch);
+                    return true;
+                }
+
+                int value = flag_value(wilderness_regions, argument);
+                if (value != NO_FLAG)
+                {
+                    pWilds->defaultRegion = value;
+                    send_to_char("Default region set.\n\r", ch);
+                    return true;
+                }
+            }
+
+            send_to_char("Syntax: region default <region|none>\n\r", ch);
+            send_to_char("Type '? wilderness_regions' to list valid regions.\n\r", ch);
+            return false;
+        }
+
+        if (!str_prefix(arg, "add"))
+        {
+            char arg2[MIL];
+            char arg3[MIL];
+            char arg4[MIL];
+            char arg5[MIL];
+            char arg6[MIL];
+            int startx, starty, endx, endy;
+            int region;
+            int place;
+
+            argument = one_argument(argument, arg2);
+            argument = one_argument(argument, arg3);
+            argument = one_argument(argument, arg4);
+            argument = one_argument(argument, arg5);
+            argument = one_argument(argument, arg6);
+
+            if (!is_number(arg2) || (startx = atoi(arg2)) < 0 || startx >= pWilds->map_size_x)
+            {
+                sprintf(buf, "Start X must be between 0 and %d.\n\r", pWilds->map_size_x - 1);
+                send_to_char(buf, ch);
+                return false;
+            }
+
+            if (!is_number(arg3) || (starty = atoi(arg3)) < 0 || starty >= pWilds->map_size_y)
+            {
+                sprintf(buf, "Start Y must be between 0 and %d.\n\r", pWilds->map_size_y - 1);
+                send_to_char(buf, ch);
+                return false;
+            }
+
+            if (!is_number(arg4) || (endx = atoi(arg4)) < 0 || endx >= pWilds->map_size_x)
+            {
+                sprintf(buf, "End X must be between 0 and %d.\n\r", pWilds->map_size_x - 1);
+                send_to_char(buf, ch);
+                return false;
+            }
+
+            if (!is_number(arg5) || (endy = atoi(arg5)) < 0 || endy >= pWilds->map_size_y)
+            {
+                sprintf(buf, "End Y must be between 0 and %d.\n\r", pWilds->map_size_y - 1);
+                send_to_char(buf, ch);
+                return false;
+            }
+
+            region = flag_value(wilderness_regions, arg6);
+            if (region == NO_FLAG)
+            {
+                send_to_char("Invalid region. Type '? wilderness_regions'.\n\r", ch);
+                return false;
+            }
+
+            place = flag_value(place_flags, argument);
+            if (place == NO_FLAG)
+            {
+                send_to_char("Invalid place type. Type '? placetype'.\n\r", ch);
+                return false;
+            }
+
+            pRegion = new_region(pWilds);
+            pRegion->startx = UMIN(startx, endx);
+            pRegion->starty = UMIN(starty, endy);
+            pRegion->endx = UMAX(startx, endx);
+            pRegion->endy = UMAX(starty, endy);
+            pRegion->region = region;
+            pRegion->area_place_flags = place;
+            add_region(pWilds, pRegion);
+
+            send_to_char("Region added.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(arg, "remove"))
+        {
+            int count = 0;
+            int index;
+
+            for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+                count++;
+
+            if (argument[0] == '\0' || !is_number(argument))
+            {
+                send_to_char("Syntax: region remove <#>\n\r", ch);
+                if (count > 0)
+                {
+                    sprintf(buf, "Please specify a number from 1 to %d.\n\r", count);
+                    send_to_char(buf, ch);
+                }
+                return false;
+            }
+
+            index = atoi(argument);
+            if (index < 1 || index > count)
+            {
+                sprintf(buf, "Please specify a number from 1 to %d.\n\r", count);
+                send_to_char(buf, ch);
+                return false;
+            }
+
+            for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+                if (!--index)
+                    break;
+
+            del_region(pWilds, pRegion);
+            send_to_char("Region removed.\n\r", ch);
+            return true;
+        }
+    }
+
+    send_to_char("Syntax: region list\n\r", ch);
+    send_to_char("        region default <region|none>\n\r", ch);
+    send_to_char("        region add <startx> <starty> <endx> <endy> <region> <placetype>\n\r", ch);
+    send_to_char("        region remove <#>\n\r", ch);
+    return false;
+}
+
+WEDIT (wedit_placetype)
+{
+    WILDS_DATA *pWilds;
+    int value;
+
+    EDIT_WILDS(ch, pWilds);
+
+    if (argument[0] != '\0')
+    {
+        if (!str_cmp(argument, "none"))
+        {
+            pWilds->defaultPlaceFlags = PLACE_NOWHERE;
+            send_to_char("Wilds default place type cleared.\n\r", ch);
+            return true;
+        }
+
+        if ((value = flag_value(place_flags, argument)) != NO_FLAG)
+        {
+            pWilds->defaultPlaceFlags = value;
+            send_to_char("Wilds default place type set.\n\r", ch);
+            return true;
+        }
+    }
+
+    send_to_char("Syntax: placetype <placetype|none>\n\r", ch);
+    send_to_char("Type '? placetype' for valid values.\n\r", ch);
+    return false;
 }
 
 WEDIT ( wedit_terrain )

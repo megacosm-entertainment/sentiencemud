@@ -2981,6 +2981,123 @@ The backend data structures and performance optimizations remain critical, servi
 
 ---
 
+## 2026 JSON-Era Re-Review Addendum
+
+This section revisits the plan after JSON zone loading was introduced and with new requirements:
+
+- Dynamic weather systems
+- Script-driven wilderness events
+- Logical wilderness regions
+- NPC ships of multiple behaviors/types
+- Runtime obstacles/occlusion and light-level effects
+- Accessibility-friendly wayfinding (not ASCII-only)
+- Optional PNG ingest without blocking the main game loop
+
+### What Changed Since Original Analysis
+
+1. **Area loading now prefers JSON entries from `area.lst`** and falls back to legacy `.are` where needed.
+2. **Wilderness core still uses virtual rooms** with `staticmap` + `map` dual arrays.
+3. **Terrain lookup currently reads from `staticmap`** in `get_terrain_by_coors()`, so runtime tile edits in `map` are not yet authoritative for all systems.
+
+### Updated Architecture Direction (Recommended)
+
+Adopt a **layered wilderness state model** where base terrain and dynamic systems are independent:
+
+1. **Base Layer (immutable at runtime)**
+  - Source: wildgen output / imported map
+  - Backed by `staticmap`
+
+2. **Runtime Overlay Layer (mutable, optionally persisted)**
+  - Source: weather effects, scripts, admin commands, live events
+  - Backed by `map` + sparse overlay records
+  - Supports temporary or permanent changes
+
+3. **Systems Layer (dynamic entities, not terrain)**
+  - Storm cells, region metadata, NPC ship fleets, event markers, hazards
+  - Stored as state objects keyed by wilderness UID + coordinate chunks
+
+### Required Engine Corrections
+
+Before major feature work, fix two root issues:
+
+1. **Unified terrain resolver**
+  - Replace direct `staticmap` reads in gameplay paths with:
+    - `get_wilds_base_tile()`
+    - `get_wilds_effective_tile()` (overlay-aware)
+  - Ensure map display, movement cost, weather effects, and pathing all use the same effective tile source.
+
+2. **Chunked state container**
+  - Store runtime overrides by chunk (for example 32x32 or 64x64) rather than scanning full maps.
+  - Required for web editor, dynamic events, and accessibility APIs to scale.
+
+### Dynamic Weather + Scripting + Regions + NPC Ships
+
+Treat all four as first-class, coordinate-native systems:
+
+- **Dynamic weather:** Storm cells move over coordinates; apply transient terrain/visibility/light modifiers via overlay.
+- **Scripting hooks:** Trigger events on enter/leave tile, region transitions, weather crossings, and ship encounters.
+- **Regions:** Add named region records (`uid`, name, polygon/rect bounds, tags, climate profile, script set).
+- **NPC ships:** Maintain abstract ship positions/routes independent of room lifetime; only materialize room details when players are nearby.
+
+### Obstacle Handling (Occlusion) + Light Levels
+
+Add two data channels to terrain/overlay metadata:
+
+1. **Occlusion cost / block value**
+  - Example: dense forest, cliffs, walls, heavy fog tiles
+  - Used by map visibility pass (line-of-sight/field-of-view) so tiles behind obstacles can be hidden or dimmed.
+
+2. **Luminance modifier**
+  - Per-tile and per-effect light contribution
+  - Combined with global sunlight/weather to compute effective local visibility.
+
+This complements existing `get_squares_to_show_*()` behavior by moving from radius-only visibility to **radius + obstruction + light**.
+
+### Accessibility / Wayfinding Requirements
+
+ASCII map remains useful, but accessibility requires **structured navigation outputs**:
+
+1. **Path service API**
+  - Input: origin, destination, movement profile (on foot, mounted, ship), risk preference
+  - Output: step list + semantic cues (region crossings, hazards, water entry, low-light segments)
+
+2. **Text-first route narration**
+  - Example format:
+    - "Go north 12 tiles through Blackmoore Forest"
+    - "Turn northeast at river edge"
+    - "Enter region: Broken Coast"
+  - This supports screen readers and non-visual clients.
+
+3. **Landmark graph**
+  - Maintain discoverable waypoints (ports, roads, passes, camps, gates) and use them in route instructions.
+
+### PNG Support Without Blocking Main Thread
+
+Direct PNG support is viable if constrained to asynchronous workflows:
+
+1. **Never decode PNG on main game tick.**
+2. Run decode/import in a worker process or job queue.
+3. Produce an intermediate map artifact (for example `.wmap`) and stage it.
+4. Swap wilderness base map only at safe points (admin-triggered reload window).
+5. On swap, re-apply persistent overlays and invalidate affected runtime caches/chunks.
+
+If full in-process async workers are postponed, keep external wildgen as the first implementation of this same staged pipeline.
+
+### Recommended Priority Order (Revised)
+
+1. Build unified effective-tile resolver and chunked overlay store.
+2. Add region model + script hook points.
+3. Add coordinate-native NPC ship manager and weather cells on shared scheduler.
+4. Add FOV/occlusion + luminance calculations for map rendering.
+5. Add accessibility path service and narrated route outputs.
+6. Add async PNG import pipeline (or external staged import equivalent).
+
+### Bottom Line (Updated)
+
+Keep wilderness **coordinate-first and state-layered**. With that foundation, dynamic weather, scripted events, regions, ship AI, obstacle-aware visibility, lighting, web editing, and accessibility wayfinding can all coexist without forcing persistent static rooms or blocking the main game thread.
+
+---
+
 ## References
 
 **Key Source Files:**

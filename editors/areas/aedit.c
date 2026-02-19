@@ -64,6 +64,7 @@ const struct olc_cmd_type aedit_table[] =
     {   "recall",       aedit_recall        },
     {   "removetrade",  aedit_remove_trade  },
     {   "repop",        aedit_repop         },
+    {   "regions",      aedit_regions       },
     {   "security",     aedit_security      },
     {   "settrade",     aedit_set_trade     },
     {   "show",         aedit_show          },
@@ -250,6 +251,12 @@ AEDIT(aedit_show)
 
     olc_display_type(ctx, theme, "AreaWho:", "areawho", area_who_titles, pArea->area_who);
     olc_display_type(ctx, theme, "PlaceType:", "placetype", place_flags, pArea->place_flags);
+    olc_display_section(ctx, theme, "Region Defaults");
+    olc_display_type(ctx, theme, "Def Who:", "regions who default", area_who_titles, pArea->region.area_who);
+    olc_display_type(ctx, theme, "Def Place:", "regions place default", place_flags, pArea->region.rs_place_flags);
+    olc_display_string(ctx, theme, "Def Flags:", "regions flags default",
+        flag_string(area_region_flags, pArea->region.flags));
+    olc_display_infof(ctx, theme, "Custom regions:", "%zu", pArea->regions ? list_size(pArea->regions) : 0);
 
     /* Airship landing */
     {
@@ -627,6 +634,224 @@ AEDIT(aedit_create)
 
     SET_BIT(pArea->area_flags, AREA_ADDED);
     send_to_char("Area Created.\n\r", ch);
+    return false;
+}
+
+
+AEDIT(aedit_regions)
+{
+    AREA_DATA *pArea;
+    char arg1[MIL];
+    char arg2[MIL];
+    char buf[MSL];
+
+    EDIT_AREA(ch, pArea);
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+
+    if (IS_NULLSTR(arg1) || !str_prefix(arg1, "list"))
+    {
+        BUFFER *output = new_buf();
+        int idx = 0;
+        AREA_REGION *region;
+        ITERATOR it;
+
+        sprintf(buf, "Default: who={W%s{x place={W%s{x flags={W%s{x rooms={W%d{x\n\r",
+            flag_string(area_who_titles, pArea->region.area_who),
+            flag_string(place_flags, pArea->region.rs_place_flags),
+            flag_string(area_region_flags, pArea->region.flags),
+            pArea->region.rooms ? (int)list_size(pArea->region.rooms) : 0);
+        add_buf(output, buf);
+        add_buf(output, "\n\r");
+        add_buf(output, " #   UID   Name                     Who              Place             Flags           Rooms\n\r");
+        add_buf(output, "-----------------------------------------------------------------------------------------------\n\r");
+
+        iterator_start(&it, pArea->regions);
+        while ((region = (AREA_REGION *)iterator_nextdata(&it)))
+        {
+            sprintf(buf, "%2d  %4ld  %-24.24s %-16.16s %-16.16s %-14.14s %5d\n\r",
+                ++idx,
+                region->uid,
+                region->name ? region->name : "",
+                flag_string(area_who_titles, region->area_who),
+                flag_string(place_flags, region->rs_place_flags),
+                flag_string(area_region_flags, region->flags),
+                region->rooms ? (int)list_size(region->rooms) : 0);
+            add_buf(output, buf);
+        }
+        iterator_stop(&it);
+
+        if (idx == 0)
+            add_buf(output, "(No custom regions)\n\r");
+
+        page_to_char(buf_string(output), ch);
+        free_buf(output);
+        return false;
+    }
+
+    if (!str_prefix(arg1, "add"))
+    {
+        AREA_REGION *region;
+
+        if (IS_NULLSTR(arg2) && IS_NULLSTR(argument))
+        {
+            send_to_char("Syntax: regions add <name>\n\r", ch);
+            return false;
+        }
+
+        region = new_area_region();
+        region->area = pArea;
+        region->uid = ++pArea->top_region_uid;
+        free_string(region->name);
+        region->name = str_dup(IS_NULLSTR(arg2) ? argument : formatf("%s %s", arg2, argument));
+        region->area_who = pArea->region.area_who;
+        region->rs_place_flags = pArea->region.rs_place_flags;
+        region->rs_x = pArea->region.rs_x;
+        region->rs_y = pArea->region.rs_y;
+        region->rs_land_x = pArea->region.rs_land_x;
+        region->rs_land_y = pArea->region.rs_land_y;
+
+        list_appendlink(pArea->regions, region);
+        send_to_char("Region added.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "remove"))
+    {
+        AREA_REGION *remove_me;
+        ROOM_INDEX_DATA *room;
+        int region_no;
+
+        if (list_size(pArea->regions) < 1)
+        {
+            send_to_char("There are no regions to remove.\n\r", ch);
+            return false;
+        }
+
+        if (!is_number(arg2))
+        {
+            send_to_char("Syntax: regions remove <#>\n\r", ch);
+            return false;
+        }
+
+        region_no = atoi(arg2);
+        if (region_no < 1 || region_no > list_size(pArea->regions))
+        {
+            sprintf(buf, "Please specify a number from 1 to %d.\n\r", (int)list_size(pArea->regions));
+            send_to_char(buf, ch);
+            return false;
+        }
+
+        remove_me = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+        while ((room = (ROOM_INDEX_DATA *)list_nthdata(remove_me->rooms, 1)) != NULL)
+            area_region_add_room(&pArea->region, room);
+
+        list_remnthlink(pArea->regions, region_no, true);
+        send_to_char("Region removed.\n\r", ch);
+        return true;
+    }
+
+    AREA_REGION *region = NULL;
+    if (!str_prefix(arg2, "default"))
+        region = &pArea->region;
+    else if (is_number(arg2))
+    {
+        int region_no = atoi(arg2);
+        if (region_no >= 1 && region_no <= list_size(pArea->regions))
+            region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+    }
+
+    if (!region)
+    {
+        send_to_char("Please specify <#|default>.\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(arg1, "name"))
+    {
+        if (IS_NULLSTR(argument))
+        {
+            send_to_char("Syntax: regions name <#|default> <name>\n\r", ch);
+            return false;
+        }
+
+        free_string(region->name);
+        region->name = str_dup(argument);
+        send_to_char("Region name changed.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "description"))
+    {
+        string_append(ch, &region->description);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "comments"))
+    {
+        string_append(ch, &region->comments);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "flags"))
+    {
+        long value;
+        if ((value = flag_value(area_region_flags, argument)) == NO_FLAG)
+        {
+            send_to_char("Syntax: regions flags <#|default> <flag>\n\r", ch);
+            send_to_char("Type '? area_region_flags' for values.\n\r", ch);
+            return false;
+        }
+
+        TOGGLE_BIT(region->flags, value);
+        send_to_char("Region flags toggled.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "who"))
+    {
+        int value;
+        if (!str_prefix(argument, "blank"))
+            value = AREA_BLANK;
+        else if ((value = flag_value(area_who_titles, argument)) == NO_FLAG)
+        {
+            send_to_char("Syntax: regions who <#|default> <title|blank>\n\r", ch);
+            send_to_char("Type '? areawho' for values.\n\r", ch);
+            return false;
+        }
+
+        region->area_who = value;
+        send_to_char("Region who title set.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "place"))
+    {
+        int value;
+        if (!str_cmp(argument, "none"))
+            value = PLACE_NOWHERE;
+        else if ((value = flag_value(place_flags, argument)) == NO_FLAG)
+        {
+            send_to_char("Syntax: regions place <#|default> <placetype|none>\n\r", ch);
+            send_to_char("Type '? placetype' for values.\n\r", ch);
+            return false;
+        }
+
+        region->rs_place_flags = value;
+        send_to_char("Region place type set.\n\r", ch);
+        return true;
+    }
+
+    send_to_char("Syntax: regions list\n\r", ch);
+    send_to_char("        regions add <name>\n\r", ch);
+    send_to_char("        regions remove <#>\n\r", ch);
+    send_to_char("        regions name <#|default> <name>\n\r", ch);
+    send_to_char("        regions description <#|default>\n\r", ch);
+    send_to_char("        regions comments <#|default>\n\r", ch);
+    send_to_char("        regions flags <#|default> <flag>\n\r", ch);
+    send_to_char("        regions who <#|default> <title|blank>\n\r", ch);
+    send_to_char("        regions place <#|default> <placetype|none>\n\r", ch);
     return false;
 }
 

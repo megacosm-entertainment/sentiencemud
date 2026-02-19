@@ -264,6 +264,99 @@ extern const struct trade_type trade_table[];
 extern int trigger_table_size;
 extern int trigger_index(char *name, int type);
 
+static json_t *json_area_serialize_region_data(AREA_REGION *region)
+{
+    if (!region)
+        return NULL;
+
+    json_t *json = json_object();
+    json_t *recall = json_object();
+
+    json_object_set_new(json, "uid", json_integer(region->uid));
+    json_object_set_new(json, "name", json_string_safe(region->name));
+    json_object_set_new(json, "description", json_string_safe(region->description));
+    json_object_set_new(json, "comments", json_string_safe(region->comments));
+    json_object_set_new(json, "area_who", json_integer(region->area_who));
+    json_object_set_new(json, "flags", flags_to_json_array(region->flags, area_region_flags));
+    json_object_set_new(json, "place_flags", json_integer(region->rs_place_flags));
+
+    if (region->rs_recall.wuid > 0) {
+        json_object_set_new(recall, "wilds_uid", json_integer(region->rs_recall.wuid));
+        json_object_set_new(recall, "x", json_integer(region->rs_recall.id[0]));
+        json_object_set_new(recall, "y", json_integer(region->rs_recall.id[1]));
+        json_object_set_new(recall, "z", json_integer(region->rs_recall.id[2]));
+    } else {
+        json_object_set_new(recall, "vnum", json_integer(region->rs_recall.id[0]));
+    }
+    json_object_set_new(json, "recall", recall);
+
+    json_t *coords = json_object();
+    json_object_set_new(coords, "x", json_integer(region->rs_x));
+    json_object_set_new(coords, "y", json_integer(region->rs_y));
+    json_object_set_new(coords, "land_x", json_integer(region->rs_land_x));
+    json_object_set_new(coords, "land_y", json_integer(region->rs_land_y));
+    json_object_set_new(json, "coordinates", coords);
+
+    json_object_set_new(json, "airship_land", json_integer(region->rs_airship_land_spot));
+    json_object_set_new(json, "post_office", json_integer(region->post_office));
+
+    return json;
+}
+
+static void json_area_deserialize_region_data(json_t *json, AREA_REGION *region)
+{
+    if (!json || !region)
+        return;
+
+    region->uid = json_get_int_default(json, "uid", 0);
+
+    free_string(region->name);
+    region->name = str_dup(json_get_string_default(json, "name", ""));
+    free_string(region->description);
+    region->description = str_dup(json_get_string_default(json, "description", ""));
+    free_string(region->comments);
+    region->comments = str_dup(json_get_string_default(json, "comments", ""));
+
+    region->area_who = json_get_int_default(json, "area_who", AREA_BLANK);
+
+    json_t *flags = json_object_get(json, "flags");
+    if (flags && json_is_array(flags))
+        region->flags = json_array_to_flags(flags, area_region_flags);
+    else
+        region->flags = json_get_int_default(json, "flags", 0);
+
+    region->rs_place_flags = json_get_int_default(json, "place_flags", PLACE_NOWHERE);
+
+    rs_location_clear(&region->rs_recall);
+    json_t *recall = json_object_get(json, "recall");
+    if (recall) {
+        if (json_object_get(recall, "wilds_uid")) {
+            region->rs_recall.wuid = json_get_int_default(recall, "wilds_uid", 0);
+            region->rs_recall.id[0] = json_get_int_default(recall, "x", 0);
+            region->rs_recall.id[1] = json_get_int_default(recall, "y", 0);
+            region->rs_recall.id[2] = json_get_int_default(recall, "z", 0);
+        } else {
+            region->rs_recall.wuid = 0;
+            region->rs_recall.id[0] = json_get_int_default(recall, "vnum", 0);
+        }
+    }
+
+    region->rs_x = -1;
+    region->rs_y = -1;
+    region->rs_land_x = -1;
+    region->rs_land_y = -1;
+    json_t *coords = json_object_get(json, "coordinates");
+    if (coords) {
+        region->rs_x = json_get_int_default(coords, "x", -1);
+        region->rs_y = json_get_int_default(coords, "y", -1);
+        region->rs_land_x = json_get_int_default(coords, "land_x", -1);
+        region->rs_land_y = json_get_int_default(coords, "land_y", -1);
+    }
+
+    region->rs_airship_land_spot = json_get_int_default(json, "airship_land", 0);
+    region->post_office = json_get_int_default(json, "post_office", 0);
+}
+
 /***************************************************************************
  * Area Metadata Serialization                                            *
  ***************************************************************************/
@@ -276,6 +369,7 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_t *coords = json_object();
     json_t *recall = json_object();
     json_t *versions = json_object();
+    json_t *regions = json_array();
     
     /* Basic info */
     json_object_set_new(root, "uid", json_integer(area->uid));
@@ -400,6 +494,25 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
         json_t *wilds_json = wilds_to_json(area->wilds);
         if (wilds_json) json_object_set_new(root, "wilderness", wilds_json);
     }
+
+    json_t *default_region = json_area_serialize_region_data(&area->region);
+    if (default_region)
+        json_object_set_new(root, "default_region", default_region);
+
+    if (area->regions) {
+        ITERATOR it;
+        AREA_REGION *region;
+        iterator_start(&it, area->regions);
+        while ((region = (AREA_REGION *)iterator_nextdata(&it))) {
+            json_t *region_json = json_area_serialize_region_data(region);
+            if (region_json)
+                json_array_append_new(regions, region_json);
+        }
+        iterator_stop(&it);
+    }
+    json_object_set_new(root, "regions", regions);
+    json_object_set_new(root, "top_region_uid", json_integer(area->top_region_uid));
+
     return root;
 }
 
@@ -509,6 +622,35 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
     area->description = str_dup(json_get_string_default(json, "description", ""));
     area->comments = str_dup(json_get_string_default(json, "comments", ""));
     area->notes = str_dup(json_get_string_default(json, "notes", ""));
+
+    json_t *default_region = json_object_get(json, "default_region");
+    if (default_region)
+        json_area_deserialize_region_data(default_region, &area->region);
+
+    area->region.area = area;
+    area->region.uid = 0;
+    area->region.valid = true;
+    area->top_region_uid = json_get_int_default(json, "top_region_uid", 0);
+
+    json_t *regions = json_object_get(json, "regions");
+    if (regions && json_is_array(regions)) {
+        size_t index;
+        json_t *region_json;
+        json_array_foreach(regions, index, region_json) {
+            AREA_REGION *region = new_area_region();
+            if (!region)
+                continue;
+
+            json_area_deserialize_region_data(region_json, region);
+            region->area = area;
+            region->valid = true;
+
+            if (region->uid > area->top_region_uid)
+                area->top_region_uid = region->uid;
+
+            list_appendlink(area->regions, region);
+        }
+    }
     
     /* Versions */
     versions = json_object_get(json, "versions");
@@ -2409,6 +2551,9 @@ json_t *json_area_serialize_room(ROOM_INDEX_DATA *room)
     
     if (room->owner && room->owner[0] != '\0')
         json_object_set_new(json, "owner", json_string(room->owner));
+
+    if (room->region && room->region != &room->area->region)
+        json_object_set_new(json, "region_uid", json_integer(room->region->uid));
     
     if (room->home_owner && room->home_owner[0] != '\0')
         json_object_set_new(json, "home_owner", json_string(room->home_owner));
@@ -2550,6 +2695,17 @@ ROOM_INDEX_DATA *json_area_deserialize_room(json_t *json, AREA_DATA *area)
     room->name = str_dup(json_get_string_default(json, "name", "Unnamed Room"));
     room->description = str_dup(json_get_string_default(json, "description", ""));
     room->persist = json_get_bool_default(json, "persist", false);
+
+    area_region_add_room(&area->region, room);
+
+    {
+        long region_uid = json_get_int_default(json, "region_uid", 0);
+        if (region_uid > 0) {
+            AREA_REGION *region = get_area_region_by_uid(area, region_uid);
+            if (region)
+                area_region_add_room(region, room);
+        }
+    }
     
     const char *comments = json_get_string_default(json, "comments", "");
     if (comments && comments[0] != '\0')

@@ -2118,6 +2118,36 @@ const struct flag_type      place_flags[]           =
 };
 
 
+const struct flag_type wilderness_regions[] =
+{
+    { "Arena Island",        REGION_ARENA_ISLAND, true },
+    { "Central Ocean",       REGION_CENTRAL_OCEAN, true },
+    { "Dragon Island",       REGION_DRAGON_ISLAND, true },
+    { "Eastern Ocean",       REGION_EASTERN_OCEAN, true },
+    { "First Continent",     REGION_FIRST_CONTINENT, true },
+    { "Fourth Continent",    REGION_FOURTH_CONTINENT, true },
+    { "Mordrake Island",     REGION_MORDRAKE_ISLAND, true },
+    { "North Pole",          REGION_NORTH_POLE, true },
+    { "Northern Ocean",      REGION_NORTHERN_OCEAN, true },
+    { "Second Continent",    REGION_SECOND_CONTINENT, true },
+    { "South Pole",          REGION_SOUTH_POLE, true },
+    { "Southern Ocean",      REGION_SOUTHERN_OCEAN, true },
+    { "Temple Island",       REGION_TEMPLE_ISLAND, true },
+    { "Third Continent",     REGION_THIRD_CONTINENT, true },
+    { "Undersea",            REGION_UNDERSEA, true },
+    { "Western Ocean",       REGION_WESTERN_OCEAN, true },
+    { "Unknown",             REGION_UNKNOWN, false },
+    { NULL,                    REGION_UNKNOWN, false }
+};
+
+const struct flag_type area_region_flags[] =
+{
+    { "keep_live",      AREA_REGION_KEEP_LIVE,      true },
+    { "no_recall",      AREA_REGION_NO_RECALL,      true },
+    { NULL,              0,                           false }
+};
+
+
 const struct flag_type	token_flags[] =
 {
     {	"purge_death",		TOKEN_PURGE_DEATH,		true	},

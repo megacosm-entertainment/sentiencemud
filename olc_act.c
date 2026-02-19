@@ -142,6 +142,7 @@ const struct olc_help_type help_table[] =
     {	"apptype",				STRUCT_FLAGS,		apply_types,				"Apply types."	},
     {	"aprog",				STRUCT_TRIGGERS,	trigger_table,				"AreaProgram types."	},
     {	"area",					STRUCT_FLAGS,		area_flags,					"Area attributes."	},
+    {	"area_region_flags",			STRUCT_FLAGS,		area_region_flags,				"Area region flags."	},
     {	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
     {	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
     {	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
@@ -200,6 +201,7 @@ const struct olc_help_type help_table[] =
     {	"weapon",				STRUCT_ATTACK,		attack_table,				"Weapon types."	},
     {	"wear",					STRUCT_FLAGS,		wear_flags,					"Where to wear object."	},
     {	"wear-loc",				STRUCT_FLAGS,		wear_loc_flags,				"Where mobile wears object."	},
+    {	"wilderness_regions",		STRUCT_FLAGS,		wilderness_regions,			"Wilderness region names"	},
     {	"wtype",				STRUCT_FLAGS,		weapon_type2,				"Special weapon type."	},
     {	NULL,					STRUCT_FLAGS,		NULL,						NULL									}
 };

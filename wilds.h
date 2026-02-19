@@ -19,6 +19,7 @@ long top_wilds_vroom;
 WILDS_DATA *wilds_free;
 WILDS_TERRAIN *wilds_terrain_free;
 WILDS_VLINK *wilds_vlink_free;
+WILDS_REGION *wilds_region_free;
 
 long next_wilds_uid;
 
@@ -48,6 +49,14 @@ WILDS_TERRAIN   *get_terrain_by_coors args (( WILDS_DATA *pWilds, int x, int y )
 WILDS_TERRAIN   *get_terrain_by_token args (( WILDS_DATA *pWilds, char token ));
 bool            add_terrain args (( WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain ));
 bool            del_terrain args (( WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain ));
+
+WILDS_REGION    *new_region args (( WILDS_DATA *pWilds ));
+WILDS_REGION    *fread_region args (( FILE *fp, WILDS_DATA *pWilds ));
+void            fwrite_region args ((FILE *fp, WILDS_REGION *pRegion));
+void            free_region args ((WILDS_REGION *pRegion));
+WILDS_REGION    *get_region_by_coors args (( WILDS_DATA *pWilds, int x, int y ));
+bool            add_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
+bool            del_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
 
 WILDS_VLINK     *new_vlink args(( void ));
 WILDS_VLINK     *fread_vlink args(( FILE *fp ));
@@ -128,10 +137,13 @@ struct wilds_data
     int             map_size_y;
     int             startx;
     int             starty;
+    int             defaultRegion;
+    long            defaultPlaceFlags;
     int             sector_size_x;   /* Dynamic wilds sector management */
     int             sector_size_y;   /* These variables dictate the dimensions of a sector */
     char            cDefaultTerrain;
     WILDS_TERRAIN   *pTerrain;
+    WILDS_REGION    *pRegion;
     WILDS_VLINK     *pVLink;
     int             loaded_rooms;    /* Dynamically loaded vroom count for wilds v2 */
     LLIST *loaded_vrooms;
@@ -175,6 +187,22 @@ struct wilds_vlink
     long            rev_key;
     int             rev_lock;
     int             rev_pick;
+};
+
+struct wilds_region
+{
+    WILDS_DATA      *pWilds;
+    WILDS_REGION    *prev;
+    WILDS_REGION    *next;
+    bool            valid;
+
+    int             startx;
+    int             starty;
+    int             endx;
+    int             endy;
+
+    int             region;
+    long            area_place_flags;
 };
 
 
