@@ -18,7 +18,7 @@
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
 
-typedef struct evtedit_data EVTEDIT_DATA;
+typedef EVENT_INDEX_DATA EVTEDIT_DATA;
 typedef struct event_instance EVENT_INSTANCE;
 typedef struct event_part EVENT_PART;
 typedef struct evt_roster_entry EVT_ROSTER_ENTRY;
@@ -35,7 +35,7 @@ struct evt_roster_entry {
     char phase[MIL];
 };
 
-struct evtedit_data {
+struct event_index_data {
     long uid;
     char *name;
     char *description;
@@ -79,7 +79,7 @@ struct evtedit_data {
     time_t cooldown_until;
     time_t next_auto_time;
 
-    EVTEDIT_DATA *next;
+    EVENT_INDEX_DATA *next;
 };
 
 struct event_instance {
@@ -301,6 +301,22 @@ static const char *event_enum_name(const struct flag_type *table, int value)
 {
     const char *name = flag_name(table, value);
     return IS_NULLSTR(name) ? "(unknown)" : name;
+}
+
+const char *event_index_get_name(const EVENT_INDEX_DATA *event_index)
+{
+    if (!event_index || IS_NULLSTR(event_index->name))
+        return "(unnamed)";
+
+    return event_index->name;
+}
+
+long event_index_get_uid(const EVENT_INDEX_DATA *event_index)
+{
+    if (!event_index)
+        return 0;
+
+    return event_index->uid;
 }
 
 static bool event_scope_requires_anchor(const EVTEDIT_DATA *evt)

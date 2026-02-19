@@ -17,11 +17,13 @@
 #include "olc.h"
 #include "recycle.h"
 #include "scripts.h"
+#include "event_types.h"
 #include "wilds.h"
 #include "editors/common.h"
 #include "editors/common/olc_editor.h"
 #include "traits.h"
 #include "class_data.h"
+
 extern const char *medit_tab_names[];
 extern GLOBAL_DATA gconfig;
 /*
@@ -463,6 +465,15 @@ char *olc_ed_vnum(CHAR_DATA *ch)
             REPUTATION_INDEX_DATA *rep_ed = (REPUTATION_INDEX_DATA *)ch->desc->pEdit;
             if (rep_ed)
                 snprintf(buf, sizeof(buf), "%s", rep_ed->name ? rep_ed->name : "(unnamed)");
+            else
+                sprintf(buf, "--");
+        }
+        break;
+    case ED_EVENT:
+        {
+            EVENT_INDEX_DATA *event_ed = (EVENT_INDEX_DATA *)ch->desc->pEdit;
+            if (event_ed)
+                snprintf(buf, sizeof(buf), "%ld:%s", event_index_get_uid(event_ed), event_index_get_name(event_ed));
             else
                 sprintf(buf, "--");
         }

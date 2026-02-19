@@ -3,6 +3,8 @@
 
 #include "merc.h"
 
+typedef struct event_index_data EVENT_INDEX_DATA;
+
 void event_legacy_war_command(CHAR_DATA *ch, char *argument);
 void event_legacy_autowar_command(CHAR_DATA *ch, char *argument);
 void event_legacy_startinvasion_command(CHAR_DATA *ch, char *argument);
@@ -30,5 +32,7 @@ bool event_runtime_set_goal(const char *event_token, int goal);
 bool event_runtime_set_phase(const char *event_token, const char *phase_name);
 bool event_runtime_next_phase(const char *event_token);
 bool event_runtime_finish(const char *event_token, bool success, const char *reason);
+const char *event_index_get_name(const EVENT_INDEX_DATA *event_index);
+long event_index_get_uid(const EVENT_INDEX_DATA *event_index);
 
 #endif
