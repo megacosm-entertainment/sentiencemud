@@ -97,12 +97,6 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
         send_to_char("  asave persist    - saves all persistant entities\n\r", ch);
         send_to_char("  asave socials	 - saves the social table\n\r", ch);
 
-        if( can_edit_blueprints(ch) )
-            send_to_char("  asave blueprints - saves blueprints\n\r", ch);
-
-        if( can_edit_dungeons(ch) )
-            send_to_char("  asave dungeons   - saves dungeons\n\r", ch);
-
         if( can_edit_ships(ch) )
             send_to_char("  asave ships      - saves ships\n\r", ch);
 
@@ -150,18 +144,6 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
             save_projects();
             projects_changed = false;
             send_to_char("Project list saved.\n\r", ch);
-        }
-
-        if (blueprints_changed)
-        {
-            save_blueprints();
-            send_to_char("Blueprints saved.\n\r", ch);
-        }
-
-        if (dungeons_changed)
-        {
-            save_dungeons();
-            send_to_char("Dungeons saved.\n\r", ch);
         }
 
         if (ships_changed)
@@ -305,20 +287,6 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
     save_immstaff();
     send_to_char("Immortal staff list saved.\n\r", ch);
     return;
-    }
-
-    if (!str_cmp(arg1, "blueprints"))
-    {
-        save_blueprints();
-        send_to_char("Blueprints saved.\n\r", ch);
-        return;
-    }
-
-    if (!str_cmp(arg1, "dungeons"))
-    {
-        save_dungeons();
-        send_to_char("Dungeons saved.\n\r", ch);
-        return;
     }
 
     if (!str_cmp(arg1, "ships"))

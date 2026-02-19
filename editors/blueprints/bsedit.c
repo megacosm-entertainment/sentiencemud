@@ -26,7 +26,6 @@
 extern void list_blueprint_sections(CHAR_DATA *ch, char *argument);
 extern bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, AREA_DATA *rooms_area, long lower, long upper);
 extern bool can_edit_blueprints(CHAR_DATA *ch);
-extern bool blueprints_changed;
 extern long top_blueprint_section_vnum;
 
 /***************************************************************************
@@ -57,7 +56,6 @@ static void bsedit_mark_changed(CHAR_DATA *ch, void *pEdit)
     BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)pEdit;
     if (bs && bs->area)
         SET_BIT(bs->area->area_flags, AREA_CHANGED);
-    blueprints_changed = true;
 }
 
 /***************************************************************************
@@ -167,7 +165,6 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
         {
             if (bsedit_create(ch, argument))
             {
-                blueprints_changed = true;
                 olc_editor_enter(ch, &bsedit_def, ch->desc->pEdit, true);
             }
 

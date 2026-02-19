@@ -277,13 +277,15 @@ static test_result_t test_wnum_parsing_structured(test_case_t *test) {
         bool parse_ok = parse_widevnum((char*)vnum_string, context_area, &result);
         if (!parse_ok && should_parse) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, 
-                          "WNUM parsing failed for input: %s", vnum_string);
+                          "WNUM parse mismatch for input '%s': expected parse_success=true, actual parse_success=false",
+                          vnum_string);
             return TEST_FAILURE;
         }
 
         if (parse_ok && !should_parse) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                          "WNUM parsing unexpectedly succeeded for input: %s", vnum_string);
+                          "WNUM parse mismatch for input '%s': expected parse_success=false, actual parse_success=true",
+                          vnum_string);
             return TEST_FAILURE;
         }
 
@@ -326,7 +328,9 @@ static test_result_t test_area_existence_check(test_case_t *test) {
         
         AREA_DATA *area = find_area((char*)area_name);
         if (!area) {
-            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Required area not found: %s", area_name);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                          "Area lookup mismatch for '%s': expected exists=true, actual exists=false",
+                          area_name);
             return TEST_FAILURE;
         }
         
@@ -401,6 +405,7 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
     }
     
     const char *reserved_name = test_json_get_string(input, "reserved_name");
+    const char *expected_type = test_json_get_string(input, "expected_type");
     bool check_area_items = test_json_get_bool(input, "check_area_items");
     bool should_exist = test_json_get_bool(input, "should_exist");
 
@@ -433,7 +438,13 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
         }
         iterator_stop(&it);
 
-        return found_area_reserved ? TEST_SUCCESS : TEST_FAILURE;
+        if (!found_area_reserved) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                        "Reserved AREA validation failed: expected at least 1 RESERVED_AREA entry, actual 0");
+            return TEST_FAILURE;
+        }
+
+        return TEST_SUCCESS;
     }
 
     if (!reserved_name) {
@@ -444,21 +455,35 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
     
     if (should_exist && !reserved) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, 
-                     "Reserved item '%s' not found but should exist", reserved_name);
+                     "Reserved lookup mismatch for '%s': expected exists=true, actual exists=false",
+                     reserved_name);
         return TEST_FAILURE;
     }
     
     if (!should_exist && reserved) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                     "Reserved item '%s' found but shouldn't exist", reserved_name);
+                     "Reserved lookup mismatch for '%s': expected exists=false, actual exists=true",
+                     reserved_name);
         return TEST_FAILURE;
+    }
+
+    if (reserved && expected_type && expected_type[0]) {
+        const char *actual_type = reserved_types_get_name(reserved->type);
+        if (!actual_type || str_cmp(actual_type, expected_type) != 0) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Reserved type mismatch for '%s': expected type='%s', actual type='%s'",
+                         reserved_name,
+                         expected_type,
+                         actual_type ? actual_type : "(null)");
+            return TEST_FAILURE;
+        }
     }
     
     if (reserved && test_json_get_bool(expected, "has_area")) {
         AREA_DATA *area = get_area_index(reserved->wnum.auid);
         if (!area && reserved->wnum.auid > 0) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "Reserved item '%s' has invalid area UID %ld", 
+                         "Reserved area mismatch for '%s': expected valid area for UID %ld, actual area=NULL",
                          reserved_name, reserved->wnum.auid);
             return TEST_FAILURE;
         }
@@ -467,7 +492,7 @@ static test_result_t test_reserved_lookup(test_case_t *test) {
     if (reserved && test_json_get_bool(expected, "has_vnum")) {
         if (reserved->type != RESERVED_AREA && reserved->wnum.vnum <= 0) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "Reserved item '%s' has invalid vnum %ld",
+                         "Reserved vnum mismatch for '%s': expected vnum > 0, actual vnum=%ld",
                          reserved_name, reserved->wnum.vnum);
             return TEST_FAILURE;
         }

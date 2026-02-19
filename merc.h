@@ -10684,7 +10684,6 @@ OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum, char
 OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all);
 
 void load_blueprints();
-bool save_blueprints();
 bool valid_section_link(BLUEPRINT_LINK *bl);
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
@@ -10727,7 +10726,6 @@ void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys);
 INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no);
 
 void load_dungeons();
-bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
 DUNGEON_INDEX_DATA *get_dungeon_index_for_area(AREA_DATA *area, long vnum);
@@ -10757,8 +10755,6 @@ bool dungeon_can_idle(DUNGEON *dungeon);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 
-extern  bool			blueprints_changed;
-extern  bool			dungeons_changed;
 extern  bool			ships_changed;
 
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);

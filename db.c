@@ -947,11 +947,7 @@ void boot_db(void)
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_shops");
     fix_shops();
 
-    log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading blueprints");
-    load_blueprints();
-
-    log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading dungeon definitions");
-    load_dungeons();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Skipping legacy blueprints.dat/dungeons.dat loaders (using area JSON only)");
 
     // Ships are now loaded from area JSON files
     // log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading ships");

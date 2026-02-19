@@ -117,32 +117,6 @@ static AREA_DATA *script_get_area(void *pEdit)
 }
 
 /**
- * script_mark_blueprint_changed - Mark blueprints as needing save
- *
- * @param ch     Character who made the change
- * @param pEdit  SCRIPT_DATA being edited
- */
-static void script_mark_blueprint_changed(CHAR_DATA *ch, void *pEdit)
-{
-    (void)ch;
-    (void)pEdit;
-    blueprints_changed = true;
-}
-
-/**
- * script_mark_dungeon_changed - Mark dungeons as needing save
- *
- * @param ch     Character who made the change
- * @param pEdit  SCRIPT_DATA being edited
- */
-static void script_mark_dungeon_changed(CHAR_DATA *ch, void *pEdit)
-{
-    (void)ch;
-    (void)pEdit;
-    dungeons_changed = true;
-}
-
-/**
  * script_perm_blueprint - Permission check for blueprint scripts
  *
  * @param ch     Character attempting access
@@ -507,8 +481,7 @@ static const OLC_EDITOR_DEF ipedit_def = {
         .flags          = OLC_PERM_CUSTOM,
         .check_fn       = script_perm_blueprint,
     },
-    .change_mode    = OLC_CHANGE_CUSTOM,
-    .mark_changed_fn = script_mark_blueprint_changed,
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -525,8 +498,7 @@ static const OLC_EDITOR_DEF dpedit_def = {
         .flags          = OLC_PERM_CUSTOM,
         .check_fn       = script_perm_dungeon,
     },
-    .change_mode    = OLC_CHANGE_CUSTOM,
-    .mark_changed_fn = script_mark_dungeon_changed,
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
     .get_area_fn    = script_get_area,
     .audit_changes  = true,
 };
@@ -1536,7 +1508,6 @@ SCRIPTEDIT(ipedit_create)
         top_iprog_index = value;
 
     SET_BIT(ad->area_flags, AREA_CHANGED);
-    blueprints_changed = true;
     send_to_char("InstanceProgram Code Created.\n\r", ch);
 
     return true;
@@ -1598,7 +1569,6 @@ SCRIPTEDIT(dpedit_create)
         top_dprog_index = value;
 
     SET_BIT(ad->area_flags, AREA_CHANGED);
-    dungeons_changed = true;
     send_to_char("DungeonProgram Code Created.\n\r", ch);
 
     return true;

@@ -23,7 +23,6 @@
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
 
-extern bool dungeons_changed;
 extern long top_dungeon_vnum;
 extern void list_dungeons(CHAR_DATA *ch, char *argument);
 extern bool can_edit_dungeons(CHAR_DATA *ch);
@@ -60,7 +59,6 @@ static void dngedit_mark_changed(CHAR_DATA *ch, void *pEdit)
     DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
     if (dng && dng->area)
         SET_BIT(dng->area->area_flags, AREA_CHANGED);
-    dungeons_changed = true;
 }
 
 /***************************************************************************
@@ -187,7 +185,6 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
         {
             if (dngedit_create(ch, argument))
             {
-                dungeons_changed = true;
                 olc_editor_enter(ch, &dngedit_def, ch->desc->pEdit, true);
             }
 

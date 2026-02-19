@@ -1,5 +1,6 @@
 #ifdef BUILD_TESTS
 
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "test_framework.h"
@@ -7,6 +8,45 @@
 #include "../../log.h"
 
 static void print_test_result(test_case_t *test, test_result_t result, clock_t start_time);
+
+static const char *presence_to_string(bool present)
+{
+    return present ? "present" : "missing";
+}
+
+static const char *result_to_expected_label(test_result_t expected_result)
+{
+    switch (expected_result) {
+        case TEST_SUCCESS: return "PASS";
+        case TEST_FAILURE: return "FAIL";
+        case TEST_ERROR:   return "ERROR";
+        case TEST_SKIP:    return "SKIP";
+        default:           return "UNKNOWN";
+    }
+}
+
+static void log_json_compact_snippet(const char *label, json_t *value)
+{
+    if (!label || !value) {
+        return;
+    }
+
+    char *dump = json_dumps(value, JSON_COMPACT);
+    if (!dump) {
+        return;
+    }
+
+    char snippet[257];
+    size_t len = strlen(dump);
+    if (len <= 256) {
+        snprintf(snippet, sizeof(snippet), "%s", dump);
+    } else {
+        snprintf(snippet, sizeof(snippet), "%.252s...", dump);
+    }
+
+    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "    %s=%s", label, snippet);
+    free(dump);
+}
 
 test_result_t run_test_case(test_case_t *test)
 {
@@ -83,6 +123,10 @@ test_result_t run_test_case(test_case_t *test)
             result = run_song_data_test_case(test);
         } else if (strstr(test->test_type, "trait_") != NULL) {
             result = run_trait_system_test_case(test);
+        } else if (strcmp(test->test_type, "reserved_lookup_test") == 0 ||
+                   strcmp(test->test_type, "reserved_wnum_format_test") == 0 ||
+                   strcmp(test->test_type, "reserved_compat_test") == 0) {
+            result = run_wnum_test_case(test);
         } else if (strstr(test->test_type, "_lookup_test") != NULL ||
                    strstr(test->test_type, "flag_table_") != NULL) {
             result = run_lookup_table_test_case(test);
@@ -101,10 +145,37 @@ static void print_test_result(test_case_t *test, test_result_t result, clock_t s
 {
     test_config_t *config = get_test_config();
     bool show_names = config ? config->verbose_test_names : true;
+    bool show_details = config ? config->verbose_test_details : false;
     bool show_timing = config ? config->show_execution_time : true;
     bool verbose = test->verbose_output || (config ? config->verbose_output : false);
 
     const char *result_str = test_result_to_string(result);
+    test_result_t expected_result = TEST_SUCCESS;
+    bool expected_result_known = false;
+    bool has_input = false;
+    bool has_expected_output = false;
+    json_t *input = NULL;
+    json_t *expected_output = NULL;
+
+    if (test && test->config && json_is_object(test->config)) {
+        input = json_object_get(test->config, "input");
+        expected_output = json_object_get(test->config, "expected_output");
+        has_input = (input != NULL);
+        has_expected_output = (expected_output != NULL);
+
+        if (expected_output && json_is_object(expected_output)) {
+            json_t *success = json_object_get(expected_output, "success");
+            if (json_is_boolean(success)) {
+                expected_result_known = true;
+                expected_result = json_is_true(success) ? TEST_SUCCESS : TEST_FAILURE;
+            }
+        }
+    }
+
+    if (result == TEST_SKIP) {
+        expected_result = TEST_SKIP;
+        expected_result_known = true;
+    }
 
     if (show_names) {
         if (show_timing && start_time > 0) {
@@ -112,6 +183,22 @@ static void print_test_result(test_case_t *test, test_result_t result, clock_t s
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "%s (%.3fs)", result_str, elapsed);
         } else {
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "%s", result_str);
+        }
+
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                      "    contract: input=%s expected_output=%s expected=%s actual=%s",
+                      presence_to_string(has_input),
+                      presence_to_string(has_expected_output),
+                      expected_result_known ? result_to_expected_label(expected_result) : "(unspecified)",
+                      result_str);
+
+        if (verbose || show_details) {
+            if (input) {
+                log_json_compact_snippet("input", input);
+            }
+            if (expected_output) {
+                log_json_compact_snippet("expected_output", expected_output);
+            }
         }
     }
 

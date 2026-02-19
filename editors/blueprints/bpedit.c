@@ -25,7 +25,6 @@
 
 extern void list_blueprints(CHAR_DATA *ch, char *argument);
 extern bool can_edit_blueprints(CHAR_DATA *ch);
-extern bool blueprints_changed;
 extern long top_blueprint_vnum;
 
 /***************************************************************************
@@ -58,7 +57,6 @@ static void bpedit_mark_changed(CHAR_DATA *ch, void *pEdit)
     BLUEPRINT *bp = (BLUEPRINT *)pEdit;
     if (bp && bp->area)
         SET_BIT(bp->area->area_flags, AREA_CHANGED);
-    blueprints_changed = true;
 }
 
 /***************************************************************************
@@ -174,7 +172,6 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
         {
             if (bpedit_create(ch, argument))
             {
-                blueprints_changed = true;
                 olc_editor_enter(ch, &bpedit_def, ch->desc->pEdit, true);
             }
 
