@@ -509,6 +509,21 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     return;
     }
 
+    INSTANCE *ch_instance = get_room_instance(ch->in_room);
+    INSTANCE *victim_instance = get_room_instance(victim->in_room);
+
+    if (IS_VALID(ch_instance) || IS_VALID(victim_instance))
+    {
+        if (ch_instance != victim_instance)
+        {
+            send_to_char("You cannot pick up a trail into another instance.\n\r", ch);
+            return;
+        }
+
+        send_to_char("The shifting pathways here make tracking impossible.\n\r", ch);
+        return;
+    }
+
     if ( IN_WILDERNESS( ch ) )
     {
     act( "You can't track people out in the wilderness.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );

@@ -7844,6 +7844,7 @@ void do_where(CHAR_DATA * ch, char *argument)
     CHAR_DATA *victim;
     DESCRIPTOR_DATA *d;
     bool found;
+    INSTANCE *ch_instance = get_room_instance(ch->in_room);
 
     one_argument(argument, arg);
 
@@ -7865,6 +7866,11 @@ void do_where(CHAR_DATA * ch, char *argument)
         && victim->position != POS_FEIGN
         && can_see(ch, victim))
         {
+        INSTANCE *victim_instance = get_room_instance(victim->in_room);
+
+        if (ch_instance != victim_instance)
+            continue;
+
         found = true;
 /*
         if (victim->in_room->parent != -1)
