@@ -12,7 +12,8 @@
         "function": "parse_widevnum",
         "test_cases": [
           {
-            "input": "2#1",
+            "input_area_uid_from": "Limbo",
+            "input_vnum": 1,
             "expected_area": "Limbo",
             "expected_vnum": 1
           },
@@ -29,8 +30,8 @@
           },
           {
             "input": "1",
-            "context_area": "Bootstrap Reserved",
-            "expected_area": "Bootstrap Reserved",
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
             "expected_vnum": 1
           },
           {

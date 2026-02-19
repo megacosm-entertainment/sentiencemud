@@ -1,0 +1,55 @@
+{
+  "type": "test_suite",
+  "test_suite": "string_transform_unit_tests",
+  "description": "Unit tests for string token transformation helper functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "first_arg_core_cases",
+      "description": "Validates first_arg token extraction with quotes, parentheses, and case handling",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "first_arg",
+        "test_cases": [
+          { "argument": "look north", "fcase": false, "expected_first": "look", "expected_rest": "north" },
+          { "argument": "'Two Words' tail", "fcase": false, "expected_first": "Two Words", "expected_rest": "tail" },
+          { "argument": "(group phrase) remain", "fcase": false, "expected_first": "group phrase", "expected_rest": "remain" },
+          { "argument": "MIXED case", "fcase": true, "expected_first": "mixed", "expected_rest": "case" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_argremove_index_core_cases",
+      "description": "Validates argument removal by index",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_argremove_index",
+        "test_cases": [
+          { "src": "one two three", "argindex": 0, "expected_result": true, "expected_output": "two three" },
+          { "src": "one two three", "argindex": 1, "expected_result": true, "expected_output": "one three" },
+          { "src": "one two three", "argindex": 2, "expected_result": true, "expected_output": "one two " },
+          { "src": "one two three", "argindex": 5, "expected_result": true, "expected_output": "one two three" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_argremove_phrase_core_cases",
+      "description": "Validates argument removal by matching phrase token",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_argremove_phrase",
+        "test_cases": [
+          { "src": "one two three", "phrase": "two", "expected_result": true, "expected_output": "one three" },
+          { "src": "alpha beta gamma", "phrase": "alpha", "expected_result": true, "expected_output": "beta gamma" },
+          { "src": "alpha beta gamma", "phrase": "gamma", "expected_result": true, "expected_output": "alpha beta " },
+          { "src": "alpha beta gamma", "phrase": "delta", "expected_result": true, "expected_output": "alpha beta gamma" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    }
+  ]
+}

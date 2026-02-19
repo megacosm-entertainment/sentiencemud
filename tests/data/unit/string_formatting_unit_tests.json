@@ -1,0 +1,66 @@
+{
+  "type": "test_suite",
+  "test_suite": "string_formatting_unit_tests",
+  "description": "Unit tests for format_string and format_paragraph helpers",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "format_string_core_cases",
+      "description": "Validates formatting and trailing CRLF for collapsed text",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "format_string",
+        "test_cases": [
+          {
+            "input": "hello world",
+            "expected_contains": "Hello world",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "hello\n\rworld",
+            "expected_contains": "Hello world",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "a sentence. next sentence",
+            "expected_contains": "A sentence.  Next sentence",
+            "expect_trailing_crlf": true
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "format_paragraph_core_cases",
+      "description": "Validates paragraph formatting preserves paragraph boundaries and trailing CRLF",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "format_paragraph",
+        "test_cases": [
+          {
+            "input": "hello world",
+            "expected_contains": "Hello world",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "first paragraph\n\r\n\rsecond paragraph",
+            "expected_contains": "First paragraph",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "spacing   test",
+            "expected_contains": "Spacing test",
+            "expect_trailing_crlf": true
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

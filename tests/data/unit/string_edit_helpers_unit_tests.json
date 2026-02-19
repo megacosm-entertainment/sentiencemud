@@ -1,0 +1,206 @@
+{
+  "type": "test_suite",
+  "test_suite": "string_edit_helpers_unit_tests",
+  "description": "Unit tests for legacy string editor helper functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "string_linedel_core_cases",
+      "description": "Validates line deletion by 1-based line number",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_linedel",
+        "test_cases": [
+          {
+            "input": "line1\n\rline2\n\rline3\n\r",
+            "line": 1,
+            "expected_output": "line2\n\rline3\n\r"
+          },
+          {
+            "input": "line1\n\rline2\n\rline3\n\r",
+            "line": 2,
+            "expected_output": "line1\n\rline3\n\r"
+          },
+          {
+            "input": "line1\n\rline2\n\rline3\n\r",
+            "line": 9,
+            "expected_output": "line1\n\rline2\n\rline3\n\r"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_lineadd_core_cases",
+      "description": "Validates line insertion by 1-based line number",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_lineadd",
+        "test_cases": [
+          {
+            "input": "line1\n\rline2\n\rline3\n\r",
+            "newstr": "inserted",
+            "line": 1,
+            "expected_output": "inserted\n\rline1\n\rline2\n\rline3\n\r"
+          },
+          {
+            "input": "line1\n\rline2\n\rline3\n\r",
+            "newstr": "inserted",
+            "line": 2,
+            "expected_output": "line1\n\rinserted\n\rline2\n\rline3\n\r"
+          },
+          {
+            "input": "line1\n\rline2\n\rline3\n\r",
+            "newstr": "inserted",
+            "line": 9,
+            "expected_output": "line1\n\rline2\n\rline3\n\r"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "olc_getline_core_cases",
+      "description": "Validates OLC line extraction and remaining pointer",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "olc_getline",
+        "test_cases": [
+          {
+            "input": "alpha\n\rbeta\n\r",
+            "expected_line": "alpha",
+            "expected_rest": "beta\n\r"
+          },
+          {
+            "input": "singleline",
+            "expected_line": "singleline",
+            "expected_rest": ""
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "numlineas_core_cases",
+      "description": "Validates numbered line rendering",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "numlineas",
+        "test_cases": [
+          {
+            "input": "alpha\n\rbeta\n\r",
+            "expected_output": " 1. alpha\n\r 2. beta\n\r"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_replace_core_cases",
+      "description": "Validates first-match replacement with allocated output",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_replace",
+        "test_cases": [
+          {
+            "orig": "foo bar foo",
+            "old": "foo",
+            "new": "baz",
+            "expected_output": "baz bar foo"
+          },
+          {
+            "orig": "no match",
+            "old": "zzz",
+            "new": "baz",
+            "expected_output": "no match"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_replace_static_core_cases",
+      "description": "Validates first-match replacement in static rotating buffers",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_replace_static",
+        "test_cases": [
+          {
+            "orig": "foo bar foo",
+            "old": "foo",
+            "new": "baz",
+            "expected_output": "baz bar foo"
+          },
+          {
+            "orig": "no match",
+            "old": "zzz",
+            "new": "baz",
+            "expected_output": "no match"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_unpad_core_cases",
+      "description": "Validates trim of leading and trailing spaces",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_unpad",
+        "test_cases": [
+          {
+            "input": "   hello world   ",
+            "expected_output": "hello world"
+          },
+          {
+            "input": "already_clean",
+            "expected_output": "already_clean"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_proper_core_cases",
+      "description": "Validates capitalization of each space-delimited word",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_proper",
+        "test_cases": [
+          {
+            "input": "hello world",
+            "expected_output": "Hello World"
+          },
+          {
+            "input": "mixed CASE words",
+            "expected_output": "Mixed CASE Words"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "string_indent_core_cases",
+      "description": "Validates indentation across CRLF-delimited lines",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "string_indent",
+        "test_cases": [
+          {
+            "input": "line1\n\rline2\n\r",
+            "indent": 2,
+            "expected_output": "  line1\n\r  line2\n\r"
+          },
+          {
+            "input": "line",
+            "indent": 4,
+            "expected_output": "    line"
+          }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    }
+  ]
+}

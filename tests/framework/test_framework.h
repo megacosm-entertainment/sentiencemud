@@ -135,6 +135,21 @@ void register_wnum_tests(void);
 void register_area_loading_tests(void);
 void register_database_tests(void);
 
+// Module-level test dispatchers
+test_result_t run_wnum_test_case(test_case_t *test);
+test_result_t run_reset_test_case(test_case_t *test);
+test_result_t run_shop_stock_test_case(test_case_t *test);
+test_result_t run_church_test_case(test_case_t *test);
+test_result_t run_instance_test_case(test_case_t *test);
+test_result_t run_chat_room_test_case(test_case_t *test);
+test_result_t run_skill_data_test_case(test_case_t *test);
+test_result_t run_class_data_test_case(test_case_t *test);
+test_result_t run_item_type_test_case(test_case_t *test);
+test_result_t run_lookup_table_test_case(test_case_t *test);
+test_result_t run_song_data_test_case(test_case_t *test);
+test_result_t run_skill_group_test_case(test_case_t *test);
+test_result_t run_trait_system_test_case(test_case_t *test);
+
 // Utility functions
 const char *test_result_to_string(test_result_t result);
 void print_test_stats(test_stats_t stats);

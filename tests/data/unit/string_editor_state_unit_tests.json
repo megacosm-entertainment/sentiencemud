@@ -1,0 +1,31 @@
+{
+  "type": "test_suite",
+  "test_suite": "string_editor_state_unit_tests",
+  "description": "Integration-style unit tests for stateful string editor entry points",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "string_editor_add_basic_append",
+      "description": "string_add appends content when descriptor edit pointer is set",
+      "test_type": "string_editor_add_basic_append_test",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "string_editor_add_multiline_append",
+      "description": "string_add appends to existing multiline buffer",
+      "test_type": "string_editor_add_multiline_append_test",
+      "input": {},
+      "expected_output": { "success": true }
+    },
+    {
+      "name": "string_editor_add_terminator",
+      "description": "terminator exits editor state without mutating buffer",
+      "test_type": "string_editor_add_terminator_test",
+      "input": {},
+      "expected_output": { "success": true }
+    }
+  ]
+}

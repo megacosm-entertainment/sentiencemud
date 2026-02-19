@@ -9,19 +9,6 @@
 #include "../../log.h"
 
 // Forward declarations
-test_result_t run_reset_test_case(test_case_t *test);
-test_result_t run_shop_stock_test_case(test_case_t *test);
-test_result_t run_church_test_case(test_case_t *test);
-test_result_t run_instance_test_case(test_case_t *test);
-test_result_t run_chat_room_test_case(test_case_t *test);
-test_result_t run_skill_data_test_case(test_case_t *test);
-test_result_t run_class_data_test_case(test_case_t *test);
-test_result_t run_item_type_test_case(test_case_t *test);
-test_result_t run_lookup_table_test_case(test_case_t *test);
-test_result_t run_song_data_test_case(test_case_t *test);
-test_result_t run_skill_group_test_case(test_case_t *test);
-test_result_t run_trait_system_test_case(test_case_t *test);
-
 static test_result_t test_wnum_parsing(test_case_t *test);
 static test_result_t test_area_name_parsing(test_case_t *test);
 static test_result_t test_wnum_parsing_structured(test_case_t *test);
@@ -29,7 +16,6 @@ static test_result_t test_area_existence_check(test_case_t *test);
 static test_result_t test_area_integrity_check(test_case_t *test);
 static test_result_t test_config_validator(test_case_t *test);
 static test_result_t test_uid_uniqueness_check(test_case_t *test);
-static test_result_t test_pure_function(test_case_t *test);
 static test_result_t test_reserved_lookup(test_case_t *test);
 static test_result_t test_reserved_wnum_format(test_case_t *test);
 static test_result_t test_reserved_compat(test_case_t *test);
@@ -46,7 +32,8 @@ static test_result_t test_redis_available(test_case_t *test);
 static test_result_t test_redis_area_cached(test_case_t *test);
 static test_result_t test_redis_area_cache_format(test_case_t *test);
 static test_result_t test_redis_warm_queue(test_case_t *test);
-void print_test_result(test_case_t *test, test_result_t result, clock_t start_time);
+
+test_result_t run_wnum_test_case(test_case_t *test);
 
 void register_wnum_tests(void) {
     // These will be loaded from JSON files rather than registered directly
@@ -165,44 +152,11 @@ static test_result_t test_area_name_parsing(test_case_t *test) {
     return TEST_SUCCESS;
 }
 
-// Test case execution dispatcher
-test_result_t run_test_case(test_case_t *test) {
+test_result_t run_wnum_test_case(test_case_t *test) {
     if (!test) {
         return TEST_ERROR;
     }
-    
-    test_config_t *config = get_test_config();
-    bool show_names = config ? config->verbose_test_names : true;
-    bool show_details = config ? config->verbose_test_details : false;
-    bool show_timing = config ? config->show_execution_time : true;
-    
-    // Use per-test verbose setting if available, otherwise use global
-    bool verbose = test->verbose_output;
-    if (config && !verbose) {
-        verbose = config->verbose_output;
-    }
-    
-    if (show_names) {
-        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "  [TEST] %s (%s)... ",
-                      test->name, test->test_type ? test->test_type : "unknown");
-    }
-    
-    if (verbose || show_details) {
-        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Running test case: %s (type: %s)",
-                      test->name, test->test_type ? test->test_type : "unknown");
-        if (test->description && strlen(test->description) > 0) {
-            log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "  Description: %s", test->description);
-        }
-        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "  Timeout: %d seconds", test->timeout_seconds);
-        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "  Verbose output: %s", test->verbose_output ? "Yes" : "No");
-    }
-    
-    // Record start time if timing is enabled
-    clock_t start_time = 0;
-    if (show_timing) {
-        start_time = clock();
-    }
-    
+
     // Dispatch based on test type
     test_result_t result = TEST_SKIP;
     
@@ -217,9 +171,6 @@ test_result_t run_test_case(test_case_t *test) {
             result = test_config_validator(test);
         } else if (strcmp(test->test_type, "uid_uniqueness_check") == 0) {
             result = test_uid_uniqueness_check(test);
-        } else if (strcmp(test->test_type, "pure_function_test") == 0) {
-            // New handler for unit tests
-            result = test_pure_function(test);
         } else if (strcmp(test->test_type, "reserved_lookup_test") == 0) {
             result = test_reserved_lookup(test);
         } else if (strcmp(test->test_type, "reserved_wnum_format_test") == 0) {
@@ -252,51 +203,6 @@ test_result_t run_test_case(test_case_t *test) {
             result = test_redis_area_cache_format(test);
         } else if (strcmp(test->test_type, "redis_warm_queue_test") == 0) {
             result = test_redis_warm_queue(test);
-        } else if (strcmp(test->test_type, "reset_cross_area_creation") == 0 ||
-                   strcmp(test->test_type, "reset_serialization") == 0 ||
-                   strcmp(test->test_type, "reset_legacy_vnum") == 0) {
-            result = run_reset_test_case(test);
-        } else if (strcmp(test->test_type, "shop_stock_cross_area_creation") == 0 ||
-                   strcmp(test->test_type, "shop_stock_serialization") == 0 ||
-                   strcmp(test->test_type, "shop_stock_legacy_vnum") == 0) {
-            result = run_shop_stock_test_case(test);
-        } else if (strstr(test->test_type, "church_") != NULL) {
-            // Church tests: church_serialize_test, church_members_test, etc.
-            result = run_church_test_case(test);
-        } else if (strstr(test->test_type, "instance_") != NULL ||
-                   strstr(test->test_type, "blueprint_") != NULL ||
-                   strstr(test->test_type, "dungeon_") != NULL ||
-                   strstr(test->test_type, "ship_") != NULL ||
-                   strstr(test->test_type, "wnum_json_") != NULL ||
-                   strstr(test->test_type, "persist_directory") != NULL) {
-            // Instance/blueprint/ship/dungeon tests
-            result = run_instance_test_case(test);
-        } else if (strstr(test->test_type, "chat_room_") != NULL) {
-            // Chat room tests
-            result = run_chat_room_test_case(test);
-        } else if (strstr(test->test_type, "skill_group_") != NULL) {
-            // Skill group tests (check before skill_ to avoid prefix collision)
-            result = run_skill_group_test_case(test);
-        } else if (strstr(test->test_type, "skill_") != NULL ||
-                   strstr(test->test_type, "spell_fun_") != NULL) {
-            // Skill data tests
-            result = run_skill_data_test_case(test);
-        } else if (strstr(test->test_type, "class_") != NULL) {
-            // Class data tests
-            result = run_class_data_test_case(test);
-        } else if (strstr(test->test_type, "item_type_") != NULL) {
-            // Item type tests
-            result = run_item_type_test_case(test);
-        } else if (strstr(test->test_type, "song_") != NULL) {
-            // Song data tests
-            result = run_song_data_test_case(test);
-        } else if (strstr(test->test_type, "trait_") != NULL) {
-            // Trait system tests
-            result = run_trait_system_test_case(test);
-        } else if (strstr(test->test_type, "_lookup_test") != NULL ||
-                   strstr(test->test_type, "flag_table_") != NULL) {
-            // Lookup table tests
-            result = run_lookup_table_test_case(test);
         } else {
             // Fallback to name-based dispatch for backwards compatibility
             if (strstr(test->name, "vnum_parsing")) {
@@ -326,45 +232,8 @@ test_result_t run_test_case(test_case_t *test) {
             result = TEST_SKIP;
         }
     }
-    
-    // Print results with timing and verbose details
-    print_test_result(test, result, start_time);
-    
-    return result;
-}
 
-// Enhanced test result output with timing and verbose details
-void print_test_result(test_case_t *test, test_result_t result, clock_t start_time) {
-    test_config_t *config = get_test_config();
-    bool show_names = config ? config->verbose_test_names : true;
-    bool show_timing = config ? config->show_execution_time : true;
-    bool verbose = test->verbose_output || (config ? config->verbose_output : false);
-    
-    const char *result_str = test_result_to_string(result);
-    
-    if (show_names) {
-        if (show_timing && start_time > 0) {
-            double elapsed = ((double)(clock() - start_time)) / CLOCKS_PER_SEC;
-            log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "%s (%.3fs)", result_str, elapsed);
-        } else {
-            log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "%s", result_str);
-        }
-    }
-    
-    if (verbose) {
-        if (show_timing && start_time > 0) {
-            double elapsed = ((double)(clock() - start_time)) / CLOCKS_PER_SEC;
-            log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test completed: %s - %s (%.3fs)", 
-                         test->name, result_str, elapsed);
-        } else {
-            log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test completed: %s - %s", 
-                         test->name, result_str);
-        }
-        
-        if (result != TEST_SUCCESS) {
-            log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test failure details for: %s", test->name);
-        }
-    }
+    return result;
 }
 
 static test_result_t test_wnum_parsing_structured(test_case_t *test) {
@@ -513,405 +382,6 @@ static test_result_t test_uid_uniqueness_check(test_case_t *test) {
     
     log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS, "UID uniqueness check passed (%d areas)", area_count);
     return TEST_SUCCESS;
-}
-
-static test_result_t test_pure_function(test_case_t *test) {
-    if (!test || !test->config) {
-        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Pure function test missing configuration");
-        return TEST_ERROR;
-    }
-    
-    json_t *input = json_object_get(test->config, "input");
-    json_t *expected_output = json_object_get(test->config, "expected_output");
-    
-    if (!input || !expected_output) {
-        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Pure function test missing input or expected_output");
-        return TEST_ERROR;
-    }
-    
-    // Get test parameters
-    json_t *function_name = json_object_get(input, "function");
-    json_t *test_cases = json_object_get(input, "test_cases");
-    
-    if (!function_name || !test_cases || !json_is_array(test_cases)) {
-        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Pure function test malformed: missing function or test_cases array");
-        return TEST_ERROR;
-    }
-    
-    const char *func_name = json_string_value(function_name);
-    if (test->verbose_output) {
-        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Testing pure function: %s", func_name);
-    }
-    
-    // WNUM parsing unit tests
-    if (strcmp(func_name, "parse_widevnum") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *input_str = test_json_get_string(test_case, "input");
-            const char *expected_area = test_json_get_string(test_case, "expected_area");
-            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
-            const char *context_area_name = test_json_get_string(test_case, "context_area");
-            
-            if (!input_str) continue;
-            
-            AREA_DATA *context_area = context_area_name ? find_area((char*)context_area_name) : NULL;
-            WNUM result;
-            
-            bool parse_success = parse_widevnum((char*)input_str, context_area, &result);
-            
-            if (!parse_success && expected_vnum > 0) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "parse_widevnum('%s') failed when success expected",
-                             input_str);
-                return TEST_FAILURE;
-            }
-            
-            if (parse_success && expected_vnum == 0) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "parse_widevnum('%s') succeeded when failure expected",
-                             input_str);
-                return TEST_FAILURE;
-            }
-            
-            if (parse_success && result.vnum != expected_vnum) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, 
-                             "parse_widevnum('%s') returned vnum %ld, expected %ld", 
-                             input_str, result.vnum, expected_vnum);
-                return TEST_FAILURE;
-            }
-            
-            if (parse_success && expected_area && result.pArea) {
-                if (strcmp(result.pArea->name, expected_area) != 0) {
-                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                                 "parse_widevnum('%s') returned area '%s', expected '%s'",
-                                 input_str, result.pArea->name, expected_area);
-                    return TEST_FAILURE;
-                }
-            }
-            
-            if (test->verbose_output) {
-                if (parse_success) {
-                    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, 
-                                 "✓ parse_widevnum('%s') -> area:'%s', vnum:%ld", 
-                                 input_str, 
-                                 result.pArea ? result.pArea->name : "NULL", 
-                                 result.vnum);
-                } else {
-                    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
-                                 "✓ parse_widevnum('%s') -> failed as expected",
-                                 input_str);
-                }
-            }
-        }
-        
-        if (test->verbose_output) {
-            log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Pure function test passed for %s", func_name);
-        }
-        return TEST_SUCCESS;
-    }
-
-    // String/argument utility unit tests
-    if (strcmp(func_name, "is_number") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *arg = test_json_get_string(test_case, "arg");
-            bool expected = test_json_get_bool(test_case, "expected");
-
-            if (!arg) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "is_number test case missing 'arg'");
-                return TEST_ERROR;
-            }
-
-            bool actual = is_number(arg);
-            if (actual != expected) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "is_number('%s') returned %s, expected %s",
-                             arg,
-                             actual ? "true" : "false",
-                             expected ? "true" : "false");
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "str_prefix") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *astr = test_json_get_string(test_case, "astr");
-            const char *bstr = test_json_get_string(test_case, "bstr");
-            bool expected_not_prefix = test_json_get_bool(test_case, "expected_not_prefix");
-
-            if (!astr || !bstr) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "str_prefix test case missing astr/bstr");
-                return TEST_ERROR;
-            }
-
-            bool actual_not_prefix = str_prefix(astr, bstr);
-            if (actual_not_prefix != expected_not_prefix) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "str_prefix('%s','%s') returned %s, expected %s",
-                             astr,
-                             bstr,
-                             actual_not_prefix ? "true" : "false",
-                             expected_not_prefix ? "true" : "false");
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "number_argument") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *argument_in = test_json_get_string(test_case, "argument");
-            int expected_number = test_json_get_int(test_case, "expected_number");
-            const char *expected_arg = test_json_get_string(test_case, "expected_arg");
-            char argument_buf[MAX_INPUT_LENGTH];
-            char arg_out[MAX_INPUT_LENGTH];
-
-            if (!argument_in || !expected_arg) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "number_argument test case missing argument/expected_arg");
-                return TEST_ERROR;
-            }
-
-            snprintf(argument_buf, sizeof(argument_buf), "%s", argument_in);
-            int actual_number = number_argument(argument_buf, arg_out);
-
-            if (actual_number != expected_number || str_cmp(arg_out, expected_arg) != 0) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "number_argument('%s') returned (%d,'%s'), expected (%d,'%s')",
-                             argument_in,
-                             actual_number,
-                             arg_out,
-                             expected_number,
-                             expected_arg);
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "one_argument") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *argument_in = test_json_get_string(test_case, "argument");
-            const char *expected_first = test_json_get_string(test_case, "expected_first");
-            const char *expected_rest = test_json_get_string(test_case, "expected_rest");
-            char argument_buf[MAX_STRING_LENGTH];
-            char first[MAX_INPUT_LENGTH];
-
-            if (!argument_in || !expected_first || !expected_rest) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "one_argument test case missing argument/expected_first/expected_rest");
-                return TEST_ERROR;
-            }
-
-            snprintf(argument_buf, sizeof(argument_buf), "%s", argument_in);
-            char *rest = one_argument(argument_buf, first);
-
-            if (str_cmp(first, expected_first) != 0 || str_cmp(rest, expected_rest) != 0) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "one_argument('%s') returned first='%s', rest='%s'; expected first='%s', rest='%s'",
-                             argument_in,
-                             first,
-                             rest,
-                             expected_first,
-                             expected_rest);
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "smash_tilde") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *input_str = test_json_get_string(test_case, "input");
-            const char *expected_output = test_json_get_string(test_case, "expected_output");
-            char buffer[MAX_STRING_LENGTH];
-
-            if (!input_str || !expected_output) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "smash_tilde test case missing input/expected_output");
-                return TEST_ERROR;
-            }
-
-            snprintf(buffer, sizeof(buffer), "%s", input_str);
-            smash_tilde(buffer);
-
-            if (str_cmp(buffer, expected_output) != 0) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "smash_tilde('%s') returned '%s', expected '%s'",
-                             input_str,
-                             buffer,
-                             expected_output);
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "is_name") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *needle = test_json_get_string(test_case, "str");
-            const char *namelist = test_json_get_string(test_case, "namelist");
-            bool expected = test_json_get_bool(test_case, "expected");
-
-            if (!needle || !namelist) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "is_name test case missing str/namelist");
-                return TEST_ERROR;
-            }
-
-            bool actual = is_name((char *)needle, (char *)namelist);
-            if (actual != expected) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "is_name('%s','%s') returned %s, expected %s",
-                             needle,
-                             namelist,
-                             actual ? "true" : "false",
-                             expected ? "true" : "false");
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "is_exact_name") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *needle = test_json_get_string(test_case, "str");
-            const char *namelist = test_json_get_string(test_case, "namelist");
-            bool expected = test_json_get_bool(test_case, "expected");
-
-            if (!needle || !namelist) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "is_exact_name test case missing str/namelist");
-                return TEST_ERROR;
-            }
-
-            bool actual = is_exact_name((char *)needle, (char *)namelist);
-            if (actual != expected) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "is_exact_name('%s','%s') returned %s, expected %s",
-                             needle,
-                             namelist,
-                             actual ? "true" : "false",
-                             expected ? "true" : "false");
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "str_cmp") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *left = test_json_get_string(test_case, "left");
-            const char *right = test_json_get_string(test_case, "right");
-            bool expected_not_equal = test_json_get_bool(test_case, "expected_not_equal");
-
-            if (!left || !right) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "str_cmp test case missing left/right");
-                return TEST_ERROR;
-            }
-
-            bool actual_not_equal = str_cmp(left, right);
-            if (actual_not_equal != expected_not_equal) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "str_cmp('%s','%s') returned %s, expected %s",
-                             left,
-                             right,
-                             actual_not_equal ? "true" : "false",
-                             expected_not_equal ? "true" : "false");
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "str_infix") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *needle = test_json_get_string(test_case, "needle");
-            const char *haystack = test_json_get_string(test_case, "haystack");
-            bool expected_not_infix = test_json_get_bool(test_case, "expected_not_infix");
-
-            if (!needle || !haystack) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "str_infix test case missing needle/haystack");
-                return TEST_ERROR;
-            }
-
-            bool actual_not_infix = str_infix(needle, haystack);
-            if (actual_not_infix != expected_not_infix) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "str_infix('%s','%s') returned %s, expected %s",
-                             needle,
-                             haystack,
-                             actual_not_infix ? "true" : "false",
-                             expected_not_infix ? "true" : "false");
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-
-    if (strcmp(func_name, "str_suffix") == 0) {
-        size_t index;
-        json_t *test_case;
-        json_array_foreach(test_cases, index, test_case) {
-            const char *astr = test_json_get_string(test_case, "astr");
-            const char *bstr = test_json_get_string(test_case, "bstr");
-            bool expected_not_suffix = test_json_get_bool(test_case, "expected_not_suffix");
-
-            if (!astr || !bstr) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "str_suffix test case missing astr/bstr");
-                return TEST_ERROR;
-            }
-
-            bool actual_not_suffix = str_suffix(astr, bstr);
-            if (actual_not_suffix != expected_not_suffix) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "str_suffix('%s','%s') returned %s, expected %s",
-                             astr,
-                             bstr,
-                             actual_not_suffix ? "true" : "false",
-                             expected_not_suffix ? "true" : "false");
-                return TEST_FAILURE;
-            }
-        }
-
-        return TEST_SUCCESS;
-    }
-    
-    // Add more pure function handlers as needed
-    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Unsupported pure function: %s", func_name);
-    return TEST_SKIP;
 }
 
 // Reserved system tests

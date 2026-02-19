@@ -1,0 +1,54 @@
+{
+  "test_suite": "bootstrap_fixture_tests",
+  "description": "Validates bootstrap fixture area/entities used by integration tests",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [
+    "area_loading"
+  ],
+  "tests": [
+    {
+      "name": "bootstrap_tests_area_exists",
+      "description": "Bootstrap Tests area from bootstrap_data/area/tests.json is present",
+      "test_type": "area_existence_check",
+      "input": {
+        "required_areas": [
+          {
+            "name": "Bootstrap Tests",
+            "expected_uid": 3
+          }
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "bootstrap_tests_area_wnum_resolution",
+      "description": "WNUM parsing resolves explicit and relative room references in Bootstrap Tests area",
+      "test_type": "wnum_parser",
+      "input": {
+        "area_context": "Bootstrap Tests",
+        "test_cases": [
+          {
+            "vnum_string": "3#1",
+            "description": "Explicit bootstrap tests room reference",
+            "should_parse": true,
+            "expected_vnum": 1,
+            "expected_area": "Bootstrap Tests"
+          },
+          {
+            "vnum_string": "#1",
+            "description": "Relative bootstrap tests room reference",
+            "should_parse": true,
+            "expected_vnum": 1,
+            "expected_area": "Bootstrap Tests"
+          }
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

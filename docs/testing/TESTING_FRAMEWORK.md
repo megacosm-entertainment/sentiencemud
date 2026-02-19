@@ -79,15 +79,32 @@ Skipped: 0
    - Provides reporting infrastructure
 
 2. **Test Implementations** (`src/tests/integration/`):
-   - Contains actual test logic
-   - Implements test type handlers (e.g., `wnum_parser`, `area_existence_check`)
-   - Validates real MUD environment functionality
+  - Contains actual test logic grouped by system/module
+  - Each module exposes `run_<module>_test_case()` (e.g., `run_skill_data_test_case()`)
+  - Validates real MUD environment functionality
 
-3. **Test Scenarios** (`src/tests/data/`):
+3. **Central Dispatcher** (`src/tests/framework/test_dispatcher.c`):
+  - Owns `run_test_case()` routing
+  - Routes by `test_type` prefix/identifier to module dispatchers
+  - Keeps framework flow independent from any one test module
+
+4. **Test Scenarios** (`src/tests/data/`):
    - JSON configuration files defining test cases
    - Structured input/output specifications
    - Dependency declarations
    - Test metadata and documentation
+
+### Bootstrap Fixture Policy
+
+Cross-area tests are valid and may reference existing gameplay zones such as
+`bootstrap.json` and `limbo.json`.
+
+For test fixture data (new rooms, mobs, objects, resets, shops), add entities only
+in `src/bootstrap/bootstrap_data/area/tests.json`.
+
+- Add new fixture entities there first.
+- Reference those fixtures from test JSON in `src/tests/data/integration/`.
+- Prefer fixture-bound suites (for example `bootstrap_fixture_tests`) in CI profiles.
 
 ## Writing Test Code
 
@@ -97,7 +114,8 @@ Test handlers are implemented in C and dispatch based on the `test_type` field i
 
 #### 1. Add Test Type Handler
 
-Edit `/sentience/src/tests/integration/wnum_tests.c` (or create new files):
+Create or extend a module file under `src/tests/unit/` or `src/tests/integration/`
+and add routing in `src/tests/framework/test_dispatcher.c`:
 
 ```c
 // Add forward declaration

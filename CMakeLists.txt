@@ -284,7 +284,11 @@ if(BUILD_TESTS)
         test_integration.c
         tests/framework/test_framework.c
         tests/framework/test_loader.c
+        tests/framework/test_dispatcher.c
+        tests/framework/test_utils.c
+        tests/unit/pure_function_tests.c
         tests/integration/wnum_tests.c
+        tests/integration/string_editor_tests.c
         tests/integration/reset_tests.c
         tests/integration/shop_stock_tests.c
         tests/integration/church_tests.c
