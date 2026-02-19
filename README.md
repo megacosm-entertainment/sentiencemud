@@ -49,6 +49,67 @@ The server loads data from relative paths, so it must be run from the project ro
 
 On a fresh checkout, the bootstrap system will create the required directory structure and minimal data files on first boot. See [docs/PLAN_BOOTSTRAP.md](docs/PLAN_BOOTSTRAP.md) for details.
 
+## Bootstrap and CI/CD Modes
+
+Sentience supports a dedicated bootstrap execution mode for creating a runnable data root, plus a CI-focused test profile that validates isolated-root startup and load behavior.
+
+### Bootstrap Mode
+
+Use bootstrap mode to initialize a fresh root (local dev, CI temp root, or test sandbox):
+
+```bash
+cd /path/to/sentience/src
+
+BOOT_ROOT=/tmp/sent_bootstrap_root
+
+SENTIENCE_BOOTSTRAP_DATA_SOURCE=/path/to/sentience/src/bootstrap/bootstrap_data \
+SENTIENCE_TEST_SOURCE_DIR=/path/to/sentience/src/tests/data \
+./.build/Debug/sent \
+	-bootstrap \
+	--bootstrap-auto \
+	--bootstrap-ci-fixtures \
+	--bootstrap-root="$BOOT_ROOT" \
+	--bootstrap-username=bootstrapci \
+	--bootstrap-email=bootstrapci@example.com \
+	--bootstrap-password=bootstrap123
+```
+
+Common bootstrap flags:
+
+- `-bootstrap` -- Enable bootstrap mode
+- `--bootstrap-root=<path>` -- Target root to initialize
+- `--bootstrap-auto` -- Auto-create first staff account/character
+- `--bootstrap-ci-fixtures` -- Generate and copy CI fixture content
+
+Common bootstrap env vars:
+
+- `SENTIENCE_BOOTSTRAP_DATA_SOURCE` -- Source directory for seed bootstrap files
+- `SENTIENCE_TEST_SOURCE_DIR` -- Source directory for test JSON fixtures
+
+### CI/Test Root Mode
+
+After bootstrap, run tests against that isolated root with `--data-root` (or `SENTIENCE_DATA_ROOT`):
+
+```bash
+cd /path/to/sentience/src
+
+./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT"
+```
+
+Equivalent environment form:
+
+```bash
+SENTIENCE_DATA_ROOT="$BOOT_ROOT" ./.build/Debug/sent -test:profile:bootstrap_ci
+```
+
+This profile is what CI uses to verify bootstrap correctness under an isolated runtime root.
+
+### GitHub Actions Workflows
+
+- `ci-bootstrap-tests.yml` builds, bootstraps an isolated root, and runs `-test:profile:bootstrap_ci`
+- The same workflow includes an always-run Discord notification job
+- On failure, CI uploads `bootstrap-ci-profile-log` and sends a trimmed failure snippet to Discord (when webhook secret is configured)
+
 ## Project Structure
 
 ```
