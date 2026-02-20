@@ -18,6 +18,7 @@
 #include "event_types.h"
 #include "recycle.h"
 #include "wilds.h"
+#include "skill_group.h"
 //#define DEBUG_MODULE
 #include "debug.h"
 
@@ -1060,6 +1061,10 @@ static bool compare_entity_params(const SCRIPT_PARAM *lhs, const SCRIPT_PARAM *r
         if (rhs->type != ENT_AREA) return false;
         *equal = (lhs->d.area == rhs->d.area);
         return true;
+    case ENT_AREA_REGION:
+        if (rhs->type != ENT_AREA_REGION) return false;
+        *equal = (lhs->d.aregion == rhs->d.aregion);
+        return true;
     case ENT_SECTOR:
         if (rhs->type != ENT_SECTOR) return false;
         *equal = (lhs->d.sector == rhs->d.sector);
@@ -1078,6 +1083,22 @@ static bool compare_entity_params(const SCRIPT_PARAM *lhs, const SCRIPT_PARAM *r
     case ENT_WIDEVNUM:
         if (rhs->type != ENT_WIDEVNUM) return false;
         *equal = (lhs->d.wnum.pArea == rhs->d.wnum.pArea && lhs->d.wnum.vnum == rhs->d.wnum.vnum);
+        return true;
+    case ENT_SKILLGROUP:
+        if (rhs->type != ENT_SKILLGROUP) return false;
+        *equal = (lhs->d.skill_group == rhs->d.skill_group);
+        return true;
+    case ENT_REPUTATION:
+        if (rhs->type != ENT_REPUTATION) return false;
+        *equal = (lhs->d.reputation == rhs->d.reputation);
+        return true;
+    case ENT_REPUTATION_INDEX:
+        if (rhs->type != ENT_REPUTATION_INDEX) return false;
+        *equal = (lhs->d.repIndex == rhs->d.repIndex);
+        return true;
+    case ENT_REPUTATION_RANK:
+        if (rhs->type != ENT_REPUTATION_RANK) return false;
+        *equal = (lhs->d.repRank == rhs->d.repRank);
         return true;
     default:
         return false;
@@ -1110,10 +1131,20 @@ static bool script_param_truthy(const SCRIPT_PARAM *value)
         return IS_VALID(value->d.token);
     case ENT_AREA:
         return value->d.area != NULL;
+    case ENT_AREA_REGION:
+        return value->d.aregion != NULL;
     case ENT_SECTOR:
         return value->d.sector != NULL;
     case ENT_EVENT:
         return value->d.event.uid > 0 || value->d.event.mob != NULL || value->d.event.obj != NULL;
+    case ENT_SKILLGROUP:
+        return value->d.skill_group != NULL;
+    case ENT_REPUTATION:
+        return value->d.reputation != NULL;
+    case ENT_REPUTATION_INDEX:
+        return value->d.repIndex != NULL;
+    case ENT_REPUTATION_RANK:
+        return value->d.repRank != NULL;
     case ENT_EXIT:
         return value->d.door.r &&
                value->d.door.door >= 0 &&
@@ -1435,14 +1466,21 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
             case ENT_BLLIST_EXIT:
             case ENT_BLLIST_SKILL:
             case ENT_BLLIST_AREA:
+            case ENT_BLLIST_AREA_REGION:
             case ENT_BLLIST_WILDS:
             case ENT_PLLIST_CONN:
             case ENT_PLLIST_MOB:
             case ENT_PLLIST_OBJ:
             case ENT_PLLIST_ROOM:
             case ENT_PLLIST_TOK:
+            case ENT_PLLIST_AREA:
+            case ENT_PLLIST_AREA_REGION:
             case ENT_PLLIST_CHURCH:
+            case ENT_PLLIST_REPUTATION_RANK:
             case ENT_ILLIST_VARIABLE:
+            case ENT_ILLIST_REPUTATION:
+            case ENT_ILLIST_REPUTATION_INDEX:
+            case ENT_ILLIST_SKILLGROUPS:
                 iterator_stop(&block->loops[i].d.l.list.it);
                 break;
 
@@ -1752,6 +1790,7 @@ DECL_OPC_FUN(opc_list)
     LLIST_EXIT_DATA *led;
     LLIST_SKILL_DATA *lsk;
     LLIST_AREA_DATA *lar;
+    LLIST_AREA_REGION_DATA *lareg;
     LLIST_WILDS_DATA *lwd;
     DESCRIPTOR_DATA *conn;
     CHAR_DATA *ch;
@@ -1759,11 +1798,17 @@ DECL_OPC_FUN(opc_list)
     TOKEN_DATA *tok;
     ROOM_INDEX_DATA *here;
     EXIT_DATA *ex;
+    AREA_DATA *area;
+    AREA_REGION *aregion;
     CHURCH_DATA *church;
     VARIABLE *variable;
     EXTRA_DESCR_DATA *ed;
     INSTANCE_SECTION *section;
     INSTANCE *instance;
+    REPUTATION_DATA *reputation;
+    REPUTATION_INDEX_DATA *repIndex;
+    REPUTATION_INDEX_RANK_DATA *repRank;
+    SKILL_GROUP *skill_group;
     NAMED_SPECIAL_ROOM *special_room;
     SHIP_DATA *ship;
 
@@ -2271,6 +2316,35 @@ DECL_OPC_FUN(opc_list)
 
             break;
 
+        case ENT_BLLIST_AREA_REGION:
+            //log_stringf("opc_list: list type ENT_BLLIST_AREA_REGION");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_AREA_REGION;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            do {
+                lareg = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+                if( !lareg ) {
+                    iterator_stop(&block->loops[lp].d.l.list.it);
+                    free_script_param(arg);
+                    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                }
+
+                if( lareg->aregion )
+                    variables_setsave_area_region(block->info.var,block->loops[lp].var_name, lareg->aregion, false);
+
+            } while( !lareg->aregion );
+
+            break;
+
         case ENT_BLLIST_WILDS:
             //log_stringf("opc_list: list type ENT_BLLIST_WILDS");
             if(!arg->d.blist || !arg->d.blist->valid)
@@ -2507,6 +2581,80 @@ DECL_OPC_FUN(opc_list)
             variables_set_church(block->info.var,block->loops[lp].var_name,church);
             break;
 
+        case ENT_PLLIST_REPUTATION_RANK:
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_REPUTATION_RANK;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            repRank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !repRank ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_reputation_rank(block->info.var,block->loops[lp].var_name,repRank);
+            break;
+
+        case ENT_PLLIST_AREA:
+            //log_stringf("opc_list: list type ENT_PLLIST_AREA");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_AREA;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            area = (AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !area ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_area(block->info.var,block->loops[lp].var_name,area);
+            break;
+
+        case ENT_PLLIST_AREA_REGION:
+            //log_stringf("opc_list: list type ENT_PLLIST_AREA_REGION");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_AREA_REGION;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            aregion = (AREA_REGION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !aregion ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_area_region(block->info.var,block->loops[lp].var_name,aregion);
+            break;
+
         case ENT_ILLIST_MOB_GROUP:
             //log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
             if(!arg->d.group_owner || !arg->d.group_owner->in_room)
@@ -2583,6 +2731,78 @@ DECL_OPC_FUN(opc_list)
 
             // Set the variable
             variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
+            break;
+
+        case ENT_ILLIST_REPUTATION:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_REPUTATION;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            reputation = (REPUTATION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !reputation ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
+            break;
+
+        case ENT_ILLIST_REPUTATION_INDEX:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_REPUTATION_INDEX;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !repIndex ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
+            break;
+
+        case ENT_ILLIST_SKILLGROUPS:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_SKILLGROUPS;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            skill_group = (SKILL_GROUP *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !skill_group ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_skill_group(block->info.var,block->loops[lp].var_name,skill_group);
             break;
 
         case ENT_ILLIST_SECTIONS:
@@ -3070,6 +3290,18 @@ DECL_OPC_FUN(opc_list)
             }
             break;
 
+        case ENT_BLLIST_AREA_REGION:
+            while( (lareg = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lareg->aregion );
+
+            variables_set_area_region(block->info.var,block->loops[lp].var_name,lareg?lareg->aregion:NULL);
+
+            if( !lareg ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+            break;
+
         case ENT_BLLIST_WILDS:
             //log_stringf("opc_list: list type ENT_BLLIST_WILDS");
             while( (lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lwd->wilds );
@@ -3204,6 +3436,32 @@ DECL_OPC_FUN(opc_list)
             }
             break;
 
+        case ENT_PLLIST_AREA:
+            area = (AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_area(block->info.var,block->loops[lp].var_name,area);
+
+            if( !area ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_AREA_REGION:
+            aregion = (AREA_REGION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_area_region(block->info.var,block->loops[lp].var_name,aregion);
+
+            if( !aregion ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
         case ENT_PLLIST_CHURCH:
             //log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
             church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -3219,6 +3477,19 @@ DECL_OPC_FUN(opc_list)
             }
 
             break;
+
+        case ENT_PLLIST_REPUTATION_RANK:
+            repRank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_reputation_rank(block->info.var,block->loops[lp].var_name,repRank);
+
+            if( !repRank ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
         case ENT_ILLIST_VARIABLE:
             //log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
             variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -3228,6 +3499,45 @@ DECL_OPC_FUN(opc_list)
             variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
 
             if( !variable) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_REPUTATION:
+            reputation = (REPUTATION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
+
+            if( !reputation ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_REPUTATION_INDEX:
+            repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
+
+            if( !repIndex ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_SKILLGROUPS:
+            skill_group = (SKILL_GROUP *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_skill_group(block->info.var,block->loops[lp].var_name,skill_group);
+
+            if( !skill_group ) {
                 iterator_stop(&block->loops[lp].d.l.list.it);
                 skip = true;
                 break;
@@ -7776,7 +8086,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: BOOL <boolean>
     // Format: BOOL <number>
     // Format: BOOL <numerical string>
-    if(!str_cmp(buf,"bool")) {
+    if(!str_cmp(buf,"bool") || !str_cmp(buf,"boolean")) {
         switch(arg->type) {
         case ENT_BOOLEAN: variables_set_boolean(vars,name,arg->d.boolean); break;
         case ENT_NUMBER: variables_set_boolean(vars,name,(arg->d.num != 0)); break;
@@ -7795,7 +8105,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Saves a number
     // Format: INTEGER <number>
     // Format: INTEGER <numerical string>
-    } else if(!str_cmp(buf,"integer") || !str_cmp(buf,"number")) {
+    } else if(!str_cmp(buf,"integer") || !str_cmp(buf,"number") || !str_cmp(buf,"num")) {
         switch(arg->type) {
         case ENT_NUMBER: variables_set_integer(vars,name,arg->d.num); break;
         case ENT_STRING:
@@ -7838,7 +8148,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             break;
         }
     // Format: STRING <string>[ <word index>]
-    } else if(!str_cmp(buf,"string")) {
+    } else if(!str_cmp(buf,"string") || !str_cmp(buf,"str")) {
         char tmp[MSL],*p;
 
         switch(arg->type) {
@@ -8165,7 +8475,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: MOBILE NAME|WORLD <NAME>[ <VIEWER>]
     // Format: MOBILE HERE <NAME>[ <VIEWER>]
     // Format: MOBILE <MOBILE>
-    } else if(!str_cmp(buf,"mobile")) {
+    } else if(!str_cmp(buf,"mobile") || !str_cmp(buf,"mob")) {
         if( arg->type == ENT_BLLIST_MOB )
         {
             LLIST *blist = arg->d.blist;
@@ -8422,7 +8732,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: OBJECT WORLD <NAME>
     // Format: OBJECT VNUM <VNUM>
     // Format: OBJECT <OBJECT>
-    } else if(!str_cmp(buf,"object")) {
+    } else if(!str_cmp(buf,"object") || !str_cmp(buf,"obj")) {
         if( arg->type == ENT_BLLIST_OBJ)
         {
             LLIST *blist = arg->d.blist;
@@ -8939,7 +9249,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // VARIABLE OBJECT NAME
     // VARIABLE ROOM NAME
     // VARIABLE TOKEN NAME
-    } else if(!str_cmp(buf,"variable")) {
+    } else if(!str_cmp(buf,"variable") || !str_cmp(buf,"var")) {
         pVARIABLE their_vars, their_var;
         switch(arg->type) {
         case ENT_MOBILE:   their_vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
@@ -9026,6 +9336,20 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         default: return;
         }
 
+    // Format: SKILLGROUP <name>
+    // Format: SKILLGROUP <skillgroup>
+    } else if(!str_cmp(buf,"skillgroup") || !str_cmp(buf,"skill_group")) {
+        switch(arg->type) {
+        case ENT_STRING:
+            variables_set_skill_group(vars, name, skill_group_find(arg->d.str));
+            break;
+        case ENT_SKILLGROUP:
+            variables_set_skill_group(vars, name, arg->d.skill_group);
+            break;
+        default:
+            return;
+        }
+
     // Format: SKILLINFO <MOBILE> <NAME or TOKEN>
     } else if(!str_cmp(buf,"skillinfo")) {
         switch(arg->type) {
@@ -9058,7 +9382,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
     // Format: MOBINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: MOBINDEX <MOBINDEX>
-    } else if(!str_cmp(buf,"mobindex")) {
+    } else if(!str_cmp(buf,"mobindex") || !str_cmp(buf,"mob_index")) {
         switch(arg->type) {
         case ENT_WIDEVNUM:
             variables_set_mobindex(vars, name, get_mob_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
@@ -9088,7 +9412,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
     // Format: OBJINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: OBJINDEX <OBJINDEX>
-    } else if(!str_cmp(buf,"objindex")) {
+    } else if(!str_cmp(buf,"objindex") || !str_cmp(buf,"obj_index")) {
         switch(arg->type) {
         case ENT_WIDEVNUM:
             variables_set_objindex(vars, name, get_obj_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
@@ -9120,7 +9444,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: TOKENINDEX <TOKEN_INDEX>
     // Format: TOKINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: TOKINDEX <TOKEN_INDEX>
-    } else if(!str_cmp(buf,"tokenindex") || !str_cmp(buf,"tokindex")) {
+    } else if(!str_cmp(buf,"tokenindex") || !str_cmp(buf,"tokindex") || !str_cmp(buf,"token_index")) {
         switch(arg->type) {
         case ENT_WIDEVNUM:
             variables_set_tokenindex(vars, name, get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
@@ -9216,6 +9540,72 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         if( area )
             variables_set_area(vars,name,area);
 
+    // AREAREGION <area> <region uid>
+    // AREAREGION <aregion>
+    // AREGION <area> <region uid>
+    // AREGION <aregion>
+    } else if(!str_cmp(buf,"arearegion") || !str_cmp(buf,"aregion")) {
+        if (arg->type == ENT_AREA) {
+            AREA_DATA *area = arg->d.area;
+            AREA_REGION *region = NULL;
+
+            if (!expand_argument(info, rest, arg) || arg->type != ENT_NUMBER)
+                return;
+
+            region = get_area_region_by_uid(area, arg->d.num);
+            if (region)
+                variables_set_area_region(vars, name, region);
+        } else if (arg->type == ENT_AREA_REGION) {
+            variables_set_area_region(vars, name, arg->d.aregion);
+        }
+
+    // Format: WILDS <uid>
+    // Format: WILDS <wilds>
+    // Format: WILDS <wilds_id>
+    } else if(!str_cmp(buf,"wilds")) {
+        WILDS_DATA *wilds = NULL;
+
+        switch(arg->type) {
+        case ENT_NUMBER:
+            wilds = get_wilds_from_uid(NULL, arg->d.num);
+            break;
+        case ENT_WILDS:
+            wilds = arg->d.wilds;
+            break;
+        case ENT_WILDS_ID:
+            wilds = get_wilds_from_uid(NULL, arg->d.wid);
+            break;
+        default:
+            wilds = NULL;
+            break;
+        }
+
+        if (wilds)
+            variables_set_wilds(vars, name, wilds);
+
+    // Format: SECTION <section>
+    // Format: SECT <section>
+    } else if(!str_cmp(buf,"section") || !str_cmp(buf,"sect")) {
+        if (arg->type == ENT_SECTION)
+            variables_set_instance_section(vars, name, arg->d.section);
+
+    // Format: INSTANCE <instance>
+    // Format: INST <instance>
+    } else if(!str_cmp(buf,"instance") || !str_cmp(buf,"inst")) {
+        if (arg->type == ENT_INSTANCE)
+            variables_set_instance(vars, name, arg->d.instance);
+
+    // Format: DUNGEON <dungeon>
+    // Format: DUNG <dungeon>
+    } else if(!str_cmp(buf,"dungeon") || !str_cmp(buf,"dung")) {
+        if (arg->type == ENT_DUNGEON)
+            variables_set_dungeon(vars, name, arg->d.dungeon);
+
+    // Format: SHIP <ship>
+    } else if(!str_cmp(buf,"ship")) {
+        if (arg->type == ENT_SHIP)
+            variables_set_ship(vars, name, arg->d.ship);
+
     // Format: CLASS <name>
     // Format: CLASS <class>
     } else if(!str_cmp(buf,"class")) {
@@ -9228,9 +9618,119 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         }
 
     // Format: CLASSLEVEL <classlevel>
-    } else if(!str_cmp(buf,"classlevel")) {
+    // Format: CLASSLEVEL <mobile> <class>
+    // Format: CLASSLEVEL <mobile> <class-name>
+    } else if(!str_cmp(buf,"classlevel") || !str_cmp(buf,"class_level")) {
         if (arg->type == ENT_CLASSLEVEL)
             variables_set_classlevel(vars, name, arg->d.classlevel);
+        else if (arg->type == ENT_MOBILE) {
+            CHAR_DATA *class_mob = arg->d.mob;
+            CLASS_DATA *clazz = NULL;
+            CLASS_LEVEL *class_level = NULL;
+
+            if (!expand_argument(info, rest, arg))
+                return;
+
+            if (arg->type == ENT_CLASS)
+                clazz = arg->d.clazz;
+            else if (arg->type == ENT_STRING)
+                clazz = class_find(arg->d.str);
+
+            if (!class_mob || !clazz)
+                return;
+
+            class_level = get_class_level(class_mob, clazz);
+            if (class_level)
+                variables_set_classlevel(vars, name, class_level);
+        }
+
+    // Format: REPUTATION_INDEX <widevnum|number|string|repindex|reputation>
+    // Format: REPINDEX <widevnum|number|string|repindex|reputation>
+    // Format: FACTION <widevnum|number|string|repindex|reputation>
+    } else if(!str_cmp(buf,"reputation_index") || !str_cmp(buf,"repindex") || !str_cmp(buf,"faction")) {
+        REPUTATION_INDEX_DATA *repIndex = NULL;
+        switch(arg->type) {
+        case ENT_REPUTATION_INDEX:
+            repIndex = arg->d.repIndex;
+            break;
+        case ENT_REPUTATION:
+            repIndex = arg->d.reputation ? arg->d.reputation->pIndexData : NULL;
+            break;
+        case ENT_WIDEVNUM:
+            repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            break;
+        }
+        default:
+            return;
+        }
+
+        if (repIndex)
+            variables_set_reputation_index(vars, name, repIndex);
+
+    // Format: REPUTATION <reputation>
+    // Format: REPUTATION <mobile> <repindex|widevnum|number|string>
+    } else if(!str_cmp(buf,"reputation")) {
+        if (arg->type == ENT_REPUTATION) {
+            variables_set_reputation(vars, name, arg->d.reputation);
+        } else if (arg->type == ENT_MOBILE) {
+            CHAR_DATA *rep_mob = arg->d.mob;
+            REPUTATION_INDEX_DATA *repIndex = NULL;
+            REPUTATION_DATA *reputation = NULL;
+
+            if (!expand_argument(info, rest, arg))
+                return;
+
+            if (arg->type == ENT_REPUTATION_INDEX)
+                repIndex = arg->d.repIndex;
+            else if (arg->type == ENT_WIDEVNUM)
+                repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            else if (arg->type == ENT_NUMBER) {
+                WNUM index_wnum = wnum_zero;
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            } else if (arg->type == ENT_STRING) {
+                WNUM index_wnum = wnum_zero;
+                if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            }
+
+            if (!rep_mob || !repIndex)
+                return;
+
+            reputation = get_reputation_char(rep_mob, repIndex->area, repIndex->vnum, false, false);
+            if (reputation)
+                variables_set_reputation(vars, name, reputation);
+        }
+
+    // Format: REPUTATION_RANK <reprank>
+    // Format: REPUTATION_RANK <reputation>
+    } else if(!str_cmp(buf,"reputation_rank") || !str_cmp(buf,"reprank")) {
+        if (arg->type == ENT_REPUTATION_RANK) {
+            variables_set_reputation_rank(vars, name, arg->d.repRank);
+        } else if (arg->type == ENT_REPUTATION) {
+            REPUTATION_INDEX_RANK_DATA *rank = NULL;
+            if (arg->d.reputation && arg->d.reputation->pIndexData)
+                rank = get_reputation_rank(arg->d.reputation->pIndexData, arg->d.reputation->current_rank);
+            if (rank)
+                variables_set_reputation_rank(vars, name, rank);
+        }
 
     // Format: RACE <name>
     // Format: RACE <race>

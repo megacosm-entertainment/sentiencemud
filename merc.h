@@ -457,6 +457,7 @@ typedef struct mob_reputation_data MOB_REPUTATION_DATA;
 typedef struct list_type LLIST;
 typedef struct list_link_type LLIST_LINK;
 typedef struct list_link_area_data LLIST_AREA_DATA;
+typedef struct list_link_area_region_data LLIST_AREA_REGION_DATA;
 typedef struct list_link_wilds_data LLIST_WILDS_DATA;
 typedef struct list_link_uid_data LLIST_UID_DATA;
 typedef struct list_link_room_data LLIST_ROOM_DATA;
@@ -836,6 +837,12 @@ struct iterator_type {
 struct list_link_area_data {
     AREA_DATA *area;
     long uid;
+};
+
+struct list_link_area_region_data {
+    AREA_REGION *aregion;
+    long aid;
+    long rid;
 };
 
 struct list_link_wilds_data {

@@ -3,6 +3,7 @@
 #include "../../merc.h"
 #include "../../scripts.h"
 #include "../../recycle.h"
+#include "../../class_data.h"
 #include "../framework/test_framework.h"
 #include <string.h>
 #include <stdlib.h>
@@ -37,6 +38,7 @@ static test_result_t test_script_number_trigger_guard_and_wildcard(test_case_t *
 static test_result_t test_script_number_sight_slot_guard(test_case_t *test);
 static test_result_t test_script_direction_trigger_exec(test_case_t *test);
 static test_result_t test_script_greet_trigger_exec(test_case_t *test);
+static test_result_t test_script_varset_classlevel_mobile_class(test_case_t *test);
 static void log_entity_table_validation_diagnostics(void);
 
 int test_vnumname_trigger(char *name, int vnum, AREA_DATA *entity_area, int type,
@@ -78,6 +80,10 @@ static ENT_FIELD *resolve_entity_field_table(const char *table_name)
         return script_entity_fields(ENT_OBJECT);
     if (strcmp(table_name, "room") == 0)
         return script_entity_fields(ENT_ROOM);
+    if (strcmp(table_name, "area") == 0)
+        return script_entity_fields(ENT_AREA);
+    if (strcmp(table_name, "aregion") == 0)
+        return script_entity_fields(ENT_AREA_REGION);
     if (strcmp(table_name, "event") == 0)
         return script_entity_fields(ENT_EVENT);
     if (strcmp(table_name, "race") == 0)
@@ -212,6 +218,9 @@ test_result_t run_script_engine_test_case(test_case_t *test)
     if (strcmp(test->test_type, "script_engine_greet_trigger_exec_test") == 0)
         return test_script_greet_trigger_exec(test);
 
+    if (strcmp(test->test_type, "script_engine_varset_classlevel_mobile_class_test") == 0)
+        return test_script_varset_classlevel_mobile_class(test);
+
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown script engine test type: %s", test->test_type);
     return TEST_ERROR;
@@ -279,6 +288,104 @@ static test_result_t test_script_entity_lookup(test_case_t *test)
         }
     }
 
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_varset_classlevel_mobile_class(test_case_t *test)
+{
+    CHAR_DATA player;
+    PC_DATA pcdata;
+    CLASS_LEVEL *expected_class_level;
+    CLASS_DATA *clazz;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    pVARIABLE vars = NULL;
+    pVARIABLE out;
+    char command[MSL];
+    char *compiled = NULL;
+    int compiled_len = 0;
+    (void)test;
+
+    memset(&player, 0, sizeof(player));
+    memset(&pcdata, 0, sizeof(pcdata));
+    memset(&info, 0, sizeof(info));
+
+    clazz = class_find("warrior");
+    if (!clazz)
+        clazz = class_get_default();
+    if (!clazz) {
+        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                    "No class data available; skipping varset classlevel test");
+        return TEST_SKIP;
+    }
+
+    player.valid = true;
+    player.pcdata = &pcdata;
+
+    add_class_level(&player, clazz, 12);
+    expected_class_level = get_class_level(&player, clazz);
+    if (!expected_class_level) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_class_level failed after add_class_level in varset classlevel test");
+        variable_freelist(&vars);
+        return TEST_ERROR;
+    }
+    expected_class_level->xp = 12345;
+
+    info.var = &vars;
+
+    info.ch = &player;
+
+    if (!variables_set_mobile(&vars, "srcmob", &player)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "variables_set_mobile failed in varset classlevel test");
+        variable_freelist(&vars);
+        remove_class_level(&player, clazz);
+        return TEST_ERROR;
+    }
+
+    snprintf(command, sizeof(command), "dst classlevel $(srcmob) \"%s\"", class_name(clazz));
+
+    compiled = compile_string(command, IFC_ANY, &compiled_len, true);
+    if (!compiled) {
+        variable_freelist(&vars);
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for varset classlevel command");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        variable_freelist(&vars);
+        return TEST_ERROR;
+    }
+
+    script_varseton(&info, &vars, compiled, arg);
+
+    out = variable_get(vars, "dst");
+    if (!out || out->type != VAR_CLASSLEVEL || !out->_.classlevel ||
+        out->_.classlevel->clazz != clazz || out->_.classlevel->level != expected_class_level->level) {
+        free_script_param(arg);
+        free_mem(compiled, compiled_len + 1);
+        variable_freelist(&vars);
+        remove_class_level(&player, clazz);
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "varset classlevel mismatch: out=%p type=%d cl=%p cl_class=%p expected_class=%p cl_level=%d expected_level=%d",
+                      (void *)out,
+                      out ? out->type : -1,
+                      out && out->type == VAR_CLASSLEVEL ? (void *)out->_.classlevel : NULL,
+                      out && out->type == VAR_CLASSLEVEL && out->_.classlevel ? (void *)out->_.classlevel->clazz : NULL,
+                      (void *)clazz,
+                      out && out->type == VAR_CLASSLEVEL && out->_.classlevel ? out->_.classlevel->level : -1,
+                      expected_class_level->level);
+        return TEST_FAILURE;
+    }
+
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    variable_freelist(&vars);
+    remove_class_level(&player, clazz);
     return TEST_SUCCESS;
 }
 

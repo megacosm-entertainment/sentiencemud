@@ -34,16 +34,34 @@
       "input": {
         "table": "types",
         "test_cases": [
+          {"name": "num", "should_exist": true},
+          {"name": "str", "should_exist": true},
+          {"name": "mob", "should_exist": true},
+          {"name": "obj", "should_exist": true},
+          {"name": "var", "should_exist": true},
           {"name": "bool", "should_exist": true},
+          {"name": "boolean", "should_exist": true},
           {"name": "song", "should_exist": true},
           {"name": "race", "should_exist": true},
           {"name": "class", "should_exist": true},
           {"name": "classlevel", "should_exist": true},
+          {"name": "class_level", "should_exist": true},
           {"name": "mobindex", "should_exist": true},
+          {"name": "mob_index", "should_exist": true},
           {"name": "objindex", "should_exist": true},
+          {"name": "obj_index", "should_exist": true},
           {"name": "tokenindex", "should_exist": true},
           {"name": "tokindex", "should_exist": true},
+          {"name": "token_index", "should_exist": true},
           {"name": "wilds", "should_exist": true},
+          {"name": "aregion", "should_exist": true},
+          {"name": "sect", "should_exist": true},
+          {"name": "section", "should_exist": true},
+          {"name": "inst", "should_exist": true},
+          {"name": "instance", "should_exist": true},
+          {"name": "dung", "should_exist": true},
+          {"name": "dungeon", "should_exist": true},
+          {"name": "ship", "should_exist": true},
           {"name": "no_such_variable_type_field", "should_exist": false}
         ]
       },
@@ -126,6 +144,62 @@
           {"name": "rewardcount", "should_exist": true},
           {"name": "xptablesize", "should_exist": true},
           {"name": "no_such_class_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_classlevel_fields",
+      "description": "Verify classlevel entity exposes expected fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "classlevel",
+        "test_cases": [
+          {"name": "class", "should_exist": true},
+          {"name": "level", "should_exist": true},
+          {"name": "xp", "should_exist": true},
+          {"name": "title", "should_exist": true},
+          {"name": "no_such_classlevel_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_area_fields",
+      "description": "Verify area entity exposes region field",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "area",
+        "test_cases": [
+          {"name": "name", "should_exist": true},
+          {"name": "region", "should_exist": true},
+          {"name": "rooms", "should_exist": true},
+          {"name": "no_such_area_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_aregion_fields",
+      "description": "Verify area-region entity exposes core fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "aregion",
+        "test_cases": [
+          {"name": "name", "should_exist": true},
+          {"name": "area", "should_exist": true},
+          {"name": "rooms", "should_exist": true},
+          {"name": "flags", "should_exist": true},
+          {"name": "no_such_aregion_field", "should_exist": false}
         ]
       },
       "expected_output": {

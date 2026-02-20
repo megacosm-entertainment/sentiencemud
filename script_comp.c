@@ -852,6 +852,7 @@ switch(ent) {
             case ENT_BLLIST_EXIT:	ent = ENT_EXIT; break;
             case ENT_BLLIST_SKILL:	ent = ENT_SKILLINFO; break;
             case ENT_BLLIST_AREA:	ent = ENT_AREA; break;
+            case ENT_BLLIST_AREA_REGION:	ent = ENT_AREA_REGION; break;
             case ENT_BLLIST_WILDS:	ent = ENT_WILDS; break;
 
             case ENT_PLLIST_STR:	ent = ENT_STRING; break;
@@ -860,9 +861,15 @@ switch(ent) {
             case ENT_PLLIST_MOB:	ent = ENT_MOBILE; break;
             case ENT_PLLIST_OBJ:	ent = ENT_OBJECT; break;
             case ENT_PLLIST_TOK:	ent = ENT_TOKEN; break;
+            case ENT_PLLIST_AREA:	ent = ENT_AREA; break;
+            case ENT_PLLIST_AREA_REGION:	ent = ENT_AREA_REGION; break;
             case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
+            case ENT_PLLIST_REPUTATION_RANK:	ent = ENT_REPUTATION_RANK; break;
 
             case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+            case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
+            case ENT_ILLIST_REPUTATION_INDEX:	ent = ENT_REPUTATION_INDEX; break;
+            case ENT_ILLIST_SKILLGROUPS:	ent = ENT_SKILLGROUP; break;
 
             default:
                 sprintf(buf,"Line %d: Invalid $() primary '%s'.", compile_current_line, field);

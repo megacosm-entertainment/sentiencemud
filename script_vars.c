@@ -150,6 +150,22 @@ static void *deepcopy_area(void *src)
     return data;
 }
 
+static void *deepcopy_area_region(void *src)
+{
+    LLIST_AREA_REGION_DATA *region = (LLIST_AREA_REGION_DATA *)src;
+
+    LLIST_AREA_REGION_DATA *data;
+
+    if( (data = alloc_mem(sizeof(LLIST_AREA_REGION_DATA))) )
+    {
+        data->aregion = region->aregion;
+        data->aid = region->aid;
+        data->rid = region->rid;
+    }
+
+    return data;
+}
+
 
 static void *deepcopy_wilds(void *src)
 {
@@ -176,6 +192,7 @@ static LISTCOPY_FUNC *__var_blist_copier[] = {
     deepcopy_exit,
     deepcopy_skill,
     deepcopy_area,
+    deepcopy_area_region,
     deepcopy_wilds,
     NULL
 };
@@ -185,6 +202,7 @@ static void deleter_uid(void *data) { free_mem(data, sizeof(LLIST_UID_DATA)); }
 static void deleter_exit(void *data) { free_mem(data, sizeof(LLIST_EXIT_DATA)); }
 static void deleter_skill(void *data) { free_mem(data, sizeof(LLIST_SKILL_DATA)); }
 static void deleter_area(void *data) { free_mem(data, sizeof(LLIST_AREA_DATA)); }
+static void deleter_area_region(void *data) { free_mem(data, sizeof(LLIST_AREA_REGION_DATA)); }
 static void deleter_wilds(void *data) { free_mem(data, sizeof(LLIST_WILDS_DATA)); }
 
 static LISTDESTROY_FUNC *__var_blist_deleter[] = {
@@ -196,6 +214,7 @@ static LISTDESTROY_FUNC *__var_blist_deleter[] = {
     deleter_exit,
     deleter_skill,
     deleter_area,
+    deleter_area_region,
     deleter_wilds,
     NULL
 };
@@ -421,6 +440,7 @@ varset(mobile,MOBILE,CHAR_DATA*,m,m)
 varset(object,OBJECT,OBJ_DATA*,o,o)
 varset(token,TOKEN,TOKEN_DATA*,t,t)
 varset(area,AREA,AREA_DATA*,a,a)
+varset(area_region,AREA_REGION,AREA_REGION*,aregion,aregion)
 varset(wilds,WILDS,WILDS_DATA*,wilds,wilds)
 varset(church,CHURCH,CHURCH_DATA*,church,church)
 varset(affect,AFFECT,AFFECT_DATA*,aff,aff)
@@ -433,6 +453,10 @@ varset(song,SONG,SONG_DATA *,song,song)
 varset(race,RACE,RACE_DATA *,race,race)
 varset(class,CLASS,CLASS_DATA *,clazz,clazz)
 varset(classlevel,CLASSLEVEL,CLASS_LEVEL *,classlevel,classlevel)
+varset(skill_group,SKILLGROUP,SKILL_GROUP *,skill_group,skill_group)
+varset(reputation,REPUTATION,REPUTATION_DATA *,reputation,reputation)
+varset(reputation_index,REPUTATION_INDEX,REPUTATION_INDEX_DATA *,reputation_index,reputation_index)
+varset(reputation_rank,REPUTATION_RANK,REPUTATION_INDEX_RANK_DATA *,reputation_rank,reputation_rank)
 varset(mobindex,MOBINDEX,MOB_INDEX_DATA *,mobindex,mobindex)
 varset(objindex,OBJINDEX,OBJ_INDEX_DATA *,objindex,objindex)
 varset(tokenindex,TOKENINDEX,TOKEN_INDEX_DATA *,token_index,token_index)
@@ -962,6 +986,50 @@ bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area)
     return true;
 }
 
+bool variables_set_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion, bool save)
+{
+    LLIST_AREA_REGION_DATA *data;
+    pVARIABLE var = variable_get(*list, name);
+
+    if( !IS_VALID(aregion) || !aregion->area ) return false;
+
+    if( !var ) {
+        if ( !(var = variables_set_list(list,name,VAR_BLLIST_AREA_REGION,save)) )
+            return false;
+    } else if( var->type != VAR_BLLIST_AREA_REGION )
+        return false;
+
+    if( !(data = alloc_mem(sizeof(LLIST_AREA_REGION_DATA))) ) return false;
+
+    data->aregion = aregion;
+    data->aid = aregion->area->uid;
+    data->rid = aregion->uid;
+
+    if( !list_appendlink(var->_.list, data) )
+        free_mem(data,sizeof(LLIST_AREA_REGION_DATA));
+
+    return true;
+}
+
+bool variables_append_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion)
+{
+    LLIST_AREA_REGION_DATA *data;
+    pVARIABLE var = variable_get(*list, name);
+
+    if( !IS_VALID(aregion) || !aregion->area || !var || var->type != VAR_BLLIST_AREA_REGION) return false;
+
+    if( !(data = alloc_mem(sizeof(LLIST_AREA_REGION_DATA))) ) return false;
+
+    data->aregion = aregion;
+    data->aid = aregion->area->uid;
+    data->rid = aregion->uid;
+
+    if( !list_appendlink(var->_.list, data) )
+        free_mem(data,sizeof(LLIST_AREA_REGION_DATA));
+
+    return true;
+}
+
 bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, bool save)
 {
     LLIST_WILDS_DATA *data;
@@ -1114,6 +1182,25 @@ static bool variables_append_list_area_id(ppVARIABLE list, char *name, long aid)
 
     if( !list_appendlink(var->_.list, data) )
         free_mem(data,sizeof(LLIST_AREA_DATA));
+
+    return true;
+}
+
+static bool variables_append_list_area_region_id(ppVARIABLE list, char *name, long aid, long rid)
+{
+    LLIST_AREA_REGION_DATA *data;
+    pVARIABLE var = variable_get(*list, name);
+
+    if( !var || var->type != VAR_BLLIST_AREA_REGION) return false;
+
+    if( !(data = alloc_mem(sizeof(LLIST_AREA_REGION_DATA))) ) return false;
+
+    data->aregion = NULL;
+    data->aid = aid;
+    data->rid = rid;
+
+    if( !list_appendlink(var->_.list, data) )
+        free_mem(data,sizeof(LLIST_AREA_REGION_DATA));
 
     return true;
 }
@@ -1559,11 +1646,16 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_OBJECT:		newv->_.o = oldv->_.o; break;
     case VAR_TOKEN:			newv->_.t = oldv->_.t; break;
     case VAR_AREA:			newv->_.a = oldv->_.a; break;
+    case VAR_AREA_REGION:	newv->_.aregion = oldv->_.aregion; break;
     case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
+    case VAR_SKILLGROUP:    newv->_.skill_group = oldv->_.skill_group; break;
     case VAR_SONG:          newv->_.song = oldv->_.song; break;
     case VAR_RACE:          newv->_.race = oldv->_.race; break;
     case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
     case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
+    case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
+    case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
     case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
     case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
     case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
@@ -1581,6 +1673,8 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_PLLIST_MOB:
     case VAR_PLLIST_OBJ:
     case VAR_PLLIST_TOK:
+    case VAR_PLLIST_AREA:
+    case VAR_PLLIST_AREA_REGION:
     case VAR_PLLIST_CHURCH:
     case VAR_PLLIST_VARIABLE:
     case VAR_BLLIST_ROOM:
@@ -1590,6 +1684,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_BLLIST_EXIT:
     case VAR_BLLIST_SKILL:
     case VAR_BLLIST_AREA:
+    case VAR_BLLIST_AREA_REGION:
     case VAR_BLLIST_WILDS:
         // All of the lists that require special allocation will be handled auto-magically by list_copy
         newv->_.list = list_copy(oldv->_.list);
@@ -1625,11 +1720,16 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_OBJECT:	newv->_.o = oldv->_.o; break;
     case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
     case VAR_AREA:		newv->_.a = oldv->_.a; break;
+    case VAR_AREA_REGION:	newv->_.aregion = oldv->_.aregion; break;
     case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
+    case VAR_SKILLGROUP:    newv->_.skill_group = oldv->_.skill_group; break;
     case VAR_SONG:          newv->_.song = oldv->_.song; break;
     case VAR_RACE:          newv->_.race = oldv->_.race; break;
     case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
     case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
+    case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
+    case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
     case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
     case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
     case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
@@ -1648,6 +1748,8 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_PLLIST_MOB:
     case VAR_PLLIST_OBJ:
     case VAR_PLLIST_TOK:
+    case VAR_PLLIST_AREA:
+    case VAR_PLLIST_AREA_REGION:
     case VAR_PLLIST_CHURCH:
     case VAR_PLLIST_VARIABLE:
     case VAR_BLLIST_ROOM:
@@ -1657,6 +1759,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_BLLIST_EXIT:
     case VAR_BLLIST_SKILL:
     case VAR_BLLIST_AREA:
+    case VAR_BLLIST_AREA_REGION:
     case VAR_BLLIST_WILDS:
         // All of the lists that require special allocation will be handled auto-magically by list_copy
         newv->_.list = list_copy(oldv->_.list);
@@ -1690,11 +1793,17 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_MOBILE:	newv->_.m = oldv->_.m; break;
         case VAR_OBJECT:	newv->_.o = oldv->_.o; break;
         case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
+        case VAR_AREA:		newv->_.a = oldv->_.a; break;
+        case VAR_AREA_REGION:	newv->_.aregion = oldv->_.aregion; break;
         case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
+        case VAR_SKILLGROUP:    newv->_.skill_group = oldv->_.skill_group; break;
         case VAR_SONG:          newv->_.song = oldv->_.song; break;
         case VAR_RACE:          newv->_.race = oldv->_.race; break;
         case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
         case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+        case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
+        case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
+        case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
         case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
         case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
         case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
@@ -1713,6 +1822,8 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_PLLIST_MOB:
         case VAR_PLLIST_OBJ:
         case VAR_PLLIST_TOK:
+        case VAR_PLLIST_AREA:
+        case VAR_PLLIST_AREA_REGION:
         case VAR_PLLIST_CHURCH:
         case VAR_PLLIST_VARIABLE:
         case VAR_BLLIST_ROOM:
@@ -1722,6 +1833,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_BLLIST_EXIT:
         case VAR_BLLIST_SKILL:
         case VAR_BLLIST_AREA:
+        case VAR_BLLIST_AREA_REGION:
         case VAR_BLLIST_WILDS:
             // All of the lists that require special allocation will be handled auto-magically by list_copy
             newv->_.list = list_copy(oldv->_.list);
@@ -1754,11 +1866,16 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_OBJECT:		newv->_.o = oldv->_.o; break;
     case VAR_TOKEN:			newv->_.t = oldv->_.t; break;
     case VAR_AREA:			newv->_.a = oldv->_.a; break;
+    case VAR_AREA_REGION:	newv->_.aregion = oldv->_.aregion; break;
     case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
+    case VAR_SKILLGROUP:    newv->_.skill_group = oldv->_.skill_group; break;
     case VAR_SONG:          newv->_.song = oldv->_.song; break;
     case VAR_RACE:          newv->_.race = oldv->_.race; break;
     case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
     case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
+    case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
+    case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
     case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
     case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
     case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
@@ -1777,6 +1894,8 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_PLLIST_MOB:
     case VAR_PLLIST_OBJ:
     case VAR_PLLIST_TOK:
+    case VAR_PLLIST_AREA:
+    case VAR_PLLIST_AREA_REGION:
     case VAR_PLLIST_CHURCH:
     case VAR_PLLIST_VARIABLE:
     case VAR_BLLIST_ROOM:
@@ -1786,6 +1905,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_BLLIST_EXIT:
     case VAR_BLLIST_SKILL:
     case VAR_BLLIST_AREA:
+    case VAR_BLLIST_AREA_REGION:
     case VAR_BLLIST_WILDS:
         // All of the lists that require special allocation will be handled auto-magically by list_copy
         newv->_.list = list_copy(oldv->_.list);
@@ -2076,6 +2196,18 @@ void variable_clearfield(int type, void *ptr)
             }
             break;
 
+        case VAR_PLLIST_AREA:
+            if( type == VAR_AREA && ptr && list_isvalid(cur->_.list)) {
+                list_remlink(cur->_.list, ptr, false);
+            }
+            break;
+
+        case VAR_PLLIST_AREA_REGION:
+            if( type == VAR_AREA_REGION && ptr && list_isvalid(cur->_.list)) {
+                list_remlink(cur->_.list, ptr, false);
+            }
+            break;
+
         case VAR_SECTION:
             if(type == VAR_SECTION && cur->_.section == ptr)
                 cur->_.section = NULL;
@@ -2265,6 +2397,18 @@ void variable_fix(pVARIABLE var)
         while( (larea = (LLIST_AREA_DATA *)iterator_nextdata(&it)) )
             if( !larea->area )
                 larea->area = get_area_from_uid(larea->uid);
+
+        iterator_stop(&it);
+    } else if(var->type == VAR_BLLIST_AREA_REGION && var->_.list) {
+        LLIST_AREA_REGION_DATA *laregion;
+        iterator_start(&it, var->_.list);
+
+        while( (laregion = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&it)) )
+            if( !laregion->aregion ) {
+                AREA_DATA *area = get_area_from_uid(laregion->aid);
+                if( area )
+                    laregion->aregion = get_area_region_by_uid(area, laregion->rid);
+            }
 
         iterator_stop(&it);
     } else if(var->type == VAR_BLLIST_WILDS && var->_.list) {
@@ -2856,6 +3000,21 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
             fprintf(fp,"End\n");
         }
         break;
+    case VAR_BLLIST_AREA_REGION:
+        if(var->_.list && var->_.list->valid) {
+            LLIST_AREA_REGION_DATA *aregion;
+
+            fprintf(fp,"VarListAreaRegion %s~\n", var->name);
+            iterator_start(&it,var->_.list);
+
+            while((aregion = (LLIST_AREA_REGION_DATA*)iterator_nextdata(&it))) if( aregion->aregion && aregion->aregion->area ) {
+                fprintf(fp, "AreaRegion %ld %ld\n", aregion->aid, aregion->rid);
+            }
+
+            iterator_stop(&it);
+            fprintf(fp,"End\n");
+        }
+        break;
     case VAR_BLLIST_WILDS:
         if(var->_.list && var->_.list->valid) {
             LLIST_WILDS_DATA *wilds;
@@ -3068,6 +3227,28 @@ bool variable_fread_area_list(ppVARIABLE vars, char *name, FILE *fp)
 
 }
 
+bool variable_fread_area_region_list(ppVARIABLE vars, char *name, FILE *fp)
+{
+    char *word;
+
+    for(; ;) {
+        word   = feof(fp) ? "End" : fread_word(fp);
+
+        if (!str_cmp(word, "End"))
+            return true;
+
+        else if (!str_cmp(word, "AreaRegion")) {
+
+            if( !variables_append_list_area_region_id( vars, name, fread_number(fp), fread_number(fp)) )
+                return false;
+
+        } else
+            fread_to_eol(fp);
+
+    }
+
+}
+
 bool variable_fread_wilds_list(ppVARIABLE vars, char *name, FILE *fp)
 {
     char *word;
@@ -3144,6 +3325,7 @@ int variable_fread_type(char *str)
     if( !str_cmp( str, "VarListSkill" ) ) return VAR_BLLIST_SKILL;
     if( !str_cmp( str, "VarListStr" ) ) return VAR_PLLIST_STR;
     if( !str_cmp( str, "VarListArea" ) ) return VAR_BLLIST_AREA;
+    if( !str_cmp( str, "VarListAreaRegion" ) ) return VAR_BLLIST_AREA_REGION;
     if( !str_cmp( str, "VarListWilds" ) ) return VAR_BLLIST_WILDS;
     if( !str_cmp( str, "VarDice" ) ) return VAR_DICE;
 
@@ -3316,6 +3498,12 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
     case VAR_BLLIST_AREA:
         if( variables_set_list(vars, name, VAR_BLLIST_AREA, true) )
             return variable_fread_area_list(vars, name, fp);
+        else
+            return false;
+
+    case VAR_BLLIST_AREA_REGION:
+        if( variables_set_list(vars, name, VAR_BLLIST_AREA_REGION, true) )
+            return variable_fread_area_region_list(vars, name, fp);
         else
             return false;
 

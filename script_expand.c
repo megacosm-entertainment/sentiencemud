@@ -554,6 +554,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_TOKEN:		arg->type = ENT_TOKEN; arg->d.token = var->_.t; break;
         case VAR_AREA:		arg->type = ENT_AREA; arg->d.area = var->_.a; break;
         case VAR_SKILL:		arg->type = ENT_SKILL; arg->d.sn = var->_.sn; break;
+        case VAR_SKILLGROUP:arg->type = ENT_SKILLGROUP; arg->d.skill_group = var->_.skill_group; break;
         case VAR_SONG:      arg->type = ENT_SONG; arg->d.song = var->_.song; break;
         case VAR_RACE:      arg->type = ENT_RACE; arg->d.race = var->_.race; break;
         case VAR_CLASS:     arg->type = ENT_CLASS; arg->d.clazz = var->_.clazz; break;
@@ -561,6 +562,9 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_MOBINDEX:  arg->type = ENT_MOBINDEX; arg->d.mobindex = var->_.mobindex; break;
         case VAR_OBJINDEX:  arg->type = ENT_OBJINDEX; arg->d.objindex = var->_.objindex; break;
         case VAR_TOKENINDEX:arg->type = ENT_TOKEN_INDEX; arg->d.token_index = var->_.token_index; break;
+        case VAR_REPUTATION: arg->type = ENT_REPUTATION; arg->d.reputation = var->_.reputation; break;
+        case VAR_REPUTATION_INDEX: arg->type = ENT_REPUTATION_INDEX; arg->d.repIndex = var->_.reputation_index; break;
+        case VAR_REPUTATION_RANK: arg->type = ENT_REPUTATION_RANK; arg->d.repRank = var->_.reputation_rank; break;
         case VAR_SKILLINFO:
             arg->type = ENT_SKILLINFO;
             arg->d.sk.m = var->_.sk.owner;
@@ -656,6 +660,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_BLLIST_EXIT:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_EXIT; break;
         case VAR_BLLIST_SKILL:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_SKILL; break;
         case VAR_BLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_AREA; break;
+        case VAR_BLLIST_AREA_REGION: arg->d.blist = var->_.list; arg->type = ENT_BLLIST_AREA_REGION; break;
         case VAR_BLLIST_WILDS:	arg->d.blist = var->_.list; arg->type = ENT_BLLIST_WILDS; break;
 
         case VAR_PLLIST_STR:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_STR; break;
@@ -664,6 +669,8 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_PLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_MOB; break;
         case VAR_PLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_OBJ; break;
         case VAR_PLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_TOK; break;
+        case VAR_PLLIST_AREA:  arg->d.blist = var->_.list;    arg->type = ENT_PLLIST_AREA; break;
+        case VAR_PLLIST_AREA_REGION: arg->d.blist = var->_.list; arg->type = ENT_PLLIST_AREA_REGION; break;
         case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
 
         }
@@ -914,6 +921,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
         arg->type = ENT_SKILL;
         break;
 
+    case ENTITY_VAR_SKILLGROUP:
+        if(var && var->type == VAR_SKILLGROUP)
+            arg->d.skill_group = var->_.skill_group;
+        else return NULL;
+
+        arg->type = ENT_SKILLGROUP;
+        break;
+
     case ENTITY_VAR_SONG:
         if(var && var->type == VAR_SONG)
             arg->d.song = var->_.song;
@@ -944,6 +959,30 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
         else return NULL;
 
         arg->type = ENT_CLASSLEVEL;
+        break;
+
+    case ENTITY_VAR_REPUTATION:
+        if(var && var->type == VAR_REPUTATION)
+            arg->d.reputation = var->_.reputation;
+        else return NULL;
+
+        arg->type = ENT_REPUTATION;
+        break;
+
+    case ENTITY_VAR_REPUTATION_INDEX:
+        if(var && var->type == VAR_REPUTATION_INDEX)
+            arg->d.repIndex = var->_.reputation_index;
+        else return NULL;
+
+        arg->type = ENT_REPUTATION_INDEX;
+        break;
+
+    case ENTITY_VAR_REPUTATION_RANK:
+        if(var && var->type == VAR_REPUTATION_RANK)
+            arg->d.repRank = var->_.reputation_rank;
+        else return NULL;
+
+        arg->type = ENT_REPUTATION_RANK;
         break;
 
     case ENTITY_VAR_MOBINDEX:
@@ -1002,6 +1041,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
         arg->type = ENT_SHIP;
         break;
 
+    case ENTITY_VAR_AREA_REGION:
+        if(var && var->type == VAR_AREA_REGION && IS_VALID(var->_.aregion))
+            arg->d.aregion = var->_.aregion;
+        else return NULL;
+
+        arg->type = ENT_AREA_REGION;
+        break;
+
     case ENTITY_VAR_SKILLINFO:
         if(var) {
             if( var->type == VAR_SKILLINFO ) {
@@ -1040,6 +1087,8 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
     case ENTITY_VAR_PLLIST_MOB:
     case ENTITY_VAR_PLLIST_OBJ:
     case ENTITY_VAR_PLLIST_TOK:
+    case ENTITY_VAR_PLLIST_AREA:
+    case ENTITY_VAR_PLLIST_AREA_REGION:
     case ENTITY_VAR_PLLIST_CHURCH:
         type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
         if(var && var->type == type && var->_.list)
@@ -1055,6 +1104,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
     case ENTITY_VAR_BLLIST_EXIT:
     case ENTITY_VAR_BLLIST_SKILL:
     case ENTITY_VAR_BLLIST_AREA:
+    case ENTITY_VAR_BLLIST_AREA_REGION:
     case ENTITY_VAR_BLLIST_WILDS:
         type = (int)*str + VAR_BLLIST_ROOM - ENTITY_VAR_BLLIST_ROOM;
         if(var && var->type == type && var->_.list)
@@ -2302,6 +2352,18 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_BOOLEAN;
         arg->d.boolean = mission_active;
         break;
+    case ENTITY_MOB_REPUTATIONS:
+        arg->type = ENT_ILLIST_REPUTATION;
+        arg->d.blist = self ? self->reputations : NULL;
+        break;
+    case ENTITY_MOB_REPUTATION:
+        arg->type = ENT_REPUTATION;
+        arg->d.reputation = self ? self->tempreputation : NULL;
+        break;
+    case ENTITY_MOB_FACTIONS:
+        arg->type = ENT_ILLIST_REPUTATION_INDEX;
+        arg->d.blist = self ? self->factions : NULL;
+        break;
     case ENTITY_MOB_TRAIT:
         arg->type = ENT_MOB_TRAIT;
         break;
@@ -2364,6 +2426,18 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_MOB_ONMISSION:
         arg->type = ENT_BOOLEAN;
         arg->d.boolean = false;
+        break;
+    case ENTITY_MOB_REPUTATIONS:
+        arg->type = ENT_ILLIST_REPUTATION;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_REPUTATION:
+        arg->type = ENT_REPUTATION;
+        arg->d.reputation = NULL;
+        break;
+    case ENTITY_MOB_FACTIONS:
+        arg->type = ENT_ILLIST_REPUTATION_INDEX;
+        arg->d.blist = NULL;
         break;
     case ENTITY_MOB_TRAIT:
         arg->type = ENT_NULL;
@@ -3104,6 +3178,10 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_AREA;
         arg->d.area = arg->d.room ? arg->d.room->area : NULL;
         break;
+    case ENTITY_ROOM_REGION:
+        arg->type = ENT_AREA_REGION;
+        arg->d.aregion = arg->d.room ? get_room_region(arg->d.room) : NULL;
+        break;
     case ENTITY_ROOM_TARGET:
         arg->type = ENT_MOBILE;
         arg->d.mob = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->target : NULL;
@@ -3619,6 +3697,10 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.area ? arg->d.area->max_level : 0;
         break;
+    case ENTITY_AREA_REGION:
+        arg->type = ENT_AREA_REGION;
+        arg->d.aregion = arg->d.area ? &arg->d.area->region : NULL;
+        break;
     case ENTITY_AREA_ROOMS:
         arg->type = ENT_PLLIST_ROOM;
         arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
@@ -3669,6 +3751,71 @@ char *expand_entity_area_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.blist = NULL;
         break;
     default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    AREA_REGION *region = arg->d.aregion;
+
+    switch((unsigned char)*str) {
+    case ENTITY_AREA_REGION_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (region && region->name) ? region->name : &str_empty[0];
+        break;
+    case ENTITY_AREA_REGION_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (region && region->description) ? region->description : &str_empty[0];
+        break;
+    case ENTITY_AREA_REGION_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = (region && region->comments) ? region->comments : &str_empty[0];
+        break;
+    case ENTITY_AREA_REGION_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = region ? region->area : NULL;
+        break;
+    case ENTITY_AREA_REGION_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = (region && location_isset(&region->recall)) ? location_to_room(&region->recall) : NULL;
+        break;
+    case ENTITY_AREA_REGION_POSTOFFICE:
+        arg->type = ENT_ROOM;
+        arg->d.room = (region && region->area && region->post_office > 0) ? get_room_index(region->area, region->post_office) : NULL;
+        break;
+    case ENTITY_AREA_REGION_ROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = region ? region->rooms : NULL;
+        break;
+    case ENTITY_AREA_REGION_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = region ? region->flags : 0;
+        arg->d.bv.table = area_region_flags;
+        break;
+    case ENTITY_AREA_REGION_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->x : 0;
+        break;
+    case ENTITY_AREA_REGION_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->y : 0;
+        break;
+    case ENTITY_AREA_REGION_LAND_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->land_x : 0;
+        break;
+    case ENTITY_AREA_REGION_LAND_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->land_y : 0;
+        break;
+    case ENTITY_AREA_REGION_SAVAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->savage_level : 0;
+        break;
+    default:
+        return NULL;
     }
 
     return str+1;
@@ -4912,6 +5059,36 @@ char *expand_entity_blist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+char *expand_entity_blist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register LLIST_AREA_REGION_DATA *region = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        return str+1;
+
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, 0);
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, -1);
+        break;
+    default:
+        return NULL;
+    }
+
+    arg->type = ENT_AREA_REGION;
+    arg->d.aregion = region ? region->aregion : NULL;
+    return str+1;
+}
+
 char *expand_entity_blist_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_WILDS_DATA *uid = NULL;
@@ -5136,6 +5313,72 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
         arg->type = ENT_CHURCH;
         break;
     default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_plist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register AREA_DATA *area = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            area = (AREA_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.area = area;
+        arg->type = ENT_AREA;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            area = (AREA_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.area = area;
+        arg->type = ENT_AREA;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            area = (AREA_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.area = area;
+        arg->type = ENT_AREA;
+        break;
+    default:
+        return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_plist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register AREA_REGION *region = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (AREA_REGION *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.aregion = region;
+        arg->type = ENT_AREA_REGION;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (AREA_REGION *)list_nthdata(arg->d.blist, 0);
+        arg->d.aregion = region;
+        arg->type = ENT_AREA_REGION;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (AREA_REGION *)list_nthdata(arg->d.blist, -1);
+        arg->d.aregion = region;
+        arg->type = ENT_AREA_REGION;
+        break;
+    default:
+        return NULL;
     }
 
     return str+1;
@@ -5463,6 +5706,28 @@ char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 }
 
 
+char *expand_entity_skillgroup(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SKILL_GROUP *group = arg->d.skill_group;
+
+    switch((unsigned char)*str) {
+    case ENTITY_SKILLGROUP_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = group ? group->name : "";
+        break;
+
+    case ENTITY_SKILLGROUP_CONTENTS:
+        arg->type = ENT_PLLIST_STR;
+        arg->d.blist = group ? group->contents : NULL;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
 char *expand_entity_race(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     RACE_DATA *race = arg->d.race;
@@ -5666,6 +5931,10 @@ char *expand_entity_class(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
         arg->d.bv.value = clazz ? clazz->flags : 0;
         arg->d.bv.table = class_flags;
         break;
+    case ENTITY_CLASS_GROUPS:
+        arg->type = ENT_ILLIST_SKILLGROUPS;
+        arg->d.blist = clazz ? clazz->groups : NULL;
+        break;
     case ENTITY_CLASS_PRIMARY_STAT:
         arg->type = ENT_NUMBER;
         arg->d.num = clazz ? clazz->primary_stat : -1;
@@ -5730,6 +5999,177 @@ char *expand_entity_classlevel(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
     case ENTITY_CLASSLEVEL_TITLE:
         arg->type = ENT_STRING;
         arg->d.str = level ? (level->active_title ? level->active_title : "") : "";
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_reputation(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    REPUTATION_DATA *rep = arg->d.reputation;
+
+    switch((unsigned char)*str) {
+    case ENTITY_REPUTATION_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (rep && rep->pIndexData) ? rep->pIndexData->name : "";
+        break;
+
+    case ENTITY_REPUTATION_INDEX:
+        arg->type = ENT_REPUTATION_INDEX;
+        arg->d.repIndex = rep ? rep->pIndexData : NULL;
+        break;
+
+    case ENTITY_REPUTATION_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = rep ? rep->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+
+    case ENTITY_REPUTATION_RANK:
+        arg->type = ENT_REPUTATION_RANK;
+        arg->d.repRank = (rep && rep->pIndexData && rep->current_rank > 0)
+            ? get_reputation_rank(rep->pIndexData, rep->current_rank)
+            : NULL;
+        break;
+
+    case ENTITY_REPUTATION_MAXRANK:
+        arg->type = ENT_REPUTATION_RANK;
+        arg->d.repRank = (rep && rep->pIndexData && rep->maximum_rank > 0)
+            ? get_reputation_rank(rep->pIndexData, rep->maximum_rank)
+            : NULL;
+        break;
+
+    case ENTITY_REPUTATION_REPUTATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rep ? rep->reputation : 0;
+        break;
+
+    case ENTITY_REPUTATION_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = rep ? rep->token : NULL;
+        break;
+
+    case ENTITY_REPUTATION_PARAGON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rep ? rep->paragon_level : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_reputation_index(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    REPUTATION_INDEX_DATA *repIndex = arg->d.repIndex;
+
+    switch((unsigned char)*str) {
+    case ENTITY_REPINDEX_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = repIndex ? repIndex->name : "";
+        break;
+
+    case ENTITY_REPINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = repIndex ? repIndex->area : NULL;
+        arg->d.wnum.vnum = repIndex ? repIndex->vnum : 0;
+        break;
+
+    case ENTITY_REPINDEX_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = repIndex ? repIndex->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+
+    case ENTITY_REPINDEX_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = repIndex ? repIndex->description : "";
+        break;
+
+    case ENTITY_REPINDEX_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = repIndex ? repIndex->comments : "";
+        break;
+
+    case ENTITY_REPINDEX_INITIAL_RANK:
+        arg->type = ENT_REPUTATION_RANK;
+        arg->d.repRank = (repIndex && repIndex->initial_rank > 0)
+            ? get_reputation_rank(repIndex, repIndex->initial_rank)
+            : NULL;
+        break;
+
+    case ENTITY_REPINDEX_INITIAL_REPUTATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = repIndex ? repIndex->initial_reputation : 0;
+        break;
+
+    case ENTITY_REPINDEX_RANKS:
+        arg->type = ENT_PLLIST_REPUTATION_RANK;
+        arg->d.blist = repIndex ? repIndex->ranks : NULL;
+        break;
+
+    case ENTITY_REPINDEX_TOKEN:
+        arg->type = ENT_TOKEN_INDEX;
+        arg->d.token_index = repIndex ? repIndex->token : NULL;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_reputation_rank(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    REPUTATION_INDEX_RANK_DATA *rank = arg->d.repRank;
+
+    switch((unsigned char)*str) {
+    case ENTITY_REPRANK_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = rank ? rank->name : "";
+        break;
+
+    case ENTITY_REPRANK_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->uid : 0;
+        break;
+
+    case ENTITY_REPRANK_ORDINAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->ordinal : 0;
+        break;
+
+    case ENTITY_REPRANK_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = rank ? rank->description : "";
+        break;
+
+    case ENTITY_REPRANK_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = rank ? rank->comments : "";
+        break;
+
+    case ENTITY_REPRANK_COLOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->color : 0;
+        break;
+
+    case ENTITY_REPRANK_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = rank ? rank->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+
+    case ENTITY_REPRANK_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->capacity : 0;
         break;
 
     default: return NULL;
@@ -7872,11 +8312,13 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_EXIT:		next = expand_entity_exit(info,str,arg); break;
         case ENT_TOKEN:		next = expand_entity_token(info,str,arg); break;
         case ENT_AREA:		next = expand_entity_area(info,str,arg); break;
+        case ENT_AREA_REGION:	next = expand_entity_area_region(info,str,arg); break;
         case ENT_OLLIST_MOB:	next = expand_entity_list_mob(info,str,arg); break;
         case ENT_OLLIST_OBJ:	next = expand_entity_list_obj(info,str,arg); break;
         case ENT_OLLIST_TOK:	next = expand_entity_list_token(info,str,arg); break;
         case ENT_OLLIST_AFF:	next = expand_entity_list_affect(info,str,arg); break;
         case ENT_SKILL:		next = expand_entity_skill(info,str,arg); break;
+        case ENT_SKILLGROUP:	next = expand_entity_skillgroup(info,str,arg); break;
         case ENT_SKILLINFO:	next = expand_entity_skillinfo(info,str,arg); break;
         case ENT_CONN:		next = expand_entity_conn(info,str,arg); break;
         case ENT_WILDS:		next = expand_entity_wilds(info,str,arg); break;
@@ -7887,6 +8329,9 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_RACE:		next = expand_entity_race(info,str,arg); break;
         case ENT_CLASS:		next = expand_entity_class(info,str,arg); break;
         case ENT_CLASSLEVEL:	next = expand_entity_classlevel(info,str,arg); break;
+        case ENT_REPUTATION:	next = expand_entity_reputation(info,str,arg); break;
+        case ENT_REPUTATION_INDEX:	next = expand_entity_reputation_index(info,str,arg); break;
+        case ENT_REPUTATION_RANK:	next = expand_entity_reputation_rank(info,str,arg); break;
         case ENT_SKILLENTRY:	next = expand_entity_skillentry(info,str,arg); break;
         case ENT_CLONE_ROOM:	next = expand_entity_clone_room(info,str,arg); break;
         case ENT_WILDS_ROOM:	next = expand_entity_wilds_room(info,str,arg); break;
@@ -7900,6 +8345,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_BLLIST_EXIT:	next = expand_entity_blist_exit(info,str,arg); break;
         case ENT_BLLIST_SKILL:	next = expand_entity_blist_skillinfo(info,str,arg); break;
         case ENT_BLLIST_AREA:	next = expand_entity_blist_area(info,str,arg); break;
+        case ENT_BLLIST_AREA_REGION:	next = expand_entity_blist_area_region(info,str,arg); break;
         case ENT_BLLIST_WILDS:	next = expand_entity_blist_wilds(info,str,arg); break;
 
         case ENT_PLLIST_STR:		next = expand_entity_plist_str(info,str,arg); break;
@@ -7908,6 +8354,8 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_PLLIST_MOB:		next = expand_entity_plist_mob(info,str,arg); break;
         case ENT_PLLIST_OBJ:		next = expand_entity_plist_obj(info,str,arg); break;
         case ENT_PLLIST_TOK:		next = expand_entity_plist_token(info,str,arg); break;
+        case ENT_PLLIST_AREA:	next = expand_entity_plist_area(info,str,arg); break;
+        case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
         case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
 
         case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
@@ -8107,6 +8555,10 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
     case ENT_AREA:
         add_buf(buffer, arg->d.area ? arg->d.area->name : SOMEWHERE);
+        break;
+
+    case ENT_AREA_REGION:
+        add_buf(buffer, arg->d.aregion && arg->d.aregion->name ? arg->d.aregion->name : SOMEWHERE);
         break;
 
     case ENT_CONN:

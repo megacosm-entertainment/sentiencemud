@@ -318,7 +318,9 @@ enum variable_enum {
     VAR_OBJECT,
     VAR_TOKEN,
     VAR_AREA,
+    VAR_AREA_REGION,
     VAR_SKILL,			/* A skill INDEX that will reference general skill data */
+    VAR_SKILLGROUP,
     VAR_SKILLINFO,		/* Skill reference on a creature { CHAR_DATA *owner, int sn } */
     VAR_CONNECTION,
     VAR_AFFECT,			/* References an affect */
@@ -349,6 +351,9 @@ enum variable_enum {
     VAR_MOBINDEX,
     VAR_OBJINDEX,
     VAR_TOKENINDEX,
+    VAR_REPUTATION,
+    VAR_REPUTATION_INDEX,
+    VAR_REPUTATION_RANK,
 
     VAR_BLLIST_FIRST,
     ////////////////////////
@@ -360,6 +365,7 @@ enum variable_enum {
     VAR_BLLIST_EXIT,
     VAR_BLLIST_SKILL,
     VAR_BLLIST_AREA,
+    VAR_BLLIST_AREA_REGION,
     VAR_BLLIST_WILDS,
 
     ////////////////////////
@@ -373,6 +379,8 @@ enum variable_enum {
     VAR_PLLIST_MOB,
     VAR_PLLIST_OBJ,
     VAR_PLLIST_TOK,
+    VAR_PLLIST_AREA,
+    VAR_PLLIST_AREA_REGION,
     VAR_PLLIST_CHURCH,
     VAR_PLLIST_VARIABLE,
 
@@ -452,8 +460,10 @@ enum entity_type_enum {
     ENT_EXIT,
     ENT_TOKEN,
     ENT_AREA,
+    ENT_AREA_REGION,
     ENT_WILDS,
     ENT_SKILL,
+    ENT_SKILLGROUP,
     ENT_SKILLINFO,
     ENT_CONN,
     ENT_PRIOR,
@@ -464,6 +474,9 @@ enum entity_type_enum {
     ENT_RACE,
     ENT_CLASS,
     ENT_CLASSLEVEL,
+    ENT_REPUTATION,
+    ENT_REPUTATION_INDEX,
+    ENT_REPUTATION_RANK,
     ENT_SKILLENTRY,
     ENT_VARIABLE,
     ENT_GROUP,
@@ -485,6 +498,7 @@ enum entity_type_enum {
     ENT_BLLIST_EXIT,
     ENT_BLLIST_SKILL,
     ENT_BLLIST_AREA,
+    ENT_BLLIST_AREA_REGION,
     ENT_BLLIST_WILDS,
     ENT_BLLIST_MAX,
     //////////////////////////////
@@ -498,7 +512,10 @@ enum entity_type_enum {
     ENT_PLLIST_MOB,
     ENT_PLLIST_OBJ,
     ENT_PLLIST_TOK,
+    ENT_PLLIST_AREA,
+    ENT_PLLIST_AREA_REGION,
     ENT_PLLIST_CHURCH,
+    ENT_PLLIST_REPUTATION_RANK,
     ENT_PLLIST_MAX,
     //////////////////////////////
 
@@ -521,6 +538,9 @@ enum entity_type_enum {
     ENT_ILLIST_INSTANCES,
     ENT_ILLIST_SPECIALROOMS,
     ENT_ILLIST_SHIPS,
+    ENT_ILLIST_REPUTATION,
+    ENT_ILLIST_REPUTATION_INDEX,
+    ENT_ILLIST_SKILLGROUPS,
     ENT_ILLIST_MAX,
     //////////////////////////////
 
@@ -645,13 +665,18 @@ enum entity_variable_types_enum {
     ENTITY_VAR_EXIT,
     ENTITY_VAR_TOKEN,
     ENTITY_VAR_AREA,
+    ENTITY_VAR_AREA_REGION,
     ENTITY_VAR_WILDS,
     ENTITY_VAR_SKILL,
+    ENTITY_VAR_SKILLGROUP,
     ENTITY_VAR_SKILLINFO,
     ENTITY_VAR_SONG,
     ENTITY_VAR_RACE,
     ENTITY_VAR_CLASS,
     ENTITY_VAR_CLASSLEVEL,
+    ENTITY_VAR_REPUTATION,
+    ENTITY_VAR_REPUTATION_INDEX,
+    ENTITY_VAR_REPUTATION_RANK,
     ENTITY_VAR_MOBINDEX,
     ENTITY_VAR_OBJINDEX,
     ENTITY_VAR_TOKENINDEX,
@@ -672,6 +697,7 @@ enum entity_variable_types_enum {
     ENTITY_VAR_BLLIST_EXIT,
     ENTITY_VAR_BLLIST_SKILL,
     ENTITY_VAR_BLLIST_AREA,
+    ENTITY_VAR_BLLIST_AREA_REGION,
     ENTITY_VAR_BLLIST_WILDS,
 
     ENTITY_VAR_PLLIST_STR,
@@ -680,6 +706,8 @@ enum entity_variable_types_enum {
     ENTITY_VAR_PLLIST_MOB,
     ENTITY_VAR_PLLIST_OBJ,
     ENTITY_VAR_PLLIST_TOK,
+    ENTITY_VAR_PLLIST_AREA,
+    ENTITY_VAR_PLLIST_AREA_REGION,
     ENTITY_VAR_PLLIST_CHURCH,
 
 };
@@ -816,6 +844,9 @@ enum entity_mobile_enum {
     ENTITY_MOB_TOTALQUESTS,
     ENTITY_MOB_ONMISSION,
     ENTITY_MOB_EVENT,
+    ENTITY_MOB_REPUTATIONS,
+    ENTITY_MOB_REPUTATION,
+    ENTITY_MOB_FACTIONS,
     ENTITY_MOB_TRAIT,
     ENTITY_MOB_TRAITS,
 };
@@ -910,6 +941,7 @@ enum entity_room_enum {
     ENTITY_ROOM_OBJECTS,
     ENTITY_ROOM_TOKENS,
     ENTITY_ROOM_AREA,
+    ENTITY_ROOM_REGION,
     ENTITY_ROOM_TARGET,
     ENTITY_ROOM_NORTH,
     ENTITY_ROOM_EAST,
@@ -1006,7 +1038,24 @@ enum entity_area_enum {
     ENTITY_AREA_UPPERVNUM,
     ENTITY_AREA_MINLEVEL,
     ENTITY_AREA_MAXLEVEL,
+    ENTITY_AREA_REGION,
     ENTITY_AREA_ROOMS,
+};
+
+enum entity_area_region_enum {
+    ENTITY_AREA_REGION_NAME = ESCAPE_EXTRA,
+    ENTITY_AREA_REGION_DESCRIPTION,
+    ENTITY_AREA_REGION_COMMENTS,
+    ENTITY_AREA_REGION_AREA,
+    ENTITY_AREA_REGION_RECALL,
+    ENTITY_AREA_REGION_POSTOFFICE,
+    ENTITY_AREA_REGION_ROOMS,
+    ENTITY_AREA_REGION_FLAGS,
+    ENTITY_AREA_REGION_X,
+    ENTITY_AREA_REGION_Y,
+    ENTITY_AREA_REGION_LAND_X,
+    ENTITY_AREA_REGION_LAND_Y,
+    ENTITY_AREA_REGION_SAVAGE,
 };
 
 enum entity_wilds_enum {
@@ -1137,6 +1186,11 @@ enum entity_skill_enum {
     ENTITY_SKILL_RACE,
 };
 
+enum entity_skillgroup_enum {
+    ENTITY_SKILLGROUP_NAME = ESCAPE_EXTRA,
+    ENTITY_SKILLGROUP_CONTENTS,
+};
+
 enum entity_skillinfo_enum {
     ENTITY_SKILLINFO_SKILL = ESCAPE_EXTRA,
     ENTITY_SKILLINFO_OWNER,
@@ -1214,6 +1268,7 @@ enum entity_class_enum {
     ENTITY_CLASS_UID,
     ENTITY_CLASS_TYPE,
     ENTITY_CLASS_FLAGS,
+    ENTITY_CLASS_GROUPS,
     ENTITY_CLASS_PRIMARY_STAT,
     ENTITY_CLASS_MAX_LEVEL,
     ENTITY_CLASS_HP_MIN,
@@ -1223,6 +1278,40 @@ enum entity_class_enum {
     ENTITY_CLASS_GROUP_COUNT,
     ENTITY_CLASS_REWARD_COUNT,
     ENTITY_CLASS_XP_TABLE_SIZE,
+};
+
+enum entity_reputation_enum {
+    ENTITY_REPUTATION_NAME = ESCAPE_EXTRA,
+    ENTITY_REPUTATION_INDEX,
+    ENTITY_REPUTATION_FLAGS,
+    ENTITY_REPUTATION_RANK,
+    ENTITY_REPUTATION_MAXRANK,
+    ENTITY_REPUTATION_REPUTATION,
+    ENTITY_REPUTATION_TOKEN,
+    ENTITY_REPUTATION_PARAGON,
+};
+
+enum entity_reputation_index_enum {
+    ENTITY_REPINDEX_NAME = ESCAPE_EXTRA,
+    ENTITY_REPINDEX_WNUM,
+    ENTITY_REPINDEX_FLAGS,
+    ENTITY_REPINDEX_DESCRIPTION,
+    ENTITY_REPINDEX_COMMENTS,
+    ENTITY_REPINDEX_INITIAL_RANK,
+    ENTITY_REPINDEX_INITIAL_REPUTATION,
+    ENTITY_REPINDEX_RANKS,
+    ENTITY_REPINDEX_TOKEN,
+};
+
+enum entity_reputation_rank_enum {
+    ENTITY_REPRANK_NAME = ESCAPE_EXTRA,
+    ENTITY_REPRANK_UID,
+    ENTITY_REPRANK_ORDINAL,
+    ENTITY_REPRANK_DESCRIPTION,
+    ENTITY_REPRANK_COMMENTS,
+    ENTITY_REPRANK_COLOR,
+    ENTITY_REPRANK_FLAGS,
+    ENTITY_REPRANK_CAPACITY,
 };
 
 enum entity_classlevel_enum {
@@ -1685,6 +1774,7 @@ struct script_var_type {
         OBJ_DATA *o;
         TOKEN_DATA *t;
         AREA_DATA *a;
+        AREA_REGION *aregion;
         AFFECT_DATA *aff;
         DESCRIPTOR_DATA *conn;
         CHURCH_DATA *church;
@@ -1707,10 +1797,14 @@ struct script_var_type {
         } event;
         bool boolean;
         int sn;
+        SKILL_GROUP *skill_group;
         SONG_DATA *song;
         RACE_DATA *race;
         CLASS_DATA *clazz;
         CLASS_LEVEL *classlevel;
+        REPUTATION_DATA *reputation;
+        REPUTATION_INDEX_DATA *reputation_index;
+        REPUTATION_INDEX_RANK_DATA *reputation_rank;
         struct {
             CHAR_DATA *owner;
             TOKEN_DATA *token;
@@ -1890,6 +1984,7 @@ struct script_parameter {
         TOKEN_DATA *token;
         AFFECT_DATA *aff;
         DESCRIPTOR_DATA *conn;
+        AREA_REGION *aregion;
         WILDS_DATA *wilds;
         CHURCH_DATA *church;
         VARIABLE *variable;
@@ -1949,10 +2044,14 @@ struct script_parameter {
         
 
         int sn;
+    SKILL_GROUP *skill_group;
         SONG_DATA *song;
         RACE_DATA *race;
         CLASS_DATA *clazz;
         CLASS_LEVEL *classlevel;
+    REPUTATION_DATA *reputation;
+    REPUTATION_INDEX_DATA *repIndex;
+    REPUTATION_INDEX_RANK_DATA *repRank;
         SKILL_ENTRY *entry;
         struct {
             union {
@@ -2070,14 +2169,19 @@ extern ENT_FIELD entity_room[];
 extern ENT_FIELD entity_exit[];
 extern ENT_FIELD entity_token[];
 extern ENT_FIELD entity_area[];
+extern ENT_FIELD entity_area_region[];
 extern ENT_FIELD entity_list[];
 extern ENT_FIELD *entity_type_lists[];
 extern ENT_FIELD entity_skill_info[];
 extern ENT_FIELD entity_skill[];
+extern ENT_FIELD entity_skillgroups[];
 extern ENT_FIELD entity_song[];
 extern ENT_FIELD entity_race[];
 extern ENT_FIELD entity_class[];
 extern ENT_FIELD entity_classlevel[];
+extern ENT_FIELD entity_reputation[];
+extern ENT_FIELD entity_reputation_index[];
+extern ENT_FIELD entity_reputation_rank[];
 extern ENT_FIELD entity_skillentry[];
 extern ENT_FIELD entity_conn[];
 extern ENT_FIELD entity_prior[];
@@ -2773,6 +2877,7 @@ bool variable_remove(ppVARIABLE list,char *name);
 bool variable_setsave(pVARIABLE vars,char *name,bool state);
 bool variable_validname(char *str);
 bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool save);
+bool variables_set_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion, bool save);
 bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn, bool save);
 bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool save);
 bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool save);
@@ -2781,6 +2886,7 @@ bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save);
 bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, bool save);
 bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, bool save);
 bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area);
+bool variables_append_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion);
 bool variables_append_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn);
 bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, int door);
 bool variables_append_list_exit (ppVARIABLE list, char *name, EXIT_DATA *ex);
@@ -2799,6 +2905,7 @@ bool variables_format_string(ppVARIABLE list,char *name);
 bool variables_format_paragraph(ppVARIABLE list,char *name);
 bool variables_set_affect (ppVARIABLE list,char *name,AFFECT_DATA* aff);
 bool variables_set_area (ppVARIABLE list,char *name,AREA_DATA* a);
+bool variables_set_area_region (ppVARIABLE list,char *name,AREA_REGION *aregion);
 bool variables_set_church (ppVARIABLE list,char *name,CHURCH_DATA* church);
 bool variables_set_connection(ppVARIABLE list,char *name, DESCRIPTOR_DATA *conn);
 bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int door, bool save);
@@ -2809,6 +2916,7 @@ bool variables_set_mobile(ppVARIABLE list,char *name,CHAR_DATA *m);
 bool variables_set_object(ppVARIABLE list,char *name,OBJ_DATA *o);
 bool variables_set_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r);
 bool variables_set_skill(ppVARIABLE list,char *name,int sn);
+bool variables_set_skill_group(ppVARIABLE list,char *name,SKILL_GROUP *skill_group);
 bool variables_set_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,int sn, TOKEN_DATA *token);
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared);
 bool variables_set_token(ppVARIABLE list,char *name,TOKEN_DATA *t);
@@ -2824,6 +2932,9 @@ bool variables_set_song (ppVARIABLE list,char *name,SONG_DATA *song);
 bool variables_set_race (ppVARIABLE list,char *name,RACE_DATA *race);
 bool variables_set_class (ppVARIABLE list,char *name,CLASS_DATA *clazz);
 bool variables_set_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *classlevel);
+bool variables_set_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation);
+bool variables_set_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index);
+bool variables_set_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank);
 bool variables_set_mobindex (ppVARIABLE list,char *name,MOB_INDEX_DATA *mobindex);
 bool variables_set_objindex (ppVARIABLE list,char *name,OBJ_INDEX_DATA *objindex);
 bool variables_set_tokenindex (ppVARIABLE list,char *name,TOKEN_INDEX_DATA *token_index);
@@ -2843,6 +2954,7 @@ bool variables_setindex_room(ppVARIABLE list,char *name,long vnum, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
 bool variables_setsave_affect(ppVARIABLE list,char *name,AFFECT_DATA *aff, bool save);
 bool variables_setsave_area (ppVARIABLE list, char *name,AREA_DATA* a, bool save);
+bool variables_setsave_area_region (ppVARIABLE list, char *name,AREA_REGION *aregion, bool save);
 bool variables_setsave_church (ppVARIABLE list, char *name,CHURCH_DATA* church, bool save);
 bool variables_setsave_exit(ppVARIABLE list,char *name,EXIT_DATA *e, bool save);
 bool variables_setsave_integer(ppVARIABLE list,char *name,int num, bool save);
@@ -2850,6 +2962,7 @@ bool variables_setsave_mobile(ppVARIABLE list,char *name,CHAR_DATA *m, bool save
 bool variables_setsave_object(ppVARIABLE list,char *name,OBJ_DATA *o, bool save);
 bool variables_setsave_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r, bool save);
 bool variables_setsave_skill(ppVARIABLE list,char *name,int sn, bool save);
+bool variables_setsave_skill_group(ppVARIABLE list,char *name,SKILL_GROUP *skill_group, bool save);
 bool variables_setsave_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,int sn, TOKEN_DATA *token, bool save);
 bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, bool save);
 bool variables_setsave_token(ppVARIABLE list,char *name,TOKEN_DATA *t, bool save);
@@ -2865,6 +2978,9 @@ bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool sa
 bool variables_setsave_race (ppVARIABLE list,char *name,RACE_DATA *race, bool save);
 bool variables_setsave_class (ppVARIABLE list,char *name,CLASS_DATA *clazz, bool save);
 bool variables_setsave_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *classlevel, bool save);
+bool variables_setsave_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation, bool save);
+bool variables_setsave_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index, bool save);
+bool variables_setsave_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank, bool save);
 bool variables_setsave_mobindex (ppVARIABLE list,char *name,MOB_INDEX_DATA *mobindex, bool save);
 bool variables_setsave_objindex (ppVARIABLE list,char *name,OBJ_INDEX_DATA *objindex, bool save);
 bool variables_setsave_tokenindex (ppVARIABLE list,char *name,TOKEN_INDEX_DATA *token_index, bool save);

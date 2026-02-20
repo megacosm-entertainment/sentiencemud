@@ -88,8 +88,11 @@ ENT_FIELD entity_types[] = {
     {"exit",			ENTITY_VAR_EXIT,		ENT_EXIT		},
     {"token",			ENTITY_VAR_TOKEN,		ENT_TOKEN		},
     {"area",			ENTITY_VAR_AREA,		ENT_AREA		},
+    {"aregion",			ENTITY_VAR_AREA_REGION,	ENT_AREA_REGION	},
     {"wilds",			ENTITY_VAR_WILDS,		ENT_WILDS		},
     {"skill",			ENTITY_VAR_SKILL,		ENT_SKILL		},
+    {"skillgroup",	ENTITY_VAR_SKILLGROUP,	ENT_SKILLGROUP	},
+    {"skill_group",	ENTITY_VAR_SKILLGROUP,	ENT_SKILLGROUP	},
     {"skillinfo",		ENTITY_VAR_SKILLINFO,	ENT_SKILLINFO	},
     {"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
     {"conn",			ENTITY_VAR_CONN,		ENT_CONN		},
@@ -102,6 +105,7 @@ ENT_FIELD entity_types[] = {
     {"dynlist_skill",	ENTITY_VAR_BLLIST_SKILL,	ENT_BLLIST_SKILL	},
     {"dynlist_token",	ENTITY_VAR_BLLIST_TOK,	ENT_BLLIST_TOK	},
     {"dynlist_area",	ENTITY_VAR_BLLIST_AREA,	ENT_BLLIST_AREA	},
+        {"dynlist_aregion",  ENTITY_VAR_BLLIST_AREA_REGION, ENT_BLLIST_AREA_REGION },
     {"dynlist_wilds",	ENTITY_VAR_BLLIST_WILDS,	ENT_BLLIST_WILDS	},
     {"list_conn",		ENTITY_VAR_PLLIST_CONN,	ENT_PLLIST_CONN	},
     {"list_mob",		ENTITY_VAR_PLLIST_MOB,	ENT_PLLIST_MOB	},
@@ -109,21 +113,36 @@ ENT_FIELD entity_types[] = {
     {"list_room",		ENTITY_VAR_PLLIST_ROOM,	ENT_PLLIST_ROOM	},
     {"list_str",		ENTITY_VAR_PLLIST_STR,	ENT_PLLIST_STR	},
     {"list_token",		ENTITY_VAR_PLLIST_TOK,	ENT_PLLIST_TOK	},
+        {"list_area",		ENTITY_VAR_PLLIST_AREA,	ENT_PLLIST_AREA	},
+        {"list_aregion",	ENTITY_VAR_PLLIST_AREA_REGION,	ENT_PLLIST_AREA_REGION	},
     {"list_church",		ENTITY_VAR_PLLIST_CHURCH,	ENT_PLLIST_CHURCH	},
     {"dice",			ENTITY_VAR_DICE,		ENT_DICE	},
     {"sect",			ENTITY_VAR_SECTION,		ENT_SECTION	},
+    {"section",			ENTITY_VAR_SECTION,		ENT_SECTION	},
     {"inst",			ENTITY_VAR_INSTANCE,	ENT_INSTANCE	},
+    {"instance",			ENTITY_VAR_INSTANCE,	ENT_INSTANCE	},
     {"dung",			ENTITY_VAR_DUNGEON,		ENT_DUNGEON	},
+    {"dungeon",			ENTITY_VAR_DUNGEON,		ENT_DUNGEON	},
     {"ship",			ENTITY_VAR_SHIP,		ENT_SHIP	},
     {"bool",               ENTITY_VAR_BOOLEAN,     ENT_BOOLEAN     },
+    {"boolean",            ENTITY_VAR_BOOLEAN,     ENT_BOOLEAN     },
     {"song",               ENTITY_VAR_SONG,        ENT_SONG        },
     {"race",               ENTITY_VAR_RACE,        ENT_RACE        },
     {"class",              ENTITY_VAR_CLASS,       ENT_CLASS       },
     {"classlevel",         ENTITY_VAR_CLASSLEVEL,  ENT_CLASSLEVEL  },
+    {"class_level",        ENTITY_VAR_CLASSLEVEL,  ENT_CLASSLEVEL  },
+    {"reputation",         ENTITY_VAR_REPUTATION,	ENT_REPUTATION  },
+    {"repindex",           ENTITY_VAR_REPUTATION_INDEX,	ENT_REPUTATION_INDEX },
+    {"reputation_index",   ENTITY_VAR_REPUTATION_INDEX,	ENT_REPUTATION_INDEX },
+    {"reprank",            ENTITY_VAR_REPUTATION_RANK,	ENT_REPUTATION_RANK },
+    {"reputation_rank",    ENTITY_VAR_REPUTATION_RANK,	ENT_REPUTATION_RANK },
     {"mobindex",           ENTITY_VAR_MOBINDEX,    ENT_MOBINDEX    },
+    {"mob_index",          ENTITY_VAR_MOBINDEX,    ENT_MOBINDEX    },
     {"objindex",           ENTITY_VAR_OBJINDEX,    ENT_OBJINDEX    },
+    {"obj_index",          ENTITY_VAR_OBJINDEX,    ENT_OBJINDEX    },
     {"tokenindex",         ENTITY_VAR_TOKENINDEX,  ENT_TOKEN_INDEX },
     {"tokindex",           ENTITY_VAR_TOKENINDEX,  ENT_TOKEN_INDEX },
+    {"token_index",        ENTITY_VAR_TOKENINDEX,  ENT_TOKEN_INDEX },
     {NULL,				0,						ENT_UNKNOWN	}
 };
 
@@ -320,6 +339,9 @@ ENT_FIELD entity_mobile[] = {
     {"totalmissions",   ENTITY_MOB_TOTALQUESTS,         ENT_NUMBER },
     {"isquesting",      ENTITY_MOB_ONMISSION,           ENT_BOOLEAN },
     {"onmission",       ENTITY_MOB_ONMISSION,           ENT_BOOLEAN },
+    {"reputations",     ENTITY_MOB_REPUTATIONS,         ENT_ILLIST_REPUTATION },
+    {"reputation",      ENTITY_MOB_REPUTATION,          ENT_REPUTATION },
+    {"factions",        ENTITY_MOB_FACTIONS,            ENT_ILLIST_REPUTATION_INDEX },
     {"trait",           ENTITY_MOB_TRAIT,               ENT_MOB_TRAIT },
 
     {"vuln",			ENTITY_MOB_VULN,			ENT_BITVECTOR },
@@ -440,6 +462,7 @@ ENT_FIELD entity_room[] = {
     {"up",			ENTITY_ROOM_UP,				ENT_EXIT	},
     {"west",		ENTITY_ROOM_WEST,			ENT_EXIT	},
     {"wilds",		ENTITY_ROOM_WILDS,			ENT_WILDS	},
+    {"region",		ENTITY_ROOM_REGION,			ENT_AREA_REGION	},
     {"vars",		ENTITY_ROOM_VARIABLES,		ENT_ILLIST_VARIABLE	},
     {"section",		ENTITY_ROOM_SECTION,		ENT_SECTION	},
     {"instance",	ENTITY_ROOM_INSTANCE,		ENT_INSTANCE	},
@@ -545,8 +568,26 @@ ENT_FIELD entity_area[] = {
     {"upper",	ENTITY_AREA_UPPERVNUM,	ENT_NUMBER	},
     {"minlevel", ENTITY_AREA_MINLEVEL,	ENT_NUMBER	},
     {"maxlevel", ENTITY_AREA_MAXLEVEL,	ENT_NUMBER	},
+    {"region",	ENTITY_AREA_REGION,	ENT_AREA_REGION	},
     {"rooms",	ENTITY_AREA_ROOMS,	ENT_PLLIST_ROOM	},
     {NULL,		0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_area_region[] = {
+    {"name",        ENTITY_AREA_REGION_NAME,         ENT_STRING    },
+    {"description", ENTITY_AREA_REGION_DESCRIPTION,  ENT_STRING    },
+    {"comments",    ENTITY_AREA_REGION_COMMENTS,     ENT_STRING    },
+    {"area",        ENTITY_AREA_REGION_AREA,         ENT_AREA      },
+    {"recall",      ENTITY_AREA_REGION_RECALL,       ENT_ROOM      },
+    {"post",        ENTITY_AREA_REGION_POSTOFFICE,   ENT_ROOM      },
+    {"rooms",       ENTITY_AREA_REGION_ROOMS,        ENT_PLLIST_ROOM },
+    {"flags",       ENTITY_AREA_REGION_FLAGS,        ENT_BITVECTOR },
+    {"x",           ENTITY_AREA_REGION_X,            ENT_NUMBER    },
+    {"y",           ENTITY_AREA_REGION_Y,            ENT_NUMBER    },
+    {"landx",       ENTITY_AREA_REGION_LAND_X,       ENT_NUMBER    },
+    {"landy",       ENTITY_AREA_REGION_LAND_Y,       ENT_NUMBER    },
+    {"savage",      ENTITY_AREA_REGION_SAVAGE,       ENT_NUMBER    },
+    {NULL,           0,                               ENT_UNKNOWN   }
 };
 
 ENT_FIELD entity_wilds[] = {
@@ -638,6 +679,12 @@ ENT_FIELD entity_skill[] = {
     {NULL,        0,              ENT_UNKNOWN }
 };
 
+ENT_FIELD entity_skillgroups[] = {
+    {"name",      ENTITY_SKILLGROUP_NAME,      ENT_STRING  },
+    {"contents",  ENTITY_SKILLGROUP_CONTENTS,  ENT_STRING  },
+    {NULL,         0,                           ENT_UNKNOWN }
+};
+
 ENT_FIELD entity_skill_info[] = {
     {"skill",	ENTITY_SKILLINFO_SKILL,		ENT_SKILL	},
     {"owner",	ENTITY_SKILLINFO_OWNER,		ENT_MOBILE	},
@@ -722,6 +769,7 @@ ENT_FIELD entity_class[] = {
     {"uid",           ENTITY_CLASS_UID,          ENT_NUMBER    },
     {"type",          ENTITY_CLASS_TYPE,         ENT_NUMBER    },
     {"flags",         ENTITY_CLASS_FLAGS,        ENT_BITVECTOR },
+    {"groups",        ENTITY_CLASS_GROUPS,       ENT_ILLIST_SKILLGROUPS },
     {"stat",          ENTITY_CLASS_PRIMARY_STAT, ENT_NUMBER    },
     {"maxlevel",      ENTITY_CLASS_MAX_LEVEL,    ENT_NUMBER    },
     {"hpmin",         ENTITY_CLASS_HP_MIN,       ENT_NUMBER    },
@@ -732,6 +780,43 @@ ENT_FIELD entity_class[] = {
     {"rewardcount",   ENTITY_CLASS_REWARD_COUNT, ENT_NUMBER    },
     {"xptablesize",   ENTITY_CLASS_XP_TABLE_SIZE, ENT_NUMBER   },
     {NULL,            0,                         ENT_UNKNOWN   }
+};
+
+ENT_FIELD entity_reputation[] = {
+    {"name",         ENTITY_REPUTATION_NAME,        ENT_STRING },
+    {"index",        ENTITY_REPUTATION_INDEX,       ENT_REPUTATION_INDEX },
+    {"flags",        ENTITY_REPUTATION_FLAGS,       ENT_BITVECTOR },
+    {"rank",         ENTITY_REPUTATION_RANK,        ENT_REPUTATION_RANK },
+    {"maxrank",      ENTITY_REPUTATION_MAXRANK,     ENT_REPUTATION_RANK },
+    {"reputation",   ENTITY_REPUTATION_REPUTATION,  ENT_NUMBER },
+    {"token",        ENTITY_REPUTATION_TOKEN,       ENT_TOKEN },
+    {"paragon",      ENTITY_REPUTATION_PARAGON,     ENT_NUMBER },
+    {NULL,            0,                             ENT_UNKNOWN }
+};
+
+ENT_FIELD entity_reputation_index[] = {
+    {"name",               ENTITY_REPINDEX_NAME,               ENT_STRING },
+    {"wnum",               ENTITY_REPINDEX_WNUM,               ENT_WIDEVNUM },
+    {"flags",              ENTITY_REPINDEX_FLAGS,              ENT_BITVECTOR },
+    {"description",        ENTITY_REPINDEX_DESCRIPTION,        ENT_STRING },
+    {"comments",           ENTITY_REPINDEX_COMMENTS,           ENT_STRING },
+    {"initial_rank",       ENTITY_REPINDEX_INITIAL_RANK,       ENT_NUMBER },
+    {"initial_reputation", ENTITY_REPINDEX_INITIAL_REPUTATION, ENT_NUMBER },
+    {"ranks",              ENTITY_REPINDEX_RANKS,              ENT_PLLIST_REPUTATION_RANK },
+    {"token",              ENTITY_REPINDEX_TOKEN,              ENT_TOKEN_INDEX },
+    {NULL,                  0,                                  ENT_UNKNOWN }
+};
+
+ENT_FIELD entity_reputation_rank[] = {
+    {"name",         ENTITY_REPRANK_NAME,         ENT_STRING },
+    {"uid",          ENTITY_REPRANK_UID,          ENT_NUMBER },
+    {"ordinal",      ENTITY_REPRANK_ORDINAL,      ENT_NUMBER },
+    {"description",  ENTITY_REPRANK_DESCRIPTION,  ENT_STRING },
+    {"comments",     ENTITY_REPRANK_COMMENTS,     ENT_STRING },
+    {"color",        ENTITY_REPRANK_COLOR,        ENT_NUMBER },
+    {"flags",        ENTITY_REPRANK_FLAGS,        ENT_BITVECTOR },
+    {"capacity",     ENTITY_REPRANK_CAPACITY,     ENT_NUMBER },
+    {NULL,            0,                           ENT_UNKNOWN }
 };
 
 ENT_FIELD entity_classlevel[] = {
@@ -1159,7 +1244,9 @@ struct _entity_type_info entity_type_info[] = {
     { ENT_EXIT,			ENT_EXIT,			entity_exit,				false	},
     { ENT_TOKEN,		ENT_TOKEN,			entity_token,				true	},
     { ENT_AREA,			ENT_AREA,			entity_area,				true	},
+    { ENT_AREA_REGION,	ENT_AREA_REGION,		entity_area_region,		false	},
     { ENT_SKILL,		ENT_SKILL,			entity_skill,				false	},
+    { ENT_SKILLGROUP,	ENT_SKILLGROUP,		entity_skillgroups,		false	},
     { ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,			false	},
     { ENT_CONN,			ENT_CONN,			entity_conn,				false	},
     { ENT_AFFECT,		ENT_AFFECT,			entity_affect,				false	},
@@ -1196,6 +1283,9 @@ struct _entity_type_info entity_type_info[] = {
     { ENT_RACE,			ENT_RACE,			entity_race,				false	},
     { ENT_CLASS,		ENT_CLASS,			entity_class,				false	},
     { ENT_CLASSLEVEL,	ENT_CLASSLEVEL,		entity_classlevel,			false	},
+    { ENT_REPUTATION,	ENT_REPUTATION,		entity_reputation,			false	},
+    { ENT_REPUTATION_INDEX, ENT_REPUTATION_INDEX, entity_reputation_index,	false	},
+    { ENT_REPUTATION_RANK, ENT_REPUTATION_RANK, entity_reputation_rank,		false	},
     { ENT_SKILLENTRY,	ENT_SKILLENTRY,		entity_skillentry,			false	},
     
     { ENT_RESERVED_MOBILE,  ENT_RESERVED_MOBILE,  NULL,                    false },
