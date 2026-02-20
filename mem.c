@@ -4135,6 +4135,11 @@ SCRIPT_DATA *new_script(void)
     s->name = str_dup("");
     s->flags = 0;
     s->comments = &str_empty[0];
+    s->last_compile_log = NULL;
+    s->last_compile_time = 0;
+    s->last_compile_success = false;
+    s->last_runtime_log = NULL;
+    s->last_runtime_time = 0;
     s->area = NULL;
     s->n_switch_table = 0;
     s->switch_table = NULL;
@@ -4172,6 +4177,10 @@ void free_script(SCRIPT_DATA *s)
     free_string(s->src);
     free_string(s->name);
     free_string(s->comments);
+    if (s->last_compile_log)
+        free_string(s->last_compile_log);
+    if (s->last_runtime_log)
+        free_string(s->last_runtime_log);
 
     free_script_switch(s->switch_table, s->n_switch_table);
     s->switch_table = NULL;

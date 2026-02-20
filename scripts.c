@@ -7,6 +7,7 @@
 
 #include "strings.h"
 #include <ctype.h>
+#include <stdarg.h>
 #include <time.h>
 #include "merc.h"
 #include "traits.h"
@@ -32,6 +33,8 @@ bool script_destructed = false;
 bool wiznet_script = false;
 bool script_force_execute = false;	// Executes the script even if disabled
 SCRIPT_CB *script_call_stack = NULL;
+
+#define SCRIPT_LOG_MAX_LEN 16384
 
 ROOM_INDEX_DATA room_used_for_wilderness;
 ROOM_INDEX_DATA room_pointer_vlink;
@@ -92,6 +95,78 @@ struct script_lookup_profile_data {
 };
 
 static SCRIPT_LOOKUP_PROFILE script_lookup_profile = {0};
+
+static void script_set_log_text(char **target, const char *text)
+{
+    size_t len;
+    const char *source;
+
+    if (!target)
+        return;
+
+    if (*target) {
+        free_string(*target);
+        *target = NULL;
+    }
+
+    if (!text || !text[0])
+        return;
+
+    len = strlen(text);
+    source = text;
+
+    if (len > SCRIPT_LOG_MAX_LEN)
+        source = text + (len - SCRIPT_LOG_MAX_LEN);
+
+    *target = str_dup(source);
+}
+
+static void script_append_runtime_logf(SCRIPT_DATA *script, int line, const char *fmt, ...)
+{
+    char entry[MSL];
+    char combined[SCRIPT_LOG_MAX_LEN + MSL + 8];
+    const char *source;
+    size_t len;
+    va_list args;
+
+    if (!script || IS_NULLSTR(fmt))
+        return;
+
+    va_start(args, fmt);
+    vsnprintf(entry, sizeof(entry), fmt, args);
+    va_end(args);
+
+    if (line > 0)
+        snprintf(combined, sizeof(combined), "[%ld#%d line %d] %s\n\r",
+            script->area ? script->area->uid : 0,
+            script->vnum,
+            line,
+            entry);
+    else
+        snprintf(combined, sizeof(combined), "[%ld#%d] %s\n\r",
+            script->area ? script->area->uid : 0,
+            script->vnum,
+            entry);
+
+    if (script->last_runtime_log && script->last_runtime_log[0]) {
+        char merged[SCRIPT_LOG_MAX_LEN + MSL + 8];
+        snprintf(merged, sizeof(merged), "%s%s", script->last_runtime_log, combined);
+        len = strlen(merged);
+        source = merged;
+        if (len > SCRIPT_LOG_MAX_LEN)
+            source = merged + (len - SCRIPT_LOG_MAX_LEN);
+        script_set_log_text(&script->last_runtime_log, source);
+    } else {
+        script_set_log_text(&script->last_runtime_log, combined);
+    }
+
+    script->last_runtime_time = current_time;
+}
+
+void script_log_runtime_error(SCRIPT_DATA *script, int line, const char *message)
+{
+    script_append_runtime_logf(script, line, "%s", message ? message : "(null)");
+}
 
 static unsigned long long script_profile_now_ns(void)
 {
@@ -4145,12 +4220,14 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
     script_destructed = false;
 
     if (!script || !script->code) {
+        script_append_runtime_logf(script, 0, "No script bytecode available for execution.");
         pbugf(LOG_SCRIPTS, "PROGs: No script to execute for vnum %d.", pvnum);
         return PRET_NOSCRIPT;
     }
 
     if (IS_VALID(mob) && !IS_NPC(mob) )
     {
+        script_append_runtime_logf(script, 0, "Attempted to run script with a player actor.");
         pbugf(LOG_SCRIPTS, "PROGs: Attempting to run a script with a player actor for vnum %d.", pvnum);
         return PRET_NOSCRIPT;
     }
@@ -4161,6 +4238,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
         (token && area) || (token && instance) || (token && dungeon) ||
         (area && instance) || (area && dungeon) ||
         (instance && dungeon)) {
+        script_append_runtime_logf(script, 0, "Script dispatch received multiple conflicting entity contexts.");
         pbugf(LOG_SCRIPTS, "PROGs: program_flow received multiple prog types for vnum %d.", pvnum);
         return PRET_BADTYPE;
     }
@@ -11311,6 +11389,9 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
 {
+    if (info && info->block && info->block->script)
+        script_log_runtime_error(info->block->script, info->block->line, message ? message : "(null)");
+
     pbugf(LOG_SCRIPTS, "Script:%ld#%d:Line:%d:%s\n\r",
         info->block->script->area->uid, info->block->script->vnum,
         info->block->line,

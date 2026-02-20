@@ -23,6 +23,7 @@
 #include "../../olc.h"
 #include "../../recycle.h"
 #include "../../scripts.h"
+#include "../../mxp_links.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
@@ -96,6 +97,188 @@ static const char *script_type_label(int type)
         case PRG_DPROG: return "DungeonProg";
         default:        return "Script";
     }
+}
+
+#define SCRIPT_EDITOR_LOG_MAX 16384
+
+static const char *scriptedit_format_time(time_t when)
+{
+    static char buf[64];
+    struct tm *tm_info;
+
+    if (when <= 0)
+        return "never";
+
+    tm_info = localtime(&when);
+    if (!tm_info)
+        return "unknown";
+
+    if (strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm_info) == 0)
+        return "unknown";
+
+    return buf;
+}
+
+static void scriptedit_set_log_text(char **target, const char *text)
+{
+    size_t len;
+    const char *source;
+
+    if (!target)
+        return;
+
+    if (*target) {
+        free_string(*target);
+        *target = NULL;
+    }
+
+    if (IS_NULLSTR(text))
+        return;
+
+    len = strlen(text);
+    source = text;
+    if (len > SCRIPT_EDITOR_LOG_MAX)
+        source = text + (len - SCRIPT_EDITOR_LOG_MAX);
+
+    *target = str_dup(source);
+}
+
+static bool scriptedit_use_mxp(CHAR_DATA *ch)
+{
+    if (!ch || !ch->desc)
+        return false;
+    return isMXP(ch->desc) && IS_SET(ch->comm, COMM_MXP);
+}
+
+static void scriptedit_mxp_send(CHAR_DATA *ch, const char *command,
+    const char *text, char *dest, size_t dest_size)
+{
+    const char *result;
+
+    if (!dest || dest_size == 0)
+        return;
+
+    if (IS_NULLSTR(text)) {
+        dest[0] = '\0';
+        return;
+    }
+
+    if (!scriptedit_use_mxp(ch) || IS_NULLSTR(command)) {
+        snprintf(dest, dest_size, "%s", text);
+        return;
+    }
+
+    result = MXPCreateSend(ch->desc, command, text);
+    snprintf(dest, dest_size, "%s", result ? result : text);
+}
+
+static void scriptedit_build_owner_links(CHAR_DATA *ch, const char *wnum,
+    const char *edit_base, const char *show_base,
+    char *wnum_link, size_t link_size)
+{
+    BUFFER *tmp;
+    char show_cmd[MIL];
+    char edit_cmd[MIL];
+    mxp_cmd_hint_t items[2];
+
+    if (!wnum_link)
+        return;
+
+    wnum_link[0] = '\0';
+
+    if (IS_NULLSTR(wnum) || IS_NULLSTR(show_base))
+        return;
+
+    snprintf(show_cmd, sizeof(show_cmd), "%s %s", show_base, wnum);
+
+    if (!scriptedit_use_mxp(ch)) {
+        snprintf(wnum_link, link_size, "%s", wnum);
+        return;
+    }
+
+    if (!IS_NULLSTR(edit_base)) {
+        snprintf(edit_cmd, sizeof(edit_cmd), "%s %s", edit_base, wnum);
+        items[0].cmd = show_cmd;
+        items[0].hint = "Show details";
+        items[1].cmd = edit_cmd;
+        items[1].hint = "Edit entity";
+
+        tmp = new_buf();
+        if (!tmp) {
+            snprintf(wnum_link, link_size, "%s", wnum);
+            return;
+        }
+
+        mxp_link_multi(ch->desc, tmp, wnum, items, 2);
+        snprintf(wnum_link, link_size, "%s", buf_string(tmp));
+        free_buf(tmp);
+    } else {
+        scriptedit_mxp_send(ch, show_cmd, wnum, wnum_link, link_size);
+    }
+}
+
+static bool scriptedit_prog_matches(const PROG_LIST *prog, const SCRIPT_DATA *script)
+{
+    if (!prog || !script)
+        return false;
+
+    if (prog->script == script)
+        return true;
+
+    if (prog->script && prog->script->type == script->type
+        && prog->script->vnum == script->vnum
+        && prog->script->area == script->area)
+        return true;
+
+    if (prog->script_is_widevnum) {
+        if (prog->script_load.vnum == script->vnum
+            && script->area
+            && prog->script_load.auid == script->area->uid)
+            return true;
+    }
+
+    if (prog->vnum == script->vnum)
+        return true;
+
+    return false;
+}
+
+static int scriptedit_show_uses_from_bank(OLC_LAYOUT_CTX *ctx, SCRIPT_DATA *script,
+    LLIST **progs, const char *owner, bool is_rprog, bool is_tprog)
+{
+    const OLC_EDITOR_THEME *theme = &olc_theme_scripting;
+    ITERATOR it;
+    PROG_LIST *prog;
+    bool header_printed = false;
+    int count = 0;
+
+    if (!progs || !owner || !owner[0])
+        return 0;
+
+    for (int slot = 0; slot < TRIGSLOT_MAX; slot++) {
+        if (!progs[slot])
+            continue;
+
+        iterator_start(&it, progs[slot]);
+        while ((prog = (PROG_LIST *)iterator_nextdata(&it))) {
+            if (!scriptedit_prog_matches(prog, script))
+                continue;
+
+            if (!header_printed) {
+                olc_display_infof(ctx, theme, "{C%s{x", owner);
+                header_printed = true;
+            }
+
+            olc_display_infof(ctx, theme, "  {g%-12s{x %s",
+                trigger_name(prog->trig_type),
+                trigger_phrase_olcshow(prog->trig_type, prog->trig_phrase,
+                    is_rprog, is_tprog));
+            count++;
+        }
+        iterator_stop(&it);
+    }
+
+    return count;
 }
 
 /***************************************************************************
@@ -337,28 +520,132 @@ static void scriptedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void
     }
 }
 
-/**
- * scriptedit_show_logs_tab - Placeholder for future script error logging
- *
- * TODO: This tab will display script runtime error logs, compile warnings,
- * and execution traces for debugging purposes. Currently shows a placeholder
- * message indicating the feature is planned.
- *
- * @param ch     Character viewing the editor
- * @param ctx    Layout context for output
- * @param pEdit  SCRIPT_DATA being viewed
- */
 static void scriptedit_show_logs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
     (void)ch;
-    (void)pEdit;
+    SCRIPT_DATA *pCode = (SCRIPT_DATA *)pEdit;
     const OLC_EDITOR_THEME *theme = &olc_theme_scripting;
 
-    olc_display_section(ctx, theme, "Script Logs");
-    olc_display_infof(ctx, theme,
-        "{D(Script error logging is planned for a future update.\n\r"
-        " This tab will show runtime errors, compile warnings,\n\r"
-        " and execution traces for this script.){x");
+    olc_display_section(ctx, theme, "Compile Logs");
+    olc_display_infof(ctx, theme, "Last Attempt: %s%s{x",
+        theme->value, scriptedit_format_time(pCode->last_compile_time));
+    olc_display_infof(ctx, theme, "Result:       %s%s{x",
+        pCode->last_compile_success ? "{G" : "{R",
+        pCode->last_compile_success ? "success" : "failure");
+    if (pCode->last_compile_log && pCode->last_compile_log[0])
+        olc_display_text(ctx, theme, NULL, NULL, pCode->last_compile_log);
+    else
+        olc_display_infof(ctx, theme, "{DNo compile output recorded yet.{x");
+
+    olc_display_section(ctx, theme, "Runtime Logs");
+    olc_display_infof(ctx, theme, "Last Runtime Error: %s%s{x",
+        theme->value, scriptedit_format_time(pCode->last_runtime_time));
+    if (pCode->last_runtime_log && pCode->last_runtime_log[0])
+        olc_display_text(ctx, theme, NULL, NULL, pCode->last_runtime_log);
+    else
+        olc_display_infof(ctx, theme, "{DNo runtime errors captured for this script yet.{x");
+}
+
+static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    SCRIPT_DATA *pCode = (SCRIPT_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = &olc_theme_scripting;
+    AREA_DATA *area;
+    int total = 0;
+
+    olc_display_section(ctx, theme, "Script Uses");
+
+    for (area = area_first; area; area = area->next) {
+        char owner[MSL];
+
+        for (int hash = 0; hash < MAX_KEY_HASH; hash++) {
+            MOB_INDEX_DATA *mob;
+            OBJ_INDEX_DATA *obj;
+            ROOM_INDEX_DATA *room;
+            TOKEN_INDEX_DATA *token;
+            BLUEPRINT *bp;
+            DUNGEON_INDEX_DATA *dng;
+
+            for (mob = area->mob_index_hash[hash]; mob; mob = mob->next) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string_mobile(mob, NULL));
+                scriptedit_build_owner_links(ch, wnum, "medit", "mshow",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Mobile %s (%.120s)",
+                    wnum_link,
+                    mob->short_descr ? mob->short_descr : "(unnamed)");
+                total += scriptedit_show_uses_from_bank(ctx, pCode, mob->progs, owner, false, false);
+            }
+
+            for (obj = area->obj_index_hash[hash]; obj; obj = obj->next) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string_object(obj, NULL));
+                scriptedit_build_owner_links(ch, wnum, "oedit", "oshow",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Object %s (%.120s)",
+                    wnum_link,
+                    obj->short_descr ? obj->short_descr : "(unnamed)");
+                total += scriptedit_show_uses_from_bank(ctx, pCode, obj->progs, owner, false, false);
+            }
+
+            for (room = area->room_index_hash[hash]; room; room = room->next) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string_room(room, NULL));
+                scriptedit_build_owner_links(ch, wnum, "redit", "rshow",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Room %s (%.120s)",
+                    wnum_link,
+                    room->name ? room->name : "(unnamed)");
+                if (room->progs)
+                    total += scriptedit_show_uses_from_bank(ctx, pCode, room->progs->progs, owner, true, false);
+            }
+
+            for (token = area->token_index_hash[hash]; token; token = token->next) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string_token(token, NULL));
+                scriptedit_build_owner_links(ch, wnum, "tedit", "tshow",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Token %s (%.120s)",
+                    wnum_link,
+                    token->name ? token->name : "(unnamed)");
+                total += scriptedit_show_uses_from_bank(ctx, pCode, token->progs, owner, false, true);
+            }
+
+            for (bp = area->blueprint_hash[hash]; bp; bp = bp->next) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string_blueprint(bp, NULL));
+                scriptedit_build_owner_links(ch, wnum, "bpedit", "bpshow",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Blueprint %s (%.120s)",
+                    wnum_link,
+                    bp->name ? bp->name : "(unnamed)");
+                total += scriptedit_show_uses_from_bank(ctx, pCode, bp->progs, owner, false, false);
+            }
+
+            for (dng = area->dungeon_index_hash[hash]; dng; dng = dng->next) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string_dungeon(dng, NULL));
+                scriptedit_build_owner_links(ch, wnum, "dngedit", "dngshow",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Dungeon %s (%.120s)",
+                    wnum_link,
+                    dng->name ? dng->name : "(unnamed)");
+                total += scriptedit_show_uses_from_bank(ctx, pCode, dng->progs, owner, false, false);
+            }
+        }
+
+        if (area->progs) {
+            snprintf(owner, sizeof(owner), "Area %ld (%s)",
+                area->uid,
+                area->name ? area->name : "(unnamed)");
+            total += scriptedit_show_uses_from_bank(ctx, pCode, area->progs->progs, owner, false, false);
+        }
+    }
+
+    if (total == 0)
+        olc_display_infof(ctx, theme, "{DNo entities currently reference this script.{x");
+    else
+        olc_display_infof(ctx, theme, "{GTotal uses: %d{x", total);
 }
 
 /***************************************************************************
@@ -368,10 +655,11 @@ static void scriptedit_show_logs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
 /* Tab definitions shared by all 7 script editors */
 #define SCRIPT_EDITOR_TABS \
     .tabs = { \
-        .count = 2, \
+        .count = 3, \
         .tabs = { \
             { "General", "Gen", scriptedit_show_general_tab }, \
             { "Logs",    "Log", scriptedit_show_logs_tab    }, \
+            { "Uses",    "Use", scriptedit_show_uses_tab    }, \
         }, \
     }
 
@@ -978,6 +1266,8 @@ SCRIPTEDIT(scriptedit_compile)
     EDIT_SCRIPT(ch, pCode);
 
     if (!argument[0]) {
+        bool compiled_ok;
+
         buffer = new_buf();
         if (!buffer) {
             send_to_char("WTF?! Couldn't create the buffer!\n\r", ch);
@@ -991,12 +1281,23 @@ SCRIPTEDIT(scriptedit_compile)
             && ((pCode->src == pCode->edit_src)
                 || !str_cmp(pCode->src, pCode->edit_src))) {
             send_to_char("Script is up-to-date.  Nothing to compile.\n\r", ch);
+            scriptedit_set_log_text(&pCode->last_compile_log,
+                "Script is up-to-date. Nothing to compile.\n\r");
+            pCode->last_compile_success = true;
+            pCode->last_compile_time = current_time;
+            free_buf(buffer);
             return false;
         }
 
-        if (compile_script(buffer, pCode, pCode->edit_src,
-                          olc_script_typeifc[pCode->type]))
+        compiled_ok = compile_script(buffer, pCode, pCode->edit_src,
+            olc_script_typeifc[pCode->type]);
+
+        if (compiled_ok)
             add_buf(buffer, "Script saved...\n\r");
+
+        scriptedit_set_log_text(&pCode->last_compile_log, buf_string(buffer));
+        pCode->last_compile_success = compiled_ok;
+        pCode->last_compile_time = current_time;
 
         page_to_char(buf_string(buffer), ch);
         free_buf(buffer);
