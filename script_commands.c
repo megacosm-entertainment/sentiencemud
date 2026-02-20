@@ -1542,7 +1542,7 @@ SCRIPT_CMD(scriptcmd_award)
             field_name = "trains";
 
         } else if( !str_prefix(field, "quest") || !str_cmp(field, "qp") ) {
-            victim->questpoints += amount;
+            script_adjust_quest_points(victim, amount, NULL);
             field_name = "quest points";
 
         } else if( !str_prefix(field, "experience") || !str_cmp(field, "xp") ) {
@@ -3156,8 +3156,9 @@ SCRIPT_CMD(scriptcmd_deduct)
             field_name = "trains";
 
         } else if( !str_prefix(field, "quest") || !str_cmp(field, "qp") ) {
-            info->progs->lastreturn = UMIN(victim->questpoints, amount);
-            victim->questpoints -= info->progs->lastreturn;
+            int deducted = 0;
+            script_adjust_quest_points(victim, -amount, &deducted);
+            info->progs->lastreturn = -deducted;
             field_name = "quest points";
 
         } else
@@ -9490,15 +9491,7 @@ SCRIPT_CMD(scriptcmd_setrace)
     if (!race || !race->playable)
         return;
 
-    mob->race = race;
-    mob->affected_by_perm[0] = race->aff[0];
-    mob->affected_by_perm[1] = race->aff[1];
-    mob->imm_flags_perm = race->imm;
-    mob->res_flags_perm = race->res;
-    mob->vuln_flags_perm = race->vuln;
-    affect_fix_char(mob);
-    mob->form = race->form;
-    mob->parts = race->parts;
+    char_set_race(mob, race, RACE_CHANGE_SILENT);
 
     save_char_obj(mob);
     info->progs->lastreturn = 1;
@@ -9750,6 +9743,167 @@ SCRIPT_CMD(scriptcmd_settrait)
         default:
             return;
     }
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// ADDTRAIT $MOBILE $TRAITID [$VALUE]
+// Adds or boosts a personal trait override on a player.
+// Boolean: sets to true.
+// Integer: adds VALUE (default 1).
+// String: sets to VALUE (required).
+SCRIPT_CMD(scriptcmd_addtrait)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    TRAIT_DEF *def;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    def = trait_def_lookup_name(arg->d.str);
+    if (!def)
+        return;
+
+    switch (def->type) {
+        case TRAIT_BOOLEAN:
+            if (!ch_set_trait_bool(mob, def->id, true))
+                return;
+            break;
+
+        case TRAIT_INTEGER: {
+            int delta = 1;
+            int next_value;
+
+            if (rest && *rest) {
+                if (!(rest = expand_argument(info, rest, arg)))
+                    return;
+
+                if (arg->type == ENT_NUMBER)
+                    delta = arg->d.num;
+                else if (arg->type == ENT_STRING)
+                    delta = atoi(arg->d.str);
+                else
+                    return;
+            }
+
+            next_value = ch_get_trait_int(mob, def->id) + delta;
+            if (!ch_set_trait_int(mob, def->id, next_value))
+                return;
+            break;
+        }
+
+        case TRAIT_STRING:
+            if (!(rest && *rest))
+                return;
+            if (!(rest = expand_argument(info, rest, arg)))
+                return;
+            if (arg->type != ENT_STRING)
+                return;
+            if (!ch_set_trait_string(mob, def->id, (arg->d.str[0] ? arg->d.str : NULL)))
+                return;
+            break;
+
+        default:
+            return;
+    }
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// ADJUSTTRAIT $MOBILE $TRAITID $DELTA
+// Adjusts an integer personal trait override by DELTA.
+SCRIPT_CMD(scriptcmd_adjusttrait)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    TRAIT_DEF *def;
+    int delta;
+    int next_value;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    def = trait_def_lookup_name(arg->d.str);
+    if (!def || def->type != TRAIT_INTEGER)
+        return;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type == ENT_NUMBER)
+        delta = arg->d.num;
+    else if (arg->type == ENT_STRING)
+        delta = atoi(arg->d.str);
+    else
+        return;
+
+    next_value = ch_get_trait_int(mob, def->id) + delta;
+    if (!ch_set_trait_int(mob, def->id, next_value))
+        return;
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+}
+
+// REMOVETRAIT $MOBILE $TRAITID
+// Removes personal trait override for a player.
+SCRIPT_CMD(scriptcmd_removetrait)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    TRAIT_DEF *def;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
+        return;
+
+    def = trait_def_lookup_name(arg->d.str);
+    if (!def)
+        return;
+
+    if (!ch_clear_trait(mob, def->id))
+        return;
 
     save_char_obj(mob);
     info->progs->lastreturn = 1;

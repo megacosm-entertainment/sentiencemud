@@ -12,6 +12,9 @@
 #include "traits.h"
 #include "tables.h"
 #include "scripts.h"
+#include "class_data.h"
+#include "skill_data.h"
+#include "song_data.h"
 #include "event_types.h"
 #include "recycle.h"
 #include "wilds.h"
@@ -1061,6 +1064,13 @@ static bool compare_entity_params(const SCRIPT_PARAM *lhs, const SCRIPT_PARAM *r
         if (rhs->type != ENT_SECTOR) return false;
         *equal = (lhs->d.sector == rhs->d.sector);
         return true;
+    case ENT_EVENT:
+        if (rhs->type != ENT_EVENT) return false;
+        *equal = (lhs->d.event.mob == rhs->d.event.mob) &&
+                 (lhs->d.event.obj == rhs->d.event.obj) &&
+                 (lhs->d.event.uid == rhs->d.event.uid) &&
+                 (lhs->d.event.instance_id == rhs->d.event.instance_id);
+        return true;
     case ENT_EXIT:
         if (rhs->type != ENT_EXIT) return false;
         *equal = (lhs->d.door.r == rhs->d.door.r && lhs->d.door.door == rhs->d.door.door);
@@ -1102,6 +1112,8 @@ static bool script_param_truthy(const SCRIPT_PARAM *value)
         return value->d.area != NULL;
     case ENT_SECTOR:
         return value->d.sector != NULL;
+    case ENT_EVENT:
+        return value->d.event.uid > 0 || value->d.event.mob != NULL || value->d.event.obj != NULL;
     case ENT_EXIT:
         return value->d.door.r &&
                value->d.door.door >= 0 &&
@@ -3947,6 +3959,350 @@ static ROOM_INDEX_DATA *script_room_from_info_context(SCRIPT_VARINFO *info)
     if (!info)
         return NULL;
     return script_room_from_context(info->mob, info->obj, info->room, info->token);
+}
+
+bool script_get_quest_metrics(const CHAR_DATA *mob, int *points, int *total_completed, bool *active)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+
+    if (points)
+        *points = valid_player ? mob->questpoints : 0;
+
+    if (total_completed)
+        *total_completed = valid_player ? mob->pcdata->quests_completed : 0;
+
+    if (active)
+        *active = valid_player ? ON_QUEST(mob) : false;
+
+    return valid_player;
+}
+
+bool script_get_mission_metrics(const CHAR_DATA *mob, int *points, int *total_completed, bool *active)
+{
+    return script_get_quest_metrics(mob, points, total_completed, active);
+}
+
+bool script_adjust_quest_points(CHAR_DATA *mob, int delta, int *applied_delta)
+{
+    int before;
+    int after;
+
+    if (applied_delta)
+        *applied_delta = 0;
+
+    if (!mob || IS_NPC(mob) || !mob->pcdata)
+        return false;
+
+    before = mob->questpoints;
+    after = before + delta;
+
+    if (after < 0)
+        after = 0;
+
+    mob->questpoints = after;
+
+    if (applied_delta)
+        *applied_delta = (after - before);
+
+    return true;
+}
+
+bool script_get_class_metrics(const CHAR_DATA *mob, CLASS_DATA **current_class, CLASS_LEVEL **current_level, int *class_count)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    CLASS_LEVEL *level = NULL;
+
+    if (valid_player) {
+        level = get_class_level(ch, NULL);
+    }
+
+    if (current_class)
+        *current_class = valid_player ? get_current_class(ch) : NULL;
+
+    if (current_level)
+        *current_level = valid_player ? level : NULL;
+
+    if (class_count)
+        *class_count = valid_player ? list_size(ch->pcdata->classes) : 0;
+
+    return valid_player;
+}
+
+bool script_get_class_by_name_metrics(const CHAR_DATA *mob, const char *class_name, bool *is_current, int *level, bool *has_class)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    CLASS_DATA *clazz = NULL;
+    CLASS_LEVEL *class_level = NULL;
+
+    if (is_current)
+        *is_current = false;
+    if (level)
+        *level = 0;
+    if (has_class)
+        *has_class = false;
+
+    if (!valid_player || IS_NULLSTR(class_name))
+        return false;
+
+    clazz = class_find(class_name);
+    if (!clazz)
+        return false;
+
+    class_level = get_class_level(ch, clazz);
+
+    if (has_class)
+        *has_class = (class_level != NULL);
+
+    if (level)
+        *level = class_level ? class_level->level : 0;
+
+    if (is_current)
+        *is_current = (get_current_class(ch) == clazz);
+
+    return true;
+}
+
+bool script_get_skill_rating_by_sn(const CHAR_DATA *mob, int sn, int *rating)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+
+    if (rating)
+        *rating = 0;
+
+    if (!valid_player || sn <= 0)
+        return false;
+
+    if (rating)
+        *rating = get_skill(ch, sn);
+
+    return true;
+}
+
+bool script_get_skill_metrics(const CHAR_DATA *mob, const char *skill_name, int *rating, bool *known)
+{
+    bool available_now = false;
+    bool has_any = false;
+    SKILL_DATA *skill;
+    int sn;
+
+    if (rating)
+        *rating = 0;
+    if (known)
+        *known = false;
+
+    if (!mob || IS_NULLSTR(skill_name))
+        return false;
+
+    if (!script_get_skill_availability(mob, skill_name, &available_now, &has_any))
+        return false;
+
+    skill = skill_search(skill_name);
+    if (!skill)
+        return false;
+
+    sn = skill_sn(skill);
+    if (sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    if (rating)
+        *rating = available_now ? get_skill((CHAR_DATA *)mob, sn) : 0;
+
+    if (known)
+        *known = has_any;
+
+    return true;
+}
+
+bool script_get_song_known(const CHAR_DATA *mob, const char *song_name, bool *known)
+{
+    bool has_any = false;
+
+    if (known)
+        *known = false;
+
+    if (!mob || IS_NULLSTR(song_name))
+        return false;
+
+    if (!script_get_song_availability(mob, song_name, NULL, &has_any))
+        return false;
+
+    if (known)
+        *known = has_any;
+
+    return true;
+}
+
+bool script_get_skill_availability(const CHAR_DATA *mob, const char *skill_name, bool *available_now, bool *has_any)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    SKILL_DATA *skill;
+    SKILL_ENTRY *entry;
+    int sn;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+
+    if (!ch || IS_NULLSTR(skill_name))
+        return false;
+
+    skill = skill_search(skill_name);
+    if (!skill)
+        return false;
+
+    sn = skill_sn(skill);
+    if (sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    if (available_now)
+        *available_now = (get_skill(ch, sn) > 0);
+
+    if (has_any) {
+        if (IS_NPC(ch) || IS_IMMORTAL(ch)) {
+            *has_any = (get_skill(ch, sn) > 0);
+        } else {
+            entry = skill_entry_findsn(ch->sorted_skills, sn);
+            *has_any = (entry != NULL) || had_skill(ch, sn) || any_class_grants_skill(ch, sn);
+        }
+    }
+
+    return true;
+}
+
+bool script_get_spell_availability(const CHAR_DATA *mob, const char *spell_name, bool *available_now, bool *has_any)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    SKILL_DATA *skill;
+    SKILL_ENTRY *entry;
+    int sn;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+
+    if (!ch || IS_NULLSTR(spell_name))
+        return false;
+
+    skill = skill_search(spell_name);
+    if (!skill)
+        return false;
+
+    sn = skill_sn(skill);
+    if (sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    if (!skill_table[sn].spell_fun || skill_table[sn].spell_fun == spell_null)
+        return false;
+
+    if (available_now)
+        *available_now = (get_skill(ch, sn) > 0);
+
+    if (has_any) {
+        if (IS_NPC(ch) || IS_IMMORTAL(ch)) {
+            *has_any = (get_skill(ch, sn) > 0);
+        } else {
+            entry = skill_entry_findsn(ch->sorted_skills, sn);
+            *has_any = (entry != NULL) || had_skill(ch, sn) || any_class_grants_skill(ch, sn);
+        }
+    }
+
+    return true;
+}
+
+bool script_get_song_availability(const CHAR_DATA *mob, const char *song_name, bool *available_now, bool *has_any)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    SONG_DATA *song;
+    SKILL_ENTRY *entry;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+
+    if (!ch || IS_NULLSTR(song_name))
+        return false;
+
+    song = song_lookup(song_name);
+    if (!song)
+        return false;
+
+    entry = skill_entry_findsong(ch->sorted_songs, song);
+
+    if (has_any)
+        *has_any = (entry != NULL);
+
+    if (available_now)
+        *available_now = (entry != NULL) && skill_entry_is_usable_now(ch, entry);
+
+    return true;
+}
+
+bool script_get_trait_metrics(const CHAR_DATA *mob, const char *trait_name, bool *available_now, bool *has_any, bool *bool_value, int *int_value, const char **string_value)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    TRAIT_DEF *def;
+    ITERATOR it;
+    CLASS_LEVEL *cl;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+    if (bool_value)
+        *bool_value = false;
+    if (int_value)
+        *int_value = 0;
+    if (string_value)
+        *string_value = NULL;
+
+    if (!ch || IS_NULLSTR(trait_name))
+        return false;
+
+    def = trait_def_lookup_name(trait_name);
+    if (!def)
+        return false;
+
+    if (available_now)
+        *available_now = ch_has_trait(ch, def->id);
+
+    if (bool_value)
+        *bool_value = ch_get_trait_bool(ch, def->id);
+
+    if (int_value)
+        *int_value = ch_get_trait_int(ch, def->id);
+
+    if (string_value)
+        *string_value = ch_get_trait_string(ch, def->id);
+
+    if (has_any) {
+        if (ch->race && ch->race->trait_values && ch->race->trait_values[def->index].set)
+            *has_any = true;
+
+        if (!*has_any && ch->orace && ch->orace->trait_values && ch->orace->trait_values[def->index].set)
+            *has_any = true;
+
+        if (!*has_any && ch->pcdata && ch->pcdata->trait_values && ch->pcdata->trait_values[def->index].set)
+            *has_any = true;
+
+        if (!*has_any && ch->pcdata && ch->pcdata->classes) {
+            iterator_start(&it, ch->pcdata->classes);
+            while ((cl = (CLASS_LEVEL *)iterator_nextdata(&it))) {
+                if (cl->clazz && cl->clazz->trait_values && cl->clazz->trait_values[def->index].set) {
+                    *has_any = true;
+                    break;
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
+
+    return true;
 }
 
 /*
@@ -8686,6 +9042,112 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         default: return;
         }
 
+    // Format: SONG <NAME>
+    // Format: SONG <SONG>
+    } else if(!str_cmp(buf,"song")) {
+        switch(arg->type) {
+        case ENT_STRING:
+            variables_set_song(vars, name, song_lookup(arg->d.str));
+            break;
+        case ENT_SONG:
+            variables_set_song(vars, name, arg->d.song);
+            break;
+        default:
+            return;
+        }
+
+    // Format: MOBINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: MOBINDEX <MOBINDEX>
+    } else if(!str_cmp(buf,"mobindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_mobindex(vars, name, get_mob_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_MOBINDEX:
+            variables_set_mobindex(vars, name, arg->d.mobindex);
+            break;
+        default:
+            return;
+        }
+
+    // Format: OBJINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: OBJINDEX <OBJINDEX>
+    } else if(!str_cmp(buf,"objindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_objindex(vars, name, get_obj_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_OBJINDEX:
+            variables_set_objindex(vars, name, arg->d.objindex);
+            break;
+        default:
+            return;
+        }
+
+    // Format: TOKENINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: TOKENINDEX <TOKEN_INDEX>
+    // Format: TOKINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: TOKINDEX <TOKEN_INDEX>
+    } else if(!str_cmp(buf,"tokenindex") || !str_cmp(buf,"tokindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_tokenindex(vars, name, get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_TOKEN_INDEX:
+            variables_set_tokenindex(vars, name, arg->d.token_index);
+            break;
+        default:
+            return;
+        }
+
     // Format: FINDPATH <ROOM> <ROOM> <DEPTH> <IN-ZONE> <DOORS> - returns the EXIT entity
     } else if(!str_cmp(buf,"findpath")) {
         ROOM_INDEX_DATA *start_room = NULL, *end_room = NULL;
@@ -8753,6 +9215,35 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
         if( area )
             variables_set_area(vars,name,area);
+
+    // Format: CLASS <name>
+    // Format: CLASS <class>
+    } else if(!str_cmp(buf,"class")) {
+        if (arg->type == ENT_STRING) {
+            CLASS_DATA *clazz = class_find(arg->d.str);
+            if (clazz)
+                variables_set_class(vars, name, clazz);
+        } else if (arg->type == ENT_CLASS) {
+            variables_set_class(vars, name, arg->d.clazz);
+        }
+
+    // Format: CLASSLEVEL <classlevel>
+    } else if(!str_cmp(buf,"classlevel")) {
+        if (arg->type == ENT_CLASSLEVEL)
+            variables_set_classlevel(vars, name, arg->d.classlevel);
+
+    // Format: RACE <name>
+    // Format: RACE <race>
+    } else if(!str_cmp(buf,"race")) {
+        if (arg->type == ENT_STRING) {
+            RACE_DATA *race = race_lookup(arg->d.str);
+            if (!race)
+                race = race_lookup_name(arg->d.str);
+            if (race)
+                variables_set_race(vars, name, race);
+        } else if (arg->type == ENT_RACE) {
+            variables_set_race(vars, name, arg->d.race);
+        }
 
     // MOBLIST add <mobile>
     // MOBLIST remove <index>

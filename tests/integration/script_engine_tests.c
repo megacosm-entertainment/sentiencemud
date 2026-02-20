@@ -23,6 +23,7 @@ static test_result_t test_script_ifcheck_entity_reference_compare(test_case_t *t
 static test_result_t test_script_ifcheck_entity_truthiness(test_case_t *test);
 static test_result_t test_script_ifcheck_entity_string_compare(test_case_t *test);
 static test_result_t test_script_ifcheck_room_sector_entity(test_case_t *test);
+static test_result_t test_script_event_entity_expansion(test_case_t *test);
 static test_result_t test_script_entity_mission_alias_fields(test_case_t *test);
 static test_result_t test_script_mission_alias_semantics(test_case_t *test);
 static test_result_t test_script_chained_expansion(test_case_t *test);
@@ -77,6 +78,14 @@ static ENT_FIELD *resolve_entity_field_table(const char *table_name)
         return script_entity_fields(ENT_OBJECT);
     if (strcmp(table_name, "room") == 0)
         return script_entity_fields(ENT_ROOM);
+    if (strcmp(table_name, "event") == 0)
+        return script_entity_fields(ENT_EVENT);
+    if (strcmp(table_name, "race") == 0)
+        return script_entity_fields(ENT_RACE);
+    if (strcmp(table_name, "class") == 0)
+        return script_entity_fields(ENT_CLASS);
+    if (strcmp(table_name, "classlevel") == 0)
+        return script_entity_fields(ENT_CLASSLEVEL);
     if (strcmp(table_name, "string") == 0)
         return script_entity_fields(ENT_STRING);
 
@@ -160,6 +169,9 @@ test_result_t run_script_engine_test_case(test_case_t *test)
 
     if (strcmp(test->test_type, "script_engine_ifcheck_room_sector_entity_test") == 0)
         return test_script_ifcheck_room_sector_entity(test);
+
+    if (strcmp(test->test_type, "script_engine_event_entity_expansion_test") == 0)
+        return test_script_event_entity_expansion(test);
 
     if (strcmp(test->test_type, "script_engine_entity_mission_alias_fields_test") == 0)
         return test_script_entity_mission_alias_fields(test);
@@ -1294,6 +1306,78 @@ static test_result_t test_script_ifcheck_room_sector_entity(test_case_t *test)
                       result);
         return TEST_FAILURE;
     }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_event_entity_expansion(test_case_t *test)
+{
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    int result;
+    (void)test;
+
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&info, 0, sizeof(info));
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.event_source_uid = 321;
+    mob.event_source_instance_id = 17;
+
+    info.mob = &mob;
+    info.ch = &mob;
+
+    compiled = compile_string("$(self.event.uid) == 321", IFC_M, &compiled_len, true);
+    if (!compiled)
+        return TEST_FAILURE;
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    if (result != 1)
+        return TEST_FAILURE;
+
+    compiled = compile_string("$(self.event.instance) == 17", IFC_M, &compiled_len, true);
+    if (!compiled)
+        return TEST_FAILURE;
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    if (result != 1)
+        return TEST_FAILURE;
+
+    compiled = compile_string("$(self.event.source_uid) == $(self.event.event_uid)", IFC_M, &compiled_len, true);
+    if (!compiled)
+        return TEST_FAILURE;
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    if (result != 1)
+        return TEST_FAILURE;
 
     return TEST_SUCCESS;
 }

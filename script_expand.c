@@ -539,6 +539,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
         switch(var->type) {
         default: arg->type = ENT_NUMBER; arg->d.num = 0; break;
+        case VAR_BOOLEAN:   arg->type = ENT_BOOLEAN; arg->d.boolean = var->_.boolean; break;
         case VAR_INTEGER:	arg->type = ENT_NUMBER; arg->d.num = var->_.i; break;
         case VAR_STRING:
         case VAR_STRING_S:	arg->type = ENT_STRING; arg->d.str = var->_.s; break;
@@ -553,6 +554,13 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_TOKEN:		arg->type = ENT_TOKEN; arg->d.token = var->_.t; break;
         case VAR_AREA:		arg->type = ENT_AREA; arg->d.area = var->_.a; break;
         case VAR_SKILL:		arg->type = ENT_SKILL; arg->d.sn = var->_.sn; break;
+        case VAR_SONG:      arg->type = ENT_SONG; arg->d.song = var->_.song; break;
+        case VAR_RACE:      arg->type = ENT_RACE; arg->d.race = var->_.race; break;
+        case VAR_CLASS:     arg->type = ENT_CLASS; arg->d.clazz = var->_.clazz; break;
+        case VAR_CLASSLEVEL:arg->type = ENT_CLASSLEVEL; arg->d.classlevel = var->_.classlevel; break;
+        case VAR_MOBINDEX:  arg->type = ENT_MOBINDEX; arg->d.mobindex = var->_.mobindex; break;
+        case VAR_OBJINDEX:  arg->type = ENT_OBJINDEX; arg->d.objindex = var->_.objindex; break;
+        case VAR_TOKENINDEX:arg->type = ENT_TOKEN_INDEX; arg->d.token_index = var->_.token_index; break;
         case VAR_SKILLINFO:
             arg->type = ENT_SKILLINFO;
             arg->d.sk.m = var->_.sk.owner;
@@ -733,6 +741,15 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 
         arg->type = ENT_NUMBER;
         break;
+    case ENTITY_VAR_BOOLEAN:
+        if(!var)
+            arg->d.boolean = false;
+        else if(var->type == VAR_BOOLEAN)
+            arg->d.boolean = var->_.boolean;
+        else return NULL;
+
+        arg->type = ENT_BOOLEAN;
+        break;
     case ENTITY_VAR_STR:
         if(!var) arg->d.str = NULL;
         else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
@@ -895,6 +912,62 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
         else return NULL;
 
         arg->type = ENT_SKILL;
+        break;
+
+    case ENTITY_VAR_SONG:
+        if(var && var->type == VAR_SONG)
+            arg->d.song = var->_.song;
+        else return NULL;
+
+        arg->type = ENT_SONG;
+        break;
+
+    case ENTITY_VAR_RACE:
+        if(var && var->type == VAR_RACE)
+            arg->d.race = var->_.race;
+        else return NULL;
+
+        arg->type = ENT_RACE;
+        break;
+
+    case ENTITY_VAR_CLASS:
+        if(var && var->type == VAR_CLASS)
+            arg->d.clazz = var->_.clazz;
+        else return NULL;
+
+        arg->type = ENT_CLASS;
+        break;
+
+    case ENTITY_VAR_CLASSLEVEL:
+        if(var && var->type == VAR_CLASSLEVEL)
+            arg->d.classlevel = var->_.classlevel;
+        else return NULL;
+
+        arg->type = ENT_CLASSLEVEL;
+        break;
+
+    case ENTITY_VAR_MOBINDEX:
+        if(var && var->type == VAR_MOBINDEX)
+            arg->d.mobindex = var->_.mobindex;
+        else return NULL;
+
+        arg->type = ENT_MOBINDEX;
+        break;
+
+    case ENTITY_VAR_OBJINDEX:
+        if(var && var->type == VAR_OBJINDEX)
+            arg->d.objindex = var->_.objindex;
+        else return NULL;
+
+        arg->type = ENT_OBJINDEX;
+        break;
+
+    case ENTITY_VAR_TOKENINDEX:
+        if(var && var->type == VAR_TOKENINDEX)
+            arg->d.token_index = var->_.token_index;
+        else return NULL;
+
+        arg->type = ENT_TOKEN_INDEX;
         break;
 
     case ENTITY_VAR_SECTION:
@@ -1087,6 +1160,21 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
     case ENTITY_GAME:
         arg->type = ENT_GAME;
+        break;
+
+    case ENTITY_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = info ? info->mob : NULL;
+        arg->d.event.obj = info ? info->obj : NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        if (arg->d.event.mob) {
+            arg->d.event.uid = arg->d.event.mob->event_source_uid;
+            arg->d.event.instance_id = arg->d.event.mob->event_source_instance_id;
+        } else if (arg->d.event.obj) {
+            arg->d.event.uid = arg->d.event.obj->event_source_uid;
+            arg->d.event.instance_id = arg->d.event.obj->event_source_instance_id;
+        }
         break;
 
     case ENTITY_TOKEN:
@@ -1765,11 +1853,15 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     int event_kills = 0;
     int event_items = 0;
     int event_goal = 0;
+    int mission_points = 0;
+    int mission_total_completed = 0;
     bool event_active = false;
+    bool mission_active = false;
     bool leader_phase = false;
     char event_phase_name[MIL];
 
     event_phase_name[0] = '\0';
+    script_get_quest_metrics(self, &mission_points, &mission_total_completed, &mission_active);
 
     if (self) {
         if (!event_get_mobile_spawn_source(self, &event_uid, &event_instance_id) || event_uid <= 0)
@@ -1852,15 +1944,21 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.race = self ? self->orace : NULL;
         break;
     case ENTITY_MOB_CLASS:
+    {
+        CLASS_DATA *current_class = NULL;
         arg->type = ENT_CLASS;
-        arg->d.clazz = (self && !IS_NPC(self) && self->pcdata->current_class)
-            ? self->pcdata->current_class->clazz : NULL;
+        script_get_class_metrics(self, &current_class, NULL, NULL);
+        arg->d.clazz = current_class;
         break;
+    }
     case ENTITY_MOB_CLASSLEVEL:
+    {
+        CLASS_LEVEL *current_level = NULL;
         arg->type = ENT_CLASSLEVEL;
-        arg->d.classlevel = (self && !IS_NPC(self))
-            ? self->pcdata->current_class : NULL;
+        script_get_class_metrics(self, NULL, &current_level, NULL);
+        arg->d.classlevel = current_level;
         break;
+    }
     case ENTITY_MOB_ROOM:
         arg->type = ENT_ROOM;
         arg->d.room = arg->d.mob ? arg->d.mob->in_room : NULL;
@@ -2185,17 +2283,27 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
         break;
+    case ENTITY_MOB_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = self;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = self ? self->event_source_uid : 0;
+        arg->d.event.instance_id = self ? self->event_source_instance_id : 0;
+        break;
     case ENTITY_MOB_QUESTPOINTS:
         arg->type = ENT_NUMBER;
-        arg->d.num = (self && !IS_NPC(self) && self->pcdata) ? self->questpoints : 0;
+        arg->d.num = mission_points;
         break;
     case ENTITY_MOB_TOTALQUESTS:
         arg->type = ENT_NUMBER;
-        arg->d.num = (self && !IS_NPC(self) && self->pcdata) ? self->pcdata->quests_completed : 0;
+        arg->d.num = mission_total_completed;
         break;
     case ENTITY_MOB_ONMISSION:
         arg->type = ENT_BOOLEAN;
-        arg->d.boolean = (self && !IS_NPC(self) && self->pcdata) ? ON_QUEST(self) : false;
+        arg->d.boolean = mission_active;
+        break;
+    case ENTITY_MOB_TRAIT:
+        arg->type = ENT_MOB_TRAIT;
         break;
     default: return NULL;
     }
@@ -2256,6 +2364,17 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_MOB_ONMISSION:
         arg->type = ENT_BOOLEAN;
         arg->d.boolean = false;
+        break;
+    case ENTITY_MOB_TRAIT:
+        arg->type = ENT_NULL;
+        arg->d.num = 0;
+        break;
+    case ENTITY_MOB_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
         break;
     case ENTITY_MOB_RACE:
         arg->type = ENT_STRING;
@@ -2668,6 +2787,14 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
         break;
+
+    case ENTITY_OBJ_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = self;
+        arg->d.event.uid = self ? self->event_source_uid : 0;
+        arg->d.event.instance_id = self ? self->event_source_instance_id : 0;
+        break;
     }
 
     case ENTITY_OBJ_VARIABLES:
@@ -2926,6 +3053,13 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJ_EVENT_PHASE:
         arg->type = ENT_STRING;
         arg->d.str = (char*)&str_empty[0];
+        break;
+    case ENTITY_OBJ_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
         break;
         
 
@@ -3247,6 +3381,100 @@ char *expand_entity_sector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
 
     default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_event(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    CHAR_DATA *mob = arg->d.event.mob;
+    OBJ_DATA *obj = arg->d.event.obj;
+    long event_uid = arg->d.event.uid;
+    uint32_t event_instance_id = arg->d.event.instance_id;
+    int event_kills = 0;
+    int event_items = 0;
+    int event_goal = 0;
+    bool event_active = false;
+    bool leader_phase = false;
+    char event_phase_name[MIL];
+
+    (void)info;
+
+    event_phase_name[0] = '\0';
+
+    if (mob && event_uid <= 0) {
+        if (!event_get_mobile_spawn_source(mob, &event_uid, &event_instance_id) || event_uid <= 0)
+            event_get_character_active_bracket(mob, &event_uid, &event_instance_id, NULL);
+    } else if (obj && event_uid <= 0) {
+        event_get_object_spawn_source(obj, &event_uid, &event_instance_id);
+    }
+
+    if (event_uid > 0) {
+        event_active = event_runtime_get_source_progress(event_uid, event_instance_id, &event_kills, &event_items, &event_goal);
+        if (event_active) {
+            event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+            event_runtime_get_source_phase(event_uid, event_instance_id, event_phase_name, sizeof(event_phase_name));
+        }
+    }
+
+    switch((unsigned char)*str) {
+    case ENTITY_EVENT_UID:
+    case ENTITY_EVENT_SOURCE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_uid;
+        break;
+
+    case ENTITY_EVENT_INSTANCE:
+    case ENTITY_EVENT_SOURCE_INSTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_instance_id;
+        break;
+
+    case ENTITY_EVENT_BRACKET:
+    {
+        int bracket = 0;
+        arg->type = ENT_NUMBER;
+        if (mob)
+            event_get_character_active_bracket(mob, NULL, NULL, &bracket);
+        else if (obj)
+            bracket = obj->event_source_bracket;
+        arg->d.num = bracket;
+        break;
+    }
+
+    case ENTITY_EVENT_ACTIVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_active ? 1 : 0;
+        break;
+
+    case ENTITY_EVENT_KILLS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_kills;
+        break;
+
+    case ENTITY_EVENT_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_items;
+        break;
+
+    case ENTITY_EVENT_GOAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_goal;
+        break;
+
+    case ENTITY_EVENT_PHASE:
+        arg->type = ENT_STRING;
+        if (!event_active)
+            arg->d.str = (char *)&str_empty[0];
+        else if (!IS_NULLSTR(event_phase_name))
+            arg->d.str = event_phase_name;
+        else
+            arg->d.str = (char *)(leader_phase ? "leader" : "active");
+        break;
+
+    default:
+        return NULL;
     }
 
     return str+1;
@@ -3847,7 +4075,7 @@ char *expand_entity_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             if( arg->d.sk.t )
                 arg->d.num = token_skill_rating(arg->d.sk.t);
             else
-                arg->d.num = get_skill(arg->d.sk.m,arg->d.sk.sn);
+                script_get_skill_rating_by_sn(arg->d.sk.m, arg->d.sk.sn, &arg->d.num);
         } else
             arg->d.num = 0;
         break;
@@ -5328,6 +5556,74 @@ char *expand_entity_race(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
         arg->type = ENT_NUMBER;
         arg->d.num = race ? race->default_alignment : 0;
         break;
+    case ENTITY_RACE_SUMMARY:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? (race->summary ? race->summary : "") : "";
+        break;
+    case ENTITY_RACE_PATH:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = race ? race->path_race : false;
+        break;
+    case ENTITY_RACE_REMORT_INTO:
+        arg->type = ENT_RACE;
+        arg->d.race = race ? race_get_remort_into(race) : NULL;
+        break;
+    case ENTITY_RACE_PREREQUISITE:
+        arg->type = ENT_RACE;
+        arg->d.race = race ? race_get_prerequisite(race) : NULL;
+        break;
+    case ENTITY_RACE_STAT_STR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_STR] : 0;
+        break;
+    case ENTITY_RACE_STAT_INT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_INT] : 0;
+        break;
+    case ENTITY_RACE_STAT_WIS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_WIS] : 0;
+        break;
+    case ENTITY_RACE_STAT_DEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_DEX] : 0;
+        break;
+    case ENTITY_RACE_STAT_CON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_CON] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_STR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_STR] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_INT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_INT] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_WIS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_WIS] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_DEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_DEX] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_CON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_CON] : 0;
+        break;
+    case ENTITY_RACE_MAXHIT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_vitals[MAX_HIT] : 0;
+        break;
+    case ENTITY_RACE_MAXMANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_vitals[MAX_MANA] : 0;
+        break;
+    case ENTITY_RACE_MAXMOVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_vitals[MAX_MOVE] : 0;
+        break;
 
     default: return NULL;
     }
@@ -5389,6 +5685,22 @@ char *expand_entity_class(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
     case ENTITY_CLASS_GAINS_MANA:
         arg->type = ENT_BOOLEAN;
         arg->d.boolean = clazz ? clazz->gains_mana : false;
+        break;
+    case ENTITY_CLASS_WEAPON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->weapon : 0;
+        break;
+    case ENTITY_CLASS_GROUP_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (clazz && clazz->groups) ? list_size(clazz->groups) : 0;
+        break;
+    case ENTITY_CLASS_REWARD_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (clazz && clazz->rewards) ? list_size(clazz->rewards) : 0;
+        break;
+    case ENTITY_CLASS_XP_TABLE_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->xp_table_size : 0;
         break;
 
     default: return NULL;
@@ -7459,6 +7771,70 @@ EXPAND_TYPE(game_setting)
     return str+1;
 }
 
+// Dynamic mobile trait lookups: $(<mob>.trait.<trait_id>)
+EXPAND_TYPE(mobile_trait)
+{
+    switch((unsigned char)*str) {
+    case ESCAPE_VARIABLE:
+    {
+        BUFFER *buffer = new_buf();
+        TRAIT_DEF *def;
+        const char *trait_name;
+        CHAR_DATA *mob = arg->d.mob;
+
+        str = expand_name(info, (info ? *(info->var) : NULL), str + 1, buffer);
+        if (!str) {
+            free_buf(buffer);
+            arg->type = ENT_NULL;
+            arg->d.num = 0;
+            return NULL;
+        }
+
+        trait_name = buf_string(buffer);
+        def = trait_def_lookup_name(trait_name);
+
+        if (!mob || !def) {
+            arg->type = ENT_NULL;
+            arg->d.num = 0;
+            free_buf(buffer);
+            break;
+        }
+
+        switch (def->type) {
+        case TRAIT_BOOLEAN:
+            arg->type = ENT_BOOLEAN;
+            arg->d.boolean = ch_get_trait_bool(mob, def->id);
+            break;
+
+        case TRAIT_INTEGER:
+            arg->type = ENT_NUMBER;
+            arg->d.num = ch_get_trait_int(mob, def->id);
+            break;
+
+        case TRAIT_STRING:
+        default:
+            arg->type = ENT_STRING;
+            clear_buf(arg->buffer);
+            {
+                const char *val = ch_get_trait_string(mob, def->id);
+                if (val)
+                    add_buf(arg->buffer, val);
+            }
+            arg->d.str = buf_string(arg->buffer);
+            break;
+        }
+
+        free_buf(buffer);
+        break;
+    }
+
+    default:
+        return NULL;
+    }
+
+    return str+1;
+}
+
 
 char *expand_entity_equipment(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
@@ -7492,6 +7868,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_OBJECT:	next = expand_entity_object(info,str,arg); break;
         case ENT_ROOM:		next = expand_entity_room(info,str,arg); break;
         case ENT_SECTOR:	next = expand_entity_sector(info,str,arg); break;
+        case ENT_EVENT:	next = expand_entity_event(info,str,arg); break;
         case ENT_EXIT:		next = expand_entity_exit(info,str,arg); break;
         case ENT_TOKEN:		next = expand_entity_token(info,str,arg); break;
         case ENT_AREA:		next = expand_entity_area(info,str,arg); break;
@@ -7634,6 +8011,10 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             
         case ENT_GAME_SETTING:
             next = expand_entity_game_setting(info, str, arg);
+            break;
+
+        case ENT_MOB_TRAIT:
+            next = expand_entity_mobile_trait(info, str, arg);
             break;
             
         case ENT_NULL:
@@ -8141,6 +8522,39 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
         case VAR_CONNECTION:
             add_buf(buffer,((var->_.conn && var->_.conn->character) ? var->_.conn->character->name : SOMEONE));
+            break;
+
+        case VAR_SONG:
+            add_buf(buffer, var->_.song ? var->_.song->name : "(null)");
+            break;
+
+        case VAR_RACE:
+            add_buf(buffer, var->_.race ? "(race)" : "(null)");
+            break;
+
+        case VAR_CLASS:
+            add_buf(buffer, var->_.clazz ? "(class)" : "(null)");
+            break;
+
+        case VAR_CLASSLEVEL:
+            if (var->_.classlevel) {
+                sprintf(buf, "classlevel:%d", var->_.classlevel->level);
+                add_buf(buffer, buf);
+            } else {
+                add_buf(buffer, "(null)");
+            }
+            break;
+
+        case VAR_MOBINDEX:
+            add_buf(buffer, var->_.mobindex ? (char *)widevnum_string_mobile(var->_.mobindex, NULL) : "0");
+            break;
+
+        case VAR_OBJINDEX:
+            add_buf(buffer, var->_.objindex ? (char *)widevnum_string_object(var->_.objindex, NULL) : "0");
+            break;
+
+        case VAR_TOKENINDEX:
+            add_buf(buffer, var->_.token_index ? (char *)widevnum_string_token(var->_.token_index, NULL) : "0");
             break;
 
         default:

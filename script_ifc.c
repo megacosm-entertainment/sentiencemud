@@ -35,6 +35,8 @@ extern bool wiznet_script;
 #define ISARG_EXIT(x)	(argv[(x)]->type == ENT_EXIT)
 #define ISARG_TOK(x)	ISARG_TYPE(x,ENT_TOKEN,token)
 #define ISARG_AREA(x)	ISARG_TYPE(x,ENT_AREA,area)
+#define ISARG_RACE(x)	(argv[(x)]->type == ENT_RACE)
+#define ISARG_CLASS(x)	(argv[(x)]->type == ENT_CLASS)
 #define ISARG_SKILL(x)	(argv[(x)]->type == ENT_SKILL)
 #define ISARG_SKINFO(x)	(argv[(x)]->type == ENT_SKILLINFO)
 #define ISARG_CONN(x)	ISARG_TYPE(x,ENT_CONN,conn)
@@ -83,6 +85,8 @@ extern bool wiznet_script;
 #define ARG_EXIT(x)	ARG_TYPE(x,door)
 #define ARG_TOK(x)	ARG_TYPE(x,token)
 #define ARG_AREA(x)	ARG_TYPE(x,area)
+#define ARG_RACE(x)	ARG_TYPE(x,race)
+#define ARG_CLASS(x)	ARG_TYPE(x,clazz)
 #define ARG_SKILL(x)	ARG_TYPE(x,sn)
 #define ARG_SKINFO(x)	ARG_TYPE(x,sk)
 #define ARG_CONN(x)	ARG_TYPE(x,conn)
@@ -486,14 +490,28 @@ DECL_IFC_FUN(ifc_clan)
 
 DECL_IFC_FUN(ifc_class)
 {
-    *ret = false;
-    if (VALID_PLAYER(0) && ISARG_STR(1)) {
-        CLASS_DATA *clazz = class_find(ARG_STR(1));
-        if (clazz) {
-            CLASS_DATA *current = get_current_class(ARG_MOB(0));
-            *ret = (current == clazz);
-        }
-    }
+    bool is_current = false;
+    script_get_class_by_name_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                     &is_current, NULL, NULL);
+    *ret = is_current;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_isclasscombat)
+{
+    CLASS_DATA *current_class = NULL;
+
+    script_get_class_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, &current_class, NULL, NULL);
+    *ret = (current_class && IS_SET(current_class->flags, CLASS_COMBATIVE));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_isclasscaster)
+{
+    CLASS_DATA *current_class = NULL;
+
+    script_get_class_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, &current_class, NULL, NULL);
+    *ret = (current_class && IS_SET(current_class->flags, CLASS_CASTER));
     return true;
 }
 
@@ -1395,13 +1413,17 @@ DECL_IFC_FUN(ifc_ispullingrelic)
 
 DECL_IFC_FUN(ifc_isquesting)
 {
-    *ret = VALID_PLAYER(0) && ON_QUEST(ARG_MOB(0));
+    bool active = false;
+    script_get_quest_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, NULL, NULL, &active);
+    *ret = active;
     return true;
 }
 
 DECL_IFC_FUN(ifc_onmission)
 {
-    *ret = VALID_PLAYER(0) && ON_QUEST(ARG_MOB(0));
+    bool active = false;
+    script_get_quest_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, NULL, NULL, &active);
+    *ret = active;
     return true;
 }
 
@@ -2169,19 +2191,45 @@ DECL_IFC_FUN(ifc_practices)
 
 DECL_IFC_FUN(ifc_quest)
 {
-    *ret = ISARG_MOB(0) ? ARG_MOB(0)->questpoints : 0;
+    int points = 0;
+    script_get_quest_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, &points, NULL, NULL);
+    *ret = points;
     return true;
 }
 
 DECL_IFC_FUN(ifc_mission)
 {
-    *ret = ISARG_MOB(0) ? ARG_MOB(0)->questpoints : 0;
+    int points = 0;
+    script_get_quest_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, &points, NULL, NULL);
+    *ret = points;
     return true;
 }
 
 DECL_IFC_FUN(ifc_race)
 {
-    *ret = ISARG_MOB(0) && VALID_STR(1) && ARG_MOB(0)->race == race_lookup(ARG_STR(1));
+    RACE_DATA *target_race;
+
+    *ret = false;
+    if (!ISARG_MOB(0) || !VALID_STR(1))
+        return true;
+
+    target_race = race_lookup(ARG_STR(1));
+    if (!target_race)
+        target_race = race_lookup_name(ARG_STR(1));
+
+    *ret = (target_race && ARG_MOB(0)->race == target_race);
+    return true;
+}
+
+DECL_IFC_FUN(ifc_racepath)
+{
+    *ret = ISARG_MOB(0) && ARG_MOB(0)->race && ARG_MOB(0)->race->path_race;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_raceremort)
+{
+    *ret = ISARG_MOB(0) && ARG_MOB(0)->race && race_is_remort(ARG_MOB(0)->race);
     return true;
 }
 
@@ -2452,10 +2500,10 @@ DECL_IFC_FUN(ifc_skeyword)
 
 DECL_IFC_FUN(ifc_skill)
 {
-    int sn;
-
-    *ret = (VALID_PLAYER(0) && ISARG_STR(1) && ((sn = skill_lookup(ARG_STR(1))) > 0)) ?
-            get_skill(ARG_MOB(0), sn) : 0;
+    int rating = 0;
+    script_get_skill_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                             &rating, NULL);
+    *ret = rating;
     return true;
 }
 
@@ -2491,9 +2539,10 @@ DECL_IFC_FUN(ifc_statwis)
 
 DECL_IFC_FUN(ifc_testskill)
 {
-    int sn;
-    *ret = (VALID_PLAYER(0) && ISARG_STR(1) && ((sn = skill_lookup(ARG_STR(1))) > 0) &&
-            number_percent() < get_skill(ARG_MOB(0), sn));
+    int rating = 0;
+    bool found = script_get_skill_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                          &rating, NULL);
+    *ret = found && number_percent() < rating;
     return true;
 }
 
@@ -2676,13 +2725,17 @@ DECL_IFC_FUN(ifc_totalpkwins)
 
 DECL_IFC_FUN(ifc_totalquests)
 {
-    *ret = VALID_PLAYER(0) ? ARG_MOB(0)->pcdata->quests_completed : 0;
+    int total_completed = 0;
+    script_get_quest_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, NULL, &total_completed, NULL);
+    *ret = total_completed;
     return true;
 }
 
 DECL_IFC_FUN(ifc_totalmissions)
 {
-    *ret = VALID_PLAYER(0) ? ARG_MOB(0)->pcdata->quests_completed : 0;
+    int total_completed = 0;
+    script_get_quest_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, NULL, &total_completed, NULL);
+    *ret = total_completed;
     return true;
 }
 
@@ -4490,58 +4543,105 @@ DECL_IFC_FUN(ifc_skilllookup)
 // hasclass $PLAYER 'classname' — does the player have this class unlocked?
 DECL_IFC_FUN(ifc_hasclass)
 {
-    *ret = false;
-    if (VALID_PLAYER(0) && ISARG_STR(1)) {
-        CLASS_DATA *clazz = class_find(ARG_STR(1));
-        if (clazz)
-            *ret = has_class_level(ARG_MOB(0), clazz);
-    }
+    bool has_class = false;
+    script_get_class_by_name_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                     NULL, NULL, &has_class);
+    *ret = has_class;
     return true;
 }
 
 // isclass $PLAYER 'classname' — is this the player's current active class?
 DECL_IFC_FUN(ifc_isclass)
 {
-    *ret = false;
-    if (VALID_PLAYER(0) && ISARG_STR(1)) {
-        CLASS_DATA *clazz = class_find(ARG_STR(1));
-        if (clazz) {
-            CLASS_DATA *current = get_current_class(ARG_MOB(0));
-            *ret = (current == clazz);
-        }
-    }
+    bool is_current = false;
+    script_get_class_by_name_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                     &is_current, NULL, NULL);
+    *ret = is_current;
     return true;
 }
 
 // classlevel $PLAYER 'classname' — level in a specific class (0 if not unlocked)
 DECL_IFC_FUN(ifc_classlevel)
 {
-    *ret = 0;
-    if (VALID_PLAYER(0) && ISARG_STR(1)) {
-        CLASS_DATA *clazz = class_find(ARG_STR(1));
-        if (clazz) {
-            CLASS_LEVEL *cl = get_class_level(ARG_MOB(0), clazz);
-            *ret = cl ? cl->level : 0;
-        }
-    }
+    int level = 0;
+    script_get_class_by_name_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                     NULL, &level, NULL);
+    *ret = level;
     return true;
 }
 
 // classcount $PLAYER — number of classes the player has unlocked
 DECL_IFC_FUN(ifc_classcount)
 {
-    *ret = 0;
-    if (VALID_PLAYER(0))
-        *ret = list_size(ARG_MOB(0)->pcdata->classes);
+    int class_count = 0;
+    script_get_class_metrics(ISARG_MOB(0) ? ARG_MOB(0) : NULL, NULL, NULL, &class_count);
+    *ret = class_count;
     return true;
 }
 
 // hastrait $PLAYER 'trait_id' — does the character have this boolean trait?
 DECL_IFC_FUN(ifc_hastrait)
 {
+    bool has_any = false;
+
     *ret = false;
-    if (ISARG_MOB(0) && ISARG_STR(1))
-        *ret = ch_has_trait(ARG_MOB(0), ARG_STR(1));
+
+    if (!ISARG_STR(1))
+        return true;
+
+    if (ISARG_MOB(0)) {
+        script_get_trait_metrics(ARG_MOB(0), ARG_STR(1), NULL, &has_any, NULL, NULL, NULL);
+        *ret = has_any;
+    } else if (ISARG_RACE(0)) {
+        *ret = race_has_trait(ARG_RACE(0), ARG_STR(1));
+    } else if (ISARG_CLASS(0)) {
+        *ret = class_has_trait(ARG_CLASS(0), ARG_STR(1));
+    }
+
+    return true;
+}
+
+// availtrait $ENTITY 'trait_id' — currently active trait on entity context.
+DECL_IFC_FUN(ifc_availtrait)
+{
+    bool available_now = false;
+
+    *ret = false;
+
+    if (!ISARG_STR(1))
+        return true;
+
+    if (ISARG_MOB(0)) {
+        script_get_trait_metrics(ARG_MOB(0), ARG_STR(1), &available_now, NULL, NULL, NULL, NULL);
+        *ret = available_now;
+    } else if (ISARG_RACE(0)) {
+        *ret = race_has_trait(ARG_RACE(0), ARG_STR(1));
+    } else if (ISARG_CLASS(0)) {
+        *ret = class_has_trait(ARG_CLASS(0), ARG_STR(1));
+    }
+
+    return true;
+}
+
+// traitbool $ENTITY 'trait_id' — boolean trait value from the resolved scope.
+DECL_IFC_FUN(ifc_traitbool)
+{
+    bool bool_value = false;
+
+    *ret = false;
+
+    if (!ISARG_STR(1))
+        return true;
+
+    if (ISARG_MOB(0)) {
+        script_get_trait_metrics(ARG_MOB(0), ARG_STR(1), NULL, NULL, &bool_value, NULL, NULL);
+        *ret = bool_value;
+    } else if (ISARG_RACE(0)) {
+        *ret = race_get_trait_bool(ARG_RACE(0), ARG_STR(1));
+    } else if (ISARG_CLASS(0)) {
+        *ret = class_get_trait_bool(ARG_CLASS(0), ARG_STR(1));
+    }
+
     return true;
 }
 
@@ -4549,8 +4649,17 @@ DECL_IFC_FUN(ifc_hastrait)
 DECL_IFC_FUN(ifc_traitint)
 {
     *ret = 0;
-    if (ISARG_MOB(0) && ISARG_STR(1))
-        *ret = ch_get_trait_int(ARG_MOB(0), ARG_STR(1));
+
+    if (!ISARG_STR(1))
+        return true;
+
+    if (ISARG_MOB(0))
+        script_get_trait_metrics(ARG_MOB(0), ARG_STR(1), NULL, NULL, NULL, ret, NULL);
+    else if (ISARG_RACE(0))
+        *ret = race_get_trait_int(ARG_RACE(0), ARG_STR(1));
+    else if (ISARG_CLASS(0))
+        *ret = class_get_trait_int(ARG_CLASS(0), ARG_STR(1));
+
     return true;
 }
 
@@ -4558,34 +4667,78 @@ DECL_IFC_FUN(ifc_traitint)
 DECL_IFC_FUN(ifc_traitstring)
 {
     *ret = false;
-    if (ISARG_MOB(0) && ISARG_STR(1)) {
-        const char *val = ch_get_trait_string(ARG_MOB(0), ARG_STR(1));
+
+    if (!ISARG_STR(1))
+        return true;
+
+    if (ISARG_MOB(0)) {
+        const char *val = NULL;
+        script_get_trait_metrics(ARG_MOB(0), ARG_STR(1), NULL, NULL, NULL, NULL, &val);
+        *ret = (val && *val) ? true : false;
+    } else if (ISARG_RACE(0)) {
+        const char *val = race_get_trait_string(ARG_RACE(0), ARG_STR(1));
+        *ret = (val && *val) ? true : false;
+    } else if (ISARG_CLASS(0)) {
+        const char *val = class_get_trait_string(ARG_CLASS(0), ARG_STR(1));
         *ret = (val && *val) ? true : false;
     }
+
     return true;
 }
 
 // hasskill $PLAYER 'skillname' — does the player have this skill at all?
 DECL_IFC_FUN(ifc_hasskill)
 {
+    bool has_any = false;
+
     *ret = false;
-    if (VALID_PLAYER(0) && ISARG_STR(1)) {
-        int sn = skill_lookup(ARG_STR(1));
-        if (sn > 0)
-            *ret = skill_entry_findsn(ARG_MOB(0)->sorted_skills, sn) ? true : false;
-    }
+
+    script_get_skill_availability(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                  NULL, &has_any);
+    *ret = has_any;
+
+    return true;
+}
+
+// availskill $PLAYER 'skillname' — can the player use this skill right now?
+DECL_IFC_FUN(ifc_availskill)
+{
+    bool available_now = false;
+
+    *ret = false;
+
+    script_get_skill_availability(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                  &available_now, NULL);
+    *ret = available_now;
+
     return true;
 }
 
 // hassong $PLAYER 'songname' — does the player know this song?
 DECL_IFC_FUN(ifc_hassong)
 {
+    bool has_any = false;
+
     *ret = false;
-    if (VALID_PLAYER(0) && ISARG_STR(1)) {
-        SONG_DATA *song = song_lookup(ARG_STR(1));
-        if (song)
-            *ret = skill_entry_findsong(ARG_MOB(0)->sorted_songs, song) ? true : false;
-    }
+
+    script_get_song_availability(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                 NULL, &has_any);
+    *ret = has_any;
+
+    return true;
+}
+
+// availsong $PLAYER 'songname' — can the player use this song right now?
+DECL_IFC_FUN(ifc_availsong)
+{
+    bool available_now = false;
+
+    *ret = false;
+
+    script_get_song_availability(ISARG_MOB(0) ? ARG_MOB(0) : NULL, ISARG_STR(1) ? ARG_STR(1) : NULL,
+                                 &available_now, NULL);
+    *ret = available_now;
+
     return true;
 }
 
@@ -5142,11 +5295,31 @@ DECL_IFC_FUN(ifc_iscastrecovered)
 DECL_IFC_FUN(ifc_hasspell)
 {
     *ret = false;
-    if(ISARG_STR(0)) {
+
+    if (ISARG_MOB(0) && ISARG_STR(1)) {
+        bool has_any = false;
+        script_get_spell_availability(ARG_MOB(0), ARG_STR(1), NULL, &has_any);
+        *ret = has_any;
+    } else if(ISARG_STR(0)) {
         if(obj)
             *ret = obj_has_spell(obj, ARG_STR(0));
     } else if(ISARG_OBJ(0) && ISARG_STR(1)) {
         *ret = obj_has_spell(ARG_OBJ(0), ARG_STR(1));
+    }
+
+    return true;
+}
+
+// availspell $PLAYER 'spellname' — can the player cast this spell right now?
+DECL_IFC_FUN(ifc_availspell)
+{
+    bool available_now = false;
+
+    *ret = false;
+
+    if (ISARG_MOB(0) && ISARG_STR(1)) {
+        script_get_spell_availability(ARG_MOB(0), ARG_STR(1), &available_now, NULL);
+        *ret = available_now;
     }
 
     return true;

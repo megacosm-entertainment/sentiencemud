@@ -342,6 +342,13 @@ enum variable_enum {
     VAR_INSTANCE,
     VAR_DUNGEON,
     VAR_SHIP,
+    VAR_SONG,
+    VAR_RACE,
+    VAR_CLASS,
+    VAR_CLASSLEVEL,
+    VAR_MOBINDEX,
+    VAR_OBJINDEX,
+    VAR_TOKENINDEX,
 
     VAR_BLLIST_FIRST,
     ////////////////////////
@@ -556,6 +563,7 @@ ENT_RESERVED_TPROG,
 ENT_RESERVED_APROG,
 
 ENT_GAME_SETTING,
+ENT_MOB_TRAIT,
 
 ENT_TOKEN_INDEX,
 ENT_SCRIPT_DATA,
@@ -594,6 +602,7 @@ ENT_SCRIPT_DATA,
     ENT_OBJ_PAGE,
 
     ENT_SECTOR,
+    ENT_EVENT,
 
     ENT_MAX,
     ENT_UNKNOWN = ENT_MAX+1,
@@ -623,11 +632,13 @@ enum entity_primary_enum {
     ENTITY_REGISTER4,
     ENTITY_REGISTER5,
     ENTITY_MXP,
+    ENTITY_EVENT,
 };
 
 enum entity_variable_types_enum {
     ENTITY_VAR_NUM = ESCAPE_EXTRA,
     ENTITY_VAR_STR,
+    ENTITY_VAR_BOOLEAN,
     ENTITY_VAR_MOB,
     ENTITY_VAR_OBJ,
     ENTITY_VAR_ROOM,
@@ -637,12 +648,18 @@ enum entity_variable_types_enum {
     ENTITY_VAR_WILDS,
     ENTITY_VAR_SKILL,
     ENTITY_VAR_SKILLINFO,
+    ENTITY_VAR_SONG,
+    ENTITY_VAR_RACE,
+    ENTITY_VAR_CLASS,
+    ENTITY_VAR_CLASSLEVEL,
+    ENTITY_VAR_MOBINDEX,
+    ENTITY_VAR_OBJINDEX,
+    ENTITY_VAR_TOKENINDEX,
     ENTITY_VAR_CONN,
     ENTITY_VAR_AFFECT,
     ENTITY_VAR_CHURCH,
     ENTITY_VAR_VARIABLE,
     ENTITY_VAR_DICE,
-    ENTITY_VAR_BOOLEAN,
     ENTITY_VAR_SECTION,
     ENTITY_VAR_INSTANCE,
     ENTITY_VAR_DUNGEON,
@@ -798,6 +815,9 @@ enum entity_mobile_enum {
     ENTITY_MOB_QUESTPOINTS,
     ENTITY_MOB_TOTALQUESTS,
     ENTITY_MOB_ONMISSION,
+    ENTITY_MOB_EVENT,
+    ENTITY_MOB_TRAIT,
+    ENTITY_MOB_TRAITS,
 };
 
 enum entity_object_enum {
@@ -868,6 +888,20 @@ enum entity_object_enum {
     ENTITY_OBJ_EVENT_ITEMS,
     ENTITY_OBJ_EVENT_GOAL,
     ENTITY_OBJ_EVENT_PHASE,
+    ENTITY_OBJ_EVENT,
+};
+
+enum entity_event_enum {
+    ENTITY_EVENT_UID = ESCAPE_EXTRA,
+    ENTITY_EVENT_SOURCE_UID,
+    ENTITY_EVENT_INSTANCE,
+    ENTITY_EVENT_SOURCE_INSTANCE,
+    ENTITY_EVENT_BRACKET,
+    ENTITY_EVENT_ACTIVE,
+    ENTITY_EVENT_KILLS,
+    ENTITY_EVENT_ITEMS,
+    ENTITY_EVENT_GOAL,
+    ENTITY_EVENT_PHASE,
 };
 
 enum entity_room_enum {
@@ -1154,6 +1188,23 @@ enum entity_race_enum {
     ENTITY_RACE_SIZE_MIN,
     ENTITY_RACE_SIZE_MAX,
     ENTITY_RACE_ALIGNMENT,
+    ENTITY_RACE_SUMMARY,
+    ENTITY_RACE_PATH,
+    ENTITY_RACE_REMORT_INTO,
+    ENTITY_RACE_PREREQUISITE,
+    ENTITY_RACE_STAT_STR,
+    ENTITY_RACE_STAT_INT,
+    ENTITY_RACE_STAT_WIS,
+    ENTITY_RACE_STAT_DEX,
+    ENTITY_RACE_STAT_CON,
+    ENTITY_RACE_MAXSTAT_STR,
+    ENTITY_RACE_MAXSTAT_INT,
+    ENTITY_RACE_MAXSTAT_WIS,
+    ENTITY_RACE_MAXSTAT_DEX,
+    ENTITY_RACE_MAXSTAT_CON,
+    ENTITY_RACE_MAXHIT,
+    ENTITY_RACE_MAXMANA,
+    ENTITY_RACE_MAXMOVE,
 };
 
 enum entity_class_enum {
@@ -1168,6 +1219,10 @@ enum entity_class_enum {
     ENTITY_CLASS_HP_MIN,
     ENTITY_CLASS_HP_MAX,
     ENTITY_CLASS_GAINS_MANA,
+    ENTITY_CLASS_WEAPON,
+    ENTITY_CLASS_GROUP_COUNT,
+    ENTITY_CLASS_REWARD_COUNT,
+    ENTITY_CLASS_XP_TABLE_SIZE,
 };
 
 enum entity_classlevel_enum {
@@ -1640,10 +1695,22 @@ struct script_var_type {
         INSTANCE *instance;
         DUNGEON *dungeon;
         SHIP_DATA *ship;
+        MOB_INDEX_DATA *mobindex;
+        OBJ_INDEX_DATA *objindex;
+        TOKEN_INDEX_DATA *token_index;
         SECTOR_RUNTIME_DATA *sector;
+        struct {
+            CHAR_DATA *mob;
+            OBJ_DATA *obj;
+            long uid;
+            uint32_t instance_id;
+        } event;
         bool boolean;
         int sn;
         SONG_DATA *song;
+        RACE_DATA *race;
+        CLASS_DATA *clazz;
+        CLASS_LEVEL *classlevel;
         struct {
             CHAR_DATA *owner;
             TOKEN_DATA *token;
@@ -1836,6 +1903,12 @@ struct script_parameter {
         DUNGEON *dungeon;
         SHIP_DATA *ship;
         SECTOR_RUNTIME_DATA *sector;
+        struct {
+            CHAR_DATA *mob;
+            OBJ_DATA *obj;
+            long uid;
+            uint32_t instance_id;
+        } event;
         
         TOKEN_INDEX_DATA *token_index;
         SCRIPT_DATA *script;
@@ -2013,6 +2086,7 @@ extern ENT_FIELD entity_instance[];
 extern ENT_FIELD entity_dungeon[];
 extern ENT_FIELD entity_ship[];
 extern ENT_FIELD entity_sector[];
+extern ENT_FIELD entity_event[];
 extern ENT_FIELD entity_obj_weapon[];
 extern ENT_FIELD entity_obj_armor[];
 extern ENT_FIELD entity_obj_container[];
@@ -2177,6 +2251,10 @@ DECL_IFC_FUN(ifc_hasreputation);
 DECL_IFC_FUN(ifc_hasship);
 DECL_IFC_FUN(ifc_hasskill);
 DECL_IFC_FUN(ifc_hassong);
+DECL_IFC_FUN(ifc_availskill);
+DECL_IFC_FUN(ifc_availsong);
+DECL_IFC_FUN(ifc_availspell);
+DECL_IFC_FUN(ifc_availtrait);
 DECL_IFC_FUN(ifc_hassubclass);
 DECL_IFC_FUN(ifc_hastarget);
 DECL_IFC_FUN(ifc_haseventsource);
@@ -2208,6 +2286,8 @@ DECL_IFC_FUN(ifc_iscasting);
 DECL_IFC_FUN(ifc_ischarm);
 DECL_IFC_FUN(ifc_ischurchexcom);
 DECL_IFC_FUN(ifc_isclass);
+DECL_IFC_FUN(ifc_isclasscombat);
+DECL_IFC_FUN(ifc_isclasscaster);
 DECL_IFC_FUN(ifc_iscloneroom);
 DECL_IFC_FUN(ifc_iscontainer);
 DECL_IFC_FUN(ifc_iscpkproof);
@@ -2358,6 +2438,8 @@ DECL_IFC_FUN(ifc_pos);
 DECL_IFC_FUN(ifc_practices);
 DECL_IFC_FUN(ifc_quest);
 DECL_IFC_FUN(ifc_race);
+DECL_IFC_FUN(ifc_racepath);
+DECL_IFC_FUN(ifc_raceremort);
 DECL_IFC_FUN(ifc_rand);
 DECL_IFC_FUN(ifc_randpoint);
 DECL_IFC_FUN(ifc_reckoning);
@@ -2421,6 +2503,7 @@ DECL_IFC_FUN(ifc_totalratio);
 DECL_IFC_FUN(ifc_totalwins);
 DECL_IFC_FUN(ifc_toxin);
 DECL_IFC_FUN(ifc_trains);
+DECL_IFC_FUN(ifc_traitbool);
 DECL_IFC_FUN(ifc_traitint);
 DECL_IFC_FUN(ifc_traitstring);
 DECL_IFC_FUN(ifc_uses);
@@ -2737,6 +2820,13 @@ bool variables_set_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION
 bool variables_set_instance (ppVARIABLE list,char *name,INSTANCE *instance);
 bool variables_set_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon);
 bool variables_set_ship (ppVARIABLE list,char *name,SHIP_DATA *ship);
+bool variables_set_song (ppVARIABLE list,char *name,SONG_DATA *song);
+bool variables_set_race (ppVARIABLE list,char *name,RACE_DATA *race);
+bool variables_set_class (ppVARIABLE list,char *name,CLASS_DATA *clazz);
+bool variables_set_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *classlevel);
+bool variables_set_mobindex (ppVARIABLE list,char *name,MOB_INDEX_DATA *mobindex);
+bool variables_set_objindex (ppVARIABLE list,char *name,OBJ_INDEX_DATA *objindex);
+bool variables_set_tokenindex (ppVARIABLE list,char *name,TOKEN_INDEX_DATA *token_index);
 bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
@@ -2771,6 +2861,13 @@ bool variables_setsave_instance_section (ppVARIABLE list,char *name,INSTANCE_SEC
 bool variables_setsave_instance (ppVARIABLE list,char *name,INSTANCE *instance, bool save);
 bool variables_setsave_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon, bool save);
 bool variables_setsave_ship (ppVARIABLE list,char *name,SHIP_DATA *ship, bool save);
+bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool save);
+bool variables_setsave_race (ppVARIABLE list,char *name,RACE_DATA *race, bool save);
+bool variables_setsave_class (ppVARIABLE list,char *name,CLASS_DATA *clazz, bool save);
+bool variables_setsave_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *classlevel, bool save);
+bool variables_setsave_mobindex (ppVARIABLE list,char *name,MOB_INDEX_DATA *mobindex, bool save);
+bool variables_setsave_objindex (ppVARIABLE list,char *name,OBJ_INDEX_DATA *objindex, bool save);
+bool variables_setsave_tokenindex (ppVARIABLE list,char *name,TOKEN_INDEX_DATA *token_index, bool save);
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);
@@ -2803,6 +2900,18 @@ void script_end_failure(CHAR_DATA *ch, bool messages);
 void script_end_pulse(CHAR_DATA *ch);
 CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all);
 OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name);
+bool script_get_quest_metrics(const CHAR_DATA *mob, int *points, int *total_completed, bool *active);
+bool script_get_mission_metrics(const CHAR_DATA *mob, int *points, int *total_completed, bool *active);
+bool script_adjust_quest_points(CHAR_DATA *mob, int delta, int *applied_delta);
+bool script_get_class_metrics(const CHAR_DATA *mob, CLASS_DATA **current_class, CLASS_LEVEL **current_level, int *class_count);
+bool script_get_class_by_name_metrics(const CHAR_DATA *mob, const char *class_name, bool *is_current, int *level, bool *has_class);
+bool script_get_skill_metrics(const CHAR_DATA *mob, const char *skill_name, int *rating, bool *known);
+bool script_get_skill_rating_by_sn(const CHAR_DATA *mob, int sn, int *rating);
+bool script_get_song_known(const CHAR_DATA *mob, const char *song_name, bool *known);
+bool script_get_skill_availability(const CHAR_DATA *mob, const char *skill_name, bool *available_now, bool *has_any);
+bool script_get_spell_availability(const CHAR_DATA *mob, const char *spell_name, bool *available_now, bool *has_any);
+bool script_get_song_availability(const CHAR_DATA *mob, const char *song_name, bool *available_now, bool *has_any);
+bool script_get_trait_metrics(const CHAR_DATA *mob, const char *trait_name, bool *available_now, bool *has_any, bool *bool_value, int *int_value, const char **string_value);
 
 CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced);
 OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced);
@@ -3140,6 +3249,9 @@ SCRIPT_CMD(scriptcmd_setrecall);
 SCRIPT_CMD(scriptcmd_settimer);
 SCRIPT_CMD(scriptcmd_setsubclass);
 SCRIPT_CMD(scriptcmd_settrait);
+SCRIPT_CMD(scriptcmd_addtrait);
+SCRIPT_CMD(scriptcmd_adjusttrait);
+SCRIPT_CMD(scriptcmd_removetrait);
 SCRIPT_CMD(scriptcmd_showcommand);
 
 SCRIPT_CMD(scriptcmd_questpartcustom);

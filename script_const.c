@@ -75,6 +75,7 @@ ENT_FIELD entity_primary[] = {
     {"register5",	ENTITY_REGISTER5,	ENT_NUMBER	},
     {"mxp",			ENTITY_MXP,		ENT_STRING,		"MXP token expansion string",	false},
     {"tab",			ENTITY_MXP,		ENT_STRING,		"Deprecated alias of mxp",	true},
+    {"event",		ENTITY_EVENT,		ENT_EVENT	},
     {NULL,		0,			ENT_UNKNOWN	}
 };
 
@@ -87,6 +88,7 @@ ENT_FIELD entity_types[] = {
     {"exit",			ENTITY_VAR_EXIT,		ENT_EXIT		},
     {"token",			ENTITY_VAR_TOKEN,		ENT_TOKEN		},
     {"area",			ENTITY_VAR_AREA,		ENT_AREA		},
+    {"wilds",			ENTITY_VAR_WILDS,		ENT_WILDS		},
     {"skill",			ENTITY_VAR_SKILL,		ENT_SKILL		},
     {"skillinfo",		ENTITY_VAR_SKILLINFO,	ENT_SKILLINFO	},
     {"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
@@ -113,6 +115,15 @@ ENT_FIELD entity_types[] = {
     {"inst",			ENTITY_VAR_INSTANCE,	ENT_INSTANCE	},
     {"dung",			ENTITY_VAR_DUNGEON,		ENT_DUNGEON	},
     {"ship",			ENTITY_VAR_SHIP,		ENT_SHIP	},
+    {"bool",               ENTITY_VAR_BOOLEAN,     ENT_BOOLEAN     },
+    {"song",               ENTITY_VAR_SONG,        ENT_SONG        },
+    {"race",               ENTITY_VAR_RACE,        ENT_RACE        },
+    {"class",              ENTITY_VAR_CLASS,       ENT_CLASS       },
+    {"classlevel",         ENTITY_VAR_CLASSLEVEL,  ENT_CLASSLEVEL  },
+    {"mobindex",           ENTITY_VAR_MOBINDEX,    ENT_MOBINDEX    },
+    {"objindex",           ENTITY_VAR_OBJINDEX,    ENT_OBJINDEX    },
+    {"tokenindex",         ENTITY_VAR_TOKENINDEX,  ENT_TOKEN_INDEX },
+    {"tokindex",           ENTITY_VAR_TOKENINDEX,  ENT_TOKEN_INDEX },
     {NULL,				0,						ENT_UNKNOWN	}
 };
 
@@ -302,12 +313,14 @@ ENT_FIELD entity_mobile[] = {
     {"event_items",     ENTITY_MOB_EVENT_ITEMS,         ENT_NUMBER },
     {"event_goal",      ENTITY_MOB_EVENT_GOAL,          ENT_NUMBER },
     {"event_phase",     ENTITY_MOB_EVENT_PHASE,         ENT_STRING },
+    {"event",           ENTITY_MOB_EVENT,               ENT_EVENT },
     {"questpoint",      ENTITY_MOB_QUESTPOINTS,         ENT_NUMBER },
     {"missionpoint",    ENTITY_MOB_QUESTPOINTS,         ENT_NUMBER },
     {"totalquests",     ENTITY_MOB_TOTALQUESTS,         ENT_NUMBER },
     {"totalmissions",   ENTITY_MOB_TOTALQUESTS,         ENT_NUMBER },
     {"isquesting",      ENTITY_MOB_ONMISSION,           ENT_BOOLEAN },
     {"onmission",       ENTITY_MOB_ONMISSION,           ENT_BOOLEAN },
+    {"trait",           ENTITY_MOB_TRAIT,               ENT_MOB_TRAIT },
 
     {"vuln",			ENTITY_MOB_VULN,			ENT_BITVECTOR },
 
@@ -356,6 +369,7 @@ ENT_FIELD entity_object[] = {
     {"event_items", ENTITY_OBJ_EVENT_ITEMS, ENT_NUMBER },
     {"event_goal", ENTITY_OBJ_EVENT_GOAL, ENT_NUMBER },
     {"event_phase", ENTITY_OBJ_EVENT_PHASE, ENT_STRING },
+    {"event", ENTITY_OBJ_EVENT, ENT_EVENT },
 
     // Typed data sub-entities
     {"armor",		ENTITY_OBJ_ARMOR_DATA,		ENT_OBJ_ARMOR		},
@@ -454,6 +468,30 @@ ENT_FIELD entity_sector[] = {
     {"affinity3_catalyst", ENTITY_SECTOR_AFFINITY3_CATALYST, ENT_NUMBER},
     {"affinity3_value", ENTITY_SECTOR_AFFINITY3_VALUE, ENT_NUMBER},
     {NULL,				0,							ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_event[] = {
+    {"uid",                     ENTITY_EVENT_UID,               ENT_NUMBER },
+    {"event_uid",               ENTITY_EVENT_UID,               ENT_NUMBER },
+    {"source_uid",              ENTITY_EVENT_SOURCE_UID,        ENT_NUMBER },
+    {"event_source_uid",        ENTITY_EVENT_SOURCE_UID,        ENT_NUMBER },
+    {"instance",                ENTITY_EVENT_INSTANCE,          ENT_NUMBER },
+    {"event_instance",          ENTITY_EVENT_INSTANCE,          ENT_NUMBER },
+    {"source_instance",         ENTITY_EVENT_SOURCE_INSTANCE,   ENT_NUMBER },
+    {"event_source_instance",   ENTITY_EVENT_SOURCE_INSTANCE,   ENT_NUMBER },
+    {"bracket",                 ENTITY_EVENT_BRACKET,           ENT_NUMBER },
+    {"event_bracket",           ENTITY_EVENT_BRACKET,           ENT_NUMBER },
+    {"active",                  ENTITY_EVENT_ACTIVE,            ENT_NUMBER },
+    {"event_active",            ENTITY_EVENT_ACTIVE,            ENT_NUMBER },
+    {"kills",                   ENTITY_EVENT_KILLS,             ENT_NUMBER },
+    {"event_kills",             ENTITY_EVENT_KILLS,             ENT_NUMBER },
+    {"items",                   ENTITY_EVENT_ITEMS,             ENT_NUMBER },
+    {"event_items",             ENTITY_EVENT_ITEMS,             ENT_NUMBER },
+    {"goal",                    ENTITY_EVENT_GOAL,              ENT_NUMBER },
+    {"event_goal",              ENTITY_EVENT_GOAL,              ENT_NUMBER },
+    {"phase",                   ENTITY_EVENT_PHASE,             ENT_STRING },
+    {"event_phase",             ENTITY_EVENT_PHASE,             ENT_STRING },
+    {NULL,                       0,                              ENT_UNKNOWN }
 };
 ENT_FIELD entity_exit[] = {
     {"name",	ENTITY_EXIT_NAME,	ENT_STRING	},
@@ -655,6 +693,25 @@ ENT_FIELD entity_race[] = {
     {"minsize",       ENTITY_RACE_SIZE_MIN,     ENT_NUMBER    },
     {"maxsize",       ENTITY_RACE_SIZE_MAX,     ENT_NUMBER    },
     {"alignment",     ENTITY_RACE_ALIGNMENT,    ENT_NUMBER    },
+    {"summary",       ENTITY_RACE_SUMMARY,      ENT_STRING    },
+    {"path",          ENTITY_RACE_PATH,         ENT_BOOLEAN   },
+    {"pathrace",      ENTITY_RACE_PATH,         ENT_BOOLEAN   },
+    {"remortinto",    ENTITY_RACE_REMORT_INTO,  ENT_RACE      },
+    {"prereq",        ENTITY_RACE_PREREQUISITE, ENT_RACE      },
+    {"prerequisite",  ENTITY_RACE_PREREQUISITE, ENT_RACE      },
+    {"stat_str",      ENTITY_RACE_STAT_STR,     ENT_NUMBER    },
+    {"stat_int",      ENTITY_RACE_STAT_INT,     ENT_NUMBER    },
+    {"stat_wis",      ENTITY_RACE_STAT_WIS,     ENT_NUMBER    },
+    {"stat_dex",      ENTITY_RACE_STAT_DEX,     ENT_NUMBER    },
+    {"stat_con",      ENTITY_RACE_STAT_CON,     ENT_NUMBER    },
+    {"maxstat_str",   ENTITY_RACE_MAXSTAT_STR,  ENT_NUMBER    },
+    {"maxstat_int",   ENTITY_RACE_MAXSTAT_INT,  ENT_NUMBER    },
+    {"maxstat_wis",   ENTITY_RACE_MAXSTAT_WIS,  ENT_NUMBER    },
+    {"maxstat_dex",   ENTITY_RACE_MAXSTAT_DEX,  ENT_NUMBER    },
+    {"maxstat_con",   ENTITY_RACE_MAXSTAT_CON,  ENT_NUMBER    },
+    {"maxhit",        ENTITY_RACE_MAXHIT,       ENT_NUMBER    },
+    {"maxmana",       ENTITY_RACE_MAXMANA,      ENT_NUMBER    },
+    {"maxmove",       ENTITY_RACE_MAXMOVE,      ENT_NUMBER    },
     {NULL,            0,                        ENT_UNKNOWN   }
 };
 
@@ -670,6 +727,10 @@ ENT_FIELD entity_class[] = {
     {"hpmin",         ENTITY_CLASS_HP_MIN,       ENT_NUMBER    },
     {"hpmax",         ENTITY_CLASS_HP_MAX,       ENT_NUMBER    },
     {"gainsmana",     ENTITY_CLASS_GAINS_MANA,   ENT_BOOLEAN   },
+    {"weapon",        ENTITY_CLASS_WEAPON,       ENT_NUMBER    },
+    {"groupcount",    ENTITY_CLASS_GROUP_COUNT,  ENT_NUMBER    },
+    {"rewardcount",   ENTITY_CLASS_REWARD_COUNT, ENT_NUMBER    },
+    {"xptablesize",   ENTITY_CLASS_XP_TABLE_SIZE, ENT_NUMBER   },
     {NULL,            0,                         ENT_UNKNOWN   }
 };
 
@@ -1130,6 +1191,7 @@ struct _entity_type_info entity_type_info[] = {
     { ENT_INSTANCE,		ENT_INSTANCE,		entity_instance,			false	},
     { ENT_DUNGEON,		ENT_DUNGEON,		entity_dungeon,				false	},
     { ENT_SECTOR,		ENT_SECTOR,		entity_sector,		false	},
+    { ENT_EVENT,		ENT_EVENT,		entity_event,			false	},
     { ENT_SONG,			ENT_SONG,			entity_song,				false	},
     { ENT_RACE,			ENT_RACE,			entity_race,				false	},
     { ENT_CLASS,		ENT_CLASS,			entity_class,				false	},
@@ -1147,6 +1209,7 @@ struct _entity_type_info entity_type_info[] = {
     { ENT_RESERVED_TPROG,   ENT_RESERVED_TPROG,   NULL,                    false },
     { ENT_RESERVED_APROG,   ENT_RESERVED_APROG,   NULL,                    false },
     { ENT_GAME_SETTING,     ENT_GAME_SETTING,     NULL,                    false },
+    { ENT_MOB_TRAIT,        ENT_MOB_TRAIT,        NULL,                    false },
     { ENT_TOKEN_INDEX,      ENT_TOKEN_INDEX,      NULL,                    false },
     { ENT_SCRIPT_DATA,        ENT_SCRIPT_DATA,        NULL,                    false },
 
@@ -1470,6 +1533,8 @@ IFCHECK_DATA ifcheck_table[] = {
     { "churchsize",			IFC_ANY,	"E",	true,	ifc_churchsize,			"ifcheck churchsize" },
     { "clan",				IFC_NONE,	"ES",	false,	ifc_clan,				"ifcheck clan" },
     { "class",				IFC_ANY,	"ES",	false,	ifc_class,				"ifcheck class" },
+    { "classcombat",			IFC_ANY,	"E",	false,	ifc_isclasscombat,		"ifcheck classcombat" },
+    { "classcaster",			IFC_ANY,	"E",	false,	ifc_isclasscaster,		"ifcheck classcaster" },
     { "classcount",			IFC_ANY,	"E",	true,	ifc_classcount,			"ifcheck classcount" },
     { "classlevel",			IFC_ANY,	"ES",	true,	ifc_classlevel,			"ifcheck classlevel" },
     { "clones",				IFC_M,		"E",	true,	ifc_clones,				"ifcheck clones" },
@@ -1550,6 +1615,7 @@ IFCHECK_DATA ifcheck_table[] = {
     { "hasfaction",			IFC_ANY,	"E",	false,	ifc_hasfaction,			"ifcheck hasfaction" },
     { "hasship",			IFC_NONE,	"E",	false,	ifc_hasship,			"ifcheck hasship" },
     { "hasspell",			IFC_ANY,	"ES",	false,	ifc_hasspell,			"ifcheck hasspell" },
+    { "availspell",			IFC_ANY,	"ES",	false,	ifc_availspell,			"ifcheck availspell" },
     { "hassubclass",		IFC_ANY,	"ES",	false,	ifc_hassubclass,		"ifcheck hassubclass" },
     { "hastarget",			IFC_ANY,	"E",	false,	ifc_hastarget,			"ifcheck hastarget" },
     { "hastoken",			IFC_ANY,	"EN",	false,	ifc_hastoken,			"ifcheck hastoken" },
@@ -1566,8 +1632,11 @@ IFCHECK_DATA ifcheck_table[] = {
     { "hour",				IFC_ANY,	"E",	true,	ifc_hour,				"ifcheck hour" },
     { "hasclass",			IFC_ANY,	"ES",	false,	ifc_hasclass,			"ifcheck hasclass" },
     { "hasskill",			IFC_ANY,	"ES",	false,	ifc_hasskill,			"ifcheck hasskill" },
+    { "availskill",			IFC_ANY,	"ES",	false,	ifc_availskill,			"ifcheck availskill" },
     { "hassong",			IFC_ANY,	"ES",	false,	ifc_hassong,			"ifcheck hassong" },
+    { "availsong",			IFC_ANY,	"ES",	false,	ifc_availsong,			"ifcheck availsong" },
     { "hastrait",			IFC_ANY,	"ES",	false,	ifc_hastrait,			"ifcheck hastrait" },
+    { "availtrait",			IFC_ANY,	"ES",	false,	ifc_availtrait,			"ifcheck availtrait" },
     { "hpcnt",				IFC_ANY,	"E",	true,	ifc_hpcnt,				"ifcheck hpcnt" },
     { "hunger",				IFC_ANY,	"E",	true,	ifc_hunger,				"ifcheck hunger" },
     { "id",					IFC_ANY,	"E",	true,	ifc_id,					"ifcheck id" },
@@ -1768,6 +1837,8 @@ IFCHECK_DATA ifcheck_table[] = {
     { "protocol",			IFC_ANY,	"ES",	false,	ifc_protocol,			"ifcheck protocol" },
     { "questpoint",			IFC_ANY,	"E",	true,	ifc_quest,				"ifcheck questpoint" },
     { "race",				IFC_ANY,	"ES",	false,	ifc_race,				"ifcheck race" },
+    { "racepath",			IFC_ANY,	"E",	false,	ifc_racepath,			"ifcheck racepath" },
+    { "raceremort",			IFC_ANY,	"E",	false,	ifc_raceremort,			"ifcheck raceremort" },
     { "rand",				IFC_ANY,	"Nn",	false,	ifc_rand,				"ifcheck rand" },
     { "randpoint",			IFC_ANY,	"Nn",	false,	ifc_randpoint,			"ifcheck randpoint" },
     { "reckoning",			IFC_ANY,	"",		true,	ifc_reckoning,			"ifcheck reckoning" },
@@ -1838,6 +1909,7 @@ IFCHECK_DATA ifcheck_table[] = {
     { "totalratio",			IFC_ANY,	"E",	true,	ifc_totalratio,			"ifcheck totalratio" },
     { "totalwins",			IFC_ANY,	"E",	true,	ifc_totalwins,			"ifcheck totalwins" },
     { "toxin",				IFC_ANY,	"ES",	true,	ifc_toxin,				"ifcheck toxin" },
+    { "traitbool",			IFC_ANY,	"ES",	false,	ifc_traitbool,			"ifcheck traitbool" },
     { "traitint",			IFC_ANY,	"ES",	true,	ifc_traitint,			"ifcheck traitint" },
     { "traitstring",		IFC_ANY,	"ES",	false,	ifc_traitstring,		"ifcheck traitstring" },
     { "trains",				IFC_ANY,	"E",	true,	ifc_trains,				"ifcheck trains" },

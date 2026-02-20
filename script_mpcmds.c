@@ -1318,10 +1318,7 @@ SCRIPT_CMD(do_mpdecquest)
 
     if(amount < 1) return;
 
-    victim->questpoints -= amount;
-
-    if (victim->questpoints < 0)
-        victim->questpoints = 0;
+    script_adjust_quest_points(victim, -amount, NULL);
 }
 
 // do_mpdectrain

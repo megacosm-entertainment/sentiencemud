@@ -429,6 +429,13 @@ varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
 varset(dungeon,DUNGEON,DUNGEON *,dungeon,dungeon)
 varset(ship,SHIP,SHIP_DATA *,ship,ship)
+varset(song,SONG,SONG_DATA *,song,song)
+varset(race,RACE,RACE_DATA *,race,race)
+varset(class,CLASS,CLASS_DATA *,clazz,clazz)
+varset(classlevel,CLASSLEVEL,CLASS_LEVEL *,classlevel,classlevel)
+varset(mobindex,MOBINDEX,MOB_INDEX_DATA *,mobindex,mobindex)
+varset(objindex,OBJINDEX,OBJ_INDEX_DATA *,objindex,objindex)
+varset(tokenindex,TOKENINDEX,TOKEN_INDEX_DATA *,token_index,token_index)
 
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
@@ -1553,6 +1560,13 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_TOKEN:			newv->_.t = oldv->_.t; break;
     case VAR_AREA:			newv->_.a = oldv->_.a; break;
     case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
+    case VAR_SONG:          newv->_.song = oldv->_.song; break;
+    case VAR_RACE:          newv->_.race = oldv->_.race; break;
+    case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
+    case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
+    case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
+    case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
     case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
     case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 
@@ -1612,6 +1626,13 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
     case VAR_AREA:		newv->_.a = oldv->_.a; break;
     case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
+    case VAR_SONG:          newv->_.song = oldv->_.song; break;
+    case VAR_RACE:          newv->_.race = oldv->_.race; break;
+    case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
+    case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
+    case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
+    case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
     case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
     case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 
@@ -1670,6 +1691,13 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_OBJECT:	newv->_.o = oldv->_.o; break;
         case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
         case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
+        case VAR_SONG:          newv->_.song = oldv->_.song; break;
+        case VAR_RACE:          newv->_.race = oldv->_.race; break;
+        case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
+        case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+        case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
+        case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
+        case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
         case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
         case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 
@@ -1727,6 +1755,13 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_TOKEN:			newv->_.t = oldv->_.t; break;
     case VAR_AREA:			newv->_.a = oldv->_.a; break;
     case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
+    case VAR_SONG:          newv->_.song = oldv->_.song; break;
+    case VAR_RACE:          newv->_.race = oldv->_.race; break;
+    case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
+    case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
+    case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
+    case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
     case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
     case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 

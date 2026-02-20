@@ -17,8 +17,115 @@
         "test_cases": [
           {"name": "name", "should_exist": true},
           {"name": "level", "should_exist": true},
+          {"name": "on", "should_exist": true},
           {"name": "fulldesc", "should_exist": true},
           {"name": "no_such_mobile_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_variable_types_fields",
+      "description": "Verify variable type entity table exposes backported typed variable entries",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "types",
+        "test_cases": [
+          {"name": "bool", "should_exist": true},
+          {"name": "song", "should_exist": true},
+          {"name": "race", "should_exist": true},
+          {"name": "class", "should_exist": true},
+          {"name": "classlevel", "should_exist": true},
+          {"name": "mobindex", "should_exist": true},
+          {"name": "objindex", "should_exist": true},
+          {"name": "tokenindex", "should_exist": true},
+          {"name": "tokindex", "should_exist": true},
+          {"name": "wilds", "should_exist": true},
+          {"name": "no_such_variable_type_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_object_fields",
+      "description": "Verify object entity aliases remain available",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "object",
+        "test_cases": [
+          {"name": "items", "should_exist": true},
+          {"name": "long", "should_exist": true},
+          {"name": "level", "should_exist": true},
+          {"name": "name", "should_exist": true},
+          {"name": "next", "should_exist": true},
+          {"name": "on", "should_exist": true},
+          {"name": "no_such_object_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_event_fields",
+      "description": "Verify event entity fields and compatibility aliases are available",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "event",
+        "test_cases": [
+          {"name": "uid", "should_exist": true},
+          {"name": "source_uid", "should_exist": true},
+          {"name": "instance", "should_exist": true},
+          {"name": "active", "should_exist": true},
+          {"name": "phase", "should_exist": true},
+          {"name": "event_uid", "should_exist": true},
+          {"name": "event_source_instance", "should_exist": true},
+          {"name": "no_such_event_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_race_fields",
+      "description": "Verify race entity exposes new data-driven race fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "race",
+        "test_cases": [
+          {"name": "summary", "should_exist": true},
+          {"name": "path", "should_exist": true},
+          {"name": "remortinto", "should_exist": true},
+          {"name": "maxmana", "should_exist": true},
+          {"name": "no_such_race_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_class_fields",
+      "description": "Verify class entity exposes new data-driven class fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "class",
+        "test_cases": [
+          {"name": "weapon", "should_exist": true},
+          {"name": "groupcount", "should_exist": true},
+          {"name": "rewardcount", "should_exist": true},
+          {"name": "xptablesize", "should_exist": true},
+          {"name": "no_such_class_field", "should_exist": false}
         ]
       },
       "expected_output": {
@@ -60,6 +167,15 @@
           {"name": "isvaliditem", "ifc_type": "IFC_ANY", "should_exist": true},
           {"name": "iswnum", "ifc_type": "IFC_ANY", "should_exist": true},
           {"name": "wnumvalid", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "classcombat", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "classcaster", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "racepath", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "raceremort", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availskill", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availspell", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availsong", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availtrait", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "traitbool", "ifc_type": "IFC_ANY", "should_exist": true},
           {"name": "missionpoint", "ifc_type": "IFC_ANY", "should_exist": true},
           {"name": "onmission", "ifc_type": "IFC_ANY", "should_exist": true},
           {"name": "totalmissions", "ifc_type": "IFC_ANY", "should_exist": true},
@@ -212,6 +328,16 @@
       "description": "Verify room sector entities support direct comparison, nested field access, and sector flag checks",
       "dependencies": [],
       "test_type": "script_engine_ifcheck_room_sector_entity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_event_entity_expansion",
+      "description": "Verify event is exposed as a first-class nested entity for direct field expansion",
+      "dependencies": [],
+      "test_type": "script_engine_event_entity_expansion_test",
       "input": {},
       "expected_output": {
         "success": true
