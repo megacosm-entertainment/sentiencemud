@@ -26,8 +26,8 @@ static AREA_DATA *script_relative_widevnum_context(AREA_DATA *context_area, cons
 const struct script_cmd_type obj_cmd_table[] = {
     { "addaffect",			scriptcmd_addaffect,	true,	true	},
     { "addaffectname",		scriptcmd_addaffectname,true,	true	},
-    { "addspell",			do_opaddspell,			true,	true	},
-    { "alteraffect",		do_opalteraffect,		true,	true	},
+    { "addspell",			scriptcmd_addspell,		true,	true	},
+    { "alteraffect",		scriptcmd_alteraffect,		true,	true	},
     { "alterexit",			do_opalterexit,			false,	true	},
     { "altermob",			do_opaltermob,			true,	true	},
     { "alterobj",			scriptcmd_alterobj,			true,	true	},
@@ -120,7 +120,7 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "remember",			scriptcmd_remember,	false,	true	},
     { "remort",				scriptcmd_remort,		true,	true	},
     { "remove",				do_opremove,			false,	true	},
-    { "remspell",			do_opremspell,			true,	true	},
+    { "remspell",			scriptcmd_remspell,		true,	true	},
     { "resetdice",			scriptcmd_resetdice,		true,	true	},
     { "resetroom",			scriptcmd_resetroom,	true,	true	},
     { "restore",			scriptcmd_restore,		true,	true	},
@@ -145,8 +145,8 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "startreckoning",		scriptcmd_startreckoning,	true,	true	},
     { "stopcombat",			scriptcmd_stopcombat,	false,	true	},
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
-    { "stringmob",			do_opstringmob,			true,	true	},
-    { "stringobj",			do_opstringobj,			true,	true	},
+    { "stringmob",			scriptcmd_stringmob,		true,	true	},
+    { "stringobj",			scriptcmd_stringobj,		true,	true	},
     { "stripaffect",		scriptcmd_stripaffect,		true,	true	},
     { "stripaffectname",	scriptcmd_stripaffectname,	true,	true	},
     { "transfer",			scriptcmd_transfer,			false,	true	},
@@ -321,11 +321,10 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
         case ENT_NONE:
             *room = obj_room(info->obj);
             break;
+        case ENT_WIDEVNUM:
+            *room = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            break;
         case ENT_NUMBER:
-            // Can either be a room index or a wilderness room
-            // Room: <vnum>
-            // Wilderness coordinates: <x> <y> <w>
-
             x = arg->d.num;
             if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
                 rest = rest2;
@@ -336,7 +335,6 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 
                     if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
-                    // if safe is used, it will not go to bad rooms
                     if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
                         !str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
                         break;
@@ -347,12 +345,10 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                     room_used_for_wilderness.y = y;
                     *room = &room_used_for_wilderness;
                 }
-            } else
-            {
+            } else {
                 WNUM room_wnum;
                 if (resolve_widevnum(x, NULL, &room_wnum))
                     *room = get_room_index(room_wnum.pArea, room_wnum.vnum);
-                rest = rest2;
             }
             break;
 
@@ -362,7 +358,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
             else if(!str_cmp(arg->d.str,"here"))
                 *room = obj_room(info->obj);
             else if(!str_cmp(arg->d.str,"vroom")) {
-                int vnum,id1, id2;
+                int vnum, id1, id2;
                 if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
                     rest = rest2;
                     vnum = arg->d.num;
@@ -376,12 +372,11 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                             id2 = arg->d.num;
                             WNUM room_wnum;
                             if (resolve_widevnum(vnum, NULL, &room_wnum))
-                                *room = get_clone_room(get_room_index(room_wnum.pArea, room_wnum.vnum),id1,id2);
+                                *room = get_clone_room(get_room_index(room_wnum.pArea, room_wnum.vnum), id1, id2);
                         }
                     }
                 }
             } else if(!str_cmp(arg->d.str,"wilds")) {
-
                 x = arg->d.num;
                 if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
                     rest = rest2;
@@ -392,7 +387,6 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 
                         if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
-                        // if safe is used, it will not go to bad rooms
                         if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
                             !str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
                             break;
@@ -409,7 +403,6 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                 for (area = area_first; area; area = area->next) {
                     if (!str_infix(arg->d.str, area->name)) {
                         if(!(loc = location_to_room(&area->recall))) {
-                            // Find any room in this area by iterating hash buckets
                             for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
                                 if ((loc = area->room_index_hash[iHash]) != NULL)
                                     break;
@@ -448,12 +441,13 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
         case ENT_ROOM:
             *room = arg->d.room; break;
         case ENT_EXIT:
-            ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL; break;
+            ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
             *room = ex ? exit_destination(ex) : NULL; break;
         case ENT_TOKEN:
             *room = token_room(arg->d.token); break;
         }
     }
+
     free_script_param(arg);
     return rest;
 }
@@ -2073,132 +2067,6 @@ SCRIPT_CMD(do_opresetdice)
 
 
 
-SCRIPT_CMD(do_opstringobj)
-{
-    char field[MIL],*rest, **str;
-    int min_sec = MIN_SCRIPT_SECURITY;
-    OBJ_DATA *obj = NULL;
-
-    bool newlines = false;
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpStringObj - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        obj = get_obj_here(NULL,obj_room(info->obj),arg->d.str);
-        break;
-    case ENT_OBJECT:
-        obj = arg->d.obj;
-        break;
-    default: break;
-    }
-
-    if(!obj) {
-        pbugf(LOG_SCRIPTS, "OpStringObj - NULL object from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(PROG_FLAG(obj,PROG_AT)) return;
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS, "OpStringObj - Missing field type from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS, "OpStringObj - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    field[0] = 0;
-
-    switch(arg->type) {
-    case ENT_STRING:
-        strncpy(field,arg->d.str,MIL-1);
-        break;
-    default: return;
-    }
-
-    if(!field[0]) return;
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if(buffer->string[0] != '\0')
-    {
-        if(!str_cmp(field,"name")) {
-            if(obj->old_short_descr)
-            {
-                free_buf(buffer);
-                return;	// Can't change restrings, sorry!
-            }
-            str = (char**)&obj->name;
-        } else if(!str_cmp(field,"owner")) {
-            str = (char**)&obj->owner;
-            min_sec = 5;
-        } else if(!str_cmp(field,"short")) {
-            if(obj->old_short_descr)
-            {
-                free_buf(buffer);
-                return;	// Can't change restrings, sorry!
-            }
-            str = (char**)&obj->short_descr;
-        } else if(!str_cmp(field,"long")) {
-            if(obj->old_description)
-            {
-                free_buf(buffer);
-                return;	// Can't change restrings, sorry!
-            }
-            str = (char**)&obj->description;
-        } else if(!str_cmp(field,"full")) {
-            if(obj->old_full_description)
-            {
-                free_buf(buffer);
-                return;	// Can't change restrings, sorry!
-            }
-            str = (char**)&obj->full_description;
-            newlines = true;
-        } else if(!str_cmp(field,"material")) {
-            int mat = material_lookup(buf_string(buffer));
-
-            if(mat < 0) {
-                pbugf(LOG_SCRIPTS, "OpStringObj - Invalid material from vnum %ld.\n\r", VNUM(info->obj));
-                free_buf(buffer);
-                return;
-            }
-
-            // Force material to the full name
-            clear_buf(buffer);
-            add_buf(buffer, material_name(mat));
-
-            str = (char**)&obj->material;
-        }
-        else
-        {
-            free_buf(buffer);
-            return;
-        }
-
-        if(script_security < min_sec) {
-            pbugf(LOG_SCRIPTS,"OpStringObj - Attempting to restring '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->obj));
-            free_buf(buffer);
-            return;
-        }
-
-        char *p = buf_string(buffer);
-        strip_newline(p,newlines);
-
-        free_string(*str);
-        *str = str_dup(p);
-    }
-    free_buf(buffer);
-}
-
 SCRIPT_CMD(do_opaltermob)
 {
     char buf[MSL],field[MIL],*rest;
@@ -2690,92 +2558,6 @@ SCRIPT_CMD(do_opaltermob)
         mob->dirty_stat[dirty_stat] = true;
 }
 
-
-SCRIPT_CMD(do_opstringmob)
-{
-    char buf[MSL+2],field[MIL],*rest, **str;
-    int min_sec = MIN_SCRIPT_SECURITY;
-    CHAR_DATA *mob = NULL;
-
-    bool newlines = false;
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpStringMob - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        mob = get_char_room(NULL,obj_room(info->obj),arg->d.str);
-        break;
-    case ENT_MOBILE:
-        mob = arg->d.mob;
-        break;
-    default: break;
-    }
-
-    if(!mob) {
-        pbugf(LOG_SCRIPTS, "OpStringMob - NULL mobile from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!IS_NPC(mob)) {
-        pbugf(LOG_SCRIPTS, "OpStringMob - can't change strings on PCs from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS, "OpStringMob - Missing field type from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS, "OpStringMob - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    field[0] = 0;
-
-    switch(arg->type) {
-    case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
-    default: return;
-    }
-
-    if(!field[0]) return;
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if(buffer->string[0] != '\0')
-    {
-        if(!str_cmp(field,"name"))				str = (char**)&mob->name;
-        else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
-        else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
-        else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = true; }
-        else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = true; }
-        else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
-        else
-        {
-            free_buf(buffer);
-            return;
-        }
-
-        if(script_security < min_sec) {
-            pbugf(LOG_SCRIPTS,"OpStringMob - Attempting to restring '%s' with security %d from vnum %ld.\n\r", field, script_security, VNUM(info->obj));
-            free_buf(buffer);
-            return;
-        }
-
-        char *p = buf_string(buffer);
-        strip_newline(p, newlines);
-
-        free_string(*str);
-        *str = str_dup(p);
-    }
-    free_buf(buffer);
-}
 
 SCRIPT_CMD(do_opskimprove)
 {
@@ -4660,428 +4442,6 @@ SCRIPT_CMD(do_opskillgroup)
 
     return;
 }
-
-// obj condition $PLAYER <condition> <value>
-// Adjusts the specified condition by the given value
-// addspell $OBJECT STRING[ NUMBER]
-SCRIPT_CMD(do_opaddspell)
-{
-
-    char *rest;
-    SPELL_DATA *spell, *spell_new;
-    OBJ_DATA *target;
-    int level;
-    int sn;
-    AFFECT_DATA *paf;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_OBJECT || !arg->d.obj) return;
-
-    target = arg->d.obj;
-    level = target->level;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
-
-    sn = skill_lookup(arg->d.str);
-    if( sn <= 0 ) return;
-
-    // Add security check for the spell function
-    if(skill_table[sn].spell_fun == spell_null) return;
-
-    if( rest && *rest ) {
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        // Must be a number, positive and no greater than the object's level
-        if(arg->type != ENT_NUMBER || arg->d.num < 1 || arg->d.num > target->level) return;
-
-        level = arg->d.num;
-
-    }
-
-    // Check if the spell already exists on the object
-    for(spell = target->spells; spell != NULL; spell = spell->next)
-    {
-        if( spell->sn == sn ) {
-            spell->level = level;
-
-            // If the object is currently worn and shares affects, update the affect
-            if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
-                if (target->item_type != ITEM_WAND &&
-                    target->item_type != ITEM_STAFF &&
-                    target->item_type != ITEM_SCROLL &&
-                    target->item_type != ITEM_POTION &&
-                    target->item_type != ITEM_TATTOO &&
-                    target->item_type != ITEM_PILL) {
-
-
-                    for( paf = target->carried_by->affected; paf != NULL; paf = paf->next ) {
-                        if( paf->type == sn && paf->slot == target->wear_loc ) {
-
-                            // Update the level if affect's level is higher
-                            if( paf->level > level )
-                                paf->level = level;
-
-                            // Add security aspect to allow raising the level?
-
-                            break;
-                        }
-                    }
-                }
-            }
-            return;
-        }
-    }
-
-    // Spell is new to the object, so add it
-    spell_new = new_spell();
-    spell_new->sn = sn;
-    spell_new->level = level;
-
-    spell_new->next = target->spells;
-    target->spells = spell_new;
-
-    // If the target is currently being worn and shares affects, add it to the wearer
-    if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
-        if (target->item_type != ITEM_WAND &&
-            target->item_type != ITEM_STAFF &&
-            target->item_type != ITEM_SCROLL &&
-            target->item_type != ITEM_POTION &&
-            target->item_type != ITEM_TATTOO &&
-            target->item_type != ITEM_PILL) {
-
-            for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
-            {
-                if (paf->type == sn)
-                    break;
-            }
-
-            if (paf == NULL || paf->level < level) {
-                affect_strip(target->carried_by, sn);
-                obj_cast_spell(sn, level + MAGIC_WEAR_SPELL, target->carried_by, target->carried_by, target);
-            }
-        }
-    }
-}
-
-
-// remspell $OBJECT STRING[ silent]
-SCRIPT_CMD(do_opremspell)
-{
-    char *rest;
-    SPELL_DATA *spell, *spell_prev;
-    OBJ_DATA *target;
-    int level;
-    int sn;
-    bool found = false, show = true;
-    AFFECT_DATA *paf;
-
-    if(!info || !info->token || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpRemSpell - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(arg->type != ENT_OBJECT || !arg->d.obj) return;
-
-    target = arg->d.obj;
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS, "OpRemSpell - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
-
-    sn = skill_lookup(arg->d.str);
-    if( sn <= 0 ) return;
-
-    // Add security check for the spell function
-    if(skill_table[sn].spell_fun == spell_null) return;
-
-    if( rest && *rest ) {
-        if(!(rest = expand_argument(info,rest,arg))) {
-            pbugf("OpRemSpell - Error in parsing.",0);
-            return;
-        }
-
-        if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
-
-        if( !str_cmp(arg->d.str, "silent") )
-            show = false;
-    }
-
-    found = false;
-    spell_prev = NULL;
-    for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
-        if( spell->sn == sn ) {
-            if( spell_prev != NULL )
-                spell_prev->next = spell->next;
-            else
-                target->spells = spell->next;
-
-            level = spell->level;
-
-            free_spell(spell);
-
-            found = true;
-            break;
-        }
-    }
-
-    if( found && target->carried_by != NULL && target->wear_loc != WEAR_NONE) {
-        if (target->item_type != ITEM_WAND &&
-            target->item_type != ITEM_STAFF &&
-            target->item_type != ITEM_SCROLL &&
-            target->item_type != ITEM_POTION &&
-            target->item_type != ITEM_TATTOO &&
-            target->item_type != ITEM_PILL) {
-
-            OBJ_DATA *obj_tmp;
-            int spell_level = level;
-            int found_loc = WEAR_NONE;
-            ITERATOR it;
-            bool has_lworn = false;
-
-            // Find the first affect that matches this spell and is derived from the object
-            for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
-            {
-                if (paf->type == sn && paf->slot == target->wear_loc)
-                    break;
-            }
-
-            if( !paf ) {
-                // This spell was not applied by this object
-                return;
-            }
-
-            found = false;
-            level = 0;
-
-            // Check if character has lworn (linked list)
-            has_lworn = target->carried_by && target->carried_by->lworn && is_llist(target->carried_by->lworn);
-            
-            if (has_lworn) {
-                // Use iterator for linked list of worn items
-                iterator_start(&it, target->carried_by->lworn);
-                while ((obj_tmp = iterator_nextdata(&it))) {
-                    if (obj_tmp != target) {
-                        for (spell = obj_tmp->spells; spell != NULL; spell = spell->next) {
-                            if (spell->sn == sn && spell->level > level) {
-                                level = spell->level;    // Keep the maximum
-                                found_loc = obj_tmp->wear_loc;
-                                found = true;
-                            }
-                        }
-                    }
-                }
-                iterator_stop(&it);
-            }
-
-            if(!found) {
-                // No other worn object had this spell available
-
-                if( show ) {
-                    if (skill_table[sn].msg_off) {
-                        send_to_char(skill_table[sn].msg_off, target->carried_by);
-                        send_to_char("\n\r", target->carried_by);
-                    }
-                }
-
-                affect_strip(target->carried_by, sn);
-            } else if( level > spell_level ) {
-                level -= spell_level;        // Get the difference
-
-                // Update all affects to the current maximum and its slot
-                for(; paf; paf = paf->next) {
-                    if(paf->type == sn && paf->slot == target->wear_loc) {
-                        paf->level += level;
-                        paf->slot = found_loc;
-                    }
-                }
-            }
-        }
-    }
-}
-
-// alteraffect $AFFECT STRING OP NUMBER
-// Current limitations: only level and duration
-// Altering other aspects such as modifiers will require updating the owner of the affect, which isn't available here
-SCRIPT_CMD(do_opalteraffect)
-{
-    char buf[MIL],field[MIL],*rest;
-
-    AFFECT_DATA *paf;
-    int value;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_AFFECT || !arg->d.aff) return;
-
-    paf = arg->d.aff;
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS, "OpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if( IS_NULLSTR(rest) ) return;
-
-    if( arg->type != ENT_STRING || IS_NULLSTR(arg->d.str) ) return;
-
-    strncpy(field,arg->d.str,MIL-1);
-
-
-    if( !str_cmp(field, "level") ) {
-        argument = one_argument(rest,buf);
-
-        if(!(rest = expand_argument(info,argument,arg))) {
-            pbugf(LOG_SCRIPTS, "OpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
-            return;
-        }
-
-        switch(arg->type) {
-        case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-        case ENT_NUMBER: value = arg->d.num; break;
-        default: return;
-        }
-
-
-        switch(buf[0]) {
-        case '=':
-            if( value > 0 && value < paf->level )
-                paf->level = value;
-
-            break;
-
-        case '+':
-            if( value < 0 ) {
-                paf->level += value;
-                if( paf->level < 1 )
-                    paf->level = 1;
-            }
-            break;
-
-        case '-':
-            if( value > 0 ) {
-                paf->level -= value;
-                if( paf->level < 1 )
-                    paf->level = 1;
-            }
-            break;
-
-        }
-
-        return;
-    }
-
-    if(!str_cmp(field, "duration")) {
-        argument = one_argument(rest,buf);
-
-        if(!(rest = expand_argument(info,argument,arg))) {
-            pbugf(LOG_SCRIPTS, "OpAlterAffect - Error in parsing from vnum %ld.", VNUM(info->obj));
-            return;
-        }
-
-        if( paf->slot != WEAR_NONE ) {
-            pbugf(LOG_SCRIPTS, "OpAlterAffect - Attempting to modify duration of an object given affect from vnum %ld.", VNUM(info->obj));
-            return;
-        }
-
-        if( paf->group == AFFGROUP_RACIAL ) {
-            pbugf(LOG_SCRIPTS, "OpAlterAffect - Attempting to modify duration of a racial affect from vnum %ld.", VNUM(info->obj));
-            return;
-        }
-
-        if(!str_cmp(buf, "toggle")) {
-            paf->duration = -paf->duration;
-            return;
-        }
-
-
-        switch(arg->type) {
-        case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-        case ENT_NUMBER: value = arg->d.num; break;
-        default: return;
-        }
-
-        switch(buf[0]) {
-        case '=':
-            if( value != 0 ) {
-                paf->duration = value;
-            }
-
-            break;
-
-        case '+':
-            if( paf->duration < 0 )
-            {
-                paf->duration += value;
-                if( paf->duration >= 0 )
-                    paf->duration = -1;
-            }
-            else
-            {
-                paf->duration += value;
-                if( paf->duration < 0 )
-                    paf->duration = 0;
-            }
-            break;
-
-        case '-':
-            if( paf->duration < 0 )
-            {
-                paf->duration -= value;
-                if( paf->duration >= 0 )
-                    paf->duration = -1;
-            }
-            else
-            {
-                paf->duration -= value;
-                if( paf->duration < 0 )
-                    paf->duration = 0;
-            }
-            break;
-
-        }
-
-
-    }
-
-
-
-}
-
-
-// Syntax: crier STRING
-SCRIPT_CMD(do_opcrier)
-{
-    if(!info || !info->obj) return;
-
-    BUFFER *buffer = new_buf();
-    add_buf(buffer, "{M");
-    expand_string(info,argument,buffer);
-
-    if(buffer->string[2] != '\0')
-    {
-        add_buf(buffer, "{x");
-
-        crier_announce(buffer->string);
-    }
-    free_buf(buffer);
-}
-
 
 // GROUP npc(FOLLOWER) mobile(LEADER)[ bool(SHOW=true)]
 // Follower will only work on an NPC

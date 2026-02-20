@@ -1772,6 +1772,251 @@ SCRIPT_CMD(scriptcmd_crier)
     free_buf(buffer);
 }
 
+SCRIPT_CMD(scriptcmd_stringobj)
+{
+    char field[MIL], *rest, **str;
+    int min_sec = MIN_SCRIPT_SECURITY;
+    OBJ_DATA *obj = NULL;
+    bool newlines = false;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info) return;
+
+    if(info->obj) {
+        scope_name = "OpStringObj";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpStringObj";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpStringObj";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        obj = script_get_obj_here(info, arg->d.str);
+        break;
+    case ENT_OBJECT:
+        obj = arg->d.obj;
+        break;
+    default:
+        break;
+    }
+
+    if(!obj) {
+        pbugf(LOG_SCRIPTS, "%s - NULL object from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(info->obj && PROG_FLAG(obj,PROG_AT))
+        return;
+
+    if(!*rest) {
+        pbugf(LOG_SCRIPTS, "%s - Missing field type from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    field[0] = '\0';
+
+    if(arg->type == ENT_STRING)
+        strncpy(field,arg->d.str,MIL-1);
+    else
+        return;
+
+    if(!field[0]) return;
+
+    BUFFER *buffer = new_buf();
+    expand_string(info,rest,buffer);
+
+    if(buf_string(buffer)[0] != '\0')
+    {
+        if(!str_cmp(field,"name")) {
+            if(obj->old_short_descr)
+            {
+                free_buf(buffer);
+                return;
+            }
+            str = (char**)&obj->name;
+        } else if(!str_cmp(field,"owner")) {
+            str = (char**)&obj->owner;
+            min_sec = 5;
+        } else if(!str_cmp(field,"short")) {
+            if(obj->old_short_descr)
+            {
+                free_buf(buffer);
+                return;
+            }
+            str = (char**)&obj->short_descr;
+        } else if(!str_cmp(field,"long")) {
+            if(obj->old_description)
+            {
+                free_buf(buffer);
+                return;
+            }
+            str = (char**)&obj->description;
+        } else if(!str_cmp(field,"full")) {
+            if(obj->old_full_description)
+            {
+                free_buf(buffer);
+                return;
+            }
+            str = (char**)&obj->full_description;
+            newlines = true;
+        } else if(!str_cmp(field,"material")) {
+            int mat = material_lookup(buf_string(buffer));
+
+            if(mat < 0) {
+                pbugf(LOG_SCRIPTS, "%s - Invalid material from vnum %ld.", scope_name, scope_vnum);
+                free_buf(buffer);
+                return;
+            }
+
+            clear_buf(buffer);
+            add_buf(buffer, material_name(mat));
+
+            str = (char**)&obj->material;
+        } else {
+            free_buf(buffer);
+            return;
+        }
+
+        if(script_security < min_sec) {
+            pbugf(LOG_SCRIPTS, "%s - Attempting to restring '%s' with security %d from vnum %ld.", scope_name, field, script_security, scope_vnum);
+            free_buf(buffer);
+            return;
+        }
+
+        char *p = buf_string(buffer);
+        strip_newline(p, newlines);
+
+        free_string(*str);
+        *str = str_dup(p);
+    }
+
+    free_buf(buffer);
+}
+
+SCRIPT_CMD(scriptcmd_stringmob)
+{
+    char field[MIL], *rest, **str;
+    int min_sec = MIN_SCRIPT_SECURITY;
+    CHAR_DATA *mob = NULL;
+    bool newlines = false;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info) return;
+
+    if(info->obj) {
+        scope_name = "OpStringMob";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpStringMob";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpStringMob";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        mob = script_get_char_room(info, arg->d.str, true);
+        break;
+    case ENT_MOBILE:
+        mob = arg->d.mob;
+        break;
+    default:
+        break;
+    }
+
+    if(!mob) {
+        pbugf(LOG_SCRIPTS, "%s - NULL mobile from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!IS_NPC(mob)) {
+        pbugf(LOG_SCRIPTS, "%s - can't change strings on PCs from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!*rest) {
+        pbugf(LOG_SCRIPTS, "%s - Missing field type from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    field[0] = '\0';
+    if(arg->type == ENT_STRING)
+        strncpy(field,arg->d.str,MIL-1);
+    else
+        return;
+
+    if(!field[0]) return;
+
+    BUFFER *buffer = new_buf();
+    expand_string(info,rest,buffer);
+
+    if(buf_string(buffer)[0] != '\0')
+    {
+        if(!str_cmp(field,"name"))
+            str = (char**)&mob->name;
+        else if(!str_cmp(field,"owner")) {
+            str = (char**)&mob->owner;
+            min_sec = 5;
+        } else if(!str_cmp(field,"short"))
+            str = (char**)&mob->short_descr;
+        else if(!str_cmp(field,"long")) {
+            str = (char**)&mob->long_descr;
+            newlines = true;
+        } else if(!str_cmp(field,"full")) {
+            str = (char**)&mob->description;
+            newlines = true;
+        } else if(!str_cmp(field,"tempstring"))
+            str = (char**)&mob->tempstring;
+        else {
+            free_buf(buffer);
+            return;
+        }
+
+        if(script_security < min_sec) {
+            pbugf(LOG_SCRIPTS, "%s - Attempting to restring '%s' with security %d from vnum %ld.", scope_name, field, script_security, scope_vnum);
+            free_buf(buffer);
+            return;
+        }
+
+        char *p = buf_string(buffer);
+        strip_newline(p, newlines);
+
+        free_string(*str);
+        *str = str_dup(p);
+    }
+
+    free_buf(buffer);
+}
+
 SCRIPT_CMD(scriptcmd_churchannouncetheft)
 {
     char *rest = argument;
@@ -9314,6 +9559,403 @@ SCRIPT_CMD(scriptcmd_stripaffectname)
         affect_strip_name(mob, name);
     else
         affect_strip_name_obj(obj, name);
+}
+
+// addspell $OBJECT STRING[ NUMBER]
+SCRIPT_CMD(scriptcmd_addspell)
+{
+    char *rest;
+    SPELL_DATA *spell, *spell_new;
+    OBJ_DATA *target;
+    int level;
+    int sn;
+    AFFECT_DATA *paf;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_OBJECT || !arg->d.obj)
+        return;
+
+    target = arg->d.obj;
+    level = target->level;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str))
+        return;
+
+    sn = skill_lookup(arg->d.str);
+    if(sn <= 0)
+        return;
+
+    if(skill_table[sn].spell_fun == spell_null)
+        return;
+
+    if(rest && *rest) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        if(arg->type != ENT_NUMBER || arg->d.num < 1 || arg->d.num > target->level)
+            return;
+
+        level = arg->d.num;
+    }
+
+    for(spell = target->spells; spell != NULL; spell = spell->next)
+    {
+        if(spell->sn == sn) {
+            spell->level = level;
+
+            if(target->carried_by != NULL && target->wear_loc != WEAR_NONE) {
+                if(target->item_type != ITEM_WAND &&
+                    target->item_type != ITEM_STAFF &&
+                    target->item_type != ITEM_SCROLL &&
+                    target->item_type != ITEM_POTION &&
+                    target->item_type != ITEM_TATTOO &&
+                    target->item_type != ITEM_PILL) {
+
+                    for(paf = target->carried_by->affected; paf != NULL; paf = paf->next) {
+                        if(paf->type == sn && paf->slot == target->wear_loc) {
+                            if(paf->level > level)
+                                paf->level = level;
+
+                            break;
+                        }
+                    }
+                }
+            }
+            return;
+        }
+    }
+
+    spell_new = new_spell();
+    spell_new->sn = sn;
+    spell_new->level = level;
+
+    spell_new->next = target->spells;
+    target->spells = spell_new;
+
+    if(target->carried_by != NULL && target->wear_loc != WEAR_NONE) {
+        if(target->item_type != ITEM_WAND &&
+            target->item_type != ITEM_STAFF &&
+            target->item_type != ITEM_SCROLL &&
+            target->item_type != ITEM_POTION &&
+            target->item_type != ITEM_TATTOO &&
+            target->item_type != ITEM_PILL) {
+
+            for(paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+            {
+                if(paf->type == sn)
+                    break;
+            }
+
+            if(paf == NULL || paf->level < level) {
+                affect_strip(target->carried_by, sn);
+                obj_cast_spell(sn, level + MAGIC_WEAR_SPELL, target->carried_by, target->carried_by, target);
+            }
+        }
+    }
+}
+
+SCRIPT_CMD(scriptcmd_alteraffect)
+{
+    char buf[MIL], field[MIL], *rest;
+    AFFECT_DATA *paf;
+    int value;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(info->mob) {
+        scope_name = "MpAlterAffect";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        scope_name = "OpAlterAffect";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpAlterAffect";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpAlterAffect";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_AFFECT || !arg->d.aff)
+        return;
+
+    paf = arg->d.aff;
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(IS_NULLSTR(rest))
+        return;
+
+    if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str))
+        return;
+
+    strncpy(field,arg->d.str,MIL-1);
+
+    if(!str_cmp(field, "level")) {
+        argument = one_argument(rest,buf);
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING:
+            value = is_number(arg->d.str) ? atoi(arg->d.str) : 0;
+            break;
+        case ENT_NUMBER:
+            value = arg->d.num;
+            break;
+        default:
+            return;
+        }
+
+        switch(buf[0]) {
+        case '=':
+            if(value > 0 && value < paf->level)
+                paf->level = value;
+            break;
+
+        case '+':
+            if(value < 0) {
+                paf->level += value;
+                if(paf->level < 1)
+                    paf->level = 1;
+            }
+            break;
+
+        case '-':
+            if(value > 0) {
+                paf->level -= value;
+                if(paf->level < 1)
+                    paf->level = 1;
+            }
+            break;
+        }
+
+        return;
+    }
+
+    if(!str_cmp(field, "duration")) {
+        argument = one_argument(rest,buf);
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+
+        if(paf->slot != WEAR_NONE) {
+            pbugf(LOG_SCRIPTS, "%s - Attempting to modify duration of an object given affect from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+
+        if(paf->group == AFFGROUP_RACIAL) {
+            pbugf(LOG_SCRIPTS, "%s - Attempting to modify duration of a racial affect from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+
+        if(!str_cmp(buf, "toggle")) {
+            paf->duration = -paf->duration;
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING:
+            value = is_number(arg->d.str) ? atoi(arg->d.str) : 0;
+            break;
+        case ENT_NUMBER:
+            value = arg->d.num;
+            break;
+        default:
+            return;
+        }
+
+        switch(buf[0]) {
+        case '=':
+            if(value != 0)
+                paf->duration = value;
+            break;
+
+        case '+':
+            if(paf->duration < 0)
+            {
+                paf->duration += value;
+                if(paf->duration >= 0)
+                    paf->duration = -1;
+            }
+            else
+            {
+                paf->duration += value;
+                if(paf->duration < 0)
+                    paf->duration = 0;
+            }
+            break;
+
+        case '-':
+            if(paf->duration < 0)
+            {
+                paf->duration -= value;
+                if(paf->duration >= 0)
+                    paf->duration = -1;
+            }
+            else
+            {
+                paf->duration -= value;
+                if(paf->duration < 0)
+                    paf->duration = 0;
+            }
+            break;
+        }
+    }
+}
+
+// remspell $OBJECT STRING[ silent]
+SCRIPT_CMD(scriptcmd_remspell)
+{
+    char *rest;
+    SPELL_DATA *spell, *spell_prev;
+    OBJ_DATA *target;
+    int level;
+    int sn;
+    bool found = false, show = true;
+    AFFECT_DATA *paf;
+    ITERATOR it;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_OBJECT || !arg->d.obj)
+        return;
+
+    target = arg->d.obj;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str))
+        return;
+
+    sn = skill_lookup(arg->d.str);
+    if(sn <= 0)
+        return;
+
+    if(skill_table[sn].spell_fun == spell_null)
+        return;
+
+    if(rest && *rest) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str))
+            return;
+
+        if(!str_cmp(arg->d.str, "silent"))
+            show = false;
+    }
+
+    found = false;
+    spell_prev = NULL;
+    for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
+        if(spell->sn == sn) {
+            if(spell_prev != NULL)
+                spell_prev->next = spell->next;
+            else
+                target->spells = spell->next;
+
+            level = spell->level;
+
+            free_spell(spell);
+
+            found = true;
+            break;
+        }
+    }
+
+    if(found && target->carried_by != NULL && target->wear_loc != WEAR_NONE) {
+        if(target->item_type != ITEM_WAND &&
+            target->item_type != ITEM_STAFF &&
+            target->item_type != ITEM_SCROLL &&
+            target->item_type != ITEM_POTION &&
+            target->item_type != ITEM_TATTOO &&
+            target->item_type != ITEM_PILL) {
+
+            OBJ_DATA *obj_tmp;
+            int spell_level = level;
+            int found_loc = WEAR_NONE;
+            bool has_lworn = false;
+
+            for(paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+            {
+                if(paf->type == sn && paf->slot == target->wear_loc)
+                    break;
+            }
+
+            if(!paf)
+                return;
+
+            found = false;
+            level = 0;
+
+            has_lworn = target->carried_by && target->carried_by->lworn && is_llist(target->carried_by->lworn);
+
+            if(has_lworn) {
+                iterator_start(&it, target->carried_by->lworn);
+                while((obj_tmp = iterator_nextdata(&it))) {
+                    if(obj_tmp != target) {
+                        for(spell = obj_tmp->spells; spell != NULL; spell = spell->next) {
+                            if(spell->sn == sn && spell->level > level) {
+                                level = spell->level;
+                                found_loc = obj_tmp->wear_loc;
+                                found = true;
+                            }
+                        }
+                    }
+                }
+                iterator_stop(&it);
+            }
+
+            if(!found) {
+                if(show) {
+                    if(skill_table[sn].msg_off) {
+                        send_to_char(skill_table[sn].msg_off, target->carried_by);
+                        send_to_char("\n\r", target->carried_by);
+                    }
+                }
+
+                affect_strip(target->carried_by, sn);
+            } else if(level > spell_level) {
+                level -= spell_level;
+
+                for(; paf; paf = paf->next) {
+                    if(paf->type == sn && paf->slot == target->wear_loc) {
+                        paf->level += level;
+                        paf->slot = found_loc;
+                    }
+                }
+            }
+        }
+    }
 }
 
 static int cmd_cmp(void *a, void *b)

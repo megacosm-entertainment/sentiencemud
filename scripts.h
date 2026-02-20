@@ -2956,13 +2956,7 @@ SCRIPT_CMD(do_opskimprove);
 SCRIPT_CMD(do_rpskimprove);
 SCRIPT_CMD(do_tpskimprove);
 SCRIPT_CMD(do_mpstringmob);
-SCRIPT_CMD(do_opstringmob);
-SCRIPT_CMD(do_rpstringmob);
-SCRIPT_CMD(do_tpstringmob);
 SCRIPT_CMD(do_mpstringobj);
-SCRIPT_CMD(do_opstringobj);
-SCRIPT_CMD(do_rpstringobj);
-SCRIPT_CMD(do_tpstringobj);
 SCRIPT_CMD(do_mptake);
 SCRIPT_CMD(do_mpteleport);
 SCRIPT_CMD(do_mptransfer);
@@ -3031,20 +3025,6 @@ SCRIPT_CMD(do_tpcastfailure);
 SCRIPT_CMD(do_tpcastrecover);
 
 
-SCRIPT_CMD(do_mpaddspell);
-SCRIPT_CMD(do_mpremspell);
-SCRIPT_CMD(do_mpalteraffect);
-SCRIPT_CMD(do_opaddspell);
-SCRIPT_CMD(do_opremspell);
-SCRIPT_CMD(do_opalteraffect);
-SCRIPT_CMD(do_rpaddspell);
-SCRIPT_CMD(do_rpremspell);
-SCRIPT_CMD(do_rpalteraffect);
-SCRIPT_CMD(do_tpaddspell);
-SCRIPT_CMD(do_tpremspell);
-SCRIPT_CMD(do_tpalteraffect);
-
-
 SCRIPT_CMD(do_mpstopcombat);
 SCRIPT_CMD(do_opstopcombat);
 SCRIPT_CMD(do_rpstopcombat);
@@ -3059,6 +3039,7 @@ SCRIPT_CMD(do_tpgroup);
 
 SCRIPT_CMD(scriptcmd_addaffect);
 SCRIPT_CMD(scriptcmd_addaffectname);
+SCRIPT_CMD(scriptcmd_alteraffect);
 SCRIPT_CMD(scriptcmd_applytoxin);
 SCRIPT_CMD(scriptcmd_asound);
 SCRIPT_CMD(scriptcmd_award);
@@ -3140,11 +3121,15 @@ SCRIPT_CMD(scriptcmd_questscroll);
 SCRIPT_CMD(scriptcmd_ed);
 
 SCRIPT_CMD(scriptcmd_call);
+SCRIPT_CMD(scriptcmd_addspell);
 SCRIPT_CMD(scriptcmd_condition);
 SCRIPT_CMD(scriptcmd_crier);
 SCRIPT_CMD(scriptcmd_purge);
 SCRIPT_CMD(scriptcmd_raisedead);
+SCRIPT_CMD(scriptcmd_remspell);
 SCRIPT_CMD(scriptcmd_resetdice);
+SCRIPT_CMD(scriptcmd_stringmob);
+SCRIPT_CMD(scriptcmd_stringobj);
 SCRIPT_CMD(scriptcmd_stripaffect);
 SCRIPT_CMD(scriptcmd_stripaffectname);
 SCRIPT_CMD(scriptcmd_ungroup);
