@@ -865,6 +865,7 @@ MEDIT(medit_owner)
 MEDIT(medit_create)
 {
     MOB_INDEX_DATA *pMob;
+    MOB_INDEX_DATA *temp_mob;
     AREA_DATA *pArea;
     long  value;
     int  iHash;
@@ -873,28 +874,24 @@ MEDIT(medit_create)
     // Auto-vnum: if no argument or argument is 0, find next available vnum in current area
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-    MOB_INDEX_DATA *temp_mob;
-
-    auto_vnum = ch->in_room->area->min_vnum;
-    temp_mob = get_mob_index(ch->in_room->area, auto_vnum);
-    if (temp_mob != NULL)
+    pArea = ch->in_room->area;
+    auto_vnum = 1;
+    for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-        while (temp_mob != NULL)
+        for (temp_mob = pArea->mob_index_hash[iHash]; temp_mob; temp_mob = temp_mob->next)
         {
-        temp_mob = get_mob_index(ch->in_room->area, auto_vnum);
-        if (temp_mob == NULL) break;
-        auto_vnum++;
+        if (temp_mob->vnum >= auto_vnum)
+            auto_vnum = temp_mob->vnum + 1;
         }
     }
 
-    if (auto_vnum > ch->in_room->area->max_vnum)
+    if (auto_vnum <= 0)
     {
-        send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        send_to_char("Unable to allocate a new mobile vnum.\n\r", ch);
         return false;
     }
     
     value = auto_vnum;
-    pArea = ch->in_room->area;
     }
     else
     {

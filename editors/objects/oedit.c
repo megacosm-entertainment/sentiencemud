@@ -1958,6 +1958,7 @@ OEDIT(oedit_cost)
 OEDIT(oedit_create)
 {
     OBJ_INDEX_DATA *pObj;
+    OBJ_INDEX_DATA *temp_obj;
     AREA_DATA *pArea;
     long value;
     int iHash;
@@ -1966,21 +1967,24 @@ OEDIT(oedit_create)
     // Auto-vnum: if no argument or argument is 0, find next available vnum in current area
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
-        OBJ_INDEX_DATA *temp_obj;
-        auto_vnum = ch->in_room->area->min_vnum;
-        temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
-        while (temp_obj != NULL && auto_vnum <= ch->in_room->area->max_vnum)
+        pArea = ch->in_room->area;
+        auto_vnum = 1;
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
         {
-            auto_vnum++;
-            temp_obj = get_obj_index(ch->in_room->area, auto_vnum);
+            for (temp_obj = pArea->obj_index_hash[iHash]; temp_obj; temp_obj = temp_obj->next)
+            {
+                if (temp_obj->vnum >= auto_vnum)
+                    auto_vnum = temp_obj->vnum + 1;
+            }
         }
-        if (auto_vnum > ch->in_room->area->max_vnum)
+
+        if (auto_vnum <= 0)
         {
-            send_to_char("No free vnums in this area.\n\r", ch);
+            send_to_char("Unable to allocate a new object vnum.\n\r", ch);
             return false;
         }
+
         value = auto_vnum;
-        pArea = ch->in_room->area;
     }
     else
     {

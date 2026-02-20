@@ -153,6 +153,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
 TEDIT(tedit_create)
 {
     TOKEN_INDEX_DATA *token_index;
+    TOKEN_INDEX_DATA *temp_token;
     AREA_DATA *pArea;
     long value;
     int iHash;
@@ -161,12 +162,19 @@ TEDIT(tedit_create)
     if (argument[0] == '\0' || !str_cmp(argument, "0"))
     {
         pArea = ch->in_room->area;
-        value = pArea->min_vnum;
-        while (value <= pArea->max_vnum && get_token_index(pArea, value))
-            value++;
-        if (value > pArea->max_vnum)
+        value = 1;
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
         {
-            send_to_char("No free vnums in this area.\n\r", ch);
+            for (temp_token = pArea->token_index_hash[iHash]; temp_token; temp_token = temp_token->next)
+            {
+                if (temp_token->vnum >= value)
+                    value = temp_token->vnum + 1;
+            }
+        }
+
+        if (value <= 0)
+        {
+            send_to_char("Unable to allocate a new token vnum.\n\r", ch);
             return false;
         }
     }

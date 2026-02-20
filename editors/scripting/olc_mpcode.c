@@ -237,10 +237,42 @@ static bool scriptedit_prog_matches(const PROG_LIST *prog, const SCRIPT_DATA *sc
             return true;
     }
 
-    if (prog->vnum == script->vnum)
-        return true;
-
     return false;
+}
+
+static SCRIPT_DATA **scriptedit_get_area_script_list_head(AREA_DATA *area, int type)
+{
+    if (!area)
+        return NULL;
+
+    switch (type) {
+    case PRG_MPROG: return &area->mprog_list;
+    case PRG_OPROG: return &area->oprog_list;
+    case PRG_RPROG: return &area->rprog_list;
+    case PRG_TPROG: return &area->tprog_list;
+    case PRG_APROG: return &area->aprog_list;
+    case PRG_IPROG: return &area->iprog_list;
+    case PRG_DPROG: return &area->dprog_list;
+    default: return NULL;
+    }
+}
+
+static long scriptedit_next_auto_vnum(AREA_DATA *area, int type)
+{
+    SCRIPT_DATA **list_head;
+    SCRIPT_DATA *script;
+    long next_vnum = 1;
+
+    list_head = scriptedit_get_area_script_list_head(area, type);
+    if (!list_head)
+        return 0;
+
+    for (script = *list_head; script; script = script->next) {
+        if (script->vnum >= next_vnum)
+            next_vnum = script->vnum + 1;
+    }
+
+    return next_vnum;
 }
 
 static int scriptedit_show_uses_from_bank(OLC_LAYOUT_CTX *ctx, SCRIPT_DATA *script,
@@ -1484,12 +1516,9 @@ SCRIPTEDIT(mpedit_create)
 
     if (argument[0] == '\0' || !strcmp(argument, "0")) {
         ad = ch->in_room->area;
-        for (value = ad->min_vnum; value <= ad->max_vnum; value++) {
-            if (!get_script_index(ad, value, PRG_MPROG))
-                break;
-        }
-        if (value > ad->max_vnum) {
-            send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        value = scriptedit_next_auto_vnum(ad, PRG_MPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
             return false;
         }
     } else {
@@ -1542,12 +1571,9 @@ SCRIPTEDIT(opedit_create)
 
     if (argument[0] == '\0' || !strcmp(argument, "0")) {
         ad = ch->in_room->area;
-        for (value = ad->min_vnum; value <= ad->max_vnum; value++) {
-            if (!get_script_index(ad, value, PRG_OPROG))
-                break;
-        }
-        if (value > ad->max_vnum) {
-            send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        value = scriptedit_next_auto_vnum(ad, PRG_OPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
             return false;
         }
     } else {
@@ -1600,12 +1626,9 @@ SCRIPTEDIT(rpedit_create)
 
     if (argument[0] == '\0' || !strcmp(argument, "0")) {
         ad = ch->in_room->area;
-        for (value = ad->min_vnum; value <= ad->max_vnum; value++) {
-            if (!get_script_index(ad, value, PRG_RPROG))
-                break;
-        }
-        if (value > ad->max_vnum) {
-            send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        value = scriptedit_next_auto_vnum(ad, PRG_RPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
             return false;
         }
     } else {
@@ -1658,12 +1681,9 @@ SCRIPTEDIT(tpedit_create)
 
     if (argument[0] == '\0' || !strcmp(argument, "0")) {
         ad = ch->in_room->area;
-        for (value = ad->min_vnum; value <= ad->max_vnum; value++) {
-            if (!get_script_index(ad, value, PRG_TPROG))
-                break;
-        }
-        if (value > ad->max_vnum) {
-            send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        value = scriptedit_next_auto_vnum(ad, PRG_TPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
             return false;
         }
     } else {
@@ -1716,12 +1736,9 @@ SCRIPTEDIT(apedit_create)
 
     if (argument[0] == '\0' || !strcmp(argument, "0")) {
         ad = ch->in_room->area;
-        for (value = ad->min_vnum; value <= ad->max_vnum; value++) {
-            if (!get_script_index(ad, value, PRG_APROG))
-                break;
-        }
-        if (value > ad->max_vnum) {
-            send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        value = scriptedit_next_auto_vnum(ad, PRG_APROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
             return false;
         }
     } else {
@@ -1774,12 +1791,9 @@ SCRIPTEDIT(ipedit_create)
 
     if (argument[0] == '\0' || !strcmp(argument, "0")) {
         ad = ch->in_room->area;
-        for (value = ad->min_vnum; value <= ad->max_vnum; value++) {
-            if (!get_script_index(ad, value, PRG_IPROG))
-                break;
-        }
-        if (value > ad->max_vnum) {
-            send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        value = scriptedit_next_auto_vnum(ad, PRG_IPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
             return false;
         }
     } else {
@@ -1835,12 +1849,9 @@ SCRIPTEDIT(dpedit_create)
 
     if (argument[0] == '\0' || !strcmp(argument, "0")) {
         ad = ch->in_room->area;
-        for (value = ad->min_vnum; value <= ad->max_vnum; value++) {
-            if (!get_script_index(ad, value, PRG_DPROG))
-                break;
-        }
-        if (value > ad->max_vnum) {
-            send_to_char("Sorry, this area has no more space left.\n\r", ch);
+        value = scriptedit_next_auto_vnum(ad, PRG_DPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
             return false;
         }
     } else {
