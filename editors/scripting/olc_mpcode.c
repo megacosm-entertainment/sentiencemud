@@ -1318,7 +1318,8 @@ SCRIPTEDIT(scriptedit_compile)
         if (ch->tot_level < (MAX_LEVEL - 1))
             pCode->flags |= SCRIPT_INSPECT;
 
-        if (pCode->src && pCode->edit_src
+        if (pCode->last_compile_success
+            && pCode->src && pCode->edit_src
             && ((pCode->src == pCode->edit_src)
                 || !str_cmp(pCode->src, pCode->edit_src))) {
             send_to_char("Script is up-to-date.  Nothing to compile.\n\r", ch);

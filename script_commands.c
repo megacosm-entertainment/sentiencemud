@@ -264,6 +264,7 @@ const struct script_cmd_type area_cmd_table[] = {
     { "specialkey",			scriptcmd_specialkey,		false,	true	},
     { "startreckoning",		scriptcmd_startreckoning,	true,	true	},
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
+    { "stringmob",          scriptcmd_stringmob,        true,   true    },
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
     { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
@@ -304,6 +305,8 @@ const struct script_cmd_type instance_cmd_table[] = {
     { "specialkey",			scriptcmd_specialkey,		false,	true	},
     { "startreckoning",		scriptcmd_startreckoning,	true,	true	},
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
+    { "stringmob",          scriptcmd_stringmob,        true,   true    },
+    { "stringobj",          scriptcmd_stringobj,        true,   true    },
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
     { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
@@ -1795,6 +1798,9 @@ SCRIPT_CMD(scriptcmd_stringobj)
     } else if(info->token) {
         scope_name = "TpStringObj";
         scope_vnum = VNUM(info->token);
+    } else if(info->instance) {
+        scope_name = "IpStringObj";
+        scope_vnum = (info->instance->blueprint ? info->instance->blueprint->vnum : 0);
     } else
         return;
 
@@ -1940,6 +1946,12 @@ SCRIPT_CMD(scriptcmd_stringmob)
     } else if(info->token) {
         scope_name = "TpStringMob";
         scope_vnum = VNUM(info->token);
+    } else if(info->instance) {
+        scope_name = "IpStringMob";
+        scope_vnum = (info->instance->blueprint ? info->instance->blueprint->vnum : 0);
+    } else if(info->dungeon) {
+        scope_name = "DpStringMob";
+        scope_vnum = (info->dungeon->index ? info->dungeon->index->vnum : 0);
     } else
         return;
 

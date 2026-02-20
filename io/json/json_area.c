@@ -28,6 +28,7 @@ json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area
 json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area);
 static json_t *json_area_serialize_reputation(REPUTATION_INDEX_DATA *reputation, AREA_DATA *area);
 static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, AREA_DATA *area);
+static bool json_script_array_has_vnum(json_t *scripts, long vnum);
 
 // --- WILDS_TERRAIN JSON helpers ---
 static json_t *wilds_terrain_to_json(WILDS_TERRAIN *terrain) {
@@ -1935,6 +1936,10 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(scripts, script_index, script_json) {
             script = json_area_deserialize_script(script_json, area, IFC_M);
             if (script) {
+                if (get_script_index(area, script->vnum, PRG_MPROG)) {
+                    free_script(script);
+                    continue;
+                }
                 /* Add to area's mprog_list */
                 script->next = area->mprog_list;
                 area->mprog_list = script;
@@ -1948,6 +1953,10 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(scripts, script_index, script_json) {
             script = json_area_deserialize_script(script_json, area, IFC_O);
             if (script) {
+                if (get_script_index(area, script->vnum, PRG_OPROG)) {
+                    free_script(script);
+                    continue;
+                }
                 script->next = area->oprog_list;
                 area->oprog_list = script;
             }
@@ -1960,6 +1969,10 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(scripts, script_index, script_json) {
             script = json_area_deserialize_script(script_json, area, IFC_R);
             if (script) {
+                if (get_script_index(area, script->vnum, PRG_RPROG)) {
+                    free_script(script);
+                    continue;
+                }
                 script->next = area->rprog_list;
                 area->rprog_list = script;
             }
@@ -1972,6 +1985,10 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(scripts, script_index, script_json) {
             script = json_area_deserialize_script(script_json, area, IFC_T);
             if (script) {
+                if (get_script_index(area, script->vnum, PRG_TPROG)) {
+                    free_script(script);
+                    continue;
+                }
                 script->next = area->tprog_list;
                 area->tprog_list = script;
             }
@@ -1984,6 +2001,10 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(scripts, script_index, script_json) {
             script = json_area_deserialize_script(script_json, area, IFC_A);
             if (script) {
+                if (get_script_index(area, script->vnum, PRG_APROG)) {
+                    free_script(script);
+                    continue;
+                }
                 script->next = area->aprog_list;
                 area->aprog_list = script;
             }
@@ -1996,6 +2017,10 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(scripts, script_index, script_json) {
             script = json_area_deserialize_script(script_json, area, IFC_I);
             if (script) {
+                if (get_script_index(area, script->vnum, PRG_IPROG)) {
+                    free_script(script);
+                    continue;
+                }
                 script->next = area->iprog_list;
                 area->iprog_list = script;
             }
@@ -2008,6 +2033,10 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(scripts, script_index, script_json) {
             script = json_area_deserialize_script(script_json, area, IFC_D);
             if (script) {
+                if (get_script_index(area, script->vnum, PRG_DPROG)) {
+                    free_script(script);
+                    continue;
+                }
                 script->next = area->dprog_list;
                 area->dprog_list = script;
             }
@@ -2354,42 +2383,56 @@ bool json_area_save(AREA_DATA *area)
     
     // MOBprogs
     for (script = area->mprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(mobprogs, script->vnum))
+            continue;
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(mobprogs, script_json);
     }
     
     // OBJprogs
     for (script = area->oprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(oprogs, script->vnum))
+            continue;
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(oprogs, script_json);
     }
     
     // ROOMprogs
     for (script = area->rprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(rprogs, script->vnum))
+            continue;
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(rprogs, script_json);
     }
     
     // TOKENprogs
     for (script = area->tprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(tprogs, script->vnum))
+            continue;
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(tprogs, script_json);
     }
     
     // AREAprogs
     for (script = area->aprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(aprogs, script->vnum))
+            continue;
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(aprogs, script_json);
     }
     
     // INSTANCEprogs
     for (script = area->iprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(iprogs, script->vnum))
+            continue;
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(iprogs, script_json);
     }
     
     // DUNGEONprogs
     for (script = area->dprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(dprogs, script->vnum))
+            continue;
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(dprogs, script_json);
     }
@@ -4012,6 +4055,23 @@ SCRIPT_DATA *json_area_deserialize_script(json_t *json, AREA_DATA *area, int typ
     compile_script(NULL, script, script->edit_src, type);
     
     return script;
+}
+
+static bool json_script_array_has_vnum(json_t *scripts, long vnum)
+{
+    if (!scripts || !json_is_array(scripts))
+        return false;
+
+    size_t index;
+    json_t *entry;
+    json_array_foreach(scripts, index, entry) {
+        if (!json_is_object(entry))
+            continue;
+        if (json_get_int_default(entry, "vnum", 0) == vnum)
+            return true;
+    }
+
+    return false;
 }
 
 /* Convert reset command character to human-readable string */
