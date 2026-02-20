@@ -347,6 +347,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { "startreckoning",		scriptcmd_startreckoning,	true,	true	},
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
     { "stringmob",          scriptcmd_stringmob,        true,   true    },
+    { "stringobj",          scriptcmd_stringobj,        true,   true    },
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
     { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
@@ -1801,6 +1802,9 @@ SCRIPT_CMD(scriptcmd_stringobj)
     } else if(info->instance) {
         scope_name = "IpStringObj";
         scope_vnum = (info->instance->blueprint ? info->instance->blueprint->vnum : 0);
+    } else if(info->dungeon) {
+        scope_name = "DpStringObj";
+        scope_vnum = (info->dungeon->index ? info->dungeon->index->vnum : 0);
     } else
         return;
 
