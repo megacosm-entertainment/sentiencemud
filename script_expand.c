@@ -559,9 +559,23 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_RACE:      arg->type = ENT_RACE; arg->d.race = var->_.race; break;
         case VAR_CLASS:     arg->type = ENT_CLASS; arg->d.clazz = var->_.clazz; break;
         case VAR_CLASSLEVEL:arg->type = ENT_CLASSLEVEL; arg->d.classlevel = var->_.classlevel; break;
+        case VAR_BOOK_PAGE: arg->type = ENT_BOOK_PAGE; arg->d.book_page = var->_.book_page; break;
+        case VAR_FOOD_BUFF: arg->type = ENT_FOOD_BUFF; arg->d.food_buff = var->_.food_buff; break;
+        case VAR_WAYPOINT:  arg->type = ENT_WAYPOINT; arg->d.waypoint = var->_.waypoint; break;
+        case VAR_SHOP_STOCK:arg->type = ENT_SHOP_STOCK; arg->d.stock = var->_.stock; break;
+        case VAR_TRAINER:   arg->type = ENT_TRAINER; arg->d.trainer = var->_.trainer; break;
+        case VAR_TRAINER_ENTRY: arg->type = ENT_TRAINER_ENTRY; arg->d.trainer_entry = var->_.trainer_entry; break;
+        case VAR_SPELL:     arg->type = ENT_SPELL; arg->d.spell = var->_.spell; break;
+        case VAR_LIQUID:    arg->type = ENT_LIQUID; arg->d.liquid = var->_.liquid; break;
+        case VAR_MATERIAL:  arg->type = ENT_MATERIAL; arg->d.material = var->_.material; break;
+        case VAR_LOCK_STATE:arg->type = ENT_LOCK_STATE; arg->d.lock_state = var->_.lock_state; break;
         case VAR_MOBINDEX:  arg->type = ENT_MOBINDEX; arg->d.mobindex = var->_.mobindex; break;
         case VAR_OBJINDEX:  arg->type = ENT_OBJINDEX; arg->d.objindex = var->_.objindex; break;
         case VAR_TOKENINDEX:arg->type = ENT_TOKEN_INDEX; arg->d.token_index = var->_.token_index; break;
+        case VAR_BLUEPRINT: arg->type = ENT_BLUEPRINT; arg->d.blueprint = var->_.blueprint; break;
+        case VAR_BLUEPRINT_SECTION: arg->type = ENT_BLUEPRINT_SECTION; arg->d.blueprint_section = var->_.blueprint_section; break;
+        case VAR_DUNGEONINDEX: arg->type = ENT_DUNGEONINDEX; arg->d.dungeon_index = var->_.dungeon_index; break;
+        case VAR_SHIPINDEX: arg->type = ENT_SHIPINDEX; arg->d.ship_index = var->_.ship_index; break;
         case VAR_REPUTATION: arg->type = ENT_REPUTATION; arg->d.reputation = var->_.reputation; break;
         case VAR_REPUTATION_INDEX: arg->type = ENT_REPUTATION_INDEX; arg->d.repIndex = var->_.reputation_index; break;
         case VAR_REPUTATION_RANK: arg->type = ENT_REPUTATION_RANK; arg->d.repRank = var->_.reputation_rank; break;
@@ -672,6 +686,8 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_PLLIST_AREA:  arg->d.blist = var->_.list;    arg->type = ENT_PLLIST_AREA; break;
         case VAR_PLLIST_AREA_REGION: arg->d.blist = var->_.list; arg->type = ENT_PLLIST_AREA_REGION; break;
         case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
+        case VAR_PLLIST_BOOK_PAGE: arg->d.blist = var->_.list; arg->type = ENT_PLLIST_BOOK_PAGE; break;
+        case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list; arg->type = ENT_PLLIST_FOOD_BUFF; break;
 
         }
     }
@@ -929,6 +945,86 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
         arg->type = ENT_SKILLGROUP;
         break;
 
+    case ENTITY_VAR_BOOK_PAGE:
+        if(var && var->type == VAR_BOOK_PAGE)
+            arg->d.book_page = var->_.book_page;
+        else return NULL;
+
+        arg->type = ENT_BOOK_PAGE;
+        break;
+
+    case ENTITY_VAR_FOOD_BUFF:
+        if(var && var->type == VAR_FOOD_BUFF)
+            arg->d.food_buff = var->_.food_buff;
+        else return NULL;
+
+        arg->type = ENT_FOOD_BUFF;
+        break;
+
+    case ENTITY_VAR_WAYPOINT:
+        if(var && var->type == VAR_WAYPOINT)
+            arg->d.waypoint = var->_.waypoint;
+        else return NULL;
+
+        arg->type = ENT_WAYPOINT;
+        break;
+
+    case ENTITY_VAR_SHOP_STOCK:
+        if(var && var->type == VAR_SHOP_STOCK)
+            arg->d.stock = var->_.stock;
+        else return NULL;
+
+        arg->type = ENT_SHOP_STOCK;
+        break;
+
+    case ENTITY_VAR_TRAINER:
+        if(var && var->type == VAR_TRAINER)
+            arg->d.trainer = var->_.trainer;
+        else return NULL;
+
+        arg->type = ENT_TRAINER;
+        break;
+
+    case ENTITY_VAR_TRAINER_ENTRY:
+        if(var && var->type == VAR_TRAINER_ENTRY)
+            arg->d.trainer_entry = var->_.trainer_entry;
+        else return NULL;
+
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    case ENTITY_VAR_SPELL:
+        if(var && var->type == VAR_SPELL)
+            arg->d.spell = var->_.spell;
+        else return NULL;
+
+        arg->type = ENT_SPELL;
+        break;
+
+    case ENTITY_VAR_LIQUID:
+        if(var && var->type == VAR_LIQUID)
+            arg->d.liquid = var->_.liquid;
+        else return NULL;
+
+        arg->type = ENT_LIQUID;
+        break;
+
+    case ENTITY_VAR_MATERIAL:
+        if(var && var->type == VAR_MATERIAL)
+            arg->d.material = var->_.material;
+        else return NULL;
+
+        arg->type = ENT_MATERIAL;
+        break;
+
+    case ENTITY_VAR_LOCK_STATE:
+        if(var && var->type == VAR_LOCK_STATE)
+            arg->d.lock_state = var->_.lock_state;
+        else return NULL;
+
+        arg->type = ENT_LOCK_STATE;
+        break;
+
     case ENTITY_VAR_SONG:
         if(var && var->type == VAR_SONG)
             arg->d.song = var->_.song;
@@ -1007,6 +1103,38 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
         else return NULL;
 
         arg->type = ENT_TOKEN_INDEX;
+        break;
+
+    case ENTITY_VAR_BLUEPRINT:
+        if(var && var->type == VAR_BLUEPRINT)
+            arg->d.blueprint = var->_.blueprint;
+        else return NULL;
+
+        arg->type = ENT_BLUEPRINT;
+        break;
+
+    case ENTITY_VAR_BLUEPRINT_SECTION:
+        if(var && var->type == VAR_BLUEPRINT_SECTION)
+            arg->d.blueprint_section = var->_.blueprint_section;
+        else return NULL;
+
+        arg->type = ENT_BLUEPRINT_SECTION;
+        break;
+
+    case ENTITY_VAR_DUNGEONINDEX:
+        if(var && var->type == VAR_DUNGEONINDEX)
+            arg->d.dungeon_index = var->_.dungeon_index;
+        else return NULL;
+
+        arg->type = ENT_DUNGEONINDEX;
+        break;
+
+    case ENTITY_VAR_SHIPINDEX:
+        if(var && var->type == VAR_SHIPINDEX)
+            arg->d.ship_index = var->_.ship_index;
+        else return NULL;
+
+        arg->type = ENT_SHIPINDEX;
         break;
 
     case ENTITY_VAR_SECTION:
@@ -1090,6 +1218,8 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
     case ENTITY_VAR_PLLIST_AREA:
     case ENTITY_VAR_PLLIST_AREA_REGION:
     case ENTITY_VAR_PLLIST_CHURCH:
+    case ENTITY_VAR_PLLIST_BOOK_PAGE:
+    case ENTITY_VAR_PLLIST_FOOD_BUFF:
         type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
         if(var && var->type == type && var->_.list)
             arg->d.blist = var->_.list;
@@ -2216,6 +2346,17 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.mobindex = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->pIndexData : NULL;
         break;
 
+    case ENTITY_MOB_TRAINER:
+        arg->type = ENT_TRAINER;
+        arg->d.trainer = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->pIndexData)
+            ? arg->d.mob->pIndexData->pTrainer : NULL;
+        break;
+
+    case ENTITY_MOB_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = self ? self->lstache : NULL;
+        break;
+
     case ENTITY_MOB_LEVEL:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.mob ? ((IS_NPC(arg->d.mob)) ? arg->d.mob->level : arg->d.mob->tot_level) : 0;
@@ -2652,6 +2793,16 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.mobindex = NULL;
         break;
 
+    case ENTITY_MOB_TRAINER:
+        arg->type = ENT_TRAINER;
+        arg->d.trainer = NULL;
+        break;
+
+    case ENTITY_MOB_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = NULL;
+        break;
+
     case ENTITY_MOB_EVENT_SOURCE_UID:
     case ENTITY_MOB_EVENT_SOURCE_INSTANCE:
     case ENTITY_MOB_EVENT_BRACKET:
@@ -2785,6 +2936,16 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJ_SHIP:
         arg->type = ENT_SHIP;
         arg->d.ship = arg->d.obj ? arg->d.obj->ship : NULL;
+        break;
+
+    case ENTITY_OBJ_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = self ? self->lstache : NULL;
+        break;
+
+    case ENTITY_OBJ_ISSTACHED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = self && self->stached;
         break;
 
     case ENTITY_OBJ_EVENT_SOURCE_UID:
@@ -3111,6 +3272,16 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJ_SHIP:
         arg->type = ENT_SHIP;
         arg->d.ship = NULL;
+        break;
+
+    case ENTITY_OBJ_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = NULL;
+        break;
+
+    case ENTITY_OBJ_ISSTACHED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = false;
         break;
 
     case ENTITY_OBJ_EVENT_SOURCE_UID:
@@ -4301,6 +4472,161 @@ char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+char *expand_entity_spelldata(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SPELL_DATA *spell = arg->d.spell;
+    SKILL_DATA *skill = (spell && spell->sn >= 0) ? skill_find_uid(spell->sn) : NULL;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_SPELLDATA_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = skill ? skill->name : "none";
+        break;
+
+    case ENTITY_SPELLDATA_SKILL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = spell ? spell->sn : -1;
+        break;
+
+    case ENTITY_SPELLDATA_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = spell ? spell->level : 0;
+        break;
+
+    case ENTITY_SPELLDATA_CHANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = spell ? spell->repop : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_lockstate(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    LOCK_STATE *lock = arg->d.lock_state;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_LOCKSTATE_KEY:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum = lock ? lock->key_wnum : wnum_zero;
+        break;
+
+    case ENTITY_LOCKSTATE_PICK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = lock ? lock->pick_chance : 0;
+        break;
+
+    case ENTITY_LOCKSTATE_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = lock ? lock->flags : 0;
+        arg->d.bv.table = lock_flags;
+        break;
+
+    case ENTITY_LOCKSTATE_SPECIALKEYS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (lock && lock->special_keys) ? list_size(lock->special_keys) : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_liquid(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    int liquid = arg->d.liquid;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_LIQUID_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = liquid_name(liquid);
+        break;
+
+    case ENTITY_LIQUID_COLOR:
+        arg->type = ENT_STRING;
+        arg->d.str = liquid_color(liquid);
+        break;
+
+    case ENTITY_LIQUID_PROOF:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_PROOF);
+        break;
+
+    case ENTITY_LIQUID_FULL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_FULL);
+        break;
+
+    case ENTITY_LIQUID_THIRST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_THIRST);
+        break;
+
+    case ENTITY_LIQUID_HUNGER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_HUNGER);
+        break;
+
+    case ENTITY_LIQUID_SSIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_SSIZE);
+        break;
+
+    case ENTITY_LIQUID_FUEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_FUEL);
+        break;
+
+    case ENTITY_LIQUID_VAPOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_VAPOR);
+        break;
+
+    case ENTITY_LIQUID_FLAMMABLE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = liquid_affect(liquid, LIQ_AFF_FUEL) > 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_material(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    int material = arg->d.material;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_MATERIAL_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = material_name(material);
+        break;
+
+    case ENTITY_MATERIAL_STRENGTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = material_strength(material);
+        break;
+
+    case ENTITY_MATERIAL_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = material_value(material);
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
 char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     //printf("expand_entity_affect() called\n\r");
@@ -5318,6 +5644,70 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
     return str+1;
 }
 
+char *expand_entity_plist_book_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register BOOK_PAGE *page = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            page = (BOOK_PAGE *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.book_page = page;
+        arg->type = ENT_BOOK_PAGE;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            page = (BOOK_PAGE *)list_nthdata(arg->d.blist, 0);
+        arg->d.book_page = page;
+        arg->type = ENT_BOOK_PAGE;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            page = (BOOK_PAGE *)list_nthdata(arg->d.blist, -1);
+        arg->d.book_page = page;
+        arg->type = ENT_BOOK_PAGE;
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_plist_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register FOOD_BUFF_DATA *buff = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.food_buff = buff;
+        arg->type = ENT_FOOD_BUFF;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.food_buff = buff;
+        arg->type = ENT_FOOD_BUFF;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.food_buff = buff;
+        arg->type = ENT_FOOD_BUFF;
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
 char *expand_entity_plist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register AREA_DATA *area = NULL;
@@ -6008,6 +6398,371 @@ char *expand_entity_classlevel(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 }
 
 
+char *expand_entity_book_page(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    BOOK_PAGE *page = arg->d.book_page;
+
+    switch((unsigned char)*str) {
+    case ENTITY_BOOK_PAGE_NUMBER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = page ? page->page_no : 0;
+        break;
+
+    case ENTITY_BOOK_PAGE_TITLE:
+        arg->type = ENT_STRING;
+        arg->d.str = page ? page->title : "";
+        break;
+
+    case ENTITY_BOOK_PAGE_TEXT:
+        arg->type = ENT_STRING;
+        arg->d.str = page ? page->text : "";
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_food_buff(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FOOD_BUFF_DATA *buff = arg->d.food_buff;
+
+    switch((unsigned char)*str) {
+    case ENTITY_FOOD_BUFF_WHERE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = buff ? buff->where : -1;
+        break;
+
+    case ENTITY_FOOD_BUFF_LOCATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = buff ? buff->location : -1;
+        break;
+
+    case ENTITY_FOOD_BUFF_MOD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = buff ? buff->modifier : 0;
+        break;
+
+    case ENTITY_FOOD_BUFF_BITS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = buff ? buff->bitvector : 0;
+        arg->d.bv.table = affect_flags;
+        break;
+
+    case ENTITY_FOOD_BUFF_BITS2:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = buff ? buff->bitvector2 : 0;
+        arg->d.bv.table = affect2_flags;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_waypoint(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WAYPOINT_DATA *wp = arg->d.waypoint;
+
+    switch((unsigned char)*str) {
+    case ENTITY_WAYPOINT_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (wp && wp->name) ? wp->name : "";
+        break;
+
+    case ENTITY_WAYPOINT_WILDS:
+        arg->type = ENT_WILDS;
+        arg->d.wilds = wp ? get_wilds_from_uid(NULL, wp->w) : NULL;
+        break;
+
+    case ENTITY_WAYPOINT_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = wp ? wp->x : 0;
+        break;
+
+    case ENTITY_WAYPOINT_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = wp ? wp->y : 0;
+        break;
+
+    case ENTITY_WAYPOINT_TARGET:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        if (wp)
+        {
+            char target[MIL];
+            sprintf(target, "%ld;%d;%d", wp->w, wp->x, wp->y);
+            add_buf(arg->buffer, target);
+        }
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_shop_stock(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SHOP_STOCK_DATA *stock = arg->d.stock;
+
+    switch((unsigned char)*str) {
+    case ENTITY_STOCK_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->level : 0;
+        break;
+
+    case ENTITY_STOCK_SILVER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->silver : 0;
+        break;
+
+    case ENTITY_STOCK_QP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->qp : 0;
+        break;
+
+    case ENTITY_STOCK_DP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->dp : 0;
+        break;
+
+    case ENTITY_STOCK_PNEUMA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->pneuma : 0;
+        break;
+
+    case ENTITY_STOCK_DISCOUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->discount : 0;
+        break;
+
+    case ENTITY_STOCK_QUANTITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->quantity : 0;
+        break;
+
+    case ENTITY_STOCK_MAX_QUANTITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->max_quantity : 0;
+        break;
+
+    case ENTITY_STOCK_RESTOCK_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->restock_rate : 0;
+        break;
+
+    case ENTITY_STOCK_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->type : 0;
+        break;
+
+    case ENTITY_STOCK_DURATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->duration : 0;
+        break;
+
+    case ENTITY_STOCK_CUSTOM_PRICE:
+        arg->type = ENT_STRING;
+        arg->d.str = (stock && stock->custom_price) ? stock->custom_price : "";
+        break;
+
+    case ENTITY_STOCK_CUSTOM_KEYWORD:
+        arg->type = ENT_STRING;
+        arg->d.str = (stock && stock->custom_keyword) ? stock->custom_keyword : "";
+        break;
+
+    case ENTITY_STOCK_CUSTOM_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (stock && stock->custom_descr) ? stock->custom_descr : "";
+        break;
+
+    case ENTITY_STOCK_SINGULAR:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = stock ? stock->singular : false;
+        break;
+
+    case ENTITY_STOCK_OBJECT:
+        arg->type = ENT_OBJINDEX;
+        arg->d.objindex = stock ? stock->obj : NULL;
+        break;
+
+    case ENTITY_STOCK_MOBILE:
+        arg->type = ENT_MOBINDEX;
+        arg->d.mobindex = stock ? stock->mob : NULL;
+        break;
+
+    case ENTITY_STOCK_SHIP:
+        arg->type = ENT_SHIPINDEX;
+        arg->d.ship_index = stock ? stock->ship : NULL;
+        break;
+
+    case ENTITY_STOCK_REPUTATION:
+        arg->type = ENT_REPUTATION_INDEX;
+        arg->d.repIndex = stock ? stock->reputation : NULL;
+        break;
+
+    case ENTITY_STOCK_MIN_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->min_reputation_rank : 0;
+        break;
+
+    case ENTITY_STOCK_MAX_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->max_reputation_rank : 0;
+        break;
+
+    case ENTITY_STOCK_MIN_SHOW_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->min_show_rank : 0;
+        break;
+
+    case ENTITY_STOCK_MAX_SHOW_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->max_show_rank : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_list_trainer_entry(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register TRAINER_ENTRY *entry;
+    register int count;
+
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        count = 0;
+        if(arg->d.list.ptr.trainer_entry)
+            for(entry = *arg->d.list.ptr.trainer_entry; entry; entry = entry->next) count++;
+        arg->d.num = count;
+        break;
+
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.list.ptr.trainer_entry) {
+            count = 0;
+            for(entry = *arg->d.list.ptr.trainer_entry; entry; entry = entry->next) count++;
+            if(count > 0) {
+                count = number_range(1,count);
+                for(entry = *arg->d.list.ptr.trainer_entry; --count > 0; entry = entry->next);
+                arg->d.trainer_entry = entry;
+            } else
+                arg->d.trainer_entry = NULL;
+        } else
+            arg->d.trainer_entry = NULL;
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    case ENTITY_LIST_FIRST:
+        arg->d.trainer_entry = arg->d.list.ptr.trainer_entry ? *arg->d.list.ptr.trainer_entry : NULL;
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    case ENTITY_LIST_LAST:
+        if(arg->d.list.ptr.trainer_entry) {
+            for(entry = *arg->d.list.ptr.trainer_entry; entry && entry->next; entry = entry->next);
+            arg->d.trainer_entry = entry;
+        } else
+            arg->d.trainer_entry = NULL;
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_trainer(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TRAINER_DATA *trainer = arg->d.trainer;
+
+    switch((unsigned char)*str) {
+    case ENTITY_TRAINER_FLAGS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = trainer ? trainer->flags : 0;
+        break;
+
+    case ENTITY_TRAINER_GREETING:
+        arg->type = ENT_STRING;
+        arg->d.str = (trainer && trainer->greeting) ? trainer->greeting : "";
+        break;
+
+    case ENTITY_TRAINER_ENTRIES:
+        arg->type = ENT_OLLIST_TRAINER_ENTRY;
+        arg->d.list.ptr.trainer_entry = trainer ? &trainer->entries : NULL;
+        arg->d.list.owner = trainer;
+        arg->d.list.owner_type = ENT_TRAINER;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_trainer_entry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TRAINER_ENTRY *entry = arg->d.trainer_entry;
+
+    switch((unsigned char)*str) {
+    case ENTITY_TRAINER_ENTRY_SKILL:
+        arg->type = ENT_STRING;
+        arg->d.str = (entry && entry->skill_name) ? entry->skill_name : "";
+        break;
+
+    case ENTITY_TRAINER_ENTRY_REPUTATION:
+        arg->type = ENT_REPUTATION_INDEX;
+        arg->d.repIndex = entry ? entry->reputation : NULL;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_MIN_REP_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->min_reputation_rank : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_MAX_REP_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->max_reputation_rank : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_MAX_RATING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->max_rating : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_COST_GOLD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->cost_gold : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_COST_TRAINS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->cost_trains : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_CHECK_SCRIPT:
+        arg->type = ENT_STRING;
+        arg->d.str = (entry && entry->check_script) ? entry->check_script : "";
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
 char *expand_entity_reputation(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     REPUTATION_DATA *rep = arg->d.reputation;
@@ -6388,6 +7143,11 @@ char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.num = arg->d.mobindex ? arg->d.mobindex->level : 0;
         break;
 
+    case ENTITY_MOBINDEX_TRAINER:
+        arg->type = ENT_TRAINER;
+        arg->d.trainer = arg->d.mobindex ? arg->d.mobindex->pTrainer : NULL;
+        break;
+
     default: return NULL;
     }
 
@@ -6440,6 +7200,45 @@ char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJINDEX_LEVEL:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.objindex ? arg->d.objindex->level : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_tokenindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    info = arg->d.info;
+
+    switch((unsigned char)*str) {
+    case ENTITY_TOKENINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        if (arg->d.token_index) {
+            arg->d.wnum.pArea = arg->d.token_index->area;
+            arg->d.wnum.vnum = arg->d.token_index->vnum;
+        } else {
+            arg->d.wnum.pArea = NULL;
+            arg->d.wnum.vnum = 0;
+        }
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_blueprint_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    BLUEPRINT_SECTION *section = arg->d.blueprint_section;
+
+    switch((unsigned char)*str) {
+    case ENTITY_BLUEPRINT_SECTION_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = section ? section->area : NULL;
+        arg->d.wnum.vnum = section ? section->vnum : 0;
         break;
 
     default: return NULL;
@@ -6653,6 +7452,23 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+char *expand_entity_blueprint(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    BLUEPRINT *blueprint = arg->d.blueprint;
+
+    switch((unsigned char)*str) {
+    case ENTITY_BLUEPRINT_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = blueprint ? blueprint->area : NULL;
+        arg->d.wnum.vnum = blueprint ? blueprint->vnum : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
 char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     DUNGEON *dungeon = arg->d.dungeon;
@@ -6663,6 +7479,11 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         clear_buf(arg->buffer);
         add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->name : "");
         arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_DUNGEON_INDEX:
+        arg->type = ENT_DUNGEONINDEX;
+        arg->d.dungeon_index = IS_VALID(arg->d.dungeon) ? arg->d.dungeon->index : NULL;
         break;
 
     case ENTITY_DUNGEON_FLOORS:
@@ -6728,6 +7549,23 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+char *expand_entity_dungeonindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    DUNGEON_INDEX_DATA *dungeon = arg->d.dungeon_index;
+
+    switch((unsigned char)*str) {
+    case ENTITY_DUNGEONINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = dungeon ? dungeon->area : NULL;
+        arg->d.wnum.vnum = dungeon ? dungeon->vnum : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
 char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     SHIP_DATA *ship = arg->d.ship;
@@ -6740,9 +7578,31 @@ char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.str = buf_string(arg->buffer);
         break;
 
+    case ENTITY_SHIP_INDEX:
+        arg->type = ENT_SHIPINDEX;
+        arg->d.ship_index = IS_VALID(arg->d.ship) ? arg->d.ship->index : NULL;
+        break;
+
     case ENTITY_SHIP_OBJECT:
         arg->type = ENT_OBJECT;
         arg->d.obj = ship->ship;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_shipindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SHIP_INDEX_DATA *ship = arg->d.ship_index;
+
+    switch((unsigned char)*str) {
+    case ENTITY_SHIPINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = ship ? ship->area : NULL;
+        arg->d.wnum.vnum = ship ? ship->vnum : 0;
         break;
 
     default: return NULL;
@@ -6927,6 +7787,10 @@ char *expand_entity_obj_food(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
     case ENTITY_OBJ_FOOD_TIMER:
         arg->type = ENT_NUMBER;
         arg->d.num = f ? f->timer : 0;
+        break;
+    case ENTITY_OBJ_FOOD_BUFFS:
+        arg->type = ENT_PLLIST_FOOD_BUFF;
+        arg->d.blist = f ? f->buffs : NULL;
         break;
     default: return NULL;
     }
@@ -7288,6 +8152,10 @@ char *expand_entity_obj_book(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
     case ENTITY_OBJ_BOOK_OPEN_PAGE:
         arg->type = ENT_NUMBER;
         arg->d.num = b ? b->open_page : 0;
+        break;
+    case ENTITY_OBJ_BOOK_PAGES:
+        arg->type = ENT_PLLIST_BOOK_PAGE;
+        arg->d.blist = b ? b->pages : NULL;
         break;
     default: return NULL;
     }
@@ -8320,6 +9188,10 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_SKILL:		next = expand_entity_skill(info,str,arg); break;
         case ENT_SKILLGROUP:	next = expand_entity_skillgroup(info,str,arg); break;
         case ENT_SKILLINFO:	next = expand_entity_skillinfo(info,str,arg); break;
+        case ENT_SPELL:		next = expand_entity_spelldata(info,str,arg); break;
+        case ENT_LOCK_STATE:	next = expand_entity_lockstate(info,str,arg); break;
+        case ENT_LIQUID:		next = expand_entity_liquid(info,str,arg); break;
+        case ENT_MATERIAL:	next = expand_entity_material(info,str,arg); break;
         case ENT_CONN:		next = expand_entity_conn(info,str,arg); break;
         case ENT_WILDS:		next = expand_entity_wilds(info,str,arg); break;
         case ENT_CHURCH:	next = expand_entity_church(info,str,arg); break;
@@ -8329,6 +9201,10 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_RACE:		next = expand_entity_race(info,str,arg); break;
         case ENT_CLASS:		next = expand_entity_class(info,str,arg); break;
         case ENT_CLASSLEVEL:	next = expand_entity_classlevel(info,str,arg); break;
+        case ENT_BOOK_PAGE:	next = expand_entity_book_page(info,str,arg); break;
+        case ENT_FOOD_BUFF:	next = expand_entity_food_buff(info,str,arg); break;
+        case ENT_WAYPOINT:	next = expand_entity_waypoint(info,str,arg); break;
+        case ENT_SHOP_STOCK:	next = expand_entity_shop_stock(info,str,arg); break;
         case ENT_REPUTATION:	next = expand_entity_reputation(info,str,arg); break;
         case ENT_REPUTATION_INDEX:	next = expand_entity_reputation_index(info,str,arg); break;
         case ENT_REPUTATION_RANK:	next = expand_entity_reputation_rank(info,str,arg); break;
@@ -8357,6 +9233,12 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_PLLIST_AREA:	next = expand_entity_plist_area(info,str,arg); break;
         case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
         case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
+        case ENT_PLLIST_BOOK_PAGE:	next = expand_entity_plist_book_page(info,str,arg); break;
+        case ENT_PLLIST_FOOD_BUFF:	next = expand_entity_plist_food_buff(info,str,arg); break;
+
+        case ENT_OLLIST_TRAINER_ENTRY:	next = expand_entity_list_trainer_entry(info,str,arg); break;
+        case ENT_TRAINER:	next = expand_entity_trainer(info,str,arg); break;
+        case ENT_TRAINER_ENTRY:	next = expand_entity_trainer_entry(info,str,arg); break;
 
         case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
         case ENT_OBJECT_ID:		next = expand_entity_object_id(info,str,arg); break;
@@ -8373,12 +9255,17 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_DICE:			next = expand_entity_dice(info,str,arg); break;
         case ENT_MOBINDEX:		next = expand_entity_mobindex(info,str,arg); break;
         case ENT_OBJINDEX:		next = expand_entity_objindex(info,str,arg); break;
+        case ENT_TOKEN_INDEX:	next = expand_entity_tokenindex(info,str,arg); break;
 
         case ENT_SECTION:		next = expand_entity_instance_section(info,str,arg); break;
         case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
+        case ENT_BLUEPRINT:		next = expand_entity_blueprint(info,str,arg); break;
+        case ENT_BLUEPRINT_SECTION:	next = expand_entity_blueprint_section(info,str,arg); break;
         case ENT_DUNGEON:		next = expand_entity_dungeon(info,str,arg); break;
+        case ENT_DUNGEONINDEX:	next = expand_entity_dungeonindex(info,str,arg); break;
 
         case ENT_SHIP:			next = expand_entity_ship(info,str,arg); break;
+        case ENT_SHIPINDEX:	next = expand_entity_shipindex(info,str,arg); break;
 
         case ENT_OBJ_WEAPON:		next = expand_entity_obj_weapon(info,str,arg); break;
         case ENT_OBJ_ARMOR:		next = expand_entity_obj_armor(info,str,arg); break;
@@ -8583,6 +9470,27 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
         break;
     }
 
+    case ENT_SPELL:
+    {
+        SKILL_DATA *sk = (arg->d.spell && arg->d.spell->sn >= 0) ? skill_find_uid(arg->d.spell->sn) : NULL;
+        add_buf(buffer, sk ? sk->name : "none");
+        break;
+    }
+
+    case ENT_LOCK_STATE:
+        add_buf(buffer, (arg->d.lock_state && arg->d.lock_state->key_wnum.pArea)
+            ? widevnum_string_wnum(arg->d.lock_state->key_wnum, NULL)
+            : "0");
+        break;
+
+    case ENT_LIQUID:
+        add_buf(buffer, liquid_name(arg->d.liquid));
+        break;
+
+    case ENT_MATERIAL:
+        add_buf(buffer, material_name(arg->d.material));
+        break;
+
     case ENT_SONG:
         add_buf(buffer, arg->d.song ? arg->d.song->name : "none");
         break;
@@ -8603,6 +9511,56 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
             add_buf(buffer, "none");
         break;
     }
+
+    case ENT_BOOK_PAGE:
+        if (arg->d.book_page && arg->d.book_page->title && arg->d.book_page->title[0])
+            add_buf(buffer, arg->d.book_page->title);
+        else
+            add_buf(buffer, "(page)");
+        break;
+
+    case ENT_FOOD_BUFF:
+        add_buf(buffer, arg->d.food_buff ? "(food-buff)" : "(null)");
+        break;
+
+    case ENT_WAYPOINT:
+        if (arg->d.waypoint && arg->d.waypoint->name && arg->d.waypoint->name[0])
+            add_buf(buffer, arg->d.waypoint->name);
+        else
+            add_buf(buffer, "(waypoint)");
+        break;
+
+    case ENT_SHOP_STOCK:
+        add_buf(buffer, arg->d.stock ? "(stock)" : "(null)");
+        break;
+
+    case ENT_MOBINDEX:
+        add_buf(buffer, arg->d.mobindex ? widevnum_string_mobile(arg->d.mobindex, NULL) : "0");
+        break;
+
+    case ENT_OBJINDEX:
+        add_buf(buffer, arg->d.objindex ? widevnum_string_object(arg->d.objindex, NULL) : "0");
+        break;
+
+    case ENT_TOKEN_INDEX:
+        add_buf(buffer, arg->d.token_index ? widevnum_string_token(arg->d.token_index, NULL) : "0");
+        break;
+
+    case ENT_BLUEPRINT:
+        add_buf(buffer, arg->d.blueprint ? widevnum_string_blueprint(arg->d.blueprint, NULL) : "0");
+        break;
+
+    case ENT_BLUEPRINT_SECTION:
+        add_buf(buffer, arg->d.blueprint_section ? widevnum_string_blueprint_section(arg->d.blueprint_section, NULL) : "0");
+        break;
+
+    case ENT_DUNGEONINDEX:
+        add_buf(buffer, arg->d.dungeon_index ? widevnum_string_dungeon(arg->d.dungeon_index, NULL) : "0");
+        break;
+
+    case ENT_SHIPINDEX:
+        add_buf(buffer, arg->d.ship_index ? widevnum_string_ship(arg->d.ship_index, NULL) : "0");
+        break;
 
     case ENT_SKILLENTRY: {
         SKILL_ENTRY *se = arg->d.entry;
@@ -8997,6 +9955,51 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
             }
             break;
 
+        case VAR_BOOK_PAGE:
+            if (var->_.book_page && var->_.book_page->title)
+                add_buf(buffer, var->_.book_page->title);
+            else
+                add_buf(buffer, "(page)");
+            break;
+
+        case VAR_FOOD_BUFF:
+            add_buf(buffer, var->_.food_buff ? "(food-buff)" : "(null)");
+            break;
+
+        case VAR_WAYPOINT:
+            if (var->_.waypoint && var->_.waypoint->name)
+                add_buf(buffer, var->_.waypoint->name);
+            else
+                add_buf(buffer, "(waypoint)");
+            break;
+
+        case VAR_SHOP_STOCK:
+            add_buf(buffer, var->_.stock ? "(stock)" : "(null)");
+            break;
+
+        case VAR_SPELL:
+            if (var->_.spell && var->_.spell->sn >= 0) {
+                SKILL_DATA *skill = skill_find_uid(var->_.spell->sn);
+                add_buf(buffer, skill ? skill->name : "(spell)");
+            } else {
+                add_buf(buffer, "(null)");
+            }
+            break;
+
+        case VAR_LOCK_STATE:
+            add_buf(buffer, (var->_.lock_state && var->_.lock_state->key_wnum.pArea)
+                ? (char *)widevnum_string_wnum(var->_.lock_state->key_wnum, NULL)
+                : "0");
+            break;
+
+        case VAR_LIQUID:
+            add_buf(buffer, liquid_name(var->_.liquid));
+            break;
+
+        case VAR_MATERIAL:
+            add_buf(buffer, material_name(var->_.material));
+            break;
+
         case VAR_MOBINDEX:
             add_buf(buffer, var->_.mobindex ? (char *)widevnum_string_mobile(var->_.mobindex, NULL) : "0");
             break;
@@ -9007,6 +10010,22 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
         case VAR_TOKENINDEX:
             add_buf(buffer, var->_.token_index ? (char *)widevnum_string_token(var->_.token_index, NULL) : "0");
+            break;
+
+        case VAR_BLUEPRINT:
+            add_buf(buffer, var->_.blueprint ? (char *)widevnum_string_blueprint(var->_.blueprint, NULL) : "0");
+            break;
+
+        case VAR_BLUEPRINT_SECTION:
+            add_buf(buffer, var->_.blueprint_section ? (char *)widevnum_string_blueprint_section(var->_.blueprint_section, NULL) : "0");
+            break;
+
+        case VAR_DUNGEONINDEX:
+            add_buf(buffer, var->_.dungeon_index ? (char *)widevnum_string_dungeon(var->_.dungeon_index, NULL) : "0");
+            break;
+
+        case VAR_SHIPINDEX:
+            add_buf(buffer, var->_.ship_index ? (char *)widevnum_string_ship(var->_.ship_index, NULL) : "0");
             break;
 
         default:

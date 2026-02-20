@@ -528,6 +528,7 @@ OBJ_DATA *new_obj(void)
     obj->ltokens = list_create(false);
     obj->lcontains = list_create(false);
     obj->lclonerooms = list_create(false);
+    obj->lstache = list_create(false);
     obj->lock = NULL;
     obj->waypoints = NULL;
 
@@ -539,6 +540,8 @@ OBJ_DATA *new_obj(void)
 
 void free_obj(OBJ_DATA *obj)
 {
+    ITERATOR it;
+    OBJ_DATA *item;
     AFFECT_DATA *paf, *paf_next;
     CATALYST_DATA *cat, *cat_next;
     EXTRA_DESCR_DATA *ed, *ed_next;
@@ -623,6 +626,16 @@ void free_obj(OBJ_DATA *obj)
     obj->lcontains = NULL;
     list_destroy(obj->lclonerooms);
     obj->lclonerooms = NULL;
+
+    if (obj->lstache) {
+        iterator_start(&it, obj->lstache);
+        while ((item = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(item);
+        }
+        iterator_stop(&it);
+        list_destroy(obj->lstache);
+        obj->lstache = NULL;
+    }
 
     if(obj->owner_name != NULL)		free_string(obj->owner_name);
     if(obj->owner_short != NULL)	free_string(obj->owner_short);
@@ -777,6 +790,7 @@ CHAR_DATA *new_char( void )
     ch->ltokens			= list_create(false);
     ch->lclonerooms		= list_create(false);
     ch->lgroup			= list_create(false);
+    ch->lstache			= list_create(false);
 
     ch->deathsight_vision = 0;
     ch->in_damage_function = false;
@@ -879,6 +893,22 @@ void free_char( CHAR_DATA *ch )
         list_destroy(temp_locker);
     }
 
+    // Free stached items using lstache
+    if (ch->lstache) {
+        LLIST *temp_stache = ch->lstache;
+        int stache_count = list_size(temp_stache);
+        total_objects += stache_count;
+        ch->lstache = NULL;
+
+        iterator_start(&it, temp_stache);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
+
+        list_destroy(temp_stache);
+    }
+
     // affects
     for (paf = ch->affected; paf != NULL; paf = paf_next)
     {
@@ -929,6 +959,8 @@ void free_char( CHAR_DATA *ch )
     ch->lclonerooms = NULL;
     list_destroy(ch->lgroup);
     ch->lgroup = NULL;
+    list_destroy(ch->lstache);
+    ch->lstache = NULL;
 
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);

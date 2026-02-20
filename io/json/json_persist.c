@@ -741,7 +741,7 @@ TOKEN_DATA *json_persist_json_to_token(json_t *json)
 
 json_t *json_persist_object_to_json(OBJ_DATA *obj)
 {
-    json_t *json, *array;
+    json_t *json, *array, *stache_array;
     AFFECT_DATA *paf;
     EXTRA_DESCR_DATA *ed;
     SPELL_DATA *spell;
@@ -800,6 +800,7 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
     json_object_set_new(json, "times_allowed_fixed", json_integer(obj->times_allowed_fixed));
     json_object_set_new(json, "times_fixed", json_integer(obj->times_fixed));
     json_object_set_new(json, "locker", json_boolean(obj->locker));
+    json_object_set_new(json, "stached", json_boolean(obj->stached));
 
     /* Extra flags */
     array = json_array();
@@ -985,6 +986,25 @@ json_t *json_persist_object_to_json(OBJ_DATA *obj)
         }
     }
 
+    /* Stached objects (recursive) */
+    stache_array = json_array();
+    if (obj->lstache && IS_VALID(obj->lstache)) {
+        OBJ_DATA *stached_obj;
+        iterator_start(&it, obj->lstache);
+        while ((stached_obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            json_t *stached_json = json_persist_object_to_json(stached_obj);
+            if (stached_json) {
+                json_array_append_new(stache_array, stached_json);
+            }
+        }
+        iterator_stop(&it);
+    }
+    if (json_array_size(stache_array) > 0) {
+        json_object_set_new(json, "stache", stache_array);
+    } else {
+        json_decref(stache_array);
+    }
+
     return json;
 }
 
@@ -1130,6 +1150,8 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     if (value) obj->times_fixed = json_integer_value(value);
     value = json_object_get(json, "locker");
     if (value) obj->locker = json_boolean_value(value);
+    value = json_object_get(json, "stached");
+    if (value) obj->stached = json_boolean_value(value);
 
     /* Extra flags */
     array = json_object_get(json, "extra");
@@ -1315,6 +1337,19 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
             OBJ_DATA *cont_obj = json_persist_json_to_object(elem);
             if (cont_obj) {
                 obj_to_obj(cont_obj, obj);
+            }
+        }
+    }
+
+    /* Stached objects (recursive) */
+    array = json_object_get(json, "stache");
+    if (array && json_is_array(array)) {
+        json_array_foreach(array, index, elem) {
+            OBJ_DATA *stached_obj = json_persist_json_to_object(elem);
+            if (stached_obj) {
+                stached_obj->next_content = NULL;
+                stached_obj->stached = true;
+                list_appendlink(obj->lstache, stached_obj);
             }
         }
     }

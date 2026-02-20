@@ -9394,6 +9394,652 @@ SCRIPT_CMD(scriptcmd_setalign)
 {
 }
 
+static bool scriptcmd_parse_number_or_none(SCRIPT_PARAM *arg, int *value)
+{
+    if (!arg || !value)
+        return false;
+
+    if (arg->type == ENT_NUMBER) {
+        *value = arg->d.num;
+        return true;
+    }
+
+    if (arg->type == ENT_STRING && arg->d.str) {
+        if (!str_cmp(arg->d.str, "none")) {
+            *value = 0;
+            return true;
+        }
+
+        if (is_number(arg->d.str)) {
+            *value = atoi(arg->d.str);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void scriptcmd_shop_stock(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, SHOP_DATA *shop, SHOP_STOCK_DATA *stock)
+{
+    char *rest = argument;
+    int ret = 1;
+
+    if (!info || !stock)
+        return;
+
+    if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING)
+        return;
+
+    if (!str_prefix(arg->d.str, "level")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->level = arg->d.num;
+    } else if (!str_prefix(arg->d.str, "silver")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->silver = UMAX(arg->d.num, 0);
+    } else if (!str_prefix(arg->d.str, "qp")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->qp = UMAX(arg->d.num, 0);
+    } else if (!str_prefix(arg->d.str, "dp")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->dp = UMAX(arg->d.num, 0);
+    } else if (!str_prefix(arg->d.str, "pneuma")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->pneuma = UMAX(arg->d.num, 0);
+    } else if (!str_prefix(arg->d.str, "price")) {
+        int silver = 0, qp = 0, dp = 0, pneuma = 0;
+
+        PARSE_ARGTYPE(NUMBER);
+        silver = UMAX(arg->d.num, 0);
+
+        if (rest && *rest) {
+            PARSE_ARGTYPE(NUMBER);
+            qp = UMAX(arg->d.num, 0);
+        }
+
+        if (rest && *rest) {
+            PARSE_ARGTYPE(NUMBER);
+            dp = UMAX(arg->d.num, 0);
+        }
+
+        if (rest && *rest) {
+            PARSE_ARGTYPE(NUMBER);
+            pneuma = UMAX(arg->d.num, 0);
+        }
+
+        stock->silver = silver;
+        stock->qp = qp;
+        stock->dp = dp;
+        stock->pneuma = pneuma;
+    } else if (!str_prefix(arg->d.str, "customprice") || !str_prefix(arg->d.str, "custom_price")) {
+        if (!PARSE_ARG)
+            return;
+
+        if (arg->type == ENT_NULL) {
+            free_string(stock->custom_price);
+            stock->custom_price = NULL;
+        } else if (arg->type == ENT_STRING) {
+            free_string(stock->custom_price);
+            stock->custom_price = str_dup(arg->d.str);
+        } else
+            return;
+    } else if (!str_prefix(arg->d.str, "keyword") || !str_prefix(arg->d.str, "customkeyword") || !str_prefix(arg->d.str, "custom_keyword")) {
+        PARSE_ARGTYPE(STRING);
+        free_string(stock->custom_keyword);
+        stock->custom_keyword = str_dup(arg->d.str);
+    } else if (!str_prefix(arg->d.str, "description") || !str_prefix(arg->d.str, "customdescription") || !str_prefix(arg->d.str, "custom_description")) {
+        BUFFER *buffer = new_buf();
+        expand_string(info, rest, buffer);
+        if (buffer->state == BUFFER_SAFE) {
+            free_string(stock->custom_descr);
+            stock->custom_descr = str_dup(buffer->string);
+        }
+        free_buf(buffer);
+    } else if (!str_prefix(arg->d.str, "discount")) {
+        PARSE_ARGTYPE(NUMBER);
+        if (arg->d.num < 0 || arg->d.num > 100)
+            return;
+        stock->discount = arg->d.num;
+    } else if (!str_prefix(arg->d.str, "quantity")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->quantity = UMAX(arg->d.num, 0);
+    } else if (!str_prefix(arg->d.str, "maxquantity") || !str_prefix(arg->d.str, "max_quantity")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->max_quantity = UMAX(arg->d.num, 0);
+        if (stock->quantity > stock->max_quantity)
+            stock->quantity = stock->max_quantity;
+    } else if (!str_prefix(arg->d.str, "restock") || !str_prefix(arg->d.str, "restockrate") || !str_prefix(arg->d.str, "restock_rate")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->restock_rate = UMAX(arg->d.num, 0);
+    } else if (!str_prefix(arg->d.str, "duration")) {
+        PARSE_ARGTYPE(NUMBER);
+        stock->duration = UMAX(arg->d.num, 0);
+    } else if (!str_prefix(arg->d.str, "remove")) {
+        SHOP_STOCK_DATA *prev = NULL;
+
+        if (!shop)
+            return;
+
+        for (SHOP_STOCK_DATA *s = shop->stock; s && s != stock; prev = s, s = s->next);
+
+        if (prev == NULL)
+            shop->stock = stock->next;
+        else
+            prev->next = stock->next;
+
+        free_shop_stock(stock);
+    } else if (!str_prefix(arg->d.str, "reputation")) {
+        if (!PARSE_ARG)
+            return;
+
+        if (arg->type == ENT_NULL) {
+            stock->reputation = NULL;
+            stock->min_reputation_rank = 0;
+            stock->max_reputation_rank = 0;
+            stock->min_show_rank = 0;
+            stock->max_show_rank = 0;
+        } else if (arg->type == ENT_REPUTATION_INDEX) {
+            REPUTATION_INDEX_DATA *rep = arg->d.repIndex;
+            int min_rank = 0;
+            int max_rank = 0;
+            int min_show = 0;
+            int max_show = 0;
+
+            if (rest && *rest) {
+                if (!PARSE_ARG || !scriptcmd_parse_number_or_none(arg, &min_rank))
+                    return;
+
+                if (rest && *rest) {
+                    if (!PARSE_ARG || !scriptcmd_parse_number_or_none(arg, &max_rank))
+                        return;
+
+                    if (rest && *rest) {
+                        if (!PARSE_ARG || !scriptcmd_parse_number_or_none(arg, &min_show))
+                            return;
+
+                        if (rest && *rest) {
+                            if (!PARSE_ARG || !scriptcmd_parse_number_or_none(arg, &max_show))
+                                return;
+                        }
+                    }
+                }
+            }
+
+            stock->reputation = rep;
+            stock->min_reputation_rank = UMAX(min_rank, 0);
+            stock->max_reputation_rank = UMAX(max_rank, 0);
+            stock->min_show_rank = UMAX(min_show, 0);
+            stock->max_show_rank = UMAX(max_show, 0);
+        } else
+            return;
+    } else if (!str_prefix(arg->d.str, "singular")) {
+        bool state = !stock->singular;
+        if (rest && *rest) {
+            PARSE_ARGTYPE(BOOLEAN);
+            state = arg->d.boolean;
+        }
+        stock->singular = state;
+    } else
+        return;
+
+    SETRETURN(ret);
+}
+
+// SETCLASSLEVEL $PLAYER $CLASSNAME[ $LEVEL]
+SCRIPT_CMD(scriptcmd_setclasslevel)
+{
+    char *rest = argument;
+
+    SETRETURN(0);
+
+    if (script_security < 5)
+        return;
+
+    PARSE_ARGTYPE(MOBILE);
+    CHAR_DATA *victim = arg->d.mob;
+    if (!IS_VALID(victim) || IS_NPC(victim))
+        return;
+
+    PARSE_ARGTYPE(STRING);
+
+    if (!str_prefix(arg->d.str, "current")) {
+        if (script_security < 9)
+            return;
+
+        CLASS_LEVEL *cl = get_class_level(victim, NULL);
+        if (!cl)
+            return;
+
+        PARSE_ARGTYPE(NUMBER);
+        int level = arg->d.num;
+
+        if (level < cl->level || level > cl->clazz->max_level)
+            return;
+
+        add_class_level(victim, cl->clazz, level);
+    } else {
+        CLASS_DATA *clazz = class_find(arg->d.str);
+        if (!IS_VALID(clazz))
+            return;
+
+        int level = 1;
+        if (rest && *rest) {
+            PARSE_ARGTYPE(NUMBER);
+            level = arg->d.num;
+
+            if (level < 1 || level > clazz->max_level)
+                return;
+
+            if (level > 1 && script_security < 9)
+                return;
+
+            CLASS_LEVEL *cl = get_class_level(victim, clazz);
+            if (cl && level < cl->level)
+                return;
+        }
+
+        add_class_level(victim, clazz, level);
+    }
+
+    save_char_obj(victim);
+    SETRETURN(1);
+}
+
+// SETPOSITION $MOBILE $POSITION
+SCRIPT_CMD(scriptcmd_setposition)
+{
+    char *rest = argument;
+    CHAR_DATA *ch;
+    int position;
+
+    SETRETURN(-1);
+
+    if (script_security < 5)
+        return;
+
+    PARSE_ARGTYPE(MOBILE);
+    if (!IS_VALID(arg->d.mob))
+        return;
+    ch = arg->d.mob;
+
+    PARSE_ARGTYPE(STRING);
+    if (!str_prefix(arg->d.str, "feign"))
+        position = POS_FEIGN;
+    else if (!str_prefix(arg->d.str, "resting"))
+        position = POS_RESTING;
+    else if (!str_prefix(arg->d.str, "sitting"))
+        position = POS_SITTING;
+    else if (!str_prefix(arg->d.str, "sleeping"))
+        position = POS_SLEEPING;
+    else if (!str_prefix(arg->d.str, "standing"))
+        position = POS_STANDING;
+    else
+        return;
+
+    ch->position = position;
+    SETRETURN(ch->position);
+}
+
+SCRIPT_CMD(scriptcmd_shop)
+{
+    char *rest = argument;
+    CHAR_DATA *mob;
+
+    if (!info)
+        return;
+
+    SETRETURN(0);
+
+    if (!PARSE_ARG)
+        return;
+
+    if (arg->type == ENT_MOBILE) {
+        mob = arg->d.mob;
+        if (!IS_VALID(mob) || !IS_NPC(mob))
+            return;
+
+        PARSE_ARGTYPE(STRING);
+
+        SHOP_DATA *shop = mob->shop;
+
+        if (!str_prefix(arg->d.str, "add")) {
+            if (shop)
+                return;
+
+            mob->shop = new_shop();
+            mob->shop->keeper = VNUM(mob);
+        } else if (!str_prefix(arg->d.str, "remove")) {
+            if (!shop)
+                return;
+
+            free_shop(shop);
+            mob->shop = NULL;
+        } else if (!str_prefix(arg->d.str, "deplete")) {
+            if (!shop)
+                return;
+
+            for (SHOP_STOCK_DATA *stock = shop->stock; stock; stock = stock->next)
+                if (stock->max_quantity > 0)
+                    stock->quantity = 0;
+        } else if (!str_prefix(arg->d.str, "discount")) {
+            bool reset_defaults = false;
+            if (!shop)
+                return;
+
+            PARSE_ARGTYPE(NUMBER);
+            int percent = arg->d.num;
+            if (percent < 0 || percent > 100)
+                return;
+
+            if (rest && *rest) {
+                if (!PARSE_ARG)
+                    return;
+
+                if (arg->type == ENT_STRING)
+                    reset_defaults = !str_prefix(arg->d.str, "reset");
+                else if (arg->type == ENT_BOOLEAN)
+                    reset_defaults = arg->d.boolean;
+                else
+                    return;
+            }
+
+            shop->discount = percent;
+            if (reset_defaults)
+                for (SHOP_STOCK_DATA *stock = shop->stock; stock; stock = stock->next)
+                    if (IS_NULLSTR(stock->custom_keyword))
+                        stock->discount = shop->discount;
+        } else if (!str_prefix(arg->d.str, "flags")) {
+            if (!shop)
+                return;
+
+            char ops[MIL];
+            rest = one_argument(rest, ops);
+            int op = cmd_operator_lookup(ops);
+            if (op == OPR_UNKNOWN)
+                return;
+
+            PARSE_ARGTYPE(STRING);
+            long value = script_flag_value(shop_flags, arg->d.str);
+            if (value == NO_FLAG)
+                return;
+
+            switch (op) {
+                case OPR_ASSIGN: shop->flags = value; break;
+                case OPR_AND:    shop->flags &= value; break;
+                case OPR_OR:     shop->flags |= value; break;
+                case OPR_NOT:    shop->flags &= ~value; break;
+                case OPR_XOR:    shop->flags ^= value; break;
+            }
+        } else if (!str_prefix(arg->d.str, "hours")) {
+            if (!shop)
+                return;
+
+            PARSE_ARGTYPE(NUMBER);
+            int open = arg->d.num;
+            if (open < 0 || open > 23)
+                return;
+
+            PARSE_ARGTYPE(NUMBER);
+            int close = arg->d.num;
+            if (close < 0 || close > 23)
+                return;
+
+            shop->open_hour = open;
+            shop->close_hour = close;
+        } else if (!str_prefix(arg->d.str, "profit")) {
+            if (!shop)
+                return;
+
+            PARSE_ARGTYPE(NUMBER);
+            int buy = arg->d.num;
+            if (buy < 0 || buy > 200)
+                return;
+
+            PARSE_ARGTYPE(NUMBER);
+            int sell = arg->d.num;
+            if (sell < 0 || sell > 200)
+                return;
+
+            shop->profit_buy = buy;
+            shop->profit_sell = sell;
+        } else if (!str_prefix(arg->d.str, "reputation")) {
+            if (!shop)
+                return;
+
+            if (!PARSE_ARG)
+                return;
+
+            if (arg->type == ENT_NULL) {
+                shop->reputation = NULL;
+                shop->min_reputation_rank = 0;
+            } else if (arg->type == ENT_REPUTATION_INDEX) {
+                int min_rank = 0;
+                REPUTATION_INDEX_DATA *rep = arg->d.repIndex;
+
+                if (rep && rest && *rest) {
+                    PARSE_ARGTYPE(NUMBER);
+                    min_rank = arg->d.num;
+                    if (min_rank > list_size(rep->ranks))
+                        return;
+                }
+
+                if (min_rank < 0)
+                    return;
+
+                shop->reputation = rep;
+                shop->min_reputation_rank = min_rank;
+            } else
+                return;
+        } else if (!str_prefix(arg->d.str, "restock")) {
+            if (!shop)
+                return;
+
+            if (!PARSE_ARG)
+                return;
+
+            if (arg->type == ENT_NUMBER) {
+                if (arg->d.num < 0)
+                    return;
+
+                shop->restock_interval = arg->d.num;
+            } else if (arg->type == ENT_STRING) {
+                if (str_prefix(arg->d.str, "force"))
+                    return;
+
+                bool full = false;
+                bool restocked = false;
+
+                if (rest && *rest) {
+                    PARSE_ARGTYPE(BOOLEAN);
+                    full = arg->d.boolean;
+                }
+
+                for (SHOP_STOCK_DATA *stock = shop->stock; stock; stock = stock->next) {
+                    if (stock->max_quantity > 0 && stock->quantity < stock->max_quantity) {
+                        if (full) {
+                            stock->quantity = stock->max_quantity;
+                            restocked = true;
+                        } else if (stock->restock_rate > 0) {
+                            stock->quantity += stock->restock_rate;
+                            stock->quantity = UMIN(stock->quantity, stock->max_quantity);
+                            restocked = true;
+                        }
+                    }
+                }
+
+                if (restocked)
+                    p_percent_trigger(mob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL);
+
+                if (shop->restock_interval > 0)
+                    shop->next_restock = current_time + shop->restock_interval * 60;
+            } else
+                return;
+        } else if (!str_prefix(arg->d.str, "type")) {
+            if (!shop)
+                return;
+
+            PARSE_ARGTYPE(NUMBER);
+            int index = arg->d.num;
+            if (index < 1 || index > MAX_TRADE)
+                return;
+
+            PARSE_ARGTYPE(STRING);
+            int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+            if (type == NO_FLAG)
+                return;
+
+            shop->buy_type[index - 1] = type;
+        } else if (!str_prefix(arg->d.str, "stock")) {
+            if (!shop)
+                return;
+
+            if (!PARSE_ARG)
+                return;
+
+            if (arg->type == ENT_NUMBER) {
+                int nth = arg->d.num;
+                SHOP_STOCK_DATA *stock;
+
+                if (nth < 1)
+                    return;
+
+                for (stock = shop->stock; (--nth) > 0 && stock; stock = stock->next);
+
+                scriptcmd_shop_stock(info, rest, arg, shop, stock);
+                return;
+            }
+
+            if (arg->type == ENT_STRING) {
+                if (!str_prefix(arg->d.str, "clear")) {
+                    SHOP_STOCK_DATA *stock, *next;
+                    for (stock = shop->stock; stock; stock = next) {
+                        next = stock->next;
+                        free_shop_stock(stock);
+                    }
+                    shop->stock = NULL;
+                } else if (!str_prefix(arg->d.str, "add")) {
+                    SHOP_STOCK_DATA *stock = NULL;
+
+                    PARSE_ARGTYPE(STRING);
+                    int stock_type = stat_lookup(arg->d.str, stock_types, NO_FLAG);
+                    if (stock_type == NO_FLAG)
+                        return;
+
+                    if (stock_type == STOCK_CUSTOM) {
+                        BUFFER *buffer = new_buf();
+                        expand_string(info, rest, buffer);
+
+                        if (buffer->state == BUFFER_SAFE && !IS_NULLSTR(buffer->string)) {
+                            SHOP_STOCK_DATA *existing;
+                            for (existing = shop->stock; existing; existing = existing->next)
+                                if (existing->type == STOCK_CUSTOM && !str_cmp(buffer->string, existing->custom_keyword))
+                                    break;
+
+                            if (!existing) {
+                                stock = new_shop_stock();
+                                if (stock) {
+                                    stock->type = STOCK_CUSTOM;
+                                    stock->custom_keyword = str_dup(buffer->string);
+                                    stock->discount = shop->discount;
+                                }
+                            }
+                        }
+
+                        free_buf(buffer);
+                    } else if (stock_type == STOCK_OBJECT || stock_type == STOCK_PET || stock_type == STOCK_MOUNT || stock_type == STOCK_GUARD || stock_type == STOCK_CREW || stock_type == STOCK_SHIP) {
+                        if (!PARSE_ARG)
+                            return;
+
+                        stock = new_shop_stock();
+                        if (!stock)
+                            return;
+
+                        stock->type = stock_type;
+                        stock->discount = shop->discount;
+
+                        if (stock_type == STOCK_OBJECT) {
+                            OBJ_INDEX_DATA *obj = NULL;
+
+                            if (arg->type == ENT_WIDEVNUM)
+                                obj = get_obj_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+                            else if (arg->type == ENT_OBJECT)
+                                obj = IS_VALID(arg->d.obj) ? arg->d.obj->pIndexData : NULL;
+                            else if (arg->type == ENT_OBJINDEX)
+                                obj = arg->d.objindex;
+
+                            if (!obj || IS_MONEY(obj)) {
+                                free_shop_stock(stock);
+                                return;
+                            }
+
+                            stock->obj = obj;
+                            stock->entity.wnum.pArea = obj->area;
+                            stock->entity.wnum.vnum = obj->vnum;
+                            stock->silver = obj->cost;
+                        } else if (stock_type == STOCK_SHIP) {
+                            SHIP_INDEX_DATA *ship = NULL;
+
+                            if (arg->type == ENT_WIDEVNUM)
+                                ship = get_ship_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum);
+                            else if (arg->type == ENT_SHIP)
+                                ship = IS_VALID(arg->d.ship) ? arg->d.ship->index : NULL;
+                            else if (arg->type == ENT_SHIPINDEX)
+                                ship = arg->d.ship_index;
+
+                            if (!ship) {
+                                free_shop_stock(stock);
+                                return;
+                            }
+
+                            stock->ship = ship;
+                            stock->entity.wnum.pArea = ship->area;
+                            stock->entity.wnum.vnum = ship->vnum;
+                            stock->silver = 100000;
+                            stock->level = 1;
+                        } else {
+                            MOB_INDEX_DATA *mob_index = NULL;
+
+                            if (arg->type == ENT_WIDEVNUM)
+                                mob_index = get_mob_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+                            else if (arg->type == ENT_MOBILE)
+                                mob_index = (IS_VALID(arg->d.mob) && IS_NPC(arg->d.mob)) ? arg->d.mob->pIndexData : NULL;
+                            else if (arg->type == ENT_MOBINDEX)
+                                mob_index = arg->d.mobindex;
+
+                            if (!mob_index) {
+                                free_shop_stock(stock);
+                                return;
+                            }
+
+                            stock->mob = mob_index;
+                            stock->entity.wnum.pArea = mob_index->area;
+                            stock->entity.wnum.vnum = mob_index->vnum;
+                            if (stock_type == STOCK_PET)
+                                stock->silver = 10 * mob_index->level * mob_index->level;
+                            else if (stock_type == STOCK_MOUNT)
+                                stock->silver = 25 * mob_index->level * mob_index->level;
+                            else
+                                stock->silver = 50 * mob_index->level * mob_index->level;
+                        }
+                    }
+
+                    if (!stock)
+                        return;
+
+                    stock->next = shop->stock;
+                    shop->stock = stock;
+                } else
+                    return;
+            } else
+                return;
+        } else
+            return;
+
+        SETRETURN(1);
+    } else if (arg->type == ENT_SHOP_STOCK) {
+        scriptcmd_shop_stock(info, rest, arg, NULL, arg->d.stock);
+    }
+}
+
 // SETCLASS $MOBILE $CLASSNAME
 // Switches a player's active class (they must already have the class).
 // Follows the same pattern as do_setclass in act_class.c.
@@ -12965,6 +13611,189 @@ SCRIPT_CMD(scriptcmd_resetroom)
     reset_room(arg->d.room, true);
 }
 
+// ADDSTACHE $MOBILE|$OBJECT $OBJECT
+SCRIPT_CMD(scriptcmd_addstache)
+{
+    char *rest = argument;
+
+    if (!info) return;
+
+    SETRETURN(PRET_BADSYNTAX);
+    if (!PARSE_ARG)
+        return;
+
+    if (!PARSE_ARG)
+        return;
+
+    CHAR_DATA *mob;
+    OBJ_DATA *obj;
+    if (arg->type == ENT_MOBILE)
+    {
+        mob = arg->d.mob;
+        obj = NULL;
+    }
+    else if (arg->type == ENT_OBJECT)
+    {
+        mob = NULL;
+        obj = arg->d.obj;
+    }
+    else
+        return;
+
+    if (!IS_VALID(mob) && !IS_VALID(obj))
+        return;
+
+    PARSE_ARGTYPE(OBJECT);
+    OBJ_DATA *item = arg->d.obj;
+
+    if (item->locker || item->stached)
+        return;
+
+    if (item->in_obj != NULL)
+        obj_from_obj(item);
+    else if (item->carried_by != NULL)
+        obj_from_char(item);
+    else
+        return;
+
+    LLIST *stache = NULL;
+    if (IS_VALID(mob))
+        stache = mob->lstache;
+    else if (IS_VALID(obj))
+        stache = obj->lstache;
+    else
+        return;
+
+    item->next_content = NULL;
+    item->stached = true;
+    list_appendlink(stache, item);
+    SETRETURN(1);
+}
+
+// REMSTACHE $MOBILE|$OBJECT $OBJECT[ $VARNAME]
+// REMSTACHE $MOBILE|$OBJECT $NUMBER[ $VARNAME]
+// REMSTACHE $MOBILE|$OBJECT $WIDEVNUM[ $VARNAME]
+// REMSTACHE $MOBILE|$OBJECT $[#.]NAME[ $VARNAME]
+SCRIPT_CMD(scriptcmd_remstache)
+{
+    char *rest = argument;
+
+    if (!info) return;
+
+    SETRETURN(0);
+    if (!PARSE_ARG)
+        return;
+
+    LLIST *stache = NULL;
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    if (arg->type == ENT_MOBILE)
+    {
+        stache = IS_VALID(arg->d.mob) ? arg->d.mob->lstache : NULL;
+        mob = arg->d.mob;
+    }
+    else if (arg->type == ENT_OBJECT)
+    {
+        stache = IS_VALID(arg->d.obj) ? arg->d.obj->lstache : NULL;
+        obj = arg->d.obj;
+    }
+    else
+        return;
+
+    if (!IS_VALID(stache))
+        return;
+
+    if (!PARSE_ARG)
+        return;
+
+    ITERATOR it;
+    OBJ_DATA *item = NULL;
+    if (arg->type == ENT_OBJECT)
+    {
+        item = arg->d.obj;
+        list_remlink(stache, item, false);
+    }
+    else if (arg->type == ENT_NUMBER)
+    {
+        item = list_nthdata(stache, arg->d.num);
+        list_remnthlink(stache, arg->d.num, false);
+    }
+    else if (arg->type == ENT_WIDEVNUM)
+    {
+        WNUM wnum = arg->d.wnum;
+
+        iterator_start(&it, stache);
+        while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+        {
+            if (wnum_match_obj(wnum, item))
+            {
+                iterator_remcurrent(&it);
+                break;
+            }
+        }
+        iterator_stop(&it);
+    }
+    else if (arg->type == ENT_STRING)
+    {
+        int count;
+        char name[MSL];
+
+        count = number_argument(arg->d.str, name);
+        if (count < 1)
+            return;
+
+        WNUM wnum;
+        if (parse_widevnum(name, get_area_from_scriptinfo(info), &wnum))
+        {
+            iterator_start(&it, stache);
+            while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+            {
+                if (wnum_match_obj(wnum, item) && !--count)
+                {
+                    iterator_remcurrent(&it);
+                    break;
+                }
+            }
+            iterator_stop(&it);
+        }
+        else
+        {
+            iterator_start(&it, stache);
+            while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+            {
+                if (is_name(name, item->name) && !--count)
+                {
+                    iterator_remcurrent(&it);
+                    break;
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
+    else
+        return;
+
+    if (!item)
+        return;
+
+    char *var_name = NULL;
+    if (rest && *rest)
+    {
+        PARSE_ARGTYPE(STRING);
+        var_name = arg->d.str;
+    }
+
+    item->stached = false;
+    if (mob != NULL)
+        obj_to_char(item, mob);
+    else if (obj != NULL)
+        obj_to_obj(item, obj);
+
+    if (var_name)
+        variables_set_object(info->var, var_name, item);
+    SETRETURN(1);
+}
+
 /*
         "mail to <person>  (start a mail package)\n\r"
         "mail show         (show what is currently in the package)\n\r"
@@ -13022,7 +13851,7 @@ SCRIPT_CMD(scriptcmd_mail)
     {
         if (!PARSE_ARG || arg->type != ENT_OBJECT)
             valid = false;
-        else if(arg->d.obj->in_mail || arg->d.obj->locker || arg->d.obj->pulled_by)
+        else if(arg->d.obj->in_mail || arg->d.obj->locker || arg->d.obj->stached || arg->d.obj->pulled_by)
             valid = false;
         else if (!list_appendlink(packages, arg->d.obj))
             valid = false;

@@ -3116,6 +3116,8 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     fprintf(fp, "TimesAllowedFixed %d\n", obj->times_allowed_fixed);
     if (obj->locker == true)
         fprintf(fp, "Locker %d\n", obj->locker);
+    if (obj->stached == true)
+        fprintf(fp, "Stached %d\n", obj->stached);
 
     if (obj->lock)
         fprintf(fp, "LockW %ld %ld %d %d\n", obj->lock->key_load.auid, obj->lock->key_load.vnum, obj->lock->flags, obj->lock->pick_chance);

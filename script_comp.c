@@ -844,6 +844,7 @@ switch(ent) {
             case ENT_OLLIST_OBJ:	ent = ENT_OBJECT; break;
             case ENT_OLLIST_TOK:	ent = ENT_TOKEN; break;
             case ENT_OLLIST_AFF:	ent = ENT_AFFECT; break;
+            case ENT_OLLIST_TRAINER_ENTRY:	ent = ENT_TRAINER_ENTRY; break;
 
             case ENT_BLLIST_ROOM:	ent = ENT_ROOM; break;
             case ENT_BLLIST_MOB:	ent = ENT_MOBILE; break;
@@ -864,6 +865,8 @@ switch(ent) {
             case ENT_PLLIST_AREA:	ent = ENT_AREA; break;
             case ENT_PLLIST_AREA_REGION:	ent = ENT_AREA_REGION; break;
             case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
+            case ENT_PLLIST_BOOK_PAGE:	ent = ENT_BOOK_PAGE; break;
+            case ENT_PLLIST_FOOD_BUFF:	ent = ENT_FOOD_BUFF; break;
             case ENT_PLLIST_REPUTATION_RANK:	ent = ENT_REPUTATION_RANK; break;
 
             case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;

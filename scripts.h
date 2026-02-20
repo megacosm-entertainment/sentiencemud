@@ -348,9 +348,23 @@ enum variable_enum {
     VAR_RACE,
     VAR_CLASS,
     VAR_CLASSLEVEL,
+    VAR_BOOK_PAGE,
+    VAR_FOOD_BUFF,
+    VAR_WAYPOINT,
+    VAR_SHOP_STOCK,
+    VAR_TRAINER,
+    VAR_TRAINER_ENTRY,
+    VAR_SPELL,
+    VAR_LIQUID,
+    VAR_MATERIAL,
+    VAR_LOCK_STATE,
     VAR_MOBINDEX,
     VAR_OBJINDEX,
     VAR_TOKENINDEX,
+    VAR_BLUEPRINT,
+    VAR_BLUEPRINT_SECTION,
+    VAR_DUNGEONINDEX,
+    VAR_SHIPINDEX,
     VAR_REPUTATION,
     VAR_REPUTATION_INDEX,
     VAR_REPUTATION_RANK,
@@ -382,6 +396,8 @@ enum variable_enum {
     VAR_PLLIST_AREA,
     VAR_PLLIST_AREA_REGION,
     VAR_PLLIST_CHURCH,
+    VAR_PLLIST_BOOK_PAGE,
+    VAR_PLLIST_FOOD_BUFF,
     VAR_PLLIST_VARIABLE,
 
     ////////////////////////
@@ -469,11 +485,21 @@ enum entity_type_enum {
     ENT_PRIOR,
     ENT_EXTRADESC,
     ENT_AFFECT,
+    ENT_LOCK_STATE,
+    ENT_LIQUID,
+    ENT_SPELL,
+    ENT_MATERIAL,
     ENT_CHURCH,
     ENT_SONG,
     ENT_RACE,
     ENT_CLASS,
     ENT_CLASSLEVEL,
+    ENT_WAYPOINT,
+    ENT_SHOP_STOCK,
+    ENT_BOOK_PAGE,
+    ENT_FOOD_BUFF,
+    ENT_TRAINER,
+    ENT_TRAINER_ENTRY,
     ENT_REPUTATION,
     ENT_REPUTATION_INDEX,
     ENT_REPUTATION_RANK,
@@ -515,6 +541,8 @@ enum entity_type_enum {
     ENT_PLLIST_AREA,
     ENT_PLLIST_AREA_REGION,
     ENT_PLLIST_CHURCH,
+    ENT_PLLIST_BOOK_PAGE,
+    ENT_PLLIST_FOOD_BUFF,
     ENT_PLLIST_REPUTATION_RANK,
     ENT_PLLIST_MAX,
     //////////////////////////////
@@ -526,6 +554,7 @@ enum entity_type_enum {
     ENT_OLLIST_OBJ,
     ENT_OLLIST_TOK,
     ENT_OLLIST_AFF,
+    ENT_OLLIST_TRAINER_ENTRY,
     ENT_OLLIST_MAX,
     //////////////////////////////
 
@@ -565,6 +594,10 @@ enum entity_type_enum {
     ENT_INSTANCE,
     ENT_DUNGEON,
     ENT_SHIP,
+    ENT_BLUEPRINT,
+    ENT_BLUEPRINT_SECTION,
+    ENT_DUNGEONINDEX,
+    ENT_SHIPINDEX,
 
     ENT_QUESTPART,
     ENT_QUEST,
@@ -670,6 +703,16 @@ enum entity_variable_types_enum {
     ENTITY_VAR_SKILL,
     ENTITY_VAR_SKILLGROUP,
     ENTITY_VAR_SKILLINFO,
+    ENTITY_VAR_BOOK_PAGE,
+    ENTITY_VAR_FOOD_BUFF,
+    ENTITY_VAR_WAYPOINT,
+    ENTITY_VAR_SHOP_STOCK,
+    ENTITY_VAR_TRAINER,
+    ENTITY_VAR_TRAINER_ENTRY,
+    ENTITY_VAR_SPELL,
+    ENTITY_VAR_LIQUID,
+    ENTITY_VAR_MATERIAL,
+    ENTITY_VAR_LOCK_STATE,
     ENTITY_VAR_SONG,
     ENTITY_VAR_RACE,
     ENTITY_VAR_CLASS,
@@ -680,6 +723,10 @@ enum entity_variable_types_enum {
     ENTITY_VAR_MOBINDEX,
     ENTITY_VAR_OBJINDEX,
     ENTITY_VAR_TOKENINDEX,
+    ENTITY_VAR_BLUEPRINT,
+    ENTITY_VAR_BLUEPRINT_SECTION,
+    ENTITY_VAR_DUNGEONINDEX,
+    ENTITY_VAR_SHIPINDEX,
     ENTITY_VAR_CONN,
     ENTITY_VAR_AFFECT,
     ENTITY_VAR_CHURCH,
@@ -709,6 +756,8 @@ enum entity_variable_types_enum {
     ENTITY_VAR_PLLIST_AREA,
     ENTITY_VAR_PLLIST_AREA_REGION,
     ENTITY_VAR_PLLIST_CHURCH,
+    ENTITY_VAR_PLLIST_BOOK_PAGE,
+    ENTITY_VAR_PLLIST_FOOD_BUFF,
 
 };
 
@@ -809,6 +858,8 @@ enum entity_mobile_enum {
     ENTITY_MOB_NUMGROUPED,
     ENTITY_MOB_DAMAGEDICE,
     ENTITY_MOB_INDEX,
+    ENTITY_MOB_TRAINER,
+    ENTITY_MOB_STACHE,
     ENTITY_MOB_ACT,
     ENTITY_MOB_ACT2,
     ENTITY_MOB_AFFECT,
@@ -877,7 +928,9 @@ enum entity_object_enum {
     ENTITY_OBJ_EXTRA4,
     ENTITY_OBJ_WEAR,
     ENTITY_OBJ_SHIP,
+    ENTITY_OBJ_STACHE,
     ENTITY_OBJ_LEVEL,
+    ENTITY_OBJ_ISSTACHED,
     ENTITY_OBJ_EVENT_SOURCE_UID,
     ENTITY_OBJ_EVENT_SOURCE_INSTANCE,
 
@@ -1198,6 +1251,104 @@ enum entity_skillinfo_enum {
     ENTITY_SKILLINFO_RATING
 };
 
+enum entity_book_page_enum {
+    ENTITY_BOOK_PAGE_NUMBER = ESCAPE_EXTRA,
+    ENTITY_BOOK_PAGE_TITLE,
+    ENTITY_BOOK_PAGE_TEXT,
+};
+
+enum entity_food_buff_enum {
+    ENTITY_FOOD_BUFF_WHERE = ESCAPE_EXTRA,
+    ENTITY_FOOD_BUFF_LOCATION,
+    ENTITY_FOOD_BUFF_MOD,
+    ENTITY_FOOD_BUFF_BITS,
+    ENTITY_FOOD_BUFF_BITS2,
+};
+
+enum entity_waypoint_enum {
+    ENTITY_WAYPOINT_NAME = ESCAPE_EXTRA,
+    ENTITY_WAYPOINT_WILDS,
+    ENTITY_WAYPOINT_X,
+    ENTITY_WAYPOINT_Y,
+    ENTITY_WAYPOINT_TARGET,
+};
+
+enum entity_shop_stock_enum {
+    ENTITY_STOCK_LEVEL = ESCAPE_EXTRA,
+    ENTITY_STOCK_SILVER,
+    ENTITY_STOCK_QP,
+    ENTITY_STOCK_DP,
+    ENTITY_STOCK_PNEUMA,
+    ENTITY_STOCK_DISCOUNT,
+    ENTITY_STOCK_QUANTITY,
+    ENTITY_STOCK_MAX_QUANTITY,
+    ENTITY_STOCK_RESTOCK_RATE,
+    ENTITY_STOCK_TYPE,
+    ENTITY_STOCK_DURATION,
+    ENTITY_STOCK_CUSTOM_PRICE,
+    ENTITY_STOCK_CUSTOM_KEYWORD,
+    ENTITY_STOCK_CUSTOM_DESCRIPTION,
+    ENTITY_STOCK_SINGULAR,
+    ENTITY_STOCK_OBJECT,
+    ENTITY_STOCK_MOBILE,
+    ENTITY_STOCK_SHIP,
+    ENTITY_STOCK_REPUTATION,
+    ENTITY_STOCK_MIN_RANK,
+    ENTITY_STOCK_MAX_RANK,
+    ENTITY_STOCK_MIN_SHOW_RANK,
+    ENTITY_STOCK_MAX_SHOW_RANK,
+};
+
+enum entity_trainer_enum {
+    ENTITY_TRAINER_FLAGS = ESCAPE_EXTRA,
+    ENTITY_TRAINER_GREETING,
+    ENTITY_TRAINER_ENTRIES,
+};
+
+enum entity_trainer_entry_enum {
+    ENTITY_TRAINER_ENTRY_SKILL = ESCAPE_EXTRA,
+    ENTITY_TRAINER_ENTRY_REPUTATION,
+    ENTITY_TRAINER_ENTRY_MIN_REP_RANK,
+    ENTITY_TRAINER_ENTRY_MAX_REP_RANK,
+    ENTITY_TRAINER_ENTRY_MAX_RATING,
+    ENTITY_TRAINER_ENTRY_COST_GOLD,
+    ENTITY_TRAINER_ENTRY_COST_TRAINS,
+    ENTITY_TRAINER_ENTRY_CHECK_SCRIPT,
+};
+
+enum entity_spelldata_enum {
+    ENTITY_SPELLDATA_NAME = ESCAPE_EXTRA,
+    ENTITY_SPELLDATA_SKILL,
+    ENTITY_SPELLDATA_LEVEL,
+    ENTITY_SPELLDATA_CHANCE,
+};
+
+enum entity_lock_state_enum {
+    ENTITY_LOCKSTATE_KEY = ESCAPE_EXTRA,
+    ENTITY_LOCKSTATE_PICK,
+    ENTITY_LOCKSTATE_FLAGS,
+    ENTITY_LOCKSTATE_SPECIALKEYS,
+};
+
+enum entity_liquid_enum {
+    ENTITY_LIQUID_NAME = ESCAPE_EXTRA,
+    ENTITY_LIQUID_COLOR,
+    ENTITY_LIQUID_PROOF,
+    ENTITY_LIQUID_FULL,
+    ENTITY_LIQUID_THIRST,
+    ENTITY_LIQUID_HUNGER,
+    ENTITY_LIQUID_SSIZE,
+    ENTITY_LIQUID_FUEL,
+    ENTITY_LIQUID_VAPOR,
+    ENTITY_LIQUID_FLAMMABLE,
+};
+
+enum entity_material_enum {
+    ENTITY_MATERIAL_NAME = ESCAPE_EXTRA,
+    ENTITY_MATERIAL_STRENGTH,
+    ENTITY_MATERIAL_VALUE,
+};
+
 enum entity_affect_enum {
     ENTITY_AFFECT_NAME = ESCAPE_EXTRA,
     ENTITY_AFFECT_GROUP,
@@ -1360,6 +1511,7 @@ enum entity_mobindex_enum {
     ENTITY_MOBINDEX_LOADED,
     ENTITY_MOBINDEX_LEVEL,
     ENTITY_MOBINDEX_WNUM,
+    ENTITY_MOBINDEX_TRAINER,
 };
 
 enum entity_objindex_enum {
@@ -1374,6 +1526,10 @@ enum entity_objindex_enum {
     ENTITY_OBJINDEX_WNUM,
 };
 
+enum entity_tokenindex_enum {
+    ENTITY_TOKENINDEX_WNUM = ESCAPE_EXTRA,
+};
+
 
 enum entity_instance_section_enum {
     ENTITY_SECTION_ROOMS = ESCAPE_EXTRA,
@@ -1383,6 +1539,10 @@ enum entity_instance_section_enum {
     ENTITY_SECTION_MAP_MOB,
     ENTITY_SECTION_MAP_OBJ_INDEX,
     ENTITY_SECTION_MAP_MOB_INDEX,
+};
+
+enum entity_blueprint_section_enum {
+    ENTITY_BLUEPRINT_SECTION_WNUM = ESCAPE_EXTRA,
 };
 
 
@@ -1407,8 +1567,13 @@ enum entity_instance_enum {
     ENTITY_INSTANCE_SPECIAL_ROOMS,
 };
 
+enum entity_blueprint_enum {
+    ENTITY_BLUEPRINT_WNUM = ESCAPE_EXTRA,
+};
+
 enum entity_dungeon_enum {
     ENTITY_DUNGEON_NAME = ESCAPE_EXTRA,
+    ENTITY_DUNGEON_INDEX,
     ENTITY_DUNGEON_FLOORS,
     ENTITY_DUNGEON_DESC,
     ENTITY_DUNGEON_OWNERS,
@@ -1422,9 +1587,18 @@ enum entity_dungeon_enum {
     ENTITY_DUNGEON_SPECIAL_ROOMS,
 };
 
+enum entity_dungeonindex_enum {
+    ENTITY_DUNGEONINDEX_WNUM = ESCAPE_EXTRA,
+};
+
 enum entity_ship_enum {
     ENTITY_SHIP_NAME = ESCAPE_EXTRA,
+    ENTITY_SHIP_INDEX,
     ENTITY_SHIP_OBJECT,
+};
+
+enum entity_shipindex_enum {
+    ENTITY_SHIPINDEX_WNUM = ESCAPE_EXTRA,
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1475,6 +1649,7 @@ enum entity_obj_food_enum {
     ENTITY_OBJ_FOOD_FULL,
     ENTITY_OBJ_FOOD_POISON,
     ENTITY_OBJ_FOOD_TIMER,
+    ENTITY_OBJ_FOOD_BUFFS,
 };
 
 enum entity_obj_furniture_enum {
@@ -1570,6 +1745,7 @@ enum entity_obj_book_enum {
     ENTITY_OBJ_BOOK_FLAGS = ESCAPE_EXTRA,
     ENTITY_OBJ_BOOK_CURRENT_PAGE,
     ENTITY_OBJ_BOOK_OPEN_PAGE,
+    ENTITY_OBJ_BOOK_PAGES,
 };
 
 enum entity_obj_herb_enum {
@@ -1788,6 +1964,10 @@ struct script_var_type {
         MOB_INDEX_DATA *mobindex;
         OBJ_INDEX_DATA *objindex;
         TOKEN_INDEX_DATA *token_index;
+        BLUEPRINT *blueprint;
+        BLUEPRINT_SECTION *blueprint_section;
+        DUNGEON_INDEX_DATA *dungeon_index;
+        SHIP_INDEX_DATA *ship_index;
         SECTOR_RUNTIME_DATA *sector;
         struct {
             CHAR_DATA *mob;
@@ -1802,6 +1982,16 @@ struct script_var_type {
         RACE_DATA *race;
         CLASS_DATA *clazz;
         CLASS_LEVEL *classlevel;
+        BOOK_PAGE *book_page;
+        FOOD_BUFF_DATA *food_buff;
+        WAYPOINT_DATA *waypoint;
+        SHOP_STOCK_DATA *stock;
+        TRAINER_DATA *trainer;
+        TRAINER_ENTRY *trainer_entry;
+        SPELL_DATA *spell;
+        LOCK_STATE *lock_state;
+        int liquid;
+        int material;
         REPUTATION_DATA *reputation;
         REPUTATION_INDEX_DATA *reputation_index;
         REPUTATION_INDEX_RANK_DATA *reputation_rank;
@@ -1923,6 +2113,7 @@ struct loop_data {
                 void *raw;
                 char *str;
                 EXTRA_DESCR_DATA *ed;
+                TRAINER_ENTRY *trainer_entry;
             } cur, next;
             struct {
                 LLIST *lp;
@@ -1992,6 +2183,11 @@ struct script_parameter {
 
         MOB_INDEX_DATA *mobindex;
         OBJ_INDEX_DATA *objindex;
+        TOKEN_INDEX_DATA *token_index;
+        BLUEPRINT *blueprint;
+        BLUEPRINT_SECTION *blueprint_section;
+        DUNGEON_INDEX_DATA *dungeon_index;
+        SHIP_INDEX_DATA *ship_index;
 
         INSTANCE_SECTION *section;
         INSTANCE *instance;
@@ -2005,7 +2201,6 @@ struct script_parameter {
             uint32_t instance_id;
         } event;
         
-        TOKEN_INDEX_DATA *token_index;
         SCRIPT_DATA *script;
         PROG_CODE *prog_code;
 
@@ -2049,6 +2244,16 @@ struct script_parameter {
         RACE_DATA *race;
         CLASS_DATA *clazz;
         CLASS_LEVEL *classlevel;
+        BOOK_PAGE *book_page;
+        FOOD_BUFF_DATA *food_buff;
+        WAYPOINT_DATA *waypoint;
+        SHOP_STOCK_DATA *stock;
+        TRAINER_DATA *trainer;
+        TRAINER_ENTRY *trainer_entry;
+        SPELL_DATA *spell;
+        LOCK_STATE *lock_state;
+        int liquid;
+        int material;
     REPUTATION_DATA *reputation;
     REPUTATION_INDEX_DATA *repIndex;
     REPUTATION_INDEX_RANK_DATA *repRank;
@@ -2060,6 +2265,7 @@ struct script_parameter {
                 TOKEN_DATA **tok;
                 AFFECT_DATA **aff;
                 EXTRA_DESCR_DATA **ed;
+                TRAINER_ENTRY **trainer_entry;
             } ptr;
             void *owner;
             int owner_type;
@@ -2175,6 +2381,16 @@ extern ENT_FIELD *entity_type_lists[];
 extern ENT_FIELD entity_skill_info[];
 extern ENT_FIELD entity_skill[];
 extern ENT_FIELD entity_skillgroups[];
+extern ENT_FIELD entity_book_page[];
+extern ENT_FIELD entity_food_buff[];
+extern ENT_FIELD entity_waypoint[];
+extern ENT_FIELD entity_shop_stock[];
+extern ENT_FIELD entity_trainer[];
+extern ENT_FIELD entity_trainer_entry[];
+extern ENT_FIELD entity_spelldata[];
+extern ENT_FIELD entity_lock_state[];
+extern ENT_FIELD entity_liquid[];
+extern ENT_FIELD entity_material[];
 extern ENT_FIELD entity_song[];
 extern ENT_FIELD entity_race[];
 extern ENT_FIELD entity_class[];
@@ -2932,12 +3148,26 @@ bool variables_set_song (ppVARIABLE list,char *name,SONG_DATA *song);
 bool variables_set_race (ppVARIABLE list,char *name,RACE_DATA *race);
 bool variables_set_class (ppVARIABLE list,char *name,CLASS_DATA *clazz);
 bool variables_set_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *classlevel);
+bool variables_set_book_page (ppVARIABLE list,char *name,BOOK_PAGE *book_page);
+bool variables_set_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA *food_buff);
+bool variables_set_waypoint (ppVARIABLE list,char *name,WAYPOINT_DATA *waypoint);
+bool variables_set_shop_stock (ppVARIABLE list,char *name,SHOP_STOCK_DATA *stock);
+bool variables_set_trainer (ppVARIABLE list,char *name,TRAINER_DATA *trainer);
+bool variables_set_trainer_entry (ppVARIABLE list,char *name,TRAINER_ENTRY *trainer_entry);
+bool variables_set_spell (ppVARIABLE list,char *name,SPELL_DATA *spell);
+bool variables_set_lock_state (ppVARIABLE list,char *name,LOCK_STATE *lock_state);
+bool variables_set_liquid (ppVARIABLE list,char *name,int liquid);
+bool variables_set_material (ppVARIABLE list,char *name,int material);
 bool variables_set_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation);
 bool variables_set_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index);
 bool variables_set_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank);
 bool variables_set_mobindex (ppVARIABLE list,char *name,MOB_INDEX_DATA *mobindex);
 bool variables_set_objindex (ppVARIABLE list,char *name,OBJ_INDEX_DATA *objindex);
 bool variables_set_tokenindex (ppVARIABLE list,char *name,TOKEN_INDEX_DATA *token_index);
+bool variables_set_blueprint (ppVARIABLE list,char *name,BLUEPRINT *blueprint);
+bool variables_set_blueprint_section (ppVARIABLE list,char *name,BLUEPRINT_SECTION *blueprint_section);
+bool variables_set_dungeonindex (ppVARIABLE list,char *name,DUNGEON_INDEX_DATA *dungeon_index);
+bool variables_set_shipindex (ppVARIABLE list,char *name,SHIP_INDEX_DATA *ship_index);
 bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
@@ -2978,12 +3208,26 @@ bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool sa
 bool variables_setsave_race (ppVARIABLE list,char *name,RACE_DATA *race, bool save);
 bool variables_setsave_class (ppVARIABLE list,char *name,CLASS_DATA *clazz, bool save);
 bool variables_setsave_classlevel (ppVARIABLE list,char *name,CLASS_LEVEL *classlevel, bool save);
+bool variables_setsave_book_page (ppVARIABLE list,char *name,BOOK_PAGE *book_page, bool save);
+bool variables_setsave_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA *food_buff, bool save);
+bool variables_setsave_waypoint (ppVARIABLE list,char *name,WAYPOINT_DATA *waypoint, bool save);
+bool variables_setsave_shop_stock (ppVARIABLE list,char *name,SHOP_STOCK_DATA *stock, bool save);
+bool variables_setsave_trainer (ppVARIABLE list,char *name,TRAINER_DATA *trainer, bool save);
+bool variables_setsave_trainer_entry (ppVARIABLE list,char *name,TRAINER_ENTRY *trainer_entry, bool save);
+bool variables_setsave_spell (ppVARIABLE list,char *name,SPELL_DATA *spell, bool save);
+bool variables_setsave_lock_state (ppVARIABLE list,char *name,LOCK_STATE *lock_state, bool save);
+bool variables_setsave_liquid (ppVARIABLE list,char *name,int liquid, bool save);
+bool variables_setsave_material (ppVARIABLE list,char *name,int material, bool save);
 bool variables_setsave_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation, bool save);
 bool variables_setsave_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index, bool save);
 bool variables_setsave_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank, bool save);
 bool variables_setsave_mobindex (ppVARIABLE list,char *name,MOB_INDEX_DATA *mobindex, bool save);
 bool variables_setsave_objindex (ppVARIABLE list,char *name,OBJ_INDEX_DATA *objindex, bool save);
 bool variables_setsave_tokenindex (ppVARIABLE list,char *name,TOKEN_INDEX_DATA *token_index, bool save);
+bool variables_setsave_blueprint (ppVARIABLE list,char *name,BLUEPRINT *blueprint, bool save);
+bool variables_setsave_blueprint_section (ppVARIABLE list,char *name,BLUEPRINT_SECTION *blueprint_section, bool save);
+bool variables_setsave_dungeonindex (ppVARIABLE list,char *name,DUNGEON_INDEX_DATA *dungeon_index, bool save);
+bool variables_setsave_shipindex (ppVARIABLE list,char *name,SHIP_INDEX_DATA *ship_index, bool save);
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);
@@ -3360,6 +3604,8 @@ SCRIPT_CMD(scriptcmd_saveplayer);
 SCRIPT_CMD(scriptcmd_startcombat);
 SCRIPT_CMD(scriptcmd_stopcombat);
 SCRIPT_CMD(scriptcmd_setclass);
+SCRIPT_CMD(scriptcmd_setclasslevel);
+SCRIPT_CMD(scriptcmd_setposition);
 SCRIPT_CMD(scriptcmd_setrace);
 SCRIPT_CMD(scriptcmd_setrecall);
 SCRIPT_CMD(scriptcmd_settimer);
@@ -3391,11 +3637,13 @@ SCRIPT_CMD(scriptcmd_ed);
 
 SCRIPT_CMD(scriptcmd_call);
 SCRIPT_CMD(scriptcmd_addspell);
+SCRIPT_CMD(scriptcmd_addstache);
 SCRIPT_CMD(scriptcmd_condition);
 SCRIPT_CMD(scriptcmd_crier);
 SCRIPT_CMD(scriptcmd_purge);
 SCRIPT_CMD(scriptcmd_raisedead);
 SCRIPT_CMD(scriptcmd_remspell);
+SCRIPT_CMD(scriptcmd_remstache);
 SCRIPT_CMD(scriptcmd_resetdice);
 SCRIPT_CMD(scriptcmd_interrupt);
 SCRIPT_CMD(scriptcmd_showroom);
@@ -3452,6 +3700,7 @@ SCRIPT_CMD(scriptcmd_alterroom);
 SCRIPT_CMD(scriptcmd_resetroom);
 SCRIPT_CMD(scriptcmd_churchannouncetheft);
 SCRIPT_CMD(scriptcmd_mail);
+SCRIPT_CMD(scriptcmd_shop);
 SCRIPT_CMD(scriptcmd_wiznet);
 SCRIPT_CMD(dngpcmd_levels);
 

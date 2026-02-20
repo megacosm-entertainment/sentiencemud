@@ -3320,6 +3320,7 @@ struct affliction_type {
 #define ITEM_NOLOCKER		(bb)
 #define ITEM_NOAUCTION		(cc)	/* Can't be auctioned */
 #define ITEM_KEEP_VALUE		(dd)	/* Keep value when donated */
+#define ITEM_KEY_ITEM		(ee)	/* Auto-stashes on player pickup */
 
 /* Extra3 */
 
@@ -5180,6 +5181,7 @@ struct	char_data
     LLIST *		lquests;	// Eventually, we will have a quest log of sorts
     LLIST *		lclonerooms;
     LLIST *		laffected;
+    LLIST *		lstache;	// Script item store
 
     LLIST *		lgroup;
     LLIST *		reputations;
@@ -5822,6 +5824,7 @@ struct	obj_data
     int			trap_dam;
     int 		last_wear_loc;
     bool		locker;
+    bool		stached;
     int			nest_clones;
     int storage_type; // Storage type (STORAGE_NONE, STORAGE_LOCKER, STORAGE_ACCOUNT, STORAGE_CHURCH)
 
@@ -5838,6 +5841,7 @@ struct	obj_data
     LLIST *lcontains;
     LLIST *ltokens;
     LLIST *lclonerooms;
+    LLIST *lstache;
 
     /* 20140508 NIB - Used by corpses (at first) */
     char *owner_name;	/* Used to indicate the original mob's name for use decaying the corpse. */

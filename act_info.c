@@ -5376,19 +5376,51 @@ void do_count(CHAR_DATA * ch, char *argument)
  */
 void do_inventory(CHAR_DATA * ch, char *argument)
 {
+    char arg[MIL];
     char buf[MAX_STRING_LENGTH];
+    int key_items = 0;
+    OBJ_DATA *obj;
+    ITERATOR it;
+
+    one_argument(argument, arg);
+
+    if (!str_cmp(arg, "key"))
+    {
+        send_to_char("You are carrying key items:\n\r", ch);
+        show_llist_to_char(ch->lstache, ch, true, true);
+
+        iterator_start(&it, ch->lstache);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+            if (IS_SET(obj->extra[1], ITEM_KEY_ITEM))
+                key_items++;
+        iterator_stop(&it);
+
+        sprintf(buf, "A total of %d key items.\n\r", key_items);
+        send_to_char(buf, ch);
+        return;
+    }
 
     send_to_char("You are carrying:\n\r", ch);
     show_llist_to_char(ch->lcarrying, ch, true, true);
+
+    iterator_start(&it, ch->lstache);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        if (IS_SET(obj->extra[1], ITEM_KEY_ITEM))
+            key_items++;
+    iterator_stop(&it);
+
     if (!IS_DEAD(ch))
     {
     sprintf(buf,
           "A total of %d/%d items with weight %ld/%d kg.{x "
-        "(%ld kg in coins)\n\r",
+        "(%ld kg in coins)\n\r"
+        "Key items: %d\n\r",
         ch->carry_number,
         can_carry_n(ch),
         get_carry_weight(ch),
-        can_carry_w(ch), COIN_WEIGHT(ch));
+        can_carry_w(ch),
+        COIN_WEIGHT(ch),
+        key_items);
     send_to_char(buf, ch);
     }
 }

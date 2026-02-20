@@ -544,6 +544,7 @@ char *extra2_bit_name( long extra2_flags )
     if ( extra2_flags & ITEM_NOLOCKER		) strcat( buf, " no_locker"		);
     if ( extra2_flags & ITEM_NOAUCTION		) strcat( buf, " no_auction"		);
     if ( extra2_flags & ITEM_KEEP_VALUE		) strcat( buf, " keep_value"		);
+    if ( extra2_flags & ITEM_KEY_ITEM		) strcat( buf, " key_item"		);
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 

@@ -453,6 +453,16 @@ varset(song,SONG,SONG_DATA *,song,song)
 varset(race,RACE,RACE_DATA *,race,race)
 varset(class,CLASS,CLASS_DATA *,clazz,clazz)
 varset(classlevel,CLASSLEVEL,CLASS_LEVEL *,classlevel,classlevel)
+varset(book_page,BOOK_PAGE,BOOK_PAGE *,book_page,book_page)
+varset(food_buff,FOOD_BUFF,FOOD_BUFF_DATA *,food_buff,food_buff)
+varset(waypoint,WAYPOINT,WAYPOINT_DATA *,waypoint,waypoint)
+varset(shop_stock,SHOP_STOCK,SHOP_STOCK_DATA *,stock,stock)
+varset(trainer,TRAINER,TRAINER_DATA *,trainer,trainer)
+varset(trainer_entry,TRAINER_ENTRY,TRAINER_ENTRY *,trainer_entry,trainer_entry)
+varset(spell,SPELL,SPELL_DATA *,spell,spell)
+varset(lock_state,LOCK_STATE,LOCK_STATE *,lock_state,lock_state)
+varset(liquid,LIQUID,int,liquid,liquid)
+varset(material,MATERIAL,int,material,material)
 varset(skill_group,SKILLGROUP,SKILL_GROUP *,skill_group,skill_group)
 varset(reputation,REPUTATION,REPUTATION_DATA *,reputation,reputation)
 varset(reputation_index,REPUTATION_INDEX,REPUTATION_INDEX_DATA *,reputation_index,reputation_index)
@@ -460,6 +470,10 @@ varset(reputation_rank,REPUTATION_RANK,REPUTATION_INDEX_RANK_DATA *,reputation_r
 varset(mobindex,MOBINDEX,MOB_INDEX_DATA *,mobindex,mobindex)
 varset(objindex,OBJINDEX,OBJ_INDEX_DATA *,objindex,objindex)
 varset(tokenindex,TOKENINDEX,TOKEN_INDEX_DATA *,token_index,token_index)
+varset(blueprint,BLUEPRINT,BLUEPRINT *,blueprint,blueprint)
+varset(blueprint_section,BLUEPRINT_SECTION,BLUEPRINT_SECTION *,blueprint_section,blueprint_section)
+varset(dungeonindex,DUNGEONINDEX,DUNGEON_INDEX_DATA *,dungeon_index,dungeon_index)
+varset(shipindex,SHIPINDEX,SHIP_INDEX_DATA *,ship_index,ship_index)
 
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
@@ -1653,12 +1667,26 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_RACE:          newv->_.race = oldv->_.race; break;
     case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
     case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_BOOK_PAGE:     newv->_.book_page = oldv->_.book_page; break;
+    case VAR_FOOD_BUFF:     newv->_.food_buff = oldv->_.food_buff; break;
+    case VAR_WAYPOINT:      newv->_.waypoint = oldv->_.waypoint; break;
+    case VAR_SHOP_STOCK:    newv->_.stock = oldv->_.stock; break;
+    case VAR_TRAINER:       newv->_.trainer = oldv->_.trainer; break;
+    case VAR_TRAINER_ENTRY: newv->_.trainer_entry = oldv->_.trainer_entry; break;
+    case VAR_SPELL:         newv->_.spell = oldv->_.spell; break;
+    case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
+    case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
+    case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
     case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
     case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
     case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
     case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
     case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
     case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
+    case VAR_BLUEPRINT:     newv->_.blueprint = oldv->_.blueprint; break;
+    case VAR_BLUEPRINT_SECTION: newv->_.blueprint_section = oldv->_.blueprint_section; break;
+    case VAR_DUNGEONINDEX:  newv->_.dungeon_index = oldv->_.dungeon_index; break;
+    case VAR_SHIPINDEX:     newv->_.ship_index = oldv->_.ship_index; break;
     case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
     case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 
@@ -1676,6 +1704,8 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_PLLIST_AREA:
     case VAR_PLLIST_AREA_REGION:
     case VAR_PLLIST_CHURCH:
+    case VAR_PLLIST_BOOK_PAGE:
+    case VAR_PLLIST_FOOD_BUFF:
     case VAR_PLLIST_VARIABLE:
     case VAR_BLLIST_ROOM:
     case VAR_BLLIST_MOB:
@@ -1727,12 +1757,26 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_RACE:          newv->_.race = oldv->_.race; break;
     case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
     case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_BOOK_PAGE:     newv->_.book_page = oldv->_.book_page; break;
+    case VAR_FOOD_BUFF:     newv->_.food_buff = oldv->_.food_buff; break;
+    case VAR_WAYPOINT:      newv->_.waypoint = oldv->_.waypoint; break;
+    case VAR_SHOP_STOCK:    newv->_.stock = oldv->_.stock; break;
+    case VAR_TRAINER:       newv->_.trainer = oldv->_.trainer; break;
+    case VAR_TRAINER_ENTRY: newv->_.trainer_entry = oldv->_.trainer_entry; break;
+    case VAR_SPELL:         newv->_.spell = oldv->_.spell; break;
+    case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
+    case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
+    case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
     case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
     case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
     case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
     case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
     case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
     case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
+    case VAR_BLUEPRINT:     newv->_.blueprint = oldv->_.blueprint; break;
+    case VAR_BLUEPRINT_SECTION: newv->_.blueprint_section = oldv->_.blueprint_section; break;
+    case VAR_DUNGEONINDEX:  newv->_.dungeon_index = oldv->_.dungeon_index; break;
+    case VAR_SHIPINDEX:     newv->_.ship_index = oldv->_.ship_index; break;
     case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
     case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 
@@ -1751,6 +1795,8 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_PLLIST_AREA:
     case VAR_PLLIST_AREA_REGION:
     case VAR_PLLIST_CHURCH:
+    case VAR_PLLIST_BOOK_PAGE:
+    case VAR_PLLIST_FOOD_BUFF:
     case VAR_PLLIST_VARIABLE:
     case VAR_BLLIST_ROOM:
     case VAR_BLLIST_MOB:
@@ -1801,12 +1847,26 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_RACE:          newv->_.race = oldv->_.race; break;
         case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
         case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+        case VAR_BOOK_PAGE:     newv->_.book_page = oldv->_.book_page; break;
+        case VAR_FOOD_BUFF:     newv->_.food_buff = oldv->_.food_buff; break;
+        case VAR_WAYPOINT:      newv->_.waypoint = oldv->_.waypoint; break;
+        case VAR_SHOP_STOCK:    newv->_.stock = oldv->_.stock; break;
+        case VAR_TRAINER:       newv->_.trainer = oldv->_.trainer; break;
+        case VAR_TRAINER_ENTRY: newv->_.trainer_entry = oldv->_.trainer_entry; break;
+        case VAR_SPELL:         newv->_.spell = oldv->_.spell; break;
+        case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
+        case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
+        case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
         case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
         case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
         case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
         case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
         case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
         case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
+        case VAR_BLUEPRINT:     newv->_.blueprint = oldv->_.blueprint; break;
+        case VAR_BLUEPRINT_SECTION: newv->_.blueprint_section = oldv->_.blueprint_section; break;
+        case VAR_DUNGEONINDEX:  newv->_.dungeon_index = oldv->_.dungeon_index; break;
+        case VAR_SHIPINDEX:     newv->_.ship_index = oldv->_.ship_index; break;
         case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
         case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 
@@ -1825,6 +1885,8 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_PLLIST_AREA:
         case VAR_PLLIST_AREA_REGION:
         case VAR_PLLIST_CHURCH:
+        case VAR_PLLIST_BOOK_PAGE:
+        case VAR_PLLIST_FOOD_BUFF:
         case VAR_PLLIST_VARIABLE:
         case VAR_BLLIST_ROOM:
         case VAR_BLLIST_MOB:
@@ -1873,12 +1935,26 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_RACE:          newv->_.race = oldv->_.race; break;
     case VAR_CLASS:         newv->_.clazz = oldv->_.clazz; break;
     case VAR_CLASSLEVEL:    newv->_.classlevel = oldv->_.classlevel; break;
+    case VAR_BOOK_PAGE:     newv->_.book_page = oldv->_.book_page; break;
+    case VAR_FOOD_BUFF:     newv->_.food_buff = oldv->_.food_buff; break;
+    case VAR_WAYPOINT:      newv->_.waypoint = oldv->_.waypoint; break;
+    case VAR_SHOP_STOCK:    newv->_.stock = oldv->_.stock; break;
+    case VAR_TRAINER:       newv->_.trainer = oldv->_.trainer; break;
+    case VAR_TRAINER_ENTRY: newv->_.trainer_entry = oldv->_.trainer_entry; break;
+    case VAR_SPELL:         newv->_.spell = oldv->_.spell; break;
+    case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
+    case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
+    case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
     case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
     case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
     case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
     case VAR_MOBINDEX:      newv->_.mobindex = oldv->_.mobindex; break;
     case VAR_OBJINDEX:      newv->_.objindex = oldv->_.objindex; break;
     case VAR_TOKENINDEX:    newv->_.token_index = oldv->_.token_index; break;
+    case VAR_BLUEPRINT:     newv->_.blueprint = oldv->_.blueprint; break;
+    case VAR_BLUEPRINT_SECTION: newv->_.blueprint_section = oldv->_.blueprint_section; break;
+    case VAR_DUNGEONINDEX:  newv->_.dungeon_index = oldv->_.dungeon_index; break;
+    case VAR_SHIPINDEX:     newv->_.ship_index = oldv->_.ship_index; break;
     case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
     case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 
@@ -1897,6 +1973,8 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_PLLIST_AREA:
     case VAR_PLLIST_AREA_REGION:
     case VAR_PLLIST_CHURCH:
+    case VAR_PLLIST_BOOK_PAGE:
+    case VAR_PLLIST_FOOD_BUFF:
     case VAR_PLLIST_VARIABLE:
     case VAR_BLLIST_ROOM:
     case VAR_BLLIST_MOB:
@@ -2204,6 +2282,18 @@ void variable_clearfield(int type, void *ptr)
 
         case VAR_PLLIST_AREA_REGION:
             if( type == VAR_AREA_REGION && ptr && list_isvalid(cur->_.list)) {
+                list_remlink(cur->_.list, ptr, false);
+            }
+            break;
+
+        case VAR_PLLIST_BOOK_PAGE:
+            if( type == VAR_BOOK_PAGE && ptr && list_isvalid(cur->_.list)) {
+                list_remlink(cur->_.list, ptr, false);
+            }
+            break;
+
+        case VAR_PLLIST_FOOD_BUFF:
+            if( type == VAR_FOOD_BUFF && ptr && list_isvalid(cur->_.list)) {
                 list_remlink(cur->_.list, ptr, false);
             }
             break;

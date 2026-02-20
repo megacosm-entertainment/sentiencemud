@@ -1476,6 +1476,8 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
             case ENT_PLLIST_AREA:
             case ENT_PLLIST_AREA_REGION:
             case ENT_PLLIST_CHURCH:
+            case ENT_PLLIST_BOOK_PAGE:
+            case ENT_PLLIST_FOOD_BUFF:
             case ENT_PLLIST_REPUTATION_RANK:
             case ENT_ILLIST_VARIABLE:
             case ENT_ILLIST_REPUTATION:
@@ -1801,6 +1803,8 @@ DECL_OPC_FUN(opc_list)
     AREA_DATA *area;
     AREA_REGION *aregion;
     CHURCH_DATA *church;
+    BOOK_PAGE *book_page;
+    FOOD_BUFF_DATA *food_buff;
     VARIABLE *variable;
     EXTRA_DESCR_DATA *ed;
     INSTANCE_SECTION *section;
@@ -2009,6 +2013,22 @@ DECL_OPC_FUN(opc_list)
 
             // Set the variable
             variables_set_affect(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.aff);
+            break;
+
+        case ENT_OLLIST_TRAINER_ENTRY:
+            if(!arg->d.list.ptr.trainer_entry || !*arg->d.list.ptr.trainer_entry)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_TRAINER_ENTRY;
+            block->loops[lp].d.l.cur.trainer_entry = *arg->d.list.ptr.trainer_entry;
+            block->loops[lp].d.l.next.trainer_entry = block->loops[lp].d.l.cur.trainer_entry->next;
+            block->loops[lp].d.l.owner = arg->d.list.owner;
+            block->loops[lp].d.l.owner_type = ENT_TRAINER;
+
+            variables_set_trainer_entry(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.trainer_entry);
             break;
 
         case ENT_EXTRADESC:
@@ -2581,6 +2601,54 @@ DECL_OPC_FUN(opc_list)
             variables_set_church(block->info.var,block->loops[lp].var_name,church);
             break;
 
+        case ENT_PLLIST_BOOK_PAGE:
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_BOOK_PAGE;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !book_page ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+            break;
+
+        case ENT_PLLIST_FOOD_BUFF:
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_FOOD_BUFF;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            food_buff = (FOOD_BUFF_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !food_buff ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_food_buff(block->info.var,block->loops[lp].var_name,food_buff);
+            break;
+
         case ENT_PLLIST_REPUTATION_RANK:
             if(!arg->d.blist || !arg->d.blist->valid)
             {
@@ -3071,6 +3139,18 @@ DECL_OPC_FUN(opc_list)
             block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
             break;
 
+        case ENT_TRAINER_ENTRY:
+            block->loops[lp].d.l.cur.trainer_entry = block->loops[lp].d.l.next.trainer_entry;
+            variables_set_trainer_entry(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.trainer_entry);
+
+            if(!block->loops[lp].d.l.cur.trainer_entry) {
+                skip = true;
+                break;
+            }
+
+            block->loops[lp].d.l.next.trainer_entry = block->loops[lp].d.l.cur.trainer_entry->next;
+            break;
+
         case ENT_EXTRADESC:
             block->loops[lp].d.l.cur.ed = block->loops[lp].d.l.next.ed;
             ed = block->loops[lp].d.l.cur.ed;
@@ -3471,6 +3551,32 @@ DECL_OPC_FUN(opc_list)
             variables_set_church(block->info.var,block->loops[lp].var_name,church);
 
             if( !church ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_BOOK_PAGE:
+            book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+
+            if( !book_page ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_FOOD_BUFF:
+            food_buff = (FOOD_BUFF_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_food_buff(block->info.var,block->loops[lp].var_name,food_buff);
+
+            if( !food_buff ) {
                 iterator_stop(&block->loops[lp].d.l.list.it);
                 skip = true;
                 break;
@@ -9380,6 +9486,73 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             return;
         }
 
+    // Format: SPELL <SPELL>
+    } else if(!str_cmp(buf,"spell")) {
+        switch(arg->type) {
+        case ENT_SPELL:
+            variables_set_spell(vars, name, arg->d.spell);
+            break;
+        default:
+            return;
+        }
+
+    // Format: LIQUID <NUMBER|STRING|LIQUID>
+    } else if(!str_cmp(buf,"liquid")) {
+        switch(arg->type) {
+        case ENT_NUMBER:
+            if (arg->d.num >= 0 && arg->d.num < liquid_count())
+                variables_set_liquid(vars, name, arg->d.num);
+            break;
+        case ENT_STRING:
+        {
+            int liq = liquid_lookup(arg->d.str);
+            if (liq >= 0)
+                variables_set_liquid(vars, name, liq);
+            break;
+        }
+        case ENT_LIQUID:
+            variables_set_liquid(vars, name, arg->d.liquid);
+            break;
+        default:
+            return;
+        }
+
+    // Format: MATERIAL <NUMBER|STRING|MATERIAL>
+    } else if(!str_cmp(buf,"material")) {
+        switch(arg->type) {
+        case ENT_NUMBER:
+            if (arg->d.num >= 0 && arg->d.num < material_count())
+                variables_set_material(vars, name, arg->d.num);
+            break;
+        case ENT_STRING:
+        {
+            int mat = material_index_lookup(arg->d.str);
+            if (mat >= 0)
+                variables_set_material(vars, name, mat);
+            break;
+        }
+        case ENT_MATERIAL:
+            variables_set_material(vars, name, arg->d.material);
+            break;
+        default:
+            return;
+        }
+
+    // Format: LOCKSTATE <LOCK_STATE|EXIT>
+    // Format: LOCK_STATE <LOCK_STATE|EXIT>
+    } else if(!str_cmp(buf,"lockstate") || !str_cmp(buf,"lock_state")) {
+        switch(arg->type) {
+        case ENT_LOCK_STATE:
+            variables_set_lock_state(vars, name, arg->d.lock_state);
+            break;
+        case ENT_EXIT:
+            if (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR && arg->d.door.r->exit[arg->d.door.door])
+                variables_set_lock_state(vars, name, &arg->d.door.r->exit[arg->d.door.door]->door.lock);
+            break;
+        default:
+            return;
+        }
+
     // Format: MOBINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: MOBINDEX <MOBINDEX>
     } else if(!str_cmp(buf,"mobindex") || !str_cmp(buf,"mob_index")) {
@@ -9467,6 +9640,126 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         }
         case ENT_TOKEN_INDEX:
             variables_set_tokenindex(vars, name, arg->d.token_index);
+            break;
+        default:
+            return;
+        }
+
+    // Format: BLUEPRINT <WIDEVNUM|NUMBER|STRING>
+    // Format: BLUEPRINT <BLUEPRINT>
+    } else if(!str_cmp(buf,"blueprint") || !str_cmp(buf,"bp")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_blueprint(vars, name, get_blueprint_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_BLUEPRINT:
+            variables_set_blueprint(vars, name, arg->d.blueprint);
+            break;
+        default:
+            return;
+        }
+
+    // Format: BPSECTION <WIDEVNUM|NUMBER|STRING>
+    // Format: BPSECTION <BLUEPRINT_SECTION>
+    } else if(!str_cmp(buf,"bpsection") || !str_cmp(buf,"blueprint_section")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_BLUEPRINT_SECTION:
+            variables_set_blueprint_section(vars, name, arg->d.blueprint_section);
+            break;
+        default:
+            return;
+        }
+
+    // Format: DNGINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: DNGINDEX <DUNGEONINDEX>
+    } else if(!str_cmp(buf,"dngindex") || !str_cmp(buf,"dungeonindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_DUNGEONINDEX:
+            variables_set_dungeonindex(vars, name, arg->d.dungeon_index);
+            break;
+        default:
+            return;
+        }
+
+    // Format: SHIPINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: SHIPINDEX <SHIPINDEX>
+    } else if(!str_cmp(buf,"shipindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_shipindex(vars, name, get_ship_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_SHIPINDEX:
+            variables_set_shipindex(vars, name, arg->d.ship_index);
             break;
         default:
             return;
@@ -9643,6 +9936,39 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             if (class_level)
                 variables_set_classlevel(vars, name, class_level);
         }
+
+    // Format: BOOK_PAGE <book_page>
+    } else if(!str_cmp(buf,"book_page") || !str_cmp(buf,"bookpage")) {
+        if (arg->type == ENT_BOOK_PAGE)
+            variables_set_book_page(vars, name, arg->d.book_page);
+
+    // Format: FOOD_BUFF <food_buff>
+    // Format: FOOD_BUFF <obj_food_buff>
+    } else if(!str_cmp(buf,"food_buff") || !str_cmp(buf,"foodbuff")) {
+        if (arg->type == ENT_FOOD_BUFF)
+            variables_set_food_buff(vars, name, arg->d.food_buff);
+
+    // Format: WAYPOINT <waypoint>
+    } else if(!str_cmp(buf,"waypoint")) {
+        if (arg->type == ENT_WAYPOINT)
+            variables_set_waypoint(vars, name, arg->d.waypoint);
+
+    // Format: STOCK <stock>
+    // Format: SHOP_STOCK <stock>
+    } else if(!str_cmp(buf,"stock") || !str_cmp(buf,"shop_stock")) {
+        if (arg->type == ENT_SHOP_STOCK)
+            variables_set_shop_stock(vars, name, arg->d.stock);
+
+    // Format: TRAINER <trainer>
+    } else if(!str_cmp(buf,"trainer")) {
+        if (arg->type == ENT_TRAINER)
+            variables_set_trainer(vars, name, arg->d.trainer);
+
+    // Format: TRAINER_ENTRY <trainer_entry>
+    // Format: TENTRY <trainer_entry>
+    } else if(!str_cmp(buf,"trainer_entry") || !str_cmp(buf,"tentry")) {
+        if (arg->type == ENT_TRAINER_ENTRY)
+            variables_set_trainer_entry(vars, name, arg->d.trainer_entry);
 
     // Format: REPUTATION_INDEX <widevnum|number|string|repindex|reputation>
     // Format: REPINDEX <widevnum|number|string|repindex|reputation>

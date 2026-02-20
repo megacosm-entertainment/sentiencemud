@@ -1407,6 +1407,8 @@ const struct flag_type extra2_flags[] =
     {   "no_locker",		ITEM_NOLOCKER,		true	},
     {	"no_auction",		ITEM_NOAUCTION,		true	},
     {	"keep_value",		ITEM_KEEP_VALUE,	true	},
+    {   "key_item",		ITEM_KEY_ITEM,		true	},
+    {   "keyitem",		ITEM_KEY_ITEM,		true	},
     {   NULL,			0,			0	}
 };
 

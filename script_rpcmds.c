@@ -29,6 +29,7 @@ const struct script_cmd_type room_cmd_table[] = {
     { "addaffect",			scriptcmd_addaffect,	true,	true	},
     { "addaffectname",		scriptcmd_addaffectname,true,	true	},
     { "addspell",			scriptcmd_addspell,		true,	true	},
+    { "addstache",          scriptcmd_addstache,  true,   true    },
     { "alteraffect",		scriptcmd_alteraffect,		true,	true	},
     { "alterexit",			do_rpalterexit,			false,	true	},
     { "altermob",			do_rpaltermob,			true,	true	},
@@ -119,6 +120,7 @@ const struct script_cmd_type room_cmd_table[] = {
     { "remort",				scriptcmd_remort,		true,	true	},
     { "remove",				do_rpremove,			false,	true	},
     { "remspell",			scriptcmd_remspell,		true,	true	},
+    { "remstache",          scriptcmd_remstache,  true,   true    },
     { "resetdice",			scriptcmd_resetdice,		true,	true	},
     { "resetroom",			scriptcmd_resetroom,	true,	true	},
     { "restore",			scriptcmd_restore,		true,	true	},
@@ -170,7 +172,10 @@ const struct script_cmd_type room_cmd_table[] = {
     { "xcall",				scriptcmd_xcall,			false,	true	},
     { "zecho",				scriptcmd_zecho,			false,	true	},
     { "zot",				scriptcmd_zot,			true,	true	},
-    { NULL,					NULL,					false,	false	}
+    { "setclasslevel",                  scriptcmd_setclasslevel,        false,  true    },
+    { "setposition",                    scriptcmd_setposition,          true,   true    },
+    { "shop",                           scriptcmd_shop,                 true,   true    },
+    { NULL,                                     NULL,                                   false,  false   }
 };
 
 int rpcmd_lookup(char *command)

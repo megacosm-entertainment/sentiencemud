@@ -200,7 +200,7 @@ CHAR_INFO_CACHE *json_to_char_info(json_t *json)
 
 json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
 {
-    json_t *json_obj, *contains_array, *affects_array, *extra_descr_array, *spells_array, *tokens_array;
+    json_t *json_obj, *contains_array, *stache_array, *affects_array, *extra_descr_array, *spells_array, *tokens_array;
     json_t *catalysts_array;
     AFFECT_DATA *paf;
     EXTRA_DESCR_DATA *ed;
@@ -329,6 +329,11 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
     // Locker flag
     if (obj->locker) {
         json_object_set_new(json_obj, "locker", json_boolean(obj->locker));
+    }
+
+    // Stached flag
+    if (obj->stached) {
+        json_object_set_new(json_obj, "stached", json_boolean(obj->stached));
     }
 
     // Old descriptions (pre-customize, for uncustomize command)
@@ -520,6 +525,26 @@ json_t *obj_to_json(OBJ_DATA *obj, int nest_level)
         json_decref(contains_array);
     }
 
+    // Stache (nested objects)
+    stache_array = json_array();
+    if (obj->lstache && IS_VALID(obj->lstache)) {
+        OBJ_DATA *stached_obj;
+
+        iterator_start(&it, obj->lstache);
+        while ((stached_obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            json_t *stached = obj_to_json(stached_obj, nest_level + 1);
+            if (stached) {
+                json_array_append_new(stache_array, stached);
+            }
+        }
+        iterator_stop(&it);
+    }
+    if (json_array_size(stache_array) > 0) {
+        json_object_set_new(json_obj, "stache", stache_array);
+    } else {
+        json_decref(stache_array);
+    }
+
     return json_obj;
 }
 
@@ -538,7 +563,7 @@ static json_t *inventory_to_json(CHAR_DATA *ch)
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             // Only write top-level inventory items (not equipped, not in locker, not in containers)
-            if (!obj->locker && obj->in_obj == NULL && obj->wear_loc == WEAR_NONE) {
+            if (!obj->locker && !obj->stached && obj->in_obj == NULL && obj->wear_loc == WEAR_NONE) {
                 json_t *json_obj = obj_to_json(obj, 0);
                 if (json_obj) {
                     json_array_append_new(inventory, json_obj);
@@ -565,7 +590,7 @@ static json_t *equipment_to_json(CHAR_DATA *ch)
         iterator_start(&it, ch->lworn);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             // Only write non-locker equipped items
-            if (!obj->locker && obj->in_obj == NULL) {
+            if (!obj->locker && !obj->stached && obj->in_obj == NULL) {
                 json_t *json_obj = obj_to_json(obj, 0);
                 if (json_obj) {
                     json_array_append_new(equipment, json_obj);
@@ -602,6 +627,30 @@ static json_t *locker_to_json(CHAR_DATA *ch)
     }
 
     return locker;
+}
+
+static json_t *stache_to_json(CHAR_DATA *ch)
+{
+    json_t *stache;
+    OBJ_DATA *obj;
+    ITERATOR it;
+
+    stache = json_array();
+
+    if (ch->lstache && IS_VALID(ch->lstache)) {
+        iterator_start(&it, ch->lstache);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (obj->in_obj == NULL) {
+                json_t *json_obj = obj_to_json(obj, 0);
+                if (json_obj) {
+                    json_array_append_new(stache, json_obj);
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return stache;
 }
 
 /* Flag helpers now provided by json_common.h */
@@ -1704,7 +1753,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
 
 json_t *char_to_json(CHAR_DATA *ch)
 {
-    json_t *root, *inventory, *equipment, *locker, *skills, *groups, *affects, *tokens, *aliases;
+    json_t *root, *inventory, *equipment, *locker, *stache, *skills, *groups, *affects, *tokens, *aliases;
 
     if (!ch || IS_NPC(ch)) {
         return NULL;
@@ -1740,6 +1789,14 @@ json_t *char_to_json(CHAR_DATA *ch)
         json_object_set_new(root, "locker", locker);
     } else {
         json_decref(locker);
+    }
+
+    // Stache section
+    stache = stache_to_json(ch);
+    if (json_array_size(stache) > 0) {
+        json_object_set_new(root, "stache", stache);
+    } else {
+        json_decref(stache);
     }
 
     // Skills section
@@ -2301,6 +2358,10 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
     value = json_object_get(json_obj, "locker");
     if (value) obj->locker = json_is_true(value);
 
+    // Stached flag
+    value = json_object_get(json_obj, "stached");
+    if (value) obj->stached = json_is_true(value);
+
     // Old descriptions (pre-customize)
     value = json_object_get(json_obj, "old_name");
     if (value) {
@@ -2475,6 +2536,19 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
         }
     }
 
+    // Stached objects (recursive)
+    value = json_object_get(json_obj, "stache");
+    if (value && json_is_array(value)) {
+        json_array_foreach(value, index, array_elem) {
+            OBJ_DATA *stached_obj = json_to_obj(array_elem, ch);
+            if (stached_obj) {
+                stached_obj->next_content = NULL;
+                stached_obj->stached = true;
+                list_appendlink(obj->lstache, stached_obj);
+            }
+        }
+    }
+
     // Add object to loaded_objects tracking list.
     // The object was just created by create_object_noid with add_to_loaded_objs=false,
     // so it is guaranteed to not be in the list yet (no need for list_haslink scan).
@@ -2549,7 +2623,7 @@ static bool json_read_char_internal(CHAR_DATA *ch, const char *filename, bool lo
 // source_name is used for logging (could be filename or "redis")
 static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool load_heavy, const char *source_name)
 {
-    json_t *metadata, *character, *inventory, *equipment, *locker, *skills, *affects, *classes_obj;
+    json_t *metadata, *character, *inventory, *equipment, *locker, *stache, *skills, *affects, *classes_obj;
     json_t *value, *array_elem;
     const char *str;
     size_t index;
@@ -3744,6 +3818,27 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             log_stringf("PERFORMANCE %s: locker load: %ldms", ch->name, section_ms);
     }
 
+    // Read stache section (skip if not loading heavy data)
+    if (load_heavy) {
+        gettimeofday(&section_start, NULL);
+        stache = json_object_get(root, "stache");
+        if (stache && json_is_array(stache)) {
+            json_array_foreach(stache, index, array_elem) {
+                OBJ_DATA *obj = json_to_obj(array_elem, ch);
+                if (obj) {
+                    obj->next_content = NULL;
+                    obj->stached = true;
+                    list_appendlink(ch->lstache, obj);
+                }
+            }
+        }
+        gettimeofday(&section_end, NULL);
+        section_ms = (section_end.tv_sec - section_start.tv_sec) * 1000 +
+                    (section_end.tv_usec - section_start.tv_usec) / 1000;
+        if (section_ms > 100)
+            log_stringf("PERFORMANCE %s: stache load: %ldms", ch->name, section_ms);
+    }
+
     // **FIX #4: Read skills section - uses skill NAME as key (robust against ID changes)**
     // (skip if not loading heavy data)
     if (load_heavy) {
@@ -4211,7 +4306,7 @@ bool json_read_char_basic_from_json(CHAR_DATA *ch, json_t *root)
 // Caller retains ownership of root - this function does not decref it
 bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
 {
-    json_t *inventory, *equipment, *locker, *skills, *affects;
+    json_t *inventory, *equipment, *locker, *stache, *skills, *affects;
     json_t *value, *array_elem;
     const char *str;
     size_t index;
@@ -4266,6 +4361,19 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             if (obj) {
                 // Use obj_to_locker() which properly adds to ch->llocker
                 obj_to_locker(obj, ch);
+            }
+        }
+    }
+
+    // Read stache section
+    stache = json_object_get(root, "stache");
+    if (stache && json_is_array(stache)) {
+        json_array_foreach(stache, index, array_elem) {
+            OBJ_DATA *obj = json_to_obj(array_elem, ch);
+            if (obj) {
+                obj->next_content = NULL;
+                obj->stached = true;
+                list_appendlink(ch->lstache, obj);
             }
         }
     }

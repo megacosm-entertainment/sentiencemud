@@ -2350,14 +2350,13 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
     obj->in_room        = ch->in_room;
     obj->in_obj         = NULL;
     obj->locker         = false;
-    
-    // Update character stats
-    ch->carry_number    += get_obj_number(obj);
-    ch->carry_weight    += get_obj_weight(obj);
 
     // Remove hidden flag when picking up objects
     if (IS_SET(obj->extra[0], ITEM_HIDDEN))
         REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
+
+    if (!IS_NPC(ch) && IS_SET(obj->extra[1], ITEM_KEY_ITEM))
+        obj->stached = true;
 
     // Convert money obj into gold/silver
     if (obj->item_type == ITEM_MONEY)
@@ -2389,6 +2388,17 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
         extract_obj(obj);
         return;
     }
+
+    if (obj->stached)
+    {
+        if (!list_haslink(ch->lstache, obj))
+            list_addlink(ch->lstache, obj);
+        return;
+    }
+
+    // Update character stats (non-stached inventory only)
+    ch->carry_number    += get_obj_number(obj);
+    ch->carry_weight    += get_obj_weight(obj);
 
     // Add to the LLIST only if it's not equipped (wear_loc == WEAR_NONE)
     // This ensures lcarrying only contains objects in the active inventory
@@ -2491,14 +2501,20 @@ void obj_from_char(OBJ_DATA *obj)
     if (obj->wear_loc != WEAR_NONE)
         unequip_char(ch, obj, false);
 
-    --obj->pIndexData->carried;
-
     REMOVE_BIT(obj->extra[0], ITEM_INVENTORY);
     obj->carried_by = NULL;
     obj->next_content = NULL;
+
+    if (obj->stached)
+    {
+        list_remlink(ch->lstache, obj, false);
+        return;
+    }
+
+    --obj->pIndexData->carried;
     ch->carry_number -= get_obj_number(obj);
     ch->carry_weight -= get_obj_weight(obj);
-    
+
     /* Remove from the LLIST */
     list_remlink(ch->lcarrying, obj, false);
 }
@@ -3788,7 +3804,7 @@ OBJ_DATA *get_obj_carry(CHAR_DATA *ch, char *argument, CHAR_DATA *viewer)
     int count;
     ITERATOR it;
     
-    if (!ch || !ch->lcarrying) 
+    if (!ch || (!ch->lcarrying && !ch->lstache))
         return NULL;
     
     number = number_argument(argument, arg);
@@ -3799,6 +3815,18 @@ OBJ_DATA *get_obj_carry(CHAR_DATA *ch, char *argument, CHAR_DATA *viewer)
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
         if (obj->wear_loc == WEAR_NONE && 
             (viewer ? can_see_obj(viewer, obj) : true) &&
+            is_name(arg, obj->name)) {
+            if (++count == number) {
+                iterator_stop(&it);
+                return obj;
+            }
+        }
+    }
+    iterator_stop(&it);
+
+    iterator_start(&it, ch->lstache);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if ((viewer ? can_see_obj(viewer, obj) : true) &&
             is_name(arg, obj->name)) {
             if (++count == number) {
                 iterator_stop(&it);
@@ -3820,7 +3848,7 @@ OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DAT
     int number = *nth;
     ITERATOR it;
 
-    if (!ch || (!ch->lcarrying && !ch->carrying)) {
+    if (!ch || (!ch->lcarrying && !ch->carrying && !ch->lstache)) {
         *nth = number;
         return NULL;
     }
@@ -3854,6 +3882,22 @@ OBJ_DATA *get_obj_carry_number(CHAR_DATA *ch, char *argument, int *nth, CHAR_DAT
         iterator_stop(&it);
     }
 
+    if (ch->lstache) {
+        iterator_start(&it, ch->lstache);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            bool see_ok = (viewer ? can_see_obj(viewer, obj) : true);
+            bool name_ok = is_name(argument, obj->name);
+
+            if (see_ok && name_ok) {
+                if (--number < 1) {
+                    iterator_stop(&it);
+                    return obj;
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+
     *nth = number;
     return NULL;
 }
@@ -3866,7 +3910,7 @@ OBJ_DATA *get_obj_vnum_carry(CHAR_DATA *ch, long vnum, CHAR_DATA *viewer)
     OBJ_DATA *obj;
     ITERATOR it;
     
-    if (!ch || (!ch->lcarrying && !ch->carrying))
+    if (!ch || (!ch->lcarrying && !ch->carrying && !ch->lstache))
         return NULL;
     
     // Use the lcarrying LLIST
@@ -3875,6 +3919,18 @@ OBJ_DATA *get_obj_vnum_carry(CHAR_DATA *ch, long vnum, CHAR_DATA *viewer)
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             if (obj->wear_loc == WEAR_NONE &&
                 (viewer ? can_see_obj(viewer, obj) : true) &&
+                obj->pIndexData->vnum == vnum) {
+                iterator_stop(&it);
+                return obj;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    if (ch->lstache) {
+        iterator_start(&it, ch->lstache);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if ((viewer ? can_see_obj(viewer, obj) : true) &&
                 obj->pIndexData->vnum == vnum) {
                 iterator_stop(&it);
                 return obj;

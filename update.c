@@ -2469,7 +2469,7 @@ void obj_update(void)
                     continue;
             }
 
-            if (!obj->locker)
+            if (!obj->locker && !obj->stached)
             {
 
                 p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);

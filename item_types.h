@@ -399,10 +399,23 @@ struct obj_food_data
     struct obj_food_data *next;
     bool valid;
 
+    LLIST *buffs;          /* FOOD_BUFF_DATA * elements */
     int hunger;
     int full;
     int poison;          /* 0 (none) to 100 (permanent) */
     int timer;           /* Timer before food disappears */
+};
+
+struct food_buff_data
+{
+    struct food_buff_data *next;
+    bool valid;
+
+    int16_t where;
+    int16_t location;
+    int16_t modifier;
+    long bitvector;
+    long bitvector2;
 };
 
 /* ==================== FURNITURE ==================== */
@@ -803,6 +816,7 @@ typedef struct container_filter_data    CONTAINER_FILTER;
 typedef struct obj_container_data       CONTAINER_DATA;
 typedef struct obj_corpse_data          CORPSE_DATA;
 typedef struct obj_fluid_container_data FLUID_CONTAINER_DATA;
+typedef struct food_buff_data           FOOD_BUFF_DATA;
 typedef struct obj_food_data            FOOD_DATA;
 typedef struct obj_furniture_data       FURNITURE_DATA;
 typedef struct obj_herb_data            HERB_DATA;
@@ -843,6 +857,7 @@ COMPASS_DATA *          new_compass_data(void);
 CONTAINER_DATA *        new_container_data(void);
 CORPSE_DATA *           new_corpse_data(void);
 FLUID_CONTAINER_DATA *  new_fluid_container_data(void);
+FOOD_BUFF_DATA *        new_food_buff_data(void);
 FOOD_DATA *             new_food_data(void);
 FURNITURE_DATA *        new_furniture_data(void);
 HERB_DATA *             new_herb_data(void);
@@ -877,6 +892,7 @@ COMPASS_DATA *          copy_compass_data(COMPASS_DATA *src);
 CONTAINER_DATA *        copy_container_data(CONTAINER_DATA *src);
 CORPSE_DATA *           copy_corpse_data(CORPSE_DATA *src);
 FLUID_CONTAINER_DATA *  copy_fluid_container_data(FLUID_CONTAINER_DATA *src);
+FOOD_BUFF_DATA *        copy_food_buff_data(FOOD_BUFF_DATA *src);
 FOOD_DATA *             copy_food_data(FOOD_DATA *src);
 FURNITURE_DATA *        copy_furniture_data(FURNITURE_DATA *src);
 HERB_DATA *             copy_herb_data(HERB_DATA *src);
@@ -911,6 +927,7 @@ void    free_compass_data(COMPASS_DATA *data);
 void    free_container_data(CONTAINER_DATA *data);
 void    free_corpse_data(CORPSE_DATA *data);
 void    free_fluid_container_data(FLUID_CONTAINER_DATA *data);
+void    free_food_buff_data(FOOD_BUFF_DATA *data);
 void    free_food_data(FOOD_DATA *data);
 void    free_furniture_data(FURNITURE_DATA *data);
 void    free_herb_data(HERB_DATA *data);

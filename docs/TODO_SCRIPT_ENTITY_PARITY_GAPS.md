@@ -8,34 +8,21 @@ This file tracks entity domains from `src_20_dev` that are **not present at all*
 
 These names exist in `src_20_dev` `entity_types[]` but not in current `src` `entity_types[]`, and their corresponding `ENT_*` types are also absent from current `scripts.h` `entity_type_enum`.
 
-Completed in this session:
-- `aregion` (added as first Area Region backport slice with `varset arearegion|aregion`, `room.region`, `area.region`, and `aregion` field table)
-
+Completed so far:
+- `aregion` (+ `dynlist_aregion`, `list_area`, `list_aregion`)
 - `skillgroup`
-- `book_page`
-- `food_buff`
-- `compartment`
-- `waypoint`
-- `stock`
-- `dynlist_aregion`
-- `list_area`
-- `list_aregion`
-- `list_book_page`
-- `list_food_buff`
-- `list_compartment`
-- `blueprint`
-- `bpsection`
-- `dngindex`
-- `shipindex`
-- `lockstate`
-- `spell`
-- `liquid`
-- `material`
-- `mission`
-- `missionpart`
-- `reputation`
-- `repindex`
-- `reprank`
+- Reputation slice: `reputation`, `repindex`, `reprank`
+- Blueprint/index slice: `blueprint`, `bpsection`, `dngindex`, `shipindex`
+- Liquid/material/spell/lockstate slice: `liquid`, `material`, `spell`, `lockstate`
+- Content adjunct slice: `book_page`, `food_buff`, `waypoint`, `stock`
+
+Also addressed while backporting index entities:
+- `tokenindex` underlying scripting parity gap (`ENT_TOKEN_INDEX` field/expansion + index varset wiring)
+
+Deferred for now:
+- Mission slice: `mission`, `missionpart`
+- Compartment slice: `compartment` (and related furniture adjunct plumbing)
+- List-only adjuncts: `list_book_page`, `list_food_buff` (to be done with list-entity plumbing)
 
 ## 2) Related missing `ENT_*` categories (broader)
 
@@ -44,20 +31,18 @@ The following major domains are absent from current `entity_type_enum` and likel
 - Area Region domain (remaining: `ENT_AREA_REGION_ID` and list variants)
 - Skill Group domain (`ENT_SKILLGROUP`, iterator/list variants)
 - Reputation domain (`ENT_REPUTATION`, `ENT_REPUTATION_INDEX`, `ENT_REPUTATION_RANK`)
-- Mission domain (`ENT_MISSION`, `ENT_MISSION_PART`, iterators)
+- Mission domain (`ENT_MISSION`, `ENT_MISSION_PART`, iterators) [deferred]
 - Liquid / Material / Spell-data domain (`ENT_LIQUID`, `ENT_MATERIAL`, `ENT_SPELL`)
-- Blueprint domain (`ENT_BLUEPRINT`, `ENT_BLUEPRINT_SECTION`)
-- Index domains (`ENT_DUNGEONINDEX`, `ENT_SHIPINDEX`, `ENT_TOKENINDEX`)
-- Furniture/book/shop adjunct domains (`ENT_COMPARTMENT`, `ENT_BOOK_PAGE`, `ENT_FOOD_BUFF`, `ENT_SHOP_STOCK`)
+- Furniture/book/shop adjunct domains (`ENT_COMPARTMENT`, `ENT_BOOK_PAGE`, `ENT_FOOD_BUFF`, `ENT_SHOP_STOCK`) [`ENT_COMPARTMENT` deferred]
 - Waypoint domain (`ENT_WAYPOINT`)
 
 ## 3) Suggested implementation order
 
 1. **Area/Region list plumbing** (`dynlist_aregion`, `list_area`, `list_aregion`)
 2. **Reputation + Mission** (high gameplay/scripting value)
-3. **Liquid/Material/Spell-data** (dependency-heavy; verify current data model compatibility first)
-4. **Blueprint + index entities** (`blueprint`, `bpsection`, `dngindex`, `shipindex`)
-5. **Content adjuncts** (`book_page`, `food_buff`, `compartment`, `stock`, `waypoint`)
+3. **Liquid/Material/Spell-data** (dependency-heavy; verify current data model compatibility first) ✅
+4. **Blueprint + index entities** (`blueprint`, `bpsection`, `dngindex`, `shipindex`) ✅
+5. **Content adjuncts** (`book_page`, `food_buff`, `compartment`, `stock`, `waypoint`) (`compartment` deferred)
 
 ## 4) Regeneration command
 

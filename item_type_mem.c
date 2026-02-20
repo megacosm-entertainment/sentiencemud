@@ -23,6 +23,7 @@ static COMPASS_DATA *           compass_data_free;
 static CONTAINER_DATA *         container_data_free;
 static CORPSE_DATA *            corpse_data_free;
 static FLUID_CONTAINER_DATA *   fluid_container_data_free;
+static FOOD_BUFF_DATA *         food_buff_data_free;
 static FOOD_DATA *              food_data_free;
 static FURNITURE_DATA *         furniture_data_free;
 static HERB_DATA *              herb_data_free;
@@ -541,6 +542,52 @@ void free_fluid_container_data(FLUID_CONTAINER_DATA *data)
 
 
 /* ========================================================================== */
+/*  FOOD BUFF                                                                 */
+/* ========================================================================== */
+
+FOOD_BUFF_DATA *new_food_buff_data(void)
+{
+    FOOD_BUFF_DATA *data;
+
+    if (food_buff_data_free)
+    {
+        data = food_buff_data_free;
+        food_buff_data_free = food_buff_data_free->next;
+    }
+    else
+    {
+        data = alloc_mem(sizeof(FOOD_BUFF_DATA));
+    }
+
+    memset(data, 0, sizeof(FOOD_BUFF_DATA));
+    VALIDATE(data);
+    return data;
+}
+
+FOOD_BUFF_DATA *copy_food_buff_data(FOOD_BUFF_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    FOOD_BUFF_DATA *data = new_food_buff_data();
+    data->where     = src->where;
+    data->location  = src->location;
+    data->modifier  = src->modifier;
+    data->bitvector = src->bitvector;
+    data->bitvector2 = src->bitvector2;
+    return data;
+}
+
+void free_food_buff_data(FOOD_BUFF_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = food_buff_data_free;
+    food_buff_data_free = data;
+}
+
+
+/* ========================================================================== */
 /*  FOOD                                                                      */
 /* ========================================================================== */
 
@@ -568,16 +615,47 @@ FOOD_DATA *copy_food_data(FOOD_DATA *src)
     if (!IS_VALID(src)) return NULL;
 
     FOOD_DATA *data = new_food_data();
+    ITERATOR it;
+    FOOD_BUFF_DATA *buff;
+
     data->hunger = src->hunger;
     data->full   = src->full;
     data->poison = src->poison;
     data->timer  = src->timer;
+
+    if (src->buffs)
+    {
+        data->buffs = list_createx(false, NULL, NULL);
+        iterator_start(&it, src->buffs);
+        while ((buff = (FOOD_BUFF_DATA *)iterator_nextdata(&it)))
+        {
+            FOOD_BUFF_DATA *copy = copy_food_buff_data(buff);
+            if (copy)
+                list_appendlink(data->buffs, copy);
+        }
+        iterator_stop(&it);
+    }
+
     return data;
 }
 
 void free_food_data(FOOD_DATA *data)
 {
     if (!IS_VALID(data)) return;
+
+    if (data->buffs)
+    {
+        ITERATOR it;
+        FOOD_BUFF_DATA *buff;
+
+        iterator_start(&it, data->buffs);
+        while ((buff = (FOOD_BUFF_DATA *)iterator_nextdata(&it)))
+            free_food_buff_data(buff);
+        iterator_stop(&it);
+
+        list_destroy(data->buffs);
+        data->buffs = NULL;
+    }
 
     INVALIDATE(data);
     data->next = food_data_free;
