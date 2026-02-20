@@ -762,36 +762,142 @@ void pref_apply_game_defaults(CHAR_DATA *ch)
 void pref_apply_to_character(ACCOUNT_DATA *account, CHAR_DATA *ch,
                              PREF_ENTRY *char_prefs)
 {
-    if (!account || !ch || IS_NPC(ch))
+    if (!ch || IS_NPC(ch))
         return;
 
-    for (PREF_ENTRY *ap = account->preferences; ap; ap = ap->next) {
-        /* Skip if character has an override */
-        if (pref_find(char_prefs, ap->key))
-            continue;
+    if (account) {
+        for (PREF_ENTRY *ap = account->preferences; ap; ap = ap->next) {
+            /* Skip if character has an override */
+            if (pref_find(char_prefs, ap->key))
+                continue;
 
-        switch (ap->category) {
+            switch (ap->category) {
+            case PREF_CAT_TOGGLE:
+                /* Special case: wimpy is an integer, not a boolean */
+                if (ap->type == PREF_TYPE_INT && !str_cmp(ap->key, "wimpy")) {
+                    ch->wimpy = URANGE(0, ap->val.i, ch->max_hit);
+                    break;
+                }
+
+                if (ap->type != PREF_TYPE_BOOL)
+                    break;
+                /* Find the toggle in pc_set_table to map back to bitfields */
+                for (int i = 0; pc_set_table[i].name; i++) {
+                    if (str_cmp(pc_set_table[i].name, ap->key))
+                        continue;
+
+                    /* Check staff-only toggles */
+                    if (pc_set_table[i].min_rank > STAFF_PLAYER
+                        && (!ch->pcdata || ch->pcdata->staff_rank < pc_set_table[i].min_rank))
+                        break;
+
+                    bool want = ap->val.b;
+                    /* Invert for NO_* flags */
+                    if (pc_set_table[i].inverted)
+                        want = !want;
+
+                    if (pc_set_table[i].vector) {
+                        if (want)
+                            SET_BIT(ch->act[0], pc_set_table[i].vector);
+                        else
+                            REMOVE_BIT(ch->act[0], pc_set_table[i].vector);
+                    } else if (pc_set_table[i].vector2) {
+                        if (want)
+                            SET_BIT(ch->act[1], pc_set_table[i].vector2);
+                        else
+                            REMOVE_BIT(ch->act[1], pc_set_table[i].vector2);
+                    } else if (pc_set_table[i].vector_comm) {
+                        if (want)
+                            SET_BIT(ch->comm, pc_set_table[i].vector_comm);
+                        else
+                            REMOVE_BIT(ch->comm, pc_set_table[i].vector_comm);
+                    }
+                    break;
+                }
+                break;
+
+            case PREF_CAT_CHANNEL:
+                if (ap->type == PREF_TYPE_BOOL) {
+                    /* Channel muting prefs */
+                    struct {
+                        const char *name;
+                        long        flag;
+                    } channel_mute[] = {
+                        { "channel_gossip",    COMM_NOGOSSIP   },
+                        { "channel_music",     COMM_NOMUSIC    },
+                        { "channel_auction",   COMM_NOAUCTION  },
+                        { "channel_ooc",       COMM_NO_OOC     },
+                        { "channel_yell",      COMM_NOYELL     },
+                        { "channel_quote",     COMM_NOQUOTE    },
+                        { "channel_helper",    COMM_NOHELPER   },
+                        { "channel_ct",        COMM_NOCT       },
+                        { "channel_gq",        COMM_NOGQ       },
+                        { "channel_autowar",   COMM_NOAUTOWAR  },
+                        { "channel_announce",  COMM_NOANNOUNCE },
+                        { "channel_hints",     COMM_NOHINTS    },
+                        { "channel_flaming",   COMM_NO_FLAMING },
+                        { NULL, 0 }
+                    };
+                    for (int i = 0; channel_mute[i].name; i++) {
+                        if (!str_cmp(ap->key, channel_mute[i].name)) {
+                            /* Inverted: enabled = remove NO* bit */
+                            if (ap->val.b)
+                                REMOVE_BIT(ch->comm, channel_mute[i].flag);
+                            else
+                                SET_BIT(ch->comm, channel_mute[i].flag);
+                            break;
+                        }
+                    }
+                } else if (ap->type == PREF_TYPE_BITFIELD
+                           && !str_cmp(ap->key, "channel_display_flags")) {
+                    if (ch->pcdata)
+                        ch->pcdata->channel_flags = ap->val.bits;
+                }
+                break;
+
+            case PREF_CAT_PROMPT:
+                if (ap->type == PREF_TYPE_STRING
+                    && !str_cmp(ap->key, "prompt")
+                    && !IS_NULLSTR(ap->val.str)) {
+                    if (ch->prompt)
+                        free_string(ch->prompt);
+                    ch->prompt = str_dup(ap->val.str);
+                }
+                break;
+
+            case PREF_CAT_DISPLAY:
+                if (ap->type == PREF_TYPE_INT && !str_cmp(ap->key, "scroll")) {
+                    int val = ap->val.i;
+                    if (val == 0)
+                        ch->lines = 0;
+                    else
+                        ch->lines = URANGE(10, val, 100) - 2;
+                }
+                break;
+            }
+        }
+    }
+
+    for (PREF_ENTRY *cp = char_prefs; cp; cp = cp->next) {
+        switch (cp->category) {
         case PREF_CAT_TOGGLE:
-            /* Special case: wimpy is an integer, not a boolean */
-            if (ap->type == PREF_TYPE_INT && !str_cmp(ap->key, "wimpy")) {
-                ch->wimpy = URANGE(0, ap->val.i, ch->max_hit);
+            if (cp->type == PREF_TYPE_INT && !str_cmp(cp->key, "wimpy")) {
+                ch->wimpy = URANGE(0, cp->val.i, ch->max_hit);
                 break;
             }
 
-            if (ap->type != PREF_TYPE_BOOL)
+            if (cp->type != PREF_TYPE_BOOL)
                 break;
-            /* Find the toggle in pc_set_table to map back to bitfields */
+
             for (int i = 0; pc_set_table[i].name; i++) {
-                if (str_cmp(pc_set_table[i].name, ap->key))
+                if (str_cmp(pc_set_table[i].name, cp->key))
                     continue;
 
-                /* Check staff-only toggles */
                 if (pc_set_table[i].min_rank > STAFF_PLAYER
                     && (!ch->pcdata || ch->pcdata->staff_rank < pc_set_table[i].min_rank))
                     break;
 
-                bool want = ap->val.b;
-                /* Invert for NO_* flags */
+                bool want = cp->val.b;
                 if (pc_set_table[i].inverted)
                     want = !want;
 
@@ -816,8 +922,7 @@ void pref_apply_to_character(ACCOUNT_DATA *account, CHAR_DATA *ch,
             break;
 
         case PREF_CAT_CHANNEL:
-            if (ap->type == PREF_TYPE_BOOL) {
-                /* Channel muting prefs */
+            if (cp->type == PREF_TYPE_BOOL) {
                 struct {
                     const char *name;
                     long        flag;
@@ -838,35 +943,34 @@ void pref_apply_to_character(ACCOUNT_DATA *account, CHAR_DATA *ch,
                     { NULL, 0 }
                 };
                 for (int i = 0; channel_mute[i].name; i++) {
-                    if (!str_cmp(ap->key, channel_mute[i].name)) {
-                        /* Inverted: enabled = remove NO* bit */
-                        if (ap->val.b)
+                    if (!str_cmp(cp->key, channel_mute[i].name)) {
+                        if (cp->val.b)
                             REMOVE_BIT(ch->comm, channel_mute[i].flag);
                         else
                             SET_BIT(ch->comm, channel_mute[i].flag);
                         break;
                     }
                 }
-            } else if (ap->type == PREF_TYPE_BITFIELD
-                       && !str_cmp(ap->key, "channel_display_flags")) {
+            } else if (cp->type == PREF_TYPE_BITFIELD
+                       && !str_cmp(cp->key, "channel_display_flags")) {
                 if (ch->pcdata)
-                    ch->pcdata->channel_flags = ap->val.bits;
+                    ch->pcdata->channel_flags = cp->val.bits;
             }
             break;
 
         case PREF_CAT_PROMPT:
-            if (ap->type == PREF_TYPE_STRING
-                && !str_cmp(ap->key, "prompt")
-                && !IS_NULLSTR(ap->val.str)) {
+            if (cp->type == PREF_TYPE_STRING
+                && !str_cmp(cp->key, "prompt")
+                && !IS_NULLSTR(cp->val.str)) {
                 if (ch->prompt)
                     free_string(ch->prompt);
-                ch->prompt = str_dup(ap->val.str);
+                ch->prompt = str_dup(cp->val.str);
             }
             break;
 
         case PREF_CAT_DISPLAY:
-            if (ap->type == PREF_TYPE_INT && !str_cmp(ap->key, "scroll")) {
-                int val = ap->val.i;
+            if (cp->type == PREF_TYPE_INT && !str_cmp(cp->key, "scroll")) {
+                int val = cp->val.i;
                 if (val == 0)
                     ch->lines = 0;
                 else

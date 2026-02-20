@@ -217,15 +217,16 @@ static void scriptedit_build_owner_links(CHAR_DATA *ch, const char *wnum,
     }
 }
 
-static bool scriptedit_prog_matches(const PROG_LIST *prog, const SCRIPT_DATA *script)
+static bool scriptedit_prog_matches(const PROG_LIST *prog, const SCRIPT_DATA *script,
+    int expected_type)
 {
     if (!prog || !script)
         return false;
 
-    if (prog->script == script)
-        return true;
+    if (script->type != expected_type)
+        return false;
 
-    if (prog->script && prog->script->type == script->type
+    if (prog->script && prog->script->type == expected_type
         && prog->script->vnum == script->vnum
         && prog->script->area == script->area)
         return true;
@@ -276,7 +277,8 @@ static long scriptedit_next_auto_vnum(AREA_DATA *area, int type)
 }
 
 static int scriptedit_show_uses_from_bank(OLC_LAYOUT_CTX *ctx, SCRIPT_DATA *script,
-    LLIST **progs, const char *owner, bool is_rprog, bool is_tprog)
+    LLIST **progs, const char *owner, bool is_rprog, bool is_tprog,
+    int expected_type)
 {
     const OLC_EDITOR_THEME *theme = &olc_theme_scripting;
     ITERATOR it;
@@ -293,7 +295,7 @@ static int scriptedit_show_uses_from_bank(OLC_LAYOUT_CTX *ctx, SCRIPT_DATA *scri
 
         iterator_start(&it, progs[slot]);
         while ((prog = (PROG_LIST *)iterator_nextdata(&it))) {
-            if (!scriptedit_prog_matches(prog, script))
+            if (!scriptedit_prog_matches(prog, script, expected_type))
                 continue;
 
             if (!header_printed) {
@@ -606,7 +608,8 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                 snprintf(owner, sizeof(owner), "Mobile %s (%.120s)",
                     wnum_link,
                     mob->short_descr ? mob->short_descr : "(unnamed)");
-                total += scriptedit_show_uses_from_bank(ctx, pCode, mob->progs, owner, false, false);
+                total += scriptedit_show_uses_from_bank(ctx, pCode, mob->progs, owner, false, false,
+                    PRG_MPROG);
             }
 
             for (obj = area->obj_index_hash[hash]; obj; obj = obj->next) {
@@ -617,7 +620,8 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                 snprintf(owner, sizeof(owner), "Object %s (%.120s)",
                     wnum_link,
                     obj->short_descr ? obj->short_descr : "(unnamed)");
-                total += scriptedit_show_uses_from_bank(ctx, pCode, obj->progs, owner, false, false);
+                total += scriptedit_show_uses_from_bank(ctx, pCode, obj->progs, owner, false, false,
+                    PRG_OPROG);
             }
 
             for (room = area->room_index_hash[hash]; room; room = room->next) {
@@ -629,7 +633,8 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                     wnum_link,
                     room->name ? room->name : "(unnamed)");
                 if (room->progs)
-                    total += scriptedit_show_uses_from_bank(ctx, pCode, room->progs->progs, owner, true, false);
+                    total += scriptedit_show_uses_from_bank(ctx, pCode, room->progs->progs, owner, true, false,
+                        PRG_RPROG);
             }
 
             for (token = area->token_index_hash[hash]; token; token = token->next) {
@@ -640,7 +645,8 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                 snprintf(owner, sizeof(owner), "Token %s (%.120s)",
                     wnum_link,
                     token->name ? token->name : "(unnamed)");
-                total += scriptedit_show_uses_from_bank(ctx, pCode, token->progs, owner, false, true);
+                total += scriptedit_show_uses_from_bank(ctx, pCode, token->progs, owner, false, true,
+                    PRG_TPROG);
             }
 
             for (bp = area->blueprint_hash[hash]; bp; bp = bp->next) {
@@ -651,7 +657,8 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                 snprintf(owner, sizeof(owner), "Blueprint %s (%.120s)",
                     wnum_link,
                     bp->name ? bp->name : "(unnamed)");
-                total += scriptedit_show_uses_from_bank(ctx, pCode, bp->progs, owner, false, false);
+                total += scriptedit_show_uses_from_bank(ctx, pCode, bp->progs, owner, false, false,
+                    PRG_IPROG);
             }
 
             for (dng = area->dungeon_index_hash[hash]; dng; dng = dng->next) {
@@ -662,7 +669,8 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                 snprintf(owner, sizeof(owner), "Dungeon %s (%.120s)",
                     wnum_link,
                     dng->name ? dng->name : "(unnamed)");
-                total += scriptedit_show_uses_from_bank(ctx, pCode, dng->progs, owner, false, false);
+                total += scriptedit_show_uses_from_bank(ctx, pCode, dng->progs, owner, false, false,
+                    PRG_DPROG);
             }
         }
 
@@ -670,7 +678,8 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
             snprintf(owner, sizeof(owner), "Area %ld (%s)",
                 area->uid,
                 area->name ? area->name : "(unnamed)");
-            total += scriptedit_show_uses_from_bank(ctx, pCode, area->progs->progs, owner, false, false);
+            total += scriptedit_show_uses_from_bank(ctx, pCode, area->progs->progs, owner, false, false,
+                PRG_APROG);
         }
     }
 
