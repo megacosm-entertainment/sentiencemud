@@ -103,7 +103,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "peace",                scriptcmd_peace,            false,  false   },
     { "persist",              scriptcmd_persist,          false,  true    },
     { "prompt",               do_tpprompt,                false,  true    },
-    { "purge",                do_tppurge,                 false,  false   },
+    { "purge",                scriptcmd_purge,            false,  false   },
     { "questaccept",          scriptcmd_questaccept,      false,  true    },
     { "questcancel",          scriptcmd_questcancel,      false,  true    },
     { "questcomplete",        scriptcmd_questcomplete,    false,  true    },
@@ -115,7 +115,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "questpartslay",        scriptcmd_questpartslay,    true,   true    },
     { "questscroll",          scriptcmd_questscroll,      false,  true    },
     { "queue",                scriptcmd_queue,            false,  true    },
-    { "raisedead",            do_tpraisedead,             true,   true    },
+    { "raisedead",            scriptcmd_raisedead,        true,   true    },
     { "rawkill",              do_tprawkill,               false,  true    },
     { "reckoning",            scriptcmd_reckoning,        true,   true    },
     { "remember",             scriptcmd_remember,         false,  true    },
@@ -1738,104 +1738,6 @@ SCRIPT_CMD(do_tpdamage)
         value = fLevel ? dice(low,high) : number_range(low,high);
         damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, false);
     }
-}
-
-SCRIPT_CMD(do_tpraisedead)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token || !token_room(info->token)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if(!victim) return;
-
-    if (!IS_DEAD(victim)) {
-        pbugf(LOG_SCRIPTS, "TpRaisedead: for token %s(%ld), victim %s wasn't dead!",
-            info->token->name,VNUM(info->token),
-            victim->name);
-
-        info->token->progs->lastreturn = 0;
-
-        return;
-    }
-
-    resurrect_pc(victim);
-    info->token->progs->lastreturn = 1;
-}
-
-SCRIPT_CMD(do_tppurge)
-{
-    char *rest;
-    CHAR_DATA **mobs = NULL, *victim = NULL,*vnext;
-    OBJ_DATA **objs = NULL, *obj = NULL,*obj_next;
-    ROOM_INDEX_DATA *here = NULL;
-
-
-    if(!info || !info->token || !token_room(info->token)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NONE: here = token_room(info->token); break;
-    case ENT_STRING:
-        if (!(victim = get_char_room(NULL, token_room(info->token), arg->d.str)))
-            obj = get_obj_here(NULL, token_room(info->token), arg->d.str);
-        break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    case ENT_OBJECT: obj = arg->d.obj; break;
-    case ENT_ROOM: here = arg->d.room; break;
-    case ENT_EXIT: here = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
-    case ENT_OLLIST_MOB: mobs = arg->d.list.ptr.mob; break;
-    case ENT_OLLIST_OBJ: objs = arg->d.list.ptr.obj; break;
-    default: break;
-    }
-
-    if(victim) {
-        if (!IS_NPC(victim)) {
-            pbugf(LOG_SCRIPTS,"Oppurge - Attempting to purge a PC from vnum %d.", VNUM(info->token));
-            return;
-        }
-        extract_char(victim, true);
-    } else if(obj)
-        extract_obj(obj);
-    else if(here) {
-        for (victim = here->people; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
-                extract_char(victim, true);
-        }
-
-        for (obj = here->contents; obj; obj = obj_next) {
-            obj_next = obj->next_content;
-            if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
-                extract_obj(obj);
-        }
-    } else if(mobs) {
-        for (victim = *mobs; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
-                extract_char(victim, true);
-        }
-    } else if(objs) {
-        for (obj = *objs; obj; obj = obj_next) {
-            obj_next = obj->next_content;
-            if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
-                extract_obj(obj);
-        }
-    } else
-        pbugf(LOG_SCRIPTS,"Oppurge - Bad argument from vnum %d.", VNUM(info->token));
-
 }
 
 SCRIPT_CMD(do_tpotransfer)

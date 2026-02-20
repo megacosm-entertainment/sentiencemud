@@ -106,7 +106,7 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "peace",				scriptcmd_peace,				false,	false	},
     { "persist",			scriptcmd_persist,		false,	true	},
     { "prompt",				do_mpprompt,				false,	true	},
-    { "purge",				do_mppurge,					false,	false	},
+    { "purge",				scriptcmd_purge,			false,	false	},
     { "questaccept",		scriptcmd_questaccept,		false,	true	},
     { "questcancel",		scriptcmd_questcancel,		false,	true	},
     { "questcomplete",		scriptcmd_questcomplete,	false,	true	},
@@ -118,7 +118,7 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "questpartslay",		scriptcmd_questpartslay,	true,	true	},
     { "questscroll",		scriptcmd_questscroll,		false,	true	},
     { "queue",				scriptcmd_queue,			false,	true	},
-    { "raisedead",			do_mpraisedead,				true,	true	},
+    { "raisedead",			scriptcmd_raisedead,			true,	true	},
     { "rawkill",			do_mprawkill,				false,	true	},
     { "reckoning",			scriptcmd_reckoning,		true,	true	},
     { "remember",			scriptcmd_remember,	false,	true	},
@@ -2073,116 +2073,6 @@ SCRIPT_CMD(do_mpotransfer)
         if(wear_loc != WEAR_NONE)
             equip_char(carrier, obj, wear_loc);
     }
-}
-
-// do_mppurge
-// Syntax mob purge [<target>]
-SCRIPT_CMD(do_mppurge)
-{
-    char *rest;
-    CHAR_DATA **mobs = NULL, *victim = NULL,*vnext;
-    OBJ_DATA **objs = NULL, *obj = NULL,*obj_next;
-    ROOM_INDEX_DATA *here = NULL;
-
-    EXIT_DATA *ex;
-
-    if(!info || !info->mob || !info->mob->in_room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NONE: here = info->mob->in_room; break;
-    case ENT_STRING:
-        if (!(victim = get_char_room(info->mob, NULL, arg->d.str)))
-            obj = get_obj_here(info->mob, NULL, arg->d.str);
-        break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    case ENT_OBJECT: obj = arg->d.obj; break;
-    case ENT_ROOM: here = arg->d.room; break;
-    case ENT_EXIT:
-        ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
-        here = ex ? exit_destination(ex) : NULL; break;
-    case ENT_OLLIST_MOB: mobs = arg->d.list.ptr.mob; break;
-    case ENT_OLLIST_OBJ: objs = arg->d.list.ptr.obj; break;
-    default: break;
-    }
-
-    if(victim) {
-        if (!IS_NPC(victim)) {
-            pbugf(LOG_SCRIPTS, "Mppurge - Attempting to purge a PC from vnum %d.", VNUM(info->mob));
-            return;
-        }
-
-        if(PROG_FLAG(victim,PROG_AT)) return;
-
-        extract_char(victim, true);
-    } else if(obj) {
-        if(PROG_FLAG(obj,PROG_AT)) return;
-        extract_obj(obj);
-    } else if(here) {
-        for (victim = here->people; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (IS_NPC(victim) && victim != info->mob && !IS_SET(victim->act[0], ACT_NOPURGE))
-                extract_char(victim, true);
-        }
-
-        for (obj = here->contents; obj; obj = obj_next) {
-            obj_next = obj->next_content;
-            if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
-                extract_obj(obj);
-        }
-    } else if(mobs) {
-        for (victim = *mobs; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (IS_NPC(victim) && victim != info->mob && !IS_SET(victim->act[0], ACT_NOPURGE))
-                extract_char(victim, true);
-        }
-    } else if(objs) {
-        for (obj = *objs; obj; obj = obj_next) {
-            obj_next = obj->next_content;
-            if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
-                extract_obj(obj);
-        }
-    } else
-        pbugf(LOG_SCRIPTS, "Mppurge - Bad argument from vnum %d.", VNUM(info->mob));
-
-}
-
-// do_mpraisedead
-SCRIPT_CMD(do_mpraisedead)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->mob || !info->mob->in_room) return;
-
-    info->mob->progs->lastreturn = -1;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if(!victim) return;
-
-    if (!IS_DEAD(victim)) {
-        pbugf(LOG_SCRIPTS, "do_mpraisedead: for mob %s(%ld), victim %s wasn't dead!",
-            info->mob->pIndexData->short_descr, info->mob->pIndexData->vnum,
-            victim->name);
-
-        info->mob->progs->lastreturn = 0;
-//		send_to_char("{WAn intense warmth washes over you momentarily.{x\n\r", victim);
-        return;
-    }
-
-    resurrect_pc(victim);
-    info->mob->progs->lastreturn = 1;
 }
 
 // do_mpremove

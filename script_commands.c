@@ -7271,6 +7271,141 @@ SCRIPT_CMD(scriptcmd_pageat)
     free_buf(buffer);
 }
 
+SCRIPT_CMD(scriptcmd_purge)
+{
+    char *rest;
+    CHAR_DATA **mobs = NULL, *victim = NULL, *vnext;
+    OBJ_DATA **objs = NULL, *obj = NULL, *obj_next;
+    ROOM_INDEX_DATA *here = NULL;
+    CHAR_DATA *exclude_mob = NULL;
+    OBJ_DATA *exclude_obj = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    bool check_prog_at = false;
+
+    EXIT_DATA *ex;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!info->mob->in_room)
+            return;
+        here = info->mob->in_room;
+        exclude_mob = info->mob;
+        scope_name = "Mppurge";
+        scope_vnum = VNUM(info->mob);
+        check_prog_at = true;
+    } else if(info->obj) {
+        here = obj_room(info->obj);
+        if(!here)
+            return;
+        exclude_obj = info->obj;
+        scope_name = "Oppurge";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        here = info->room;
+        scope_name = "Rppurge";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        here = token_room(info->token);
+        if(!here)
+            return;
+        scope_name = "Oppurge";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_NONE:
+        break;
+
+    case ENT_STRING:
+        if (!(victim = get_char_room(NULL, here, arg->d.str)))
+            obj = get_obj_here(NULL, here, arg->d.str);
+        break;
+
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+
+    case ENT_OBJECT:
+        obj = arg->d.obj;
+        break;
+
+    case ENT_ROOM:
+        here = arg->d.room;
+        break;
+
+    case ENT_EXIT:
+        ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
+        here = ex ? exit_destination(ex) : NULL;
+        break;
+
+    case ENT_OLLIST_MOB:
+        mobs = arg->d.list.ptr.mob;
+        break;
+
+    case ENT_OLLIST_OBJ:
+        objs = arg->d.list.ptr.obj;
+        break;
+
+    default:
+        break;
+    }
+
+    if(victim) {
+        if (!IS_NPC(victim)) {
+            pbugf(LOG_SCRIPTS, "%s - Attempting to purge a PC from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+
+        if(check_prog_at && PROG_FLAG(victim,PROG_AT))
+            return;
+
+        extract_char(victim, true);
+    } else if(obj) {
+        if(check_prog_at && PROG_FLAG(obj,PROG_AT))
+            return;
+
+        extract_obj(obj);
+    } else if(here) {
+        for (victim = here->people; victim; victim = vnext) {
+            vnext = victim->next_in_room;
+            if (IS_NPC(victim)
+                && victim != exclude_mob
+                && !IS_SET(victim->act[0], ACT_NOPURGE))
+                extract_char(victim, true);
+        }
+
+        for (obj = here->contents; obj; obj = obj_next) {
+            obj_next = obj->next_content;
+            if (obj != exclude_obj
+                && !IS_SET(obj->extra[0], ITEM_NOPURGE))
+                extract_obj(obj);
+        }
+    } else if(mobs) {
+        for (victim = *mobs; victim; victim = vnext) {
+            vnext = victim->next_in_room;
+            if (IS_NPC(victim)
+                && victim != exclude_mob
+                && !IS_SET(victim->act[0], ACT_NOPURGE))
+                extract_char(victim, true);
+        }
+    } else if(objs) {
+        for (obj = *objs; obj; obj = obj_next) {
+            obj_next = obj->next_content;
+            if (obj != exclude_obj
+                && !IS_SET(obj->extra[0], ITEM_NOPURGE))
+                extract_obj(obj);
+        }
+    } else
+        pbugf(LOG_SCRIPTS, "%s - Bad argument from vnum %ld.", scope_name, scope_vnum);
+}
+
 //////////////////////////////////////
 // Q
 
@@ -8035,6 +8170,63 @@ SCRIPT_CMD(scriptcmd_questscroll)
 
 //////////////////////////////////////
 // R
+
+SCRIPT_CMD(scriptcmd_raisedead)
+{
+    char *rest;
+    CHAR_DATA *victim;
+    ROOM_INDEX_DATA *here = NULL;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!info->mob->in_room)
+            return;
+        here = info->mob->in_room;
+        info->progs->lastreturn = -1;
+    } else if(info->token) {
+        here = token_room(info->token);
+        if(!here)
+            return;
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING:
+        victim = get_char_room(NULL, here, arg->d.str);
+        break;
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+    default:
+        victim = NULL;
+        break;
+    }
+
+    if(!victim)
+        return;
+
+    if (!IS_DEAD(victim)) {
+        if(info->mob) {
+            pbugf(LOG_SCRIPTS, "do_mpraisedead: for mob %s(%ld), victim %s wasn't dead!",
+                info->mob->pIndexData->short_descr, info->mob->pIndexData->vnum,
+                victim->name);
+        } else {
+            pbugf(LOG_SCRIPTS, "TpRaisedead: for token %s(%ld), victim %s wasn't dead!",
+                info->token->name, VNUM(info->token), victim->name);
+        }
+
+        info->progs->lastreturn = 0;
+        return;
+    }
+
+    resurrect_pc(victim);
+    info->progs->lastreturn = 1;
+}
 
 // RECKONING FIELD OP NUMBER
 // Affects the parameters of a Reckoing.

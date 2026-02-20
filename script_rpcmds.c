@@ -101,7 +101,7 @@ const struct script_cmd_type room_cmd_table[] = {
     { "peace",				scriptcmd_peace,			false,	false	},
     { "persist",			scriptcmd_persist,		false,	true	},
     { "prompt",				do_rpprompt,			false,	true	},
-    { "purge",				do_rppurge,				false,	false	},
+    { "purge",				scriptcmd_purge,			false,	false	},
     { "questaccept",		scriptcmd_questaccept,		false,	true	},
     { "questcancel",		scriptcmd_questcancel,		false,	true	},
     { "questcomplete",		scriptcmd_questcomplete,	false,	true	},
@@ -1195,70 +1195,6 @@ SCRIPT_CMD(do_rpotransfer)
         if(wear_loc != WEAR_NONE)
             equip_char(carrier, obj, wear_loc);
     }
-}
-
-SCRIPT_CMD(do_rppurge)
-{
-    char *rest;
-    CHAR_DATA **mobs = NULL, *victim = NULL,*vnext;
-    OBJ_DATA **objs = NULL, *obj = NULL,*obj_next;
-    ROOM_INDEX_DATA *here = NULL;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NONE: here = info->room; break;
-    case ENT_STRING:
-        if (!(victim = get_char_room(NULL, info->room, arg->d.str)))
-            obj = get_obj_here(NULL, info->room, arg->d.str);
-        break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    case ENT_OBJECT: obj = arg->d.obj; break;
-    case ENT_ROOM: here = arg->d.room; break;
-    case ENT_EXIT: here = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door]) ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
-    case ENT_OLLIST_MOB: mobs = arg->d.list.ptr.mob; break;
-    case ENT_OLLIST_OBJ: objs = arg->d.list.ptr.obj; break;
-    default: break;
-    }
-
-    if(victim) {
-        if (!IS_NPC(victim)) {
-            pbugf(LOG_SCRIPTS, "Rppurge - Attempting to purge a PC from vnum %d.", info->room->vnum);
-            return;
-        }
-        extract_char(victim, true);
-    } else if(obj)
-        extract_obj(obj);
-    else if(here) {
-        for (victim = here->people; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
-                extract_char(victim, true);
-        }
-
-        for (obj = here->contents; obj; obj = obj_next) {
-            obj_next = obj->next_content;
-            if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
-                extract_obj(obj);
-        }
-    } else if(mobs) {
-        for (victim = *mobs; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
-                extract_char(victim, true);
-        }
-    } else if(objs) {
-        for (obj = *objs; obj; obj = obj_next) {
-            obj_next = obj->next_content;
-            if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
-                extract_obj(obj);
-        }
-    } else
-        pbugf(LOG_SCRIPTS, "Rppurge - Bad argument from vnum %d.", info->room->vnum);
 }
 
 SCRIPT_CMD(do_rpremove)

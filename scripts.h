@@ -2929,16 +2929,10 @@ SCRIPT_CMD(do_mpprompt);
 SCRIPT_CMD(do_opprompt);
 SCRIPT_CMD(do_rpprompt);
 SCRIPT_CMD(do_tpprompt);
-SCRIPT_CMD(do_mppurge);
-SCRIPT_CMD(do_oppurge);
-SCRIPT_CMD(do_rppurge);
-SCRIPT_CMD(do_tppurge);
 SCRIPT_CMD(do_mpqueue);
 SCRIPT_CMD(do_opqueue);
 SCRIPT_CMD(do_rpqueue);
 SCRIPT_CMD(do_tpqueue);
-SCRIPT_CMD(do_mpraisedead);
-SCRIPT_CMD(do_tpraisedead);
 SCRIPT_CMD(do_mprawkill);
 SCRIPT_CMD(do_oprawkill);
 SCRIPT_CMD(do_rprawkill);
@@ -3172,6 +3166,8 @@ SCRIPT_CMD(scriptcmd_ed);
 
 SCRIPT_CMD(scriptcmd_call);
 SCRIPT_CMD(scriptcmd_crier);
+SCRIPT_CMD(scriptcmd_purge);
+SCRIPT_CMD(scriptcmd_raisedead);
 SCRIPT_CMD(scriptcmd_resetdice);
 SCRIPT_CMD(scriptcmd_xcall);
 
