@@ -38,7 +38,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "attach",               scriptcmd_attach,           true,   true    },
     { "award",                scriptcmd_award,            true,   true    },
     { "breathe",              scriptcmd_breathe,          false,  true    },
-    { "call",                 do_tpcall,                  false,  true    },
+    { "call",                 scriptcmd_call,             false,  true    },
     { "castfailure",          do_tpcastfailure,           false,  true    },
     { "castrecover",          do_tpcastrecover,           false,  true    },
     { "chargebank",           scriptcmd_chargebank,       false,  true    },
@@ -46,7 +46,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "churchannouncetheft",  scriptcmd_churchannouncetheft, true, true },
     { "cloneroom",            do_tpcloneroom,             true,   true    },
     { "condition",            do_tpcondition,             false,  true    },
-    { "crier",                do_tpcrier,                 false,  true    },
+    { "crier",                scriptcmd_crier,            false,  true    },
     { "damage",               scriptcmd_damage,           false,  true    },
     { "deduct",               scriptcmd_deduct,           true,   true    },
     { "dequeue",              scriptcmd_dequeue,          false,  false   },
@@ -97,7 +97,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "mail",                 scriptcmd_mail,             true,   true    },
     { "mload",                scriptcmd_mload,            false,  true    },
     { "mute",                 scriptcmd_mute,             false,  true    },
-    { "oload",                do_tpoload,                 false,  true    },
+    { "oload",                scriptcmd_oload,            false,  true    },
     { "otransfer",            do_tpotransfer,             false,  true    },
     { "pageat",               scriptcmd_pageat,           false,  true    },
     { "peace",                scriptcmd_peace,            false,  false   },
@@ -122,7 +122,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "remort",               do_tpremort,                true,   true    },
     { "remove",               do_tpremove,                false,  true    },
     { "remspell",             do_tpremspell,              true,   true    },
-    { "resetdice",            do_tpresetdice,             true,   true    },
+    { "resetdice",            scriptcmd_resetdice,        true,   true    },
     { "resetroom",            scriptcmd_resetroom,        true,   true    },
     { "restore",              scriptcmd_restore,          true,   true    },
     { "revokeclass",          scriptcmd_revokeclass,      false,  true    },
@@ -168,7 +168,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "wildernessmap",        scriptcmd_wildernessmap,    false,  true    },
     { "wiretransfer",         scriptcmd_wiretransfer,     false,  true    },
     { "wiznet",               scriptcmd_wiznet,           false,  true    },
-    { "xcall",                do_tpxcall,                 false,  true    },
+    { "xcall",                scriptcmd_xcall,            false,  true    },
     { "zecho",                scriptcmd_zecho,            false,  true    },
     { "zot",                  scriptcmd_zot,              true,   true    },
     { NULL,                    NULL,                       false,  false   }
@@ -225,11 +225,14 @@ void do_tpdump(CHAR_DATA *ch, char *argument)
         send_to_char("No such TOKENprogram.\n\r", ch);
         return;
     }
+
     if (!area_has_read_access(ch,tprg->area)) {
         send_to_char("You do not have permission to view that script.\n\r", ch);
         return;
     }
+
     page_to_char(tprg->edit_src, ch);
+
 }
 
 
@@ -276,8 +279,8 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
         {
             send_to_char("Syntax:  tpstat <mobile name|object name|room|ida idb> [[<count>.]<token vnum>]",ch);
             return;
-        }	
-                
+        }
+
     } else if (!str_cmp(arg,"mob")) {
         if ((victim = get_char_world(NULL, arg2)) == NULL) {
             send_to_char("Mobile not found.\n\r", ch);
@@ -785,141 +788,6 @@ SCRIPT_CMD(do_tpadjust)
     }
 }
 
-// do_tpcall
-SCRIPT_CMD(do_tpcall)
-{
-    char *rest;
-    CHAR_DATA *vch, *ch;
-    OBJ_DATA *obj1, *obj2;
-    SCRIPT_DATA *script;
-    int depth;
-    long vnum;
-
-    int ret;
-
-    DBG2ENTRY2(PTR,info,PTR,argument);
-    if(info->token) {
-        DBG3MSG2("info->token = %s(%d)\n",info->token->name,VNUM(info->token));
-    }
-
-    if(!info || !info->token) return;
-
-    if (!argument[0]) {
-        pbugf(LOG_SCRIPTS,"TpCall: missing arguments from vnum %d.", VNUM(info->token));
-        return;
-    }
-
-    // Call depth checking
-    depth = script_call_depth;
-    if(script_call_depth == 1) {
-        pbugf(LOG_SCRIPTS,"TpCall: maximum call depth exceeded for mob vnum %d.", VNUM(info->token));
-        return;
-    } else if(script_call_depth > 1)
-        --script_call_depth;
-
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
-        // Restore the call depth to the previous value
-        script_call_depth = depth;
-        return;
-    }
-
-    script = get_script_from_arg(info, arg, PRG_TPROG, &vnum);
-    if (vnum < 1 || !script) {
-        pbugf(LOG_SCRIPTS,"TpCall: invalid prog from vnum %d.", VNUM(info->token));
-        return;
-    }
-
-    ch = vch = NULL;
-    obj1 = obj2 = NULL;
-
-    if(*rest) {	// Enactor
-        argument = rest;
-        if(!(rest = expand_argument(info,argument,arg))) {
-            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
-            // Restore the call depth to the previous value
-            script_call_depth = depth;
-            return;
-        }
-
-        switch(arg->type) {
-        case ENT_STRING: ch = get_char_room(NULL, token_room(info->token), arg->d.str); break;
-        case ENT_MOBILE: ch = arg->d.mob; break;
-        default: ch = NULL; break;
-        }
-    }
-
-    if(ch && *rest) {	// Victim
-        argument = rest;
-        if(!(rest = expand_argument(info,argument,arg))) {
-            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
-            // Restore the call depth to the previous value
-            script_call_depth = depth;
-            return;
-        }
-
-        argument = rest;
-        if(!(rest = expand_argument(info,argument,arg))) {
-            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
-            // Restore the call depth to the previous value
-            script_call_depth = depth;
-            return;
-        }
-
-        switch(arg->type) {
-        case ENT_STRING: vch = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-        case ENT_MOBILE: vch = arg->d.mob; break;
-        default: vch = NULL; break;
-        }
-    }
-
-    if(*rest) {	// Obj 1
-        argument = rest;
-        if(!(rest = expand_argument(info,argument,arg))) {
-            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
-            // Restore the call depth to the previous value
-            script_call_depth = depth;
-            return;
-        }
-
-        switch(arg->type) {
-        case ENT_STRING:
-            obj1 = get_obj_here(NULL, token_room(info->token), arg->d.str);
-            break;
-        case ENT_OBJECT: obj1 = arg->d.obj; break;
-        default: obj1 = NULL; break;
-        }
-    }
-
-    if(obj1 && *rest) {	// Obj 2
-        argument = rest;
-        if(!(rest = expand_argument(info,argument,arg))) {
-            pbugf(LOG_SCRIPTS,"TpCall: Error in parsing from vnum %ld.", VNUM(info->token));
-            // Restore the call depth to the previous value
-            script_call_depth = depth;
-            return;
-        }
-
-        switch(arg->type) {
-        case ENT_STRING:
-            obj2 = get_obj_here(NULL, token_room(info->token), arg->d.str);
-            break;
-        case ENT_OBJECT: obj2 = arg->d.obj; break;
-        default: obj2 = NULL; break;
-        }
-    }
-
-    ret = execute_script(script->vnum, script, NULL, NULL, NULL, info->token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
-    if(info->token) {
-        info->token->progs->lastreturn = ret;
-        DBG3MSG1("lastreturn = %d\n", info->token->progs->lastreturn);
-    } else
-        info->block->ret_val = ret;
-
-    // restore the call depth to the previous value
-    script_call_depth = depth;
-}
 
 SCRIPT_CMD(do_tpgive)
 {
@@ -1745,37 +1613,6 @@ SCRIPT_CMD(do_tpalterobj)
 
 
 
-SCRIPT_CMD(do_tpresetdice)
-{
-    char *rest;
-    OBJ_DATA *obj = NULL;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpAlterObj - Error in parsing from vnum %ld.", info->room ? info->room->vnum : 0);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        obj = get_obj_here(NULL,token_room(info->token),arg->d.str);
-        break;
-    case ENT_OBJECT:
-        obj = arg->d.obj;
-        break;
-    default: break;
-    }
-
-    if(!obj) {
-        pbugf(LOG_SCRIPTS,"TpAlterObj - NULL object from vnum %ld.", info->room ? info->room->vnum : 0);
-        return;
-    }
-
-    if(obj->item_type == ITEM_WEAPON)
-        set_weapon_dice_obj(obj);
-}
 
 
 
@@ -1883,7 +1720,6 @@ SCRIPT_CMD(do_tpdamage)
         return;
     }
 
-    // No expansion!
     argument = one_argument(rest, buf);
     if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = true;
 
@@ -1904,8 +1740,6 @@ SCRIPT_CMD(do_tpdamage)
     }
 }
 
-
-// do_tpraisedead
 SCRIPT_CMD(do_tpraisedead)
 {
     char *rest;
@@ -1932,7 +1766,6 @@ SCRIPT_CMD(do_tpraisedead)
 
         info->token->progs->lastreturn = 0;
 
-//		send_to_char("{WAn intense warmth washes over you momentarily.{x\n\r", victim);
         return;
     }
 
@@ -2004,7 +1837,6 @@ SCRIPT_CMD(do_tppurge)
         pbugf(LOG_SCRIPTS,"Oppurge - Bad argument from vnum %d.", VNUM(info->token));
 
 }
-
 
 SCRIPT_CMD(do_tpotransfer)
 {
@@ -5885,24 +5717,6 @@ SCRIPT_CMD(do_tpalteraffect)
 
         }
     }
-}
-
-// Syntax: crier STRING
-SCRIPT_CMD(do_tpcrier)
-{
-    if(!info || !info->token) return;
-
-    BUFFER *buffer = new_buf();
-    add_buf(buffer, "{M");
-    expand_string(info,argument,buffer);
-
-    if( buffer->string[2] != '\0' )
-    {
-        add_buf(buffer, "{x");
-
-        crier_announce(buffer->string);
-    }
-    free_buf(buffer);
 }
 
 // Syntax: remort $PLAYER

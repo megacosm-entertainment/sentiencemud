@@ -1748,6 +1748,30 @@ SCRIPT_CMD(scriptcmd_call)
     script_call_depth = depth;
 }
 
+SCRIPT_CMD(scriptcmd_crier)
+{
+    BUFFER *buffer;
+
+    if(!info)
+        return;
+
+    if(!(info->mob || info->obj || info->room || info->token))
+        return;
+
+    buffer = new_buf();
+    add_buf(buffer, "{M");
+    expand_string(info,argument,buffer);
+
+    if(!buf_string(buffer)[2]) {
+        free_buf(buffer);
+        return;
+    }
+
+    add_buf(buffer, "{x");
+    crier_announce(buf_string(buffer));
+    free_buf(buffer);
+}
+
 SCRIPT_CMD(scriptcmd_churchannouncetheft)
 {
     char *rest = argument;
@@ -10131,6 +10155,64 @@ SCRIPT_CMD(scriptcmd_alterobj)
     }
 
     SETRETURN(1);
+}
+
+SCRIPT_CMD(scriptcmd_resetdice)
+{
+    char *rest;
+    OBJ_DATA *obj = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        scope_name = "MpAlterObj";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        scope_name = "OpAlterObj";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpAlterObj";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpAlterObj";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(info->obj && !str_cmp(arg->d.str, "self"))
+            obj = info->obj;
+        else
+            obj = script_get_obj_here(info, arg->d.str);
+        break;
+
+    case ENT_OBJECT:
+        obj = arg->d.obj;
+        break;
+
+    default:
+        break;
+    }
+
+    if(!obj) {
+        pbugf(LOG_SCRIPTS, "%s - NULL object from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(info->obj && PROG_FLAG(obj,PROG_AT))
+        return;
+
+    if(obj->item_type == ITEM_WEAPON)
+        set_weapon_dice_obj(obj);
 }
 
 
