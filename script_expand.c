@@ -33,6 +33,7 @@ extern	LLIST *loaded_ships;
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
+char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg);
 
 
 
@@ -446,11 +447,42 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
                 break;
             }
             expect = true;
+        } else if(*str == ESCAPE_ENTITY) {
+            SCRIPT_PARAM *entity_arg;
+
+            if(expect) {
+                break;
+            }
+
+            entity_arg = new_script_param();
+            str = expand_argument_entity(info,str+1,entity_arg);
+            if(!str) {
+                free_script_param(entity_arg);
+                break;
+            }
+
+            if(entity_arg->type == ENT_NUMBER)
+                value = entity_arg->d.num;
+            else if(entity_arg->type == ENT_BOOLEAN)
+                value = entity_arg->d.boolean ? 1 : 0;
+            else if(entity_arg->type == ENT_BITVECTOR)
+                value = entity_arg->d.bv.value;
+            else if(entity_arg->type == ENT_STRING && is_number(entity_arg->d.str))
+                value = atoi(entity_arg->d.str);
+            else
+                value = 0;
+
+            free_script_param(entity_arg);
+
+            if(!push(&opnd,value)) {
+                break;
+            }
+            expect = true;
         } else {
 //			sprintf(buf,"expand_argument_expression: operator = %c, %2.2X", *str, str[1]&0xFF);
 //			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-            switch(*str) {
+            switch((unsigned char)*str) {
             case '+': op = expect ? CH_ADD : CH_MAX; expect=false; break;
             case '-': op = expect ? CH_SUB : CH_NEG; expect=false; break;
             case '*': op = expect ? CH_MUL : CH_MAX; expect=false; break;
@@ -692,7 +724,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 //	while(var && var->type == VAR_VARIABLE)
 //		var = var->_.variable;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_VAR_NUM:
         if(!var) arg->d.num = 0;
         else if(var->type == VAR_INTEGER)
@@ -969,7 +1001,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 
 char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_EXPRESSION:
         arg->type = ENT_NUMBER;
         return expand_argument_expression(info,str+1,&arg->d.num);
@@ -1068,7 +1100,7 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_REGISTER4:
     case ENTITY_REGISTER5:
         arg->type = ENT_NUMBER;
-        arg->d.num = info->registers[*str-ENTITY_REGISTER1];
+        arg->d.num = info->registers[(unsigned char)*str-ENTITY_REGISTER1];
         break;
 
     case ENTITY_MXP:
@@ -1091,7 +1123,7 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_GAME_NAME:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
@@ -1224,7 +1256,7 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_persist(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_PERSIST_MOBS:
         arg->d.blist = persist_mobs;
         arg->type = ENT_PLLIST_MOB;
@@ -1244,7 +1276,7 @@ char *expand_entity_persist(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_WILDS_NAME:
         arg->type = ENT_STRING;
         if(arg->d.wilds) {
@@ -1279,7 +1311,7 @@ char *expand_entity_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_wilds_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_WILDS_NAME:
         arg->type = ENT_STRING;
         arg->d.str = &str_empty[0];
@@ -1310,7 +1342,7 @@ char *expand_entity_wilds_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     char time_str[100];
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_CHURCH_NAME:
         arg->type = ENT_STRING;
         if( arg->d.church && arg->d.church->name && arg->d.church->name[0] ) {
@@ -1425,7 +1457,7 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_church_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_CHURCH_NAME:
         arg->type = ENT_STRING;
         arg->d.str = &str_empty[0];
@@ -1486,7 +1518,7 @@ char *expand_entity_church_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_VARIABLE_NAME:
         arg->type = ENT_STRING;
         if( arg->d.variable && arg->d.variable->name && arg->d.variable->name[0] ) {
@@ -1512,7 +1544,7 @@ char *expand_entity_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_boolean(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
         case ENTITY_BOOLEAN_TRUE_FALSE:
             arg->type = ENT_STRING;
             arg->d.str = arg->d.boolean ? "true" : "false";
@@ -1536,7 +1568,7 @@ char *expand_entity_boolean(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 
 char *expand_entity_number(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_NUM_ABS:
         arg->d.num = abs(arg->d.num);
         break;
@@ -1598,7 +1630,7 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     char *a;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_STR_LEN:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.str ? strlen(arg->d.str) : 0;
@@ -1751,7 +1783,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             event_runtime_get_source_phase(event_uid, event_instance_id, event_phase_name, sizeof(event_phase_name));
     }
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_MOB_NAME:
         arg->type = ENT_STRING;
         arg->d.str = arg->d.mob ? (char*)arg->d.mob->name : (char*)SOMEONE;
@@ -2153,6 +2185,18 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
         break;
+    case ENTITY_MOB_QUESTPOINTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (self && !IS_NPC(self) && self->pcdata) ? self->questpoints : 0;
+        break;
+    case ENTITY_MOB_TOTALQUESTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (self && !IS_NPC(self) && self->pcdata) ? self->pcdata->quests_completed : 0;
+        break;
+    case ENTITY_MOB_ONMISSION:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (self && !IS_NPC(self) && self->pcdata) ? ON_QUEST(self) : false;
+        break;
     default: return NULL;
     }
 
@@ -2161,7 +2205,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_MOB_NAME:
         arg->type = ENT_STRING;
         arg->d.str = (char*)SOMEONE;
@@ -2203,6 +2247,15 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_MOB_HIMSELF:
         arg->type = ENT_STRING;
         arg->d.str = (char*)SOMEONE;
+        break;
+    case ENTITY_MOB_QUESTPOINTS:
+    case ENTITY_MOB_TOTALQUESTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_MOB_ONMISSION:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = false;
         break;
     case ENTITY_MOB_RACE:
         arg->type = ENT_STRING;
@@ -2431,7 +2484,7 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     OBJ_DATA *self = arg->d.obj;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_NAME:
         arg->type = ENT_STRING;
         arg->d.str = arg->d.obj ? arg->d.obj->name : SOMETHING;
@@ -2575,11 +2628,11 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             active = event_runtime_get_source_progress(event_uid, event_instance_id, &kills, &items, &goal);
 
         arg->type = ENT_NUMBER;
-        if (*str == ENTITY_OBJ_EVENT_ACTIVE)
+        if ((unsigned char)*str == ENTITY_OBJ_EVENT_ACTIVE)
             arg->d.num = active ? 1 : 0;
-        else if (*str == ENTITY_OBJ_EVENT_KILLS)
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_KILLS)
             arg->d.num = kills;
-        else if (*str == ENTITY_OBJ_EVENT_ITEMS)
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_ITEMS)
             arg->d.num = items;
         else
             arg->d.num = goal;
@@ -2762,7 +2815,7 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_NAME:
         arg->type = ENT_STRING;
         arg->d.str = SOMETHING;
@@ -2890,7 +2943,7 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     ROOM_INDEX_DATA *room = arg->d.room;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_ROOM_NAME:
         arg->type = ENT_STRING;
         arg->d.str = arg->d.room ? arg->d.room->name : SOMEWHERE;
@@ -2933,7 +2986,7 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_ROOM_SOUTHWEST:
         arg->type = ENT_EXIT;
         arg->d.door.r = arg->d.room;
-        arg->d.door.door = *str - ENTITY_ROOM_NORTH + DIR_NORTH;
+        arg->d.door.door = (unsigned char)*str - ENTITY_ROOM_NORTH + DIR_NORTH;
         break;
     case ENTITY_ROOM_ENVIRON:
         arg->type = ENT_ROOM;
@@ -3016,6 +3069,17 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.bm.bank = room_flagbank;
         break;
 
+    case ENTITY_ROOM_SECTOR:
+        arg->type = ENT_SECTOR;
+        arg->d.sector = room ? room->sector : NULL;
+        break;
+
+    case ENTITY_ROOM_SECTORFLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = room && room->sector ? room->sector->flags : 0;
+        arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
     default: return NULL;
     }
 
@@ -3026,7 +3090,7 @@ char *expand_entity_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     EXIT_DATA *ex = (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR) ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_EXIT_NAME:
         arg->type = ENT_STRING;
         arg->d.str = ex ? dir_name[arg->d.door.door] : SOMEWHERE;
@@ -3078,7 +3142,7 @@ char *expand_entity_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_EXIT_SOUTHWEST:
         if(ex) {
             arg->type = ENT_EXIT;
-            arg->d.door.door = *str - ENTITY_EXIT_NORTH + DIR_NORTH;
+            arg->d.door.door = (unsigned char)*str - ENTITY_EXIT_NORTH + DIR_NORTH;
             arg->d.door.r = exit_destination(ex);
         }
         break;
@@ -3096,9 +3160,101 @@ char *expand_entity_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+char *expand_entity_sector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SECTOR_RUNTIME_DATA *sector = arg->d.sector;
+
+    switch((unsigned char)*str) {
+    case ENTITY_SECTOR_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = sector && sector->name ? sector->name : &str_empty[0];
+        break;
+
+    case ENTITY_SECTOR_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = sector && sector->description ? sector->description : &str_empty[0];
+        break;
+
+    case ENTITY_SECTOR_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = sector && sector->comments ? sector->comments : &str_empty[0];
+        break;
+
+    case ENTITY_SECTOR_CLASS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->sector_class : 0;
+        break;
+
+    case ENTITY_SECTOR_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = sector ? sector->flags : 0;
+        arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
+    case ENTITY_SECTOR_MOVE_COST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->move_cost : 0;
+        break;
+
+    case ENTITY_SECTOR_HEAL_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->heal_rate : 0;
+        break;
+
+    case ENTITY_SECTOR_MANA_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->mana_rate : 0;
+        break;
+
+    case ENTITY_SECTOR_MOVE_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->move_rate : 0;
+        break;
+
+    case ENTITY_SECTOR_SOIL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->soil : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY1_CATALYST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[0].catalyst : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY1_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[0].value : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY2_CATALYST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[1].catalyst : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY2_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[1].value : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY3_CATALYST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[2].catalyst : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY3_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[2].value : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
 char *expand_entity_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_TOKEN_NAME:
         arg->type = ENT_STRING;
         arg->d.str = arg->d.token ? arg->d.token->name : &str_empty[0];
@@ -3149,7 +3305,7 @@ char *expand_entity_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_token_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_TOKEN_NAME:
         arg->type = ENT_STRING;
         arg->d.str = &str_empty[0];
@@ -3200,7 +3356,7 @@ char *expand_entity_token_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_AREA_NAME:
         arg->type = ENT_STRING;
         arg->d.str = arg->d.area ? arg->d.area->name : SOMEWHERE;
@@ -3251,7 +3407,7 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_area_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_AREA_NAME:
         arg->type = ENT_STRING;
         arg->d.str = SOMEWHERE;
@@ -3294,7 +3450,7 @@ char *expand_entity_list_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register CHAR_DATA *mob;
     register int count;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         count = 0;
@@ -3338,7 +3494,7 @@ char *expand_entity_list_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register OBJ_DATA *obj;
     register int count;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         count = 0;
@@ -3382,7 +3538,7 @@ char *expand_entity_list_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register TOKEN_DATA *token;
     register int count;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         count = 0;
@@ -3426,7 +3582,7 @@ char *expand_entity_list_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 {
     register AFFECT_DATA *affect;
     register int count;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         count = 0;
@@ -3471,7 +3627,7 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     SKILL_DATA *skill = (arg->d.sn >= 0) ? skill_find_uid(arg->d.sn) : NULL;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_SKILL_GSN:
         arg->type = ENT_NUMBER;
         arg->d.num = skill ? skill->uid : -1;
@@ -3669,7 +3825,7 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_SKILLINFO_SKILL:
         arg->type = ENT_SKILL;
         arg->d.sn = arg->d.sk.sn;
@@ -3704,7 +3860,7 @@ char *expand_entity_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_skillinfo_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_SKILLINFO_SKILL:
         arg->type = ENT_SKILL;
         arg->d.sn = arg->d.sk.sn;
@@ -3735,7 +3891,7 @@ char *expand_entity_skillinfo_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 
 char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_CONN_PLAYER:
         arg->type = ENT_MOBILE;
         arg->d.mob = arg->d.conn ? arg->d.conn->character : NULL;
@@ -3773,7 +3929,7 @@ char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     //printf("expand_entity_affect() called\n\r");
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_AFFECT_NAME:
         arg->type = ENT_STRING;
         if(arg->d.aff) {
@@ -3826,7 +3982,7 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_ROOM_NAME:
         arg->type = ENT_STRING;
         arg->d.str = SOMEWHERE;
@@ -3869,7 +4025,7 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_ROOM_SOUTHWEST:
         arg->type = ENT_EXIT;
         arg->d.door.r = NULL;
-        arg->d.door.door = *str - ENTITY_ROOM_NORTH;
+        arg->d.door.door = (unsigned char)*str - ENTITY_ROOM_NORTH;
         break;
     case ENTITY_ROOM_ENVIRON:
         arg->type = ENT_ROOM;
@@ -3926,6 +4082,17 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_ROOM_DUNGEON:
         arg->type = ENT_DUNGEON;
         arg->d.dungeon = NULL;
+        break;
+
+    case ENTITY_ROOM_SECTOR:
+        arg->type = ENT_SECTOR;
+        arg->d.sector = NULL;
+        break;
+
+    case ENTITY_ROOM_SECTORFLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = 0;
+        arg->d.bv.table = sector_runtime_flag_table();
         break;
 
     case ESCAPE_VARIABLE:
@@ -3940,7 +4107,7 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_ROOM_NAME:
         arg->type = ENT_STRING;
         arg->d.str = SOMEWHERE;
@@ -3983,7 +4150,7 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_ROOM_SOUTHWEST:
         arg->type = ENT_EXIT;
         arg->d.door.r = NULL;
-        arg->d.door.door = *str - ENTITY_ROOM_NORTH;
+        arg->d.door.door = (unsigned char)*str - ENTITY_ROOM_NORTH;
         break;
     case ENTITY_ROOM_ENVIRON:
         arg->type = ENT_ROOM;
@@ -4042,6 +4209,17 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.dungeon = NULL;
         break;
 
+    case ENTITY_ROOM_SECTOR:
+        arg->type = ENT_SECTOR;
+        arg->d.sector = NULL;
+        break;
+
+    case ENTITY_ROOM_SECTORFLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = 0;
+        arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
     case ESCAPE_VARIABLE:
         str = expand_escape_variable(info,NULL,str+1,arg);
         if(!str) return NULL;
@@ -4054,7 +4232,7 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_clone_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_EXIT_NAME:
         arg->type = ENT_STRING;
         arg->d.str = SOMEWHERE;
@@ -4093,7 +4271,7 @@ char *expand_entity_clone_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_EXIT_SOUTHEAST:
     case ENTITY_EXIT_SOUTHWEST:
         arg->type = ENT_EXIT;
-        arg->d.door.door = *str - ENTITY_EXIT_NORTH + DIR_NORTH;
+        arg->d.door.door = (unsigned char)*str - ENTITY_EXIT_NORTH + DIR_NORTH;
         arg->d.door.r = NULL;
         break;
     case ENTITY_EXIT_NEXT:
@@ -4114,7 +4292,7 @@ char *expand_entity_clone_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_wilds_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_EXIT_NAME:
         arg->type = ENT_STRING;
         arg->d.str = SOMEWHERE;
@@ -4163,7 +4341,7 @@ char *expand_entity_wilds_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_EXIT_UP:
     case ENTITY_EXIT_DOWN:
         arg->type = ENT_EXIT;
-        arg->d.door.door = *str - ENTITY_EXIT_NORTH + DIR_NORTH;
+        arg->d.door.door = (unsigned char)*str - ENTITY_EXIT_NORTH + DIR_NORTH;
         arg->d.door.r = NULL;
         break;
     case ENTITY_EXIT_NEXT:
@@ -4185,7 +4363,7 @@ char *expand_entity_wilds_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     char *p = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4226,7 +4404,7 @@ char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_blist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_ROOM_DATA *r = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4262,7 +4440,7 @@ char *expand_entity_blist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_blist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_UID_DATA *uid = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4330,7 +4508,7 @@ char *expand_entity_blist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_blist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_UID_DATA *uid = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4398,7 +4576,7 @@ char *expand_entity_blist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_blist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_UID_DATA *uid = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4466,7 +4644,7 @@ char *expand_entity_blist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 char *expand_entity_blist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_AREA_DATA *uid = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4509,7 +4687,7 @@ char *expand_entity_blist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_blist_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_WILDS_DATA *uid = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4552,7 +4730,7 @@ char *expand_entity_blist_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 char *expand_entity_blist_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_EXIT_DATA *e = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4591,7 +4769,7 @@ char *expand_entity_blist_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_blist_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register LLIST_SKILL_DATA *s = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4668,7 +4846,7 @@ char *expand_entity_blist_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM 
 char *expand_entity_plist_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register DESCRIPTOR_DATA *conn = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4703,7 +4881,7 @@ char *expand_entity_plist_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register CHURCH_DATA *church = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4738,7 +4916,7 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 char *expand_entity_plist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register CHAR_DATA *ch = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4773,7 +4951,7 @@ char *expand_entity_plist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_plist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register OBJ_DATA *obj = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4808,7 +4986,7 @@ char *expand_entity_plist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_plist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register ROOM_INDEX_DATA *room = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4843,7 +5021,7 @@ char *expand_entity_plist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_plist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register TOKEN_DATA *token = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4878,7 +5056,7 @@ char *expand_entity_plist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 char *expand_entity_plist_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     register VARIABLE *variable = NULL;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_LIST_SIZE:
         arg->type = ENT_NUMBER;
         arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4916,7 +5094,7 @@ char *expand_entity_group(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     register CHAR_DATA *rch;
     register int count;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_GROUP_OWNER:
         arg->type = ENT_MOBILE;
         arg->d.mob = arg->d.group_owner;
@@ -5001,7 +5179,7 @@ char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     SONG_DATA *pSong = arg->d.song;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_SONG_NUMBER:
         arg->type = ENT_NUMBER;
         arg->d.num = pSong ? pSong->uid : -1;
@@ -5061,7 +5239,7 @@ char *expand_entity_race(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     RACE_DATA *race = arg->d.race;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_RACE_NAME:
         arg->type = ENT_STRING;
         arg->d.str = race ? race->name : "";
@@ -5162,7 +5340,7 @@ char *expand_entity_class(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     CLASS_DATA *clazz = arg->d.clazz;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_CLASS_NAME:
         arg->type = ENT_STRING;
         arg->d.str = clazz ? clazz->name : "";
@@ -5224,7 +5402,7 @@ char *expand_entity_classlevel(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 {
     CLASS_LEVEL *level = arg->d.classlevel;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_CLASSLEVEL_CLASS:
         arg->type = ENT_CLASS;
         arg->d.clazz = level ? level->clazz : NULL;
@@ -5253,7 +5431,7 @@ char *expand_entity_skillentry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 {
     SKILL_ENTRY *entry = arg->d.entry;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_SKILLENTRY_SKILL:
         arg->type = ENT_SKILL;
         arg->d.sn = entry ? entry->sn : -1;
@@ -5299,7 +5477,7 @@ char *expand_entity_prior(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     info = arg->d.info;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_PRIOR_MOB:
         arg->type = ENT_MOBILE;
         arg->d.mob = info ? info->mob : NULL;
@@ -5372,7 +5550,7 @@ char *expand_entity_prior(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_PRIOR_REGISTER4:
     case ENTITY_PRIOR_REGISTER5:
         arg->type = ENT_NUMBER;
-        arg->d.num = info->registers[*str-ENTITY_REGISTER1];
+        arg->d.num = info->registers[(unsigned char)*str-ENTITY_REGISTER1];
         break;
 
     case ENTITY_PRIOR_PRIOR:
@@ -5390,7 +5568,7 @@ char *expand_entity_dice(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     info = arg->d.info;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_DICE_NUMBER:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.dice ? arg->d.dice->number : 0;
@@ -5434,7 +5612,7 @@ char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     info = arg->d.info;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_MOBINDEX_VNUM:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.mobindex ? arg->d.mobindex->vnum: 0;
@@ -5468,7 +5646,7 @@ char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     info = arg->d.info;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJINDEX_VNUM:
         arg->type = ENT_NUMBER;
         arg->d.num = arg->d.objindex ? arg->d.objindex->vnum: 0;
@@ -5525,7 +5703,7 @@ char *expand_entity_instance_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
     OBJ_INDEX_DATA *map_obj_index = map_data ? map_data->obj : NULL;
     MOB_INDEX_DATA *map_mob_index = map_data ? map_data->mob : NULL;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_SECTION_ROOMS:
         arg->type = ENT_PLLIST_ROOM;
         arg->d.blist = (section) ? section->rooms : NULL;
@@ -5612,7 +5790,7 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     INSTANCE *instance = arg->d.instance;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_INSTANCE_NAME:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
@@ -5727,7 +5905,7 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     DUNGEON *dungeon = arg->d.dungeon;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_DUNGEON_NAME:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
@@ -5802,7 +5980,7 @@ char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     SHIP_DATA *ship = arg->d.ship;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_SHIP_NAME:
         arg->type = ENT_STRING;
         clear_buf(arg->buffer);
@@ -5830,7 +6008,7 @@ char *expand_entity_obj_weapon(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 {
     WEAPON_DATA *w = arg->d.obj_weapon;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_WEAPON_CLASS:
         arg->type = ENT_NUMBER;
         arg->d.num = w ? w->weapon_class : 0;
@@ -5881,7 +6059,7 @@ char *expand_entity_obj_armor(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg
 {
     ARMOR_DATA *a = arg->d.obj_armor;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_ARMOR_TYPE:
         arg->type = ENT_NUMBER;
         arg->d.num = a ? a->armor_type : 0;
@@ -5915,7 +6093,7 @@ char *expand_entity_obj_container(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM 
 {
     CONTAINER_DATA *c = arg->d.obj_container;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_CONTAINER_FLAGS:
         arg->type = ENT_BITVECTOR;
         arg->d.bv.value = c ? c->flags : 0;
@@ -5946,7 +6124,7 @@ char *expand_entity_obj_fluid_con(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM 
 {
     FLUID_CONTAINER_DATA *f = arg->d.obj_fluid_con;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_FLUID_CON_CAPACITY:
         arg->type = ENT_NUMBER;
         arg->d.num = f ? f->capacity : 0;
@@ -5981,7 +6159,7 @@ char *expand_entity_obj_food(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     FOOD_DATA *f = arg->d.obj_food;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_FOOD_HUNGER:
         arg->type = ENT_NUMBER;
         arg->d.num = f ? f->hunger : 0;
@@ -6007,7 +6185,7 @@ char *expand_entity_obj_furniture(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM 
 {
     FURNITURE_DATA *f = arg->d.obj_furniture;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_FURNITURE_FLAGS:
         arg->type = ENT_BITVECTOR;
         arg->d.bv.value = f ? f->flags : 0;
@@ -6042,7 +6220,7 @@ char *expand_entity_obj_portal(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 {
     PORTAL_DATA *p = arg->d.obj_portal;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_PORTAL_EXIT:
         arg->type = ENT_BITVECTOR;
         arg->d.bv.value = p ? p->exit : 0;
@@ -6074,7 +6252,7 @@ char *expand_entity_obj_light(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg
 {
     LIGHT_DATA *l = arg->d.obj_light;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_LIGHT_FLAGS:
         arg->type = ENT_BITVECTOR;
         arg->d.bv.value = l ? l->flags : 0;
@@ -6093,7 +6271,7 @@ char *expand_entity_obj_money(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg
 {
     MONEY_DATA *m = arg->d.obj_money;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_MONEY_SILVER:
         arg->type = ENT_NUMBER;
         arg->d.num = m ? m->silver : 0;
@@ -6111,7 +6289,7 @@ char *expand_entity_obj_wand(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     WAND_DATA *w = arg->d.obj_wand;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_WAND_MAX_MANA:
         arg->type = ENT_NUMBER;
         arg->d.num = w ? w->max_mana : 0;
@@ -6141,7 +6319,7 @@ char *expand_entity_obj_corpse(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 {
     CORPSE_DATA *c = arg->d.obj_corpse;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_CORPSE_CORPSE_TYPE:
         arg->type = ENT_NUMBER;
         arg->d.num = c ? c->corpse_type : 0;
@@ -6171,7 +6349,7 @@ char *expand_entity_obj_instrument(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM
 {
     INSTRUMENT_DATA *i = arg->d.obj_instrument;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_INSTRUMENT_TYPE:
         arg->type = ENT_NUMBER;
         arg->d.num = i ? i->type : 0;
@@ -6206,7 +6384,7 @@ char *expand_entity_obj_seed(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     SEED_DATA *s = arg->d.obj_seed;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_SEED_GROWTH_TIME:
         arg->type = ENT_NUMBER;
         arg->d.num = s ? s->growth_time : 0;
@@ -6224,7 +6402,7 @@ char *expand_entity_obj_cart(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     CART_DATA *c = arg->d.obj_cart;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_CART_FLAGS:
         arg->type = ENT_BITVECTOR;
         arg->d.bv.value = c ? c->flags : 0;
@@ -6263,7 +6441,7 @@ char *expand_entity_obj_item_ship(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM 
 {
     ITEM_SHIP_DATA *s = arg->d.obj_item_ship;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_ITEM_SHIP_WEIGHT:
         arg->type = ENT_NUMBER;
         arg->d.num = s ? s->weight : 0;
@@ -6305,7 +6483,7 @@ char *expand_entity_obj_sextant(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *a
 {
     SEXTANT_DATA *s = arg->d.obj_sextant;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_SEXTANT_ACCURACY:
         arg->type = ENT_NUMBER;
         arg->d.num = s ? s->accuracy : 0;
@@ -6319,7 +6497,7 @@ char *expand_entity_obj_weapon_con(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM
 {
     WEAPON_CONTAINER_DATA *w = arg->d.obj_weapon_con;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_WEAPON_CON_MAX_WEIGHT:
         arg->type = ENT_NUMBER;
         arg->d.num = w ? w->max_weight : 0;
@@ -6345,7 +6523,7 @@ char *expand_entity_obj_book(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     BOOK_DATA *b = arg->d.obj_book;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_BOOK_FLAGS:
         arg->type = ENT_BITVECTOR;
         arg->d.bv.value = b ? b->flags : 0;
@@ -6368,7 +6546,7 @@ char *expand_entity_obj_herb(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     HERB_DATA *h = arg->d.obj_herb;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_HERB_TYPE:
         arg->type = ENT_NUMBER;
         arg->d.num = h ? h->type : 0;
@@ -6413,7 +6591,7 @@ char *expand_entity_obj_mist(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     MIST_DATA *m = arg->d.obj_mist;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_MIST_OBSCURE_MOBS:
         arg->type = ENT_NUMBER;
         arg->d.num = m ? m->obscure_mobs : 0;
@@ -6471,7 +6649,7 @@ char *expand_entity_obj_trade(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg
 {
     TRADE_DATA *t = arg->d.obj_trade;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_TRADE_TRADE_TYPE:
         arg->type = ENT_NUMBER;
         arg->d.num = t ? t->trade_type : 0;
@@ -6485,7 +6663,7 @@ char *expand_entity_obj_tattoo(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 {
     TATTOO_DATA *t = arg->d.obj_tattoo;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_TATTOO_TOUCHES:
         arg->type = ENT_NUMBER;
         arg->d.num = t ? t->touches : 0;
@@ -6507,7 +6685,7 @@ char *expand_entity_obj_ink(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     INK_DATA *i = arg->d.obj_ink;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_INK_TYPE0:
         arg->type = ENT_NUMBER;
         arg->d.num = i ? i->types[0] : 0;
@@ -6541,7 +6719,7 @@ char *expand_entity_obj_telescope(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM 
 {
     TELESCOPE_DATA *t = arg->d.obj_telescope;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_TELESCOPE_DISTANCE:
         arg->type = ENT_NUMBER;
         arg->d.num = t ? t->distance : 0;
@@ -6571,7 +6749,7 @@ char *expand_entity_obj_compass(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *a
 {
     COMPASS_DATA *c = arg->d.obj_compass;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_COMPASS_ACCURACY:
         arg->type = ENT_NUMBER;
         arg->d.num = c ? c->accuracy : 0;
@@ -6597,7 +6775,7 @@ char *expand_entity_obj_body_part(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM 
 {
     BODY_PART_DATA *b = arg->d.obj_body_part;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_BODY_PART_PARTS:
         arg->type = ENT_NUMBER;
         arg->d.num = b ? b->parts : 0;
@@ -6615,7 +6793,7 @@ char *expand_entity_obj_scroll(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *ar
 {
     SCROLL_DATA *s = arg->d.obj_scroll;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_SCROLL_MAX_MANA:
         arg->type = ENT_NUMBER;
         arg->d.num = s ? s->max_mana : 0;
@@ -6634,7 +6812,7 @@ char *expand_entity_obj_tool(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     TOOL_DATA *t = arg->d.obj_tool;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_TOOL_TYPE:
         arg->type = ENT_NUMBER;
         arg->d.num = t ? t->type : 0;
@@ -6652,7 +6830,7 @@ char *expand_entity_obj_jewelry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *a
 {
     JEWELRY_DATA *j = arg->d.obj_jewelry;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_JEWELRY_MAX_MANA:
         arg->type = ENT_NUMBER;
         arg->d.num = j ? j->max_mana : 0;
@@ -6666,7 +6844,7 @@ char *expand_entity_obj_map(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     MAP_DATA *m = arg->d.obj_map;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_MAP_WUID:
         arg->type = ENT_NUMBER;
         arg->d.num = m ? m->wuid : 0;
@@ -6688,7 +6866,7 @@ char *expand_entity_obj_page(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
     PAGE_DATA *p = arg->d.obj_page;
 
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ENTITY_OBJ_PAGE_PAGE_NO:
         arg->type = ENT_NUMBER;
         arg->d.num = p ? p->page_no : 0;
@@ -6710,7 +6888,7 @@ char *expand_entity_obj_page(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 //	EXTRA_DESCR_DATA *ed;
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         if(!arg->d.list.owner || !arg->d.list.ptr.ed || !*arg->d.list.ptr.ed || !info->var) return NULL;
 
@@ -6791,7 +6969,7 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_BOOLEAN;
 
@@ -6825,7 +7003,7 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_BOOLEAN;
         if(arg->d.bm.bank && arg->d.bm.values)
@@ -6857,7 +7035,7 @@ char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 // Implementation for reserved mobile lookups
 EXPAND_TYPE(reserved_mobile)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -6895,7 +7073,7 @@ EXPAND_TYPE(reserved_mobile)
 
 EXPAND_TYPE(reserved_object)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -6932,7 +7110,7 @@ EXPAND_TYPE(reserved_object)
 // Implementation for reserved room lookups
 EXPAND_TYPE(reserved_room)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -6969,7 +7147,7 @@ EXPAND_TYPE(reserved_room)
 // Implementation for reserved area lookups
 EXPAND_TYPE(reserved_area)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -7006,7 +7184,7 @@ EXPAND_TYPE(reserved_area)
 // Implementation for reserved token lookups
 EXPAND_TYPE(reserved_token)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -7043,7 +7221,7 @@ EXPAND_TYPE(reserved_token)
 // Add implementions for all program types
 EXPAND_TYPE(reserved_rprog)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -7079,7 +7257,7 @@ EXPAND_TYPE(reserved_rprog)
 
 EXPAND_TYPE(reserved_oprog)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -7115,7 +7293,7 @@ EXPAND_TYPE(reserved_oprog)
 
 EXPAND_TYPE(reserved_mprog)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -7151,7 +7329,7 @@ EXPAND_TYPE(reserved_mprog)
 
 EXPAND_TYPE(reserved_tprog)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -7185,7 +7363,7 @@ EXPAND_TYPE(reserved_tprog)
 
 EXPAND_TYPE(reserved_aprog)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -7221,7 +7399,7 @@ EXPAND_TYPE(reserved_aprog)
 // Implementation for dynamic game settings lookups
 EXPAND_TYPE(game_setting)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_STRING;
         
@@ -7284,7 +7462,7 @@ EXPAND_TYPE(game_setting)
 
 char *expand_entity_equipment(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
-    int wearloc = (*str) + WEAR_NONE - ESCAPE_EXTRA;
+    int wearloc = ((unsigned char)*str) + WEAR_NONE - ESCAPE_EXTRA;
 
     if (wearloc > WEAR_NONE && wearloc < MAX_WEAR)
     {
@@ -7313,6 +7491,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_MOBILE:	next = expand_entity_mobile(info,str,arg); break;
         case ENT_OBJECT:	next = expand_entity_object(info,str,arg); break;
         case ENT_ROOM:		next = expand_entity_room(info,str,arg); break;
+        case ENT_SECTOR:	next = expand_entity_sector(info,str,arg); break;
         case ENT_EXIT:		next = expand_entity_exit(info,str,arg); break;
         case ENT_TOKEN:		next = expand_entity_token(info,str,arg); break;
         case ENT_AREA:		next = expand_entity_area(info,str,arg); break;

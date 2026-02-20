@@ -174,12 +174,31 @@ char *compile_expression(char *str,int type, char **store)
                 return NULL;
             }
             if(!compile_emit_byte(&p, ESCAPE_VARIABLE)) return NULL;
-            while(ISALPHA(*str)) {
+                while(ISALPHA(*str) || ISDIGIT(*str)) {
                 if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
             }
             if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
             ++opnds;
             expect = true;
+            } else if(*str == '$') {
+                if(expect) {
+                    sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
+                    compile_error_show(buf);
+                    return NULL;
+                }
+
+                ++str;
+                if(*str != '(') {
+                    sprintf(buf,"Line %d: Expecting an open parenthesis '(' after '$' for entity expansion.", compile_current_line);
+                    compile_error_show(buf);
+                    return NULL;
+                }
+
+                str = compile_entity(str+1,type,&p);
+                if(!str) return NULL;
+
+                ++opnds;
+                expect = true;
         } else if(*str == '"') {	// Variable (long, any character)
             if(expect) {
                 sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);

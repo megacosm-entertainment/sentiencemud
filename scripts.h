@@ -593,6 +593,8 @@ ENT_SCRIPT_DATA,
     ENT_OBJ_MAP,
     ENT_OBJ_PAGE,
 
+    ENT_SECTOR,
+
     ENT_MAX,
     ENT_UNKNOWN = ENT_MAX+1,
     ENT_PRIMARY = ENT_NONE
@@ -792,7 +794,10 @@ enum entity_mobile_enum {
     ENTITY_MOB_EVENT_KILLS,
     ENTITY_MOB_EVENT_ITEMS,
     ENTITY_MOB_EVENT_GOAL,
-    ENTITY_MOB_EVENT_PHASE
+    ENTITY_MOB_EVENT_PHASE,
+    ENTITY_MOB_QUESTPOINTS,
+    ENTITY_MOB_TOTALQUESTS,
+    ENTITY_MOB_ONMISSION,
 };
 
 enum entity_object_enum {
@@ -898,6 +903,27 @@ enum entity_room_enum {
     ENTITY_ROOM_DUNGEON,
     ENTITY_ROOM_SHIP,
     ENTITY_ROOM_FLAGS,
+    ENTITY_ROOM_SECTOR,
+    ENTITY_ROOM_SECTORFLAGS,
+};
+
+enum entity_sector_enum {
+    ENTITY_SECTOR_NAME = ESCAPE_EXTRA,
+    ENTITY_SECTOR_DESCRIPTION,
+    ENTITY_SECTOR_COMMENTS,
+    ENTITY_SECTOR_CLASS,
+    ENTITY_SECTOR_FLAGS,
+    ENTITY_SECTOR_MOVE_COST,
+    ENTITY_SECTOR_HEAL_RATE,
+    ENTITY_SECTOR_MANA_RATE,
+    ENTITY_SECTOR_MOVE_RATE,
+    ENTITY_SECTOR_SOIL,
+    ENTITY_SECTOR_AFFINITY1_CATALYST,
+    ENTITY_SECTOR_AFFINITY1_VALUE,
+    ENTITY_SECTOR_AFFINITY2_CATALYST,
+    ENTITY_SECTOR_AFFINITY2_VALUE,
+    ENTITY_SECTOR_AFFINITY3_CATALYST,
+    ENTITY_SECTOR_AFFINITY3_VALUE,
 };
 
 enum entity_exit_enum {
@@ -1614,6 +1640,7 @@ struct script_var_type {
         INSTANCE *instance;
         DUNGEON *dungeon;
         SHIP_DATA *ship;
+        SECTOR_RUNTIME_DATA *sector;
         bool boolean;
         int sn;
         SONG_DATA *song;
@@ -1808,6 +1835,7 @@ struct script_parameter {
         INSTANCE *instance;
         DUNGEON *dungeon;
         SHIP_DATA *ship;
+        SECTOR_RUNTIME_DATA *sector;
         
         TOKEN_INDEX_DATA *token_index;
         SCRIPT_DATA *script;
@@ -1984,6 +2012,7 @@ extern ENT_FIELD entity_instance_section[];
 extern ENT_FIELD entity_instance[];
 extern ENT_FIELD entity_dungeon[];
 extern ENT_FIELD entity_ship[];
+extern ENT_FIELD entity_sector[];
 extern ENT_FIELD entity_obj_weapon[];
 extern ENT_FIELD entity_obj_armor[];
 extern ENT_FIELD entity_obj_container[];
@@ -2120,6 +2149,7 @@ DECL_IFC_FUN(ifc_flag_weapon);
 DECL_IFC_FUN(ifc_flag_wear);
 DECL_IFC_FUN(ifc_fullness);
 DECL_IFC_FUN(ifc_furniture);
+DECL_IFC_FUN(ifc_gc);
 DECL_IFC_FUN(ifc_gold);
 DECL_IFC_FUN(ifc_groundweight);
 DECL_IFC_FUN(ifc_groupcon);
@@ -2140,6 +2170,7 @@ DECL_IFC_FUN(ifc_hascatalyst);
 DECL_IFC_FUN(ifc_hascheckpoint);
 DECL_IFC_FUN(ifc_hasclass);
 DECL_IFC_FUN(ifc_hasenvironment);
+DECL_IFC_FUN(ifc_hasfaction);
 DECL_IFC_FUN(ifc_hasprompt);
 DECL_IFC_FUN(ifc_hasqueue);
 DECL_IFC_FUN(ifc_hasreputation);
@@ -2170,6 +2201,7 @@ DECL_IFC_FUN(ifc_inwilds);
 DECL_IFC_FUN(ifc_isactive);
 DECL_IFC_FUN(ifc_isambushing);
 DECL_IFC_FUN(ifc_isangel);
+DECL_IFC_FUN(ifc_isbook);
 DECL_IFC_FUN(ifc_isbrewing);
 DECL_IFC_FUN(ifc_isbusy);
 DECL_IFC_FUN(ifc_iscasting);
@@ -2177,27 +2209,37 @@ DECL_IFC_FUN(ifc_ischarm);
 DECL_IFC_FUN(ifc_ischurchexcom);
 DECL_IFC_FUN(ifc_isclass);
 DECL_IFC_FUN(ifc_iscloneroom);
+DECL_IFC_FUN(ifc_iscontainer);
 DECL_IFC_FUN(ifc_iscpkproof);
 DECL_IFC_FUN(ifc_isdead);
 DECL_IFC_FUN(ifc_isdelay);
 DECL_IFC_FUN(ifc_isdemon);
+DECL_IFC_FUN(ifc_isexitvisible);
 DECL_IFC_FUN(ifc_isevil);
 DECL_IFC_FUN(ifc_isfading);
 DECL_IFC_FUN(ifc_isfighting);
+DECL_IFC_FUN(ifc_isfluidcontainer);
 DECL_IFC_FUN(ifc_isflying);
+DECL_IFC_FUN(ifc_isfood);
+DECL_IFC_FUN(ifc_isfurniture);
 DECL_IFC_FUN(ifc_isfollow);
 DECL_IFC_FUN(ifc_isgood);
 DECL_IFC_FUN(ifc_ishunting);
 DECL_IFC_FUN(ifc_isimmort);
 DECL_IFC_FUN(ifc_iskey);
 DECL_IFC_FUN(ifc_isleader);
+DECL_IFC_FUN(ifc_islight);
 DECL_IFC_FUN(ifc_ismoonup);
+DECL_IFC_FUN(ifc_ismoney);
 DECL_IFC_FUN(ifc_ismorphed);
 DECL_IFC_FUN(ifc_ismystic);
 DECL_IFC_FUN(ifc_isneutral);
 DECL_IFC_FUN(ifc_isnpc);
+DECL_IFC_FUN(ifc_onmission);
 DECL_IFC_FUN(ifc_ison);
 DECL_IFC_FUN(ifc_ispc);
+DECL_IFC_FUN(ifc_ispage);
+DECL_IFC_FUN(ifc_isportal);
 DECL_IFC_FUN(ifc_isprey);
 DECL_IFC_FUN(ifc_isprog);
 DECL_IFC_FUN(ifc_ispulling);
@@ -2221,8 +2263,11 @@ DECL_IFC_FUN(ifc_issubclass);
 DECL_IFC_FUN(ifc_issustained);
 DECL_IFC_FUN(ifc_istarget);
 DECL_IFC_FUN(ifc_istattooing);
+DECL_IFC_FUN(ifc_isvalid);
+DECL_IFC_FUN(ifc_isvaliditem);
 DECL_IFC_FUN(ifc_isvisible);
 DECL_IFC_FUN(ifc_isvisibleto);
+DECL_IFC_FUN(ifc_iswnum);
 DECL_IFC_FUN(ifc_isworn);
 DECL_IFC_FUN(ifc_lastreturn);
 DECL_IFC_FUN(ifc_level);
@@ -2245,6 +2290,7 @@ DECL_IFC_FUN(ifc_maxmana);
 DECL_IFC_FUN(ifc_maxmove);
 DECL_IFC_FUN(ifc_maxweight);
 DECL_IFC_FUN(ifc_maxxp);
+DECL_IFC_FUN(ifc_mission);
 DECL_IFC_FUN(ifc_min);
 DECL_IFC_FUN(ifc_mobexists);
 DECL_IFC_FUN(ifc_mobhere);
@@ -2256,6 +2302,7 @@ DECL_IFC_FUN(ifc_month);
 DECL_IFC_FUN(ifc_moonphase);
 DECL_IFC_FUN(ifc_moveregen);
 DECL_IFC_FUN(ifc_name);
+DECL_IFC_FUN(ifc_number);
 DECL_IFC_FUN(ifc_numenchants);
 DECL_IFC_FUN(ifc_objcond);
 DECL_IFC_FUN(ifc_objcost);
@@ -2266,7 +2313,9 @@ DECL_IFC_FUN(ifc_objextra3);
 DECL_IFC_FUN(ifc_objextra4);
 DECL_IFC_FUN(ifc_objfrag);
 DECL_IFC_FUN(ifc_objhere);
+DECL_IFC_FUN(ifc_objmaxrepairs);
 DECL_IFC_FUN(ifc_objmaxweight);
+DECL_IFC_FUN(ifc_objrepairs);
 DECL_IFC_FUN(ifc_objtimer);
 DECL_IFC_FUN(ifc_objtype);
 DECL_IFC_FUN(ifc_objval0);
@@ -2277,6 +2326,8 @@ DECL_IFC_FUN(ifc_objval4);
 DECL_IFC_FUN(ifc_objval5);
 DECL_IFC_FUN(ifc_objval6);
 DECL_IFC_FUN(ifc_objval7);
+DECL_IFC_FUN(ifc_objval8);
+DECL_IFC_FUN(ifc_objval9);
 DECL_IFC_FUN(ifc_objwear);
 DECL_IFC_FUN(ifc_objwearloc);
 DECL_IFC_FUN(ifc_objweight);
@@ -2321,6 +2372,7 @@ DECL_IFC_FUN(ifc_roomwilds);
 DECL_IFC_FUN(ifc_roomx);
 DECL_IFC_FUN(ifc_roomy);
 DECL_IFC_FUN(ifc_roomz);
+DECL_IFC_FUN(ifc_savage);
 DECL_IFC_FUN(ifc_samegroup);
 DECL_IFC_FUN(ifc_scriptsecurity);
 DECL_IFC_FUN(ifc_sector);
@@ -2343,6 +2395,7 @@ DECL_IFC_FUN(ifc_tempstore1);
 DECL_IFC_FUN(ifc_tempstore2);
 DECL_IFC_FUN(ifc_tempstore3);
 DECL_IFC_FUN(ifc_tempstore4);
+DECL_IFC_FUN(ifc_tempstore5);
 DECL_IFC_FUN(ifc_tempstring);
 DECL_IFC_FUN(ifc_testhardmagic);
 DECL_IFC_FUN(ifc_testskill);
@@ -2356,6 +2409,7 @@ DECL_IFC_FUN(ifc_tokenexists);
 DECL_IFC_FUN(ifc_tokentype);
 DECL_IFC_FUN(ifc_tokentimer);
 DECL_IFC_FUN(ifc_tokenvalue);
+DECL_IFC_FUN(ifc_totalmissions);
 DECL_IFC_FUN(ifc_totalfights);
 DECL_IFC_FUN(ifc_totalloss);
 DECL_IFC_FUN(ifc_totalpkfights);
@@ -2370,6 +2424,7 @@ DECL_IFC_FUN(ifc_trains);
 DECL_IFC_FUN(ifc_traitint);
 DECL_IFC_FUN(ifc_traitstring);
 DECL_IFC_FUN(ifc_uses);
+DECL_IFC_FUN(ifc_value_portaltype);
 DECL_IFC_FUN(ifc_value_ac);
 DECL_IFC_FUN(ifc_value_acstr);
 DECL_IFC_FUN(ifc_value_damage);
@@ -2396,6 +2451,7 @@ DECL_IFC_FUN(ifc_wearused);
 DECL_IFC_FUN(ifc_weight);
 DECL_IFC_FUN(ifc_weightleft);
 DECL_IFC_FUN(ifc_wimpy);
+DECL_IFC_FUN(ifc_wnumvalid);
 DECL_IFC_FUN(ifc_word);
 DECL_IFC_FUN(ifc_wornby);
 DECL_IFC_FUN(ifc_xp);
@@ -2591,6 +2647,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 ENT_FIELD *script_entity_fields(int type);
 bool script_entity_allow_vars(int type);
 bool script_validate_entity_tables(void);
+void script_log_entity_field_pressure_report(int warn_threshold_pct);
 const char *script_entity_field_description(const ENT_FIELD *field);
 bool script_entity_field_deprecated(const ENT_FIELD *field);
 void script_lookup_profile_report(const char *tag);

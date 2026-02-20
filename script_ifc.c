@@ -192,6 +192,34 @@ static bool script_match_obj_vnum(OBJ_DATA *obj, long vnum)
     return wnum_match_obj(wnum, obj);
 }
 
+static bool script_ifc_is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door)
+{
+    EXIT_DATA *pexit;
+    ROOM_INDEX_DATA *to_room;
+
+    if (!room || door < 0 || door >= MAX_DIR)
+        return false;
+
+    pexit = room->exit[door];
+    if (!pexit)
+        return false;
+
+    if (IS_SET(pexit->exit_info, EX_WALKTHROUGH))
+        return false;
+
+    if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
+        return false;
+
+    to_room = pexit->u1.to_room;
+    if (!to_room)
+        return false;
+
+    if (!can_see_room(ch, to_room))
+        return false;
+
+    return true;
+}
+
 static OBJ_INDEX_DATA *relic_lookup(const char *name)
 {
     if (!name || !*name) return NULL;
@@ -215,6 +243,17 @@ long flag_value_ifcheck(const struct flag_type *flag_table, char *argument)
     long flag = flag_value(flag_table, argument);
 
     return (flag != NO_FLAG) ? flag : 0;
+}
+
+// IF NUMBER $NUMBER == $NUMBER
+// Allows direct comparison of numeric values from literals, variables, and expansions.
+DECL_IFC_FUN(ifc_number)
+{
+    if (ISARG_NUM(0)) *ret = ARG_NUM(0);
+    else if (ISARG_STR(0) && is_number(ARG_STR(0))) *ret = atoi(ARG_STR(0));
+    else return false;
+
+    return true;
 }
 
 
@@ -904,6 +943,41 @@ DECL_IFC_FUN(ifc_hasreputation)
     return true;
 }
 
+// HASFACTION $NPC <vnum|widevnum>
+DECL_IFC_FUN(ifc_hasfaction)
+{
+    REPUTATION_INDEX_DATA *repIndex = NULL;
+    AREA_DATA *context = NULL;
+
+    *ret = false;
+
+    if (!VALID_NPC(0))
+        return true;
+
+    context = ARG_MOB(0)->in_room ? ARG_MOB(0)->in_room->area : NULL;
+
+    if (ISARG_WNUM(1))
+        repIndex = get_reputation_index(ARG_WNUM(1).pArea, ARG_WNUM(1).vnum);
+    else if (ISARG_NUM(1) && context)
+        repIndex = get_reputation_index(context, ARG_NUM(1));
+    else if (ISARG_STR(1) && context)
+    {
+        WNUM wnum;
+        char arg[MIL];
+
+        strncpy(arg, ARG_STR(1), sizeof(arg) - 1);
+        arg[sizeof(arg) - 1] = '\0';
+
+        if (parse_widevnum(arg, context, &wnum) && wnum.pArea)
+            repIndex = get_reputation_index(wnum.pArea, wnum.vnum);
+    }
+
+    if (IS_VALID(repIndex))
+        *ret = has_reputation(ARG_MOB(0), repIndex);
+
+    return true;
+}
+
 DECL_IFC_FUN(ifc_hasship)
 {
     return false;
@@ -1320,6 +1394,12 @@ DECL_IFC_FUN(ifc_ispullingrelic)
 }
 
 DECL_IFC_FUN(ifc_isquesting)
+{
+    *ret = VALID_PLAYER(0) && ON_QUEST(ARG_MOB(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_onmission)
 {
     *ret = VALID_PLAYER(0) && ON_QUEST(ARG_MOB(0));
     return true;
@@ -1791,6 +1871,18 @@ DECL_IFC_FUN(ifc_objmaxweight)
     return true;
 }
 
+DECL_IFC_FUN(ifc_objrepairs)
+{
+    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->times_fixed : 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_objmaxrepairs)
+{
+    *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->times_allowed_fixed : 0;
+    return true;
+}
+
 DECL_IFC_FUN(ifc_objtimer)
 {
     *ret = ISARG_OBJ(0) ? ARG_OBJ(0)->timer : 0;
@@ -1848,6 +1940,18 @@ DECL_IFC_FUN(ifc_objval6)
 DECL_IFC_FUN(ifc_objval7)
 {
     *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 7) : 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_objval8)
+{
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 8) : 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_objval9)
+{
+    *ret = ISARG_OBJ(0) ? obj_get_legacy_value_slot(ARG_OBJ(0), 9) : 0;
     return true;
 }
 
@@ -2064,6 +2168,12 @@ DECL_IFC_FUN(ifc_practices)
 }
 
 DECL_IFC_FUN(ifc_quest)
+{
+    *ret = ISARG_MOB(0) ? ARG_MOB(0)->questpoints : 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_mission)
 {
     *ret = ISARG_MOB(0) ? ARG_MOB(0)->questpoints : 0;
     return true;
@@ -2565,6 +2675,12 @@ DECL_IFC_FUN(ifc_totalpkwins)
 }
 
 DECL_IFC_FUN(ifc_totalquests)
+{
+    *ret = VALID_PLAYER(0) ? ARG_MOB(0)->pcdata->quests_completed : 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_totalmissions)
 {
     *ret = VALID_PLAYER(0) ? ARG_MOB(0)->pcdata->quests_completed : 0;
     return true;
@@ -3110,6 +3226,12 @@ DECL_IFC_FUN(ifc_flag_wear)
 {
     *ret = ISARG_STR(0) ? flag_value_ifcheck(wear_flags,ARG_STR(0)) : 0;
     if(*ret == NO_FLAG) *ret = 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_value_portaltype)
+{
+    *ret = 0;
     return true;
 }
 
@@ -3823,6 +3945,12 @@ DECL_IFC_FUN(ifc_tempstore4)
     return true;
 }
 
+DECL_IFC_FUN(ifc_tempstore5)
+{
+    *ret = 0;
+    return true;
+}
+
 DECL_IFC_FUN(ifc_tempstring)
 {
     if(ISARG_MOB(0))
@@ -3953,6 +4081,12 @@ DECL_IFC_FUN(ifc_roomz)
     if(!room) return false;
 
     *ret = room->z;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_savage)
+{
+    *ret = 0;
     return true;
 }
 
@@ -5512,6 +5646,178 @@ DECL_IFC_FUN(ifc_shiptype)
         *ret = ARG_SHIP(0)->ship_type == flag_value_ifcheck(ship_class_types, ARG_STR(1));
     }
     return true;
+}
+
+// ISWNUM $ENTITY $AREA $NUMBER[ $NUMBER]
+DECL_IFC_FUN(ifc_iswnum)
+{
+    AREA_DATA *entity_area = NULL;
+    long entity_vnum = 0;
+    AREA_DATA *cmp_area = NULL;
+
+    *ret = false;
+
+    if (ISARG_WNUM(0)) {
+        entity_area = ARG_WNUM(0).pArea;
+        entity_vnum = ARG_WNUM(0).vnum;
+    } else if (VALID_NPC(0) && ARG_MOB(0)->pIndexData) {
+        entity_area = ARG_MOB(0)->pIndexData->area;
+        entity_vnum = ARG_MOB(0)->pIndexData->vnum;
+    } else if (ISARG_OBJ(0) && ARG_OBJ(0)->pIndexData) {
+        entity_area = ARG_OBJ(0)->pIndexData->area;
+        entity_vnum = ARG_OBJ(0)->pIndexData->vnum;
+    } else if (ISARG_ROOM(0)) {
+        entity_area = ARG_ROOM(0)->area;
+        entity_vnum = ARG_ROOM(0)->vnum;
+    } else if (ISARG_TOK(0) && ARG_TOK(0)->pIndexData) {
+        entity_area = ARG_TOK(0)->pIndexData->area;
+        entity_vnum = ARG_TOK(0)->pIndexData->vnum;
+    }
+
+    if (!entity_area || entity_vnum <= 0)
+        return true;
+
+    if (ISARG_STR(1))
+        cmp_area = find_area(ARG_STR(1));
+    else if (ISARG_NUM(1))
+        cmp_area = get_area_from_uid(ARG_NUM(1));
+    else if (ISARG_AREA(1))
+        cmp_area = ARG_AREA(1);
+
+    if (entity_area != cmp_area)
+        return true;
+
+    if (ISARG_NUM(2)) {
+        if (ISARG_NUM(3))
+            *ret = (entity_vnum >= ARG_NUM(2) && entity_vnum <= ARG_NUM(3));
+        else
+            *ret = (entity_vnum == ARG_NUM(2));
+    }
+
+    return true;
+}
+
+// WNUMVALID $WIDEVNUM
+DECL_IFC_FUN(ifc_wnumvalid)
+{
+    *ret = ISARG_WNUM(0) && ARG_WNUM(0).pArea && ARG_WNUM(0).vnum > 0;
+    return true;
+}
+
+DECL_IFC_FUN(ifc_isvalid)
+{
+    if (ISARG_MOB(0)) *ret = IS_VALID(ARG_MOB(0));
+    else if (ISARG_OBJ(0)) *ret = IS_VALID(ARG_OBJ(0));
+    else if (ISARG_ROOM(0)) *ret = (ARG_ROOM(0) != NULL);
+    else if (ISARG_TOK(0)) *ret = IS_VALID(ARG_TOK(0));
+    else if (ISARG_AREA(0)) *ret = (ARG_AREA(0) != NULL);
+    else if (ISARG_INSTANCE(0)) *ret = IS_VALID(ARG_INSTANCE(0));
+    else if (ISARG_DUNGEON(0)) *ret = IS_VALID(ARG_DUNGEON(0));
+    else if (ISARG_EXIT(0))
+        *ret = ARG_EXIT(0).r != NULL
+            && ARG_EXIT(0).door >= 0
+            && ARG_EXIT(0).door < MAX_DIR
+            && ARG_EXIT(0).r->exit[ARG_EXIT(0).door] != NULL;
+    else
+        *ret = false;
+
+    return true;
+}
+
+// Returns true if the referenced entity is marked for garbage collection.
+DECL_IFC_FUN(ifc_gc)
+{
+    *ret = false;
+    if (ISARG_MOB(0)) *ret = ARG_MOB(0)->gc && true;
+    else if (ISARG_OBJ(0)) *ret = ARG_OBJ(0)->gc && true;
+    else if (ISARG_ROOM(0)) *ret = ARG_ROOM(0)->gc && true;
+    else if (ISARG_TOK(0)) *ret = ARG_TOK(0)->gc && true;
+
+    return true;
+}
+
+// Only checks container whitelist/blacklist constraints.
+// This does not evaluate other insertion rules.
+//
+// ISVALIDITEM $CONTAINER $OBJECT
+DECL_IFC_FUN(ifc_isvaliditem)
+{
+    if (ISARG_OBJ(0) && ISARG_OBJ(1) && IS_CONTAINER(ARG_OBJ(0))) {
+        *ret = container_is_valid_item(ARG_OBJ(0), ARG_OBJ(1)) && true;
+        return true;
+    }
+    return false;
+}
+
+DECL_IFC_FUN(ifc_isbook)
+{
+    *ret = ISARG_OBJ(0) && IS_BOOK(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_iscontainer)
+{
+    *ret = ISARG_OBJ(0) && IS_CONTAINER(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_isfluidcontainer)
+{
+    *ret = ISARG_OBJ(0) && IS_FLUID_CON(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_isfood)
+{
+    *ret = ISARG_OBJ(0) && IS_FOOD(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_isfurniture)
+{
+    *ret = ISARG_OBJ(0) && IS_FURNITURE(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_islight)
+{
+    *ret = ISARG_OBJ(0) && IS_LIGHT(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_ismoney)
+{
+    *ret = ISARG_OBJ(0) && IS_MONEY(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_ispage)
+{
+    *ret = ISARG_OBJ(0) && IS_PAGE(ARG_OBJ(0));
+    return true;
+}
+
+DECL_IFC_FUN(ifc_isportal)
+{
+    *ret = ISARG_OBJ(0) && IS_PORTAL(ARG_OBJ(0));
+    return true;
+}
+
+// ISEXITVISIBLE $MOBILE $ROOM $DOOR
+DECL_IFC_FUN(ifc_isexitvisible)
+{
+    *ret = false;
+
+    if (ISARG_MOB(0) && ISARG_ROOM(1) && ISARG_STR(2)) {
+        int door = get_num_dir(ARG_STR(2));
+
+        if (door >= 0 && door < MAX_DIR) {
+            *ret = script_ifc_is_exit_visible(ARG_MOB(0), ARG_ROOM(1), door);
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // ISPROG $MOBILE|OBJECT|ROOM $STRING

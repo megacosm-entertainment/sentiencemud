@@ -20,8 +20,9 @@ This policy is the compatibility contract referenced by Phase 0 EEF-004.
    - No 16-bit migration is allowed under this policy.
 
 2. **Code band is reserved and enforced**
-   - Valid entity field code range is `ESCAPE_EXTRA` through `ESCAPE_UA - 1`.
-   - Values outside this band are invalid.
+   - Valid entity field code range is `ESCAPE_EXTRA` through `0xFF`.
+   - Values below `ESCAPE_EXTRA` are invalid.
+   - Runtime decoding of entity field bytes must use unsigned-byte semantics.
 
 3. **Append-only semantic evolution**
    - Do not repurpose an existing field code to a new semantic meaning.

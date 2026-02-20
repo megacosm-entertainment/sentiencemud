@@ -12,8 +12,19 @@ static test_result_t test_script_ifcheck_lookup(test_case_t *test);
 static test_result_t test_script_compile_string_bounds(test_case_t *test);
 static test_result_t test_script_compile_error_context_reset(test_case_t *test);
 static test_result_t test_script_compile_invalid_syntax(test_case_t *test);
+static test_result_t test_script_compile_direct_entity_if(test_case_t *test);
 static test_result_t test_script_entity_table_validation(test_case_t *test);
 static test_result_t test_script_entity_field_metadata(test_case_t *test);
+static test_result_t test_script_entity_field_pressure_report(test_case_t *test);
+static test_result_t test_script_entity_high_byte_expansion(test_case_t *test);
+static test_result_t test_script_expression_entity_operand(test_case_t *test);
+static test_result_t test_script_ifcheck_entity_bitvector_compare(test_case_t *test);
+static test_result_t test_script_ifcheck_entity_reference_compare(test_case_t *test);
+static test_result_t test_script_ifcheck_entity_truthiness(test_case_t *test);
+static test_result_t test_script_ifcheck_entity_string_compare(test_case_t *test);
+static test_result_t test_script_ifcheck_room_sector_entity(test_case_t *test);
+static test_result_t test_script_entity_mission_alias_fields(test_case_t *test);
+static test_result_t test_script_mission_alias_semantics(test_case_t *test);
 static test_result_t test_script_chained_expansion(test_case_t *test);
 static test_result_t test_script_vnumname_room_null_progs(test_case_t *test);
 static test_result_t test_script_vnumname_match_helpers(test_case_t *test);
@@ -44,6 +55,7 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area);
 CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all);
 OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name);
+int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PARAM *arg);
 
 static bool test_match_equal(int a, int b)
 {
@@ -116,11 +128,44 @@ test_result_t run_script_engine_test_case(test_case_t *test)
     if (strcmp(test->test_type, "script_engine_compile_invalid_syntax_test") == 0)
         return test_script_compile_invalid_syntax(test);
 
+    if (strcmp(test->test_type, "script_engine_compile_direct_entity_if_test") == 0)
+        return test_script_compile_direct_entity_if(test);
+
     if (strcmp(test->test_type, "script_engine_entity_table_validation_test") == 0)
         return test_script_entity_table_validation(test);
 
     if (strcmp(test->test_type, "script_engine_entity_field_metadata_test") == 0)
         return test_script_entity_field_metadata(test);
+
+    if (strcmp(test->test_type, "script_engine_entity_field_pressure_report_test") == 0)
+        return test_script_entity_field_pressure_report(test);
+
+    if (strcmp(test->test_type, "script_engine_entity_high_byte_expansion_test") == 0)
+        return test_script_entity_high_byte_expansion(test);
+
+    if (strcmp(test->test_type, "script_engine_expression_entity_operand_test") == 0)
+        return test_script_expression_entity_operand(test);
+
+    if (strcmp(test->test_type, "script_engine_ifcheck_entity_bitvector_compare_test") == 0)
+        return test_script_ifcheck_entity_bitvector_compare(test);
+
+    if (strcmp(test->test_type, "script_engine_ifcheck_entity_reference_compare_test") == 0)
+        return test_script_ifcheck_entity_reference_compare(test);
+
+    if (strcmp(test->test_type, "script_engine_ifcheck_entity_truthiness_test") == 0)
+        return test_script_ifcheck_entity_truthiness(test);
+
+    if (strcmp(test->test_type, "script_engine_ifcheck_entity_string_compare_test") == 0)
+        return test_script_ifcheck_entity_string_compare(test);
+
+    if (strcmp(test->test_type, "script_engine_ifcheck_room_sector_entity_test") == 0)
+        return test_script_ifcheck_room_sector_entity(test);
+
+    if (strcmp(test->test_type, "script_engine_entity_mission_alias_fields_test") == 0)
+        return test_script_entity_mission_alias_fields(test);
+
+    if (strcmp(test->test_type, "script_engine_mission_alias_semantics_test") == 0)
+        return test_script_mission_alias_semantics(test);
 
     if (strcmp(test->test_type, "script_engine_chained_expansion_test") == 0)
         return test_script_chained_expansion(test);
@@ -481,6 +526,45 @@ static test_result_t test_script_compile_invalid_syntax(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+static test_result_t test_script_compile_direct_entity_if(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup(
+        "if $(enactor.mount)\n"
+        "endif\n"
+        "if $(enactor.offense)\n"
+        "endif\n"
+        "if $(enactor.mount) == $(self)\n"
+        "endif\n");
+
+    script.vnum = 900004;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (!compiled_ok) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script failed for direct entity-if syntax: %s",
+                      buf_string(err_buf));
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_script_code(script.code, script.lines);
+    free_string(script.src);
+    return TEST_SUCCESS;
+}
+
 static test_result_t test_script_entity_table_validation(test_case_t *test)
 {
     json_t *input = NULL;
@@ -553,6 +637,836 @@ static test_result_t test_script_entity_field_metadata(test_case_t *test)
                     "script_entity_field_deprecated('tab') expected true");
         return TEST_FAILURE;
     }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_entity_field_pressure_report(test_case_t *test)
+{
+    json_t *input = NULL;
+    int threshold = 75;
+
+    if (test && test->config) {
+        input = json_object_get(test->config, "input");
+        if (json_is_object(input)) {
+            int cfg_threshold = test_json_get_int(input, "threshold_pct");
+            if (cfg_threshold >= 0 && cfg_threshold <= 100)
+                threshold = cfg_threshold;
+        }
+    }
+
+    script_log_entity_field_pressure_report(threshold);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_entity_high_byte_expansion(test_case_t *test)
+{
+    static const char *candidate_names[] = {
+        "event_phase",
+        "event_goal",
+        "event_items",
+        "event_kills",
+        "event_active",
+        "event_bracket",
+        "event_instance",
+        "event_uid",
+        "tempstring",
+        "vuln",
+        NULL
+    };
+    pVARIABLE vars = NULL;
+    SCRIPT_VARINFO info;
+    BUFFER *expanded;
+    ENT_FIELD *mobile_table;
+    ENT_FIELD *target_field = NULL;
+    char expression[128];
+    char *compiled = NULL;
+    int compiled_len = 0;
+    bool ok;
+    int i;
+    (void)test;
+
+    mobile_table = script_entity_fields(ENT_MOBILE);
+    if (!mobile_table)
+        return TEST_ERROR;
+
+    for (i = 0; candidate_names[i] != NULL; i++) {
+        ENT_FIELD *field = entity_type_lookup((char *)candidate_names[i], mobile_table);
+        if (field && field->code >= ESCAPE_UA) {
+            target_field = field;
+            break;
+        }
+    }
+
+    if (!target_field) {
+        log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                    "No high-byte mobile entity field available; skipping expansion regression");
+        return TEST_SKIP;
+    }
+
+    memset(&info, 0, sizeof(info));
+    info.var = &vars;
+
+    expanded = new_buf();
+    if (!expanded)
+        return TEST_ERROR;
+
+    snprintf(expression, sizeof(expression), "$(enactor.%s)", target_field->name);
+
+    compiled = compile_string(expression, IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_string failed for high-byte entity field '%s' (code=%u)",
+                      target_field->name,
+                      (unsigned int)target_field->code);
+        free_buf(expanded);
+        return TEST_FAILURE;
+    }
+
+    clear_buf(expanded);
+    ok = expand_string(&info, compiled, expanded);
+    if (!ok) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "expand_string failed for high-byte entity field '%s' (code=%u)",
+                      target_field->name,
+                      (unsigned int)target_field->code);
+        free_mem(compiled, compiled_len + 1);
+        free_buf(expanded);
+        return TEST_FAILURE;
+    }
+
+    free_mem(compiled, compiled_len + 1);
+    free_buf(expanded);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_expression_entity_operand(test_case_t *test)
+{
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    pVARIABLE vars = NULL;
+    SCRIPT_VARINFO info;
+    BUFFER *expanded;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    bool ok;
+    (void)test;
+
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&info, 0, sizeof(info));
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.off_flags = 4;
+
+    info.var = &vars;
+    info.ch = &mob;
+
+    expanded = new_buf();
+    if (!expanded)
+        return TEST_ERROR;
+
+    compiled = compile_string("$[$(enactor.offense)+2]", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for entity arithmetic expression");
+        free_buf(expanded);
+        return TEST_FAILURE;
+    }
+
+    clear_buf(expanded);
+    ok = expand_string(&info, compiled, expanded);
+    if (!ok || str_cmp(buf_string(expanded), "6")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "entity arithmetic expression mismatch: got='%s' expected='6'",
+                      buf_string(expanded));
+        free_mem(compiled, compiled_len + 1);
+        free_buf(expanded);
+        return TEST_FAILURE;
+    }
+
+    free_mem(compiled, compiled_len + 1);
+    free_buf(expanded);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_ifcheck_entity_bitvector_compare(test_case_t *test)
+{
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    int result;
+    (void)test;
+
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&info, 0, sizeof(info));
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.off_flags = 8;
+
+    info.ch = &mob;
+
+    compiled = compile_string("$(enactor.offense) > 1", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for bitvector ifcheck comparison");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "ifcheck bitvector comparison returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_ifcheck_entity_reference_compare(test_case_t *test)
+{
+    CHAR_DATA enactor;
+    CHAR_DATA self;
+    CHAR_DATA other;
+    MOB_INDEX_DATA enactor_index;
+    MOB_INDEX_DATA self_index;
+    MOB_INDEX_DATA other_index;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    int result;
+    (void)test;
+
+    memset(&enactor, 0, sizeof(enactor));
+    memset(&self, 0, sizeof(self));
+    memset(&other, 0, sizeof(other));
+    memset(&enactor_index, 0, sizeof(enactor_index));
+    memset(&self_index, 0, sizeof(self_index));
+    memset(&other_index, 0, sizeof(other_index));
+    memset(&info, 0, sizeof(info));
+
+    enactor.valid = true;
+    enactor.act[0] = ACT_IS_NPC;
+    enactor.pIndexData = &enactor_index;
+    enactor.mount = &self;
+
+    self.valid = true;
+    self.act[0] = ACT_IS_NPC;
+    self.pIndexData = &self_index;
+
+    other.valid = true;
+    other.act[0] = ACT_IS_NPC;
+    other.pIndexData = &other_index;
+
+    info.ch = &enactor;
+    info.mob = &self;
+
+    compiled = compile_string("$(enactor.mount) == $(self)", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for entity reference equality comparison");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "ifcheck entity reference equality returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    info.mob = &other;
+
+    compiled = compile_string("$(enactor.mount) == $(self)", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for entity reference inequality comparison");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "ifcheck entity reference inequality returned %d, expected 0",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_ifcheck_entity_truthiness(test_case_t *test)
+{
+    CHAR_DATA enactor;
+    CHAR_DATA self;
+    MOB_INDEX_DATA enactor_index;
+    MOB_INDEX_DATA self_index;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    int result;
+    (void)test;
+
+    memset(&enactor, 0, sizeof(enactor));
+    memset(&self, 0, sizeof(self));
+    memset(&enactor_index, 0, sizeof(enactor_index));
+    memset(&self_index, 0, sizeof(self_index));
+    memset(&info, 0, sizeof(info));
+
+    enactor.valid = true;
+    enactor.act[0] = ACT_IS_NPC;
+    enactor.pIndexData = &enactor_index;
+    enactor.mount = &self;
+    enactor.off_flags = 8;
+
+    self.valid = true;
+    self.act[0] = ACT_IS_NPC;
+    self.pIndexData = &self_index;
+
+    info.ch = &enactor;
+    info.mob = &self;
+
+    compiled = compile_string("$(enactor.mount)", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for entity truthiness expression");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "entity truthiness returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    compiled = compile_string("$(enactor.offense)", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for numeric truthiness expression");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "numeric truthiness returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    enactor.mount = NULL;
+    enactor.off_flags = 0;
+
+    compiled = compile_string("$(enactor.mount)", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for false entity truthiness expression");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "entity false truthiness returned %d, expected 0",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    compiled = compile_string("$(enactor.offense)", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for false numeric truthiness expression");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "numeric false truthiness returned %d, expected 0",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_ifcheck_entity_string_compare(test_case_t *test)
+{
+    CHAR_DATA self;
+    MOB_INDEX_DATA self_index;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    int result;
+    (void)test;
+
+    memset(&self, 0, sizeof(self));
+    memset(&self_index, 0, sizeof(self_index));
+    memset(&info, 0, sizeof(info));
+
+    self.valid = true;
+    self.act[0] = ACT_IS_NPC;
+    self.pIndexData = &self_index;
+    self.name = "script_test_mob";
+
+    info.mob = &self;
+
+    compiled = compile_string("$(self.name) == script_test_mob", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for entity string equality comparison");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "entity string equality returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    compiled = compile_string("$(self.name) != wrong_name", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for entity string inequality comparison");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "entity string inequality returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_ifcheck_room_sector_entity(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    SECTOR_RUNTIME_DATA sector;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    int result;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    memset(&sector, 0, sizeof(sector));
+    memset(&info, 0, sizeof(info));
+
+    sector.name = "test_sector";
+    sector.description = "test sector description";
+    sector.comments = "test sector comments";
+    sector.flags = SECTOR_NATURE;
+    sector.move_cost = 3;
+    sector.heal_rate = 105;
+    sector.mana_rate = 110;
+    sector.move_rate = 95;
+    sector.sector_class = 2;
+    sector.soil = 1;
+    sector.affinities[0].catalyst = 1;
+    sector.affinities[0].value = 7;
+    sector.affinities[1].catalyst = 2;
+    sector.affinities[1].value = 11;
+    sector.affinities[2].catalyst = 3;
+    sector.affinities[2].value = 13;
+
+    room.sector = &sector;
+    info.room = &room;
+
+    compiled = compile_string("$(here.sector) == $(here.sector)", IFC_R, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for room sector entity compare");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "room sector entity compare returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    compiled = compile_string("$(here.sector.name) == test_sector", IFC_R, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for room sector nested string compare");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "room sector name compare returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    compiled = compile_string("$(here.sectorflags) != 0", IFC_R, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for room sectorflags compare");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "room sectorflags compare returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    compiled = compile_string("$(here.sector.affinity1_catalyst) == 1", IFC_R, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for sector affinity catalyst compare");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "sector affinity catalyst compare returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    compiled = compile_string("$(here.sector.affinity3_value) == 13", IFC_R, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for sector affinity value compare");
+        return TEST_FAILURE;
+    }
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+
+    if (result != 1) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "sector affinity value compare returned %d, expected 1",
+                      result);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_mission_alias_semantics(test_case_t *test)
+{
+    CHAR_DATA player;
+    PC_DATA pcdata;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg_mobile;
+    SCRIPT_PARAM *argv[1];
+    int quest_ret = -1;
+    int mission_ret = -1;
+    int totalquests_ret = -1;
+    int totalmissions_ret = -1;
+    int isquesting_ret = -1;
+    int onmission_ret = -1;
+    bool ok_quest;
+    bool ok_mission;
+    bool ok_totalquests;
+    bool ok_totalmissions;
+    bool ok_isquesting;
+    bool ok_onmission;
+    (void)test;
+
+    memset(&player, 0, sizeof(player));
+    memset(&pcdata, 0, sizeof(pcdata));
+    memset(&info, 0, sizeof(info));
+
+    player.valid = true;
+    player.pcdata = &pcdata;
+    player.questpoints = 73;
+    player.pcdata->quests_completed = 19;
+
+    info.ch = &player;
+
+    arg_mobile = new_script_param();
+    if (!arg_mobile)
+        return TEST_ERROR;
+
+    arg_mobile->type = ENT_MOBILE;
+    arg_mobile->d.mob = &player;
+    argv[0] = arg_mobile;
+
+    ok_quest = ifc_quest(&info, NULL, NULL, NULL, NULL, NULL, &quest_ret, 1, argv);
+    ok_mission = ifc_mission(&info, NULL, NULL, NULL, NULL, NULL, &mission_ret, 1, argv);
+    ok_totalquests = ifc_totalquests(&info, NULL, NULL, NULL, NULL, NULL, &totalquests_ret, 1, argv);
+    ok_totalmissions = ifc_totalmissions(&info, NULL, NULL, NULL, NULL, NULL, &totalmissions_ret, 1, argv);
+    ok_isquesting = ifc_isquesting(&info, NULL, NULL, NULL, NULL, NULL, &isquesting_ret, 1, argv);
+    ok_onmission = ifc_onmission(&info, NULL, NULL, NULL, NULL, NULL, &onmission_ret, 1, argv);
+
+    free_script_param(arg_mobile);
+
+    if (!ok_quest || !ok_mission || !ok_totalquests || !ok_totalmissions || !ok_isquesting || !ok_onmission) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "mission alias ifcheck invocation failed");
+        return TEST_FAILURE;
+    }
+
+    if (quest_ret != mission_ret) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "missionpoint alias mismatch: quest=%d mission=%d",
+                      quest_ret, mission_ret);
+        return TEST_FAILURE;
+    }
+
+    if (totalquests_ret != totalmissions_ret) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "totalmissions alias mismatch: totalquests=%d totalmissions=%d",
+                      totalquests_ret, totalmissions_ret);
+        return TEST_FAILURE;
+    }
+
+    if (isquesting_ret != onmission_ret) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "onmission alias mismatch: isquesting=%d onmission=%d",
+                      isquesting_ret, onmission_ret);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_entity_mission_alias_fields(test_case_t *test)
+{
+    CHAR_DATA player;
+    PC_DATA pcdata;
+    QUEST_DATA quest;
+    SCRIPT_VARINFO info;
+    SCRIPT_PARAM *arg;
+    char *compiled = NULL;
+    int compiled_len = 0;
+    int result;
+    (void)test;
+
+    memset(&player, 0, sizeof(player));
+    memset(&pcdata, 0, sizeof(pcdata));
+    memset(&quest, 0, sizeof(quest));
+    memset(&info, 0, sizeof(info));
+
+    player.valid = true;
+    player.pcdata = &pcdata;
+    player.questpoints = 73;
+    player.pcdata->quests_completed = 19;
+    player.quest = &quest;
+
+    info.mob = &player;
+
+    compiled = compile_string("$(self.missionpoint) == 73", IFC_M, &compiled_len, true);
+    if (!compiled)
+        return TEST_FAILURE;
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    if (result != 1)
+        return TEST_FAILURE;
+
+    compiled = compile_string("$(self.totalmissions) == 19", IFC_M, &compiled_len, true);
+    if (!compiled)
+        return TEST_FAILURE;
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    if (result != 1)
+        return TEST_FAILURE;
+
+    compiled = compile_string("$(self.onmission)", IFC_M, &compiled_len, true);
+    if (!compiled)
+        return TEST_FAILURE;
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    if (result != 1)
+        return TEST_FAILURE;
+
+    player.quest = 0;
+
+    compiled = compile_string("$(self.onmission)", IFC_M, &compiled_len, true);
+    if (!compiled)
+        return TEST_FAILURE;
+
+    arg = new_script_param();
+    if (!arg) {
+        free_mem(compiled, compiled_len + 1);
+        return TEST_ERROR;
+    }
+
+    result = ifcheck_comparison(&info, -1, compiled, arg);
+    free_script_param(arg);
+    free_mem(compiled, compiled_len + 1);
+    if (result != 0)
+        return TEST_FAILURE;
 
     return TEST_SUCCESS;
 }

@@ -599,6 +599,88 @@ bool script_entity_field_deprecated(const ENT_FIELD *field)
     return field ? field->deprecated : false;
 }
 
+void script_log_entity_field_pressure_report(int warn_threshold_pct)
+{
+    int i;
+    int threshold = warn_threshold_pct;
+    int report_count = 0;
+    const int usable_codes = 256 - (int)ESCAPE_EXTRA;
+
+    if(threshold < 0)
+        threshold = 0;
+    else if(threshold > 100)
+        threshold = 100;
+
+    pbugf(LOG_SCRIPTS,
+        "Entity field pressure report: threshold=%d%% usable_codes=%d code_range=%u..255",
+        threshold,
+        usable_codes,
+        (unsigned int)ESCAPE_EXTRA);
+
+    for(i = 0; entity_type_info[i].type_min < ENT_MAX; i++) {
+        ENT_FIELD *fields = entity_type_info[i].fields;
+        const char *first_name_for_code[256] = {0};
+        bool warned_code_reuse[256] = {0};
+        bool used_code[256] = {0};
+        int j;
+        int unique_code_count = 0;
+        int reuse_count = 0;
+        int max_code = -1;
+        int total_fields = 0;
+        int pressure_pct;
+
+        if(!fields)
+            continue;
+
+        for(j = 0; fields[j].name; j++) {
+            unsigned int code = (unsigned int)fields[j].code;
+
+            total_fields++;
+
+            if(first_name_for_code[code] == NULL) {
+                first_name_for_code[code] = fields[j].name;
+            } else if(!warned_code_reuse[code]
+                && str_cmp(first_name_for_code[code], fields[j].name)) {
+                warned_code_reuse[code] = true;
+                reuse_count++;
+            }
+
+            if(!used_code[code]) {
+                used_code[code] = true;
+                unique_code_count++;
+            }
+
+            if((int)code > max_code)
+                max_code = (int)code;
+        }
+
+        pressure_pct = (usable_codes > 0)
+            ? (unique_code_count * 100) / usable_codes
+            : 0;
+
+        if(threshold > 0 && pressure_pct < threshold)
+            continue;
+
+        pbugf(LOG_SCRIPTS,
+            "Entity field pressure: table_index=%d type_range=[%d..%d] fields=%d unique_codes=%d/%d (%d%%) max_code=%d reuses=%d",
+            i,
+            entity_type_info[i].type_min,
+            entity_type_info[i].type_max,
+            total_fields,
+            unique_code_count,
+            usable_codes,
+            pressure_pct,
+            max_code,
+            reuse_count);
+        report_count++;
+    }
+
+    pbugf(LOG_SCRIPTS,
+        "Entity field pressure report complete: reported_tables=%d threshold=%d%%",
+        report_count,
+        threshold);
+}
+
 bool script_validate_entity_tables(void)
 {
     int errors = 0;
@@ -658,7 +740,7 @@ bool script_validate_entity_tables(void)
             int unique_code_count = 0;
             int reuse_count = 0;
             int max_code = -1;
-            const int usable_codes = (int)ESCAPE_UA - (int)ESCAPE_EXTRA;
+            const int usable_codes = 256 - (int)ESCAPE_EXTRA;
 
         for(j = 0; fields[j].name; j++) {
             int k;
@@ -672,13 +754,13 @@ bool script_validate_entity_tables(void)
                 errors++;
             }
 
-            if(fields[j].code < ESCAPE_EXTRA || fields[j].code >= ESCAPE_UA) {
+            if(fields[j].code < ESCAPE_EXTRA) {
                 pbugf(LOG_SCRIPTS,
                     "Entity field '%s' has out-of-band code=%u (valid range %u..%u)",
                     fields[j].name,
                     (unsigned int)fields[j].code,
                     (unsigned int)ESCAPE_EXTRA,
-                    (unsigned int)(ESCAPE_UA - 1));
+                    255U);
                 errors++;
             }
 
@@ -734,18 +816,6 @@ bool script_validate_entity_tables(void)
                     highest_pressure_type_max = entity_type_info[i].type_max;
                 }
 
-                if(pressure_pct >= 70) {
-                    pbugf(LOG_SCRIPTS,
-                        "Entity field pressure: table_index=%d type_range=[%d..%d] unique_codes=%d/%d (%d%%) max_code=%d reuses=%d",
-                        i,
-                        entity_type_info[i].type_min,
-                        entity_type_info[i].type_max,
-                        unique_code_count,
-                        usable_codes,
-                        pressure_pct,
-                        max_code,
-                        reuse_count);
-                }
             }
         }
     }
@@ -765,6 +835,8 @@ bool script_validate_entity_tables(void)
             highest_pressure_type_max,
             highest_pressure_pct);
     }
+
+    script_log_entity_field_pressure_report(75);
 
     return (errors == 0);
 }
@@ -959,13 +1031,105 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
     return argument;
 }
 
+static bool compare_entity_params(const SCRIPT_PARAM *lhs, const SCRIPT_PARAM *rhs, bool *equal)
+{
+    if (!lhs || !rhs || !equal)
+        return false;
+
+    switch (lhs->type) {
+    case ENT_MOBILE:
+        if (rhs->type != ENT_MOBILE) return false;
+        *equal = (lhs->d.mob == rhs->d.mob);
+        return true;
+    case ENT_OBJECT:
+        if (rhs->type != ENT_OBJECT) return false;
+        *equal = (lhs->d.obj == rhs->d.obj);
+        return true;
+    case ENT_ROOM:
+        if (rhs->type != ENT_ROOM) return false;
+        *equal = (lhs->d.room == rhs->d.room);
+        return true;
+    case ENT_TOKEN:
+        if (rhs->type != ENT_TOKEN) return false;
+        *equal = (lhs->d.token == rhs->d.token);
+        return true;
+    case ENT_AREA:
+        if (rhs->type != ENT_AREA) return false;
+        *equal = (lhs->d.area == rhs->d.area);
+        return true;
+    case ENT_SECTOR:
+        if (rhs->type != ENT_SECTOR) return false;
+        *equal = (lhs->d.sector == rhs->d.sector);
+        return true;
+    case ENT_EXIT:
+        if (rhs->type != ENT_EXIT) return false;
+        *equal = (lhs->d.door.r == rhs->d.door.r && lhs->d.door.door == rhs->d.door.door);
+        return true;
+    case ENT_WIDEVNUM:
+        if (rhs->type != ENT_WIDEVNUM) return false;
+        *equal = (lhs->d.wnum.pArea == rhs->d.wnum.pArea && lhs->d.wnum.vnum == rhs->d.wnum.vnum);
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool script_param_truthy(const SCRIPT_PARAM *value)
+{
+    if (!value)
+        return false;
+
+    switch (value->type) {
+    case ENT_BOOLEAN:
+        return value->d.boolean;
+    case ENT_NUMBER:
+        return value->d.num != 0;
+    case ENT_BITVECTOR:
+        return value->d.bv.value != 0;
+    case ENT_STRING:
+        return !IS_NULLSTR(value->d.str);
+    case ENT_WIDEVNUM:
+        return value->d.wnum.pArea != NULL && value->d.wnum.vnum > 0;
+    case ENT_MOBILE:
+        return IS_VALID(value->d.mob);
+    case ENT_OBJECT:
+        return IS_VALID(value->d.obj);
+    case ENT_ROOM:
+        return value->d.room != NULL;
+    case ENT_TOKEN:
+        return IS_VALID(value->d.token);
+    case ENT_AREA:
+        return value->d.area != NULL;
+    case ENT_SECTOR:
+        return value->d.sector != NULL;
+    case ENT_EXIT:
+        return value->d.door.r &&
+               value->d.door.door >= 0 &&
+               value->d.door.door < MAX_DIR &&
+               value->d.door.r->exit[value->d.door.door] != NULL;
+    default:
+        return false;
+    }
+}
+
 int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PARAM *arg)
 {
-    int lhs, oper, rhs;
+    int lhs = 0, oper, rhs = 0;
     char *text, *p, buf[MIL], buf2[MSL];
+    const char *lhs_string = NULL;
+    const char *rhs_string = NULL;
     bool valid;
     IFCHECK_DATA *ifc;
     int max_ifchecks = 0;
+    SCRIPT_PARAM lhs_param;
+    bool lhs_is_numeric = false;
+    bool rhs_is_numeric = false;
+    bool lhs_is_string = false;
+    bool rhs_is_string = false;
+    bool entity_equal = false;
+    bool entity_comparable = false;
+
+    memset(&lhs_param, 0, sizeof(lhs_param));
 
     if(!info) return -1;	// Error
 
@@ -979,13 +1143,26 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
         text = expand_argument(info,rest,arg);
         if(!text) return -1;
 
+        lhs_param = *arg;
+
         if( arg->type == ENT_BOOLEAN )
             return arg->d.boolean ? 1 : 0;
 
-        if( arg->type != ENT_NUMBER )
-            return -1;
-
-        lhs = arg->d.num;
+        if( arg->type == ENT_BITVECTOR ) {
+            lhs = arg->d.bv.value;
+            lhs_is_numeric = true;
+        } else if( arg->type == ENT_STRING && is_number(arg->d.str) ) {
+            lhs = atoi(arg->d.str);
+            lhs_is_numeric = true;
+        } else if (arg->type == ENT_STRING) {
+            lhs_string = arg->d.str;
+            lhs_is_string = true;
+        } else {
+            if( arg->type == ENT_NUMBER ) {
+                lhs = arg->d.num;
+                lhs_is_numeric = true;
+            }
+        }
 
     } else {
         ifc = &ifcheck_table[param];
@@ -999,13 +1176,19 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 
         if(!valid) return false;
 
+        lhs_is_numeric = true;
+
         if(!ifc->numeric) return (lhs > 0);
     }
 
     text = one_argument(text, buf);
 
     oper = get_operator(buf);
-    if (oper < 0) return false;
+    if (oper < 0) {
+        if (param == -1)
+            return script_param_truthy(&lhs_param) ? 1 : 0;
+        return false;
+    }
 
     p = expand_argument(info,text,arg);
     if(!p || p == text) {
@@ -1013,15 +1196,36 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
     }
 
     switch(arg->type) {
-    case ENT_NUMBER: rhs = arg->d.num; break;
+    case ENT_NUMBER: rhs = arg->d.num; rhs_is_numeric = true; break;
+    case ENT_BOOLEAN: rhs = arg->d.boolean ? 1 : 0; rhs_is_numeric = true; break;
+    case ENT_BITVECTOR: rhs = arg->d.bv.value; rhs_is_numeric = true; break;
     case ENT_STRING:
         if(is_number(arg->d.str)) {
             rhs = atoi(arg->d.str);
+            rhs_is_numeric = true;
             break;
         }
+        rhs_string = arg->d.str;
+        rhs_is_string = true;
+        break;
     default:
-        return false;
+        rhs_is_numeric = false;
+        break;
     }
+
+    if (param == -1 && (oper == EVAL_EQ || oper == EVAL_NE)) {
+        entity_comparable = compare_entity_params(&lhs_param, arg, &entity_equal);
+        if (entity_comparable)
+            return (oper == EVAL_EQ) ? entity_equal : !entity_equal;
+
+        if (lhs_is_string && rhs_is_string) {
+            bool strings_equal = !str_cmp(lhs_string ? lhs_string : "", rhs_string ? rhs_string : "");
+            return (oper == EVAL_EQ) ? strings_equal : !strings_equal;
+        }
+    }
+
+    if (!lhs_is_numeric || !rhs_is_numeric)
+        return false;
 
     switch(oper) {
     case EVAL_EQ:	return (lhs == rhs);
