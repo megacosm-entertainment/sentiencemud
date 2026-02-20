@@ -1906,6 +1906,149 @@ SCRIPT_CMD(scriptcmd_damage)
     }
 }
 
+SCRIPT_CMD(scriptcmd_gdamage)
+{
+    char buf[MSL], *rest;
+    CHAR_DATA *victim = NULL, *rch, *rch_next;
+    int low, high, level, value, dc;
+    bool fKill = false, fLevel = false, fRemort = false, fTwo = false;
+    ROOM_INDEX_DATA *location = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        location = info->mob->in_room;
+        scope_name = "MpGdamage";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        location = obj_room(info->obj);
+        scope_name = "OpGdamage";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        location = info->room;
+        scope_name = "RpGdamage";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        location = token_room(info->token);
+        scope_name = "TpGdamage";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!location)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING: victim = get_char_room(NULL, location, arg->d.str); break;
+    case ENT_MOBILE: victim = arg->d.mob; break;
+    default: victim = NULL; break;
+    }
+
+    if (!victim) {
+        pbugf(LOG_SCRIPTS, "%s - Null victim from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!*rest) {
+        pbugf(LOG_SCRIPTS, "%s - missing argument from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    argument = rest;
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_NUMBER: low = arg->d.num; break;
+    case ENT_STRING:
+        if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
+        if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
+        if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
+        if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
+        if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
+    default:
+        pbugf(LOG_SCRIPTS, "%s - invalid argument from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!*rest) {
+        pbugf(LOG_SCRIPTS, "%s - missing argument from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    argument = rest;
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    level = victim->tot_level;
+
+    switch(arg->type) {
+    case ENT_NUMBER:
+        if(fLevel) level = arg->d.num;
+        else high = arg->d.num;
+        break;
+    case ENT_STRING:
+        if(is_number(arg->d.str)) {
+            if(fLevel) level = atoi(arg->d.str);
+            else high = atoi(arg->d.str);
+        } else {
+            pbugf(LOG_SCRIPTS, "%s - invalid argument from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+        break;
+    case ENT_MOBILE:
+        if(fLevel) {
+            if(arg->d.mob) level = arg->d.mob->tot_level;
+            else {
+                pbugf(LOG_SCRIPTS, "%s - Null reference mob from vnum %ld.", scope_name, scope_vnum);
+                return;
+            }
+            break;
+        } else {
+            pbugf(LOG_SCRIPTS, "%s - invalid argument from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+        break;
+    default:
+        pbugf(LOG_SCRIPTS, "%s - invalid argument from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    argument = one_argument(rest, buf);
+    if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal"))
+        fKill = true;
+
+    one_argument(argument, buf);
+    dc = damage_class_lookup(buf);
+
+    if(fLevel)
+        get_level_damage(level,&low,&high,fRemort,fTwo);
+
+    for(rch = location->people; rch; rch = rch_next) {
+        rch_next = rch->next_in_room;
+        if ((info->mob && rch == info->mob) || rch == victim)
+            continue;
+
+        if (is_same_group(victim,rch)) {
+            value = fLevel ? dice(low,high) : number_range(low,high);
+            damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, false);
+        }
+    }
+}
+
 
 // DEDUCT mobile string(type)[ subtype] number(amount)
 // Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp, reputation, paragon
@@ -3989,6 +4132,1042 @@ SCRIPT_CMD(scriptcmd_vforce)
 
         free_buf(buffer);
     }
+}
+
+SCRIPT_CMD(scriptcmd_forget)
+{
+    if(!info)
+        return;
+
+    if(info->mob) {
+        info->mob->progs->target = NULL;
+        return;
+    }
+
+    if(info->obj) {
+        info->obj->progs->target = NULL;
+        return;
+    }
+
+    if(info->room) {
+        info->room->progs->target = NULL;
+        return;
+    }
+
+    if(info->token)
+        info->token->progs->target = NULL;
+}
+
+SCRIPT_CMD(scriptcmd_remember)
+{
+    CHAR_DATA *victim;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!expand_argument(info,argument,arg)) {
+            pbugf(LOG_SCRIPTS, "MpRemember: Bad syntax from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(info->mob, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "MpRemember: Null victim from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        info->mob->progs->target = victim;
+        return;
+    }
+
+    if(info->obj) {
+        if(!expand_argument(info,argument,arg)) {
+            pbugf(LOG_SCRIPTS, "OpRemember: Bad syntax from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "OpRemember: Null victim from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        info->obj->progs->target = victim;
+        return;
+    }
+
+    if(info->room) {
+        if(!expand_argument(info,argument,arg)) {
+            pbugf(LOG_SCRIPTS, "RpRemember: Bad syntax from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "RpRemember: Null victim from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        info->room->progs->target = victim;
+        return;
+    }
+
+    if(info->token) {
+        if(!expand_argument(info,argument,arg)) {
+            pbugf(LOG_SCRIPTS,"TpRemember: Bad syntax from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS,"TpRemember: Null victim from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        info->token->progs->target = victim;
+    }
+}
+
+SCRIPT_CMD(scriptcmd_cancel)
+{
+    if(!info)
+        return;
+
+    if(info->mob) {
+        info->mob->progs->delay = -1;
+        return;
+    }
+
+    if(info->obj) {
+        info->obj->progs->delay = -1;
+        return;
+    }
+
+    if(info->room)
+        info->room->progs->delay = -1;
+}
+
+SCRIPT_CMD(scriptcmd_delay)
+{
+    int delay = 0;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!expand_argument(info,argument,arg)) {
+            pbugf(LOG_SCRIPTS, "MpDelay - Error in parsing from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: delay = is_number(arg->d.str) ? atoi(arg->d.str) : -1; break;
+        case ENT_NUMBER: delay = arg->d.num; break;
+        default: delay = 0; break;
+        }
+
+        if (delay < 1) {
+            pbugf(LOG_SCRIPTS, "MpDelay: invalid delay from vnum %d.", VNUM(info->mob));
+            return;
+        }
+        info->mob->progs->delay = delay;
+        return;
+    }
+
+    if(info->obj) {
+        if(!expand_argument(info,argument,arg)) {
+            pbugf(LOG_SCRIPTS, "OpDelay - Error in parsing from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: delay = is_number(arg->d.str) ? atoi(arg->d.str) : -1; break;
+        case ENT_NUMBER: delay = arg->d.num; break;
+        default: delay = 0; break;
+        }
+
+        if (delay < 1) {
+            pbugf(LOG_SCRIPTS, "OpDelay: invalid delay from vnum %d.", VNUM(info->obj));
+            return;
+        }
+        info->obj->progs->delay = delay;
+        return;
+    }
+
+    if(info->room) {
+        if(!expand_argument(info,argument,arg)) {
+            pbugf(LOG_SCRIPTS, "RpDelay - Error in parsing from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: delay = is_number(arg->d.str) ? atoi(arg->d.str) : -1; break;
+        case ENT_NUMBER: delay = arg->d.num; break;
+        default: delay = 0; break;
+        }
+
+        if (delay < 1) {
+            pbugf(LOG_SCRIPTS, "RpDelay: invalid delay from vnum %d.", info->room->vnum);
+            return;
+        }
+        info->room->progs->delay = delay;
+    }
+}
+
+SCRIPT_CMD(scriptcmd_dequeue)
+{
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!info->mob->events)
+            return;
+
+        wipe_owned_events(info->mob->events);
+        return;
+    }
+
+    if(info->obj) {
+        if(!info->obj->events)
+            return;
+
+        wipe_owned_events(info->obj->events);
+        return;
+    }
+
+    if(info->room) {
+        if(!info->room->events)
+            return;
+
+        wipe_owned_events(info->room->events);
+        return;
+    }
+
+    if(info->token) {
+        if(!info->token->events)
+            return;
+
+        wipe_owned_events(info->token->events);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_queue)
+{
+    char *rest;
+    int delay;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!info->mob->in_room)
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_NUMBER: delay = arg->d.num; break;
+        case ENT_STRING: delay = atoi(arg->d.str); break;
+        default:
+            pbugf(LOG_SCRIPTS, "MpQueue:  missing arguments from mob vnum %d.", VNUM(info->mob));
+            return;
+        }
+
+        if (delay < 0 || delay > 1000) {
+            pbugf(LOG_SCRIPTS, "MpQueue:  unreasonable delay recieved from mob vnum %d.", VNUM(info->mob));
+            return;
+        }
+
+        wait_function(info->mob, info, EVENT_MOBQUEUE, delay, script_interpret, rest);
+        return;
+    }
+
+    if(info->obj) {
+        if(PROG_FLAG(info->obj,PROG_AT))
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_NUMBER: delay = arg->d.num; break;
+        case ENT_STRING: delay = atoi(arg->d.str); break;
+        default:
+            pbugf(LOG_SCRIPTS, "OpQueue:  missing arguments from obj vnum %d.", VNUM(info->obj));
+            return;
+        }
+
+        if (delay < 0 || delay > 1000) {
+            pbugf(LOG_SCRIPTS, "OpQueue:  unreasonable delay recieved from obj vnum %d.", VNUM(info->obj));
+            return;
+        }
+
+        wait_function(info->obj, info, EVENT_OBJQUEUE, delay, script_interpret, rest);
+        return;
+    }
+
+    if(info->room) {
+        if(!(rest = expand_argument(info,argument,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_NUMBER: delay = arg->d.num; break;
+        case ENT_STRING: delay = atoi(arg->d.str); break;
+        default:
+            pbugf(LOG_SCRIPTS, "RpQueue:  missing arguments from vnum %d.", info->room->vnum);
+            return;
+        }
+
+        if (delay < 0 || delay > 1000) {
+            pbugf(LOG_SCRIPTS, "RpQueue:  unreasonable delay recieved from vnum %d.", info->room->vnum);
+            return;
+        }
+
+        wait_function(info->room, info, EVENT_ROOMQUEUE, delay, script_interpret, rest);
+        return;
+    }
+
+    if(info->token) {
+        if(!(rest = expand_argument(info,argument,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_NUMBER: delay = arg->d.num; break;
+        case ENT_STRING: delay = atoi(arg->d.str); break;
+        default:
+            pbugf(LOG_SCRIPTS,"TpQueue:  missing arguments from vnum %d.", VNUM(info->token));
+            return;
+        }
+
+        if (delay < 0 || delay > 1000) {
+            pbugf(LOG_SCRIPTS,"TpQueue:  unreasonable delay recieved from vnum %d.", VNUM(info->token));
+            return;
+        }
+
+        wait_function(info->token, info, EVENT_TOKENQUEUE, delay, script_interpret, rest);
+    }
+}
+
+// scriptwait $PLAYER NUMBER VNUM VNUM[ $ACTOR]
+// - actor can be a $MOBILE, $OBJECT or $TOKEN
+// - scripts must be available for the respective actor type
+SCRIPT_CMD(scriptcmd_scriptwait)
+{
+    char *rest;
+    CHAR_DATA *mob = NULL;
+    int wait;
+    long success, failure, pulse;
+    TOKEN_DATA *actor_token = NULL;
+    CHAR_DATA *actor_mob = NULL;
+    OBJ_DATA *actor_obj = NULL;
+    int prog_type;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(info->mob)
+        info->mob->progs->lastreturn = 0;
+    else if(info->obj)
+        info->obj->progs->lastreturn = 0;
+    else if(info->token)
+        info->token->progs->lastreturn = 0;
+    else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_MOBILE)
+        return;
+
+    mob = arg->d.mob;
+    if(!mob)
+        return;
+
+    if(is_char_busy(mob))
+        return;
+
+    if(!*rest)
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING: wait = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+    case ENT_NUMBER: wait = arg->d.num; break;
+    default: return;
+    }
+
+    if(!*rest)
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING: success = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+    case ENT_NUMBER: success = arg->d.num; break;
+    default: return;
+    }
+
+    if(!*rest)
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING: failure = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+    case ENT_NUMBER: failure = arg->d.num; break;
+    default: return;
+    }
+
+    if(!*rest)
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING: pulse = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+    case ENT_NUMBER: pulse = arg->d.num; break;
+    default: return;
+    }
+
+    if(info->mob) {
+        actor_mob = info->mob;
+        prog_type = PRG_MPROG;
+    } else if(info->obj) {
+        actor_obj = info->obj;
+        prog_type = PRG_OPROG;
+    } else {
+        actor_token = info->token;
+        prog_type = PRG_TPROG;
+    }
+
+    if(rest && *rest) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_MOBILE:
+            actor_mob = arg->d.mob;
+            actor_obj = NULL;
+            actor_token = NULL;
+            prog_type = PRG_MPROG;
+            break;
+
+        case ENT_OBJECT:
+            actor_mob = NULL;
+            actor_obj = arg->d.obj;
+            actor_token = NULL;
+            prog_type = PRG_OPROG;
+            break;
+
+        case ENT_TOKEN:
+            actor_mob = NULL;
+            actor_obj = NULL;
+            actor_token = arg->d.token;
+            prog_type = PRG_TPROG;
+            break;
+        }
+    }
+
+    if(!actor_mob && !actor_obj && !actor_token)
+        return;
+
+    if(success < 1 || !get_script_from_info(info, success, prog_type))
+        return;
+    if(failure < 1 || !get_script_from_info(info, failure, prog_type))
+        return;
+    if(pulse > 0 && !get_script_from_info(info, pulse, prog_type))
+        return;
+
+    wait = UMAX(wait, 1);
+
+    mob->script_wait = wait;
+    mob->script_wait_mob = actor_mob;
+    mob->script_wait_obj = actor_obj;
+    mob->script_wait_token = actor_token;
+    if(actor_mob) {
+        mob->script_wait_id[0] = actor_mob->id[0];
+        mob->script_wait_id[1] = actor_mob->id[1];
+    } else if(actor_obj) {
+        mob->script_wait_id[0] = actor_obj->id[0];
+        mob->script_wait_id[1] = actor_obj->id[1];
+    } else if(actor_token) {
+        mob->script_wait_id[0] = actor_token->id[0];
+        mob->script_wait_id[1] = actor_token->id[1];
+    }
+    mob->script_wait_success = get_script_from_info(info, success, prog_type);
+    mob->script_wait_failure = get_script_from_info(info, failure, prog_type);
+    mob->script_wait_pulse = (pulse > 0) ? get_script_from_info(info, pulse, prog_type) : NULL;
+
+    if(info->mob)
+        info->mob->progs->lastreturn = wait;
+    else if(info->obj)
+        info->obj->progs->lastreturn = wait;
+    else if(info->token)
+        info->token->progs->lastreturn = wait;
+}
+
+// Format: PERSIST <MOBILE or OBJECT or ROOM> <STATE>
+SCRIPT_CMD(scriptcmd_persist)
+{
+    char *rest;
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    ROOM_INDEX_DATA *room = NULL;
+    bool persist = false, current = false;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        scope_name = "MpPersist";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        scope_name = "OpPersist";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpPersist";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpPersist";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_MOBILE: mob = arg->d.mob; current = mob->persist; break;
+    case ENT_OBJECT: obj = arg->d.obj; current = obj->persist; break;
+    case ENT_ROOM: room = arg->d.room; current = room->persist; break;
+    }
+
+    if(!mob && !obj && !room) {
+        pbugf(LOG_SCRIPTS, "%s - NULL target from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(mob) {
+        if(!IS_NPC(mob))
+            return;
+
+        if(IS_SET(mob->act[1], ACT2_INSTANCE_MOB))
+            return;
+    }
+
+    if(obj) {
+        if(IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ))
+            return;
+    }
+
+    if(room) {
+        if(get_blueprint_section_byroom(room->vnum))
+            return;
+    }
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_NONE:   persist = !current; break;
+    case ENT_STRING: persist = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"on"); break;
+    default: return;
+    }
+
+    if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "%s - Insufficient security to enable persistance from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(mob) {
+        if(persist)
+            persist_addmobile(mob);
+        else
+            persist_removemobile(mob);
+    } else if(obj) {
+        if(persist)
+            persist_addobject(obj);
+        else
+            persist_removeobject(obj);
+    } else if(room) {
+        if(persist)
+            persist_addroom(room);
+        else
+            persist_removeroom(room);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_peace)
+{
+    CHAR_DATA *rch;
+    ROOM_INDEX_DATA *location = NULL;
+
+    if(!info)
+        return;
+
+    if(info->mob)
+        location = info->mob->in_room;
+    else if(info->obj)
+        location = obj_room(info->obj);
+    else if(info->room)
+        location = info->room;
+    else if(info->token)
+        location = token_room(info->token);
+
+    if(!location)
+        return;
+
+    for (rch = location->people; rch; rch = rch->next_in_room) {
+        if (rch->fighting)
+            stop_fighting(rch, true);
+        if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
+            REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
+    }
+}
+
+// mob/obj/room/token chargebank <player> <gold>
+SCRIPT_CMD(scriptcmd_chargebank)
+{
+    char *rest;
+    CHAR_DATA *victim;
+    ROOM_INDEX_DATA *location = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    int amount = 0;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        location = info->mob->in_room;
+        scope_name = "MpChargeBank";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        location = obj_room(info->obj);
+        scope_name = "OpChargeBank";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        location = info->room;
+        scope_name = "RpChargeBank";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        location = token_room(info->token);
+        scope_name = "TpChargeBank";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(info->mob)
+            victim = get_char_room(info->mob, NULL, arg->d.str);
+        else
+            victim = get_char_room(NULL, location, arg->d.str);
+        break;
+
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+
+    default:
+        victim = NULL;
+        break;
+    }
+
+    if (!victim || IS_NPC(victim)) {
+        pbugf(LOG_SCRIPTS, "%s - Non-player victim from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!expand_argument(info,rest,arg)) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        amount = atoi(arg->d.str);
+        break;
+    case ENT_NUMBER:
+        amount = arg->d.num;
+        break;
+    default:
+        amount = 0;
+        break;
+    }
+
+    if(amount < 1 || amount > victim->pcdata->bankbalance)
+        return;
+
+    victim->pcdata->bankbalance -= amount;
+}
+
+// mob/obj/room/token wiretransfer <player> <gold>
+// Limited to 1000 gold for security scopes less than 7.
+SCRIPT_CMD(scriptcmd_wiretransfer)
+{
+    char buf[MSL], *rest;
+    CHAR_DATA *victim;
+    ROOM_INDEX_DATA *location = NULL;
+    const char *scope_name = NULL;
+    const char *scope_label = NULL;
+    long scope_vnum = 0;
+    long scope_room_vnum = 0;
+    int amount = 0;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        location = info->mob->in_room;
+        scope_name = "MpWireTransfer";
+        scope_label = "room";
+        scope_vnum = VNUM(info->mob);
+        scope_room_vnum = (info->mob->in_room ? info->mob->in_room->vnum : 0);
+    } else if(info->obj) {
+        location = obj_room(info->obj);
+        scope_name = "OpWireTransfer";
+        scope_label = "room";
+        scope_vnum = VNUM(info->obj);
+        scope_room_vnum = (info->obj->in_room ? info->obj->in_room->vnum : 0);
+    } else if(info->room) {
+        location = info->room;
+        scope_name = "RpWireTransfer";
+        scope_label = "room";
+        scope_vnum = info->room->vnum;
+        scope_room_vnum = info->room->vnum;
+    } else if(info->token) {
+        location = token_room(info->token);
+        scope_name = "TpWireTransfer";
+        scope_label = "token";
+        scope_vnum = info->token->pIndexData ? info->token->pIndexData->vnum : VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(info->mob)
+            victim = get_char_room(info->mob, NULL, arg->d.str);
+        else
+            victim = get_char_room(NULL, location, arg->d.str);
+        break;
+
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+
+    default:
+        victim = NULL;
+        break;
+    }
+
+    if (!victim || IS_NPC(victim)) {
+        pbugf(LOG_SCRIPTS, "%s - Non-player victim from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!expand_argument(info,rest,arg)) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        amount = atoi(arg->d.str);
+        break;
+    case ENT_NUMBER:
+        amount = arg->d.num;
+        break;
+    default:
+        amount = 0;
+        break;
+    }
+
+    if(amount < 1)
+        return;
+
+    if(script_security < 7 && amount > 1000) {
+        if(!str_cmp(scope_label, "room"))
+            sprintf(buf, "%s logged: attempted to wire %d gold to %s in room %ld by %ld", scope_name, amount, victim->name, scope_room_vnum, scope_vnum);
+        else
+            sprintf(buf, "%s logged: attempted to wire %d gold to %s by token %ld", scope_name, amount, victim->name, scope_vnum);
+        log_string(buf);
+        amount = 1000;
+    }
+
+    victim->pcdata->bankbalance += amount;
+
+    if(!str_cmp(scope_label, "room"))
+        sprintf(buf, "%s logged: %s was wired %d gold in room %ld by %ld", scope_name, victim->name, amount, scope_room_vnum, scope_vnum);
+    else
+        sprintf(buf, "%s logged: %s was wired %d gold by token %ld", scope_name, victim->name, amount, scope_vnum);
+    log_string(buf);
+}
+
+// Syntax: checkpoint $PLAYER $ROOM|VNUM|none|clear|reset
+SCRIPT_CMD(scriptcmd_checkpoint)
+{
+    char *rest;
+    CHAR_DATA *mob;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(info->mob || info->obj || info->room || info->token))
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_MOBILE || !arg->d.mob)
+        return;
+
+    mob = arg->d.mob;
+    if(IS_NPC(mob))
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(!str_cmp(arg->d.str, "none") ||
+           !str_cmp(arg->d.str, "clear") ||
+           !str_cmp(arg->d.str, "reset"))
+            mob->checkpoint = NULL;
+        break;
+
+    case ENT_NUMBER:
+        if(arg->d.num > 0) {
+            WNUM room_wnum;
+            if(resolve_widevnum(arg->d.num, NULL, &room_wnum))
+                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            else
+                mob->checkpoint = NULL;
+        }
+        break;
+
+    case ENT_ROOM:
+        if(arg->d.room != NULL)
+            mob->checkpoint = arg->d.room;
+        break;
+    }
+}
+
+// Syntax: saveplayer $PLAYER
+SCRIPT_CMD(scriptcmd_saveplayer)
+{
+    char *rest;
+    CHAR_DATA *mob;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(info->mob || info->obj || info->room || info->token))
+        return;
+
+    info->progs->lastreturn = 0;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_MOBILE || !arg->d.mob)
+        return;
+
+    mob = arg->d.mob;
+    if(IS_NPC(mob))
+        return;
+
+    save_char_obj(mob);
+    info->progs->lastreturn = 1;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(!str_cmp(arg->d.str, "none") ||
+           !str_cmp(arg->d.str, "clear") ||
+           !str_cmp(arg->d.str, "reset"))
+            mob->checkpoint = NULL;
+        break;
+
+    case ENT_NUMBER:
+        if(arg->d.num > 0) {
+            WNUM room_wnum;
+            if(resolve_widevnum(arg->d.num, NULL, &room_wnum))
+                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            else
+                mob->checkpoint = NULL;
+        }
+        break;
+
+    case ENT_ROOM:
+        if(arg->d.room != NULL)
+            mob->checkpoint = arg->d.room;
+        break;
+    }
+}
+
+// Syntax: <scope> zot <victim>
+SCRIPT_CMD(scriptcmd_zot)
+{
+    CHAR_DATA *victim;
+    ROOM_INDEX_DATA *location = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        location = info->mob->in_room;
+        scope_name = "MpZot";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        location = obj_room(info->obj);
+        scope_name = "OpZot";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        location = info->room;
+        scope_name = "RpZot";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        location = token_room(info->token);
+        scope_name = "TpZot";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!expand_argument(info,argument,arg))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(info->mob)
+            victim = get_char_room(info->mob, NULL, arg->d.str);
+        else
+            victim = get_char_room(NULL, location, arg->d.str);
+        break;
+
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+
+    default:
+        victim = NULL;
+        break;
+    }
+
+    if (!victim) {
+        pbugf(LOG_SCRIPTS, "%s - Null victim from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", victim);
+    send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", victim);
+    act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    send_to_char("{ROUCH! That really did hurt!{x\n\r", victim);
+
+    victim->hit = 1;
+    victim->mana = 1;
+    victim->move = 1;
+}
+
+// Syntax: restore $MOBILE[ PERCENT]
+SCRIPT_CMD(scriptcmd_restore)
+{
+    char *rest;
+    int amount = 100;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(info->mob || info->obj || info->room || info->token))
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_MOBILE || !arg->d.mob)
+        return;
+
+    if(*rest) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        if(arg->type != ENT_NUMBER)
+            return;
+
+        amount = URANGE(1,arg->d.num,100);
+    }
+
+    restore_char(arg->d.mob, NULL, amount);
+}
+
+// Syntax: FIXAFFECTS $MOBILE
+SCRIPT_CMD(scriptcmd_fixaffects)
+{
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(info->mob || info->obj || info->room || info->token))
+        return;
+
+    if(!expand_argument(info,argument,arg))
+        return;
+
+    if(arg->type != ENT_MOBILE)
+        return;
+
+    if(arg->d.mob == NULL)
+        return;
+
+    affect_fix_char(arg->d.mob);
 }
 
 SCRIPT_CMD(scriptcmd_echo)

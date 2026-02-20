@@ -41,17 +41,17 @@ const struct script_cmd_type room_cmd_table[] = {
     { "award",				scriptcmd_award,		true,	true	},
     { "breathe",			scriptcmd_breathe,		false,	true	},
     { "call",				do_rpcall,				false,	true	},
-    { "cancel",				do_rpcancel,			false,	false	},
-    { "chargebank",			do_rpchargebank,		false,	true	},
-    { "checkpoint",			do_rpcheckpoint,		false,	true	},
+    { "cancel",				scriptcmd_cancel,		false,	false	},
+    { "chargebank",			scriptcmd_chargebank,	false,	true	},
+    { "checkpoint",			scriptcmd_checkpoint,	false,	true	},
     { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
     { "cloneroom",			do_rpcloneroom,			true,	true	},
     { "condition",			do_rpcondition,			false,	true	},
     { "crier",				do_rpcrier,				false,	true	},
     { "damage",				scriptcmd_damage,		false,	true	},
     { "deduct",				scriptcmd_deduct,		true,	true	},
-    { "delay",				do_rpdelay,				false,	true	},
-    { "dequeue",			do_rpdequeue,			false,	false	},
+    { "delay",				scriptcmd_delay,			false,	true	},
+    { "dequeue",			scriptcmd_dequeue,		false,	false	},
     { "destroyroom",		do_rpdestroyroom,		true,	true	},
     { "detach",				scriptcmd_detach,			true,	true	},
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
@@ -72,10 +72,10 @@ const struct script_cmd_type room_cmd_table[] = {
     { "ed",					scriptcmd_ed,				false,	true	},
     { "entercombat",		scriptcmd_entercombat,	false,	true	},
     { "fade",				scriptcmd_fade,				true,	true	},
-    { "fixaffects",			do_rpfixaffects,		false,	true	},
+    { "fixaffects",			scriptcmd_fixaffects,	false,	true	},
     { "flee",				scriptcmd_flee,			false,	true	},
     { "force",				scriptcmd_force,			false,	true	},
-    { "forget",				do_rpforget,			false,	false	},
+    { "forget",				scriptcmd_forget,		false,	false	},
     { "gecho",				scriptcmd_gecho,			false,	true	},
     { "gforce",				scriptcmd_gforce,		false,	true	},
     { "grantclass",			scriptcmd_grantclass,	false,	true	},
@@ -93,13 +93,13 @@ const struct script_cmd_type room_cmd_table[] = {
     { "lockadd",			scriptcmd_lockadd,			false,	true	},
     { "lockremove",			scriptcmd_lockremove,		false,	true	},
     { "mail",				scriptcmd_mail,				true,	true	},
-    { "mload",				do_rpmload,				false,	true	},
+    { "mload",				scriptcmd_mload,			false,	true	},
     { "mute",				scriptcmd_mute,				false,	true	},
     { "oload",				do_rpoload,				false,	true	},
     { "otransfer",			do_rpotransfer,			false,	true	},
     { "pageat",				scriptcmd_pageat,			false,	true	},
-    { "peace",				do_rppeace,				false,	false	},
-    { "persist",			do_rppersist,			false,	true	},
+    { "peace",				scriptcmd_peace,			false,	false	},
+    { "persist",			scriptcmd_persist,		false,	true	},
     { "prompt",				do_rpprompt,			false,	true	},
     { "purge",				do_rppurge,				false,	false	},
     { "questaccept",		scriptcmd_questaccept,		false,	true	},
@@ -112,20 +112,20 @@ const struct script_cmd_type room_cmd_table[] = {
     { "questpartrescue",	scriptcmd_questpartrescue,	true,	true	},
     { "questpartslay",		scriptcmd_questpartslay,	true,	true	},
     { "questscroll",		scriptcmd_questscroll,		false,	true	},
-    { "queue",				do_rpqueue,				false,	true	},
+    { "queue",				scriptcmd_queue,			false,	true	},
     { "rawkill",			do_rprawkill,			false,	true	},
     { "reckoning",			scriptcmd_reckoning,		true,	true	},
-    { "remember",			do_rpremember,			false,	true	},
+    { "remember",			scriptcmd_remember,	false,	true	},
     { "remort",				do_rpremort,			true,	true	},
     { "remove",				do_rpremove,			false,	true	},
     { "remspell",			do_rpremspell,			true,	true	},
     { "resetdice",			do_rpresetdice,			true,	true	},
     { "resetroom",			scriptcmd_resetroom,	true,	true	},
-    { "restore",			do_rprestore,			true,	true	},
+    { "restore",			scriptcmd_restore,		true,	true	},
     { "revokeclass",		scriptcmd_revokeclass,	false,	true	},
     { "revokeskill",		scriptcmd_revokeskill,	false,	true	},
     { "revokesong",			scriptcmd_revokesong,	false,	true	},
-    { "saveplayer",			do_rpsaveplayer,		false,	true	},
+    { "saveplayer",			scriptcmd_saveplayer,	false,	true	},
     { "sendfloor",			scriptcmd_sendfloor,		false,	true	},
     { "setclass",			scriptcmd_setclass,		false,	true	},
     { "setrace",			scriptcmd_setrace,		false,	true	},
@@ -162,11 +162,11 @@ const struct script_cmd_type room_cmd_table[] = {
     { "varseton",			scriptcmd_varseton,		false,	true	},
     { "vforce",				scriptcmd_vforce,		false,	true	},
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
-    { "wiretransfer",		do_rpwiretransfer,		false,	true	},
+    { "wiretransfer",		scriptcmd_wiretransfer,	false,	true	},
     { "wiznet",				scriptcmd_wiznet,			false,	true    },
     { "xcall",				do_rpxcall,				false,	true	},
     { "zecho",				scriptcmd_zecho,			false,	true	},
-    { "zot",				do_rpzot,				true,	true	},
+    { "zot",				scriptcmd_zot,			true,	true	},
     { NULL,					NULL,					false,	false	}
 };
 
@@ -600,13 +600,6 @@ SCRIPT_CMD(do_rpcall)
     script_call_depth = depth;
 }
 
-SCRIPT_CMD(do_rpcancel)
-{
-    if(!info || !info->room) return;
-
-    info->room->progs->delay = -1;
-}
-
 SCRIPT_CMD(do_rpdamage)
 {
     char buf[MSL],*rest;
@@ -731,39 +724,6 @@ SCRIPT_CMD(do_rpdamage)
     }
 }
 
-SCRIPT_CMD(do_rpdelay)
-{
-    int delay = 0;
-
-
-    if(!info || !info->room) return;
-
-    if(!expand_argument(info,argument,arg)) {
-        pbugf(LOG_SCRIPTS, "RpDelay - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: delay = is_number(arg->d.str) ? atoi(arg->d.str) : -1; break;
-    case ENT_NUMBER: delay = arg->d.num; break;
-    default: delay = 0; break;
-    }
-
-    if (delay < 1) {
-        pbugf(LOG_SCRIPTS, "RpDelay: invalid delay from vnum %d.", info->room->vnum);
-        return;
-    }
-    info->room->progs->delay = delay;
-}
-
-SCRIPT_CMD(do_rpdequeue)
-{
-    if(!info || !info->room || !info->room->events)
-        return;
-
-    wipe_owned_events(info->room->events);
-}
-
 SCRIPT_CMD(do_rpforce)
 {
     char *rest;
@@ -814,13 +774,6 @@ SCRIPT_CMD(do_rpforce)
     }
 
     free_buf(buffer);
-}
-
-SCRIPT_CMD(do_rpforget)
-{
-    if(!info || !info->room) return;
-
-    info->room->progs->target = NULL;
 }
 
 SCRIPT_CMD(do_rpgdamage)
@@ -1069,11 +1022,6 @@ SCRIPT_CMD(do_rplink)
     script_change_exit(room, dest, door);
 }
 
-SCRIPT_CMD(do_rpmload)
-{
-    script_mload(info, argument, arg, false);
-}
-
 SCRIPT_CMD(do_rpoload)
 {
     /*
@@ -1249,19 +1197,6 @@ SCRIPT_CMD(do_rpotransfer)
     }
 }
 
-SCRIPT_CMD(do_rppeace)
-{
-    CHAR_DATA *rch;
-    if(!info || !info->room) return;
-
-    for (rch = info->room->people; rch; rch = rch->next_in_room) {
-        if (rch->fighting)
-            stop_fighting(rch, true);
-        if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
-            REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
-    }
-}
-
 SCRIPT_CMD(do_rppurge)
 {
     char *rest;
@@ -1324,59 +1259,6 @@ SCRIPT_CMD(do_rppurge)
         }
     } else
         pbugf(LOG_SCRIPTS, "Rppurge - Bad argument from vnum %d.", info->room->vnum);
-}
-
-SCRIPT_CMD(do_rpqueue)
-{
-    char *rest;
-    int delay;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NUMBER: delay = arg->d.num; break;
-    case ENT_STRING: delay = atoi(arg->d.str); break;
-    default:
-        pbugf(LOG_SCRIPTS, "RpQueue:  missing arguments from vnum %d.", info->room->vnum);
-        return;
-    }
-
-    if (delay < 0 || delay > 1000) {
-        pbugf(LOG_SCRIPTS, "RpQueue:  unreasonable delay recieved from vnum %d.", info->room->vnum);
-        return;
-    }
-
-    wait_function(info->room, info, EVENT_ROOMQUEUE, delay, script_interpret, rest);
-}
-
-SCRIPT_CMD(do_rpremember)
-{
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!expand_argument(info,argument,arg)) {
-        pbugf(LOG_SCRIPTS, "RpRemember: Bad syntax from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS, "RpRemember: Null victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    info->room->progs->target = victim;
 }
 
 SCRIPT_CMD(do_rpremove)
@@ -1519,38 +1401,6 @@ SCRIPT_CMD(do_rpremove)
             iterator_stop(&it);
         }
     }
-}
-
-SCRIPT_CMD(do_rpzot)
-{
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!expand_argument(info,argument,arg))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL,info->room, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS, "RpZot - Null victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", victim);
-    send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", victim);
-    act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    send_to_char("{ROUCH! That really did hurt!{x\n\r", victim);
-
-    victim->hit = 1;
-    victim->mana = 1;
-    victim->move = 1;
 }
 
 SCRIPT_CMD(do_rpvarset)
@@ -4582,103 +4432,6 @@ SCRIPT_CMD(do_rpxcall)
 }
 
 
-// do_rpchargebank
-// obj chargebank <player> <gold>
-SCRIPT_CMD(do_rpchargebank)
-{
-    char *rest;
-    CHAR_DATA *victim;
-    int amount = 0;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"RpChargeBank - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim)) {
-        pbugf(LOG_SCRIPTS,"RpChargeBank - Non-player victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    if(!expand_argument(info,rest,arg)) {
-        pbugf(LOG_SCRIPTS,"RpChargeBank - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: amount = atoi(arg->d.str); break;
-    case ENT_NUMBER: amount = arg->d.num; break;
-    default: amount = 0; break;
-    }
-
-    if(amount < 1 || amount > victim->pcdata->bankbalance) return;
-
-    victim->pcdata->bankbalance -= amount;
-}
-
-// do_rpwiretransfer
-// obj wiretransfer <player> <gold>
-// Limited to 1000 gold for security scopes less than 7.
-SCRIPT_CMD(do_rpwiretransfer)
-{
-    char buf[MSL], *rest;
-    CHAR_DATA *victim;
-    int amount = 0;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"RpWireTransfer - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim)) {
-        pbugf(LOG_SCRIPTS,"RpWireTransfer - Non-player victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    if(!expand_argument(info,rest,arg)) {
-        pbugf(LOG_SCRIPTS,"RpWireTransfer - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: amount = atoi(arg->d.str); break;
-    case ENT_NUMBER: amount = arg->d.num; break;
-    default: amount = 0; break;
-    }
-
-    if(amount < 1) return;
-
-    // If the security on this script execution is
-    if(script_security < 7 && amount > 1000) {
-        sprintf(buf, "RpWireTransfer logged: attempted to wire %d gold to %s by room %ld", amount, victim->name, info->room->vnum);
-        log_string(buf);
-        amount = 1000;
-    }
-
-    victim->pcdata->bankbalance += amount;
-
-    sprintf(buf, "RpWireTransfer logged: %s was wired %d gold by room %ld", victim->name, amount, info->room->vnum);
-    log_string(buf);
-}
-
 // do_rpsetrecall
 // obj setrecall $MOBILE <location>
 // Sets the recall point of the target mobile to the reference of the location
@@ -4861,88 +4614,6 @@ SCRIPT_CMD(do_rpstophunt)
     }
 
     stop_hunt(hunter, stay);
-    return;
-}
-
-// Format: PERSIST <MOBILE or OBJECT or ROOM> <STATE>
-SCRIPT_CMD(do_rppersist)
-{
-    char *rest;
-    CHAR_DATA *mob = NULL;
-    OBJ_DATA *obj = NULL;
-    ROOM_INDEX_DATA *room = NULL;
-    bool persist = false, current = false;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"RpPersist - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_MOBILE: mob = arg->d.mob; current = mob->persist; break;
-    case ENT_OBJECT: obj = arg->d.obj; current = obj->persist; break;
-    case ENT_ROOM: room = arg->d.room; current = room->persist; break;
-    }
-
-    if(!mob && !obj && !room) {
-        pbugf(LOG_SCRIPTS,"RpPersist - NULL target.", info->room->vnum);
-        return;
-    }
-
-    if(mob)
-    {
-        if( !IS_NPC(mob) ) return;
-
-        if( IS_SET(mob->act[1], ACT2_INSTANCE_MOB) ) return;
-    }
-
-    if(obj)
-    {
-        if( IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ) ) return;
-    }
-
-    if( room )
-    {
-        if( get_blueprint_section_byroom(room->vnum) ) return;
-    }
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS,"RpPersist - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_NONE:   persist = !current; break;
-    case ENT_STRING: persist = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"on"); break;
-    default: return;
-    }
-
-    // Require security to ENABLE persistance
-    if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
-        pbugf(LOG_SCRIPTS,"RpPersist - Insufficient security to enable persistance from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    if(mob) {
-        if(persist)
-            persist_addmobile(mob);
-        else
-            persist_removemobile(mob);
-    } else if(obj) {
-        if(persist)
-            persist_addobject(obj);
-        else
-            persist_removeobject(obj);
-    } else if(room) {
-        if(persist)
-            persist_addroom(room);
-        else
-            persist_removeroom(room);
-    }
-
     return;
 }
 
@@ -5587,96 +5258,6 @@ SCRIPT_CMD(do_rpcrier)
     free_buf(buffer);
 }
 
-// Syntax: FIXAFFECTS $MOBILE
-SCRIPT_CMD(do_rpfixaffects)
-{
-
-
-    if(!info || !info->room || IS_NULLSTR(argument)) return;
-
-    if(!expand_argument(info,argument,arg))
-        return;
-
-    if(arg->type != ENT_MOBILE) return;
-
-    if(arg->d.mob == NULL) return;
-
-    affect_fix_char(arg->d.mob);
-}
-
-// Syntax: saveplayer $PLAYER
-SCRIPT_CMD(do_rpsaveplayer)
-{
-    char *rest;
-
-    CHAR_DATA *mob;
-
-    if(!info || !info->room || IS_NULLSTR(argument)) return;
-
-    info->room->progs->lastreturn = 0;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    mob = arg->d.mob;
-    if(IS_NPC(mob)) return;
-
-    save_char_obj(mob);
-
-    info->room->progs->lastreturn = 1;
-}
-
-// Syntax:	checkpoint $PLAYER $ROOM
-// 			checkpoint $PLAYER VNUM
-//			checkpoint $PLAYER none|clear|reset
-//
-// Sets the checkpoint of the $PLAYER to the destination or clears it.
-// - When a checkpoint is set, it will override what location is saved to the pfile.
-// - When setting a checkpoint via VNUM and an invalid vnum is given, it will clear the checkpoint.
-SCRIPT_CMD(do_rpcheckpoint)
-{
-    char *rest;
-
-    CHAR_DATA *mob;
-
-    if(!info || !info->room || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    mob = arg->d.mob;
-    if(IS_NPC(mob)) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if( !str_cmp(arg->d.str, "none") ||
-            !str_cmp(arg->d.str, "clear") ||
-            !str_cmp(arg->d.str, "reset") )
-            mob->checkpoint = NULL;
-        break;
-    case ENT_NUMBER:
-        if( arg->d.num > 0 ) {
-            WNUM room_wnum;
-            if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
-                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
-            else
-                mob->checkpoint = NULL;
-        }
-        break;
-    case ENT_ROOM:
-        if( arg->d.room != NULL )
-            mob->checkpoint = arg->d.room;
-        break;
-    }
-}
-
 // Syntax: remort $PLAYER
 //  - prompts them for a class out of what they can do
 SCRIPT_CMD(do_rpremort)
@@ -5718,32 +5299,6 @@ SCRIPT_CMD(do_rpremort)
     info->room->progs->lastreturn = 1;
 }
 
-
-// Syntax: restore $MOBILE
-SCRIPT_CMD(do_rprestore)
-{
-    char *rest;
-
-    int amount = 100;
-
-    if(!info || !info->room || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    if(*rest) {
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        if(arg->type != ENT_NUMBER) return;
-
-        amount = URANGE(1,arg->d.num,100);
-    }
-
-    restore_char(arg->d.mob, NULL, amount);
-}
 
 // GROUP npc(FOLLOWER) mobile(LEADER)[ bool(SHOW=true)]
 // Follower will only work on an NPC

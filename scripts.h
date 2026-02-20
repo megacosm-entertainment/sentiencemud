@@ -37,7 +37,6 @@
 #define SCRIPT_INSPECT		(Z)	/* Inspect the script for restricted actions */
 
 #define SCRIPTEXEC_HALT		(A)	/* Kill script execution because the controller entity had been destructed */
-
 /* This should be moved to merc.h and made general */
 #define INTERRUPT_CAST		(A)
 #define INTERRUPT_MUSIC		(B)
@@ -2890,10 +2889,7 @@ SCRIPT_CMD(do_mpforget);
 SCRIPT_CMD(do_opforget);
 SCRIPT_CMD(do_rpforget);
 SCRIPT_CMD(do_tpforget);
-SCRIPT_CMD(do_mpgdamage);
-SCRIPT_CMD(do_opgdamage);
 SCRIPT_CMD(do_rpgdamage);
-SCRIPT_CMD(do_tpgdamage);
 SCRIPT_CMD(do_mpgecho);
 SCRIPT_CMD(do_opgecho);
 SCRIPT_CMD(do_rpgecho);
@@ -2929,10 +2925,6 @@ SCRIPT_CMD(do_mplink);
 SCRIPT_CMD(do_oplink);
 SCRIPT_CMD(do_rplink);
 SCRIPT_CMD(do_tplink);
-SCRIPT_CMD(do_mpmload);
-SCRIPT_CMD(do_opmload);
-SCRIPT_CMD(do_rpmload);
-SCRIPT_CMD(do_tpmload);
 SCRIPT_CMD(do_mpoload);
 SCRIPT_CMD(do_opoload);
 SCRIPT_CMD(do_rpoload);
@@ -2941,10 +2933,6 @@ SCRIPT_CMD(do_mpotransfer);
 SCRIPT_CMD(do_opotransfer);
 SCRIPT_CMD(do_rpotransfer);
 SCRIPT_CMD(do_tpotransfer);
-SCRIPT_CMD(do_mppeace);
-SCRIPT_CMD(do_oppeace);
-SCRIPT_CMD(do_rppeace);
-SCRIPT_CMD(do_tppeace);
 SCRIPT_CMD(do_mpprompt);
 SCRIPT_CMD(do_opprompt);
 SCRIPT_CMD(do_rpprompt);
@@ -3052,22 +3040,10 @@ SCRIPT_CMD(do_mpzecho);
 SCRIPT_CMD(do_opzecho);
 SCRIPT_CMD(do_rpzecho);
 SCRIPT_CMD(do_tpzecho);
-SCRIPT_CMD(do_mpzot);
-SCRIPT_CMD(do_opzot);
-SCRIPT_CMD(do_rpzot);
-SCRIPT_CMD(do_tpzot);
 SCRIPT_CMD(do_mpxcall);
 SCRIPT_CMD(do_opxcall);
 SCRIPT_CMD(do_rpxcall);
 SCRIPT_CMD(do_tpxcall);
-SCRIPT_CMD(do_mpchargebank);
-SCRIPT_CMD(do_opchargebank);
-SCRIPT_CMD(do_rpchargebank);
-SCRIPT_CMD(do_tpchargebank);
-SCRIPT_CMD(do_mpwiretransfer);
-SCRIPT_CMD(do_opwiretransfer);
-SCRIPT_CMD(do_rpwiretransfer);
-SCRIPT_CMD(do_tpwiretransfer);
 SCRIPT_CMD(do_tpawardgold);
 SCRIPT_CMD(do_tpawardpneuma);
 SCRIPT_CMD(do_tpawardprac);
@@ -3077,11 +3053,6 @@ SCRIPT_CMD(do_mpstartcombat);
 SCRIPT_CMD(do_opstartcombat);
 SCRIPT_CMD(do_rpstartcombat);
 SCRIPT_CMD(do_tpstartcombat);
-SCRIPT_CMD(do_mppersist);
-SCRIPT_CMD(do_oppersist);
-SCRIPT_CMD(do_rppersist);
-SCRIPT_CMD(do_tppersist);
-SCRIPT_CMD(do_mpskill);
 SCRIPT_CMD(do_opskill);
 SCRIPT_CMD(do_rpskill);
 SCRIPT_CMD(do_tpskill);
@@ -3094,9 +3065,6 @@ SCRIPT_CMD(do_opcondition);
 SCRIPT_CMD(do_rpcondition);
 SCRIPT_CMD(do_tpcondition);
 
-SCRIPT_CMD(do_mpscriptwait);
-SCRIPT_CMD(do_opscriptwait);
-SCRIPT_CMD(do_tpscriptwait);
 SCRIPT_CMD(do_tpcastfailure);
 SCRIPT_CMD(do_tpcastrecover);
 
@@ -3118,30 +3086,10 @@ SCRIPT_CMD(do_tpremspell);
 SCRIPT_CMD(do_tpalteraffect);
 SCRIPT_CMD(do_tpcrier);
 
-SCRIPT_CMD(do_mpsaveplayer);
-SCRIPT_CMD(do_opsaveplayer);
-SCRIPT_CMD(do_rpsaveplayer);
-SCRIPT_CMD(do_tpsaveplayer);
-
-SCRIPT_CMD(do_mpcheckpoint);
-SCRIPT_CMD(do_opcheckpoint);
-SCRIPT_CMD(do_rpcheckpoint);
-SCRIPT_CMD(do_tpcheckpoint);
-
-SCRIPT_CMD(do_mpfixaffects);
-SCRIPT_CMD(do_opfixaffects);
-SCRIPT_CMD(do_rpfixaffects);
-SCRIPT_CMD(do_tpfixaffects);
-
 SCRIPT_CMD(do_mpremort);
 SCRIPT_CMD(do_opremort);
 SCRIPT_CMD(do_rpremort);
 SCRIPT_CMD(do_tpremort);
-
-SCRIPT_CMD(do_mprestore);
-SCRIPT_CMD(do_oprestore);
-SCRIPT_CMD(do_rprestore);
-SCRIPT_CMD(do_tprestore);
 
 SCRIPT_CMD(do_mpstopcombat);
 SCRIPT_CMD(do_opstopcombat);
@@ -3169,6 +3117,8 @@ SCRIPT_CMD(scriptcmd_applytoxin);
 SCRIPT_CMD(scriptcmd_asound);
 SCRIPT_CMD(scriptcmd_award);
 SCRIPT_CMD(scriptcmd_breathe);
+SCRIPT_CMD(scriptcmd_chargebank);
+SCRIPT_CMD(scriptcmd_checkpoint);
 SCRIPT_CMD(scriptcmd_damage);
 SCRIPT_CMD(scriptcmd_deduct);
 SCRIPT_CMD(scriptcmd_echo);
@@ -3185,7 +3135,18 @@ SCRIPT_CMD(scriptcmd_entercombat);
 SCRIPT_CMD(scriptcmd_flee);
 SCRIPT_CMD(scriptcmd_force);
 SCRIPT_CMD(scriptcmd_gforce);
+SCRIPT_CMD(scriptcmd_gdamage);
 SCRIPT_CMD(scriptcmd_gecho);
+SCRIPT_CMD(scriptcmd_forget);
+SCRIPT_CMD(scriptcmd_remember);
+SCRIPT_CMD(scriptcmd_cancel);
+SCRIPT_CMD(scriptcmd_delay);
+SCRIPT_CMD(scriptcmd_dequeue);
+SCRIPT_CMD(scriptcmd_queue);
+SCRIPT_CMD(scriptcmd_scriptwait);
+SCRIPT_CMD(scriptcmd_persist);
+SCRIPT_CMD(scriptcmd_peace);
+SCRIPT_CMD(scriptcmd_fixaffects);
 SCRIPT_CMD(scriptcmd_inputstring);
 SCRIPT_CMD(scriptcmd_goto);
 SCRIPT_CMD(scriptcmd_gtransfer);
@@ -3200,6 +3161,8 @@ SCRIPT_CMD(scriptcmd_questcomplete);
 SCRIPT_CMD(scriptcmd_revokeskill);
 SCRIPT_CMD(scriptcmd_revokeclass);
 SCRIPT_CMD(scriptcmd_revokesong);
+SCRIPT_CMD(scriptcmd_restore);
+SCRIPT_CMD(scriptcmd_saveplayer);
 SCRIPT_CMD(scriptcmd_startcombat);
 SCRIPT_CMD(scriptcmd_stopcombat);
 SCRIPT_CMD(scriptcmd_setclass);
@@ -3258,6 +3221,7 @@ SCRIPT_CMD(scriptcmd_unlockarea);
 SCRIPT_CMD(scriptcmd_unlockdungeon);
 SCRIPT_CMD(scriptcmd_sendfloor);
 SCRIPT_CMD(scriptcmd_reckoning);
+SCRIPT_CMD(scriptcmd_wiretransfer);
 SCRIPT_CMD(scriptcmd_lockadd);
 SCRIPT_CMD(scriptcmd_lockremove);
 
@@ -3265,6 +3229,7 @@ SCRIPT_CMD(scriptcmd_treasuremap);
 SCRIPT_CMD(scriptcmd_wildernessmap);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_event);
+SCRIPT_CMD(scriptcmd_zot);
 SCRIPT_CMD(scriptcmd_loadinstanced);
 SCRIPT_CMD(scriptcmd_startreckoning);
 SCRIPT_CMD(scriptcmd_stopreckoning);

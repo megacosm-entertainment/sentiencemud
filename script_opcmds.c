@@ -39,18 +39,18 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "award",				scriptcmd_award,		true,	true	},
     { "breathe",			scriptcmd_breathe,		false,	true	},
     { "call",				do_opcall,				false,	true	},
-    { "cancel",				do_opcancel,			false,	false	},
+    { "cancel",				scriptcmd_cancel,		false,	false	},
     { "cast",       		do_opcast,				false,	true	},
-    { "chargebank",			do_opchargebank,		false,	true	},
-    { "checkpoint",			do_opcheckpoint,		false,	true	},
+    { "chargebank",			scriptcmd_chargebank,	false,	true	},
+    { "checkpoint",			scriptcmd_checkpoint,	false,	true	},
     { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
     { "cloneroom",			do_opcloneroom,			true,	true	},
     { "condition",			do_opcondition,			false,	true	},
     { "crier",				do_opcrier,				false,	true	},
     { "damage",				scriptcmd_damage,		false,	true	},
     { "deduct",				scriptcmd_deduct,		true,	true	},
-    { "delay",				do_opdelay,				false,	true	},
-    { "dequeue",			do_opdequeue,			false,	false	},
+    { "delay",				scriptcmd_delay,			false,	true	},
+    { "dequeue",			scriptcmd_dequeue,		false,	false	},
     { "destroyroom",		do_opdestroyroom,		true,	true	},
     { "detach",				scriptcmd_detach,			true,	true	},
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
@@ -71,11 +71,11 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "ed",					scriptcmd_ed,				false,	true	},
     { "entercombat",		scriptcmd_entercombat,	false,	true	},
     { "fade",				scriptcmd_fade,				true,	true	},
-    { "fixaffects",			do_opfixaffects,		false,	true	},
+    { "fixaffects",			scriptcmd_fixaffects,	false,	true	},
     { "flee",				scriptcmd_flee,			false,	true	},
     { "force",				scriptcmd_force,			false,	true	},
-    { "forget",				do_opforget,			false,	false	},
-    { "gdamage",			do_opgdamage,			false,	true	},
+    { "forget",				scriptcmd_forget,		false,	false	},
+    { "gdamage",			scriptcmd_gdamage,		false,	true	},
     { "gecho",       		scriptcmd_gecho,			false,	true	},
     { "gforce",				scriptcmd_gforce,		false,	true	},
     { "goto",				scriptcmd_goto,			false,	true	},
@@ -95,13 +95,13 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "lockadd",			scriptcmd_lockadd,			false,	true	},
     { "lockremove",			scriptcmd_lockremove,		false,	true	},
     { "mail",				scriptcmd_mail,				true,	true	},
-    { "mload",				do_opmload,				false,	true	},
+    { "mload",				scriptcmd_mload,			false,	true	},
     { "mute",				scriptcmd_mute,			false,	true	},
     { "oload",				do_opoload,				false,	true	},
     { "otransfer",			do_opotransfer,			false,	true	},
     { "pageat",				scriptcmd_pageat,			false,	true	},
-    { "peace",				do_oppeace,				false,	false	},
-    { "persist",			do_oppersist,			false,	true	},
+    { "peace",				scriptcmd_peace,			false,	false	},
+    { "persist",			scriptcmd_persist,		false,	true	},
     { "prompt",				do_opprompt,			false,	true	},
     { "purge",				do_oppurge,				false,	false	},
     { "questaccept",		scriptcmd_questaccept,		false,	true	},
@@ -114,21 +114,21 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "questpartrescue",	scriptcmd_questpartrescue,	true,	true	},
     { "questpartslay",		scriptcmd_questpartslay,	true,	true	},
     { "questscroll",		scriptcmd_questscroll,		false,	true	},
-    { "queue",				do_opqueue,				false,	true	},
+    { "queue",				scriptcmd_queue,			false,	true	},
     { "rawkill",			do_oprawkill,			false,	true	},
     { "reckoning",			scriptcmd_reckoning,		true,	true	},
-    { "remember",			do_opremember,			false,	true	},
+    { "remember",			scriptcmd_remember,	false,	true	},
     { "remort",				do_opremort,			true,	true	},
     { "remove",				do_opremove,			false,	true	},
     { "remspell",			do_opremspell,			true,	true	},
     { "resetdice",			do_opresetdice,			true,	true	},
     { "resetroom",			scriptcmd_resetroom,	true,	true	},
-    { "restore",			do_oprestore,			true,	true	},
+    { "restore",			scriptcmd_restore,		true,	true	},
     { "revokeclass",		scriptcmd_revokeclass,	false,	true	},
     { "revokeskill",		scriptcmd_revokeskill,	false,	true	},
     { "revokesong",			scriptcmd_revokesong,	false,	true	},
-    { "saveplayer",			do_opsaveplayer,		false,	true	},
-    { "scriptwait",			do_opscriptwait,		false,	true	},
+    { "saveplayer",			scriptcmd_saveplayer,	false,	true	},
+    { "scriptwait",			scriptcmd_scriptwait,	false,	true	},
     { "selfdestruct",		do_opselfdestruct,		false,	false	},
     { "sendfloor",			scriptcmd_sendfloor,		false,	true	},
     { "setclass",			scriptcmd_setclass,		false,	true	},
@@ -166,10 +166,10 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "vforce",				scriptcmd_vforce,		false,	true	},
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
     { "wiznet",				scriptcmd_wiznet,			false,	true    },
-    { "wiretransfer",		do_opwiretransfer,		false,	true	},
+    { "wiretransfer",		scriptcmd_wiretransfer,	false,	true	},
     { "xcall",				do_opxcall,				false,	true	},
     { "zecho",				scriptcmd_zecho,			false,	true	},
-    { "zot",				do_opzot,				true,	true	},
+    { "zot",				scriptcmd_zot,			true,	true	},
     { NULL,					NULL,					false,	false	}
 };
 
@@ -612,15 +612,6 @@ SCRIPT_CMD(do_opcall)
     script_call_depth = depth;
 }
 
-// do_opcancel
-SCRIPT_CMD(do_opcancel)
-{
-    if(!info || !info->obj) return;
-
-    info->obj->progs->delay = -1;
-}
-
-
 // do_opcast
 //  This doesn't call obj_cast because it needs to deal with expansions
 SCRIPT_CMD(do_opcast)
@@ -877,41 +868,6 @@ SCRIPT_CMD(do_opdamage)
     }
 }
 
-// do_opdelay
-SCRIPT_CMD(do_opdelay)
-{
-    int delay = 0;
-
-
-    if(!info || !info->obj) return;
-
-    if(!expand_argument(info,argument,arg)) {
-        pbugf(LOG_SCRIPTS, "OpDelay - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: delay = is_number(arg->d.str) ? atoi(arg->d.str) : -1; break;
-    case ENT_NUMBER: delay = arg->d.num; break;
-    default: delay = 0; break;
-    }
-
-    if (delay < 1) {
-        pbugf(LOG_SCRIPTS, "OpDelay: invalid delay from vnum %d.", VNUM(info->obj));
-        return;
-    }
-    info->obj->progs->delay = delay;
-}
-
-// do_opdequeue
-SCRIPT_CMD(do_opdequeue)
-{
-    if(!info || !info->obj || !info->obj->events)
-        return;
-
-    wipe_owned_events(info->obj->events);
-}
-
 // do_opforce
 SCRIPT_CMD(do_opforce)
 {
@@ -961,129 +917,6 @@ SCRIPT_CMD(do_opforce)
         forced_command = forced;
     }
     free_buf(buffer);
-}
-
-// do_opforget
-SCRIPT_CMD(do_opforget)
-{
-    if(!info || !info->obj) return;
-
-    info->obj->progs->target = NULL;
-
-}
-
-// do_opgdamage
-SCRIPT_CMD(do_opgdamage)
-{
-    char buf[MSL],*rest;
-    CHAR_DATA *victim = NULL, *rch, *rch_next;
-    int low, high, level, value, dc;
-    bool fKill = false, fLevel = false, fRemort = false, fTwo = false;
-
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS, "OpGdamage - Null victim from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS, "OpGdamage - missing argument from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    argument = rest;
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_NUMBER: low = arg->d.num; break;
-    case ENT_STRING:
-        if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
-        if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
-        if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
-        if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
-        if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
-    default:
-        pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS, "OpGdamage - missing argument from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    argument = rest;
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    level = victim->tot_level;
-
-    switch(arg->type) {
-    case ENT_NUMBER:
-        if(fLevel) level = arg->d.num;
-        else high = arg->d.num;
-        break;
-    case ENT_STRING:
-        if(is_number(arg->d.str)) {
-            if(fLevel) level = atoi(arg->d.str);
-            else high = atoi(arg->d.str);
-        } else {
-            pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
-            return;
-        }
-        break;
-    case ENT_MOBILE:
-        if(fLevel) {
-            if(arg->d.mob) level = arg->d.mob->tot_level;
-            else {
-                pbugf(LOG_SCRIPTS, "OpGdamage - Null reference mob from vnum %ld.", VNUM(info->obj));
-                return;
-            }
-            break;
-        } else {
-            pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
-            return;
-        }
-        break;
-    default:
-        pbugf(LOG_SCRIPTS, "OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    // No expansion!
-    argument = one_argument(rest, buf);
-    if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = true;
-
-    one_argument(argument, buf);
-    dc = damage_class_lookup(buf);
-
-    if(fLevel) get_level_damage(level,&low,&high,fRemort,fTwo);
-
-    for(rch = obj_room(info->obj)->people; rch; rch = rch_next) {
-        rch_next = rch->next_in_room;
-        if (rch != victim && is_same_group(victim,rch)) {
-            value = fLevel ? dice(low,high) : number_range(low,high);
-            damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, false);
-        }
-    }
 }
 
 // do_opgoto
@@ -1289,12 +1122,6 @@ SCRIPT_CMD(do_oplink)
     script_change_exit(room, dest, door);
 }
 
-// do_opmload
-SCRIPT_CMD(do_opmload)
-{
-    script_mload(info, argument, arg, false);
-}
-
 // do_opoload
 SCRIPT_CMD(do_opoload)
 {
@@ -1491,20 +1318,6 @@ SCRIPT_CMD(do_opotransfer)
     }
 }
 
-// do_oppeace
-SCRIPT_CMD(do_oppeace)
-{
-    CHAR_DATA *rch;
-    if(!info || !info->obj || !obj_room(info->obj)) return;
-
-    for (rch = obj_room(info->obj)->people; rch; rch = rch->next_in_room) {
-        if (rch->fighting)
-            stop_fighting(rch, true);
-        if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
-            REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
-    }
-}
-
 // do_oppurge
 SCRIPT_CMD(do_oppurge)
 {
@@ -1570,61 +1383,6 @@ SCRIPT_CMD(do_oppurge)
     } else
         pbugf(LOG_SCRIPTS, "Oppurge - Bad argument from vnum %d.", VNUM(info->obj));
 
-}
-
-// do_opqueue
-SCRIPT_CMD(do_opqueue)
-{
-    char *rest;
-    int delay;
-
-
-    if(!info || !info->obj || PROG_FLAG(info->obj,PROG_AT)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NUMBER: delay = arg->d.num; break;
-    case ENT_STRING: delay = atoi(arg->d.str); break;
-    default:
-        pbugf(LOG_SCRIPTS, "OpQueue:  missing arguments from obj vnum %d.", VNUM(info->obj));
-        return;
-    }
-
-    if (delay < 0 || delay > 1000) {
-        pbugf(LOG_SCRIPTS, "OpQueue:  unreasonable delay recieved from obj vnum %d.", VNUM(info->obj));
-        return;
-    }
-
-    wait_function(info->obj, info, EVENT_OBJQUEUE, delay, script_interpret, rest);
-}
-
-// do_opremember
-SCRIPT_CMD(do_opremember)
-{
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->obj) return;
-
-    if(!expand_argument(info,argument,arg)) {
-        pbugf(LOG_SCRIPTS, "OpRemember: Bad syntax from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS, "OpRemember: Null victim from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    info->obj->progs->target = victim;
 }
 
 // remobe <target> <object|all.object|vnum> [count]
@@ -1795,39 +1553,6 @@ SCRIPT_CMD(do_opselfdestruct)
 
     extract_obj(info->obj);
     //info->obj = NULL;	// Handled by recycling code
-}
-
-// do_opzot
-SCRIPT_CMD(do_opzot)
-{
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->obj) return;
-
-    if(!expand_argument(info,argument,arg))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS, "OpZot - Null victim from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", victim);
-    send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", victim);
-    act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    send_to_char("{ROUCH! That really did hurt!{x\n\r", victim);
-
-    victim->hit = 1;
-    victim->mana = 1;
-    victim->move = 1;
 }
 
 SCRIPT_CMD(do_opvarset)
@@ -4906,103 +4631,6 @@ SCRIPT_CMD(do_opxcall)
 }
 
 
-// do_opchargebank
-// obj chargebank <player> <gold>
-SCRIPT_CMD(do_opchargebank)
-{
-    char *rest;
-    CHAR_DATA *victim;
-    int amount = 0;
-
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim)) {
-        pbugf(LOG_SCRIPTS, "OpChargeBank - Non-player victim from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!expand_argument(info,rest,arg)) {
-        pbugf(LOG_SCRIPTS, "OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: amount = atoi(arg->d.str); break;
-    case ENT_NUMBER: amount = arg->d.num; break;
-    default: amount = 0; break;
-    }
-
-    if(amount < 1 || amount > victim->pcdata->bankbalance) return;
-
-    victim->pcdata->bankbalance -= amount;
-}
-
-// do_opwiretransfer
-// obj wiretransfer <player> <gold>
-// Limited to 1000 gold for security scopes less than 7.
-SCRIPT_CMD(do_opwiretransfer)
-{
-    char buf[MSL], *rest;
-    CHAR_DATA *victim;
-    int amount = 0;
-
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim)) {
-        pbugf(LOG_SCRIPTS, "OpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(!expand_argument(info,rest,arg)) {
-        pbugf(LOG_SCRIPTS, "OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: amount = atoi(arg->d.str); break;
-    case ENT_NUMBER: amount = arg->d.num; break;
-    default: amount = 0; break;
-    }
-
-    if(amount < 1) return;
-
-    // If the security on this script execution is
-    if(script_security < 7 && amount > 1000) {
-        sprintf(buf, "OpWireTransfer logged: attempted to wire %d gold to %s in room %ld by %ld", amount, victim->name, info->obj->in_room->vnum, info->obj->pIndexData->vnum);
-        log_string(buf);
-        amount = 1000;
-    }
-
-    victim->pcdata->bankbalance += amount;
-
-    sprintf(buf, "OpWireTransfer logged: %s was wired %d gold in room %ld by %ld", victim->name, amount, info->obj->in_room->vnum, info->obj->pIndexData->vnum);
-    log_string(buf);
-}
-
 // do_opsetrecall
 // obj setrecall $MOBILE|$ROOM <location>
 // Sets the recall point of the target mobile to the reference of the location
@@ -5186,88 +4814,6 @@ SCRIPT_CMD(do_opstophunt)
     }
 
     stop_hunt(hunter, stay);
-    return;
-}
-
-// Format: PERSIST <MOBILE or OBJECT or ROOM> <STATE>
-SCRIPT_CMD(do_oppersist)
-{
-    char *rest;
-    CHAR_DATA *mob = NULL;
-    OBJ_DATA *obj = NULL;
-    ROOM_INDEX_DATA *room = NULL;
-    bool persist = false, current = false;
-
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpPersist - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_MOBILE: mob = arg->d.mob; current = mob->persist; break;
-    case ENT_OBJECT: obj = arg->d.obj; current = obj->persist; break;
-    case ENT_ROOM: room = arg->d.room; current = room->persist; break;
-    }
-
-    if(!mob && !obj && !room) {
-        pbugf(LOG_SCRIPTS, "OpPersist - NULL target.", VNUM(info->obj));
-        return;
-    }
-
-    if(mob)
-    {
-        if( !IS_NPC(mob) ) return;
-
-        if( IS_SET(mob->act[1], ACT2_INSTANCE_MOB) ) return;
-    }
-
-    if(obj)
-    {
-        if( IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ) ) return;
-    }
-
-    if( room )
-    {
-        if( get_blueprint_section_byroom(room->vnum) ) return;
-    }
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS, "OpPersist - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_NONE:   persist = !current; break;
-    case ENT_STRING: persist = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"on"); break;
-    default: return;
-    }
-
-    // Require security to ENABLE persistance
-    if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
-        pbugf(LOG_SCRIPTS, "OpPersist - Insufficient security to enable persistance from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    if(mob) {
-        if(persist)
-            persist_addmobile(mob);
-        else
-            persist_removemobile(mob);
-    } else if(obj) {
-        if(persist)
-            persist_addobject(obj);
-        else
-            persist_removeobject(obj);
-    } else if(room) {
-        if(persist)
-            persist_addroom(room);
-        else
-            persist_removeroom(room);
-    }
-
     return;
 }
 
@@ -5923,243 +5469,6 @@ SCRIPT_CMD(do_opcrier)
 }
 
 
-// scriptwait $PLAYER NUMBER VNUM VNUM[ $ACTOR]
-// - actor can be a $MOBILE, $OBJECT or $TOKEN
-// - scripts must be available for the respective actor type
-SCRIPT_CMD(do_opscriptwait)
-{
-
-    char *rest;
-    CHAR_DATA *mob = NULL;
-    int wait;
-    long success, failure, pulse;
-    TOKEN_DATA *actor_token = NULL;
-    CHAR_DATA *actor_mob = NULL;
-    OBJ_DATA *actor_obj = NULL;
-    int prog_type;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    info->obj->progs->lastreturn = 0;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE) return;
-
-    mob = arg->d.mob;
-
-    if( !mob ) return;	// only players
-
-    // Check that the mob is not busy
-    if( is_char_busy( mob ) ) {
-        //send_to_char("script_wait: mob busy\n\r", mob);
-        return;
-    }
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: wait = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: wait = arg->d.num; break;
-    default: return;
-    }
-
-    //printf_to_char(mob, "script_wait: wait = %d\n\r", wait);
-
-
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: success = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: success = arg->d.num; break;
-    default: return;
-    }
-
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: failure = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: failure = arg->d.num; break;
-    default: return;
-    }
-
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: pulse = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: pulse = arg->d.num; break;
-    default: return;
-    }
-
-    actor_obj = info->obj;
-    prog_type = PRG_OPROG;
-    if(rest && *rest) {
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        switch(arg->type) {
-        case ENT_MOBILE:
-            actor_mob = arg->d.mob;
-            actor_obj = NULL;
-            actor_token = NULL;
-            prog_type = PRG_MPROG;
-            break;
-
-        case ENT_OBJECT:
-            actor_mob = NULL;
-            actor_obj = arg->d.obj;
-            actor_token = NULL;
-            prog_type = PRG_OPROG;
-            break;
-
-        case ENT_TOKEN:
-            actor_mob = NULL;
-            actor_obj = NULL;
-            actor_token = arg->d.token;
-            prog_type = PRG_TPROG;
-            break;
-
-        }
-    }
-
-    if(!actor_mob && !actor_obj && !actor_token) return;
-
-    if(success < 1 || !get_script_from_info(info, success, prog_type)) return;
-    if(failure < 1 || !get_script_from_info(info, failure, prog_type)) return;
-    if(pulse > 0 && !get_script_from_info(info, pulse, prog_type)) return;
-
-    wait = UMAX(wait, 1);
-
-
-    mob->script_wait = wait;
-    mob->script_wait_mob = actor_mob;
-    mob->script_wait_obj = actor_obj;
-    mob->script_wait_token = actor_token;
-    if( actor_mob ) {
-        mob->script_wait_id[0] = actor_mob->id[0];
-        mob->script_wait_id[1] = actor_mob->id[1];
-    } else if( actor_obj ) {
-        mob->script_wait_id[0] = actor_obj->id[0];
-        mob->script_wait_id[1] = actor_obj->id[1];
-    } else if( actor_token ) {
-        mob->script_wait_id[0] = actor_token->id[0];
-        mob->script_wait_id[1] = actor_token->id[1];
-    }
-    mob->script_wait_success = get_script_from_info(info, success, prog_type);
-    mob->script_wait_failure = get_script_from_info(info, failure, prog_type);
-    mob->script_wait_pulse = (pulse > 0) ? get_script_from_info(info, pulse, prog_type) : NULL;
-
-    //printf_to_char(mob, "script_wait started: wait = %d\n\r", wait);
-    //printf_to_char(mob, "script_wait started: success = %d\n\r", success);
-    //printf_to_char(mob, "script_wait started: failure = %d\n\r", failure);
-    //printf_to_char(mob, "script_wait started: pulse = %d\n\r", pulse);
-
-    // Return how long the command decided
-    info->obj->progs->lastreturn = wait;
-}
-
-// Syntax: FIXAFFECTS $MOBILE
-SCRIPT_CMD(do_opfixaffects)
-{
-
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    if(!expand_argument(info,argument,arg))
-        return;
-
-    if(arg->type != ENT_MOBILE) return;
-
-    if(arg->d.mob == NULL) return;
-
-    affect_fix_char(arg->d.mob);
-}
-
-// Syntax:	checkpoint $PLAYER $ROOM
-// 			checkpoint $PLAYER VNUM
-//			checkpoint $PLAYER none|clear|reset
-//
-// Sets the checkpoint of the $PLAYER to the destination or clears it.
-// - When a checkpoint is set, it will override what location is saved to the pfile.
-// - When setting a checkpoint via VNUM and an invalid vnum is given, it will clear the checkpoint.
-SCRIPT_CMD(do_opcheckpoint)
-{
-    char *rest;
-
-    CHAR_DATA *mob;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    mob = arg->d.mob;
-    if(IS_NPC(mob)) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if( !str_cmp(arg->d.str, "none") ||
-            !str_cmp(arg->d.str, "clear") ||
-            !str_cmp(arg->d.str, "reset") )
-            mob->checkpoint = NULL;
-        break;
-    case ENT_NUMBER:
-        if( arg->d.num > 0 ) {
-            WNUM room_wnum;
-            if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
-                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
-            else
-                mob->checkpoint = NULL;
-        }
-        break;
-    case ENT_ROOM:
-        if( arg->d.room != NULL )
-            mob->checkpoint = arg->d.room;
-        break;
-    }
-}
-
-// Syntax: saveplayer $PLAYER
-SCRIPT_CMD(do_opsaveplayer)
-{
-    char *rest;
-
-    CHAR_DATA *mob;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    info->obj->progs->lastreturn = 0;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    mob = arg->d.mob;
-    if(IS_NPC(mob)) return;
-
-    save_char_obj(mob);
-
-    info->obj->progs->lastreturn = 1;
-}
-
 // Syntax: remort $PLAYER
 //  - prompts them for a class out of what they can do
 SCRIPT_CMD(do_opremort)
@@ -6200,33 +5509,6 @@ SCRIPT_CMD(do_opremort)
 
     info->obj->progs->lastreturn = 1;
 }
-
-// Syntax: restore $MOBILE
-SCRIPT_CMD(do_oprestore)
-{
-    char *rest;
-
-    int amount = 100;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    if(*rest) {
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        if(arg->type != ENT_NUMBER) return;
-
-        amount = URANGE(1,arg->d.num,100);
-    }
-
-    restore_char(arg->d.mob, NULL, amount);
-}
-
 
 // GROUP npc(FOLLOWER) mobile(LEADER)[ bool(SHOW=true)]
 // Follower will only work on an NPC

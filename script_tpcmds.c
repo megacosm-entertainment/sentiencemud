@@ -24,162 +24,162 @@ static AREA_DATA *script_relative_widevnum_context(AREA_DATA *context_area, cons
 
 // Commands used by token scripts
 const struct script_cmd_type token_cmd_table[] = {
-    { "addaffect",			scriptcmd_addaffect,		true,	true	},
-    { "addaffectname",		scriptcmd_addaffectname,	true,	true	},
-    { "addspell",			do_tpaddspell,				true,	true	},
-    { "adjust",				do_tpadjust,				false,	true	},
-    { "alteraffect",		do_tpalteraffect,			true,	true	},
-    { "alterexit",			do_tpalterexit,				false,	true	},
-    { "altermob",			do_tpaltermob,				true,	true	},
-    { "alterobj",			scriptcmd_alterobj,				true,	true	},
-    { "alterroom",			scriptcmd_alterroom,				true,	true	},
-    { "applytoxin",			scriptcmd_applytoxin,		false,	true	},
-    { "asound",				scriptcmd_asound,			false,	true	},
-    { "attach",				scriptcmd_attach,			true,	true	},
-    { "award",				scriptcmd_award,			true,	true	},
-    { "breathe",			scriptcmd_breathe,		false,	true	},
-    { "call",				do_tpcall,					false,	true	},
-    { "castfailure",		do_tpcastfailure,			false,	true	},
-    { "castrecover",		do_tpcastrecover,			false,	true	},
-    { "chargebank",			do_tpchargebank,			false,	true	},
-    { "checkpoint",			do_tpcheckpoint,			false,	true	},
-    { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
-    { "cloneroom",			do_tpcloneroom,				true,	true	},
-    { "condition",			do_tpcondition,				false,	true	},
-    { "crier",				do_tpcrier,					false,	true	},
-    { "damage",				scriptcmd_damage,			false,	true	},
-    { "deduct",				scriptcmd_deduct,			true,	true	},
-    { "dequeue",			do_tpdequeue,				false,	false	},
-    { "destroyroom",		do_tpdestroyroom,			true,	true	},
-    { "detach",				scriptcmd_detach,			true,	true	},
-    { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
-    { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
-    { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
-    { "echo",				scriptcmd_echo,				false,	true	},
-        { "event",              scriptcmd_event,          false,  true    },
-    { "echoaround",			scriptcmd_echoaround,		false,	true	},
-    { "echoat",				scriptcmd_echoat,			false,	true	},
-    { "echobattlespam",		scriptcmd_echobattlespam,	false,	true	},
-    { "echochurch",			scriptcmd_echochurch,		false,	true	},
-    { "echogrouparound",	scriptcmd_echogrouparound,	false,	true	},
-    { "echogroupat",		scriptcmd_echogroupat,		false,	true	},
-    { "echoleadaround",		scriptcmd_echoleadaround,	false,	true	},
-    { "echoleadat",			scriptcmd_echoleadat,		false,	true	},
-    { "echonotvict",		scriptcmd_echonotvict,		false,	true	},
-    { "echoroom",			scriptcmd_echoroom,			false,	true	},
-    { "ed",					scriptcmd_ed,				false,	true	},
-    { "entercombat",		scriptcmd_entercombat,		false,	true	},
-    { "fade",				scriptcmd_fade,				true,	true	},
-    { "fixaffects",			do_tpfixaffects,			false,	true	},
-    { "flee",				scriptcmd_flee,				false,	true	},
-    { "force",				scriptcmd_force,				false,	true	},
-    { "forget",				do_tpforget,				false,	false	},
-    { "gdamage",			do_tpgdamage,				false,	true	},
-    { "gecho",      	 	scriptcmd_gecho,			false,	true	},
-    { "gforce",				scriptcmd_gforce,			false,	true	},
-    { "give",				do_tpgive,					false,	true	},
-    { "goto",				scriptcmd_goto,				false,	true	},
-    { "grantclass",			scriptcmd_grantclass,		false,	true	},
-    { "grantskill",			scriptcmd_grantskill,		false,	true	},
-    { "grantsong",			scriptcmd_grantsong,		false,	true	},
-    { "group",				do_tpgroup,					false,	true	},
-    { "gtransfer",			scriptcmd_gtransfer,		false,	true	},
-    { "input",				do_tpinput,					false,	true	},
-    { "inputstring",		scriptcmd_inputstring,		false,	true	},
-    { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
-    { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
-    { "interrupt",			do_tpinterrupt,				false,	true	},
-    { "junk",				do_tpjunk,					false,	true	},
-    { "link",				do_tplink,					false,	true	},
-    { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
-    { "lockadd",			scriptcmd_lockadd,			false,	true	},
-    { "lockremove",			scriptcmd_lockremove,		false,	true	},
-    { "mail",				scriptcmd_mail,				true,	true	},
-    { "mload",				do_tpmload,					false,	true	},
-    { "mute",				scriptcmd_mute,				false,	true	},
-    { "oload",				do_tpoload,					false,	true	},
-    { "otransfer",			do_tpotransfer,				false,	true	},
-    { "pageat",				scriptcmd_pageat,			false,	true	},
-    { "peace",				do_tppeace,					false,	false	},
-    { "persist",			do_tppersist,				false,	true	},
-    { "prompt",				do_tpprompt,				false,	true	},
-    { "purge",				do_tppurge,					false,	false	},
-    { "questaccept",		scriptcmd_questaccept,		false,	true	},
-    { "questcancel",		scriptcmd_questcancel,		false,	true	},
-    { "questcomplete",		scriptcmd_questcomplete,	false,	true	},
-    { "questgenerate",		scriptcmd_questgenerate,	false,	true	},
-    { "questpartcustom",	scriptcmd_questpartcustom,	true,	true	},
-    { "questpartgetitem",	scriptcmd_questpartgetitem,	true,	true	},
-    { "questpartgoto",		scriptcmd_questpartgoto,	true,	true	},
-    { "questpartrescue",	scriptcmd_questpartrescue,	true,	true	},
-    { "questpartslay",		scriptcmd_questpartslay,	true,	true	},
-    { "questscroll",		scriptcmd_questscroll,		false,	true	},
-    { "queue",				do_tpqueue,					false,	true	},
-    { "raisedead",			do_tpraisedead,				true,	true	},
-    { "rawkill",			do_tprawkill,				false,	true	},
-    { "reckoning",			scriptcmd_reckoning,		true,	true	},
-    { "remember",			do_tpremember,				false,	true	},
-    { "remort",				do_tpremort,				true,	true	},
-    { "remove",				do_tpremove,				false,	true	},
-    { "remspell",			do_tpremspell,				true,	true	},
-    { "resetdice",			do_tpresetdice,				true,	true	},
-    { "resetroom",			scriptcmd_resetroom,		true,	true	},
-    { "restore",			do_tprestore,				true,	true	},
-    { "revokeclass",		scriptcmd_revokeclass,		false,	true	},
-    { "revokeskill",		scriptcmd_revokeskill,		false,	true	},
-    { "revokesong",			scriptcmd_revokesong,		false,	true	},
-    { "saveplayer",			do_tpsaveplayer,			false,	true	},
-    { "scriptwait",			do_tpscriptwait,			true,	true	},
-    { "sendfloor",			scriptcmd_sendfloor,		false,	true	},
-    { "setclass",			scriptcmd_setclass,			false,	true	},
-    { "setrace",			scriptcmd_setrace,			false,	true	},
-    { "setrecall",			do_tpsetrecall,				false,	true	},
-    { "settimer",			do_tpsettimer,				false,	true	},
-    { "settrait",			scriptcmd_settrait,			false,	true	},
-    { "showcommand",		scriptcmd_showcommand,		false,	true	},
-    { "showroom",			do_tpshowroom,				true,	true	},
-    { "skimprove",			do_tpskimprove,				true,	true	},
-    { "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
-    { "specialkey",			scriptcmd_specialkey,		false,	true	},
-    { "startcombat",		scriptcmd_startcombat,		false,	true	},
-    { "startreckoning",		scriptcmd_startreckoning,	true,	true	},
-    { "stopcombat",			scriptcmd_stopcombat,		false,	true	},
-    { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
-    { "stringmob",			do_tpstringmob,				true,	true	},
-    { "stringobj",			do_tpstringobj,				true,	true	},
-    { "stripaffect",		do_tpstripaffect,			true,	true	},
-    { "stripaffectname",	do_tpstripaffectname,		true,	true	},
-    { "transfer",			scriptcmd_transfer,			false,	true	},
-    { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
-    { "ungroup",			do_tpungroup,				false,	true	},
-    { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
-    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
-    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
-    { "unmute",				scriptcmd_unmute,			false,	true	},
-    { "usecatalyst",		do_tpusecatalyst,			false,	true	},
-    { "varclear",			scriptcmd_varclear,			false,	true	},
-    { "varclearon",			scriptcmd_varclearon,			false,	true	},
-    { "varcopy",			scriptcmd_varcopy,			false,	true	},
-    { "varsave",			scriptcmd_varsave,			false,	true	},
-    { "varsaveon",			scriptcmd_varsaveon,			false,	true	},
-    { "varset",				scriptcmd_varset,			false,	true	},
-    { "varseton",			scriptcmd_varseton,			false,	true	},
-    { "vforce",				scriptcmd_vforce,		false,	true	},
-    { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
-    { "wiretransfer",		do_tpwiretransfer,			false,	true	},
-    { "wiznet", 			scriptcmd_wiznet,			false,  true	},
-    { "xcall",				do_tpxcall,					false,	true	},
-    { "zecho",				scriptcmd_zecho,			false,	true	},
-    { "zot",				do_tpzot,					true,	true	},
-    { NULL,					NULL,						false,	false	}
+    { "addaffect",            scriptcmd_addaffect,        true,   true    },
+    { "addaffectname",        scriptcmd_addaffectname,    true,   true    },
+    { "addspell",             do_tpaddspell,              true,   true    },
+    { "adjust",               do_tpadjust,                false,  true    },
+    { "alteraffect",          do_tpalteraffect,           true,   true    },
+    { "alterexit",            do_tpalterexit,             false,  true    },
+    { "altermob",             do_tpaltermob,              true,   true    },
+    { "alterobj",             scriptcmd_alterobj,         true,   true    },
+    { "alterroom",            scriptcmd_alterroom,        true,   true    },
+    { "applytoxin",           scriptcmd_applytoxin,       false,  true    },
+    { "asound",               scriptcmd_asound,           false,  true    },
+    { "attach",               scriptcmd_attach,           true,   true    },
+    { "award",                scriptcmd_award,            true,   true    },
+    { "breathe",              scriptcmd_breathe,          false,  true    },
+    { "call",                 do_tpcall,                  false,  true    },
+    { "castfailure",          do_tpcastfailure,           false,  true    },
+    { "castrecover",          do_tpcastrecover,           false,  true    },
+    { "chargebank",           scriptcmd_chargebank,       false,  true    },
+    { "checkpoint",           scriptcmd_checkpoint,       false,  true    },
+    { "churchannouncetheft",  scriptcmd_churchannouncetheft, true, true },
+    { "cloneroom",            do_tpcloneroom,             true,   true    },
+    { "condition",            do_tpcondition,             false,  true    },
+    { "crier",                do_tpcrier,                 false,  true    },
+    { "damage",               scriptcmd_damage,           false,  true    },
+    { "deduct",               scriptcmd_deduct,           true,   true    },
+    { "dequeue",              scriptcmd_dequeue,          false,  false   },
+    { "destroyroom",          do_tpdestroyroom,           true,   true    },
+    { "detach",               scriptcmd_detach,           true,   true    },
+    { "dungeoncomplete",      scriptcmd_dungeoncomplete,  true,   true    },
+    { "dungeoncommence",      scriptcmd_dungeoncommence,  true,   true    },
+    { "dungeonfailure",       scriptcmd_dungeonfailure,   true,   true    },
+    { "echo",                 scriptcmd_echo,             false,  true    },
+    { "event",                scriptcmd_event,            false,  true    },
+    { "echoaround",           scriptcmd_echoaround,       false,  true    },
+    { "echoat",               scriptcmd_echoat,           false,  true    },
+    { "echobattlespam",       scriptcmd_echobattlespam,   false,  true    },
+    { "echochurch",           scriptcmd_echochurch,       false,  true    },
+    { "echogrouparound",      scriptcmd_echogrouparound,  false,  true    },
+    { "echogroupat",          scriptcmd_echogroupat,      false,  true    },
+    { "echoleadaround",       scriptcmd_echoleadaround,   false,  true    },
+    { "echoleadat",           scriptcmd_echoleadat,       false,  true    },
+    { "echonotvict",          scriptcmd_echonotvict,      false,  true    },
+    { "echoroom",             scriptcmd_echoroom,         false,  true    },
+    { "ed",                   scriptcmd_ed,               false,  true    },
+    { "entercombat",          scriptcmd_entercombat,      false,  true    },
+    { "fade",                 scriptcmd_fade,             true,   true    },
+    { "fixaffects",           scriptcmd_fixaffects,       false,  true    },
+    { "flee",                 scriptcmd_flee,             false,  true    },
+    { "force",                scriptcmd_force,            false,  true    },
+    { "forget",               scriptcmd_forget,           false,  false   },
+    { "gdamage",              scriptcmd_gdamage,          false,  true    },
+    { "gecho",                scriptcmd_gecho,            false,  true    },
+    { "gforce",               scriptcmd_gforce,           false,  true    },
+    { "give",                 do_tpgive,                  false,  true    },
+    { "goto",                 scriptcmd_goto,             false,  true    },
+    { "grantclass",           scriptcmd_grantclass,       false,  true    },
+    { "grantskill",           scriptcmd_grantskill,       false,  true    },
+    { "grantsong",            scriptcmd_grantsong,        false,  true    },
+    { "group",                do_tpgroup,                 false,  true    },
+    { "gtransfer",            scriptcmd_gtransfer,        false,  true    },
+    { "input",                do_tpinput,                 false,  true    },
+    { "inputstring",          scriptcmd_inputstring,      false,  true    },
+    { "instancecomplete",     scriptcmd_instancecomplete, true,   true    },
+    { "instancefailure",      scriptcmd_instancefailure,  true,   true    },
+    { "interrupt",            do_tpinterrupt,             false,  true    },
+    { "junk",                 do_tpjunk,                  false,  true    },
+    { "link",                 do_tplink,                  false,  true    },
+    { "loadinstanced",        scriptcmd_loadinstanced,    true,   true    },
+    { "lockadd",              scriptcmd_lockadd,          false,  true    },
+    { "lockremove",           scriptcmd_lockremove,       false,  true    },
+    { "mail",                 scriptcmd_mail,             true,   true    },
+    { "mload",                scriptcmd_mload,            false,  true    },
+    { "mute",                 scriptcmd_mute,             false,  true    },
+    { "oload",                do_tpoload,                 false,  true    },
+    { "otransfer",            do_tpotransfer,             false,  true    },
+    { "pageat",               scriptcmd_pageat,           false,  true    },
+    { "peace",                scriptcmd_peace,            false,  false   },
+    { "persist",              scriptcmd_persist,          false,  true    },
+    { "prompt",               do_tpprompt,                false,  true    },
+    { "purge",                do_tppurge,                 false,  false   },
+    { "questaccept",          scriptcmd_questaccept,      false,  true    },
+    { "questcancel",          scriptcmd_questcancel,      false,  true    },
+    { "questcomplete",        scriptcmd_questcomplete,    false,  true    },
+    { "questgenerate",        scriptcmd_questgenerate,    false,  true    },
+    { "questpartcustom",      scriptcmd_questpartcustom,  true,   true    },
+    { "questpartgetitem",     scriptcmd_questpartgetitem, true,   true    },
+    { "questpartgoto",        scriptcmd_questpartgoto,    true,   true    },
+    { "questpartrescue",      scriptcmd_questpartrescue,  true,   true    },
+    { "questpartslay",        scriptcmd_questpartslay,    true,   true    },
+    { "questscroll",          scriptcmd_questscroll,      false,  true    },
+    { "queue",                scriptcmd_queue,            false,  true    },
+    { "raisedead",            do_tpraisedead,             true,   true    },
+    { "rawkill",              do_tprawkill,               false,  true    },
+    { "reckoning",            scriptcmd_reckoning,        true,   true    },
+    { "remember",             scriptcmd_remember,         false,  true    },
+    { "remort",               do_tpremort,                true,   true    },
+    { "remove",               do_tpremove,                false,  true    },
+    { "remspell",             do_tpremspell,              true,   true    },
+    { "resetdice",            do_tpresetdice,             true,   true    },
+    { "resetroom",            scriptcmd_resetroom,        true,   true    },
+    { "restore",              scriptcmd_restore,          true,   true    },
+    { "revokeclass",          scriptcmd_revokeclass,      false,  true    },
+    { "revokeskill",          scriptcmd_revokeskill,      false,  true    },
+    { "revokesong",           scriptcmd_revokesong,       false,  true    },
+    { "saveplayer",           scriptcmd_saveplayer,       false,  true    },
+    { "scriptwait",           scriptcmd_scriptwait,       true,   true    },
+    { "sendfloor",            scriptcmd_sendfloor,        false,  true    },
+    { "setclass",             scriptcmd_setclass,         false,  true    },
+    { "setrace",              scriptcmd_setrace,          false,  true    },
+    { "setrecall",            do_tpsetrecall,             false,  true    },
+    { "settimer",             do_tpsettimer,              false,  true    },
+    { "settrait",             scriptcmd_settrait,         false,  true    },
+    { "showcommand",          scriptcmd_showcommand,      false,  true    },
+    { "showroom",             do_tpshowroom,              true,   true    },
+    { "skimprove",            do_tpskimprove,             true,   true    },
+    { "spawndungeon",         scriptcmd_spawndungeon,     true,   true    },
+    { "specialkey",           scriptcmd_specialkey,       false,  true    },
+    { "startcombat",          scriptcmd_startcombat,      false,  true    },
+    { "startreckoning",       scriptcmd_startreckoning,   true,   true    },
+    { "stopcombat",           scriptcmd_stopcombat,       false,  true    },
+    { "stopreckoning",        scriptcmd_stopreckoning,    true,   true    },
+    { "stringmob",            do_tpstringmob,             true,   true    },
+    { "stringobj",            do_tpstringobj,             true,   true    },
+    { "stripaffect",          do_tpstripaffect,           true,   true    },
+    { "stripaffectname",      do_tpstripaffectname,       true,   true    },
+    { "transfer",             scriptcmd_transfer,         false,  true    },
+    { "treasuremap",          scriptcmd_treasuremap,      false,  true    },
+    { "ungroup",              do_tpungroup,               false,  true    },
+    { "unlockarea",           scriptcmd_unlockarea,       true,   true    },
+    { "unlockdungeon",        scriptcmd_unlockdungeon,    true,   true    },
+    { "unlockdungeon",        scriptcmd_unlockdungeon,    true,   true    },
+    { "unmute",               scriptcmd_unmute,           false,  true    },
+    { "usecatalyst",          do_tpusecatalyst,           false,  true    },
+    { "varclear",             scriptcmd_varclear,         false,  true    },
+    { "varclearon",           scriptcmd_varclearon,       false,  true    },
+    { "varcopy",              scriptcmd_varcopy,          false,  true    },
+    { "varsave",              scriptcmd_varsave,          false,  true    },
+    { "varsaveon",            scriptcmd_varsaveon,        false,  true    },
+    { "varset",               scriptcmd_varset,           false,  true    },
+    { "varseton",             scriptcmd_varseton,         false,  true    },
+    { "vforce",               scriptcmd_vforce,           false,  true    },
+    { "wildernessmap",        scriptcmd_wildernessmap,    false,  true    },
+    { "wiretransfer",         scriptcmd_wiretransfer,     false,  true    },
+    { "wiznet",               scriptcmd_wiznet,           false,  true    },
+    { "xcall",                do_tpxcall,                 false,  true    },
+    { "zecho",                scriptcmd_zecho,            false,  true    },
+    { "zot",                  scriptcmd_zot,              true,   true    },
+    { NULL,                    NULL,                       false,  false   }
 };
 
 // Commands accessible by other scripts
 const struct script_cmd_type tokenother_cmd_table[] = {
-    { "adjust",		do_tpadjust,	false,	true	},
-    { "give",		do_tpgive,		false,	true	},
-    { "junk",		do_tpjunk,		false,	true	},
-    { NULL,			NULL,			false,	false	}
+    { "adjust",     do_tpadjust, false, true  },
+    { "give",       do_tpgive,   false, true  },
+    { "junk",       do_tpjunk,   false, true  },
+    { NULL,          NULL,         false, false }
 };
 
 
@@ -1940,186 +1940,6 @@ SCRIPT_CMD(do_tpraisedead)
     info->token->progs->lastreturn = 1;
 }
 
-SCRIPT_CMD(do_tpdequeue)
-{
-    if(!info || !info->token || !info->token->events)
-        return;
-
-    wipe_owned_events(info->token->events);
-}
-
-SCRIPT_CMD(do_tpqueue)
-{
-    char *rest;
-    int delay;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NUMBER: delay = arg->d.num; break;
-    case ENT_STRING: delay = atoi(arg->d.str); break;
-    default:
-        pbugf(LOG_SCRIPTS,"TpQueue:  missing arguments from vnum %d.", VNUM(info->token));
-        return;
-    }
-
-    if (delay < 0 || delay > 1000) {
-        pbugf(LOG_SCRIPTS,"TpQueue:  unreasonable delay recieved from vnum %d.", VNUM(info->token));
-        return;
-    }
-
-    wait_function(info->token, info, EVENT_TOKENQUEUE, delay, script_interpret, rest);
-}
-
-SCRIPT_CMD(do_tpgdamage)
-{
-    char buf[MSL],*rest;
-    CHAR_DATA *victim = NULL, *rch, *rch_next;
-    int low, high, level, value, dc;
-    bool fKill = false, fLevel = false, fRemort = false, fTwo = false;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS,"TpGdamage - Null victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS,"TpGdamage - missing argument from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    argument = rest;
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_NUMBER: low = arg->d.num; break;
-    case ENT_STRING:
-        if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
-        if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
-        if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
-        if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
-        if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
-    default:
-        pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS,"TpGdamage - missing argument from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    argument = rest;
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpGdamage - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    level = victim->tot_level;
-
-    switch(arg->type) {
-    case ENT_NUMBER:
-        if(fLevel) level = arg->d.num;
-        else high = arg->d.num;
-        break;
-    case ENT_STRING:
-        if(is_number(arg->d.str)) {
-            if(fLevel) level = atoi(arg->d.str);
-            else high = atoi(arg->d.str);
-        } else {
-            pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
-            return;
-        }
-        break;
-    case ENT_MOBILE:
-        if(fLevel) {
-            if(arg->d.mob) level = arg->d.mob->tot_level;
-            else {
-                pbugf(LOG_SCRIPTS,"TpGdamage - Null reference mob from vnum %ld.", VNUM(info->token));
-                return;
-            }
-            break;
-        } else {
-            pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
-            return;
-        }
-        break;
-    default:
-        pbugf(LOG_SCRIPTS,"TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    // No expansion!
-    argument = one_argument(rest, buf);
-    if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = true;
-
-    one_argument(argument, buf);
-    dc = damage_class_lookup(buf);
-
-    if(fLevel) get_level_damage(level,&low,&high,fRemort,fTwo);
-
-    for(rch = token_room(info->token)->people; rch; rch = rch_next) {
-        rch_next = rch->next_in_room;
-        if (rch != victim && is_same_group(victim,rch)) {
-            value = fLevel ? dice(low,high) : number_range(low,high);
-            damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, false);
-        }
-    }
-}
-
-SCRIPT_CMD(do_tpforget)
-{
-    if(!info || !info->token) return;
-
-    info->token->progs->target = NULL;
-}
-
-SCRIPT_CMD(do_tpremember)
-{
-    CHAR_DATA *victim;
-
-    if(!info || !info->token) return;
-
-    if(!expand_argument(info,argument,arg)) {
-        pbugf(LOG_SCRIPTS,"TpRemember: Bad syntax from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS,"TpRemember: Null victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    info->token->progs->target = victim;
-}
-
 SCRIPT_CMD(do_tppurge)
 {
     char *rest;
@@ -2186,38 +2006,6 @@ SCRIPT_CMD(do_tppurge)
 }
 
 
-SCRIPT_CMD(do_tpzot)
-{
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token) return;
-
-    if(!expand_argument(info,argument,arg))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL,token_room(info->token), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS,"TpZot - Null victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", victim);
-    send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", victim);
-    act("{Y$n is struck by a bolt of lightning!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    send_to_char("{ROUCH! That really did hurt!{x\n\r", victim);
-
-    victim->hit = 1;
-    victim->mana = 1;
-    victim->move = 1;
-}
-
 SCRIPT_CMD(do_tpotransfer)
 {
     char *rest;
@@ -2280,21 +2068,6 @@ SCRIPT_CMD(do_tpotransfer)
             equip_char(carrier, obj, wear_loc);
     }
 }
-
-// do_oppeace
-SCRIPT_CMD(do_tppeace)
-{
-    CHAR_DATA *rch;
-    if(!info || !info->token || !token_room(info->token)) return;
-
-    for (rch = token_room(info->token)->people; rch; rch = rch->next_in_room) {
-        if (rch->fighting)
-            stop_fighting(rch, true);
-        if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
-            REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
-    }
-}
-
 
 SCRIPT_CMD(do_tpremove)
 {
@@ -2564,12 +2337,6 @@ SCRIPT_CMD(do_tplink)
     }
 
     script_change_exit(room, dest, door);
-}
-
-// do_opmload
-SCRIPT_CMD(do_tpmload)
-{
-    script_mload(info, argument, arg, false);
 }
 
 SCRIPT_CMD(do_tpoload)
@@ -5179,103 +4946,6 @@ SCRIPT_CMD(do_tpxcall)
     script_call_depth = depth;
 }
 
-// do_tpchargebank
-// obj chargebank <player> <gold>
-SCRIPT_CMD(do_tpchargebank)
-{
-    char *rest;
-    CHAR_DATA *victim;
-    int amount = 0;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpChargeBank - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL,token_room(info->token), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim)) {
-        pbugf(LOG_SCRIPTS,"TpChargeBank - Non-player victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    if(!expand_argument(info,rest,arg)) {
-        pbugf(LOG_SCRIPTS,"TpChargeBank - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: amount = atoi(arg->d.str); break;
-    case ENT_NUMBER: amount = arg->d.num; break;
-    default: amount = 0; break;
-    }
-
-    if(amount < 1 || amount > victim->pcdata->bankbalance) return;
-
-    victim->pcdata->bankbalance -= amount;
-}
-
-// do_tpwiretransfer
-// obj wiretransfer <player> <gold>
-// Limited to 1000 gold for security scopes less than 7.
-SCRIPT_CMD(do_tpwiretransfer)
-{
-    char buf[MSL], *rest;
-    CHAR_DATA *victim;
-    int amount = 0;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL,token_room(info->token), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim)) {
-        pbugf(LOG_SCRIPTS,"TpWireTransfer - Non-player victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    if(!expand_argument(info,rest,arg)) {
-        pbugf(LOG_SCRIPTS,"TpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: amount = atoi(arg->d.str); break;
-    case ENT_NUMBER: amount = arg->d.num; break;
-    default: amount = 0; break;
-    }
-
-    if(amount < 1) return;
-
-    // If the security on this script execution is
-    if(script_security < 7 && amount > 1000) {
-        sprintf(buf, "TpWireTransfer logged: attempted to wire %d gold to %s by token %ld", amount, victim->name, info->token->pIndexData->vnum);
-        log_string(buf);
-        amount = 1000;
-    }
-
-    victim->pcdata->bankbalance += amount;
-
-    sprintf(buf, "TpWireTransfer logged: %s was wired %d gold by token %ld", victim->name, amount, info->token->pIndexData->vnum);
-    log_string(buf);
-}
-
 // do_tpsetrecall
 // obj setrecall $MOBILE <location>
 // Sets the recall point of the target mobile to the reference of the location
@@ -5467,88 +5137,6 @@ SCRIPT_CMD(do_tpstophunt)
     }
 
     stop_hunt(hunter, stay);
-    return;
-}
-
-// Format: PERSIST <MOBILE or OBJECT or ROOM> <STATE>
-SCRIPT_CMD(do_tppersist)
-{
-    char *rest;
-    CHAR_DATA *mob = NULL;
-    OBJ_DATA *obj = NULL;
-    ROOM_INDEX_DATA *room = NULL;
-    bool persist = false, current = false;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpPersist - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_MOBILE: mob = arg->d.mob; current = mob->persist; break;
-    case ENT_OBJECT: obj = arg->d.obj; current = obj->persist; break;
-    case ENT_ROOM: room = arg->d.room; current = room->persist; break;
-    }
-
-    if(!mob && !obj && !room) {
-        pbugf(LOG_SCRIPTS,"TpPersist - NULL target.", VNUM(info->token));
-        return;
-    }
-
-    if(mob)
-    {
-        if( !IS_NPC(mob) ) return;
-
-        if( IS_SET(mob->act[1], ACT2_INSTANCE_MOB) ) return;
-    }
-
-    if(obj)
-    {
-        if( IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ) ) return;
-    }
-
-    if( room )
-    {
-        if( get_blueprint_section_byroom(room->vnum) ) return;
-    }
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS,"TpPersist - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_NONE:   persist = !current; break;
-    case ENT_STRING: persist = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"on"); break;
-    default: return;
-    }
-
-    // Require security to ENABLE persistance
-    if(!current && persist && script_security < MAX_SCRIPT_SECURITY) {
-        pbugf(LOG_SCRIPTS,"TpPersist - Insufficient security to enable persistance from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    if(mob) {
-        if(persist)
-            persist_addmobile(mob);
-        else
-            persist_removemobile(mob);
-    } else if(obj) {
-        if(persist)
-            persist_addobject(obj);
-        else
-            persist_removeobject(obj);
-    } else if(room) {
-        if(persist)
-            persist_addroom(room);
-        else
-            persist_removeroom(room);
-    }
-
     return;
 }
 
@@ -5786,148 +5374,6 @@ SCRIPT_CMD(do_tpcondition)
     }
 
     gain_condition(mob, cond, value);
-}
-
-// scriptwait $PLAYER NUMBER VNUM VNUM[ $ACTOR]
-// - actor can be a $MOBILE, $OBJECT or $TOKEN
-// - scripts must be available for the respective actor type
-SCRIPT_CMD(do_tpscriptwait)
-{
-
-    char *rest;
-    CHAR_DATA *mob = NULL;
-    int wait;
-    long success, failure, pulse;
-    TOKEN_DATA *actor_token = NULL;
-    CHAR_DATA *actor_mob = NULL;
-    OBJ_DATA *actor_obj = NULL;
-    int prog_type;
-
-    if(!info || !info->token || IS_NULLSTR(argument)) return;
-
-    info->token->progs->lastreturn = 0;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE) return;
-
-    mob = arg->d.mob;
-
-    if( !mob ) return;
-
-    if( is_char_busy( mob ) ) {
-        return;
-    }
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: wait = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: wait = arg->d.num; break;
-    default: return;
-    }
-
-    //printf_to_char(mob, "script_wait: wait = %d\n\r", wait);
-
-
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: success = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: success = arg->d.num; break;
-    default: return;
-    }
-
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: failure = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: failure = arg->d.num; break;
-    default: return;
-    }
-
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: pulse = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: pulse = arg->d.num; break;
-    default: return;
-    }
-
-    actor_token = info->token;
-    prog_type = PRG_TPROG;
-    if(rest && *rest) {
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        switch(arg->type) {
-        case ENT_MOBILE:
-            actor_mob = arg->d.mob;
-            actor_obj = NULL;
-            actor_token = NULL;
-            prog_type = PRG_MPROG;
-            break;
-
-        case ENT_OBJECT:
-            actor_mob = NULL;
-            actor_obj = arg->d.obj;
-            actor_token = NULL;
-            prog_type = PRG_OPROG;
-            break;
-
-        case ENT_TOKEN:
-            actor_mob = NULL;
-            actor_obj = NULL;
-            actor_token = arg->d.token;
-            prog_type = PRG_TPROG;
-            break;
-
-        }
-    }
-
-    if(!actor_mob && !actor_obj && !actor_token) return;
-
-    if(success < 1 || !get_script_from_info(info, success, prog_type)) return;
-    if(failure < 1 || !get_script_from_info(info, failure, prog_type)) return;
-    if(pulse > 0 && !get_script_from_info(info, pulse, prog_type)) return;
-
-    wait = UMAX(wait, 1);
-
-
-    mob->script_wait = wait;
-    mob->script_wait_mob = actor_mob;
-    mob->script_wait_obj = actor_obj;
-    mob->script_wait_token = actor_token;
-    if( actor_mob ) {
-        mob->script_wait_id[0] = actor_mob->id[0];
-        mob->script_wait_id[1] = actor_mob->id[1];
-    } else if( actor_obj ) {
-        mob->script_wait_id[0] = actor_obj->id[0];
-        mob->script_wait_id[1] = actor_obj->id[1];
-    } else if( actor_token ) {
-        mob->script_wait_id[0] = actor_token->id[0];
-        mob->script_wait_id[1] = actor_token->id[1];
-    }
-    mob->script_wait_success = get_script_from_info(info, success, prog_type);
-    mob->script_wait_failure = get_script_from_info(info, failure, prog_type);
-    mob->script_wait_pulse = (pulse > 0) ? get_script_from_info(info, pulse, prog_type) : NULL;
-
-    //printf_to_char(mob, "script_wait started: %d\n\r", wait);
-
-    // Return how long the command decided
-    info->token->progs->lastreturn = wait;
 }
 
 // token castfailure $MOBILE[ MESSAGE]
@@ -6459,99 +5905,6 @@ SCRIPT_CMD(do_tpcrier)
     free_buf(buffer);
 }
 
-// Syntax:	checkpoint $PLAYER $ROOM
-// 			checkpoint $PLAYER VNUM
-//			checkpoint $PLAYER none|clear|reset
-//
-// Sets the checkpoint of the $PLAYER to the destination or clears it.
-// - When a checkpoint is set, it will override what location is saved to the pfile.
-// - When setting a checkpoint via VNUM and an invalid vnum is given, it will clear the checkpoint.
-SCRIPT_CMD(do_tpcheckpoint)
-{
-    char *rest;
-
-    CHAR_DATA *mob;
-
-    if(!info || !info->token || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    mob = arg->d.mob;
-    if(IS_NPC(mob)) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if( !str_cmp(arg->d.str, "none") ||
-            !str_cmp(arg->d.str, "clear") ||
-            !str_cmp(arg->d.str, "reset") )
-            mob->checkpoint = NULL;
-        break;
-    case ENT_NUMBER:
-        if( arg->d.num > 0 ) {
-            WNUM room_wnum;
-            if (resolve_widevnum(arg->d.num, NULL, &room_wnum))
-                mob->checkpoint = get_room_index(room_wnum.pArea, room_wnum.vnum);
-            else
-                mob->checkpoint = NULL;
-        }
-        break;
-    case ENT_ROOM:
-        if( arg->d.room != NULL )
-            mob->checkpoint = arg->d.room;
-        break;
-    }
-}
-
-
-
-
-// Syntax: saveplayer $PLAYER
-SCRIPT_CMD(do_tpsaveplayer)
-{
-    char *rest;
-
-    CHAR_DATA *mob;
-
-    if(!info || !info->token || IS_NULLSTR(argument)) return;
-
-    info->token->progs->lastreturn = 0;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    mob = arg->d.mob;
-    if(IS_NPC(mob)) return;
-
-    save_char_obj(mob);
-
-    info->token->progs->lastreturn = 1;
-}
-
-// Syntax: FIXAFFECTS $MOBILE
-SCRIPT_CMD(do_tpfixaffects)
-{
-
-
-    if(!info || !info->token || IS_NULLSTR(argument)) return;
-
-    if(!expand_argument(info,argument,arg))
-        return;
-
-    if(arg->type != ENT_MOBILE) return;
-
-    if(arg->d.mob == NULL) return;
-
-    affect_fix_char(arg->d.mob);
-}
-
 // Syntax: remort $PLAYER
 //  - prompts them for a class out of what they can do
 SCRIPT_CMD(do_tpremort)
@@ -6591,32 +5944,6 @@ SCRIPT_CMD(do_tpremort)
     send_to_char("Are you ready to be reborn? (yes/no)\n\r", mob);
 
     info->token->progs->lastreturn = 1;
-}
-
-// Syntax: restore $MOBILE[ PERCENT]
-SCRIPT_CMD(do_tprestore)
-{
-    char *rest;
-
-    int amount = 100;
-
-    if(!info || !info->token || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    if(*rest) {
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        if(arg->type != ENT_NUMBER) return;
-
-        amount = URANGE(1,arg->d.num,100);
-    }
-
-    restore_char(arg->d.mob, NULL, amount);
 }
 
 // GROUP npc(FOLLOWER) mobile(LEADER)[ bool(SHOW=true)]
