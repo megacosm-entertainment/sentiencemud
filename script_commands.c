@@ -5143,6 +5143,53 @@ SCRIPT_CMD(scriptcmd_zot)
 }
 
 // Syntax: restore $MOBILE[ PERCENT]
+// Syntax: remort $PLAYER
+SCRIPT_CMD(scriptcmd_remort)
+{
+    char *rest;
+    CHAR_DATA *mob;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(info->mob || info->obj || info->room || info->token))
+        return;
+
+    info->progs->lastreturn = 0;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_MOBILE || !arg->d.mob)
+        return;
+
+    mob = arg->d.mob;
+    if(IS_NPC(mob) || !mob->desc || is_char_busy(mob))
+        return;
+
+    if(mob->desc->input ||
+        mob->pk_question ||
+        mob->remove_question ||
+        mob->personal_pk_question ||
+        mob->cross_zone_question ||
+        mob->pcdata->convert_church != -1 ||
+        mob->challenged ||
+        mob->remort_question)
+        return;
+
+    if(IS_REMORT(mob))
+        return;
+
+    if (mob->tot_level < LEVEL_HERO)
+        return;
+
+    mob->remort_question = true;
+    send_to_char("Are you ready to be reborn? (yes/no)\n\r", mob);
+
+    info->progs->lastreturn = 1;
+}
+
+// Syntax: restore $MOBILE[ PERCENT]
 SCRIPT_CMD(scriptcmd_restore)
 {
     char *rest;
@@ -9025,6 +9072,248 @@ SCRIPT_CMD(scriptcmd_setrecall)
         else
             location_set(&room->recall,0,location->vnum,location->id[0],location->id[1]);
     }
+}
+
+SCRIPT_CMD(scriptcmd_condition)
+{
+    char *rest;
+    CHAR_DATA *mob = NULL;
+    int cond, value;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_MOBILE)
+        return;
+
+    mob = arg->d.mob;
+
+    if(!mob || IS_NPC(mob))
+        return;
+
+    if(!*rest)
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(!str_cmp(arg->d.str,"drunk"))
+            cond = COND_DRUNK;
+        else if(!str_cmp(arg->d.str,"full"))
+            cond = COND_FULL;
+        else if(!str_cmp(arg->d.str,"thirst"))
+            cond = COND_THIRST;
+        else if(!str_cmp(arg->d.str,"hunger"))
+            cond = COND_HUNGER;
+        else if(!str_cmp(arg->d.str,"stoned"))
+            cond = COND_STONED;
+        else
+            return;
+        break;
+    default:
+        return;
+    }
+
+    if(!*rest)
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_STRING:
+        value = is_number(arg->d.str) ? atoi(arg->d.str) : 0;
+        break;
+    case ENT_NUMBER:
+        value = arg->d.num;
+        break;
+    default:
+        return;
+    }
+
+    if(script_security < 9)
+    {
+        if(value < -1)
+            value = -1;
+        else if(value > 48)
+            value = 48;
+    }
+
+    gain_condition(mob, cond, value);
+}
+
+SCRIPT_CMD(scriptcmd_stripaffect)
+{
+    char *rest;
+    int skill;
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    CHAR_DATA *searcher = NULL;
+    ROOM_INDEX_DATA *search_room = NULL;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        scope_name = "MpStripaffect";
+        scope_vnum = VNUM(info->mob);
+        searcher = info->mob;
+    } else if(info->obj) {
+        scope_name = "OpStripaffect";
+        scope_vnum = VNUM(info->obj);
+        search_room = obj_room(info->obj);
+    } else if(info->room) {
+        scope_name = "RpStripaffect";
+        scope_vnum = info->room->vnum;
+        search_room = info->room;
+    } else if(info->token) {
+        scope_name = "TpStripaffect";
+        scope_vnum = VNUM(info->token);
+        search_room = token_room(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(search_room) {
+            if(!(mob = get_char_room(NULL, search_room, arg->d.str)))
+                obj = get_obj_here(NULL, search_room, arg->d.str);
+        } else {
+            if(!(mob = get_char_room(searcher, NULL, arg->d.str)))
+                obj = get_obj_here(searcher, NULL, arg->d.str);
+        }
+        break;
+    case ENT_MOBILE:
+        mob = arg->d.mob;
+        break;
+    case ENT_OBJECT:
+        obj = arg->d.obj;
+        break;
+    default:
+        break;
+    }
+
+    if(!mob && !obj) {
+        pbugf(LOG_SCRIPTS, "%s - NULL target from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        skill = skill_lookup(arg->d.str);
+        break;
+    default:
+        return;
+    }
+
+    if(skill < 0)
+        return;
+
+    if(mob)
+        affect_strip(mob, skill);
+    else
+        affect_strip_obj(obj, skill);
+}
+
+SCRIPT_CMD(scriptcmd_stripaffectname)
+{
+    char *rest, *name;
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    CHAR_DATA *searcher = NULL;
+    ROOM_INDEX_DATA *search_room = NULL;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        scope_name = "MpStripaffect";
+        scope_vnum = VNUM(info->mob);
+        searcher = info->mob;
+    } else if(info->obj) {
+        scope_name = "OpStripaffect";
+        scope_vnum = VNUM(info->obj);
+        search_room = obj_room(info->obj);
+    } else if(info->room) {
+        scope_name = "RpStripaffect";
+        scope_vnum = info->room->vnum;
+        search_room = info->room;
+    } else if(info->token) {
+        scope_name = "TpStripaffect";
+        scope_vnum = VNUM(info->token);
+        search_room = token_room(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(search_room) {
+            if(!(mob = get_char_room(NULL, search_room, arg->d.str)))
+                obj = get_obj_here(NULL, search_room, arg->d.str);
+        } else {
+            if(!(mob = get_char_room(searcher, NULL, arg->d.str)))
+                obj = get_obj_here(searcher, NULL, arg->d.str);
+        }
+        break;
+    case ENT_MOBILE:
+        mob = arg->d.mob;
+        break;
+    case ENT_OBJECT:
+        obj = arg->d.obj;
+        break;
+    default:
+        break;
+    }
+
+    if(!mob && !obj) {
+        pbugf(LOG_SCRIPTS, "%s - NULL target from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        name = get_affect_cname(arg->d.str);
+        break;
+    default:
+        return;
+    }
+
+    if(!name)
+        return;
+
+    if(mob)
+        affect_strip_name(mob, name);
+    else
+        affect_strip_name_obj(obj, name);
 }
 
 static int cmd_cmp(void *a, void *b)

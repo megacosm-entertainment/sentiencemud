@@ -45,7 +45,7 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "checkpoint",			scriptcmd_checkpoint,	false,	true	},
     { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
     { "cloneroom",			do_opcloneroom,			true,	true	},
-    { "condition",			do_opcondition,			false,	true	},
+    { "condition",			scriptcmd_condition,		false,	true	},
     { "crier",				scriptcmd_crier,			false,	true	},
     { "damage",				scriptcmd_damage,		false,	true	},
     { "deduct",				scriptcmd_deduct,		true,	true	},
@@ -118,7 +118,7 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "rawkill",			do_oprawkill,			false,	true	},
     { "reckoning",			scriptcmd_reckoning,		true,	true	},
     { "remember",			scriptcmd_remember,	false,	true	},
-    { "remort",				do_opremort,			true,	true	},
+    { "remort",				scriptcmd_remort,		true,	true	},
     { "remove",				do_opremove,			false,	true	},
     { "remspell",			do_opremspell,			true,	true	},
     { "resetdice",			scriptcmd_resetdice,		true,	true	},
@@ -147,8 +147,8 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
     { "stringmob",			do_opstringmob,			true,	true	},
     { "stringobj",			do_opstringobj,			true,	true	},
-    { "stripaffect",		do_opstripaffect,		true,	true	},
-    { "stripaffectname",	do_opstripaffectname,	true,	true	},
+    { "stripaffect",		scriptcmd_stripaffect,		true,	true	},
+    { "stripaffectname",	scriptcmd_stripaffectname,	true,	true	},
     { "transfer",			scriptcmd_transfer,			false,	true	},
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "ungroup",			scriptcmd_ungroup,		false,	true	},
@@ -3320,102 +3320,6 @@ SCRIPT_CMD(do_opaddaffectname)
 }
 
 
-SCRIPT_CMD(do_opstripaffect)
-{
-    char *rest;
-    int skill;
-    CHAR_DATA *mob = NULL;
-    OBJ_DATA *obj = NULL;
-
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "OpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    // stripaffect <target> <skill>
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if (!(mob = get_char_room(NULL, obj_room(info->obj), arg->d.str)))
-            obj = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
-        break;
-    case ENT_MOBILE: mob = arg->d.mob; break;
-    case ENT_OBJECT: obj = arg->d.obj; break;
-    default: break;
-    }
-
-    if(!mob && !obj) {
-        pbugf(LOG_SCRIPTS, "OpStripaffect - NULL target from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS, "OpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: skill = skill_lookup(arg->d.str); break;
-    default: return;
-    }
-
-    if(skill < 0) return;
-
-    if(mob) affect_strip(mob, skill);
-    else affect_strip_obj(obj,skill);
-}
-
-SCRIPT_CMD(do_opstripaffectname)
-{
-    char *rest, *name;
-    CHAR_DATA *mob = NULL;
-    OBJ_DATA *obj = NULL;
-
-
-    if(!info || !info->obj) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    // stripaffectname <target> <name>
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if (!(mob = get_char_room(NULL,obj_room(info->obj), arg->d.str)))
-            obj = get_obj_here(NULL,obj_room(info->obj), arg->d.str);
-        break;
-    case ENT_MOBILE: mob = arg->d.mob; break;
-    case ENT_OBJECT: obj = arg->d.obj; break;
-    default: break;
-    }
-
-    if(!mob && !obj) {
-        pbugf(LOG_SCRIPTS, "MpStripaffect - NULL target from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS, "MpStripaffect - Error in parsing from vnum %ld.", VNUM(info->obj));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: name = get_affect_cname(arg->d.str); break;
-    default: return;
-    }
-
-    if(!name) return;
-
-    if(mob) affect_strip_name(mob, name);
-    else affect_strip_name_obj(obj, name);
-}
 
 SCRIPT_CMD(do_opinput)
 {
@@ -4759,63 +4663,6 @@ SCRIPT_CMD(do_opskillgroup)
 
 // obj condition $PLAYER <condition> <value>
 // Adjusts the specified condition by the given value
-SCRIPT_CMD(do_opcondition)
-{
-
-    char *rest;
-    CHAR_DATA *mob = NULL;
-    int cond, value;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE) return;
-
-    mob = arg->d.mob;
-
-    if( !mob || IS_NPC(mob) ) return;	// only players for now
-
-    if( !*rest) return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if( !str_cmp(arg->d.str,"drunk") )		cond = COND_DRUNK;
-        else if( !str_cmp(arg->d.str,"full") )	cond = COND_FULL;
-        else if( !str_cmp(arg->d.str,"thirst") )	cond = COND_THIRST;
-        else if( !str_cmp(arg->d.str,"hunger") )	cond = COND_HUNGER;
-        else if( !str_cmp(arg->d.str,"stoned") )	cond = COND_STONED;
-        else
-            return;
-
-        break;
-    default: return;
-    }
-
-    if(!*rest) return;
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: value = arg->d.num; break;
-    default: return;
-    }
-
-    if( script_security < 9 )
-    {
-        if( value < -1 ) value = -1;
-        else if(value > 48) value = 48;
-    }
-
-    gain_condition(mob, cond, value);
-}
-
-
 // addspell $OBJECT STRING[ NUMBER]
 SCRIPT_CMD(do_opaddspell)
 {
@@ -5235,47 +5082,6 @@ SCRIPT_CMD(do_opcrier)
     free_buf(buffer);
 }
 
-
-// Syntax: remort $PLAYER
-//  - prompts them for a class out of what they can do
-SCRIPT_CMD(do_opremort)
-{
-    char *rest;
-
-    CHAR_DATA *mob;
-
-    if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-    info->obj->progs->lastreturn = 0;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    mob = arg->d.mob;
-    if(IS_NPC(mob) || !mob->desc || is_char_busy(mob)) return;
-
-    // Are they already being prompted
-    if(mob->desc->input ||
-        mob->pk_question ||
-        mob->remove_question ||
-        mob->personal_pk_question ||
-        mob->cross_zone_question ||
-        mob->pcdata->convert_church != -1 ||
-        mob->challenged ||
-        mob->remort_question)
-        return;
-
-    if(IS_REMORT(mob)) return;
-
-    if (mob->tot_level < LEVEL_HERO) return;
-
-    mob->remort_question = true;
-    send_to_char("Are you ready to be reborn? (yes/no)\n\r", mob);
-
-    info->obj->progs->lastreturn = 1;
-}
 
 // GROUP npc(FOLLOWER) mobile(LEADER)[ bool(SHOW=true)]
 // Follower will only work on an NPC

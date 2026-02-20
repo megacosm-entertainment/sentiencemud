@@ -2963,14 +2963,6 @@ SCRIPT_CMD(do_mpstringobj);
 SCRIPT_CMD(do_opstringobj);
 SCRIPT_CMD(do_rpstringobj);
 SCRIPT_CMD(do_tpstringobj);
-SCRIPT_CMD(do_mpstripaffect);
-SCRIPT_CMD(do_opstripaffect);
-SCRIPT_CMD(do_rpstripaffect);
-SCRIPT_CMD(do_tpstripaffect);
-SCRIPT_CMD(do_mpstripaffectname);
-SCRIPT_CMD(do_opstripaffectname);
-SCRIPT_CMD(do_rpstripaffectname);
-SCRIPT_CMD(do_tpstripaffectname);
 SCRIPT_CMD(do_mptake);
 SCRIPT_CMD(do_mpteleport);
 SCRIPT_CMD(do_mptransfer);
@@ -3034,10 +3026,6 @@ SCRIPT_CMD(do_mpskillgroup);
 SCRIPT_CMD(do_opskillgroup);
 SCRIPT_CMD(do_rpskillgroup);
 SCRIPT_CMD(do_tpskillgroup);
-SCRIPT_CMD(do_mpcondition);
-SCRIPT_CMD(do_opcondition);
-SCRIPT_CMD(do_rpcondition);
-SCRIPT_CMD(do_tpcondition);
 
 SCRIPT_CMD(do_tpcastfailure);
 SCRIPT_CMD(do_tpcastrecover);
@@ -3056,10 +3044,6 @@ SCRIPT_CMD(do_tpaddspell);
 SCRIPT_CMD(do_tpremspell);
 SCRIPT_CMD(do_tpalteraffect);
 
-SCRIPT_CMD(do_mpremort);
-SCRIPT_CMD(do_opremort);
-SCRIPT_CMD(do_rpremort);
-SCRIPT_CMD(do_tpremort);
 
 SCRIPT_CMD(do_mpstopcombat);
 SCRIPT_CMD(do_opstopcombat);
@@ -3123,6 +3107,7 @@ SCRIPT_CMD(scriptcmd_questcomplete);
 SCRIPT_CMD(scriptcmd_revokeskill);
 SCRIPT_CMD(scriptcmd_revokeclass);
 SCRIPT_CMD(scriptcmd_revokesong);
+SCRIPT_CMD(scriptcmd_remort);
 SCRIPT_CMD(scriptcmd_restore);
 SCRIPT_CMD(scriptcmd_saveplayer);
 SCRIPT_CMD(scriptcmd_startcombat);
@@ -3155,10 +3140,13 @@ SCRIPT_CMD(scriptcmd_questscroll);
 SCRIPT_CMD(scriptcmd_ed);
 
 SCRIPT_CMD(scriptcmd_call);
+SCRIPT_CMD(scriptcmd_condition);
 SCRIPT_CMD(scriptcmd_crier);
 SCRIPT_CMD(scriptcmd_purge);
 SCRIPT_CMD(scriptcmd_raisedead);
 SCRIPT_CMD(scriptcmd_resetdice);
+SCRIPT_CMD(scriptcmd_stripaffect);
+SCRIPT_CMD(scriptcmd_stripaffectname);
 SCRIPT_CMD(scriptcmd_ungroup);
 SCRIPT_CMD(scriptcmd_xcall);
 
