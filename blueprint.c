@@ -1232,6 +1232,52 @@ static void maze_generate_map_text(INSTANCE_SECTION *section, BLUEPRINT_SECTION 
     section->map_text = map_text;
 }
 
+static void maze_mark_section_room(INSTANCE_SECTION *section, ROOM_INDEX_DATA *room, char marker)
+{
+    if (!section || !room || !section->section || section->section->type != BSTYPE_MAZE)
+        return;
+
+    if (!section->map_text || section->section->maze_x < 1 || section->section->maze_y < 1)
+        return;
+
+    int width = section->section->maze_x;
+    int index = -1;
+    int cur = 0;
+
+    ITERATOR it;
+    ROOM_INDEX_DATA *iter_room;
+    iterator_start(&it, section->rooms);
+    while ((iter_room = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
+        if (iter_room == room) {
+            index = cur;
+            break;
+        }
+        cur++;
+    }
+    iterator_stop(&it);
+
+    if (index < 0)
+        return;
+
+    int x = index % width;
+    int y = index / width;
+
+    int line_width = (width * 2 + 1);
+    int line_stride = line_width + 2; /* \n\r */
+    int line_no = 1 + (y * 2);        /* top border is line 0 */
+    int col_no = 1 + (x * 2);         /* center of cell */
+    int offset = (line_no * line_stride) + col_no;
+
+    if (offset < 0 || section->map_text[offset] == '\0')
+        return;
+
+    if ((section->map_text[offset] == 'E' && marker == 'X') ||
+        (section->map_text[offset] == 'X' && marker == 'E'))
+        section->map_text[offset] = 'B';
+    else
+        section->map_text[offset] = marker;
+}
+
 static void __purge_maze_cells(MAZE_CELL *cells, int total)
 {
     for (int i = 0; i < total; i++) {
@@ -2023,6 +2069,7 @@ bool generate_static_instance(INSTANCE *instance)
                         ex->u1.to_room = NULL;
 
                         instance->entrance = room;
+                        maze_mark_section_room(section, room, 'E');
                     }
                 }
             }
@@ -2062,6 +2109,7 @@ bool generate_static_instance(INSTANCE *instance)
 
 
                         instance->exit = room;
+                        maze_mark_section_room(section, room, 'X');
                     }
                 }
             }
