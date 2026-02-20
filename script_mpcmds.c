@@ -16,6 +16,10 @@
 #include "debug.h"
 #include "skill_data.h"
 
+SCRIPT_CMD(do_mpoload);
+SCRIPT_CMD(do_mpresetdice);
+SCRIPT_CMD(do_mpxcall);
+
 
 /*
  * Command table.
@@ -75,120 +79,36 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "fixaffects",			scriptcmd_fixaffects,		false,	true	},
     { "flee",				scriptcmd_flee,				false,	false	},
     { "force",				scriptcmd_force,			false,	true	},
-    { "forget",				scriptcmd_forget,		false,	true	},
-    { "gdamage",			scriptcmd_gdamage,		false,	true	},
-    { "gecho",				scriptcmd_gecho,			false,	true	},
-    { "gforce",				scriptcmd_gforce,			false,	true	},
-    { "goto",				scriptcmd_goto,				false,	true	},
-    { "grantclass",			scriptcmd_grantclass,		false,	true	},
-    { "grantskill",			scriptcmd_grantskill,		false,	true	},
-    { "grantsong",			scriptcmd_grantsong,		false,	true	},
-    { "group",				do_mpgroup,					false,	true	},
-    { "gtransfer",			scriptcmd_gtransfer,		false,	true	},
-    { "hunt",				do_mphunt,					false,	true	},
-    { "input",				scriptcmd_input,				false,	true	},
-    { "inputstring",		scriptcmd_inputstring,		false,	true	},
-    { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
-    { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
-    { "interrupt",			scriptcmd_interrupt,			false,	true	},
-    { "junk",				do_mpjunk,					false,	true	},
-    { "kill",				do_mpkill,					false,	true	},
-    { "link",				do_mplink,					false,	true	},
-    { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
-    { "lockadd",			scriptcmd_lockadd,			false,	true	},
-    { "lockremove",			scriptcmd_lockremove,		false,	true	},
-    { "mail",				scriptcmd_mail,				true,	true	},
-    { "mload",				scriptcmd_mload,				false,	true	},
-    { "mute",				scriptcmd_mute,				false,	true	},
-    { "oload",				scriptcmd_oload,			false,	true	},
-    { "otransfer",			do_mpotransfer,				false,	true	},
-    { "pageat",				scriptcmd_pageat,			false,	true	},
-    { "peace",				scriptcmd_peace,				false,	false	},
-    { "persist",			scriptcmd_persist,		false,	true	},
-    { "prompt",				scriptcmd_prompt,			false,	true	},
-    { "purge",				scriptcmd_purge,			false,	false	},
-    { "questaccept",		scriptcmd_questaccept,		false,	true	},
-    { "questcancel",		scriptcmd_questcancel,		false,	true	},
-    { "questcomplete",		scriptcmd_questcomplete,	false,	true	},
-    { "questgenerate",		scriptcmd_questgenerate,	false,	true	},
-    { "questpartcustom",	scriptcmd_questpartcustom,	true,	true	},
-    { "questpartgetitem",	scriptcmd_questpartgetitem,	true,	true	},
-    { "questpartgoto",		scriptcmd_questpartgoto,	true,	true	},
-    { "questpartrescue",	scriptcmd_questpartrescue,	true,	true	},
-    { "questpartslay",		scriptcmd_questpartslay,	true,	true	},
-    { "questscroll",		scriptcmd_questscroll,		false,	true	},
-    { "queue",				scriptcmd_queue,			false,	true	},
-    { "raisedead",			scriptcmd_raisedead,			true,	true	},
-    { "rawkill",			do_mprawkill,				false,	true	},
-    { "reckoning",			scriptcmd_reckoning,		true,	true	},
-    { "remember",			scriptcmd_remember,	false,	true	},
-    { "remort",				scriptcmd_remort,			true,	true	},
-    { "remove",				do_mpremove,				false,	true	},
-    { "remspell",			scriptcmd_remspell,			true,	true	},
-    { "resetdice",			scriptcmd_resetdice,			true,	true	},
-    { "resetroom",			scriptcmd_resetroom,		true,	true	},
-    { "restore",			scriptcmd_restore,			true,	true	},
-    { "revokeclass",		scriptcmd_revokeclass,		false,	true	},
-    { "revokeskill",		scriptcmd_revokeskill,		false,	true	},
-    { "revokesong",			scriptcmd_revokesong,		false,	true	},
-    { "saveplayer",			scriptcmd_saveplayer,		false,	true	},
-    { "scriptwait",			scriptcmd_scriptwait,		false,	true	},
-    { "selfdestruct",		do_mpselfdestruct,			false,	false	},
-    { "sendfloor",			scriptcmd_sendfloor,		false,	true	},
-    { "setclass",			scriptcmd_setclass,			false,	true	},
-    { "setrace",			scriptcmd_setrace,			false,	true	},
-    { "setrecall",			scriptcmd_setrecall,			false,	true,	},
-    { "settimer",			scriptcmd_settimer,			false,	true	},
-    { "settrait",			scriptcmd_settrait,			false,	true	},
-    { "showcommand",		scriptcmd_showcommand,		false,	true	},
-    { "showroom",			scriptcmd_showroom,			true,	true	},
-    { "skimprove",			scriptcmd_skimprove,			true,	true	},
-    { "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
-    { "specialkey",			scriptcmd_specialkey,		false,	true	},
-    { "startcombat",		scriptcmd_startcombat,		false,	true	},
-    { "startreckoning",		scriptcmd_startreckoning,	true,	true	},
-    { "stopcombat",			scriptcmd_stopcombat,		false,	true	},
-    { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
-    { "stringmob",			scriptcmd_stringmob,			true,	true	},
-    { "stringobj",			scriptcmd_stringobj,			true,	true	},
-    { "stripaffect",		scriptcmd_stripaffect,			true,	true	},
-    { "stripaffectname",	scriptcmd_stripaffectname,		true,	true	},
-    { "take",				do_mptake,					false,	true	},
-    { "teleport", 			do_mpteleport,				false,	false	},
-    { "transfer",			scriptcmd_transfer,			false,	true	},
-    { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
-    { "ungroup",			scriptcmd_ungroup,			false,	true	},
-    { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
-    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
-    { "unmute",				scriptcmd_unmute,			false,	true	},
-    { "usecatalyst",		do_mpusecatalyst,			false,	true	},
-    { "varclear",			scriptcmd_varclear,			false,	true	},
-    { "varclearon",			scriptcmd_varclearon,			false,	true	},
-    { "varcopy",			scriptcmd_varcopy,			false,	true	},
-    { "varsave",			scriptcmd_varsave,			false,	true	},
-    { "varsaveon",			scriptcmd_varsaveon,			false,	true	},
-    { "varset",				scriptcmd_varset,			false,	true	},
-    { "varseton",			scriptcmd_varseton,			false,	true	},
-    { "vforce",				scriptcmd_vforce,		false,	true	},
-    { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
-    { "wiretransfer",		scriptcmd_wiretransfer,		false,	true	},
-    { "wiznet",				scriptcmd_wiznet,			false,	true    },
-    { "xcall",				scriptcmd_xcall,				false,	true	},
-    { "zecho",				scriptcmd_zecho,			false,	true	},
-    { "zot",				scriptcmd_zot,				true,	true	},
-    { NULL,					NULL,						false,	false	}
+    { "goto",               do_mpgoto,              false,  true    },
+    { "grantskill",         scriptcmd_grantskill,   false,  true    },
+    { "group",              do_mpgroup,             false,  true    },
+    { "hunt",               do_mphunt,              false,  true    },
+    { "junk",               do_mpjunk,              false,  true    },
+    { "kill",               do_mpkill,              false,  true    },
+    { "link",               do_mplink,              false,  true    },
+    { "oload",              scriptcmd_oload,        false,  true    },
+    { "otransfer",          do_mpotransfer,         false,  true    },
+    { "rawkill",            do_mprawkill,           false,  true    },
+    { "remove",             do_mpremove,            false,  true    },
+    { "resetdice",          do_mpresetdice,         true,   true    },
+    { "revokeskill",        scriptcmd_revokeskill,  false,  true    },
+    { "selfdestruct",       do_mpselfdestruct,      false,  false   },
+    { "startcombat",        scriptcmd_startcombat,  false,  true    },
+    { "stopcombat",         scriptcmd_stopcombat,   false,  true    },
+    { "take",               do_mptake,              false,  true    },
+    { "teleport",           do_mpteleport,          false,  false   },
+    { "usecatalyst",        do_mpusecatalyst,       false,  true    },
+    { "varclear",           scriptcmd_varclear,     false,  true    },
+    { "varclearon",         scriptcmd_varclearon,   false,  true    },
+    { "varcopy",            scriptcmd_varcopy,      false,  true    },
+    { "varsave",            scriptcmd_varsave,      false,  true    },
+    { "varsaveon",          scriptcmd_varsaveon,    false,  true    },
+    { "varset",             scriptcmd_varset,       false,  true    },
+    { "varseton",           scriptcmd_varseton,     false,  true    },
+    { "xcall",              scriptcmd_xcall,        false,  true    },
+    { NULL,					NULL,					false,	false	}
 };
 
-///////////////////////////////////////////
-//
-// Function: mpcmd_lookup
-//
-// Section: Script/MPROG
-//
-// Purpose: Searches the mprog command list to the index of the specified command.
-//
-// Returns: Command index or -1 if not found.
-//
 int mpcmd_lookup(char *command)
 {
     int cmd;
@@ -1322,7 +1242,6 @@ SCRIPT_CMD(do_mpdecprac)
     CHAR_DATA *victim;
     int amount = 0;
 
-
     if(!info || !info->mob) return;
 
     if(!(rest = expand_argument(info,argument,arg))) {
@@ -1888,124 +1807,6 @@ SCRIPT_CMD(do_mplink)
 // Syntax: mob oload <vnum> [<level>] [room|wear|$ENTITY]
 SCRIPT_CMD(do_mpoload)
 {
-    /*
-    char buf[MIL], *rest;
-    long vnum, level;
-    bool fToroom = false, fWear = false;
-    OBJ_INDEX_DATA *pObjIndex;
-    OBJ_DATA *obj;
-
-    CHAR_DATA *to_mob = info->mob;
-    OBJ_DATA *to_obj = NULL;
-    ROOM_INDEX_DATA *to_room = NULL;
-
-    if(!info || !info->mob || !info->mob->in_room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-    case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
-    default: vnum = 0; break;
-    }
-
-    if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-        pbugf(LOG_SCRIPTS, "Mpoload - Bad vnum arg from vnum %d.", VNUM(info->mob));
-        return;
-    }
-
-    if(rest && *rest) {
-        argument = rest;
-        if(!(rest = expand_argument(info,argument,arg)))
-            return;
-
-        switch(arg->type) {
-        case ENT_NUMBER: level = arg->d.num; break;
-        case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-        case ENT_MOBILE: level = arg->d.mob ? get_mob_level(arg->d.mob) : 0; break;
-        case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
-        default: level = 0; break;
-        }
-
-        if(level <= 0 || level > get_mob_level(info->mob))
-            level = get_mob_level(info->mob);
-
-        if(rest && *rest) {
-            argument = rest;
-            if(!(rest = expand_argument(info,argument,arg)))
-                return;
-
-            //
-            // Added 3rd argument
-            // omitted - load to mobile's inventory
-            // 'none'  - load to mobile's inventory
-            // 'room'  - load to room
-            // 'wear'  - load to mobile and force wear
-            // MOBILE  - load to target mobile
-            //         - 'W' automatically wear
-            // OBJECT  - load to target object
-            // ROOM    - load to target room
-             
-
-            switch(arg->type) {
-            case ENT_STRING:
-                if(!str_cmp(arg->d.str, "room"))
-                    fToroom = true;
-                else if(!str_cmp(arg->d.str, "wear"))
-                    fWear = true;
-                break;
-
-            case ENT_MOBILE:
-                to_mob = arg->d.mob;
-                if((rest = one_argument(rest,buf))) {
-                    if(!str_cmp(buf, "wear"))
-                        fWear = true;
-                    // use "none" for neither
-                }
-                break;
-
-            case ENT_OBJECT:
-                if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-                    if(arg->d.obj->item_type == ITEM_CONTAINER ||
-                        arg->d.obj->item_type == ITEM_CART)
-                        to_obj = arg->d.obj;
-                    else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-                        pObjIndex->item_type == ITEM_WEAPON &&
-                        IS_WEAPON(pObjIndex) && IS_WEAPON_CON(arg->d.obj) &&
-                        WEAPON(pObjIndex)->weapon_class == WEAPON_CON(arg->d.obj)->weapon_type)
-                        to_obj = arg->d.obj;
-                    else
-                        return;	// Trying to put the item into a non-container won't work
-                }
-                break;
-
-            case ENT_ROOM:		to_room = arg->d.room; break;
-            }
-        }
-
-    } else
-        level = get_mob_level(info->mob);
-
-    obj = create_object(pObjIndex, level, true);
-    if( to_room )
-        obj_to_room(obj, to_room);
-    else if( to_obj )
-        obj_to_obj(obj, to_obj);
-    else if( to_mob && (fWear || !fToroom) && CAN_WEAR(obj, ITEM_TAKE) &&
-        (to_mob->carry_number < can_carry_n (to_mob)) &&
-        (get_carry_weight (to_mob) + get_obj_weight (obj) <= can_carry_w (to_mob))) {
-        obj_to_char(obj, to_mob);
-        if (fWear)
-            wear_obj(to_mob, obj, true);
-    }
-    else
-        obj_to_room(obj, info->mob->in_room);
-
-    if(rest && *rest) variables_set_object(info->var,rest,obj);
-    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-    */
     script_oload(info,argument,arg, false);
 }
 

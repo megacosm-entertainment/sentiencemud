@@ -24,153 +24,153 @@ static AREA_DATA *script_relative_widevnum_context(AREA_DATA *context_area, cons
 }
 
 const struct script_cmd_type obj_cmd_table[] = {
-    { "addaffect",			scriptcmd_addaffect,	true,	true	},
-    { "addaffectname",		scriptcmd_addaffectname,true,	true	},
-    { "addspell",			scriptcmd_addspell,		true,	true	},
-    { "alteraffect",		scriptcmd_alteraffect,		true,	true	},
-    { "alterexit",			do_opalterexit,			false,	true	},
-    { "altermob",			do_opaltermob,			true,	true	},
-    { "alterobj",			scriptcmd_alterobj,			true,	true	},
-    { "alterroom",			scriptcmd_alterroom,			true,	true	},
-    { "applytoxin",			scriptcmd_applytoxin,	false,	true	},
-    { "asound",				scriptcmd_asound,		false,	true	},
-    { "at",					scriptcmd_at,			false,	true	},
-    { "attach",				scriptcmd_attach,			true,	true	},
-    { "award",				scriptcmd_award,		true,	true	},
-    { "breathe",			scriptcmd_breathe,		false,	true	},
-    { "call",				scriptcmd_call,			false,	true	},
-    { "cancel",				scriptcmd_cancel,		false,	false	},
-    { "cast",       		do_opcast,				false,	true	},
-    { "chargebank",			scriptcmd_chargebank,	false,	true	},
-    { "checkpoint",			scriptcmd_checkpoint,	false,	true	},
-    { "churchannouncetheft",	scriptcmd_churchannouncetheft,	true, true },
-    { "cloneroom",			do_opcloneroom,			true,	true	},
-    { "condition",			scriptcmd_condition,		false,	true	},
-    { "crier",				scriptcmd_crier,			false,	true	},
-    { "damage",				scriptcmd_damage,		false,	true	},
-    { "deduct",				scriptcmd_deduct,		true,	true	},
-    { "delay",				scriptcmd_delay,			false,	true	},
-    { "dequeue",			scriptcmd_dequeue,		false,	false	},
-    { "destroyroom",		do_opdestroyroom,		true,	true	},
-    { "detach",				scriptcmd_detach,			true,	true	},
-    { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
-    { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
-    { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
+    { "addaffect",                      scriptcmd_addaffect,    true,   true    },
+    { "addaffectname",          scriptcmd_addaffectname,true,   true    },
+    { "addspell",                       scriptcmd_addspell,             true,   true    },
+    { "alteraffect",            scriptcmd_alteraffect,          true,   true    },
+    { "alterexit",                      do_opalterexit,                 false,  true    },
+    { "altermob",                       do_opaltermob,                  true,   true    },
+    { "alterobj",                       scriptcmd_alterobj,                     true,   true    },
+    { "alterroom",                      scriptcmd_alterroom,                    true,   true    },
+    { "applytoxin",                     scriptcmd_applytoxin,   false,  true    },
+    { "asound",                         scriptcmd_asound,               false,  true    },
+    { "at",                                     scriptcmd_at,                   false,  true    },
+    { "attach",                         scriptcmd_attach,                       true,   true    },
+    { "award",                          scriptcmd_award,                true,   true    },
+    { "breathe",                        scriptcmd_breathe,              false,  true    },
+    { "call",                           scriptcmd_call,                 false,  true    },
+    { "cancel",                         scriptcmd_cancel,               false,  false   },
+    { "cast",                   do_opcast,                              false,  true    },
+    { "chargebank",                     scriptcmd_chargebank,   false,  true    },
+    { "checkpoint",                     scriptcmd_checkpoint,   false,  true    },
+    { "churchannouncetheft",    scriptcmd_churchannouncetheft,  true, true },
+    { "cloneroom",                      do_opcloneroom,                 true,   true    },
+    { "condition",                      scriptcmd_condition,            false,  true    },
+    { "crier",                          scriptcmd_crier,                        false,  true    },
+    { "damage",                         scriptcmd_damage,               false,  true    },
+    { "deduct",                         scriptcmd_deduct,               true,   true    },
+    { "delay",                          scriptcmd_delay,                        false,  true    },
+    { "dequeue",                        scriptcmd_dequeue,              false,  false   },
+    { "destroyroom",            do_opdestroyroom,               true,   true    },
+    { "detach",                         scriptcmd_detach,                       true,   true    },
+    { "dungeoncomplete",        scriptcmd_dungeoncomplete,      true,   true    },
+    { "dungeoncommence",        scriptcmd_dungeoncommence,      true,   true    },
+    { "dungeonfailure", scriptcmd_dungeonfailure,       true,   true    },
     { "event",              scriptcmd_event,          false,  true    },
-    { "echo",				scriptcmd_echo,			false,	true	},
-    { "echoaround",			scriptcmd_echoaround,	false,	true	},
-    { "echoat",				scriptcmd_echoat,		false,	true	},
-    { "echobattlespam",		scriptcmd_echobattlespam,	false,	true	},
-    { "echochurch",			scriptcmd_echochurch,		false,	true	},
-    { "echogrouparound",	scriptcmd_echogrouparound,	false,	true	},
-    { "echogroupat",		scriptcmd_echogroupat,		false,	true	},
-    { "echoleadaround",		scriptcmd_echoleadaround,	false,	true	},
-    { "echoleadat",			scriptcmd_echoleadat,		false,	true	},
-    { "echonotvict",		scriptcmd_echonotvict,	false,	true	},
-    { "echoroom",			scriptcmd_echoroom,		false,	true	},
-    { "ed",					scriptcmd_ed,				false,	true	},
-    { "entercombat",		scriptcmd_entercombat,	false,	true	},
-    { "fade",				scriptcmd_fade,				true,	true	},
-    { "fixaffects",			scriptcmd_fixaffects,	false,	true	},
-    { "flee",				scriptcmd_flee,			false,	true	},
-    { "force",				scriptcmd_force,			false,	true	},
-    { "forget",				scriptcmd_forget,		false,	false	},
-    { "gdamage",			scriptcmd_gdamage,		false,	true	},
-    { "gecho",       		scriptcmd_gecho,			false,	true	},
-    { "gforce",				scriptcmd_gforce,		false,	true	},
-    { "goto",				scriptcmd_goto,			false,	true	},
-    { "grantclass",			scriptcmd_grantclass,	false,	true	},
-    { "grantskill",			scriptcmd_grantskill,	false,	true	},
-    { "grantsong",			scriptcmd_grantsong,	false,	true	},
-    { "group",				do_opgroup,				false,	true	},
-    { "gtransfer",			scriptcmd_gtransfer,		false,	true	},
-    { "input",				scriptcmd_input,			false,	true	},
-    { "inputstring",		scriptcmd_inputstring,	false,	true	},
-    { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
-    { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
-    { "interrupt",			scriptcmd_interrupt,		false,	true	},
-    { "junk",				do_opjunk,				false,	true	},
-    { "link",				do_oplink,				false,	true	},
-    { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
-    { "lockadd",			scriptcmd_lockadd,			false,	true	},
-    { "lockremove",			scriptcmd_lockremove,		false,	true	},
-    { "mail",				scriptcmd_mail,				true,	true	},
-    { "mload",				scriptcmd_mload,			false,	true	},
-    { "mute",				scriptcmd_mute,			false,	true	},
-    { "oload",				scriptcmd_oload,			false,	true	},
-    { "otransfer",			do_opotransfer,			false,	true	},
-    { "pageat",				scriptcmd_pageat,			false,	true	},
-    { "peace",				scriptcmd_peace,			false,	false	},
-    { "persist",			scriptcmd_persist,		false,	true	},
-    { "prompt",				scriptcmd_prompt,		false,	true	},
-    { "purge",				scriptcmd_purge,			false,	false	},
-    { "questaccept",		scriptcmd_questaccept,		false,	true	},
-    { "questcancel",		scriptcmd_questcancel,		false,	true	},
-    { "questcomplete",		scriptcmd_questcomplete,	false,	true	},
-    { "questgenerate",		scriptcmd_questgenerate,	false,	true	},
-    { "questpartcustom",	scriptcmd_questpartcustom,	true,	true	},
-    { "questpartgetitem",	scriptcmd_questpartgetitem,	true,	true	},
-    { "questpartgoto",		scriptcmd_questpartgoto,	true,	true	},
-    { "questpartrescue",	scriptcmd_questpartrescue,	true,	true	},
-    { "questpartslay",		scriptcmd_questpartslay,	true,	true	},
-    { "questscroll",		scriptcmd_questscroll,		false,	true	},
-    { "queue",				scriptcmd_queue,			false,	true	},
-    { "rawkill",			do_oprawkill,			false,	true	},
-    { "reckoning",			scriptcmd_reckoning,		true,	true	},
-    { "remember",			scriptcmd_remember,	false,	true	},
-    { "remort",				scriptcmd_remort,		true,	true	},
-    { "remove",				do_opremove,			false,	true	},
-    { "remspell",			scriptcmd_remspell,		true,	true	},
-    { "resetdice",			scriptcmd_resetdice,		true,	true	},
-    { "resetroom",			scriptcmd_resetroom,	true,	true	},
-    { "restore",			scriptcmd_restore,		true,	true	},
-    { "revokeclass",		scriptcmd_revokeclass,	false,	true	},
-    { "revokeskill",		scriptcmd_revokeskill,	false,	true	},
-    { "revokesong",			scriptcmd_revokesong,	false,	true	},
-    { "saveplayer",			scriptcmd_saveplayer,	false,	true	},
-    { "scriptwait",			scriptcmd_scriptwait,	false,	true	},
-    { "selfdestruct",		do_opselfdestruct,		false,	false	},
-    { "sendfloor",			scriptcmd_sendfloor,		false,	true	},
-    { "setclass",			scriptcmd_setclass,		false,	true	},
-    { "setrace",			scriptcmd_setrace,		false,	true	},
-    { "setrecall",			scriptcmd_setrecall,		false,	true	},
-    { "settimer",			scriptcmd_settimer,		false,	true	},
-    { "settrait",			scriptcmd_settrait,		false,	true	},
-    { "showcommand",		scriptcmd_showcommand,		false,	true	},
-    { "showroom",			scriptcmd_showroom,		true,	true	},
-    { "skimprove",			scriptcmd_skimprove,		true,	true	},
-    { "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
-    { "specialkey",			scriptcmd_specialkey,		false,	true	},
-    { "startcombat",		scriptcmd_startcombat,	false,	true	},
-    { "startreckoning",		scriptcmd_startreckoning,	true,	true	},
-    { "stopcombat",			scriptcmd_stopcombat,	false,	true	},
-    { "stopreckoning",		scriptcmd_stopreckoning,	true,	true	},
-    { "stringmob",			scriptcmd_stringmob,		true,	true	},
-    { "stringobj",			scriptcmd_stringobj,		true,	true	},
-    { "stripaffect",		scriptcmd_stripaffect,		true,	true	},
-    { "stripaffectname",	scriptcmd_stripaffectname,	true,	true	},
-    { "transfer",			scriptcmd_transfer,			false,	true	},
-    { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
-    { "ungroup",			scriptcmd_ungroup,		false,	true	},
-    { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
-    { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
-    { "unmute",				scriptcmd_unmute,		false,	true	},
-    { "usecatalyst",		do_opusecatalyst,		false,	true	},
-    { "varclear",			scriptcmd_varclear,		false,	true	},
-    { "varclearon",			scriptcmd_varclearon,		false,	true	},
-    { "varcopy",			scriptcmd_varcopy,			false,	true	},
-    { "varsave",			scriptcmd_varsave,			false,	true	},
-    { "varsaveon",			scriptcmd_varsaveon,		false,	true	},
-    { "varset",				scriptcmd_varset,			false,	true	},
-    { "varseton",			scriptcmd_varseton,		false,	true	},
-    { "vforce",				scriptcmd_vforce,		false,	true	},
-    { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
-    { "wiznet",				scriptcmd_wiznet,			false,	true    },
-    { "wiretransfer",		scriptcmd_wiretransfer,	false,	true	},
-    { "xcall",				scriptcmd_xcall,			false,	true	},
-    { "zecho",				scriptcmd_zecho,			false,	true	},
-    { "zot",				scriptcmd_zot,			true,	true	},
-    { NULL,					NULL,					false,	false	}
+    { "echo",                           scriptcmd_echo,                 false,  true    },
+    { "echoaround",                     scriptcmd_echoaround,   false,  true    },
+    { "echoat",                         scriptcmd_echoat,               false,  true    },
+    { "echobattlespam",         scriptcmd_echobattlespam,       false,  true    },
+    { "echochurch",                     scriptcmd_echochurch,           false,  true    },
+    { "echogrouparound",        scriptcmd_echogrouparound,      false,  true    },
+    { "echogroupat",            scriptcmd_echogroupat,          false,  true    },
+    { "echoleadaround",         scriptcmd_echoleadaround,       false,  true    },
+    { "echoleadat",                     scriptcmd_echoleadat,           false,  true    },
+    { "echonotvict",            scriptcmd_echonotvict,  false,  true    },
+    { "echoroom",                       scriptcmd_echoroom,             false,  true    },
+    { "ed",                                     scriptcmd_ed,                           false,  true    },
+    { "entercombat",            scriptcmd_entercombat,  false,  true    },
+    { "fade",                           scriptcmd_fade,                         true,   true    },
+    { "fixaffects",                     scriptcmd_fixaffects,   false,  true    },
+    { "flee",                           scriptcmd_flee,                 false,  true    },
+    { "force",                          scriptcmd_force,                        false,  true    },
+    { "forget",                         scriptcmd_forget,               false,  false   },
+    { "gdamage",                        scriptcmd_gdamage,              false,  true    },
+    { "gecho",                  scriptcmd_gecho,                        false,  true    },
+    { "gforce",                         scriptcmd_gforce,               false,  true    },
+    { "goto",                           scriptcmd_goto,                 false,  true    },
+    { "grantclass",                     scriptcmd_grantclass,   false,  true    },
+    { "grantskill",                     scriptcmd_grantskill,   false,  true    },
+    { "grantsong",                      scriptcmd_grantsong,    false,  true    },
+    { "group",                          do_opgroup,                             false,  true    },
+    { "gtransfer",                      scriptcmd_gtransfer,            false,  true    },
+    { "input",                          scriptcmd_input,                        false,  true    },
+    { "inputstring",            scriptcmd_inputstring,  false,  true    },
+    { "instancecomplete",       scriptcmd_instancecomplete,     true,   true    },
+    { "instancefailure",        scriptcmd_instancefailure,      true,   true    },
+    { "interrupt",                      scriptcmd_interrupt,            false,  true    },
+    { "junk",                           do_opjunk,                              false,  true    },
+    { "link",                           do_oplink,                              false,  true    },
+    { "loadinstanced",          scriptcmd_loadinstanced,        true,   true    },
+    { "lockadd",                        scriptcmd_lockadd,                      false,  true    },
+    { "lockremove",                     scriptcmd_lockremove,           false,  true    },
+    { "mail",                           scriptcmd_mail,                         true,   true    },
+    { "mload",                          scriptcmd_mload,                        false,  true    },
+    { "mute",                           scriptcmd_mute,                 false,  true    },
+    { "oload",                          scriptcmd_oload,                        false,  true    },
+    { "otransfer",                      do_opotransfer,                 false,  true    },
+    { "pageat",                         scriptcmd_pageat,                       false,  true    },
+    { "peace",                          scriptcmd_peace,                        false,  false   },
+    { "persist",                        scriptcmd_persist,              false,  true    },
+    { "prompt",                         scriptcmd_prompt,               false,  true    },
+    { "purge",                          scriptcmd_purge,                        false,  false   },
+    { "questaccept",            scriptcmd_questaccept,          false,  true    },
+    { "questcancel",            scriptcmd_questcancel,          false,  true    },
+    { "questcomplete",          scriptcmd_questcomplete,        false,  true    },
+    { "questgenerate",          scriptcmd_questgenerate,        false,  true    },
+    { "questpartcustom",        scriptcmd_questpartcustom,      true,   true    },
+    { "questpartgetitem",       scriptcmd_questpartgetitem,     true,   true    },
+    { "questpartgoto",          scriptcmd_questpartgoto,        true,   true    },
+    { "questpartrescue",        scriptcmd_questpartrescue,      true,   true    },
+    { "questpartslay",          scriptcmd_questpartslay,        true,   true    },
+    { "questscroll",            scriptcmd_questscroll,          false,  true    },
+    { "queue",                          scriptcmd_queue,                        false,  true    },
+    { "rawkill",                        do_oprawkill,                   false,  true    },
+    { "reckoning",                      scriptcmd_reckoning,            true,   true    },
+    { "remember",                       scriptcmd_remember,     false,  true    },
+    { "remort",                         scriptcmd_remort,               true,   true    },
+    { "remove",                         do_opremove,                    false,  true    },
+    { "remspell",                       scriptcmd_remspell,             true,   true    },
+    { "resetdice",                      scriptcmd_resetdice,            true,   true    },
+    { "resetroom",                      scriptcmd_resetroom,    true,   true    },
+    { "restore",                        scriptcmd_restore,              true,   true    },
+    { "revokeclass",            scriptcmd_revokeclass,  false,  true    },
+    { "revokeskill",            scriptcmd_revokeskill,  false,  true    },
+    { "revokesong",                     scriptcmd_revokesong,   false,  true    },
+    { "saveplayer",                     scriptcmd_saveplayer,   false,  true    },
+    { "scriptwait",                     scriptcmd_scriptwait,   false,  true    },
+    { "selfdestruct",           do_opselfdestruct,              false,  false   },
+    { "sendfloor",                      scriptcmd_sendfloor,            false,  true    },
+    { "setclass",                       scriptcmd_setclass,             false,  true    },
+    { "setrace",                        scriptcmd_setrace,              false,  true    },
+    { "setrecall",                      scriptcmd_setrecall,            false,  true    },
+    { "settimer",                       scriptcmd_settimer,             false,  true    },
+    { "settrait",                       scriptcmd_settrait,             false,  true    },
+    { "showcommand",            scriptcmd_showcommand,          false,  true    },
+    { "showroom",                       scriptcmd_showroom,             true,   true    },
+    { "skimprove",                      scriptcmd_skimprove,            true,   true    },
+    { "spawndungeon",           scriptcmd_spawndungeon,         true,   true    },
+    { "specialkey",                     scriptcmd_specialkey,           false,  true    },
+    { "startcombat",            scriptcmd_startcombat,  false,  true    },
+    { "startreckoning",         scriptcmd_startreckoning,       true,   true    },
+    { "stopcombat",                     scriptcmd_stopcombat,   false,  true    },
+    { "stopreckoning",          scriptcmd_stopreckoning,        true,   true    },
+    { "stringmob",                      scriptcmd_stringmob,            true,   true    },
+    { "stringobj",                      scriptcmd_stringobj,            true,   true    },
+    { "stripaffect",            scriptcmd_stripaffect,          true,   true    },
+    { "stripaffectname",        scriptcmd_stripaffectname,      true,   true    },
+    { "transfer",                       scriptcmd_transfer,                     false,  true    },
+    { "treasuremap",            scriptcmd_treasuremap,          false,  true    },
+    { "ungroup",                        scriptcmd_ungroup,              false,  true    },
+    { "unlockarea",                     scriptcmd_unlockarea,           true,   true    },
+    { "unlockdungeon",          scriptcmd_unlockdungeon,        true,   true    },
+    { "unmute",                         scriptcmd_unmute,               false,  true    },
+    { "usecatalyst",            do_opusecatalyst,               false,  true    },
+    { "varclear",                       scriptcmd_varclear,             false,  true    },
+    { "varclearon",                     scriptcmd_varclearon,           false,  true    },
+    { "varcopy",                        scriptcmd_varcopy,                      false,  true    },
+    { "varsave",                        scriptcmd_varsave,                      false,  true    },
+    { "varsaveon",                      scriptcmd_varsaveon,            false,  true    },
+    { "varset",                         scriptcmd_varset,                       false,  true    },
+    { "varseton",                       scriptcmd_varseton,             false,  true    },
+    { "vforce",                         scriptcmd_vforce,               false,  true    },
+    { "wildernessmap",          scriptcmd_wildernessmap,        false,  true    },
+    { "wiznet",                         scriptcmd_wiznet,                       false,  true    },
+    { "wiretransfer",           scriptcmd_wiretransfer, false,  true    },
+    { "xcall",                          scriptcmd_xcall,                        false,  true    },
+    { "zecho",                          scriptcmd_zecho,                        false,  true    },
+    { "zot",                            scriptcmd_zot,                  true,   true    },
+    { NULL,                                     NULL,                                   false,  false   }
 };
 
 int opcmd_lookup(char *command)
@@ -1119,132 +1119,6 @@ SCRIPT_CMD(do_oplink)
 // do_opoload
 SCRIPT_CMD(do_opoload)
 {
-    /*
-    char buf[MIL], *rest;
-    long vnum, level;
-    bool fInside = false;
-    bool fWear = false;
-
-    OBJ_INDEX_DATA *pObjIndex;
-    OBJ_DATA *obj;
-
-    CHAR_DATA *to_mob = NULL;
-    OBJ_DATA *to_obj = NULL;
-    ROOM_INDEX_DATA *to_room = NULL;
-
-    if(!info || !info->obj || !obj_room(info->obj)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-    case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
-    default: vnum = 0; break;
-    }
-
-    if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-        pbugf(LOG_SCRIPTS, "Opoload - Bad vnum arg from vnum %d.", VNUM(info->obj));
-        return;
-    }
-
-    if(rest && *rest) {
-        argument = rest;
-        if(!(rest = expand_argument(info,argument,arg)))
-            return;
-
-        switch(arg->type) {
-        case ENT_NUMBER: level = arg->d.num; break;
-        case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-        case ENT_MOBILE: level = arg->d.mob ? get_mob_level(arg->d.mob) : 0; break;
-        case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
-        default: level = 0; break;
-        }
-
-        if(level <= 0) level = info->obj->pIndexData->level;
-
-        if(rest && *rest) {
-            argument = rest;
-            if(!(rest = expand_argument(info,argument,arg)))
-                return;
-
-            //
-            // Added 3rd argument
-            // omitted - load to current room
-            // 'I'     - load to object's container
-            // MOBILE  - load to target mobile
-            //         - 'W' automatically wear the item if possible
-            // OBJECT  - load to target object
-            // ROOM    - load to target room
-             
-
-            switch(arg->type) {
-            case ENT_STRING:
-                if (!str_cmp(arg->d.str, "inside") &&
-                    IS_SET(pObjIndex->wear_flags, ITEM_TAKE)) {
-                    if( info->obj->item_type == ITEM_CONTAINER ||
-                        info->obj->item_type == ITEM_CART)
-                        fInside = true;
-
-                    else if( info->obj->item_type == ITEM_WEAPON_CONTAINER &&
-                        pObjIndex->item_type == ITEM_WEAPON &&
-                        IS_WEAPON_CON(info->obj) && IS_WEAPON(pObjIndex) &&
-                        WEAPON_CON(info->obj)->weapon_type == WEAPON(pObjIndex)->weapon_class)
-                        fInside = true;
-
-                }
-                break;
-
-            case ENT_MOBILE:
-                to_mob = arg->d.mob;
-                if((rest = one_argument(rest,buf))) {
-                    if (!str_cmp(buf, "wear"))
-                        fWear = true;
-                    // use "none" for neither
-                }
-                break;
-
-            case ENT_OBJECT:
-                if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-                    if(arg->d.obj->item_type == ITEM_CONTAINER ||
-                        arg->d.obj->item_type == ITEM_CART)
-                        to_obj = arg->d.obj;
-                    else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-                        pObjIndex->item_type == ITEM_WEAPON &&
-                        IS_WEAPON(pObjIndex) && IS_WEAPON_CON(arg->d.obj) &&
-                        WEAPON(pObjIndex)->weapon_class == WEAPON_CON(arg->d.obj)->weapon_type)
-                        to_obj = arg->d.obj;
-                    else
-                        return;	// Trying to put the item into a non-container won't work
-                }
-                break;
-
-            case ENT_ROOM:		to_room = arg->d.room; break;
-            }
-        }
-    } else
-        level = info->obj->pIndexData->level;
-
-    obj = create_object(pObjIndex, level, true);
-    if(to_room)
-        obj_to_room(obj, to_room);
-    else if( to_obj )
-        obj_to_obj(obj, to_obj);
-    else if( to_mob && CAN_WEAR(obj, ITEM_TAKE) &&
-        (to_mob->carry_number < can_carry_n (to_mob)) &&
-        (get_carry_weight (to_mob) + get_obj_weight (obj) <= can_carry_w (to_mob))) {
-        obj_to_char(obj, to_mob);
-        if (fWear)
-            wear_obj(to_mob, obj, true);
-    } else if(fInside)
-        obj_to_obj(obj, info->obj);
-    else
-        obj_to_room(obj, obj_room(info->obj));
-
-    if(rest && *rest) variables_set_object(info->var,rest,obj);
-    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-    */
     script_oload(info,argument,arg, false);
 }
 
