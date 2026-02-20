@@ -2031,6 +2031,650 @@ SCRIPT_CMD(scriptcmd_stringmob)
     free_buf(buffer);
 }
 
+SCRIPT_CMD(scriptcmd_interrupt)
+{
+    char *rest;
+    CHAR_DATA *victim = NULL;
+    ROOM_INDEX_DATA *here = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    int stop, ret = 0;
+    bool silent = false;
+
+    if(!info) return;
+
+    if(info->mob) {
+        scope_name = "MpInterrupt";
+        scope_vnum = VNUM(info->mob);
+        here = info->mob->in_room;
+    } else if(info->obj) {
+        scope_name = "OpInterrupt";
+        scope_vnum = VNUM(info->obj);
+        here = obj_room(info->obj);
+    } else if(info->room) {
+        scope_name = "RpInterrupt";
+        scope_vnum = info->room->vnum;
+        here = info->room;
+    } else if(info->token) {
+        scope_name = "TpInterrupt";
+        scope_vnum = VNUM(info->token);
+        here = token_room(info->token);
+    } else
+        return;
+
+    SETRETURN(0);
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        victim = get_char_world(NULL, arg->d.str);
+        break;
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+    default:
+        break;
+    }
+
+    if(!victim) {
+        pbugf(LOG_SCRIPTS, "%s - NULL victim from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    BUFFER *buffer = new_buf();
+    expand_string(info,rest,buffer);
+    if(buffer->string[0] != '\0') {
+        stop = flag_value(interrupt_action_types,buffer->string);
+        if(stop == NO_FLAG) {
+            pbugf(LOG_SCRIPTS, "%s - invalid interrupt type from vnum %ld.", scope_name, scope_vnum);
+            free_buf(buffer);
+            return;
+        }
+    } else
+        stop = ~INTERRUPT_SILENT;
+
+    if (IS_SET(stop,INTERRUPT_SILENT))
+        silent = true;
+
+    if (IS_SET(stop,INTERRUPT_CAST) && victim->cast > 0) {
+        stop_casting(victim, !silent);
+        SET_BIT(ret,INTERRUPT_CAST);
+    }
+
+    if (IS_SET(stop,INTERRUPT_MUSIC) && victim->music > 0) {
+        stop_music(victim, !silent);
+        SET_BIT(ret,INTERRUPT_MUSIC);
+    }
+
+    if (IS_SET(stop,INTERRUPT_BREW) && victim->brew > 0) {
+        victim->brew = 0;
+        victim->brew_sn = 0;
+        SET_BIT(ret,INTERRUPT_BREW);
+    }
+
+    if (IS_SET(stop,INTERRUPT_REPAIR) && victim->repair > 0) {
+        variables_set_object(info->var,"stoprepair",victim->repair_obj);
+        victim->repair_obj = NULL;
+        victim->repair_amt = 0;
+        victim->repair = 0;
+        SET_BIT(ret,INTERRUPT_REPAIR);
+    }
+
+    if (IS_SET(stop,INTERRUPT_HIDE) && victim->hide > 0) {
+        victim->hide = 0;
+        SET_BIT(ret,INTERRUPT_HIDE);
+    }
+
+    if (IS_SET(stop,INTERRUPT_BIND) && victim->bind > 0) {
+        variables_set_mobile(info->var,"stopbind",victim->bind_victim);
+        victim->bind = 0;
+        victim->bind_victim = NULL;
+        SET_BIT(ret,INTERRUPT_BIND);
+    }
+
+    if (IS_SET(stop,INTERRUPT_BOMB) && victim->bomb > 0) {
+        victim->bomb = 0;
+        SET_BIT(ret,INTERRUPT_BOMB);
+    }
+
+    if (IS_SET(stop,INTERRUPT_RECITE) && victim->recite > 0) {
+        if(victim->cast_target_name)
+            variables_set_string(info->var,"stoprecitetarget",victim->cast_target_name,false);
+        else
+            variables_set_string(info->var,"stoprecitetarget","",false);
+        variables_set_object(info->var,"stopreciteobj",victim->recite_scroll);
+        victim->recite = 0;
+        victim->cast_target_name = NULL;
+        victim->recite_scroll = NULL;
+        SET_BIT(ret,INTERRUPT_RECITE);
+    }
+
+    if (IS_SET(stop,INTERRUPT_REVERIE) && victim->reverie > 0) {
+        variables_set_integer(info->var,"stopreverie",victim->reverie_amount);
+        variables_set_integer(info->var,"stopreverietype",(victim->reverie_type == MANA_TO_HIT));
+        victim->reverie = 0;
+        victim->reverie_amount = 0;
+        SET_BIT(ret,INTERRUPT_REVERIE);
+    }
+
+    if (IS_SET(stop,INTERRUPT_TRANCE) && victim->trance > 0) {
+        victim->trance = 0;
+        SET_BIT(ret,INTERRUPT_TRANCE);
+    }
+
+    if (IS_SET(stop,INTERRUPT_SCRIBE) && victim->scribe > 0) {
+        victim->scribe = 0;
+        victim->scribe_sn = 0;
+        victim->scribe_sn2 = 0;
+        victim->scribe_sn3 = 0;
+        SET_BIT(ret,INTERRUPT_SCRIBE);
+    }
+
+    if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {
+        if(victim->projectile_victim)
+            variables_set_string(info->var,"stoprangedtarget",victim->projectile_victim,false);
+        else
+            variables_set_string(info->var,"stoprangedtarget","",false);
+        variables_set_object(info->var,"stoprangedweapon",victim->projectile_weapon);
+        variables_set_object(info->var,"stoprangedammo",victim->projectile);
+        variables_set_integer(info->var,"stoprangedist",victim->projectile_range);
+        if(here && victim->projectile_dir >= 0)
+            variables_set_exit(info->var,"stoprangeexit",here->exit[victim->projectile_dir]);
+        else
+            variables_set_exit(info->var,"stoprangeexit",NULL);
+        victim->ranged = 0;
+        victim->projectile_weapon = NULL;
+        free_string(victim->projectile_victim);
+        victim->projectile_victim = NULL;
+        victim->projectile_dir = -1;
+        victim->projectile_range = 0;
+        victim->projectile = NULL;
+        SET_BIT(ret,INTERRUPT_RANGED);
+    }
+
+    if (IS_SET(stop,INTERRUPT_RESURRECT) && victim->resurrect > 0) {
+        variables_set_object(info->var,"stopresurrectcorpse",victim->resurrect_target);
+        if(victim->resurrect_target)
+            variables_set_mobile(info->var,"stopresurrect",get_char_world(NULL, victim->resurrect_target->owner));
+        else
+            variables_set_mobile(info->var,"stopresurrect",NULL);
+        victim->resurrect = 0;
+        victim->resurrect_target = NULL;
+        SET_BIT(ret,INTERRUPT_RESURRECT);
+    }
+
+    if (IS_SET(stop,INTERRUPT_FADE) && victim->fade > 0) {
+        if(here && victim->fade_dir >= 0)
+            variables_set_exit(info->var,"stopfade",here->exit[victim->fade_dir]);
+        else
+            variables_set_exit(info->var,"stopfade",NULL);
+        victim->fade = 0;
+        victim->fade_dir = -1;
+        SET_BIT(ret,INTERRUPT_FADE);
+    }
+
+    if (IS_SET(stop,INTERRUPT_SCRIPT)) {
+        if(interrupt_script(victim, silent))
+            SET_BIT(ret,INTERRUPT_SCRIPT);
+    }
+
+    SETRETURN(ret);
+    free_buf(buffer);
+}
+
+SCRIPT_CMD(scriptcmd_showroom)
+{
+    CHAR_DATA *viewer = NULL, *next;
+    ROOM_INDEX_DATA *room = NULL, *dest;
+    WILDS_DATA *wilds = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    long mapid;
+    long x,y;
+    long width, height;
+    bool force;
+
+    if(!info) return;
+
+    if(info->mob) {
+        scope_name = "MpShowMap";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        scope_name = "OpShowMap";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpShowMap";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpShowMap";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(argument = expand_argument(info,argument,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_MOBILE:
+        viewer = arg->d.mob;
+        break;
+    case ENT_ROOM:
+        room = arg->d.room;
+        break;
+    }
+
+    if(!viewer && !room) {
+        pbugf(LOG_SCRIPTS,"%s - bad target for showing the map from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING)
+        return;
+
+    if(!str_cmp(arg->d.str,"map")) {
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+        mapid = arg->d.num;
+
+        wilds = get_wilds_from_uid(NULL,mapid);
+        if(!wilds) return;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+        x = arg->d.num;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+        y = arg->d.num;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+        width = arg->d.num;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+        height = arg->d.num;
+
+        if(!(argument = expand_argument(info,argument,arg)))
+            return;
+
+        if(arg->type == ENT_STRING)
+            force = !str_cmp(arg->d.str,"force");
+        else
+            force = false;
+
+        dest = get_wilds_vroom(wilds,x,y);
+        if(!dest)
+            dest = create_wilds_vroom(wilds,x,y);
+
+        if(width < 5) width = 5;
+        if(height < 5) height = 5;
+
+        if(room) {
+            for(viewer = room->people; viewer; viewer = next) {
+                next = viewer->next_in_room;
+                if(!IS_NPC(viewer) && (force || (IS_AWAKE(viewer) && check_vision(viewer,dest,false,false))))
+                    show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
+            }
+        } else if(!IS_NPC(viewer)) {
+            show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
+        }
+        return;
+    }
+
+    if(!str_cmp(arg->d.str,"room")) {
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
+            return;
+        dest = arg->d.room;
+    } else if(!str_cmp(arg->d.str,"vroom")) {
+        unsigned long id1, id2;
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
+            return;
+        dest = arg->d.room;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+        id1 = arg->d.num;
+
+        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+            return;
+        id2 = arg->d.num;
+
+        dest = get_clone_room(dest,id1,id2);
+    } else
+        return;
+
+    if(!dest) return;
+
+    if(!(argument = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type == ENT_STRING)
+        force = !str_cmp(arg->d.str,"force");
+    else
+        force = false;
+
+    if(room) {
+        for(viewer = room->people; viewer; viewer = next) {
+            next = viewer->next_in_room;
+            if(!IS_NPC(viewer) && (force || (IS_AWAKE(viewer) && check_vision(viewer,dest,false,false))))
+                show_room(viewer,dest,true,true,false);
+        }
+    } else if(!IS_NPC(viewer)) {
+        show_room(viewer,dest,true,true,false);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_skimprove)
+{
+    char skill[MIL],*rest;
+    int min_diff, diff, sn=-1;
+    CHAR_DATA *mob = NULL;
+    TOKEN_DATA *token = NULL;
+    bool success = false;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info) return;
+
+    if(info->mob) {
+        scope_name = "MpSkImprove";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        scope_name = "OpSkImprove";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpSkImprove";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpSkImprove";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "%s - Insufficient security from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        mob = script_get_char_room(info, arg->d.str, true);
+        break;
+    case ENT_MOBILE:
+        mob = arg->d.mob;
+        break;
+    case ENT_TOKEN:
+        token = arg->d.token;
+    default:
+        break;
+    }
+
+    if(!mob && !token) {
+        pbugf(LOG_SCRIPTS, "%s - NULL target from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(mob) {
+        if(IS_NPC(mob)) {
+            pbugf(LOG_SCRIPTS, "%s - NPC target from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+
+        if(!(rest = expand_argument(info,rest,arg))) {
+            pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+
+        skill[0] = '\0';
+        switch(arg->type) {
+        case ENT_STRING:
+            strncpy(skill,arg->d.str,MIL-1);
+            break;
+        default:
+            return;
+        }
+
+        if(!skill[0]) return;
+
+        sn = skill_lookup(skill);
+        if(sn < 1) return;
+    } else {
+        if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
+            pbugf(LOG_SCRIPTS, "%s - Token is not a skill/spell token from vnum %ld.", scope_name, scope_vnum);
+            return;
+        }
+    }
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING: diff = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+    case ENT_NUMBER: diff = arg->d.num; break;
+    default: return;
+    }
+
+    min_diff = 10 - script_security;
+    if(diff < min_diff) {
+        pbugf(LOG_SCRIPTS, "%s - Difficulty lower than allowed from vnum %ld.", scope_name, scope_vnum);
+        diff = min_diff;
+    }
+
+    switch(arg->type) {
+    case ENT_NONE: success = true; break;
+    case ENT_STRING:
+        if(is_number(arg->d.str))
+            success = (bool)(atoi(arg->d.str) != 0);
+        else
+            success = !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"success") || !str_cmp(arg->d.str,"pass");
+        break;
+    case ENT_NUMBER:
+        success = (bool)(arg->d.num != 0);
+        break;
+    default:
+        success = false;
+        break;
+    }
+
+    if(token)
+        token_skill_improve(token->player,token,success,diff);
+    else
+        check_improve(mob, sn, success, diff);
+}
+
+SCRIPT_CMD(scriptcmd_input)
+{
+    char *rest, *p;
+    long vnum;
+    CHAR_DATA *mob = NULL;
+    SCRIPT_DATA *script = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    int space;
+
+    if(!info) return;
+
+    if(info->mob) {
+        scope_name = "MpInput";
+        scope_vnum = VNUM(info->mob);
+        space = PRG_MPROG;
+    } else if(info->obj) {
+        scope_name = "OpInput";
+        scope_vnum = VNUM(info->obj);
+        space = PRG_OPROG;
+    } else if(info->room) {
+        scope_name = "RpInput";
+        scope_vnum = info->room->vnum;
+        space = PRG_RPROG;
+    } else if(info->token) {
+        scope_name = "TpInput";
+        scope_vnum = VNUM(info->token);
+        space = PRG_TPROG;
+    } else
+        return;
+
+    SETRETURN(0);
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        mob = script_get_char_room(info,arg->d.str,true);
+        break;
+    case ENT_MOBILE:
+        mob = arg->d.mob;
+        break;
+    default:
+        break;
+    }
+
+    if(!mob) {
+        pbugf(LOG_SCRIPTS, "%s - NULL mobile from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input)
+        return;
+
+    if(mob->desc->showstr_head != NULL)
+        return;
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    script = get_script_from_arg(info, arg, space, &vnum);
+    if(vnum < 1 || !script) return;
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_NONE: p = NULL; break;
+    case ENT_STRING: p = arg->d.str; break;
+    default: return;
+    }
+
+    BUFFER *buffer = new_buf();
+    expand_string(info,rest,buffer);
+
+    mob->desc->input = true;
+    mob->desc->input_var = p ? str_dup(p) : NULL;
+    mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
+    mob->desc->input_script = vnum;
+    mob->desc->input_mob = info->mob;
+    mob->desc->input_obj = info->obj;
+    mob->desc->input_room = info->room;
+    mob->desc->input_tok = info->token;
+
+    SETRETURN(1);
+    free_buf(buffer);
+}
+
+SCRIPT_CMD(scriptcmd_prompt)
+{
+    char name[MIL], *rest;
+    CHAR_DATA *mob = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+
+    if(!info) return;
+
+    if(info->mob) {
+        scope_name = "MpPrompt";
+        scope_vnum = VNUM(info->mob);
+    } else if(info->obj) {
+        scope_name = "OpPrompt";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpPrompt";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpPrompt";
+        scope_vnum = VNUM(info->token);
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        mob = script_get_char_room(info,arg->d.str,true);
+        break;
+    case ENT_MOBILE:
+        mob = arg->d.mob;
+        break;
+    default:
+        break;
+    }
+
+    if(!mob) {
+        pbugf(LOG_SCRIPTS, "%s - NULL mobile from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(IS_NPC(mob)) {
+        pbugf(LOG_SCRIPTS, "%s - cannot set prompt strings on NPCs from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!*rest) {
+        pbugf(LOG_SCRIPTS, "%s - Missing name type from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!(rest = expand_argument(info,rest,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    name[0] = '\0';
+    switch(arg->type) {
+    case ENT_STRING:
+        strncpy(name,arg->d.str,MIL-1);
+        break;
+    default:
+        return;
+    }
+
+    if(!name[0]) return;
+
+    BUFFER *buffer = new_buf();
+    expand_string(info,rest,buffer);
+
+    if(buffer->string[0] != '\0')
+        string_vector_set(&mob->pcdata->script_prompts,name,buffer->string);
+
+    free_buf(buffer);
+}
+
 SCRIPT_CMD(scriptcmd_churchannouncetheft)
 {
     char *rest = argument;

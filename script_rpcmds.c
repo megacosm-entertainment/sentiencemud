@@ -83,11 +83,11 @@ const struct script_cmd_type room_cmd_table[] = {
     { "grantsong",			scriptcmd_grantsong,	false,	true	},
     { "group",				do_rpgroup,				false,	true	},
     { "gtransfer",			scriptcmd_gtransfer,		false,	true	},
-    { "input",				do_rpinput,				false,	true	},
+    { "input",				scriptcmd_input,			false,	true	},
     { "inputstring",		scriptcmd_inputstring,	false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
     { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
-    { "interrupt",			do_rpinterrupt,			false,	true	},
+    { "interrupt",			scriptcmd_interrupt,		false,	true	},
     { "link",				do_rplink,				false,	true	},
     { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
     { "lockadd",			scriptcmd_lockadd,			false,	true	},
@@ -100,7 +100,7 @@ const struct script_cmd_type room_cmd_table[] = {
     { "pageat",				scriptcmd_pageat,			false,	true	},
     { "peace",				scriptcmd_peace,			false,	false	},
     { "persist",			scriptcmd_persist,		false,	true	},
-    { "prompt",				do_rpprompt,			false,	true	},
+    { "prompt",				scriptcmd_prompt,		false,	true	},
     { "purge",				scriptcmd_purge,			false,	false	},
     { "questaccept",		scriptcmd_questaccept,		false,	true	},
     { "questcancel",		scriptcmd_questcancel,		false,	true	},
@@ -133,8 +133,8 @@ const struct script_cmd_type room_cmd_table[] = {
     { "settimer",			scriptcmd_settimer,		false,	true	},
     { "settrait",			scriptcmd_settrait,		false,	true	},
     { "showcommand",		scriptcmd_showcommand,		false,	true	},
-    { "showroom",			do_rpshowroom,			false,	true	},
-    { "skimprove",			do_rpskimprove,			true,	true	},
+    { "showroom",			scriptcmd_showroom,		false,	true	},
+    { "skimprove",			scriptcmd_skimprove,		true,	true	},
     { "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
     { "specialkey",			scriptcmd_specialkey,		false,	true	},
     { "startcombat",		scriptcmd_startcombat,	false,	true	},
@@ -1388,187 +1388,6 @@ SCRIPT_CMD(do_rpvarsave)
     variable_setsave(*info->var,name,on);
 }
 
-SCRIPT_CMD(do_rpinterrupt)
-{
-    char *rest;
-    CHAR_DATA *victim = NULL;
-    ROOM_INDEX_DATA *here;
-
-    int stop, ret = 0;
-    bool silent = false;
-
-    if(!info || !info->room) return;
-
-    here = info->room;
-
-    info->room->progs->lastreturn = 0;	// Nothing was interrupted
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "RpInterrupt - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        victim = get_char_world(NULL, arg->d.str);
-        break;
-    case ENT_MOBILE:
-        victim = arg->d.mob;
-        break;
-    default: break;
-    }
-
-    if(!victim) {
-        pbugf(LOG_SCRIPTS, "RpInterrupt - NULL victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-    if(buffer->string[0] != '\0') {
-        stop = flag_value(interrupt_action_types,buffer->string);
-        if(stop == NO_FLAG) {
-            pbugf(LOG_SCRIPTS, "RpInterrupt - invalid interrupt type from vnum %ld.", info->room->vnum);
-            free_buf(buffer);
-            return;
-        }
-    } else
-        stop = ~INTERRUPT_SILENT;	// stop anything
-
-    ret = 0;
-
-    if (IS_SET(stop,INTERRUPT_SILENT))
-        silent = true;
-
-    if (IS_SET(stop,INTERRUPT_CAST) && victim->cast > 0) {
-        stop_casting(victim, !silent);
-        SET_BIT(ret,INTERRUPT_CAST);
-    }
-
-    if (IS_SET(stop,INTERRUPT_MUSIC) && victim->music > 0) {
-        stop_music(victim, !silent);
-        SET_BIT(ret,INTERRUPT_MUSIC);
-    }
-
-    if (IS_SET(stop,INTERRUPT_BREW) && victim->brew > 0) {
-        victim->brew = 0;
-        victim->brew_sn = 0;
-        SET_BIT(ret,INTERRUPT_BREW);
-    }
-
-    if (IS_SET(stop,INTERRUPT_REPAIR) && victim->repair > 0) {
-        variables_set_object(info->var,"stoprepair",victim->repair_obj);
-        victim->repair_obj = NULL;
-        victim->repair_amt = 0;
-        victim->repair = 0;
-        SET_BIT(ret,INTERRUPT_REPAIR);
-    }
-
-    if (IS_SET(stop,INTERRUPT_HIDE) && victim->hide > 0) {
-        victim->hide = 0;
-        SET_BIT(ret,INTERRUPT_HIDE);
-    }
-
-    if (IS_SET(stop,INTERRUPT_BIND) && victim->bind > 0) {
-        variables_set_mobile(info->var,"stopbind",victim->bind_victim);
-        victim->bind = 0;
-        victim->bind_victim = NULL;
-        SET_BIT(ret,INTERRUPT_BIND);
-    }
-
-    if (IS_SET(stop,INTERRUPT_BOMB) && victim->bomb > 0) {
-        victim->bomb = 0;
-        SET_BIT(ret,INTERRUPT_BOMB);
-    }
-
-    if (IS_SET(stop,INTERRUPT_RECITE) && victim->recite > 0) {
-        if(victim->cast_target_name)
-            variables_set_string(info->var,"stoprecitetarget",victim->cast_target_name,false);
-        else
-            variables_set_string(info->var,"stoprecitetarget","",false);
-        variables_set_object(info->var,"stopreciteobj",victim->recite_scroll);
-        victim->recite = 0;
-        victim->cast_target_name = NULL;
-        victim->recite_scroll = NULL;
-        SET_BIT(ret,INTERRUPT_RECITE);
-    }
-
-
-    if (IS_SET(stop,INTERRUPT_REVERIE) && victim->reverie > 0) {
-        variables_set_integer(info->var,"stopreverie",victim->reverie_amount);
-        // 0:hit->mana,1:mana->hit
-        variables_set_integer(info->var,"stopreverietype",(victim->reverie_type == MANA_TO_HIT));
-        victim->reverie = 0;
-        victim->reverie_amount = 0;
-        SET_BIT(ret,INTERRUPT_REVERIE);
-    }
-
-    if (IS_SET(stop,INTERRUPT_TRANCE) && victim->trance > 0) {
-        victim->trance = 0;
-        SET_BIT(ret,INTERRUPT_TRANCE);
-    }
-
-    if (IS_SET(stop,INTERRUPT_SCRIBE) && victim->scribe > 0) {
-        victim->scribe = 0;
-        victim->scribe_sn = 0;
-        victim->scribe_sn2 = 0;
-        victim->scribe_sn3 = 0;
-        SET_BIT(ret,INTERRUPT_SCRIBE);
-    }
-
-    if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {
-        if(victim->projectile_victim)
-            variables_set_string(info->var,"stoprangedtarget",victim->projectile_victim,false);
-        else
-            variables_set_string(info->var,"stoprangedtarget","",false);
-        variables_set_object(info->var,"stoprangedweapon",victim->projectile_weapon);
-        variables_set_object(info->var,"stoprangedammo",victim->projectile);
-        variables_set_integer(info->var,"stoprangedist",victim->projectile_range);
-        if(victim->projectile_dir == -1)
-            variables_set_exit(info->var,"stoprangeexit",NULL);
-        else
-            variables_set_exit(info->var,"stoprangeexit",here->exit[victim->projectile_dir]);
-        victim->ranged = 0;
-        victim->projectile_weapon = NULL;
-        free_string( victim->projectile_victim );
-        victim->projectile_victim = NULL;
-        victim->projectile_dir = -1;
-        victim->projectile_range = 0;
-        victim->projectile = NULL;
-        SET_BIT(ret,INTERRUPT_RANGED);
-    }
-
-    if (IS_SET(stop,INTERRUPT_RESURRECT) && victim->resurrect > 0) {
-        variables_set_object(info->var,"stopresurrectcorpse",victim->resurrect_target);
-        if(victim->resurrect_target)
-            variables_set_mobile(info->var,"stopresurrect",get_char_world(NULL, victim->resurrect_target->owner));
-        else
-            variables_set_mobile(info->var,"stopresurrect",NULL);
-        victim->resurrect = 0;
-        victim->resurrect_target = NULL;
-        SET_BIT(ret,INTERRUPT_RESURRECT);
-    }
-
-    if (IS_SET(stop,INTERRUPT_FADE) && victim->fade > 0) {
-        if(victim->fade_dir == -1)
-            variables_set_exit(info->var,"stopfade",NULL);
-        else
-            variables_set_exit(info->var,"stopfade",here->exit[victim->fade_dir]);
-        victim->fade = 0;
-        victim->fade_dir = -1;
-        SET_BIT(ret,INTERRUPT_FADE);
-    }
-
-    if (IS_SET(stop,INTERRUPT_SCRIPT)) {
-        if(interrupt_script(victim, silent))
-            SET_BIT(ret,INTERRUPT_SCRIPT);
-    }
-
-    // Indicate what was stopped, zero being nothing
-    info->room->progs->lastreturn = ret;
-
-    free_buf(buffer);
-}
 /*
 SCRIPT_CMD(do_rpalterobj)
 {
@@ -2371,113 +2190,6 @@ SCRIPT_CMD(do_rpaltermob)
 }
 
 
-SCRIPT_CMD(do_rpskimprove)
-{
-    char skill[MIL],*rest;
-    int min_diff, diff, sn =-1 ;
-    CHAR_DATA *mob = NULL;
-
-    TOKEN_DATA *token = NULL;
-    bool success = false;
-
-    if(script_security < MIN_SCRIPT_SECURITY) {
-        pbugf(LOG_SCRIPTS,"RpSkImprove - Insufficient security.",0);
-        return;
-    }
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"RpSkImprove - Error in parsing.",0);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        mob = get_char_room(NULL,info->room,arg->d.str);
-        break;
-    case ENT_MOBILE:
-        mob = arg->d.mob;
-        break;
-    case ENT_TOKEN:
-        token = arg->d.token;
-    default: break;
-    }
-
-    if(!mob && !token) {
-        pbugf(LOG_SCRIPTS,"RpSkImprove - NULL target.", 0);
-        return;
-    }
-
-    if(mob) {
-        if(IS_NPC(mob)) {
-            pbugf(LOG_SCRIPTS,"RpSkImprove - NPCs don't have skills to improve yet...", 0);
-            return;
-        }
-
-
-        if(!(rest = expand_argument(info,rest,arg))) {
-            pbugf(LOG_SCRIPTS,"RpSkImprove - Error in parsing.",0);
-            return;
-        }
-
-        skill[0] = 0;
-
-        switch(arg->type) {
-        case ENT_STRING: strncpy(skill,arg->d.str,MIL-1); break;
-        default: return;
-        }
-
-        if(!skill[0]) return;
-
-        sn = skill_lookup(skill);
-
-        if(sn < 1) return;
-    } else {
-        if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
-            pbugf(LOG_SCRIPTS,"RpSkImprove - Token is not a spell token...", 0);
-            return;
-        }
-    }
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS,"RpSkImprove - Error in parsing.",0);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: diff = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: diff = arg->d.num; break;
-    default: return;
-    }
-
-    min_diff = 10 - script_security;	// min=10, max=1
-
-    if(diff < min_diff) {
-        pbugf(LOG_SCRIPTS,"RpSkImprove - Attempting to use a difficulty multiplier lower than allowed.",0);
-        diff = min_diff;
-    }
-
-    switch(arg->type) {
-    case ENT_NONE: success = true; break;
-    case ENT_STRING:
-        if(is_number(arg->d.str))
-            success = (bool)(atoi(arg->d.str) != 0);
-        else
-            success = !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"true") ||
-                !str_cmp(arg->d.str,"success") || !str_cmp(arg->d.str,"pass");
-        break;
-    case ENT_NUMBER:
-        success = (bool)(arg->d.num != 0);
-        break;
-    default: success = false;
-    }
-
-    if(token)
-        token_skill_improve(token->player,token,success,diff);
-    else
-        check_improve( mob, sn, success, diff );
-}
 
 
 SCRIPT_CMD(do_rprawkill)
@@ -2916,78 +2628,6 @@ SCRIPT_CMD(do_rpaddaffectname)
 
 
 
-SCRIPT_CMD(do_rpinput)
-{
-    char *rest, *p;
-    long vnum;
-    CHAR_DATA *mob = NULL;
-    SCRIPT_DATA *script = NULL;
-
-
-    if(!info || !info->room) return;
-
-    info->room->progs->lastreturn = 0;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"RpInput - Error in parsing.",0);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        mob = get_char_room(NULL,info->room,arg->d.str);
-        break;
-    case ENT_MOBILE:
-        mob = arg->d.mob;
-        break;
-    default: break;
-    }
-
-    if(!mob) {
-        pbugf(LOG_SCRIPTS,"RpInput - NULL mobile.", 0);
-        return;
-    }
-
-    if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
-
-    if( mob->desc->showstr_head != NULL ) return;
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS,"RpRawkill - Error in parsing.",0);
-        return;
-    }
-
-    script = get_script_from_arg(info, arg, PRG_RPROG, &vnum);
-    if(vnum < 1 || !script) return;
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS,"RpInput - Error in parsing.",0);
-        return;
-    }
-
-
-    switch(arg->type) {
-    case ENT_NONE:		p = NULL; break;
-    case ENT_STRING:	p = arg->d.str; break;
-    default: return;
-    }
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    mob->desc->input = true;
-    mob->desc->input_var = p ? str_dup(p) : NULL;
-    mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
-    mob->desc->input_script = vnum;
-    mob->desc->input_mob = NULL;
-    mob->desc->input_obj = NULL;
-    mob->desc->input_room = info->room;
-    mob->desc->input_tok = NULL;
-
-    info->room->progs->lastreturn = 1;
-
-    free_buf(buffer);
-}
 
 SCRIPT_CMD(do_rpusecatalyst)
 {
@@ -3384,67 +3024,6 @@ SCRIPT_CMD(do_rpalterexit)
 
 
 // SYNTAX: room prompt <player> <name>[ <string>]
-SCRIPT_CMD(do_rpprompt)
-{
-    char name[MIL],*rest;
-    CHAR_DATA *mob = NULL;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"RpPrompt - Error in parsing.",0);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        mob = get_char_room(NULL,info->room, arg->d.str);
-        break;
-    case ENT_MOBILE:
-        mob = arg->d.mob;
-        break;
-    default: break;
-    }
-
-    if(!mob) {
-        pbugf(LOG_SCRIPTS,"RpPrompt - NULL mobile.", 0);
-        return;
-    }
-
-    if(IS_NPC(mob)) {
-        pbugf(LOG_SCRIPTS,"RpPrompt - cannot set prompt strings on NPCs.", 0);
-        return;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS,"RpPrompt - Missing name type.",0);
-        return;
-    }
-
-    if(!(rest = expand_argument(info,rest,arg))) {
-        pbugf(LOG_SCRIPTS,"RpPrompt - Error in parsing.",0);
-        return;
-    }
-
-    name[0] = 0;
-
-    switch(arg->type) {
-    case ENT_STRING: strncpy(name,arg->d.str,MIL-1); break;
-    default: return;
-    }
-
-    if(!name[0]) return;
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        string_vector_set(&mob->pcdata->script_prompts,name,buffer->string);
-    }
-    free_buf(buffer);
-}
 
 
 
@@ -3642,155 +3221,6 @@ SCRIPT_CMD(do_rpdestroyroom)
 // showroom <viewer> map <mapid> <x> <y> <z> <scale> <width> <height>[ force]
 // showroom <viewer> room <room>[ force]
 // showroom <viewer> vroom <room> <id>[ force]
-SCRIPT_CMD(do_rpshowroom)
-{
-    CHAR_DATA *viewer = NULL, *next;
-    ROOM_INDEX_DATA *room = NULL, *dest;
-    WILDS_DATA *wilds = NULL;
-
-    long mapid;
-    long x,y;
-    long width, height;
-    bool force;
-
-    if(!info || !info->room) return;
-
-    if(!(argument = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_MOBILE:	viewer = arg->d.mob; break;
-    case ENT_ROOM:		room = arg->d.room; break;
-    }
-
-    if(!viewer && !room) {
-        pbugf(LOG_SCRIPTS,"RpShowMap - bad target for showing the map", 0);
-        return;
-    }
-
-    if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING)
-        return;
-
-    if(!str_cmp(arg->d.str,"map")) {
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        mapid = arg->d.num;
-
-        wilds = get_wilds_from_uid(NULL,mapid);
-        if(!wilds) return;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        x = arg->d.num;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        y = arg->d.num;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        //z = arg->d.num;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        //scale = arg->d.num;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        width = arg->d.num;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        height = arg->d.num;
-
-        if(!(argument = expand_argument(info,argument,arg)))
-            return;
-
-        if(arg->type == ENT_STRING)
-            force = !str_cmp(arg->d.str,"force");
-        else
-            force = false;
-
-        dest = get_wilds_vroom(wilds,x,y);
-        if(!dest)
-            dest = create_wilds_vroom(wilds,x,y);
-
-        // Force limitations please?
-        if(width < 5) width = 5;
-        if(height < 5) height = 5;
-
-        if(room) {
-            for(viewer = room->people; viewer; viewer = next) {
-                next = viewer->next_in_room;
-                if(!IS_NPC(viewer) && (force || (IS_AWAKE(viewer) && check_vision(viewer,dest,false,false)))) {
-                    show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
-                }
-            }
-        } else if(!IS_NPC(viewer)) {
-            // There is no awake check here since it is to one mob.
-            //  This can be used in things like DREAMS, seeing yourself at a certain location!
-            show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
-        }
-        return;
-    }
-
-    // Both room and vroom have the same end mechanism, just different fetching mechanisms
-
-    if(!str_cmp(arg->d.str,"room")) {
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
-            return;
-
-        dest = arg->d.room;
-    } else if(!str_cmp(arg->d.str,"vroom")) {
-        unsigned long id1, id2;
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
-            return;
-
-        dest = arg->d.room;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        id1 = arg->d.num;
-
-        if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        id2 = arg->d.num;
-
-        dest = get_clone_room(dest,id1,id2);
-    } else
-        return;
-
-    if(!dest) return;
-
-    if(!(argument = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type == ENT_STRING)
-        force = !str_cmp(arg->d.str,"force");
-    else
-        force = false;
-
-    if(room) {
-        for(viewer = room->people; viewer; viewer = next) {
-            next = viewer->next_in_room;
-            if(!IS_NPC(viewer) && (force || (IS_AWAKE(viewer) && check_vision(viewer,dest,false,false))))
-                show_room(viewer,dest,true,true,false);
-        }
-    } else if(!IS_NPC(viewer)) {
-        // There is no awake check or vision check here since it is to one mob.
-        //  This can be used in things like DREAMS, seeing yourself at a certain location!
-        show_room(viewer,dest,true,true,false);
-    }
-}
 
 SCRIPT_CMD(do_rpxcall)
 {
