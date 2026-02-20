@@ -32,7 +32,6 @@
 
 #define SCRIPT_WIZNET		(A)	/* The script will wiznet to WIZ_SCRIPTS */
 #define SCRIPT_DISABLED		(B)	/* The script must be turned off by an IMP */
-#define SCRIPT_LUA			(C)	/* This script is a LUA compiled script. */
 #define SCRIPT_SECURED		(D)	/* This script will reset security settings to its values */
 #define SCRIPT_SYSTEM		(E)	// A system script, may ONLY be called when security is SYSTEM security
 #define SCRIPT_INSPECT		(Z)	/* Inspect the script for restricted actions */
@@ -3167,13 +3166,33 @@ SCRIPT_CMD(do_rpsetrecall);
 SCRIPT_CMD(scriptcmd_addaffect);
 SCRIPT_CMD(scriptcmd_addaffectname);
 SCRIPT_CMD(scriptcmd_applytoxin);
+SCRIPT_CMD(scriptcmd_asound);
 SCRIPT_CMD(scriptcmd_award);
 SCRIPT_CMD(scriptcmd_breathe);
 SCRIPT_CMD(scriptcmd_damage);
 SCRIPT_CMD(scriptcmd_deduct);
+SCRIPT_CMD(scriptcmd_echo);
+SCRIPT_CMD(scriptcmd_echoroom);
+SCRIPT_CMD(scriptcmd_echobattlespam);
+SCRIPT_CMD(scriptcmd_echochurch);
+SCRIPT_CMD(scriptcmd_echogrouparound);
+SCRIPT_CMD(scriptcmd_echogroupat);
+SCRIPT_CMD(scriptcmd_echoleadaround);
+SCRIPT_CMD(scriptcmd_echoleadat);
+SCRIPT_CMD(scriptcmd_echoaround);
+SCRIPT_CMD(scriptcmd_echonotvict);
 SCRIPT_CMD(scriptcmd_entercombat);
 SCRIPT_CMD(scriptcmd_flee);
+SCRIPT_CMD(scriptcmd_force);
+SCRIPT_CMD(scriptcmd_gforce);
+SCRIPT_CMD(scriptcmd_gecho);
 SCRIPT_CMD(scriptcmd_inputstring);
+SCRIPT_CMD(scriptcmd_goto);
+SCRIPT_CMD(scriptcmd_gtransfer);
+SCRIPT_CMD(scriptcmd_at);
+SCRIPT_CMD(scriptcmd_transfer);
+SCRIPT_CMD(scriptcmd_vforce);
+SCRIPT_CMD(scriptcmd_zecho);
 SCRIPT_CMD(scriptcmd_grantskill);
 SCRIPT_CMD(scriptcmd_grantclass);
 SCRIPT_CMD(scriptcmd_grantsong);

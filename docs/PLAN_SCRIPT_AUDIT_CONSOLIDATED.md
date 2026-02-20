@@ -16,6 +16,28 @@
   - Script-related roadmap sections in `docs/SCRIPT_SYSTEM_ANALYSIS.md`
   - Script editor modernization planning in `docs/SCRIPT_EDITOR_FRAMEWORK.md`
 
+### Execution update (2026-02-20)
+
+- **Phase 2 / Tranche A complete**: var-family command dispatch (`varset`, `varseton`,
+  `varclear`, `varclearon`, `varcopy`, `varsave`, `varsaveon`) is now routed through
+  shared `scriptcmd_var*` handlers in command tables across mob/object/room/token
+  script spaces.
+- **Validation**: debug build + focused `script_engine` regression suite passing.
+- **Dead Lua module removal approved and executed**:
+  - `script_lua.c` removed from active `src/` tree (it was not part of CMake/Make source lists).
+  - obsolete `SCRIPT_LUA` script flag define removed from active `scripts.h`.
+  - no active `src/` references to `script_loadlua` / `script_freelua` / `execute_lua_script`.
+- **Next up**: begin Phase 2 / Tranche B (`transfer`/`goto`/`force`/`echo` families) via
+  shared resolver/helper extraction, preserving behavior parity.
+
+### Tranche B kickoff note (2026-02-20)
+
+- Implemented first Tranche B step by centralizing `goto` dispatch to shared
+  `scriptcmd_goto` for mob/object/token command tables.
+- Preserved existing per-context behavior within shared implementation
+  (movement target resolution and movement semantics by host type).
+- Validation remains green (`script_engine` focused suite).
+
 ---
 
 ## 1) Objectives

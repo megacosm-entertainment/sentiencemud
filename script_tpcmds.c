@@ -34,7 +34,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "alterobj",			scriptcmd_alterobj,				true,	true	},
     { "alterroom",			scriptcmd_alterroom,				true,	true	},
     { "applytoxin",			scriptcmd_applytoxin,		false,	true	},
-    { "asound",				do_tpasound,				false,	true	},
+    { "asound",				scriptcmd_asound,			false,	true	},
     { "attach",				scriptcmd_attach,			true,	true	},
     { "award",				scriptcmd_award,			true,	true	},
     { "breathe",			scriptcmd_breathe,		false,	true	},
@@ -55,35 +55,35 @@ const struct script_cmd_type token_cmd_table[] = {
     { "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
-    { "echo",				do_tpecho,					false,	true	},
+    { "echo",				scriptcmd_echo,				false,	true	},
         { "event",              scriptcmd_event,          false,  true    },
-    { "echoaround",			do_tpechoaround,			false,	true	},
+    { "echoaround",			scriptcmd_echoaround,		false,	true	},
     { "echoat",				scriptcmd_echoat,			false,	true	},
-    { "echobattlespam",		do_tpechobattlespam,		false,	true	},
-    { "echochurch",			do_tpechochurch,			false,	true	},
-    { "echogrouparound",	do_tpechogrouparound,		false,	true	},
-    { "echogroupat",		do_tpechogroupat,			false,	true	},
-    { "echoleadaround",		do_tpecholeadaround,		false,	true	},
-    { "echoleadat",			do_tpecholeadat,			false,	true	},
-    { "echonotvict",		do_tpechonotvict,			false,	true	},
-    { "echoroom",			do_tpechoroom,				false,	true	},
+    { "echobattlespam",		scriptcmd_echobattlespam,	false,	true	},
+    { "echochurch",			scriptcmd_echochurch,		false,	true	},
+    { "echogrouparound",	scriptcmd_echogrouparound,	false,	true	},
+    { "echogroupat",		scriptcmd_echogroupat,		false,	true	},
+    { "echoleadaround",		scriptcmd_echoleadaround,	false,	true	},
+    { "echoleadat",			scriptcmd_echoleadat,		false,	true	},
+    { "echonotvict",		scriptcmd_echonotvict,		false,	true	},
+    { "echoroom",			scriptcmd_echoroom,			false,	true	},
     { "ed",					scriptcmd_ed,				false,	true	},
     { "entercombat",		scriptcmd_entercombat,		false,	true	},
     { "fade",				scriptcmd_fade,				true,	true	},
     { "fixaffects",			do_tpfixaffects,			false,	true	},
     { "flee",				scriptcmd_flee,				false,	true	},
-    { "force",				do_tpforce,					false,	true	},
+    { "force",				scriptcmd_force,				false,	true	},
     { "forget",				do_tpforget,				false,	false	},
     { "gdamage",			do_tpgdamage,				false,	true	},
-    { "gecho",      	 	do_tpgecho,					false,	true	},
-    { "gforce",				do_tpgforce,				false,	true	},
+    { "gecho",      	 	scriptcmd_gecho,			false,	true	},
+    { "gforce",				scriptcmd_gforce,			false,	true	},
     { "give",				do_tpgive,					false,	true	},
-    { "goto",				do_tpgoto,					false,	true	},
+    { "goto",				scriptcmd_goto,				false,	true	},
     { "grantclass",			scriptcmd_grantclass,		false,	true	},
     { "grantskill",			scriptcmd_grantskill,		false,	true	},
     { "grantsong",			scriptcmd_grantsong,		false,	true	},
     { "group",				do_tpgroup,					false,	true	},
-    { "gtransfer",			do_tpgtransfer,				false,	true	},
+    { "gtransfer",			scriptcmd_gtransfer,		false,	true	},
     { "input",				do_tpinput,					false,	true	},
     { "inputstring",		scriptcmd_inputstring,		false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
@@ -149,7 +149,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "stringobj",			do_tpstringobj,				true,	true	},
     { "stripaffect",		do_tpstripaffect,			true,	true	},
     { "stripaffectname",	do_tpstripaffectname,		true,	true	},
-    { "transfer",			do_tptransfer,				false,	true	},
+    { "transfer",			scriptcmd_transfer,			false,	true	},
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "ungroup",			do_tpungroup,				false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
@@ -157,19 +157,19 @@ const struct script_cmd_type token_cmd_table[] = {
     { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "usecatalyst",		do_tpusecatalyst,			false,	true	},
-    { "varclear",			do_tpvarclear,				false,	true	},
-    { "varclearon",			do_tpvarclearon,			false,	true	},
-    { "varcopy",			do_tpvarcopy,				false,	true	},
-    { "varsave",			do_tpvarsave,				false,	true	},
-    { "varsaveon",			do_tpvarsaveon,				false,	true	},
-    { "varset",				do_tpvarset,				false,	true	},
-    { "varseton",			do_tpvarseton,				false,	true	},
-    { "vforce",				do_tpvforce,				false,	true	},
+    { "varclear",			scriptcmd_varclear,			false,	true	},
+    { "varclearon",			scriptcmd_varclearon,			false,	true	},
+    { "varcopy",			scriptcmd_varcopy,			false,	true	},
+    { "varsave",			scriptcmd_varsave,			false,	true	},
+    { "varsaveon",			scriptcmd_varsaveon,			false,	true	},
+    { "varset",				scriptcmd_varset,			false,	true	},
+    { "varseton",			scriptcmd_varseton,			false,	true	},
+    { "vforce",				scriptcmd_vforce,		false,	true	},
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
     { "wiretransfer",		do_tpwiretransfer,			false,	true	},
     { "wiznet", 			scriptcmd_wiznet,			false,  true	},
     { "xcall",				do_tpxcall,					false,	true	},
-    { "zecho",				do_tpzecho,					false,	true	},
+    { "zecho",				scriptcmd_zecho,			false,	true	},
     { "zot",				do_tpzot,					true,	true	},
     { NULL,					NULL,						false,	false	}
 };
@@ -209,18 +209,15 @@ int tpcmd_lookup(char *command,bool istoken)
  */
 void do_tpdump(CHAR_DATA *ch, char *argument)
 {
+    char buf[MAX_INPUT_LENGTH];
     SCRIPT_DATA *tprg;
     WNUM wnum;
 
-    if (argument[0] == '\0')
-    {
-        send_to_char("Syntax: tpdump <vnum>\n\r", ch);
-        return;
-    }
+    one_argument(argument, buf);
 
-    if (!parse_widevnum(argument, script_relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, argument), &wnum))
+    if (!parse_widevnum(buf, script_relative_widevnum_context(ch->in_room ? ch->in_room->area : NULL, buf), &wnum))
     {
-        send_to_char("Invalid vnum format.\n\r", ch);
+        send_to_char("Syntax:  tpdump <widevnum>\n\r", ch);
         return;
     }
 
@@ -239,7 +236,7 @@ void do_tpdump(CHAR_DATA *ch, char *argument)
 /*
  * Displays TOKENprogram triggers of a token
  *
- * Syntax: tpstat [victim] [vnum] [index]
+ * Syntax: tpstat [target] [vnum] [index]
  */
 void do_tpstat(CHAR_DATA *ch, char *argument)
 {
@@ -248,7 +245,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
     CHAR_DATA *victim = NULL;
     OBJ_DATA *object = NULL;
     ROOM_INDEX_DATA *room = NULL;
-    int count;
+    int count = 0;
     long vnum = 0;
     bool id_lookup = false;
     BUFFER *output = new_buf();
@@ -923,380 +920,6 @@ SCRIPT_CMD(do_tpcall)
     // restore the call depth to the previous value
     script_call_depth = depth;
 }
-
-// do_tpecho
-SCRIPT_CMD(do_tpecho)
-{
-    if(!info || !info->token) return;
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,argument,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        add_buf(buffer,"\n\r");
-        room_echo(token_room(info->token), buffer->string);
-    }
-    free_buf(buffer);
-}
-
-// do_tpechoroom
-// Syntax: token echoroom <location> <string>
-SCRIPT_CMD(do_tpechoroom)
-{
-    char *rest;
-    ROOM_INDEX_DATA *room;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_MOBILE: room = arg->d.mob->in_room; break;
-    case ENT_OBJECT: room = obj_room(arg->d.obj); break;
-    case ENT_ROOM: room = arg->d.room; break;
-    case ENT_EXIT: room = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door]) ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
-    default: room = NULL; break;
-    }
-
-    if (!room || !room->people) return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        add_buf(buffer,"\n\r");
-        room_echo(room, buffer->string);
-    }
-
-    free_buf(buffer);
-}
-
-// do_tpechoaround
-SCRIPT_CMD(do_tpechoaround)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-// do_tpechonotvict
-SCRIPT_CMD(do_tpechonotvict)
-{
-    char *rest;
-    CHAR_DATA *victim, *attacker;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: attacker = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: attacker = arg->d.mob; break;
-    default: attacker = NULL; break;
-    }
-
-    if (!attacker || !attacker->in_room)
-        return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || victim->in_room != attacker->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_tpechobattlespam)
-{
-    char *rest;
-    CHAR_DATA *victim, *attacker, *ch;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: attacker = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: attacker = arg->d.mob; break;
-    default: attacker = NULL; break;
-    }
-
-    if (!attacker || !attacker->in_room)
-        return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || victim->in_room != attacker->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
-            if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
-                act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-            }
-        }
-    }
-    free_buf(buffer);
-}
-
-// do_tpechoat
-SCRIPT_CMD(do_tpechoat)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-// do_tpechochurch
-SCRIPT_CMD(do_tpechochurch)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim) || !victim->church)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        msg_church_members(victim->church, buffer->string);
-    }
-
-    free_buf(buffer);
-}
-
-// do_tpechogrouparound
-SCRIPT_CMD(do_tpechogrouparound)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
-    }
-    free_buf(buffer);
-}
-
-// do_tpechogroupat
-SCRIPT_CMD(do_tpechogroupat)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
-    }
-
-    free_buf(buffer);
-}
-
-// do_tpecholeadaround
-SCRIPT_CMD(do_tpecholeadaround)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->leader || !victim->leader->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-// do_tpecholeadat
-SCRIPT_CMD(do_tpecholeadat)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token),arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->leader || !victim->leader->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
 
 SCRIPT_CMD(do_tpgive)
 {
@@ -2465,49 +2088,6 @@ SCRIPT_CMD(do_tpgdamage)
     }
 }
 
-SCRIPT_CMD(do_tpasound)
-{
-    ROOM_INDEX_DATA *here, *room;
-    ROOM_INDEX_DATA *rooms[MAX_DIR];
-    int door, i, j;
-    EXIT_DATA *pexit;
-
-    if(!info || !info->token || !token_room(info->token)) return;
-    if (!argument[0]) return;
-
-    here = token_room(info->token);
-
-    // Verify there are any exits!
-    for (door = 0; door < MAX_DIR; door++)
-        if ((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here)
-            break;
-
-    if (door < MAX_DIR) {
-        // Expand the message
-        BUFFER *buffer = new_buf();
-        expand_string(info,argument,buffer);
-
-        if( buffer->string[0] != '\0' )
-        {
-            for (i = 0; door < MAX_DIR; door++)
-                if ((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here) {
-                    // Have we been to this room already?
-                    for(j=0;j < i && rooms[j] != room; j++);
-
-                    if(i <= j) {
-                        // No, so do the message
-                        MOBtrigger  = false;
-                        act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
-                        MOBtrigger  = true;
-                        rooms[i++] = room;
-                    }
-                }
-        }
-
-        free_buf(buffer);
-    }
-}
-
 SCRIPT_CMD(do_tpforget)
 {
     if(!info || !info->token) return;
@@ -2638,119 +2218,6 @@ SCRIPT_CMD(do_tpzot)
     victim->move = 1;
 }
 
-SCRIPT_CMD(do_tpgecho)
-{
-    DESCRIPTOR_DATA *d;
-
-    if(!info || !info->token) return;
-
-    if (!argument[0]) {
-        pbugf(LOG_SCRIPTS,"TpZEcho: missing argument from vnum %d", VNUM(info->token));
-        return;
-    }
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,argument,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (d = descriptor_list; d; d = d->next)
-            if (d->connected == CON_PLAYING) {
-                if (IS_IMMORTAL(d->character))
-                    send_to_char("Token echo> ", d->character);
-                send_to_char(buffer->string, d->character);
-                send_to_char("\n\r", d->character);
-            }
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_tpzecho)
-{
-    AREA_DATA *area;
-    DESCRIPTOR_DATA *d;
-
-    if(!info || !info->token || !token_room(info->token)) return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,argument,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        area = token_room(info->token)->area;
-
-        for (d = descriptor_list; d; d = d->next)
-            if (d->connected == CON_PLAYING &&
-                d->character->in_room &&
-                d->character->in_room->area == area) {
-                if (IS_IMMORTAL(d->character))
-                    send_to_char("Token echo> ", d->character);
-                send_to_char(buffer->string, d->character);
-                send_to_char("\n\r", d->character);
-            }
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_tpvforce)
-{
-    char *rest;
-    int vnum = 0;
-    AREA_DATA *target_area = NULL;
-    AREA_DATA *context_area = NULL;
-    WNUM target_wnum = wnum_zero;
-    CHAR_DATA *vch, *next;
-
-
-    if(!info || !info->token || !token_room(info->token)) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpVforce - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    context_area = get_area_from_scriptinfo(info);
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if (parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &target_wnum) && target_wnum.pArea) {
-            vnum = target_wnum.vnum;
-            target_area = target_wnum.pArea;
-        }
-        break;
-    case ENT_NUMBER:
-        vnum = arg->d.num;
-        break;
-    default: break;
-    }
-
-    if (vnum < 1) {
-        pbugf(LOG_SCRIPTS,"TpVforce - Invalid vnum from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (vch = token_room(info->token)->people; vch; vch = next) {
-            next = vch->next_in_room;
-            if (IS_NPC(vch)
-            &&  vch->pIndexData->vnum == vnum
-            &&  (!target_area || vch->pIndexData->area == target_area)
-            &&  !vch->fighting)
-                interpret(vch, buffer->string);
-        }
-    }
-
-    free_buf(buffer);
-}
-
 SCRIPT_CMD(do_tpotransfer)
 {
     char *rest;
@@ -2828,76 +2295,6 @@ SCRIPT_CMD(do_tppeace)
     }
 }
 
-
-SCRIPT_CMD(do_tptransfer)
-{
-    char buf[MIL], buf2[MIL], *rest;
-    CHAR_DATA *victim = NULL,*vnext;
-    ROOM_INDEX_DATA *dest;
-    bool all = false, force = false, quiet = false;
-    int mode;
-
-    if(!info || !info->token || !token_room(info->token)) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpTransfer - Bad syntax from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if(!str_cmp(arg->d.str,"all")) all = true;
-        else victim = get_char_world(NULL, arg->d.str);
-        break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-
-    if (!victim && !all) {
-        pbugf(LOG_SCRIPTS,"TpTransfer - Null victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    // Crashing on transfer all as this is not set on 'all' transfers.
-    //if (!victim->in_room) return;
-
-    argument = tp_getlocation(info, rest, &dest);
-
-    if(!dest) {
-        pbugf(LOG_SCRIPTS,"TpTransfer - Bad location from vnum %d.", VNUM(info->token));
-        return;
-    }
-
-    argument = one_argument(argument,buf);
-    argument = one_argument(argument,buf2);
-    force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
-    quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
-    mode = script_flag_value(transfer_modes, buf);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
-    if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
-
-    if (all) {
-        for (victim = token_room(info->token)->people; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (PROG_FLAG(victim,PROG_AT)) continue;
-            if (!IS_NPC(victim)) {
-                if (!force && room_is_private(dest, NULL)) break;
-                do_mob_transfer(victim,dest,quiet,mode);
-            }
-        }
-        return;
-    }
-
-    if (!force && room_is_private(dest, NULL))
-        return;
-
-    if (PROG_FLAG(victim,PROG_AT))
-        return;
-
-    do_mob_transfer(victim,dest,quiet,mode);
-}
 
 SCRIPT_CMD(do_tpremove)
 {
@@ -3037,70 +2434,6 @@ SCRIPT_CMD(do_tpremove)
         }
     }
 }
-
-SCRIPT_CMD(do_tpgtransfer)
-{
-    char buf[MIL], buf2[MIL], buf3[MIL], *rest;
-    CHAR_DATA *victim, *vch,*next;
-    ROOM_INDEX_DATA *dest;
-    bool all = false, force = false, quiet = false;
-    int mode;
-
-
-    if(!info || !info->token) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS,"TpGtransfer - Null victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    if (!victim->in_room) return;
-
-    if(!(argument = tp_getlocation(info, rest, &dest))) {
-        pbugf(LOG_SCRIPTS,"TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    if(!dest) {
-        pbugf(LOG_SCRIPTS,"TpGtransfer - Bad location from vnum %d.", VNUM(info->token));
-        return;
-    }
-
-    argument = one_argument(argument,buf);
-    argument = one_argument(argument,buf2);
-    argument = one_argument(argument,buf3);
-    all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
-    force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
-    quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
-    mode = script_flag_value(transfer_modes, buf);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
-    if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
-
-    for (vch = token_room(info->token)->people; vch; vch = next) {
-        next = vch->next_in_room;
-        if (!IS_NPC(vch) && is_same_group(victim,vch)) {
-            if (!all && vch->position != POS_STANDING) continue;
-            if (!force && room_is_private(dest, info->mob)) break;
-            do_mob_transfer(vch,dest,quiet,mode);
-        }
-    }
-}
-
-
 
 SCRIPT_CMD(do_tplink)
 {
@@ -3398,45 +2731,6 @@ SCRIPT_CMD(do_tpforce)
         }
 
         forced_command = forced;
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_tpgforce)
-{
-    char *rest;
-    CHAR_DATA *victim = NULL, *vch, *next;
-
-
-    if(!info || !info->token || !token_room(info->token)) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS,"TpGforce - Error in parsing from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, token_room(info->token), arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: break;
-    }
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS,"TpGforce - Null victim from vnum %ld.", VNUM(info->token));
-        return;
-    }
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (vch = token_room(info->token)->people; vch; vch = next) {
-            next = vch->next_in_room;
-            if (is_same_group(victim,vch))
-                interpret(vch, buffer->string);
-        }
     }
 
     free_buf(buffer);
@@ -4786,6 +4080,7 @@ SCRIPT_CMD(do_tpstripaffect)
     if(mob) affect_strip(mob, skill);
     else affect_strip_obj(obj,skill);
 }
+
 
 SCRIPT_CMD(do_tpstripaffectname)
 {
@@ -6521,9 +5816,7 @@ SCRIPT_CMD(do_tpscriptwait)
 
     if( !mob ) return;
 
-    // Check that the mob is not busy
     if( is_char_busy( mob ) ) {
-        //send_to_char("script_wait: mob busy\n\r", mob);
         return;
     }
     if( !*rest) return;

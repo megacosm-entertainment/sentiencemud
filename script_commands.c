@@ -22,6 +22,11 @@
 
 void reset_reckoning();
 
+char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room);
+char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room);
+char *rp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room);
+char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room);
+
 static void quest_part_set_wnum(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *area, long vnum)
 {
     if (!load || !wnum) return;
@@ -2702,6 +2707,2632 @@ SCRIPT_CMD(scriptcmd_flee)
 
     door = do_flee_full(target, fleearg, conceal, pursue);
     info->progs->lastreturn = door;
+}
+
+SCRIPT_CMD(scriptcmd_goto)
+{
+    ROOM_INDEX_DATA *dest = NULL;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!info->mob->in_room || PROG_FLAG(info->mob,PROG_AT))
+            return;
+
+        if(!argument[0]) {
+            pbugf(LOG_SCRIPTS, "Mpgoto - No argument from vnum %d.", VNUM(info->mob));
+            return;
+        }
+
+        mp_getlocation(info, argument, &dest);
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "Mpgoto - Bad location from vnum %d.", VNUM(info->mob));
+            return;
+        }
+
+        if(info->mob->fighting)
+            stop_fighting(info->mob, true);
+
+        char_from_room(info->mob);
+        if(dest->wilds)
+            char_to_vroom(info->mob, dest->wilds, dest->x, dest->y);
+        else
+            char_to_room(info->mob, dest);
+        return;
+    }
+
+    if(info->obj) {
+        if(!obj_room(info->obj) || PROG_FLAG(info->obj,PROG_AT))
+            return;
+
+        if(!argument[0]) {
+            pbugf(LOG_SCRIPTS, "Opgoto - No argument from vnum %d.", VNUM(info->obj));
+            return;
+        }
+
+        op_getlocation(info, argument, &dest);
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "Opgoto - Bad location from vnum %d.", VNUM(info->obj));
+            return;
+        }
+
+        if(info->obj->in_obj)
+            obj_from_obj(info->obj);
+        else if(info->obj->carried_by)
+            obj_from_char(info->obj);
+        else if(info->obj->in_room)
+            obj_from_room(info->obj);
+
+        obj_to_room(info->obj, dest);
+        return;
+    }
+
+    if(info->token) {
+        if(!info->token->player || !info->token->player->in_room)
+            return;
+
+        if(!argument[0]) {
+            pbugf(LOG_SCRIPTS, "Tpgoto - No argument from vnum %d.", VNUM(info->token));
+            return;
+        }
+
+        tp_getlocation(info, argument, &dest);
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "Tpgoto - Bad location from vnum %d.", VNUM(info->token));
+            return;
+        }
+
+        if(info->token->player->fighting)
+            stop_fighting(info->token->player, true);
+
+        char_from_room(info->token->player);
+        char_to_room(info->token->player, dest);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_force)
+{
+    char *rest;
+    CHAR_DATA *victim = NULL, *next;
+    bool fAll = false, forced;
+    ROOM_INDEX_DATA *source_room = NULL;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!info->mob)
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        source_room = info->mob->in_room;
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) fAll = true;
+            else victim = get_char_room(info->mob, NULL, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if(!fAll && !victim) {
+            pbugf(LOG_SCRIPTS, "MpForce - Null victim from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buf_string(buffer)[0] == '\0') {
+            pbugf(LOG_SCRIPTS,"MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
+            free_buf(buffer);
+            return;
+        }
+
+        forced = forced_command;
+        if(fAll) {
+            for(victim = source_room ? source_room->people : NULL; victim; victim = next) {
+                next = victim->next_in_room;
+                if(get_staff_rank(victim) < get_staff_rank(info->mob)
+                && can_see(info->mob, victim)
+                && (IS_NPC(victim) || !IS_IMMORTAL(victim))) {
+                    forced_command = true;
+                    interpret(victim, buf_string(buffer));
+                }
+            }
+        } else {
+            if(victim == info->mob) {
+                free_buf(buffer);
+                return;
+            }
+            if(!IS_NPC(victim) && IS_IMMORTAL(victim)) {
+                free_buf(buffer);
+                return;
+            }
+
+            forced_command = true;
+            interpret(victim, buf_string(buffer));
+        }
+
+        forced_command = forced;
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        if(!info->obj)
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "OpForce - Error in parsing from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        source_room = obj_room(info->obj);
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) fAll = true;
+            else victim = get_char_room(NULL, source_room, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if(!fAll && !victim) {
+            pbugf(LOG_SCRIPTS, "OpForce - Null victim from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+        if(buffer->string[0] != '\0') {
+            forced = forced_command;
+
+            if(fAll) {
+                for(victim = source_room ? source_room->people : NULL; victim; victim = next) {
+                    next = victim->next_in_room;
+                    forced_command = true;
+                    interpret(victim, buffer->string);
+                }
+            } else {
+                forced_command = true;
+                interpret(victim, buffer->string);
+            }
+
+            forced_command = forced;
+        }
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "RpForce - Error in parsing from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        source_room = info->room;
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) fAll = true;
+            else victim = get_char_room(NULL, source_room, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if(!fAll && !victim) {
+            pbugf(LOG_SCRIPTS, "RpForce - Null victim from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0') {
+            forced = forced_command;
+
+            if(fAll) {
+                for(victim = source_room ? source_room->people : NULL; victim; victim = next) {
+                    next = victim->next_in_room;
+                    forced_command = true;
+                    interpret(victim, buffer->string);
+                }
+            } else {
+                forced_command = true;
+                interpret(victim, buffer->string);
+            }
+
+            forced_command = forced;
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        if(!info->token)
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS,"TpForce - Error in parsing from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        source_room = token_room(info->token);
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) fAll = true;
+            else victim = get_char_room(NULL, source_room, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if(!fAll && !victim) {
+            pbugf(LOG_SCRIPTS,"TpForce - Null victim from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0') {
+            forced = forced_command;
+
+            if(fAll) {
+                for(victim = source_room ? source_room->people : NULL; victim; victim = next) {
+                    next = victim->next_in_room;
+                    forced_command = true;
+                    interpret(victim, buffer->string);
+                }
+            } else {
+                forced_command = true;
+                interpret(victim, buffer->string);
+            }
+
+            forced_command = forced;
+        }
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_gforce)
+{
+    char *rest;
+    CHAR_DATA *victim = NULL, *vch, *next;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!info->mob)
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "MpGforce - Null victim from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+        if(buf_string(buffer)[0] == '\0') {
+            pbugf(LOG_SCRIPTS, "MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+            free_buf(buffer);
+            return;
+        }
+
+        for (vch = info->mob->in_room->people; vch; vch = next) {
+            next = vch->next_in_room;
+            if (is_same_group(victim,vch) &&
+                get_staff_rank(vch) < get_staff_rank(info->mob) &&
+                can_see(info->mob, vch) &&
+                (IS_NPC(vch) || !IS_IMMORTAL(vch)))
+                interpret(vch, buf_string(buffer));
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        if(!obj_room(info->obj))
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "OpGforce - Error in parsing from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "OpGforce - Null victim from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+        if(buffer->string[0] != '\0') {
+            for (vch = obj_room(info->obj)->people; vch; vch = next) {
+                next = vch->next_in_room;
+                if (is_same_group(victim,vch))
+                    interpret(vch, buffer->string);
+            }
+        }
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "RpGforce - Error in parsing from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "RpGforce - Null victim from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            for (vch = info->room->people; vch; vch = next) {
+                next = vch->next_in_room;
+                if (is_same_group(victim,vch))
+                    interpret(vch, buffer->string);
+            }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        if(!token_room(info->token))
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS,"TpGforce - Error in parsing from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, token_room(info->token), arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: break;
+        }
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS,"TpGforce - Null victim from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            for (vch = token_room(info->token)->people; vch; vch = next) {
+                next = vch->next_in_room;
+                if (is_same_group(victim,vch))
+                    interpret(vch, buffer->string);
+            }
+        }
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_gtransfer)
+{
+    char buf[MIL], buf2[MIL], buf3[MIL], *rest;
+    CHAR_DATA *victim, *vch,*next;
+    ROOM_INDEX_DATA *dest;
+    bool all = false, force = false, quiet = false;
+    int mode;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "MpGtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(info->mob, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "MpGtransfer - Null victim from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        if (!victim->in_room) return;
+
+        if(!(argument = mp_getlocation(info, rest, &dest))) {
+            pbugf(LOG_SCRIPTS, "MpGtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "MpGtransfer - Bad location from vnum %d.", VNUM(info->mob));
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        argument = one_argument(argument,buf3);
+        all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
+        mode = script_flag_value(transfer_modes, buf);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
+        if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
+
+        for (vch = victim->in_room->people; vch; vch = next) {
+            next = vch->next_in_room;
+            if (!IS_NPC(vch) && is_same_group(victim,vch)) {
+                if (!all && vch->position != POS_STANDING) continue;
+                if (!force && room_is_private(dest, info->mob)) break;
+                do_mob_transfer(vch,dest,quiet,mode);
+            }
+        }
+        return;
+    }
+
+    if(info->obj) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "OpGtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "OpGtransfer - Null victim from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        if (!victim->in_room) return;
+
+        if(!(argument = op_getlocation(info, rest, &dest))) {
+            pbugf(LOG_SCRIPTS, "OpGtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "OpGtransfer - Bad location from vnum %d.", VNUM(info->obj));
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        argument = one_argument(argument,buf3);
+        all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
+        mode = script_flag_value(transfer_modes, buf);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
+        if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
+
+        for (vch = victim->in_room->people; vch; vch = next) {
+            next = vch->next_in_room;
+            if (!IS_NPC(vch) && is_same_group(victim,vch)) {
+                if (!all && vch->position != POS_STANDING) continue;
+                if (!force && room_is_private(dest, info->mob)) break;
+                do_mob_transfer(vch,dest,quiet,mode);
+            }
+        }
+        return;
+    }
+
+    if(info->room) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS, "RpGtransfer - Null victim from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        if (!victim->in_room) return;
+
+        if(!(argument = rp_getlocation(info, rest, &dest))) {
+            pbugf(LOG_SCRIPTS, "RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "RpGtransfer - Bad location from vnum %d.", info->room->vnum);
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        argument = one_argument(argument,buf3);
+        all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
+        mode = script_flag_value(transfer_modes, buf);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
+        if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
+
+        for (vch = info->room->people; vch; vch = next) {
+            next = vch->next_in_room;
+            if (!IS_NPC(vch) && is_same_group(victim,vch)) {
+                if (!all && vch->position != POS_STANDING) continue;
+                if (!force && room_is_private(dest, info->mob)) break;
+                do_mob_transfer(vch,dest,quiet,mode);
+            }
+        }
+        return;
+    }
+
+    if(info->token) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS,"TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+
+        if (!victim) {
+            pbugf(LOG_SCRIPTS,"TpGtransfer - Null victim from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        if (!victim->in_room) return;
+
+        if(!(argument = tp_getlocation(info, rest, &dest))) {
+            pbugf(LOG_SCRIPTS,"TpGtransfer - Bad syntax from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS,"TpGtransfer - Bad location from vnum %d.", VNUM(info->token));
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        argument = one_argument(argument,buf3);
+        all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
+        mode = script_flag_value(transfer_modes, buf);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
+        if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
+        if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
+
+        for (vch = token_room(info->token)->people; vch; vch = next) {
+            next = vch->next_in_room;
+            if (!IS_NPC(vch) && is_same_group(victim,vch)) {
+                if (!all && vch->position != POS_STANDING) continue;
+                if (!force && room_is_private(dest, info->mob)) break;
+                do_mob_transfer(vch,dest,quiet,mode);
+            }
+        }
+    }
+}
+
+SCRIPT_CMD(scriptcmd_transfer)
+{
+    char buf[MIL], buf2[MIL], *rest;
+    CHAR_DATA *victim = NULL, *vnext;
+    ROOM_INDEX_DATA *dest = NULL;
+    ROOM_INDEX_DATA *source_room = NULL;
+    bool all = false;
+    bool force = false;
+    bool quiet = false;
+    int mode;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "MpTransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        quiet = true;
+        source_room = info->mob->in_room;
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) all = true;
+            else victim = get_char_world(info->mob, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim && !all) {
+            pbugf(LOG_SCRIPTS, "MpTransfer - Null victim from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        argument = mp_getlocation(info, rest, &dest);
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "MpTransfer - Bad location from vnum %d.", VNUM(info->mob));
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
+        mode = script_flag_value(transfer_modes, buf);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, buf2);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, argument);
+        if(mode == NO_FLAG) mode = TRANSFER_MODE_SILENT;
+
+        if(all) {
+            for(victim = source_room ? source_room->people : NULL; victim; victim = vnext) {
+                vnext = victim->next_in_room;
+                if(PROG_FLAG(victim,PROG_AT)) continue;
+                if(!IS_NPC(victim)) {
+                    if(!force && room_is_private(dest, info->mob)) break;
+                    do_mob_transfer(victim,dest,quiet,mode);
+                }
+            }
+            return;
+        }
+
+        if(!force && room_is_private(dest,info->mob))
+            return;
+
+        if(PROG_FLAG(victim,PROG_AT))
+            return;
+
+        do_mob_transfer(victim,dest,quiet,mode);
+        return;
+    }
+
+    if(info->obj) {
+        if(!obj_room(info->obj))
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "OpTransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        source_room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) all = true;
+            else victim = get_char_world(NULL, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim && !all) {
+            pbugf(LOG_SCRIPTS, "OpTransfer - Null victim from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        argument = op_getlocation(info, rest, &dest);
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "OpTransfer - Bad location from vnum %d.", VNUM(info->obj));
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
+        mode = script_flag_value(transfer_modes, buf);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, buf2);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, argument);
+        if(mode == NO_FLAG) mode = TRANSFER_MODE_SILENT;
+
+        if(all) {
+            for(victim = source_room ? source_room->people : NULL; victim; victim = vnext) {
+                vnext = victim->next_in_room;
+                if(PROG_FLAG(victim,PROG_AT)) continue;
+                if(!IS_NPC(victim)) {
+                    if(!force && room_is_private(dest, NULL)) break;
+                    do_mob_transfer(victim,dest,quiet,mode);
+                }
+            }
+            return;
+        }
+
+        if(!force && room_is_private(dest, NULL))
+            return;
+
+        if(PROG_FLAG(victim,PROG_AT))
+            return;
+
+        do_mob_transfer(victim,dest,quiet,mode);
+        return;
+    }
+
+    if(info->room) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "RpTransfer - Bad syntax from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        source_room = info->room;
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) all = true;
+            else victim = get_char_world(NULL, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim && !all) {
+            pbugf(LOG_SCRIPTS, "RpTransfer - Null victim from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        argument = rp_getlocation(info, rest, &dest);
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS, "RpTransfer - Bad location from vnum %d.", info->room->vnum);
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
+        mode = script_flag_value(transfer_modes, buf);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, buf2);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, argument);
+        if(mode == NO_FLAG) mode = TRANSFER_MODE_SILENT;
+
+        if(all) {
+            for(victim = source_room ? source_room->people : NULL; victim; victim = vnext) {
+                vnext = victim->next_in_room;
+                if(PROG_FLAG(victim,PROG_AT)) continue;
+                if(!IS_NPC(victim)) {
+                    if(!force && room_is_private(dest, NULL)) break;
+                    do_mob_transfer(victim,dest,quiet,mode);
+                }
+            }
+            return;
+        }
+
+        if(!force && room_is_private(dest, NULL))
+            return;
+
+        if(PROG_FLAG(victim,PROG_AT))
+            return;
+
+        do_mob_transfer(victim,dest,quiet,mode);
+        return;
+    }
+
+    if(info->token) {
+        if(!token_room(info->token))
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS,"TpTransfer - Bad syntax from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        source_room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if(!str_cmp(arg->d.str,"all")) all = true;
+            else victim = get_char_world(NULL, arg->d.str);
+            break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim && !all) {
+            pbugf(LOG_SCRIPTS,"TpTransfer - Null victim from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        argument = tp_getlocation(info, rest, &dest);
+
+        if(!dest) {
+            pbugf(LOG_SCRIPTS,"TpTransfer - Bad location from vnum %d.", VNUM(info->token));
+            return;
+        }
+
+        argument = one_argument(argument,buf);
+        argument = one_argument(argument,buf2);
+        force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
+        quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
+        mode = script_flag_value(transfer_modes, buf);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, buf2);
+        if(mode == NO_FLAG) mode = script_flag_value(transfer_modes, argument);
+        if(mode == NO_FLAG) mode = TRANSFER_MODE_SILENT;
+
+        if(all) {
+            for(victim = source_room ? source_room->people : NULL; victim; victim = vnext) {
+                vnext = victim->next_in_room;
+                if(PROG_FLAG(victim,PROG_AT)) continue;
+                if(!IS_NPC(victim)) {
+                    if(!force && room_is_private(dest, NULL)) break;
+                    do_mob_transfer(victim,dest,quiet,mode);
+                }
+            }
+            return;
+        }
+
+        if(!force && room_is_private(dest, NULL))
+            return;
+
+        if(PROG_FLAG(victim,PROG_AT))
+            return;
+
+        do_mob_transfer(victim,dest,quiet,mode);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_at)
+{
+    int sec;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        ROOM_INDEX_DATA *orig, *location;
+        char *command;
+        OBJ_DATA *on;
+        OBJ_DATA *pulled;
+        bool remote;
+
+        if(PROG_FLAG(info->mob,PROG_AT))
+            return;
+
+        if (!argument[0]) {
+            pbugf(LOG_SCRIPTS, "Mpat - Bad argument from vnum %d.", VNUM(info->mob));
+            return;
+        }
+
+        command = mp_getlocation(info, argument, &location);
+
+        if (!location) {
+            pbugf(LOG_SCRIPTS, "Mpat - No such location from vnum %d.", IS_NPC(info->mob) ? info->mob->pIndexData->vnum : 0);
+            return;
+        }
+
+        remote = PROG_FLAG(info->mob,PROG_AT);
+        sec = script_security;
+        script_security = NO_SCRIPT_SECURITY;
+        SET_BIT(info->mob->progs->entity_flags,PROG_AT);
+        orig = info->mob->in_room;
+        on = info->mob->on;
+        pulled = info->mob->pulled_cart;
+        char_from_room(info->mob);
+        if(location->wilds)
+            char_to_vroom(info->mob, location->wilds, location->x, location->y);
+        else
+            char_to_room(info->mob, location);
+        script_interpret(info, command);
+        script_security = sec;
+        if(!remote) REMOVE_BIT(info->mob->progs->entity_flags,PROG_AT);
+
+        if(info->mob) {
+            char_from_room(info->mob);
+            char_to_room(info->mob, orig);
+            info->mob->on = on;
+            info->mob->pulled_cart = pulled;
+        }
+        return;
+    }
+
+    if(info->obj) {
+        char *command;
+        SCRIPT_VARINFO info2;
+        OBJ_DATA *dummy_obj;
+        ROOM_INDEX_DATA *location;
+
+        if(!obj_room(info->obj))
+            return;
+
+        if(!(command = op_getlocation(info, argument, &location))) {
+            pbugf(LOG_SCRIPTS, "OpAt: Bad syntax from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        sec = script_security;
+        script_security = NO_SCRIPT_SECURITY;
+
+        if(location == obj_room(info->obj))
+            obj_interpret(info, command);
+        else {
+            dummy_obj = create_object(info->obj->pIndexData, 0, false);
+            clone_object(info->obj, dummy_obj);
+
+            info2 = *info;
+            info2.obj = dummy_obj;
+            dummy_obj->progs->target = info->obj->progs->target;
+            dummy_obj->progs->vars = info->obj->progs->vars;
+            dummy_obj->progs->delay = info->obj->progs->delay;
+            SET_BIT(dummy_obj->progs->entity_flags,PROG_AT);
+            info2.targ = &(dummy_obj->progs->target);
+            info2.var = &(dummy_obj->progs->vars);
+
+            obj_to_room(dummy_obj, location);
+            obj_interpret(&info2, command);
+
+            info->obj->progs->target = dummy_obj->progs->target;
+            info->obj->progs->vars = dummy_obj->progs->vars;
+            info->obj->progs->delay = dummy_obj->progs->delay;
+
+            dummy_obj->progs->target = NULL;
+            dummy_obj->progs->vars = NULL;
+
+            extract_obj(dummy_obj);
+        }
+
+        script_security = sec;
+        return;
+    }
+
+    if(info->room) {
+        SCRIPT_VARINFO info2;
+        CHAR_DATA *target;
+        int delay;
+        pVARIABLE vars;
+        ROOM_INDEX_DATA *dest;
+        bool remote;
+
+        if(!(argument = rp_getlocation(info, argument, &dest))) {
+            pbugf(LOG_SCRIPTS, "Rpat - Bad argument from vnum %d.", info->room->vnum);
+            return;
+        }
+
+        if (!dest) {
+            pbugf(LOG_SCRIPTS, "Rpat - Null location from vnum %d.", info->room->vnum);
+            return;
+        }
+
+        sec = script_security;
+        script_security = NO_SCRIPT_SECURITY;
+
+        remote = PROG_FLAG(dest,PROG_AT) ? true : false;
+
+        SET_BIT(dest->progs->entity_flags,PROG_AT);
+
+        info2 = *info;
+        target = dest->progs->target;
+        vars = dest->progs->vars;
+        delay = dest->progs->delay;
+        dest->progs->target = info->room->progs->target;
+        dest->progs->vars = info->room->progs->vars;
+        dest->progs->delay = info->room->progs->delay;
+        info->room->progs->target = NULL;
+        info->room->progs->vars = NULL;
+        info->room->progs->delay = -1;
+        info2.room = dest;
+        info2.targ = &(dest->progs->target);
+        info2.var = &(dest->progs->vars);
+
+        script_interpret(&info2,argument);
+        script_security = sec;
+
+        info->room->progs->target = dest->progs->target;
+        info->room->progs->vars = dest->progs->vars;
+        info->room->progs->delay = dest->progs->delay;
+        dest->progs->target = target;
+        dest->progs->vars = vars;
+        dest->progs->delay = delay;
+
+        if(!remote)
+            REMOVE_BIT(dest->progs->entity_flags,PROG_AT);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_vforce)
+{
+    char *rest;
+    int vnum = 0;
+    AREA_DATA *target_area = NULL;
+    AREA_DATA *context_area = NULL;
+    WNUM target_wnum = wnum_zero;
+    CHAR_DATA *vch, *next;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "MpVforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        context_area = get_area_from_scriptinfo(info);
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+                if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
+                    vnum = target_wnum.vnum;
+                    target_area = target_wnum.pArea;
+                }
+            } else {
+                vnum = atoi(arg->d.str);
+            }
+            break;
+        case ENT_NUMBER: vnum = arg->d.num; break;
+        default: break;
+        }
+
+        if (vnum < 1) {
+            pbugf(LOG_SCRIPTS, "MpVforce - Invalid vnum from vnum %ld.", VNUM(info->mob));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+        if(buf_string(buffer)[0] == '\0') {
+            pbugf(LOG_SCRIPTS, "MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+            free_buf(buffer);
+            return;
+        }
+
+        for (vch = info->mob->in_room->people; vch; vch = next) {
+            next = vch->next_in_room;
+            if (IS_NPC(vch) && vch->pIndexData->vnum == vnum &&
+                (!target_area || vch->pIndexData->area == target_area) &&
+                get_staff_rank(vch) < get_staff_rank(info->mob) &&
+                can_see(info->mob, vch) &&
+                (IS_NPC(vch) || !IS_IMMORTAL(vch)))
+                interpret(vch, buf_string(buffer));
+        }
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        if(!obj_room(info->obj))
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "OpVforce - Error in parsing from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        context_area = get_area_from_scriptinfo(info);
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
+                vnum = target_wnum.vnum;
+                target_area = target_wnum.pArea;
+            }
+            break;
+        case ENT_NUMBER: vnum = arg->d.num; break;
+        default: break;
+        }
+
+        if (vnum < 1) {
+            pbugf(LOG_SCRIPTS, "OpVforce - Invalid vnum from vnum %ld.", VNUM(info->obj));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+        if(buffer->string[0] != '\0') {
+            for (vch = obj_room(info->obj)->people; vch; vch = next) {
+                next = vch->next_in_room;
+                if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum &&
+                    (!target_area || vch->pIndexData->area == target_area) &&
+                    !vch->fighting)
+                    interpret(vch, buffer->string);
+            }
+        }
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS, "RpVforce - Error in parsing from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        context_area = get_area_from_scriptinfo(info);
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
+                if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
+                    vnum = target_wnum.vnum;
+                    target_area = target_wnum.pArea;
+                }
+            } else {
+                vnum = atoi(arg->d.str);
+            }
+            break;
+        case ENT_NUMBER: vnum = arg->d.num; break;
+        default: break;
+        }
+
+        if (vnum < 1) {
+            pbugf(LOG_SCRIPTS, "RpVforce - Invalid vnum from vnum %ld.", info->room->vnum);
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            for (vch = info->room->people; vch; vch = next) {
+                next = vch->next_in_room;
+                if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum &&
+                    (!target_area || vch->pIndexData->area == target_area) &&
+                    !vch->fighting)
+                    interpret(vch, buffer->string);
+            }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        if(!token_room(info->token))
+            return;
+
+        if(!(rest = expand_argument(info,argument,arg))) {
+            pbugf(LOG_SCRIPTS,"TpVforce - Error in parsing from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        context_area = get_area_from_scriptinfo(info);
+
+        switch(arg->type) {
+        case ENT_STRING:
+            if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
+                vnum = target_wnum.vnum;
+                target_area = target_wnum.pArea;
+            }
+            break;
+        case ENT_NUMBER:
+            vnum = arg->d.num;
+            break;
+        default: break;
+        }
+
+        if (vnum < 1) {
+            pbugf(LOG_SCRIPTS,"TpVforce - Invalid vnum from vnum %ld.", VNUM(info->token));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            for (vch = token_room(info->token)->people; vch; vch = next) {
+                next = vch->next_in_room;
+                if (IS_NPC(vch)
+                &&  vch->pIndexData->vnum == vnum
+                &&  (!target_area || vch->pIndexData->area == target_area)
+                &&  !vch->fighting)
+                    interpret(vch, buffer->string);
+            }
+        }
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echo)
+{
+    if(!info)
+        return;
+
+    if(info->mob) {
+        BUFFER *buffer;
+
+        buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act(buf_string(buffer), info->mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        BUFFER *buffer;
+
+        buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if(!buf_string(buffer)[0]) {
+            free_buf(buffer);
+            return;
+        }
+
+        add_buf(buffer,"\n\r");
+        room_echo(obj_room(info->obj), buf_string(buffer));
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        BUFFER *buffer;
+
+        buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if(buffer->string[0] != '\0') {
+            add_buf(buffer,"\n\r");
+            room_echo(info->room, buffer->string);
+        }
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        BUFFER *buffer;
+
+        buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if(buffer->string[0] != '\0') {
+            add_buf(buffer,"\n\r");
+            room_echo(token_room(info->token), buffer->string);
+        }
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echoroom)
+{
+    char *rest;
+    ROOM_INDEX_DATA *room;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    switch(arg->type) {
+    case ENT_MOBILE: room = arg->d.mob->in_room; break;
+    case ENT_OBJECT: room = obj_room(arg->d.obj); break;
+    case ENT_ROOM: room = arg->d.room; break;
+    case ENT_EXIT: room = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door]) ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
+    default: room = NULL; break;
+    }
+
+    if (!room || !room->people)
+        return;
+
+    if(info->mob) {
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act(buf_string(buffer), room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(!buf_string(buffer)[0]) {
+            free_buf(buffer);
+            return;
+        }
+
+        add_buf(buffer,"\n\r");
+        room_echo(room, buf_string(buffer));
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room || info->token) {
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0') {
+            add_buf(buffer,"\n\r");
+            room_echo(room, buffer->string);
+        }
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_asound)
+{
+    ROOM_INDEX_DATA *here, *room;
+    ROOM_INDEX_DATA *rooms[MAX_DIR];
+    int door, i, j;
+    EXIT_DATA *pexit;
+
+    if(!info)
+        return;
+    if(!argument[0])
+        return;
+
+    if(info->mob) {
+        if(!info->mob || !info->mob->in_room)
+            return;
+
+        here = info->mob->in_room;
+
+        for(door = 0; door < MAX_DIR; door++)
+            if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here)
+                break;
+
+        if(door < MAX_DIR) {
+            BUFFER *buffer = new_buf();
+            expand_string(info,argument,buffer);
+
+            if(buffer->state == BUFFER_SAFE && buffer->string[0] != '\0') {
+                for(i = 0; door < MAX_DIR; door++)
+                    if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here) {
+                        for(j = 0; j < i && rooms[j] != room; j++)
+                            ;
+
+                        if(i <= j) {
+                            MOBtrigger = false;
+                            act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+                            MOBtrigger = true;
+                            rooms[i++] = room;
+                        }
+                    }
+            }
+            free_buf(buffer);
+        }
+        return;
+    }
+
+    if(info->obj) {
+        if(!info->obj || !obj_room(info->obj))
+            return;
+
+        here = obj_room(info->obj);
+
+        for(door = 0; door < MAX_DIR; door++)
+            if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here)
+                break;
+
+        if(door < MAX_DIR) {
+            BUFFER *buffer = new_buf();
+            expand_string(info,argument,buffer);
+            if(!buf_string(buffer)[0]) {
+                free_buf(buffer);
+                return;
+            }
+
+            for(i = 0; door < MAX_DIR; door++) {
+                if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here) {
+                    for(j = 0; j < i && rooms[j] != room; j++)
+                        ;
+
+                    if(i <= j) {
+                        MOBtrigger = false;
+                        act(buf_string(buffer), room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+                        MOBtrigger = true;
+                        rooms[i++] = room;
+                    }
+                }
+            }
+
+            free_buf(buffer);
+        }
+        return;
+    }
+
+    if(info->room) {
+        here = info->room;
+
+        for(door = 0; door < MAX_DIR; door++)
+            if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here)
+                break;
+
+        if(door < MAX_DIR) {
+            BUFFER *buffer = new_buf();
+            expand_string(info,argument,buffer);
+
+            if(buffer->string[0] != '\0') {
+                for(i = 0; door < MAX_DIR; door++)
+                    if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here) {
+                        for(j = 0; j < i && rooms[j] != room; j++)
+                            ;
+
+                        if(i <= j) {
+                            MOBtrigger = false;
+                            act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+                            MOBtrigger = true;
+                            rooms[i++] = room;
+                        }
+                    }
+            }
+            free_buf(buffer);
+        }
+        return;
+    }
+
+    if(info->token) {
+        if(!token_room(info->token))
+            return;
+
+        here = token_room(info->token);
+
+        for(door = 0; door < MAX_DIR; door++)
+            if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here)
+                break;
+
+        if(door < MAX_DIR) {
+            BUFFER *buffer = new_buf();
+            expand_string(info,argument,buffer);
+
+            if(buffer->string[0] != '\0') {
+                for(i = 0; door < MAX_DIR; door++)
+                    if((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here) {
+                        for(j = 0; j < i && rooms[j] != room; j++)
+                            ;
+
+                        if(i <= j) {
+                            MOBtrigger = false;
+                            act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+                            MOBtrigger = true;
+                            rooms[i++] = room;
+                        }
+                    }
+            }
+
+            free_buf(buffer);
+        }
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echobattlespam)
+{
+    char *rest;
+    CHAR_DATA *victim, *attacker, *ch;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if (!attacker || !attacker->in_room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || victim->in_room != attacker->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if(buf_string(buffer)[0] != '\0') {
+            for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
+                if (!IS_NPC(ch) && (ch != attacker && ch != victim) &&
+                    (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM)))
+                    act(buf_string(buffer), ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if (!attacker || attacker->in_room != room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || victim->in_room != room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0') {
+            for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
+                if (!IS_NPC(ch) && (ch != attacker && ch != victim) &&
+                    (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM)))
+                    act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if (!attacker || !attacker->in_room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || victim->in_room != attacker->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0') {
+            for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
+                if (!IS_NPC(ch) && (ch != attacker && ch != victim) &&
+                    (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM)))
+                    act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if (!attacker || !attacker->in_room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || victim->in_room != attacker->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0') {
+            for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
+                if (!IS_NPC(ch) && (ch != attacker && ch != victim) &&
+                    (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM)))
+                    act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            }
+        }
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echochurch)
+{
+    char *rest;
+    CHAR_DATA *victim;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || IS_NPC(victim) || !victim->church)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            msg_church_members(victim->church, buf_string(buffer));
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || IS_NPC(victim) || !victim->church)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            msg_church_members(victim->church, buffer->string);
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || IS_NPC(victim) || !victim->church)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            msg_church_members(victim->church, buffer->string);
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || IS_NPC(victim) || !victim->church)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            msg_church_members(victim->church, buffer->string);
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echogrouparound)
+{
+    char *rest;
+    CHAR_DATA *victim;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act_new(buf_string(buffer),victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || victim->in_room != room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echogroupat)
+{
+    char *rest;
+    CHAR_DATA *victim;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act_new(buf_string(buffer),victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || victim->in_room != room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echoleadaround)
+{
+    char *rest;
+    CHAR_DATA *victim;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim)
+            return;
+
+        if(victim->leader)
+            victim = victim->leader;
+
+        if(!victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->leader || victim->leader->in_room != room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->leader || !victim->leader->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->leader || !victim->leader->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echoleadat)
+{
+    char *rest;
+    CHAR_DATA *victim;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim)
+            return;
+
+        if(victim->leader)
+            victim = victim->leader;
+
+        if(!victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->leader || victim->leader->in_room != room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->leader || !victim->leader->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if (!victim || !victim->leader || !victim->leader->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echoaround)
+{
+    char *rest;
+    CHAR_DATA *victim;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || !victim->in_room || !victim->in_room->people)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || victim->in_room != room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || !victim->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_echonotvict)
+{
+    char *rest;
+    CHAR_DATA *victim, *attacker;
+
+    if(!info)
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(info->mob) {
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if(!attacker || !attacker->in_room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || victim->in_room != attacker->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if(buf_string(buffer)[0] != '\0')
+            act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        ROOM_INDEX_DATA *room = obj_room(info->obj);
+
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if(!attacker || attacker->in_room != room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || victim->in_room != room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if(!attacker || !attacker->in_room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || victim->in_room != attacker->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        ROOM_INDEX_DATA *room = token_room(info->token);
+
+        switch(arg->type) {
+        case ENT_STRING: attacker = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: attacker = arg->d.mob; break;
+        default: attacker = NULL; break;
+        }
+
+        if(!attacker || !attacker->in_room)
+            return;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        switch(arg->type) {
+        case ENT_STRING: victim = get_char_room(NULL, room,arg->d.str); break;
+        case ENT_MOBILE: victim = arg->d.mob; break;
+        default: victim = NULL; break;
+        }
+
+        if(!victim || victim->in_room != attacker->in_room)
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,rest,buffer);
+
+        if(buffer->string[0] != '\0')
+            act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_gecho)
+{
+    DESCRIPTOR_DATA *d;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        if (!argument[0]) {
+            pbugf(LOG_SCRIPTS, "MpGEcho: missing argument from vnum %d", VNUM(info->mob));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        for (d = descriptor_list; d; d = d->next)
+            if (d->connected == CON_PLAYING) {
+                if (IS_IMMORTAL(d->character))
+                    send_to_char("Mob echo> ", d->character);
+                send_to_char(buf_string(buffer), d->character);
+                send_to_char("\n\r", d->character);
+            }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        if (!argument[0]) {
+            pbugf(LOG_SCRIPTS, "OpGEcho: missing argument from vnum %d", VNUM(info->obj));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            for (d = descriptor_list; d; d = d->next)
+                if (d->connected == CON_PLAYING) {
+                    if (IS_IMMORTAL(d->character))
+                        send_to_char("Obj echo> ", d->character);
+                    send_to_char(buffer->string, d->character);
+                    send_to_char("\n\r", d->character);
+                }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        if (!argument[0]) {
+            pbugf(LOG_SCRIPTS, "RpGEcho: missing argument from vnum %d", info->room->vnum);
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            for (d = descriptor_list; d; d = d->next)
+                if (d->connected == CON_PLAYING) {
+                    if (IS_IMMORTAL(d->character))
+                        send_to_char("Obj echo> ", d->character);
+                    send_to_char(buffer->string, d->character);
+                    send_to_char("\n\r", d->character);
+                }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        if (!argument[0]) {
+            pbugf(LOG_SCRIPTS,"TpZEcho: missing argument from vnum %d", VNUM(info->token));
+            return;
+        }
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            for (d = descriptor_list; d; d = d->next)
+                if (d->connected == CON_PLAYING) {
+                    if (IS_IMMORTAL(d->character))
+                        send_to_char("Token echo> ", d->character);
+                    send_to_char(buffer->string, d->character);
+                    send_to_char("\n\r", d->character);
+                }
+        }
+
+        free_buf(buffer);
+    }
+}
+
+SCRIPT_CMD(scriptcmd_zecho)
+{
+    DESCRIPTOR_DATA *d;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if (!buf_string(buffer)[0]) {
+            pbugf(LOG_SCRIPTS, "MpZEcho: missing argument from vnum %d", VNUM(info->mob));
+            free_buf(buffer);
+            return;
+        }
+
+        for (d = descriptor_list; d; d = d->next)
+        {
+            if (d->connected == CON_PLAYING &&
+                d->character->in_room &&
+                d->character->in_room->area == info->mob->in_room->area) {
+                if (IS_IMMORTAL(d->character))
+                    send_to_char("Mob echo> ", d->character);
+                send_to_char(buf_string(buffer), d->character);
+                send_to_char("\n\r", d->character);
+            }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->obj) {
+        AREA_DATA *area;
+
+        if(!obj_room(info->obj))
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            area = obj_room(info->obj)->area;
+
+            for (d = descriptor_list; d; d = d->next)
+                if (d->connected == CON_PLAYING &&
+                    d->character->in_room &&
+                    d->character->in_room->area == area) {
+                    if (IS_IMMORTAL(d->character))
+                        send_to_char("Obj echo> ", d->character);
+                    send_to_char(buffer->string, d->character);
+                    send_to_char("\n\r", d->character);
+                }
+        }
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->room) {
+        AREA_DATA *area;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            area = info->room->area;
+
+            for (d = descriptor_list; d; d = d->next)
+                if (d->connected == CON_PLAYING &&
+                    d->character->in_room &&
+                    d->character->in_room->area == area) {
+                    if (IS_IMMORTAL(d->character))
+                        send_to_char("Room echo> ", d->character);
+                    send_to_char(buffer->string, d->character);
+                    send_to_char("\n\r", d->character);
+                }
+        }
+
+        free_buf(buffer);
+        return;
+    }
+
+    if(info->token) {
+        AREA_DATA *area;
+
+        if(!token_room(info->token))
+            return;
+
+        BUFFER *buffer = new_buf();
+        expand_string(info,argument,buffer);
+
+        if( buffer->string[0] != '\0' ) {
+            area = token_room(info->token)->area;
+
+            for (d = descriptor_list; d; d = d->next)
+                if (d->connected == CON_PLAYING &&
+                    d->character->in_room &&
+                    d->character->in_room->area == area) {
+                    if (IS_IMMORTAL(d->character))
+                        send_to_char("Token echo> ", d->character);
+                    send_to_char(buffer->string, d->character);
+                    send_to_char("\n\r", d->character);
+                }
+        }
+
+        free_buf(buffer);
+    }
 }
 
 

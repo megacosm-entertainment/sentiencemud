@@ -35,8 +35,8 @@ const struct script_cmd_type room_cmd_table[] = {
     { "alterobj",			scriptcmd_alterobj,			true,	true	},
     { "alterroom",			scriptcmd_alterroom,			true,	true	},
     { "applytoxin",			scriptcmd_applytoxin,	false,	true	},
-    { "asound",				do_rpasound,			false,	true	},
-    { "at",					do_rpat,				false,	true	},
+    { "asound",				scriptcmd_asound,		false,	true	},
+    { "at",					scriptcmd_at,			false,	true	},
     { "attach",				scriptcmd_attach,			true,	true	},
     { "award",				scriptcmd_award,		true,	true	},
     { "breathe",			scriptcmd_breathe,		false,	true	},
@@ -58,31 +58,31 @@ const struct script_cmd_type room_cmd_table[] = {
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "event",              scriptcmd_event,          false,  true    },
-    { "echo",				do_rpecho,				false,	true	},
-    { "echoaround",			do_rpechoaround,		false,	true	},
+    { "echo",				scriptcmd_echo,			false,	true	},
+    { "echoaround",			scriptcmd_echoaround,	false,	true	},
     { "echoat",				scriptcmd_echoat,			false,	true	},
-    { "echobattlespam",		do_rpechobattlespam,	false,	true	},
-    { "echochurch",			do_rpechochurch,		false,	true	},
-    { "echogrouparound",	do_rpechogrouparound,	false,	true	},
-    { "echogroupat",		do_rpechogroupat,		false,	true	},
-    { "echoleadaround",		do_rpecholeadaround,	false,	true	},
-    { "echoleadat",			do_rpecholeadat,		false,	true	},
-    { "echonotvict",		do_rpechonotvict,		false,	true	},
-    { "echoroom",			do_rpechoroom,			false,	true	},
+    { "echobattlespam",		scriptcmd_echobattlespam,	false,	true	},
+    { "echochurch",			scriptcmd_echochurch,		false,	true	},
+    { "echogrouparound",	scriptcmd_echogrouparound,	false,	true	},
+    { "echogroupat",		scriptcmd_echogroupat,		false,	true	},
+    { "echoleadaround",		scriptcmd_echoleadaround,	false,	true	},
+    { "echoleadat",			scriptcmd_echoleadat,		false,	true	},
+    { "echonotvict",		scriptcmd_echonotvict,	false,	true	},
+    { "echoroom",			scriptcmd_echoroom,		false,	true	},
     { "ed",					scriptcmd_ed,				false,	true	},
     { "entercombat",		scriptcmd_entercombat,	false,	true	},
     { "fade",				scriptcmd_fade,				true,	true	},
     { "fixaffects",			do_rpfixaffects,		false,	true	},
     { "flee",				scriptcmd_flee,			false,	true	},
-    { "force",				do_rpforce,				false,	true	},
+    { "force",				scriptcmd_force,			false,	true	},
     { "forget",				do_rpforget,			false,	false	},
-    { "gecho",				do_rpgecho,				false,	true	},
-    { "gforce",				do_rpgforce,			false,	true	},
+    { "gecho",				scriptcmd_gecho,			false,	true	},
+    { "gforce",				scriptcmd_gforce,		false,	true	},
     { "grantclass",			scriptcmd_grantclass,	false,	true	},
     { "grantskill",			scriptcmd_grantskill,	false,	true	},
     { "grantsong",			scriptcmd_grantsong,	false,	true	},
     { "group",				do_rpgroup,				false,	true	},
-    { "gtransfer",			do_rpgtransfer,			false,	true	},
+    { "gtransfer",			scriptcmd_gtransfer,		false,	true	},
     { "input",				do_rpinput,				false,	true	},
     { "inputstring",		scriptcmd_inputstring,	false,	true	},
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
@@ -145,7 +145,7 @@ const struct script_cmd_type room_cmd_table[] = {
     { "stringobj",			do_rpstringobj,			true,	true	},
     { "stripaffect",		do_rpstripaffect,		true,	true	},
     { "stripaffectname",	do_rpstripaffectname,	true,	true	},
-    { "transfer",			do_rptransfer,			false,	true	},
+    { "transfer",			scriptcmd_transfer,			false,	true	},
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
     { "ungroup",			do_rpungroup,			false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
@@ -153,19 +153,19 @@ const struct script_cmd_type room_cmd_table[] = {
     { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
     { "usecatalyst",		do_rpusecatalyst,		false,	true	},
-    { "varclear",			do_rpvarclear,			false,	true	},
-    { "varclearon",			do_rpvarclearon,		false,	true	},
-    { "varcopy",			do_rpvarcopy,			false,	true	},
-    { "varsave",			do_rpvarsave,			false,	true	},
-    { "varsaveon",			do_rpvarsaveon,			false,	true	},
-    { "varset",				do_rpvarset,			false,	true	},
-    { "varseton",			do_rpvarseton,			false,	true	},
-    { "vforce",				do_rpvforce,			false,	true	},
+    { "varclear",			scriptcmd_varclear,		false,	true	},
+    { "varclearon",			scriptcmd_varclearon,		false,	true	},
+    { "varcopy",			scriptcmd_varcopy,			false,	true	},
+    { "varsave",			scriptcmd_varsave,			false,	true	},
+    { "varsaveon",			scriptcmd_varsaveon,		false,	true	},
+    { "varset",				scriptcmd_varset,			false,	true	},
+    { "varseton",			scriptcmd_varseton,		false,	true	},
+    { "vforce",				scriptcmd_vforce,		false,	true	},
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
     { "wiretransfer",		do_rpwiretransfer,		false,	true	},
     { "wiznet",				scriptcmd_wiznet,			false,	true    },
     { "xcall",				do_rpxcall,				false,	true	},
-    { "zecho",				do_rpzecho,				false,	true	},
+    { "zecho",				scriptcmd_zecho,			false,	true	},
     { "zot",				do_rpzot,				true,	true	},
     { NULL,					NULL,					false,	false	}
 };
@@ -471,101 +471,6 @@ char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 }
 
 
-SCRIPT_CMD(do_rpasound)
-{
-    ROOM_INDEX_DATA *rooms[MAX_DIR], *room;
-    int door, i, j;
-    EXIT_DATA *pexit;
-
-    if(!info || !info->room) return;
-    if (!argument[0]) return;
-
-    // Verify there are any exits!
-    for (door = 0; door < MAX_DIR; door++)
-        if ((pexit = info->room->exit[door]) && (room = exit_destination(pexit)) && room != info->room)
-            break;
-
-    if (door < MAX_DIR) {
-        // Expand the message
-        BUFFER *buffer = new_buf();
-        expand_string(info,argument,buffer);
-
-        if( buffer->string[0] != '\0' )
-        {
-
-            for (i = 0; door < MAX_DIR; door++)
-                if ((pexit = info->room->exit[door]) && (room = exit_destination(pexit)) && room != info->room) {
-                    // Have we been to this room already?
-                    for(j=0;j < i && rooms[j] != room; j++);
-
-                    if(i <= j) {
-                        // No, so do the message
-                        MOBtrigger  = false;
-                        act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL, NULL, NULL);
-                        MOBtrigger  = true;
-                        rooms[i++] = room;
-                    }
-                }
-        }
-        free_buf(buffer);
-
-    }
-}
-
-SCRIPT_CMD(do_rpat)
-{
-    SCRIPT_VARINFO info2;
-    CHAR_DATA *target;
-    int delay,sec;
-    pVARIABLE vars;
-    ROOM_INDEX_DATA *dest;
-    bool remote;
-
-    if(!(argument = rp_getlocation(info, argument, &dest))) {
-        pbugf(LOG_SCRIPTS, "Rpat - Bad argument from vnum %d.", info->room->vnum);
-        return;
-    }
-
-    if (!dest) {
-        pbugf(LOG_SCRIPTS, "Rpat - Null location from vnum %d.", info->room->vnum);
-        return;
-    }
-
-    sec = script_security;
-    script_security = NO_SCRIPT_SECURITY;
-
-    remote = PROG_FLAG(dest,PROG_AT) ? true : false;
-
-    SET_BIT(dest->progs->entity_flags,PROG_AT);
-
-    info2 = *info;
-    target = dest->progs->target;
-    vars = dest->progs->vars;
-    delay = dest->progs->delay;
-    dest->progs->target = info->room->progs->target;
-    dest->progs->vars = info->room->progs->vars;
-    dest->progs->delay = info->room->progs->delay;
-    info->room->progs->target = NULL;
-    info->room->progs->vars = NULL;
-    info->room->progs->delay = -1;
-    info2.room = dest;
-    info2.targ = &(dest->progs->target);
-    info2.var = &(dest->progs->vars);
-
-    script_interpret(&info2,argument);
-    script_security = sec;
-
-    info->room->progs->target = dest->progs->target;
-    info->room->progs->vars = dest->progs->vars;
-    info->room->progs->delay = dest->progs->delay;
-    dest->progs->target = target;
-    dest->progs->vars = vars;
-    dest->progs->delay = delay;
-
-    if(!remote)
-        REMOVE_BIT(dest->progs->entity_flags,PROG_AT);
-}
-
 SCRIPT_CMD(do_rpcall)
 {
     char *rest;
@@ -859,384 +764,6 @@ SCRIPT_CMD(do_rpdequeue)
     wipe_owned_events(info->room->events);
 }
 
-// do_rpecho
-SCRIPT_CMD(do_rpecho)
-{
-    if(!info || !info->room) return;
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,argument,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        add_buf(buffer,"\n\r");
-        room_echo(info->room, buffer->string);
-    }
-    free_buf(buffer);
-}
-
-// do_rpechoroom
-// Syntax: room echoroom <location> <string>
-SCRIPT_CMD(do_rpechoroom)
-{
-    char *rest;
-    ROOM_INDEX_DATA *room;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_MOBILE: room = arg->d.mob->in_room; break;
-    case ENT_OBJECT: room = obj_room(arg->d.obj); break;
-    case ENT_ROOM: room = arg->d.room; break;
-    case ENT_EXIT: room = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door] ) ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
-    default: room = NULL; break;
-    }
-
-    if (!room || !room->people) return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        add_buf(buffer,"\n\r");
-        room_echo(room, buffer->string);
-    }
-    free_buf(buffer);
-}
-
-
-// do_rpechoaround
-SCRIPT_CMD(do_rpechoaround)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-// do_rpechonotvict
-SCRIPT_CMD(do_rpechonotvict)
-{
-    char *rest;
-    CHAR_DATA *victim, *attacker;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: attacker = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: attacker = arg->d.mob; break;
-    default: attacker = NULL; break;
-    }
-
-    if (!attacker || !attacker->in_room)
-        return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || victim->in_room != attacker->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_rpechobattlespam)
-{
-    char *rest;
-    CHAR_DATA *victim, *attacker, *ch;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: attacker = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: attacker = arg->d.mob; break;
-    default: attacker = NULL; break;
-    }
-
-    if (!attacker || !attacker->in_room)
-        return;
-
-    if(!(rest = expand_argument(info,rest,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || victim->in_room != attacker->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
-            if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
-                act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-            }
-        }
-    }
-
-    free_buf(buffer);
-}
-
-// do_rpechoat
-SCRIPT_CMD(do_rpechoat)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-// do_rpechochurch
-SCRIPT_CMD(do_rpechochurch)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || IS_NPC(victim) || !victim->church)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        msg_church_members(victim->church, buffer->string);
-    }
-
-    free_buf(buffer);
-}
-
-
-
-// do_rpechogrouparound
-SCRIPT_CMD(do_rpechogrouparound)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
-    }
-
-    free_buf(buffer);
-}
-
-// do_rpechogroupat
-SCRIPT_CMD(do_rpechogroupat)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act_new(buffer->string,victim,NULL,NULL, NULL, NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
-    }
-
-    free_buf(buffer);
-}
-
-// do_rpecholeadaround
-SCRIPT_CMD(do_rpecholeadaround)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->leader || !victim->leader->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
-// do_rpecholeadat
-SCRIPT_CMD(do_rpecholeadat)
-{
-    char *rest;
-    CHAR_DATA *victim;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room,arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-    if (!victim || !victim->leader || !victim->leader->in_room)
-        return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    }
-
-    free_buf(buffer);
-}
-
 SCRIPT_CMD(do_rpforce)
 {
     char *rest;
@@ -1404,136 +931,6 @@ SCRIPT_CMD(do_rpgdamage)
         if (rch != victim && is_same_group(victim,rch)) {
             value = fLevel ? dice(low,high) : number_range(low,high);
             damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, false);
-        }
-    }
-}
-
-SCRIPT_CMD(do_rpgecho)
-{
-    DESCRIPTOR_DATA *d;
-
-    if(!info || !info->room) return;
-
-    if (!argument[0]) {
-        pbugf(LOG_SCRIPTS, "RpGEcho: missing argument from vnum %d", info->room->vnum);
-        return;
-    }
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,argument,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (d = descriptor_list; d; d = d->next)
-            if (d->connected == CON_PLAYING) {
-                if (IS_IMMORTAL(d->character))
-                    send_to_char("Obj echo> ", d->character);
-                send_to_char(buffer->string, d->character);
-                send_to_char("\n\r", d->character);
-            }
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_rpgforce)
-{
-    char *rest;
-    CHAR_DATA *victim = NULL, *vch, *next;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "RpGforce - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_room(NULL, info->room, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: break;
-    }
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS, "RpGforce - Null victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (vch = info->room->people; vch; vch = next) {
-            next = vch->next_in_room;
-            if (is_same_group(victim,vch))
-                interpret(vch, buffer->string);
-        }
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_rpgtransfer)
-{
-    char buf[MIL], buf2[MIL], buf3[MIL], *rest;
-    CHAR_DATA *victim, *vch,*next;
-    ROOM_INDEX_DATA *dest;
-    bool all = false, force = false, quiet = false;
-    int mode;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-
-    if (!victim) {
-        pbugf(LOG_SCRIPTS, "RpGtransfer - Null victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    if (!victim->in_room) return;
-
-    if(!(argument = rp_getlocation(info, rest, &dest))) {
-        pbugf(LOG_SCRIPTS, "RpGtransfer - Bad syntax from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    if(!dest) {
-        pbugf(LOG_SCRIPTS, "RpGtransfer - Bad location from vnum %d.", info->room->vnum);
-        return;
-    }
-
-    argument = one_argument(argument,buf);
-    argument = one_argument(argument,buf2);
-    argument = one_argument(argument,buf3);
-    all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
-    force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
-    quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
-    mode = script_flag_value(transfer_modes, buf);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
-    if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
-
-    for (vch = info->room->people; vch; vch = next) {
-        next = vch->next_in_room;
-        if (!IS_NPC(vch) && is_same_group(victim,vch)) {
-            if (!all && vch->position != POS_STANDING) continue;
-            if (!force && room_is_private(dest, info->mob)) break;
-            do_mob_transfer(vch,dest,quiet,mode);
         }
     }
 }
@@ -2122,160 +1519,6 @@ SCRIPT_CMD(do_rpremove)
             iterator_stop(&it);
         }
     }
-}
-
-SCRIPT_CMD(do_rptransfer)
-{
-    char buf[MIL], buf2[MIL], *rest;
-    CHAR_DATA *victim = NULL,*vnext;
-    ROOM_INDEX_DATA *dest;
-    bool all = false, force = false, quiet = false;
-    int mode;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "RpTransfer - Bad syntax from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if(!str_cmp(arg->d.str,"all")) all = true;
-        else victim = get_char_world(NULL, arg->d.str);
-        break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    default: victim = NULL; break;
-    }
-
-
-    if (!victim && !all) {
-        pbugf(LOG_SCRIPTS, "RpTransfer - Null victim from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    // Crashes on transfer all as victim isn't set at this point.
-    //if (!victim->in_room) return;
-
-    argument = rp_getlocation(info, rest, &dest);
-
-    if(!dest) {
-        pbugf(LOG_SCRIPTS, "RpTransfer - Bad location from vnum %d.", info->room->vnum);
-        return;
-    }
-
-    argument = one_argument(argument,buf);
-    argument = one_argument(argument,buf2);
-    force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
-    quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
-    mode = script_flag_value(transfer_modes, buf);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
-    if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
-    if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
-
-    if (all) {
-        for (victim = info->room->people; victim; victim = vnext) {
-            vnext = victim->next_in_room;
-            if (PROG_FLAG(victim,PROG_AT)) continue;
-            if (!IS_NPC(victim)) {
-                if (!force && room_is_private(dest, NULL)) break;
-                do_mob_transfer(victim,dest,quiet,mode);
-            }
-        }
-        return;
-    }
-
-    if (!force && room_is_private(dest, NULL))
-        return;
-
-    if (PROG_FLAG(victim,PROG_AT))
-        return;
-
-    do_mob_transfer(victim,dest,quiet,mode);
-}
-
-SCRIPT_CMD(do_rpvforce)
-{
-    char *rest;
-    int vnum = 0;
-    AREA_DATA *target_area = NULL;
-    AREA_DATA *context_area = NULL;
-    WNUM target_wnum = wnum_zero;
-    CHAR_DATA *vch, *next;
-
-
-    if(!info || !info->room) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "RpVforce - Error in parsing from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    context_area = get_area_from_scriptinfo(info);
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
-                vnum = target_wnum.vnum;
-                target_area = target_wnum.pArea;
-            }
-        } else {
-            vnum = atoi(arg->d.str);
-        }
-        break;
-    case ENT_NUMBER: vnum = arg->d.num; break;
-    default: break;
-    }
-
-    if (vnum < 1) {
-        pbugf(LOG_SCRIPTS, "RpVforce - Invalid vnum from vnum %ld.", info->room->vnum);
-        return;
-    }
-
-    BUFFER *buffer = new_buf();
-    expand_string(info,rest,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        for (vch = info->room->people; vch; vch = next) {
-            next = vch->next_in_room;
-            if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum && (!target_area || vch->pIndexData->area == target_area) && !vch->fighting)
-                interpret(vch, buffer->string);
-        }
-    }
-
-    free_buf(buffer);
-}
-
-SCRIPT_CMD(do_rpzecho)
-{
-    AREA_DATA *area;
-    DESCRIPTOR_DATA *d;
-
-    if(!info || !info->room) return;
-
-    // Expand the message
-    BUFFER *buffer = new_buf();
-    expand_string(info,argument,buffer);
-
-    if( buffer->string[0] != '\0' )
-    {
-        area = info->room->area;
-
-        for (d = descriptor_list; d; d = d->next)
-            if (d->connected == CON_PLAYING &&
-                d->character->in_room &&
-                d->character->in_room->area == area) {
-                if (IS_IMMORTAL(d->character))
-                    send_to_char("Room echo> ", d->character);
-                send_to_char(buffer->string, d->character);
-                send_to_char("\n\r", d->character);
-            }
-    }
-
-    free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpzot)
