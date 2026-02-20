@@ -2955,8 +2955,6 @@ SCRIPT_CMD(do_mpskimprove);
 SCRIPT_CMD(do_opskimprove);
 SCRIPT_CMD(do_rpskimprove);
 SCRIPT_CMD(do_tpskimprove);
-SCRIPT_CMD(do_mpstringmob);
-SCRIPT_CMD(do_mpstringobj);
 SCRIPT_CMD(do_mptake);
 SCRIPT_CMD(do_mpteleport);
 SCRIPT_CMD(do_mptransfer);

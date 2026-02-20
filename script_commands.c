@@ -1786,6 +1786,9 @@ SCRIPT_CMD(scriptcmd_stringobj)
     if(info->obj) {
         scope_name = "OpStringObj";
         scope_vnum = VNUM(info->obj);
+    } else if(info->mob) {
+        scope_name = "MpStringObj";
+        scope_vnum = VNUM(info->mob);
     } else if(info->room) {
         scope_name = "RpStringObj";
         scope_vnum = info->room->vnum;
@@ -1816,8 +1819,10 @@ SCRIPT_CMD(scriptcmd_stringobj)
         return;
     }
 
-    if(info->obj && PROG_FLAG(obj,PROG_AT))
+    if(PROG_FLAG(obj,PROG_AT)) {
+        pbugf(LOG_SCRIPTS, "%s - blocked restring on PROG_AT object from vnum %ld.", scope_name, scope_vnum);
         return;
+    }
 
     if(!*rest) {
         pbugf(LOG_SCRIPTS, "%s - Missing field type from vnum %ld.", scope_name, scope_vnum);
@@ -1841,70 +1846,73 @@ SCRIPT_CMD(scriptcmd_stringobj)
     BUFFER *buffer = new_buf();
     expand_string(info,rest,buffer);
 
-    if(buf_string(buffer)[0] != '\0')
-    {
-        if(!str_cmp(field,"name")) {
-            if(obj->old_short_descr)
-            {
-                free_buf(buffer);
-                return;
-            }
-            str = (char**)&obj->name;
-        } else if(!str_cmp(field,"owner")) {
-            str = (char**)&obj->owner;
-            min_sec = 5;
-        } else if(!str_cmp(field,"short")) {
-            if(obj->old_short_descr)
-            {
-                free_buf(buffer);
-                return;
-            }
-            str = (char**)&obj->short_descr;
-        } else if(!str_cmp(field,"long")) {
-            if(obj->old_description)
-            {
-                free_buf(buffer);
-                return;
-            }
-            str = (char**)&obj->description;
-        } else if(!str_cmp(field,"full")) {
-            if(obj->old_full_description)
-            {
-                free_buf(buffer);
-                return;
-            }
-            str = (char**)&obj->full_description;
-            newlines = true;
-        } else if(!str_cmp(field,"material")) {
-            int mat = material_lookup(buf_string(buffer));
-
-            if(mat < 0) {
-                pbugf(LOG_SCRIPTS, "%s - Invalid material from vnum %ld.", scope_name, scope_vnum);
-                free_buf(buffer);
-                return;
-            }
-
-            clear_buf(buffer);
-            add_buf(buffer, material_name(mat));
-
-            str = (char**)&obj->material;
-        } else {
-            free_buf(buffer);
-            return;
-        }
-
-        if(script_security < min_sec) {
-            pbugf(LOG_SCRIPTS, "%s - Attempting to restring '%s' with security %d from vnum %ld.", scope_name, field, script_security, scope_vnum);
-            free_buf(buffer);
-            return;
-        }
-
-        char *p = buf_string(buffer);
-        strip_newline(p, newlines);
-
-        free_string(*str);
-        *str = str_dup(p);
+    if(!buf_string(buffer)[0]) {
+        pbugf(LOG_SCRIPTS, "%s - Empty string used from vnum %ld.", scope_name, scope_vnum);
+        free_buf(buffer);
+        return;
     }
+
+    if(!str_cmp(field,"name")) {
+        if(obj->old_short_descr)
+        {
+            free_buf(buffer);
+            return;
+        }
+        str = (char**)&obj->name;
+    } else if(!str_cmp(field,"owner")) {
+        str = (char**)&obj->owner;
+        min_sec = 5;
+    } else if(!str_cmp(field,"short")) {
+        if(obj->old_short_descr)
+        {
+            free_buf(buffer);
+            return;
+        }
+        str = (char**)&obj->short_descr;
+    } else if(!str_cmp(field,"long")) {
+        if(obj->old_description)
+        {
+            free_buf(buffer);
+            return;
+        }
+        str = (char**)&obj->description;
+    } else if(!str_cmp(field,"full")) {
+        if(obj->old_full_description)
+        {
+            free_buf(buffer);
+            return;
+        }
+        str = (char**)&obj->full_description;
+        newlines = true;
+    } else if(!str_cmp(field,"material")) {
+        int mat = material_lookup(buf_string(buffer));
+
+        if(mat < 0) {
+            pbugf(LOG_SCRIPTS, "%s - Invalid material from vnum %ld.", scope_name, scope_vnum);
+            free_buf(buffer);
+            return;
+        }
+
+        clear_buf(buffer);
+        add_buf(buffer, material_name(mat));
+
+        str = (char**)&obj->material;
+    } else {
+        free_buf(buffer);
+        return;
+    }
+
+    if(script_security < min_sec) {
+        pbugf(LOG_SCRIPTS, "%s - Attempting to restring '%s' with security %d from vnum %ld.", scope_name, field, script_security, scope_vnum);
+        free_buf(buffer);
+        return;
+    }
+
+    char *p = buf_string(buffer);
+    strip_newline(p, newlines);
+
+    free_string(*str);
+    *str = str_dup(p);
 
     free_buf(buffer);
 }
@@ -1923,6 +1931,9 @@ SCRIPT_CMD(scriptcmd_stringmob)
     if(info->obj) {
         scope_name = "OpStringMob";
         scope_vnum = VNUM(info->obj);
+    } else if(info->mob) {
+        scope_name = "MpStringMob";
+        scope_vnum = VNUM(info->mob);
     } else if(info->room) {
         scope_name = "RpStringMob";
         scope_vnum = info->room->vnum;
@@ -1979,40 +1990,43 @@ SCRIPT_CMD(scriptcmd_stringmob)
     BUFFER *buffer = new_buf();
     expand_string(info,rest,buffer);
 
-    if(buf_string(buffer)[0] != '\0')
-    {
-        if(!str_cmp(field,"name"))
-            str = (char**)&mob->name;
-        else if(!str_cmp(field,"owner")) {
-            str = (char**)&mob->owner;
-            min_sec = 5;
-        } else if(!str_cmp(field,"short"))
-            str = (char**)&mob->short_descr;
-        else if(!str_cmp(field,"long")) {
-            str = (char**)&mob->long_descr;
-            newlines = true;
-        } else if(!str_cmp(field,"full")) {
-            str = (char**)&mob->description;
-            newlines = true;
-        } else if(!str_cmp(field,"tempstring"))
-            str = (char**)&mob->tempstring;
-        else {
-            free_buf(buffer);
-            return;
-        }
-
-        if(script_security < min_sec) {
-            pbugf(LOG_SCRIPTS, "%s - Attempting to restring '%s' with security %d from vnum %ld.", scope_name, field, script_security, scope_vnum);
-            free_buf(buffer);
-            return;
-        }
-
-        char *p = buf_string(buffer);
-        strip_newline(p, newlines);
-
-        free_string(*str);
-        *str = str_dup(p);
+    if(!buf_string(buffer)[0]) {
+        pbugf(LOG_SCRIPTS, "%s - Empty string used from vnum %ld.", scope_name, scope_vnum);
+        free_buf(buffer);
+        return;
     }
+
+    if(!str_cmp(field,"name"))
+        str = (char**)&mob->name;
+    else if(!str_cmp(field,"owner")) {
+        str = (char**)&mob->owner;
+        min_sec = 5;
+    } else if(!str_cmp(field,"short"))
+        str = (char**)&mob->short_descr;
+    else if(!str_cmp(field,"long")) {
+        str = (char**)&mob->long_descr;
+        newlines = true;
+    } else if(!str_cmp(field,"full")) {
+        str = (char**)&mob->description;
+        newlines = true;
+    } else if(!str_cmp(field,"tempstring"))
+        str = (char**)&mob->tempstring;
+    else {
+        free_buf(buffer);
+        return;
+    }
+
+    if(script_security < min_sec) {
+        pbugf(LOG_SCRIPTS, "%s - Attempting to restring '%s' with security %d from vnum %ld.", scope_name, field, script_security, scope_vnum);
+        free_buf(buffer);
+        return;
+    }
+
+    char *p = buf_string(buffer);
+    strip_newline(p, newlines);
+
+    free_string(*str);
+    *str = str_dup(p);
 
     free_buf(buffer);
 }
@@ -11594,8 +11608,10 @@ SCRIPT_CMD(scriptcmd_resetdice)
         return;
     }
 
-    if(info->obj && PROG_FLAG(obj,PROG_AT))
+    if(PROG_FLAG(obj,PROG_AT)) {
+        pbugf(LOG_SCRIPTS, "%s - blocked operation on PROG_AT object from vnum %ld.", scope_name, scope_vnum);
         return;
+    }
 
     if(obj->item_type == ITEM_WEAPON)
         set_weapon_dice_obj(obj);
