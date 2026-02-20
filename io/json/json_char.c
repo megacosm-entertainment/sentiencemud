@@ -95,6 +95,19 @@ bool json_is_json_file(const char *filename)
     return json_file_is_json(filename);
 }
 
+static long json_flag_table_mask(const struct flag_type *table)
+{
+    long mask = 0;
+
+    if (!table)
+        return 0;
+
+    for (int i = 0; table[i].name; i++)
+        mask |= table[i].bit;
+
+    return mask;
+}
+
 /***************************************************************************
  * CHAR_INFO_CACHE Serialization                                          *
  ***************************************************************************/
@@ -2767,12 +2780,29 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         }
     }
 
-    value = json_object_get(character, "comm_flags");
-    if (value && json_is_array(value)) {
-        ch->comm = json_flags_deserialize(value, comm_flags);
-    } else {
-        value = json_object_get(character, "comm");
-        if (value) ch->comm = json_integer_value(value);
+    {
+        long comm_raw = 0;
+        bool has_comm_raw = false;
+        json_t *comm_raw_val = json_object_get(character, "comm");
+
+        if (comm_raw_val && json_is_integer(comm_raw_val)) {
+            comm_raw = json_integer_value(comm_raw_val);
+            has_comm_raw = true;
+        }
+
+        value = json_object_get(character, "comm_flags");
+        if (value && json_is_array(value)) {
+            long comm_named = json_flags_deserialize(value, comm_flags);
+
+            if (has_comm_raw) {
+                long known_mask = json_flag_table_mask(comm_flags);
+                ch->comm = (comm_raw & ~known_mask) | comm_named;
+            } else {
+                ch->comm = comm_named;
+            }
+        } else if (has_comm_raw) {
+            ch->comm = comm_raw;
+        }
     }
 
     if (ch->pcdata) {
