@@ -12,6 +12,20 @@ This is the first Phase 0 issue catalog, focused on the entity field encoding an
 
 ---
 
+## Phase 0 Status
+
+**Overall:** Complete
+
+- EEF-001: Complete
+- EEF-002: Complete
+- EEF-003: Complete
+- EEF-004: Complete
+- EEF-005: Complete
+- EEF-006: Complete
+- EEF-007: Complete
+
+---
+
 ## In-Scope Surfaces
 
 - Encoding primitives and field metadata in `scripts.h`
@@ -65,6 +79,7 @@ This is the first Phase 0 issue catalog, focused on the entity field encoding an
 ## EEF-004 — Encoding namespace pressure from byte-sized field codes
 
 - **Severity:** Medium-High (architecture)
+- **Status:** Complete (Phase 0 scope)
 - **Evidence:** `entity_field_type.code` is `unsigned char`; escape bands are fixed (`ESCAPE_*` + single-letter codes).
 - **Where:** `scripts.h` (`entity_field_type`, escape constants), compile/expand bytecode usage.
 - **Risk:** Long-term growth pressure and fragility in field code allocation strategy.
@@ -74,6 +89,8 @@ This is the first Phase 0 issue catalog, focused on the entity field encoding an
 - **Acceptance criteria (Phase 0):**
   - Automated validation catches collisions/out-of-range field codes
   - Documented compatibility policy for field code evolution
+
+Implemented in this branch by combining startup/runtime validator diagnostics with a dedicated compatibility contract in `docs/POLICY_ENTITY_FIELD_CODE_EVOLUTION.md`.
 
 ## EEF-005 — Missing automated validation for field table integrity
 
@@ -91,18 +108,24 @@ This is the first Phase 0 issue catalog, focused on the entity field encoding an
 ## EEF-006 — Runtime expansion complexity concentrated in large switch chains
 
 - **Severity:** Medium (maintainability/regression risk)
+- **Status:** Complete (Phase 0 scope)
 - **Evidence:** `script_expand.c` relies on many large `switch(*str)` dispatch blocks.
 - **Risk:** High change surface for subtle behavior regressions while adding new fields/entities.
 - **Recommendation:** Keep runtime model intact for now; add targeted tests before any structural refactor.
 - **Acceptance criteria:** Regression harness covers representative chained expansions before large backports.
 
+Implemented in this branch by adding script-engine regression coverage for nested variable-name expansion and mixed variable/expression chains in `src/tests/integration/script_engine_tests.c` and `src/tests/data/integration/script_engine_tests.json`.
+
 ## EEF-007 — Metadata gap versus 2.0 field descriptors
 
 - **Severity:** Low-Medium (usability/tooling)
+- **Status:** Complete (Phase 0 scope)
 - **Evidence:** Current `entity_field_type` lacks description/deprecation metadata present in `src_20_dev`.
 - **Risk:** Harder script help/discovery; weak deprecation communication.
 - **Recommendation:** Selectively backport metadata fields (`description`, `deprecated`) after EEF-001..005 are stabilized.
 - **Acceptance criteria:** Metadata is additive and non-breaking; optional tooling can display field docs.
+
+Implemented in this branch by extending `entity_field_type` with optional metadata, adding accessor helpers, and validating metadata/deprecation behavior in script-engine integration tests.
 
 ---
 

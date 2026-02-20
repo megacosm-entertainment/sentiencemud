@@ -89,6 +89,26 @@
       }
     },
     {
+      "name": "script_entity_field_metadata",
+      "description": "Verify additive entity field metadata and deprecation flags are available",
+      "dependencies": [],
+      "test_type": "script_engine_entity_field_metadata_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_chained_expansion",
+      "description": "Verify representative nested variable and expression expansion chains remain stable",
+      "dependencies": [],
+      "test_type": "script_engine_chained_expansion_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
       "name": "script_vnumname_room_null_progs",
       "description": "Verify vnumname trigger path safely handles rooms with no progs",
       "dependencies": [],

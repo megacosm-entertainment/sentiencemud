@@ -586,6 +586,19 @@ bool script_entity_allow_vars(int type)
     return false;
 }
 
+const char *script_entity_field_description(const ENT_FIELD *field)
+{
+    if(!field)
+        return NULL;
+
+    return IS_NULLSTR(field->description) ? NULL : field->description;
+}
+
+bool script_entity_field_deprecated(const ENT_FIELD *field)
+{
+    return field ? field->deprecated : false;
+}
+
 bool script_validate_entity_tables(void)
 {
     int errors = 0;

@@ -429,6 +429,8 @@ struct entity_field_type {
     char *name;
     unsigned char code;
     unsigned char type;
+    const char *description;
+    bool deprecated;
 };
 
 enum entity_type_enum {
@@ -2589,6 +2591,8 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 ENT_FIELD *script_entity_fields(int type);
 bool script_entity_allow_vars(int type);
 bool script_validate_entity_tables(void);
+const char *script_entity_field_description(const ENT_FIELD *field);
+bool script_entity_field_deprecated(const ENT_FIELD *field);
 void script_lookup_profile_report(const char *tag);
 bool script_vnumname_match_primary(PROG_LIST *prg, AREA_DATA *entity_area, int vnum, const char *name);
 bool script_vnumname_match_wildcard(PROG_LIST *prg);

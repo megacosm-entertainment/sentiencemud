@@ -13,6 +13,8 @@ static test_result_t test_script_compile_string_bounds(test_case_t *test);
 static test_result_t test_script_compile_error_context_reset(test_case_t *test);
 static test_result_t test_script_compile_invalid_syntax(test_case_t *test);
 static test_result_t test_script_entity_table_validation(test_case_t *test);
+static test_result_t test_script_entity_field_metadata(test_case_t *test);
+static test_result_t test_script_chained_expansion(test_case_t *test);
 static test_result_t test_script_vnumname_room_null_progs(test_case_t *test);
 static test_result_t test_script_vnumname_match_helpers(test_case_t *test);
 static test_result_t test_script_vnumname_owner_context_null_progs(test_case_t *test);
@@ -101,6 +103,12 @@ test_result_t run_script_engine_test_case(test_case_t *test)
 
     if (strcmp(test->test_type, "script_engine_entity_table_validation_test") == 0)
         return test_script_entity_table_validation(test);
+
+    if (strcmp(test->test_type, "script_engine_entity_field_metadata_test") == 0)
+        return test_script_entity_field_metadata(test);
+
+    if (strcmp(test->test_type, "script_engine_chained_expansion_test") == 0)
+        return test_script_chained_expansion(test);
 
     if (strcmp(test->test_type, "script_engine_vnumname_room_null_progs_test") == 0)
         return test_script_vnumname_room_null_progs(test);
@@ -470,6 +478,128 @@ static test_result_t test_script_entity_table_validation(test_case_t *test)
                     "script_validate_entity_tables() returned false (non-strict mode)");
     }
 
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_entity_field_metadata(test_case_t *test)
+{
+    ENT_FIELD *primary_table;
+    ENT_FIELD *field_mxp;
+    ENT_FIELD *field_tab;
+    const char *desc;
+    (void)test;
+
+    primary_table = entity_primary;
+
+    field_mxp = entity_type_lookup("mxp", primary_table);
+    if (!field_mxp) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "entity_type_lookup('mxp', entity_primary) returned NULL");
+        return TEST_FAILURE;
+    }
+
+    desc = script_entity_field_description(field_mxp);
+    if (!desc || desc[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_entity_field_description('mxp') missing metadata");
+        return TEST_FAILURE;
+    }
+
+    if (script_entity_field_deprecated(field_mxp)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_entity_field_deprecated('mxp') unexpectedly true");
+        return TEST_FAILURE;
+    }
+
+    field_tab = entity_type_lookup("tab", primary_table);
+    if (!field_tab) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "entity_type_lookup('tab', entity_primary) returned NULL");
+        return TEST_FAILURE;
+    }
+
+    if (!script_entity_field_deprecated(field_tab)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_entity_field_deprecated('tab') expected true");
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_chained_expansion(test_case_t *test)
+{
+    pVARIABLE vars = NULL;
+    SCRIPT_VARINFO info;
+    BUFFER *expanded;
+    char *compiled;
+    int compiled_len;
+    bool ok;
+    (void)test;
+
+    memset(&info, 0, sizeof(info));
+    info.var = &vars;
+
+    expanded = new_buf();
+    if (!expanded)
+        return TEST_ERROR;
+
+    if (!variables_set_string(&vars, "suffix", "2", false)
+    || !variables_set_string(&vars, "name2", "alpha", false)
+    || !variables_set_string(&vars, "name3", "beta", false)) {
+        free_buf(expanded);
+        variable_freelist(&vars);
+        return TEST_ERROR;
+    }
+
+    compiled_len = 0;
+    compiled = compile_string("$<name<suffix>>", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for nested variable chain");
+        free_buf(expanded);
+        variable_freelist(&vars);
+        return TEST_FAILURE;
+    }
+
+    clear_buf(expanded);
+    ok = expand_string(&info, compiled, expanded);
+    if (!ok || str_cmp(buf_string(expanded), "alpha")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "nested variable chain mismatch: got='%s' expected='alpha'",
+                      buf_string(expanded));
+        free_mem(compiled, compiled_len + 1);
+        free_buf(expanded);
+        variable_freelist(&vars);
+        return TEST_FAILURE;
+    }
+    free_mem(compiled, compiled_len + 1);
+
+    compiled_len = 0;
+    compiled = compile_string("prefix-$<name[1+2]>-$[2*3]", IFC_M, &compiled_len, true);
+    if (!compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string failed for mixed expression/variable chain");
+        free_buf(expanded);
+        variable_freelist(&vars);
+        return TEST_FAILURE;
+    }
+
+    clear_buf(expanded);
+    ok = expand_string(&info, compiled, expanded);
+    if (!ok || str_cmp(buf_string(expanded), "prefix-beta-6")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "mixed chained expansion mismatch: got='%s' expected='prefix-beta-6'",
+                      buf_string(expanded));
+        free_mem(compiled, compiled_len + 1);
+        free_buf(expanded);
+        variable_freelist(&vars);
+        return TEST_FAILURE;
+    }
+    free_mem(compiled, compiled_len + 1);
+
+    free_buf(expanded);
+    variable_freelist(&vars);
     return TEST_SUCCESS;
 }
 

@@ -73,8 +73,8 @@ ENT_FIELD entity_primary[] = {
     {"register3",	ENTITY_REGISTER3,	ENT_NUMBER	},
     {"register4",	ENTITY_REGISTER4,	ENT_NUMBER	},
     {"register5",	ENTITY_REGISTER5,	ENT_NUMBER	},
-    {"mxp",			ENTITY_MXP,		ENT_STRING		},
-    {"tab",			ENTITY_MXP,		ENT_STRING		},
+    {"mxp",			ENTITY_MXP,		ENT_STRING,		"MXP token expansion string",	false},
+    {"tab",			ENTITY_MXP,		ENT_STRING,		"Deprecated alias of mxp",	true},
     {NULL,		0,			ENT_UNKNOWN	}
 };
 
@@ -254,11 +254,11 @@ ENT_FIELD entity_mobile[] = {
     {"last_logoff_delta", ENTITY_MOB_LASTLOGOFF_DELTA, ENT_NUMBER	},
     {"last_logoff_human", ENTITY_MOB_LASTLOGOFF_HUMAN,	ENT_STRING},
     {"leader",			ENTITY_MOB_LEADER,			ENT_MOBILE	},
-    {"level",			ENTITY_MOB_LEVEL,			ENT_NUMBER	},
+    {"level",			ENTITY_MOB_LEVEL,			ENT_NUMBER,		"Effective mob level",	false},
     {"long",			ENTITY_MOB_LONG,			ENT_STRING	},
     {"master",			ENTITY_MOB_MASTER,			ENT_MOBILE	},
     {"mount",			ENTITY_MOB_MOUNT,			ENT_MOBILE	},
-    {"name",			ENTITY_MOB_NAME,			ENT_STRING	},
+    {"name",			ENTITY_MOB_NAME,			ENT_STRING,		"Mob keyword/name string",	false},
     {"next",			ENTITY_MOB_NEXT,			ENT_MOBILE	},
     {"numgrouped",		ENTITY_MOB_NUMGROUPED,		ENT_NUMBER	},
     {"on",				ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
