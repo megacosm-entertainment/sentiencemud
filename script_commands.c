@@ -8814,6 +8814,219 @@ SCRIPT_CMD(scriptcmd_setsubclass)
     /* Deprecated — subclass system removed. Kept as no-op for compatibility. */
 }
 
+SCRIPT_CMD(scriptcmd_settimer)
+{
+    char buf[MIL], *rest;
+    int amt;
+    CHAR_DATA *victim = NULL;
+    const char *scope_name;
+    long scope_vnum;
+    bool use_mob_context = false;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        scope_name = "MpSetTimer";
+        scope_vnum = VNUM(info->mob);
+        use_mob_context = true;
+    } else if(info->obj) {
+        scope_name = "OpSetTimer";
+        scope_vnum = VNUM(info->obj);
+    } else if(info->room) {
+        scope_name = "RpSetTimer";
+        scope_vnum = info->room->vnum;
+    } else if(info->token) {
+        scope_name = "TpSetTimer";
+        scope_vnum = info->room ? info->room->vnum : 0;
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        if(use_mob_context && !str_cmp(arg->d.str, "self"))
+            victim = info->mob;
+        else
+            victim = get_char_world(use_mob_context ? info->mob : NULL, arg->d.str);
+        break;
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+    default:
+        break;
+    }
+
+    if(!victim) {
+        pbugf(LOG_SCRIPTS, "%s - NULL victim from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if(!*rest) {
+        pbugf(LOG_SCRIPTS, "%s - Missing timer type from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    buf[0] = 0;
+    argument = rest;
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        strncpy(buf,arg->d.str,MIL);
+        break;
+    default:
+        break;
+    }
+
+    if(!*rest) {
+        pbugf(LOG_SCRIPTS, "%s - Missing timer amount from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    argument = rest;
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Error in parsing from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING: amt = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+    case ENT_NUMBER: amt = arg->d.num; break;
+    default: amt = 0; break;
+    }
+
+    if( amt < 0 )
+        return;
+
+    if(!str_cmp(buf,"hiredto"))
+    {
+        if(IS_NPC(victim))
+        {
+            SET_BIT(victim->act[1], ACT2_HIRED);
+            victim->hired_to = current_time + amt * 60;
+        }
+    }
+    else if( amt > 0 || script_security >= 5 ) {
+        if(!str_cmp(buf,"wait")) WAIT_STATE(victim, amt);
+        else if(!str_cmp(buf,"norecall")) NO_RECALL_STATE(victim, amt);
+        else if(!str_cmp(buf,"daze")) DAZE_STATE(victim, amt);
+        else if(!str_cmp(buf,"panic")) PANIC_STATE(victim, amt);
+        else if(!str_cmp(buf,"paroxysm")) PAROXYSM_STATE(victim, amt);
+        else if(!str_cmp(buf,"paralyze")) victim->paralyzed = UMAX(victim->paralyzed,amt);
+        else if(!str_cmp(buf,"quest"))
+        {
+            if(!IS_NPC(victim) && IS_QUESTING(victim))
+            {
+                victim->countdown = amt;
+            }
+        }
+        else if(!str_cmp(buf,"nextquest"))
+        {
+            if(!IS_NPC(victim))
+            {
+                victim->nextquest = amt;
+            }
+        }
+    }
+}
+
+SCRIPT_CMD(scriptcmd_setrecall)
+{
+    char *rest;
+    CHAR_DATA *victim;
+    ROOM_INDEX_DATA *room;
+    ROOM_INDEX_DATA *location;
+    char *(*getlocation_func)(SCRIPT_VARINFO *, char *, ROOM_INDEX_DATA **) = NULL;
+    const char *scope_name = NULL;
+    long scope_vnum = 0;
+    CHAR_DATA *searcher = NULL;
+
+    if(!info)
+        return;
+
+    if(info->mob) {
+        scope_name = "MpSetRecall";
+        scope_vnum = VNUM(info->mob);
+        getlocation_func = mp_getlocation;
+        searcher = info->mob;
+    } else if(info->obj) {
+        scope_name = "OpSetRecall";
+        scope_vnum = VNUM(info->obj);
+        getlocation_func = op_getlocation;
+    } else if(info->room) {
+        scope_name = "RpSetRecall";
+        scope_vnum = info->room->vnum;
+        getlocation_func = rp_getlocation;
+    } else if(info->token) {
+        scope_name = "TpSetRecall";
+        scope_vnum = VNUM(info->token);
+        getlocation_func = tp_getlocation;
+    } else
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg))) {
+        pbugf(LOG_SCRIPTS, "%s - Bad syntax from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    victim = NULL;
+    room = NULL;
+
+    switch(arg->type) {
+    case ENT_STRING:
+        victim = get_char_world(searcher, arg->d.str);
+        break;
+    case ENT_MOBILE:
+        victim = arg->d.mob;
+        break;
+    case ENT_ROOM:
+        room = arg->d.room;
+        break;
+    default:
+        break;
+    }
+
+    if (!victim && !room) {
+        pbugf(LOG_SCRIPTS, "%s - Null victim from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    argument = getlocation_func(info, rest, &location);
+
+    if(!location) {
+        pbugf(LOG_SCRIPTS, "%s - Bad location from vnum %ld.", scope_name, scope_vnum);
+        return;
+    }
+
+    if (victim)
+    {
+        if(location->wilds)
+            location_set(&victim->recall,location->wilds->uid,location->x,location->y,location->z);
+        else if(location->source)
+            location_set(&victim->recall,0,location->vnum,0,0);
+        else
+            location_set(&victim->recall,0,location->vnum,location->id[0],location->id[1]);
+    }
+
+    if (room)
+    {
+        if(location->wilds)
+            location_set(&room->recall,location->wilds->uid,location->x,location->y,location->z);
+        else if(location->source)
+            location_set(&room->recall,0,location->vnum,0,0);
+        else
+            location_set(&room->recall,0,location->vnum,location->id[0],location->id[1]);
+    }
+}
+
 static int cmd_cmp(void *a, void *b)
 {
     return str_cmp((char *)a, (char *)b);
@@ -9235,6 +9448,56 @@ SCRIPT_CMD(scriptcmd_unmute)
         arg->d.mob->desc->muted--;
 
     info->progs->lastreturn = 1;
+}
+
+// UNGROUP mobile[ bool(ALL=false)]
+SCRIPT_CMD(scriptcmd_ungroup)
+{
+    char *rest;
+    bool fAll = false;
+
+    if(!info || IS_NULLSTR(argument))
+        return;
+
+    if(!(rest = expand_argument(info,argument,arg)))
+        return;
+
+    if(arg->type != ENT_MOBILE || !arg->d.mob)
+        return;
+
+    if( *rest ) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        if( arg->type == ENT_NUMBER )
+        {
+            fAll = (arg->d.num != 0);
+        }
+        else if( arg->type == ENT_STRING )
+        {
+            fAll = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
+        }
+        else
+            return;
+    }
+
+    if( fAll ) {
+        ITERATOR git;
+        CHAR_DATA *leader = (arg->d.mob->leader != NULL) ? arg->d.mob->leader : arg->d.mob;
+        CHAR_DATA *follower;
+
+        if( leader->num_grouped < 1 )
+            return;
+
+        iterator_start(&git, leader->lgroup);
+        while((follower = (CHAR_DATA *)iterator_nextdata(&git)))
+            stop_grouped(follower);
+        iterator_stop(&git);
+    }
+    else
+    {
+        stop_grouped(arg->d.mob);
+    }
 }
 
 

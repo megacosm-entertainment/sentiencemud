@@ -2947,10 +2947,6 @@ SCRIPT_CMD(do_rpremove);
 SCRIPT_CMD(do_tpremove);
 SCRIPT_CMD(do_mpselfdestruct);
 SCRIPT_CMD(do_opselfdestruct);
-SCRIPT_CMD(do_mpsettimer);
-SCRIPT_CMD(do_opsettimer);
-SCRIPT_CMD(do_rpsettimer);
-SCRIPT_CMD(do_tpsettimer);
 SCRIPT_CMD(do_mpshowroom);
 SCRIPT_CMD(do_opshowroom);
 SCRIPT_CMD(do_rpshowroom);
@@ -3071,17 +3067,9 @@ SCRIPT_CMD(do_rpstopcombat);
 SCRIPT_CMD(do_tpstopcombat);
 
 SCRIPT_CMD(do_mpgroup);
-SCRIPT_CMD(do_mpungroup);
 SCRIPT_CMD(do_opgroup);
-SCRIPT_CMD(do_opungroup);
 SCRIPT_CMD(do_rpgroup);
-SCRIPT_CMD(do_rpungroup);
 SCRIPT_CMD(do_tpgroup);
-SCRIPT_CMD(do_tpungroup);
-SCRIPT_CMD(do_tpsetrecall);
-SCRIPT_CMD(do_mpsetrecall);
-SCRIPT_CMD(do_opsetrecall);
-SCRIPT_CMD(do_rpsetrecall);
 
 
 
@@ -3141,6 +3129,8 @@ SCRIPT_CMD(scriptcmd_startcombat);
 SCRIPT_CMD(scriptcmd_stopcombat);
 SCRIPT_CMD(scriptcmd_setclass);
 SCRIPT_CMD(scriptcmd_setrace);
+SCRIPT_CMD(scriptcmd_setrecall);
+SCRIPT_CMD(scriptcmd_settimer);
 SCRIPT_CMD(scriptcmd_setsubclass);
 SCRIPT_CMD(scriptcmd_settrait);
 SCRIPT_CMD(scriptcmd_showcommand);
@@ -3169,6 +3159,7 @@ SCRIPT_CMD(scriptcmd_crier);
 SCRIPT_CMD(scriptcmd_purge);
 SCRIPT_CMD(scriptcmd_raisedead);
 SCRIPT_CMD(scriptcmd_resetdice);
+SCRIPT_CMD(scriptcmd_ungroup);
 SCRIPT_CMD(scriptcmd_xcall);
 
 

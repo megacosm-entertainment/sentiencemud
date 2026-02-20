@@ -137,8 +137,8 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "sendfloor",			scriptcmd_sendfloor,		false,	true	},
     { "setclass",			scriptcmd_setclass,			false,	true	},
     { "setrace",			scriptcmd_setrace,			false,	true	},
-    { "setrecall",			do_mpsetrecall,				false,	true,	},
-    { "settimer",			do_mpsettimer,				false,	true	},
+    { "setrecall",			scriptcmd_setrecall,			false,	true,	},
+    { "settimer",			scriptcmd_settimer,			false,	true	},
     { "settrait",			scriptcmd_settrait,			false,	true	},
     { "showcommand",		scriptcmd_showcommand,		false,	true	},
     { "showroom",			do_mpshowroom,				true,	true	},
@@ -157,7 +157,7 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "teleport", 			do_mpteleport,				false,	false	},
     { "transfer",			scriptcmd_transfer,			false,	true	},
     { "treasuremap",		scriptcmd_treasuremap,		false,	true	},
-    { "ungroup",			do_mpungroup,				false,	true	},
+    { "ungroup",			scriptcmd_ungroup,			false,	true	},
     { "unlockarea",			scriptcmd_unlockarea,		true,	true	},
     { "unlockdungeon",		scriptcmd_unlockdungeon,	true,	true	},
     { "unmute",				scriptcmd_unmute,			false,	true	},
@@ -2476,110 +2476,6 @@ SCRIPT_CMD(do_mpvarsave)
     on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
 
     variable_setsave(*info->var,name,on);
-}
-
-SCRIPT_CMD(do_mpsettimer)
-{
-    char buf[MIL],*rest;
-    int amt;
-    CHAR_DATA *victim = NULL;
-
-
-    if(!info || !info->mob) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "MpSetTimer - Error in parsing from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        if(!str_cmp(arg->d.str,"self"))
-            victim = info->mob;
-        else
-            victim = get_char_world(info->mob, arg->d.str);
-        break;
-    case ENT_MOBILE:
-        victim = arg->d.mob;
-        break;
-    default: break;
-    }
-
-    if(!victim) {
-        pbugf(LOG_SCRIPTS, "MpSetTimer - NULL victim from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS, "MpSetTimer - Missing timer type from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    buf[0] = 0;
-    argument = rest;
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "MpSetTimer - Error in parsing from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING:
-        strncpy(buf,arg->d.str,MIL);
-        break;
-    default: break;
-    }
-
-    if(!*rest) {
-        pbugf(LOG_SCRIPTS, "MpSetTimer - Missing timer amount from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    argument = rest;
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "MpSetTimer - Error in parsing from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    switch(arg->type) {
-    case ENT_STRING: amt = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-    case ENT_NUMBER: amt = arg->d.num; break;
-    default: amt = 0; break;
-    }
-
-    if( amt < 0 )
-        return;
-
-    if(!str_cmp(buf,"hiredto"))
-    {
-        if(IS_NPC(victim))
-        {
-            SET_BIT(victim->act[1], ACT2_HIRED);
-            victim->hired_to = current_time + amt * 60;
-            // If amt is zero, the expiration will be handled in update.c
-        }
-    }
-    else if( amt > 0 || script_security >= 5 ) {
-        if(!str_cmp(buf,"wait")) WAIT_STATE(victim, amt);
-        else if(!str_cmp(buf,"norecall")) NO_RECALL_STATE(victim, amt);
-        else if(!str_cmp(buf,"daze")) DAZE_STATE(victim, amt);
-        else if(!str_cmp(buf,"panic")) PANIC_STATE(victim, amt);
-        else if(!str_cmp(buf,"paroxysm")) PAROXYSM_STATE(victim, amt);
-        else if(!str_cmp(buf,"paralyze")) victim->paralyzed = UMAX(victim->paralyzed,amt);
-        else if(!str_cmp(buf,"quest"))
-        {
-            if(!IS_NPC(victim) && IS_QUESTING(victim))
-            {
-                victim->countdown = amt;
-            }
-        }
-        else if(!str_cmp(buf,"nextquest"))
-        {
-            if(!IS_NPC(victim))
-            {
-                victim->nextquest = amt;
-            }
-        }
-    }
 }
 
 SCRIPT_CMD(do_mpinterrupt)
@@ -5508,72 +5404,6 @@ SCRIPT_CMD(do_mpxcall)
 }
 
 
-// do_mpsetrecall
-// mob setrecall $MOBILE <location>
-// Sets the recall point of the target mobile to the reference of the location
-SCRIPT_CMD(do_mpsetrecall)
-{
-    char /*buf[MSL], - Unused???*/ *rest;
-    CHAR_DATA *victim;
-    ROOM_INDEX_DATA *room;
-    ROOM_INDEX_DATA *location;
-//	int amount = 0; - Unused???
-
-
-    if(!info || !info->mob) return;
-
-    if(!(rest = expand_argument(info,argument,arg))) {
-        pbugf(LOG_SCRIPTS, "MpSetRecall - Bad syntax from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    victim = NULL;
-    room = NULL;
-
-    switch(arg->type) {
-    case ENT_STRING:
-        victim = get_char_world(info->mob, arg->d.str);
-        break;
-    case ENT_MOBILE: victim = arg->d.mob; break;
-    case ENT_ROOM: room = arg->d.room; break;
-    default: victim = NULL; room = NULL; break;
-    }
-
-
-    if (!victim && !room) {
-        pbugf(LOG_SCRIPTS, "MpSetRecall - Null victim from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    argument = mp_getlocation(info, rest, &location);
-
-    if(!location) {
-        pbugf(LOG_SCRIPTS, "MpSetRecall - Bad location from vnum %ld.", VNUM(info->mob));
-        return;
-    }
-
-    if (victim)
-    {
-        if(location->wilds)
-            location_set(&victim->recall,location->wilds->uid,location->x,location->y,location->z);
-        else if(location->source)
-            location_set(&victim->recall,0,location->vnum,0,0);
-        else
-            location_set(&victim->recall,0,location->vnum,location->id[0],location->id[1]);
-    }
-
-    if (room)
-    {
-        if(location->wilds)
-            location_set(&room->recall,location->wilds->uid,location->x,location->y,location->z);
-        else if(location->source)
-            location_set(&room->recall,0,location->vnum,0,0);
-        else
-            location_set(&room->recall,0,location->vnum,location->id[0],location->id[1]);
-    }		
-}
-
-
 // do_mpclearrecall
 // mob clearrecall $MOBILE
 // Clears the special recall field on the $MOBILE
@@ -6421,51 +6251,5 @@ SCRIPT_CMD(do_mpgroup)
 
     if(add_grouped(follower, leader, fShow))
         info->mob->progs->lastreturn = 1;
-}
-
-// UNGROUP mobile[ bool(ALL=false)]
-SCRIPT_CMD(do_mpungroup)
-{
-    char *rest;
-
-    bool fAll = false;
-
-    if(!info || !info->mob || IS_NULLSTR(argument)) return;
-
-    if(!(rest = expand_argument(info,argument,arg)))
-        return;
-
-    if(arg->type != ENT_MOBILE || !arg->d.mob) return;
-
-    if( *rest ) {
-        if( arg->type == ENT_NUMBER )
-        {
-            fAll = (arg->d.num != 0);
-        }
-        else if( arg->type == ENT_STRING )
-        {
-            fAll = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
-        }
-        else
-            return;
-    }
-
-    if( fAll ) {
-        ITERATOR git;
-        CHAR_DATA *leader = (arg->d.mob->leader != NULL) ? arg->d.mob->leader : arg->d.mob;
-        CHAR_DATA *follower;
-
-        if( leader->num_grouped < 1 )
-            return;
-
-        iterator_start(&git, leader->lgroup);
-        while((follower = (CHAR_DATA *)iterator_nextdata(&git)))
-            stop_grouped(follower);
-        iterator_stop(&git);
-    }
-    else
-    {
-        stop_grouped(arg->d.mob);
-    }
 }
 
