@@ -2592,6 +2592,8 @@ ENT_FIELD *script_entity_fields(int type);
 bool script_entity_allow_vars(int type);
 bool script_validate_entity_tables(void);
 void script_lookup_profile_report(const char *tag);
+bool script_vnumname_match_primary(PROG_LIST *prg, AREA_DATA *entity_area, int vnum, const char *name);
+bool script_vnumname_match_wildcard(PROG_LIST *prg);
 void script_entity_info(int type, ENT_FIELD **fields, bool *vars);
 
 /* Expansion */

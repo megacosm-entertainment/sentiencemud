@@ -1120,6 +1120,9 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
     char *type_name;
     const struct script_cmd_type *cmd;
     static unsigned long compile_success_count = 0;
+    BUFFER *saved_err_buffer = compile_err_buffer;
+    int saved_current_line = compile_current_line;
+    char *saved_store_limit = compile_store_limit;
 
     DBG2ENTRY4(PTR,err_buf,PTR,script,PTR,source,NUM,type);
 
@@ -1189,7 +1192,12 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
     // Create the instruction list
     lines = i;
     code = alloc_mem((lines+1)*sizeof(SCRIPT_CODE));
-    if(!code) return false;
+    if(!code) {
+        compile_err_buffer = saved_err_buffer;
+        compile_current_line = saved_current_line;
+        compile_store_limit = saved_store_limit;
+        return false;
+    }
     memset(code,0,(lines+1)*sizeof(SCRIPT_CODE));
 
     // Initialize parsing
@@ -2428,6 +2436,9 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
                 free_mem(sw, sizeof(*sw));
             }
         }
+        compile_err_buffer = saved_err_buffer;
+        compile_current_line = saved_current_line;
+        compile_store_limit = saved_store_limit;
         return false;
     }
 
@@ -2503,6 +2514,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 
     if((++compile_success_count % 100UL) == 0UL)
         script_lookup_profile_report("compile_script");
+
+    compile_err_buffer = saved_err_buffer;
+    compile_current_line = saved_current_line;
+    compile_store_limit = saved_store_limit;
 
     return true;
 }

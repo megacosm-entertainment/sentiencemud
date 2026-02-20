@@ -2,6 +2,7 @@
 
 #include "../../merc.h"
 #include "../../scripts.h"
+#include "../../recycle.h"
 #include "../framework/test_framework.h"
 #include <string.h>
 #include <stdlib.h>
@@ -9,8 +10,28 @@
 static test_result_t test_script_entity_lookup(test_case_t *test);
 static test_result_t test_script_ifcheck_lookup(test_case_t *test);
 static test_result_t test_script_compile_string_bounds(test_case_t *test);
+static test_result_t test_script_compile_error_context_reset(test_case_t *test);
+static test_result_t test_script_compile_invalid_syntax(test_case_t *test);
 static test_result_t test_script_entity_table_validation(test_case_t *test);
+static test_result_t test_script_vnumname_room_null_progs(test_case_t *test);
+static test_result_t test_script_vnumname_match_helpers(test_case_t *test);
+static test_result_t test_script_vnumname_owner_context_null_progs(test_case_t *test);
+static test_result_t test_script_vnumname_owner_context_exec_parity(test_case_t *test);
+static test_result_t test_script_room_resolution_null_hosts(test_case_t *test);
 static void log_entity_table_validation_diagnostics(void);
+
+int test_vnumname_trigger(char *name, int vnum, AREA_DATA *entity_area, int type,
+            CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
+            CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
+            OBJ_DATA *obj1, OBJ_DATA *obj2,
+            char *phrase);
+CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token);
+int count_people_room(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, int iFlag);
+int get_order(CHAR_DATA *ch, OBJ_DATA *obj);
+CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area);
+OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area);
+CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all);
+OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name);
 
 static ENT_FIELD *resolve_entity_field_table(const char *table_name)
 {
@@ -72,8 +93,29 @@ test_result_t run_script_engine_test_case(test_case_t *test)
     if (strcmp(test->test_type, "script_engine_compile_bounds_test") == 0)
         return test_script_compile_string_bounds(test);
 
+    if (strcmp(test->test_type, "script_engine_compile_error_context_reset_test") == 0)
+        return test_script_compile_error_context_reset(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_invalid_syntax_test") == 0)
+        return test_script_compile_invalid_syntax(test);
+
     if (strcmp(test->test_type, "script_engine_entity_table_validation_test") == 0)
         return test_script_entity_table_validation(test);
+
+    if (strcmp(test->test_type, "script_engine_vnumname_room_null_progs_test") == 0)
+        return test_script_vnumname_room_null_progs(test);
+
+    if (strcmp(test->test_type, "script_engine_vnumname_match_helpers_test") == 0)
+        return test_script_vnumname_match_helpers(test);
+
+    if (strcmp(test->test_type, "script_engine_vnumname_owner_context_null_progs_test") == 0)
+        return test_script_vnumname_owner_context_null_progs(test);
+
+    if (strcmp(test->test_type, "script_engine_vnumname_owner_context_exec_parity_test") == 0)
+        return test_script_vnumname_owner_context_exec_parity(test);
+
+    if (strcmp(test->test_type, "script_engine_room_resolution_null_hosts_test") == 0)
+        return test_script_room_resolution_null_hosts(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown script engine test type: %s", test->test_type);
@@ -275,6 +317,132 @@ static test_result_t test_script_compile_string_bounds(test_case_t *test)
     return TEST_SUCCESS;
 }
 
+static test_result_t test_script_compile_error_context_reset(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    char *overflow_src;
+    char *compiled;
+    int compiled_len = 0;
+    int overflow_len = (MSL * 2) + 64;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup("end\n");
+    script.vnum = 900002;
+    if (!compile_script(err_buf, &script, compile_source, IFC_M)) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script failed in context reset test: %s",
+                      buf_string(err_buf));
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+
+    overflow_src = malloc((size_t)overflow_len + 1);
+    if (!overflow_src) {
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        return TEST_ERROR;
+    }
+
+    memset(overflow_src, 'x', (size_t)overflow_len);
+    overflow_src[overflow_len] = '\0';
+
+    compiled = compile_string(overflow_src, IFC_M, &compiled_len, true);
+    if (compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string unexpectedly succeeded after compile_script context reset scenario");
+        free_mem(compiled, compiled_len + 1);
+        free(overflow_src);
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        return TEST_FAILURE;
+    }
+
+    free(overflow_src);
+    free_script_code(script.code, script.lines);
+    free_string(script.src);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_invalid_syntax(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    char *overflow_src;
+    char *compiled;
+    int compiled_len = 0;
+    int overflow_len = (MSL * 2) + 64;
+    bool compiled_ok;
+    const char *diagnostics;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup("if definitely_not_ifcheck 1\nend\n");
+    script.vnum = 900003;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for intentionally invalid source");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script failure did not emit diagnostics for invalid source");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+
+    overflow_src = malloc((size_t)overflow_len + 1);
+    if (!overflow_src) {
+        free_string(compile_source);
+        return TEST_ERROR;
+    }
+
+    memset(overflow_src, 'x', (size_t)overflow_len);
+    overflow_src[overflow_len] = '\0';
+
+    compiled = compile_string(overflow_src, IFC_M, &compiled_len, true);
+    if (compiled) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_string unexpectedly succeeded after invalid compile_script scenario");
+        free_mem(compiled, compiled_len + 1);
+        free(overflow_src);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free(overflow_src);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
 static test_result_t test_script_entity_table_validation(test_case_t *test)
 {
     json_t *input = NULL;
@@ -300,6 +468,489 @@ static test_result_t test_script_entity_table_validation(test_case_t *test)
     if (!valid) {
         log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
                     "script_validate_entity_tables() returned false (non-strict mode)");
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_vnumname_room_null_progs(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    int ret;
+    const int trigger_type = TRIG_GIVE;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    room.source = NULL;
+    room.progs = NULL;
+    room.ltokens = NULL;
+
+    ret = test_vnumname_trigger("dummy", 1, NULL, trigger_type,
+                                NULL, NULL, &room,
+                                NULL, NULL, NULL,
+                                NULL, NULL,
+                                NULL);
+
+    if (ret != PRET_NOSCRIPT) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_vnumname_trigger room/null-progs returned %d, expected %d",
+                      ret, PRET_NOSCRIPT);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_vnumname_match_helpers(test_case_t *test)
+{
+    PROG_LIST prg;
+    AREA_DATA area_a;
+    AREA_DATA area_b;
+    (void)test;
+
+    memset(&prg, 0, sizeof(prg));
+    memset(&area_a, 0, sizeof(area_a));
+    memset(&area_b, 0, sizeof(area_b));
+
+    prg.numeric = true;
+    prg.trig_is_widevnum = false;
+    prg.trig_number = 42;
+
+    if (!script_vnumname_match_primary(&prg, &area_a, 42, "anything")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "legacy numeric primary match failed for equal vnum");
+        return TEST_FAILURE;
+    }
+    if (script_vnumname_match_primary(&prg, &area_a, 41, "anything")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "legacy numeric primary match unexpectedly succeeded for different vnum");
+        return TEST_FAILURE;
+    }
+
+    prg.trig_is_widevnum = true;
+    prg.trig_wnum.pArea = &area_a;
+    prg.trig_wnum.vnum = 10;
+
+    if (!script_vnumname_match_primary(&prg, &area_a, 10, "anything")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "widevnum primary match failed for same area+vnum");
+        return TEST_FAILURE;
+    }
+    if (script_vnumname_match_primary(&prg, &area_b, 10, "anything")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "widevnum primary match unexpectedly succeeded for different area");
+        return TEST_FAILURE;
+    }
+
+    prg.numeric = false;
+    prg.trig_phrase = "all sword";
+    if (!script_vnumname_match_primary(&prg, &area_a, 10, "dagger")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "name primary match failed for 'all' wildcard token");
+        return TEST_FAILURE;
+    }
+    prg.trig_phrase = "sword axe";
+    if (script_vnumname_match_primary(&prg, &area_a, 10, "dagger")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "name primary match unexpectedly succeeded for non-matching target name");
+        return TEST_FAILURE;
+    }
+
+    prg.numeric = true;
+    prg.trig_is_widevnum = false;
+    prg.trig_number = 0;
+    if (!script_vnumname_match_wildcard(&prg)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "wildcard match failed for legacy numeric zero");
+        return TEST_FAILURE;
+    }
+
+    prg.trig_is_widevnum = true;
+    if (script_vnumname_match_wildcard(&prg)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "wildcard match unexpectedly succeeded for widevnum trigger");
+        return TEST_FAILURE;
+    }
+
+    prg.numeric = false;
+    prg.trig_phrase = "*";
+    if (!script_vnumname_match_wildcard(&prg)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "wildcard match failed for '*' phrase trigger");
+        return TEST_FAILURE;
+    }
+
+    prg.trig_phrase = "not_star";
+    if (script_vnumname_match_wildcard(&prg)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "wildcard match unexpectedly succeeded for non-'*' phrase trigger");
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_vnumname_owner_context_null_progs(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    OBJ_DATA obj;
+    OBJ_INDEX_DATA obj_index;
+    int ret_mob;
+    int ret_obj;
+    int ret_room;
+    const int trigger_type = TRIG_GIVE;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&obj, 0, sizeof(obj));
+    memset(&obj_index, 0, sizeof(obj_index));
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.in_room = &room;
+
+    obj.valid = true;
+    obj.pIndexData = &obj_index;
+    obj.in_room = &room;
+
+    room.source = NULL;
+    room.progs = NULL;
+    room.ltokens = NULL;
+
+    ret_mob = test_vnumname_trigger("dummy", 1, NULL, trigger_type,
+                                    &mob, NULL, NULL,
+                                    NULL, NULL, NULL,
+                                    NULL, NULL,
+                                    NULL);
+
+    if (ret_mob != PRET_NOSCRIPT) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_vnumname_trigger mob/null-progs returned %d, expected %d",
+                      ret_mob, PRET_NOSCRIPT);
+        return TEST_FAILURE;
+    }
+
+    ret_obj = test_vnumname_trigger("dummy", 1, NULL, trigger_type,
+                                    NULL, &obj, NULL,
+                                    NULL, NULL, NULL,
+                                    NULL, NULL,
+                                    NULL);
+
+    if (ret_obj != PRET_NOSCRIPT) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_vnumname_trigger obj/null-progs returned %d, expected %d",
+                      ret_obj, PRET_NOSCRIPT);
+        return TEST_FAILURE;
+    }
+
+    ret_room = test_vnumname_trigger("dummy", 1, NULL, trigger_type,
+                                     NULL, NULL, &room,
+                                     NULL, NULL, NULL,
+                                     NULL, NULL,
+                                     NULL);
+
+    if (ret_room != PRET_NOSCRIPT) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_vnumname_trigger room/null-progs returned %d, expected %d",
+                      ret_room, PRET_NOSCRIPT);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_vnumname_owner_context_exec_parity(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    OBJ_DATA obj;
+    OBJ_INDEX_DATA obj_index;
+    PROG_LIST *mob_prg;
+    PROG_LIST *obj_prg;
+    PROG_LIST *room_prg;
+    SCRIPT_DATA script;
+    int ret_mob;
+    int ret_obj;
+    int ret_room;
+    const int trigger_type = TRIG_GIVE;
+    const int trigger_slot = trigger_table[TRIG_GIVE].slot;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&obj, 0, sizeof(obj));
+    memset(&obj_index, 0, sizeof(obj_index));
+    memset(&script, 0, sizeof(script));
+
+    script.vnum = 900001;
+    script.code = alloc_mem(sizeof(SCRIPT_CODE));
+    if (!script.code)
+        return TEST_ERROR;
+    memset(script.code, 0, sizeof(SCRIPT_CODE));
+    script.code[0].opcode = OP_END;
+    script.code[0].level = 0;
+    script.code[0].rest = str_dup("");
+    script.code[0].length = 0;
+    script.lines = 1;
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.in_room = &room;
+    mob.progs = new_prog_data();
+
+    obj.valid = true;
+    obj.pIndexData = &obj_index;
+    obj.in_room = &room;
+    obj.progs = new_prog_data();
+
+    room.progs = new_prog_data();
+    room.source = NULL;
+    room.ltokens = NULL;
+
+    mob_index.progs = new_prog_bank();
+    obj_index.progs = new_prog_bank();
+    room.progs->progs = new_prog_bank();
+
+    mob_prg = new_trigger();
+    mob_prg->trig_type = trigger_type;
+    mob_prg->numeric = true;
+    mob_prg->trig_number = 1;
+    mob_prg->vnum = 900001;
+    mob_prg->script = &script;
+    list_appendlink(mob_index.progs[trigger_slot], mob_prg);
+
+    obj_prg = new_trigger();
+    obj_prg->trig_type = trigger_type;
+    obj_prg->numeric = true;
+    obj_prg->trig_number = 1;
+    obj_prg->vnum = 900001;
+    obj_prg->script = &script;
+    list_appendlink(obj_index.progs[trigger_slot], obj_prg);
+
+    room_prg = new_trigger();
+    room_prg->trig_type = trigger_type;
+    room_prg->numeric = true;
+    room_prg->trig_number = 1;
+    room_prg->vnum = 900001;
+    room_prg->script = &script;
+    list_appendlink(room.progs->progs[trigger_slot], room_prg);
+
+    ret_mob = test_vnumname_trigger("dummy", 1, NULL, trigger_type,
+                                    &mob, NULL, NULL,
+                                    NULL, NULL, NULL,
+                                    NULL, NULL,
+                                    NULL);
+    if (ret_mob != PRET_EXECUTED) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_vnumname_trigger mob/exec-parity returned %d, expected %d",
+                      ret_mob, PRET_EXECUTED);
+        free_prog_list(mob_index.progs);
+        free_prog_list(obj_index.progs);
+        free_prog_list(room.progs->progs);
+        free_prog_data(mob.progs);
+        free_prog_data(obj.progs);
+        free_prog_data(room.progs);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    ret_obj = test_vnumname_trigger("dummy", 1, NULL, trigger_type,
+                                    NULL, &obj, NULL,
+                                    NULL, NULL, NULL,
+                                    NULL, NULL,
+                                    NULL);
+    if (ret_obj != PRET_EXECUTED) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_vnumname_trigger obj/exec-parity returned %d, expected %d",
+                      ret_obj, PRET_EXECUTED);
+        free_prog_list(mob_index.progs);
+        free_prog_list(obj_index.progs);
+        free_prog_list(room.progs->progs);
+        free_prog_data(mob.progs);
+        free_prog_data(obj.progs);
+        free_prog_data(room.progs);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    ret_room = test_vnumname_trigger("dummy", 1, NULL, trigger_type,
+                                     NULL, NULL, &room,
+                                     NULL, NULL, NULL,
+                                     NULL, NULL,
+                                     NULL);
+    if (ret_room != PRET_EXECUTED) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_vnumname_trigger room/exec-parity returned %d, expected %d",
+                      ret_room, PRET_EXECUTED);
+        free_prog_list(mob_index.progs);
+        free_prog_list(obj_index.progs);
+        free_prog_list(room.progs->progs);
+        free_prog_data(mob.progs);
+        free_prog_data(obj.progs);
+        free_prog_data(room.progs);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    free_prog_list(mob_index.progs);
+    free_prog_list(obj_index.progs);
+    free_prog_list(room.progs->progs);
+    free_prog_data(mob.progs);
+    free_prog_data(obj.progs);
+    free_prog_data(room.progs);
+    free_script_code(script.code, script.lines);
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_room_resolution_null_hosts(test_case_t *test)
+{
+    OBJ_DATA obj;
+    TOKEN_DATA token;
+    CHAR_DATA mob;
+    SCRIPT_VARINFO info;
+    (void)test;
+
+    memset(&obj, 0, sizeof(obj));
+    memset(&token, 0, sizeof(token));
+    memset(&mob, 0, sizeof(mob));
+    memset(&info, 0, sizeof(info));
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.in_room = NULL;
+
+    if (get_random_char(NULL, &obj, NULL, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_random_char unexpectedly resolved for object with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_random_char(NULL, NULL, NULL, &token) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_random_char unexpectedly resolved for token with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_random_char(&mob, NULL, NULL, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_random_char unexpectedly resolved for mobile with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (count_people_room(NULL, &obj, NULL, NULL, 0) != 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "count_people_room unexpectedly non-zero for object with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (count_people_room(NULL, NULL, NULL, &token, 0) != 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "count_people_room unexpectedly non-zero for token with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (count_people_room(&mob, NULL, NULL, NULL, 0) != 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "count_people_room unexpectedly non-zero for mobile with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_mob_vnum_room(NULL, &obj, NULL, NULL, 1, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_mob_vnum_room unexpectedly resolved for object with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_mob_vnum_room(NULL, NULL, NULL, &token, 1, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_mob_vnum_room unexpectedly resolved for token with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_mob_vnum_room(&mob, NULL, NULL, NULL, 1, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_mob_vnum_room unexpectedly resolved for mobile with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_obj_vnum_room(NULL, &obj, NULL, NULL, 1, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_obj_vnum_room unexpectedly resolved for object with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_obj_vnum_room(NULL, NULL, NULL, &token, 1, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_obj_vnum_room unexpectedly resolved for token with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_obj_vnum_room(&mob, NULL, NULL, NULL, 1, NULL) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_obj_vnum_room unexpectedly resolved for mobile with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_order(NULL, &obj) != 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_order unexpectedly non-zero for object with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (get_order(&mob, NULL) != 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "get_order unexpectedly non-zero for mobile with no room context");
+        return TEST_FAILURE;
+    }
+
+    info.mob = &mob;
+    if (script_get_char_room(&info, "nobody", true) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_get_char_room unexpectedly resolved for mobile with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (script_get_obj_here(&info, "nothing") != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_get_obj_here unexpectedly resolved for mobile with no room context");
+        return TEST_FAILURE;
+    }
+
+    info.mob = NULL;
+    info.obj = &obj;
+    if (script_get_char_room(&info, "nobody", true) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_get_char_room unexpectedly resolved for object with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (script_get_obj_here(&info, "nothing") != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_get_obj_here unexpectedly resolved for object with no room context");
+        return TEST_FAILURE;
+    }
+
+    info.obj = NULL;
+    info.token = &token;
+    if (script_get_char_room(&info, "nobody", true) != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_get_char_room unexpectedly resolved for token with no room context");
+        return TEST_FAILURE;
+    }
+
+    if (script_get_obj_here(&info, "nothing") != NULL) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "script_get_obj_here unexpectedly resolved for token with no room context");
+        return TEST_FAILURE;
     }
 
     return TEST_SUCCESS;

@@ -5,6 +5,11 @@
 - **Date**: 2026-02-19
 - **Owner**: Script/engine workstream
 - **Intent**: Single canonical audit + implementation roadmap
+- **Sequencing note (2026-02-20)**: Pause additional script-helper micro-hardening
+  outside critical crash/safety fixes until Phase 2 command consolidation is
+  complete. Resume hardening immediately after Phase 2 using current regression
+  baselines (`script_engine` focused + bootstrap profile), to avoid duplicate
+  edits on code paths scheduled for consolidation.
 - **Supersedes (planning authority)**:
   - `docs/PLAN_SCRIPT_ENGINE_AUDIT.md`
   - `docs/PLAN_SCRIPT_COMMANDS.md`
