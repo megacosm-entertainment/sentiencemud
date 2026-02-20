@@ -157,6 +157,56 @@
       "expected_output": {
         "success": true
       }
+    },
+    {
+      "name": "script_string_trigger_guard_wildcard",
+      "description": "Verify string trigger wildcard fallback and mixed-owner guard behavior",
+      "dependencies": [],
+      "test_type": "script_engine_string_trigger_guard_wildcard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_number_trigger_guard_wildcard",
+      "description": "Verify number trigger wildcard fallback and mixed-owner guard behavior",
+      "dependencies": [],
+      "test_type": "script_engine_number_trigger_guard_wildcard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_number_sight_slot_guard",
+      "description": "Verify sight trigger path returns safely when trigger slots mismatch",
+      "dependencies": [],
+      "test_type": "script_engine_number_sight_slot_guard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_direction_trigger_exec",
+      "description": "Verify direction wrapper dispatch executes matching room mobile triggers",
+      "dependencies": [],
+      "test_type": "script_engine_direction_trigger_exec_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_greet_trigger_exec",
+      "description": "Verify greet wrapper dispatch executes matching room mobile wildcard triggers",
+      "dependencies": [],
+      "test_type": "script_engine_greet_trigger_exec_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
     }
   ]
 }

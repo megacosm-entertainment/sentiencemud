@@ -4888,13 +4888,11 @@ SCRIPT_CMD(scriptcmd_vforce)
 
         switch(arg->type) {
         case ENT_STRING:
-            if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-                if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
-                    vnum = target_wnum.vnum;
-                    target_area = target_wnum.pArea;
-                }
-            } else {
-                vnum = atoi(arg->d.str);
+            if (!IS_NULLSTR(arg->d.str)
+            && parse_widevnum(arg->d.str, context_area, &target_wnum)
+            && target_wnum.vnum > 0) {
+                vnum = target_wnum.vnum;
+                target_area = target_wnum.pArea;
             }
             break;
         case ENT_NUMBER: vnum = arg->d.num; break;
@@ -4979,13 +4977,11 @@ SCRIPT_CMD(scriptcmd_vforce)
 
         switch(arg->type) {
         case ENT_STRING:
-            if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-                if (parse_widevnum(arg->d.str, context_area, &target_wnum) && target_wnum.pArea) {
-                    vnum = target_wnum.vnum;
-                    target_area = target_wnum.pArea;
-                }
-            } else {
-                vnum = atoi(arg->d.str);
+            if (!IS_NULLSTR(arg->d.str)
+            && parse_widevnum(arg->d.str, context_area, &target_wnum)
+            && target_wnum.vnum > 0) {
+                vnum = target_wnum.vnum;
+                target_area = target_wnum.pArea;
             }
             break;
         case ENT_NUMBER: vnum = arg->d.num; break;

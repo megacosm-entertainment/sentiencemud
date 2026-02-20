@@ -20,9 +20,19 @@ static test_result_t test_script_vnumname_match_helpers(test_case_t *test);
 static test_result_t test_script_vnumname_owner_context_null_progs(test_case_t *test);
 static test_result_t test_script_vnumname_owner_context_exec_parity(test_case_t *test);
 static test_result_t test_script_room_resolution_null_hosts(test_case_t *test);
+static test_result_t test_script_string_trigger_guard_and_wildcard(test_case_t *test);
+static test_result_t test_script_number_trigger_guard_and_wildcard(test_case_t *test);
+static test_result_t test_script_number_sight_slot_guard(test_case_t *test);
+static test_result_t test_script_direction_trigger_exec(test_case_t *test);
+static test_result_t test_script_greet_trigger_exec(test_case_t *test);
 static void log_entity_table_validation_diagnostics(void);
 
 int test_vnumname_trigger(char *name, int vnum, AREA_DATA *entity_area, int type,
+            CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
+            CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
+            OBJ_DATA *obj1, OBJ_DATA *obj2,
+            char *phrase);
+int test_number_sight_trigger(int number, int wildcard, bool (*match)(int a, int b), int type, int typeall,
             CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
             CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
             OBJ_DATA *obj1, OBJ_DATA *obj2,
@@ -34,6 +44,11 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area);
 CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all);
 OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name);
+
+static bool test_match_equal(int a, int b)
+{
+    return a == b;
+}
 
 static ENT_FIELD *resolve_entity_field_table(const char *table_name)
 {
@@ -124,6 +139,21 @@ test_result_t run_script_engine_test_case(test_case_t *test)
 
     if (strcmp(test->test_type, "script_engine_room_resolution_null_hosts_test") == 0)
         return test_script_room_resolution_null_hosts(test);
+
+    if (strcmp(test->test_type, "script_engine_string_trigger_guard_wildcard_test") == 0)
+        return test_script_string_trigger_guard_and_wildcard(test);
+
+    if (strcmp(test->test_type, "script_engine_number_trigger_guard_wildcard_test") == 0)
+        return test_script_number_trigger_guard_and_wildcard(test);
+
+    if (strcmp(test->test_type, "script_engine_number_sight_slot_guard_test") == 0)
+        return test_script_number_sight_slot_guard(test);
+
+    if (strcmp(test->test_type, "script_engine_direction_trigger_exec_test") == 0)
+        return test_script_direction_trigger_exec(test);
+
+    if (strcmp(test->test_type, "script_engine_greet_trigger_exec_test") == 0)
+        return test_script_greet_trigger_exec(test);
 
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                   "Unknown script engine test type: %s", test->test_type);
@@ -1083,6 +1113,397 @@ static test_result_t test_script_room_resolution_null_hosts(test_case_t *test)
         return TEST_FAILURE;
     }
 
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_string_trigger_guard_and_wildcard(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    OBJ_DATA obj;
+    OBJ_INDEX_DATA obj_index;
+    PROG_LIST *mob_prg;
+    SCRIPT_DATA script;
+    int ret;
+    const int trigger_type = TRIG_ACT;
+    const int trigger_slot = trigger_table[TRIG_ACT].slot;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&obj, 0, sizeof(obj));
+    memset(&obj_index, 0, sizeof(obj_index));
+    memset(&script, 0, sizeof(script));
+
+    script.vnum = 900011;
+    script.code = alloc_mem(sizeof(SCRIPT_CODE));
+    if (!script.code)
+        return TEST_ERROR;
+    memset(script.code, 0, sizeof(SCRIPT_CODE));
+    script.code[0].opcode = OP_END;
+    script.code[0].level = 0;
+    script.code[0].rest = str_dup("");
+    script.code[0].length = 0;
+    script.lines = 1;
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.in_room = &room;
+    mob.progs = new_prog_data();
+
+    obj.valid = true;
+    obj.pIndexData = &obj_index;
+    obj.in_room = &room;
+
+    room.source = NULL;
+    room.progs = NULL;
+    room.ltokens = NULL;
+
+    mob_index.progs = new_prog_bank();
+
+    mob_prg = new_trigger();
+    mob_prg->trig_type = trigger_type;
+    mob_prg->numeric = false;
+    mob_prg->trig_phrase = str_dup("*");
+    mob_prg->vnum = script.vnum;
+    mob_prg->script = &script;
+    list_appendlink(mob_index.progs[trigger_slot], mob_prg);
+
+    ret = p_exact_trigger("no_match_phrase", &mob, NULL, NULL,
+                          NULL, NULL, NULL, NULL, NULL, trigger_type);
+    if (ret != PRET_EXECUTED) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "p_exact_trigger wildcard fallback returned %d, expected %d",
+                      ret, PRET_EXECUTED);
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    ret = p_act_trigger("anything", &mob, &obj, NULL,
+                        NULL, NULL, NULL, NULL, NULL, trigger_type);
+    if (ret != PRET_NOSCRIPT) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "p_act_trigger mixed owner guard returned %d, expected %d",
+                      ret, PRET_NOSCRIPT);
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    free_prog_list(mob_index.progs);
+    free_prog_data(mob.progs);
+    free_script_code(script.code, script.lines);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_number_trigger_guard_and_wildcard(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    OBJ_DATA obj;
+    OBJ_INDEX_DATA obj_index;
+    PROG_LIST *mob_prg;
+    SCRIPT_DATA script;
+    int ret;
+    const int trigger_type = TRIG_GIVE;
+    const int trigger_slot = trigger_table[TRIG_GIVE].slot;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&obj, 0, sizeof(obj));
+    memset(&obj_index, 0, sizeof(obj_index));
+    memset(&script, 0, sizeof(script));
+
+    script.vnum = 900012;
+    script.code = alloc_mem(sizeof(SCRIPT_CODE));
+    if (!script.code)
+        return TEST_ERROR;
+    memset(script.code, 0, sizeof(SCRIPT_CODE));
+    script.code[0].opcode = OP_END;
+    script.code[0].level = 0;
+    script.code[0].rest = str_dup("");
+    script.code[0].length = 0;
+    script.lines = 1;
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.in_room = &room;
+    mob.progs = new_prog_data();
+
+    obj.valid = true;
+    obj.pIndexData = &obj_index;
+    obj.in_room = &room;
+
+    room.source = NULL;
+    room.progs = NULL;
+    room.ltokens = NULL;
+
+    mob_index.progs = new_prog_bank();
+
+    mob_prg = new_trigger();
+    mob_prg->trig_type = trigger_type;
+    mob_prg->numeric = true;
+    mob_prg->trig_number = 0;
+    mob_prg->vnum = script.vnum;
+    mob_prg->script = &script;
+    list_appendlink(mob_index.progs[trigger_slot], mob_prg);
+
+    ret = p_number_trigger(42, 0, &mob, NULL, NULL, NULL,
+                           NULL, NULL, NULL, NULL, NULL,
+                           trigger_type, NULL);
+    if (ret != PRET_EXECUTED) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "p_number_trigger wildcard fallback returned %d, expected %d",
+                      ret, PRET_EXECUTED);
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    ret = p_number_trigger(42, 0, &mob, &obj, NULL, NULL,
+                           NULL, NULL, NULL, NULL, NULL,
+                           trigger_type, NULL);
+    if (ret != PRET_NOSCRIPT) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "p_number_trigger mixed owner guard returned %d, expected %d",
+                      ret, PRET_NOSCRIPT);
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    free_prog_list(mob_index.progs);
+    free_prog_data(mob.progs);
+    free_script_code(script.code, script.lines);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_number_sight_slot_guard(test_case_t *test)
+{
+    int ret;
+    (void)test;
+
+    ret = test_number_sight_trigger(1, 0, test_match_equal, TRIG_GIVE, TRIG_GRALL,
+                                    NULL, NULL, NULL,
+                                    NULL, NULL, NULL,
+                                    NULL, NULL,
+                                    NULL);
+
+    if (ret != PRET_NOSCRIPT) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "test_number_sight_trigger slot guard returned %d, expected %d",
+                      ret, PRET_NOSCRIPT);
+        return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_direction_trigger_exec(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    CHAR_DATA ch;
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    PROG_LIST *mob_prg;
+    SCRIPT_DATA script;
+    int ret;
+    const int direction = 3;
+    const int trigger = TRIG_EXIT;
+    const int trigger_slot = trigger_table[TRIG_EXIT].slot;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    memset(&ch, 0, sizeof(ch));
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&script, 0, sizeof(script));
+
+    script.vnum = 900013;
+    script.code = alloc_mem(sizeof(SCRIPT_CODE));
+    if (!script.code)
+        return TEST_ERROR;
+    memset(script.code, 0, sizeof(SCRIPT_CODE));
+    script.code[0].opcode = OP_END;
+    script.code[0].level = 0;
+    script.code[0].rest = str_dup("");
+    script.code[0].length = 0;
+    script.lines = 1;
+
+    room.lpeople = list_create(false);
+    if (!room.lpeople) {
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    ch.in_room = &room;
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.in_room = &room;
+    mob.progs = new_prog_data();
+
+    mob_index.progs = new_prog_bank();
+    if (!mob.progs || !mob_index.progs) {
+        if (mob_index.progs)
+            free_prog_list(mob_index.progs);
+        if (mob.progs)
+            free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    if (!list_appendlink(room.lpeople, &mob)) {
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    mob_prg = new_trigger();
+    if (!mob_prg) {
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    mob_prg->trig_type = trigger;
+    mob_prg->numeric = true;
+    mob_prg->trig_number = direction;
+    mob_prg->vnum = script.vnum;
+    mob_prg->script = &script;
+    list_appendlink(mob_index.progs[trigger_slot], mob_prg);
+
+    ret = p_direction_trigger(&ch, &room, direction, PRG_MPROG, trigger);
+    if (ret != PRET_EXECUTED) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "p_direction_trigger execution returned %d, expected %d",
+                      ret, PRET_EXECUTED);
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    free_prog_list(mob_index.progs);
+    free_prog_data(mob.progs);
+    list_destroy(room.lpeople);
+    free_script_code(script.code, script.lines);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_greet_trigger_exec(test_case_t *test)
+{
+    ROOM_INDEX_DATA room;
+    CHAR_DATA ch;
+    CHAR_DATA mob;
+    MOB_INDEX_DATA mob_index;
+    PROG_LIST *mob_prg;
+    SCRIPT_DATA script;
+    int ret;
+    const int trigger_slot = trigger_table[TRIG_GRALL].slot;
+    (void)test;
+
+    memset(&room, 0, sizeof(room));
+    memset(&ch, 0, sizeof(ch));
+    memset(&mob, 0, sizeof(mob));
+    memset(&mob_index, 0, sizeof(mob_index));
+    memset(&script, 0, sizeof(script));
+
+    script.vnum = 900014;
+    script.code = alloc_mem(sizeof(SCRIPT_CODE));
+    if (!script.code)
+        return TEST_ERROR;
+    memset(script.code, 0, sizeof(SCRIPT_CODE));
+    script.code[0].opcode = OP_END;
+    script.code[0].level = 0;
+    script.code[0].rest = str_dup("");
+    script.code[0].length = 0;
+    script.lines = 1;
+
+    room.lpeople = list_create(false);
+    if (!room.lpeople) {
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    ch.in_room = &room;
+
+    mob.valid = true;
+    mob.act[0] = ACT_IS_NPC;
+    mob.pIndexData = &mob_index;
+    mob.in_room = &room;
+    mob.progs = new_prog_data();
+
+    mob_index.progs = new_prog_bank();
+    if (!mob.progs || !mob_index.progs) {
+        if (mob_index.progs)
+            free_prog_list(mob_index.progs);
+        if (mob.progs)
+            free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    if (!list_appendlink(room.lpeople, &mob)) {
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    mob_prg = new_trigger();
+    if (!mob_prg) {
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_ERROR;
+    }
+
+    mob_prg->trig_type = TRIG_GRALL;
+    mob_prg->numeric = true;
+    mob_prg->trig_number = 101;
+    mob_prg->vnum = script.vnum;
+    mob_prg->script = &script;
+    list_appendlink(mob_index.progs[trigger_slot], mob_prg);
+
+    ret = p_greet_trigger(&ch, PRG_MPROG);
+    if (ret != PRET_EXECUTED) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "p_greet_trigger execution returned %d, expected %d",
+                      ret, PRET_EXECUTED);
+        free_prog_list(mob_index.progs);
+        free_prog_data(mob.progs);
+        list_destroy(room.lpeople);
+        free_script_code(script.code, script.lines);
+        return TEST_FAILURE;
+    }
+
+    free_prog_list(mob_index.progs);
+    free_prog_data(mob.progs);
+    list_destroy(room.lpeople);
+    free_script_code(script.code, script.lines);
     return TEST_SUCCESS;
 }
 

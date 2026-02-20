@@ -38,6 +38,23 @@
   (movement target resolution and movement semantics by host type).
 - Validation remains green (`script_engine` focused suite).
 
+### Phase 1 kickoff note (2026-02-20)
+
+- Added trigger-context regression coverage for Phase 1 entry points:
+  - string trigger wildcard fallback + mixed-owner guard behavior
+  - number trigger wildcard fallback + mixed-owner guard behavior
+- Implemented in `src/tests/integration/script_engine_tests.c` and
+  `src/tests/data/integration/script_engine_tests.json`.
+- Validation target: `./sent -test:script_engine`.
+
+### Phase 1 tranche update (2026-02-20)
+
+- Added additional trigger-context regressions for:
+  - sight-trigger slot-mismatch guard (`test_number_sight_trigger`)
+  - `p_direction_trigger` wrapper dispatch execution path
+  - `p_greet_trigger` wrapper dispatch execution path
+- Extended focused `script_engine` suite to 18 tests, all passing.
+
 ---
 
 ## 1) Objectives

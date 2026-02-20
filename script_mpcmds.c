@@ -1801,14 +1801,12 @@ SCRIPT_CMD(do_mplink)
     id1 = id2 = 0;
     switch(arg->type) {
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &link_wnum) && link_wnum.pArea) {
-                vnum = link_wnum.vnum;
-                link_area = link_wnum.pArea;
-            }
-        } else if(is_number(arg->d.str))
-            vnum = atoi(arg->d.str);
-        else if(!str_cmp(arg->d.str,"delete") ||
+        if (!IS_NULLSTR(arg->d.str)
+        && parse_widevnum(arg->d.str, context_area, &link_wnum)
+        && link_wnum.vnum > 0) {
+            vnum = link_wnum.vnum;
+            link_area = link_wnum.pArea;
+        } else if(!str_cmp(arg->d.str,"delete") ||
             !str_cmp(arg->d.str,"remove") ||
             !str_cmp(arg->d.str,"unlink")) {
             vnum = 0;
@@ -2121,14 +2119,12 @@ SCRIPT_CMD(do_mpremove)
     switch(arg->type) {
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &item_wnum) && item_wnum.pArea) {
-                vnum = item_wnum.vnum;
-                item_area = item_wnum.pArea;
-            }
-        } else if(is_number(arg->d.str))
-            vnum = atoi(arg->d.str);
-        else if(!str_cmp(arg->d.str,"all"))
+        if (!IS_NULLSTR(arg->d.str)
+        && parse_widevnum(arg->d.str, context_area, &item_wnum)
+        && item_wnum.vnum > 0) {
+            vnum = item_wnum.vnum;
+            item_area = item_wnum.pArea;
+        } else if(!str_cmp(arg->d.str,"all"))
             fAll = true;
         else
             strncpy(name,arg->d.str,MIL-1);
@@ -2288,14 +2284,12 @@ SCRIPT_CMD(do_mptake)
     switch(arg->type) {
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
-        if (!IS_NULLSTR(arg->d.str) && strchr(arg->d.str, '#') != NULL) {
-            if (parse_widevnum(arg->d.str, context_area, &item_wnum) && item_wnum.pArea) {
-                vnum = item_wnum.vnum;
-                item_area = item_wnum.pArea;
-            }
-        } else if(is_number(arg->d.str))
-            vnum = atoi(arg->d.str);
-        else if(!str_cmp(arg->d.str,"all"))
+        if (!IS_NULLSTR(arg->d.str)
+        && parse_widevnum(arg->d.str, context_area, &item_wnum)
+        && item_wnum.vnum > 0) {
+            vnum = item_wnum.vnum;
+            item_area = item_wnum.pArea;
+        } else if(!str_cmp(arg->d.str,"all"))
             fAll = true;
         else
             strncpy(name,arg->d.str,MIL-1);
