@@ -3087,11 +3087,18 @@ void extract_church(CHURCH_DATA *church)
 {
     char buf[MAX_STRING_LENGTH];
     CHURCH_PLAYER_DATA *member;
+    CHURCH_PLAYER_DATA *iter;
 
     if (church == NULL)
     {
         log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Tried to extract null church.");
         return;
+    }
+
+    for (iter = church->people; iter != NULL; iter = iter->next)
+    {
+        if (iter->ch != NULL)
+            quest_runtime_remove_church_runs(iter->ch, church->uid);
     }
 
     // Remove all members

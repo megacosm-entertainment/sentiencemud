@@ -407,6 +407,7 @@ typedef struct  quest_objective_pool_entry_v2_data QUEST_OBJECTIVE_POOL_ENTRY_V2
 typedef struct  quest_reward_index_v2_data   QUEST_REWARD_INDEX_V2_DATA;
 typedef struct  quest_objective_state_v2_data QUEST_OBJECTIVE_STATE_V2_DATA;
 typedef struct  quest_target_binding_v2_data QUEST_TARGET_BINDING_V2_DATA;
+typedef struct  quest_history_data  QUEST_HISTORY_DATA;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
 typedef struct	quest_runtime_data	QUEST_RUNTIME_DATA;
@@ -1324,6 +1325,7 @@ struct game_settings_data
     int max_mission_allowance; // How many mission allowances can a player have?
     int inc_missions;          // How many missions will a player accrue when their mission allowance ticks over?
     int max_missions;          // How many missions can a player have running at the same time?
+    int mission_history_limit; // How many mission-class history entries to retain per character.
 
     /* Locker Settings */
     bool lockers_enabled;                  // Are lockers enabled?
@@ -1660,6 +1662,7 @@ struct church_command_type
 #define CHURCH_PERM_MEMBERS (V)         // Can manage members
 #define CHURCH_PERM_ADD (W)             // Can add members
 #define CHURCH_PERM_EDITLOG (X)         // Can edit log
+#define CHURCH_PERM_ACCEPT_QUESTS (Y)   // Can accept church-scoped quests
 
 // Church log category flags
 #define CHLOG_MEMBERS      (A)
@@ -4369,12 +4372,25 @@ struct trainer_data
 };
 
 /* Quest v2 foundational definition model */
-#define QUEST_CATEGORY_FULL             0
-#define QUEST_CATEGORY_MISSION          1
+#define QUEST_CLASS_NARRATIVE           0
+#define QUEST_CLASS_MISSION             1
 
-#define QUEST_MODE_NARRATIVE            0
-#define QUEST_MODE_TEMPLATE             1
-#define QUEST_MODE_HYBRID               2
+#define QUEST_LOG_CATEGORY_NONE         0
+#define QUEST_LOG_CATEGORY_REGIONAL     1
+#define QUEST_LOG_CATEGORY_CLASS        2
+#define QUEST_LOG_CATEGORY_STORY        3
+#define QUEST_LOG_CATEGORY_CHURCH       4
+#define QUEST_LOG_CATEGORY_DUNGEON      5
+#define QUEST_LOG_CATEGORY_CRAFTING     6
+#define QUEST_LOG_CATEGORY_EVENT        7
+#define QUEST_LOG_CATEGORY_OTHER        8
+
+#define QUEST_TYPE_MAIN_STORY           0
+#define QUEST_TYPE_SIDE_QUEST           1
+#define QUEST_TYPE_UNLOCK               2
+#define QUEST_TYPE_CLASS_QUEST          3
+#define QUEST_TYPE_EVENT                4
+#define QUEST_TYPE_OTHER                5
 
 #define QUEST_SEED_POLICY_AUTO          0
 #define QUEST_SEED_POLICY_FIXED         1
@@ -4503,9 +4519,11 @@ struct quest_index_v2_data
     char *name;
     char *description;
 
+    int quest_class;
+    int quest_type;
     int category;
-    int quest_mode;
     int target_scope;
+    long flags;
     int repeat_policy;
     int allowance_cost;
     int entry_stage_id;
@@ -4588,6 +4606,8 @@ struct quest_data
 #define QUEST_TARGET_SCOPE_GROUP      1
 #define QUEST_TARGET_SCOPE_CHURCH     2
 
+#define QUESTV2_FLAG_GROUP_SCOPE_SNAPSHOT   (A)
+
 #define QUEST_RUN_STATUS_ACTIVE        0
 #define QUEST_RUN_STATUS_COMPLETED     1
 #define QUEST_RUN_STATUS_FAILED        2
@@ -4630,6 +4650,29 @@ struct quest_runtime_data
     time_t expires_at;
     int expiry_countdown_minutes;
     long manual_trigger_area_uid;
+};
+
+
+struct quest_history_data
+{
+    QUEST_HISTORY_DATA *next;
+
+    long run_id;
+    long quest_index_v2_auid;
+    long quest_index_v2_vnum;
+
+    int quest_class;
+    int quest_type;
+    int category;
+    int target_scope;
+    int run_status;
+
+    time_t started_at;
+    time_t completed_at;
+    time_t failed_at;
+    time_t abandoned_at;
+
+    char *name;
 };
 
 #define QUEST_EXPIRY_NONE          0
@@ -5763,6 +5806,8 @@ struct	pc_data
     long		move_before;
 
     long		quests_completed;
+    long                missions_completed;
+    QUEST_HISTORY_DATA *quest_history;
     LOCATION		room_before_arena;
     STRING_DATA		*vis_to_people; /* vis to this list of names */
     STRING_DATA		*quiet_people; /* these people can tell w/ quiet */
@@ -9572,6 +9617,7 @@ QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *new_quest_objective_pool_entry_v2( void );
 QUEST_REWARD_INDEX_V2_DATA *new_quest_reward_index_v2( void );
 QUEST_OBJECTIVE_STATE_V2_DATA *new_quest_objective_state_v2( void );
 QUEST_TARGET_BINDING_V2_DATA *new_quest_target_binding_v2( void );
+QUEST_HISTORY_DATA *new_quest_history( void );
 QUEST_DATA *new_quest( void );
 QUEST_LIST *new_quest_list( void );
 QUEST_PART_DATA *new_quest_part(void);
@@ -9621,6 +9667,7 @@ void free_quest_objective_pool_entry_v2( QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *poo
 void free_quest_reward_index_v2( QUEST_REWARD_INDEX_V2_DATA *reward_index_v2 );
 void free_quest_objective_state_v2( QUEST_OBJECTIVE_STATE_V2_DATA *objective_state_v2 );
 void free_quest_target_binding_v2( QUEST_TARGET_BINDING_V2_DATA *target_binding_v2 );
+void free_quest_history( QUEST_HISTORY_DATA *history );
 void free_quest( QUEST_DATA *pQuest );
 void free_quest_list( QUEST_LIST *quest_list );
 void free_quest_part( QUEST_PART_DATA *pPart );
@@ -9668,7 +9715,9 @@ bool quest_runtime_manual_trigger_ready(CHAR_DATA *ch);
 bool quest_runtime_is_expired(CHAR_DATA *ch, time_t now);
 void quest_runtime_tick_expiration(CHAR_DATA *ch, time_t now);
 void quest_runtime_snapshot_group_runs_to_character(CHAR_DATA *ch, const unsigned long group_id[2]);
-void quest_runtime_snapshot_church_runs_to_character(CHAR_DATA *ch, long church_uid);
+void quest_runtime_handle_group_scope_loss(CHAR_DATA *ch, const unsigned long group_id[2]);
+void quest_runtime_sync_group_runs_for_character(CHAR_DATA *ch, bool allow_stage_advance);
+void quest_runtime_remove_church_runs(CHAR_DATA *ch, long church_uid);
 long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, long quest_index_vnum);
 QUEST_DATA *quest_runtime_get_run_by_id(CHAR_DATA *ch, long run_id);
 QUEST_DATA *quest_runtime_get_run_by_index(CHAR_DATA *ch, int index);

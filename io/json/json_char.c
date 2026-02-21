@@ -1335,6 +1335,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(basic, "true_sex", json_integer(ch->pcdata->true_sex));
         json_object_set_new(basic, "last_level", json_integer(ch->pcdata->last_level));
         json_object_set_new(basic, "quests_completed", json_integer(ch->pcdata->quests_completed));
+        json_object_set_new(basic, "missions_completed", json_integer(ch->pcdata->missions_completed));
         json_object_set_new(basic, "security", json_integer(ch->pcdata->security));
         json_object_set_new(basic, "staff_rank", json_integer(ch->pcdata->staff_rank));
         json_object_set_new(basic, "class_current", json_integer(ch->pcdata->class_current));
@@ -1359,6 +1360,35 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         // Last area string
         if (ch->pcdata->last_area && ch->pcdata->last_area[0] != '\0') {
             json_object_set_new(basic, "last_area", json_string(ch->pcdata->last_area));
+        }
+
+        if (ch->pcdata->quest_history)
+        {
+            json_t *history_array = json_array();
+            QUEST_HISTORY_DATA *history;
+
+            for (history = ch->pcdata->quest_history; history != NULL; history = history->next)
+            {
+                json_t *entry = json_object();
+
+                json_object_set_new(entry, "run_id", json_integer(history->run_id));
+                json_object_set_new(entry, "quest_index_v2_auid", json_integer(history->quest_index_v2_auid));
+                json_object_set_new(entry, "quest_index_v2_vnum", json_integer(history->quest_index_v2_vnum));
+                json_object_set_new(entry, "quest_class", json_integer(history->quest_class));
+                json_object_set_new(entry, "quest_type", json_integer(history->quest_type));
+                json_object_set_new(entry, "category", json_integer(history->category));
+                json_object_set_new(entry, "target_scope", json_integer(history->target_scope));
+                json_object_set_new(entry, "run_status", json_integer(history->run_status));
+                json_object_set_new(entry, "started_at", json_integer(history->started_at));
+                json_object_set_new(entry, "completed_at", json_integer(history->completed_at));
+                json_object_set_new(entry, "failed_at", json_integer(history->failed_at));
+                json_object_set_new(entry, "abandoned_at", json_integer(history->abandoned_at));
+                json_object_set_new(entry, "name", json_string_safe(history->name));
+
+                json_array_append_new(history_array, entry);
+            }
+
+            json_object_set_new(basic, "quest_history", history_array);
         }
 
         // AFK message
@@ -3217,8 +3247,76 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) ch->pcdata->last_level = json_integer_value(value);
         value = json_object_get(character, "quests_completed");
         if (value) ch->pcdata->quests_completed = json_integer_value(value);
+        value = json_object_get(character, "missions_completed");
+        if (value) ch->pcdata->missions_completed = json_integer_value(value);
         value = json_object_get(character, "security");
         if (value) ch->pcdata->security = json_integer_value(value);
+
+        {
+            json_t *history_array = json_object_get(character, "quest_history");
+            if (history_array && json_is_array(history_array))
+            {
+                size_t history_index;
+                json_t *history_elem;
+                QUEST_HISTORY_DATA *tail = NULL;
+
+                while (ch->pcdata->quest_history)
+                {
+                    QUEST_HISTORY_DATA *next = ch->pcdata->quest_history->next;
+                    free_quest_history(ch->pcdata->quest_history);
+                    ch->pcdata->quest_history = next;
+                }
+
+                json_array_foreach(history_array, history_index, history_elem)
+                {
+                    QUEST_HISTORY_DATA *history;
+
+                    if (!history_elem || !json_is_object(history_elem))
+                        continue;
+
+                    history = new_quest_history();
+
+                    value = json_object_get(history_elem, "run_id");
+                    if (value) history->run_id = json_integer_value(value);
+                    value = json_object_get(history_elem, "quest_index_v2_auid");
+                    if (value) history->quest_index_v2_auid = json_integer_value(value);
+                    value = json_object_get(history_elem, "quest_index_v2_vnum");
+                    if (value) history->quest_index_v2_vnum = json_integer_value(value);
+                    value = json_object_get(history_elem, "quest_class");
+                    if (value) history->quest_class = json_integer_value(value);
+                    value = json_object_get(history_elem, "quest_type");
+                    if (value) history->quest_type = json_integer_value(value);
+                    value = json_object_get(history_elem, "category");
+                    if (value) history->category = json_integer_value(value);
+                    value = json_object_get(history_elem, "target_scope");
+                    if (value) history->target_scope = json_integer_value(value);
+                    value = json_object_get(history_elem, "run_status");
+                    if (value) history->run_status = json_integer_value(value);
+                    value = json_object_get(history_elem, "started_at");
+                    if (value) history->started_at = (time_t)json_integer_value(value);
+                    value = json_object_get(history_elem, "completed_at");
+                    if (value) history->completed_at = (time_t)json_integer_value(value);
+                    value = json_object_get(history_elem, "failed_at");
+                    if (value) history->failed_at = (time_t)json_integer_value(value);
+                    value = json_object_get(history_elem, "abandoned_at");
+                    if (value) history->abandoned_at = (time_t)json_integer_value(value);
+
+                    str = json_string_value(json_object_get(history_elem, "name"));
+                    if (str)
+                    {
+                        free_string(history->name);
+                        history->name = str_dup(str);
+                    }
+
+                    if (!ch->pcdata->quest_history)
+                        ch->pcdata->quest_history = history;
+                    else
+                        tail->next = history;
+
+                    tail = history;
+                }
+            }
+        }
 
         // *** USER PREFERENCES ***
         value = json_object_get(character, "scroll_lines");
@@ -3611,7 +3709,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (run_obj && json_is_object(run_obj))
             quest = run_obj;
     }
-    if (!quest)
+    if (!quest && (!quest_runtime_obj || !json_is_object(quest_runtime_obj)))
         quest = json_object_get(character, "quest");
     if (quest && ch->pcdata) {
         // Allocate quest structure if needed
@@ -4166,16 +4264,28 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
     }
 
-    if (ch->quest && ch->quest->run_id <= 0) {
-        plogf(LOG_QUEST,
-              "Clearing legacy quest payload for %s (missing/invalid run_id)",
-              ch->name ? ch->name : "(unknown)");
-        free_quest(ch->quest);
-        ch->quest = NULL;
-        ch->countdown = 0;
-        ch->nextquest = 0;
-    } else if (ch->quest) {
-        quest_runtime_attach_active_quest(ch, ch->quest->quest_index_auid, ch->quest->quest_index_vnum);
+    if (ch->quest) {
+        bool has_legacy_index =
+            (ch->quest->quest_index_auid > 0 && ch->quest->quest_index_vnum > 0);
+        bool has_v2_index =
+            (ch->quest->quest_index_v2_auid > 0 && ch->quest->quest_index_v2_vnum > 0);
+        bool has_parts = (ch->quest->parts != NULL);
+        bool orphan_run =
+            (ch->quest->run_id > 0) && !has_legacy_index && !has_v2_index && !has_parts;
+
+        if (ch->quest->run_id <= 0 || orphan_run) {
+            plogf(LOG_QUEST,
+                  "Clearing legacy/orphan quest payload for %s (%s)",
+                  ch->name ? ch->name : "(unknown)",
+                  ch->quest->run_id <= 0 ? "missing/invalid run_id" : "no template linkage and no parts");
+            free_quest(ch->quest);
+            ch->quest = NULL;
+            ch->countdown = 0;
+            ch->nextquest = 0;
+            ch->quest_runtime.focused_run_id = 0;
+        } else {
+            quest_runtime_attach_active_quest(ch, ch->quest->quest_index_auid, ch->quest->quest_index_vnum);
+        }
     }
 
     // Read skill groups section

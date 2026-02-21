@@ -470,8 +470,11 @@ Keep legacy fields read-only during transition and stop writing them after migra
 - Implemented: group/church scope gating now validates actual membership (group/church) rather than hard-blocking non-character scopes.
 - Implemented: group scope owner identity now uses stable `group_data.id` (replacing leader-UID fallback).
 - Implemented: scoped objective propagation for non-character scopes so relevant progress events can fan out across members in the same scope.
-- Implemented: snapshot-to-character on group context loss (`group_remove_member` and `group_disband`) to preserve progress when groups are ephemeral.
-- Implemented: snapshot-to-character on church membership removal (`remove_member`) and fallback normalization of stale non-character scope runs during runtime attach.
+- Implemented: quest v2 definition flags (`flags`) with first policy flag `group_snapshot`, allowing per-quest control of group scope-loss behavior.
+- Implemented: group context loss handling (`group_remove_member` and `group_disband`) now routes through quest policy (snapshot-to-character or purge for strict group-only quests).
+- Implemented: church scope-loss behavior now purges church-scoped runs (member removal/extract/normalization), preserving strict church-only semantics.
+- Implemented: admin church deletion path (`church delete`) now saves deleted state then runs full extraction teardown, ensuring online members are detached and church-scoped runs are purged.
+- Implemented: church-scoped acceptance permission (`accept_quests`) and church quest metadata persistence (`mission_allowance_bonus`, `board_last_refresh`, `available_missions`).
 
 ## Scope Runtime Workplan (Consolidated)
 
@@ -479,13 +482,14 @@ Keep legacy fields read-only during transition and stop writing them after migra
 
 - Group scope ownership + matching based on `GROUP_DATA.id`.
 - Scope-aware owner resolution for scripts/runtime (character/group/church).
-- Group disband/leave snapshot behavior to character-scoped runs.
-- Church member-removal snapshot behavior to character-scoped runs.
+- Group disband/leave scope-loss behavior is policy-driven per quest (`group_snapshot` flag).
+- Church scope-loss behavior is strict purge for church-scoped runs.
 - Shared trigger dispatch path for qprogs and corrected enactor context wiring.
+- Quest v2 flag plumbing (data model, qedit, runtime check path, area JSON persistence).
 
 ### In Progress
 
-- Church lifecycle transition hooks mirroring group behavior (remaining edge paths: bulk church deletion/disband workflows).
+- Church lifecycle transition hooks (remaining edge paths: bulk church deletion/disband workflows and regression sweep).
 - Full validation pass for scoped propagation across kill/collect/travel/custom events.
 
 ### Planned Next
@@ -499,33 +503,49 @@ Keep legacy fields read-only during transition and stop writing them after migra
 - Auto-sync trigger points (first pass): on group member join/leave transitions, run focus changes, and objective progression events.
 - Safety guard: never perform automatic sync when either run is failed/abandoned/completed; only active runs participate.
 
-## Session Handoff (2026-02-21)
+## Audit + Refocus (2026-02-21)
 
-Session intent was corrected to **quest system + editor first**, with scripting deferred.
+This section supersedes older foundation-only notes below and reflects current shipped behavior.
 
-### Confirmed and stable
+### qedit / qpedit audit
 
-- Foundation direction remains locked to character-scoped quest runs.
-- Runtime cleanup and multi-run UX slices listed above remain the active baseline.
-- Object quest-offering linkage already has a viable data shape (`OBJ_INDEX_DATA->quests`) and can mirror mob quest linking.
+- Implemented in `qedit` (authoring):
+  - metadata (`name/summary/description`, `mode`, `category`, `scope`, `flags`, `repeat`, `allowance/cost`, `entry`, `enabled`, seed policy)
+  - script linkage (`addqprog`, `delqprog`, index vars)
+  - stage/objective/reward authoring with target/destination/token refs and objective pools
+  - tabbed display (`General/Flow/Rewards/Scripts/Notes`) with visibility rules for objective field relevance
+- Implemented in `qpedit` (script authoring):
+  - unified script editor (`General/Logs/Uses`) for `PRG_QPROG`
+  - compile path uses quest IFC (`IFC_Q`) and persists compile/runtime logs
+  - Uses tab now includes quest-bank references from `QUEST_INDEX_V2_DATA->progs`
+- Remaining editor gaps vs plan:
+  - no expanded quest policy flag set beyond initial `group_snapshot` (additional flags expected as runtime semantics evolve)
+  - no dedicated scope-permission authoring (group/church constraints beyond simple scope + flags)
+  - no explicit acceptance-requirements editor yet
+  - no graph validation tooling pass (unreachable stages, broken transitions, reward coverage)
 
-### Partially implemented (not finalized this session)
+### Scripting/runtime audit
 
-- `quest.c` has in-progress `quest list` / named `quest request` scaffolding for mob/object questgivers.
-- Current object questgiver path in `quest.c` is **not finalized** and should be treated as WIP until completed and rebuilt.
-- `generate_quest_from_object(...)` is referenced by new request flow and must be completed/validated before relying on object request behavior.
+- Implemented:
+  - qprog lifecycle dispatch now uses shared bank walker (`p_lifecycle_bank_trigger`)
+  - trigger-type resolution and matching are stable for quest lifecycle events
+  - numeric trigger phrases support lifecycle usage (`manual/request/grant` can act as percent chance when numeric)
+  - boot compile path for qprogs is corrected to `IFC_Q`
+  - actor/enactor context is threaded for command-driven lifecycle events (`focus/request/grant`)
+- Remaining runtime/scripting gaps:
+  - church edge lifecycle coverage beyond member removal (bulk deletion/disband workflows)
+  - cooperative auto-sync/catch-up not implemented yet (planned below)
 
-### Editor-first next step (resume plan)
+### Player-facing audit (`do_quest`)
 
-1. Add object editor quest linkage commands (`oedit addquest`, `oedit delquest`) mirroring `medit` behavior.
-2. Persist object quest links in `olc_save.c` object save/load paths.
-3. Switch `quest list/request` object offerings to use explicit object quest links only (no script-trigger heuristics).
-4. Rebuild and verify command flow end-to-end.
-
-### Scope guard for next session
-
-- Do not expand scripting trigger behavior in this slice.
-- Treat scripting integration as a follow-up phase after editor-backed quest offering flow is stable.
+- Implemented and actively used:
+  - `quest log`, `quest list`, `quest focus`, `quest info`, `quest time`, `quest commence`, `quest request`, `quest cancel`, `quest complete`, `quest grant`
+  - multi-run semantics, focused-run behavior, run selection by index/id/name, and scope display in output
+  - mission allowance gating integrated in request/time flow
+- Still missing relative to target UX:
+  - dedicated `quest history` command
+  - dedicated `quest details <run>` command separate from current `quest info`
+  - explicit player-facing sync command (`quest sync`) for manual recovery/debug
 
 ## Risks and Mitigations
 
@@ -540,14 +560,16 @@ Session intent was corrected to **quest system + editor first**, with scripting 
 
 ## Immediate Next Slice
 
-Implement Phase 0 in code first:
-
-1. Add new runtime containers on player
-2. Add mission allowance regen/update
-3. Add points-bank abstraction with questpoints migration mapping
-4. Load/save JSON for new blocks + legacy import path
-
-This enables parallel content authoring while autoquest retirement is underway.
+1. Church lifecycle completion + verification
+  - Finish remaining bulk church deletion/disband edge hooks and regression-check scope cleanup behavior.
+2. Cooperative sync baseline
+  - Implement automatic same-template catch-up for active group-scoped runs (never downgrade progress).
+  - Add `quest sync` as manual override/debug path.
+3. Editor safety + policy expansion runway
+  - Add `qedit` validation checks for stage graph integrity and objective/reward consistency.
+  - Keep quest policy extensions flag-based (additive `quest_v2.flags`) as new semantics are introduced.
+4. Player UX completion
+  - Add `quest history` and `quest details` to match planned log-centric UX without replacing current stable commands.
 
 ## Runtime + Authoring Checkpoint (2026-02-21)
 
@@ -563,13 +585,13 @@ This enables parallel content authoring while autoquest retirement is underway.
 
 ### Current boundaries
 
-- Foundation remains character-owned quest runs only.
-- Group/church scope behavior remains deferred and non-goal for this ship slice.
-- Generated-stage resolver and commence side effects are partially scaffolded but not finalized.
+- Character scope remains the baseline and most battle-tested path.
+- Group/church scope runtime is partially implemented (ownership, propagation, normalization, lifecycle hooks), with group scope-loss now policy-driven via quest flags and church scope-loss strict by default.
+- Generated-stage resolver and commence side effects are partially scaffolded and still require a focused completion slice.
 
 ### Next Slice (active)
 
-1. Add objective pool schema and editor commands for authoring candidate targets.
-2. Resolve deterministic selections at generation time and store chosen results on the run.
-3. Apply world side effects at stage commence only (spawn/mark/bind), including auto-commence stages.
-4. Keep this slice script-light: no broad scripting behavior expansion until authoring+runtime path is stable.
+1. Complete church lifecycle edge hooks and regression-check scoped normalization paths.
+2. Implement first-pass automatic group catch-up sync + `quest sync` manual fallback.
+3. Add `qedit` validation utilities (graph + objective/reward sanity).
+4. Finish player UX parity with `quest history` and `quest details`.

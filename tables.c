@@ -3690,6 +3690,7 @@ const struct game_setting_type game_settings_table[] = {
     { "max_mission_allowance", &game_settings.max_mission_allowance, SETTING_TYPE_INT, SETTING_CAT_MISSION,  "Maximum mission allowances a player can have",               true,  false, false },
     { "inc_missions",        &game_settings.inc_missions,         SETTING_TYPE_INT,    SETTING_CAT_MISSION,  "Number of missions a player accrues on allowance tick",      true,  false, false },
     { "max_missions",        &game_settings.max_missions,         SETTING_TYPE_INT,    SETTING_CAT_MISSION,  "Maximum missions a player can run simultaneously",           true,  false, false },
+    { "mission_history_limit", &game_settings.mission_history_limit, SETTING_TYPE_INT, SETTING_CAT_MISSION,  "Mission history entries to retain per player (0 = unlimited)", true, false, false },
 
     /* Locker Settings */
     { "lockers_enabled",     &game_settings.lockers_enabled,      SETTING_TYPE_BOOL,   SETTING_CAT_LOCKER,   "Are lockers enabled",                                        true,  false, false },
@@ -3914,7 +3915,14 @@ const struct flag_type church_permission_flags[] =
     { "add",            CHURCH_PERM_ADD, true, "Member can add people to the church." },
     { "members",       CHURCH_PERM_MEMBERS, true, "Member can manage members' ranks."},
     { "editlog",        CHURCH_PERM_EDITLOG, true, "Member can add entries to the church log, and edit their own." },
+    { "accept_quests",  CHURCH_PERM_ACCEPT_QUESTS, true, "Member can accept church-scoped quests." },
     { NULL,              0,                           false }
+};
+
+const struct flag_type quest_v2_flags[] =
+{
+    { "group_snapshot", QUESTV2_FLAG_GROUP_SCOPE_SNAPSHOT, true, "When group scope is lost, snapshot run to character instead of purging." },
+    { NULL, 0, false }
 };
 
 const struct flag_type rank_type_flags[] =

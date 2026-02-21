@@ -442,6 +442,11 @@ json_t *json_church_serialize(CHURCH_DATA *church)
     /* Coffer */
     json_object_set_new(root, "coffer_rent", json_integer((long)church->coffer_rent));
     json_object_set_new(root, "storage_permissions", json_integer(church->storage_permissions));
+
+    /* Quest runtime data */
+    json_object_set_new(root, "mission_allowance_bonus", json_integer(church->quest_data.mission_allowance_bonus));
+    json_object_set_new(root, "board_last_refresh", json_integer((long)church->quest_data.board_last_refresh));
+    json_object_set_new(root, "available_missions", json_integer(church->quest_data.available_missions));
     
     /* Ranks */
     json_object_set_new(root, "max_ranks", json_integer(church->max_ranks));
@@ -746,6 +751,19 @@ CHURCH_DATA *json_church_deserialize(json_t *root)
     value = json_object_get(root, "storage_permissions");
     if (value && json_is_integer(value))
         church->storage_permissions = json_integer_value(value);
+
+    /* Quest runtime data */
+    value = json_object_get(root, "mission_allowance_bonus");
+    if (value && json_is_integer(value))
+        church->quest_data.mission_allowance_bonus = json_integer_value(value);
+
+    value = json_object_get(root, "board_last_refresh");
+    if (value && json_is_integer(value))
+        church->quest_data.board_last_refresh = (time_t)json_integer_value(value);
+
+    value = json_object_get(root, "available_missions");
+    if (value && json_is_integer(value))
+        church->quest_data.available_missions = json_integer_value(value);
     
     /* Rank metadata */
     value = json_object_get(root, "max_ranks");

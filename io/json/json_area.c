@@ -994,9 +994,11 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
     json_object_set_new(json, "vnum", json_integer(quest_index_v2->vnum));
     json_object_set_new(json, "name", json_string_safe(quest_index_v2->name));
     json_object_set_new(json, "description", json_string_safe(quest_index_v2->description));
+    json_object_set_new(json, "quest_class", json_integer(quest_index_v2->quest_class));
+    json_object_set_new(json, "quest_type", json_integer(quest_index_v2->quest_type));
     json_object_set_new(json, "category", json_integer(quest_index_v2->category));
-    json_object_set_new(json, "quest_mode", json_integer(quest_index_v2->quest_mode));
     json_object_set_new(json, "target_scope", json_integer(quest_index_v2->target_scope));
+    json_object_set_new(json, "flags", json_integer(quest_index_v2->flags));
     json_object_set_new(json, "repeat_policy", json_integer(quest_index_v2->repeat_policy));
     json_object_set_new(json, "allowance_cost", json_integer(quest_index_v2->allowance_cost));
     json_object_set_new(json, "entry_stage_id", json_integer(quest_index_v2->entry_stage_id));
@@ -1155,9 +1157,11 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
     free_string(quest_index_v2->description);
     quest_index_v2->description = str_dup(json_get_string_default(json, "description", ""));
 
+    quest_index_v2->quest_class = json_get_int_default(json, "quest_class", quest_index_v2->quest_class);
+    quest_index_v2->quest_type = json_get_int_default(json, "quest_type", quest_index_v2->quest_type);
     quest_index_v2->category = json_get_int_default(json, "category", quest_index_v2->category);
-    quest_index_v2->quest_mode = json_get_int_default(json, "quest_mode", quest_index_v2->quest_mode);
     quest_index_v2->target_scope = json_get_int_default(json, "target_scope", quest_index_v2->target_scope);
+    quest_index_v2->flags = json_get_int_default(json, "flags", quest_index_v2->flags);
     quest_index_v2->repeat_policy = json_get_int_default(json, "repeat_policy", quest_index_v2->repeat_policy);
     quest_index_v2->allowance_cost = json_get_int_default(json, "allowance_cost", quest_index_v2->allowance_cost);
     quest_index_v2->entry_stage_id = json_get_int_default(json, "entry_stage_id", quest_index_v2->entry_stage_id);

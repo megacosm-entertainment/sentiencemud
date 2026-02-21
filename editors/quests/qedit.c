@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "../../merc.h"
+#include "../../tables.h"
 #include "../../mxp_links.h"
 #include "../../olc.h"
 #include "../../recycle.h"
@@ -28,9 +29,12 @@ static bool qedit_cmd_show(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_name(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_summary(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_description(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_class(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_mode(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_type(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_category(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_scope(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_flags(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_repeat(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_allowance(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_cost(CHAR_DATA *ch, char *argument);
@@ -55,9 +59,12 @@ static const struct olc_cmd_type qedit_table[] =
     { "name",        qedit_cmd_name     },
     { "summary",     qedit_cmd_summary  },
     { "description", qedit_cmd_description },
+    { "class",       qedit_cmd_class    },
     { "mode",        qedit_cmd_mode     },
+    { "type",        qedit_cmd_type     },
     { "category",    qedit_cmd_category },
     { "scope",       qedit_cmd_scope    },
+    { "flags",       qedit_cmd_flags    },
     { "repeat",      qedit_cmd_repeat   },
     { "allowance",   qedit_cmd_allowance },
     { "cost",        qedit_cmd_cost     },
@@ -100,22 +107,41 @@ static const OLC_EDITOR_DEF qedit_def = {
     .audit_changes = true,
 };
 
-static const char *qedit_mode_name(int mode)
+static const char *qedit_class_name(int quest_class)
 {
-    switch (mode) {
-    case QUEST_MODE_NARRATIVE: return "narrative";
-    case QUEST_MODE_TEMPLATE:  return "template";
-    case QUEST_MODE_HYBRID:    return "hybrid";
+    switch (quest_class) {
+    case QUEST_CLASS_NARRATIVE: return "narrative";
+    case QUEST_CLASS_MISSION:   return "mission";
     default:                   return "unknown";
+    }
+}
+
+static const char *qedit_type_name(int quest_type)
+{
+    switch (quest_type) {
+    case QUEST_TYPE_MAIN_STORY:  return "main";
+    case QUEST_TYPE_SIDE_QUEST:  return "side";
+    case QUEST_TYPE_UNLOCK:      return "unlock";
+    case QUEST_TYPE_CLASS_QUEST: return "class";
+    case QUEST_TYPE_EVENT:       return "event";
+    case QUEST_TYPE_OTHER:       return "other";
+    default:                     return "unknown";
     }
 }
 
 static const char *qedit_category_name(int category)
 {
     switch (category) {
-    case QUEST_CATEGORY_FULL:    return "full";
-    case QUEST_CATEGORY_MISSION: return "mission";
-    default:                     return "unknown";
+    case QUEST_LOG_CATEGORY_NONE:     return "none";
+    case QUEST_LOG_CATEGORY_REGIONAL: return "regional";
+    case QUEST_LOG_CATEGORY_CLASS:    return "class";
+    case QUEST_LOG_CATEGORY_STORY:    return "story";
+    case QUEST_LOG_CATEGORY_CHURCH:   return "church";
+    case QUEST_LOG_CATEGORY_DUNGEON:  return "dungeon";
+    case QUEST_LOG_CATEGORY_CRAFTING: return "crafting";
+    case QUEST_LOG_CATEGORY_EVENT:    return "event";
+    case QUEST_LOG_CATEGORY_OTHER:    return "other";
+    default:                          return "unknown";
     }
 }
 
@@ -1026,9 +1052,12 @@ static bool qedit_cmd_show(CHAR_DATA *ch, char *argument)
 static bool qedit_cmd_name(CHAR_DATA *ch, char *argument)        { return qedit_exec_session_command(ch, "name", argument); }
 static bool qedit_cmd_summary(CHAR_DATA *ch, char *argument)     { return qedit_exec_session_command(ch, "summary", argument); }
 static bool qedit_cmd_description(CHAR_DATA *ch, char *argument) { return qedit_exec_session_command(ch, "description", argument); }
+static bool qedit_cmd_class(CHAR_DATA *ch, char *argument)       { return qedit_exec_session_command(ch, "class", argument); }
 static bool qedit_cmd_mode(CHAR_DATA *ch, char *argument)        { return qedit_exec_session_command(ch, "mode", argument); }
+static bool qedit_cmd_type(CHAR_DATA *ch, char *argument)        { return qedit_exec_session_command(ch, "type", argument); }
 static bool qedit_cmd_category(CHAR_DATA *ch, char *argument)    { return qedit_exec_session_command(ch, "category", argument); }
 static bool qedit_cmd_scope(CHAR_DATA *ch, char *argument)       { return qedit_exec_session_command(ch, "scope", argument); }
+static bool qedit_cmd_flags(CHAR_DATA *ch, char *argument)       { return qedit_exec_session_command(ch, "flags", argument); }
 static bool qedit_cmd_repeat(CHAR_DATA *ch, char *argument)      { return qedit_exec_session_command(ch, "repeat", argument); }
 static bool qedit_cmd_allowance(CHAR_DATA *ch, char *argument)   { return qedit_exec_session_command(ch, "allowance", argument); }
 static bool qedit_cmd_cost(CHAR_DATA *ch, char *argument)        { return qedit_exec_session_command(ch, "cost", argument); }
@@ -1076,10 +1105,14 @@ static void qedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     add_buf(ctx->buffer, formatf("{YSummary:{x %s\n\r", quest_index_v2->name));
     add_buf(ctx->buffer, formatf("{YDescription:{x %s\n\r",
         IS_NULLSTR(quest_index_v2->description) ? "" : quest_index_v2->description));
-    add_buf(ctx->buffer, formatf("{YMode:{x %s  {YCategory:{x %s  {YScope:{x %s\n\r",
-        qedit_mode_name(quest_index_v2->quest_mode),
-        qedit_category_name(quest_index_v2->category),
+    add_buf(ctx->buffer, formatf("{YClass:{x %s  {YType:{x %s  {YScope:{x %s\n\r",
+        qedit_class_name(quest_index_v2->quest_class),
+        qedit_type_name(quest_index_v2->quest_type),
         qedit_scope_name(quest_index_v2->target_scope)));
+    add_buf(ctx->buffer, formatf("{YCategory:{x %s\n\r",
+        qedit_category_name(quest_index_v2->category)));
+    add_buf(ctx->buffer, formatf("{YFlags:{x %s\n\r",
+        flag_string(quest_v2_flags, quest_index_v2->flags)));
     add_buf(ctx->buffer, formatf("{YRepeat:{x %s  {YCost:{x %d  {YEntry:{x %d\n\r",
         qedit_repeat_name(quest_index_v2->repeat_policy),
         quest_index_v2->allowance_cost,
@@ -1452,9 +1485,11 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  qedit <ref> tab <name|number>\n\r", ch);
         send_to_char("  qedit <ref> summary <text>\n\r", ch);
         send_to_char("  qedit <ref> description [none]  (opens string editor)\n\r", ch);
-        send_to_char("  qedit <ref> mode <narrative|template|hybrid>\n\r", ch);
-        send_to_char("  qedit <ref> category <full|mission>\n\r", ch);
+        send_to_char("  qedit <ref> class <narrative|mission>\n\r", ch);
+        send_to_char("  qedit <ref> type <main|side|unlock|class|event|other>\n\r", ch);
+        send_to_char("  qedit <ref> category <none|regional|class|story|church|dungeon|crafting|event|other>\n\r", ch);
         send_to_char("  qedit <ref> scope <character|group|church>\n\r", ch);
+        send_to_char("  qedit <ref> flags <flag>   (currently: group_snapshot)\n\r", ch);
         send_to_char("  qedit <ref> repeat <once|repeatable>\n\r", ch);
         send_to_char("  qedit <ref> allowance <cost>\n\r", ch);
         send_to_char("  qedit <ref> cost <amount>\n\r", ch);
@@ -1683,40 +1718,79 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!str_prefix(arg2, "mode")) {
+    if (!str_prefix(arg2, "class") || !str_prefix(arg2, "mode")) {
         if (IS_NULLSTR(arg3)) {
-            send_to_char("QEdit: mode requires narrative, template, or hybrid.\n\r", ch);
+            send_to_char("QEdit: class requires narrative or mission.\n\r", ch);
             return;
         }
 
         if (!str_prefix(arg3, "narrative"))
-            quest_index_v2->quest_mode = QUEST_MODE_NARRATIVE;
-        else if (!str_prefix(arg3, "template"))
-            quest_index_v2->quest_mode = QUEST_MODE_TEMPLATE;
-        else if (!str_prefix(arg3, "hybrid"))
-            quest_index_v2->quest_mode = QUEST_MODE_HYBRID;
+            quest_index_v2->quest_class = QUEST_CLASS_NARRATIVE;
+        else if (!str_prefix(arg3, "mission"))
+            quest_index_v2->quest_class = QUEST_CLASS_MISSION;
         else {
-            send_to_char("QEdit: unknown mode.\n\r", ch);
+            send_to_char("QEdit: unknown class.\n\r", ch);
             return;
         }
-        printf_to_char(ch, "QEdit: mode set to %s.\n\r", qedit_mode_name(quest_index_v2->quest_mode));
+        printf_to_char(ch, "QEdit: class set to %s.\n\r", qedit_class_name(quest_index_v2->quest_class));
+        return;
+    }
+
+    if (!str_prefix(arg2, "type")) {
+        if (IS_NULLSTR(arg3)) {
+            send_to_char("QEdit: type requires main, side, unlock, class, event, or other.\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg3, "main"))
+            quest_index_v2->quest_type = QUEST_TYPE_MAIN_STORY;
+        else if (!str_prefix(arg3, "side"))
+            quest_index_v2->quest_type = QUEST_TYPE_SIDE_QUEST;
+        else if (!str_prefix(arg3, "unlock"))
+            quest_index_v2->quest_type = QUEST_TYPE_UNLOCK;
+        else if (!str_prefix(arg3, "class"))
+            quest_index_v2->quest_type = QUEST_TYPE_CLASS_QUEST;
+        else if (!str_prefix(arg3, "event"))
+            quest_index_v2->quest_type = QUEST_TYPE_EVENT;
+        else if (!str_prefix(arg3, "other"))
+            quest_index_v2->quest_type = QUEST_TYPE_OTHER;
+        else {
+            send_to_char("QEdit: unknown type.\n\r", ch);
+            return;
+        }
+        printf_to_char(ch, "QEdit: type set to %s.\n\r", qedit_type_name(quest_index_v2->quest_type));
         return;
     }
 
     if (!str_prefix(arg2, "category")) {
         if (IS_NULLSTR(arg3)) {
-            send_to_char("QEdit: category requires full or mission.\n\r", ch);
+            send_to_char("QEdit: category requires none, regional, class, story, church, dungeon, crafting, event, or other.\n\r", ch);
             return;
         }
 
-        if (!str_prefix(arg3, "full"))
-            quest_index_v2->category = QUEST_CATEGORY_FULL;
-        else if (!str_prefix(arg3, "mission"))
-            quest_index_v2->category = QUEST_CATEGORY_MISSION;
+        if (!str_prefix(arg3, "none"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_NONE;
+        else if (!str_prefix(arg3, "regional"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_REGIONAL;
+        else if (!str_prefix(arg3, "class"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_CLASS;
+        else if (!str_prefix(arg3, "story") || !str_prefix(arg3, "main"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_STORY;
+        else if (!str_prefix(arg3, "church"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_CHURCH;
+        else if (!str_prefix(arg3, "dungeon"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_DUNGEON;
+        else if (!str_prefix(arg3, "crafting"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_CRAFTING;
+        else if (!str_prefix(arg3, "event"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_EVENT;
+        else if (!str_prefix(arg3, "other"))
+            quest_index_v2->category = QUEST_LOG_CATEGORY_OTHER;
         else {
             send_to_char("QEdit: unknown category.\n\r", ch);
             return;
         }
+
         printf_to_char(ch, "QEdit: category set to %s.\n\r", qedit_category_name(quest_index_v2->category));
         return;
     }
@@ -1738,6 +1812,27 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             return;
         }
         printf_to_char(ch, "QEdit: scope set to %s.\n\r", qedit_scope_name(quest_index_v2->target_scope));
+        return;
+    }
+
+    if (!str_prefix(arg2, "flags")) {
+        long value;
+
+        if (IS_NULLSTR(arg3)) {
+            send_to_char("QEdit: flags requires a flag name.\n\r", ch);
+            send_to_char("Try '? quest_v2_flags'.\n\r", ch);
+            return;
+        }
+
+        value = flag_value(quest_v2_flags, arg3);
+        if (value == NO_FLAG) {
+            send_to_char("QEdit: unknown quest flag. Try '? quest_v2_flags'.\n\r", ch);
+            return;
+        }
+
+        TOGGLE_BIT(quest_index_v2->flags, value);
+        printf_to_char(ch, "QEdit: flags now %s.\n\r",
+            flag_string(quest_v2_flags, quest_index_v2->flags));
         return;
     }
 

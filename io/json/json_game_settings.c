@@ -543,6 +543,7 @@ static void init_game_settings_defaults(void)
     game_settings.max_mission_allowance = 0;
     game_settings.inc_missions = 0;
     game_settings.max_missions = 0;
+    game_settings.mission_history_limit = 20;
 
     /* Locker Settings */
     game_settings.lockers_enabled = false;

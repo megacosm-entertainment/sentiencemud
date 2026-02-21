@@ -2750,6 +2750,10 @@ bool group_add_member(GROUP_DATA *group, CHAR_DATA *ch)
         group->leader = ch;
 
     group_sync_legacy_state(group);
+
+    if (!IS_NPC(ch))
+        quest_runtime_sync_group_runs_for_character(ch, true);
+
     return true;
 }
 
@@ -2767,7 +2771,7 @@ void group_disband(GROUP_DATA *group)
         while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
             if (IS_VALID(member) && member->group == group) {
                 if (!IS_NPC(member))
-                    quest_runtime_snapshot_group_runs_to_character(member, group->id);
+                    quest_runtime_handle_group_scope_loss(member, group->id);
                 member->group = NULL;
                 member->leader = NULL;
                 member->num_grouped = 0;
@@ -2804,7 +2808,7 @@ void group_remove_member(CHAR_DATA *ch, bool disband_if_empty)
     was_player = !IS_NPC(ch);
 
     if (was_player)
-        quest_runtime_snapshot_group_runs_to_character(ch, group->id);
+        quest_runtime_handle_group_scope_loss(ch, group->id);
 
     if (group->members && list_hasdata(group->members, ch))
         list_remlink(group->members, ch, false);
@@ -2850,6 +2854,9 @@ void group_remove_member(CHAR_DATA *ch, bool disband_if_empty)
     }
 
     group_sync_legacy_state(group);
+
+    if (IS_VALID(group->leader) && !IS_NPC(group->leader))
+        quest_runtime_sync_group_runs_for_character(group->leader, true);
 }
 
 

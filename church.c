@@ -853,7 +853,7 @@ void remove_member(CHURCH_PLAYER_DATA * member)
 
     if (member->ch != NULL)
     {
-    quest_runtime_snapshot_church_runs_to_character(member->ch, member->church ? member->church->uid : 0);
+    quest_runtime_remove_church_runs(member->ch, member->church ? member->church->uid : 0);
     member->ch->church = NULL;
     free_string(member->ch->church_name);
 
@@ -1500,6 +1500,9 @@ if (list_size(list_churches) >= MAX_CHURCHES) {
 void do_chdelete(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
+    char buf[MAX_STRING_LENGTH];
+    char church_name[MAX_STRING_LENGTH];
+    long church_uid = 0;
     int counter = 0;
 
     argument = one_argument(argument, arg);
@@ -1538,36 +1541,18 @@ if (church == NULL) {
     return;
 }
 
-        // Mark the church as deleted instead of completely removing it
+        church_uid = church->uid;
+        snprintf(church_name, sizeof(church_name), "%s", church->name ? church->name : "(unknown)");
+
         church->deleted = true;
-        
-        // Save the church to preserve it with the deleted flag
         save_church(church);
-        
-        // Now remove from active lists
-        list_remlink(list_churches, church, false);
-        
-// Mark the church as deleted instead of completely removing it
-church->deleted = true;
 
-// Save the church to preserve it with the deleted flag
-save_church(church);
-
-// Now remove from active lists
-list_remlink(list_churches, church, false);
-
-send_to_char("Church marked as deleted.\n\r", ch);
-
-char buf[MAX_STRING_LENGTH];
-sprintf(buf, "Church %s (UID %ld) has been deleted by %s.",
-        church->name, church->uid, ch->name);
-log_string(buf);
-return;
+        extract_church(church);
 
         send_to_char("Church marked as deleted.\n\r", ch);
-        
-        sprintf(buf, "Church %s (UID %ld) has been deleted by %s.",
-                church->name, church->uid, ch->name);
+
+        snprintf(buf, sizeof(buf), "Church %.128s (UID %ld) has been deleted by %.128s.",
+             church_name, church_uid, ch->name ? ch->name : "(unknown)");
         log_string(buf);
         return;
     }
@@ -6472,7 +6457,8 @@ void convert_church_ranks(CHURCH_DATA *church)
     church->num_ranks = 0;
 
     // Assign permissions to match the new command table
-    long perm_member  = CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE;
+    long perm_member  = CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE |
+        CHURCH_PERM_ACCEPT_QUESTS;
     long perm_officer = perm_member | CHURCH_PERM_WITHDRAW | CHURCH_PERM_BALANCE | CHURCH_PERM_MOTD | CHURCH_PERM_RULES | CHURCH_PERM_STORAGE | CHURCH_PERM_VIEWLOG;
     long perm_leader  = ~0; // All permissions
 
@@ -7718,13 +7704,15 @@ void initialize_church_ranks(CHURCH_DATA *church)
         CHURCH_PERM_WITHDRAW | CHURCH_PERM_BALANCE | CHURCH_PERM_MOTD |
         CHURCH_PERM_RULES | CHURCH_PERM_STORAGE | CHURCH_PERM_VIEWLOG |
         CHURCH_PERM_MANAGE | CHURCH_PERM_MEMBERS | CHURCH_PERM_RANKS |
+        CHURCH_PERM_ACCEPT_QUESTS |
         CHURCH_PERM_PERMS | CHURCH_PERM_FINANCES,
         RANK_TYPE_OFFICER);
 
     // Member: basic permissions
     CHURCH_RANK_DATA *member_rank = add_church_rank(
         church, "Member", "Member", "Member", "Member",
-        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE,
+        CHURCH_PERM_GOHALL | CHURCH_PERM_TALK | CHURCH_PERM_TREASURE |
+        CHURCH_PERM_ACCEPT_QUESTS,
         RANK_TYPE_MEMBER);
 
     // Set as default rank for new members

@@ -87,6 +87,7 @@ QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *quest_objective_pool_entry_v2_free;
 QUEST_REWARD_INDEX_V2_DATA *quest_reward_index_v2_free;
 QUEST_OBJECTIVE_STATE_V2_DATA *quest_objective_state_v2_free;
 QUEST_TARGET_BINDING_V2_DATA *quest_target_binding_v2_free;
+QUEST_HISTORY_DATA *quest_history_free;
 QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
@@ -1052,6 +1053,8 @@ PC_DATA *new_pcdata(void)
     pcdata->commands = NULL;
     pcdata->extra_commands = NULL;
     pcdata->quests_completed = 0;
+    pcdata->missions_completed = 0;
+    pcdata->quest_history = NULL;
     location_clear(&pcdata->room_before_arena);
     //pcdata->quests = NULL;
     pcdata->buffer = new_buf();
@@ -1105,6 +1108,8 @@ void free_pcdata(PC_DATA *pcdata)
     IGNORE_DATA *ignore_next;
     STRING_DATA *string;
     STRING_DATA *string_next;
+    QUEST_HISTORY_DATA *history;
+    QUEST_HISTORY_DATA *next_history;
 
     if (!IS_VALID(pcdata))
     return;
@@ -1144,6 +1149,13 @@ void free_pcdata(PC_DATA *pcdata)
     string_next = string->next;
     free_string_data( string );
     }
+
+    for (history = pcdata->quest_history; history != NULL; history = next_history)
+    {
+        next_history = history->next;
+        free_quest_history(history);
+    }
+    pcdata->quest_history = NULL;
 
     string_vector_freeall(pcdata->script_prompts);
     pcdata->script_prompts = NULL;
@@ -2953,9 +2965,11 @@ QUEST_INDEX_V2_DATA *new_quest_index_v2(void)
     quest_index_v2->vnum = 0;
     quest_index_v2->name = str_dup("unnamed quest");
     quest_index_v2->description = str_dup("");
-    quest_index_v2->category = QUEST_CATEGORY_FULL;
-    quest_index_v2->quest_mode = QUEST_MODE_NARRATIVE;
+    quest_index_v2->quest_class = QUEST_CLASS_NARRATIVE;
+    quest_index_v2->quest_type = QUEST_TYPE_SIDE_QUEST;
+    quest_index_v2->category = QUEST_LOG_CATEGORY_NONE;
     quest_index_v2->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+    quest_index_v2->flags = QUESTV2_FLAG_GROUP_SCOPE_SNAPSHOT;
     quest_index_v2->repeat_policy = QUEST_REPEAT_ONCE;
     quest_index_v2->allowance_cost = 1;
     quest_index_v2->entry_stage_id = 1;
@@ -3077,6 +3091,48 @@ void free_quest_target_binding_v2(QUEST_TARGET_BINDING_V2_DATA *binding)
     free_string(binding->name);
     binding->next = quest_target_binding_v2_free;
     quest_target_binding_v2_free = binding;
+}
+
+
+QUEST_HISTORY_DATA *new_quest_history(void)
+{
+    QUEST_HISTORY_DATA *history;
+
+    if (!quest_history_free)
+        history = alloc_perm(sizeof(*history));
+    else
+    {
+        history = quest_history_free;
+        quest_history_free = quest_history_free->next;
+    }
+
+    history->next = NULL;
+    history->run_id = 0;
+    history->quest_index_v2_auid = 0;
+    history->quest_index_v2_vnum = 0;
+    history->quest_class = QUEST_CLASS_NARRATIVE;
+    history->quest_type = QUEST_TYPE_OTHER;
+    history->category = QUEST_LOG_CATEGORY_NONE;
+    history->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+    history->run_status = QUEST_RUN_STATUS_COMPLETED;
+    history->started_at = 0;
+    history->completed_at = 0;
+    history->failed_at = 0;
+    history->abandoned_at = 0;
+    history->name = str_dup("");
+
+    return history;
+}
+
+
+void free_quest_history(QUEST_HISTORY_DATA *history)
+{
+    if (!history)
+        return;
+
+    free_string(history->name);
+    history->next = quest_history_free;
+    quest_history_free = history;
 }
 
 

@@ -79,6 +79,11 @@ static WNUM quest_runtime_get_target_binding(QUEST_DATA *run, const char *name);
 static bool quest_runtime_set_target_binding(QUEST_DATA *run, const char *name, WNUM target_wnum);
 static bool quest_runtime_scope_owner_online(QUEST_DATA *run);
 static void quest_runtime_propagate_scoped_objective_event(CHAR_DATA *actor, QUEST_DATA *source_run, int objective_type, WNUM target_wnum, int delta);
+static int quest_runtime_stage_rank(QUEST_INDEX_V2_DATA *quest_index_v2, int stage_id);
+static bool quest_runtime_merge_stage_progress(QUEST_DATA *target_run, QUEST_DATA *source_run);
+static bool quest_runtime_sync_run_from_reference(QUEST_DATA *target_run, QUEST_DATA *reference_run, bool allow_stage_advance);
+static int quest_runtime_sync_group_cluster(CHAR_DATA *actor, QUEST_DATA *anchor_run, bool allow_stage_advance);
+static int quest_runtime_objective_required_count(QUEST_OBJECTIVE_INDEX_V2_DATA *objective);
 static void quest_runtime_unbind_strict_targets(QUEST_DATA *run);
 static bool quest_runtime_is_mob_strictly_bound(CHAR_DATA *mob, QUEST_DATA *exclude_run, int exclude_objective_id);
 static bool quest_runtime_objective_target_matches(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective, WNUM target_wnum);
@@ -89,9 +94,12 @@ static void quest_runtime_fire_objective_lifecycle_trigger(QUEST_DATA *run, int 
 static void quest_runtime_fire_quest_lifecycle_trigger(QUEST_DATA *run, int trig_type, const char *phrase);
 static void quest_runtime_fire_quest_lifecycle_trigger_actor(QUEST_DATA *run, int trig_type, const char *phrase, CHAR_DATA *enactor);
 static void quest_runtime_mark_run_failed(QUEST_DATA *run, int failed_status, const char *reason_phrase);
+static void quest_runtime_record_terminal_history(QUEST_DATA *run);
 static void quest_runtime_fire_stage_script(QUEST_DATA *run, const char *script_name);
+static void quest_runtime_reset_expiration(CHAR_DATA *ch);
 static WNUM quest_runtime_resolve_objective_target_reference(QUEST_DATA *run, QUEST_INDEX_V2_DATA *quest_index_v2,
     QUEST_STAGE_INDEX_V2_DATA *stage, QUEST_OBJECTIVE_INDEX_V2_DATA *objective);
+static const char *quest_run_display_name(QUEST_DATA *run);
 
 #define QUEST_LIST_MAX_ENTRIES 128
 
@@ -333,6 +341,312 @@ static const char *quest_target_scope_name(int scope)
     }
 }
 
+static const char *quest_class_name(int quest_class)
+{
+    switch (quest_class)
+    {
+    case QUEST_CLASS_NARRATIVE: return "narrative";
+    case QUEST_CLASS_MISSION: return "mission";
+    default: return "unknown";
+    }
+}
+
+static const char *quest_type_name(int quest_type)
+{
+    switch (quest_type)
+    {
+    case QUEST_TYPE_MAIN_STORY: return "main";
+    case QUEST_TYPE_SIDE_QUEST: return "side";
+    case QUEST_TYPE_UNLOCK: return "unlock";
+    case QUEST_TYPE_CLASS_QUEST: return "class";
+    case QUEST_TYPE_EVENT: return "event";
+    case QUEST_TYPE_OTHER: return "other";
+    default: return "unknown";
+    }
+}
+
+static const char *quest_category_name(int category)
+{
+    switch (category)
+    {
+    case QUEST_LOG_CATEGORY_NONE: return "none";
+    case QUEST_LOG_CATEGORY_REGIONAL: return "regional";
+    case QUEST_LOG_CATEGORY_CLASS: return "class";
+    case QUEST_LOG_CATEGORY_STORY: return "story";
+    case QUEST_LOG_CATEGORY_CHURCH: return "church";
+    case QUEST_LOG_CATEGORY_DUNGEON: return "dungeon";
+    case QUEST_LOG_CATEGORY_CRAFTING: return "crafting";
+    case QUEST_LOG_CATEGORY_EVENT: return "event";
+    case QUEST_LOG_CATEGORY_OTHER: return "other";
+    default: return "unknown";
+    }
+}
+
+static const char *quest_run_status_name(int run_status)
+{
+    switch (run_status)
+    {
+    case QUEST_RUN_STATUS_ACTIVE: return "active";
+    case QUEST_RUN_STATUS_COMPLETED: return "completed";
+    case QUEST_RUN_STATUS_FAILED: return "failed";
+    case QUEST_RUN_STATUS_ABANDONED: return "abandoned";
+    default: return "unknown";
+    }
+}
+
+static bool quest_parse_history_status(const char *name, int *status)
+{
+    if (IS_NULLSTR(name) || !status)
+        return false;
+
+    if (!str_prefix(name, "all")) {
+        *status = -1;
+        return true;
+    }
+
+    if (!str_prefix(name, "completed") || !str_prefix(name, "complete")) {
+        *status = QUEST_RUN_STATUS_COMPLETED;
+        return true;
+    }
+
+    if (!str_prefix(name, "failed") || !str_prefix(name, "fail")) {
+        *status = QUEST_RUN_STATUS_FAILED;
+        return true;
+    }
+
+    if (!str_prefix(name, "abandoned") || !str_prefix(name, "abandon") || !str_prefix(name, "cancelled")) {
+        *status = QUEST_RUN_STATUS_ABANDONED;
+        return true;
+    }
+
+    return false;
+}
+
+static bool quest_parse_history_category(const char *name, int *category)
+{
+    if (IS_NULLSTR(name) || !category)
+        return false;
+
+    if (is_number((char *)name)) {
+        int value = atoi(name);
+        if (value >= QUEST_LOG_CATEGORY_NONE && value <= QUEST_LOG_CATEGORY_OTHER) {
+            *category = value;
+            return true;
+        }
+        return false;
+    }
+
+    if (!str_prefix(name, "none")) { *category = QUEST_LOG_CATEGORY_NONE; return true; }
+    if (!str_prefix(name, "regional")) { *category = QUEST_LOG_CATEGORY_REGIONAL; return true; }
+    if (!str_prefix(name, "class")) { *category = QUEST_LOG_CATEGORY_CLASS; return true; }
+    if (!str_prefix(name, "story")) { *category = QUEST_LOG_CATEGORY_STORY; return true; }
+    if (!str_prefix(name, "church")) { *category = QUEST_LOG_CATEGORY_CHURCH; return true; }
+    if (!str_prefix(name, "dungeon")) { *category = QUEST_LOG_CATEGORY_DUNGEON; return true; }
+    if (!str_prefix(name, "crafting")) { *category = QUEST_LOG_CATEGORY_CRAFTING; return true; }
+    if (!str_prefix(name, "event")) { *category = QUEST_LOG_CATEGORY_EVENT; return true; }
+    if (!str_prefix(name, "other")) { *category = QUEST_LOG_CATEGORY_OTHER; return true; }
+
+    return false;
+}
+
+static time_t quest_history_terminal_time(QUEST_HISTORY_DATA *history)
+{
+    if (!history)
+        return 0;
+
+    if (history->completed_at > 0)
+        return history->completed_at;
+    if (history->failed_at > 0)
+        return history->failed_at;
+    if (history->abandoned_at > 0)
+        return history->abandoned_at;
+    return history->started_at;
+}
+
+static bool quest_history_matches_filters(QUEST_HISTORY_DATA *history, int status_filter, int category_filter)
+{
+    if (!history)
+        return false;
+
+    if (status_filter >= 0 && history->run_status != status_filter)
+        return false;
+
+    if (category_filter >= 0 && history->category != category_filter)
+        return false;
+
+    return true;
+}
+
+static QUEST_HISTORY_DATA *quest_history_find_by_name(CHAR_DATA *ch, const char *name)
+{
+    QUEST_HISTORY_DATA *history;
+    QUEST_HISTORY_DATA *partial = NULL;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata || IS_NULLSTR(name))
+        return NULL;
+
+    for (history = ch->pcdata->quest_history; history != NULL; history = history->next)
+    {
+        if (IS_NULLSTR(history->name))
+            continue;
+
+        if (!str_cmp(name, history->name))
+            return history;
+
+        if (!str_infix(name, history->name))
+        {
+            if (partial)
+                return NULL;
+            partial = history;
+        }
+    }
+
+    return partial;
+}
+
+static void quest_history_trim_missions(CHAR_DATA *ch)
+{
+    QUEST_HISTORY_DATA *history;
+    QUEST_HISTORY_DATA *prev = NULL;
+    QUEST_HISTORY_DATA *next;
+    int kept_missions = 0;
+    int mission_limit;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata)
+        return;
+
+    mission_limit = game_settings.mission_history_limit;
+    if (mission_limit < 1)
+        return;
+
+    for (history = ch->pcdata->quest_history; history != NULL; history = next)
+    {
+        next = history->next;
+
+        if (history->quest_class != QUEST_CLASS_MISSION)
+        {
+            prev = history;
+            continue;
+        }
+
+        kept_missions++;
+        if (kept_missions <= mission_limit)
+        {
+            prev = history;
+            continue;
+        }
+
+        if (prev)
+            prev->next = next;
+        else
+            ch->pcdata->quest_history = next;
+
+        free_quest_history(history);
+    }
+}
+
+static void quest_runtime_record_terminal_history(QUEST_DATA *run)
+{
+    CHAR_DATA *owner;
+    QUEST_INDEX_V2_DATA *index_v2;
+    QUEST_HISTORY_DATA *history;
+    QUEST_HISTORY_DATA *scan;
+    const char *run_name;
+
+    if (!run || run->run_status == QUEST_RUN_STATUS_ACTIVE)
+        return;
+
+    owner = quest_runtime_get_owner_character(run);
+    if (!owner || IS_NPC(owner) || !owner->pcdata)
+        return;
+
+    for (scan = owner->pcdata->quest_history; scan != NULL; scan = scan->next)
+    {
+        if (scan->run_id != run->run_id)
+            continue;
+
+        if (scan->started_at == run->started_at
+            && scan->quest_index_v2_auid == run->quest_index_v2_auid
+            && scan->quest_index_v2_vnum == run->quest_index_v2_vnum)
+            return;
+    }
+
+    index_v2 = quest_runtime_get_index_v2(run);
+    run_name = quest_run_display_name(run);
+
+    history = new_quest_history();
+    history->run_id = run->run_id;
+    history->quest_index_v2_auid = run->quest_index_v2_auid;
+    history->quest_index_v2_vnum = run->quest_index_v2_vnum;
+    history->run_status = run->run_status;
+    history->target_scope = run->target_scope;
+    history->started_at = run->started_at;
+    history->completed_at = run->completed_at;
+    history->failed_at = run->failed_at;
+    history->abandoned_at = run->abandoned_at;
+
+    if (index_v2)
+    {
+        history->quest_class = index_v2->quest_class;
+        history->quest_type = index_v2->quest_type;
+        history->category = index_v2->category;
+    }
+
+    free_string(history->name);
+    history->name = str_dup(IS_NULLSTR(run_name) ? "(unknown quest)" : run_name);
+
+    history->next = owner->pcdata->quest_history;
+    owner->pcdata->quest_history = history;
+
+    if (run->run_status == QUEST_RUN_STATUS_COMPLETED)
+    {
+        owner->pcdata->quests_completed++;
+        leaderboard_update_score(REPORT_TOP_QUESTS, owner->name, (double)owner->pcdata->quests_completed);
+
+        if (history->quest_class == QUEST_CLASS_MISSION)
+            owner->pcdata->missions_completed++;
+    }
+
+    quest_history_trim_missions(owner);
+}
+
+static void quest_show_history_entry(CHAR_DATA *ch, QUEST_HISTORY_DATA *history)
+{
+    time_t terminal_time;
+    long age_minutes;
+
+    if (!ch || !history)
+        return;
+
+    terminal_time = quest_history_terminal_time(history);
+    age_minutes = terminal_time > 0 ? UMAX(0, (long)((current_time - terminal_time) / 60)) : 0;
+
+    printf_to_char(ch, "History: {Y%s{x\n\r",
+        IS_NULLSTR(history->name) ? "(unknown quest)" : history->name);
+    printf_to_char(ch, "Run: %ld  Status: %s  Scope: %s\n\r",
+        history->run_id,
+        quest_run_status_name(history->run_status),
+        quest_target_scope_name(history->target_scope));
+    printf_to_char(ch, "Class: %s  Type: %s  Category: %s\n\r",
+        quest_class_name(history->quest_class),
+        quest_type_name(history->quest_type),
+        quest_category_name(history->category));
+
+    if (history->started_at > 0)
+        printf_to_char(ch, "Started: %s", ctime(&history->started_at));
+    if (history->completed_at > 0)
+        printf_to_char(ch, "Completed: %s", ctime(&history->completed_at));
+    if (history->failed_at > 0)
+        printf_to_char(ch, "Failed: %s", ctime(&history->failed_at));
+    if (history->abandoned_at > 0)
+        printf_to_char(ch, "Abandoned: %s", ctime(&history->abandoned_at));
+
+    if (terminal_time > 0)
+        printf_to_char(ch, "Terminal event: %ld minute%s ago\n\r",
+            age_minutes,
+            age_minutes == 1 ? "" : "s");
+}
+
 static bool quest_parse_index_v2_ref(CHAR_DATA *ch, const char *input, WNUM *wnum)
 {
     char ref[MIL];
@@ -552,11 +866,13 @@ static bool quest_target_scope_supported_for_player(CHAR_DATA *ch, int scope, bo
 
     if (scope == QUEST_TARGET_SCOPE_CHURCH)
     {
-        if (ch && ch->church && ch->church->uid > 0)
+        if (ch && ch->church && ch->church->uid > 0
+            && ch->church_member
+            && has_church_permission(ch->church_member, CHURCH_PERM_ACCEPT_QUESTS))
             return true;
 
         if (show_message && ch)
-            send_to_char("You must belong to a church to use church-scoped quests.\n\r", ch);
+            send_to_char("You must belong to a church and have church quest permission to use church-scoped quests.\n\r", ch);
         return false;
     }
 
@@ -716,6 +1032,288 @@ static void quest_runtime_propagate_scoped_objective_event(CHAR_DATA *actor, QUE
         }
     }
     iterator_stop(&it);
+
+    quest_runtime_sync_group_cluster(actor, source_run, true);
+}
+
+static int quest_runtime_stage_rank(QUEST_INDEX_V2_DATA *quest_index_v2, int stage_id)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    int rank = 0;
+
+    if (!quest_index_v2 || stage_id < 1)
+        return -1;
+
+    for (stage = quest_index_v2->stages; stage != NULL; stage = stage->next)
+    {
+        rank++;
+        if (stage->id == stage_id)
+            return rank;
+    }
+
+    return -1;
+}
+
+static bool quest_runtime_merge_stage_progress(QUEST_DATA *target_run, QUEST_DATA *source_run)
+{
+    QUEST_STAGE_INDEX_V2_DATA *target_stage;
+    QUEST_STAGE_INDEX_V2_DATA *source_stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    bool changed = false;
+
+    if (!target_run || !source_run || target_run == source_run)
+        return false;
+
+    if (target_run->run_status != QUEST_RUN_STATUS_ACTIVE
+        || source_run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        return false;
+
+    if (target_run->current_stage_id < 1
+        || source_run->current_stage_id < 1
+        || target_run->current_stage_id != source_run->current_stage_id)
+        return false;
+
+    target_stage = quest_runtime_get_current_stage(target_run);
+    source_stage = quest_runtime_get_current_stage(source_run);
+
+    if (!target_stage || !source_stage || target_stage->id != source_stage->id)
+        return false;
+
+    if ((target_stage->stage_source == QUEST_STAGE_SOURCE_GENERATED
+         || source_stage->stage_source == QUEST_STAGE_SOURCE_GENERATED)
+        && target_run->current_stage_seed != source_run->current_stage_seed)
+    {
+        return false;
+    }
+
+    if (source_run->current_stage_commenced && !target_run->current_stage_commenced)
+    {
+        if (quest_runtime_commence_current_stage(target_run))
+            changed = true;
+    }
+
+    for (objective = target_stage->objectives; objective != NULL; objective = objective->next)
+    {
+        QUEST_OBJECTIVE_STATE_V2_DATA *source_state;
+        QUEST_OBJECTIVE_STATE_V2_DATA *target_state;
+        int required;
+        int old_progress;
+        bool old_complete;
+        int merged_progress;
+
+        source_state = quest_runtime_get_objective_state(source_run, objective->id, false);
+        if (!source_state)
+            continue;
+
+        target_state = quest_runtime_get_objective_state(target_run, objective->id, true);
+        if (!target_state)
+            continue;
+
+        required = quest_runtime_objective_required_count(objective);
+        old_progress = target_state->progress;
+        old_complete = target_state->complete;
+
+        merged_progress = UMAX(target_state->progress, source_state->progress);
+        merged_progress = URANGE(0, merged_progress, required);
+
+        target_state->progress = merged_progress;
+
+        if (source_state->complete || merged_progress >= required)
+            target_state->complete = true;
+
+        if (!old_complete && target_state->complete)
+            quest_runtime_fire_objective_lifecycle_trigger(target_run, TRIG_OBJECTIVE_COMPLETED, objective->id);
+
+        if (target_state->progress != old_progress || target_state->complete != old_complete)
+            changed = true;
+    }
+
+    if (quest_runtime_try_advance_stage(target_run))
+        changed = true;
+
+    return changed;
+}
+
+static bool quest_runtime_sync_run_from_reference(QUEST_DATA *target_run, QUEST_DATA *reference_run, bool allow_stage_advance)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+    int reference_rank;
+    int target_rank;
+    bool changed = false;
+
+    if (!target_run || !reference_run || target_run == reference_run)
+        return false;
+
+    if (target_run->run_status != QUEST_RUN_STATUS_ACTIVE
+        || reference_run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        return false;
+
+    if (target_run->quest_index_v2_auid != reference_run->quest_index_v2_auid
+        || target_run->quest_index_v2_vnum != reference_run->quest_index_v2_vnum)
+        return false;
+
+    if (target_run->target_scope != QUEST_TARGET_SCOPE_GROUP
+        || reference_run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+        return false;
+
+    if (!uid_match(target_run->scope_owner_id, reference_run->scope_owner_id))
+        return false;
+
+    quest_index_v2 = quest_runtime_get_index_v2(reference_run);
+    if (!quest_index_v2)
+        return false;
+
+    reference_rank = quest_runtime_stage_rank(quest_index_v2, reference_run->current_stage_id);
+    target_rank = quest_runtime_stage_rank(quest_index_v2, target_run->current_stage_id);
+
+    if (allow_stage_advance
+        && reference_rank >= 0
+        && target_rank >= 0
+        && target_rank < reference_rank)
+    {
+        QUEST_STAGE_INDEX_V2_DATA *reference_stage = quest_runtime_get_current_stage(reference_run);
+
+        if (reference_stage && reference_stage->stage_source != QUEST_STAGE_SOURCE_GENERATED)
+        {
+            if (quest_runtime_set_stage(target_run, reference_run->current_stage_id))
+            {
+                changed = true;
+
+                if (reference_run->current_stage_commenced && !target_run->current_stage_commenced)
+                {
+                    if (quest_runtime_commence_current_stage(target_run))
+                        changed = true;
+                }
+            }
+        }
+    }
+
+    if (quest_runtime_merge_stage_progress(target_run, reference_run))
+        changed = true;
+
+    return changed;
+}
+
+static int quest_runtime_sync_group_cluster(CHAR_DATA *actor, QUEST_DATA *anchor_run, bool allow_stage_advance)
+{
+    QUEST_DATA *best_run = NULL;
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+    CHAR_DATA *member;
+    QUEST_DATA *run;
+    ITERATOR it;
+    int best_rank = -1;
+    int changed_runs = 0;
+
+    if (!anchor_run || anchor_run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+        return 0;
+
+    if (anchor_run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        return 0;
+
+    quest_index_v2 = quest_runtime_get_index_v2(anchor_run);
+    if (!quest_index_v2)
+        return 0;
+
+    iterator_start(&it, loaded_chars);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        if (IS_NPC(member) || !member->quest)
+            continue;
+
+        for (run = member->quest; run != NULL; run = run->next)
+        {
+            int rank;
+
+            if (run->run_status != QUEST_RUN_STATUS_ACTIVE)
+                continue;
+
+            if (run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+                continue;
+
+            if (!uid_match(run->scope_owner_id, anchor_run->scope_owner_id))
+                continue;
+
+            if (run->quest_index_v2_auid != anchor_run->quest_index_v2_auid
+                || run->quest_index_v2_vnum != anchor_run->quest_index_v2_vnum)
+                continue;
+
+            rank = quest_runtime_stage_rank(quest_index_v2, run->current_stage_id);
+            if (!best_run || rank > best_rank)
+            {
+                best_run = run;
+                best_rank = rank;
+            }
+        }
+    }
+    iterator_stop(&it);
+
+    if (!best_run)
+        return 0;
+
+    iterator_start(&it, loaded_chars);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        if (IS_NPC(member) || !member->quest)
+            continue;
+
+        for (run = member->quest; run != NULL; run = run->next)
+        {
+            bool changed = false;
+
+            if (run == best_run)
+                continue;
+
+            if (run->run_status != QUEST_RUN_STATUS_ACTIVE)
+                continue;
+
+            if (run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+                continue;
+
+            if (!uid_match(run->scope_owner_id, anchor_run->scope_owner_id))
+                continue;
+
+            if (run->quest_index_v2_auid != anchor_run->quest_index_v2_auid
+                || run->quest_index_v2_vnum != anchor_run->quest_index_v2_vnum)
+                continue;
+
+            changed = quest_runtime_sync_run_from_reference(run, best_run, allow_stage_advance);
+            if (changed)
+                changed_runs++;
+        }
+    }
+    iterator_stop(&it);
+
+    if (actor && !IS_NPC(actor))
+    {
+        QUEST_DATA *actor_run;
+
+        for (actor_run = actor->quest; actor_run != NULL; actor_run = actor_run->next)
+        {
+            if (actor_run == best_run)
+                continue;
+
+            if (actor_run->run_status != QUEST_RUN_STATUS_ACTIVE)
+                continue;
+
+            if (actor_run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+                continue;
+
+            if (!uid_match(actor_run->scope_owner_id, anchor_run->scope_owner_id))
+                continue;
+
+            if (actor_run->quest_index_v2_auid != anchor_run->quest_index_v2_auid
+                || actor_run->quest_index_v2_vnum != anchor_run->quest_index_v2_vnum)
+                continue;
+
+            if (quest_runtime_sync_run_from_reference(best_run, actor_run, false))
+            {
+                changed_runs++;
+                break;
+            }
+        }
+    }
+
+    return changed_runs;
 }
 
 static void quest_runtime_unbind_strict_targets(QUEST_DATA *run)
@@ -1003,6 +1601,7 @@ static void quest_runtime_mark_run_failed(QUEST_DATA *run, int failed_status, co
     }
 
     quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_FAILED, reason_phrase);
+    quest_runtime_record_terminal_history(run);
 }
 
 static bool quest_run_accessible_by_player(CHAR_DATA *ch, QUEST_DATA *run, bool show_message)
@@ -1205,6 +1804,20 @@ static void resolve_quest_tokens(void)
     quest_tokens_resolved = true;
 }
 
+static bool quest_runtime_group_scope_snapshot_enabled(QUEST_DATA *run)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+
+    if (!run)
+        return true;
+
+    quest_index_v2 = quest_runtime_get_index_v2(run);
+    if (!quest_index_v2)
+        return true;
+
+    return IS_SET(quest_index_v2->flags, QUESTV2_FLAG_GROUP_SCOPE_SNAPSHOT);
+}
+
 static void quest_runtime_normalize_target_scope(CHAR_DATA *ch, QUEST_DATA *run)
 {
     if (!ch || !run)
@@ -1217,19 +1830,20 @@ static void quest_runtime_normalize_target_scope(CHAR_DATA *ch, QUEST_DATA *run)
     if (run->target_scope == QUEST_TARGET_SCOPE_GROUP
         && (!IS_VALID(ch->group) || !uid_match(run->scope_owner_id, ch->group->id)))
     {
-        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
-        run->scope_owner_id[0] = ch->id[0];
-        run->scope_owner_id[1] = ch->id[1];
-        run->scope_owner_uid = 0;
+        if (quest_runtime_group_scope_snapshot_enabled(run)) {
+            run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+            run->scope_owner_id[0] = ch->id[0];
+            run->scope_owner_id[1] = ch->id[1];
+            run->scope_owner_uid = 0;
+        } else {
+            return;
+        }
     }
 
     if (run->target_scope == QUEST_TARGET_SCOPE_CHURCH
         && (!ch->church || ch->church->uid <= 0 || ch->church->uid != run->scope_owner_uid))
     {
-        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
-        run->scope_owner_id[0] = ch->id[0];
-        run->scope_owner_id[1] = ch->id[1];
-        run->scope_owner_uid = 0;
+        return;
     }
 
     quest_scope_owner_seed(ch, run);
@@ -1237,46 +1851,281 @@ static void quest_runtime_normalize_target_scope(CHAR_DATA *ch, QUEST_DATA *run)
 
 void quest_runtime_snapshot_group_runs_to_character(CHAR_DATA *ch, const unsigned long group_id[2])
 {
+    quest_runtime_handle_group_scope_loss(ch, group_id);
+}
+
+void quest_runtime_handle_group_scope_loss(CHAR_DATA *ch, const unsigned long group_id[2])
+{
     QUEST_DATA *run;
+    QUEST_DATA *next;
+    QUEST_DATA *prev = NULL;
+    bool removed_focus = false;
+    bool removed_any = false;
 
     if (!ch || IS_NPC(ch) || !ch->quest || !group_id)
         return;
 
-    for (run = ch->quest; run != NULL; run = run->next)
+    for (run = ch->quest; run != NULL; run = next)
     {
+        bool snapshot;
+
+        next = run->next;
+
         if (run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+        {
+            prev = run;
             continue;
+        }
 
         if (!uid_match(run->scope_owner_id, group_id))
+        {
+            prev = run;
             continue;
+        }
+
+        snapshot = quest_runtime_group_scope_snapshot_enabled(run);
+
+        if (!snapshot)
+        {
+            if (run->run_id == ch->quest_runtime.focused_run_id)
+                removed_focus = true;
+
+            if (prev)
+                prev->next = next;
+            else
+                ch->quest = next;
+
+            run->next = NULL;
+            free_quest(run);
+            removed_any = true;
+            continue;
+        }
 
         run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
         run->scope_owner_id[0] = ch->id[0];
         run->scope_owner_id[1] = ch->id[1];
         run->scope_owner_uid = 0;
+        prev = run;
     }
+
+    if (!removed_any)
+        return;
+
+    if (!ch->quest)
+    {
+        ch->quest_runtime.focused_run_id = 0;
+        quest_runtime_reset_expiration(ch);
+        return;
+    }
+
+    if (removed_focus || ch->quest_runtime.focused_run_id <= 0)
+        ch->quest_runtime.focused_run_id = ch->quest->run_id;
 }
 
-void quest_runtime_snapshot_church_runs_to_character(CHAR_DATA *ch, long church_uid)
+void quest_runtime_sync_group_runs_for_character(CHAR_DATA *ch, bool allow_stage_advance)
 {
     QUEST_DATA *run;
 
-    if (!ch || IS_NPC(ch) || !ch->quest || church_uid <= 0)
+    if (!ch || IS_NPC(ch) || !IS_VALID(ch->group) || !ch->quest)
         return;
 
     for (run = ch->quest; run != NULL; run = run->next)
     {
-        if (run->target_scope != QUEST_TARGET_SCOPE_CHURCH)
+        if (run->run_status != QUEST_RUN_STATUS_ACTIVE)
             continue;
+
+        if (run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+            continue;
+
+        if (!uid_match(run->scope_owner_id, ch->group->id))
+            continue;
+
+        if (run->generating)
+            continue;
+
+        quest_runtime_sync_group_cluster(ch, run, allow_stage_advance);
+    }
+}
+
+static bool quest_runtime_should_purge_group_run(CHAR_DATA *ch, QUEST_DATA *run)
+{
+    if (!ch || !run || run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+        return false;
+
+    if (quest_runtime_group_scope_snapshot_enabled(run))
+        return false;
+
+    if (run->scope_owner_id[0] == 0 && run->scope_owner_id[1] == 0)
+        return true;
+
+    if (!IS_VALID(ch->group))
+        return true;
+
+    return !uid_match(run->scope_owner_id, ch->group->id);
+}
+
+static void quest_runtime_purge_stale_group_runs(CHAR_DATA *ch)
+{
+    QUEST_DATA *run;
+    QUEST_DATA *next;
+    QUEST_DATA *prev = NULL;
+    bool removed_focus = false;
+    bool removed_any = false;
+
+    if (!ch || IS_NPC(ch) || !ch->quest)
+        return;
+
+    for (run = ch->quest; run != NULL; run = next)
+    {
+        next = run->next;
+
+        if (!quest_runtime_should_purge_group_run(ch, run))
+        {
+            prev = run;
+            continue;
+        }
+
+        if (run->run_id == ch->quest_runtime.focused_run_id)
+            removed_focus = true;
+
+        if (prev)
+            prev->next = next;
+        else
+            ch->quest = next;
+
+        run->next = NULL;
+        free_quest(run);
+        removed_any = true;
+    }
+
+    if (!removed_any)
+        return;
+
+    if (!ch->quest)
+    {
+        ch->quest_runtime.focused_run_id = 0;
+        quest_runtime_reset_expiration(ch);
+        return;
+    }
+
+    if (removed_focus || ch->quest_runtime.focused_run_id <= 0)
+        ch->quest_runtime.focused_run_id = ch->quest->run_id;
+}
+
+void quest_runtime_remove_church_runs(CHAR_DATA *ch, long church_uid)
+{
+    QUEST_DATA *run;
+    QUEST_DATA *next;
+    QUEST_DATA *prev = NULL;
+    bool removed_focus = false;
+    bool removed_any = false;
+
+    if (!ch || IS_NPC(ch) || !ch->quest || church_uid <= 0)
+        return;
+
+    for (run = ch->quest; run != NULL; run = next)
+    {
+        next = run->next;
+
+        if (run->target_scope != QUEST_TARGET_SCOPE_CHURCH)
+        {
+            prev = run;
+            continue;
+        }
 
         if (run->scope_owner_uid != church_uid)
+        {
+            prev = run;
             continue;
+        }
 
-        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
-        run->scope_owner_id[0] = ch->id[0];
-        run->scope_owner_id[1] = ch->id[1];
-        run->scope_owner_uid = 0;
+        if (run->run_id == ch->quest_runtime.focused_run_id)
+            removed_focus = true;
+
+        if (prev)
+            prev->next = next;
+        else
+            ch->quest = next;
+
+        run->next = NULL;
+        free_quest(run);
+        removed_any = true;
     }
+
+    if (!removed_any)
+        return;
+
+    if (!ch->quest)
+    {
+        ch->quest_runtime.focused_run_id = 0;
+        quest_runtime_reset_expiration(ch);
+        return;
+    }
+
+    if (removed_focus || ch->quest_runtime.focused_run_id <= 0)
+        ch->quest_runtime.focused_run_id = ch->quest->run_id;
+}
+
+static bool quest_runtime_should_purge_church_run(CHAR_DATA *ch, QUEST_DATA *run)
+{
+    if (!ch || !run || run->target_scope != QUEST_TARGET_SCOPE_CHURCH)
+        return false;
+
+    if (run->scope_owner_uid <= 0)
+        return true;
+
+    if (!ch->church || ch->church->uid <= 0)
+        return true;
+
+    return ch->church->uid != run->scope_owner_uid;
+}
+
+static void quest_runtime_purge_stale_church_runs(CHAR_DATA *ch)
+{
+    QUEST_DATA *run;
+    QUEST_DATA *next;
+    QUEST_DATA *prev = NULL;
+    bool removed_focus = false;
+    bool removed_any = false;
+
+    if (!ch || IS_NPC(ch) || !ch->quest)
+        return;
+
+    for (run = ch->quest; run != NULL; run = next)
+    {
+        next = run->next;
+
+        if (!quest_runtime_should_purge_church_run(ch, run))
+        {
+            prev = run;
+            continue;
+        }
+
+        if (run->run_id == ch->quest_runtime.focused_run_id)
+            removed_focus = true;
+
+        if (prev)
+            prev->next = next;
+        else
+            ch->quest = next;
+
+        run->next = NULL;
+        free_quest(run);
+        removed_any = true;
+    }
+
+    if (!removed_any)
+        return;
+
+    if (!ch->quest)
+    {
+        ch->quest_runtime.focused_run_id = 0;
+        quest_runtime_reset_expiration(ch);
+        return;
+    }
+
+    if (removed_focus || ch->quest_runtime.focused_run_id <= 0)
+        ch->quest_runtime.focused_run_id = ch->quest->run_id;
 }
 
 long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, long quest_index_vnum)
@@ -1291,6 +2140,12 @@ long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, lon
     if (ch->quest_runtime.next_run_id <= 0) {
         ch->quest_runtime.next_run_id = 1;
     }
+
+    quest_runtime_purge_stale_group_runs(ch);
+    quest_runtime_purge_stale_church_runs(ch);
+
+    if (ch->quest == NULL)
+        return 0;
 
     for (run = ch->quest; run != NULL; run = run->next) {
         if (run->run_id <= 0) {
@@ -1737,7 +2592,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0')
     {
-        send_to_char("QUEST commands: LOG LIST FOCUS POINTS INFO TIME COMMENCE REQUEST CANCEL COMPLETE GRANT.\n\r", ch);
+        send_to_char("QUEST commands: LOG HISTORY LIST FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE GRANT.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r",ch);
         return;
     }
@@ -2024,6 +2879,194 @@ void do_quest(CHAR_DATA *ch, char *argument)
     }
 
     //
+    // QUEST HISTORY
+    //
+    if (!str_cmp(arg1, "history"))
+    {
+        QUEST_HISTORY_DATA *history;
+        QUEST_HISTORY_DATA *matched;
+        int shown = 0;
+        int index = 0;
+        int status_filter = QUEST_RUN_STATUS_COMPLETED;
+        int category_filter = -1;
+        bool explicit_status = false;
+        bool explicit_category = false;
+        char selector[MSL];
+
+        selector[0] = '\0';
+
+        if (!IS_NULLSTR(arg2))
+        {
+            char parse_buf[MSL];
+            char token[MIL];
+            char category_name[MIL];
+            char status_name[MIL];
+            bool expect_status = false;
+            bool expect_category = false;
+
+            parse_buf[0] = '\0';
+            strncat(parse_buf, arg2, sizeof(parse_buf) - strlen(parse_buf) - 1);
+            if (!IS_NULLSTR(argument))
+            {
+                strncat(parse_buf, " ", sizeof(parse_buf) - strlen(parse_buf) - 1);
+                strncat(parse_buf, argument, sizeof(parse_buf) - strlen(parse_buf) - 1);
+            }
+
+            argument = parse_buf;
+            while (!IS_NULLSTR(argument))
+            {
+                argument = one_argument(argument, token);
+                if (IS_NULLSTR(token))
+                    break;
+
+                if (expect_status)
+                {
+                    if (!quest_parse_history_status(token, &status_filter))
+                    {
+                        send_to_char("Unknown history status. Use completed, failed, abandoned, or all.\n\r", ch);
+                        return;
+                    }
+                    explicit_status = true;
+                    expect_status = false;
+                    continue;
+                }
+
+                if (expect_category)
+                {
+                    if (!quest_parse_history_category(token, &category_filter))
+                    {
+                        send_to_char("Unknown history category. Use none/regional/class/story/church/dungeon/crafting/event/other.\n\r", ch);
+                        return;
+                    }
+                    explicit_category = true;
+                    expect_category = false;
+                    continue;
+                }
+
+                if (!str_prefix(token, "status"))
+                {
+                    if (token[6] == ':' || token[6] == '=')
+                    {
+                        strncpy(status_name, token + 7, sizeof(status_name) - 1);
+                        status_name[sizeof(status_name) - 1] = '\0';
+                        if (!quest_parse_history_status(status_name, &status_filter))
+                        {
+                            send_to_char("Unknown history status. Use completed, failed, abandoned, or all.\n\r", ch);
+                            return;
+                        }
+                        explicit_status = true;
+                    }
+                    else
+                        expect_status = true;
+                    continue;
+                }
+
+                if (!str_prefix(token, "category"))
+                {
+                    if (token[8] == ':' || token[8] == '=')
+                    {
+                        strncpy(category_name, token + 9, sizeof(category_name) - 1);
+                        category_name[sizeof(category_name) - 1] = '\0';
+                        if (!quest_parse_history_category(category_name, &category_filter))
+                        {
+                            send_to_char("Unknown history category. Use none/regional/class/story/church/dungeon/crafting/event/other.\n\r", ch);
+                            return;
+                        }
+                        explicit_category = true;
+                    }
+                    else
+                        expect_category = true;
+                    continue;
+                }
+
+                if (selector[0] != '\0')
+                    strncat(selector, " ", sizeof(selector) - strlen(selector) - 1);
+                strncat(selector, token, sizeof(selector) - strlen(selector) - 1);
+            }
+
+            if (expect_status)
+            {
+                send_to_char("Missing history status value.\n\r", ch);
+                return;
+            }
+            if (expect_category)
+            {
+                send_to_char("Missing history category value.\n\r", ch);
+                return;
+            }
+        }
+
+        if (!ch->pcdata || !ch->pcdata->quest_history)
+        {
+            send_to_char("No quest history is recorded yet.\n\r", ch);
+            return;
+        }
+
+        if (!IS_NULLSTR(selector))
+        {
+            matched = quest_history_find_by_name(ch, selector);
+            if (!matched)
+            {
+                send_to_char("No quest history entry matches that name (or the name is ambiguous).\n\r", ch);
+                return;
+            }
+
+            if (!quest_history_matches_filters(matched, status_filter, category_filter))
+            {
+                send_to_char("A matching history entry exists but does not match the active filters.\n\r", ch);
+                return;
+            }
+
+            quest_show_history_entry(ch, matched);
+            return;
+        }
+
+        printf_to_char(ch, "Quest history (missions completed: {Y%ld{x)",
+            ch->pcdata->missions_completed);
+        if (explicit_status)
+            printf_to_char(ch, " status:%s", status_filter < 0 ? "all" : quest_run_status_name(status_filter));
+        if (explicit_category)
+            printf_to_char(ch, " category:%s", quest_category_name(category_filter));
+        send_to_char("\n\r", ch);
+
+        for (history = ch->pcdata->quest_history; history != NULL; history = history->next)
+        {
+            time_t terminal_time;
+            long age_minutes;
+
+            if (!quest_history_matches_filters(history, status_filter, category_filter))
+                continue;
+
+            index++;
+            terminal_time = quest_history_terminal_time(history);
+            age_minutes = terminal_time > 0 ? UMAX(0, (long)((current_time - terminal_time) / 60)) : 0;
+
+            printf_to_char(ch, "  [{Y%d{x] %s\n\r",
+                index,
+                IS_NULLSTR(history->name) ? "(unknown quest)" : history->name);
+            printf_to_char(ch, "       status:%s class:%s type:%s category:%s scope:%s\n\r",
+                quest_run_status_name(history->run_status),
+                quest_class_name(history->quest_class),
+                quest_type_name(history->quest_type),
+                quest_category_name(history->category),
+                quest_target_scope_name(history->target_scope));
+            if (terminal_time > 0)
+                printf_to_char(ch, "       terminal:%ld minute%s ago\n\r",
+                    age_minutes,
+                    age_minutes == 1 ? "" : "s");
+
+            shown++;
+        }
+
+        if (shown < 1)
+            send_to_char("No history entries matched your filters.\n\r", ch);
+        else
+            send_to_char("Use {Yquest history <name>{x or {Yquest info <name>{x for details.\n\r", ch);
+
+        return;
+    }
+
+    //
     // QUEST LIST
     //
     if (!str_cmp(arg1, "list"))
@@ -2141,8 +3184,62 @@ void do_quest(CHAR_DATA *ch, char *argument)
             ? quest_index_v2->name
             : quest_run_display_name(run);
 
+        if (run->target_scope == QUEST_TARGET_SCOPE_GROUP
+            && run->run_status == QUEST_RUN_STATUS_ACTIVE
+            && !run->generating)
+        {
+            quest_runtime_sync_group_cluster(ch, run, true);
+        }
+
         printf_to_char(ch, "Focused quest: {Y%s{x\n\r",
             IS_NULLSTR(quest_name) ? "(unnamed quest)" : quest_name);
+        return;
+    }
+
+    //
+    // QUEST SYNC
+    //
+    if (!str_cmp(arg1, "sync"))
+    {
+        QUEST_DATA *source_run;
+        int synced;
+
+        target_arg[0] = '\0';
+        if (!IS_NULLSTR(arg2))
+        {
+            strncpy(target_arg, arg2, sizeof(target_arg) - 1);
+            target_arg[sizeof(target_arg) - 1] = '\0';
+            if (!IS_NULLSTR(argument))
+            {
+                strncat(target_arg, " ", sizeof(target_arg) - strlen(target_arg) - 1);
+                strncat(target_arg, argument, sizeof(target_arg) - strlen(target_arg) - 1);
+            }
+        }
+
+        source_run = quest_resolve_command_run(ch, target_arg[0] ? target_arg : NULL, true);
+        if (!source_run)
+            return;
+
+        if (source_run->run_status != QUEST_RUN_STATUS_ACTIVE || source_run->generating)
+        {
+            send_to_char("Only active, non-pending quest runs can be synchronized.\n\r", ch);
+            return;
+        }
+
+        if (source_run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+        {
+            send_to_char("Quest sync currently supports only group-scoped runs.\n\r", ch);
+            return;
+        }
+
+        synced = quest_runtime_sync_group_cluster(ch, source_run, true);
+        if (synced > 0)
+            printf_to_char(ch, "Synchronized %d matching group run%s for this quest template.\n\r",
+                synced,
+                synced == 1 ? "" : "s");
+        else
+            send_to_char("No matching group quest runs needed synchronization.\n\r", ch);
+
         return;
     }
 
@@ -2263,9 +3360,9 @@ void do_quest(CHAR_DATA *ch, char *argument)
     }
 
     //
-    // QUEST INFO
+    // QUEST INFO / DETAILS
     //
-    if (!str_cmp(arg1, "info"))
+    if (!str_cmp(arg1, "info") || !str_cmp(arg1, "details"))
     {
         QUEST_PART_DATA *part;
         QUEST_DATA *focused_quest;
@@ -2289,9 +3386,19 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 strncat(target_arg, argument, sizeof(target_arg) - strlen(target_arg) - 1);
             }
 
-            focused_quest = quest_resolve_command_run(ch, target_arg, true);
+            focused_quest = quest_resolve_command_run(ch, target_arg, false);
             if (!focused_quest)
+            {
+                QUEST_HISTORY_DATA *history = quest_history_find_by_name(ch, target_arg);
+                if (!history)
+                {
+                    send_to_char("No active or historical quest matches that name (or the name is ambiguous).\n\r", ch);
+                    return;
+                }
+
+                quest_show_history_entry(ch, history);
                 return;
+            }
 
             ch->quest_runtime.focused_run_id = focused_quest->run_id;
         }
@@ -3079,8 +4186,11 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 sprintf(buf, "Congratulations on completing your quest!");
                 do_say(mob, buf);
             }
-            ch->pcdata->quests_completed++;
-            leaderboard_update_score(REPORT_TOP_QUESTS, ch->name, (double)ch->pcdata->quests_completed);
+            active_quest->run_status = QUEST_RUN_STATUS_COMPLETED;
+            active_quest->completed_at = current_time;
+            active_quest->failed_at = 0;
+            active_quest->abandoned_at = 0;
+            quest_runtime_record_terminal_history(active_quest);
         }
         else
         {
@@ -3094,6 +4204,12 @@ void do_quest(CHAR_DATA *ch, char *argument)
             pointreward -= number_range(10, 20);
             pracreward = UMAX(pracreward, 0);
             pointreward = UMAX(pointreward, 0);
+
+            active_quest->run_status = QUEST_RUN_STATUS_FAILED;
+            active_quest->completed_at = 0;
+            active_quest->failed_at = current_time;
+            active_quest->abandoned_at = 0;
+            quest_runtime_record_terminal_history(active_quest);
         }
 
         tempstores[0] = expreward;			// Experience
@@ -3174,7 +4290,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
     }
     else
     {
-        send_to_char("QUEST commands: LOG LIST FOCUS POINTS INFO TIME COMMENCE REQUEST CANCEL COMPLETE.\n\r", ch);
+        send_to_char("QUEST commands: LOG HISTORY LIST FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r", ch);
     }
 }
@@ -5105,6 +6221,7 @@ bool quest_runtime_try_advance_stage(QUEST_DATA *run)
             run->failed_at = 0;
             run->abandoned_at = 0;
             quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_COMPLETED, "complete");
+            quest_runtime_record_terminal_history(run);
             return true;
         }
 
@@ -5239,6 +6356,7 @@ bool quest_runtime_complete_run(QUEST_DATA *run, const char *reason_phrase)
     run->abandoned_at = 0;
     quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_COMPLETED,
         IS_NULLSTR(reason_phrase) ? "forced" : reason_phrase);
+    quest_runtime_record_terminal_history(run);
     return true;
 }
 
