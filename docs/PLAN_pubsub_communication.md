@@ -16,15 +16,27 @@ While functional, the current model's core limitation is the O(N) complexity for
 
 The proposed solution is to replace the iterative delivery mechanism with a unified, data-driven Publish/Subscribe pattern for *all* forms of communication, including global, room-local, and direct messages.
 
+### Runtime Constraint (Hard Requirement)
+
+-   The main game loop remains single-threaded and must never block on channel I/O.
+-   Any blocking transport operations (e.g., Redis `SUBSCRIBE`/network reads) run in dedicated worker thread(s), similar to existing cache/email background patterns.
+-   Cross-thread handoff uses bounded queues:
+  -   outbound queue: game loop -> transport worker
+  -   inbound queue: transport worker -> game loop
+-   The game loop only does non-blocking queue push/pop and local message processing.
+-   On queue pressure or backend failure, prefer dropping/degrading transport-side features over stalling gameplay.
+
 ### High-Level Architecture
 
 1.  **Topics & Streams:** Each channel will have a real-time topic (e.g., `rt:<topic>`) and a Redis Stream for history (e.g., `history:<topic>`). The `<topic>` will be dynamic based on the channel's `scope`.
     -   `GLOBAL` scope (`gossip`): `rt:gossip`
     -   `AREA` scope (`yell`): `rt:area:<area_uid>` (where `<area_uid>` is the area's UID, or a custom topic override — see below)
+  -   `REGION` scope (`regionchat`/continent channels): `rt:region:<region_uid>`
     -   `ROOM` scope (`say`): `rt:room_wv:<room_widevnum>` (where `<room_widevnum>` is the room's widevnum)
     -   `DIRECT_ENTITY` scope (`tell`): `rt:entity:<unique_id>` (where `<unique_id>` is the canonical identifier for the recipient entity)
-    -   `GROUP_ENTITY` scope (`gtell`): `rt:group:<unique_id>` (where `<unique_id>` is the canonical identifier for the group entity)
+    -   `GROUP_ID` scope (`gtell`): `rt:group:<group_uid>` (where `<group_uid>` is derived from `GROUP_DATA->id[0]:id[1]`)
     -   `CHURCH_ID` scope (`churchtalk`): `rt:church:<church_id>` (where `<church_id>` is the unique ID of the church)
+  -   **Multi-target coverage:** Channel definitions may optionally route to multiple area/region targets (or topic groups) for continent-wide and federation channels.
 2.  **Rich Message Payload:** When a message is sent, a rich payload is created. This payload is the single source of truth for the communication event.
     ```json
     {
@@ -42,7 +54,7 @@ The proposed solution is to replace the iterative delivery mechanism with a unif
     b.  **Publish:** `PUBLISH` a reference to the message to the appropriate real-time topic.
 4.  **Subscribing & Receiving:**
     -   Players subscribe to topics based on their context. A player in room 456 subscribes to `rt:room_wv:<room_widevnum>`. When they move rooms, they unsubscribe and subscribe to the new room's topic. They are always subscribed to their own direct entity topic (`rt:entity:<player_unique_id>`).
-    -   A central listener receives the real-time notification. Before displaying the message, it performs final checks like `is_ignoring()`. It then uses the data in the payload and the channel's formatting rules to construct and display the final message to the recipient.
+  -   A transport listener worker receives real-time notifications and enqueues compact events for the game loop. The game loop drains inbound events each pulse, performs final checks like `is_ignoring()`, then formats/displays the message.
 
 This architecture provides a consistent mechanism for all communication, enabling universal features like history and timestamping while handling contextual complexity.
 
@@ -82,7 +94,7 @@ This architecture provides a consistent mechanism for all communication, enablin
 -   **Consistency is Key:** Whichever method is chosen, it must be applied consistently across the MUD code when interacting with the Pub/Sub system for entity identification. This `unique_id` will be used for things like `is_ignoring()` checks and `DIRECT_ENTITY` topics.
 
 
--   **Group Identification:** Since groups are not currently a distinct entity type with their own unique IDs, a full refactor of the group system is a larger, separate project. For this pub/sub rework, an interim strategy must be used. The recommended approach is to use the `unique_id` of the group's **leader** as the identifier for the group's channel topic (e.g., `rt:group:<leader's_unique_id>`). This provides a stable identifier for the group's lifetime, with the understanding that a change in leadership will change the group's channel topic.
+-   **Group Identification:** Groups now have their own identity via `GROUP_DATA->id[0]` and `GROUP_DATA->id[1]`. For pub/sub routing, the canonical group topic key should be derived from that pair (e.g., `rt:group:<id0>:<id1>`). This avoids topic churn on leadership changes and provides a true group-scoped identity.
 
 ## 4. Advanced Channel Configuration & Editor
 
@@ -107,9 +119,22 @@ The "Channel Definition" becomes the brain of the system.
   "modifiers": ["PUNCTUATION_PARSE"]
 }
 ```
--   **`scope`**: The most important new field. `GLOBAL`, `AREA` (using area UIDs), `ROOM_WV` (using room widevnums), `DIRECT_ENTITY` (for entities identified by their `unique_id`), `GROUP_LEADER` (for group-specific channels, identified by the group leader's `unique_id`), `CHURCH_ID` (for church-specific channels identified by a church ID). This dictates how topics are generated and who receives messages.
+-   **`scope`**: The most important new field. `GLOBAL`, `AREA` (using area UIDs), `REGION` (using region UIDs), `ROOM_WV` (using room widevnums), `DIRECT_ENTITY` (for entities identified by their `unique_id`), `GROUP_ID` (for group-specific channels, identified by `GROUP_DATA->id`), `CHURCH_ID` (for church-specific channels identified by a church ID). This dictates how topics are generated and who receives messages.
+-   **`route_targets`**: Optional routing set for channels that should span multiple regions/areas/topic-groups.
+
+```json
+{
+  "id": "continent",
+  "scope": "REGION",
+  "route_targets": {
+    "regions": [1001, 1002, 1003],
+    "areas": [],
+    "topic_groups": ["continent:eldara"]
+  }
+}
+```
 -   **`allow_player_flags`**: A boolean to control whether player-set channel flags can be used. This would be `true` for `gossip` but `false` for `say`.
--   **`permissions`**: For `GROUP_ENTITY` and `CHURCH_ID` scoped channels, the `permissions` field is crucial. It would specify that only `GROUP_MEMBER` or `CHURCH_MEMBER` (or higher ranks within them) can speak and/or listen, ensuring private communication within these entities.
+-   **`permissions`**: For `GROUP_ID` and `CHURCH_ID` scoped channels, the `permissions` field is crucial. It would specify that only `GROUP_MEMBER` or `CHURCH_MEMBER` (or higher ranks within them) can speak and/or listen, ensuring private communication within these entities.
 -   **`modifiers`**: Can now include `PUNCTUATION_PARSE`, which would analyze the message text and dynamically swap the `formatting` string (e.g., from "says" to "asks").
 
 ### Handling `ignore`, `qlist`, and `shape`
@@ -134,7 +159,7 @@ The plan is adjusted to reflect the unified approach.
     f.  **Develop Staff Review Tool (`rview`):** Create a new immortal command or OLC editor for staff to easily access, review, and act upon messages in the Staff Review Queue.
 
 2.  **Phase 2: Pub/Sub Infrastructure**
-    a.  **Implement Pub/Sub Listener:** Create the Redis client that subscribes to topics (using wildcards like `rt:*`) and receives notifications.
+  a.  **Implement Pub/Sub Listener Worker:** Create a dedicated Redis listener worker that subscribes to topics (using wildcards like `rt:*`) and pushes events to a thread-safe inbound queue.
     b.  **Implement Receiver Logic:** Code the logic that, upon receiving a message, fetches the full payload from the Stream, checks `ignore`, and formats/sends the message to the player.
     c.  **Implement Message Reporting System:** Develop the `report` command (e.g., `report <channel> <message_id> <reason>`) that leverages the unique Stream IDs to retrieve reported messages. Create a system to log these reports and notify staff.
 
@@ -143,12 +168,12 @@ The plan is adjusted to reflect the unified approach.
     -   Refactor their `do_*` functions to call the generic channel handler. This serves as the first real-world test of the system.
 
 4.  **Phase 4: Migration of Contextual & Direct Channels**
-    -   Implement subscription management for movement, using `AREA` (area UIDs) and `ROOM_WV` (room widevnums) for topics.
-    -   Implement subscription management for `GROUP_LEADER` channels. This involves:
-        *   Subscribing/unsubscribing members when they join/leave a group, using the leader's `unique_id` to identify the topic.
-        *   Handling leadership changes by having all members unsubscribe from the old leader's topic and re-subscribe to the new leader's topic.
+    -   Implement subscription management for movement, using `AREA` (area UIDs), `REGION` (region UIDs), and `ROOM_WV` (room widevnums) for topics.
+    -   Implement subscription management for `GROUP_ID` channels. This involves:
+      *   Subscribing/unsubscribing members when they join/leave a group, using `GROUP_DATA->id` as the topic identity.
+      *   Handling group create/disband and membership transitions so topic membership follows current group composition.
     -   Implement subscription management for `CHURCH_ID` channels (joining/leaving churches).
-    -   Refactor `do_say`, `do_yell`, `do_tell` (using `DIRECT_ENTITY` with `unique_id`), `do_gtell` (using `GROUP_LEADER` with leader's `unique_id`), `do_churchtalk` (using `CHURCH_ID`), etc., to use the generic handler.
+    -   Refactor `do_say`, `do_yell`, `do_tell` (using `DIRECT_ENTITY` with `unique_id`), `do_gtell` (using `GROUP_ID` with `GROUP_DATA->id`), `do_chtalk` (using `CHURCH_ID`), and region channels (`REGION`) to use the generic handler.
 
 ## 6. Channel Moderation System
 
@@ -539,7 +564,7 @@ When Redis is down or disabled, LocalTransport provides single-process pub/sub s
 - **Topics:** In-memory subscriber sets keyed by generated topic name (same naming rules as Redis mode).
 - **History:** Per-topic ring buffers with channel-configured retention (`max_len`, `max_age_seconds`).
 - **Message IDs:** Locally generated IDs (e.g., `<epoch_ms>-<sequence>`) compatible with report/audit references.
-- **Delivery Path:** Queue messages into the main game loop and run normal receiver checks (`ignore`, penalties, word filters, formatting).
+- **Delivery Path:** Queue messages into the main game loop and run normal receiver checks (`ignore`, penalties, word filters, formatting) without blocking.
 - **Room Script Triggers:** Preserve ordering: player delivery first, then trigger firing (`p_act_trigger()`).
 
 This keeps behavior consistent with the planned architecture while removing external dependency at runtime.
@@ -567,7 +592,7 @@ Recovery behavior for `auto`:
 | Capability | RedisTransport | LocalTransport |
 |------------|----------------|----------------|
 | Channel publish/receive | Yes | Yes |
-| Scope routing (`GLOBAL`, `AREA`, `ROOM_WV`, etc.) | Yes | Yes |
+| Scope routing (`GLOBAL`, `AREA`, `REGION`, `ROOM_WV`, etc.) | Yes | Yes |
 | Moderation/penalties/filtering | Yes | Yes |
 | Message history retrieval | Yes (durable stream) | Yes (memory ring buffer) |
 | Report `incident_ref` IDs | Yes (stream IDs) | Yes (local IDs) |
@@ -596,11 +621,13 @@ To align with the existing plan phases:
 Use this checklist to validate the fallback architecture in development and staging:
 
 - [ ] **Backend isolation:** `do_*` channel handlers call only the generic channel service (no direct Redis calls).
+- [ ] **Main-loop non-blocking:** No blocking socket/Redis operations are performed on the game loop thread.
 - [ ] **Startup modes:** `channel_backend=redis|local|auto|legacy_iterative` all initialize correctly and log selected backend.
 - [ ] **Redis outage failover:** In `auto` mode, forced Redis failure switches to LocalTransport within bounded retries and without server crash.
 - [ ] **Redis recovery:** In `auto` mode, backend returns to Redis only after stable health checks (hysteresis/cooldown honored).
 - [ ] **Single-process continuity:** Core channels (`gossip`, `ooc`, `say`, `tell`, `gtell`, `yell`, `churchtalk`) continue to function in LocalTransport mode.
-- [ ] **Scope correctness:** Topic routing remains correct for `GLOBAL`, `AREA` (including `area_topic` override), `ROOM_WV`, `DIRECT_ENTITY`, `GROUP_LEADER`, and `CHURCH_ID`.
+- [ ] **Scope correctness:** Topic routing remains correct for `GLOBAL`, `AREA` (including `area_topic` override), `REGION`, `ROOM_WV`, `DIRECT_ENTITY`, `GROUP_ID`, and `CHURCH_ID`.
+- [ ] **Multi-target correctness:** Channels using `route_targets` across multiple regions/areas/topic-groups deliver to the complete target set without duplicate delivery.
 - [ ] **History retention:** Local ring buffers enforce per-channel `history.max_len` and `history.max_age_seconds` limits.
 - [ ] **Message references:** Reports and moderation records still receive valid `incident_ref` IDs in LocalTransport mode.
 - [ ] **Moderation parity:** Character/account penalties, mute/ban behavior, and escalation checks produce the same outcomes in Redis and Local modes.
@@ -621,7 +648,8 @@ The following matrix maps acceptance criteria to concrete validation steps. Exac
 | Redis outage failover | Kill Redis during active chat traffic in `auto` mode | Start in `auto`, send channel messages, stop Redis service/socket | Backend switches to LocalTransport without crash; messages continue |
 | Redis recovery | Restore Redis after outage in `auto` mode | Restart Redis; continue traffic | Backend returns to Redis only after stable checks/cooldown |
 | Single-process continuity | Validate major channels in local mode | Start with `channel_backend=local`; test `gossip/ooc/say/tell/gtell/yell/churchtalk` | All channels deliver correctly in one server process |
-| Scope correctness | Validate each scope with representative actors | Exercise `GLOBAL`, `AREA` (+ `area_topic` override), `ROOM_WV`, `DIRECT_ENTITY`, `GROUP_LEADER`, `CHURCH_ID` | Topic routing and recipients match scope rules |
+| Scope correctness | Validate each scope with representative actors | Exercise `GLOBAL`, `AREA` (+ `area_topic` override), `REGION`, `ROOM_WV`, `DIRECT_ENTITY`, `GROUP_ID`, `CHURCH_ID` | Topic routing and recipients match scope rules |
+| Multi-target routing | Validate continent/federation channels | Exercise `route_targets` spanning multiple regions and areas | All intended recipients get one delivery each |
 | History retention | Overflow local history buffers and age windows | Send > `max_len` messages; advance time or simulate age expiry | Old entries trimmed by length/age policy |
 | Message references | File reports in both backends | Report channel messages in Redis and local modes | `incident_ref` generated and retrievable in both modes |
 | Moderation parity | Apply penalties and retest speaking/listening | Use `chanwarn/chanmute/chanban` + account-level penalties | Enforcement outcomes match between Redis and LocalTransport |

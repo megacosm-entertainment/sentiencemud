@@ -727,7 +727,6 @@ void boot_db(void)
 
     load_reserved();
     script_validate_entity_tables();
-    resolve_newbie_tables();
 
     /* Load settings and changesets */
     load_changesets();
@@ -949,6 +948,7 @@ void boot_db(void)
     fix_object_type_data();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving area/mob/trade widevnum fields");
     fix_area_fields();
+    resolve_newbie_tables();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving quest-v2 widevnum fields");
     fix_quests_v2();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");

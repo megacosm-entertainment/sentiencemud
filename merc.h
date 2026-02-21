@@ -1414,6 +1414,9 @@ struct game_settings_data
     char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
     int max_logfile_size;         // What size do we start rotating logs at (in MB)?
 
+    /* Channel Transport Settings */
+    char *channel_backend;        // Channel backend mode: legacy_iterative|local|auto|redis
+
     /* Redis Settings */
     bool enable_redis;            // Enable Redis caching?
     char *redis_host;             // Redis server hostname

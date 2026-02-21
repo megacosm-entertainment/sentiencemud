@@ -22,6 +22,7 @@ test_result_t run_song_data_test_case(test_case_t *test);
 test_result_t run_skill_group_test_case(test_case_t *test);
 test_result_t run_trait_system_test_case(test_case_t *test);
 test_result_t run_script_engine_test_case(test_case_t *test);
+test_result_t run_channel_pubsub_test_case(test_case_t *test);
 
 #endif /* BUILD_TESTS */
 

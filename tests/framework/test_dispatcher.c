@@ -128,6 +128,8 @@ test_result_t run_test_case(test_case_t *test)
             result = run_trait_system_test_case(test);
         } else if (strstr(test->test_type, "script_engine_") != NULL) {
             result = run_script_engine_test_case(test);
+        } else if (strstr(test->test_type, "channel_") != NULL) {
+            result = run_channel_pubsub_test_case(test);
         } else if (strcmp(test->test_type, "reserved_lookup_test") == 0 ||
                    strcmp(test->test_type, "reserved_wnum_format_test") == 0 ||
                    strcmp(test->test_type, "reserved_compat_test") == 0) {

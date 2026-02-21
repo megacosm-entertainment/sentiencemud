@@ -12999,6 +12999,8 @@ MOB_INDEX_DATA *get_reserved_mob_index(const char *name)
     ITERATOR it;
     RESERVED_DATA *reserved;
     WNUM wnum;
+    AREA_DATA *area;
+    MOB_INDEX_DATA *mob;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -13009,11 +13011,24 @@ MOB_INDEX_DATA *get_reserved_mob_index(const char *name)
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
             wnum.pArea = get_area_index(reserved->wnum.auid);
-            if (!wnum.pArea) {
-                wnum.pArea = get_system_area_fallback();
-            }
             wnum.vnum = reserved->wnum.vnum;
-            return get_mob_index(wnum.pArea, wnum.vnum);
+
+            if (wnum.pArea) {
+                mob = get_mob_index(wnum.pArea, wnum.vnum);
+                if (mob)
+                    return mob;
+            }
+
+            for (area = area_first; area; area = area->next) {
+                mob = get_mob_index(area, wnum.vnum);
+                if (mob)
+                    return mob;
+            }
+
+            wnum.pArea = get_system_area_fallback();
+            if (wnum.pArea)
+                return get_mob_index(wnum.pArea, wnum.vnum);
+            return NULL;
         }
     }
     iterator_stop(&it);
@@ -13029,6 +13044,8 @@ OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
     ITERATOR it;
     RESERVED_DATA *reserved;
     WNUM wnum;
+    AREA_DATA *area;
+    OBJ_INDEX_DATA *obj;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
@@ -13039,11 +13056,24 @@ OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
             !str_cmp(name, reserved->name)) {
             iterator_stop(&it);
             wnum.pArea = get_area_index(reserved->wnum.auid);
-            if (!wnum.pArea) {
-                wnum.pArea = get_system_area_fallback();
-            }
             wnum.vnum = reserved->wnum.vnum;
-            return get_obj_index(wnum.pArea, wnum.vnum);
+
+            if (wnum.pArea) {
+                obj = get_obj_index(wnum.pArea, wnum.vnum);
+                if (obj)
+                    return obj;
+            }
+
+            for (area = area_first; area; area = area->next) {
+                obj = get_obj_index(area, wnum.vnum);
+                if (obj)
+                    return obj;
+            }
+
+            wnum.pArea = get_system_area_fallback();
+            if (wnum.pArea)
+                return get_obj_index(wnum.pArea, wnum.vnum);
+            return NULL;
         }
     }
     iterator_stop(&it);

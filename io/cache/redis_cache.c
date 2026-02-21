@@ -1232,6 +1232,7 @@ bool redis_queue_dirty_key(const char *key)
     }
 
     pthread_mutex_lock(&redis_mutex);
+
     /* Use LPUSH to add to the front of the dirty queue */
     reply = redisCommand(redis_ctx, "LPUSH persist:dirty %s", key);
 
@@ -1250,6 +1251,7 @@ bool redis_queue_dirty_key(const char *key)
     }
 
     freeReplyObject(reply);
+
     pthread_mutex_unlock(&redis_mutex);
     return true;
 }

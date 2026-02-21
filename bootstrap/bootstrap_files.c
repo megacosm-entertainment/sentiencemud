@@ -832,6 +832,7 @@ bool create_game_settings(void)
 
     json_object_set_new(root, "dev_server", json_boolean(false));
     json_object_set_new(root, "testport", json_boolean(false));
+    json_object_set_new(root, "channel_backend", json_string("legacy_iterative"));
 
     if (json_dump_file(root, "data/system/game_settings.json", JSON_INDENT(2)) != 0) {
         fprintf(stderr, "Failed to write game_settings.json\n");

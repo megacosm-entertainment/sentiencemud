@@ -21,6 +21,7 @@
 #include "skill_data.h"
 #include "class_data.h"
 #include "io/json/json_olc.h"
+#include "channel_service.h"
 
 extern void persist_save(void);
 
@@ -87,6 +88,7 @@ void update_handler(void)
     static int pulse_ships;
     static int pulse_gmcp;
     static int pulse_cache_warm;
+    static int pulse_channel;
     char buf[MSL];
     int i;
 
@@ -133,6 +135,12 @@ void update_handler(void)
         if (redis_process_area_cache_warm()) {
             /* Processed one item, more may remain */
         }
+    }
+
+    /* Process channel transport inbound queue (non-blocking) */
+    if (--pulse_channel <= 0) {
+        pulse_channel = PULSE_PER_SECOND;
+        channel_service_pulse();
     }
 
     if (--pulse_auction <= 0)

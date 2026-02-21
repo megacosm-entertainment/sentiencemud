@@ -478,6 +478,67 @@ void log_selected_test_suites(const char *pattern) {
             selected[i] = true;
             append_selection_reason(reasons, i, "all");
         }
+    } else if (strcmp(pattern, "integration") == 0 ||
+               strcmp(pattern, "unit") == 0 ||
+               strcmp(pattern, "quick") == 0 ||
+               strcmp(pattern, "full") == 0 ||
+               strcmp(pattern, "default") == 0) {
+        test_config_t *config = get_test_config();
+        char **suite_names = NULL;
+        int suite_name_count = 0;
+
+        if (config) {
+            if (strcmp(pattern, "integration") == 0) {
+                suite_names = config->integration_only_suites;
+                suite_name_count = config->integration_only_count;
+            } else if (strcmp(pattern, "unit") == 0) {
+                suite_names = config->unit_only_suites;
+                suite_name_count = config->unit_only_count;
+            } else if (strcmp(pattern, "quick") == 0) {
+                suite_names = config->quick_test_suites;
+                suite_name_count = config->quick_suite_count;
+            } else if (strcmp(pattern, "full") == 0) {
+                suite_names = config->full_test_suites;
+                suite_name_count = config->full_suite_count;
+            } else if (strcmp(pattern, "default") == 0) {
+                suite_names = config->default_test_suites;
+                suite_name_count = config->default_suite_count;
+            }
+        }
+
+        if (suite_names && suite_name_count > 0) {
+            for (int i = 0; i < suite_name_count; i++) {
+                test_suite_t *suite = find_test_suite(suite_names[i]);
+                if (suite) {
+                    char reason[256];
+                    snprintf(reason, sizeof(reason), "%s config", pattern);
+                    mark_suite_selected(suite, suite_list, selected, suite_count, reasons, reason);
+                }
+            }
+        } else {
+            for (int i = 0; i < suite_count; i++) {
+                test_suite_t *suite = suite_list[i];
+                bool matched = false;
+                if (strstr(suite->name, pattern)) {
+                    matched = true;
+                } else {
+                    test_case_t *test = suite->tests;
+                    while (test) {
+                        if (strstr(test->name, pattern)) {
+                            matched = true;
+                            break;
+                        }
+                        test = test->next;
+                    }
+                }
+
+                if (matched) {
+                    char reason[256];
+                    snprintf(reason, sizeof(reason), "pattern %s", pattern);
+                    mark_suite_selected(suite, suite_list, selected, suite_count, reasons, reason);
+                }
+            }
+        }
     } else if (strncmp(pattern, "profile:", 8) == 0) {
         const char *profile_name = pattern + 8;
         test_profile_t *profile = find_test_profile(profile_name);

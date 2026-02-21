@@ -857,7 +857,7 @@ bool script_validate_entity_tables(void)
                 first_name_for_code[fields[j].code] = fields[j].name;
             } else if(!warned_code_reuse[fields[j].code]
                 && str_cmp(first_name_for_code[fields[j].code], fields[j].name)) {
-                pbugf(LOG_SCRIPTS,
+                pwarnf(LOG_SCRIPTS,
                     "WARNING: Entity table index=%d reuses field code=%u for '%s' and '%s'",
                     i,
                     (unsigned int)fields[j].code,
@@ -900,15 +900,31 @@ bool script_validate_entity_tables(void)
         }
     }
 
-    pbugf(LOG_SCRIPTS,
-        "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
-        table_count,
-        field_count,
-        errors,
-        warnings);
+    if(errors > 0) {
+        pbugf(LOG_SCRIPTS,
+            "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
+            table_count,
+            field_count,
+            errors,
+            warnings);
+    } else if(warnings > 0) {
+        pwarnf(LOG_SCRIPTS,
+            "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
+            table_count,
+            field_count,
+            errors,
+            warnings);
+    } else {
+        plogf(LOG_SCRIPTS,
+            "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
+            table_count,
+            field_count,
+            errors,
+            warnings);
+    }
 
     if(highest_pressure_table_index >= 0) {
-        pbugf(LOG_SCRIPTS,
+        plogf(LOG_SCRIPTS,
             "Entity field pressure peak: table_index=%d type_range=[%d..%d] pressure=%d%%",
             highest_pressure_table_index,
             highest_pressure_type_min,

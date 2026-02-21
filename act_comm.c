@@ -43,6 +43,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "io/cache/redis_cache.h"
+#include "channel_service.h"
 #include "traits.h"
 #include "account/penalty.h"
 #include "account/preferences.h"
@@ -402,7 +403,6 @@ bool can_speak_channels(CHAR_DATA *ch)
 void do_ooc(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
-    DESCRIPTOR_DATA *d;
 
     if (!argument[0]) {
         if (IS_SET(ch->comm,COMM_NO_OOC))
@@ -426,22 +426,7 @@ void do_ooc(CHAR_DATA *ch, char *argument)
         else
             sprintf(msg, "{gOOC, you say: {G%s{x\n\r", buf);
         send_to_char(msg, ch);
-        for (d = descriptor_list; d; d = d->next) {
-            CHAR_DATA *victim = d->original ? d->original : d->character;
-
-            if (d->connected == CON_PLAYING && d->character != ch &&
-                !IS_SET(victim->comm,COMM_NO_OOC) &&
-                !IS_SET(victim->comm,COMM_QUIET) &&
-                !is_ignoring(d->character, ch)) {
-                if (!IS_NPC(d->character) && !IS_NPC(ch) && ch->pcdata->flag &&
-                    SHOW_CHANNEL_FLAG(d->character, FLAG_OOC))
-                    sprintf(msg, "%s {G%s", ch->pcdata->flag, buf);
-                else
-                    sprintf(msg, "{G%s", buf);
-
-                act_new("{g$$n says OOC: {G$t{x", ch, d->character, NULL, NULL, NULL,NULL,NULL, msg,NULL, TO_VICT,POS_SLEEPING,NULL);
-            }
-        }
+        channel_service_send(ch, "ooc", buf);
     }
 }
 
@@ -511,7 +496,6 @@ void gecho(char *message)
 void do_gossip(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
-    DESCRIPTOR_DATA *d;
     /* Not yet
     time_t rawtime;
     struct tm *info;
@@ -573,20 +557,7 @@ void do_gossip(CHAR_DATA *ch, char *argument)
             sprintf(msg, "{MYou gossip '%s{M'{x\n\r", buf);
         send_to_char(msg, ch);
 
-        for (d = descriptor_list; d; d = d->next) {
-            CHAR_DATA *victim = d->original ? d->original : d->character;
-
-            if (d->connected == CON_PLAYING && d->character && d->character != ch &&
-                !IS_SET(victim->comm,COMM_NOGOSSIP) &&
-                !IS_SET(victim->comm,COMM_QUIET) &&
-                !is_ignoring(d->character, ch)) {
-                if (!IS_NPC(d->character) && !IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(d->character, FLAG_GOSSIP))
-                    sprintf(msg, "%s {M%s", ch->pcdata->flag, buf);
-                else
-                    sprintf(msg, "%s", buf);
-                act_new("{M$$n gossips '$t{M'{x", ch, d->character, NULL, NULL, NULL,NULL,NULL, msg,NULL, TO_VICT,POS_SLEEPING,NULL);
-            }
-        }
+        channel_service_send(ch, "gossip", buf);
     }
 }
 

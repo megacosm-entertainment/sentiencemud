@@ -89,6 +89,7 @@
 #include "io/cache/redis_cache.h"
 #include "io/cache/async_cache.h"
 #include "io/json/json_persist.h"
+#include "channel_service.h"
 #include "traits.h"
 #include "account/unlock.h"
 
@@ -873,6 +874,10 @@ int main(int argc, char **argv)
     // Skip network and cache infrastructure in test mode - tests only need game data
     if (!test_mode)
     {
+        if (!channel_service_init()) {
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Channel service unavailable - using existing direct channel flow");
+        }
+
         if (game_settings.enable_telnet)
         {
             control_telnet = init_socket(telnet_port);
@@ -1008,6 +1013,9 @@ int main(int argc, char **argv)
 
     // Stop background persist worker (flushes dirty queue to disk)
     json_persist_worker_stop();
+
+    // Shutdown channel service transport layer
+    channel_service_shutdown();
 
     // Shutdown Redis connection
     redis_shutdown();

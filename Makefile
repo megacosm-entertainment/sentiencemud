@@ -81,6 +81,10 @@ C_FILES = \
     bootstrap/bootstrap_files.c \
     bootstrap/bootstrap_prompts.c \
     bootstrap/bootstrap_reserved.c \
+    channel_service.c \
+    channel_transport.c \
+    channel_transport_local.c \
+    channel_transport_redis.c \
     chat_rooms.c \
     church.c \
     class_data.c \
@@ -277,6 +281,7 @@ ifdef BUILD_TESTS
                tests/integration/item_type_tests.c \
                tests/integration/lookup_table_tests.c \
                tests/integration/script_engine_tests.c \
+               tests/integration/channel_pubsub_tests.c \
                tests/integration/song_data_tests.c \
                tests/integration/skill_group_tests.c \
                tests/integration/trait_system_tests.c

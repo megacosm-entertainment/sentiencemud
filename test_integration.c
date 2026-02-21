@@ -214,15 +214,151 @@ int run_integration_tests(const char *pattern) {
     
     // Run tests
     test_stats_t stats;
-    if (pattern && strcmp(pattern, "all") != 0) {
-        // Run by specific pattern
-        stats = run_tests_by_pattern(pattern);
+    test_config_t *config = get_test_config();
+
+    if (pattern && strcmp(pattern, "integration") == 0 && config && config->integration_only_count > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                      "Running integration suite set from config (%d suites)",
+                      config->integration_only_count);
+        stats = (test_stats_t){0};
+        for (int i = 0; i < config->integration_only_count; i++) {
+            test_suite_t *suite = find_test_suite(config->integration_only_suites[i]);
+            if (!suite) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Configured integration suite not found: %s",
+                              config->integration_only_suites[i]);
+                continue;
+            }
+
+            test_stats_t suite_stats = run_test_suite(suite);
+            stats.total += suite_stats.total;
+            stats.passed += suite_stats.passed;
+            stats.failed += suite_stats.failed;
+            stats.errors += suite_stats.errors;
+            stats.skipped += suite_stats.skipped;
+
+            if (config->stop_on_first_failure && (suite_stats.failed > 0 || suite_stats.errors > 0)) {
+                log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                            "Stopping on first failure as configured");
+                break;
+            }
+        }
+    } else if (pattern && strcmp(pattern, "unit") == 0 && config && config->unit_only_count > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                      "Running unit suite set from config (%d suites)",
+                      config->unit_only_count);
+        stats = (test_stats_t){0};
+        for (int i = 0; i < config->unit_only_count; i++) {
+            test_suite_t *suite = find_test_suite(config->unit_only_suites[i]);
+            if (!suite) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Configured unit suite not found: %s",
+                              config->unit_only_suites[i]);
+                continue;
+            }
+
+            test_stats_t suite_stats = run_test_suite(suite);
+            stats.total += suite_stats.total;
+            stats.passed += suite_stats.passed;
+            stats.failed += suite_stats.failed;
+            stats.errors += suite_stats.errors;
+            stats.skipped += suite_stats.skipped;
+
+            if (config->stop_on_first_failure && (suite_stats.failed > 0 || suite_stats.errors > 0)) {
+                log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                            "Stopping on first failure as configured");
+                break;
+            }
+        }
+    } else if (pattern && strcmp(pattern, "quick") == 0 && config && config->quick_suite_count > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                      "Running quick suite set from config (%d suites)",
+                      config->quick_suite_count);
+        stats = (test_stats_t){0};
+        for (int i = 0; i < config->quick_suite_count; i++) {
+            test_suite_t *suite = find_test_suite(config->quick_test_suites[i]);
+            if (!suite) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Configured quick suite not found: %s",
+                              config->quick_test_suites[i]);
+                continue;
+            }
+
+            test_stats_t suite_stats = run_test_suite(suite);
+            stats.total += suite_stats.total;
+            stats.passed += suite_stats.passed;
+            stats.failed += suite_stats.failed;
+            stats.errors += suite_stats.errors;
+            stats.skipped += suite_stats.skipped;
+
+            if (config->stop_on_first_failure && (suite_stats.failed > 0 || suite_stats.errors > 0)) {
+                log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                            "Stopping on first failure as configured");
+                break;
+            }
+        }
+    } else if (pattern && strcmp(pattern, "full") == 0 && config && config->full_suite_count > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                      "Running full suite set from config (%d suites)",
+                      config->full_suite_count);
+        stats = (test_stats_t){0};
+        for (int i = 0; i < config->full_suite_count; i++) {
+            test_suite_t *suite = find_test_suite(config->full_test_suites[i]);
+            if (!suite) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Configured full suite not found: %s",
+                              config->full_test_suites[i]);
+                continue;
+            }
+
+            test_stats_t suite_stats = run_test_suite(suite);
+            stats.total += suite_stats.total;
+            stats.passed += suite_stats.passed;
+            stats.failed += suite_stats.failed;
+            stats.errors += suite_stats.errors;
+            stats.skipped += suite_stats.skipped;
+
+            if (config->stop_on_first_failure && (suite_stats.failed > 0 || suite_stats.errors > 0)) {
+                log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                            "Stopping on first failure as configured");
+                break;
+            }
+        }
     } else if (pattern && strcmp(pattern, "all") == 0) {
         // Run all tests explicitly
         stats = run_all_tests();
+    } else if (pattern && strcmp(pattern, "default") == 0 && config && config->default_suite_count > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                      "Running default suite set from config (%d suites)",
+                      config->default_suite_count);
+        stats = (test_stats_t){0};
+        for (int i = 0; i < config->default_suite_count; i++) {
+            test_suite_t *suite = find_test_suite(config->default_test_suites[i]);
+            if (!suite) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Configured default suite not found: %s",
+                              config->default_test_suites[i]);
+                continue;
+            }
+
+            test_stats_t suite_stats = run_test_suite(suite);
+            stats.total += suite_stats.total;
+            stats.passed += suite_stats.passed;
+            stats.failed += suite_stats.failed;
+            stats.errors += suite_stats.errors;
+            stats.skipped += suite_stats.skipped;
+
+            if (config->stop_on_first_failure && (suite_stats.failed > 0 || suite_stats.errors > 0)) {
+                log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                            "Stopping on first failure as configured");
+                break;
+            }
+        }
+    } else if (pattern) {
+        // Run by specific pattern
+        stats = run_tests_by_pattern(pattern);
     } else {
         // No pattern specified - use default test suites from config
-        test_config_t *config = get_test_config();
         if (config && config->default_suite_count > 0) {
             log_message_f(LOG_LEVEL_INFO, LOG_DEBUG, "No pattern specified, running default test suites (%d suites)", 
                          config->default_suite_count);

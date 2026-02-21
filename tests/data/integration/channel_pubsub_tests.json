@@ -1,0 +1,76 @@
+{
+  "test_suite": "channel_pubsub",
+  "description": "Channel transport backend and local inbound dispatch tests",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "channel_backend_legacy_mode",
+      "description": "Backend selection parses legacy_iterative mode",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "legacy_iterative",
+        "expected_backend": "legacy_iterative",
+        "expected_mode": 0
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_backend_local_mode",
+      "description": "Backend selection parses local mode",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "local",
+        "expected_backend": "local",
+        "expected_mode": 1
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_backend_auto_mode",
+      "description": "Backend selection parses auto mode (currently local backend)",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "auto",
+        "expected_backends": ["redis", "local"],
+        "expected_mode": 2
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_backend_redis_fallback",
+      "description": "Redis mode uses redis backend when available, otherwise falls back safely",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "redis",
+        "expected_backends": ["redis", "local"],
+        "expected_mode": 3
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_local_inbound_dispatch",
+      "description": "Local transport queues published message and dispatches via inbound callback on pulse",
+      "dependencies": [],
+      "test_type": "channel_local_inbound_dispatch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

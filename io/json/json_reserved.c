@@ -116,6 +116,7 @@ RESERVED_DATA *json_reserved_deserialize(json_t *json)
     bool removable;
     char vnum_str[MAX_INPUT_LENGTH];
     WNUM wnum;
+    bool areas_loaded;
     
     if (!json || !json_is_object(json))
         return NULL;
@@ -185,34 +186,48 @@ RESERVED_DATA *json_reserved_deserialize(json_t *json)
     else
         vnum = 0;
     
+    areas_loaded = (area_first != NULL);
+
     /* If we have both area_uid and vnum, try to resolve the area */
     if (area_uid > 0 && vnum > 0) {
-        /* Format as "area_uid#vnum" and parse */
-        sprintf(vnum_str, "%ld#%ld", area_uid, vnum);
-        if (parse_widevnum(vnum_str, NULL, &wnum)) {
+        /* During early boot, areas are not loaded yet; keep widevnum as-is. */
+        if (!areas_loaded) {
             reserved->wnum.auid = area_uid;
             reserved->wnum.vnum = vnum;
         } else {
-            /* Area not found, but store the values anyway */
-            reserved->wnum.auid = area_uid;
-            reserved->wnum.vnum = vnum;
-            plogf(LOG_WARN, "Reserved '%s': Area UID %ld not found, stored anyway", 
-                  reserved->name, area_uid);
+            /* Format as "area_uid#vnum" and parse */
+            sprintf(vnum_str, "%ld#%ld", area_uid, vnum);
+            if (parse_widevnum(vnum_str, NULL, &wnum)) {
+                reserved->wnum.auid = area_uid;
+                reserved->wnum.vnum = vnum;
+            } else {
+                /* Area not found, but store the values anyway */
+                reserved->wnum.auid = area_uid;
+                reserved->wnum.vnum = vnum;
+                plogf(LOG_WARN, "Reserved '%s': Area UID %ld not found, stored anyway", 
+                      reserved->name, area_uid);
+            }
         }
     } else if (vnum > 0) {
-        /* Only vnum provided - use parse_widevnum to find the area */
-        sprintf(vnum_str, "%ld", vnum);
-        if (parse_widevnum(vnum_str, NULL, &wnum)) {
-            reserved->wnum.auid = wnum.pArea ? wnum.pArea->uid : 0;
-            reserved->wnum.vnum = vnum;
-            plogf(LOG_INFO, "Reserved '%s': Found vnum %ld in area %ld", 
-                  reserved->name, vnum, reserved->wnum.auid);
-        } else {
-            /* Couldn't find area - store with area 0 */
+        /* During early boot, areas are not loaded yet; keep vnum as-is. */
+        if (!areas_loaded) {
             reserved->wnum.auid = 0;
             reserved->wnum.vnum = vnum;
-            plogf(LOG_WARN, "Reserved '%s': Vnum %ld not found in any area", 
-                  reserved->name, vnum);
+        } else {
+            /* Only vnum provided - use parse_widevnum to find the area */
+            sprintf(vnum_str, "%ld", vnum);
+            if (parse_widevnum(vnum_str, NULL, &wnum)) {
+                reserved->wnum.auid = wnum.pArea ? wnum.pArea->uid : 0;
+                reserved->wnum.vnum = vnum;
+                plogf(LOG_INFO, "Reserved '%s': Found vnum %ld in area %ld", 
+                      reserved->name, vnum, reserved->wnum.auid);
+            } else {
+                /* Couldn't find area - store with area 0 */
+                reserved->wnum.auid = 0;
+                reserved->wnum.vnum = vnum;
+                plogf(LOG_WARN, "Reserved '%s': Vnum %ld not found in any area", 
+                      reserved->name, vnum);
+            }
         }
     } else {
         /* No valid vnum */
