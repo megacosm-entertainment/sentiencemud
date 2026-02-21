@@ -4432,6 +4432,10 @@ struct quest_objective_index_v2_data
     WNUM destination_wnum;
     char *destination_ref_name;
     char *destination_variable_name;
+    WNUM_LOAD destination_token_load;
+    WNUM destination_token_wnum;
+    char *destination_token_ref_name;
+    char *destination_token_variable_name;
     char *target_tag;
     char *description;
 

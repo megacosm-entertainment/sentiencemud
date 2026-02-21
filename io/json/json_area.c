@@ -1029,6 +1029,7 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
             json_t *target_load = json_object();
             json_t *destination_load = json_object();
             json_t *target_token_load = json_object();
+            json_t *destination_token_load = json_object();
 
             json_object_set_new(objective_json, "id", json_integer(objective->id));
             json_object_set_new(objective_json, "objective_type", json_integer(objective->objective_type));
@@ -1047,6 +1048,10 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
             json_object_set_new(target_token_load, "vnum", json_integer(objective->target_token_load.vnum));
             json_object_set_new(objective_json, "target_token_load", target_token_load);
 
+            json_object_set_new(destination_token_load, "auid", json_integer(objective->destination_token_load.auid));
+            json_object_set_new(destination_token_load, "vnum", json_integer(objective->destination_token_load.vnum));
+            json_object_set_new(objective_json, "destination_token_load", destination_token_load);
+
             json_object_set_new(objective_json, "target_ref_stage_id", json_integer(objective->target_ref_stage_id));
             json_object_set_new(objective_json, "target_ref_objective_id", json_integer(objective->target_ref_objective_id));
             json_object_set_new(objective_json, "target_ref_name", json_string_safe(objective->target_ref_name));
@@ -1056,6 +1061,8 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
             json_object_set_new(objective_json, "target_mode", json_integer(objective->target_mode));
             json_object_set_new(objective_json, "destination_ref_name", json_string_safe(objective->destination_ref_name));
             json_object_set_new(objective_json, "destination_variable_name", json_string_safe(objective->destination_variable_name));
+            json_object_set_new(objective_json, "destination_token_ref_name", json_string_safe(objective->destination_token_ref_name));
+            json_object_set_new(objective_json, "destination_token_variable_name", json_string_safe(objective->destination_token_variable_name));
             json_object_set_new(objective_json, "target_tag", json_string_safe(objective->target_tag));
             json_object_set_new(objective_json, "description", json_string_safe(objective->description));
             json_object_set_new(objective_json, "optional", objective->optional ? json_true() : json_false());
@@ -1190,6 +1197,7 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
                     json_t *target_load;
                     json_t *destination_load;
                     json_t *target_token_load;
+                    json_t *destination_token_load;
                     json_t *pool_entries;
                     size_t pool_index;
                     json_t *pool_json;
@@ -1222,6 +1230,12 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
                     free_string(objective->destination_variable_name);
                     objective->destination_variable_name = str_dup(json_get_string_default(objective_json, "destination_variable_name", ""));
 
+                    free_string(objective->destination_token_ref_name);
+                    objective->destination_token_ref_name = str_dup(json_get_string_default(objective_json, "destination_token_ref_name", ""));
+
+                    free_string(objective->destination_token_variable_name);
+                    objective->destination_token_variable_name = str_dup(json_get_string_default(objective_json, "destination_token_variable_name", ""));
+
                     free_string(objective->target_tag);
                     objective->target_tag = str_dup(json_get_string_default(objective_json, "target_tag", ""));
 
@@ -1249,6 +1263,13 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
                     {
                         objective->target_token_load.auid = json_get_int_default(target_token_load, "auid", 0);
                         objective->target_token_load.vnum = json_get_int_default(target_token_load, "vnum", 0);
+                    }
+
+                    destination_token_load = json_object_get(objective_json, "destination_token_load");
+                    if (destination_token_load && json_is_object(destination_token_load))
+                    {
+                        objective->destination_token_load.auid = json_get_int_default(destination_token_load, "auid", 0);
+                        objective->destination_token_load.vnum = json_get_int_default(destination_token_load, "vnum", 0);
                     }
 
                     pool_entries = json_object_get(objective_json, "pool_entries");

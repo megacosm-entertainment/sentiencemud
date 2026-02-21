@@ -260,6 +260,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     BLUEPRINT *blueprint;
     DUNGEON_INDEX_DATA *dungeon;
     CMD_DATA *command;
+    QUEST_INDEX_V2_DATA *pQuest;
     static char buf[64];
     char buf2[MSL];
 
@@ -485,6 +486,18 @@ char *olc_ed_vnum(CHAR_DATA *ch)
                 snprintf(buf, sizeof(buf), "%ld:%s", event_index_get_uid(event_ed), event_index_get_name(event_ed));
             else
                 sprintf(buf, "--");
+        }
+        break;
+
+    case ED_QUEST:
+        pQuest = (QUEST_INDEX_V2_DATA *)ch->desc->pEdit;
+        if (pQuest && pQuest->area) {
+            WNUM quest_wnum;
+            quest_wnum.pArea = pQuest->area;
+            quest_wnum.vnum = pQuest->vnum;
+            snprintf(buf, sizeof(buf), "%s", widevnum_string_wnum(quest_wnum, NULL));
+        } else {
+            snprintf(buf, sizeof(buf), "%ld", pQuest ? pQuest->vnum : 0L);
         }
         break;
 

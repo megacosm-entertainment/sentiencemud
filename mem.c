@@ -2765,6 +2765,11 @@ QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2(void)
     objective->destination_wnum = wnum_zero;
     objective->destination_ref_name = str_dup("");
     objective->destination_variable_name = str_dup("");
+    objective->destination_token_load.auid = 0;
+    objective->destination_token_load.vnum = 0;
+    objective->destination_token_wnum = wnum_zero;
+    objective->destination_token_ref_name = str_dup("");
+    objective->destination_token_variable_name = str_dup("");
     objective->target_tag = str_dup("");
     objective->description = str_dup("");
     objective->optional = false;
@@ -2794,6 +2799,8 @@ void free_quest_objective_index_v2(QUEST_OBJECTIVE_INDEX_V2_DATA *objective)
     free_string(objective->target_token_variable_name);
     free_string(objective->destination_ref_name);
     free_string(objective->destination_variable_name);
+    free_string(objective->destination_token_ref_name);
+    free_string(objective->destination_token_variable_name);
     free_string(objective->target_tag);
     free_string(objective->description);
 

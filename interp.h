@@ -398,6 +398,7 @@ DECLARE_DO_FUN(	do_purge	);
 DECLARE_DO_FUN(	do_push		);
 DECLARE_DO_FUN(	do_put		);
 DECLARE_DO_FUN( do_qedit	);
+DECLARE_DO_FUN( do_qfind       );
 DECLARE_DO_FUN( do_qlist 	);
 DECLARE_DO_FUN(	do_quaff	);
 DECLARE_DO_FUN( do_quest        );

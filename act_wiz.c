@@ -4143,6 +4143,7 @@ static bool parse_find_filter(CHAR_DATA *ch, const char *argument,
  * - vnum obj <name> - Find object vnums (do_ofind)
  * - vnum mob <name> - Find mobile vnums (do_mfind)
  * - vnum token <name> - Find token vnums (do_tfind)
+ * - vnum quest <name> - Find quest vnums (do_qfind)
  *
  * Without type prefix, searches all entity types.
  * All find commands support area filtering: area#pattern
@@ -4163,6 +4164,7 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     send_to_char("  vnum obj <name>           - search all areas\n\r",ch);
     send_to_char("  vnum mob <name>           - search all areas\n\r",ch);
     send_to_char("  vnum token <name>\n\r", ch);
+    send_to_char("  vnum quest <name>\n\r", ch);
     send_to_char("  vnum room <name>\n\r", ch);
     send_to_char("  vnum blueprint <name>\n\r", ch);
     send_to_char("  vnum section <name>\n\r", ch);
@@ -4190,6 +4192,12 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg, "token") || !str_cmp(arg, "tok"))
     {
     do_function(ch, &do_tfind, string);
+    return;
+    }
+
+    if (!str_cmp(arg, "quest") || !str_cmp(arg, "qst"))
+    {
+    do_function(ch, &do_qfind, string);
     return;
     }
 
@@ -4230,6 +4238,8 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     do_function(ch, &do_ofind, argument);
     send_to_char("\n\rTokens:\n\r", ch);
     do_function(ch, &do_tfind, argument);
+    send_to_char("\n\rQuests:\n\r", ch);
+    do_function(ch, &do_qfind, argument);
     send_to_char("\n\rRooms:\n\r", ch);
     do_function(ch, &do_rfind, argument);
     send_to_char("\n\rBlueprints:\n\r", ch);
@@ -4406,6 +4416,62 @@ void do_tfind(CHAR_DATA *ch, char *argument)
 
     if (!found)
     send_to_char("No tokens by that name.\n\r", ch);
+}
+
+/**
+ * do_qfind - Find quest indexes by name
+ *
+ * Searches quest v2 index entries for matches to the given name.
+ * Lists all matching widevnums and names.
+ *
+ * @param ch        Staff member using the command
+ * @param argument  Name to search for (min 2 chars)
+ */
+void do_qfind(CHAR_DATA *ch, char *argument)
+{
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    char pattern[MAX_INPUT_LENGTH];
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+    AREA_DATA *filter_area = NULL;
+    bool found;
+
+    if (!parse_find_filter(ch, argument, &filter_area, pattern, sizeof(pattern)))
+        return;
+
+    one_argument(pattern, arg);
+    if (arg[0] == '\0')
+    {
+        send_to_char("Find what?\n\r", ch);
+        return;
+    }
+
+    if (strlen(arg) < 2) {
+        send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+        return;
+    }
+
+    found = false;
+
+    for (quest_index_v2 = quest_index_v2_list; quest_index_v2 != NULL; quest_index_v2 = quest_index_v2->next)
+    {
+        if (!quest_index_v2->area || quest_index_v2->vnum < 1)
+            continue;
+
+        if (filter_area && quest_index_v2->area != filter_area)
+            continue;
+
+        if (is_name(pattern, quest_index_v2->name)) {
+            found = true;
+            sprintf(buf, "[%s] %s\n\r",
+                widevnum_string(quest_index_v2->area, quest_index_v2->vnum, NULL),
+                IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name);
+            send_to_char(buf, ch);
+        }
+    }
+
+    if (!found)
+        send_to_char("No quests by that name.\n\r", ch);
 }
 
 /**
