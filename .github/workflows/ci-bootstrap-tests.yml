@@ -85,6 +85,7 @@ jobs:
       - name: Run bootstrap CI profile tests
         id: ci_tests
         working-directory: ${{ github.workspace }}
+        shell: bash
         env:
           BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
         run: |
