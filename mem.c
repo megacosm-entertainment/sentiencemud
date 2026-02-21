@@ -80,6 +80,13 @@ PROG_LIST *mprog_free;
 PROG_LIST *oprog_free;
 PROG_LIST *rprog_free;
 QUEST_DATA *quest_free;
+QUEST_INDEX_V2_DATA *quest_index_v2_free;
+QUEST_STAGE_INDEX_V2_DATA *quest_stage_index_v2_free;
+QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective_index_v2_free;
+QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *quest_objective_pool_entry_v2_free;
+QUEST_REWARD_INDEX_V2_DATA *quest_reward_index_v2_free;
+QUEST_OBJECTIVE_STATE_V2_DATA *quest_objective_state_v2_free;
+QUEST_TARGET_BINDING_V2_DATA *quest_target_binding_v2_free;
 QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
@@ -2722,6 +2729,341 @@ void free_help( HELP_DATA *pHelp )
 }
 
 
+QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2(void)
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+    if (!quest_objective_index_v2_free)
+        objective = alloc_perm(sizeof(*objective));
+    else
+    {
+        objective = quest_objective_index_v2_free;
+        quest_objective_index_v2_free = quest_objective_index_v2_free->next;
+    }
+
+    objective->next = NULL;
+    objective->id = 0;
+    objective->objective_type = QUEST_OBJECTIVE_CUSTOM_SCRIPT;
+    objective->quantity = 1;
+    objective->required_count = 1;
+    objective->target_load.auid = 0;
+    objective->target_load.vnum = 0;
+    objective->target_wnum = wnum_zero;
+    objective->target_ref_stage_id = 0;
+    objective->target_ref_objective_id = 0;
+    objective->target_ref_name = str_dup("");
+    objective->target_variable_name = str_dup("");
+    objective->target_token_load.auid = 0;
+    objective->target_token_load.vnum = 0;
+    objective->target_token_wnum = wnum_zero;
+    objective->target_token_ref_name = str_dup("");
+    objective->target_token_variable_name = str_dup("");
+    objective->target_mode = QUEST_OBJECTIVE_TARGET_EXACT;
+    objective->pool_entries = NULL;
+    objective->destination_load.auid = 0;
+    objective->destination_load.vnum = 0;
+    objective->destination_wnum = wnum_zero;
+    objective->destination_ref_name = str_dup("");
+    objective->destination_variable_name = str_dup("");
+    objective->target_tag = str_dup("");
+    objective->description = str_dup("");
+    objective->optional = false;
+
+    return objective;
+}
+
+
+void free_quest_objective_index_v2(QUEST_OBJECTIVE_INDEX_V2_DATA *objective)
+{
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *entry;
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *entry_next;
+
+    if (!objective)
+        return;
+
+    for (entry = objective->pool_entries; entry != NULL; entry = entry_next)
+    {
+        entry_next = entry->next;
+        free_quest_objective_pool_entry_v2(entry);
+    }
+    objective->pool_entries = NULL;
+
+    free_string(objective->target_ref_name);
+    free_string(objective->target_variable_name);
+    free_string(objective->target_token_ref_name);
+    free_string(objective->target_token_variable_name);
+    free_string(objective->destination_ref_name);
+    free_string(objective->destination_variable_name);
+    free_string(objective->target_tag);
+    free_string(objective->description);
+
+    objective->next = quest_objective_index_v2_free;
+    quest_objective_index_v2_free = objective;
+}
+
+
+QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *new_quest_objective_pool_entry_v2(void)
+{
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *entry;
+
+    if (!quest_objective_pool_entry_v2_free)
+        entry = alloc_perm(sizeof(*entry));
+    else
+    {
+        entry = quest_objective_pool_entry_v2_free;
+        quest_objective_pool_entry_v2_free = quest_objective_pool_entry_v2_free->next;
+    }
+
+    entry->next = NULL;
+    entry->id = 0;
+    entry->weight = 1;
+    entry->target_load.auid = 0;
+    entry->target_load.vnum = 0;
+    entry->target_wnum = wnum_zero;
+
+    return entry;
+}
+
+
+void free_quest_objective_pool_entry_v2(QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry_v2)
+{
+    if (!pool_entry_v2)
+        return;
+
+    pool_entry_v2->next = quest_objective_pool_entry_v2_free;
+    quest_objective_pool_entry_v2_free = pool_entry_v2;
+}
+
+
+QUEST_STAGE_INDEX_V2_DATA *new_quest_stage_index_v2(void)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+
+    if (!quest_stage_index_v2_free)
+        stage = alloc_perm(sizeof(*stage));
+    else
+    {
+        stage = quest_stage_index_v2_free;
+        quest_stage_index_v2_free = quest_stage_index_v2_free->next;
+    }
+
+    stage->next = NULL;
+    stage->id = 0;
+    stage->name = str_dup("");
+    stage->description = str_dup("");
+    stage->completion_mode = QUEST_STAGE_COMPLETE_ALL;
+    stage->stage_source = QUEST_STAGE_SOURCE_STATIC;
+    stage->auto_commence = false;
+    stage->next_stage_id = 0;
+    stage->objectives = NULL;
+    stage->generator_profile = str_dup("");
+    stage->generator_salt = 0;
+    stage->on_enter_script = str_dup("");
+    stage->on_exit_script = str_dup("");
+
+    return stage;
+}
+
+
+void free_quest_stage_index_v2(QUEST_STAGE_INDEX_V2_DATA *stage)
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective_next;
+
+    if (!stage)
+        return;
+
+    for (objective = stage->objectives; objective != NULL; objective = objective_next)
+    {
+        objective_next = objective->next;
+        free_quest_objective_index_v2(objective);
+    }
+
+    free_string(stage->name);
+    free_string(stage->description);
+    free_string(stage->generator_profile);
+    free_string(stage->on_enter_script);
+    free_string(stage->on_exit_script);
+
+    stage->next = quest_stage_index_v2_free;
+    quest_stage_index_v2_free = stage;
+}
+
+
+QUEST_REWARD_INDEX_V2_DATA *new_quest_reward_index_v2(void)
+{
+    QUEST_REWARD_INDEX_V2_DATA *reward;
+
+    if (!quest_reward_index_v2_free)
+        reward = alloc_perm(sizeof(*reward));
+    else
+    {
+        reward = quest_reward_index_v2_free;
+        quest_reward_index_v2_free = quest_reward_index_v2_free->next;
+    }
+
+    reward->next = NULL;
+    reward->reward_type = QUEST_REWARD_POINTS;
+    reward->amount = 0;
+    reward->target_load.auid = 0;
+    reward->target_load.vnum = 0;
+    reward->target_wnum = wnum_zero;
+    reward->currency = str_dup("");
+    reward->script = str_dup("");
+
+    return reward;
+}
+
+
+void free_quest_reward_index_v2(QUEST_REWARD_INDEX_V2_DATA *reward)
+{
+    if (!reward)
+        return;
+
+    free_string(reward->currency);
+    free_string(reward->script);
+
+    reward->next = quest_reward_index_v2_free;
+    quest_reward_index_v2_free = reward;
+}
+
+
+QUEST_INDEX_V2_DATA *new_quest_index_v2(void)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+
+    if (!quest_index_v2_free)
+        quest_index_v2 = alloc_perm(sizeof(*quest_index_v2));
+    else
+    {
+        quest_index_v2 = quest_index_v2_free;
+        quest_index_v2_free = quest_index_v2_free->next;
+    }
+
+    quest_index_v2->next = NULL;
+    quest_index_v2->area = NULL;
+    quest_index_v2->vnum = 0;
+    quest_index_v2->name = str_dup("unnamed quest");
+    quest_index_v2->description = str_dup("");
+    quest_index_v2->category = QUEST_CATEGORY_FULL;
+    quest_index_v2->quest_mode = QUEST_MODE_NARRATIVE;
+    quest_index_v2->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+    quest_index_v2->repeat_policy = QUEST_REPEAT_ONCE;
+    quest_index_v2->allowance_cost = 1;
+    quest_index_v2->entry_stage_id = 1;
+    quest_index_v2->seed_policy = QUEST_SEED_POLICY_AUTO;
+    quest_index_v2->fixed_seed = 0;
+    quest_index_v2->stages = NULL;
+    quest_index_v2->rewards = NULL;
+    quest_index_v2->enabled = true;
+
+    return quest_index_v2;
+}
+
+
+void free_quest_index_v2(QUEST_INDEX_V2_DATA *quest_index_v2)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_STAGE_INDEX_V2_DATA *stage_next;
+    QUEST_REWARD_INDEX_V2_DATA *reward;
+    QUEST_REWARD_INDEX_V2_DATA *reward_next;
+
+    if (!quest_index_v2)
+        return;
+
+    quest_index_v2_unregister(quest_index_v2);
+
+    for (stage = quest_index_v2->stages; stage != NULL; stage = stage_next)
+    {
+        stage_next = stage->next;
+        free_quest_stage_index_v2(stage);
+    }
+
+    for (reward = quest_index_v2->rewards; reward != NULL; reward = reward_next)
+    {
+        reward_next = reward->next;
+        free_quest_reward_index_v2(reward);
+    }
+
+    free_string(quest_index_v2->name);
+    free_string(quest_index_v2->description);
+
+    quest_index_v2->next = quest_index_v2_free;
+    quest_index_v2_free = quest_index_v2;
+}
+
+
+QUEST_OBJECTIVE_STATE_V2_DATA *new_quest_objective_state_v2(void)
+{
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+
+    if (!quest_objective_state_v2_free)
+        state = alloc_perm(sizeof(*state));
+    else
+    {
+        state = quest_objective_state_v2_free;
+        quest_objective_state_v2_free = quest_objective_state_v2_free->next;
+    }
+
+    state->next = NULL;
+    state->objective_id = 0;
+    state->progress = 0;
+    state->complete = false;
+    state->selected_pool_entry_id = 0;
+    state->selected_target_load.auid = 0;
+    state->selected_target_load.vnum = 0;
+    state->selected_target_wnum = wnum_zero;
+    state->selected_destination_load.auid = 0;
+    state->selected_destination_load.vnum = 0;
+    state->selected_destination_wnum = wnum_zero;
+
+    return state;
+}
+
+
+void free_quest_objective_state_v2(QUEST_OBJECTIVE_STATE_V2_DATA *state)
+{
+    if (!state)
+        return;
+
+    state->next = quest_objective_state_v2_free;
+    quest_objective_state_v2_free = state;
+}
+
+
+QUEST_TARGET_BINDING_V2_DATA *new_quest_target_binding_v2(void)
+{
+    QUEST_TARGET_BINDING_V2_DATA *binding;
+
+    if (!quest_target_binding_v2_free)
+        binding = alloc_perm(sizeof(*binding));
+    else
+    {
+        binding = quest_target_binding_v2_free;
+        quest_target_binding_v2_free = quest_target_binding_v2_free->next;
+    }
+
+    binding->next = NULL;
+    binding->name = str_dup("");
+    binding->target_load.auid = 0;
+    binding->target_load.vnum = 0;
+    binding->target_wnum = wnum_zero;
+
+    return binding;
+}
+
+
+void free_quest_target_binding_v2(QUEST_TARGET_BINDING_V2_DATA *binding)
+{
+    if (!binding)
+        return;
+
+    free_string(binding->name);
+    binding->next = quest_target_binding_v2_free;
+    quest_target_binding_v2_free = binding;
+}
+
+
 QUEST_DATA *new_quest( void )
 {
     QUEST_DATA *pQuest;
@@ -2740,8 +3082,21 @@ QUEST_DATA *new_quest( void )
     pQuest->parts = NULL;
     pQuest->quest_index_auid = 0;
     pQuest->quest_index_vnum = 0;
+    pQuest->quest_index_v2_auid = 0;
+    pQuest->quest_index_v2_vnum = 0;
     pQuest->run_id = 0;
     pQuest->started_at = 0;
+    pQuest->completed_at = 0;
+    pQuest->failed_at = 0;
+    pQuest->abandoned_at = 0;
+    pQuest->run_status = QUEST_RUN_STATUS_ACTIVE;
+    pQuest->current_stage_id = 0;
+    pQuest->generation_seed = 0;
+    pQuest->current_stage_seed = 0;
+    pQuest->current_stage_generation = 0;
+    pQuest->current_stage_commenced = 0;
+    pQuest->objective_states = NULL;
+    pQuest->target_bindings = NULL;
     pQuest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
     pQuest->scope_owner_id[0] = 0;
     pQuest->scope_owner_id[1] = 0;
@@ -2769,6 +3124,10 @@ void free_quest( QUEST_DATA *pQuest )
 {
     QUEST_PART_DATA *part;
     QUEST_PART_DATA *next_part;
+    QUEST_OBJECTIVE_STATE_V2_DATA *objective_state;
+    QUEST_OBJECTIVE_STATE_V2_DATA *next_objective_state;
+    QUEST_TARGET_BINDING_V2_DATA *target_binding;
+    QUEST_TARGET_BINDING_V2_DATA *next_target_binding;
 
     part = pQuest->parts;
 
@@ -2777,6 +3136,24 @@ void free_quest( QUEST_DATA *pQuest )
         free_quest_part( part );
     part = next_part;
     }
+
+    objective_state = pQuest->objective_states;
+    while (objective_state != NULL)
+    {
+        next_objective_state = objective_state->next;
+        free_quest_objective_state_v2(objective_state);
+        objective_state = next_objective_state;
+    }
+    pQuest->objective_states = NULL;
+
+    target_binding = pQuest->target_bindings;
+    while (target_binding != NULL)
+    {
+        next_target_binding = target_binding->next;
+        free_quest_target_binding_v2(target_binding);
+        target_binding = next_target_binding;
+    }
+    pQuest->target_bindings = NULL;
 
     pQuest->next         =   quest_free;
     quest_free             =   pQuest;

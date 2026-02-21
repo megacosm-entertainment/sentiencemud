@@ -28,6 +28,8 @@ json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area
 json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area);
 static json_t *json_area_serialize_reputation(REPUTATION_INDEX_DATA *reputation, AREA_DATA *area);
 static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, AREA_DATA *area);
+static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2, AREA_DATA *area);
+static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DATA *area);
 static bool json_script_array_has_vnum(json_t *scripts, long vnum);
 
 // --- WILDS_TERRAIN JSON helpers ---
@@ -972,6 +974,370 @@ static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, ARE
     return reputation;
 }
 
+static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2, AREA_DATA *area)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry;
+    QUEST_REWARD_INDEX_V2_DATA *reward;
+    json_t *json;
+    json_t *stages;
+    json_t *rewards;
+
+    if (!quest_index_v2 || !area || quest_index_v2->area != area)
+        return NULL;
+
+    json = json_object();
+    if (!json)
+        return NULL;
+
+    json_object_set_new(json, "vnum", json_integer(quest_index_v2->vnum));
+    json_object_set_new(json, "name", json_string_safe(quest_index_v2->name));
+    json_object_set_new(json, "description", json_string_safe(quest_index_v2->description));
+    json_object_set_new(json, "category", json_integer(quest_index_v2->category));
+    json_object_set_new(json, "quest_mode", json_integer(quest_index_v2->quest_mode));
+    json_object_set_new(json, "target_scope", json_integer(quest_index_v2->target_scope));
+    json_object_set_new(json, "repeat_policy", json_integer(quest_index_v2->repeat_policy));
+    json_object_set_new(json, "allowance_cost", json_integer(quest_index_v2->allowance_cost));
+    json_object_set_new(json, "entry_stage_id", json_integer(quest_index_v2->entry_stage_id));
+    json_object_set_new(json, "seed_policy", json_integer(quest_index_v2->seed_policy));
+    json_object_set_new(json, "fixed_seed", json_integer((json_int_t)quest_index_v2->fixed_seed));
+    json_object_set_new(json, "enabled", quest_index_v2->enabled ? json_true() : json_false());
+
+    stages = json_array();
+    for (stage = quest_index_v2->stages; stage != NULL; stage = stage->next)
+    {
+        json_t *stage_json = json_object();
+        json_t *objectives = json_array();
+
+        json_object_set_new(stage_json, "id", json_integer(stage->id));
+        json_object_set_new(stage_json, "name", json_string_safe(stage->name));
+        json_object_set_new(stage_json, "description", json_string_safe(stage->description));
+        json_object_set_new(stage_json, "completion_mode", json_integer(stage->completion_mode));
+        json_object_set_new(stage_json, "stage_source", json_integer(stage->stage_source));
+        json_object_set_new(stage_json, "auto_commence", stage->auto_commence ? json_true() : json_false());
+        json_object_set_new(stage_json, "next_stage_id", json_integer(stage->next_stage_id));
+        json_object_set_new(stage_json, "generator_profile", json_string_safe(stage->generator_profile));
+        json_object_set_new(stage_json, "generator_salt", json_integer((json_int_t)stage->generator_salt));
+        json_object_set_new(stage_json, "on_enter_script", json_string_safe(stage->on_enter_script));
+        json_object_set_new(stage_json, "on_exit_script", json_string_safe(stage->on_exit_script));
+
+        for (objective = stage->objectives; objective != NULL; objective = objective->next)
+        {
+            json_t *objective_json = json_object();
+            json_t *pool_entries = json_array();
+            json_t *target_load = json_object();
+            json_t *destination_load = json_object();
+            json_t *target_token_load = json_object();
+
+            json_object_set_new(objective_json, "id", json_integer(objective->id));
+            json_object_set_new(objective_json, "objective_type", json_integer(objective->objective_type));
+            json_object_set_new(objective_json, "quantity", json_integer(objective->quantity));
+            json_object_set_new(objective_json, "required_count", json_integer(objective->required_count));
+
+            json_object_set_new(target_load, "auid", json_integer(objective->target_load.auid));
+            json_object_set_new(target_load, "vnum", json_integer(objective->target_load.vnum));
+            json_object_set_new(objective_json, "target_load", target_load);
+
+            json_object_set_new(destination_load, "auid", json_integer(objective->destination_load.auid));
+            json_object_set_new(destination_load, "vnum", json_integer(objective->destination_load.vnum));
+            json_object_set_new(objective_json, "destination_load", destination_load);
+
+            json_object_set_new(target_token_load, "auid", json_integer(objective->target_token_load.auid));
+            json_object_set_new(target_token_load, "vnum", json_integer(objective->target_token_load.vnum));
+            json_object_set_new(objective_json, "target_token_load", target_token_load);
+
+            json_object_set_new(objective_json, "target_ref_stage_id", json_integer(objective->target_ref_stage_id));
+            json_object_set_new(objective_json, "target_ref_objective_id", json_integer(objective->target_ref_objective_id));
+            json_object_set_new(objective_json, "target_ref_name", json_string_safe(objective->target_ref_name));
+            json_object_set_new(objective_json, "target_variable_name", json_string_safe(objective->target_variable_name));
+            json_object_set_new(objective_json, "target_token_ref_name", json_string_safe(objective->target_token_ref_name));
+            json_object_set_new(objective_json, "target_token_variable_name", json_string_safe(objective->target_token_variable_name));
+            json_object_set_new(objective_json, "target_mode", json_integer(objective->target_mode));
+            json_object_set_new(objective_json, "destination_ref_name", json_string_safe(objective->destination_ref_name));
+            json_object_set_new(objective_json, "destination_variable_name", json_string_safe(objective->destination_variable_name));
+            json_object_set_new(objective_json, "target_tag", json_string_safe(objective->target_tag));
+            json_object_set_new(objective_json, "description", json_string_safe(objective->description));
+            json_object_set_new(objective_json, "optional", objective->optional ? json_true() : json_false());
+
+            for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next)
+            {
+                json_t *pool_json = json_object();
+                json_t *pool_target_load = json_object();
+
+                json_object_set_new(pool_json, "id", json_integer(pool_entry->id));
+                json_object_set_new(pool_json, "weight", json_integer(pool_entry->weight));
+                json_object_set_new(pool_target_load, "auid", json_integer(pool_entry->target_load.auid));
+                json_object_set_new(pool_target_load, "vnum", json_integer(pool_entry->target_load.vnum));
+                json_object_set_new(pool_json, "target_load", pool_target_load);
+                json_array_append_new(pool_entries, pool_json);
+            }
+
+            json_object_set_new(objective_json, "pool_entries", pool_entries);
+            json_array_append_new(objectives, objective_json);
+        }
+
+        json_object_set_new(stage_json, "objectives", objectives);
+        json_array_append_new(stages, stage_json);
+    }
+
+    rewards = json_array();
+    for (reward = quest_index_v2->rewards; reward != NULL; reward = reward->next)
+    {
+        json_t *reward_json = json_object();
+        json_t *reward_target_load = json_object();
+
+        json_object_set_new(reward_json, "reward_type", json_integer(reward->reward_type));
+        json_object_set_new(reward_json, "amount", json_integer(reward->amount));
+        json_object_set_new(reward_target_load, "auid", json_integer(reward->target_load.auid));
+        json_object_set_new(reward_target_load, "vnum", json_integer(reward->target_load.vnum));
+        json_object_set_new(reward_json, "target_load", reward_target_load);
+        json_object_set_new(reward_json, "currency", json_string_safe(reward->currency));
+        json_object_set_new(reward_json, "script", json_string_safe(reward->script));
+
+        json_array_append_new(rewards, reward_json);
+    }
+
+    json_object_set_new(json, "stages", stages);
+    json_object_set_new(json, "rewards", rewards);
+
+    return json;
+}
+
+static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DATA *area)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+    json_t *stages;
+    json_t *rewards;
+    size_t stage_index;
+    size_t reward_index;
+    json_t *stage_json;
+    json_t *reward_json;
+
+    if (!json || !area)
+        return NULL;
+
+    quest_index_v2 = new_quest_index_v2();
+    if (!quest_index_v2)
+        return NULL;
+
+    quest_index_v2->area = area;
+    quest_index_v2->vnum = json_get_int_default(json, "vnum", 0);
+    if (quest_index_v2->vnum < 1)
+    {
+        free_quest_index_v2(quest_index_v2);
+        return NULL;
+    }
+
+    free_string(quest_index_v2->name);
+    quest_index_v2->name = str_dup(json_get_string_default(json, "name", "unnamed quest"));
+
+    free_string(quest_index_v2->description);
+    quest_index_v2->description = str_dup(json_get_string_default(json, "description", ""));
+
+    quest_index_v2->category = json_get_int_default(json, "category", quest_index_v2->category);
+    quest_index_v2->quest_mode = json_get_int_default(json, "quest_mode", quest_index_v2->quest_mode);
+    quest_index_v2->target_scope = json_get_int_default(json, "target_scope", quest_index_v2->target_scope);
+    quest_index_v2->repeat_policy = json_get_int_default(json, "repeat_policy", quest_index_v2->repeat_policy);
+    quest_index_v2->allowance_cost = json_get_int_default(json, "allowance_cost", quest_index_v2->allowance_cost);
+    quest_index_v2->entry_stage_id = json_get_int_default(json, "entry_stage_id", quest_index_v2->entry_stage_id);
+    quest_index_v2->seed_policy = json_get_int_default(json, "seed_policy", quest_index_v2->seed_policy);
+    quest_index_v2->fixed_seed = (unsigned long long)json_get_int_default(json, "fixed_seed", 0);
+    quest_index_v2->enabled = json_get_bool_default(json, "enabled", true);
+
+    stages = json_object_get(json, "stages");
+    if (stages && json_is_array(stages))
+    {
+        QUEST_STAGE_INDEX_V2_DATA *last_stage = NULL;
+
+        json_array_foreach(stages, stage_index, stage_json)
+        {
+            QUEST_STAGE_INDEX_V2_DATA *stage = new_quest_stage_index_v2();
+            json_t *objectives;
+            size_t objective_index;
+            json_t *objective_json;
+            QUEST_OBJECTIVE_INDEX_V2_DATA *last_objective = NULL;
+
+            stage->id = json_get_int_default(stage_json, "id", stage_index + 1);
+
+            free_string(stage->name);
+            stage->name = str_dup(json_get_string_default(stage_json, "name", ""));
+
+            free_string(stage->description);
+            stage->description = str_dup(json_get_string_default(stage_json, "description", ""));
+
+            stage->completion_mode = json_get_int_default(stage_json, "completion_mode", stage->completion_mode);
+            stage->stage_source = json_get_int_default(stage_json, "stage_source", stage->stage_source);
+            stage->auto_commence = json_get_bool_default(stage_json, "auto_commence", stage->auto_commence);
+            stage->next_stage_id = json_get_int_default(stage_json, "next_stage_id", stage->next_stage_id);
+
+            free_string(stage->generator_profile);
+            stage->generator_profile = str_dup(json_get_string_default(stage_json, "generator_profile", ""));
+            stage->generator_salt = (unsigned long long)json_get_int_default(stage_json, "generator_salt", 0);
+
+            free_string(stage->on_enter_script);
+            stage->on_enter_script = str_dup(json_get_string_default(stage_json, "on_enter_script", ""));
+
+            free_string(stage->on_exit_script);
+            stage->on_exit_script = str_dup(json_get_string_default(stage_json, "on_exit_script", ""));
+
+            objectives = json_object_get(stage_json, "objectives");
+            if (objectives && json_is_array(objectives))
+            {
+                json_array_foreach(objectives, objective_index, objective_json)
+                {
+                    QUEST_OBJECTIVE_INDEX_V2_DATA *objective = new_quest_objective_index_v2();
+                    json_t *target_load;
+                    json_t *destination_load;
+                    json_t *target_token_load;
+                    json_t *pool_entries;
+                    size_t pool_index;
+                    json_t *pool_json;
+                    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *last_pool = NULL;
+
+                    objective->id = json_get_int_default(objective_json, "id", objective_index + 1);
+                    objective->objective_type = json_get_int_default(objective_json, "objective_type", objective->objective_type);
+                    objective->quantity = json_get_int_default(objective_json, "quantity", objective->quantity);
+                    objective->required_count = json_get_int_default(objective_json, "required_count", objective->required_count);
+                    objective->target_ref_stage_id = json_get_int_default(objective_json, "target_ref_stage_id", 0);
+                    objective->target_ref_objective_id = json_get_int_default(objective_json, "target_ref_objective_id", 0);
+
+                    free_string(objective->target_ref_name);
+                    objective->target_ref_name = str_dup(json_get_string_default(objective_json, "target_ref_name", ""));
+
+                    free_string(objective->target_variable_name);
+                    objective->target_variable_name = str_dup(json_get_string_default(objective_json, "target_variable_name", ""));
+
+                    free_string(objective->target_token_ref_name);
+                    objective->target_token_ref_name = str_dup(json_get_string_default(objective_json, "target_token_ref_name", ""));
+
+                    free_string(objective->target_token_variable_name);
+                    objective->target_token_variable_name = str_dup(json_get_string_default(objective_json, "target_token_variable_name", ""));
+
+                    objective->target_mode = json_get_int_default(objective_json, "target_mode", objective->target_mode);
+
+                    free_string(objective->destination_ref_name);
+                    objective->destination_ref_name = str_dup(json_get_string_default(objective_json, "destination_ref_name", ""));
+
+                    free_string(objective->destination_variable_name);
+                    objective->destination_variable_name = str_dup(json_get_string_default(objective_json, "destination_variable_name", ""));
+
+                    free_string(objective->target_tag);
+                    objective->target_tag = str_dup(json_get_string_default(objective_json, "target_tag", ""));
+
+                    free_string(objective->description);
+                    objective->description = str_dup(json_get_string_default(objective_json, "description", ""));
+
+                    objective->optional = json_get_bool_default(objective_json, "optional", objective->optional);
+
+                    target_load = json_object_get(objective_json, "target_load");
+                    if (target_load && json_is_object(target_load))
+                    {
+                        objective->target_load.auid = json_get_int_default(target_load, "auid", 0);
+                        objective->target_load.vnum = json_get_int_default(target_load, "vnum", 0);
+                    }
+
+                    destination_load = json_object_get(objective_json, "destination_load");
+                    if (destination_load && json_is_object(destination_load))
+                    {
+                        objective->destination_load.auid = json_get_int_default(destination_load, "auid", 0);
+                        objective->destination_load.vnum = json_get_int_default(destination_load, "vnum", 0);
+                    }
+
+                    target_token_load = json_object_get(objective_json, "target_token_load");
+                    if (target_token_load && json_is_object(target_token_load))
+                    {
+                        objective->target_token_load.auid = json_get_int_default(target_token_load, "auid", 0);
+                        objective->target_token_load.vnum = json_get_int_default(target_token_load, "vnum", 0);
+                    }
+
+                    pool_entries = json_object_get(objective_json, "pool_entries");
+                    if (pool_entries && json_is_array(pool_entries))
+                    {
+                        json_array_foreach(pool_entries, pool_index, pool_json)
+                        {
+                            QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry = new_quest_objective_pool_entry_v2();
+                            json_t *pool_target_load = json_object_get(pool_json, "target_load");
+
+                            pool_entry->id = json_get_int_default(pool_json, "id", pool_index + 1);
+                            pool_entry->weight = json_get_int_default(pool_json, "weight", pool_entry->weight);
+
+                            if (pool_target_load && json_is_object(pool_target_load))
+                            {
+                                pool_entry->target_load.auid = json_get_int_default(pool_target_load, "auid", 0);
+                                pool_entry->target_load.vnum = json_get_int_default(pool_target_load, "vnum", 0);
+                            }
+
+                            pool_entry->next = NULL;
+                            if (!objective->pool_entries)
+                                objective->pool_entries = pool_entry;
+                            else
+                                last_pool->next = pool_entry;
+                            last_pool = pool_entry;
+                        }
+                    }
+
+                    objective->next = NULL;
+                    if (!stage->objectives)
+                        stage->objectives = objective;
+                    else
+                        last_objective->next = objective;
+                    last_objective = objective;
+                }
+            }
+
+            stage->next = NULL;
+            if (!quest_index_v2->stages)
+                quest_index_v2->stages = stage;
+            else
+                last_stage->next = stage;
+            last_stage = stage;
+        }
+    }
+
+    rewards = json_object_get(json, "rewards");
+    if (rewards && json_is_array(rewards))
+    {
+        QUEST_REWARD_INDEX_V2_DATA *last_reward = NULL;
+
+        json_array_foreach(rewards, reward_index, reward_json)
+        {
+            QUEST_REWARD_INDEX_V2_DATA *reward = new_quest_reward_index_v2();
+            json_t *target_load = json_object_get(reward_json, "target_load");
+
+            reward->reward_type = json_get_int_default(reward_json, "reward_type", reward->reward_type);
+            reward->amount = json_get_int_default(reward_json, "amount", reward->amount);
+
+            free_string(reward->currency);
+            reward->currency = str_dup(json_get_string_default(reward_json, "currency", ""));
+
+            free_string(reward->script);
+            reward->script = str_dup(json_get_string_default(reward_json, "script", ""));
+
+            if (target_load && json_is_object(target_load))
+            {
+                reward->target_load.auid = json_get_int_default(target_load, "auid", 0);
+                reward->target_load.vnum = json_get_int_default(target_load, "vnum", 0);
+            }
+
+            reward->next = NULL;
+            if (!quest_index_v2->rewards)
+                quest_index_v2->rewards = reward;
+            else
+                last_reward->next = reward;
+            last_reward = reward;
+        }
+    }
+
+    if (!quest_index_v2_register(quest_index_v2))
+    {
+        free_quest_index_v2(quest_index_v2);
+        return NULL;
+    }
+
+    return quest_index_v2;
+}
+
 /*
  * Deserialize a dungeon index from JSON
  */
@@ -1823,6 +2189,16 @@ AREA_DATA *json_area_load(const char *filename)
             }
         }
     }
+
+    /* Deserialize quest indices v2 */
+    json_t *quests_v2 = json_object_get(root, "quests_v2");
+    if (quests_v2 && json_is_array(quests_v2)) {
+        size_t index;
+        json_t *quest_json;
+        json_array_foreach(quests_v2, index, quest_json) {
+            (void)json_area_deserialize_quest_v2(quest_json, area);
+        }
+    }
     
     /* Deserialize dungeons */
     json_t *dungeons = json_object_get(root, "dungeons");
@@ -2176,6 +2552,22 @@ bool json_area_save_to(AREA_DATA *area, const char *filename)
     } else {
         json_decref(reputations);
     }
+
+    /* Serialize quest indices v2 */
+    json_t *quests_v2 = json_array();
+    for (QUEST_INDEX_V2_DATA *quest_index_v2 = quest_index_v2_list; quest_index_v2; quest_index_v2 = quest_index_v2->next) {
+        if (quest_index_v2->vnum && quest_index_v2->area == area) {
+            json_t *quest_json = json_area_serialize_quest_v2(quest_index_v2, area);
+            if (quest_json) {
+                json_array_append_new(quests_v2, quest_json);
+            }
+        }
+    }
+    if (json_array_size(quests_v2) > 0) {
+        json_object_set_new(root, "quests_v2", quests_v2);
+    } else {
+        json_decref(quests_v2);
+    }
     
     /* Write to file with pretty printing */
     if (!json_file_save(root, path, "json_area_save_to", JSON_INDENT(2) | JSON_PRESERVE_ORDER)) {
@@ -2290,6 +2682,21 @@ bool json_area_save(AREA_DATA *area)
         json_object_set_new(root, "reputations", reputations);
     else
         json_decref(reputations);
+
+    /* Serialize quest indices v2 */
+    json_t *quests_v2 = json_array();
+    for (QUEST_INDEX_V2_DATA *quest_index_v2 = quest_index_v2_list; quest_index_v2; quest_index_v2 = quest_index_v2->next) {
+        if (quest_index_v2->vnum && quest_index_v2->area == area) {
+            json_t *quest_json = json_area_serialize_quest_v2(quest_index_v2, area);
+            if (quest_json) {
+                json_array_append_new(quests_v2, quest_json);
+            }
+        }
+    }
+    if (json_array_size(quests_v2) > 0)
+        json_object_set_new(root, "quests_v2", quests_v2);
+    else
+        json_decref(quests_v2);
     
     /* Serialize blueprints */
     json_t *blueprints = json_array();

@@ -5999,14 +5999,14 @@ char *expand_entity_group(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         {
             for(count = 0, rch = arg->d.group_owner->in_room->people; rch; rch = rch->next_in_room)
             {
-                if(arg->d.group_owner->leader == rch->leader)
+                if(is_same_group(arg->d.group_owner, rch))
                     ++count;
             }
 
             count = number_range(1, count);
             for(rch = arg->d.group_owner->in_room->people; rch && count > 0; rch = rch->next_in_room)
             {
-                if(arg->d.group_owner->leader == rch->leader) {
+                if(is_same_group(arg->d.group_owner, rch)) {
                     --count;
 
                     if( count < 1)
@@ -6026,7 +6026,10 @@ char *expand_entity_group(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
     case ENTITY_GROUP_SIZE:
         arg->type = ENT_NUMBER;
-        arg->d.num = arg->d.group_owner ? list_size(arg->d.group_owner->lgroup) + 1 : 0;
+        if (arg->d.group_owner && IS_VALID(arg->d.group_owner->group) && arg->d.group_owner->group->members)
+            arg->d.num = list_size(arg->d.group_owner->group->members);
+        else
+            arg->d.num = arg->d.group_owner ? list_size(arg->d.group_owner->lgroup) + 1 : 0;
 
         break;
 

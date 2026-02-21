@@ -400,6 +400,13 @@ typedef struct  pref_entry      PREF_ENTRY;
 typedef struct	questor_data	QUESTOR_DATA;
 typedef struct	trainer_data	TRAINER_DATA;
 typedef struct	trainer_entry	TRAINER_ENTRY;
+typedef struct  quest_index_v2_data          QUEST_INDEX_V2_DATA;
+typedef struct  quest_stage_index_v2_data    QUEST_STAGE_INDEX_V2_DATA;
+typedef struct  quest_objective_index_v2_data QUEST_OBJECTIVE_INDEX_V2_DATA;
+typedef struct  quest_objective_pool_entry_v2_data QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA;
+typedef struct  quest_reward_index_v2_data   QUEST_REWARD_INDEX_V2_DATA;
+typedef struct  quest_objective_state_v2_data QUEST_OBJECTIVE_STATE_V2_DATA;
+typedef struct  quest_target_binding_v2_data QUEST_TARGET_BINDING_V2_DATA;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
 typedef struct	quest_runtime_data	QUEST_RUNTIME_DATA;
@@ -456,6 +463,7 @@ typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
 typedef struct reputation_index_data REPUTATION_INDEX_DATA;
 typedef struct reputation_data REPUTATION_DATA;
 typedef struct mob_reputation_data MOB_REPUTATION_DATA;
+typedef struct group_data GROUP_DATA;
 typedef struct list_type LLIST;
 typedef struct list_link_type LLIST_LINK;
 typedef struct list_link_area_data LLIST_AREA_DATA;
@@ -4359,6 +4367,176 @@ struct trainer_data
     char *greeting;             /* Custom greeting message (NULL = default) */
 };
 
+/* Quest v2 foundational definition model */
+#define QUEST_CATEGORY_FULL             0
+#define QUEST_CATEGORY_MISSION          1
+
+#define QUEST_MODE_NARRATIVE            0
+#define QUEST_MODE_TEMPLATE             1
+#define QUEST_MODE_HYBRID               2
+
+#define QUEST_SEED_POLICY_AUTO          0
+#define QUEST_SEED_POLICY_FIXED         1
+
+#define QUEST_REPEAT_ONCE               0
+#define QUEST_REPEAT_REPEATABLE         1
+
+#define QUEST_OBJECTIVE_KILL            0
+#define QUEST_OBJECTIVE_COLLECT         1
+#define QUEST_OBJECTIVE_TALK            2
+#define QUEST_OBJECTIVE_TRAVEL          3
+#define QUEST_OBJECTIVE_LOCATE          4
+#define QUEST_OBJECTIVE_RESCUE          5
+#define QUEST_OBJECTIVE_ESCORT          6
+#define QUEST_OBJECTIVE_CUSTOM_SCRIPT   7
+
+#define QUEST_OBJECTIVE_TARGET_EXACT    0
+#define QUEST_OBJECTIVE_TARGET_POOL     1
+
+#define QUEST_STAGE_COMPLETE_ALL        0
+#define QUEST_STAGE_COMPLETE_ANY        1
+#define QUEST_STAGE_COMPLETE_CUSTOM     2
+
+#define QUEST_STAGE_SOURCE_STATIC       0
+#define QUEST_STAGE_SOURCE_GENERATED    1
+
+#define QUEST_REWARD_POINTS             0
+#define QUEST_REWARD_CURRENCY           1
+#define QUEST_REWARD_REPUTATION         2
+#define QUEST_REWARD_TOKEN              3
+#define QUEST_REWARD_ITEM               4
+#define QUEST_REWARD_SCRIPT             5
+
+struct quest_objective_index_v2_data
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *next;
+
+    int id;
+    int objective_type;
+    int quantity;
+    int required_count;
+
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+    int target_ref_stage_id;
+    int target_ref_objective_id;
+    char *target_ref_name;
+    char *target_variable_name;
+    WNUM_LOAD target_token_load;
+    WNUM target_token_wnum;
+    char *target_token_ref_name;
+    char *target_token_variable_name;
+    int target_mode;
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entries;
+    WNUM_LOAD destination_load;
+    WNUM destination_wnum;
+    char *destination_ref_name;
+    char *destination_variable_name;
+    char *target_tag;
+    char *description;
+
+    bool optional;
+};
+
+
+struct quest_objective_pool_entry_v2_data
+{
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *next;
+
+    int id;
+    int weight;
+
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+};
+
+
+struct quest_stage_index_v2_data
+{
+    QUEST_STAGE_INDEX_V2_DATA *next;
+
+    int id;
+    char *name;
+    char *description;
+    int completion_mode;
+    int stage_source;
+    bool auto_commence;
+    int next_stage_id;
+
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objectives;
+
+    char *generator_profile;
+    unsigned long long generator_salt;
+
+    char *on_enter_script;
+    char *on_exit_script;
+};
+
+
+struct quest_reward_index_v2_data
+{
+    QUEST_REWARD_INDEX_V2_DATA *next;
+
+    int reward_type;
+    long amount;
+
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+
+    char *currency;
+    char *script;
+};
+
+
+struct quest_index_v2_data
+{
+    QUEST_INDEX_V2_DATA *next;
+    AREA_DATA *area;
+
+    long vnum;
+    char *name;
+    char *description;
+
+    int category;
+    int quest_mode;
+    int target_scope;
+    int repeat_policy;
+    int allowance_cost;
+    int entry_stage_id;
+    int seed_policy;
+    unsigned long long fixed_seed;
+
+    QUEST_STAGE_INDEX_V2_DATA *stages;
+    QUEST_REWARD_INDEX_V2_DATA *rewards;
+
+    bool enabled;
+};
+
+
+struct quest_objective_state_v2_data
+{
+    QUEST_OBJECTIVE_STATE_V2_DATA *next;
+
+    int objective_id;
+    int progress;
+    bool complete;
+    int selected_pool_entry_id;
+    WNUM_LOAD selected_target_load;
+    WNUM selected_target_wnum;
+    WNUM_LOAD selected_destination_load;
+    WNUM selected_destination_wnum;
+};
+
+
+struct quest_target_binding_v2_data
+{
+    QUEST_TARGET_BINDING_V2_DATA *next;
+
+    char *name;
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+};
+
 /* For randomly generated quests */
 struct quest_data
 {
@@ -4366,8 +4544,21 @@ struct quest_data
     QUEST_PART_DATA *   parts;
     long                quest_index_auid;
     long                quest_index_vnum;
+    long                quest_index_v2_auid;
+    long                quest_index_v2_vnum;
     long                run_id;
     time_t              started_at;
+    time_t              completed_at;
+    time_t              failed_at;
+    time_t              abandoned_at;
+    int                 run_status;
+    int                 current_stage_id;
+    unsigned long long  generation_seed;
+    unsigned long long  current_stage_seed;
+    int                 current_stage_generation;
+    int                 current_stage_commenced;
+    QUEST_OBJECTIVE_STATE_V2_DATA *objective_states;
+    QUEST_TARGET_BINDING_V2_DATA *target_bindings;
     int                 target_scope;
     unsigned long       scope_owner_id[2];
     long                scope_owner_uid;
@@ -4386,6 +4577,11 @@ struct quest_data
 #define QUEST_TARGET_SCOPE_CHARACTER  0
 #define QUEST_TARGET_SCOPE_GROUP      1
 #define QUEST_TARGET_SCOPE_CHURCH     2
+
+#define QUEST_RUN_STATUS_ACTIVE        0
+#define QUEST_RUN_STATUS_COMPLETED     1
+#define QUEST_RUN_STATUS_FAILED        2
+#define QUEST_RUN_STATUS_ABANDONED     3
 
 
 struct quest_part_data
@@ -4850,6 +5046,7 @@ struct	char_data
     CHAR_DATA *   	next_in_invasion;
     CHAR_DATA *		master;
     CHAR_DATA *		leader;
+    GROUP_DATA *	group;
     CHAR_DATA *		pet;
     CHAR_DATA *		fighting;
     CHAR_DATA *		heldup;
@@ -5285,6 +5482,17 @@ int temp_log_entry_id;
         int beats;
     } actions;
 };
+
+    struct group_data
+    {
+        GROUP_DATA *next;
+        bool valid;
+        unsigned long id[2];
+        CHAR_DATA *leader;
+        LLIST *members;
+        int player_count;
+        bool allow_npc_only;
+    };
 
 
 /* These values are used in a bitfield to store what type of channels will
@@ -6132,6 +6340,7 @@ struct	area_data
     DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
     REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
+    QUEST_INDEX_V2_DATA *quest_index_v2_hash[MAX_KEY_HASH];
 
     // Per-area script indexes
     SCRIPT_DATA *mprog_list;
@@ -8674,6 +8883,7 @@ extern		FILE *			fpReserve;
 extern		HELP_DATA	  *	help_first;
 extern		MAIL_DATA	  *	mail_list;
 extern		NPC_SHIP_DATA	  *	npc_ship_list;
+extern      QUEST_INDEX_V2_DATA   *   quest_index_v2_list;
 extern		QUEST_INDEX_DATA  *	quest_index_list;
 extern		SHOP_DATA	  *	shop_first;
 extern		TIME_INFO_DATA		time_info;
@@ -8863,6 +9073,11 @@ const char *resolve_game_path(const char *path, char *buffer, size_t buffer_size
 
 /* act_comm.c */
 bool add_grouped	args( ( CHAR_DATA *ch, CHAR_DATA *master, bool show ) );
+GROUP_DATA *group_create args( ( CHAR_DATA *leader, bool allow_npc_only ) );
+void group_disband args( ( GROUP_DATA *group ) );
+bool group_add_member args( ( GROUP_DATA *group, CHAR_DATA *ch ) );
+void group_remove_member args( ( CHAR_DATA *ch, bool disband_if_empty ) );
+void groups_clear_all args( ( void ) );
 bool is_same_group	args( ( CHAR_DATA *ach, CHAR_DATA *bch ) );
 void add_follower	args( ( CHAR_DATA *ch, CHAR_DATA *master, bool show ) );
 void check_sex	args( ( CHAR_DATA *ch) );
@@ -9323,6 +9538,13 @@ PROG_DATA *new_prog_data(void);
 LLIST **new_prog_bank(void);
 PROG_LIST *new_trigger(void);
 QUEST_INDEX_DATA *new_quest_index( void );
+QUEST_INDEX_V2_DATA *new_quest_index_v2( void );
+QUEST_STAGE_INDEX_V2_DATA *new_quest_stage_index_v2( void );
+QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2( void );
+QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *new_quest_objective_pool_entry_v2( void );
+QUEST_REWARD_INDEX_V2_DATA *new_quest_reward_index_v2( void );
+QUEST_OBJECTIVE_STATE_V2_DATA *new_quest_objective_state_v2( void );
+QUEST_TARGET_BINDING_V2_DATA *new_quest_target_binding_v2( void );
 QUEST_DATA *new_quest( void );
 QUEST_LIST *new_quest_list( void );
 QUEST_PART_DATA *new_quest_part(void);
@@ -9365,6 +9587,13 @@ void free_prog_data(PROG_DATA *pr_dat);
 void free_trigger(PROG_LIST *trigger);
 void free_prog_list(LLIST **pr_list);
 void free_quest_index( QUEST_INDEX_DATA *quest_index );
+void free_quest_index_v2( QUEST_INDEX_V2_DATA *quest_index_v2 );
+void free_quest_stage_index_v2( QUEST_STAGE_INDEX_V2_DATA *stage_index_v2 );
+void free_quest_objective_index_v2( QUEST_OBJECTIVE_INDEX_V2_DATA *objective_index_v2 );
+void free_quest_objective_pool_entry_v2( QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry_v2 );
+void free_quest_reward_index_v2( QUEST_REWARD_INDEX_V2_DATA *reward_index_v2 );
+void free_quest_objective_state_v2( QUEST_OBJECTIVE_STATE_V2_DATA *objective_state_v2 );
+void free_quest_target_binding_v2( QUEST_TARGET_BINDING_V2_DATA *target_binding_v2 );
 void free_quest( QUEST_DATA *pQuest );
 void free_quest_list( QUEST_LIST *quest_list );
 void free_quest_part( QUEST_PART_DATA *pPart );
@@ -9417,6 +9646,25 @@ QUEST_DATA *quest_runtime_get_run_by_index(CHAR_DATA *ch, int index);
 int quest_runtime_get_active_run_count(CHAR_DATA *ch);
 QUEST_DATA *quest_runtime_get_focused_run(CHAR_DATA *ch);
 int count_quest_parts( CHAR_DATA *ch );
+bool quest_index_v2_register(QUEST_INDEX_V2_DATA *quest_index_v2);
+void quest_index_v2_unregister(QUEST_INDEX_V2_DATA *quest_index_v2);
+void quest_index_v2_clear_registry(void);
+void fix_quests_v2(void);
+QUEST_INDEX_V2_DATA *get_quest_index_v2(long vnum);
+QUEST_INDEX_V2_DATA *get_quest_index_v2_wnum(WNUM wnum);
+QUEST_STAGE_INDEX_V2_DATA *quest_index_v2_get_stage(QUEST_INDEX_V2_DATA *quest_index_v2, int stage_id);
+QUEST_OBJECTIVE_INDEX_V2_DATA *quest_stage_index_v2_get_objective(QUEST_STAGE_INDEX_V2_DATA *stage, int objective_id);
+QUEST_INDEX_V2_DATA *quest_runtime_get_index_v2(QUEST_DATA *run);
+bool quest_runtime_bind_index_v2(QUEST_DATA *run, WNUM wnum);
+void quest_runtime_clear_objective_states(QUEST_DATA *run);
+QUEST_OBJECTIVE_STATE_V2_DATA *quest_runtime_get_objective_state(QUEST_DATA *run, int objective_id, bool create_if_missing);
+QUEST_STAGE_INDEX_V2_DATA *quest_runtime_get_current_stage(QUEST_DATA *run);
+unsigned long long quest_runtime_seed_for_stage(QUEST_DATA *run, int stage_id);
+bool quest_runtime_update_objective_progress(QUEST_DATA *run, int objective_id, int delta);
+bool quest_runtime_complete_objective(QUEST_DATA *run, int objective_id);
+bool quest_runtime_is_stage_complete(QUEST_DATA *run);
+bool quest_runtime_try_advance_stage(QUEST_DATA *run);
+bool quest_runtime_set_stage(QUEST_DATA *run, int stage_id);
 QUEST_INDEX_DATA *get_quest_index( long vnum );
 QUEST_INDEX_DATA *get_quest_index_wnum(WNUM wnum);
 void check_quest_rescue_mob( CHAR_DATA *ch, bool show );
@@ -10501,6 +10749,7 @@ extern TOKEN_DATA *global_tokens;
 //extern LLIST *loaded_players;
 extern LLIST *loaded_chars;
 extern LLIST *loaded_objects;
+extern LLIST *loaded_groups;
 extern LLIST *loaded_accounts;
 extern LLIST *reserved_vnums;
 

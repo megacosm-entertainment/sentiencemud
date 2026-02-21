@@ -74,6 +74,7 @@ char *editor_name_table[] = {
     "SectorEdit",   // 38 ED_SECTOR
     "RepEdit",      // 39 ED_REPUTATION
     "EVTEdit",      // 40 ED_EVENT
+    "QEdit",        // 41 ED_QUEST
 };
 
 int editor_max_tabs_table[] = {
@@ -118,6 +119,7 @@ int editor_max_tabs_table[] = {
     0,		// SectorEdit
     0,		// RepEdit
     0,		// EVTEdit
+    0,		// QEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -186,6 +188,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
     {
     case ED_HELP:
         hedit(d->character, d->incomm);
+        break;
+
+    case ED_QUEST:
+        qedit(d->character, d->incomm);
         break;
 
     default:

@@ -14,6 +14,14 @@ Replace the legacy single-active autoquest flow with a modern quest platform tha
 
 Legacy autoquest and its command UX will be retired.
 
+## Delivery Priority (Locked)
+
+Foundation-first scope for this rework is **character-owned runs only**.
+
+- Required for initial ship: mission allowance economy, multi-active run runtime, quest/mission definitions, objective/reward pipeline, persistence migration, and player command/runtime cleanup.
+- Deferred stretch goals: `target_scope=group` and `target_scope=church` execution semantics.
+- Existing group/church scaffolding remains compatibility-safe but is not part of the foundation acceptance criteria.
+
 ## Product Model
 
 ### Ownership Model Decision
@@ -45,8 +53,8 @@ Quest definitions are strictly area-owned.
 All player quest participation is represented as Quest Runs:
 
 - quest_run_id
-- target_scope (character|group|church)
-- owner reference (character id OR group id OR church id)
+- target_scope (foundation: character)
+- owner reference (foundation: character id)
 - initiator character (who accepted/started the run)
 - definition reference (quest or mission template)
 - current stage/state
@@ -65,14 +73,15 @@ Quest definitions must declare a target scope policy:
   - Run is owned and progressed by one player character.
   - Legacy and default behavior for migrated content.
 
-- group
+- group (deferred stretch goal)
   - Run is shared by a party/group.
   - Objective contribution and reward distribution are group-aware.
-  - Final implementation should align with the upcoming group refactor.
+  - Implementation aligns with the group refactor and is intentionally post-foundation.
 
-- church
+- church (deferred stretch goal)
   - Run is shared by church membership context.
   - Eligibility, visibility, and progression derive from church membership and rank/permissions.
+  - Implementation is intentionally post-foundation.
 
 Default for existing content: character.
 
@@ -213,9 +222,12 @@ handlers; scripting is an optional customization layer.
 These commands are optional integration points; templates should not require
 script implementations unless advanced behavior is desired.
 
-Scope options should include at minimum:
+Scope options for foundation:
 
 - target_scope=character (default)
+
+Deferred after foundation ship:
+
 - target_scope=group
 - target_scope=church
 
@@ -387,7 +399,7 @@ Keep legacy fields read-only during transition and stop writing them after migra
 
 - Implement Quest Definition + Stage + Objective execution engine
 - Implement multi-active-run management per player
-- Implement target_scope ownership plumbing for character/group/church runs
+- Implement target_scope ownership plumbing for **character runs**
 - Implement objective progress APIs and completion transitions
 - Implement mission target selector engine (specific/random/hybrid/script-generated)
 - Implement quest-token binding lifecycle on top of existing token system (attach/update/cleanup)
@@ -403,9 +415,15 @@ Keep legacy fields read-only during transition and stop writing them after migra
 ### Phase 3: Player Commands
 
 - Implement quest log/history/details and mission list commands
-- Surface target_scope and scope owner in command UX
+- Surface character-scope ownership in command UX
 - Integrate allowance display/consumption
 - Remove legacy single-quest UX paths
+
+### Post-Foundation Stretch
+
+- Enable group/church quest ownership semantics end-to-end
+- Expand command UX and eligibility rules for non-character scopes
+- Integrate with finalized group/church refactors
 
 ### Phase 4: Editor
 
@@ -437,7 +455,45 @@ Keep legacy fields read-only during transition and stop writing them after migra
 - Implemented: command-level scope gating in `quest` flow with ownership checks for character scope and explicit not-yet-enabled gates for group/church scopes; added `quest request [character|group|church]` parsing.
 - Implemented: initial multi-active request behavior by allowing additional `quest request` runs, preserving existing run list on new request insertion, and auto-focusing newly requested runs.
 - Implemented: concurrent-run command UX improvements (`quest time` shows focused run + other active run count; `quest cancel`/`quest complete` accept optional run selector by index or run id).
+- Implemented: internal target-scope owner normalization/matching helpers (character/group/church ownership seeding + access matching) to prepare seamless activation of group/church run ownership once supporting systems land.
+- Implemented: scope-consistent request seeding via shared owner helper and surfaced focused-run scope in `quest focus`/`quest info`/`quest time` output for clearer multi-scope runtime visibility.
+- Implemented: removed additional legacy head-run fallbacks in quest generation/custom-task helpers and gated objective-progress checks to player-accessible runs only.
+- Implemented: request-flow runtime expiry initialization (`QUEST_EXPIRY_COUNTDOWN`) and centralized expiry reset on final-run detach/timeout to reduce legacy `countdown`/expiry state drift.
+- Implemented: `quest time`/`quest_update` countdown handling now prefers runtime expiry fields, with `countdown` treated as compatibility input/fallback rather than primary timer state.
+- Decision: group/church quest scopes are explicitly de-scoped from foundation delivery and tracked as post-foundation stretch goals.
+- Implemented: player `quest request` flow now enforces character-scope foundation behavior (`quest request [character]`), with non-character scope requests explicitly rejected.
+- Implemented: foundational quest-definition scaffolding types (`QUEST_DEF`/stage/objective/reward + objective runtime state) and allocator/free lifecycle helpers in core runtime for upcoming qedit/runtime engine work.
+- Implemented: quest index v2 registry API with explicit area-scoped storage (`AREA_DATA->quest_index_v2_hash`) and area+vnum lookup helpers to align quest templates with zone-owned indexing.
+- Implemented: quest run v2 structural fields on `QUEST_DATA` (index linkage, stage id, run status/timestamps, objective-state list) plus runtime helpers for index binding, stage activation, and objective-state lifecycle.
 - Next on track (Phase 1): continue replacing direct `ch->quest` assumptions in remaining runtime/update flows with true active-runs container semantics while preserving gameplay behavior.
+
+## Session Handoff (2026-02-21)
+
+Session intent was corrected to **quest system + editor first**, with scripting deferred.
+
+### Confirmed and stable
+
+- Foundation direction remains locked to character-scoped quest runs.
+- Runtime cleanup and multi-run UX slices listed above remain the active baseline.
+- Object quest-offering linkage already has a viable data shape (`OBJ_INDEX_DATA->quests`) and can mirror mob quest linking.
+
+### Partially implemented (not finalized this session)
+
+- `quest.c` has in-progress `quest list` / named `quest request` scaffolding for mob/object questgivers.
+- Current object questgiver path in `quest.c` is **not finalized** and should be treated as WIP until completed and rebuilt.
+- `generate_quest_from_object(...)` is referenced by new request flow and must be completed/validated before relying on object request behavior.
+
+### Editor-first next step (resume plan)
+
+1. Add object editor quest linkage commands (`oedit addquest`, `oedit delquest`) mirroring `medit` behavior.
+2. Persist object quest links in `olc_save.c` object save/load paths.
+3. Switch `quest list/request` object offerings to use explicit object quest links only (no script-trigger heuristics).
+4. Rebuild and verify command flow end-to-end.
+
+### Scope guard for next session
+
+- Do not expand scripting trigger behavior in this slice.
+- Treat scripting integration as a follow-up phase after editor-backed quest offering flow is stable.
 
 ## Risks and Mitigations
 
@@ -460,3 +516,28 @@ Implement Phase 0 in code first:
 4. Load/save JSON for new blocks + legacy import path
 
 This enables parallel content authoring while autoquest retirement is underway.
+
+## Runtime + Authoring Checkpoint (2026-02-21)
+
+### Implemented this cycle
+
+- Quest v2 runtime objective progression and stage transitions are active (`all`/`any` completion and auto-advance).
+- Event hooks for kill/collect/travel/custom now feed v2 objective progress updates.
+- Unified quest mode scaffolding is in place (`narrative|template|hybrid`) with stage source (`static|generated`).
+- Deterministic seed plumbing is in place with index-level seed policy (`auto|fixed`) and fixed seed override support.
+- Commence lifecycle split is in place: generation metadata is tracked separately from stage commence state.
+- Stage-level `auto_commence` behavior is implemented for immediate stage start when desired.
+- `qedit` has been converted to quest-index authoring and supports index metadata plus stage/objective authoring.
+
+### Current boundaries
+
+- Foundation remains character-owned quest runs only.
+- Group/church scope behavior remains deferred and non-goal for this ship slice.
+- Generated-stage resolver and commence side effects are partially scaffolded but not finalized.
+
+### Next Slice (active)
+
+1. Add objective pool schema and editor commands for authoring candidate targets.
+2. Resolve deterministic selections at generation time and store chosen results on the run.
+3. Apply world side effects at stage commence only (spawn/mark/bind), including auto-commence stages.
+4. Keep this slice script-light: no broad scripting behavior expansion until authoring+runtime path is stable.

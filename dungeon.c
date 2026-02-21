@@ -1232,6 +1232,9 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
 {
     CHAR_DATA *leader = ch;
 
+    if (IS_VALID(ch) && IS_VALID(ch->group) && IS_VALID(ch->group->leader) && !IS_NPC(ch->group->leader))
+        return ch->group->leader;
+
     while( (leader->leader != NULL) && !IS_NPC(leader->leader) )
     {
         leader = leader->leader;
@@ -1244,15 +1247,19 @@ static int dungeon_group_members_inside(DUNGEON *dungeon, CHAR_DATA *leader)
 {
     ITERATOR it;
     CHAR_DATA *member;
+    GROUP_DATA *group;
     int count = 0;
 
     if (!IS_VALID(dungeon) || !IS_VALID(leader))
         return 0;
 
+    group = IS_VALID(leader->group) ? leader->group : NULL;
+
     iterator_start(&it, dungeon->players);
     while ((member = (CHAR_DATA *)iterator_nextdata(&it)))
     {
-        if (!IS_NPC(member) && is_same_group(member, leader))
+        if (!IS_NPC(member)
+            && ((IS_VALID(group) && member->group == group) || (!IS_VALID(group) && is_same_group(member, leader))))
             ++count;
     }
     iterator_stop(&it);
@@ -1288,7 +1295,8 @@ bool can_access_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *index, DUNGEON *dunge
         CHAR_DATA *leader = get_player_leader(ch);
         int group_size = dungeon_group_members_inside(dungeon, leader);
 
-        if (!list_hasdata(dungeon->players, ch) && is_same_group(ch, leader))
+        if (!list_hasdata(dungeon->players, ch)
+            && ((IS_VALID(leader->group) && ch->group == leader->group) || (!IS_VALID(leader->group) && is_same_group(ch, leader))))
             ++group_size;
 
         if (group_size > index->max_group)

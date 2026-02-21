@@ -752,6 +752,12 @@ int main(int argc, char **argv)
         perror("Could not create 'loaded_objects'");
         exit(1);
     }
+
+    loaded_groups = list_create(false);
+    if(!loaded_groups) {
+        perror("Could not create 'loaded_groups'");
+        exit(1);
+    }
     loaded_obj_hash_init();
 
     init_string_space();
@@ -931,6 +937,7 @@ int main(int argc, char **argv)
     }
     
     game_loop(control_telnet, control_tls, control_websocket);
+    groups_clear_all();
     list_destroy(conn_players);
     list_destroy(conn_immortals);
     list_destroy(conn_online);
@@ -938,6 +945,7 @@ int main(int argc, char **argv)
     // Temporarily disabling for reconnect crash.
     //list_destroy(loaded_players);
     list_destroy(loaded_objects);
+    list_destroy(loaded_groups);
     list_destroy(persist_mobs);
     list_destroy(persist_objs);
     list_destroy(persist_rooms);

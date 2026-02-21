@@ -11984,16 +11984,28 @@ SCRIPT_CMD(scriptcmd_ungroup)
 
     if( fAll ) {
         ITERATOR git;
+        LLIST *members;
+        LLIST *snapshot;
         CHAR_DATA *leader = (arg->d.mob->leader != NULL) ? arg->d.mob->leader : arg->d.mob;
         CHAR_DATA *follower;
 
-        if( leader->num_grouped < 1 )
+        members = (IS_VALID(leader->group) && leader->group->members)
+            ? leader->group->members
+            : leader->lgroup;
+
+        if( !members || list_size(members) < 1 )
             return;
 
-        iterator_start(&git, leader->lgroup);
+        snapshot = list_copy(members);
+        if (!snapshot)
+            return;
+
+        iterator_start(&git, snapshot);
         while((follower = (CHAR_DATA *)iterator_nextdata(&git)))
             stop_grouped(follower);
         iterator_stop(&git);
+
+        list_destroy(snapshot);
     }
     else
     {

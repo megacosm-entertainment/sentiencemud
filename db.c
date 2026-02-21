@@ -265,6 +265,7 @@ BLUEPRINT				*blueprint_hash[MAX_KEY_HASH];
 DUNGEON_INDEX_DATA		*dungeon_index_hash[MAX_KEY_HASH];
 SHIP_INDEX_DATA			*ship_index_hash[MAX_KEY_HASH];
 REPUTATION_INDEX_DATA  *reputation_index_hash[MAX_KEY_HASH];
+QUEST_INDEX_V2_DATA    *quest_index_v2_list;
 QUEST_INDEX_DATA       *quest_index_list;
 
 bool			global;
@@ -359,6 +360,7 @@ LLIST *loaded_chars;
 // Temporarily disabled for reconnect crash.
 //LLIST *loaded_players;
 LLIST *loaded_objects;
+LLIST *loaded_groups;
 LLIST *persist_mobs;
 LOADED_OBJ_HASH_ENTRY *loaded_obj_hash[LOADED_OBJ_HASH_SIZE];
 LLIST *persist_objs;
@@ -944,6 +946,8 @@ void boot_db(void)
     fix_object_type_data();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving area/mob/trade widevnum fields");
     fix_area_fields();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving quest-v2 widevnum fields");
+    fix_quests_v2();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_vlinks");
     fix_vlinks();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_shops");
@@ -2237,6 +2241,73 @@ void fix_blueprint_references(void)
                         }
                     }
                     iterator_stop(&mf_it);
+                }
+
+                /* Resolve maze map object/mobile references */
+                if (bs->map_data) {
+                    MAZE_MAP_DATA *mmd = bs->map_data;
+
+                    mmd->obj = NULL;
+                    if (mmd->obj_ref.load.vnum > 0) {
+                        AREA_DATA *target_area = NULL;
+
+                        if (mmd->obj_ref.load.auid > 0) {
+                            target_area = get_area_from_uid(mmd->obj_ref.load.auid);
+                        }
+
+                        if (target_area) {
+                            mmd->obj = get_obj_index(target_area, mmd->obj_ref.load.vnum);
+                        } else {
+                            /* Legacy: search all areas when area_uid is 0 */
+                            AREA_DATA *search_area;
+                            for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                                mmd->obj = get_obj_index(search_area, mmd->obj_ref.load.vnum);
+                                if (mmd->obj)
+                                    break;
+                            }
+                        }
+
+                        if (!mmd->obj) {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                "Blueprint section '%s' (vnum %ld in %s): maze map object %ld#%ld not found",
+                                bs->name ? bs->name : "unnamed",
+                                bs->vnum,
+                                pArea->name,
+                                mmd->obj_ref.load.auid,
+                                mmd->obj_ref.load.vnum);
+                        }
+                    }
+
+                    mmd->mob = NULL;
+                    if (mmd->mob_ref.load.vnum > 0) {
+                        AREA_DATA *target_area = NULL;
+
+                        if (mmd->mob_ref.load.auid > 0) {
+                            target_area = get_area_from_uid(mmd->mob_ref.load.auid);
+                        }
+
+                        if (target_area) {
+                            mmd->mob = get_mob_index(target_area, mmd->mob_ref.load.vnum);
+                        } else {
+                            /* Legacy: search all areas when area_uid is 0 */
+                            AREA_DATA *search_area;
+                            for (search_area = area_first; search_area != NULL; search_area = search_area->next) {
+                                mmd->mob = get_mob_index(search_area, mmd->mob_ref.load.vnum);
+                                if (mmd->mob)
+                                    break;
+                            }
+                        }
+
+                        if (!mmd->mob) {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                "Blueprint section '%s' (vnum %ld in %s): maze map carrier mob %ld#%ld not found",
+                                bs->name ? bs->name : "unnamed",
+                                bs->vnum,
+                                pArea->name,
+                                mmd->mob_ref.load.auid,
+                                mmd->mob_ref.load.vnum);
+                        }
+                    }
                 }
             }
         }

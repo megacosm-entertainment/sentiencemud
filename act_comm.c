@@ -47,6 +47,8 @@
 #include "account/penalty.h"
 #include "account/preferences.h"
 
+static void group_sync_legacy_state(GROUP_DATA *group);
+
 
 
 
@@ -2390,15 +2392,24 @@ void do_group(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0') {
         CHAR_DATA *gch;
         CHAR_DATA *leader;
+        GROUP_DATA *group;
 
         leader = (ch->leader != NULL) ? ch->leader : ch;
+        group = IS_VALID(ch->group) ? ch->group : (IS_VALID(leader) ? leader->group : NULL);
+
+        if (IS_VALID(group) && IS_VALID(group->leader))
+            leader = group->leader;
+
         sprintf(buf, "{Y%s's group is currently formed by:\n\r", pers(leader, ch));
         send_to_char(buf, ch);
 
-        iterator_start(&it, loaded_chars);
-        while(( gch = (CHAR_DATA *)iterator_nextdata(&it)))
-        {
-            if (is_same_group(gch, ch) || gch == ch) {
+        if (IS_VALID(group) && group->members)
+            iterator_start(&it, group->members);
+        else
+            iterator_start(&it, loaded_chars);
+
+        while(( gch = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if ((IS_VALID(group) && gch->group == group) || (!IS_VALID(group) && (is_same_group(gch, ch) || gch == ch))) {
                 char name[MSL];
                 char race[MSL];
                 char hired_time[100];
@@ -2636,6 +2647,7 @@ void do_split(CHAR_DATA *ch, char *argument)
 void do_gtell(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *gch;
+    GROUP_DATA *group;
     bool another_person = false;
     ITERATOR it;
 
@@ -2651,10 +2663,16 @@ void do_gtell(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    iterator_start(&it, loaded_chars);
+    group = IS_VALID(ch->group) ? ch->group : NULL;
+
+    if (IS_VALID(group) && group->members)
+        iterator_start(&it, group->members);
+    else
+        iterator_start(&it, loaded_chars);
+
     while(( gch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
-        if (is_same_group(gch, ch)) {
+        if ((IS_VALID(group) && gch->group == group) || (!IS_VALID(group) && is_same_group(gch, ch))) {
             act_new("{C$$n tells the group '$t'{x", ch,gch,NULL, NULL, NULL,NULL,NULL,argument,NULL,TO_VICT,POS_SLEEPING,NULL);
             if (gch != ch)
                 another_person = true;
@@ -2670,6 +2688,228 @@ void do_gtell(CHAR_DATA *ch, char *argument)
         send_to_char("There are no members in your group.\n\r", ch);
 
     return;
+}
+
+
+GROUP_DATA *group_create(CHAR_DATA *leader, bool allow_npc_only)
+{
+    GROUP_DATA *group;
+
+    if (!IS_VALID(leader))
+        return NULL;
+
+    if (IS_VALID(leader->group))
+        return leader->group;
+
+    if (!loaded_groups)
+        return NULL;
+
+    group = alloc_mem(sizeof(GROUP_DATA));
+    memset(group, 0, sizeof(GROUP_DATA));
+    VALIDATE(group);
+
+    group->members = list_create(false);
+    if (!group->members) {
+        INVALIDATE(group);
+        free_mem(group, sizeof(GROUP_DATA));
+        return NULL;
+    }
+
+    group->id[0] = (unsigned long)get_pc_id();
+    group->id[1] = 0;
+    group->leader = leader;
+    group->allow_npc_only = allow_npc_only;
+
+    list_appendlink(loaded_groups, group);
+    group_add_member(group, leader);
+
+    return group;
+}
+
+
+bool group_add_member(GROUP_DATA *group, CHAR_DATA *ch)
+{
+    if (!IS_VALID(group) || !IS_VALID(ch) || !group->members)
+        return false;
+
+    if (ch->group == group)
+        return true;
+
+    if (IS_VALID(ch->group) && ch->group != group)
+        group_remove_member(ch, true);
+
+    if (!list_hasdata(group->members, ch))
+        list_appendlink(group->members, ch);
+
+    ch->group = group;
+
+    if (!IS_NPC(ch))
+        group->player_count++;
+
+    if (!IS_VALID(group->leader))
+        group->leader = ch;
+
+    group_sync_legacy_state(group);
+    return true;
+}
+
+
+void group_disband(GROUP_DATA *group)
+{
+    CHAR_DATA *member;
+    ITERATOR it;
+
+    if (!IS_VALID(group))
+        return;
+
+    if (group->members) {
+        iterator_start(&it, group->members);
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (IS_VALID(member) && member->group == group) {
+                member->group = NULL;
+                member->leader = NULL;
+                member->num_grouped = 0;
+                if (member->lgroup)
+                    list_clear(member->lgroup);
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    if (loaded_groups && list_hasdata(loaded_groups, group))
+        list_remlink(loaded_groups, group, false);
+
+    list_destroy(group->members);
+    group->members = NULL;
+
+    INVALIDATE(group);
+    free_mem(group, sizeof(GROUP_DATA));
+}
+
+
+void group_remove_member(CHAR_DATA *ch, bool disband_if_empty)
+{
+    GROUP_DATA *group;
+    CHAR_DATA *member;
+    CHAR_DATA *fallback = NULL;
+    bool was_player;
+    ITERATOR it;
+
+    if (!IS_VALID(ch) || !IS_VALID(ch->group))
+        return;
+
+    group = ch->group;
+    was_player = !IS_NPC(ch);
+
+    if (group->members && list_hasdata(group->members, ch))
+        list_remlink(group->members, ch, false);
+
+    ch->group = NULL;
+    ch->leader = NULL;
+
+    if (was_player && group->player_count > 0)
+        group->player_count--;
+
+    if (group->leader == ch)
+        group->leader = NULL;
+
+    if (group->members && list_size(group->members) > 0 && !IS_VALID(group->leader)) {
+        iterator_start(&it, group->members);
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (!IS_VALID(member))
+                continue;
+
+            if (!IS_NPC(member)) {
+                group->leader = member;
+                break;
+            }
+
+            if (!fallback)
+                fallback = member;
+        }
+        iterator_stop(&it);
+
+        if (!IS_VALID(group->leader))
+            group->leader = fallback;
+    }
+
+    if (!group->members || list_size(group->members) < 1) {
+        if (disband_if_empty)
+            group_disband(group);
+        return;
+    }
+
+    if (!group->allow_npc_only && group->player_count < 1) {
+        group_disband(group);
+        return;
+    }
+
+    group_sync_legacy_state(group);
+}
+
+
+void groups_clear_all(void)
+{
+    GROUP_DATA *group;
+
+    if (!loaded_groups)
+        return;
+
+    while ((group = (GROUP_DATA *)list_nthdata(loaded_groups, 1)) != NULL)
+        group_disband(group);
+}
+
+
+static void group_sync_legacy_state(GROUP_DATA *group)
+{
+    CHAR_DATA *member;
+    CHAR_DATA *leader;
+    ITERATOR it;
+
+    if (!IS_VALID(group) || !group->members)
+        return;
+
+    leader = group->leader;
+
+    iterator_start(&it, group->members);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (!IS_VALID(member))
+            continue;
+
+        member->num_grouped = 0;
+        if (member->lgroup)
+            list_clear(member->lgroup);
+    }
+    iterator_stop(&it);
+
+    if (!IS_VALID(leader) || !list_hasdata(group->members, leader))
+        leader = NULL;
+
+    group->leader = leader;
+
+    if (!IS_VALID(leader)) {
+        iterator_start(&it, group->members);
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (IS_VALID(member))
+                member->leader = NULL;
+        }
+        iterator_stop(&it);
+        return;
+    }
+
+    leader->leader = NULL;
+
+    iterator_start(&it, group->members);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (!IS_VALID(member) || member == leader)
+            continue;
+
+        member->leader = leader;
+        leader->num_grouped++;
+        if (leader->lgroup && !list_hasdata(leader->lgroup, member))
+            list_appendlink(leader->lgroup, member);
+    }
+    iterator_stop(&it);
 }
 
 
@@ -2698,6 +2938,9 @@ bool is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)
 
     /* Mount fix */
     if (ach == MOUNTED(bch) || bch == MOUNTED(ach))
+    return true;
+
+    if (IS_VALID(ach->group) && ach->group == bch->group)
     return true;
 
     if (ach->leader != NULL)
@@ -2769,6 +3012,21 @@ void do_colour(CHAR_DATA *ch, char *argument)
  */
 bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 {
+    GROUP_DATA *group;
+
+    if (!IS_VALID(ch) || !IS_VALID(master))
+        return false;
+
+    if (IS_VALID(ch->group) && IS_VALID(master->group) && ch->group == master->group)
+        return true;
+
+    group = master->group;
+    if (!IS_VALID(group))
+        group = group_create(master, IS_NPC(master));
+
+    if (!IS_VALID(group))
+        return false;
+
     if (master->num_grouped >= 9)
     {
     if(show) {
@@ -2778,15 +3036,8 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
     return false;
     }
 
-    if (ch != master) {
-        master->num_grouped++;
-        if( !list_hasdata(master->lgroup, ch))
-            list_appendlink(master->lgroup, ch);
-    }
-
-    ch->leader = master;
-
-
+    if (!group_add_member(group, ch))
+        return false;
 
     p_percent_trigger( ch, NULL, NULL, NULL, master, NULL, NULL, NULL, NULL, TRIG_GROUPED, NULL);
 
@@ -2810,10 +3061,23 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 void stop_grouped(CHAR_DATA *ch)
 {
     CHAR_DATA *leader;
+    GROUP_DATA *group;
+
     if (!IS_VALID(ch))
     {
     pbugf(LOG_ERROR, "Invalid ch.");
     return;
+    }
+
+    if (IS_VALID(ch->group)) {
+        group = ch->group;
+        leader = group->leader;
+
+        group_remove_member(ch, true);
+        ch->leader = NULL;
+
+        p_percent_trigger( ch, NULL, NULL, NULL, leader, NULL, NULL, NULL, NULL, TRIG_UNGROUPED, NULL);
+        return;
     }
 
 
@@ -2821,7 +3085,7 @@ void stop_grouped(CHAR_DATA *ch)
         if (ch->leader != NULL) {
             ch->leader->num_grouped--;
             if( list_hasdata(ch->leader->lgroup, ch))
-                list_appendlink(ch->leader->lgroup, ch);
+                list_remlink(ch->leader->lgroup, ch, false);
 
         }
 

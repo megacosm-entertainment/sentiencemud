@@ -413,7 +413,7 @@ This creates an interesting cost dynamic: letting a henchman die too often eats 
 
 | Document | Relationship |
 |----------|-------------|
-| `PLAN_group_analysis.md` | Direct prerequisite — `GROUP_DATA` provides the group entity that `PARTY_DATA` attaches to |
+| `PLAN_group_analysis.md` | Strong dependency for full party/group features, but **not a blocker** for quest/mission foundation delivery (character-scope-first) |
 | `PLAN_MODULE_SYSTEM.md` | Party system is a natural module candidate (`sentience_party`); companion serialization follows module-owned persistence |
 | `PLAN_SKILL_REFACTOR.md` | Tier 2-3 companions need the skill system to be data-driven (JSON skills) so their skill subsets can be configured |
 | `PLAN_CLASS_JOB_SYSTEM_BACKPORT.md` | Tier 2-3 companions need classes; the class/job system defines what's available |

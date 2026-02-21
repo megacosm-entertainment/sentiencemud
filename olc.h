@@ -74,6 +74,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_SECTOR        38
 #define ED_REPUTATION    39
 #define ED_EVENT         40
+#define ED_QUEST         41
 
 
 
