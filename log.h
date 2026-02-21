@@ -1,6 +1,8 @@
 #ifndef __MUD_LOG_H__
 #define __MUD_LOG_H__
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "zlog.h"
 
 // Log levels
@@ -16,6 +18,66 @@ typedef enum {
     LOG_LEVEL_SCRIPT,
     LOG_LEVEL_SECURITY
 } log_level;
+
+typedef enum {
+    EVENT_SEV_INFO,
+    EVENT_SEV_WARN,
+    EVENT_SEV_ERROR,
+    EVENT_SEV_DEBUG,
+    EVENT_SEV_CRITICAL,
+    EVENT_SEV_BUG
+} event_severity_t;
+
+typedef enum {
+    ERROR_CODE_NONE = 0,
+    ERROR_CODE_INVALID_ARGUMENT,
+    ERROR_CODE_PERMISSION_DENIED,
+    ERROR_CODE_NOT_FOUND,
+    ERROR_CODE_STATE_CONFLICT,
+    ERROR_CODE_DEPENDENCY_FAILURE,
+    ERROR_CODE_INTERNAL,
+    ERROR_CODE_SCRIPT_RUNTIME,
+    ERROR_CODE_SECURITY
+} error_code_t;
+
+typedef enum {
+    EVENT_DOMAIN_SYSTEM,
+    EVENT_DOMAIN_SECURITY,
+    EVENT_DOMAIN_COMBAT,
+    EVENT_DOMAIN_QUEST,
+    EVENT_DOMAIN_OLC,
+    EVENT_DOMAIN_ADMIN,
+    EVENT_DOMAIN_SCRIPT,
+    EVENT_DOMAIN_ECONOMY,
+    EVENT_DOMAIN_COMMAND
+} event_domain_t;
+
+typedef struct {
+    const char *actor_type;
+    const char *actor_id;
+    const char *action;
+    const char *target_type;
+    const char *target_id;
+    int64_t value;
+    int64_t duration_ms;
+    const char *extra_json;
+} log_context_t;
+
+typedef struct {
+    event_severity_t severity;
+    const char *category;
+    error_code_t error_code;
+    const char *public_message;
+    const char *staff_message;
+    long wiznet_flag;
+    long wiznet_skip_flag;
+    int wiznet_min_rank;
+    const char *plain_message;
+    const log_context_t *context;
+    const char *source_file;
+    long source_line;
+    const char *source_func;
+} log_event_t;
 
 // Log categories - mapped to zlog categories
 #define LOG_INIT      "init"      // Initialization messages
@@ -39,6 +101,9 @@ typedef enum {
 int log_init(const char *config_path);
 void log_shutdown(void);
 void log_set_unit_test_only(bool enabled);
+const char *log_category_for_domain(event_domain_t domain);
+void log_emit_event(const log_event_t *event, void *public_recipient);
+void log_emit_event_f(const log_event_t *base_event, void *public_recipient, const char *plain_fmt, ...);
 
 // Logging functions - now macros to capture caller info
 #define log_message(level, category, message) \

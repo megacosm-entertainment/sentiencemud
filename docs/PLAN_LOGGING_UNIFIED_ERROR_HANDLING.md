@@ -13,6 +13,7 @@ This causes drift between player-facing errors, operator-facing logs, and future
 The target state is **one canonical error/event pipeline** that can emit all of the following from one call site:
 
 - Player-facing message (safe and concise)
+- Staff-facing message (wiznet broadcast, rank/flag filtered)
 - Structured JSON context (for Redis/HTTP aggregator flow)
 - Plaintext fallback string (for zlog/local files and degraded modes)
 
@@ -24,6 +25,7 @@ The target state is **one canonical error/event pipeline** that can emit all of 
 2. Keep existing call sites working during migration (non-breaking).
 3. Ensure each event can produce:
    - public message (optional)
+    - staff/wiznet message (optional)
    - structured context (optional but encouraged)
    - plaintext fallback (required)
 4. Preserve current zlog output while enabling async aggregator dispatch.
@@ -82,6 +84,10 @@ typedef struct {
     error_code_t error_code;      /* stable machine-readable code */
 
     const char *public_message;   /* optional player-safe text */
+    const char *staff_message;    /* optional wiznet-safe text */
+    long wiznet_flag;             /* wiznet channel/flag mask */
+    long wiznet_skip_flag;        /* skip flag mask */
+    int wiznet_min_rank;          /* minimum staff rank */
     const char *plain_message;    /* required fallback text */
 
     const log_context_t *context; /* optional */
@@ -97,8 +103,9 @@ typedef struct {
 
 1. `plain_message` is always required.
 2. `public_message` is optional and must contain no sensitive internals.
-3. `error_code` is mandatory for errors (`severity >= ERROR`) and optional for info/warn.
-4. Structured serialization must include `error_code` in `context.extra` until schema v2 adds a top-level field.
+3. `staff_message` is optional and should include operational detail suitable for immortals.
+4. `error_code` is mandatory for errors (`severity >= ERROR`) and optional for info/warn.
+5. Structured serialization must include `error_code` in `context.extra` until schema v2 adds a top-level field.
 
 ---
 
@@ -108,9 +115,11 @@ typedef struct {
 
 1. **Public output path (optional):**
    - If a target character/descriptor is provided and `public_message != NULL`, send to player.
-2. **Plaintext local path (required):**
+2. **Staff output path (optional):**
+    - If `staff_message != NULL`, dispatch via `wiznet(...)` using `wiznet_flag`, `wiznet_skip_flag`, and `wiznet_min_rank`.
+3. **Plaintext local path (required):**
    - Route `plain_message` to zlog (`log_message` equivalent behavior).
-3. **Structured path (optional/configured):**
+4. **Structured path (optional/configured):**
    - Serialize to schema JSON and enqueue for Redis/remote dispatcher.
 
 This guarantees parity: one source event drives all channels.
@@ -124,6 +133,13 @@ This guarantees parity: one source event drives all channels.
 ```c
 void log_emit_event(const log_event_t *event, CHAR_DATA *public_recipient);
 void log_emit_event_f(const log_event_t *base, CHAR_DATA *public_recipient, const char *plain_fmt, ...);
+
+void log_emit_staff_event(
+    const log_event_t *event,
+    CHAR_DATA *public_recipient,
+    CHAR_DATA *wiznet_actor,
+    OBJ_DATA *wiznet_obj
+);
 ```
 
 - Core logging internals only.
@@ -152,6 +168,7 @@ void cmd_info(...);
 ### Layer 3: Compatibility wrappers (migration bridge)
 
 - `log_message*`, `plogf`, `pbugf`, `bug`, `log_string*` become adapters into `log_emit_event*`.
+- `wiznet(...)` call sites migrate via thin wrappers so staff alerts are event-driven, not side-band.
 - No mass refactor required before behavior improvement.
 
 ---
@@ -201,10 +218,124 @@ Current schema in `LOGGING_SCHEMA.md` is preserved.
 Additions for interoperability:
 
 1. Include `error_code` and `public_message_sent` in `context.extra` for error events.
-2. Include `event_id` UUID (or monotonic id) in `metadata` for correlation across local/remote paths.
-3. Include `public_message_template` (optional, non-PII) if using message catalogs later.
+2. Include `staff_message_sent` and `wiznet_flag` in `context.extra` for staff-dispatched events.
+3. Include `event_id` UUID (or monotonic id) in `metadata` for correlation across local/remote paths.
+4. Include `public_message_template` (optional, non-PII) if using message catalogs later.
 
 No breaking change required for schema version 1.
+
+---
+
+## Non-error event taxonomy (penalties, PK, economy, etc.)
+
+The unified system is **event-first**, not error-only. Non-error game events use the same `log_event_t` pipeline with `EVENT_SEV_INFO`/`EVENT_SEV_WARN` and `ERROR_CODE_NONE`.
+
+### Standard event families
+
+1. **Moderation & Penalties**
+    - Suggested category: `LOG_SECURITY` or `LOG_ADMIN`
+    - Actions: `penalty_apply`, `penalty_lift`, `mute_apply`, `ban_apply`, `warn_issue`
+2. **PvP / PK**
+    - Suggested category: `LOG_COMBAT`
+    - Actions: `pk_attack`, `pk_kill`, `pk_assist`, `pk_loot`
+3. **Economy & Trading**
+    - Suggested category: `LOG_INFO` (or future `LOG_ECONOMY` if introduced intentionally)
+    - Actions: `trade_complete`, `gold_transfer`, `auction_sale`, `shop_purchase`
+4. **Character Progression**
+    - Suggested category: `LOG_INFO`
+    - Actions: `level_gain`, `skill_learn`, `quest_complete`
+5. **Admin & Staff Operations**
+    - Suggested category: `LOG_ADMIN`
+    - Actions: `setstat`, `force`, `restore`, `config_change`
+6. **System & Background Operations**
+    - Suggested category: `LOG_DEBUG`, `LOG_HTTP`, `LOG_SQL`, `LOG_SCRIPT`, `LOG_INIT`
+    - Actions: `cache_warm`, `redis_reconnect`, `http_post_batch`, `db_save`, `script_execute`
+
+### Severity guidance for non-error events
+
+- `EVENT_SEV_INFO`: normal state changes (PK kill, penalty applied, trade completed)
+- `EVENT_SEV_WARN`: suspicious but non-fatal behavior (rapid penalties, repeated PK targeting)
+- `EVENT_SEV_ERROR+`: reserved for actual failures or invariant breaks
+
+---
+
+## Category compatibility with current zlog usage
+
+To avoid category drift, unified events continue using the same category constants currently defined in `log.h`.
+
+### Required compatibility categories
+
+- `LOG_INIT` (`init`)
+- `LOG_INFO` (`info`)
+- `LOG_WARN` (`warn`)
+- `LOG_ERROR` (`error`)
+- `LOG_DEBUG` (`debug`)
+- `LOG_CRITICAL` (`critical`)
+- `LOG_SQL` (`sql`)
+- `LOG_HTTP` (`http`)
+- `LOG_SCRIPT` (`script`)
+- `LOG_SECURITY` (`security`)
+- `LOG_COMBAT` (`combat`)
+- `LOG_SCRIPTS` (`scripts`)
+- `LOG_OLC` (`olc`)
+- `LOG_QUEST` (`quest`)
+- `LOG_UNIT_TESTS` (`unit_tests`)
+- `LOG_ADMIN` (`admin`)
+
+### Category policy
+
+1. Do not introduce new categories casually; reuse existing constants first.
+2. If a new category is required (e.g., `economy`), it must be added in `log.h`, zlog config, and docs in one change.
+3. Keep category stable and put granular semantics into `context.action` and `context.extra`.
+
+This keeps dashboards and alerting compatible while still increasing event richness.
+
+### Core vs domain category split
+
+To address existing built-in zlog categories (like `sql`, `http`, `script`), classify categories into two groups:
+
+1. **Core/infra categories** (reserved for subsystem plumbing)
+    - `LOG_INIT`, `LOG_WARN`, `LOG_ERROR`, `LOG_DEBUG`, `LOG_CRITICAL`
+    - `LOG_SQL`, `LOG_HTTP`, `LOG_SCRIPT`, `LOG_UNIT_TESTS`
+2. **Domain/gameplay categories** (player/staff/world events)
+    - `LOG_INFO`, `LOG_SECURITY`, `LOG_COMBAT`, `LOG_QUEST`, `LOG_OLC`, `LOG_ADMIN`, `LOG_SCRIPTS`
+
+Rule of thumb:
+- Use infra categories for transport, persistence, protocol, or runtime internals.
+- Use domain categories for penalties, PK, moderation, command usage, economy, and gameplay outcomes.
+
+### Suggested helper (normalization without lock-in)
+
+Add a thin helper layer so callers can express intent without hard-coding categories repeatedly:
+
+```c
+typedef enum {
+     EVENT_DOMAIN_SYSTEM,
+     EVENT_DOMAIN_SECURITY,
+     EVENT_DOMAIN_COMBAT,
+     EVENT_DOMAIN_QUEST,
+     EVENT_DOMAIN_OLC,
+     EVENT_DOMAIN_ADMIN,
+     EVENT_DOMAIN_SCRIPT,
+     EVENT_DOMAIN_ECONOMY,
+     EVENT_DOMAIN_COMMAND
+} event_domain_t;
+
+const char *log_category_for_domain(event_domain_t domain);
+```
+
+Recommended default mapping:
+- `EVENT_DOMAIN_SYSTEM`   -> `LOG_DEBUG` (or `LOG_INFO` for lifecycle messages)
+- `EVENT_DOMAIN_SECURITY` -> `LOG_SECURITY`
+- `EVENT_DOMAIN_COMBAT`   -> `LOG_COMBAT`
+- `EVENT_DOMAIN_QUEST`    -> `LOG_QUEST`
+- `EVENT_DOMAIN_OLC`      -> `LOG_OLC`
+- `EVENT_DOMAIN_ADMIN`    -> `LOG_ADMIN`
+- `EVENT_DOMAIN_SCRIPT`   -> `LOG_SCRIPTS` (engine internals still use `LOG_SCRIPT`)
+- `EVENT_DOMAIN_ECONOMY`  -> `LOG_INFO` (until a dedicated `LOG_ECONOMY` is approved)
+- `EVENT_DOMAIN_COMMAND`  -> `LOG_INFO`
+
+This provides consistency while preserving backward-compatible zlog categories.
 
 ---
 
@@ -214,14 +345,17 @@ No breaking change required for schema version 1.
 
 1. Add `error_code_t`, `log_event_t`, and `log_emit_event*` in `log.h` / `log.c`.
 2. Keep `log_message*` macros intact; route internals through new emitter.
-3. Implement safe defaults (no context, no public recipient).
+3. Add staff dispatch fields to `log_event_t` with safe defaults (`staff_message = NULL`).
+4. Implement safe defaults (no context, no public recipient, no wiznet emission).
 
 ### Phase B: Compatibility bridge
 
 1. Re-implement legacy functions in `db.c` as wrappers:
    - `bug(...)` -> `log_emit_event` with `EVENT_SEV_BUG`
    - `log_string*` -> `EVENT_SEV_INFO`
-2. Keep function signatures unchanged to avoid compile churn.
+2. Add a wiznet compatibility helper:
+    - Existing `wiznet(...)` behavior preserved, but can be emitted through `log_emit_staff_event(...)`.
+3. Keep function signatures unchanged to avoid compile churn.
 
 ### Phase C: Command error adoption (high value first)
 
@@ -234,6 +368,7 @@ Prioritize commands with high player usage and frequent syntax errors:
 For each adopted command:
 - replace direct syntax error `send_to_char` path with `cmd_error`
 - include minimal context (`actor`, `action`, relevant argument)
+- where staff visibility is needed, populate `staff_message` instead of separate direct `wiznet(...)`.
 
 ### Phase D: Aggregator integration
 

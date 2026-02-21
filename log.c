@@ -10,6 +10,7 @@
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <time.h>
+#include "merc.h"
 #include "zlog.h"
 
 #ifdef MUD_DEBUG
@@ -126,48 +127,226 @@ void log_set_unit_test_only(bool enabled) {
     log_unit_tests_only = enabled;
 }
 
-void _log_message(log_level level, const char *category, const char *message, const char *file, long line, const char *func) {
-    if (log_unit_tests_only && (!category || strcmp(category, LOG_UNIT_TESTS) != 0)) {
-        return;
-    }
-    zlog_category_t *c = zlog_get_category(category);
-    if (c) {
-        int zlevel;
-        const char *fmt = "%s";
-        switch (level) {
-            case LOG_LEVEL_INFO: zlevel = ZLOG_LEVEL_INFO; break;
-            case LOG_LEVEL_WARN: zlevel = ZLOG_LEVEL_WARN; break;
-            case LOG_LEVEL_ERROR: zlevel = ZLOG_LEVEL_ERROR; break;
-            case LOG_LEVEL_DEBUG: zlevel = ZLOG_LEVEL_DEBUG; break;
-            case LOG_LEVEL_CRITICAL: zlevel = ZLOG_LEVEL_FATAL; break;
-            case LOG_LEVEL_BUG: zlevel = ZLOG_LEVEL_FATAL; fmt = "BUG: %s"; break;
-            default: zlevel = ZLOG_LEVEL_ERROR; break;
-        }
-        zlog(c, file, strlen(file), func, strlen(func), line, zlevel, fmt, message);
+const char *log_category_for_domain(event_domain_t domain) {
+    switch (domain) {
+        case EVENT_DOMAIN_SYSTEM:
+            return LOG_DEBUG;
+        case EVENT_DOMAIN_SECURITY:
+            return LOG_SECURITY;
+        case EVENT_DOMAIN_COMBAT:
+            return LOG_COMBAT;
+        case EVENT_DOMAIN_QUEST:
+            return LOG_QUEST;
+        case EVENT_DOMAIN_OLC:
+            return LOG_OLC;
+        case EVENT_DOMAIN_ADMIN:
+            return LOG_ADMIN;
+        case EVENT_DOMAIN_SCRIPT:
+            return LOG_SCRIPTS;
+        case EVENT_DOMAIN_ECONOMY:
+            return LOG_INFO;
+        case EVENT_DOMAIN_COMMAND:
+            return LOG_INFO;
+        default:
+            return LOG_INFO;
     }
 }
 
-void _log_message_f(log_level level, const char *category, const char *file, long line, const char *func, const char *format, ...) {
-    if (log_unit_tests_only && (!category || strcmp(category, LOG_UNIT_TESTS) != 0)) {
+static int event_severity_to_zlevel(event_severity_t severity) {
+    switch (severity) {
+        case EVENT_SEV_INFO:
+            return ZLOG_LEVEL_INFO;
+        case EVENT_SEV_WARN:
+            return ZLOG_LEVEL_WARN;
+        case EVENT_SEV_ERROR:
+            return ZLOG_LEVEL_ERROR;
+        case EVENT_SEV_DEBUG:
+            return ZLOG_LEVEL_DEBUG;
+        case EVENT_SEV_CRITICAL:
+            return ZLOG_LEVEL_FATAL;
+        case EVENT_SEV_BUG:
+            return ZLOG_LEVEL_FATAL;
+        default:
+            return ZLOG_LEVEL_ERROR;
+    }
+}
+
+static event_severity_t log_level_to_event_severity(log_level level) {
+    switch (level) {
+        case LOG_LEVEL_INFO:
+            return EVENT_SEV_INFO;
+        case LOG_LEVEL_WARN:
+            return EVENT_SEV_WARN;
+        case LOG_LEVEL_ERROR:
+            return EVENT_SEV_ERROR;
+        case LOG_LEVEL_DEBUG:
+            return EVENT_SEV_DEBUG;
+        case LOG_LEVEL_CRITICAL:
+            return EVENT_SEV_CRITICAL;
+        case LOG_LEVEL_BUG:
+            return EVENT_SEV_BUG;
+        default:
+            return EVENT_SEV_ERROR;
+    }
+}
+
+void log_emit_event(const log_event_t *event, void *public_recipient) {
+    if (!event || !event->plain_message) {
         return;
     }
-    zlog_category_t *c = zlog_get_category(category);
-    if (c) {
-        int zlevel;
-        switch (level) {
-            case LOG_LEVEL_INFO: zlevel = ZLOG_LEVEL_INFO; break;
-            case LOG_LEVEL_WARN: zlevel = ZLOG_LEVEL_WARN; break;
-            case LOG_LEVEL_ERROR: zlevel = ZLOG_LEVEL_ERROR; break;
-            case LOG_LEVEL_DEBUG: zlevel = ZLOG_LEVEL_DEBUG; break;
-            case LOG_LEVEL_CRITICAL: zlevel = ZLOG_LEVEL_FATAL; break;
-            case LOG_LEVEL_BUG: zlevel = ZLOG_LEVEL_FATAL; break;
-            default: zlevel = ZLOG_LEVEL_ERROR; break;
-        }
-        va_list args;
-        va_start(args, format);
-        vzlog(c, file, strlen(file), func, strlen(func), line, zlevel, format, args);
-        va_end(args);
+
+    CHAR_DATA *recipient = (CHAR_DATA *)public_recipient;
+
+    if (event->public_message && recipient) {
+        send_to_char(event->public_message, recipient);
     }
+
+    if (event->staff_message) {
+        wiznet(
+            (char *)event->staff_message,
+            recipient,
+            NULL,
+            event->wiznet_flag,
+            event->wiznet_skip_flag,
+            event->wiznet_min_rank
+        );
+    }
+
+    const char *category = event->category ? event->category : LOG_INFO;
+    if (log_unit_tests_only && strcmp(category, LOG_UNIT_TESTS) != 0) {
+        return;
+    }
+
+    zlog_category_t *c = zlog_get_category(category);
+    if (!c) {
+        return;
+    }
+
+    const char *file = event->source_file ? event->source_file : "unknown";
+    const char *func = event->source_func ? event->source_func : "unknown";
+    long line = event->source_line;
+    int zlevel = event_severity_to_zlevel(event->severity);
+
+    zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
+}
+
+void log_emit_event_f(const log_event_t *base_event, void *public_recipient, const char *plain_fmt, ...) {
+    if (!plain_fmt) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, plain_fmt);
+
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int msg_size = vsnprintf(NULL, 0, plain_fmt, args_copy);
+    va_end(args_copy);
+
+    if (msg_size < 0) {
+        va_end(args);
+        return;
+    }
+
+    char *message = malloc((size_t)msg_size + 1);
+    if (!message) {
+        va_end(args);
+        return;
+    }
+
+    vsnprintf(message, (size_t)msg_size + 1, plain_fmt, args);
+    va_end(args);
+
+    log_event_t event = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_INFO,
+        .error_code = ERROR_CODE_NONE,
+        .public_message = NULL,
+        .staff_message = NULL,
+        .wiznet_flag = 0,
+        .wiznet_skip_flag = 0,
+        .wiznet_min_rank = 0,
+        .plain_message = message,
+        .context = NULL,
+        .source_file = __FILE__,
+        .source_line = __LINE__,
+        .source_func = __func__
+    };
+
+    if (base_event) {
+        event = *base_event;
+        event.plain_message = message;
+    }
+
+    log_emit_event(&event, public_recipient);
+    free(message);
+}
+
+void _log_message(log_level level, const char *category, const char *message, const char *file, long line, const char *func) {
+    log_event_t event = {
+        .severity = log_level_to_event_severity(level),
+        .category = category ? category : LOG_INFO,
+        .error_code = ERROR_CODE_NONE,
+        .public_message = NULL,
+        .staff_message = NULL,
+        .wiznet_flag = 0,
+        .wiznet_skip_flag = 0,
+        .wiznet_min_rank = 0,
+        .plain_message = message,
+        .context = NULL,
+        .source_file = file,
+        .source_line = line,
+        .source_func = func
+    };
+
+    log_emit_event(&event, NULL);
+}
+
+void _log_message_f(log_level level, const char *category, const char *file, long line, const char *func, const char *format, ...) {
+    if (!format) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, format);
+
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int msg_size = vsnprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+
+    if (msg_size < 0) {
+        va_end(args);
+        return;
+    }
+
+    char *message = malloc((size_t)msg_size + 1);
+    if (!message) {
+        va_end(args);
+        return;
+    }
+
+    vsnprintf(message, (size_t)msg_size + 1, format, args);
+    va_end(args);
+
+    log_event_t event = {
+        .severity = log_level_to_event_severity(level),
+        .category = category ? category : LOG_INFO,
+        .error_code = ERROR_CODE_NONE,
+        .public_message = NULL,
+        .staff_message = NULL,
+        .wiznet_flag = 0,
+        .wiznet_skip_flag = 0,
+        .wiznet_min_rank = 0,
+        .plain_message = message,
+        .context = NULL,
+        .source_file = file,
+        .source_line = line,
+        .source_func = func
+    };
+
+    log_emit_event(&event, NULL);
+    free(message);
 }
 
 char *log_get_stacktrace(int skip_frames) {
