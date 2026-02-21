@@ -28,19 +28,19 @@
       "input": {
         "test_cases": [
           {
-            "name": "warrior",
+            "name": "gladiator",
             "should_exist": true,
-            "description": "Standard warrior class"
+            "description": "Existing gladiator class"
           },
           {
-            "name": "mage",
+            "name": "wizard",
             "should_exist": true,
-            "description": "Standard mage class"
+            "description": "Existing wizard class"
           },
           {
-            "name": "cleric",
+            "name": "paladin",
             "should_exist": true,
-            "description": "Standard cleric class"
+            "description": "Existing paladin class"
           },
           {
             "name": "totally_fake_class_xyz",

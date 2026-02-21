@@ -17,7 +17,8 @@
         "area_context": "Limbo",
         "test_cases": [
           {
-            "vnum_string": "2#1",
+            "explicit_area_name": "Limbo",
+            "explicit_vnum": 1,
             "description": "Explicit limbo room",
             "should_parse": true,
             "expected_vnum": 1,
@@ -51,10 +52,13 @@
       "test_type": "wnum_parser",
       "input": {
         "area_context": "Bootstrap Reserved",
+        "required": false,
         "test_cases": [
           {
-            "vnum_string": "1#20",
+            "explicit_area_name": "Bootstrap Reserved",
+            "explicit_vnum": 20,
             "description": "Explicit bootstrap vnum",
+            "required": false,
             "should_parse": true,
             "expected_vnum": 20,
             "expected_area": "Bootstrap Reserved"
@@ -82,15 +86,18 @@
       "name": "cross_area_wnum_parsing",
       "description": "Test WNUM parsing across different area contexts",
       "dependencies": [
-        "advanced_wnum_parsing_alendith"
+        "advanced_wnum_parsing_bootstrap"
       ],
       "test_type": "wnum_parser",
       "input": {
         "area_context": "Limbo",
+        "required": false,
         "test_cases": [
           {
-            "vnum_string": "1#20",
+            "explicit_area_name": "Bootstrap Reserved",
+            "explicit_vnum": 20,
             "description": "Bootstrap vnum from Limbo context",
+            "required": false,
             "should_parse": true,
             "expected_vnum": 20,
             "cross_area_reference": true

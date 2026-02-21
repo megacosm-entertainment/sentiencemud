@@ -115,6 +115,8 @@ test_result_t run_test_case(test_case_t *test)
         } else if (strstr(test->test_type, "skill_") != NULL ||
                    strstr(test->test_type, "spell_fun_") != NULL) {
             result = run_skill_data_test_case(test);
+        } else if (strcmp(test->test_type, "damage_class_lookup_test") == 0) {
+            result = run_lookup_table_test_case(test);
         } else if (strstr(test->test_type, "class_") != NULL) {
             result = run_class_data_test_case(test);
         } else if (strstr(test->test_type, "item_type_") != NULL) {

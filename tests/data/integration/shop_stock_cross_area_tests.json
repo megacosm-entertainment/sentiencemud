@@ -12,8 +12,10 @@
       "description": "Test cross-area object stock creation",
       "test_type": "shop_stock_cross_area_creation",
       "input": {
+        "optional_if_missing": true,
+        "shopkeeper_area_name": "Bootstrap Tests",
         "shopkeeper_vnum": 101,
-        "target_area_uid": 1,
+        "target_area_name": "Bootstrap Reserved",
         "target_entity_vnum": 1,
         "stock_type": "object"
       }
@@ -23,8 +25,10 @@
       "description": "Test cross-area pet stock creation",
       "test_type": "shop_stock_cross_area_creation",
       "input": {
+        "optional_if_missing": true,
+        "shopkeeper_area_name": "Bootstrap Tests",
         "shopkeeper_vnum": 101,
-        "target_area_uid": 1,
+        "target_area_name": "Bootstrap Reserved",
         "target_entity_vnum": 1,
         "stock_type": "pet"
       }
@@ -34,6 +38,8 @@
       "description": "Test shop stock serialization for shopkeeper",
       "test_type": "shop_stock_serialization",
       "input": {
+        "optional_if_missing": true,
+        "shopkeeper_area_name": "Bootstrap Tests",
         "shopkeeper_vnum": 101
       }
     },

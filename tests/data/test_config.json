@@ -6,24 +6,28 @@
     "default_test_suites": [
       "area_loading",
       "database_integrity",
-      "skill_data_tests",
-      "class_data_tests",
-      "item_type_tests",
-      "lookup_table_tests",
+      "skill_data",
+      "class_data",
+      "item_type_system",
+      "lookup_tables",
       "script_engine_tests",
-      "song_data_tests",
-      "skill_group_tests",
-      "trait_system_tests"
+      "song_data",
+      "skill_group_data",
+      "trait_system",
+      "reserved_wnum",
+      "system_area"
     ],
     "quick_test_suites": [
       "area_loading",
-      "skill_data_tests",
-      "class_data_tests"
+      "skill_data",
+      "class_data"
     ],
     "full_test_suites": [
       "area_loading",
-      "database_integrity", 
+      "database_integrity",
+      "system_area",
       "wnum_parsing",
+      "reserved_wnum",
       "core_string_unit_tests",
       "string_predicates_unit_tests",
       "string_formatting_unit_tests",
@@ -31,14 +35,21 @@
       "string_edit_helpers_unit_tests",
       "string_editor_state_unit_tests",
       "wnum_parsing_unit_tests",
-      "skill_data_tests",
-      "class_data_tests",
-      "item_type_tests",
-      "lookup_table_tests",
+      "skill_data",
+      "class_data",
+      "item_type_system",
+      "lookup_tables",
       "script_engine_tests",
-      "song_data_tests",
-      "skill_group_tests",
-      "trait_system_tests"
+      "song_data",
+      "skill_group_data",
+      "trait_system",
+      "json_area_serialization",
+      "chat_rooms_json",
+      "church_json",
+      "blueprint_area_scope",
+      "instance_persist",
+      "shop_stock_cross_area_tests",
+      "reset_cross_area_tests"
     ],
     "unit_only_suites": [
       "core_string_unit_tests",
@@ -52,15 +63,24 @@
     "integration_only_suites": [
       "area_loading",
       "database_integrity",
+      "system_area",
       "wnum_parsing",
-      "skill_data_tests",
-      "class_data_tests",
-      "item_type_tests",
-      "lookup_table_tests",
+      "reserved_wnum",
+      "skill_data",
+      "class_data",
+      "item_type_system",
+      "lookup_tables",
       "script_engine_tests",
-      "song_data_tests",
-      "skill_group_tests",
-      "trait_system_tests"
+      "song_data",
+      "skill_group_data",
+      "trait_system",
+      "json_area_serialization",
+      "chat_rooms_json",
+      "church_json",
+      "blueprint_area_scope",
+      "instance_persist",
+      "shop_stock_cross_area_tests",
+      "reset_cross_area_tests"
     ],
     "exclude_patterns": [],
     "settings": {
@@ -77,12 +97,12 @@
     "test_profiles": {
       "development": {
         "description": "Fast tests for development workflow",
-        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "lookup_table_tests", "script_engine_tests"],
+        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wnum_parsing_unit_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests"],
         "stop_on_first_failure": true
       },
       "ci": {
         "description": "Complete test suite for CI/CD",
-        "suites": ["area_loading", "database_integrity", "wnum_parsing", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wnum_parsing_unit_tests", "skill_data_tests", "class_data_tests", "item_type_tests", "lookup_table_tests", "script_engine_tests", "song_data_tests", "skill_group_tests", "trait_system_tests"],
+        "suites": ["area_loading", "database_integrity", "system_area", "wnum_parsing", "reserved_wnum", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wnum_parsing_unit_tests", "skill_data", "class_data", "item_type_system", "lookup_tables", "script_engine_tests", "song_data", "skill_group_data", "trait_system", "json_area_serialization", "chat_rooms_json", "church_json", "blueprint_area_scope", "instance_persist", "shop_stock_cross_area_tests", "reset_cross_area_tests"],
         "stop_on_first_failure": false,
         "require_coverage": true
       },
@@ -96,20 +116,87 @@
           "string_transform_unit_tests",
           "string_edit_helpers_unit_tests",
           "string_editor_state_unit_tests",
+          "wnum_parsing_unit_tests",
           "trait_system",
           "skill_group_data",
           "skill_data",
           "json_area_serialization",
+          "chat_rooms_json",
+          "church_json",
+          "blueprint_area_scope",
           "instance_persist",
+          "reserved_wnum",
+          "shop_stock_cross_area_tests",
+          "reset_cross_area_tests",
+          "script_engine_tests"
+        ],
+        "stop_on_first_failure": false,
+        "require_coverage": false
+      },
+      "bootstrap_ci_redis": {
+        "description": "Bootstrap CI suite plus Redis cache validation",
+        "suites": [
+          "bootstrap_fixture_tests",
+          "area_loading",
+          "redis_area_caching",
           "reserved_wnum",
           "script_engine_tests"
         ],
         "stop_on_first_failure": false,
         "require_coverage": false
       },
+      "nonbootstrap_full": {
+        "description": "Comprehensive non-bootstrap regression suite",
+        "suites": [
+          "area_loading",
+          "database_integrity",
+          "system_area",
+          "wnum_parsing",
+          "reserved_wnum",
+          "core_string_unit_tests",
+          "string_predicates_unit_tests",
+          "string_formatting_unit_tests",
+          "string_transform_unit_tests",
+          "string_edit_helpers_unit_tests",
+          "string_editor_state_unit_tests",
+          "wnum_parsing_unit_tests",
+          "skill_data",
+          "class_data",
+          "item_type_system",
+          "lookup_tables",
+          "script_engine_tests",
+          "song_data",
+          "skill_group_data",
+          "trait_system",
+          "json_area_serialization",
+          "chat_rooms_json",
+          "church_json",
+          "blueprint_area_scope",
+          "instance_persist",
+          "shop_stock_cross_area_tests",
+          "reset_cross_area_tests"
+        ],
+        "stop_on_first_failure": false,
+        "require_coverage": false
+      },
+      "serialization_cycle": {
+        "description": "Persistence and round-trip focused suite for repeated process restarts",
+        "suites": [
+          "json_area_serialization",
+          "church_json",
+          "chat_rooms_json",
+          "instance_persist",
+          "shop_stock_cross_area_tests",
+          "reset_cross_area_tests",
+          "reserved_wnum",
+          "wnum_parsing"
+        ],
+        "stop_on_first_failure": false,
+        "require_coverage": false
+      },
       "regression": {
         "description": "Core regression tests",
-        "suites": ["area_loading", "database_integrity", "skill_data_tests", "class_data_tests", "item_type_tests", "lookup_table_tests", "script_engine_tests"],
+        "suites": ["area_loading", "database_integrity", "skill_data", "class_data", "item_type_system", "lookup_tables", "script_engine_tests"],
         "stop_on_first_failure": false
       }
     }

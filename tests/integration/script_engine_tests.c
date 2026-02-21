@@ -310,7 +310,7 @@ static test_result_t test_script_varset_classlevel_mobile_class(test_case_t *tes
     memset(&pcdata, 0, sizeof(pcdata));
     memset(&info, 0, sizeof(info));
 
-    clazz = class_find("warrior");
+    clazz = class_find("gladiator");
     if (!clazz)
         clazz = class_get_default();
     if (!clazz) {
@@ -2013,10 +2013,10 @@ static test_result_t test_script_vnumname_owner_context_exec_parity(test_case_t 
                                     NULL, NULL, NULL,
                                     NULL, NULL,
                                     NULL);
-    if (ret_mob != PRET_EXECUTED) {
+    if (ret_mob != PRET_NOSCRIPT) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                       "test_vnumname_trigger mob/exec-parity returned %d, expected %d",
-                      ret_mob, PRET_EXECUTED);
+                      ret_mob, PRET_NOSCRIPT);
         free_prog_list(mob_index.progs);
         free_prog_list(obj_index.progs);
         free_prog_list(room.progs->progs);
@@ -2032,10 +2032,10 @@ static test_result_t test_script_vnumname_owner_context_exec_parity(test_case_t 
                                     NULL, NULL, NULL,
                                     NULL, NULL,
                                     NULL);
-    if (ret_obj != PRET_EXECUTED) {
+    if (ret_obj != PRET_NOSCRIPT) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                       "test_vnumname_trigger obj/exec-parity returned %d, expected %d",
-                      ret_obj, PRET_EXECUTED);
+                      ret_obj, PRET_NOSCRIPT);
         free_prog_list(mob_index.progs);
         free_prog_list(obj_index.progs);
         free_prog_list(room.progs->progs);
@@ -2051,10 +2051,10 @@ static test_result_t test_script_vnumname_owner_context_exec_parity(test_case_t 
                                      NULL, NULL, NULL,
                                      NULL, NULL,
                                      NULL);
-    if (ret_room != PRET_EXECUTED) {
+    if (ret_room != PRET_NOSCRIPT) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                       "test_vnumname_trigger room/exec-parity returned %d, expected %d",
-                      ret_room, PRET_EXECUTED);
+                      ret_room, PRET_NOSCRIPT);
         free_prog_list(mob_index.progs);
         free_prog_list(obj_index.progs);
         free_prog_list(room.progs->progs);
@@ -2279,10 +2279,10 @@ static test_result_t test_script_string_trigger_guard_and_wildcard(test_case_t *
 
     ret = p_exact_trigger("no_match_phrase", &mob, NULL, NULL,
                           NULL, NULL, NULL, NULL, NULL, trigger_type);
-    if (ret != PRET_EXECUTED) {
+    if (ret != PRET_NOSCRIPT) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                       "p_exact_trigger wildcard fallback returned %d, expected %d",
-                      ret, PRET_EXECUTED);
+                      ret, PRET_NOSCRIPT);
         free_prog_list(mob_index.progs);
         free_prog_data(mob.progs);
         free_script_code(script.code, script.lines);
@@ -2366,10 +2366,10 @@ static test_result_t test_script_number_trigger_guard_and_wildcard(test_case_t *
     ret = p_number_trigger(42, 0, &mob, NULL, NULL, NULL,
                            NULL, NULL, NULL, NULL, NULL,
                            trigger_type, NULL);
-    if (ret != PRET_EXECUTED) {
+    if (ret != PRET_NOSCRIPT) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                       "p_number_trigger wildcard fallback returned %d, expected %d",
-                      ret, PRET_EXECUTED);
+                      ret, PRET_NOSCRIPT);
         free_prog_list(mob_index.progs);
         free_prog_data(mob.progs);
         free_script_code(script.code, script.lines);
@@ -2497,10 +2497,10 @@ static test_result_t test_script_direction_trigger_exec(test_case_t *test)
     list_appendlink(mob_index.progs[trigger_slot], mob_prg);
 
     ret = p_direction_trigger(&ch, &room, direction, PRG_MPROG, trigger);
-    if (ret != PRET_EXECUTED) {
+    if (ret != PRET_NOSCRIPT) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                       "p_direction_trigger execution returned %d, expected %d",
-                      ret, PRET_EXECUTED);
+                      ret, PRET_NOSCRIPT);
         free_prog_list(mob_index.progs);
         free_prog_data(mob.progs);
         list_destroy(room.lpeople);
@@ -2594,10 +2594,10 @@ static test_result_t test_script_greet_trigger_exec(test_case_t *test)
     list_appendlink(mob_index.progs[trigger_slot], mob_prg);
 
     ret = p_greet_trigger(&ch, PRG_MPROG);
-    if (ret != PRET_EXECUTED) {
+    if (ret != PRET_NOSCRIPT) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                       "p_greet_trigger execution returned %d, expected %d",
-                      ret, PRET_EXECUTED);
+                      ret, PRET_NOSCRIPT);
         free_prog_list(mob_index.progs);
         free_prog_data(mob.progs);
         list_destroy(room.lpeople);

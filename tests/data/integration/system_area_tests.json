@@ -96,7 +96,8 @@
       ],
       "test_type": "widevnum_parse_explicit_test",
       "input": {
-        "widevnum_string": "1#1",
+        "explicit_area_name": "Bootstrap Reserved",
+        "explicit_vnum": 1,
         "current_area": null,
         "expect_explicit_area": true
       },

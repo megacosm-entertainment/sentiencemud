@@ -30,13 +30,13 @@
       "dependencies": [],
       "test_type": "chat_room_wnum_test",
       "input": {
-        "check_area_uid_field": true,
-        "check_vnum_field": true
+        "explicit_area_name": "Limbo",
+        "explicit_vnum": 2,
+        "check_widevnum_field": true
       },
       "expected_output": {
         "success": true,
-        "has_area_uid": true,
-        "has_vnum": true
+        "has_widevnum": true
       }
     },
     {

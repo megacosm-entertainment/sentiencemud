@@ -27,6 +27,16 @@ cd /sentience
 ./sent -test:area_loading
 ./sent -test:wnum
 
+# Run profile-based suites
+./sent -test:profile:development
+./sent -test:profile:nonbootstrap_full
+
+# Run bootstrap-root profile against isolated data root
+./sent -test:profile:bootstrap_ci --data-root=/tmp/sent_bootstrap_run
+
+# Run restart-cycle profile multiple times (new process each cycle)
+./src/tests/run_test_cycles.sh --cycles 3 --pattern profile:serialization_cycle
+
 # Build with test support
 cd /sentience/src
 ./build tests

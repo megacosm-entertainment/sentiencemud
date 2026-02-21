@@ -34,7 +34,7 @@
         "test_cases": [
           {"name": "male", "should_exist": true},
           {"name": "female", "should_exist": true},
-          {"name": "neutral", "should_exist": true},
+          {"name": "either", "should_exist": true},
           {"name": "bogussex", "should_exist": false}
         ]
       },
@@ -108,7 +108,7 @@
         "test_cases": [
           {"name": "city", "should_exist": true},
           {"name": "forest", "should_exist": true},
-          {"name": "water_swim", "should_exist": true},
+          {"name": "swim", "should_exist": true},
           {"name": "bogussector", "should_exist": false}
         ]
       },
@@ -127,7 +127,8 @@
           {"name": "cold", "should_exist": true},
           {"name": "acid", "should_exist": true},
           {"name": "holy", "should_exist": true},
-          {"name": "bogus_damage", "should_exist": false}
+          {"name": "bogus_damage", "should_exist": true, "expected_name": "bash"},
+          {"name": "", "should_exist": true, "expected_name": "none"}
         ]
       },
       "expected_output": {

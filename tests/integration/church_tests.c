@@ -262,17 +262,19 @@ static test_result_t test_church_deserialize(test_case_t *test)
     }
 
     /* Verify expected fields */
+    const char *expected_name = test_json_get_string(json_data, "name");
+    const char *expected_motd = test_json_get_string(json_data, "motd");
     const char *name = test_json_get_string(parsed, "name");
     const char *motd = test_json_get_string(parsed, "motd");
 
     bool success = true;
-    if (!name || strcmp(name, "Test Church Load") != 0) {
+    if (!name || !expected_name || strcmp(name, expected_name) != 0) {
         log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                    "Deserialized church name mismatch");
         success = false;
     }
 
-    if (!motd || strcmp(motd, "Victory!") != 0) {
+    if (!motd || !expected_motd || strcmp(motd, expected_motd) != 0) {
         log_message(LOG_LEVEL_ERROR, LOG_ERROR,
                    "Deserialized church motd mismatch");
         success = false;

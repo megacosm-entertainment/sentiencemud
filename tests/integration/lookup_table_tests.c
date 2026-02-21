@@ -260,16 +260,16 @@ static test_result_t test_flag_table_lookup(test_case_t *test)
 
         int result = flag_lookup(name, table);
 
-        if (should_exist && result == NO_FLAG) {
+        if (should_exist && (result == 0 || result == NO_FLAG)) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "flag_lookup('%s', %s) returned NO_FLAG, expected valid",
-                         name, table_name);
+                         "flag_lookup('%s', %s) returned %d, expected valid",
+                         name, table_name, result);
             return TEST_FAILURE;
         }
 
-        if (!should_exist && result != NO_FLAG) {
+        if (!should_exist && result != 0 && result != NO_FLAG) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "flag_lookup('%s', %s) returned %d, expected NO_FLAG",
+                         "flag_lookup('%s', %s) returned %d, expected miss sentinel (0/NO_FLAG)",
                          name, table_name, result);
             return TEST_FAILURE;
         }
@@ -298,25 +298,32 @@ static test_result_t test_damage_class_lookup(test_case_t *test)
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
         const char *name = test_json_get_string(tc, "name");
-        bool should_exist = test_json_get_bool(tc, "should_exist");
+        const char *expected_name = test_json_get_string(tc, "expected_name");
 
         if (!name) continue;
 
         int result = damage_class_lookup(name);
+        int expected = DAM_NONE;
 
-        if (should_exist && result < 0) {
-            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "damage_class_lookup('%s') returned %d, expected valid",
-                         name, result);
-            return TEST_FAILURE;
+        if (expected_name && expected_name[0]) {
+            if (!str_cmp(expected_name, "none")) {
+                expected = DAM_NONE;
+            } else {
+                expected = damage_class_lookup(expected_name);
+            }
+        } else {
+            expected = flag_lookup(name, damage_classes);
+            if (expected == DAM_NONE) {
+                expected = DAM_BASH;
+            }
         }
 
-        if (!should_exist && result >= 0) {
-            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "damage_class_lookup('%s') returned %d, expected invalid",
-                         name, result);
-            return TEST_FAILURE;
-        }
+            if (result != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "damage_class_lookup('%s') returned %d, expected %d",
+                             name, result, expected);
+                return TEST_FAILURE;
+            }
     }
 
     return TEST_SUCCESS;

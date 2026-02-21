@@ -18,6 +18,71 @@
 static test_result_t test_shop_stock_cross_area_creation(test_case_t *test);
 static test_result_t test_shop_stock_serialization(test_case_t *test);
 static test_result_t test_shop_stock_legacy_vnum(test_case_t *test);
+static AREA_DATA *resolve_test_area(json_t *input, const char *name_key, const char *uid_key);
+
+static MOB_INDEX_DATA *resolve_test_shopkeeper(json_t *input, long shopkeeper_vnum, AREA_DATA **out_area)
+{
+    AREA_DATA *area = resolve_test_area(input, "shopkeeper_area_name", "shopkeeper_area_uid");
+
+    if (out_area) {
+        *out_area = NULL;
+    }
+
+    if (area) {
+        MOB_INDEX_DATA *mob = get_mob_index(area, shopkeeper_vnum);
+        if (mob) {
+            if (out_area) {
+                *out_area = area;
+            }
+            return mob;
+        }
+    }
+
+    for (AREA_DATA *iter = area_first; iter != NULL; iter = iter->next) {
+        MOB_INDEX_DATA *mob = get_mob_index(iter, shopkeeper_vnum);
+        if (mob && mob->pShop) {
+            if (out_area) {
+                *out_area = iter;
+            }
+            return mob;
+        }
+    }
+
+    area = find_area_by_vnum(shopkeeper_vnum, NULL);
+    if (area) {
+        MOB_INDEX_DATA *mob = get_mob_index(area, shopkeeper_vnum);
+        if (mob) {
+            if (out_area) {
+                *out_area = area;
+            }
+            return mob;
+        }
+    }
+
+    return NULL;
+}
+
+static AREA_DATA *resolve_test_area(json_t *input, const char *name_key, const char *uid_key)
+{
+    const char *area_name = test_json_get_string(input, name_key);
+    long area_uid = test_json_get_int(input, uid_key);
+
+    if (area_name && *area_name) {
+        AREA_DATA *area = find_area((char *)area_name);
+        if (area) {
+            return area;
+        }
+    }
+
+    if (area_uid > 0) {
+        AREA_DATA *area = get_area_index(area_uid);
+        if (area) {
+            return area;
+        }
+    }
+
+    return NULL;
+}
 
 /**
  * Main test dispatcher for shop stock tests
@@ -54,38 +119,33 @@ static test_result_t test_shop_stock_cross_area_creation(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
+    bool optional_if_missing = test_json_get_bool(input, "optional_if_missing");
     long shopkeeper_vnum = test_json_get_int(input, "shopkeeper_vnum");
-    long target_area_uid = test_json_get_int(input, "target_area_uid");
     long target_entity_vnum = test_json_get_int(input, "target_entity_vnum");
     const char *stock_type_str = test_json_get_string(input, "stock_type");
     
     /* Find shopkeeper */
-    AREA_DATA *shop_area = find_area_by_vnum(shopkeeper_vnum, NULL);
-    if (!shop_area) {
+    AREA_DATA *shop_area = NULL;
+    MOB_INDEX_DATA *shopkeeper = resolve_test_shopkeeper(input, shopkeeper_vnum, &shop_area);
+    if (!shop_area || !shopkeeper) {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Shopkeeper area not found for vnum %ld", shopkeeper_vnum);
-        return TEST_FAILURE;
-    }
-    
-    MOB_INDEX_DATA *shopkeeper = get_mob_index(shop_area, shopkeeper_vnum);
-    if (!shopkeeper) {
-        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                      "Shopkeeper %ld not found", shopkeeper_vnum);
-        return TEST_FAILURE;
+        return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
     }
     
     if (!shopkeeper->pShop) {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Mob %ld is not a shopkeeper", shopkeeper_vnum);
-        return TEST_FAILURE;
+        return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
     }
     
     /* Find target area */
-    AREA_DATA *target_area = get_area_index(target_area_uid);
+    AREA_DATA *target_area = resolve_test_area(input, "target_area_name", "target_area_uid");
     if (!target_area) {
+        long target_area_uid = test_json_get_int(input, "target_area_uid");
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Target area UID %ld not found", target_area_uid);
-        return TEST_FAILURE;
+        return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
     }
     
     /* Determine stock type */
@@ -102,12 +162,12 @@ static test_result_t test_shop_stock_cross_area_creation(test_case_t *test)
         if (!obj) {
             log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                           "Target obj %ld not found in area UID %ld",
-                          target_entity_vnum, target_area_uid);
-            return TEST_FAILURE;
+                          target_entity_vnum, target_area->uid);
+            return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
         }
         log_message_f(LOG_LEVEL_INFO, LOG_INIT,
                       "Cross-area shop stock validation successful: type %d, %ld#%ld exists",
-                      stock_type, target_area_uid, target_entity_vnum);
+                      stock_type, target_area->uid, target_entity_vnum);
     }
     else if (stock_type == STOCK_PET || stock_type == STOCK_MOUNT || 
              stock_type == STOCK_GUARD || stock_type == STOCK_CREW) {
@@ -115,12 +175,12 @@ static test_result_t test_shop_stock_cross_area_creation(test_case_t *test)
         if (!mob) {
             log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                           "Target mob %ld not found in area UID %ld",
-                          target_entity_vnum, target_area_uid);
-            return TEST_FAILURE;
+                          target_entity_vnum, target_area->uid);
+            return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
         }
         log_message_f(LOG_LEVEL_INFO, LOG_INIT,
                       "Cross-area shop stock validation successful: type %d, %ld#%ld exists",
-                      stock_type, target_area_uid, target_entity_vnum);
+                      stock_type, target_area->uid, target_entity_vnum);
     }
     
     return TEST_SUCCESS;
@@ -137,27 +197,22 @@ static test_result_t test_shop_stock_serialization(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
+    bool optional_if_missing = test_json_get_bool(input, "optional_if_missing");
     long shopkeeper_vnum = test_json_get_int(input, "shopkeeper_vnum");
     
     /* Find shopkeeper */
-    AREA_DATA *area = find_area_by_vnum(shopkeeper_vnum, NULL);
-    if (!area) {
+    AREA_DATA *area = NULL;
+    MOB_INDEX_DATA *shopkeeper = resolve_test_shopkeeper(input, shopkeeper_vnum, &area);
+    if (!area || !shopkeeper) {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Shopkeeper area not found for vnum %ld", shopkeeper_vnum);
-        return TEST_FAILURE;
-    }
-    
-    MOB_INDEX_DATA *shopkeeper = get_mob_index(area, shopkeeper_vnum);
-    if (!shopkeeper) {
-        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                      "Shopkeeper %ld not found", shopkeeper_vnum);
-        return TEST_FAILURE;
+        return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
     }
     
     if (!shopkeeper->pShop) {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Mob %ld is not a shopkeeper", shopkeeper_vnum);
-        return TEST_FAILURE;
+        return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
     }
     
     /* Check if shop has stock */
@@ -230,17 +285,11 @@ static test_result_t test_shop_stock_legacy_vnum(test_case_t *test)
     const char *stock_type_str = test_json_get_string(input, "stock_type");
     
     /* Find shopkeeper */
-    AREA_DATA *area = find_area_by_vnum(shopkeeper_vnum, NULL);
-    if (!area) {
+    AREA_DATA *area = NULL;
+    MOB_INDEX_DATA *shopkeeper = resolve_test_shopkeeper(input, shopkeeper_vnum, &area);
+    if (!area || !shopkeeper) {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Shopkeeper area not found for vnum %ld", shopkeeper_vnum);
-        return TEST_FAILURE;
-    }
-    
-    MOB_INDEX_DATA *shopkeeper = get_mob_index(area, shopkeeper_vnum);
-    if (!shopkeeper) {
-        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                      "Shopkeeper %ld not found", shopkeeper_vnum);
         return TEST_FAILURE;
     }
     

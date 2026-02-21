@@ -1,0 +1,33 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "Adventurer",
+        "male": "Adventurer",
+        "neutral": "Adventurer",
+        "other": "Adventurer"
+    },
+    "enter_function": null,
+    "flags": [
+        "default"
+    ],
+    "gains_mana": false,
+    "groups": [],
+    "hp_max": 10,
+    "hp_min": 6,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "adventurer",
+    "primary_stat": "strength",
+    "rewards": [],
+    "titles": [],
+    "type": "explorer",
+    "uid": 25,
+    "weapon": 0,
+    "who": {
+        "female": "{MAdventurer{X",
+        "male": "{MAdventurer{X",
+        "neutral": "{MAdventurer{X",
+        "other": "{MAdventurer{X"
+    }
+}

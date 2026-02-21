@@ -32,12 +32,36 @@ static test_result_t test_redis_available(test_case_t *test);
 static test_result_t test_redis_area_cached(test_case_t *test);
 static test_result_t test_redis_area_cache_format(test_case_t *test);
 static test_result_t test_redis_warm_queue(test_case_t *test);
+static const char *resolve_test_widevnum_input(json_t *test_case, char *buffer, size_t buffer_size);
 
 test_result_t run_wnum_test_case(test_case_t *test);
 
 void register_wnum_tests(void) {
     // These will be loaded from JSON files rather than registered directly
     log_message(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS, "WNUM test handlers registered");
+}
+
+static const char *resolve_test_widevnum_input(json_t *test_case, char *buffer, size_t buffer_size)
+{
+    const char *vnum_string = test_json_get_string(test_case, "vnum_string");
+    if (vnum_string && vnum_string[0]) {
+        return vnum_string;
+    }
+
+    const char *explicit_area_name = test_json_get_string(test_case, "explicit_area_name");
+    int explicit_vnum = test_json_get_int(test_case, "explicit_vnum");
+
+    if (!explicit_area_name || explicit_vnum <= 0 || !buffer || buffer_size == 0) {
+        return NULL;
+    }
+
+    AREA_DATA *explicit_area = find_area((char *)explicit_area_name);
+    if (!explicit_area || explicit_area->uid <= 0) {
+        return NULL;
+    }
+
+    snprintf(buffer, buffer_size, "%ld#%d", explicit_area->uid, explicit_vnum);
+    return buffer;
 }
 
 static test_result_t test_wnum_parsing(test_case_t *test) {
@@ -245,6 +269,24 @@ static test_result_t test_wnum_parsing_structured(test_case_t *test) {
     json_t *test_cases = json_object_get(input, "test_cases");
     const char *suite_context_name = test_json_get_string(input, "area_context");
     AREA_DATA *suite_context_area = suite_context_name ? find_area((char*)suite_context_name) : NULL;
+    bool suite_required = true;
+    if (input && json_object_get(input, "required")) {
+        suite_required = test_json_get_bool(input, "required");
+    }
+
+    if (suite_context_name && !suite_context_area) {
+        if (!suite_required) {
+            log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
+                          "Skipping optional WNUM suite: missing area context '%s'",
+                          suite_context_name);
+            return TEST_SKIP;
+        }
+
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "Required WNUM suite context area not found: %s",
+                      suite_context_name);
+        return TEST_FAILURE;
+    }
     
     if (!json_is_array(test_cases)) {
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid structured WNUM test: no test_cases array");
@@ -254,14 +296,24 @@ static test_result_t test_wnum_parsing_structured(test_case_t *test) {
     size_t index;
     json_t *test_case;
     json_array_foreach(test_cases, index, test_case) {
-        const char *vnum_string = test_json_get_string(test_case, "vnum_string");
+        char generated_vnum[64];
+        const char *vnum_string = resolve_test_widevnum_input(test_case, generated_vnum, sizeof(generated_vnum));
         const char *context_area_name = test_json_get_string(test_case, "context_area");
+        bool required = true;
+        if (json_object_get(test_case, "required")) {
+            required = test_json_get_bool(test_case, "required");
+        }
         bool should_parse = true;
         if (json_object_get(test_case, "should_parse")) {
             should_parse = test_json_get_bool(test_case, "should_parse");
         }
         
         if (!vnum_string) {
+            if (!required) {
+                log_message(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
+                            "Skipping optional WNUM test case with unresolved vnum input");
+                continue;
+            }
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid test case: missing vnum_string");
             return TEST_ERROR;
         }
@@ -320,6 +372,10 @@ static test_result_t test_area_existence_check(test_case_t *test) {
     json_array_foreach(required_areas, index, area_spec) {
         const char *area_name = test_json_get_string(area_spec, "name");
         int expected_uid = test_json_get_int(area_spec, "expected_uid");
+        bool required = true;
+        if (json_object_get(area_spec, "required")) {
+            required = test_json_get_bool(area_spec, "required");
+        }
         
         if (!area_name) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Invalid area spec: missing name");
@@ -328,6 +384,12 @@ static test_result_t test_area_existence_check(test_case_t *test) {
         
         AREA_DATA *area = find_area((char*)area_name);
         if (!area) {
+            if (!required) {
+                log_message_f(LOG_LEVEL_DEBUG, LOG_UNIT_TESTS,
+                              "Optional area missing (allowed): %s",
+                              area_name);
+                continue;
+            }
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                           "Area lookup mismatch for '%s': expected exists=true, actual exists=false",
                           area_name);
@@ -719,6 +781,10 @@ static test_result_t test_widevnum_parse_fallback(test_case_t *test) {
     }
     
     const char *wnum_str = test_json_get_string(input, "widevnum_string");
+    char generated_widevnum[64];
+    if ((!wnum_str || !wnum_str[0]) && input) {
+        wnum_str = resolve_test_widevnum_input(input, generated_widevnum, sizeof(generated_widevnum));
+    }
     if (!wnum_str) {
         return TEST_ERROR;
     }

@@ -248,7 +248,7 @@ int damage_class_lookup(const char *name)
 {
     int dc;
 
-    if(*name) {
+    if (name && *name) {
         dc = flag_lookup(name, damage_classes);
         if(dc == DAM_NONE) dc = DAM_BASH;
     } else

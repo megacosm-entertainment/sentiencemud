@@ -76,7 +76,7 @@
       "input": {
         "json_data": {
           "name": "Test Church Load",
-          "motto": "Victory!",
+          "motd": "Victory!",
           "founder": "TestAdmin",
           "members": [],
           "gold": 50000

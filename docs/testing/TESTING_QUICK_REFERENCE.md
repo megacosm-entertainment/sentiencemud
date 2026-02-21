@@ -230,6 +230,15 @@ static test_result_t test_parser(test_case_t *test) {
 # Run all tests
 ./sent -test
 
+# Run full non-bootstrap suite profile
+./sent -test:profile:nonbootstrap_full
+
+# Run bootstrap CI profile (with isolated root)
+./sent -test:profile:bootstrap_ci --data-root=/tmp/sent_bootstrap_run
+
+# Run restart-cycle persistence profile 3 times
+./src/tests/run_test_cycles.sh --cycles 3 --pattern profile:serialization_cycle
+
 # Run specific suite  
 ./sent -test:my_feature
 
@@ -246,6 +255,9 @@ jq '.' src/tests/data/my_tests.json
 lcov --summary coverage_filtered.info
 genhtml coverage_filtered.info --output-directory coverage_html
 $BROWSER coverage_html/index.html
+
+# Coverage via build script (build+test+lcov)
+cd /sentience/src && ./build coverage
 
 # Find uncovered functions
 lcov --list coverage_filtered.info | grep "0.0%"
