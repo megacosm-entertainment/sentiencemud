@@ -1030,9 +1030,9 @@ void obj_from_mail(OBJ_DATA *obj)
     }
 
     if (obj_prev == NULL)
-	mail->objects = obj->next_content;
+		mail->objects = obj->next_content;
     else
-	obj_prev->next_content = obj->next_content;
+		obj_prev->next_content = obj->next_content;
 
 	list_remlink(mail->lobjects, obj, false);
 

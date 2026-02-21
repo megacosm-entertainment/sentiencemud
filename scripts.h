@@ -2061,7 +2061,7 @@ struct script_var_type {
 	int type;
 	union {
 		void *raw;
-		long i;
+		int i;
 		double flt;
 		utf8char_t ch;
 		char *s;
@@ -3903,8 +3903,8 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 
 bool load_triggers();
 void save_triggers();
-void trigger_type_add_use(struct trigger_type *tt);
-void trigger_type_delete_use(struct trigger_type *tt);
+void trigger_type_add_use(struct trigger_type *_tt);
+void trigger_type_delete_use(struct trigger_type *_tt);
 
 void scriptcmd_bug(SCRIPT_VARINFO *info, char *message);
 PROG_LIST *find_trigger_data(LLIST **progs, int trigger_type, int count);

@@ -5101,7 +5101,7 @@ struct token_data
     LLIST *affects;
     REPUTATION_DATA *reputation;
 
-    long tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
+    int tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
 };
 
 struct command_data
@@ -5730,7 +5730,7 @@ struct char_data
     int hit_class;                /* Class of damage given */
     SKILL_DATA *hit_skill;        // Skill that caused the damage
     int skill_chance;             /* Current chance used in a given action */
-    long tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
+    int tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
     char *tempstring;
     int manastore; /* A storage for "mana" other than the character's mana */
     REPUTATION_DATA *tempreputation;
@@ -6192,7 +6192,7 @@ typedef struct lock_state_data
     WNUM_LOAD key_load;
     WNUM key_wnum;   // TODO: make a list
     int pick_chance; // 0 = impossible (normally), 100 trivial
-    long flags;
+    int flags;
     LLIST *special_keys; // Handled by other entities, not owned by lock state
 } LOCK_STATE;
 
@@ -7272,7 +7272,7 @@ struct obj_data
     char *owner_name;  /* Used to indicate the original mob's name for use decaying the corpse. */
     char *owner_short; /* Used to indicate the original mob's short for use decaying the corpse. */
 
-    long tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
+    int tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
 };
 
 /* fragility */
@@ -7310,11 +7310,11 @@ struct exit_data
         ROOM_INDEX_DATA *to_room;
         WNUM_LOAD wnum;
     } u1;
-    long exit_info;
+    int exit_info;
     char *keyword;
     char *short_desc; /* short description for displaying only */
     char *long_desc;  /* long desc for closer scrutiny */
-    long rs_flags;
+    int rs_flags;
     int orig_door;
 
     struct door_data
@@ -7407,7 +7407,7 @@ struct area_region_data
     LLIST *rooms; // Will not include rooms flagged for blueprints
 
     // OLC data
-    long rs_place_flags;
+    int rs_place_flags;
     int rs_savage_level; // 0-5
 
     LOCATION rs_recall;
@@ -7422,7 +7422,7 @@ struct area_region_data
     long rs_airship_land_spot;
 
     // Live Data -
-    long place_flags;
+    int place_flags;
     int savage_level; // 0-5
 
     LOCATION recall;
@@ -8148,7 +8148,7 @@ struct room_index_data
     } environ;
     bool force_destruct;
 
-    long tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
+    int tempstore[MAX_TEMPSTORE]; /* Temporary storage values for script processing */
 };
 
 struct blueprint_link_data
@@ -8419,7 +8419,7 @@ struct instance_data
     int floor;   // Floor identifier, used in traversing multi-level dungeons
                  // Defaults to 0 when not used
 
-    long flags;
+    int flags;
 
     ROOM_INDEX_DATA *recall; // Location in the instance that is considered the recall point
                              //   Leave NULL to have no recall
@@ -8633,7 +8633,7 @@ struct dungeon_data
     ROOM_INDEX_DATA *entry_room;
     ROOM_INDEX_DATA *exit_room;
 
-    long flags; // Potential instanced flags
+    int flags; // Potential instanced flags
 
     LLIST *player_owners; // Player owners of the dungeon
                           //  Must be a SUPERSET of the players list inside the dungeon

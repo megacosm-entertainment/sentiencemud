@@ -399,17 +399,17 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 				WNUM_LOAD wnum = fread_widevnum(fp, area->uid);
 				p = fread_string(fp);
 
-				struct trigger_type *tt = get_trigger_type(p, PRG_DPROG);
-				if(!tt) {
+				struct trigger_type *_tt = get_trigger_type(p, PRG_DPROG);
+				if(!_tt) {
 					snprintf(buf, sizeof(buf), "load_dungeon_index: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					PROG_LIST *dpr = new_trigger();
 
 					dpr->wnum_load = wnum;
-					dpr->trig_type = tt->type;
+					dpr->trig_type = _tt->type;
 					dpr->trig_phrase = fread_string(fp);
-					if( tt->type == TRIG_SPELLCAST ) {
+					if( _tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
 						SKILL_DATA *skill = get_skill_data(dpr->trig_phrase);
 
@@ -434,8 +434,8 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 
 					if(!dng->progs) dng->progs = new_prog_bank();
 
-					list_appendlink(dng->progs[tt->slot], dpr);
-					trigger_type_add_use(tt);
+					list_appendlink(dng->progs[_tt->slot], dpr);
+					trigger_type_add_use(_tt);
 				}
 				fMatch = true;
 			}
@@ -7787,7 +7787,7 @@ DNGEDIT( dngedit_special )
 
 DNGEDIT (dngedit_adddprog)
 {
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
     int slot;
 	DUNGEON_INDEX_DATA *dungeon;
     PROG_LIST *list;
@@ -7809,13 +7809,13 @@ DNGEDIT (dngedit_adddprog)
 		return false;
     }
 
-    if (!(tt = get_trigger_type(trigger, PRG_DPROG))) {
+    if (!(_tt = get_trigger_type(trigger, PRG_DPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "dprog");
 	return false;
     }
 
-    slot = tt->slot;
+    slot = _tt->slot;
 	if(!wnum.pArea) wnum.pArea = dungeon->area;
 
     if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_DPROG)) == NULL)
@@ -7829,14 +7829,14 @@ DNGEDIT (dngedit_adddprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tt->type;
+    list->trig_type       = _tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
     list->script          = code;
 
     list_appendlink(dungeon->progs[slot], list);
-	trigger_type_add_use(tt);
+	trigger_type_add_use(_tt);
 
     send_to_char("Dprog Added.\n\r",ch);
     return true;

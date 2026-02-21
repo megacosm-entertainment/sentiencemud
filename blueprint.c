@@ -648,17 +648,17 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 				WNUM_LOAD wnum_load = fread_widevnum(fp, pArea->uid);
 				p = fread_string(fp);
 
-				struct trigger_type *tt = get_trigger_type(p, PRG_IPROG);
-				if(!tt) {
+				struct trigger_type *_tt = get_trigger_type(p, PRG_IPROG);
+				if(!_tt) {
 					snprintf(buf, sizeof(buf), "load_blueprint: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					PROG_LIST *ipr = new_trigger();
 
 					ipr->wnum_load = wnum_load;
-					ipr->trig_type = tt->type;
+					ipr->trig_type = _tt->type;
 					ipr->trig_phrase = fread_string(fp);
-					if( tt->type == TRIG_SPELLCAST ) {
+					if( _tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
 						SKILL_DATA *skill = get_skill_data(ipr->trig_phrase);
 
@@ -683,9 +683,9 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 
 					if(!bp->progs) bp->progs = new_prog_bank();
 
-					list_appendlink(bp->progs[tt->slot], ipr);
+					list_appendlink(bp->progs[_tt->slot], ipr);
 
-					trigger_type_add_use(tt);
+					trigger_type_add_use(_tt);
 				}
 				fMatch = true;
 			}
@@ -994,11 +994,11 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 
 	// List of links between the layout sections
 	ITERATOR llit;
-	BLUEPRINT_LAYOUT_LINK_DATA *ll;
+	BLUEPRINT_LAYOUT_LINK_DATA *_ll;
 	iterator_start(&llit, bp->links);
-	while( (ll = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&llit)) )
+	while( (_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&llit)) )
 	{
-		save_blueprint_layout_link(fp, ll);
+		save_blueprint_layout_link(fp, _ll);
 	}
 	iterator_stop(&llit);
 
@@ -1246,12 +1246,12 @@ bool is_blueprint_static(BLUEPRINT *bp)
 
 	if (valid)
 	{
-		BLUEPRINT_LAYOUT_LINK_DATA *ll;
+		BLUEPRINT_LAYOUT_LINK_DATA *_ll;
 		// Make sure all of the links are static links
 		iterator_start(&it, bp->links);
-		while((ll = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&it)))
+		while((_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&it)))
 		{
-			if (ll->mode != LINKMODE_STATIC)
+			if (_ll->mode != LINKMODE_STATIC)
 			{
 				valid = false;
 				break;
@@ -7571,16 +7571,16 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-				ll->mode = LINKMODE_STATIC;
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+				_ll->mode = LINKMODE_STATIC;
 
-				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
-				ll->total_from = 1;
+				blueprint_add_weighted_link(_ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+				_ll->total_from = 1;
 
-				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
-				ll->total_to = 1;
+				blueprint_add_weighted_link(_ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+				_ll->total_to = 1;
 
-				list_appendlink(bp->links, ll);
+				list_appendlink(bp->links, _ll);
 				sprintf(buf, "Static Link %d added to Links.\n\r", list_size(bp->links));
 				send_to_char(buf, ch);
 				return true;
@@ -7644,13 +7644,13 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-				ll->mode = LINKMODE_SOURCE;
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+				_ll->mode = LINKMODE_SOURCE;
 
-				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
-				ll->total_to = 1;
+				blueprint_add_weighted_link(_ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+				_ll->total_to = 1;
 
-				list_appendlink(bp->links, ll);
+				list_appendlink(bp->links, _ll);
 				sprintf(buf, "Source Link %d added to Links.\n\r", list_size(bp->links));
 				send_to_char(buf, ch);
 				return true;
@@ -7722,13 +7722,13 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-				ll->mode = LINKMODE_DESTINATION;
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+				_ll->mode = LINKMODE_DESTINATION;
 
-				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
-				ll->total_from = 1;
+				blueprint_add_weighted_link(_ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+				_ll->total_from = 1;
 
-				list_appendlink(bp->links, ll);
+				list_appendlink(bp->links, _ll);
 				sprintf(buf, "Destination Link %d added to Links.\n\r", list_size(bp->links));
 				send_to_char(buf, ch);
 				return true;
@@ -7795,12 +7795,12 @@ BPEDIT( bpedit_links )
 				return false;
 			}
 
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, index);
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, index);
 
 			argument = one_argument(argument, arg3);
 			if (!str_prefix(arg3, "list"))
 			{
-				if (list_size(ll->from) > 0)
+				if (list_size(_ll->from) > 0)
 				{
 					BUFFER *buffer = new_buf();
 
@@ -7813,7 +7813,7 @@ BPEDIT( bpedit_links )
 					int from_no = 1;
 					ITERATOR it;
 					BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
-					iterator_start(&it, ll->from);
+					iterator_start(&it, _ll->from);
 					while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
 					{
 						sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", from_no++, weighted->weight,
@@ -7853,7 +7853,7 @@ BPEDIT( bpedit_links )
 				char arg5[MIL];
 				char arg6[MIL];
 
-				if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+				if (_ll->mode != LINKMODE_SOURCE && _ll->mode != LINKMODE_WEIGHTED)
 				{
 					send_to_char("Syntax:  links from {R#{x list\n\r", ch);
 					send_to_char("         links from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
@@ -7940,15 +7940,15 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				blueprint_add_weighted_link(ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
-				ll->total_from += weight;
+				blueprint_add_weighted_link(_ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
+				_ll->total_from += weight;
 
 				char *mode = "Link";
-				if (ll->mode == LINKMODE_SOURCE)
+				if (_ll->mode == LINKMODE_SOURCE)
 					mode = "Source Link";
-				else if (ll->mode == LINKMODE_WEIGHTED)
+				else if (_ll->mode == LINKMODE_WEIGHTED)
 					mode = "Weighted Link";
-				sprintf(buf, "Add Entry %d to %s %d.\n\r", list_size(ll->from), mode, index);
+				sprintf(buf, "Add Entry %d to %s %d.\n\r", list_size(_ll->from), mode, index);
 				send_to_char(buf, ch);
 				return true;
 			}
@@ -7966,16 +7966,16 @@ BPEDIT( bpedit_links )
 				if(!is_number(argw))
 				{
 					send_to_char("Syntax:  links from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 					send_to_char(buf, ch);
 					return false;
 				}
 
 				int windex = atoi(argw);
-				if(windex < 1 || windex > list_size(ll->from))
+				if(windex < 1 || windex > list_size(_ll->from))
 				{
 					send_to_char("Syntax:  links from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -8056,17 +8056,17 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
-				ll->total_from -= weighted->weight;
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->from, windex);
+				_ll->total_from -= weighted->weight;
 				weighted->weight = weight;
 				weighted->section = from_section;
 				weighted->link = from_link_no;
-				ll->total_from += weight;
+				_ll->total_from += weight;
 
 				char *mode = "Link";
-				if (ll->mode == LINKMODE_SOURCE)
+				if (_ll->mode == LINKMODE_SOURCE)
 					mode = "Source Link";
-				else if (ll->mode == LINKMODE_WEIGHTED)
+				else if (_ll->mode == LINKMODE_WEIGHTED)
 					mode = "Weighted Link";
 				sprintf(buf, "Updated Entry %d to %s %d.\n\r", windex, mode, index);
 				send_to_char(buf, ch);
@@ -8075,7 +8075,7 @@ BPEDIT( bpedit_links )
 
 			if (!str_prefix(arg3, "remove"))
 			{
-				if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+				if (_ll->mode != LINKMODE_SOURCE && _ll->mode != LINKMODE_WEIGHTED)
 				{
 					send_to_char("Syntax:  links from {R#{x list\n\r", ch);
 					send_to_char("         links from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
@@ -8089,28 +8089,28 @@ BPEDIT( bpedit_links )
 				if (!is_number(argument))
 				{
 					send_to_char("Syntax:  links from # remove {R#{x\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 					send_to_char(buf, ch);
 					return false;
 				}
 
 				int windex = atoi(argument);
-				if (windex < 1 || windex > list_size(ll->from))
+				if (windex < 1 || windex > list_size(_ll->from))
 				{
 					send_to_char("Syntax:  links from # remove {R#{x\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 					send_to_char(buf, ch);
 					return false;
 				}
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
-				ll->total_from -= weighted->weight;
-				list_remnthlink(ll->from, windex, true);
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->from, windex);
+				_ll->total_from -= weighted->weight;
+				list_remnthlink(_ll->from, windex, true);
 
 				char *mode = "Link";
-				if (ll->mode == LINKMODE_SOURCE)
+				if (_ll->mode == LINKMODE_SOURCE)
 					mode = "Source Link";
-				else if (ll->mode == LINKMODE_WEIGHTED)
+				else if (_ll->mode == LINKMODE_WEIGHTED)
 					mode = "Weighted Link";
 				sprintf(buf, "Removed Entry %d from %s %d.\n\r", windex, mode, index);
 				send_to_char(buf, ch);
@@ -8155,12 +8155,12 @@ BPEDIT( bpedit_links )
 				return false;
 			}
 
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, index);
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, index);
 
 			argument = one_argument(argument, arg3);
 			if (!str_prefix(arg3, "list"))
 			{
-				if (list_size(ll->to) > 0)
+				if (list_size(_ll->to) > 0)
 				{
 					BUFFER *buffer = new_buf();
 
@@ -8173,7 +8173,7 @@ BPEDIT( bpedit_links )
 					int to_no = 1;
 					ITERATOR it;
 					BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
-					iterator_start(&it, ll->to);
+					iterator_start(&it, _ll->to);
 					while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
 					{
 						sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", to_no++, weighted->weight,
@@ -8213,7 +8213,7 @@ BPEDIT( bpedit_links )
 				char arg5[MIL];
 				char arg6[MIL];
 
-				if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+				if (_ll->mode != LINKMODE_DESTINATION && _ll->mode != LINKMODE_WEIGHTED)
 				{
 					send_to_char("Syntax:  links to {R#{x list\n\r", ch);
 					send_to_char("         links to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
@@ -8300,15 +8300,15 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				blueprint_add_weighted_link(ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
-				ll->total_to += weight;
+				blueprint_add_weighted_link(_ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
+				_ll->total_to += weight;
 
 				char *mode = "Link";
-				if (ll->mode == LINKMODE_DESTINATION)
+				if (_ll->mode == LINKMODE_DESTINATION)
 					mode = "Destination Link";
-				else if (ll->mode == LINKMODE_WEIGHTED)
+				else if (_ll->mode == LINKMODE_WEIGHTED)
 					mode = "Weighted Link";
-				sprintf(buf, "Added To Entry %d to %s %d.\n\r", list_size(ll->to), mode, index);
+				sprintf(buf, "Added To Entry %d to %s %d.\n\r", list_size(_ll->to), mode, index);
 				send_to_char(buf, ch);
 				return true;
 			}
@@ -8326,16 +8326,16 @@ BPEDIT( bpedit_links )
 				if(!is_number(argw))
 				{
 					send_to_char("Syntax:  links to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 					send_to_char(buf, ch);
 					return false;
 				}
 
 				int windex = atoi(argw);
-				if(windex < 1 || windex > list_size(ll->to))
+				if(windex < 1 || windex > list_size(_ll->to))
 				{
 					send_to_char("Syntax:  links to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 					send_to_char(buf, ch);
 					return false;
 				}
@@ -8416,17 +8416,17 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
-				ll->total_to -= weighted->weight;
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->to, windex);
+				_ll->total_to -= weighted->weight;
 				weighted->weight = weight;
 				weighted->section = to_section;
 				weighted->link = to_link_no;
-				ll->total_to += weight;
+				_ll->total_to += weight;
 
 				char *mode = "Link";
-				if (ll->mode == LINKMODE_SOURCE)
+				if (_ll->mode == LINKMODE_SOURCE)
 					mode = "Source Link";
-				else if (ll->mode == LINKMODE_WEIGHTED)
+				else if (_ll->mode == LINKMODE_WEIGHTED)
 					mode = "Weighted Link";
 				sprintf(buf, "Updated Entry %d to %s %d.\n\r", windex, mode, index);
 				send_to_char(buf, ch);
@@ -8435,7 +8435,7 @@ BPEDIT( bpedit_links )
 
 			if (!str_prefix(arg3, "remove"))
 			{
-				if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+				if (_ll->mode != LINKMODE_DESTINATION && _ll->mode != LINKMODE_WEIGHTED)
 				{
 					send_to_char("Syntax:  links to {R#{x list\n\r", ch);
 					send_to_char("         links to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
@@ -8449,28 +8449,28 @@ BPEDIT( bpedit_links )
 				if (!is_number(argument))
 				{
 					send_to_char("Syntax:  links to # remove {R#{x\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 					send_to_char(buf, ch);
 					return false;
 				}
 
 				int windex = atoi(argument);
-				if (windex < 1 || windex > list_size(ll->to))
+				if (windex < 1 || windex > list_size(_ll->to))
 				{
 					send_to_char("Syntax:  links to # remove {R#{x\n\r", ch);
-					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 					send_to_char(buf, ch);
 					return false;
 				}
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
-				ll->total_to -= weighted->weight;
-				list_remnthlink(ll->to, windex, true);
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->to, windex);
+				_ll->total_to -= weighted->weight;
+				list_remnthlink(_ll->to, windex, true);
 
 				char *mode = "Link";
-				if (ll->mode == LINKMODE_DESTINATION)
+				if (_ll->mode == LINKMODE_DESTINATION)
 					mode = "Destination Link";
-				else if (ll->mode == LINKMODE_WEIGHTED)
+				else if (_ll->mode == LINKMODE_WEIGHTED)
 					mode = "Weighted Link";
 				sprintf(buf, "Removed To Entry %d from %s %d.\n\r", windex, mode, index);
 				send_to_char(buf, ch);
@@ -8854,24 +8854,24 @@ BPEDIT( bpedit_links )
 						return false;
 					}
 
-					BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-					ll->mode = LINKMODE_STATIC;
+					BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+					_ll->mode = LINKMODE_STATIC;
 
 					BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
 					from->weight = 1;
 					from->section = from_mode ? -from_section : from_section;
 					from->link = from_link_no;
-					list_appendlink(ll->from, from);
-					ll->total_from = 1;
+					list_appendlink(_ll->from, from);
+					_ll->total_from = 1;
 
 					BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
 					to->weight = 1;
 					to->section = to_mode ? -to_section : to_section;
 					to->link = to_link_no;
-					list_appendlink(ll->to, to);
-					ll->total_to = 1;
+					list_appendlink(_ll->to, to);
+					_ll->total_to = 1;
 
-					list_appendlink(gls->group, ll);
+					list_appendlink(gls->group, _ll);
 					sprintf(buf, "Static Link %d added to Group Entry %d.\n\r", list_size(bp->links), gindex);
 					send_to_char(buf, ch);
 					return true;
@@ -8935,17 +8935,17 @@ BPEDIT( bpedit_links )
 						return false;
 					}
 
-					BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-					ll->mode = LINKMODE_SOURCE;
+					BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+					_ll->mode = LINKMODE_SOURCE;
 
 					BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
 					to->weight = 1;
 					to->section = to_mode ? -to_section : to_section;
 					to->link = to_link_no;
-					list_appendlink(ll->to, to);
-					ll->total_to = 1;
+					list_appendlink(_ll->to, to);
+					_ll->total_to = 1;
 
-					list_appendlink(gls->group, ll);
+					list_appendlink(gls->group, _ll);
 					sprintf(buf, "Source Link %d added to Group Entry %d.\n\r", list_size(bp->links), gindex);
 					send_to_char(buf, ch);
 					return true;
@@ -9017,17 +9017,17 @@ BPEDIT( bpedit_links )
 						return false;
 					}
 
-					BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-					ll->mode = LINKMODE_DESTINATION;
+					BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+					_ll->mode = LINKMODE_DESTINATION;
 
 					BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
 					from->weight = 1;
 					from->section = from_mode ? -from_section : from_section;
 					from->link = from_link_no;
-					list_appendlink(ll->from, from);
-					ll->total_from = 1;
+					list_appendlink(_ll->from, from);
+					_ll->total_from = 1;
 
-					list_appendlink(gls->group, ll);
+					list_appendlink(gls->group, _ll);
 					sprintf(buf, "Destination Link %d added to Group Entry %d.\n\r", list_size(bp->links), gindex);
 					send_to_char(buf, ch);
 					return true;
@@ -9083,12 +9083,12 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gls->group, index);
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gls->group, index);
 
 				argument = one_argument(argument, arg3);
 				if (!str_prefix(arg3, "list"))
 				{
-					if (list_size(ll->from) > 0)
+					if (list_size(_ll->from) > 0)
 					{
 						BUFFER *buffer = new_buf();
 
@@ -9101,7 +9101,7 @@ BPEDIT( bpedit_links )
 						int from_no = 1;
 						ITERATOR it;
 						BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
-						iterator_start(&it, ll->from);
+						iterator_start(&it, _ll->from);
 						while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
 						{
 							sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", from_no++, weighted->weight,
@@ -9141,7 +9141,7 @@ BPEDIT( bpedit_links )
 					char arg5[MIL];
 					char arg6[MIL];
 
-					if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+					if (_ll->mode != LINKMODE_SOURCE && _ll->mode != LINKMODE_WEIGHTED)
 					{
 						send_to_char("Syntax:  links group # from {R#{x list\n\r", ch);
 						send_to_char("         links group # from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
@@ -9232,15 +9232,15 @@ BPEDIT( bpedit_links )
 					weighted->weight = weight;
 					weighted->section = from_section;
 					weighted->link = from_link_no;
-					list_appendlink(ll->from, weighted);
-					ll->total_from += weight;
+					list_appendlink(_ll->from, weighted);
+					_ll->total_from += weight;
 
 					char *mode = "Link";
-					if (ll->mode == LINKMODE_SOURCE)
+					if (_ll->mode == LINKMODE_SOURCE)
 						mode = "Source Link";
-					else if (ll->mode == LINKMODE_WEIGHTED)
+					else if (_ll->mode == LINKMODE_WEIGHTED)
 						mode = "Weighted Link";
-					sprintf(buf, "Added From Entry %d to %s %d in Group Entry %d.\n\r", list_size(ll->from), mode, index, gindex);
+					sprintf(buf, "Added From Entry %d to %s %d in Group Entry %d.\n\r", list_size(_ll->from), mode, index, gindex);
 					send_to_char(buf, ch);
 					return true;
 				}
@@ -9258,16 +9258,16 @@ BPEDIT( bpedit_links )
 					if(!is_number(argw))
 					{
 						send_to_char("Syntax:  links group # from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 						send_to_char(buf, ch);
 						return false;
 					}
 
 					int windex = atoi(argw);
-					if(windex < 1 || windex > list_size(ll->from))
+					if(windex < 1 || windex > list_size(_ll->from))
 					{
 						send_to_char("Syntax:  links group # from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 						send_to_char(buf, ch);
 						return false;
 					}
@@ -9348,17 +9348,17 @@ BPEDIT( bpedit_links )
 						return false;
 					}
 
-					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
-					ll->total_from -= weighted->weight;
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->from, windex);
+					_ll->total_from -= weighted->weight;
 					weighted->weight = weight;
 					weighted->section = from_section;
 					weighted->link = from_link_no;
-					ll->total_from += weight;
+					_ll->total_from += weight;
 
 					char *mode = "Link";
-					if (ll->mode == LINKMODE_SOURCE)
+					if (_ll->mode == LINKMODE_SOURCE)
 						mode = "Source Link";
-					else if (ll->mode == LINKMODE_WEIGHTED)
+					else if (_ll->mode == LINKMODE_WEIGHTED)
 						mode = "Weighted Link";
 					sprintf(buf, "Updated Entry %d to %s %d.\n\r", windex, mode, index);
 					send_to_char(buf, ch);
@@ -9367,7 +9367,7 @@ BPEDIT( bpedit_links )
 
 				if (!str_prefix(arg3, "remove"))
 				{
-					if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+					if (_ll->mode != LINKMODE_SOURCE && _ll->mode != LINKMODE_WEIGHTED)
 					{
 						send_to_char("Syntax:  links group # from {R#{x list\n\r", ch);
 						send_to_char("         links group # from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
@@ -9381,28 +9381,28 @@ BPEDIT( bpedit_links )
 					if (!is_number(argument))
 					{
 						send_to_char("Syntax:  links group # from # remove {R#{x\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 						send_to_char(buf, ch);
 						return false;
 					}
 
 					int windex = atoi(argument);
-					if (windex < 1 || windex > list_size(ll->from))
+					if (windex < 1 || windex > list_size(_ll->from))
 					{
 						send_to_char("Syntax:  links group # from # remove {R#{x\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->from));
 						send_to_char(buf, ch);
 						return false;
 					}
 
-					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
-					ll->total_from -= weighted->weight;
-					list_remnthlink(ll->from, windex, true);
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->from, windex);
+					_ll->total_from -= weighted->weight;
+					list_remnthlink(_ll->from, windex, true);
 
 					char *mode = "Link";
-					if (ll->mode == LINKMODE_SOURCE)
+					if (_ll->mode == LINKMODE_SOURCE)
 						mode = "Source Link";
-					else if (ll->mode == LINKMODE_WEIGHTED)
+					else if (_ll->mode == LINKMODE_WEIGHTED)
 						mode = "Weighted Link";
 					sprintf(buf, "Removed From Entry %d from %s %d in Group Entry %d.\n\r", windex, mode, index, gindex);
 					send_to_char(buf, ch);
@@ -9447,12 +9447,12 @@ BPEDIT( bpedit_links )
 					return false;
 				}
 
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gls->group, index);
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gls->group, index);
 
 				argument = one_argument(argument, arg3);
 				if (!str_prefix(arg3, "list"))
 				{
-					if (list_size(ll->to) > 0)
+					if (list_size(_ll->to) > 0)
 					{
 						BUFFER *buffer = new_buf();
 
@@ -9465,7 +9465,7 @@ BPEDIT( bpedit_links )
 						int to_no = 1;
 						ITERATOR it;
 						BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
-						iterator_start(&it, ll->to);
+						iterator_start(&it, _ll->to);
 						while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
 						{
 							sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", to_no++, weighted->weight,
@@ -9505,7 +9505,7 @@ BPEDIT( bpedit_links )
 					char arg5[MIL];
 					char arg6[MIL];
 
-					if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+					if (_ll->mode != LINKMODE_DESTINATION && _ll->mode != LINKMODE_WEIGHTED)
 					{
 						send_to_char("Syntax:  links group # to {R#{x list\n\r", ch);
 						send_to_char("         links group # to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
@@ -9596,15 +9596,15 @@ BPEDIT( bpedit_links )
 					weighted->weight = weight;
 					weighted->section = to_section;
 					weighted->link = to_link_no;
-					list_appendlink(ll->to, weighted);
-					ll->total_to += weight;
+					list_appendlink(_ll->to, weighted);
+					_ll->total_to += weight;
 
 					char *mode = "Link";
-					if (ll->mode == LINKMODE_DESTINATION)
+					if (_ll->mode == LINKMODE_DESTINATION)
 						mode = "Destination Link";
-					else if (ll->mode == LINKMODE_WEIGHTED)
+					else if (_ll->mode == LINKMODE_WEIGHTED)
 						mode = "Weighted Link";
-					sprintf(buf, "Added To Entry %d to %s %d in Group Entry %d.\n\r", list_size(ll->to), mode, index, gindex);
+					sprintf(buf, "Added To Entry %d to %s %d in Group Entry %d.\n\r", list_size(_ll->to), mode, index, gindex);
 					send_to_char(buf, ch);
 					return true;
 				}
@@ -9622,16 +9622,16 @@ BPEDIT( bpedit_links )
 					if(!is_number(argw))
 					{
 						send_to_char("Syntax:  links group # to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 						send_to_char(buf, ch);
 						return false;
 					}
 
 					int windex = atoi(argw);
-					if(windex < 1 || windex > list_size(ll->to))
+					if(windex < 1 || windex > list_size(_ll->to))
 					{
 						send_to_char("Syntax:  links group # to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 						send_to_char(buf, ch);
 						return false;
 					}
@@ -9712,17 +9712,17 @@ BPEDIT( bpedit_links )
 						return false;
 					}
 
-					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
-					ll->total_to -= weighted->weight;
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->to, windex);
+					_ll->total_to -= weighted->weight;
 					weighted->weight = weight;
 					weighted->section = to_section;
 					weighted->link = to_link_no;
-					ll->total_to += weight;
+					_ll->total_to += weight;
 
 					char *mode = "Link";
-					if (ll->mode == LINKMODE_SOURCE)
+					if (_ll->mode == LINKMODE_SOURCE)
 						mode = "Source Link";
-					else if (ll->mode == LINKMODE_WEIGHTED)
+					else if (_ll->mode == LINKMODE_WEIGHTED)
 						mode = "Weighted Link";
 					sprintf(buf, "Updated To Entry %d to %s %d in Group Link %d.\n\r", windex, mode, index, gindex);
 					send_to_char(buf, ch);
@@ -9731,7 +9731,7 @@ BPEDIT( bpedit_links )
 
 				if (!str_prefix(arg3, "remove"))
 				{
-					if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+					if (_ll->mode != LINKMODE_DESTINATION && _ll->mode != LINKMODE_WEIGHTED)
 					{
 						send_to_char("Syntax:  links group # to {R#{x list\n\r", ch);
 						send_to_char("         links group # to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
@@ -9745,28 +9745,28 @@ BPEDIT( bpedit_links )
 					if (!is_number(argument))
 					{
 						send_to_char("Syntax:  links group # to # remove {R#{x\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 						send_to_char(buf, ch);
 						return false;
 					}
 
 					int windex = atoi(argument);
-					if (windex < 1 || windex > list_size(ll->to))
+					if (windex < 1 || windex > list_size(_ll->to))
 					{
 						send_to_char("Syntax:  links group # to # remove {R#{x\n\r", ch);
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(_ll->to));
 						send_to_char(buf, ch);
 						return false;
 					}
 
-					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
-					ll->total_to -= weighted->weight;
-					list_remnthlink(ll->to, windex, true);
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(_ll->to, windex);
+					_ll->total_to -= weighted->weight;
+					list_remnthlink(_ll->to, windex, true);
 
 					char *mode = "Link";
-					if (ll->mode == LINKMODE_DESTINATION)
+					if (_ll->mode == LINKMODE_DESTINATION)
 						mode = "Destination Link";
-					else if (ll->mode == LINKMODE_WEIGHTED)
+					else if (_ll->mode == LINKMODE_WEIGHTED)
 						mode = "Weighted Link";
 					sprintf(buf, "Removed To Entry %d from %s %d in Group Entry %d.\n\r", windex, mode, index, gindex);
 					send_to_char(buf, ch);
@@ -11048,7 +11048,7 @@ BPEDIT( bpedit_rooms )
 
 BPEDIT (bpedit_addiprog)
 {
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
     int slot;
 	BLUEPRINT *blueprint;
     PROG_LIST *list;
@@ -11068,13 +11068,13 @@ BPEDIT (bpedit_addiprog)
 		return false;
     }
 
-    if (!(tt = get_trigger_type(trigger, PRG_IPROG))) {
+    if (!(_tt = get_trigger_type(trigger, PRG_IPROG))) {
 		send_to_char("Valid flags are:\n\r",ch);
 		show_help(ch, "iprog");
 		return false;
     }
 
-    slot = tt->slot;
+    slot = _tt->slot;
 	WNUM wnum;
 	if (!parse_widevnum(num, ch->in_room->area, &wnum))
 	{
@@ -11097,14 +11097,14 @@ BPEDIT (bpedit_addiprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tt->type;
+    list->trig_type       = _tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
     list->script          = code;
 
     list_appendlink(blueprint->progs[slot], list);
-	trigger_type_add_use(tt);
+	trigger_type_add_use(_tt);
 
     send_to_char("Iprog Added.\n\r",ch);
     return true;

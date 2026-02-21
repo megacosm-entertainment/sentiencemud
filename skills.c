@@ -5924,15 +5924,15 @@ void __token_remove_trigger(TOKEN_INDEX_DATA *token, int type)
 	{
 		PROG_LIST *trigger;
 		ITERATOR it;
-		struct trigger_type *tt = get_trigger_type_bytype(type);
+		struct trigger_type *_tt = get_trigger_type_bytype(type);
 
-		iterator_start(&it, token->progs[tt->slot]);
+		iterator_start(&it, token->progs[_tt->slot]);
 		while(( trigger = (PROG_LIST *)iterator_nextdata(&it) ))
 		{
 			if (trigger->trig_type == type)
 			{
 				iterator_remcurrent(&it);
-				trigger_type_delete_use(tt);
+				trigger_type_delete_use(_tt);
 				free_trigger(trigger);
 			}
 		}
@@ -5947,7 +5947,7 @@ bool __token_add_trigger(TOKEN_INDEX_DATA *token, int type, char *phrase, SCRIPT
 
 	if (!token->progs) return false;	// Something.. bad.. happened.
 
-	struct trigger_type *tt = get_trigger_type_bytype(type);
+	struct trigger_type *_tt = get_trigger_type_bytype(type);
 
 	PROG_LIST *trigger = new_trigger();
 	trigger->wnum.pArea = script->area;
@@ -5958,8 +5958,8 @@ bool __token_add_trigger(TOKEN_INDEX_DATA *token, int type, char *phrase, SCRIPT
 	trigger->numeric = is_number(trigger->trig_phrase);
 	trigger->script = script;
 
-	list_appendlink(token->progs[tt->slot], trigger);
-	trigger_type_add_use(tt);
+	list_appendlink(token->progs[_tt->slot], trigger);
+	trigger_type_add_use(_tt);
 	return true;
 }
 

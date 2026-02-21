@@ -207,11 +207,11 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOR(PRIMARY,AREA,region.description,__static_area,char *),
 	NFOR(PRIMARY,AREA,region.area_who,__static_area,int),
 	NFOR(PRIMARY,AREA,region.post_office,__static_area,long),
-	NFOR(PRIMARY,AREA,region.flags,__static_area,long),
+	NFOR(PRIMARY,AREA,region.flags,__static_area,int),
 	NFOR(PRIMARY,AREA,region.players,__static_area,LLIST *),
 	NFOR(PRIMARY,AREA,region.rooms,__static_area,LLIST *),
 	// Method: region.recall
-	NFOR(PRIMARY,AREA,region.place_flags,__static_area,long),
+	NFOR(PRIMARY,AREA,region.place_flags,__static_area,int),
 	NFOR(PRIMARY,AREA,region.savage_level,__static_area,int),
 	NFOR(PRIMARY,AREA,region.land_x,__static_area,int),
 	NFOR(PRIMARY,AREA,region.land_y,__static_area,int),
@@ -244,7 +244,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOR(PRIMARY,DUNGEON,special_exits,__static_dungeon,LLIST *),
 	NFOR(PRIMARY,DUNGEON,entry_room,__static_dungeon,ROOM_INDEX_DATA *),
 	NFOR(PRIMARY,DUNGEON,exit_room,__static_dungeon,ROOM_INDEX_DATA *),
-	NFOR(PRIMARY,DUNGEON,flags,__static_dungeon,long),
+	NFOR(PRIMARY,DUNGEON,flags,__static_dungeon,int),
 	NFOR(PRIMARY,DUNGEON,player_owners,__static_dungeon,LLIST *),
 	NFOR(PRIMARY,DUNGEON,players,__static_dungeon,LLIST *),
 	NFOR(PRIMARY,DUNGEON,mobiles,__static_dungeon,LLIST *),
@@ -260,11 +260,11 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,EXIT,long_desc,__static_exit,char *),
 	NFO(PRIMARY,EXIT,u1.to_room,__static_exit,ROOM_INDEX_DATA *),
 	NFO(PRIMARY,EXIT,from_room,__static_exit,ROOM_INDEX_DATA *),
-	NFO(PRIMARY,EXIT,exit_info,__static_exit,long),
+	NFO(PRIMARY,EXIT,exit_info,__static_exit,int),
 	NFO(PRIMARY,EXIT,door.strength,__static_exit,int16_t),
 	NFO(PRIMARY,EXIT,door.material,__static_exit,MATERIAL *),
 	NFO(PRIMARY,EXIT,door.lock.pick_chance,__static_exit,int),
-	NFO(PRIMARY,EXIT,door.lock.flags,__static_exit,long),
+	NFO(PRIMARY,EXIT,door.lock.flags,__static_exit,int),
 	NFO(PRIMARY,EXIT,door.lock.key_wnum,__static_exit,WNUM),
 	NFOR(PRIMARY,EXIT,door.lock.special_keys,__static_exit,LLIST *),
 
@@ -464,6 +464,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOS(PRIMARY,OBJECT,extra,__static_object,sizeof(long) * 4),
 	NFO(PRIMARY,OBJECT,level,__static_object,int),
 	NFO(PRIMARY,OBJECT,condition,__static_object,int),
+	NFORA(PRIMARY,OBJECT,tempstore,__static_object,MAX_TEMPSTORE,int),
 
 	// Org
 	NFOR(PRIMARY,ORG,hall_area,__static_org,AREA_DATA *),
@@ -562,7 +563,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFOR(PRIMARY,ROOM,lcontents,__static_room,LLIST *),
 	NFOR(PRIMARY,ROOM,ltokens,__static_room,LLIST *),
 	NFOR(PRIMARY,ROOM,lpeople,__static_room,LLIST *),
-	NFOS(PRIMARY,ROOM,tempstore,__static_room,sizeof(__static_room.tempstore)),
+	NFORA(PRIMARY,ROOM,tempstore,__static_room,MAX_TEMPSTORE,int),
 
 	// Sector
 	NFOR(PRIMARY,SECTOR,name,__static_sector,char *),
@@ -589,7 +590,7 @@ static struct nib_field_offset_type __field_offsets[] =
 	NFO(PRIMARY,TOKEN,object,__static_token,OBJ_DATA *),
 	NFO(PRIMARY,TOKEN,room,__static_token,ROOM_INDEX_DATA *),
 	NFOS(PRIMARY,TOKEN,value,__static_token,MAX_TOKEN_VALUES * sizeof(long)),
-	NFOS(PRIMARY,TOKEN,tempstore,__static_token,MAX_TEMPSTORE * sizeof(long)),
+	NFORA(PRIMARY,TOKEN,tempstore,__static_token,MAX_TEMPSTORE,int),
 
 
 	// Widevnum

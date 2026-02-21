@@ -4904,9 +4904,9 @@ bool has_trigger(LLIST **bank, int trigger)
 	PROG_LIST *trig;
 	ITERATOR it;
 
-	struct trigger_type *tt = get_trigger_type_bytype(trigger);
+	struct trigger_type *_tt = get_trigger_type_bytype(trigger);
 
-	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
+	slot = _tt ? _tt->slot : TRIGSLOT_GENERAL;
 
 	if(bank) {
 		iterator_start(&it, bank[slot]);
@@ -4927,41 +4927,41 @@ bool has_trigger(LLIST **bank, int trigger)
 struct trigger_type *get_trigger_type(char *name, int progs)
 {
 	ITERATOR it;
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
 	iterator_start(&it, trigger_list);
-	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 	{
-		if (!str_cmp(name, tt->name) && IS_SET(tt->progs, progs))
+		if (!str_cmp(name, _tt->name) && IS_SET(_tt->progs, progs))
 			break;
 	}
 	iterator_stop(&it);
 
-	if (tt) return tt;
+	if (_tt) return _tt;
 
 	iterator_start(&it, trigger_list);
-	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 	{
-		if (tt->alias && is_exact_name(tt->alias, name) && IS_SET(tt->progs, progs))
+		if (_tt->alias && is_exact_name(_tt->alias, name) && IS_SET(_tt->progs, progs))
 			break;
 	}
 	iterator_stop(&it);
 
-	return tt;
+	return _tt;
 }
 
 struct trigger_type *get_trigger_type_bytype(int type)
 {
 	ITERATOR it;
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
 	iterator_start(&it, trigger_list);
-	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 	{
-		if (tt->type == type)
+		if (_tt->type == type)
 			break;
 	}
 	iterator_stop(&it);
 
-	return tt;
+	return _tt;
 }
 
 bool is_trigger_type(int tindex, int type)
@@ -5113,9 +5113,9 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 
 char *trigger_name(int type)
 {
-	struct trigger_type *tt = get_trigger_type_bytype(type);
+	struct trigger_type *_tt = get_trigger_type_bytype(type);
 
-	return tt ? tt->name : "INVALID";
+	return _tt ? _tt->name : "INVALID";
 }
 
 char *trigger_phrase(int type, char *phrase)
@@ -5320,9 +5320,9 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
 		PRETURN;
 	}
 
-	struct trigger_type *tt = get_trigger_type_bytype(type);
+	struct trigger_type *_tt = get_trigger_type_bytype(type);
 
-	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
+	slot = _tt ? _tt->slot : TRIGSLOT_GENERAL;
 
 
 	if (mob) {
@@ -5741,9 +5741,9 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 		PRETURN;
 	}
 
-	struct trigger_type *tt = get_trigger_type_bytype(type);
+	struct trigger_type *_tt = get_trigger_type_bytype(type);
 
-	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
+	slot = _tt ? _tt->slot : TRIGSLOT_GENERAL;
 
 
 	if (mob) {
@@ -6199,11 +6199,11 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
 		PRETURN;
 	}
 
-	struct trigger_type *tt = get_trigger_type_bytype(type);
+	struct trigger_type *_tt = get_trigger_type_bytype(type);
 	struct trigger_type *ttall = get_trigger_type_bytype(typeall);
 
 	// They must be in the same slot
-	if( !tt || !ttall || tt->slot != ttall->slot )
+	if( !_tt || !ttall || _tt->slot != ttall->slot )
 	{
 		bug("test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
 		PRETURN;
@@ -6723,9 +6723,9 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 		PRETURN;
 	}
 
-	struct trigger_type *tt = get_trigger_type_bytype(type);
+	struct trigger_type *_tt = get_trigger_type_bytype(type);
 
-	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
+	slot = _tt ? _tt->slot : TRIGSLOT_GENERAL;
 
 
 	if (mob) {
@@ -7222,9 +7222,9 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 	}
 
 	// Run the TRIG_LOGIN
-	struct trigger_type *tt = get_trigger_type_bytype(TRIG_LOGIN);
+	struct trigger_type *_tt = get_trigger_type_bytype(TRIG_LOGIN);
 
-	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
+	slot = _tt ? _tt->slot : TRIGSLOT_GENERAL;
 
 	// Save the UID
 	uid[0] = ch->id[0];
@@ -8925,22 +8925,22 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 			pVARIABLE var = variable_get(*vars, name);
 
-			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list.list) )
 				return;
 
 			if (arg->type == ENT_NUMBER)
-				list_remnthlink(var->_.list, arg->d.num, false);
+				list_remnthlink(var->_.list.list, arg->d.num, false);
 			else if (arg->type == ENT_MOBILE)
-				list_remlink(var->_.list, arg->d.mob, false);
+				list_remlink(var->_.list.list, arg->d.mob, false);
 
 		// MOBLIST clear
 		} else if( !str_cmp(arg->d.str, "clear") ) {
 			pVARIABLE var = variable_get(*vars, name);
 
-			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list.list) )
 				return;
 
-			list_clear(var->_.list);
+			list_clear(var->_.list.list);
 		}
 
 	// OBJLIST add <object>
@@ -8966,22 +8966,22 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 			pVARIABLE var = variable_get(*vars, name);
 
-			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list.list) )
 				return;
 
 			if (arg->type == ENT_NUMBER)
-				list_remnthlink(var->_.list, arg->d.num, false);
+				list_remnthlink(var->_.list.list, arg->d.num, false);
 			else if (arg->type == ENT_OBJECT)
-				list_remlink(var->_.list, arg->d.obj, false);
+				list_remlink(var->_.list.list, arg->d.obj, false);
 
 		// OBJLIST clear
 		} else if( !str_cmp(arg->d.str, "clear") ) {
 			pVARIABLE var = variable_get(*vars, name);
 
-			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list.list) )
 				return;
 
-			list_clear(var->_.list);
+			list_clear(var->_.list.list);
 		}
 
 	// RANDMOB <player> <continent>
@@ -9738,27 +9738,27 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 
 
-void save_trigger(FILE *fp, struct trigger_type *tt)
+void save_trigger(FILE *fp, struct trigger_type *_tt)
 {
-	fprintf(fp, "#TRIGGER %s~\n", fix_string(tt->name));
-	if (!IS_NULLSTR(tt->alias))
-		fprintf(fp, "Alias %s\n", tt->alias);
+	fprintf(fp, "#TRIGGER %s~\n", fix_string(_tt->name));
+	if (!IS_NULLSTR(_tt->alias))
+		fprintf(fp, "Alias %s\n", _tt->alias);
 	
-	if (tt->type < TRIG__MAX)
+	if (_tt->type < TRIG__MAX)
 	{
-		fprintf(fp, "BuiltinType %s~\n", flag_string(builtin_trigger_types, tt->type));
+		fprintf(fp, "BuiltinType %s~\n", flag_string(builtin_trigger_types, _tt->type));
 	}
 
-	fprintf(fp, "Scriptable %d\n", (tt->scriptable ? 1 : 0));
-	fprintf(fp, "Slot %s~\n", flag_string(trigger_slots, tt->slot));
+	fprintf(fp, "Scriptable %d\n", (_tt->scriptable ? 1 : 0));
+	fprintf(fp, "Slot %s~\n", flag_string(trigger_slots, _tt->slot));
 
-	if (IS_SET(tt->progs, PRG_MPROG)) fprintf(fp, "Mob\n");
-	if (IS_SET(tt->progs, PRG_OPROG)) fprintf(fp, "Obj\n");
-	if (IS_SET(tt->progs, PRG_RPROG)) fprintf(fp, "Room\n");
-	if (IS_SET(tt->progs, PRG_TPROG)) fprintf(fp, "Token\n");
-	if (IS_SET(tt->progs, PRG_APROG)) fprintf(fp, "Area\n");
-	if (IS_SET(tt->progs, PRG_IPROG)) fprintf(fp, "Instance\n");
-	if (IS_SET(tt->progs, PRG_DPROG)) fprintf(fp, "Dungeon\n");
+	if (IS_SET(_tt->progs, PRG_MPROG)) fprintf(fp, "Mob\n");
+	if (IS_SET(_tt->progs, PRG_OPROG)) fprintf(fp, "Obj\n");
+	if (IS_SET(_tt->progs, PRG_RPROG)) fprintf(fp, "Room\n");
+	if (IS_SET(_tt->progs, PRG_TPROG)) fprintf(fp, "Token\n");
+	if (IS_SET(_tt->progs, PRG_APROG)) fprintf(fp, "Area\n");
+	if (IS_SET(_tt->progs, PRG_IPROG)) fprintf(fp, "Instance\n");
+	if (IS_SET(_tt->progs, PRG_DPROG)) fprintf(fp, "Dungeon\n");
 
 	fprintf(fp, "#-TRIGGER\n");
 }
@@ -9802,24 +9802,24 @@ void save_triggers()
 
 struct trigger_type *new_trigger_type()
 {
-	struct trigger_type *tt = alloc_mem(sizeof(struct trigger_type));
+	struct trigger_type *_tt = alloc_mem(sizeof(struct trigger_type));
 	
-	memset(tt, 0, sizeof(*tt));
+	memset(_tt, 0, sizeof(*_tt));
 
-	tt->name = str_dup("");
-	tt->alias = str_dup("");
-	tt->type = TRIG__MAX;		// Flag it as being unassigned
-	tt->scriptable = true;
+	_tt->name = str_dup("");
+	_tt->alias = str_dup("");
+	_tt->type = TRIG__MAX;		// Flag it as being unassigned
+	_tt->scriptable = true;
 
-	return tt;
+	return _tt;
 }
 
-void free_trigger_type(struct trigger_type *tt)
+void free_trigger_type(struct trigger_type *_tt)
 {
-	free_string(tt->name);
-	free_string(tt->alias);
+	free_string(_tt->name);
+	free_string(_tt->alias);
 
-	free_mem(tt, sizeof(struct trigger_type));
+	free_mem(_tt, sizeof(struct trigger_type));
 }
 
 static void delete_trigger_type(void *ptr)
@@ -9837,18 +9837,18 @@ struct trigger_type *load_trigger(FILE *fp)
 	char buf[MSL];
 	char *word;
 	bool fMatch;
-	struct trigger_type *tt = new_trigger_type();
+	struct trigger_type *_tt = new_trigger_type();
 
-	free_string(tt->name);
-	tt->name = fread_string(fp);
+	free_string(_tt->name);
+	_tt->name = fread_string(fp);
 
     while (str_cmp((word = fread_word(fp)), "#-TRIGGER"))
 	{
 		switch(word[0])
 		{
 			case 'A':
-				KEYS("Alias", tt->alias, fread_string(fp));
-				KEYF("Area", tt->progs, PRG_APROG);
+				KEYS("Alias", _tt->alias, fread_string(fp));
+				KEYF("Area", _tt->progs, PRG_APROG);
 				break;
 			
 			case 'B':
@@ -9879,13 +9879,13 @@ struct trigger_type *load_trigger(FILE *fp)
 
 					if (type != TRIG__MAX)
 					{
-						tt->type = type;
+						_tt->type = type;
 
 						// Fix the trigger's name
 						if (fix_name)
 						{
-							free_string(tt->name);
-							tt->name = str_dup(name);
+							free_string(_tt->name);
+							_tt->name = str_dup(name);
 						}
 					}
 
@@ -9895,39 +9895,39 @@ struct trigger_type *load_trigger(FILE *fp)
 				break;
 
 			case 'D':
-				KEYF("Dungeon", tt->progs, PRG_DPROG);
+				KEYF("Dungeon", _tt->progs, PRG_DPROG);
 				break;
 
 			case 'I':
-				KEYF("Instance", tt->progs, PRG_IPROG);
+				KEYF("Instance", _tt->progs, PRG_IPROG);
 				break;
 
 			case 'M':
-				KEYF("Mob", tt->progs, PRG_MPROG);
+				KEYF("Mob", _tt->progs, PRG_MPROG);
 				break;
 
 			case 'O':
-				KEYF("Obj", tt->progs, PRG_OPROG);
+				KEYF("Obj", _tt->progs, PRG_OPROG);
 				break;
 
 			case 'R':
-				KEYF("Room", tt->progs, PRG_RPROG);
+				KEYF("Room", _tt->progs, PRG_RPROG);
 				break;
 
 			case 'S':
-				KEY("Scriptable", tt->scriptable, fread_number(fp));
+				KEY("Scriptable", _tt->scriptable, fread_number(fp));
 				if (!str_cmp(word, "Slot"))
 				{
-					tt->slot = stat_lookup(fread_string(fp), trigger_slots, NO_FLAG);
-					if (tt->slot == NO_FLAG)
-						tt->slot = TRIGSLOT_GENERAL;
+					_tt->slot = stat_lookup(fread_string(fp), trigger_slots, NO_FLAG);
+					if (_tt->slot == NO_FLAG)
+						_tt->slot = TRIGSLOT_GENERAL;
 					fMatch = true;
 					break;
 				}
 				break;
 
 			case 'T':
-				KEYF("Token", tt->progs, PRG_TPROG);
+				KEYF("Token", _tt->progs, PRG_TPROG);
 				break;
 		}
 
@@ -9937,20 +9937,20 @@ struct trigger_type *load_trigger(FILE *fp)
 		}
 	}
 
-	if (tt->type == TRIG__MAX)
-		tt->type = ++top_trigger_type;
+	if (_tt->type == TRIG__MAX)
+		_tt->type = ++top_trigger_type;
 
-	return tt;
+	return _tt;
 }
 
 void insert_trigger_type(struct trigger_type *new_tt)
 {
 	ITERATOR it;
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
 	iterator_start(&it, trigger_list);
-	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 	{
-		int cmp = str_cmp(new_tt->name, tt->name);
+		int cmp = str_cmp(new_tt->name, _tt->name);
 		if(cmp < 0)
 		{
 			iterator_insert_before(&it, new_tt);
@@ -9959,7 +9959,7 @@ void insert_trigger_type(struct trigger_type *new_tt)
 	}
 	iterator_stop(&it);
 
-	if (!tt)
+	if (!_tt)
 	{
 		list_appendlink(trigger_list, new_tt);
 	}
@@ -10024,12 +10024,12 @@ bool load_triggers()
 
 #if 0
 	ITERATOR it;
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
 
 	iterator_start(&it, trigger_list);
-	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 	{
-		log_stringf("load_triggers: trigger '%s'.", tt->name);
+		log_stringf("load_triggers: trigger '%s'.", _tt->name);
 	}
 	iterator_stop(&it);
 #endif
@@ -10076,16 +10076,16 @@ const char *get_trigger_type_name(int type)
 struct trigger_type *get_trigger_type_byname(char *name)
 {
 	ITERATOR it;
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
 	iterator_start(&it, trigger_list);
-	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 	{
-		if (!str_cmp(tt->name, name))
+		if (!str_cmp(_tt->name, name))
 			break;
 	}
 	iterator_stop(&it);
 
-	return tt;
+	return _tt;
 }
 
 void do_triggers(CHAR_DATA *ch, char *argument)
@@ -10123,23 +10123,23 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 
 		int trigger_no = 1;
 		ITERATOR it;
-		struct trigger_type *tt;
+		struct trigger_type *_tt;
 		iterator_start(&it, trigger_list);
-		while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+		while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 		{
 			sprintf(buf, "%-4d   %-20s   %-20s   %-16s   %s   %s %s %s %s %s %s %s{x    %5d\n\r", trigger_no++,
-				tt->name,
-				get_trigger_type_name(tt->type),
-				flag_string(trigger_slots, tt->slot),
-				(tt->scriptable ? "{GY" : "{RN"),
-				(IS_SET(tt->progs, PRG_MPROG) ? "{B#" : "{b-"),
-				(IS_SET(tt->progs, PRG_OPROG) ? "{Y#" : "{y-"),
-				(IS_SET(tt->progs, PRG_RPROG) ? "{R#" : "{r-"),
-				(IS_SET(tt->progs, PRG_TPROG) ? "{W#" : "{w-"),
-				(IS_SET(tt->progs, PRG_APROG) ? "{G#" : "{g-"),
-				(IS_SET(tt->progs, PRG_IPROG) ? "{C#" : "{c-"),
-				(IS_SET(tt->progs, PRG_DPROG) ? "{M#" : "{m-"),
-				tt->usage);
+				_tt->name,
+				get_trigger_type_name(_tt->type),
+				flag_string(trigger_slots, _tt->slot),
+				(_tt->scriptable ? "{GY" : "{RN"),
+				(IS_SET(_tt->progs, PRG_MPROG) ? "{B#" : "{b-"),
+				(IS_SET(_tt->progs, PRG_OPROG) ? "{Y#" : "{y-"),
+				(IS_SET(_tt->progs, PRG_RPROG) ? "{R#" : "{r-"),
+				(IS_SET(_tt->progs, PRG_TPROG) ? "{W#" : "{w-"),
+				(IS_SET(_tt->progs, PRG_APROG) ? "{G#" : "{g-"),
+				(IS_SET(_tt->progs, PRG_IPROG) ? "{C#" : "{c-"),
+				(IS_SET(_tt->progs, PRG_DPROG) ? "{M#" : "{m-"),
+				_tt->usage);
 
 			add_buf(buffer, buf);
 		}
@@ -10208,15 +10208,15 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			struct trigger_type *tt = new_trigger_type();
+			struct trigger_type *_tt = new_trigger_type();
 
-			free_string(tt->name);
-			tt->name = str_dup(arg2);
-			tt->type = ++top_trigger_type;
-			tt->slot = slot;
-			tt->progs = space;
+			free_string(_tt->name);
+			_tt->name = str_dup(arg2);
+			_tt->type = ++top_trigger_type;
+			_tt->slot = slot;
+			_tt->progs = space;
 			
-			insert_trigger_type(tt);
+			insert_trigger_type(_tt);
 			send_to_char("Trigger type added.\n\r", ch);
 			save_triggers();
 			return;
@@ -10289,16 +10289,16 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			struct trigger_type *tt = new_trigger_type();
+			struct trigger_type *_tt = new_trigger_type();
 
-			free_string(tt->name);
-			tt->name = str_dup(arg2);
-			tt->type = type;
-			tt->slot = slot;
-			tt->scriptable = scriptable;
-			tt->progs = space;
+			free_string(_tt->name);
+			_tt->name = str_dup(arg2);
+			_tt->type = type;
+			_tt->slot = slot;
+			_tt->scriptable = scriptable;
+			_tt->progs = space;
 			
-			insert_trigger_type(tt);
+			insert_trigger_type(_tt);
 			send_to_char("Trigger type installed.\n\r", ch);
 			save_triggers();
 			return;
@@ -10318,15 +10318,15 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			struct trigger_type *tt = get_trigger_type_byname(arg2);
-			if (!tt)
+			struct trigger_type *_tt = get_trigger_type_byname(arg2);
+			if (!_tt)
 			{
 				send_to_char("Syntax:  triggers scriptable <name> <yes|no>\n\r", ch);
 				send_to_char("No such trigger by that name exists.\n\r", ch);
 				return;
 			}
 
-			if (tt->type >= TRIG__MAX)
+			if (_tt->type >= TRIG__MAX)
 			{
 				send_to_char("Custom triggers are inherently scriptable.  That may not be changed.\n\r", ch);
 				return;
@@ -10344,7 +10344,7 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			tt->scriptable = value;
+			_tt->scriptable = value;
 			save_triggers();
 			send_to_char("Trigger Scriptability changed.\n\r", ch);
 			return;
@@ -10363,8 +10363,8 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			struct trigger_type *tt = get_trigger_type_byname(arg2);
-			if (!tt)
+			struct trigger_type *_tt = get_trigger_type_byname(arg2);
+			if (!_tt)
 			{
 				send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
 				send_to_char("No such trigger by that name exists.\n\r", ch);
@@ -10372,7 +10372,7 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 			}
 
 			// This is potentially super dangerous, so it should be extremely restrictive
-			if (tt->type < TRIG__MAX && tt->usage > 0 && ch->pcdata->security < 10)
+			if (_tt->type < TRIG__MAX && _tt->usage > 0 && ch->pcdata->security < 10)
 			{
 				send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
 				send_to_char("You may only modify custom triggers.\n\r", ch);
@@ -10388,7 +10388,7 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			TOGGLE_BIT(tt->progs, value);
+			TOGGLE_BIT(_tt->progs, value);
 			save_triggers();
 			send_to_char("Trigger Script Space changed.\n\r", ch);
 			return;
@@ -10403,29 +10403,29 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			struct trigger_type *tt = get_trigger_type_byname(argument);
-			if (!tt)
+			struct trigger_type *_tt = get_trigger_type_byname(argument);
+			if (!_tt)
 			{
 				send_to_char("Syntax:  triggers remove <name>\n\r", ch);
 				send_to_char("No such trigger by that name exists.\n\r", ch);
 				return;
 			}
 
-			if (tt->type < TRIG__MAX)
+			if (_tt->type < TRIG__MAX)
 			{
 				send_to_char("Syntax:  triggers remove <name>\n\r", ch);
 				send_to_char("You may only remove unused custom triggers.\n\r", ch);
 				return;
 			}
 
-			if (tt->usage > 0)
+			if (_tt->usage > 0)
 			{
 				send_to_char("You may only remove unused custom triggers.\n\r", ch);
 				return;
 			}
 
 			// This will delete the trigger
-			list_remlink(trigger_list, tt, true);
+			list_remlink(trigger_list, _tt, true);
 			save_triggers();
 			send_to_char("Custom trigger removed.\n\r", ch);
 			return;
@@ -10435,19 +10435,19 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 	do_triggers(ch, "");
 }
 
-void trigger_type_add_use(struct trigger_type *tt)
+void trigger_type_add_use(struct trigger_type *_tt)
 {
-	if (tt)
+	if (_tt)
 	{
-		++tt->usage;
+		++_tt->usage;
 	}
 }
 
-void trigger_type_delete_use(struct trigger_type *tt)
+void trigger_type_delete_use(struct trigger_type *_tt)
 {
-	if (tt && tt->usage > 0)
+	if (_tt && _tt->usage > 0)
 	{
-		--tt->usage;
+		--_tt->usage;
 	}
 }
 
@@ -10512,13 +10512,13 @@ PROG_LIST *find_trigger_data(LLIST **progs, int trigger_type, int count)
 {
 	if (!progs) return NULL;
 
-	struct trigger_type *tt = get_trigger_type_bytype(trigger_type);
+	struct trigger_type *_tt = get_trigger_type_bytype(trigger_type);
 
-	if (!tt) return NULL;
+	if (!_tt) return NULL;
 
 	PROG_LIST *pr;
 	ITERATOR it;
-	iterator_start(&it, progs[tt->slot]);
+	iterator_start(&it, progs[_tt->slot]);
 	while((pr = (PROG_LIST *)iterator_nextdata(&it)))
 	{
 		if (pr->trig_type == trigger_type && --count < 1)

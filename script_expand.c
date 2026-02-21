@@ -729,28 +729,28 @@ EXPAND(expand_argument_variable)
 			arg->type = ENT_SKILLINFO_ID;
 			break;
 
-		case VAR_BLLIST_ROOM:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_ROOM; break;
-		case VAR_BLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_MOB; break;
-		case VAR_BLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_OBJ; break;
-		case VAR_BLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_TOK; break;
-		case VAR_BLLIST_EXIT:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_EXIT; break;
-		case VAR_BLLIST_SKILL:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_SKILL; break;
-		case VAR_BLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_AREA; break;
-		case VAR_BLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_AREA_REGION; break;
-		case VAR_BLLIST_WILDS:	arg->d.blist = var->_.list; arg->type = ENT_BLLIST_WILDS; break;
+		case VAR_BLLIST_ROOM:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_ROOM; break;
+		case VAR_BLLIST_MOB:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_MOB; break;
+		case VAR_BLLIST_OBJ:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_OBJ; break;
+		case VAR_BLLIST_TOK:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_TOK; break;
+		case VAR_BLLIST_EXIT:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_EXIT; break;
+		case VAR_BLLIST_SKILL:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_SKILL; break;
+		case VAR_BLLIST_AREA:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_AREA; break;
+		case VAR_BLLIST_AREA_REGION:	arg->d.blist = var->_.list.list;	arg->type = ENT_BLLIST_AREA_REGION; break;
+		case VAR_BLLIST_WILDS:	arg->d.blist = var->_.list.list; arg->type = ENT_BLLIST_WILDS; break;
 
-		case VAR_PLLIST_STR:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_STR; break;
-		case VAR_PLLIST_CONN:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CONN; break;
-		case VAR_PLLIST_ROOM:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_ROOM; break;
-		case VAR_PLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_MOB; break;
-		case VAR_PLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_OBJ; break;
-		case VAR_PLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_TOK; break;
-		case VAR_PLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA; break;
-		case VAR_PLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA_REGION; break;
-		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
-		case VAR_PLLIST_BOOK_PAGE: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_BOOK_PAGE; break;
-		case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_FOOD_BUFF; break;
-		case VAR_PLLIST_COMPARTMENT: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_COMPARTMENT; break;
+		case VAR_PLLIST_STR:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_STR; break;
+		case VAR_PLLIST_CONN:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_CONN; break;
+		case VAR_PLLIST_ROOM:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_ROOM; break;
+		case VAR_PLLIST_MOB:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_MOB; break;
+		case VAR_PLLIST_OBJ:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_OBJ; break;
+		case VAR_PLLIST_TOK:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_TOK; break;
+		case VAR_PLLIST_AREA:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_AREA; break;
+		case VAR_PLLIST_AREA_REGION:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_AREA_REGION; break;
+		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_CHURCH; break;
+		case VAR_PLLIST_BOOK_PAGE: arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_BOOK_PAGE; break;
+		case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_FOOD_BUFF; break;
+		case VAR_PLLIST_COMPARTMENT: arg->d.blist = var->_.list.list;	arg->type = ENT_PLLIST_COMPARTMENT; break;
 
 		}
 	}
@@ -1210,8 +1210,8 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_PLLIST_COMPARTMENT:
 	case ENTITY_VAR_PLLIST_VARIABLE:
 		type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
-		if(var && var->type == type && var->_.list)
-			arg->d.blist = var->_.list;
+		if(var && var->type == type && var->_.list.list)
+			arg->d.blist = var->_.list.list;
 		else return NULL;
 		arg->type = type + ENTITY_VAR_PLLIST_STR - VAR_PLLIST_STR;
 		break;
@@ -1226,8 +1226,8 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_BLLIST_AREA_REGION:
 	case ENTITY_VAR_BLLIST_WILDS:
 		type = (int)*str + VAR_BLLIST_ROOM - ENTITY_VAR_BLLIST_ROOM;
-		if(var && var->type == type && var->_.list)
-			arg->d.blist = var->_.list;
+		if(var && var->type == type && var->_.list.list)
+			arg->d.blist = var->_.list.list;
 		else return NULL;
 		arg->type = type + ENTITY_VAR_BLLIST_ROOM - VAR_BLLIST_ROOM;
 		break;

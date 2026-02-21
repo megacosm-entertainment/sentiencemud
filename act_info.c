@@ -4388,7 +4388,7 @@ char *moon_spacing = "                                        ";
 
 void draw_moon(CHAR_DATA *ch,int colour)
 {
-	int i,j,k,l,ll,ld;
+	int i,j,k,l,_ll,ld;
 	int hours;
 	double h, c;
 	char buf[MIL],lastc;
@@ -4410,9 +4410,9 @@ void draw_moon(CHAR_DATA *ch,int colour)
 
 	for(i=0;i<19;i++) {
 		l = strlen(moon_shadow[i]);
-		ll = (int)(l * c + 0.5);	/* Amount of lit moon */
-		if(ll > l) ll = l; else if(ll < 0) ll = 0;
-		ld = l - ll;
+		_ll = (int)(l * c + 0.5);	/* Amount of lit moon */
+		if(_ll > l) _ll = l; else if(_ll < 0) _ll = 0;
+		ld = l - _ll;
 
 		if(h < 0.5) {
 			/* New Moon to Full Moon
@@ -4452,10 +4452,10 @@ void draw_moon(CHAR_DATA *ch,int colour)
 				buf[j] = 0;
 				send_to_char(buf, ch);
 			} else
-				send_to_char(moon_spacing+20+ll-l/2, ch);
+				send_to_char(moon_spacing+20+_ll-l/2, ch);
 
 
-			for(k=j=0;k<ll;k++) {
+			for(k=j=0;k<_ll;k++) {
 				if( mxp )
 				{
 					if(lastc != moon_colours_mxp[i][k+ld])
@@ -4503,7 +4503,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 			send_to_char("{x", ch);
 			lastc = 'x';
 			send_to_char(moon_spacing+20+l/2, ch);
-			for(k=j=0;k<ll;k++) {
+			for(k=j=0;k<_ll;k++) {
 				if( mxp )
 				{
 					if(lastc != moon_colours_mxp[i][k+ld])
@@ -4562,7 +4562,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 
 				for(k = 0; k < ld && moon_shadow[i][k] != 0; k++)
 				{
-					char ms = moon_shadow[i][k+ll];
+					char ms = moon_shadow[i][k+_ll];
 
 					if( ms == '{' || ms == COLOUR_CHAR)
 						buf[j++] = ms;
@@ -4575,7 +4575,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 				//send_to_char(moon_spacing+20+l/2, ch);		// This isn't necessary
 			} else {
 				send_to_char("{x", ch);
-				//send_to_char(moon_spacing+20+ll-l/2, ch);		// This isn't necessary
+				//send_to_char(moon_spacing+20+_ll-l/2, ch);		// This isn't necessary
 			}
 		}
 

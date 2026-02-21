@@ -372,17 +372,17 @@ void show_trigger_types(CHAR_DATA *ch, char *header, int prog)
 	char buf[MIL];
 	int n = 0;
 	ITERATOR it;
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
 
 	send_to_char(header, ch);
 
 	iterator_start(&it, trigger_list);
-	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	while((_tt = (struct trigger_type *)iterator_nextdata(&it)))
 	{
-		if (IS_SET(tt->progs, prog))
+		if (IS_SET(_tt->progs, prog))
 		{
 			n++;
-			sprintf(buf, "%-20s", tt->name);
+			sprintf(buf, "%-20s", _tt->name);
 			send_to_char(buf, ch);
 			if (!(n % 4))
 			send_to_char("\n\r", ch);
@@ -806,8 +806,8 @@ bool edit_deltrigger(LLIST **list, int index)
 			iterator_stop(&it);
 
 			if(trigger) {
-				struct trigger_type *tt = get_trigger_type_bytype(trigger->trig_type);
-				trigger_type_delete_use(tt);
+				struct trigger_type *_tt = get_trigger_type_bytype(trigger->trig_type);
+				trigger_type_delete_use(_tt);
 
 				free_trigger(trigger);
 				return true;
@@ -2726,7 +2726,7 @@ AEDIT(aedit_postoffice)
 
 AEDIT (aedit_addaprog)
 {
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
     int slot;
     AREA_DATA *pArea;
     PROG_LIST *list;
@@ -2748,13 +2748,13 @@ AEDIT (aedit_addaprog)
 	return false;
     }
 
-    if (!(tt = get_trigger_type(trigger, PRG_APROG))) {
+    if (!(_tt = get_trigger_type(trigger, PRG_APROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "aprog");
 	return false;
     }
 
-    slot = tt->slot;
+    slot = _tt->slot;
 
 	if (!wnum.pArea) wnum.pArea = pArea;
 
@@ -2770,7 +2770,7 @@ AEDIT (aedit_addaprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tt->type;
+    list->trig_type       = _tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
@@ -2779,7 +2779,7 @@ AEDIT (aedit_addaprog)
     //SET_BIT(pMob->mprog_flags,value);
 
     list_appendlink(pArea->progs->progs[slot], list);
-	trigger_type_add_use(tt);
+	trigger_type_add_use(_tt);
 
     send_to_char("Aprog Added.\n\r",ch);
     return true;
@@ -21526,7 +21526,7 @@ REDIT(redit_owner)
 
 MEDIT (medit_addmprog)
 {
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
     int value, slot;
     MOB_INDEX_DATA *pMob;
     PROG_LIST *list;
@@ -21548,14 +21548,14 @@ MEDIT (medit_addmprog)
 	return false;
     }
 
-    if (!(tt = get_trigger_type(trigger, PRG_MPROG))) {
+    if (!(_tt = get_trigger_type(trigger, PRG_MPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "mprog");
 	return false;
     }
 
-    value = tt->type;
-    slot = tt->slot;
+    value = _tt->type;
+    slot = _tt->slot;
 	if (!wnum.pArea) wnum.pArea = pMob->area;
 
 	if(value == TRIG_SPELLCAST) {
@@ -21601,7 +21601,7 @@ MEDIT (medit_addmprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tt->type;
+    list->trig_type       = _tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
@@ -21610,7 +21610,7 @@ MEDIT (medit_addmprog)
     //SET_BIT(pMob->mprog_flags,value);
 
     list_appendlink(pMob->progs[slot], list);
-	trigger_type_add_use(tt);
+	trigger_type_add_use(_tt);
 
     send_to_char("Mprog Added.\n\r",ch);
     return true;
@@ -23275,7 +23275,7 @@ REDIT (redit_savage)
 
 OEDIT (oedit_addoprog)
 {
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
     int value, slot;
     PROG_LIST *list;
     SCRIPT_DATA *code;
@@ -23296,14 +23296,14 @@ OEDIT (oedit_addoprog)
         return false;
   }
 
-    if (!(tt = get_trigger_type(trigger, PRG_OPROG))) {
+    if (!(_tt = get_trigger_type(trigger, PRG_OPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "oprog");
 	return false;
     }
 
-    value = tt->type;
-    slot = tt->slot;
+    value = _tt->type;
+    slot = _tt->slot;
 
 	if (!wnum.pArea) wnum.pArea = pObj->area;
 
@@ -23351,7 +23351,7 @@ OEDIT (oedit_addoprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tt->type;
+    list->trig_type       = _tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
@@ -23359,7 +23359,7 @@ OEDIT (oedit_addoprog)
     //SET_BIT(pMob->mprog_flags,value);
 
     list_appendlink(pObj->progs[slot], list);
-	trigger_type_add_use(tt);
+	trigger_type_add_use(_tt);
 
   send_to_char("Oprog Added.\n\r",ch);
   return true;
@@ -23400,7 +23400,7 @@ OEDIT (oedit_deloprog)
 
 REDIT (redit_addrprog)
 {
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
     int value, slot;
     PROG_LIST *list;
     SCRIPT_DATA *code;
@@ -23421,14 +23421,14 @@ REDIT (redit_addrprog)
 	return false;
     }
 
-    if (!(tt = get_trigger_type(trigger, PRG_RPROG))) {
+    if (!(_tt = get_trigger_type(trigger, PRG_RPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "rprog");
 	return false;
     }
 
-    value = tt->type;
-    slot = tt->slot;
+    value = _tt->type;
+    slot = _tt->slot;
 	if (!wnum.pArea) wnum.pArea = pRoom->area;
 
 	if(value == TRIG_SPELLCAST) {
@@ -23481,14 +23481,14 @@ REDIT (redit_addrprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tt->type;
+    list->trig_type       = _tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
     list->script          = code;
     //SET_BIT(pMob->mprog_flags,value);
     list_appendlink(pRoom->progs->progs[slot], list);
-	trigger_type_add_use(tt);
+	trigger_type_add_use(_tt);
 
     send_to_char("Rprog Added.\n\r",ch);
     return true;

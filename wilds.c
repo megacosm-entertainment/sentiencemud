@@ -34,6 +34,7 @@ LLIST *loaded_wilds = NULL;
 long top_wilds;
 long top_wilds_terrain;
 long top_wilds_vlink;
+long top_wilds_vroom;
 
 /* These are pointers to linked lists of "freed" (but still allocated) structures.
    They are used in the routines as "heaps" of perms. In game, it is often more

@@ -130,28 +130,28 @@ struct wilds_data
     char            *name;
     char            *staticmap;      /* The actual wilds map to be loaded and saved */
     char            *map;	     /* The working map */
-    long             map_size_x;
-    long             map_size_y;
-    long             startx;
-    long             starty;
+    int             map_size_x;
+    int             map_size_y;
+    int             startx;
+    int             starty;
     int             defaultRegion;
     long            defaultPlaceFlags;
-    long             sector_size_x;   /* Dynamic wilds sector management */
-    long             sector_size_y;   /* These variables dictate the dimensions of a sector */
+    int             sector_size_x;   /* Dynamic wilds sector management */
+    int             sector_size_y;   /* These variables dictate the dimensions of a sector */
     char            cDefaultTerrain;
     WILDS_TERRAIN   *pTerrain;
     WILDS_VLINK     *pVLink;
     WILDS_REGION    *pRegion;
-    long             loaded_rooms;    /* Dynamically loaded vroom count for wilds v2 */
+    int             loaded_rooms;    /* Dynamically loaded vroom count for wilds v2 */
     LLIST *loaded_vrooms;
-    long             loaded_mobs;
+    int             loaded_mobs;
     CHAR_DATA       *char_list;        /* Statically allocated list of pointers to lists of characters */
-    long             loaded_objs;
+    int             loaded_objs;
     OBJ_DATA        *obj_list;        /* Statically allocated list of pointers to lists of objs */
-    long             nplayer;
+    int             nplayer;
     bool            empty;
-    long             age;            /* current age */
-    long             repop;          /* age to repop at */
+    int             age;            /* current age */
+    int             repop;          /* age to repop at */
 };
 
 struct wilds_region

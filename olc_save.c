@@ -2372,17 +2372,17 @@ AREA_DATA *read_area_new(FILE *fp)
 			WNUM_LOAD wnum_load = fread_widevnum(fp, area->uid);
 		    p = fread_string(fp);
 
-			struct trigger_type *tt = get_trigger_type(p, PRG_APROG);
-		    if(!tt) {
+			struct trigger_type *_tt = get_trigger_type(p, PRG_APROG);
+		    if(!_tt) {
 			    snprintf(buf, sizeof(buf), "read_area_new: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    PROG_LIST *apr = new_trigger();
 
 			    apr->wnum_load = wnum_load;
-			    apr->trig_type = tt->type;
+			    apr->trig_type = _tt->type;
 			    apr->trig_phrase = fread_string(fp);
-			    if( tt->type == TRIG_SPELLCAST ) {
+			    if( _tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
 					SKILL_DATA *sk = get_skill_data(apr->trig_phrase);
 
@@ -2407,8 +2407,8 @@ AREA_DATA *read_area_new(FILE *fp)
 
 			    if(!area->progs->progs) area->progs->progs = new_prog_bank();
 
-				list_appendlink(area->progs->progs[tt->slot], apr);
-				trigger_type_add_use(tt);
+				list_appendlink(area->progs->progs[_tt->slot], apr);
+				trigger_type_add_use(_tt);
 		    }
 		    fMatch = true;
 		}
@@ -2710,17 +2710,17 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		    WNUM_LOAD wnum_load = fread_widevnum(fp, area->uid);
 		    p = fread_string(fp);
 
-		    struct trigger_type *tt = get_trigger_type(p, PRG_RPROG);
-		    if(!tt) {
+		    struct trigger_type *_tt = get_trigger_type(p, PRG_RPROG);
+		    if(!_tt) {
 			    snprintf(buf, sizeof(buf), "read_room_new: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    rpr = new_trigger();
 
 			    rpr->wnum_load = wnum_load;
-			    rpr->trig_type = tt->type;
+			    rpr->trig_type = _tt->type;
 			    rpr->trig_phrase = fread_string(fp);
-			    if( tt->type == TRIG_SPELLCAST ) {
+			    if( _tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
 					SKILL_DATA *sk = get_skill_data(rpr->trig_phrase);
 					
@@ -2746,8 +2746,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 
 			    if(!room->progs->progs) room->progs->progs = new_prog_bank();
 
-				list_appendlink(room->progs->progs[tt->slot], rpr);
-				trigger_type_add_use(tt);
+				list_appendlink(room->progs->progs[_tt->slot], rpr);
+				trigger_type_add_use(_tt);
 		    }
 		    fMatch = true;
 		}
@@ -3054,17 +3054,17 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		    WNUM_LOAD wnum_load = fread_widevnum(fp, area->uid);
 		    p = fread_string(fp);
 
-		    struct trigger_type *tt = get_trigger_type(p, PRG_MPROG);
-		    if(!tt) {
+		    struct trigger_type *_tt = get_trigger_type(p, PRG_MPROG);
+		    if(!_tt) {
 			    snprintf(buf, sizeof(buf), "read_mob_new: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    mpr = new_trigger();
 
 			    mpr->wnum_load = wnum_load;
-			    mpr->trig_type = tt->type;
+			    mpr->trig_type = _tt->type;
 			    mpr->trig_phrase = fread_string(fp);
-			    if( tt->type == TRIG_SPELLCAST ) {
+			    if( _tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
 					SKILL_DATA *sk = get_skill_data(mpr->trig_phrase);
 
@@ -3090,8 +3090,8 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 			    if(!mob->progs) mob->progs = new_prog_bank();
 
-				list_appendlink(mob->progs[tt->slot], mpr);
-				trigger_type_add_use(tt);
+				list_appendlink(mob->progs[_tt->slot], mpr);
+				trigger_type_add_use(_tt);
 		    }
 		    fMatch = true;
 		}
@@ -5204,17 +5204,17 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				WNUM_LOAD wnum_load = fread_widevnum(fp, area->uid);
 				p = fread_string(fp);
 
-				struct trigger_type *tt = get_trigger_type(p, PRG_OPROG);
-				if(!tt) {
+				struct trigger_type *_tt = get_trigger_type(p, PRG_OPROG);
+				if(!_tt) {
 					snprintf(buf, sizeof(buf), "read_obj_new: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					opr = new_trigger();
 
 					opr->wnum_load = wnum_load;
-					opr->trig_type = tt->type;
+					opr->trig_type = _tt->type;
 					opr->trig_phrase = fread_string(fp);
-					if( tt->type == TRIG_SPELLCAST ) {
+					if( _tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
 						SKILL_DATA *sk = get_skill_data(opr->trig_phrase);
 
@@ -5241,8 +5241,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 					if(!obj->progs) obj->progs = new_prog_bank();
 
-					list_appendlink(obj->progs[tt->slot], opr);
-					trigger_type_add_use(tt);
+					list_appendlink(obj->progs[_tt->slot], opr);
+					trigger_type_add_use(_tt);
 				}
 				fMatch = true;
 			}
@@ -6675,17 +6675,17 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 			WNUM_LOAD wnum_load = fread_widevnum(fp, area->uid);
 		    p = fread_string(fp);
 
-		    struct trigger_type *tt = get_trigger_type(p, PRG_TPROG);
-		    if(!tt) {
+		    struct trigger_type *_tt = get_trigger_type(p, PRG_TPROG);
+		    if(!_tt) {
 			    snprintf(buf, sizeof(buf), "read_token: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
 			    tpr = new_trigger();
 
 			    tpr->wnum_load = wnum_load;
-			    tpr->trig_type = tt->type;
+			    tpr->trig_type = _tt->type;
 			    tpr->trig_phrase = fread_string(fp);
-			    if( tt->type == TRIG_SPELLCAST ) {
+			    if( _tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
 					SKILL_DATA *sk = get_skill_data(tpr->trig_phrase);
 
@@ -6712,8 +6712,8 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 
 			    if(!token->progs) token->progs = new_prog_bank();
 
-				list_appendlink(token->progs[tt->slot], tpr);
-				trigger_type_add_use(tt);
+				list_appendlink(token->progs[_tt->slot], tpr);
+				trigger_type_add_use(_tt);
 		    }
 		    fMatch = true;
 		}

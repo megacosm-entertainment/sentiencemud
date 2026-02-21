@@ -133,7 +133,7 @@ field method exit& exit.up -> exit_get_up;
 field method exit& exit.down -> exit_get_down;
 field method boolean exit.is_oneway -> exit_is_oneway;
 field method boolean exit.is_twoway -> exit_is_twoway;
-field flag&("exit") exit.flags -> exit_exit_info;
+field flag32&("exit") exit.flags -> exit_exit_info;
 
 // INSTANCE methods/fields
 
@@ -311,6 +311,7 @@ field constant stat32(itemtypes) object.type -> object_item_type;
 field flagbank&("object") object.flags -> object_extra;
 field int32& object.level -> object_level;
 field int32& object.condition -> object_condition;
+field constant array(int32[10]) object.tempstore -> object_tempstore;
 
 // ORG methods/fields
 // TODO: Change all of these when ORGs are properly updated
@@ -402,7 +403,7 @@ field constant list(mobile) room.people -> room_lpeople;
 field constant list(object) room.contents -> room_lcontents;
 field constant list(token) room.tokens -> room_ltokens;
 field constant array(exit[10]) room.exits -> room_exit;
-field constant array(int[10]) room.tempstore -> room_tempstore;
+field constant array(int32[10]) room.tempstore -> room_tempstore;
 field constant ship room.ship -> room_ship;
 field constant sector room.sector -> room_sector;
 field flag&("sector") room.sector_flags -> room_sector_flags;	// Modifiable sector flag
@@ -449,5 +450,5 @@ field method constant stat("token_owner") token.owner -> token_owner_type;
 field constant mobile& token.mobile -> token_player;
 field constant object& token.object -> token_object;
 field constant room& token.room -> token_room;
-field constant array(int[10]) token.value -> token_value;
+field constant array(int32[10]) token.value -> token_value;
 field method constant array(constant int[10]) token.index_value -> token_get_index_value;

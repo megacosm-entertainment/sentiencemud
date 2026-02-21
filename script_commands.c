@@ -3224,16 +3224,16 @@ SCRIPT_CMD(instancecmd_links)
 			int to_link_no = arg->d.num;
 			if (to_link_no < 1 || to_link_no > link_count) return;
 
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-			ll->mode = LINKMODE_STATIC;
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+			_ll->mode = LINKMODE_STATIC;
 
-			blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
-			ll->total_from = 1;
+			blueprint_add_weighted_link(_ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+			_ll->total_from = 1;
 
-			blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
-			ll->total_to = 1;
+			blueprint_add_weighted_link(_ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+			_ll->total_to = 1;
 
-			list_appendlink(bp->links, ll);
+			list_appendlink(bp->links, _ll);
 		}
 		else if(ARG_PREFIX("source"))
 		{
@@ -3259,13 +3259,13 @@ SCRIPT_CMD(instancecmd_links)
 			int to_link_no = arg->d.num;
 			if (to_link_no < 1 || to_link_no > link_count) return;
 
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-			ll->mode = LINKMODE_SOURCE;
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+			_ll->mode = LINKMODE_SOURCE;
 
-			blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
-			ll->total_to = 1;
+			blueprint_add_weighted_link(_ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+			_ll->total_to = 1;
 
-			list_appendlink(bp->links, ll);
+			list_appendlink(bp->links, _ll);
 		}
 		else if(ARG_PREFIX("destination"))
 		{
@@ -3291,27 +3291,27 @@ SCRIPT_CMD(instancecmd_links)
 			int from_link_no = arg->d.num;
 			if (from_link_no < 1 || from_link_no > link_count) return;
 			
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-			ll->mode = LINKMODE_DESTINATION;
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+			_ll->mode = LINKMODE_DESTINATION;
 
-			blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
-			ll->total_from = 1;
+			blueprint_add_weighted_link(_ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+			_ll->total_from = 1;
 
-			list_appendlink(bp->links, ll);
+			list_appendlink(bp->links, _ll);
 		}
 		else if(ARG_PREFIX("weighted"))
 		{
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-			ll->mode = LINKMODE_WEIGHTED;
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+			_ll->mode = LINKMODE_WEIGHTED;
 
-			list_appendlink(bp->links, ll);
+			list_appendlink(bp->links, _ll);
 		}
 		else if(ARG_PREFIX("group"))
 		{
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-			ll->mode = LINKMODE_GROUP;
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+			_ll->mode = LINKMODE_GROUP;
 
-			list_appendlink(bp->links, ll);
+			list_appendlink(bp->links, _ll);
 		}
 		else
 			return;
@@ -3322,8 +3322,8 @@ SCRIPT_CMD(instancecmd_links)
 		if (arg->d.num < 1 || arg->d.num > list_size(bp->links))
 			return;
 
-		BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, arg->d.num);
-		if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_SOURCE)
+		BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, arg->d.num);
+		if (_ll->mode != LINKMODE_WEIGHTED && _ll->mode != LINKMODE_SOURCE)
 			return;
 		
 		PARSE_ARGTYPE(NUMBER);
@@ -3352,8 +3352,8 @@ SCRIPT_CMD(instancecmd_links)
 		int from_link_no = arg->d.num;
 		if (from_link_no < 1 || from_link_no > link_count) return;
 
-		blueprint_add_weighted_link(ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
-		ll->total_from += weight;
+		blueprint_add_weighted_link(_ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
+		_ll->total_from += weight;
 	}
 	else if (ARG_PREFIX("to"))
 	{
@@ -3361,8 +3361,8 @@ SCRIPT_CMD(instancecmd_links)
 		if (arg->d.num < 1 || arg->d.num > list_size(bp->links))
 			return;
 
-		BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, arg->d.num);
-		if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_DESTINATION)
+		BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, arg->d.num);
+		if (_ll->mode != LINKMODE_WEIGHTED && _ll->mode != LINKMODE_DESTINATION)
 			return;
 
 		PARSE_ARGTYPE(NUMBER);
@@ -3391,8 +3391,8 @@ SCRIPT_CMD(instancecmd_links)
 		int to_link_no = arg->d.num;
 		if (to_link_no < 1 || to_link_no > link_count) return;
 
-		blueprint_add_weighted_link(ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
-		ll->total_to += weight;
+		blueprint_add_weighted_link(_ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
+		_ll->total_to += weight;
 	}
 	else if (ARG_PREFIX("group"))
 	{
@@ -3454,16 +3454,16 @@ SCRIPT_CMD(instancecmd_links)
 				int to_link_no = arg->d.num;
 				if (to_link_no < 1 || to_link_no > link_count) return;
 
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-				ll->mode = LINKMODE_STATIC;
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+				_ll->mode = LINKMODE_STATIC;
 
-				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
-				ll->total_from = 1;
+				blueprint_add_weighted_link(_ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+				_ll->total_from = 1;
 
-				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
-				ll->total_to = 1;
+				blueprint_add_weighted_link(_ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+				_ll->total_to = 1;
 
-				list_appendlink(gll->group, ll);
+				list_appendlink(gll->group, _ll);
 			}
 			else if (ARG_PREFIX("source"))
 			{
@@ -3489,13 +3489,13 @@ SCRIPT_CMD(instancecmd_links)
 				int to_link_no = arg->d.num;
 				if (to_link_no < 1 || to_link_no > link_count) return;
 
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-				ll->mode = LINKMODE_SOURCE;
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+				_ll->mode = LINKMODE_SOURCE;
 
-				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
-				ll->total_to = 1;
+				blueprint_add_weighted_link(_ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+				_ll->total_to = 1;
 
-				list_appendlink(gll->group, ll);
+				list_appendlink(gll->group, _ll);
 			}
 			else if (ARG_PREFIX("destination"))
 			{
@@ -3521,20 +3521,20 @@ SCRIPT_CMD(instancecmd_links)
 				int from_link_no = arg->d.num;
 				if (from_link_no < 1 || from_link_no > link_count) return;
 				
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-				ll->mode = LINKMODE_DESTINATION;
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+				_ll->mode = LINKMODE_DESTINATION;
 
-				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
-				ll->total_from = 1;
+				blueprint_add_weighted_link(_ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+				_ll->total_from = 1;
 
-				list_appendlink(gll->group, ll);
+				list_appendlink(gll->group, _ll);
 			}
 			else if (ARG_PREFIX("weighted"))
 			{
-				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
-				ll->mode = LINKMODE_WEIGHTED;
+				BLUEPRINT_LAYOUT_LINK_DATA *_ll = new_blueprint_layout_link_data();
+				_ll->mode = LINKMODE_WEIGHTED;
 
-				list_appendlink(gll->group, ll);
+				list_appendlink(gll->group, _ll);
 			}
 			else
 				return;
@@ -3545,8 +3545,8 @@ SCRIPT_CMD(instancecmd_links)
 			if (arg->d.num < 1 || arg->d.num > list_size(gll->group))
 				return;
 
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gll->group, arg->d.num);
-			if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_SOURCE)
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gll->group, arg->d.num);
+			if (_ll->mode != LINKMODE_WEIGHTED && _ll->mode != LINKMODE_SOURCE)
 				return;
 			
 			PARSE_ARGTYPE(NUMBER);
@@ -3575,8 +3575,8 @@ SCRIPT_CMD(instancecmd_links)
 			int from_link_no = arg->d.num;
 			if (from_link_no < 1 || from_link_no > link_count) return;
 
-			blueprint_add_weighted_link(ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
-			ll->total_from += weight;
+			blueprint_add_weighted_link(_ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
+			_ll->total_from += weight;
 		}
 		else if (ARG_PREFIX("to"))
 		{
@@ -3584,8 +3584,8 @@ SCRIPT_CMD(instancecmd_links)
 			if (arg->d.num < 1 || arg->d.num > list_size(gll->group))
 				return;
 
-			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gll->group, arg->d.num);
-			if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_DESTINATION)
+			BLUEPRINT_LAYOUT_LINK_DATA *_ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gll->group, arg->d.num);
+			if (_ll->mode != LINKMODE_WEIGHTED && _ll->mode != LINKMODE_DESTINATION)
 				return;
 
 			PARSE_ARGTYPE(NUMBER);
@@ -3614,8 +3614,8 @@ SCRIPT_CMD(instancecmd_links)
 			int to_link_no = arg->d.num;
 			if (to_link_no < 1 || to_link_no > link_count) return;
 
-			blueprint_add_weighted_link(ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
-			ll->total_to += weight;
+			blueprint_add_weighted_link(_ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
+			_ll->total_to += weight;
 		}
 		else
 			return;
@@ -7179,16 +7179,16 @@ SCRIPT_CMD(scriptcmd_acttrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, actor_space);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	// Get the ACTION:
 	if (!IS_NULLSTR(rest))
@@ -7275,16 +7275,16 @@ SCRIPT_CMD(scriptcmd_directiontrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_RPROG);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, PRG_RPROG);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	ret = p_direction_trigger(ch, here, door, PRG_RPROG, trigger,0,0,0,0,0);
 
@@ -7446,16 +7446,16 @@ SCRIPT_CMD(scriptcmd_exacttrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, actor_space);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	// Get the PHRASE:
 	if (!IS_NULLSTR(rest))
@@ -7501,16 +7501,16 @@ SCRIPT_CMD(scriptcmd_exittrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_RPROG);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, PRG_RPROG);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	ret = p_exit_trigger(ch, dir, trigger,0,0,0,0,0);
 
@@ -7560,16 +7560,16 @@ SCRIPT_CMD(scriptcmd_givetrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, actor_space);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	ret = p_give_trigger(actor_m, actor_o, actor_r, ch, obj, trigger,0,0,0,0,0);
 
@@ -7714,16 +7714,16 @@ SCRIPT_CMD(scriptcmd_nametrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, actor_space);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	// Get the NAME:
 	if (!IS_NULLSTR(rest))
@@ -7840,16 +7840,16 @@ SCRIPT_CMD(scriptcmd_numbertrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, actor_space);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	// Get the PHRASE:
 	if (!IS_NULLSTR(rest))
@@ -7964,16 +7964,16 @@ SCRIPT_CMD(scriptcmd_percenttrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, actor_space);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	// Get the PHRASE:
 	if (!IS_NULLSTR(rest))
@@ -8094,16 +8094,16 @@ SCRIPT_CMD(scriptcmd_percenttokentrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, actor_space);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	// Get the PHRASE:
 	if (!IS_NULLSTR(rest))
@@ -8150,16 +8150,16 @@ SCRIPT_CMD(scriptcmd_usetrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, PRG_OPROG);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	ret = p_use_trigger(ch, obj, trigger,0,0,0,0,0);
 
@@ -8193,16 +8193,16 @@ SCRIPT_CMD(scriptcmd_useontrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, PRG_OPROG);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	if (!IS_NULLSTR(rest))
 	{
@@ -8287,16 +8287,16 @@ SCRIPT_CMD(scriptcmd_usewithtrigger)
 
 	// Get the TRIGGER:
 	PARSE_ARGTYPE(STRING);
-	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
-	if (!tt)
+	struct trigger_type *_tt = get_trigger_type(arg->d.str, PRG_OPROG);
+	if (!_tt)
 		return;
 
-	if (!tt->scriptable)
+	if (!_tt->scriptable)
 	{
 		SETRETURN(0);
 		return;
 	}
-	trigger = tt->type;
+	trigger = _tt->type;
 
 	ret = p_use_with_trigger(ch, obj, trigger, obj1, obj2, vch1, vch2,0,0,0,0,0);
 

@@ -2269,7 +2269,7 @@ TEDIT(tedit_valuename)
 
 TEDIT (tedit_addtprog)
 {
-	struct trigger_type *tt;
+	struct trigger_type *_tt;
     int value, slot;
     TOKEN_INDEX_DATA *token_index;
     PROG_LIST *list;
@@ -2290,14 +2290,14 @@ TEDIT (tedit_addtprog)
 	return false;
     }
 
-	if (!(tt = get_trigger_type(trigger, PRG_TPROG))) {
+	if (!(_tt = get_trigger_type(trigger, PRG_TPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "tprog");
 	return false;
     }
 
-    value = tt->type;
-    slot = tt->slot;
+    value = _tt->type;
+    slot = _tt->slot;
 	if (!wnum.pArea) wnum.pArea = token_index->area;
 
 	if(value == TRIG_SPELLCAST) {
@@ -2366,14 +2366,14 @@ TEDIT (tedit_addtprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tt->type;
+    list->trig_type       = _tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
     list->script          = code;
     //SET_BIT(token_index->mprog_flags,value);
     list_appendlink(token_index->progs[slot], list);
-	trigger_type_add_use(tt);
+	trigger_type_add_use(_tt);
 
     send_to_char("Tprog Added.\n\r",ch);
     return true;

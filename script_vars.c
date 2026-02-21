@@ -249,9 +249,9 @@ void variable_freedata (pVARIABLE v)
 	// This should be handled by the list_destroy itself
 	case VAR_PLLIST_STR:
 		// Strings needs to be freed, if they are not shared strings
-		if( v->_.list ) {
+		if( v->_.list.list ) {
 			char *str;
-			iterator_start(&it, v->_.list);
+			iterator_start(&it, v->_.list.list);
 
 			while((str = (char*)iterator_nextdata(&it)))
 				free_string(str);
@@ -269,9 +269,9 @@ void variable_freedata (pVARIABLE v)
 	case VAR_BLLIST_SKILL:
 	case VAR_BLLIST_AREA:
 	case VAR_BLLIST_WILDS:
-		if( v->_.list ) {
+		if( v->_.list.list ) {
 			void *ptr;
-			iterator_start(&it, v->_.list);
+			iterator_start(&it, v->_.list.list);
 
 			while((ptr = iterator_nextdata(&it)))
 				free_mem(ptr, __var_blist_size[v->type - VAR_BLLIST_FIRST]);
@@ -285,16 +285,16 @@ void variable_freedata (pVARIABLE v)
 
 	// For all list variables, just remove the reference added when created, this will autopurge the list
 	// 20140511 NIB - nope, the use of the purge would not allow for list culling
-	if (v->type >= VAR_BLLIST_FIRST && v->type <= VAR_BLLIST_LAST && v->_.list ) {
-//		list_remref(v->_.list);
-		list_destroy(v->_.list);
-		v->_.list = NULL;
+	if (v->type >= VAR_BLLIST_FIRST && v->type <= VAR_BLLIST_LAST && v->_.list.list ) {
+//		list_remref(v->_.list.list);
+		list_destroy(v->_.list.list);
+		v->_.list.list = NULL;
 	}
 
-	if (v->type >= VAR_PLLIST_FIRST && v->type <= VAR_PLLIST_LAST && v->_.list ) {
-//		list_remref(v->_.list);
-		list_destroy(v->_.list);
-		v->_.list = NULL;
+	if (v->type >= VAR_PLLIST_FIRST && v->type <= VAR_PLLIST_LAST && v->_.list.list ) {
+//		list_remref(v->_.list.list);
+		list_destroy(v->_.list.list);
+		v->_.list.list = NULL;
 	}
 }
 
@@ -819,18 +819,18 @@ pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, sent_bool s
 		var->save = save;
 
 		if( type > VAR_BLLIST_FIRST && type < VAR_BLLIST_LAST )
-			var->_.list = list_createx(false, __var_blist_copier[type - VAR_BLLIST_FIRST], __var_blist_deleter[type - VAR_BLLIST_FIRST]);
+			var->_.list.list = list_createx(false, __var_blist_copier[type - VAR_BLLIST_FIRST], __var_blist_deleter[type - VAR_BLLIST_FIRST]);
 
 		else if( type == VAR_PLLIST_STR )
-			var->_.list = list_createx(false, deepcopy_string, deleter_string);
+			var->_.list.list = list_createx(false, deepcopy_string, deleter_string);
 
 		else
-			var->_.list = list_create(false);
+			var->_.list.list = list_create(false);
 
 
 		// 20140511 NIB - the use of the purge flag here would not allow for list culling
-		//if(var->_.list)
-		//	list_addref(var->_.list);
+		//if(var->_.list.list)
+		//	list_addref(var->_.list.list);
 	}
 
 	return var;
@@ -864,7 +864,7 @@ bool variables_set_list_str (ppVARIABLE list, char *name, char *str, sent_bool s
 		return false;
 
 	cpy = str_dup(str);
-	if( !list_appendlink(var->_.list, cpy) )
+	if( !list_appendlink(var->_.list.list, cpy) )
 		free_string(cpy);
 
 	return true;
@@ -879,7 +879,7 @@ bool variables_append_list_str (ppVARIABLE list, char *name, char *str)
 	if( !str || !var || var->type != VAR_PLLIST_STR) return false;
 
 	cpy = str_dup(str);
-	if( !list_appendlink(var->_.list, cpy) )
+	if( !list_appendlink(var->_.list.list, cpy) )
 		free_string(cpy);
 
 	return true;
@@ -899,7 +899,7 @@ static bool variables_append_list_uid (ppVARIABLE list, char *name, int type, un
 	data->id[0] = a;
 	data->id[1] = b;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
 	return true;
@@ -924,7 +924,7 @@ bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, sent_b
 	data->id[0] = mob->id[0];
 	data->id[1] = mob->id[1];
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
 	return true;
@@ -943,7 +943,7 @@ bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
 	data->id[0] = mob->id[0];
 	data->id[1] = mob->id[1];
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
 	return true;
@@ -968,7 +968,7 @@ bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, sent_bo
 	data->id[0] = obj->id[0];
 	data->id[1] = obj->id[1];
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
 	return true;
@@ -987,7 +987,7 @@ bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
 	data->id[0] = obj->id[0];
 	data->id[1] = obj->id[1];
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
 	return true;
@@ -1012,7 +1012,7 @@ bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, s
 	data->id[0] = token->id[0];
 	data->id[1] = token->id[1];
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
 	return true;
@@ -1031,7 +1031,7 @@ bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token
 	data->id[0] = token->id[0];
 	data->id[1] = token->id[1];
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
 	return true;
@@ -1055,7 +1055,7 @@ bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, sent
 	data->area = area;
 	data->uid = area->uid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_DATA));
 
 	return true;
@@ -1073,7 +1073,7 @@ bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area)
 	data->area = area;
 	data->uid = area->uid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_DATA));
 
 	return true;
@@ -1098,7 +1098,7 @@ bool variables_set_list_area_region (ppVARIABLE list, char *name, AREA_REGION *a
 	data->aid = aregion->area->uid;
 	data->rid = aregion->uid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_REGION_DATA));
 
 	return true;
@@ -1117,7 +1117,7 @@ bool variables_append_list_area_region (ppVARIABLE list, char *name, AREA_REGION
 	data->aid = aregion->area->uid;
 	data->rid = aregion->uid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_REGION_DATA));
 
 	return true;
@@ -1141,7 +1141,7 @@ bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, s
 	data->wilds = wilds;
 	data->uid = wilds->uid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_WILDS_DATA));
 
 	return true;
@@ -1159,7 +1159,7 @@ bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds
 	data->wilds = wilds;
 	data->uid = wilds->uid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_WILDS_DATA));
 
 	return true;
@@ -1201,7 +1201,7 @@ bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room
 		data->id[4] = 0;
 	}
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_ROOM_DATA));
 
 	return true;
@@ -1237,7 +1237,7 @@ bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 		data->id[4] = 0;
 	}
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_ROOM_DATA));
 
 	return true;
@@ -1255,7 +1255,7 @@ bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA
 	} else if( var->type != VAR_PLLIST_CONN )
 		return false;
 
-	return list_appendlink(var->_.list, conn);
+	return list_appendlink(var->_.list.list, conn);
 }
 
 bool variables_append_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn)
@@ -1264,7 +1264,7 @@ bool variables_append_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_D
 
 	if( !conn || !var || var->type != VAR_PLLIST_CONN) return false;
 
-	return list_appendlink(var->_.list, conn);
+	return list_appendlink(var->_.list.list, conn);
 }
 
 static bool variables_append_list_area_id(ppVARIABLE list, char *name, long aid)
@@ -1279,7 +1279,7 @@ static bool variables_append_list_area_id(ppVARIABLE list, char *name, long aid)
 	data->area = NULL;
 	data->uid = aid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_DATA));
 
 	return true;
@@ -1298,7 +1298,7 @@ static bool variables_append_list_area_region_id(ppVARIABLE list, char *name, lo
 	data->aid = aid;
 	data->rid = rid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_REGION_DATA));
 
 	return true;
@@ -1316,7 +1316,7 @@ static bool variables_append_list_wilds_id(ppVARIABLE list, char *name, long wid
 	data->wilds = NULL;
 	data->uid = wid;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_WILDS_DATA));
 
 	return true;
@@ -1339,7 +1339,7 @@ static bool variables_append_list_room_id (ppVARIABLE list, char *name, unsigned
 	data->id[3] = d;
 	data->id[4] = e;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_ROOM_DATA));
 
 	return true;
@@ -1376,7 +1376,7 @@ bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	}
 	data->door = door;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_EXIT_DATA));
 
 	return true;
@@ -1399,7 +1399,7 @@ static bool variables_append_list_door_id (ppVARIABLE list, char *name, unsigned
 	data->id[4] = e;
 	data->door = door;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_EXIT_DATA));
 
 	return true;
@@ -1429,7 +1429,7 @@ bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch,
 	data->tid[0] = 0;
 	data->tid[1] = 0;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_SKILL_DATA));
 
 	return true;
@@ -1452,7 +1452,7 @@ static bool variables_append_list_skill_id (ppVARIABLE list, char *name, unsigne
 	data->tid[0] = ta;
 	data->tid[1] = tb;
 
-	if( !list_appendlink(var->_.list, data) )
+	if( !list_appendlink(var->_.list.list, data) )
 		free_mem(data,sizeof(LLIST_SKILL_DATA));
 
 	return true;
@@ -1878,7 +1878,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_BLLIST_AREA_REGION:
 	case VAR_BLLIST_WILDS:
 		// All of the lists that require special allocation will be handled auto-magically by list_copy
-		newv->_.list = list_copy(oldv->_.list);
+		newv->_.list.list = list_copy(oldv->_.list.list);
 		break;
 
 	}
@@ -1962,7 +1962,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_BLLIST_AREA_REGION:
 	case VAR_BLLIST_WILDS:
 		// All of the lists that require special allocation will be handled auto-magically by list_copy
-		newv->_.list = list_copy(oldv->_.list);
+		newv->_.list.list = list_copy(oldv->_.list.list);
 		break;
 
 	}
@@ -2043,7 +2043,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_BLLIST_AREA_REGION:
 		case VAR_BLLIST_WILDS:
 			// All of the lists that require special allocation will be handled auto-magically by list_copy
-			newv->_.list = list_copy(oldv->_.list);
+			newv->_.list.list = list_copy(oldv->_.list.list);
 			break;
 
 		}
@@ -2124,7 +2124,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_BLLIST_AREA_REGION:
 	case VAR_BLLIST_WILDS:
 		// All of the lists that require special allocation will be handled auto-magically by list_copy
-		newv->_.list = list_copy(oldv->_.list);
+		newv->_.list.list = list_copy(oldv->_.list.list);
 		break;
 
 	}
@@ -2356,11 +2356,11 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_BLLIST_ROOM:
-			if(type == VAR_ROOM && list_isvalid(cur->_.list)) {
+			if(type == VAR_ROOM && list_isvalid(cur->_.list.list)) {
 				ITERATOR it;
 				LLIST_ROOM_DATA *lroom;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) ) {
 					if( lroom->room && lroom->room == ptr ) {
@@ -2374,11 +2374,11 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_BLLIST_MOB:
-			if(type == VAR_MOBILE && list_isvalid(cur->_.list)) {
+			if(type == VAR_MOBILE && list_isvalid(cur->_.list.list)) {
 				ITERATOR it;
 				LLIST_UID_DATA *luid;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) ) {
 					if( luid->ptr && luid->ptr == ptr ) {
@@ -2391,11 +2391,11 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_BLLIST_OBJ:
-			if(type == VAR_OBJECT && list_isvalid(cur->_.list)) {
+			if(type == VAR_OBJECT && list_isvalid(cur->_.list.list)) {
 				ITERATOR it;
 				LLIST_UID_DATA *luid;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) ) {
 					if( luid->ptr && luid->ptr == ptr ) {
@@ -2408,11 +2408,11 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_BLLIST_TOK:
-			if(type == VAR_TOKEN && list_isvalid(cur->_.list)) {
+			if(type == VAR_TOKEN && list_isvalid(cur->_.list.list)) {
 				ITERATOR it;
 				LLIST_UID_DATA *luid;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) ) {
 					if( luid->ptr && luid->ptr == ptr ) {
@@ -2425,11 +2425,11 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_BLLIST_AREA:
-			if(type == VAR_AREA && list_isvalid(cur->_.list)) {
+			if(type == VAR_AREA && list_isvalid(cur->_.list.list)) {
 				ITERATOR it;
 				LLIST_AREA_DATA *larea;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (larea = (LLIST_AREA_DATA *)iterator_nextdata(&it)) ) {
 					if( larea->area && larea->area == ptr ) {
@@ -2442,11 +2442,11 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_BLLIST_AREA_REGION:
-			if(type == VAR_AREA_REGION && list_isvalid(cur->_.list)) {
+			if(type == VAR_AREA_REGION && list_isvalid(cur->_.list.list)) {
 				ITERATOR it;
 				LLIST_AREA_REGION_DATA *laregion;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (laregion = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&it)) ) {
 					if( laregion->aregion && laregion->aregion == ptr ) {
@@ -2459,74 +2459,74 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_PLLIST_STR:
-			if( type == VAR_STRING && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_STRING && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_CONN:
-			if( type == VAR_CONNECTION && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_CONNECTION && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_ROOM:
-			if( type == VAR_ROOM && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_ROOM && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_MOB:
-			if( type == VAR_MOBILE && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_MOBILE && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_OBJ:
-			if( type == VAR_OBJECT && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_OBJECT && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_TOK:
-			if( type == VAR_TOKEN && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_TOKEN && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_CHURCH:
-			if( type == VAR_CHURCH && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_CHURCH && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_BOOK_PAGE:
-			if( type == VAR_BOOK_PAGE && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_BOOK_PAGE && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_FOOD_BUFF:
-			if( type == VAR_FOOD_BUFF && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_FOOD_BUFF && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_COMPARTMENT:
-			if( type == VAR_COMPARTMENT && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_COMPARTMENT && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_AREA:
-			if( type == VAR_AREA && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_AREA && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
 		case VAR_PLLIST_AREA_REGION:
-			if( type == VAR_AREA_REGION && ptr && list_isvalid(cur->_.list)) {
-				list_remlink(cur->_.list, ptr, false);
+			if( type == VAR_AREA_REGION && ptr && list_isvalid(cur->_.list.list)) {
+				list_remlink(cur->_.list.list, ptr, false);
 			}
 			break;
 
@@ -2719,8 +2719,8 @@ void variable_fix(pVARIABLE var)
 				var->type = VAR_SKILLINFO;
 			}
 		}
-	} else if(var->type == VAR_BLLIST_MOB && var->_.list) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_MOB && var->_.list.list) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 			if( !luid->ptr )
@@ -2728,32 +2728,32 @@ void variable_fix(pVARIABLE var)
 
 		iterator_stop(&it);
 
-	} else if(var->type == VAR_BLLIST_OBJ && var->_.list) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_OBJ && var->_.list.list) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 			if( !luid->ptr )
 				luid->ptr = idfind_object(luid->id[0], luid->id[1]);
 
 		iterator_stop(&it);
-	} else if(var->type == VAR_BLLIST_TOK && var->_.list) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_TOK && var->_.list.list) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 			if( !luid->ptr )
 				luid->ptr = idfind_token(luid->id[0], luid->id[1]);
 
 		iterator_stop(&it);
-	} else if(var->type == VAR_BLLIST_AREA && var->_.list) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_AREA && var->_.list.list) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (larea = (LLIST_AREA_DATA *)iterator_nextdata(&it)) )
 			if( !larea->area )
 				larea->area = get_area_from_uid(larea->uid);
 
 		iterator_stop(&it);
-	} else if(var->type == VAR_BLLIST_AREA_REGION && var->_.list) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_AREA_REGION && var->_.list.list) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (laregion = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&it)) )
 			if( !laregion->aregion )
@@ -2766,16 +2766,16 @@ void variable_fix(pVARIABLE var)
 			}
 
 		iterator_stop(&it);
-	} else if(var->type == VAR_BLLIST_WILDS && var->_.list) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_WILDS && var->_.list.list) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (lwilds = (LLIST_WILDS_DATA *)iterator_nextdata(&it)) )
 			if( !lwilds->wilds )
 				lwilds->wilds = get_wilds_from_uid(NULL, lwilds->uid);
 
 		iterator_stop(&it);
-	} else if(var->type == VAR_BLLIST_ROOM && var->_.list ) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_ROOM && var->_.list.list ) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) )
 			if( !lroom->room ) {
@@ -2800,8 +2800,8 @@ void variable_fix(pVARIABLE var)
 			}
 
 		iterator_stop(&it);
-	} else if(var->type == VAR_BLLIST_EXIT && var->_.list ) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_EXIT && var->_.list.list ) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (lexit = (LLIST_EXIT_DATA *)iterator_nextdata(&it)) )
 			if( !lexit->room ) {
@@ -2827,8 +2827,8 @@ void variable_fix(pVARIABLE var)
 			}
 		iterator_stop(&it);
 
-	} else if(var->type == VAR_BLLIST_SKILL && var->_.list ) {
-		iterator_start(&it, var->_.list);
+	} else if(var->type == VAR_BLLIST_SKILL && var->_.list.list ) {
+		iterator_start(&it, var->_.list.list);
 
 		while( (lskill = (LLIST_SKILL_DATA *)iterator_nextdata(&it)) )
 			if( !lskill->mob && IS_VALID(lskill->skill) ) {
@@ -2920,10 +2920,10 @@ void variable_dynamic_fix_clone_room (ROOM_INDEX_DATA *clone)
 			}
 			break;
 		case VAR_BLLIST_ROOM:
-			if( cur->_.list ) {
+			if( cur->_.list.list ) {
 				LLIST_ROOM_DATA *lroom;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) ) {
 					if( !lroom->room ) {
@@ -2940,10 +2940,10 @@ void variable_dynamic_fix_clone_room (ROOM_INDEX_DATA *clone)
 			break;
 
 		case VAR_BLLIST_EXIT:
-			if( cur->_.list ) {
+			if( cur->_.list.list ) {
 				LLIST_EXIT_DATA *lexit;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (lexit = (LLIST_EXIT_DATA *)iterator_nextdata(&it)) ) {
 					if( !lexit->room ) {
@@ -2991,11 +2991,11 @@ void variable_dynamic_fix_object(OBJ_DATA *obj)
 			break;
 
 		case VAR_BLLIST_OBJ:
-			if( cur->_.list && cur->_.list->valid ) {
+			if( cur->_.list.list && cur->_.list.list->valid ) {
 
 				ITERATOR it;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 					if( !luid->ptr && obj->id[0] == luid->id[0] && obj->id[1] == luid->id[1])
@@ -3034,11 +3034,11 @@ void variable_dynamic_fix_token (TOKEN_DATA *token)
 			break;
 
 		case VAR_BLLIST_TOK:
-			if( cur->_.list && cur->_.list->valid ) {
+			if( cur->_.list.list && cur->_.list.list->valid ) {
 
 				ITERATOR it;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 					if( !luid->ptr && token->id[0] == luid->id[0] && token->id[1] == luid->id[1])
@@ -3097,11 +3097,11 @@ void variable_dynamic_fix_mobile (CHAR_DATA *ch)
 			break;
 
 		case VAR_BLLIST_MOB:
-			if( cur->_.list && cur->_.list->valid ) {
+			if( cur->_.list.list && cur->_.list.list->valid ) {
 
 				ITERATOR it;
 
-				iterator_start(&it, cur->_.list);
+				iterator_start(&it, cur->_.list.list);
 
 				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 					if( !luid->ptr && ch->id[0] == luid->id[0] && ch->id[1] == luid->id[1])
@@ -3304,11 +3304,11 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		break;
 
 	case VAR_PLLIST_STR:
-		if(var->_.list && var->_.list->valid) {
+		if(var->_.list.list && var->_.list.list->valid) {
 			char *str;
 
 			fprintf(fp,"VarListStr %s~\n", var->name);
-			iterator_start(&it,var->_.list);
+			iterator_start(&it,var->_.list.list);
 
 			while((str = (char*)iterator_nextdata(&it)))
 				fprintf(fp, "String %s~\n", str);
@@ -3319,23 +3319,23 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		break;
 
 	case VAR_BLLIST_MOB:
-		variable_fwrite_uid_list( "VarListMob", var->name, var->_.list, fp);
+		variable_fwrite_uid_list( "VarListMob", var->name, var->_.list.list, fp);
 		break;
 
 	case VAR_BLLIST_OBJ:
-		variable_fwrite_uid_list( "VarListObj", var->name, var->_.list, fp);
+		variable_fwrite_uid_list( "VarListObj", var->name, var->_.list.list, fp);
 		break;
 
 	case VAR_BLLIST_TOK:
-		variable_fwrite_uid_list( "VarListTok", var->name, var->_.list, fp);
+		variable_fwrite_uid_list( "VarListTok", var->name, var->_.list.list, fp);
 		break;
 
 	case VAR_BLLIST_AREA:
-		if(var->_.list && var->_.list->valid) {
+		if(var->_.list.list && var->_.list.list->valid) {
 			LLIST_AREA_DATA *area;
 
 			fprintf(fp,"VarListArea %s~\n", var->name);
-			iterator_start(&it,var->_.list);
+			iterator_start(&it,var->_.list.list);
 
 			while((area = (LLIST_AREA_DATA*)iterator_nextdata(&it))) if( area->area ) {
 				fprintf(fp, "Area %ld\n", area->uid);
@@ -3346,11 +3346,11 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		}
 		break;
 	case VAR_BLLIST_WILDS:
-		if(var->_.list && var->_.list->valid) {
+		if(var->_.list.list && var->_.list.list->valid) {
 			LLIST_WILDS_DATA *wilds;
 
 			fprintf(fp,"VarListWilds %s~\n", var->name);
-			iterator_start(&it,var->_.list);
+			iterator_start(&it,var->_.list.list);
 
 			while((wilds = (LLIST_WILDS_DATA*)iterator_nextdata(&it))) if( wilds->wilds ) {
 				fprintf(fp, "Wilds %ld\n", wilds->uid);
@@ -3361,11 +3361,11 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		}
 		break;
 	case VAR_BLLIST_ROOM:
-		if(var->_.list && var->_.list->valid) {
+		if(var->_.list.list && var->_.list.list->valid) {
 			LLIST_ROOM_DATA *room;
 
 			fprintf(fp,"VarListRoom %s~\n", var->name);
-			iterator_start(&it,var->_.list);
+			iterator_start(&it,var->_.list.list);
 
 			while((room = (LLIST_ROOM_DATA*)iterator_nextdata(&it))) if( room->room ) {
 				if(room->room->wilds)
@@ -3381,11 +3381,11 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		}
 		break;
 	case VAR_BLLIST_EXIT:
-		if(var->_.list && var->_.list->valid) {
+		if(var->_.list.list && var->_.list.list->valid) {
 			LLIST_EXIT_DATA *room;
 
 			fprintf(fp,"VarListExit %s~\n", var->name);
-			iterator_start(&it,var->_.list);
+			iterator_start(&it,var->_.list.list);
 
 			while((room = (LLIST_EXIT_DATA*)iterator_nextdata(&it))) if( room->room ) {
 				if(room->room->wilds)
@@ -3402,11 +3402,11 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		break;
 
 	case VAR_BLLIST_SKILL:
-		if(var->_.list && var->_.list->valid) {
+		if(var->_.list.list && var->_.list.list->valid) {
 			LLIST_SKILL_DATA *skill;
 
 			fprintf(fp,"VarListSkill %s~\n", var->name);
-			iterator_start(&it,var->_.list);
+			iterator_start(&it,var->_.list.list);
 
 			while((skill = (LLIST_SKILL_DATA*)iterator_nextdata(&it))) if( IS_VALID(skill->mob) ) {
 				if( IS_VALID(skill->tok) )
@@ -4530,7 +4530,7 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
 			sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[???] ID[%9d:%9d]\n\r", var->name,var->save?'Y':'N',(int)var->_.tid.a,(int)var->_.tid.b);
 			break;
 		case VAR_BLLIST_MOB: {
-			LLIST *mob_list = var->_.list;
+			LLIST *mob_list = var->_.list.list;
 			int sz = list_size(mob_list);
 
 			if( sz > 0 )
@@ -4563,7 +4563,7 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars)
 		}
 		case VAR_BLLIST_OBJ: {
 
-			LLIST *obj_list = var->_.list;
+			LLIST *obj_list = var->_.list.list;
 			int sz = list_size(obj_list);
 
 			if( sz > 0 )

@@ -43,7 +43,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     char arg2[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
     int direction = -1;
-    int ii;
+    int _ii;
     int range, beats;
 
     if ( IS_SET(ch->in_room->room_flag[0], ROOM_SAFE ) )
@@ -118,9 +118,9 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 
 			if ( ( victim = get_char_room( ch, NULL, arg1 ) ) == NULL )
 			{
-				for ( ii = 0; ii < MAX_DIR; ii++ )
+				for ( _ii = 0; _ii < MAX_DIR; _ii++ )
 				{
-					if ( (vch = search_dir_name( ch, arg1, ii, WEAPON(bow)->range ) ) != NULL )
+					if ( (vch = search_dir_name( ch, arg1, _ii, WEAPON(bow)->range ) ) != NULL )
 					{
 						if ( direction != -1 )
 						{
@@ -129,7 +129,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 						}
 
 						victim = vch;
-						direction = ii;
+						direction = _ii;
 					}
 				}
 			}
@@ -808,7 +808,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     int dir;
     int skill = 0;
     int dam;
-    int ii;
+    int _ii;
     bool found = false;
 
     argument = one_argument( argument, arg1 );
@@ -903,9 +903,9 @@ void do_throw( CHAR_DATA *ch, char *argument )
     {
 	if ( ( victim = get_char_room( ch, NULL, arg2 ) ) == NULL )
 	{
-	    for ( ii = 0; ii < 6; ii++ )
+	    for ( _ii = 0; _ii < 6; _ii++ )
 	    {
-		if ( (vch = search_dir_name( ch, arg2, ii, 1 ) ) != NULL )
+		if ( (vch = search_dir_name( ch, arg2, _ii, 1 ) ) != NULL )
 		{
 		    if ( dir != -1 )
 		    {
@@ -913,7 +913,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 			return;
 		    }
 		    victim = vch;
-		    dir = ii;
+		    dir = _ii;
 		}
 	    }
 	}
