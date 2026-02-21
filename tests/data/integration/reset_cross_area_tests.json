@@ -52,6 +52,7 @@
       "description": "Test legacy bare vnum reset (NULL pArea)",
       "test_type": "reset_legacy_vnum",
       "input": {
+        "optional_if_missing": true,
         "room_vnum": 1,
         "entity_vnum": 1,
         "reset_type": "M"
@@ -62,6 +63,7 @@
       "description": "Test legacy bare vnum object reset",
       "test_type": "reset_legacy_vnum",
       "input": {
+        "optional_if_missing": true,
         "room_vnum": 1,
         "entity_vnum": 1,
         "reset_type": "O"

@@ -1,6 +1,6 @@
 # Technical Debt Tracker
 
-**Last Updated:** January 28, 2026
+**Last Updated:** February 21, 2026
 
 This document tracks known technical debt in the Sentience codebase. Items are prioritized and linked to implementation plans where applicable.
 
@@ -157,6 +157,39 @@ Keep custom allocators as thin wrappers. Focus on higher-value improvements.
 ---
 
 ## Medium Priority
+
+### 2A. OLC Widevnum Parser Consolidation
+
+**Status:** In Progress (qedit partially migrated)  
+**Estimated Effort:** 1-2 weeks  
+**Risk:** Medium (builder UX inconsistency, input parsing drift)
+
+#### Problem
+
+Some editor paths still use local/custom parsers for references, while others use shared widevnum parsing helpers. This creates inconsistent behavior and misleading prompts, especially for local-area shorthand such as `#<vnum>`.
+
+Observed pattern:
+- Shared parser path accepts `#<vnum>`, `<auid>#<vnum>`, area-name forms, and legacy bare vnums with context.
+- Editor-local parsers often only accept `<auid>#<vnum>` or `<vnum>` and diverge over time.
+
+#### Impact
+
+- Builder commands behave differently between editors for equivalent input.
+- Regression risk increases because fixes must be duplicated in multiple parser wrappers.
+- Error/help text drifts away from actual accepted formats.
+
+#### Consolidation Plan
+
+1. Replace editor-local reference parsers with shared parser calls (`parse_widevnum` + `olc_relative_widevnum_context` where applicable).
+2. Keep explicit compatibility cases only where syntax is domain-specific (e.g., `<stage_id>:<objective_id>` references).
+3. Standardize help/error strings to list accepted forms consistently: `<auid>#<vnum>`, `#<vnum>`, and context-appropriate bare `<vnum>`.
+4. Add/expand unit coverage for parser wrappers and editor reference entry points.
+
+#### Current Note
+
+- `qedit` has started this migration, but remaining editor wrappers should be audited and normalized.
+
+---
 
 ### 3. Dead Code Removal
 

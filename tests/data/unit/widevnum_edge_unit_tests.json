@@ -1,0 +1,76 @@
+{
+  "type": "test_suite",
+  "test_suite": "widevnum_edge_unit_tests",
+  "description": "Pure-function unit tests for widevnum parser edge and malformed inputs",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "parse_widevnum_edge_and_malformed_inputs",
+      "description": "Validates explicit, relative, and malformed widevnum input handling",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "parse_widevnum",
+        "test_cases": [
+          {
+            "input_area_uid_from": "Limbo",
+            "input_vnum": 1,
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input": "Limbo#1",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input": "#1",
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input": "1",
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input_area_uid_from": "Bootstrap Reserved",
+            "input_vnum": 20,
+            "expected_area": "Bootstrap Reserved",
+            "expected_vnum": 20
+          },
+          {
+            "input": "#1",
+            "expected_vnum": 0
+          },
+          {
+            "input": "abc",
+            "expected_vnum": 0
+          },
+          {
+            "input": "1#",
+            "expected_vnum": 0
+          },
+          {
+            "input": "923#abc",
+            "expected_vnum": 0
+          },
+          {
+            "input": "0#1",
+            "expected_vnum": 0
+          },
+          {
+            "input": "-1#1",
+            "expected_vnum": 0
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

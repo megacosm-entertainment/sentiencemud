@@ -11436,6 +11436,7 @@ bool validate_account_recipient(const char *account_name) {
 int colour_trunc_len(const char *str, int limit)
 {
     int vis = 0, i = 0;
+    int code_len;
     if (!str) return 0;
 
     while (str[i] && vis < limit) {
@@ -11444,9 +11445,9 @@ int colour_trunc_len(const char *str, int limit)
             i += 2;
             vis++; // treat as one visible char (space)
         }
-        // Handle color codes (e.g., {G, {x, etc)
-        else if (str[i] == '{' && str[i+1] != '\0') {
-            i += 2;
+        // Handle color codes (single-char and extended forms)
+        else if ((code_len = get_colour_code_length_at_start(str + i)) > 0) {
+            i += code_len;
         }
         // Literal newline/CR
         else if (str[i] == '\n' || str[i] == '\r') {

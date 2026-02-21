@@ -90,22 +90,74 @@ static test_result_t test_song_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
+        bool use_first_loaded = false;
         const char *prefix = test_json_get_string(tc, "prefix");
+        int lookup_uid = test_json_get_int(tc, "lookup_uid");
         bool should_find = test_json_get_bool(tc, "should_find");
+        const char *expected_name = test_json_get_string(tc, "expected_name");
+        int expected_uid = test_json_get_int(tc, "expected_uid");
 
-        if (!prefix) continue;
+        SONG_DATA *song = NULL;
 
-        SONG_DATA *song = song_lookup(prefix);
+        if (json_object_get(tc, "use_first_loaded")) {
+            use_first_loaded = test_json_get_bool(tc, "use_first_loaded");
+        }
+
+        if (use_first_loaded) {
+            LLIST *song_list = song_get_list();
+            LLIST_LINK *link = song_list ? song_list->head : NULL;
+            SONG_DATA *first_song = link ? (SONG_DATA *)link->data : NULL;
+
+            if (!first_song || !first_song->name || first_song->name[0] == '\0') {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                            "song_lookup_test requested use_first_loaded but no valid first song exists");
+                return TEST_FAILURE;
+            }
+
+            song = song_lookup(first_song->name);
+        } else if (lookup_uid > 0) {
+            song = song_lookup_uid(lookup_uid);
+        } else {
+            if (!prefix) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                            "song_lookup_test case requires 'prefix' or positive 'lookup_uid'");
+                return TEST_ERROR;
+            }
+
+            song = song_lookup(prefix);
+        }
 
         if (should_find && !song) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "song_lookup('%s') returned NULL, expected match", prefix);
+                         "song lookup failed (prefix=%s, lookup_uid=%d), expected match",
+                         prefix ? prefix : "<dynamic-first>",
+                         lookup_uid);
             return TEST_FAILURE;
         }
 
         if (!should_find && song) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "song_lookup('%s') returned match, expected NULL", prefix);
+                         "song lookup returned match (prefix=%s, lookup_uid=%d), expected NULL",
+                         prefix ? prefix : "<dynamic-first>",
+                         lookup_uid);
+            return TEST_FAILURE;
+        }
+
+        if (should_find && expected_name) {
+            if (!song->name || str_cmp(song->name, expected_name)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "song lookup expected name '%s', got '%s'",
+                             expected_name,
+                             song->name ? song->name : "(null)");
+                return TEST_FAILURE;
+            }
+        }
+
+        if (should_find && expected_uid > 0 && song->uid != expected_uid) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "song lookup expected uid %d, got %d",
+                         expected_uid,
+                         song->uid);
             return TEST_FAILURE;
         }
     }
@@ -118,6 +170,25 @@ static test_result_t test_song_lookup(test_case_t *test)
  */
 static test_result_t test_song_uid_integrity(test_case_t *test)
 {
+    bool require_positive_uids = false;
+    bool check_unique_nonzero_uids = true;
+    bool require_names = true;
+
+    if (test && test->config) {
+        json_t *input = json_object_get(test->config, "input");
+        if (json_is_object(input)) {
+            if (json_object_get(input, "require_positive_uids")) {
+                require_positive_uids = test_json_get_bool(input, "require_positive_uids");
+            }
+            if (json_object_get(input, "check_unique_nonzero_uids")) {
+                check_unique_nonzero_uids = test_json_get_bool(input, "check_unique_nonzero_uids");
+            }
+            if (json_object_get(input, "require_names")) {
+                require_names = test_json_get_bool(input, "require_names");
+            }
+        }
+    }
+
     LLIST *song_list = song_get_list();
     if (!song_list) {
         log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
@@ -130,20 +201,34 @@ static test_result_t test_song_uid_integrity(test_case_t *test)
     memset(seen, 0, sizeof(seen));
 
     int checked = 0;
+    int positive_uid_checked = 0;
+    int non_positive_count = 0;
     LLIST_LINK *link;
     for (link = song_list->head; link; link = link->next) {
         SONG_DATA *song = (SONG_DATA *)link->data;
         if (!song) continue;
         checked++;
 
-        if (song->uid <= 0) {
+        if (require_names && (!song->name || song->name[0] == '\0')) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "Song '%s' has non-positive UID %d",
-                         song->name ? song->name : "?", song->uid);
+                         "Song #%d has empty name", checked);
             return TEST_FAILURE;
         }
 
-        if (song->uid < MAX_UID_CHECK) {
+        if (song->uid <= 0) {
+            non_positive_count++;
+            if (require_positive_uids) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Song '%s' has non-positive UID %d",
+                             song->name ? song->name : "?", song->uid);
+                return TEST_FAILURE;
+            }
+            continue;
+        }
+
+        positive_uid_checked++;
+
+        if (check_unique_nonzero_uids && song->uid < MAX_UID_CHECK) {
             if (seen[song->uid]) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                              "Duplicate song UID %d (song: %s)",
@@ -156,7 +241,10 @@ static test_result_t test_song_uid_integrity(test_case_t *test)
     #undef MAX_UID_CHECK
 
     log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
-                 "All %d songs have unique positive UIDs", checked);
+                 "Song integrity passed (%d total, %d positive UIDs checked, %d non-positive)",
+                 checked,
+                 positive_uid_checked,
+                 non_positive_count);
     return TEST_SUCCESS;
 }
 

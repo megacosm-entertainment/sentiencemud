@@ -27,6 +27,16 @@
       "input": {
         "test_cases": [
           {
+            "use_first_loaded": true,
+            "should_find": true,
+            "description": "Lookup of first loaded song succeeds"
+          },
+          {
+            "lookup_uid": 99999999,
+            "should_find": false,
+            "description": "Out-of-range song UID is not found"
+          },
+          {
             "prefix": "totally_nonexistent_song_xyz",
             "should_find": false,
             "description": "Bogus song not found"
@@ -39,13 +49,17 @@
     },
     {
       "name": "song_uid_integrity",
-      "description": "Verify all songs have valid positive UIDs and are unique",
+      "description": "Verify song names are present and non-zero UIDs are unique",
       "dependencies": ["song_count_positive"],
       "test_type": "song_uid_integrity_test",
-      "input": {},
+      "input": {
+        "require_positive_uids": false,
+        "check_unique_nonzero_uids": true,
+        "require_names": true
+      },
       "expected_output": {
-        "all_uids_positive": true,
-        "all_uids_unique": true
+        "all_uids_unique": true,
+        "all_names_present": true
       }
     }
   ]

@@ -1,0 +1,132 @@
+{
+  "type": "test_suite",
+  "test_suite": "pronoun_helpers_unit_tests",
+  "description": "Pure-function unit tests for pronoun/body-type helper behavior",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "pronoun_helpers_fallback_and_override_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "pronoun_helpers",
+        "test_cases": [
+          {
+            "body_type": 1,
+            "expected_he_she": "he",
+            "expected_him_her": "him",
+            "expected_his_her": "his",
+            "expected_his_hers": "his",
+            "expected_himself_herself": "himself",
+            "expected_body_type_name": "masculine"
+          },
+          {
+            "body_type": 2,
+            "set_he_she": "ze",
+            "set_him_her": "zir",
+            "set_his_her": "zir",
+            "set_his_hers": "zirs",
+            "set_himself_herself": "zirself",
+            "expected_he_she": "ze",
+            "expected_him_her": "zir",
+            "expected_his_her": "zir",
+            "expected_his_hers": "zirs",
+            "expected_himself_herself": "zirself",
+            "expected_body_type_name": "feminine"
+          },
+          {
+            "body_type": 99,
+            "expected_he_she": "it",
+            "expected_him_her": "it",
+            "expected_his_her": "its",
+            "expected_his_hers": "its",
+            "expected_himself_herself": "itself",
+            "expected_body_type_name": "neutral"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "get_verb_form_preference_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_verb_form",
+        "test_cases": [
+          {
+            "use_null_character": true,
+            "singular": "walks",
+            "plural": "walk",
+            "expected": "walks"
+          },
+          {
+            "body_type": 1,
+            "verb_preference": 0,
+            "singular": "walks",
+            "plural": "walk",
+            "expected": "walks"
+          },
+          {
+            "body_type": 3,
+            "verb_preference": 0,
+            "singular": "walks",
+            "plural": "walk",
+            "expected": "walk"
+          },
+          {
+            "body_type": 1,
+            "verb_preference": 2,
+            "singular": "walks",
+            "plural": "walk",
+            "expected": "walk"
+          },
+          {
+            "body_type": 1,
+            "verb_preference": 1,
+            "singular": "walks",
+            "plural": "walk",
+            "expected": "walks"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "reset_pronouns_to_body_type_defaults",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "reset_pronouns_to_body_type",
+        "test_cases": [
+          {
+            "initial_body_type": 0,
+            "new_body_type": 3,
+            "expected_he_she": "they",
+            "expected_him_her": "them",
+            "expected_his_her": "their",
+            "expected_his_hers": "theirs",
+            "expected_himself_herself": "themself",
+            "expected_verb_preference": 2
+          },
+          {
+            "initial_body_type": 3,
+            "new_body_type": 1,
+            "expected_he_she": "he",
+            "expected_him_her": "him",
+            "expected_his_her": "his",
+            "expected_his_hers": "his",
+            "expected_himself_herself": "himself",
+            "expected_verb_preference": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

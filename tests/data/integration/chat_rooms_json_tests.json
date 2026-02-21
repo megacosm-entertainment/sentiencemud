@@ -122,6 +122,45 @@
         "load_succeeded": true,
         "data_matches": true
       }
+    },
+    {
+      "name": "chat_room_file_io_invalid_json",
+      "description": "Test chat room file load behavior with malformed JSON input",
+      "dependencies": ["chat_room_serialize_basic"],
+      "test_type": "chat_room_file_io_test",
+      "input": {
+        "invalid_json": true
+      },
+      "expected_output": {
+        "success": true,
+        "invalid_rejected": true
+      }
+    },
+    {
+      "name": "chat_room_file_io_invalid_schema",
+      "description": "Test chat room file load behavior with valid JSON but wrong schema",
+      "dependencies": ["chat_room_serialize_basic"],
+      "test_type": "chat_room_file_io_test",
+      "input": {
+        "invalid_schema": true
+      },
+      "expected_output": {
+        "success": true,
+        "schema_rejected": true
+      }
+    },
+    {
+      "name": "chat_room_file_io_missing_required_key",
+      "description": "Test chat room file load behavior with missing required chat_rooms key",
+      "dependencies": ["chat_room_serialize_basic"],
+      "test_type": "chat_room_file_io_test",
+      "input": {
+        "missing_required_key": true
+      },
+      "expected_output": {
+        "success": true,
+        "missing_key_rejected": true
+      }
     }
   ]
 }

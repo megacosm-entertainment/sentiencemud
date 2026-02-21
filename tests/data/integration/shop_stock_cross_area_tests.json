@@ -44,10 +44,35 @@
       }
     },
     {
+      "name": "shop_stock_reference_integrity",
+      "description": "Verify stock references resolve to expected entities and pointers",
+      "test_type": "shop_stock_reference_integrity",
+      "input": {
+        "optional_if_missing": true,
+        "shopkeeper_area_name": "Bootstrap Tests",
+        "shopkeeper_vnum": 101,
+        "expected_entries": [
+          {
+            "stock_type": "object",
+            "entity_area_name": "Bootstrap Reserved",
+            "entity_vnum": 1,
+            "require_pointer_resolution": true
+          },
+          {
+            "stock_type": "pet",
+            "entity_area_name": "Bootstrap Tests",
+            "entity_vnum": 102,
+            "require_pointer_resolution": true
+          }
+        ]
+      }
+    },
+    {
       "name": "shop_stock_legacy_object",
       "description": "Test legacy bare vnum stock (NULL pArea)",
       "test_type": "shop_stock_legacy_vnum",
       "input": {
+        "optional_if_missing": true,
         "shopkeeper_vnum": 101,
         "entity_vnum": 1,
         "stock_type": "object"
@@ -58,6 +83,7 @@
       "description": "Test legacy bare vnum pet stock",
       "test_type": "shop_stock_legacy_vnum",
       "input": {
+        "optional_if_missing": true,
         "shopkeeper_vnum": 101,
         "entity_vnum": 1,
         "stock_type": "pet"

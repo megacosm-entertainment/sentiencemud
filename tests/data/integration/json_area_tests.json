@@ -14,6 +14,7 @@
       "test_type": "json_area_serialize_test",
       "input": {
         "area_name": "Limbo",
+        "expected_filename": "limbo.json",
         "expected_fields": [
           "schema_version",
           "area.uid",
@@ -30,12 +31,37 @@
       }
     },
     {
+      "name": "json_area_serialize_blueprints_metadata",
+      "description": "Verify Blueprints Testing metadata includes expected UID and filename",
+      "dependencies": [],
+      "test_type": "json_area_serialize_test",
+      "input": {
+        "optional_if_missing": true,
+        "area_name": "Blueprints Testing",
+        "expected_filename": "blueprints.json",
+        "expected_fields": [
+          "schema_version",
+          "area.uid",
+          "area.name",
+          "area.filename",
+          "rooms"
+        ]
+      },
+      "expected_output": {
+        "has_required_fields": true,
+        "valid_json": true,
+        "success": true
+      }
+    },
+    {
       "name": "json_area_rooms_serialize",
       "description": "Verify rooms serialize with exits including cross-area refs",
       "dependencies": ["json_area_serialize_metadata"],
       "test_type": "json_area_rooms_test",
       "input": {
         "area_name": "Limbo",
+        "minimum_rooms": 1,
+        "enforce_room_vnum_range": true,
         "check_exit_fields": true,
         "expected_exit_fields": ["direction", "to_vnum", "to_area"]
       },
@@ -72,6 +98,8 @@
       "test_type": "json_area_roundtrip_test",
       "input": {
         "area_name": "Limbo",
+        "verify_name": true,
+        "verify_filename": true,
         "verify_fields": [
           "uid",
           "name",

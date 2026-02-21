@@ -95,23 +95,80 @@ static test_result_t test_trait_def_lookup(test_case_t *test)
     size_t index;
     json_t *tc;
     json_array_foreach(test_cases, index, tc) {
+        bool use_first_loaded = false;
+        const char *lookup_mode = test_json_get_string(tc, "lookup_mode");
         const char *id = test_json_get_string(tc, "id");
+        const char *name = test_json_get_string(tc, "name");
         bool should_find = test_json_get_bool(tc, "should_find");
+        TRAIT_DEF *def = NULL;
 
-        if (!id) continue;
+        if (!lookup_mode) {
+            lookup_mode = "id";
+        }
 
-        TRAIT_DEF *def = trait_def_lookup(id);
+        if (json_object_get(tc, "use_first_loaded")) {
+            use_first_loaded = test_json_get_bool(tc, "use_first_loaded");
+        }
+
+        if (use_first_loaded) {
+            TRAIT_DEF *first_valid = NULL;
+            for (first_valid = trait_def_list; first_valid; first_valid = first_valid->next) {
+                if (first_valid->valid) {
+                    break;
+                }
+            }
+
+            if (!first_valid) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                            "trait_def_lookup_test requested use_first_loaded but no valid trait definition exists");
+                return TEST_FAILURE;
+            }
+
+            if (!str_cmp(lookup_mode, "name")) {
+                def = trait_def_lookup_name(first_valid->name);
+            } else {
+                def = trait_def_lookup(first_valid->id);
+            }
+        } else if (!str_cmp(lookup_mode, "name")) {
+            if (!name || name[0] == '\0') {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                            "trait_def_lookup_test case missing 'name' for lookup_mode=name");
+                return TEST_ERROR;
+            }
+            def = trait_def_lookup_name(name);
+        } else {
+            if (!id || id[0] == '\0') {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                            "trait_def_lookup_test case missing 'id' for lookup_mode=id");
+                return TEST_ERROR;
+            }
+            def = trait_def_lookup(id);
+        }
 
         if (should_find && !def) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "trait_def_lookup('%s') returned NULL, expected match", id);
+                         "trait definition lookup failed (mode=%s, id=%s, name=%s), expected match",
+                         lookup_mode,
+                         id ? id : "(null)",
+                         name ? name : "(null)");
             return TEST_FAILURE;
         }
 
         if (!should_find && def) {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "trait_def_lookup('%s') returned match, expected NULL", id);
+                         "trait definition lookup returned match (mode=%s, id=%s, name=%s), expected NULL",
+                         lookup_mode,
+                         id ? id : "(null)",
+                         name ? name : "(null)");
             return TEST_FAILURE;
+        }
+
+        if (should_find && def) {
+            if (!def->id || def->id[0] == '\0' || !def->name || def->name[0] == '\0') {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                            "Lookup returned trait with missing id/name");
+                return TEST_FAILURE;
+            }
         }
     }
 
@@ -123,13 +180,11 @@ static test_result_t test_trait_def_lookup(test_case_t *test)
  */
 static test_result_t test_trait_def_integrity(test_case_t *test)
 {
+    (void)test;
     if (trait_def_count <= 0) {
         return TEST_SKIP;
     }
 
-    /* Track IDs for uniqueness check */
-    #define MAX_TRAIT_CHECK 512
-    const char *seen_ids[MAX_TRAIT_CHECK];
     int seen_count = 0;
 
     TRAIT_DEF *def;
@@ -158,20 +213,27 @@ static test_result_t test_trait_def_integrity(test_case_t *test)
             return TEST_FAILURE;
         }
 
-        /* Check for duplicate IDs */
-        for (int i = 0; i < seen_count && i < MAX_TRAIT_CHECK; i++) {
-            if (strcmp(seen_ids[i], def->id) == 0) {
+        if (def->index < 0 || def->index >= trait_def_count) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Trait '%s' has out-of-range index %d (trait_def_count=%d)",
+                         def->id, def->index, trait_def_count);
+            return TEST_FAILURE;
+        }
+
+        for (TRAIT_DEF *other = def->next; other; other = other->next) {
+            if (!other->valid || !other->id) {
+                continue;
+            }
+
+            if (strcmp(other->id, def->id) == 0) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                              "Duplicate trait ID: %s", def->id);
                 return TEST_FAILURE;
             }
         }
 
-        if (seen_count < MAX_TRAIT_CHECK) {
-            seen_ids[seen_count++] = def->id;
-        }
+        seen_count++;
     }
-    #undef MAX_TRAIT_CHECK
 
     log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
                  "All %d trait definitions have valid structure", seen_count);
@@ -183,6 +245,25 @@ static test_result_t test_trait_def_integrity(test_case_t *test)
  */
 static test_result_t test_trait_type_coverage(test_case_t *test)
 {
+    bool require_bool = true;
+    bool require_int = true;
+    bool require_string = false;
+
+    if (test && test->config) {
+        json_t *input = json_object_get(test->config, "input");
+        if (json_is_object(input)) {
+            if (json_object_get(input, "require_bool")) {
+                require_bool = test_json_get_bool(input, "require_bool");
+            }
+            if (json_object_get(input, "require_int")) {
+                require_int = test_json_get_bool(input, "require_int");
+            }
+            if (json_object_get(input, "require_string")) {
+                require_string = test_json_get_bool(input, "require_string");
+            }
+        }
+    }
+
     bool has_bool = false;
     bool has_int = false;
     bool has_string = false;
@@ -198,20 +279,21 @@ static test_result_t test_trait_type_coverage(test_case_t *test)
         }
     }
 
-    if (!has_bool) {
-        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
-                   "No boolean traits found in definitions");
-    }
-
-    if (!has_int) {
-        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
-                   "No integer traits found in definitions");
-    }
-
-    /* Boolean and integer are the most common; string is optional */
-    if (!has_bool && !has_int) {
+    if (require_bool && !has_bool) {
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                   "Neither boolean nor integer traits found");
+                   "Trait type coverage missing required boolean traits");
+        return TEST_FAILURE;
+    }
+
+    if (require_int && !has_int) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "Trait type coverage missing required integer traits");
+        return TEST_FAILURE;
+    }
+
+    if (require_string && !has_string) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "Trait type coverage missing required string traits");
         return TEST_FAILURE;
     }
 

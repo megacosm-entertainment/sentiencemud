@@ -80,7 +80,9 @@
       "description": "Verify class_find_uid roundtrips correctly for all classes",
       "dependencies": ["class_uid_integrity"],
       "test_type": "class_uid_roundtrip_test",
-      "input": {},
+      "input": {
+        "invalid_uids": [-1, 0, 999999]
+      },
       "expected_output": {
         "all_roundtrips_match": true
       }
@@ -114,6 +116,7 @@
       "dependencies": ["class_count_positive"],
       "test_type": "class_exp_table_test",
       "input": {
+        "classes_to_check": 5,
         "test_levels": [1, 10, 50]
       },
       "expected_output": {

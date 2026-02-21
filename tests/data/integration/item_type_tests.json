@@ -24,24 +24,49 @@
       "dependencies": ["item_type_info_populated"],
       "test_type": "item_type_compat_test",
       "input": {
+        "strict_type_resolution": true,
         "test_cases": [
           {
             "description": "Container should be compatible with many types",
             "primary_type": "container",
             "add_type": "light",
-            "expected_compatible": true
+            "expected_compatible": true,
+            "check_reverse": true
           },
           {
-            "description": "Weapon primary should not also be armor",
+            "description": "Weapon primary should not also be armour",
             "primary_type": "weapon",
-            "add_type": "armor",
-            "expected_compatible": false
+            "add_type": "armour",
+            "expected_compatible": false,
+            "check_reverse": true
           },
           {
             "description": "Furniture should accept container",
             "primary_type": "furniture",
             "add_type": "container",
-            "expected_compatible": true
+            "expected_compatible": true,
+            "check_reverse": true
+          },
+          {
+            "description": "Weapon should be compatible with wand",
+            "primary_type": "weapon",
+            "add_type": "wand",
+            "expected_compatible": true,
+            "check_reverse": true
+          },
+          {
+            "description": "Container should not accept weapon",
+            "primary_type": "container",
+            "add_type": "weapon",
+            "expected_compatible": false,
+            "check_reverse": true
+          },
+          {
+            "description": "Portal should be compatible with furniture",
+            "primary_type": "portal",
+            "add_type": "furniture",
+            "expected_compatible": true,
+            "check_reverse": true
           }
         ]
       },
@@ -57,12 +82,16 @@
       "input": {
         "test_cases": [
           {"name": "weapon", "should_exist": true},
-          {"name": "armor", "should_exist": true},
+          {"name": "armour", "should_exist": true},
+          {"name": "armor", "should_exist": false},
           {"name": "container", "should_exist": true},
           {"name": "scroll", "should_exist": true},
           {"name": "light", "should_exist": true},
+          {"name": "drinkcontainer", "should_exist": true},
+          {"name": "body_part", "should_exist": true},
           {"name": "food", "should_exist": true},
           {"name": "portal", "should_exist": true},
+          {"name": "zz_itemtype_missing", "should_exist": false},
           {"name": "notarealtype", "should_exist": false}
         ]
       },
@@ -76,11 +105,49 @@
       "dependencies": ["item_type_info_populated"],
       "test_type": "item_type_loaded_objs_test",
       "input": {
-        "max_areas_to_check": 5
+        "max_areas_to_check": 10,
+        "min_objects_expected": 10,
+        "require_primary_type_name": true,
+        "require_primary_in_type_flags": false
       },
       "expected_output": {
         "all_objects_have_valid_type": true,
         "checked_count_positive": true
+      }
+    },
+    {
+      "name": "item_type_typed_data_consistency",
+      "description": "Verify selected primary item types with typed data have populated typed structs",
+      "dependencies": ["item_type_info_populated"],
+      "test_type": "item_type_typed_data_test",
+      "input": {
+        "max_areas_to_check": 0,
+        "test_cases": [
+          {
+            "primary_type": "container",
+            "expected_has_typed_data": true,
+            "min_objects": 1
+          },
+          {
+            "primary_type": "weapon",
+            "expected_has_typed_data": true,
+            "min_objects": 1
+          },
+          {
+            "primary_type": "portal",
+            "expected_has_typed_data": true,
+            "min_objects": 1
+          },
+          {
+            "primary_type": "armour",
+            "expected_has_typed_data": true,
+            "min_objects": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "typed_data_present": true,
+        "metadata_matches": true
       }
     }
   ]

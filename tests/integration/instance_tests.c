@@ -36,14 +36,21 @@ static test_result_t test_persist_directory(test_case_t *test);
 test_result_t run_instance_test_case(test_case_t *test)
 {
     test_result_t result = TEST_FAILURE;
+
+    if (!test || !test->test_type) {
+        return TEST_ERROR;
+    }
     
-    if (strcmp(test->test_type, "blueprint_lookup_test") == 0) {
+    if (strcmp(test->test_type, "blueprint_lookup_test") == 0 ||
+        strcmp(test->test_type, "blueprint_hash_lookup_test") == 0) {
         result = test_blueprint_lookup(test);
     }
-    else if (strcmp(test->test_type, "dungeon_index_lookup_test") == 0) {
+    else if (strcmp(test->test_type, "dungeon_index_lookup_test") == 0 ||
+             strcmp(test->test_type, "dungeon_index_hash_test") == 0) {
         result = test_dungeon_index_lookup(test);
     }
-    else if (strcmp(test->test_type, "ship_index_lookup_test") == 0) {
+    else if (strcmp(test->test_type, "ship_index_lookup_test") == 0 ||
+             strcmp(test->test_type, "ship_index_hash_test") == 0) {
         result = test_ship_index_lookup(test);
     }
     else if (strcmp(test->test_type, "wnum_json_format_test") == 0) {
@@ -55,13 +62,20 @@ test_result_t run_instance_test_case(test_case_t *test)
     else if (strcmp(test->test_type, "instance_serialize_test") == 0) {
         result = test_instance_serialize(test);
     }
-    else if (strcmp(test->test_type, "blueprint_section_ref_test") == 0) {
+    else if (strcmp(test->test_type, "blueprint_section_ref_test") == 0 ||
+             strcmp(test->test_type, "blueprint_section_wnum_test") == 0 ||
+             strcmp(test->test_type, "blueprint_special_wnum_test") == 0 ||
+             strcmp(test->test_type, "blueprint_json_test") == 0 ||
+             strcmp(test->test_type, "blueprint_deserialize_test") == 0 ||
+             strcmp(test->test_type, "blueprint_cross_area_test") == 0 ||
+             strcmp(test->test_type, "blueprint_link_wnum_test") == 0) {
         result = test_blueprint_section_ref(test);
     }
     else if (strcmp(test->test_type, "ship_blueprint_ref_test") == 0) {
         result = test_ship_blueprint_ref(test);
     }
-    else if (strcmp(test->test_type, "dungeon_room_ref_test") == 0) {
+    else if (strcmp(test->test_type, "dungeon_room_ref_test") == 0 ||
+             strcmp(test->test_type, "dungeon_wnum_refs_test") == 0) {
         result = test_dungeon_room_ref(test);
     }
     else if (strcmp(test->test_type, "persist_directory_test") == 0) {

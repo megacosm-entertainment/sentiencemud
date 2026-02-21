@@ -1,0 +1,51 @@
+{
+  "type": "test_suite",
+  "test_suite": "color_article_helpers_unit_tests",
+  "description": "Pure-function unit tests for color-code validation and article helpers",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "is_valid_colour_code_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "is_valid_colour_code",
+        "test_cases": [
+          { "input": "{Y", "expected": true },
+          { "input": "{x", "expected": true },
+          { "input": "{i", "expected": true },
+          { "input": "{[F123]", "expected": true },
+          { "input": "{[B050]", "expected": true },
+          { "input": "{Y{[F123]{x", "expected": true },
+          { "input": "", "expected": true },
+          { "input": "Y", "expected": false },
+          { "input": "{", "expected": false },
+          { "input": "{[F12]", "expected": false },
+          { "input": "{[X123]", "expected": false },
+          { "input": "{[F623]", "expected": false }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "get_article_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_article",
+        "test_cases": [
+          { "input": "apple", "upper": false, "expected": "an" },
+          { "input": "apple", "upper": true, "expected": "An" },
+          { "input": "sword", "upper": false, "expected": "a" },
+          { "input": "sword", "upper": true, "expected": "A" },
+          { "input": "Umbra", "upper": false, "expected": "an" }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

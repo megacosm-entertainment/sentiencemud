@@ -3,13 +3,156 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <dirent.h>
+#include <time.h>
 #include "test_framework.h"
 #include "../../log.h"
 
 test_suite_t *test_suites = NULL;
 bool framework_initialized = false;
 test_config_t *global_test_config = NULL;
+
+typedef enum {
+    TEST_FILE_LOG_TEXT = 0,
+    TEST_FILE_LOG_JSON = 1
+} test_file_log_format_t;
+
+static FILE *test_file_log = NULL;
+static test_file_log_format_t test_file_log_format = TEST_FILE_LOG_TEXT;
+static char test_file_log_path[512] = "";
+
+static void build_iso8601_timestamp(char *buffer, size_t buffer_size)
+{
+    time_t now = time(NULL);
+    struct tm tm_now;
+
+    if (!buffer || buffer_size == 0) {
+        return;
+    }
+
+    if (!localtime_r(&now, &tm_now)) {
+        buffer[0] = '\0';
+        return;
+    }
+
+    strftime(buffer, buffer_size, "%Y-%m-%dT%H:%M:%S%z", &tm_now);
+}
+
+static const char *resolve_test_log_output_file(void)
+{
+    const char *env_file = getenv("SENTIENCE_TEST_LOG_FILE");
+    if (env_file && env_file[0]) {
+        return env_file;
+    }
+
+    if (global_test_config && global_test_config->log_output_file && global_test_config->log_output_file[0]) {
+        return global_test_config->log_output_file;
+    }
+
+    return NULL;
+}
+
+static const char *resolve_test_log_output_format(void)
+{
+    const char *env_format = getenv("SENTIENCE_TEST_LOG_FORMAT");
+    if (env_format && env_format[0]) {
+        return env_format;
+    }
+
+    if (global_test_config && global_test_config->log_output_format && global_test_config->log_output_format[0]) {
+        return global_test_config->log_output_format;
+    }
+
+    return "text";
+}
+
+static test_file_log_format_t parse_test_log_format(const char *format)
+{
+    if (format && (strcasecmp(format, "json") == 0 || strcasecmp(format, "jsonl") == 0)) {
+        return TEST_FILE_LOG_JSON;
+    }
+    return TEST_FILE_LOG_TEXT;
+}
+
+static void close_test_file_log(void)
+{
+    if (test_file_log) {
+        fclose(test_file_log);
+        test_file_log = NULL;
+    }
+    test_file_log_path[0] = '\0';
+}
+
+static void write_test_file_log_text(const char *event, const char *payload)
+{
+    char ts[40];
+    if (!test_file_log || !event) {
+        return;
+    }
+
+    build_iso8601_timestamp(ts, sizeof(ts));
+    fprintf(test_file_log, "[%s] event=%s", ts, event);
+    if (payload && payload[0]) {
+        fprintf(test_file_log, " %s", payload);
+    }
+    fputc('\n', test_file_log);
+    fflush(test_file_log);
+}
+
+static void write_test_file_log_json(json_t *event)
+{
+    if (!test_file_log || !event) {
+        return;
+    }
+
+    json_dumpf(event, test_file_log, JSON_COMPACT);
+    fputc('\n', test_file_log);
+    fflush(test_file_log);
+}
+
+static void configure_test_file_log(void)
+{
+    const char *output_file = resolve_test_log_output_file();
+    const char *format = resolve_test_log_output_format();
+
+    if (!output_file || !output_file[0]) {
+        close_test_file_log();
+        return;
+    }
+
+    test_file_log_format_t desired_format = parse_test_log_format(format);
+    if (test_file_log
+        && strcmp(test_file_log_path, output_file) == 0
+        && test_file_log_format == desired_format) {
+        return;
+    }
+
+    close_test_file_log();
+
+    test_file_log = fopen(output_file, "a");
+    if (!test_file_log) {
+        log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                      "Unable to open test log output file '%s'", output_file);
+        return;
+    }
+
+    test_file_log_format = desired_format;
+    snprintf(test_file_log_path, sizeof(test_file_log_path), "%s", output_file);
+
+    if (test_file_log_format == TEST_FILE_LOG_JSON) {
+        json_t *event = json_object();
+        char ts[40];
+        build_iso8601_timestamp(ts, sizeof(ts));
+        json_object_set_new(event, "ts", json_string(ts));
+        json_object_set_new(event, "event", json_string("session_start"));
+        json_object_set_new(event, "format", json_string("json"));
+        write_test_file_log_json(event);
+        json_decref(event);
+    } else {
+        write_test_file_log_text("session_start", "format=text");
+    }
+}
 
 void init_test_framework(void) {
     if (framework_initialized) {
@@ -18,6 +161,8 @@ void init_test_framework(void) {
     
     test_suites = NULL;
     framework_initialized = true;
+
+    configure_test_file_log();
     
     log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test framework initialized");
 }
@@ -57,6 +202,20 @@ void cleanup_test_framework(void) {
     cleanup_test_config();
     
     framework_initialized = false;
+
+    if (test_file_log_format == TEST_FILE_LOG_JSON && test_file_log) {
+        json_t *event = json_object();
+        char ts[40];
+        build_iso8601_timestamp(ts, sizeof(ts));
+        json_object_set_new(event, "ts", json_string(ts));
+        json_object_set_new(event, "event", json_string("session_end"));
+        write_test_file_log_json(event);
+        json_decref(event);
+    } else {
+        write_test_file_log_text("session_end", NULL);
+    }
+
+    close_test_file_log();
     
     log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test framework cleaned up");
 }
@@ -99,6 +258,98 @@ void print_test_stats(test_stats_t stats) {
     log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, 
                   "Test run complete: %d total, %d passed, %d failed, %d errors, %d skipped",
                   stats.total, stats.passed, stats.failed, stats.errors, stats.skipped);
+
+    if (test_file_log) {
+        if (test_file_log_format == TEST_FILE_LOG_JSON) {
+            char ts[40];
+            json_t *event = json_object();
+            build_iso8601_timestamp(ts, sizeof(ts));
+            json_object_set_new(event, "ts", json_string(ts));
+            json_object_set_new(event, "event", json_string("summary"));
+            json_object_set_new(event, "total", json_integer(stats.total));
+            json_object_set_new(event, "passed", json_integer(stats.passed));
+            json_object_set_new(event, "failed", json_integer(stats.failed));
+            json_object_set_new(event, "errors", json_integer(stats.errors));
+            json_object_set_new(event, "skipped", json_integer(stats.skipped));
+            write_test_file_log_json(event);
+            json_decref(event);
+        } else {
+            char payload[256];
+            snprintf(payload, sizeof(payload),
+                     "total=%d passed=%d failed=%d errors=%d skipped=%d",
+                     stats.total, stats.passed, stats.failed, stats.errors, stats.skipped);
+            write_test_file_log_text("summary", payload);
+        }
+    }
+}
+
+void test_log_suite_start(const char *suite_name)
+{
+    if (!test_file_log || !suite_name || !suite_name[0]) {
+        return;
+    }
+
+    if (test_file_log_format == TEST_FILE_LOG_JSON) {
+        char ts[40];
+        json_t *event = json_object();
+        build_iso8601_timestamp(ts, sizeof(ts));
+        json_object_set_new(event, "ts", json_string(ts));
+        json_object_set_new(event, "event", json_string("suite_start"));
+        json_object_set_new(event, "suite", json_string(suite_name));
+        write_test_file_log_json(event);
+        json_decref(event);
+    } else {
+        char payload[320];
+        snprintf(payload, sizeof(payload), "suite=%s", suite_name);
+        write_test_file_log_text("suite_start", payload);
+    }
+}
+
+void test_log_test_result(const test_case_t *test,
+                          test_result_t actual_result,
+                          double elapsed_seconds,
+                          bool has_input,
+                          bool has_expected_output,
+                          bool expected_result_known,
+                          test_result_t expected_result)
+{
+    if (!test_file_log || !test) {
+        return;
+    }
+
+    if (test_file_log_format == TEST_FILE_LOG_JSON) {
+        char ts[40];
+        json_t *event = json_object();
+        build_iso8601_timestamp(ts, sizeof(ts));
+
+        json_object_set_new(event, "ts", json_string(ts));
+        json_object_set_new(event, "event", json_string("test_result"));
+        json_object_set_new(event, "test", json_string(test->name ? test->name : ""));
+        json_object_set_new(event, "test_type", json_string(test->test_type ? test->test_type : ""));
+        json_object_set_new(event, "result", json_string(test_result_to_string(actual_result)));
+        json_object_set_new(event, "elapsed_seconds", json_real(elapsed_seconds));
+        json_object_set_new(event, "has_input", json_boolean(has_input));
+        json_object_set_new(event, "has_expected_output", json_boolean(has_expected_output));
+        json_object_set_new(event, "expected_known", json_boolean(expected_result_known));
+        if (expected_result_known) {
+            json_object_set_new(event, "expected_result", json_string(test_result_to_string(expected_result)));
+        }
+
+        write_test_file_log_json(event);
+        json_decref(event);
+    } else {
+        char payload[640];
+        snprintf(payload, sizeof(payload),
+                 "test=%s type=%s result=%s elapsed=%.6f input=%s expected_output=%s expected=%s",
+                 test->name ? test->name : "",
+                 test->test_type ? test->test_type : "",
+                 test_result_to_string(actual_result),
+                 elapsed_seconds,
+                 has_input ? "present" : "missing",
+                 has_expected_output ? "present" : "missing",
+                 expected_result_known ? test_result_to_string(expected_result) : "unspecified");
+        write_test_file_log_text("test_result", payload);
+    }
 }
 
 bool test_environment_ready(void) {
@@ -350,6 +601,7 @@ test_stats_t run_test_suite(test_suite_t *suite) {
     }
     
     log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Running test suite: %s", suite->name);
+    test_log_suite_start(suite->name);
     
     // Check if environment is ready for this suite
     if (suite->requires_mud_environment && !test_environment_ready()) {
@@ -602,6 +854,16 @@ bool load_test_config(const char *config_file) {
         global_test_config->verbose_test_details = test_json_get_bool(settings, "verbose_test_details");
         global_test_config->show_test_config = test_json_get_bool(settings, "show_test_config");
         global_test_config->show_execution_time = test_json_get_bool(settings, "show_execution_time");
+
+        const char *log_output_file = test_json_get_string(settings, "log_output_file");
+        if (log_output_file && log_output_file[0]) {
+            global_test_config->log_output_file = strdup(log_output_file);
+        }
+
+        const char *log_output_format = test_json_get_string(settings, "log_output_format");
+        if (log_output_format && log_output_format[0]) {
+            global_test_config->log_output_format = strdup(log_output_format);
+        }
     }
     
     // Helper function to load string arrays
@@ -657,6 +919,7 @@ bool load_test_config(const char *config_file) {
     }
     
     json_decref(root);
+    configure_test_file_log();
     log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test configuration loaded successfully");
     return true;
 }
@@ -706,6 +969,8 @@ void cleanup_test_config(void) {
     
     free(global_test_config->version);
     free(global_test_config->description);
+    free(global_test_config->log_output_file);
+    free(global_test_config->log_output_format);
     
     free_string_array(global_test_config->default_test_suites, global_test_config->default_suite_count);
     free_string_array(global_test_config->quick_test_suites, global_test_config->quick_suite_count);

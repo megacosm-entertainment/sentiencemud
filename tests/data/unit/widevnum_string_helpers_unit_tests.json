@@ -1,0 +1,64 @@
+{
+  "type": "test_suite",
+  "test_suite": "widevnum_string_helpers_unit_tests",
+  "description": "Pure-function unit tests for widevnum string formatting helpers",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "widevnum_string_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string",
+        "test_cases": [
+          {
+            "area": "Limbo",
+            "vnum": 1,
+            "ref_area": "Limbo",
+            "expected": "#1"
+          },
+          {
+            "area": "Limbo",
+            "vnum": 1,
+            "expected": "%AREA_UID%#1"
+          },
+          {
+            "vnum": 42,
+            "expected": "0#42"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "widevnum_string_wnum_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_wnum",
+        "test_cases": [
+          {
+            "area": "Limbo",
+            "vnum": 2,
+            "ref_area": "Limbo",
+            "expected": "#2"
+          },
+          {
+            "area": "Limbo",
+            "vnum": 2,
+            "expected": "%AREA_UID%#2"
+          },
+          {
+            "vnum": 7,
+            "expected": "0#7"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

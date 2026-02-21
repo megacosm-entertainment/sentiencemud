@@ -66,6 +66,28 @@
         "errors": [],
         "success": true
       }
+    },
+    {
+      "name": "area_uid_uniqueness",
+      "description": "Verify loaded areas do not contain duplicate positive UIDs",
+      "dependencies": [
+        "essential_areas_loaded"
+      ],
+      "test_type": "uid_uniqueness_check",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "area_global_config_valid",
+      "description": "Verify global area configuration values are sane",
+      "dependencies": [],
+      "test_type": "config_validator",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
     }
   ]
 }

@@ -217,6 +217,7 @@ static test_result_t test_reset_legacy_vnum(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
+    bool optional_if_missing = test_json_get_bool(input, "optional_if_missing");
     long room_vnum = test_json_get_int(input, "room_vnum");
     long entity_vnum = test_json_get_int(input, "entity_vnum");
     const char *reset_type = test_json_get_string(input, "reset_type");
@@ -224,6 +225,12 @@ static test_result_t test_reset_legacy_vnum(test_case_t *test)
     /* Find room */
     AREA_DATA *area = find_area_by_vnum(room_vnum, NULL);
     if (!area) {
+        if (optional_if_missing) {
+            log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                          "Skipping optional legacy reset test: room area not found for vnum %ld",
+                          room_vnum);
+            return TEST_SKIP;
+        }
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Room area not found for vnum %ld", room_vnum);
         return TEST_FAILURE;
@@ -231,6 +238,12 @@ static test_result_t test_reset_legacy_vnum(test_case_t *test)
     
     ROOM_INDEX_DATA *room = get_room_index(area, room_vnum);
     if (!room) {
+        if (optional_if_missing) {
+            log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                          "Skipping optional legacy reset test: room %ld not found",
+                          room_vnum);
+            return TEST_SKIP;
+        }
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Room %ld not found", room_vnum);
         return TEST_FAILURE;
@@ -246,6 +259,12 @@ static test_result_t test_reset_legacy_vnum(test_case_t *test)
             mob = get_mob_index_global(entity_vnum);
         }
         if (!mob) {
+            if (optional_if_missing) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Skipping optional legacy reset test: mob %ld not found",
+                              entity_vnum);
+                return TEST_SKIP;
+            }
             log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                           "Legacy reset: mob %ld not found", entity_vnum);
             return TEST_FAILURE;
@@ -258,6 +277,12 @@ static test_result_t test_reset_legacy_vnum(test_case_t *test)
             obj = get_obj_index_global(entity_vnum);
         }
         if (!obj) {
+            if (optional_if_missing) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Skipping optional legacy reset test: obj %ld not found",
+                              entity_vnum);
+                return TEST_SKIP;
+            }
             log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                           "Legacy reset: obj %ld not found", entity_vnum);
             return TEST_FAILURE;

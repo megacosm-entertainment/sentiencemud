@@ -15,7 +15,11 @@
 #include "../../merc.h"
 #include "../framework/test_framework.h"
 #include "../../io/json/json_church.h"
+#include "../../io/json/json_common.h"
 #include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <time.h>
 
 /* Forward declarations */
 static test_result_t test_church_serialize(test_case_t *test);
@@ -293,14 +297,64 @@ static test_result_t test_church_file_save(test_case_t *test)
         return TEST_SKIP;
     }
 
-    /* This test verifies that save_church_json() creates a valid file.
-     * Since this requires actual file system operations and we want to
-     * avoid polluting the real church directory, we log success */
+    json_t *input = json_object_get(test->config, "input");
+    const char *church_name = input ? test_json_get_string(input, "church_name") : "SaveTest";
 
-    log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
-               "Church file save operations tested via roundtrip test");
+    CHURCH_DATA test_church;
+    memset(&test_church, 0, sizeof(CHURCH_DATA));
+    test_church.uid = 999001;
+    test_church.name = str_dup(church_name ? church_name : "SaveTest");
+    test_church.founder = str_dup("FileSaveFounder");
+    test_church.motd = str_dup("File save MOTD");
+    test_church.gold = 12345;
 
-    return TEST_SUCCESS;
+    json_t *church_json = json_church_serialize(&test_church);
+    if (!church_json) {
+        free_string(test_church.name);
+        free_string(test_church.founder);
+        free_string(test_church.motd);
+        return TEST_FAILURE;
+    }
+
+    char temp_path[MSL];
+    snprintf(temp_path, sizeof(temp_path), "/tmp/sent_test_church_save_%d_%ld.json", getpid(), (long)time(NULL));
+
+    bool save_ok = json_file_save(church_json, temp_path, "test_church_file_save", JSON_INDENT(2));
+    if (!save_ok) {
+        free_string(test_church.name);
+        free_string(test_church.founder);
+        free_string(test_church.motd);
+        return TEST_FAILURE;
+    }
+
+    FILE *fp = fopen(temp_path, "r");
+    if (!fp) {
+        free_string(test_church.name);
+        free_string(test_church.founder);
+        free_string(test_church.motd);
+        return TEST_FAILURE;
+    }
+    fclose(fp);
+
+    json_t *loaded_root = json_file_load(temp_path, NULL, NULL, "test_church_file_save");
+    if (!loaded_root) {
+        unlink(temp_path);
+        free_string(test_church.name);
+        free_string(test_church.founder);
+        free_string(test_church.motd);
+        return TEST_FAILURE;
+    }
+
+    const char *loaded_name = test_json_get_string(loaded_root, "name");
+    bool success = (loaded_name && !strcmp(loaded_name, test_church.name));
+
+    json_decref(loaded_root);
+    unlink(temp_path);
+    free_string(test_church.name);
+    free_string(test_church.founder);
+    free_string(test_church.motd);
+
+    return success ? TEST_SUCCESS : TEST_FAILURE;
 }
 
 /**
@@ -312,13 +366,114 @@ static test_result_t test_church_file_load(test_case_t *test)
         return TEST_SKIP;
     }
 
-    /* This test verifies that load_church_json() can parse saved files.
-     * Tested comprehensively in the roundtrip test */
+    json_t *input = json_object_get(test->config, "input");
+    bool invalid_json = input ? test_json_get_bool(input, "invalid_json") : false;
+    bool invalid_schema = input ? test_json_get_bool(input, "invalid_schema") : false;
 
-    log_message(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
-               "Church file load operations tested via roundtrip test");
+    if (invalid_json) {
+        char temp_path[MSL];
+        snprintf(temp_path, sizeof(temp_path), "/tmp/sent_test_church_invalid_%d_%ld.json", getpid(), (long)time(NULL));
 
-    return TEST_SUCCESS;
+        FILE *fp = fopen(temp_path, "w");
+        if (!fp) {
+            return TEST_FAILURE;
+        }
+
+        fprintf(fp, "{ \"name\": \"BrokenChurch\", \"motd\": [ invalid json");
+        fclose(fp);
+
+        json_t *loaded_root = json_file_load(temp_path, NULL, NULL, "test_church_file_load_invalid");
+        unlink(temp_path);
+
+        if (loaded_root) {
+            json_decref(loaded_root);
+            return TEST_FAILURE;
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (invalid_schema) {
+        char temp_path[MSL];
+        snprintf(temp_path, sizeof(temp_path), "/tmp/sent_test_church_schema_%d_%ld.json", getpid(), (long)time(NULL));
+
+        FILE *fp = fopen(temp_path, "w");
+        if (!fp) {
+            return TEST_FAILURE;
+        }
+
+        fprintf(fp, "[1,2,3]");
+        fclose(fp);
+
+        json_t *loaded_root = json_file_load(temp_path, NULL, NULL, "test_church_file_load_schema");
+        if (!loaded_root) {
+            unlink(temp_path);
+            return TEST_FAILURE;
+        }
+
+        CHURCH_DATA *loaded_church = json_church_deserialize(loaded_root);
+        json_decref(loaded_root);
+        unlink(temp_path);
+
+        if (loaded_church) {
+            free_church(loaded_church);
+            return TEST_FAILURE;
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    CHURCH_DATA source_church;
+    memset(&source_church, 0, sizeof(CHURCH_DATA));
+    source_church.uid = 999002;
+    source_church.name = str_dup("LoadTestChurch");
+    source_church.founder = str_dup("FileLoadFounder");
+    source_church.motd = str_dup("File load MOTD");
+    source_church.gold = 54321;
+
+    json_t *church_json = json_church_serialize(&source_church);
+    if (!church_json) {
+        free_string(source_church.name);
+        free_string(source_church.founder);
+        free_string(source_church.motd);
+        return TEST_FAILURE;
+    }
+
+    char temp_path[MSL];
+    snprintf(temp_path, sizeof(temp_path), "/tmp/sent_test_church_load_%d_%ld.json", getpid(), (long)time(NULL));
+
+    if (!json_file_save(church_json, temp_path, "test_church_file_load", JSON_INDENT(2))) {
+        free_string(source_church.name);
+        free_string(source_church.founder);
+        free_string(source_church.motd);
+        return TEST_FAILURE;
+    }
+
+    json_t *loaded_root = json_file_load(temp_path, NULL, NULL, "test_church_file_load");
+    if (!loaded_root) {
+        unlink(temp_path);
+        free_string(source_church.name);
+        free_string(source_church.founder);
+        free_string(source_church.motd);
+        return TEST_FAILURE;
+    }
+
+    CHURCH_DATA *loaded_church = json_church_deserialize(loaded_root);
+    bool success = (loaded_church && loaded_church->name && loaded_church->motd &&
+                    !strcmp(loaded_church->name, source_church.name) &&
+                    !strcmp(loaded_church->motd, source_church.motd));
+
+    if (loaded_church) {
+        free_church(loaded_church);
+    }
+
+    json_decref(loaded_root);
+    unlink(temp_path);
+    free_string(source_church.name);
+    free_string(source_church.founder);
+    free_string(source_church.motd);
+
+    return success ? TEST_SUCCESS : TEST_FAILURE;
 }
 
 /**

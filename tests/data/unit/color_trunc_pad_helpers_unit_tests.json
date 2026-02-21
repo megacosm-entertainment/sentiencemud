@@ -1,0 +1,54 @@
+{
+  "type": "test_suite",
+  "test_suite": "color_trunc_pad_helpers_unit_tests",
+  "description": "Pure-function unit tests for color-aware truncation and padding helpers",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "colour_trunc_len_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "colour_trunc_len",
+        "test_cases": [
+          { "input": "abcdef", "limit": 3, "expected": 3 },
+          { "input": "{Rab", "limit": 1, "expected": 3 },
+          { "input": "{Rab", "limit": 2, "expected": 4 },
+          { "input": "{[F123]ab", "limit": 1, "expected": 8 },
+          { "input": "{[B050]ab", "limit": 2, "expected": 9 },
+          { "input": "{[B555]x", "limit": 1, "expected": 8 },
+          { "input": "{iab", "limit": 1, "expected": 3 },
+          { "input": "{fab", "limit": 1, "expected": 3 },
+          { "input": "{[F12]ab", "limit": 1, "expected": 1 },
+          { "input": "{[F129]ab", "limit": 1, "expected": 1 },
+          { "input": "a{[F123]\nb", "limit": 2, "expected": 9 },
+          { "input": "a{|b", "limit": 2, "expected": 3 },
+          { "input": "a\nb", "limit": 2, "expected": 2 },
+          { "input": "a\rb", "limit": 2, "expected": 2 },
+          { "input": "abc", "limit": -1, "expected": 0 },
+          { "input": "abc", "limit": 0, "expected": 0 }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "pad_string_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "pad_string",
+        "test_cases": [
+          { "input": "abc", "length": 5, "expected": "  " },
+          { "input": "abc", "length": 6, "character": "-", "expected": "---" },
+          { "input": "{Rabc{x", "length": 5, "character": ".", "expected": ".." },
+          { "input": "abcdef", "length": 3, "expected": "" }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

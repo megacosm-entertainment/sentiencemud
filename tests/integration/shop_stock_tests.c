@@ -18,7 +18,20 @@
 static test_result_t test_shop_stock_cross_area_creation(test_case_t *test);
 static test_result_t test_shop_stock_serialization(test_case_t *test);
 static test_result_t test_shop_stock_legacy_vnum(test_case_t *test);
+static test_result_t test_shop_stock_reference_integrity(test_case_t *test);
 static AREA_DATA *resolve_test_area(json_t *input, const char *name_key, const char *uid_key);
+
+static int resolve_stock_type(const char *stock_type_str)
+{
+    if (!stock_type_str || !stock_type_str[0]) return STOCK_OBJECT;
+    if (strcmp(stock_type_str, "pet") == 0) return STOCK_PET;
+    if (strcmp(stock_type_str, "mount") == 0) return STOCK_MOUNT;
+    if (strcmp(stock_type_str, "guard") == 0) return STOCK_GUARD;
+    if (strcmp(stock_type_str, "crew") == 0) return STOCK_CREW;
+    if (strcmp(stock_type_str, "ship") == 0) return STOCK_SHIP;
+    if (strcmp(stock_type_str, "custom") == 0) return STOCK_CUSTOM;
+    return STOCK_OBJECT;
+}
 
 static MOB_INDEX_DATA *resolve_test_shopkeeper(json_t *input, long shopkeeper_vnum, AREA_DATA **out_area)
 {
@@ -100,6 +113,9 @@ test_result_t run_shop_stock_test_case(test_case_t *test)
     else if (strcmp(test->test_type, "shop_stock_legacy_vnum") == 0) {
         result = test_shop_stock_legacy_vnum(test);
     }
+    else if (strcmp(test->test_type, "shop_stock_reference_integrity") == 0) {
+        result = test_shop_stock_reference_integrity(test);
+    }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Unknown shop stock test type: %s", test->test_type);
@@ -149,12 +165,7 @@ static test_result_t test_shop_stock_cross_area_creation(test_case_t *test)
     }
     
     /* Determine stock type */
-    int stock_type = STOCK_OBJECT;
-    if (strcmp(stock_type_str, "pet") == 0) stock_type = STOCK_PET;
-    else if (strcmp(stock_type_str, "mount") == 0) stock_type = STOCK_MOUNT;
-    else if (strcmp(stock_type_str, "guard") == 0) stock_type = STOCK_GUARD;
-    else if (strcmp(stock_type_str, "crew") == 0) stock_type = STOCK_CREW;
-    else if (strcmp(stock_type_str, "ship") == 0) stock_type = STOCK_SHIP;
+    int stock_type = resolve_stock_type(stock_type_str);
     
     /* Verify target entity exists */
     if (stock_type == STOCK_OBJECT) {
@@ -280,6 +291,7 @@ static test_result_t test_shop_stock_legacy_vnum(test_case_t *test)
     }
     
     json_t *input = json_object_get(test->config, "input");
+    bool optional_if_missing = test_json_get_bool(input, "optional_if_missing");
     long shopkeeper_vnum = test_json_get_int(input, "shopkeeper_vnum");
     long entity_vnum = test_json_get_int(input, "entity_vnum");
     const char *stock_type_str = test_json_get_string(input, "stock_type");
@@ -288,15 +300,19 @@ static test_result_t test_shop_stock_legacy_vnum(test_case_t *test)
     AREA_DATA *area = NULL;
     MOB_INDEX_DATA *shopkeeper = resolve_test_shopkeeper(input, shopkeeper_vnum, &area);
     if (!area || !shopkeeper) {
+        if (optional_if_missing) {
+            log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                          "Skipping optional legacy shop stock test: shopkeeper %ld not found",
+                          shopkeeper_vnum);
+            return TEST_SKIP;
+        }
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                       "Shopkeeper area not found for vnum %ld", shopkeeper_vnum);
         return TEST_FAILURE;
     }
     
     /* Determine stock type */
-    int stock_type = STOCK_OBJECT;
-    if (strcmp(stock_type_str, "pet") == 0) stock_type = STOCK_PET;
-    else if (strcmp(stock_type_str, "mount") == 0) stock_type = STOCK_MOUNT;
+    int stock_type = resolve_stock_type(stock_type_str);
     
     /* Verify fallback lookup works */
     AREA_DATA *fallback_area = area;
@@ -308,6 +324,12 @@ static test_result_t test_shop_stock_legacy_vnum(test_case_t *test)
             obj = get_obj_index_global(entity_vnum);
         }
         if (!obj) {
+            if (optional_if_missing) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Skipping optional legacy shop stock test: obj %ld not found",
+                              entity_vnum);
+                return TEST_SKIP;
+            }
             log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                           "Legacy stock: obj %ld not found", entity_vnum);
             return TEST_FAILURE;
@@ -320,6 +342,12 @@ static test_result_t test_shop_stock_legacy_vnum(test_case_t *test)
             mob = get_mob_index_global(entity_vnum);
         }
         if (!mob) {
+            if (optional_if_missing) {
+                log_message_f(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                              "Skipping optional legacy shop stock test: mob %ld not found",
+                              entity_vnum);
+                return TEST_SKIP;
+            }
             log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
                           "Legacy stock: mob %ld not found", entity_vnum);
             return TEST_FAILURE;
@@ -330,6 +358,95 @@ static test_result_t test_shop_stock_legacy_vnum(test_case_t *test)
                   "Legacy stock validated: type %d, vnum %ld (fallback successful)",
                   stock_type, entity_vnum);
     
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test explicit stock reference integrity and pointer resolution
+ */
+static test_result_t test_shop_stock_reference_integrity(test_case_t *test)
+{
+    if (!test_environment_ready()) {
+        return TEST_SKIP;
+    }
+
+    json_t *input = json_object_get(test->config, "input");
+    bool optional_if_missing = test_json_get_bool(input, "optional_if_missing");
+    long shopkeeper_vnum = test_json_get_int(input, "shopkeeper_vnum");
+
+    AREA_DATA *area = NULL;
+    MOB_INDEX_DATA *shopkeeper = resolve_test_shopkeeper(input, shopkeeper_vnum, &area);
+    if (!area || !shopkeeper || !shopkeeper->pShop) {
+        return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
+    }
+
+    json_t *expected_entries = json_object_get(input, "expected_entries");
+    if (!expected_entries || !json_is_array(expected_entries)) {
+        return TEST_ERROR;
+    }
+
+    size_t index;
+    json_t *entry;
+    json_array_foreach(expected_entries, index, entry) {
+        const char *stock_type_str = test_json_get_string(entry, "stock_type");
+        int expected_type = resolve_stock_type(stock_type_str);
+        long expected_vnum = test_json_get_int(entry, "entity_vnum");
+        bool require_pointer = true;
+        if (json_object_get(entry, "require_pointer_resolution")) {
+            require_pointer = test_json_get_bool(entry, "require_pointer_resolution");
+        }
+
+        AREA_DATA *expected_area = resolve_test_area(entry, "entity_area_name", "entity_area_uid");
+
+        SHOP_STOCK_DATA *matched = NULL;
+        for (SHOP_STOCK_DATA *stock = shopkeeper->pShop->stock; stock; stock = stock->next) {
+            if (stock->type != expected_type) {
+                continue;
+            }
+
+            if (stock->entity.wnum.vnum != expected_vnum) {
+                continue;
+            }
+
+            if (expected_area && stock->entity.wnum.pArea != expected_area) {
+                continue;
+            }
+
+            matched = stock;
+            break;
+        }
+
+        if (!matched) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                          "Expected stock entry not found: type=%d area=%s vnum=%ld",
+                          expected_type,
+                          expected_area ? expected_area->name : "(any)",
+                          expected_vnum);
+            return optional_if_missing ? TEST_SKIP : TEST_FAILURE;
+        }
+
+        if (require_pointer) {
+            bool resolved = true;
+            if (matched->type == STOCK_OBJECT) {
+                resolved = (matched->obj != NULL);
+            } else if (matched->type == STOCK_PET || matched->type == STOCK_MOUNT ||
+                       matched->type == STOCK_GUARD || matched->type == STOCK_CREW) {
+                resolved = (matched->mob != NULL);
+            } else if (matched->type == STOCK_SHIP) {
+                resolved = (matched->ship != NULL);
+            }
+
+            if (!resolved) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                              "Stock pointer resolution failed: type=%d area_uid=%ld vnum=%ld",
+                              matched->type,
+                              matched->entity.wnum.pArea ? matched->entity.wnum.pArea->uid : 0,
+                              matched->entity.wnum.vnum);
+                return TEST_FAILURE;
+            }
+        }
+    }
+
     return TEST_SUCCESS;
 }
 

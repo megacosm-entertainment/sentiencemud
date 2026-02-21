@@ -28,6 +28,9 @@
       ],
       "test_type": "redis_area_cached_test",
       "input": {
+        "validate_cached_json": true,
+        "require_cache_hits": false,
+        "min_cached_hits": 1,
         "areas_to_check": [
           {
             "name": "Limbo",
@@ -36,6 +39,10 @@
           {
             "name": "Bootstrap Reserved",
             "expected_key_pattern": "area:full:bootstrap"
+          },
+          {
+            "name": "Blueprints Testing",
+            "expected_key_pattern": "area:full:blueprints"
           }
         ]
       },
@@ -54,9 +61,13 @@
       "test_type": "redis_area_cache_format_test",
       "input": {
         "area_name": "Limbo",
+        "expected_uid": 923,
+        "expected_filename": "limbo.json",
         "expected_json_fields": [
           "schema_version",
-          "area",
+          "area.uid",
+          "area.name",
+          "area.filename",
           "rooms"
         ]
       },
@@ -75,7 +86,9 @@
       "test_type": "redis_warm_queue_test",
       "input": {
         "max_wait_seconds": 120,
-        "check_queue_empty": true
+        "check_queue_empty": true,
+        "max_queue_size": 100,
+        "strict": false
       },
       "expected_output": {
         "queue_empty": true,

@@ -1,0 +1,94 @@
+{
+  "type": "test_suite",
+  "test_suite": "widevnum_load_helpers_unit_tests",
+  "description": "Pure-function unit tests for lightweight widevnum load/format helpers",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "parse_widevnum_load_core_cases",
+      "description": "Parses widevnum-load forms into raw auid/vnum pairs",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "parse_widevnum_load",
+        "test_cases": [
+          {
+            "input": "923#1201",
+            "expected_success": true,
+            "expected_auid": 923,
+            "expected_vnum": 1201
+          },
+          {
+            "input": "1201",
+            "expected_success": true,
+            "expected_auid": 0,
+            "expected_vnum": 1201
+          },
+          {
+            "input": "0#1201",
+            "expected_success": true,
+            "expected_auid": 0,
+            "expected_vnum": 1201
+          },
+          {
+            "input": "0",
+            "expected_success": false,
+            "expected_auid": 0,
+            "expected_vnum": 0
+          },
+          {
+            "input": "abc",
+            "expected_success": false,
+            "expected_auid": 0,
+            "expected_vnum": 0
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "is_widevnum_format_core_cases",
+      "description": "Validates strict auid#vnum format detection",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "is_widevnum_format",
+        "test_cases": [
+          {
+            "input": "923#1201",
+            "expected": true
+          },
+          {
+            "input": "001#0001",
+            "expected": true
+          },
+          {
+            "input": "#1201",
+            "expected": false
+          },
+          {
+            "input": "923#",
+            "expected": false
+          },
+          {
+            "input": "923",
+            "expected": false
+          },
+          {
+            "input": "limbo#1201",
+            "expected": false
+          },
+          {
+            "input": "923#1201x",
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

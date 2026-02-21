@@ -33,7 +33,8 @@
       "input": {
         "test_mode": "numeric",
         "find_any_area": true,
-        "use_area_uid": true
+        "use_area_uid": true,
+        "expected_matches_first": true
       },
       "expected_output": {
         "success": true,
@@ -48,7 +49,8 @@
       "input": {
         "test_mode": "name",
         "area_name": "Limbo",
-        "fallback_to_first": true
+        "fallback_to_first": true,
+        "expected_area_name": "Limbo"
       },
       "expected_output": {
         "success": true,
@@ -78,7 +80,7 @@
       ],
       "test_type": "widevnum_parse_fallback_test",
       "input": {
-        "widevnum_string": "1234",
+        "widevnum_string": "1",
         "current_area": null,
         "expect_system_area_usage": true
       },
@@ -98,6 +100,7 @@
       "input": {
         "explicit_area_name": "Bootstrap Reserved",
         "explicit_vnum": 1,
+        "widevnum_string": "1#1",
         "current_area": null,
         "expect_explicit_area": true
       },

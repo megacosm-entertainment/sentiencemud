@@ -5,6 +5,7 @@
 #include "../framework/test_framework.h"
 #include "../../merc.h"
 #include "../../log.h"
+#include "../../tables.h"
 
 bool string_argremove_index(char *src, int argindex, char *buf);
 bool string_argremove_phrase(char *src, char *phrase, char *buf);
@@ -12,6 +13,25 @@ char *string_linedel(char *string, int line);
 char *string_lineadd(char *string, char *newstr, int line);
 char *olc_getline(char *str, char *buf);
 char *numlineas(char *string);
+bool is_valid_colour_code(const char *code);
+
+static const struct flag_type *resolve_flag_table_for_test(const char *table_name) {
+    if (!table_name) {
+        return NULL;
+    }
+
+    if (str_cmp(table_name, "type_flags") == 0) {
+        return type_flags;
+    }
+    if (str_cmp(table_name, "room_flags") == 0) {
+        return room_flags;
+    }
+    if (str_cmp(table_name, "exit_flags") == 0) {
+        return exit_flags;
+    }
+
+    return NULL;
+}
 
 static bool ends_with_crlf(const char *str) {
     size_t len;
@@ -136,6 +156,1252 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
         if (test->verbose_output) {
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Pure function test passed for %s", func_name);
         }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "parse_widevnum_load") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            bool expected_success = test_json_get_bool(test_case, "expected_success");
+            long expected_auid = test_json_get_int(test_case, "expected_auid");
+            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
+            WNUM_LOAD actual = { 0, 0 };
+            bool success;
+
+            if (!input_str) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "parse_widevnum_load test case missing input");
+                return TEST_ERROR;
+            }
+
+            success = parse_widevnum_load(input_str, &actual);
+
+            if (success != expected_success) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "parse_widevnum_load('%s') success=%s, expected %s",
+                             input_str,
+                             success ? "true" : "false",
+                             expected_success ? "true" : "false");
+                return TEST_FAILURE;
+            }
+
+            if (actual.auid != expected_auid || actual.vnum != expected_vnum) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "parse_widevnum_load('%s') returned (%ld,%ld), expected (%ld,%ld)",
+                             input_str,
+                             actual.auid,
+                             actual.vnum,
+                             expected_auid,
+                             expected_vnum);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "is_widevnum_format") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            bool expected = test_json_get_bool(test_case, "expected");
+            bool actual;
+
+            if (!input_str) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "is_widevnum_format test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = is_widevnum_format(input_str);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "is_widevnum_format('%s') returned %s, expected %s",
+                             input_str,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "wnum_match") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *wnum_area_name = test_json_get_string(test_case, "wnum_area");
+            long wnum_vnum = test_json_get_int(test_case, "wnum_vnum");
+            const char *compare_area_name = test_json_get_string(test_case, "compare_area");
+            long compare_vnum = test_json_get_int(test_case, "compare_vnum");
+            bool expected = test_json_get_bool(test_case, "expected");
+            AREA_DATA *wnum_area = NULL;
+            AREA_DATA *compare_area = NULL;
+            WNUM wnum = wnum_zero;
+            bool actual;
+
+            if (wnum_area_name)
+                wnum_area = find_area((char *)wnum_area_name);
+            if (compare_area_name)
+                compare_area = find_area((char *)compare_area_name);
+
+            if (wnum_area_name && !wnum_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match test case references unknown wnum_area '%s'",
+                             wnum_area_name);
+                return TEST_ERROR;
+            }
+
+            if (compare_area_name && !compare_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match test case references unknown compare_area '%s'",
+                             compare_area_name);
+                return TEST_ERROR;
+            }
+
+            wnum.pArea = wnum_area;
+            wnum.vnum = wnum_vnum;
+            actual = wnum_match(wnum, compare_area, compare_vnum);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match case %zu returned %s, expected %s",
+                             index,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "wnum_match_room") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *wnum_area_name = test_json_get_string(test_case, "wnum_area");
+            long wnum_vnum = test_json_get_int(test_case, "wnum_vnum");
+            const char *room_area_name = test_json_get_string(test_case, "room_area");
+            long room_vnum = test_json_get_int(test_case, "room_vnum");
+            bool room_is_clone = test_json_get_bool(test_case, "room_is_clone");
+            bool use_null_room = test_json_get_bool(test_case, "use_null_room");
+            bool expected = test_json_get_bool(test_case, "expected");
+            AREA_DATA *wnum_area = NULL;
+            AREA_DATA *room_area = NULL;
+            ROOM_INDEX_DATA *room = NULL;
+            ROOM_INDEX_DATA clone_room;
+            WNUM wnum = wnum_zero;
+            bool actual;
+
+            if (wnum_area_name)
+                wnum_area = find_area((char *)wnum_area_name);
+            if (room_area_name)
+                room_area = find_area((char *)room_area_name);
+
+            if (wnum_area_name && !wnum_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_room test case references unknown wnum_area '%s'",
+                             wnum_area_name);
+                return TEST_ERROR;
+            }
+
+            if (room_area_name && !room_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_room test case references unknown room_area '%s'",
+                             room_area_name);
+                return TEST_ERROR;
+            }
+
+            if (!use_null_room) {
+                room = get_room_index(room_area, room_vnum);
+                if (!room) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "wnum_match_room test case references unknown room %s#%ld",
+                                 room_area_name ? room_area_name : "(null)",
+                                 room_vnum);
+                    return TEST_ERROR;
+                }
+
+                if (room_is_clone) {
+                    memset(&clone_room, 0, sizeof(clone_room));
+                    clone_room.area = room->area;
+                    clone_room.vnum = room->vnum;
+                    clone_room.source = room;
+                    room = &clone_room;
+                }
+            }
+
+            wnum.pArea = wnum_area;
+            wnum.vnum = wnum_vnum;
+            actual = wnum_match_room(wnum, use_null_room ? NULL : room);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_room case %zu returned %s, expected %s",
+                             index,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "wnum_match_obj") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *wnum_area_name = test_json_get_string(test_case, "wnum_area");
+            long wnum_vnum = test_json_get_int(test_case, "wnum_vnum");
+            const char *index_area_name = test_json_get_string(test_case, "index_area");
+            long index_vnum = test_json_get_int(test_case, "index_vnum");
+            bool use_null_obj = test_json_get_bool(test_case, "use_null_obj");
+            bool obj_valid = test_json_get_bool(test_case, "obj_valid");
+            bool obj_has_index = test_json_get_bool(test_case, "obj_has_index");
+            bool expected = test_json_get_bool(test_case, "expected");
+            AREA_DATA *wnum_area = NULL;
+            AREA_DATA *index_area = NULL;
+            OBJ_DATA obj;
+            OBJ_INDEX_DATA obj_index;
+            WNUM wnum = wnum_zero;
+            bool actual;
+
+            if (wnum_area_name)
+                wnum_area = find_area((char *)wnum_area_name);
+            if (index_area_name)
+                index_area = find_area((char *)index_area_name);
+
+            if (wnum_area_name && !wnum_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_obj case references unknown wnum_area '%s'",
+                             wnum_area_name);
+                return TEST_ERROR;
+            }
+
+            if (index_area_name && !index_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_obj case references unknown index_area '%s'",
+                             index_area_name);
+                return TEST_ERROR;
+            }
+
+            memset(&obj, 0, sizeof(obj));
+            memset(&obj_index, 0, sizeof(obj_index));
+            obj.valid = obj_valid;
+
+            if (obj_has_index) {
+                obj_index.area = index_area;
+                obj_index.vnum = index_vnum;
+                obj.pIndexData = &obj_index;
+            }
+
+            wnum.pArea = wnum_area;
+            wnum.vnum = wnum_vnum;
+            actual = wnum_match_obj(wnum, use_null_obj ? NULL : &obj);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_obj case %zu returned %s, expected %s",
+                             index,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "wnum_match_mob") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *wnum_area_name = test_json_get_string(test_case, "wnum_area");
+            long wnum_vnum = test_json_get_int(test_case, "wnum_vnum");
+            const char *index_area_name = test_json_get_string(test_case, "index_area");
+            long index_vnum = test_json_get_int(test_case, "index_vnum");
+            bool use_null_mob = test_json_get_bool(test_case, "use_null_mob");
+            bool mob_valid = test_json_get_bool(test_case, "mob_valid");
+            bool mob_is_npc = test_json_get_bool(test_case, "mob_is_npc");
+            bool mob_has_index = test_json_get_bool(test_case, "mob_has_index");
+            bool expected = test_json_get_bool(test_case, "expected");
+            AREA_DATA *wnum_area = NULL;
+            AREA_DATA *index_area = NULL;
+            CHAR_DATA mob;
+            MOB_INDEX_DATA mob_index;
+            WNUM wnum = wnum_zero;
+            bool actual;
+
+            if (wnum_area_name)
+                wnum_area = find_area((char *)wnum_area_name);
+            if (index_area_name)
+                index_area = find_area((char *)index_area_name);
+
+            if (wnum_area_name && !wnum_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_mob case references unknown wnum_area '%s'",
+                             wnum_area_name);
+                return TEST_ERROR;
+            }
+
+            if (index_area_name && !index_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_mob case references unknown index_area '%s'",
+                             index_area_name);
+                return TEST_ERROR;
+            }
+
+            memset(&mob, 0, sizeof(mob));
+            memset(&mob_index, 0, sizeof(mob_index));
+            mob.valid = mob_valid;
+            if (mob_is_npc)
+                SET_BIT(mob.act[0], ACT_IS_NPC);
+
+            if (mob_has_index) {
+                mob_index.area = index_area;
+                mob_index.vnum = index_vnum;
+                mob.pIndexData = &mob_index;
+            }
+
+            wnum.pArea = wnum_area;
+            wnum.vnum = wnum_vnum;
+            actual = wnum_match_mob(wnum, use_null_mob ? NULL : &mob);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_mob case %zu returned %s, expected %s",
+                             index,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "wnum_match_token") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *wnum_area_name = test_json_get_string(test_case, "wnum_area");
+            long wnum_vnum = test_json_get_int(test_case, "wnum_vnum");
+            const char *index_area_name = test_json_get_string(test_case, "index_area");
+            long index_vnum = test_json_get_int(test_case, "index_vnum");
+            bool use_null_token = test_json_get_bool(test_case, "use_null_token");
+            bool token_valid = test_json_get_bool(test_case, "token_valid");
+            bool token_has_index = test_json_get_bool(test_case, "token_has_index");
+            bool expected = test_json_get_bool(test_case, "expected");
+            AREA_DATA *wnum_area = NULL;
+            AREA_DATA *index_area = NULL;
+            TOKEN_DATA token;
+            TOKEN_INDEX_DATA token_index;
+            WNUM wnum = wnum_zero;
+            bool actual;
+
+            if (wnum_area_name)
+                wnum_area = find_area((char *)wnum_area_name);
+            if (index_area_name)
+                index_area = find_area((char *)index_area_name);
+
+            if (wnum_area_name && !wnum_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_token case references unknown wnum_area '%s'",
+                             wnum_area_name);
+                return TEST_ERROR;
+            }
+
+            if (index_area_name && !index_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_token case references unknown index_area '%s'",
+                             index_area_name);
+                return TEST_ERROR;
+            }
+
+            memset(&token, 0, sizeof(token));
+            memset(&token_index, 0, sizeof(token_index));
+            token.valid = token_valid;
+
+            if (token_has_index) {
+                token_index.area = index_area;
+                token_index.vnum = index_vnum;
+                token.pIndexData = &token_index;
+            }
+
+            wnum.pArea = wnum_area;
+            wnum.vnum = wnum_vnum;
+            actual = wnum_match_token(wnum, use_null_token ? NULL : &token);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wnum_match_token case %zu returned %s, expected %s",
+                             index,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_room_wnum") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *room_area_name = test_json_get_string(test_case, "room_area");
+            long room_vnum = test_json_get_int(test_case, "room_vnum");
+            const char *expected_area_name = test_json_get_string(test_case, "expected_area");
+            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
+            bool use_null_room = test_json_get_bool(test_case, "use_null_room");
+            bool use_null_out = test_json_get_bool(test_case, "use_null_out");
+            AREA_DATA *room_area = NULL;
+            AREA_DATA *expected_area = NULL;
+            ROOM_INDEX_DATA room;
+            WNUM out = wnum_zero;
+
+            if (room_area_name)
+                room_area = find_area((char *)room_area_name);
+            if (expected_area_name)
+                expected_area = find_area((char *)expected_area_name);
+
+            if (room_area_name && !room_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_room_wnum case references unknown room_area '%s'",
+                             room_area_name);
+                return TEST_ERROR;
+            }
+
+            if (expected_area_name && !expected_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_room_wnum case references unknown expected_area '%s'",
+                             expected_area_name);
+                return TEST_ERROR;
+            }
+
+            memset(&room, 0, sizeof(room));
+            room.area = room_area;
+            room.vnum = room_vnum;
+
+            out.pArea = (AREA_DATA *)0x1;
+            out.vnum = -1;
+            get_room_wnum(use_null_room ? NULL : &room, use_null_out ? NULL : &out);
+
+            if (!use_null_out && (out.pArea != expected_area || out.vnum != expected_vnum)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_room_wnum case %zu returned (%p,%ld), expected (%p,%ld)",
+                             index,
+                             (void *)out.pArea,
+                             out.vnum,
+                             (void *)expected_area,
+                             expected_vnum);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_mob_wnum") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *mob_area_name = test_json_get_string(test_case, "mob_area");
+            long mob_vnum = test_json_get_int(test_case, "mob_vnum");
+            const char *expected_area_name = test_json_get_string(test_case, "expected_area");
+            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
+            bool use_null_mob = test_json_get_bool(test_case, "use_null_mob");
+            bool use_null_out = test_json_get_bool(test_case, "use_null_out");
+            AREA_DATA *mob_area = NULL;
+            AREA_DATA *expected_area = NULL;
+            MOB_INDEX_DATA mob;
+            WNUM out = wnum_zero;
+
+            if (mob_area_name)
+                mob_area = find_area((char *)mob_area_name);
+            if (expected_area_name)
+                expected_area = find_area((char *)expected_area_name);
+
+            if (mob_area_name && !mob_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_mob_wnum case references unknown mob_area '%s'",
+                             mob_area_name);
+                return TEST_ERROR;
+            }
+
+            if (expected_area_name && !expected_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_mob_wnum case references unknown expected_area '%s'",
+                             expected_area_name);
+                return TEST_ERROR;
+            }
+
+            memset(&mob, 0, sizeof(mob));
+            mob.area = mob_area;
+            mob.vnum = mob_vnum;
+
+            out.pArea = (AREA_DATA *)0x1;
+            out.vnum = -1;
+            get_mob_wnum(use_null_mob ? NULL : &mob, use_null_out ? NULL : &out);
+
+            if (!use_null_out && (out.pArea != expected_area || out.vnum != expected_vnum)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_mob_wnum case %zu returned (%p,%ld), expected (%p,%ld)",
+                             index,
+                             (void *)out.pArea,
+                             out.vnum,
+                             (void *)expected_area,
+                             expected_vnum);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_obj_wnum") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *obj_area_name = test_json_get_string(test_case, "obj_area");
+            long obj_vnum = test_json_get_int(test_case, "obj_vnum");
+            const char *expected_area_name = test_json_get_string(test_case, "expected_area");
+            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
+            bool use_null_obj = test_json_get_bool(test_case, "use_null_obj");
+            bool use_null_out = test_json_get_bool(test_case, "use_null_out");
+            AREA_DATA *obj_area = NULL;
+            AREA_DATA *expected_area = NULL;
+            OBJ_INDEX_DATA obj;
+            WNUM out = wnum_zero;
+
+            if (obj_area_name)
+                obj_area = find_area((char *)obj_area_name);
+            if (expected_area_name)
+                expected_area = find_area((char *)expected_area_name);
+
+            if (obj_area_name && !obj_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_obj_wnum case references unknown obj_area '%s'",
+                             obj_area_name);
+                return TEST_ERROR;
+            }
+
+            if (expected_area_name && !expected_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_obj_wnum case references unknown expected_area '%s'",
+                             expected_area_name);
+                return TEST_ERROR;
+            }
+
+            memset(&obj, 0, sizeof(obj));
+            obj.area = obj_area;
+            obj.vnum = obj_vnum;
+
+            out.pArea = (AREA_DATA *)0x1;
+            out.vnum = -1;
+            get_obj_wnum(use_null_obj ? NULL : &obj, use_null_out ? NULL : &out);
+
+            if (!use_null_out && (out.pArea != expected_area || out.vnum != expected_vnum)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_obj_wnum case %zu returned (%p,%ld), expected (%p,%ld)",
+                             index,
+                             (void *)out.pArea,
+                             out.vnum,
+                             (void *)expected_area,
+                             expected_vnum);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_token_wnum") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *token_area_name = test_json_get_string(test_case, "token_area");
+            long token_vnum = test_json_get_int(test_case, "token_vnum");
+            const char *expected_area_name = test_json_get_string(test_case, "expected_area");
+            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
+            bool use_null_token = test_json_get_bool(test_case, "use_null_token");
+            bool use_null_out = test_json_get_bool(test_case, "use_null_out");
+            AREA_DATA *token_area = NULL;
+            AREA_DATA *expected_area = NULL;
+            TOKEN_INDEX_DATA token;
+            WNUM out = wnum_zero;
+
+            if (token_area_name)
+                token_area = find_area((char *)token_area_name);
+            if (expected_area_name)
+                expected_area = find_area((char *)expected_area_name);
+
+            if (token_area_name && !token_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_token_wnum case references unknown token_area '%s'",
+                             token_area_name);
+                return TEST_ERROR;
+            }
+
+            if (expected_area_name && !expected_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_token_wnum case references unknown expected_area '%s'",
+                             expected_area_name);
+                return TEST_ERROR;
+            }
+
+            memset(&token, 0, sizeof(token));
+            token.area = token_area;
+            token.vnum = token_vnum;
+
+            out.pArea = (AREA_DATA *)0x1;
+            out.vnum = -1;
+            get_token_wnum(use_null_token ? NULL : &token, use_null_out ? NULL : &out);
+
+            if (!use_null_out && (out.pArea != expected_area || out.vnum != expected_vnum)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_token_wnum case %zu returned (%p,%ld), expected (%p,%ld)",
+                             index,
+                             (void *)out.pArea,
+                             out.vnum,
+                             (void *)expected_area,
+                             expected_vnum);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "widevnum_string") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *area_name = test_json_get_string(test_case, "area");
+            long vnum = test_json_get_int(test_case, "vnum");
+            const char *ref_area_name = test_json_get_string(test_case, "ref_area");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char expected_dynamic[MSL];
+            AREA_DATA *area = NULL;
+            AREA_DATA *ref_area = NULL;
+            const char *actual;
+
+            if (!expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "widevnum_string test case missing expected");
+                return TEST_ERROR;
+            }
+
+            if (area_name)
+                area = find_area((char *)area_name);
+            if (ref_area_name)
+                ref_area = find_area((char *)ref_area_name);
+
+            if (area_name && !area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "widevnum_string case references unknown area '%s'",
+                             area_name);
+                return TEST_ERROR;
+            }
+
+            if (ref_area_name && !ref_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "widevnum_string case references unknown ref_area '%s'",
+                             ref_area_name);
+                return TEST_ERROR;
+            }
+
+            if (strstr(expected, "%AREA_UID%") != NULL) {
+                if (!area) {
+                    log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                               "widevnum_string expected uses %AREA_UID% but area is NULL");
+                    return TEST_ERROR;
+                }
+                snprintf(expected_dynamic, sizeof(expected_dynamic), "%ld#%ld", area->uid, vnum);
+                expected = expected_dynamic;
+            }
+
+            actual = widevnum_string(area, vnum, ref_area);
+            if (!actual || str_cmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "widevnum_string case %zu returned '%s', expected '%s'",
+                             index,
+                             actual ? actual : "(null)",
+                             expected);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "widevnum_string_wnum") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *area_name = test_json_get_string(test_case, "area");
+            long vnum = test_json_get_int(test_case, "vnum");
+            const char *ref_area_name = test_json_get_string(test_case, "ref_area");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char expected_dynamic[MSL];
+            AREA_DATA *area = NULL;
+            AREA_DATA *ref_area = NULL;
+            WNUM wnum = wnum_zero;
+            const char *actual;
+
+            if (!expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "widevnum_string_wnum test case missing expected");
+                return TEST_ERROR;
+            }
+
+            if (area_name)
+                area = find_area((char *)area_name);
+            if (ref_area_name)
+                ref_area = find_area((char *)ref_area_name);
+
+            if (area_name && !area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "widevnum_string_wnum case references unknown area '%s'",
+                             area_name);
+                return TEST_ERROR;
+            }
+
+            if (ref_area_name && !ref_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "widevnum_string_wnum case references unknown ref_area '%s'",
+                             ref_area_name);
+                return TEST_ERROR;
+            }
+
+            if (strstr(expected, "%AREA_UID%") != NULL) {
+                if (!area) {
+                    log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                               "widevnum_string_wnum expected uses %AREA_UID% but area is NULL");
+                    return TEST_ERROR;
+                }
+                snprintf(expected_dynamic, sizeof(expected_dynamic), "%ld#%ld", area->uid, vnum);
+                expected = expected_dynamic;
+            }
+
+            wnum.pArea = area;
+            wnum.vnum = vnum;
+            actual = widevnum_string_wnum(wnum, ref_area);
+            if (!actual || str_cmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "widevnum_string_wnum case %zu returned '%s', expected '%s'",
+                             index,
+                             actual ? actual : "(null)",
+                             expected);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "widevnum_string_mobile") == 0
+        || strcmp(func_name, "widevnum_string_object") == 0
+        || strcmp(func_name, "widevnum_string_room") == 0
+        || strcmp(func_name, "widevnum_string_token") == 0
+        || strcmp(func_name, "widevnum_string_script") == 0
+        || strcmp(func_name, "widevnum_string_blueprint") == 0
+        || strcmp(func_name, "widevnum_string_blueprint_section") == 0
+        || strcmp(func_name, "widevnum_string_dungeon") == 0
+        || strcmp(func_name, "widevnum_string_ship") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *area_name = test_json_get_string(test_case, "area");
+            const char *ref_area_name = test_json_get_string(test_case, "ref_area");
+            const char *expected = test_json_get_string(test_case, "expected");
+            long vnum = test_json_get_int(test_case, "vnum");
+            bool use_null_entity = test_json_get_bool(test_case, "use_null_entity");
+            char expected_dynamic[MSL];
+            AREA_DATA *area = NULL;
+            AREA_DATA *ref_area = NULL;
+            const char *actual = NULL;
+
+            if (!expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "widevnum_string_* wrapper test case missing expected");
+                return TEST_ERROR;
+            }
+
+            if (area_name)
+                area = find_area((char *)area_name);
+            if (ref_area_name)
+                ref_area = find_area((char *)ref_area_name);
+
+            if (area_name && !area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "%s case references unknown area '%s'",
+                             func_name,
+                             area_name);
+                return TEST_ERROR;
+            }
+
+            if (ref_area_name && !ref_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "%s case references unknown ref_area '%s'",
+                             func_name,
+                             ref_area_name);
+                return TEST_ERROR;
+            }
+
+            if (strstr(expected, "%AREA_UID%") != NULL) {
+                if (!area) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "%s expected uses %%AREA_UID%% but area is NULL",
+                                 func_name);
+                    return TEST_ERROR;
+                }
+                snprintf(expected_dynamic, sizeof(expected_dynamic), "%ld#%ld", area->uid, vnum);
+                expected = expected_dynamic;
+            }
+
+            if (strcmp(func_name, "widevnum_string_mobile") == 0) {
+                MOB_INDEX_DATA mob;
+                memset(&mob, 0, sizeof(mob));
+                mob.area = area;
+                mob.vnum = vnum;
+                actual = widevnum_string_mobile(use_null_entity ? NULL : &mob, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_object") == 0) {
+                OBJ_INDEX_DATA obj;
+                memset(&obj, 0, sizeof(obj));
+                obj.area = area;
+                obj.vnum = vnum;
+                actual = widevnum_string_object(use_null_entity ? NULL : &obj, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_room") == 0) {
+                ROOM_INDEX_DATA room;
+                memset(&room, 0, sizeof(room));
+                room.area = area;
+                room.vnum = vnum;
+                actual = widevnum_string_room(use_null_entity ? NULL : &room, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_token") == 0) {
+                TOKEN_INDEX_DATA token;
+                memset(&token, 0, sizeof(token));
+                token.area = area;
+                token.vnum = vnum;
+                actual = widevnum_string_token(use_null_entity ? NULL : &token, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_script") == 0) {
+                SCRIPT_DATA script;
+                memset(&script, 0, sizeof(script));
+                script.area = area;
+                script.vnum = (int)vnum;
+                actual = widevnum_string_script(use_null_entity ? NULL : &script, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_blueprint") == 0) {
+                BLUEPRINT bp;
+                memset(&bp, 0, sizeof(bp));
+                bp.area = area;
+                bp.vnum = vnum;
+                actual = widevnum_string_blueprint(use_null_entity ? NULL : &bp, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_blueprint_section") == 0) {
+                BLUEPRINT_SECTION bs;
+                memset(&bs, 0, sizeof(bs));
+                bs.area = area;
+                bs.vnum = vnum;
+                actual = widevnum_string_blueprint_section(use_null_entity ? NULL : &bs, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_dungeon") == 0) {
+                DUNGEON_INDEX_DATA dng;
+                memset(&dng, 0, sizeof(dng));
+                dng.area = area;
+                dng.vnum = vnum;
+                actual = widevnum_string_dungeon(use_null_entity ? NULL : &dng, ref_area);
+            } else if (strcmp(func_name, "widevnum_string_ship") == 0) {
+                SHIP_INDEX_DATA ship;
+                memset(&ship, 0, sizeof(ship));
+                ship.area = area;
+                ship.vnum = vnum;
+                actual = widevnum_string_ship(use_null_entity ? NULL : &ship, ref_area);
+            }
+
+            if (!actual || str_cmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "%s case %zu returned '%s', expected '%s'",
+                             func_name,
+                             index,
+                             actual ? actual : "(null)",
+                             expected);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "resolve_wnum_load") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *load_area_name = test_json_get_string(test_case, "load_area");
+            long load_auid = test_json_get_int(test_case, "load_auid");
+            long load_vnum = test_json_get_int(test_case, "load_vnum");
+            const char *ref_area_name = test_json_get_string(test_case, "ref_area");
+            const char *expected_area_name = test_json_get_string(test_case, "expected_area");
+            long expected_vnum = test_json_get_int(test_case, "expected_vnum");
+            AREA_DATA *load_area = NULL;
+            AREA_DATA *ref_area = NULL;
+            AREA_DATA *expected_area = NULL;
+            WNUM_LOAD load = { 0, 0 };
+            WNUM out = wnum_zero;
+
+            if (load_area_name)
+                load_area = find_area((char *)load_area_name);
+            if (ref_area_name)
+                ref_area = find_area((char *)ref_area_name);
+            if (expected_area_name)
+                expected_area = find_area((char *)expected_area_name);
+
+            if (load_area_name && !load_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "resolve_wnum_load case references unknown load_area '%s'",
+                             load_area_name);
+                return TEST_ERROR;
+            }
+
+            if (ref_area_name && !ref_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "resolve_wnum_load case references unknown ref_area '%s'",
+                             ref_area_name);
+                return TEST_ERROR;
+            }
+
+            if (expected_area_name && !expected_area) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "resolve_wnum_load case references unknown expected_area '%s'",
+                             expected_area_name);
+                return TEST_ERROR;
+            }
+
+            if (load_area)
+                load.auid = load_area->uid;
+            else
+                load.auid = load_auid;
+
+            load.vnum = load_vnum;
+            resolve_wnum_load(&load, &out, ref_area);
+
+            if (out.pArea != expected_area || out.vnum != expected_vnum) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "resolve_wnum_load case %zu returned (area=%p,vnum=%ld), expected (area=%p,vnum=%ld)",
+                             index,
+                             (void *)out.pArea,
+                             out.vnum,
+                             (void *)expected_area,
+                             expected_vnum);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_colour_code_length_at_start") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            int expected_len = test_json_get_int(test_case, "expected_len");
+            int actual_len;
+
+            if (!input_str) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "get_colour_code_length_at_start test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual_len = get_colour_code_length_at_start(input_str);
+            if (actual_len != expected_len) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_colour_code_length_at_start('%s') returned %d, expected %d",
+                             input_str,
+                             actual_len,
+                             expected_len);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "pronoun_helpers") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            int body_type = test_json_get_int(test_case, "body_type");
+            const char *set_he_she = test_json_get_string(test_case, "set_he_she");
+            const char *set_him_her = test_json_get_string(test_case, "set_him_her");
+            const char *set_his_her = test_json_get_string(test_case, "set_his_her");
+            const char *set_his_hers = test_json_get_string(test_case, "set_his_hers");
+            const char *set_himself_herself = test_json_get_string(test_case, "set_himself_herself");
+            const char *expected_he_she = test_json_get_string(test_case, "expected_he_she");
+            const char *expected_him_her = test_json_get_string(test_case, "expected_him_her");
+            const char *expected_his_her = test_json_get_string(test_case, "expected_his_her");
+            const char *expected_his_hers = test_json_get_string(test_case, "expected_his_hers");
+            const char *expected_himself_herself = test_json_get_string(test_case, "expected_himself_herself");
+            const char *expected_body_type_name = test_json_get_string(test_case, "expected_body_type_name");
+            CHAR_DATA ch;
+
+            if (!expected_he_she || !expected_him_her || !expected_his_her ||
+                !expected_his_hers || !expected_himself_herself || !expected_body_type_name) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "pronoun_helpers test case missing expected fields");
+                return TEST_ERROR;
+            }
+
+            memset(&ch, 0, sizeof(ch));
+            ch.body_type = body_type;
+
+            ch.pronoun_he_she = (char *)(set_he_she ? set_he_she : "");
+            ch.pronoun_him_her = (char *)(set_him_her ? set_him_her : "");
+            ch.pronoun_his_her = (char *)(set_his_her ? set_his_her : "");
+            ch.pronoun_his_hers = (char *)(set_his_hers ? set_his_hers : "");
+            ch.pronoun_himself_herself = (char *)(set_himself_herself ? set_himself_herself : "");
+
+            if (str_cmp(get_he_she(&ch), expected_he_she) != 0
+                || str_cmp(get_him_her(&ch), expected_him_her) != 0
+                || str_cmp(get_his_her(&ch), expected_his_her) != 0
+                || str_cmp(get_his_hers(&ch), expected_his_hers) != 0
+                || str_cmp(get_himself_herself(&ch), expected_himself_herself) != 0
+                || str_cmp(get_body_type_name(&ch), expected_body_type_name) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "pronoun_helpers case %zu did not match expected pronoun/body-type values",
+                             index);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_verb_form") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            bool use_null_character = test_json_get_bool(test_case, "use_null_character");
+            int body_type = test_json_get_int(test_case, "body_type");
+            int verb_preference = test_json_get_int(test_case, "verb_preference");
+            const char *set_he_she = test_json_get_string(test_case, "set_he_she");
+            const char *singular = test_json_get_string(test_case, "singular");
+            const char *plural = test_json_get_string(test_case, "plural");
+            const char *expected = test_json_get_string(test_case, "expected");
+            CHAR_DATA ch;
+            const char *actual;
+
+            if (!singular || !plural || !expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "get_verb_form test case missing singular/plural/expected");
+                return TEST_ERROR;
+            }
+
+            memset(&ch, 0, sizeof(ch));
+            ch.body_type = body_type;
+            ch.verb_preference = verb_preference;
+            ch.pronoun_he_she = (char *)(set_he_she ? set_he_she : "");
+
+            actual = get_verb_form(use_null_character ? NULL : &ch, singular, plural);
+            if (!actual || str_cmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_verb_form case %zu returned '%s', expected '%s'",
+                             index,
+                             actual ? actual : "(null)",
+                             expected);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "reset_pronouns_to_body_type") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            int initial_body_type = test_json_get_int(test_case, "initial_body_type");
+            int new_body_type = test_json_get_int(test_case, "new_body_type");
+            const char *expected_he_she = test_json_get_string(test_case, "expected_he_she");
+            const char *expected_him_her = test_json_get_string(test_case, "expected_him_her");
+            const char *expected_his_her = test_json_get_string(test_case, "expected_his_her");
+            const char *expected_his_hers = test_json_get_string(test_case, "expected_his_hers");
+            const char *expected_himself_herself = test_json_get_string(test_case, "expected_himself_herself");
+            int expected_verb_preference = test_json_get_int(test_case, "expected_verb_preference");
+            CHAR_DATA ch;
+
+            if (!expected_he_she || !expected_him_her || !expected_his_her
+                || !expected_his_hers || !expected_himself_herself) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "reset_pronouns_to_body_type test case missing expected fields");
+                return TEST_ERROR;
+            }
+
+            memset(&ch, 0, sizeof(ch));
+            ch.body_type = initial_body_type;
+            ch.pronoun_he_she = str_dup("custom_subj");
+            ch.pronoun_him_her = str_dup("custom_obj");
+            ch.pronoun_his_her = str_dup("custom_poss_adj");
+            ch.pronoun_his_hers = str_dup("custom_poss_pron");
+            ch.pronoun_himself_herself = str_dup("custom_refl");
+            ch.verb_preference = VERB_FORM_DEFAULT;
+
+            reset_pronouns_to_body_type(&ch, (body_type_t)new_body_type);
+
+            if (str_cmp(ch.pronoun_he_she, expected_he_she) != 0
+                || str_cmp(ch.pronoun_him_her, expected_him_her) != 0
+                || str_cmp(ch.pronoun_his_her, expected_his_her) != 0
+                || str_cmp(ch.pronoun_his_hers, expected_his_hers) != 0
+                || str_cmp(ch.pronoun_himself_herself, expected_himself_herself) != 0
+                || ch.verb_preference != expected_verb_preference) {
+                free_string(ch.pronoun_he_she);
+                free_string(ch.pronoun_him_her);
+                free_string(ch.pronoun_his_her);
+                free_string(ch.pronoun_his_hers);
+                free_string(ch.pronoun_himself_herself);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "reset_pronouns_to_body_type case %zu did not match expected reset state",
+                             index);
+                return TEST_FAILURE;
+            }
+
+            free_string(ch.pronoun_he_she);
+            free_string(ch.pronoun_him_her);
+            free_string(ch.pronoun_his_her);
+            free_string(ch.pronoun_his_hers);
+            free_string(ch.pronoun_himself_herself);
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "is_valid_colour_code") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            bool expected = test_json_get_bool(test_case, "expected");
+            bool actual;
+
+            if (!input_str) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "is_valid_colour_code test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = is_valid_colour_code(input_str);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "is_valid_colour_code('%s') returned %s, expected %s",
+                             input_str,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_article") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            bool upper = test_json_get_bool(test_case, "upper");
+            const char *expected = test_json_get_string(test_case, "expected");
+            const char *actual;
+
+            if (!input_str || !expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "get_article test case missing input/expected");
+                return TEST_ERROR;
+            }
+
+            actual = get_article((char *)input_str, upper);
+            if (!actual || str_cmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "get_article('%s', %s) returned '%s', expected '%s'",
+                             input_str,
+                             upper ? "true" : "false",
+                             actual ? actual : "(null)",
+                             expected);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "colour_trunc_len") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            int limit = test_json_get_int(test_case, "limit");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input_str) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "colour_trunc_len test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = colour_trunc_len(input_str, limit);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "colour_trunc_len('%s', %d) returned %d, expected %d",
+                             input_str,
+                             limit,
+                             actual,
+                             expected);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "pad_string") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_str = test_json_get_string(test_case, "input");
+            int length = test_json_get_int(test_case, "length");
+            const char *colour = test_json_get_string(test_case, "colour");
+            const char *character = test_json_get_string(test_case, "character");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *actual;
+
+            if (!input_str || !expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "pad_string test case missing input/expected");
+                return TEST_ERROR;
+            }
+
+            actual = pad_string((char *)input_str, length, (char *)colour, (char *)character);
+            if (!actual || str_cmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "pad_string('%s', %d, '%s', '%s') returned '%s', expected '%s'",
+                             input_str,
+                             length,
+                             colour ? colour : "(null)",
+                             character ? character : "(null)",
+                             actual ? actual : "(null)",
+                             expected);
+                if (actual)
+                    free_string(actual);
+                return TEST_FAILURE;
+            }
+
+            free_string(actual);
+        }
+
         return TEST_SUCCESS;
     }
 
@@ -952,6 +2218,207 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
                              indent,
                              output ? output : "(null)",
                              expected_output);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "tbit_subset_of") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            json_t *test_bits_json = json_object_get(test_case, "test_bits");
+            json_t *mask_bits_json = json_object_get(test_case, "mask_bits");
+            bool expected = test_json_get_bool(test_case, "expected");
+            TYPE_BITSET test_bits;
+            TYPE_BITSET mask_bits;
+
+            if (!json_is_array(test_bits_json) || !json_is_array(mask_bits_json)) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "tbit_subset_of test case missing test_bits/mask_bits arrays");
+                return TEST_ERROR;
+            }
+
+            TBIT_ZERO(test_bits);
+            TBIT_ZERO(mask_bits);
+
+            size_t bit_index;
+            json_t *bit_json;
+
+            json_array_foreach(test_bits_json, bit_index, bit_json) {
+                if (!json_is_integer(bit_json)) {
+                    log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                               "tbit_subset_of test_bits contains non-integer value");
+                    return TEST_ERROR;
+                }
+
+                int bit = (int)json_integer_value(bit_json);
+                if (bit < 0 || bit >= ITEM__MAX) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "tbit_subset_of test_bits contains out-of-range bit %d",
+                                 bit);
+                    return TEST_ERROR;
+                }
+                TBIT_SET(test_bits, bit);
+            }
+
+            json_array_foreach(mask_bits_json, bit_index, bit_json) {
+                if (!json_is_integer(bit_json)) {
+                    log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                               "tbit_subset_of mask_bits contains non-integer value");
+                    return TEST_ERROR;
+                }
+
+                int bit = (int)json_integer_value(bit_json);
+                if (bit < 0 || bit >= ITEM__MAX) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "tbit_subset_of mask_bits contains out-of-range bit %d",
+                                 bit);
+                    return TEST_ERROR;
+                }
+                TBIT_SET(mask_bits, bit);
+            }
+
+            bool actual = tbit_subset_of(test_bits, mask_bits);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "tbit_subset_of case %zu returned %s, expected %s",
+                             index,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "flag_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *table_name = test_json_get_string(test_case, "table");
+            const char *name = test_json_get_string(test_case, "name");
+            bool should_find = test_json_get_bool(test_case, "should_find");
+            const struct flag_type *flag_table;
+            int value;
+
+            if (!table_name || !name) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "flag_lookup test case missing table/name");
+                return TEST_ERROR;
+            }
+
+            flag_table = resolve_flag_table_for_test(table_name);
+            if (!flag_table) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_lookup test references unknown table '%s'",
+                             table_name);
+                return TEST_ERROR;
+            }
+
+            value = flag_lookup(name, flag_table);
+            if (should_find && value == 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_lookup('%s', %s) returned 0, expected a match",
+                             name, table_name);
+                return TEST_FAILURE;
+            }
+
+            if (!should_find && value != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_lookup('%s', %s) returned %d, expected no match",
+                             name, table_name, value);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "stat_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *table_name = test_json_get_string(test_case, "table");
+            const char *name = test_json_get_string(test_case, "name");
+            int invalid = test_json_get_int(test_case, "invalid");
+            bool should_find = test_json_get_bool(test_case, "should_find");
+            const struct flag_type *flag_table;
+            int value;
+
+            if (!table_name || !name) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "stat_lookup test case missing table/name");
+                return TEST_ERROR;
+            }
+
+            flag_table = resolve_flag_table_for_test(table_name);
+            if (!flag_table) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "stat_lookup test references unknown table '%s'",
+                             table_name);
+                return TEST_ERROR;
+            }
+
+            value = stat_lookup(name, flag_table, invalid);
+            if (should_find && value == invalid) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "stat_lookup('%s', %s) returned invalid sentinel %d, expected match",
+                             name, table_name, invalid);
+                return TEST_FAILURE;
+            }
+
+            if (!should_find && value != invalid) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "stat_lookup('%s', %s) returned %d, expected invalid sentinel %d",
+                             name, table_name, value, invalid);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "stat_find") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *table_name = test_json_get_string(test_case, "table");
+            const char *name = test_json_get_string(test_case, "name");
+            int invalid = test_json_get_int(test_case, "invalid");
+            bool should_find = test_json_get_bool(test_case, "should_find");
+            const struct flag_type *flag_table;
+            int value;
+
+            if (!table_name || !name) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "stat_find test case missing table/name");
+                return TEST_ERROR;
+            }
+
+            flag_table = resolve_flag_table_for_test(table_name);
+            if (!flag_table) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "stat_find test references unknown table '%s'",
+                             table_name);
+                return TEST_ERROR;
+            }
+
+            value = stat_find(name, flag_table, invalid);
+            if (should_find && value == invalid) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "stat_find('%s', %s) returned invalid sentinel %d, expected match",
+                             name, table_name, invalid);
+                return TEST_FAILURE;
+            }
+
+            if (!should_find && value != invalid) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "stat_find('%s', %s) returned %d, expected invalid sentinel %d",
+                             name, table_name, value, invalid);
                 return TEST_FAILURE;
             }
         }

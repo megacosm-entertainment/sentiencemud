@@ -1,0 +1,41 @@
+{
+  "type": "test_suite",
+  "test_suite": "wnum_load_resolution_helpers_unit_tests",
+  "description": "Pure-function unit tests for WNUM_LOAD resolution helper behavior",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "resolve_wnum_load_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "resolve_wnum_load",
+        "test_cases": [
+          {
+            "load_area": "Limbo",
+            "load_vnum": 100,
+            "ref_area": "Bootstrap Reserved",
+            "expected_area": "Limbo",
+            "expected_vnum": 100
+          },
+          {
+            "load_auid": 0,
+            "load_vnum": 55,
+            "ref_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 55
+          },
+          {
+            "load_auid": 0,
+            "load_vnum": 77,
+            "expected_vnum": 77
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

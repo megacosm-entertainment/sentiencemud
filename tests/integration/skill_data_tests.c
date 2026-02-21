@@ -167,6 +167,7 @@ static test_result_t test_skill_search(test_case_t *test)
     json_array_foreach(test_cases, index, tc) {
         const char *prefix = test_json_get_string(tc, "prefix");
         bool should_find = test_json_get_bool(tc, "should_find");
+        const char *expected_name = test_json_get_string(tc, "expected_name");
 
         if (!prefix) continue;
 
@@ -182,6 +183,17 @@ static test_result_t test_skill_search(test_case_t *test)
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "skill_search('%s') returned match, expected NULL", prefix);
             return TEST_FAILURE;
+        }
+
+        if (should_find && expected_name) {
+            if (!skill->name || str_cmp(skill->name, expected_name) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "skill_search('%s') returned '%s', expected '%s'",
+                             prefix,
+                             skill->name ? skill->name : "(null)",
+                             expected_name);
+                return TEST_FAILURE;
+            }
         }
     }
 
@@ -221,15 +233,11 @@ static test_result_t test_skill_name_accessor(test_case_t *test)
  */
 static test_result_t test_skill_uid_integrity(test_case_t *test)
 {
+    (void)test;
     int count = skill_count();
     if (count <= 0) {
         return TEST_FAILURE;
     }
-
-    /* Use a simple array to check uniqueness for UIDs in range */
-    #define MAX_UID_CHECK 8192
-    bool seen[MAX_UID_CHECK];
-    memset(seen, 0, sizeof(seen));
 
     SKILL_DATA *skill;
     int checked = 0;
@@ -244,17 +252,21 @@ static test_result_t test_skill_uid_integrity(test_case_t *test)
             return TEST_FAILURE;
         }
 
-        if (skill->uid < MAX_UID_CHECK) {
-            if (seen[skill->uid]) {
+        for (SKILL_DATA *other = skill->next; other; other = other->next) {
+            if (!other->valid) {
+                continue;
+            }
+
+            if (other->uid == skill->uid) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "Duplicate skill UID %d (skill: %s)",
-                             skill->uid, skill->name ? skill->name : "?");
+                             "Duplicate skill UID %d (skills: %s, %s)",
+                             skill->uid,
+                             skill->name ? skill->name : "?",
+                             other->name ? other->name : "?");
                 return TEST_FAILURE;
             }
-            seen[skill->uid] = true;
         }
     }
-    #undef MAX_UID_CHECK
 
     log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
                  "All %d skills have unique positive UIDs", checked);
@@ -266,11 +278,29 @@ static test_result_t test_skill_uid_integrity(test_case_t *test)
  */
 static test_result_t test_skill_uid_roundtrip(test_case_t *test)
 {
+    json_t *input = NULL;
+    json_t *invalid_uids = NULL;
     int checked = 0;
-    int max_check = 200;
+    int max_check = 0;
+
+    if (test && test->config) {
+        input = json_object_get(test->config, "input");
+        if (json_is_object(input)) {
+            if (json_object_get(input, "max_check")) {
+                int cfg_max = test_json_get_int(input, "max_check");
+                if (cfg_max > 0) {
+                    max_check = cfg_max;
+                }
+            }
+            invalid_uids = json_object_get(input, "invalid_uids");
+        }
+    }
 
     SKILL_DATA *skill;
-    for (skill = skill_first(); skill && checked < max_check; skill = skill->next) {
+    for (skill = skill_first(); skill; skill = skill->next) {
+        if (max_check > 0 && checked >= max_check) {
+            break;
+        }
         if (!skill->valid) continue;
         checked++;
 
@@ -280,6 +310,29 @@ static test_result_t test_skill_uid_roundtrip(test_case_t *test)
                          "skill_find_uid(%d) did not return original skill '%s'",
                          skill->uid, skill->name ? skill->name : "?");
             return TEST_FAILURE;
+        }
+    }
+
+    if (json_is_array(invalid_uids)) {
+        size_t index;
+        json_t *uid_json;
+        json_array_foreach(invalid_uids, index, uid_json) {
+            if (!json_is_integer(uid_json)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Invalid uid entry in invalid_uids at index %zu",
+                             index);
+                return TEST_ERROR;
+            }
+
+            int uid = (int)json_integer_value(uid_json);
+            SKILL_DATA *found = skill_find_uid(uid);
+            if (found) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "skill_find_uid(%d) returned '%s', expected NULL",
+                             uid,
+                             found->name ? found->name : "?");
+                return TEST_FAILURE;
+            }
         }
     }
 

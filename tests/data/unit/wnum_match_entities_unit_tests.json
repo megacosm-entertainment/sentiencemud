@@ -1,0 +1,211 @@
+{
+  "type": "test_suite",
+  "test_suite": "wnum_match_entities_unit_tests",
+  "description": "Pure-function unit tests for WNUM matching against object, mob, and token instances",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "wnum_match_obj_core_cases",
+      "description": "Covers object validity/index guards and area/vnum matching",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "wnum_match_obj",
+        "test_cases": [
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "obj_valid": true,
+            "obj_has_index": true,
+            "expected": true
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 2,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "obj_valid": true,
+            "obj_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Bootstrap Reserved",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "obj_valid": true,
+            "obj_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "obj_valid": true,
+            "obj_has_index": false,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "obj_valid": false,
+            "obj_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "use_null_obj": true,
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "wnum_match_mob_core_cases",
+      "description": "Covers mob validity, NPC-only guard, index guards, and area/vnum matching",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "wnum_match_mob",
+        "test_cases": [
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "mob_valid": true,
+            "mob_is_npc": true,
+            "mob_has_index": true,
+            "expected": true
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 2,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "mob_valid": true,
+            "mob_is_npc": true,
+            "mob_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Bootstrap Reserved",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "mob_valid": true,
+            "mob_is_npc": true,
+            "mob_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "mob_valid": true,
+            "mob_is_npc": false,
+            "mob_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "mob_valid": true,
+            "mob_is_npc": true,
+            "mob_has_index": false,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "mob_valid": false,
+            "mob_is_npc": true,
+            "mob_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "use_null_mob": true,
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "wnum_match_token_core_cases",
+      "description": "Covers token validity/index guards and area/vnum matching",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "wnum_match_token",
+        "test_cases": [
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "token_valid": true,
+            "token_has_index": true,
+            "expected": true
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 2,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "token_valid": true,
+            "token_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Bootstrap Reserved",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "token_valid": true,
+            "token_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "token_valid": true,
+            "token_has_index": false,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "index_area": "Limbo",
+            "index_vnum": 1,
+            "token_valid": false,
+            "token_has_index": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "use_null_token": true,
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

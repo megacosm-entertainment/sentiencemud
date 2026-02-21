@@ -261,6 +261,24 @@
       }
     },
     {
+      "name": "script_ifcheck_type_mask_resolution",
+      "description": "Verify ifcheck type-mask parser resolves known tokens and safely defaults unknown/empty to IFC_ANY",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_type_mask_resolution_test",
+      "input": {
+        "test_cases": [
+          {"type_name": "IFC_M", "expected_name": "IFC_M"},
+          {"type_name": "IFC_O", "expected_name": "IFC_O"},
+          {"type_name": "IFC_ANY", "expected_name": "IFC_ANY"},
+          {"type_name": "", "expected_name": "IFC_ANY"},
+          {"type_name": "IFC_UNKNOWN", "expected_name": "IFC_ANY"}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
       "name": "script_compile_string_bounds",
       "description": "Verify compile string succeeds below cap and fails beyond cap",
       "dependencies": [],
@@ -298,6 +316,300 @@
       "description": "Verify compile_script accepts direct entity and numeric if expressions without explicit ifcheck names",
       "dependencies": [],
       "test_type": "script_engine_compile_direct_entity_if_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_nested_level_limit",
+      "description": "Verify compile_script rejects scripts that exceed maximum nested block depth with diagnostics",
+      "dependencies": [],
+      "test_type": "script_engine_compile_nested_level_limit_test",
+      "input": {
+        "depth": 25
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_nested_loop_limit",
+      "description": "Verify compile_script rejects scripts that exceed maximum nested loop count with diagnostics",
+      "dependencies": [],
+      "test_type": "script_engine_compile_nested_loop_limit_test",
+      "input": {
+        "depth": 21
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_overlap_case_ranges",
+      "description": "Verify compile_script rejects duplicate or overlapping switch case ranges",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_overlap_case_ranges_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_unmatched_end",
+      "description": "Verify compile_script rejects unmatched endswitch statements with diagnostics",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_unmatched_end_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_case_outside_switch",
+      "description": "Verify compile_script rejects case statements outside switch blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_case_outside_switch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_default_outside_switch",
+      "description": "Verify compile_script rejects default statements outside switch blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_default_outside_switch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_or_without_if_while",
+      "description": "Verify compile_script rejects or clauses outside if/while blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_or_without_if_while_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_and_without_if_while",
+      "description": "Verify compile_script rejects and clauses outside if/while blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_and_without_if_while_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_else",
+      "description": "Verify compile_script rejects else without a matching if block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_else_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_elseif",
+      "description": "Verify compile_script rejects elseif without a matching if block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_elseif_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endif",
+      "description": "Verify compile_script rejects endif without a matching if block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endif_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endfor",
+      "description": "Verify compile_script rejects endfor without a matching for block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endfor_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endlist",
+      "description": "Verify compile_script rejects endlist without a matching list block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endlist_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endwhile",
+      "description": "Verify compile_script rejects endwhile without a matching while block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endwhile_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_exitfor_outside_loop",
+      "description": "Verify compile_script rejects exitfor when no for loop is active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_exitfor_outside_loop_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_exitlist_outside_loop",
+      "description": "Verify compile_script rejects exitlist when no list loop is active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_exitlist_outside_loop_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_exitwhile_outside_loop",
+      "description": "Verify compile_script rejects exitwhile when no while loop is active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_exitwhile_outside_loop_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_endfor_undefined_label",
+      "description": "Verify compile_script rejects endfor references to undefined loop labels",
+      "dependencies": [],
+      "test_type": "script_engine_compile_endfor_undefined_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_endfor_cross_loop_mismatch",
+      "description": "Verify compile_script rejects ending an outer loop while an inner loop is still active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_endfor_cross_loop_mismatch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_mob_prefix_wrong_prog_type",
+      "description": "Verify compile_script rejects mob-prefixed commands when compiling non-mprog types",
+      "dependencies": [],
+      "test_type": "script_engine_compile_mob_prefix_wrong_prog_type_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_obj_prefix_wrong_prog_type",
+      "description": "Verify compile_script rejects obj-prefixed commands when compiling non-oprog types",
+      "dependencies": [],
+      "test_type": "script_engine_compile_obj_prefix_wrong_prog_type_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_bare_command_non_mprog",
+      "description": "Verify compile_script rejects bare interpreter commands outside mprog contexts",
+      "dependencies": [],
+      "test_type": "script_engine_compile_bare_command_non_mprog_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_duplicate_for_label",
+      "description": "Verify compile_script rejects duplicate named labels on nested for blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_duplicate_for_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_duplicate_list_label",
+      "description": "Verify compile_script rejects duplicate named labels on nested list blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_duplicate_list_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_duplicate_while_label",
+      "description": "Verify compile_script rejects duplicate named labels on nested while blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_duplicate_while_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_case_missing_first_number",
+      "description": "Verify compile_script rejects switch case entries with non-numeric first values",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_case_missing_first_number_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_case_missing_second_number",
+      "description": "Verify compile_script rejects switch case ranges with non-numeric second values",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_case_missing_second_number_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_nesting_depth_overflow",
+      "description": "Verify compile_script rejects switch nesting that exceeds block depth limits",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_nesting_depth_overflow_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_duplicate_default_behavior",
+      "description": "Cover current duplicate-default switch behavior to guard parser stability",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_duplicate_default_behavior_test",
       "input": {},
       "expected_output": {
         "success": true

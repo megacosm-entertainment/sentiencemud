@@ -4,6 +4,8 @@ This document outlines the plan to enhance the Sentience MUD's logging system to
 
 This plan builds upon the existing `zlog` implementation as detailed in `docs/CLAUDE_LOGGING_REFACTOR.md`.
 
+For unified command/runtime error handling semantics (player-facing + structured + plaintext outputs from one call), see `docs/PLAN_LOGGING_UNIFIED_ERROR_HANDLING.md`. This aggregator plan focuses on transport, buffering, dispatch, and operational resilience.
+
 ## Goals
 
 1.  **Rich JSON Formatting:** Log entries must be converted to a structured JSON format, including extended context.

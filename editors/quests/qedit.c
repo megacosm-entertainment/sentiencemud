@@ -178,6 +178,8 @@ static bool qedit_parse_index_ref(CHAR_DATA *ch, const char *input, WNUM *wnum)
     char ref[MIL];
     char *sep;
     AREA_DATA *area = NULL;
+    AREA_DATA *context_area = NULL;
+    QUEST_INDEX_V2_DATA *editing_quest = NULL;
 
     if (!ch || !wnum || IS_NULLSTR(input))
         return false;
@@ -185,11 +187,21 @@ static bool qedit_parse_index_ref(CHAR_DATA *ch, const char *input, WNUM *wnum)
     strncpy(ref, input, sizeof(ref) - 1);
     ref[sizeof(ref) - 1] = '\0';
 
+    if (ch && ch->desc && ch->desc->editor == ED_QUEST && ch->desc->pEdit)
+    {
+        editing_quest = (QUEST_INDEX_V2_DATA *)ch->desc->pEdit;
+        if (editing_quest->area)
+            context_area = editing_quest->area;
+    }
+
+    if (!context_area && ch && ch->in_room && ch->in_room->area)
+        context_area = ch->in_room->area;
+
     sep = strchr(ref, '#');
     if (!sep)
         sep = strchr(ref, ':');
 
-    if (sep) {
+    if (sep && strchr(ref, ':')) {
         *sep++ = '\0';
         if (!is_number(ref) || !is_number(sep))
             return false;
@@ -201,13 +213,18 @@ static bool qedit_parse_index_ref(CHAR_DATA *ch, const char *input, WNUM *wnum)
         return wnum->vnum > 0;
     }
 
+    if (strchr(ref, '#')) {
+        AREA_DATA *parse_context = olc_relative_widevnum_context(context_area, ref);
+        return parse_widevnum(ref, parse_context, wnum);
+    }
+
     if (!is_number(ref))
         return false;
 
-    if (!ch->in_room || !ch->in_room->area)
+    if (!context_area)
         return false;
 
-    wnum->pArea = ch->in_room->area;
+    wnum->pArea = context_area;
     wnum->vnum = atol(ref);
     return wnum->vnum > 0;
 }
@@ -1480,8 +1497,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
 
     if (IS_NULLSTR(arg1)) {
         send_to_char("Syntax:\n\r", ch);
-        send_to_char("  qedit <auid>#<vnum> create\n\r", ch);
-        send_to_char("  qedit <auid>#<vnum>|<vnum> show [all]\n\r", ch);
+        send_to_char("  qedit <auid>#<vnum>|#<vnum>|<vnum> create\n\r", ch);
+        send_to_char("  qedit <auid>#<vnum>|#<vnum>|<vnum> show [all]\n\r", ch);
         send_to_char("  qedit <ref> tab <name|number>\n\r", ch);
         send_to_char("  qedit <ref> summary <text>\n\r", ch);
         send_to_char("  qedit <ref> description [none]  (opens string editor)\n\r", ch);
@@ -1559,7 +1576,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
 
         if (!IS_NULLSTR(arg2)) {
             if (!qedit_parse_index_ref(ch, arg2, &wnum)) {
-                send_to_char("QEdit: Invalid quest reference. Use <auid>#<vnum> (or bare <vnum> in-area).\n\r", ch);
+                send_to_char("QEdit: Invalid quest reference. Use <auid>#<vnum>, #<vnum>, or bare <vnum> in-area.\n\r", ch);
                 return;
             }
 
@@ -1609,7 +1626,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
     }
 
     if (!qedit_parse_index_ref(ch, arg1, &wnum)) {
-        send_to_char("QEdit: Invalid quest reference. Use <auid>#<vnum> (or bare <vnum> in-area).\n\r", ch);
+        send_to_char("QEdit: Invalid quest reference. Use <auid>#<vnum>, #<vnum>, or bare <vnum> in-area.\n\r", ch);
         return;
     }
 
@@ -3038,7 +3055,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 char rewritten[MSL];
 
                 if (IS_NULLSTR(text_after_arg6)) {
-                    send_to_char("QEdit: target wnum requires <auid>#<vnum> or none.\n\r", ch);
+                    send_to_char("QEdit: target wnum requires <auid>#<vnum>, #<vnum>, <vnum> (in-area), or none.\n\r", ch);
                     return;
                 }
 
@@ -3049,7 +3066,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             }
 
             if (!qedit_parse_target_wnum(ch, arg6, &target)) {
-                send_to_char("QEdit: target must be <auid>#<vnum>, <vnum> (in-area), or none.\n\r", ch);
+                send_to_char("QEdit: target must be <auid>#<vnum>, #<vnum>, <vnum> (in-area), or none.\n\r", ch);
                 return;
             }
 
@@ -3147,7 +3164,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 char rewritten[MSL];
 
                 if (IS_NULLSTR(text_after_arg6)) {
-                    send_to_char("QEdit: destination wnum requires <auid>#<vnum> or none.\n\r", ch);
+                    send_to_char("QEdit: destination wnum requires <auid>#<vnum>, #<vnum>, <vnum> (in-area), or none.\n\r", ch);
                     return;
                 }
 
@@ -3160,7 +3177,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             const char *refname = NULL;
 
             if (IS_NULLSTR(arg6)) {
-                send_to_char("QEdit: destination requires <auid>#<vnum>, <vnum>, $<refname>, or none.\n\r", ch);
+                send_to_char("QEdit: destination requires <auid>#<vnum>, #<vnum>, <vnum>, $<refname>, or none.\n\r", ch);
                 return;
             }
 
@@ -3196,7 +3213,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             }
 
             if (!qedit_parse_target_wnum(ch, arg6, &target)) {
-                send_to_char("QEdit: destination must be <auid>#<vnum>, <vnum> (in-area), $<refname>, or none.\n\r", ch);
+                send_to_char("QEdit: destination must be <auid>#<vnum>, #<vnum>, <vnum> (in-area), $<refname>, or none.\n\r", ch);
                 return;
             }
 
@@ -3314,7 +3331,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 char rewritten[MSL];
 
                 if (IS_NULLSTR(text_after_arg6)) {
-                    send_to_char("QEdit: destination token wnum requires <auid>#<vnum> or none.\n\r", ch);
+                    send_to_char("QEdit: destination token wnum requires <auid>#<vnum>, #<vnum>, <vnum> (in-area), or none.\n\r", ch);
                     return;
                 }
 
@@ -3356,7 +3373,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             }
 
             if (!qedit_parse_target_wnum(ch, arg6, &target)) {
-                send_to_char("QEdit: destination token must be <auid>#<vnum>, <vnum> (in-area), $<refname>, or none.\n\r", ch);
+                send_to_char("QEdit: destination token must be <auid>#<vnum>, #<vnum>, <vnum> (in-area), $<refname>, or none.\n\r", ch);
                 return;
             }
 
@@ -3635,7 +3652,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 char rewritten[MSL];
 
                 if (IS_NULLSTR(text_after_arg6)) {
-                    send_to_char("QEdit: token wnum requires <auid>#<vnum> or none.\n\r", ch);
+                    send_to_char("QEdit: token wnum requires <auid>#<vnum>, #<vnum>, <vnum> (in-area), or none.\n\r", ch);
                     return;
                 }
 
@@ -3646,7 +3663,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             }
 
             if (!qedit_parse_target_wnum(ch, arg6, &target)) {
-                send_to_char("QEdit: targettoken must be <auid>#<vnum>, <vnum> (in-area), or none.\n\r", ch);
+                send_to_char("QEdit: targettoken must be <auid>#<vnum>, #<vnum>, <vnum> (in-area), or none.\n\r", ch);
                 return;
             }
 
@@ -3883,7 +3900,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
 
         if (!str_prefix(arg4, "target")) {
             if (!qedit_parse_target_wnum(ch, arg5, &target)) {
-                send_to_char("QEdit: reward target must be <auid>#<vnum>, <vnum> (in-area), or none.\n\r", ch);
+                send_to_char("QEdit: reward target must be <auid>#<vnum>, #<vnum>, <vnum> (in-area), or none.\n\r", ch);
                 return;
             }
 

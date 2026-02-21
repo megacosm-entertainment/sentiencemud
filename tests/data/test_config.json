@@ -92,7 +92,11 @@
       "verbose_test_names": true,
       "verbose_test_details": false,
       "show_test_config": true,
-      "show_execution_time": true
+      "show_execution_time": true,
+      "log_output_file": "",
+      "log_output_format": "text",
+      "log_output_file_text": "",
+      "log_output_file_json": ""
     },
     "test_profiles": {
       "development": {
@@ -110,6 +114,11 @@
         "description": "Bootstrap-root compatible suite for CI fixture data",
         "suites": [
           "bootstrap_fixture_tests",
+          "area_loading",
+          "database_integrity",
+          "system_area",
+          "wnum_parsing",
+          "reserved_wnum",
           "core_string_unit_tests",
           "string_predicates_unit_tests",
           "string_formatting_unit_tests",
@@ -117,6 +126,10 @@
           "string_edit_helpers_unit_tests",
           "string_editor_state_unit_tests",
           "wnum_parsing_unit_tests",
+          "class_data",
+          "item_type_system",
+          "lookup_tables",
+          "song_data",
           "trait_system",
           "skill_group_data",
           "skill_data",
@@ -125,7 +138,6 @@
           "church_json",
           "blueprint_area_scope",
           "instance_persist",
-          "reserved_wnum",
           "shop_stock_cross_area_tests",
           "reset_cross_area_tests",
           "script_engine_tests"

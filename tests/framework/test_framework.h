@@ -85,6 +85,8 @@ typedef struct test_config {
     bool verbose_test_details;
     bool show_test_config;
     bool show_execution_time;
+    char *log_output_file;
+    char *log_output_format;
     test_profile_t *profiles;
     int profile_count;
 } test_config_t;
@@ -154,6 +156,14 @@ test_result_t run_trait_system_test_case(test_case_t *test);
 const char *test_result_to_string(test_result_t result);
 void print_test_stats(test_stats_t stats);
 bool test_environment_ready(void);
+void test_log_suite_start(const char *suite_name);
+void test_log_test_result(const test_case_t *test,
+                          test_result_t actual_result,
+                          double elapsed_seconds,
+                          bool has_input,
+                          bool has_expected_output,
+                          bool expected_result_known,
+                          test_result_t expected_result);
 
 // JSON parsing helpers
 json_t *load_json_file(const char *filepath);

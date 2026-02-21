@@ -1,0 +1,54 @@
+{
+  "type": "test_suite",
+  "test_suite": "lookup_helpers_unit_tests",
+  "description": "Pure-function unit tests for flag/stat lookup helper behavior",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "flag_lookup_settable_semantics",
+      "description": "flag_lookup should resolve settable entries and reject unsettable/nonexistent ones",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "flag_lookup",
+        "test_cases": [
+          { "table": "type_flags", "name": "weapon", "should_find": true },
+          { "table": "type_flags", "name": "armour", "should_find": true },
+          { "table": "type_flags", "name": "pc corpse", "should_find": false },
+          { "table": "type_flags", "name": "zz_missing_type", "should_find": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "stat_lookup_invalid_sentinel_behavior",
+      "description": "stat_lookup should return invalid sentinel for missing or unsettable entries",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "stat_lookup",
+        "test_cases": [
+          { "table": "type_flags", "name": "weapon", "invalid": -999, "should_find": true },
+          { "table": "type_flags", "name": "pc corpse", "invalid": -999, "should_find": false },
+          { "table": "type_flags", "name": "zz_missing_type", "invalid": -999, "should_find": false },
+          { "table": "room_flags", "name": "cpk", "invalid": -999, "should_find": true }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "stat_find_includes_unsettable_entries",
+      "description": "stat_find should resolve entries even when not settable",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "stat_find",
+        "test_cases": [
+          { "table": "type_flags", "name": "weapon", "invalid": -321, "should_find": true },
+          { "table": "type_flags", "name": "pc corpse", "invalid": -321, "should_find": true },
+          { "table": "type_flags", "name": "zz_missing_type", "invalid": -321, "should_find": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    }
+  ]
+}

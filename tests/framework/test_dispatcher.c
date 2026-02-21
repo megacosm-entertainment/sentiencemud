@@ -97,7 +97,8 @@ test_result_t run_test_case(test_case_t *test)
             result = run_reset_test_case(test);
         } else if (strcmp(test->test_type, "shop_stock_cross_area_creation") == 0 ||
                    strcmp(test->test_type, "shop_stock_serialization") == 0 ||
-                   strcmp(test->test_type, "shop_stock_legacy_vnum") == 0) {
+                   strcmp(test->test_type, "shop_stock_legacy_vnum") == 0 ||
+                   strcmp(test->test_type, "shop_stock_reference_integrity") == 0) {
             result = run_shop_stock_test_case(test);
         } else if (strstr(test->test_type, "church_") != NULL) {
             result = run_church_test_case(test);
@@ -154,6 +155,7 @@ static void print_test_result(test_case_t *test, test_result_t result, clock_t s
     bool verbose = test->verbose_output || (config ? config->verbose_output : false);
 
     const char *result_str = test_result_to_string(result);
+    double elapsed = 0.0;
     test_result_t expected_result = TEST_SUCCESS;
     bool expected_result_known = false;
     bool has_input = false;
@@ -181,9 +183,12 @@ static void print_test_result(test_case_t *test, test_result_t result, clock_t s
         expected_result_known = true;
     }
 
+    if (show_timing && start_time > 0) {
+        elapsed = ((double)(clock() - start_time)) / CLOCKS_PER_SEC;
+    }
+
     if (show_names) {
         if (show_timing && start_time > 0) {
-            double elapsed = ((double)(clock() - start_time)) / CLOCKS_PER_SEC;
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "%s (%.3fs)", result_str, elapsed);
         } else {
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "%s", result_str);
@@ -208,7 +213,6 @@ static void print_test_result(test_case_t *test, test_result_t result, clock_t s
 
     if (verbose) {
         if (show_timing && start_time > 0) {
-            double elapsed = ((double)(clock() - start_time)) / CLOCKS_PER_SEC;
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test completed: %s - %s (%.3fs)",
                          test->name, result_str, elapsed);
         } else {
@@ -220,6 +224,14 @@ static void print_test_result(test_case_t *test, test_result_t result, clock_t s
             log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS, "Test failure details for: %s", test->name);
         }
     }
+
+    test_log_test_result(test,
+                         result,
+                         elapsed,
+                         has_input,
+                         has_expected_output,
+                         expected_result_known,
+                         expected_result);
 }
 
 #endif /* BUILD_TESTS */

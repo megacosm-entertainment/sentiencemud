@@ -21,15 +21,34 @@
     },
     {
       "name": "trait_def_lookup_by_id",
-      "description": "Verify trait definition lookup by ID works",
+      "description": "Verify trait definition lookup by ID and name works",
       "dependencies": ["trait_definitions_loaded"],
       "test_type": "trait_def_lookup_test",
       "input": {
         "test_cases": [
           {
+            "use_first_loaded": true,
+            "lookup_mode": "id",
+            "should_find": true,
+            "description": "Lookup first loaded trait by ID"
+          },
+          {
+            "use_first_loaded": true,
+            "lookup_mode": "name",
+            "should_find": true,
+            "description": "Lookup first loaded trait by name"
+          },
+          {
             "id": "totally_nonexistent_trait_xyz",
+            "lookup_mode": "id",
             "should_find": false,
             "description": "Bogus trait not found"
+          },
+          {
+            "name": "totally_nonexistent_trait_name_xyz",
+            "lookup_mode": "name",
+            "should_find": false,
+            "description": "Bogus trait name not found"
           }
         ]
       },
@@ -55,7 +74,11 @@
       "description": "Verify trait definitions cover all three types: bool, int, string",
       "dependencies": ["trait_definitions_loaded"],
       "test_type": "trait_type_coverage_test",
-      "input": {},
+      "input": {
+        "require_bool": true,
+        "require_int": true,
+        "require_string": false
+      },
       "expected_output": {
         "has_boolean_traits": true,
         "has_integer_traits": true

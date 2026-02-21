@@ -54,15 +54,18 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Build dependencies
+        working-directory: ${{ github.workspace }}
         run: |
           cd .deps
           ./build_deps.sh
 
       - name: Build tests binary
+        working-directory: ${{ github.workspace }}
         run: |
           ./build tests
 
       - name: Bootstrap isolated CI root
+        working-directory: ${{ github.workspace }}
         env:
           BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
           SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
@@ -81,19 +84,130 @@ jobs:
 
       - name: Run bootstrap CI profile tests
         id: ci_tests
+        working-directory: ${{ github.workspace }}
         env:
           BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
         run: |
           LOG_FILE="$RUNNER_TEMP/bootstrap_ci_profile.log"
+          JSON_LOG_FILE="$RUNNER_TEMP/bootstrap_ci_profile.jsonl"
+          FAILURE_SUMMARY_FILE="$RUNNER_TEMP/bootstrap_ci_failures.txt"
+          export JSON_LOG_FILE
 
-          ./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT" >"$LOG_FILE" 2>&1
-          TEST_STATUS=$?
+          rm -f "$LOG_FILE" "$JSON_LOG_FILE" "$FAILURE_SUMMARY_FILE"
+          # Keep pipeline failures visible and preserve the test binary's exit code.
+          set -o pipefail
 
-          cat "$LOG_FILE"
+          SENTIENCE_TEST_LOG_FILE="$JSON_LOG_FILE" \
+          SENTIENCE_TEST_LOG_FORMAT="json" \
+          ./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT" 2>&1 | tee "$LOG_FILE"
+          TEST_STATUS=${PIPESTATUS[0]}
+
+          python3 - <<'PY'
+    import json
+    import os
+
+    json_path = os.environ.get("JSON_LOG_FILE")
+    summary = None
+    failures = []
+
+    if json_path and os.path.exists(json_path):
+      with open(json_path, "r", encoding="utf-8") as f:
+        for line in f:
+          line = line.strip()
+          if not line:
+            continue
+          try:
+            event = json.loads(line)
+          except json.JSONDecodeError:
+            continue
+
+          if event.get("event") == "session_start":
+            summary = None
+            failures = []
+            continue
+
+          if event.get("event") == "test_result" and event.get("result") in ("FAIL", "ERROR"):
+            failures.append(event)
+          elif event.get("event") == "summary":
+            summary = event
+
+    print("\n=== JSON Failure Summary ===")
+    if summary:
+      print(
+        f"Summary: total={summary.get('total', 0)} "
+        f"passed={summary.get('passed', 0)} "
+        f"failed={summary.get('failed', 0)} "
+        f"errors={summary.get('errors', 0)} "
+        f"skipped={summary.get('skipped', 0)}"
+      )
+    else:
+      print("Summary: unavailable (no summary event found)")
+
+    if failures:
+      print("Failures:")
+      for idx, evt in enumerate(failures, start=1):
+        print(f"  {idx}. {evt.get('test', '<unknown>')} [{evt.get('result', 'UNKNOWN')}] ({evt.get('test_type', 'unknown')})")
+    else:
+      print("Failures: none")
+    print("============================\n")
+    PY
+
+          python3 - <<'PY' > "$FAILURE_SUMMARY_FILE"
+    import json
+    import os
+
+    json_path = os.environ.get("JSON_LOG_FILE")
+    summary = None
+    failures = []
+
+    if json_path and os.path.exists(json_path):
+      with open(json_path, "r", encoding="utf-8") as f:
+        for line in f:
+          line = line.strip()
+          if not line:
+            continue
+          try:
+            event = json.loads(line)
+          except json.JSONDecodeError:
+            continue
+
+          if event.get("event") == "session_start":
+            summary = None
+            failures = []
+            continue
+
+          if event.get("event") == "test_result" and event.get("result") in ("FAIL", "ERROR"):
+            failures.append(event)
+          elif event.get("event") == "summary":
+            summary = event
+
+    if summary:
+      print(
+        f"Summary: total={summary.get('total', 0)} "
+        f"passed={summary.get('passed', 0)} "
+        f"failed={summary.get('failed', 0)} "
+        f"errors={summary.get('errors', 0)} "
+        f"skipped={summary.get('skipped', 0)}"
+      )
+    else:
+      print("Summary: unavailable")
+
+    if failures:
+      print("Failures:")
+      for idx, evt in enumerate(failures, start=1):
+        print(f"{idx}. {evt.get('test', '<unknown>')} [{evt.get('result', 'UNKNOWN')}] ({evt.get('test_type', 'unknown')})")
+    else:
+      print("Failures: none")
+    PY
 
           if [ "$TEST_STATUS" -ne 0 ]; then
             echo "failure_snippet<<EOF" >> "$GITHUB_OUTPUT"
-            tail -n 80 "$LOG_FILE" | head -c 1500 >> "$GITHUB_OUTPUT"
+          {
+            tail -n 60 "$LOG_FILE"
+            echo
+            echo "--- JSON Failure Summary ---"
+            cat "$FAILURE_SUMMARY_FILE"
+          } | head -c 1500 >> "$GITHUB_OUTPUT"
             echo "" >> "$GITHUB_OUTPUT"
             echo "EOF" >> "$GITHUB_OUTPUT"
           else
@@ -107,7 +221,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bootstrap-ci-profile-log
-          path: ${{ runner.temp }}/bootstrap_ci_profile.log
+          path: |
+            ${{ runner.temp }}/bootstrap_ci_profile.log
+            ${{ runner.temp }}/bootstrap_ci_profile.jsonl
+            ${{ runner.temp }}/bootstrap_ci_failures.txt
           if-no-files-found: ignore
 
   notify-discord:

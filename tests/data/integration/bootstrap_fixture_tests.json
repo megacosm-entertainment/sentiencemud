@@ -16,6 +16,14 @@
           {
             "name": "Bootstrap Tests",
             "expected_uid": 3
+          },
+          {
+            "name": "Bootstrap Reserved",
+            "required": false
+          },
+          {
+            "name": "Definitely Missing Bootstrap Fixture Area",
+            "should_exist": false
           }
         ]
       },
@@ -43,6 +51,31 @@
             "should_parse": true,
             "expected_vnum": 1,
             "expected_area": "Bootstrap Tests"
+          },
+          {
+            "explicit_area_name": "Bootstrap Tests",
+            "explicit_vnum": 42,
+            "description": "Generated explicit WNUM for bootstrap tests area",
+            "should_parse": true,
+            "expected_vnum": 42,
+            "expected_area": "Bootstrap Tests"
+          },
+          {
+            "vnum_string": "#2",
+            "description": "Second relative bootstrap tests room reference",
+            "should_parse": true,
+            "expected_vnum": 2,
+            "expected_area": "Bootstrap Tests"
+          },
+          {
+            "vnum_string": "3#notanum",
+            "description": "Malformed explicit WNUM string",
+            "should_parse": false
+          },
+          {
+            "vnum_string": "#bad",
+            "description": "Malformed relative WNUM string",
+            "should_parse": false
           }
         ]
       },

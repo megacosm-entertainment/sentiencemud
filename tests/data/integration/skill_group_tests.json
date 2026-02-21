@@ -27,7 +27,20 @@
       "input": {
         "test_cases": [
           {
+            "use_first_loaded": true,
+            "lookup_mode": "exact",
+            "should_find": true,
+            "description": "Exact lookup of first loaded skill group succeeds"
+          },
+          {
+            "use_first_loaded": true,
+            "lookup_mode": "prefix",
+            "should_find": true,
+            "description": "Prefix lookup of first loaded skill group succeeds"
+          },
+          {
             "name": "totally_nonexistent_group_xyz",
+            "lookup_mode": "exact",
             "should_find": false,
             "description": "Bogus group not found"
           }

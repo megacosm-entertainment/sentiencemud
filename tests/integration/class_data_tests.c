@@ -182,14 +182,11 @@ static test_result_t test_class_default(test_case_t *test)
  */
 static test_result_t test_class_uid_integrity(test_case_t *test)
 {
+    (void)test;
     int count = class_count();
     if (count <= 0) {
         return TEST_FAILURE;
     }
-
-    #define MAX_UID_CHECK 1024
-    bool seen[MAX_UID_CHECK];
-    memset(seen, 0, sizeof(seen));
 
     int checked = 0;
     CLASS_DATA *clazz;
@@ -204,17 +201,21 @@ static test_result_t test_class_uid_integrity(test_case_t *test)
             return TEST_FAILURE;
         }
 
-        if (clazz->uid < MAX_UID_CHECK) {
-            if (seen[clazz->uid]) {
+        for (CLASS_DATA *other = clazz->next; other; other = other->next) {
+            if (!other->valid) {
+                continue;
+            }
+
+            if (other->uid == clazz->uid) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "Duplicate class UID %d (class: %s)",
-                             clazz->uid, clazz->name ? clazz->name : "?");
+                             "Duplicate class UID %d (classes: %s, %s)",
+                             clazz->uid,
+                             clazz->name ? clazz->name : "?",
+                             other->name ? other->name : "?");
                 return TEST_FAILURE;
             }
-            seen[clazz->uid] = true;
         }
     }
-    #undef MAX_UID_CHECK
 
     log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
                  "All %d classes have unique positive UIDs", checked);
@@ -226,8 +227,17 @@ static test_result_t test_class_uid_integrity(test_case_t *test)
  */
 static test_result_t test_class_uid_roundtrip(test_case_t *test)
 {
+    json_t *input = NULL;
+    json_t *invalid_uids = NULL;
     int checked = 0;
     CLASS_DATA *clazz;
+
+    if (test && test->config) {
+        input = json_object_get(test->config, "input");
+        if (json_is_object(input)) {
+            invalid_uids = json_object_get(input, "invalid_uids");
+        }
+    }
 
     for (clazz = class_first(); clazz; clazz = clazz->next) {
         if (!clazz->valid) continue;
@@ -239,6 +249,29 @@ static test_result_t test_class_uid_roundtrip(test_case_t *test)
                          "class_find_uid(%d) did not return original class '%s'",
                          clazz->uid, clazz->name ? clazz->name : "?");
             return TEST_FAILURE;
+        }
+    }
+
+    if (json_is_array(invalid_uids)) {
+        size_t index;
+        json_t *uid_json;
+        json_array_foreach(invalid_uids, index, uid_json) {
+            if (!json_is_integer(uid_json)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Invalid uid entry in invalid_uids at index %zu",
+                             index);
+                return TEST_ERROR;
+            }
+
+            int uid = (int)json_integer_value(uid_json);
+            CLASS_DATA *found = class_find_uid(uid);
+            if (found) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "class_find_uid(%d) returned '%s', expected NULL",
+                             uid,
+                             found->name ? found->name : "?");
+                return TEST_FAILURE;
+            }
         }
     }
 
@@ -310,18 +343,18 @@ static test_result_t test_class_type_valid(test_case_t *test)
  */
 static test_result_t test_class_exp_table(test_case_t *test)
 {
-    CLASS_DATA *clazz = class_first();
-    if (!clazz) {
-        return TEST_FAILURE;
-    }
-
-    /* Verify XP is positive and monotonically increasing for the first class */
-    long prev_xp = 0;
+    int classes_to_check = 3;
     int test_levels[] = {1, 10, 50};
     int num_levels = 3;
 
     if (test && test->config) {
         json_t *input = json_object_get(test->config, "input");
+        if (input && json_object_get(input, "classes_to_check")) {
+            int cfg_classes = test_json_get_int(input, "classes_to_check");
+            if (cfg_classes > 0) {
+                classes_to_check = cfg_classes;
+            }
+        }
         json_t *levels = json_object_get(input, "test_levels");
         if (levels && json_is_array(levels)) {
             num_levels = json_array_size(levels);
@@ -335,27 +368,44 @@ static test_result_t test_class_exp_table(test_case_t *test)
         }
     }
 
-    for (int i = 0; i < num_levels; i++) {
-        int level = test_levels[i];
-        if (level > clazz->max_level) continue;
-
-        long xp = class_exp_per_level(clazz, level);
-
-        if (xp <= 0) {
-            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "class_exp_per_level('%s', %d) returned %ld, expected positive",
-                         clazz->name, level, xp);
-            return TEST_FAILURE;
+    int checked_classes = 0;
+    CLASS_DATA *clazz;
+    for (clazz = class_first(); clazz && checked_classes < classes_to_check; clazz = clazz->next) {
+        if (!clazz->valid) {
+            continue;
         }
 
-        if (xp <= prev_xp && level > 1) {
-            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                         "XP not increasing: level %d = %ld, prev = %ld",
-                         level, xp, prev_xp);
-            return TEST_FAILURE;
+        long prev_xp = 0;
+        for (int i = 0; i < num_levels; i++) {
+            int level = test_levels[i];
+            if (level > clazz->max_level) continue;
+
+            long xp = class_exp_per_level(clazz, level);
+
+            if (xp <= 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "class_exp_per_level('%s', %d) returned %ld, expected positive",
+                             clazz->name, level, xp);
+                return TEST_FAILURE;
+            }
+
+            if (xp <= prev_xp && level > 1) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "XP not increasing for class '%s': level %d = %ld, prev = %ld",
+                             clazz->name, level, xp, prev_xp);
+                return TEST_FAILURE;
+            }
+
+            prev_xp = xp;
         }
 
-        prev_xp = xp;
+        checked_classes++;
+    }
+
+    if (checked_classes <= 0) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "No valid classes available for XP table validation");
+        return TEST_FAILURE;
     }
 
     return TEST_SUCCESS;

@@ -63,11 +63,13 @@
           {
             "prefix": "swo",
             "should_find": true,
+            "expected_name": "sword",
             "description": "Prefix match for sword"
           },
           {
             "prefix": "dod",
             "should_find": true,
+            "expected_name": "dodge",
             "description": "Prefix match for dodge"
           },
           {
@@ -108,7 +110,9 @@
       "description": "Verify skill_find_uid returns the same skill for each known UID",
       "dependencies": ["skill_uid_integrity"],
       "test_type": "skill_uid_roundtrip_test",
-      "input": {},
+      "input": {
+        "invalid_uids": [-1, 0, 999999]
+      },
       "expected_output": {
         "all_roundtrips_match": true
       }

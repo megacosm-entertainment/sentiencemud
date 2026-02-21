@@ -10,10 +10,40 @@
 
 static test_result_t test_script_entity_lookup(test_case_t *test);
 static test_result_t test_script_ifcheck_lookup(test_case_t *test);
+static test_result_t test_script_ifcheck_type_mask_resolution(test_case_t *test);
 static test_result_t test_script_compile_string_bounds(test_case_t *test);
 static test_result_t test_script_compile_error_context_reset(test_case_t *test);
 static test_result_t test_script_compile_invalid_syntax(test_case_t *test);
 static test_result_t test_script_compile_direct_entity_if(test_case_t *test);
+static test_result_t test_script_compile_nested_level_limit(test_case_t *test);
+static test_result_t test_script_compile_nested_loop_limit(test_case_t *test);
+static test_result_t test_script_compile_switch_overlap_case_ranges(test_case_t *test);
+static test_result_t test_script_compile_switch_unmatched_end(test_case_t *test);
+static test_result_t test_script_compile_case_outside_switch(test_case_t *test);
+static test_result_t test_script_compile_default_outside_switch(test_case_t *test);
+static test_result_t test_script_compile_or_without_if_while(test_case_t *test);
+static test_result_t test_script_compile_and_without_if_while(test_case_t *test);
+static test_result_t test_script_compile_unmatched_else(test_case_t *test);
+static test_result_t test_script_compile_unmatched_elseif(test_case_t *test);
+static test_result_t test_script_compile_unmatched_endif(test_case_t *test);
+static test_result_t test_script_compile_unmatched_endfor(test_case_t *test);
+static test_result_t test_script_compile_unmatched_endlist(test_case_t *test);
+static test_result_t test_script_compile_unmatched_endwhile(test_case_t *test);
+static test_result_t test_script_compile_exitfor_outside_loop(test_case_t *test);
+static test_result_t test_script_compile_exitlist_outside_loop(test_case_t *test);
+static test_result_t test_script_compile_exitwhile_outside_loop(test_case_t *test);
+static test_result_t test_script_compile_endfor_undefined_label(test_case_t *test);
+static test_result_t test_script_compile_endfor_cross_loop_mismatch(test_case_t *test);
+static test_result_t test_script_compile_mob_prefix_wrong_prog_type(test_case_t *test);
+static test_result_t test_script_compile_obj_prefix_wrong_prog_type(test_case_t *test);
+static test_result_t test_script_compile_bare_command_non_mprog(test_case_t *test);
+static test_result_t test_script_compile_duplicate_for_label(test_case_t *test);
+static test_result_t test_script_compile_duplicate_list_label(test_case_t *test);
+static test_result_t test_script_compile_duplicate_while_label(test_case_t *test);
+static test_result_t test_script_compile_switch_case_missing_first_number(test_case_t *test);
+static test_result_t test_script_compile_switch_case_missing_second_number(test_case_t *test);
+static test_result_t test_script_compile_switch_nesting_depth_overflow(test_case_t *test);
+static test_result_t test_script_compile_switch_duplicate_default_behavior(test_case_t *test);
 static test_result_t test_script_entity_table_validation(test_case_t *test);
 static test_result_t test_script_entity_field_metadata(test_case_t *test);
 static test_result_t test_script_entity_field_pressure_report(test_case_t *test);
@@ -40,6 +70,61 @@ static test_result_t test_script_direction_trigger_exec(test_case_t *test);
 static test_result_t test_script_greet_trigger_exec(test_case_t *test);
 static test_result_t test_script_varset_classlevel_mobile_class(test_case_t *test);
 static void log_entity_table_validation_diagnostics(void);
+
+static test_result_t assert_compile_script_failure_marker(const char *source, int ifc_type,
+    int script_vnum, const char *expected_marker, const char *context)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    const char *diagnostics;
+
+    if (!source || !expected_marker || !context)
+        return TEST_ERROR;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup(source);
+
+    script.vnum = script_vnum;
+    compiled_ok = compile_script(err_buf, &script, compile_source, ifc_type);
+    if (compiled_ok) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script unexpectedly succeeded for %s", context);
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script failure emitted no diagnostics for %s", context);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, expected_marker)) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script diagnostics missing expected marker for %s: %s",
+                      context, diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
 
 int test_vnumname_trigger(char *name, int vnum, AREA_DATA *entity_area, int type,
             CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
@@ -134,6 +219,9 @@ test_result_t run_script_engine_test_case(test_case_t *test)
     if (strcmp(test->test_type, "script_engine_ifcheck_lookup_test") == 0)
         return test_script_ifcheck_lookup(test);
 
+    if (strcmp(test->test_type, "script_engine_ifcheck_type_mask_resolution_test") == 0)
+        return test_script_ifcheck_type_mask_resolution(test);
+
     if (strcmp(test->test_type, "script_engine_compile_bounds_test") == 0)
         return test_script_compile_string_bounds(test);
 
@@ -145,6 +233,93 @@ test_result_t run_script_engine_test_case(test_case_t *test)
 
     if (strcmp(test->test_type, "script_engine_compile_direct_entity_if_test") == 0)
         return test_script_compile_direct_entity_if(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_nested_level_limit_test") == 0)
+        return test_script_compile_nested_level_limit(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_nested_loop_limit_test") == 0)
+        return test_script_compile_nested_loop_limit(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_switch_overlap_case_ranges_test") == 0)
+        return test_script_compile_switch_overlap_case_ranges(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_switch_unmatched_end_test") == 0)
+        return test_script_compile_switch_unmatched_end(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_case_outside_switch_test") == 0)
+        return test_script_compile_case_outside_switch(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_default_outside_switch_test") == 0)
+        return test_script_compile_default_outside_switch(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_or_without_if_while_test") == 0)
+        return test_script_compile_or_without_if_while(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_and_without_if_while_test") == 0)
+        return test_script_compile_and_without_if_while(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_unmatched_else_test") == 0)
+        return test_script_compile_unmatched_else(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_unmatched_elseif_test") == 0)
+        return test_script_compile_unmatched_elseif(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_unmatched_endif_test") == 0)
+        return test_script_compile_unmatched_endif(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_unmatched_endfor_test") == 0)
+        return test_script_compile_unmatched_endfor(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_unmatched_endlist_test") == 0)
+        return test_script_compile_unmatched_endlist(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_unmatched_endwhile_test") == 0)
+        return test_script_compile_unmatched_endwhile(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_exitfor_outside_loop_test") == 0)
+        return test_script_compile_exitfor_outside_loop(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_exitlist_outside_loop_test") == 0)
+        return test_script_compile_exitlist_outside_loop(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_exitwhile_outside_loop_test") == 0)
+        return test_script_compile_exitwhile_outside_loop(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_endfor_undefined_label_test") == 0)
+        return test_script_compile_endfor_undefined_label(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_endfor_cross_loop_mismatch_test") == 0)
+        return test_script_compile_endfor_cross_loop_mismatch(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_mob_prefix_wrong_prog_type_test") == 0)
+        return test_script_compile_mob_prefix_wrong_prog_type(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_obj_prefix_wrong_prog_type_test") == 0)
+        return test_script_compile_obj_prefix_wrong_prog_type(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_bare_command_non_mprog_test") == 0)
+        return test_script_compile_bare_command_non_mprog(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_duplicate_for_label_test") == 0)
+        return test_script_compile_duplicate_for_label(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_duplicate_list_label_test") == 0)
+        return test_script_compile_duplicate_list_label(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_duplicate_while_label_test") == 0)
+        return test_script_compile_duplicate_while_label(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_switch_case_missing_first_number_test") == 0)
+        return test_script_compile_switch_case_missing_first_number(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_switch_case_missing_second_number_test") == 0)
+        return test_script_compile_switch_case_missing_second_number(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_switch_nesting_depth_overflow_test") == 0)
+        return test_script_compile_switch_nesting_depth_overflow(test);
+
+    if (strcmp(test->test_type, "script_engine_compile_switch_duplicate_default_behavior_test") == 0)
+        return test_script_compile_switch_duplicate_default_behavior(test);
 
     if (strcmp(test->test_type, "script_engine_entity_table_validation_test") == 0)
         return test_script_entity_table_validation(test);
@@ -386,6 +561,56 @@ static test_result_t test_script_varset_classlevel_mobile_class(test_case_t *tes
     free_mem(compiled, compiled_len + 1);
     variable_freelist(&vars);
     remove_class_level(&player, clazz);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_ifcheck_type_mask_resolution(test_case_t *test)
+{
+    json_t *input;
+    json_t *test_cases;
+    size_t index;
+    json_t *tc;
+
+    if (!test || !test->config)
+        return TEST_ERROR;
+
+    input = json_object_get(test->config, "input");
+    if (!json_is_object(input))
+        return TEST_ERROR;
+
+    test_cases = json_object_get(input, "test_cases");
+    if (!json_is_array(test_cases))
+        return TEST_ERROR;
+
+    json_array_foreach(test_cases, index, tc) {
+        const char *type_name = test_json_get_string(tc, "type_name");
+        const char *expected_name = test_json_get_string(tc, "expected_name");
+        int expected_mask = IFC_NONE;
+        int resolved = resolve_ifcheck_type_mask(type_name);
+
+        if (!expected_name || !expected_name[0]) {
+            return TEST_ERROR;
+        }
+
+        if (strcmp(expected_name, "IFC_ANY") == 0) expected_mask = IFC_ANY;
+        else if (strcmp(expected_name, "IFC_M") == 0) expected_mask = IFC_M;
+        else if (strcmp(expected_name, "IFC_O") == 0) expected_mask = IFC_O;
+        else if (strcmp(expected_name, "IFC_R") == 0) expected_mask = IFC_R;
+        else if (strcmp(expected_name, "IFC_T") == 0) expected_mask = IFC_T;
+        else if (strcmp(expected_name, "IFC_A") == 0) expected_mask = IFC_A;
+        else if (strcmp(expected_name, "IFC_I") == 0) expected_mask = IFC_I;
+        else if (strcmp(expected_name, "IFC_D") == 0) expected_mask = IFC_D;
+        else if (strcmp(expected_name, "IFC_Q") == 0) expected_mask = IFC_Q;
+        else return TEST_ERROR;
+
+        if (resolved != expected_mask) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                          "resolve_ifcheck_type_mask('%s')=%d expected=%d (%s)",
+                          type_name ? type_name : "(null)", resolved, expected_mask, expected_name);
+            return TEST_FAILURE;
+        }
+    }
+
     return TEST_SUCCESS;
 }
 
@@ -681,6 +906,791 @@ static test_result_t test_script_compile_direct_entity_if(test_case_t *test)
     free_buf(err_buf);
     free_script_code(script.code, script.lines);
     free_string(script.src);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_nested_level_limit(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    BUFFER *src_buf;
+    char *compile_source;
+    int requested_depth;
+    int depth;
+    int i;
+    bool compiled_ok;
+    const char *diagnostics;
+
+    if (!test || !test->config)
+        return TEST_ERROR;
+
+    memset(&script, 0, sizeof(script));
+
+    requested_depth = test_json_get_int(json_object_get(test->config, "input"), "depth");
+    depth = (requested_depth > 0) ? requested_depth : (MAX_NESTED_LEVEL + 1);
+
+    err_buf = new_buf();
+    src_buf = new_buf();
+    if (!err_buf || !src_buf) {
+        if (err_buf)
+            free_buf(err_buf);
+        if (src_buf)
+            free_buf(src_buf);
+        return TEST_ERROR;
+    }
+
+    for (i = 0; i < depth; i++)
+        add_buf(src_buf, "if number 1\n");
+
+    compile_source = str_dup(buf_string(src_buf));
+    free_buf(src_buf);
+
+    script.vnum = 900015;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script unexpectedly succeeded for nested-level depth=%d", depth);
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script nested-level limit failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "Nested levels too deep")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script nested-level diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_nested_loop_limit(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    BUFFER *src_buf;
+    char *compile_source;
+    int requested_depth;
+    int depth;
+    int i;
+    bool compiled_ok;
+    const char *diagnostics;
+    char line[64];
+
+    if (!test || !test->config)
+        return TEST_ERROR;
+
+    memset(&script, 0, sizeof(script));
+
+    requested_depth = test_json_get_int(json_object_get(test->config, "input"), "depth");
+    depth = (requested_depth > 0) ? requested_depth : (MAX_NESTED_LOOPS + 1);
+
+    if (depth >= MAX_NESTED_LEVEL)
+        depth = MAX_NESTED_LEVEL - 1;
+
+    err_buf = new_buf();
+    src_buf = new_buf();
+    if (!err_buf || !src_buf) {
+        if (err_buf)
+            free_buf(err_buf);
+        if (src_buf)
+            free_buf(src_buf);
+        return TEST_ERROR;
+    }
+
+    for (i = 0; i < depth; i++) {
+        snprintf(line, sizeof(line), "while loop_%d number 1\n", i);
+        add_buf(src_buf, line);
+    }
+
+    compile_source = str_dup(buf_string(src_buf));
+    free_buf(src_buf);
+
+    script.vnum = 900016;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script unexpectedly succeeded for nested-loop depth=%d", depth);
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script nested-loop limit failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "too many nested loops in script")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script nested-loop diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_switch_overlap_case_ranges(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    const char *diagnostics;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup(
+        "switch 1\n"
+        "case 1 3\n"
+        "case 2 4\n"
+        "endswitch\n");
+
+    script.vnum = 900017;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for overlapping switch case ranges");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script switch-overlap failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "duplicate/overlapping switch case found")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script switch-overlap diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_switch_unmatched_end(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    const char *diagnostics;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup("endswitch\n");
+
+    script.vnum = 900018;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for unmatched endswitch");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unmatched-endswitch failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "Unmatched 'endswitch'")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script unmatched-endswitch diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_case_outside_switch(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    const char *diagnostics;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup("case 1\n");
+
+    script.vnum = 900019;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for case outside switch");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script case-outside-switch failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "case statement used outside of switch")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script case-outside-switch diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_default_outside_switch(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    const char *diagnostics;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup("default\n");
+
+    script.vnum = 900020;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for default outside switch");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script default-outside-switch failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "default case statement used outside of switch")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script default-outside-switch diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_or_without_if_while(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    const char *diagnostics;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup("or number 1\n");
+
+    script.vnum = 900021;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for 'or' outside if/while");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script or-without-if/while failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "'or' used without 'if' or 'while'")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script or-without-if/while diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_and_without_if_while(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+    const char *diagnostics;
+    (void)test;
+
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup("and number 1\n");
+
+    script.vnum = 900022;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for 'and' outside if/while");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script and-without-if/while failure emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "'and' used without 'if' or 'while'")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script and-without-if/while diagnostics missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_unmatched_else(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "else\n",
+        IFC_M,
+        900023,
+        "Unmatched 'else'",
+        "unmatched else");
+}
+
+static test_result_t test_script_compile_unmatched_elseif(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "elseif number 1\n",
+        IFC_M,
+        900024,
+        "Unexpected 'elseif'",
+        "unmatched elseif");
+}
+
+static test_result_t test_script_compile_unmatched_endif(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "endif\n",
+        IFC_M,
+        900025,
+        "Unmatched 'endif'",
+        "unmatched endif");
+}
+
+static test_result_t test_script_compile_unmatched_endfor(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "endfor loop_1\n",
+        IFC_M,
+        900026,
+        "Unmatched 'endfor'",
+        "unmatched endfor");
+}
+
+static test_result_t test_script_compile_unmatched_endlist(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "endlist list_1\n",
+        IFC_M,
+        900027,
+        "Unmatched 'endlist'",
+        "unmatched endlist");
+}
+
+static test_result_t test_script_compile_unmatched_endwhile(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "endwhile loop_1\n",
+        IFC_M,
+        900028,
+        "Unmatched 'endwhile'",
+        "unmatched endwhile");
+}
+
+static test_result_t test_script_compile_exitfor_outside_loop(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "exitfor loop_1\n",
+        IFC_M,
+        900029,
+        "'exitfor' used outside of for loop",
+        "exitfor outside loop");
+}
+
+static test_result_t test_script_compile_exitlist_outside_loop(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "exitlist loop_1\n",
+        IFC_M,
+        900030,
+        "'exitlist' used outside of for loop",
+        "exitlist outside loop");
+}
+
+static test_result_t test_script_compile_exitwhile_outside_loop(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "exitwhile loop_1\n",
+        IFC_M,
+        900031,
+        "'exitwhile' used outside of for loop",
+        "exitwhile outside loop");
+}
+
+static test_result_t test_script_compile_endfor_undefined_label(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "for outer 1 1 1\n"
+        "endfor missing\n",
+        IFC_M,
+        900032,
+        "undefined named label 'missing' used",
+        "endfor undefined label");
+}
+
+static test_result_t test_script_compile_endfor_cross_loop_mismatch(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "for outer 1 1 1\n"
+        "for inner 1 1 1\n"
+        "endfor outer\n"
+        "endfor inner\n",
+        IFC_M,
+        900033,
+        "trying to end a loop inside another loop",
+        "endfor cross-loop mismatch");
+}
+
+static test_result_t test_script_compile_mob_prefix_wrong_prog_type(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "mob mload 1\n",
+        IFC_O,
+        900034,
+        "Attempting to do a mob command outside an mprog",
+        "mob prefix wrong prog type");
+}
+
+static test_result_t test_script_compile_obj_prefix_wrong_prog_type(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "obj oload 1\n",
+        IFC_M,
+        900035,
+        "Attempting to do a obj command outside an oprog",
+        "obj prefix wrong prog type");
+}
+
+static test_result_t test_script_compile_bare_command_non_mprog(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "say hello\n",
+        IFC_O,
+        900036,
+        "Bare interpreter commands are mprog-only",
+        "bare command in non-mprog");
+}
+
+static test_result_t test_script_compile_duplicate_for_label(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "for loopdup 1 1 1\n"
+        "for loopdup 1 1 1\n",
+        IFC_M,
+        900037,
+        "duplicate named label 'loopdup' used",
+        "duplicate for label");
+}
+
+static test_result_t test_script_compile_duplicate_list_label(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "list listdup 1\n"
+        "list listdup 1\n",
+        IFC_M,
+        900038,
+        "duplicate named label 'listdup' used",
+        "duplicate list label");
+}
+
+static test_result_t test_script_compile_duplicate_while_label(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "while whiledup number 1\n"
+        "while whiledup number 1\n",
+        IFC_M,
+        900039,
+        "duplicate named label 'whiledup' used",
+        "duplicate while label");
+}
+
+static test_result_t test_script_compile_switch_case_missing_first_number(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "switch 1\n"
+        "case foo\n"
+        "endswitch\n",
+        IFC_M,
+        900040,
+        "expected a number in case statement",
+        "switch case missing first number");
+}
+
+static test_result_t test_script_compile_switch_case_missing_second_number(test_case_t *test)
+{
+    (void)test;
+    return assert_compile_script_failure_marker(
+        "switch 1\n"
+        "case 1 foo\n"
+        "endswitch\n",
+        IFC_M,
+        900041,
+        "expected second number in range for case statement",
+        "switch case missing second number");
+}
+
+static test_result_t test_script_compile_switch_nesting_depth_overflow(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    BUFFER *src_buf;
+    char *compile_source;
+    const char *diagnostics;
+    bool compiled_ok;
+    int i;
+
+    (void)test;
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    src_buf = new_buf();
+    if (!err_buf || !src_buf) {
+        if (err_buf)
+            free_buf(err_buf);
+        if (src_buf)
+            free_buf(src_buf);
+        return TEST_ERROR;
+    }
+
+    for (i = 0; i < MAX_NESTED_LEVEL + 1; i++)
+        add_buf(src_buf, "switch 1\n");
+
+    compile_source = str_dup(buf_string(src_buf));
+    free_buf(src_buf);
+
+    script.vnum = 900042;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (compiled_ok) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script unexpectedly succeeded for switch nesting overflow");
+        free_script_code(script.code, script.lines);
+        free_string(script.src);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    diagnostics = buf_string(err_buf);
+    if (!diagnostics || diagnostics[0] == '\0') {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "compile_script switch nesting overflow emitted no diagnostics");
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    if (!strstr(diagnostics, "Nested levels too deep")) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script switch nesting overflow missing expected marker: %s",
+                      diagnostics);
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_buf(err_buf);
+    free_string(compile_source);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_compile_switch_duplicate_default_behavior(test_case_t *test)
+{
+    SCRIPT_DATA script;
+    BUFFER *err_buf;
+    char *compile_source;
+    bool compiled_ok;
+
+    (void)test;
+    memset(&script, 0, sizeof(script));
+
+    err_buf = new_buf();
+    if (!err_buf)
+        return TEST_ERROR;
+
+    compile_source = str_dup(
+        "switch 1\n"
+        "default\n"
+        "default\n"
+        "endswitch\n");
+
+    script.vnum = 900043;
+    compiled_ok = compile_script(err_buf, &script, compile_source, IFC_M);
+    if (!compiled_ok) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                      "compile_script failed for duplicate default behavior coverage: %s",
+                      buf_string(err_buf));
+        free_buf(err_buf);
+        free_string(compile_source);
+        return TEST_FAILURE;
+    }
+
+    free_script_code(script.code, script.lines);
+    free_string(script.src);
+    free_buf(err_buf);
     return TEST_SUCCESS;
 }
 

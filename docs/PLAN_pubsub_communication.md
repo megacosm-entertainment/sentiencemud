@@ -504,3 +504,141 @@ Room-scoped chat (`say`, `whisper`, `sayto`, `intone`) generates far more volume
 -   **Out of Scope:** Purely client-side commands (`clear`) or visual emotes (`do_emote`) that do not have a concept of a "channel" or targeted recipients would not be part of this system and would remain as-is.
 
 By adopting this unified, data-driven model, we not only gain scalability but also create a far more consistent, maintainable, and feature-rich communication system for the future.
+
+## 8. Operation Without Redis (Fallback / Degraded Mode)
+
+Redis should be treated as a **transport backend**, not the channel system itself. The channel core (definitions, permissions, moderation, filtering, formatting, script trigger sequencing) must continue to work if Redis is unavailable.
+
+### 8.1 Transport Abstraction
+
+Implement a narrow transport interface used by the generic channel handler and receiver logic:
+
+```c
+typedef struct channel_transport CHANNEL_TRANSPORT;
+
+struct channel_transport {
+  bool (*publish)(const char *topic, const CHANNEL_MESSAGE *msg);
+  bool (*subscribe)(const char *topic);
+  bool (*unsubscribe)(const char *topic);
+  bool (*append_history)(const char *stream, const CHANNEL_MESSAGE *msg, char *out_id, size_t out_id_sz);
+  int  (*fetch_history)(const char *stream, const char *cursor, int limit, CHANNEL_MESSAGE_LIST *out);
+  bool (*health_check)(void);
+  const char *name;
+};
+```
+
+Backends:
+- **RedisTransport**: Uses `XADD`, `PUBLISH`, `SUBSCRIBE`, `XREAD`/`XRANGE`.
+- **LocalTransport**: In-process topic registry + per-topic ring buffer history.
+- **LegacyIterativeTransport** (optional safety net): Uses existing direct iteration path for emergency fallback.
+
+### 8.2 LocalTransport Behavior
+
+When Redis is down or disabled, LocalTransport provides single-process pub/sub semantics:
+
+- **Topics:** In-memory subscriber sets keyed by generated topic name (same naming rules as Redis mode).
+- **History:** Per-topic ring buffers with channel-configured retention (`max_len`, `max_age_seconds`).
+- **Message IDs:** Locally generated IDs (e.g., `<epoch_ms>-<sequence>`) compatible with report/audit references.
+- **Delivery Path:** Queue messages into the main game loop and run normal receiver checks (`ignore`, penalties, word filters, formatting).
+- **Room Script Triggers:** Preserve ordering: player delivery first, then trigger firing (`p_act_trigger()`).
+
+This keeps behavior consistent with the planned architecture while removing external dependency at runtime.
+
+### 8.3 Failover and Recovery Policy
+
+Add backend mode setting:
+
+```text
+channel_backend = auto | redis | local | legacy_iterative
+```
+
+- **auto (recommended):** Start on Redis; if health checks or publish/history operations fail repeatedly, trip a circuit breaker and switch to LocalTransport.
+- **redis:** Require Redis; if unavailable, channels report degraded errors (useful for strict staging checks).
+- **local:** Never attempt Redis (single-node offline operation).
+- **legacy_iterative:** Explicit fallback to pre-pubsub delivery when needed.
+
+Recovery behavior for `auto`:
+- Probe Redis periodically with cooldown/hysteresis to avoid rapid backend flapping.
+- On stable recovery, switch back to RedisTransport.
+- Log backend transitions (`LOG_WARN`/`LOG_INIT`) for staff visibility.
+
+### 8.4 Feature Impact Matrix When Redis Is Unavailable
+
+| Capability | RedisTransport | LocalTransport |
+|------------|----------------|----------------|
+| Channel publish/receive | Yes | Yes |
+| Scope routing (`GLOBAL`, `AREA`, `ROOM_WV`, etc.) | Yes | Yes |
+| Moderation/penalties/filtering | Yes | Yes |
+| Message history retrieval | Yes (durable stream) | Yes (memory ring buffer) |
+| Report `incident_ref` IDs | Yes (stream IDs) | Yes (local IDs) |
+| Cross-process / multi-instance propagation | Yes | No |
+| Durable staff review queue | Yes | Optional (local memory or file mirror) |
+
+### 8.5 Persistence Options in Local Mode
+
+Base LocalTransport is memory-only. If stronger durability is needed without Redis, add optional append-only local logs:
+
+- `data/system/channel_history.log` (or per-channel files)
+- `data/system/channel_audit.log`
+
+These can be replayed on startup to seed recent history and preserve staff review context. This is optional and should be configurable to avoid unnecessary disk I/O.
+
+### 8.6 Implementation Notes by Phase
+
+To align with the existing plan phases:
+
+- **Phase 1:** Define transport interface and LocalTransport stubs before migrating channels.
+- **Phase 2:** Implement RedisTransport + listener, then wire auto failover logic.
+- **Phase 3/4:** Migrate channels without backend-specific code in `do_*` handlers.
+
+### 8.7 Implementation Acceptance Criteria
+
+Use this checklist to validate the fallback architecture in development and staging:
+
+- [ ] **Backend isolation:** `do_*` channel handlers call only the generic channel service (no direct Redis calls).
+- [ ] **Startup modes:** `channel_backend=redis|local|auto|legacy_iterative` all initialize correctly and log selected backend.
+- [ ] **Redis outage failover:** In `auto` mode, forced Redis failure switches to LocalTransport within bounded retries and without server crash.
+- [ ] **Redis recovery:** In `auto` mode, backend returns to Redis only after stable health checks (hysteresis/cooldown honored).
+- [ ] **Single-process continuity:** Core channels (`gossip`, `ooc`, `say`, `tell`, `gtell`, `yell`, `churchtalk`) continue to function in LocalTransport mode.
+- [ ] **Scope correctness:** Topic routing remains correct for `GLOBAL`, `AREA` (including `area_topic` override), `ROOM_WV`, `DIRECT_ENTITY`, `GROUP_LEADER`, and `CHURCH_ID`.
+- [ ] **History retention:** Local ring buffers enforce per-channel `history.max_len` and `history.max_age_seconds` limits.
+- [ ] **Message references:** Reports and moderation records still receive valid `incident_ref` IDs in LocalTransport mode.
+- [ ] **Moderation parity:** Character/account penalties, mute/ban behavior, and escalation checks produce the same outcomes in Redis and Local modes.
+- [ ] **Receiver parity:** `ignore`, word filters, and channel formatting execute identically across backends.
+- [ ] **Script parity:** For room channels, message delivery occurs before speech triggers, matching current gameplay ordering.
+- [ ] **No noisy flapping:** Repeated Redis instability does not cause rapid backend oscillation; transition logs are rate-limited and clear.
+- [ ] **Optional durability behavior:** If local file mirroring is enabled, audit/history replay works after restart; if disabled, behavior is documented as memory-only.
+- [ ] **Emergency path:** `legacy_iterative` mode remains available and operational as last-resort fallback.
+
+### 8.8 Test Execution Matrix
+
+The following matrix maps acceptance criteria to concrete validation steps. Exact command names may vary based on final implementation; keep these as canonical scenarios.
+
+| Checklist Item | Scenario | Suggested Command / Action | Expected Result |
+|----------------|----------|----------------------------|-----------------|
+| Backend isolation | Build with pubsub enabled and inspect logs for transport use | Run server in normal mode; exercise `gossip`, `say`, `tell` | Channel flow goes through generic channel service, no direct Redis call paths in `do_*` commands |
+| Startup modes | Start server once per backend mode | Set `channel_backend=redis`, `local`, `auto`, `legacy_iterative` and restart | Selected backend initializes successfully and logs backend name |
+| Redis outage failover | Kill Redis during active chat traffic in `auto` mode | Start in `auto`, send channel messages, stop Redis service/socket | Backend switches to LocalTransport without crash; messages continue |
+| Redis recovery | Restore Redis after outage in `auto` mode | Restart Redis; continue traffic | Backend returns to Redis only after stable checks/cooldown |
+| Single-process continuity | Validate major channels in local mode | Start with `channel_backend=local`; test `gossip/ooc/say/tell/gtell/yell/churchtalk` | All channels deliver correctly in one server process |
+| Scope correctness | Validate each scope with representative actors | Exercise `GLOBAL`, `AREA` (+ `area_topic` override), `ROOM_WV`, `DIRECT_ENTITY`, `GROUP_LEADER`, `CHURCH_ID` | Topic routing and recipients match scope rules |
+| History retention | Overflow local history buffers and age windows | Send > `max_len` messages; advance time or simulate age expiry | Old entries trimmed by length/age policy |
+| Message references | File reports in both backends | Report channel messages in Redis and local modes | `incident_ref` generated and retrievable in both modes |
+| Moderation parity | Apply penalties and retest speaking/listening | Use `chanwarn/chanmute/chanban` + account-level penalties | Enforcement outcomes match between Redis and LocalTransport |
+| Receiver parity | Validate ignore/filter/formatting with same message set | Configure `ignore` and word filters; send identical messages in both backends | Rendered output and suppressions are equivalent |
+| Script parity | Test room speech trigger ordering | In scripted room, issue `say` with NPC/object triggers | Players see speech first, triggers execute afterward |
+| No noisy flapping | Induce intermittent Redis failures | Toggle Redis availability rapidly while in `auto` | No rapid oscillation; transitions are controlled and clearly logged |
+| Optional durability behavior | Enable local mirror and restart server | Turn on local audit/history mirror; send messages; restart | Replayed history/audit data appears as configured |
+| Emergency path | Force both primary backends unavailable | Configure/break Redis and LocalTransport init; set or switch to `legacy_iterative` | Legacy iterative channel delivery remains functional |
+
+#### Suggested Validation Order
+
+1. Startup modes
+2. Single-process continuity
+3. Scope correctness
+4. Receiver/moderation parity
+5. History/message reference checks
+6. Failover, recovery, and anti-flap behavior
+7. Optional durability and emergency-path drills
+
+This ensures each migrated channel automatically works in Redis and no-Redis environments.

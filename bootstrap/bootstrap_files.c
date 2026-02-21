@@ -869,7 +869,7 @@ static bool create_reserved_fixture_area(void)
     json_t *mobiles = json_array();
 
     json_object_set_new(root, "schema_version", json_string("1.0.0"));
-    json_object_set_new(area, "uid", json_integer(2));
+    json_object_set_new(area, "uid", json_integer(4));
     json_object_set_new(area, "name", json_string("Bootstrap Reserved Fixture"));
     json_object_set_new(area, "filename", json_string("bootstrap_reserved_fixture.json"));
     json_object_set_new(vnums, "min", json_integer(1));
@@ -975,7 +975,7 @@ static bool create_dummy_fixture_area(void)
     json_t *mobiles = json_array();
 
     json_object_set_new(root, "schema_version", json_string("1.0.0"));
-    json_object_set_new(area, "uid", json_integer(3));
+    json_object_set_new(area, "uid", json_integer(5));
     json_object_set_new(area, "name", json_string("Bootstrap Dummy Fixture"));
     json_object_set_new(area, "filename", json_string("bootstrap_dummy_fixture.json"));
     json_object_set_new(vnums, "min", json_integer(1));
