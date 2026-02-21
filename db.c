@@ -265,6 +265,7 @@ BLUEPRINT				*blueprint_hash[MAX_KEY_HASH];
 DUNGEON_INDEX_DATA		*dungeon_index_hash[MAX_KEY_HASH];
 SHIP_INDEX_DATA			*ship_index_hash[MAX_KEY_HASH];
 REPUTATION_INDEX_DATA  *reputation_index_hash[MAX_KEY_HASH];
+QUEST_INDEX_DATA       *quest_index_list;
 
 bool			global;
 char			bug_buf[2*MAX_INPUT_LENGTH];

@@ -54,6 +54,8 @@
 #include "magic.h"
 #include "tables.h"
 
+static bool check_quest_custom_task_run(CHAR_DATA *ch, QUEST_DATA *run, int task, bool show);
+
 static void quest_set_wnum(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *area, long vnum)
 {
     if (!load || !wnum) return;
@@ -78,12 +80,137 @@ static void quest_part_resolve(WNUM_LOAD *load, WNUM *wnum)
     resolve_wnum_load(load, wnum, fallback);
 }
 
-#define QUESTPART_GETITEM	1
-#define QUESTPART_RESCUE	2
-#define QUESTPART_SLAY		3
-#define QUESTPART_GOTO		4
-#define QUESTPART_SCRIPT	5
-#define QUESTPARTS_BUILTIN	4
+static void quest_runtime_normalize_template_link(CHAR_DATA *ch, QUEST_DATA *run)
+{
+    WNUM quest_index_wnum = wnum_zero;
+    AREA_DATA *quest_index_area = NULL;
+
+    if (!ch || !run)
+        return;
+
+    if (run->quest_index_vnum <= 0)
+        return;
+
+    if (run->quest_index_auid > 0)
+        quest_index_area = get_area_from_uid(run->quest_index_auid);
+
+    if (quest_index_area) {
+        quest_index_wnum.pArea = quest_index_area;
+        quest_index_wnum.vnum = run->quest_index_vnum;
+    } else if (!resolve_widevnum(run->quest_index_vnum, NULL, &quest_index_wnum)) {
+        quest_index_wnum = wnum_zero;
+    }
+
+    if (!get_quest_index_wnum(quest_index_wnum)) {
+        if (run->quest_index_vnum > 0 || run->quest_index_auid > 0) {
+            plogf(LOG_QUEST,
+                  "Clearing stale quest template link for %s run %ld (auid=%ld vnum=%ld)",
+                  ch->name ? ch->name : "(unknown)",
+                  run->run_id,
+                  run->quest_index_auid,
+                  run->quest_index_vnum);
+        }
+        run->quest_index_auid = 0;
+        run->quest_index_vnum = 0;
+    } else if (quest_index_wnum.pArea) {
+        run->quest_index_auid = quest_index_wnum.pArea->uid;
+        run->quest_index_vnum = quest_index_wnum.vnum;
+    }
+}
+
+static const char *quest_target_scope_name(int scope)
+{
+    switch (scope)
+    {
+    case QUEST_TARGET_SCOPE_CHARACTER: return "character";
+    case QUEST_TARGET_SCOPE_GROUP: return "group";
+    case QUEST_TARGET_SCOPE_CHURCH: return "church";
+    default: return "unknown";
+    }
+}
+
+static bool quest_target_scope_supported_for_player(CHAR_DATA *ch, int scope, bool show_message)
+{
+    if (scope == QUEST_TARGET_SCOPE_CHARACTER)
+        return true;
+
+    if (show_message && ch) {
+        if (scope == QUEST_TARGET_SCOPE_GROUP)
+            send_to_char("Group-scoped quests are not enabled yet.\n\r", ch);
+        else if (scope == QUEST_TARGET_SCOPE_CHURCH)
+            send_to_char("Church-scoped quests are not enabled yet.\n\r", ch);
+        else
+            send_to_char("That quest scope is not currently supported.\n\r", ch);
+    }
+
+    return false;
+}
+
+static bool quest_run_accessible_by_player(CHAR_DATA *ch, QUEST_DATA *run, bool show_message)
+{
+    if (!ch || !run || IS_NPC(ch))
+        return false;
+
+    if (!quest_target_scope_supported_for_player(ch, run->target_scope, show_message))
+        return false;
+
+    if (run->target_scope == QUEST_TARGET_SCOPE_CHARACTER) {
+        if (run->scope_owner_id[0] == 0 && run->scope_owner_id[1] == 0) {
+            run->scope_owner_id[0] = ch->id[0];
+            run->scope_owner_id[1] = ch->id[1];
+        }
+
+        if (!uid_match(run->scope_owner_id, ch->id)) {
+            if (show_message)
+                send_to_char("That quest run does not belong to your character.\n\r", ch);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static QUEST_DATA *quest_resolve_command_run(CHAR_DATA *ch, const char *selector, bool show_message)
+{
+    QUEST_DATA *run;
+    long target;
+
+    if (!ch || IS_NPC(ch))
+        return NULL;
+
+    if (IS_NULLSTR(selector)) {
+        run = quest_runtime_get_focused_run(ch);
+        if (!run)
+            run = ch->quest;
+
+        if (!quest_run_accessible_by_player(ch, run, show_message))
+            return NULL;
+
+        return run;
+    }
+
+    if (!is_number((char *)selector)) {
+        if (show_message)
+            send_to_char("Run selector must be a quest index or run id.\n\r", ch);
+        return NULL;
+    }
+
+    target = atol(selector);
+    run = quest_runtime_get_run_by_index(ch, (int)target);
+    if (!run)
+        run = quest_runtime_get_run_by_id(ch, target);
+
+    if (!run) {
+        if (show_message)
+            send_to_char("No active quest run matches that selector.\n\r", ch);
+        return NULL;
+    }
+
+    if (!quest_run_accessible_by_player(ch, run, show_message))
+        return NULL;
+
+    return run;
+}
 
 static bool is_quest_shop_object(OBJ_INDEX_DATA *obj_index)
 {
@@ -142,7 +269,358 @@ static void resolve_quest_tokens(void)
     quest_tokens_resolved = true;
 }
 
-OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
+static void quest_runtime_normalize_target_scope(CHAR_DATA *ch, QUEST_DATA *run)
+{
+    if (!ch || !run)
+        return;
+
+    if (run->target_scope < QUEST_TARGET_SCOPE_CHARACTER
+        || run->target_scope > QUEST_TARGET_SCOPE_CHURCH)
+        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+
+    if (run->target_scope == QUEST_TARGET_SCOPE_CHARACTER) {
+        if (run->scope_owner_id[0] == 0 && run->scope_owner_id[1] == 0) {
+            run->scope_owner_id[0] = ch->id[0];
+            run->scope_owner_id[1] = ch->id[1];
+        }
+        run->scope_owner_uid = 0;
+    }
+}
+
+long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, long quest_index_vnum)
+{
+    QUEST_DATA *run;
+    QUEST_DATA *target_run;
+
+    if (!ch || IS_NPC(ch) || ch->quest == NULL) {
+        return 0;
+    }
+
+    if (ch->quest_runtime.next_run_id <= 0) {
+        ch->quest_runtime.next_run_id = 1;
+    }
+
+    for (run = ch->quest; run != NULL; run = run->next) {
+        if (run->run_id <= 0) {
+            run->run_id = ch->quest_runtime.next_run_id++;
+        } else if (run->run_id >= ch->quest_runtime.next_run_id) {
+            ch->quest_runtime.next_run_id = run->run_id + 1;
+        }
+
+        if (run->started_at <= 0) {
+            run->started_at = current_time;
+        }
+
+        quest_runtime_normalize_target_scope(ch, run);
+        quest_runtime_normalize_template_link(ch, run);
+    }
+
+    if (ch->quest_runtime.focused_run_id <= 0)
+        ch->quest_runtime.focused_run_id = ch->quest->run_id;
+
+    target_run = ch->quest;
+    if (ch->quest_runtime.focused_run_id > 0) {
+        for (run = ch->quest; run != NULL; run = run->next) {
+            if (run->run_id == ch->quest_runtime.focused_run_id) {
+                target_run = run;
+                break;
+            }
+        }
+    }
+
+    if (quest_index_vnum > 0 && target_run) {
+        target_run->quest_index_auid = quest_index_auid;
+        target_run->quest_index_vnum = quest_index_vnum;
+        quest_runtime_normalize_template_link(ch, target_run);
+    }
+
+    return target_run ? target_run->run_id : ch->quest->run_id;
+}
+
+
+QUEST_DATA *quest_runtime_get_run_by_id(CHAR_DATA *ch, long run_id)
+{
+    QUEST_DATA *run;
+
+    if (!ch || IS_NPC(ch) || ch->quest == NULL)
+        return NULL;
+
+    quest_runtime_attach_active_quest(ch, 0, 0);
+    if (run_id <= 0)
+        run_id = ch->quest->run_id;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+    {
+        if (run->run_id == run_id)
+            return run;
+    }
+
+    return NULL;
+}
+
+
+QUEST_DATA *quest_runtime_get_run_by_index(CHAR_DATA *ch, int index)
+{
+    QUEST_DATA *run;
+    int i;
+
+    if (!ch || IS_NPC(ch) || ch->quest == NULL || index < 1)
+        return NULL;
+
+    quest_runtime_attach_active_quest(ch, 0, 0);
+
+    i = 1;
+    for (run = ch->quest; run != NULL; run = run->next, i++)
+    {
+        if (i == index)
+            return run;
+    }
+
+    return NULL;
+}
+
+
+int quest_runtime_get_active_run_count(CHAR_DATA *ch)
+{
+    QUEST_DATA *run;
+    int count = 0;
+
+    if (!ch || IS_NPC(ch))
+        return 0;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+        count++;
+
+    return count;
+}
+
+
+QUEST_DATA *quest_runtime_get_focused_run(CHAR_DATA *ch)
+{
+    QUEST_DATA *run;
+
+    if (!ch || IS_NPC(ch))
+        return NULL;
+
+    if (ch->quest_runtime.focused_run_id <= 0)
+        ch->quest_runtime.focused_run_id = quest_runtime_attach_active_quest(ch, 0, 0);
+
+    run = quest_runtime_get_run_by_id(ch, ch->quest_runtime.focused_run_id);
+    if (run && quest_run_accessible_by_player(ch, run, false))
+        return run;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+    {
+        if (quest_run_accessible_by_player(ch, run, false))
+        {
+            ch->quest_runtime.focused_run_id = run->run_id;
+            return run;
+        }
+    }
+
+    return NULL;
+}
+
+static void quest_runtime_detach_run(CHAR_DATA *ch, QUEST_DATA *run)
+{
+    QUEST_DATA *iter;
+    QUEST_DATA *prev = NULL;
+    long removed_run_id;
+
+    if (!ch || IS_NPC(ch) || !run)
+        return;
+
+    for (iter = ch->quest; iter != NULL; iter = iter->next)
+    {
+        if (iter == run)
+            break;
+        prev = iter;
+    }
+
+    if (!iter)
+        return;
+
+    removed_run_id = iter->run_id;
+
+    if (prev)
+        prev->next = iter->next;
+    else
+        ch->quest = iter->next;
+
+    iter->next = NULL;
+    free_quest(iter);
+
+    if (!ch->quest)
+    {
+        ch->quest_runtime.focused_run_id = 0;
+        return;
+    }
+
+    quest_runtime_attach_active_quest(ch, 0, 0);
+    if (ch->quest_runtime.focused_run_id == removed_run_id
+        || !quest_runtime_get_run_by_id(ch, ch->quest_runtime.focused_run_id))
+        ch->quest_runtime.focused_run_id = ch->quest->run_id;
+}
+
+bool quest_runtime_has_token(CHAR_DATA *ch, WNUM token_wnum)
+{
+    if (!ch || IS_NPC(ch) || !token_wnum.pArea || token_wnum.vnum < 1) {
+        return false;
+    }
+
+    return get_token_char(ch, token_wnum.vnum, token_wnum.pArea, 1) != NULL;
+}
+
+TOKEN_DATA *quest_runtime_add_token(CHAR_DATA *ch, WNUM token_wnum)
+{
+    TOKEN_DATA *existing;
+    TOKEN_INDEX_DATA *token_index;
+
+    if (!ch || IS_NPC(ch) || !token_wnum.pArea || token_wnum.vnum < 1) {
+        return NULL;
+    }
+
+    existing = get_token_char(ch, token_wnum.vnum, token_wnum.pArea, 1);
+    if (existing) {
+        return existing;
+    }
+
+    token_index = get_token_index(token_wnum.pArea, token_wnum.vnum);
+    if (!token_index || token_index->type != TOKEN_QUEST) {
+        return NULL;
+    }
+
+    return give_token(token_index, ch, NULL, NULL);
+}
+
+bool quest_runtime_remove_token(CHAR_DATA *ch, WNUM token_wnum, int count)
+{
+    int removed = 0;
+
+    if (!ch || IS_NPC(ch) || !token_wnum.pArea || token_wnum.vnum < 1) {
+        return false;
+    }
+
+    while (count <= 0 || removed < count) {
+        TOKEN_DATA *token = get_token_char(ch, token_wnum.vnum, token_wnum.pArea, 1);
+        if (!token) {
+            break;
+        }
+
+        token_from_char(token);
+        free_token(token);
+        ++removed;
+    }
+
+    return removed > 0;
+}
+
+static void quest_runtime_update_player(CHAR_DATA *ch)
+{
+    int mission_cap;
+    long elapsed_seconds;
+    long elapsed_minutes;
+    int gain;
+    time_t now;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata) {
+        return;
+    }
+
+    if (ch->quest_runtime.mission_allowance < 0) {
+        ch->quest_runtime.mission_allowance = 0;
+    }
+
+    ch->quest_runtime.points_bank = ch->questpoints;
+
+    mission_cap = game_settings.max_mission_allowance;
+    if (ch->church) {
+        mission_cap += UMAX(0, ch->church->quest_data.mission_allowance_bonus);
+    }
+
+    if (mission_cap <= 0 || game_settings.inc_missions <= 0) {
+        return;
+    }
+
+    if (ch->quest_runtime.mission_allowance > mission_cap) {
+        ch->quest_runtime.mission_allowance = mission_cap;
+    }
+
+    now = current_time;
+    if (ch->quest_runtime.allowance_last_update <= 0) {
+        ch->quest_runtime.allowance_last_update = now;
+        return;
+    }
+
+    elapsed_seconds = (long)(now - ch->quest_runtime.allowance_last_update);
+    if (elapsed_seconds < 60) {
+        return;
+    }
+
+    elapsed_minutes = elapsed_seconds / 60;
+    gain = (int)(elapsed_minutes * game_settings.inc_missions);
+
+    ch->quest_runtime.mission_allowance = UMIN(mission_cap, ch->quest_runtime.mission_allowance + gain);
+    ch->quest_runtime.allowance_last_update = now;
+}
+
+bool quest_runtime_manual_trigger_ready(CHAR_DATA *ch)
+{
+    if (!ch || IS_NPC(ch) || !ch->pcdata || !ch->in_room || !ch->in_room->area) {
+        return false;
+    }
+
+    if (!(ch->quest_runtime.expiry_modes & QUEST_EXPIRY_MANUAL_AREA)) {
+        return true;
+    }
+
+    if (ch->quest_runtime.manual_trigger_area_uid <= 0) {
+        return false;
+    }
+
+    return ch->in_room->area->uid == ch->quest_runtime.manual_trigger_area_uid;
+}
+
+bool quest_runtime_is_expired(CHAR_DATA *ch, time_t now)
+{
+    if (!ch || IS_NPC(ch) || !ch->pcdata) {
+        return false;
+    }
+
+    if ((ch->quest_runtime.expiry_modes & QUEST_EXPIRY_WALL_TIME)
+        && ch->quest_runtime.expires_at > 0
+        && now >= ch->quest_runtime.expires_at) {
+        return true;
+    }
+
+    if ((ch->quest_runtime.expiry_modes & QUEST_EXPIRY_COUNTDOWN)
+        && ch->quest_runtime.expiry_countdown_minutes <= 0) {
+        return true;
+    }
+
+    return false;
+}
+
+void quest_runtime_tick_expiration(CHAR_DATA *ch, time_t now)
+{
+    if (!ch || IS_NPC(ch) || !ch->pcdata) {
+        return;
+    }
+
+    if ((ch->quest_runtime.expiry_modes & QUEST_EXPIRY_COUNTDOWN)
+        && ch->quest_runtime.expiry_countdown_minutes > 0) {
+        --ch->quest_runtime.expiry_countdown_minutes;
+    }
+
+    ch->countdown = UMAX(0, ch->quest_runtime.expiry_countdown_minutes);
+    if ((ch->quest_runtime.expiry_modes & QUEST_EXPIRY_WALL_TIME)
+        && ch->quest_runtime.expires_at > 0
+        && ch->quest_runtime.expires_at < now) {
+        ch->quest_runtime.expires_at = now;
+    }
+}
+
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, QUEST_DATA *run, char *questgiver, long vnum,
     char *header, char *footer, char *prefix, char *suffix, int line_width)
 {
     AREA_DATA *scroll_area = NULL;
@@ -182,7 +660,7 @@ OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
         char *replace2 = string_replace_static(replace1, "$QUESTOR$", questgiver);
         add_buf(buffer, replace2);
 
-        for (QUEST_PART_DATA *part = ch->quest->parts; part != NULL; part = part->next)
+        for (QUEST_PART_DATA *part = run ? run->parts : NULL; part != NULL; part = part->next)
         {
             if( line_width > 0 && !IS_NULLSTR(suffix) )
             {
@@ -223,17 +701,221 @@ void do_quest(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj = NULL;
     ROOM_INDEX_DATA *room = NULL;
     char buf[MAX_STRING_LENGTH];
+    char target_arg[MSL];
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
+    long active_run_id;
+    QUEST_DATA *run;
     ITERATOR it;
 
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
+    quest_runtime_update_player(ch);
+
+    active_run_id = quest_runtime_attach_active_quest(ch, 0, 0);
+    if (active_run_id <= 0)
+        active_run_id = 1;
+
     if (arg1[0] == '\0')
     {
-        send_to_char("QUEST commands: POINTS INFO TIME REQUEST CANCEL COMPLETE.\n\r", ch);
+        send_to_char("QUEST commands: LOG FOCUS POINTS INFO TIME COMMENCE REQUEST CANCEL COMPLETE.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r",ch);
+        return;
+    }
+
+    //
+    // QUEST LOG
+    //
+    if (!str_cmp(arg1, "log"))
+    {
+        long age_minutes = 0;
+        int index = 1;
+        bool shown_any = false;
+
+        if (!IS_QUESTING(ch))
+        {
+            send_to_char("You have no active quests.\n\r", ch);
+            return;
+        }
+
+        if (ch->quest_runtime.focused_run_id <= 0)
+            ch->quest_runtime.focused_run_id = active_run_id;
+
+        for (run = ch->quest; run != NULL; run = run->next, index++)
+        {
+            if (!quest_run_accessible_by_player(ch, run, false))
+                continue;
+
+            bool focused = (ch->quest_runtime.focused_run_id == run->run_id);
+            shown_any = true;
+
+            if (run->generating)
+                printf_to_char(ch, "[%d] %sRun %ld (Generating) [%s]\n\r", index, focused ? "* " : "  ", run->run_id, quest_target_scope_name(run->target_scope));
+            else
+                printf_to_char(ch, "[%d] %sRun %ld [%s]\n\r", index, focused ? "* " : "  ", run->run_id, quest_target_scope_name(run->target_scope));
+
+            if (run->started_at > 0)
+                age_minutes = UMAX(0, (long)((current_time - run->started_at) / 60));
+            else
+                age_minutes = 0;
+
+            if (run->quest_index_auid > 0 && run->quest_index_vnum > 0)
+                printf_to_char(ch,
+                    "      template: {%ld#%ld{x  started: %ld minute%s ago\n\r",
+                    run->quest_index_auid,
+                    run->quest_index_vnum,
+                    age_minutes,
+                    age_minutes == 1 ? "" : "s");
+            else
+                printf_to_char(ch,
+                    "      template: {none/generate{x  started: %ld minute%s ago\n\r",
+                    age_minutes,
+                    age_minutes == 1 ? "" : "s");
+        }
+
+        if (!shown_any)
+        {
+            send_to_char("You have no active quests available to your character scope.\n\r", ch);
+            return;
+        }
+
+        printf_to_char(ch, "Use 'quest focus <index|run_id>' to focus a quest.\n\r");
+        return;
+    }
+
+    //
+    // QUEST FOCUS
+    //
+    if (!str_cmp(arg1, "focus"))
+    {
+        if (!IS_QUESTING(ch))
+        {
+            send_to_char("You have no active quests to focus.\n\r", ch);
+            return;
+        }
+
+        if (IS_NULLSTR(arg2))
+        {
+            if (ch->quest_runtime.focused_run_id <= 0)
+                send_to_char("No focused quest set.\n\r", ch);
+            else
+                printf_to_char(ch, "Focused quest: %ld\n\r", ch->quest_runtime.focused_run_id);
+            return;
+        }
+
+        if (is_number(arg2)) {
+            long target = atol(arg2);
+            QUEST_DATA *target_run = quest_runtime_get_run_by_index(ch, (int)target);
+            if (!target_run)
+                target_run = quest_runtime_get_run_by_id(ch, target);
+            if (!target_run)
+            {
+                send_to_char("No active quest matches that index.\n\r", ch);
+                return;
+            }
+            if (!quest_run_accessible_by_player(ch, target_run, true))
+                return;
+            ch->quest_runtime.focused_run_id = target_run->run_id;
+            send_to_char("Focused quest updated.\n\r", ch);
+            return;
+        }
+
+        send_to_char("Focus currently supports quest index or run id.\n\r", ch);
+        return;
+    }
+
+    //
+    // Quest commence
+    //
+    if (!str_cmp(arg1, "commence"))
+    {
+        QUEST_DATA *focused_quest;
+        QUEST_PART_DATA *part;
+        int i;
+        int task_index = -1;
+
+        focused_quest = quest_runtime_get_focused_run(ch);
+
+        if (focused_quest == NULL || focused_quest->generating)
+        {
+            send_to_char("You are not on a quest.\n\r", ch);
+            return;
+        }
+
+        if (!quest_run_accessible_by_player(ch, focused_quest, true))
+            return;
+
+        if ((ch->quest_runtime.expiry_modes & QUEST_EXPIRY_MANUAL_AREA)
+            && !quest_runtime_manual_trigger_ready(ch))
+        {
+            send_to_char("You are not at the objective location yet.\n\r", ch);
+            return;
+        }
+
+        if (IS_NULLSTR(arg2))
+        {
+            i = 0;
+            for (part = focused_quest->parts; part != NULL; part = part->next)
+            {
+                i++;
+                if (part->complete || !part->custom_task)
+                    continue;
+
+                task_index = i;
+                break;
+            }
+
+            if (task_index < 1)
+            {
+                send_to_char("There is no pending custom objective to commence.\n\r", ch);
+                return;
+            }
+        }
+        else
+        {
+            strncpy(target_arg, arg2, sizeof(target_arg) - 1);
+            target_arg[sizeof(target_arg) - 1] = '\0';
+            if (!IS_NULLSTR(argument))
+            {
+                strncat(target_arg, " ", sizeof(target_arg) - strlen(target_arg) - 1);
+                strncat(target_arg, argument, sizeof(target_arg) - strlen(target_arg) - 1);
+            }
+
+            if (is_number(target_arg))
+            {
+                task_index = atoi(target_arg);
+            }
+            else
+            {
+                i = 0;
+                for (part = focused_quest->parts; part != NULL; part = part->next)
+                {
+                    i++;
+                    if (part->complete || !part->custom_task)
+                        continue;
+
+                    if (!str_infix(target_arg, part->description))
+                    {
+                        task_index = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (task_index < 1)
+        {
+            send_to_char("No matching objective found. Use 'quest info' to view objective indexes.\n\r", ch);
+            return;
+        }
+
+        if (!check_quest_custom_task_run(ch, focused_quest, task_index, true))
+        {
+            send_to_char("That objective cannot be commenced right now.\n\r", ch);
+            return;
+        }
+
         return;
     }
 
@@ -243,26 +925,44 @@ void do_quest(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg1, "info"))
     {
         QUEST_PART_DATA *part;
+        QUEST_DATA *focused_quest;
         int i;
         int total_parts;
         bool totally_complete = false;
         bool found = false;
 
+        focused_quest = quest_runtime_get_focused_run(ch);
+
+        if (ch->quest_runtime.focused_run_id <= 0)
+            ch->quest_runtime.focused_run_id = active_run_id;
+
+        if (focused_quest == NULL)
+        {
+            printf_to_char(ch,
+                "Focused quest %ld is not currently active. Use 'quest focus %ld'.\n\r",
+                ch->quest_runtime.focused_run_id,
+                active_run_id);
+            return;
+        }
+
+        if (!quest_run_accessible_by_player(ch, focused_quest, true))
+            return;
+
         total_parts = 0;
 
-        if (ch->quest == NULL)
+        if (focused_quest == NULL)
         {
             send_to_char("You are not on a quest.\n\r", ch);
             return;
         }
 
-        if (ch->quest->generating)
+        if (focused_quest->generating)
         {
             send_to_char("You are still waiting for your quest.\n\r",ch);
             return;
         }
 
-        part = ch->quest->parts;
+        part = focused_quest->parts;
         while(part != NULL)
         {
             if (!part->complete)
@@ -275,18 +975,26 @@ void do_quest(CHAR_DATA *ch, char *argument)
             totally_complete = true;
 
         i = 1;
-        for (part = ch->quest->parts; part != NULL; part = part->next, i++)
+        for (part = focused_quest->parts; part != NULL; part = part->next, i++)
         {
             if (part->complete)
             {
-                sprintf(buf, "You have completed task {Y%d{x of your quest!\n\r", i);
+                sprintf(buf, "You have completed task {Y%d{x: %s\n\r", i,
+                    IS_NULLSTR(part->description) ? "(no description)" : part->description);
                 send_to_char(buf, ch);
             }
             else
             {
-                sprintf(buf, "Task {Y%d{x of your quest is not complete.\n\r", i);
+                sprintf(buf, "Task {Y%d{x is not complete: %s\n\r", i,
+                    IS_NULLSTR(part->description) ? "(no description)" : part->description);
                 totally_complete = false;
                 send_to_char(buf, ch);
+
+                if (part->custom_task)
+                {
+                    sprintf(buf, "  -> Use {Yquest commence %d{x here when ready.\n\r", i);
+                    send_to_char(buf, ch);
+                }
             }
         }
 
@@ -315,85 +1023,91 @@ void do_quest(CHAR_DATA *ch, char *argument)
     //
     if (!str_cmp(arg1, "time"))
     {
+        QUEST_DATA *focused_quest = quest_runtime_get_focused_run(ch);
+        int active_count = 0;
+        int other_count;
+
+        for (run = ch->quest; run != NULL; run = run->next)
+        {
+            if (quest_run_accessible_by_player(ch, run, false))
+                active_count++;
+        }
+
         if (!IS_QUESTING(ch))
         {
-            if (ch->nextquest > 1)
-            {
-                sprintf(buf, "There are %d minutes remaining until you can "
-                    "go on another quest.\n\r", ch->nextquest);
-                send_to_char(buf, ch);
-            }
-            else if (ch->nextquest == 1)
-            {
-                sprintf(buf, "There is less than a minute remaining until "
-                    "you can go on another quest.\n\r");
-                send_to_char(buf, ch);
-            }
-            else if (ch->nextquest == 0)
-                send_to_char("You aren't currently on a quest.\n\r",ch);
+            sprintf(buf, "Mission allowances available: {Y%d{x\n\r",
+                UMAX(0, ch->quest_runtime.mission_allowance));
+            send_to_char(buf, ch);
+            send_to_char("You aren't currently on a quest.\n\r", ch);
         }
-        else if (ch->quest->generating)
+        else if (focused_quest && focused_quest->generating)
         {
+            other_count = UMAX(0, active_count - 1);
+            sprintf(buf, "Focused run: {Y%ld{x (%d other active run%s).\n\r",
+                focused_quest->run_id,
+                other_count,
+                other_count == 1 ? "" : "s");
+            send_to_char(buf, ch);
             send_to_char("You are still waiting for your quest.\n\r"
                 "If you wish to abandon the pending quest, use QUEST CANCEL.\n\r",ch);
         }
+        else if (focused_quest && !quest_run_accessible_by_player(ch, focused_quest, true))
+        {
+            return;
+        }
         else if (ch->countdown > 0)
         {
+            other_count = UMAX(0, active_count - 1);
+            sprintf(buf, "Focused run: {Y%ld{x (%d other active run%s).\n\r",
+                focused_quest ? focused_quest->run_id : 0,
+                other_count,
+                other_count == 1 ? "" : "s");
+            send_to_char(buf, ch);
             sprintf(buf, "Time left for current quest: {Y%d{x minutes.\n\r",
                 ch->countdown);
             send_to_char(buf, ch);
         }
+        else if (focused_quest)
+        {
+            other_count = UMAX(0, active_count - 1);
+            sprintf(buf, "Focused run: {Y%ld{x (%d other active run%s).\n\r",
+                focused_quest->run_id,
+                other_count,
+                other_count == 1 ? "" : "s");
+            send_to_char(buf, ch);
+            send_to_char("No countdown timer is currently active for this run.\n\r", ch);
+        }
         return;
     }
-
-    ///////////////////////////////////////////
-    //
-    // Quest buy - [DEPRECATED] - leaving in for the time being
-    //
-    if (!str_cmp(arg1, "buy"))
-    {
-        send_to_char("{YQUEST BUY has been deprecated.  Please use the BUY command instead.\n\r", ch);
-        return;
-    }
-    //
-    // Quest sell - [DEPRECATED] - leaving in for the time being
-    //
-    if (!str_cmp(arg1, "sell"))
-    {
-        send_to_char("{YQUEST SELL has been deprecated.  Please use the SELL command instead.\n\r", ch);
-        return;
-    }
-    //
-    // Quest inspect - [DEPRECATED] - leaving in for the time being
-    //
-    if (!str_cmp(arg1, "inspect"))
-    {
-        send_to_char("{YQUEST INSPECT has been deprecated.  Please use the INSPECT command instead.\n\r", ch);
-        return;
-    }
-    //
-    // Quest renew - [DEPRECATED] - leaving in for the time being
-    //
-    if (!str_cmp(arg1, "renew"))
-    {
-        send_to_char("{YQUEST RENEW has been deprecated.  Please use the RENEW command instead.\n\r", ch);
-        return;
-    }
-    //
-    // Quest list - [DEPRECATED] - leaving in for the time being
-    //
-    if (!str_cmp(arg1, "list"))
-    {
-        send_to_char("{YQUEST LIST has been deprecated.  Please use the LIST command instead.\n\r", ch);
-        return;
-    }
-    ///////////////////////////////////////////
 
     //
     // Quest Request
     //
     if (!str_cmp(arg1, "request"))
     {
+        QUEST_DATA *active_quest;
+        QUEST_DATA *new_run;
+        QUEST_DATA *existing_run;
+        int requested_scope = QUEST_TARGET_SCOPE_CHARACTER;
+
+        if (!IS_NULLSTR(arg2))
+        {
+            if (!str_prefix(arg2, "character") || !str_prefix(arg2, "char") || !str_prefix(arg2, "single"))
+                requested_scope = QUEST_TARGET_SCOPE_CHARACTER;
+            else if (!str_prefix(arg2, "group"))
+                requested_scope = QUEST_TARGET_SCOPE_GROUP;
+            else if (!str_prefix(arg2, "church"))
+                requested_scope = QUEST_TARGET_SCOPE_CHURCH;
+            else
+            {
+                send_to_char("Syntax: quest request [character|group|church]\n\r", ch);
+                return;
+            }
+        }
+
+        if (!quest_target_scope_supported_for_player(ch, requested_scope, true))
+            return;
+
         /* For the following functions, a QM must be present. */
         for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
         {
@@ -416,11 +1130,14 @@ void do_quest(CHAR_DATA *ch, char *argument)
         act("$n asks $N for a quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         act ("You ask $N for a quest.",ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-        if (IS_QUESTING(ch))
+        for (existing_run = ch->quest; existing_run != NULL; existing_run = existing_run->next)
         {
-            sprintf(buf, "But you're already on a quest!");
-            do_say(mob, buf);
-            return;
+            if (existing_run->generating)
+            {
+                sprintf(buf, "Finish preparing your current pending quest first, %s.", HANDLE(ch));
+                do_say(mob, buf);
+                return;
+            }
         }
 
         if (IS_DEAD(ch))
@@ -430,7 +1147,9 @@ void do_quest(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        if (ch->nextquest > 0 && !IS_IMMORTAL(ch) && game_settings.telnet_port != PORT_RAE)
+        if (!IS_IMMORTAL(ch)
+            && game_settings.telnet_port != PORT_RAE
+            && ch->quest_runtime.mission_allowance < 1)
         {
             sprintf(buf, "You're very brave, %s, but let someone else have a chance.", ch->name);
             if (mob == NULL)
@@ -440,22 +1159,43 @@ void do_quest(CHAR_DATA *ch, char *argument)
             }
 
             do_say(mob, buf);
-            sprintf(buf, "Come back later.");
+            sprintf(buf, "You need at least one mission allowance.");
             do_say(mob, buf);
             return;
         }
 
-        ch->quest = new_quest();
-        ch->quest->questgiver_type = QUESTOR_MOB;
-        quest_set_wnum(&ch->quest->questgiver_load, &ch->quest->questgiver_wnum,
+        new_run = new_quest();
+        new_run->next = ch->quest;
+        ch->quest = new_run;
+
+        ch->quest_runtime.focused_run_id = 0;
+        quest_runtime_attach_active_quest(ch, 0, 0);
+        active_quest = quest_runtime_get_focused_run(ch);
+        if (!active_quest)
+            active_quest = ch->quest;
+
+        if (!active_quest)
+        {
+            send_to_char("Unable to initialize quest runtime state.\n\r", ch);
+            return;
+        }
+
+        active_quest->quest_index_auid = 0;
+        active_quest->quest_index_vnum = 0;
+        active_quest->target_scope = requested_scope;
+        active_quest->scope_owner_id[0] = ch->id[0];
+        active_quest->scope_owner_id[1] = ch->id[1];
+        active_quest->scope_owner_uid = 0;
+        active_quest->questgiver_type = QUESTOR_MOB;
+        quest_set_wnum(&active_quest->questgiver_load, &active_quest->questgiver_wnum,
             mob->pIndexData->area, mob->pIndexData->vnum);
-        ch->quest->questreceiver_type = QUESTOR_MOB;
-        quest_set_wnum(&ch->quest->questreceiver_load, &ch->quest->questreceiver_wnum,
+        active_quest->questreceiver_type = QUESTOR_MOB;
+        quest_set_wnum(&active_quest->questreceiver_load, &active_quest->questreceiver_wnum,
             mob->pIndexData->area, mob->pIndexData->vnum);
 
         if (generate_quest(ch, mob))
         {
-            ch->quest->generating = false;
+            active_quest->generating = false;
 
             sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
             do_say(mob, buf);
@@ -463,10 +1203,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
         else
         {
             sprintf(buf, "I'm sorry, %s, but I don't have any quests for you to do. Try again later.", ch->name);
-            ch->nextquest = 3;
             do_say(mob, buf);
-            free_quest(ch->quest);
-            ch->quest = NULL;
+            quest_runtime_detach_run(ch, active_quest);
             return;
         }
 
@@ -476,11 +1214,15 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
             ch->countdown = 0;
 
-            for (qp = ch->quest->parts; qp != NULL; qp = qp->next)
+            for (qp = active_quest->parts; qp != NULL; qp = qp->next)
                 ch->countdown += qp->minutes;
 
             sprintf(buf, "You have %d minutes to complete this quest.", ch->countdown);
             do_say(mob, buf);
+
+            if (!IS_IMMORTAL(ch) && game_settings.telnet_port != PORT_RAE
+                && ch->quest_runtime.mission_allowance > 0)
+                ch->quest_runtime.mission_allowance--;
         }
 
         return;
@@ -491,6 +1233,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
     //
     if (!str_cmp(arg1, "cancel"))
     {
+        QUEST_DATA *active_quest;
+
         if (!IS_AWAKE(ch))
         {
             send_to_char("In your dreams, or what?\n\r", ch);
@@ -503,23 +1247,29 @@ void do_quest(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        if( ch->quest->generating )
+        active_quest = quest_resolve_command_run(ch, arg2, true);
+        if (!active_quest)
+            return;
+
+        ch->quest_runtime.focused_run_id = active_quest->run_id;
+
+        if( active_quest->generating )
         {
-            ch->countdown = 0;
-            ch->nextquest = 0;
-            free_quest(ch->quest);
-            ch->quest = NULL;
+            quest_runtime_detach_run(ch, active_quest);
+            if (!IS_QUESTING(ch)) {
+                ch->countdown = 0;
+            }
             send_to_char("Pending quest cancelled.\n\r", ch);
         }
         else
         {
             // Check for the questGIVER
-            switch(ch->quest->questgiver_type)
+            switch(active_quest->questgiver_type)
             {
             case QUESTOR_MOB:
                 for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
                 {
-                if (IS_NPC(mob) && wnum_match_mob(ch->quest->questgiver_wnum, mob))
+                if (IS_NPC(mob) && wnum_match_mob(active_quest->questgiver_wnum, mob))
                         break;
                 }
                 break;
@@ -529,7 +1279,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 if (ch->lcarrying) {
                     iterator_start(&it, ch->lcarrying);
                     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                        if (wnum_match_obj(ch->quest->questgiver_wnum, obj)) {
+                        if (wnum_match_obj(active_quest->questgiver_wnum, obj)) {
                             iterator_stop(&it);
                             break;
                         }
@@ -540,7 +1290,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 // If not found in inventory, check room contents
                 if (obj == NULL) {
                     for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
-                        if (wnum_match_obj(ch->quest->questgiver_wnum, obj))
+                        if (wnum_match_obj(active_quest->questgiver_wnum, obj))
                             break;
                     }
                 }
@@ -548,7 +1298,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
             case QUESTOR_ROOM:
                 if (!ch->in_room->wilds && !ch->in_room->source &&
-                    wnum_match_room(ch->quest->questgiver_wnum, ch->in_room)) {
+                    wnum_match_room(active_quest->questgiver_wnum, ch->in_room)) {
                     room = ch->in_room;
                     break;
                 }
@@ -567,41 +1317,38 @@ void do_quest(CHAR_DATA *ch, char *argument)
                     ch->name);
                 do_say(mob, buf);
 
-                free_quest(ch->quest);
-                ch->quest = NULL;
-                ch->countdown = 0;
+                quest_runtime_detach_run(ch, active_quest);
 
                 mob->tempstore[0] = 10;
                 p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_CANCEL, NULL);
 
-                ch->nextquest = mob->tempstore[0];
-                if (ch->nextquest < 1) ch->nextquest = 1;
+                if (!IS_QUESTING(ch)) {
+                    ch->countdown = 0;
+                }
             }
             else if (obj)
             {
                 // Objects will not complain by default
 
-                free_quest(ch->quest);
-                ch->quest = NULL;
-                ch->countdown = 0;
+                quest_runtime_detach_run(ch, active_quest);
 
                 obj->tempstore[0] = 10;
                 p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_CANCEL, NULL);
 
-                ch->nextquest = obj->tempstore[0];
-                if (ch->nextquest < 1) ch->nextquest = 1;
+                if (!IS_QUESTING(ch)) {
+                    ch->countdown = 0;
+                }
             }
             else if (room)
             {
-                free_quest(ch->quest);
-                ch->quest = NULL;
-                ch->countdown = 0;
+                quest_runtime_detach_run(ch, active_quest);
 
                 room->tempstore[0] = 10;
                 p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_CANCEL, NULL);
 
-                ch->nextquest = room->tempstore[0];
-                if (ch->nextquest < 1) ch->nextquest = 1;
+                if (!IS_QUESTING(ch)) {
+                    ch->countdown = 0;
+                }
             }
             else
             {
@@ -617,6 +1364,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
     //
     if (!str_cmp(arg1, "complete"))
     {
+        QUEST_DATA *active_quest;
         QUEST_PART_DATA *part;
         bool found;
         bool incomplete;
@@ -633,19 +1381,25 @@ void do_quest(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        if (ch->quest == NULL || ch->quest->generating)
+        active_quest = quest_resolve_command_run(ch, arg2, true);
+        if (!active_quest)
+            return;
+
+        ch->quest_runtime.focused_run_id = active_quest->run_id;
+
+        if (active_quest == NULL || active_quest->generating)
         {
             send_to_char("You are not on a quest.\n\r", ch);
             return;
         }
 
         // Check for the questRECEIVER
-        switch(ch->quest->questreceiver_type)
+        switch(active_quest->questreceiver_type)
         {
         case QUESTOR_MOB:
             for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
             {
-                if (IS_NPC(mob) && wnum_match_mob(ch->quest->questreceiver_wnum, mob))
+                if (IS_NPC(mob) && wnum_match_mob(active_quest->questreceiver_wnum, mob))
                 {
                     tempstores = mob->tempstore;
                     break;
@@ -658,7 +1412,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             if (ch->lcarrying) {
                 iterator_start(&it, ch->lcarrying);
                 while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-                    if (wnum_match_obj(ch->quest->questreceiver_wnum, obj)) {
+                    if (wnum_match_obj(active_quest->questreceiver_wnum, obj)) {
                         tempstores = obj->tempstore;
                         iterator_stop(&it);
                         break;
@@ -670,7 +1424,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             // If not found in inventory, check room contents
             if (obj == NULL) {
                 for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
-                    if (wnum_match_obj(ch->quest->questreceiver_wnum, obj)) {
+                    if (wnum_match_obj(active_quest->questreceiver_wnum, obj)) {
                         tempstores = obj->tempstore;
                         break;
                     }
@@ -680,7 +1434,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
         case QUESTOR_ROOM:
             if (!ch->in_room->wilds && !ch->in_room->source &&
-                wnum_match_room(ch->quest->questreceiver_wnum, ch->in_room)) {
+                wnum_match_room(active_quest->questreceiver_wnum, ch->in_room)) {
                 room = ch->in_room;
                 tempstores = room->tempstore;
             }
@@ -701,7 +1455,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
         found = false;
         incomplete = false;
-        for (part = ch->quest->parts; part != NULL; part = part->next)
+        for (part = active_quest->parts; part != NULL; part = part->next)
         {
             if (part->complete)
                 found = true;
@@ -721,15 +1475,14 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
             p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
 
-            free_quest(ch->quest);
-            ch->quest = NULL;
-            ch->countdown = 0;
+            quest_runtime_detach_run(ch, active_quest);
 
             tempstores[0] = 10;
             p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_POSTQUEST, NULL);
 
-            ch->nextquest = tempstores[0];
-            if (ch->nextquest < 1) ch->nextquest = 1;
+            if (!IS_QUESTING(ch)) {
+                ch->countdown = 0;
+            }
 
             return;
         }
@@ -743,7 +1496,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
         plogf(LOG_QUEST, "(complete) Checking quest parts...");
 
         // Add up all the different rewards.
-        for (part = ch->quest->parts; part != NULL; part = part->next)
+        for (part = active_quest->parts; part != NULL; part = part->next)
         {
             i++;
 
@@ -880,17 +1633,15 @@ void do_quest(CHAR_DATA *ch, char *argument)
         tempstores[0] = 10;
         p_percent_trigger(mob, obj, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_POSTQUEST, NULL);
 
-        ch->nextquest = tempstores[0];
-        if (ch->nextquest < 1) ch->nextquest = 1;
-
-        ch->countdown = 0;	// @@@NIB Not doing this was causing nextquest to come up
-                            //	10 minutes if nextquest had expired
-        free_quest(ch->quest);
-        ch->quest = NULL;
+        quest_runtime_detach_run(ch, active_quest);
+        if (!IS_QUESTING(ch)) {
+            ch->countdown = 0;	// @@@NIB Not doing this was causing nextquest to come up
+                                //	10 minutes if nextquest had expired
+        }
     }
     else
     {
-        send_to_char("QUEST commands: POINTS INFO TIME REQUEST CANCEL COMPLETE.\n\r", ch);
+        send_to_char("QUEST commands: LOG FOCUS POINTS INFO TIME COMMENCE REQUEST CANCEL COMPLETE.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r", ch);
     }
 }
@@ -901,13 +1652,20 @@ void do_quest(CHAR_DATA *ch, char *argument)
  */
 bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 {
+    QUEST_DATA *active_run;
     QUEST_PART_DATA *part;
     OBJ_DATA *scroll;
     int parts;
     int i;
 
-    ch->quest->generating = true;
-    ch->quest->scripted = false;
+    active_run = quest_runtime_get_focused_run(ch);
+    if (!active_run)
+        active_run = ch->quest;
+    if (!active_run)
+        return false;
+
+    active_run->generating = true;
+    active_run->scripted = false;
 
     if (ch->tot_level <= 30)
         parts = number_range(1, 3);
@@ -941,8 +1699,8 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
     for (i = 0; i < parts; i++)
     {
         part = new_quest_part();
-        part->next = ch->quest->parts;
-        ch->quest->parts = part;
+        part->next = active_run->parts;
+        active_run->parts = part;
         part->index = parts - i;
 
         if (generate_quest_part(ch, questman, part, parts - i))
@@ -952,7 +1710,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
     }
 
     // create the scroll
-    scroll = generate_quest_scroll(ch, questman->short_descr, scroll_vnum,
+    scroll = generate_quest_scroll(ch, active_run, questman->short_descr, scroll_vnum,
         qd->header, qd->footer, qd->prefix, qd->suffix, qd->line_width);
 
     if( scroll == NULL )
@@ -993,6 +1751,8 @@ void quest_update(void)
 {
     DESCRIPTOR_DATA *d;
     CHAR_DATA *ch;
+    QUEST_DATA *active_quest;
+    int countdown_remaining;
     char buf[MAX_STRING_LENGTH];
     plogf(LOG_QUEST, "Update quests...");
 
@@ -1002,35 +1762,60 @@ void quest_update(void)
     {
         ch = d->character;
 
-        if (ch->quest == NULL && ch->nextquest > 0)
-        {
-        ch->nextquest--;
-        if (ch->nextquest == 0)
-        {
-            send_to_char("{WYou may now quest again.{x\n\r",ch);
-            return;
-        }
-        }
-        else
-        if (IS_QUESTING(ch) && !ch->quest->generating)
-        {
-        if (--ch->countdown <= 0)
-        {
-            ch->nextquest = 0;
-            sprintf(buf,
-            "{RYou have run out of time for your quest!\n\r"
-            "You may quest again in %d minutes.{x\n\r",ch->nextquest);
-            send_to_char(buf, ch);
-            free_quest(ch->quest);
-            ch->quest = NULL;
+        quest_runtime_update_player(ch);
+
+        if ((ch->quest_runtime.expiry_modes & QUEST_EXPIRY_COUNTDOWN)
+            && ch->countdown > 0
+            && ch->quest_runtime.expiry_countdown_minutes <= 0) {
+            ch->quest_runtime.expiry_countdown_minutes = ch->countdown;
         }
 
-        if (ch->countdown > 0 && ch->countdown < 6)
+        if (IS_QUESTING(ch))
+        {
+        active_quest = quest_runtime_get_focused_run(ch);
+        if (!active_quest)
+            active_quest = ch->quest;
+
+        if (active_quest && !active_quest->generating)
+        {
+        if (ch->quest_runtime.expiry_modes != QUEST_EXPIRY_NONE)
+        {
+            if (ch->quest_runtime.expiry_modes & (QUEST_EXPIRY_COUNTDOWN | QUEST_EXPIRY_WALL_TIME))
+                quest_runtime_tick_expiration(ch, current_time);
+
+            if (quest_runtime_is_expired(ch, current_time)) {
+                quest_runtime_detach_run(ch, active_quest);
+                if (!IS_QUESTING(ch)) {
+                    sprintf(buf, "{RYou have run out of time for your quest!{x\n\r");
+                } else {
+                    sprintf(buf, "{RYour focused quest run has expired.{x\n\r");
+                }
+                send_to_char(buf, ch);
+                continue;
+            }
+        }
+        else if (--ch->countdown <= 0)
+        {
+            quest_runtime_detach_run(ch, active_quest);
+            if (!IS_QUESTING(ch)) {
+                sprintf(buf, "{RYou have run out of time for your quest!{x\n\r");
+            } else {
+                sprintf(buf, "{RYour focused quest run has expired.{x\n\r");
+            }
+            send_to_char(buf, ch);
+        }
+
+        countdown_remaining = ch->countdown;
+        if (ch->quest_runtime.expiry_modes & QUEST_EXPIRY_COUNTDOWN)
+            countdown_remaining = ch->quest_runtime.expiry_countdown_minutes;
+
+        if (countdown_remaining > 0 && countdown_remaining < 6)
         {
             sprintf(buf, "You only have {Y%d{x minutes remaining to "
-                "finish your quest!\n\r", ch->countdown);
+                "finish your quest!\n\r", countdown_remaining);
             send_to_char(buf, ch);
-            return;
+            continue;
+        }
         }
         }
     }
@@ -1061,6 +1846,7 @@ bool is_quest_token(OBJ_DATA *obj)
 
 void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 {
+    QUEST_DATA *run;
     QUEST_PART_DATA *part;
     CHAR_DATA *mob;
     char buf[MAX_STRING_LENGTH];
@@ -1076,52 +1862,55 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
         return;
     }
 
-    i = 0;
-    for (part = ch->quest->parts; part != NULL; part = part->next)
+    for (run = ch->quest; run != NULL; run = run->next)
     {
-        i++;
-
-        // already did it
-        if (part->complete == true)
-            continue;
-
-        found = false;
-        mob = ch->in_room->people;
-        quest_part_resolve(&part->mob_rescue_load, &part->mob_rescue_wnum);
-        while (mob != NULL)
+        i = 0;
+        for (part = run->parts; part != NULL; part = part->next)
         {
-            if (IS_NPC(mob) && wnum_match_mob(part->mob_rescue_wnum, mob) && !part->complete)
+            i++;
+
+            // already did it
+            if (part->complete == true)
+                continue;
+
+            found = false;
+            mob = ch->in_room->people;
+            quest_part_resolve(&part->mob_rescue_load, &part->mob_rescue_wnum);
+            while (mob != NULL)
             {
-                if( show ) {
-                    sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
-                    do_say(mob, buf);
+                if (IS_NPC(mob) && wnum_match_mob(part->mob_rescue_wnum, mob) && !part->complete)
+                {
+                    if( show ) {
+                        sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
+                        do_say(mob, buf);
+                    }
+
+                    if (mob->master != NULL)
+                        stop_follower(mob,show);
+
+                    add_follower(mob, ch, show);
+
+                    if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_AGGRESSIVE))
+                        REMOVE_BIT(mob->act[0], ACT_AGGRESSIVE);
+
+                    found = true;
+                    break;
                 }
 
-                if (mob->master != NULL)
-                    stop_follower(mob,show);
+                mob = mob->next_in_room;
+            }
 
-                add_follower(mob, ch, show);
+            if (found && !part->complete)
+            {
+                if( show )
+                {
+                    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                    send_to_char(buf, ch);
+                }
 
-                if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_AGGRESSIVE))
-                    REMOVE_BIT(mob->act[0], ACT_AGGRESSIVE);
-
-                found = true;
+                part->complete = true;
                 break;
             }
-
-            mob = mob->next_in_room;
-        }
-
-        if (found && !part->complete)
-        {
-            if( show )
-            {
-                sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-                send_to_char(buf, ch);
-            }
-
-            part->complete = true;
-            break;
         }
     }
 }
@@ -1129,6 +1918,7 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 
 void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 {
+    QUEST_DATA *run;
     QUEST_PART_DATA *part;
     int i;
 
@@ -1146,26 +1936,28 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 
     if (ch->quest != NULL)
     {
-
-        i = 0;
-        for (part = ch->quest->parts; part != NULL; part = part->next)
+        for (run = ch->quest; run != NULL; run = run->next)
         {
-            i++;
-
-            // already did it
-            if (part->complete == true)
-                continue;
-
-            if (part->pObj == obj)
+            i = 0;
+            for (part = run->parts; part != NULL; part = part->next)
             {
-                if( show )
-                {
-                    char buf[MAX_STRING_LENGTH];
-                    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-                    send_to_char(buf, ch);
-                }
+                i++;
 
-                part->complete = true;
+                // already did it
+                if (part->complete == true)
+                    continue;
+
+                if (part->pObj == obj)
+                {
+                    if( show )
+                    {
+                        char buf[MAX_STRING_LENGTH];
+                        sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                        send_to_char(buf, ch);
+                    }
+
+                    part->complete = true;
+                }
             }
         }
     }
@@ -1174,6 +1966,7 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 
 void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 {
+    QUEST_DATA *run;
     QUEST_PART_DATA *part;
     int i;
 
@@ -1186,31 +1979,35 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
         return;
     }
 
-    i = 0;
-    for (part = ch->quest->parts; part != NULL; part = part->next)
+    for (run = ch->quest; run != NULL; run = run->next)
     {
-        i++;
-
-        // already did it
-        if (part->complete == true)
-            continue;
-
-        quest_part_resolve(&part->mob_load, &part->mob_wnum);
-        if (wnum_match_mob(part->mob_wnum, mob) && !part->complete)
+        i = 0;
+        for (part = run->parts; part != NULL; part = part->next)
         {
-            if( show ) {
-                char buf[MAX_STRING_LENGTH];
-                sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-                send_to_char(buf, ch);
-            }
+            i++;
 
-            part->complete = true;
+            // already did it
+            if (part->complete == true)
+                continue;
+
+            quest_part_resolve(&part->mob_load, &part->mob_wnum);
+            if (wnum_match_mob(part->mob_wnum, mob) && !part->complete)
+            {
+                if( show ) {
+                    char buf[MAX_STRING_LENGTH];
+                    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                    send_to_char(buf, ch);
+                }
+
+                part->complete = true;
+            }
         }
     }
 }
 
 void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 {
+    QUEST_DATA *run;
     QUEST_PART_DATA *part;
     ROOM_INDEX_DATA *target_room;
     int i;
@@ -1230,40 +2027,43 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
         return;
     }
 
-    i = 0;
-    for (part = ch->quest->parts; part != NULL; part = part->next)
+    for (run = ch->quest; run != NULL; run = run->next)
     {
-        i++;
-
-        // already did it
-        if (part->complete == true)
-            continue;
-
-        quest_part_resolve(&part->room_load, &part->room_wnum);
-        target_room = get_room_index(part->room_wnum.pArea, part->room_wnum.vnum);
-
-        /* Not going by room vnum to prevent multiple rooms with the same name */
-        if (target_room != NULL && !str_cmp(target_room->name, room->name))
+        i = 0;
+        for (part = run->parts; part != NULL; part = part->next)
         {
+            i++;
 
-            if( show )
+            // already did it
+            if (part->complete == true)
+                continue;
+
+            quest_part_resolve(&part->room_load, &part->room_wnum);
+            target_room = get_room_index(part->room_wnum.pArea, part->room_wnum.vnum);
+
+            /* Not going by room vnum to prevent multiple rooms with the same name */
+            if (target_room != NULL && !str_cmp(target_room->name, room->name))
             {
-                char buf[MAX_STRING_LENGTH];
-                sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-                send_to_char(buf, ch);
-            }
 
-            part->complete = true;
+                if( show )
+                {
+                    char buf[MAX_STRING_LENGTH];
+                    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+                    send_to_char(buf, ch);
+                }
+
+                part->complete = true;
+            }
         }
     }
 }
 
-bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
+static bool check_quest_custom_task_run(CHAR_DATA *ch, QUEST_DATA *run, int task, bool show)
 {
     QUEST_PART_DATA *part;
     int i;
 
-    if (ch->quest == NULL)
+    if (run == NULL)
         return false;
 
     if (IS_NPC(ch))
@@ -1273,7 +2073,7 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
     }
 
     i = 0;
-    for (part = ch->quest->parts; part != NULL; part = part->next)
+    for (part = run->parts; part != NULL; part = part->next)
     {
         i++;
 
@@ -1300,16 +2100,36 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
     return false;
 }
 
+
+bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
+{
+    QUEST_DATA *run;
+
+    if (!ch)
+        return false;
+
+    run = quest_runtime_get_focused_run(ch);
+    if (!run)
+        run = ch->quest;
+
+    return check_quest_custom_task_run(ch, run, task, show);
+}
+
 int count_quest_parts(CHAR_DATA *ch)
 {
+    QUEST_DATA *run;
     QUEST_PART_DATA *part;
     int parts;
 
-    if (ch->quest == NULL)
+    if (!ch || ch->quest == NULL)
         return 0;
 
+    run = quest_runtime_get_focused_run(ch);
+    if (!run)
+        run = ch->quest;
+
     parts = 1;
-    for (part = ch->quest->parts; part != NULL; part = part->next)
+    for (part = run->parts; part != NULL; part = part->next)
     {
         parts++;
     }
@@ -1330,15 +2150,32 @@ bool is_quest_item(OBJ_DATA *obj)
 
 QUEST_INDEX_DATA *get_quest_index(long vnum)
 {
-/*    QUEST_INDEX_DATA *quest_index;
+    QUEST_INDEX_DATA *quest_index;
 
     for (quest_index = quest_index_list; quest_index != NULL;
           quest_index = quest_index->next)
     {
-    if (quest_index->vnum == vnum)
-        return quest_index;
+        if (quest_index->vnum == vnum)
+            return quest_index;
     }
-*/
+
+    return NULL;
+}
+
+
+QUEST_INDEX_DATA *get_quest_index_wnum(WNUM wnum)
+{
+    QUEST_INDEX_DATA *quest_index;
+
+    if (!wnum.pArea || wnum.vnum < 1)
+        return NULL;
+
+    for (quest_index = quest_index_list; quest_index != NULL; quest_index = quest_index->next)
+    {
+        if (quest_index->area == wnum.pArea && quest_index->vnum == wnum.vnum)
+            return quest_index;
+    }
+
     return NULL;
 }
 

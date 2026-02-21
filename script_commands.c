@@ -8428,6 +8428,9 @@ SCRIPT_CMD(scriptcmd_questaccept)
     for (QUEST_PART_DATA *qp = mob->quest->parts; qp != NULL; qp = qp->next)
         mob->countdown += qp->minutes;
 
+    mob->quest_runtime.expiry_modes |= QUEST_EXPIRY_COUNTDOWN;
+    mob->quest_runtime.expiry_countdown_minutes = mob->countdown;
+
     mob->quest->generating = false;
     info->progs->lastreturn = mob->countdown;
 }
@@ -8512,7 +8515,7 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 }
 
 
-// QUESTGENERATE $PLAYER $QUESTRECEIVER $PARTCOUNT $PARTSCRIPT
+// QUESTGENERATE $PLAYER $QUESTRECEIVER $PARTCOUNT $PARTSCRIPT [ $QUESTINDEX ]
 
 // QUESTRECEIVER cannot be a wilderness room (for now?)
 SCRIPT_CMD(scriptcmd_questgenerate)
@@ -8527,6 +8530,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
     ROOM_INDEX_DATA *qr_room = NULL;
     int *tempstores;
     int type, parts;
+    WNUM quest_index_wnum = wnum_zero;
     long vnum;
     SCRIPT_DATA *script;
 
@@ -8658,7 +8662,28 @@ SCRIPT_CMD(scriptcmd_questgenerate)
     if (vnum < 1 || !script)
         return;
 
+    // Optional authored/template quest index reference (widevnum).
+    if (*rest && expand_argument(info, rest, arg)) {
+        if (arg->type == ENT_WIDEVNUM) {
+            if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0)
+                quest_index_wnum = arg->d.wnum;
+        } else if (arg->type == ENT_STRING) {
+            if (!parse_widevnum(arg->d.str, qg_area, &quest_index_wnum))
+                return;
+        } else {
+            return;
+        }
+
+        if (quest_index_wnum.pArea && quest_index_wnum.vnum > 0) {
+            if (!get_quest_index_wnum(quest_index_wnum))
+                return;
+        }
+    }
+
     mob->quest = new_quest();
+    quest_runtime_attach_active_quest(mob,
+        quest_index_wnum.pArea ? quest_index_wnum.pArea->uid : 0,
+        quest_index_wnum.vnum);
     mob->quest->generating = true;
     mob->quest->scripted = true;
     mob->quest->questgiver_type = qg_type;
@@ -8763,6 +8788,60 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
     part->description = str_dup(buf);
     part->custom_task = true;
     part->minutes = minutes;
+
+    info->progs->lastreturn = 1;
+}
+
+// QUESTSETINDEX $PLAYER $QUESTINDEX
+// Sets or clears (<=0) the template quest index for the active quest run.
+SCRIPT_CMD(scriptcmd_questsetindex)
+{
+    char *rest;
+    CHAR_DATA *mob;
+    WNUM quest_index_wnum;
+    AREA_DATA *context_area;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+
+    if (arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !IS_QUESTING(arg->d.mob))
+        return;
+
+    mob = arg->d.mob;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type == ENT_STRING && !str_cmp(arg->d.str, "none")) {
+        quest_runtime_attach_active_quest(mob, 0, 0);
+        if (mob->quest) {
+            mob->quest->quest_index_auid = 0;
+            mob->quest->quest_index_vnum = 0;
+        }
+        info->progs->lastreturn = 1;
+        return;
+    }
+
+    context_area = mob->in_room ? mob->in_room->area : NULL;
+    quest_index_wnum = wnum_zero;
+
+    if (arg->type == ENT_WIDEVNUM) {
+        quest_index_wnum = arg->d.wnum;
+    } else if (arg->type == ENT_STRING) {
+        if (!parse_widevnum(arg->d.str, context_area, &quest_index_wnum))
+            return;
+    } else {
+        return;
+    }
+
+    if (!quest_index_wnum.pArea || quest_index_wnum.vnum < 1)
+        return;
+    if (!get_quest_index_wnum(quest_index_wnum))
+        return;
+
+    quest_runtime_attach_active_quest(mob, quest_index_wnum.pArea->uid, quest_index_wnum.vnum);
 
     info->progs->lastreturn = 1;
 }
@@ -9039,6 +9118,7 @@ char *__get_questscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM 
 // QUESTSCROLL $PLAYER $QUESTGIVER $VNUM $HEADER $FOOTER $WIDTH $PREFIX[ $SUFFIX] $VARIABLENAME
 SCRIPT_CMD(scriptcmd_questscroll)
 {
+    QUEST_DATA *run;
     char *header, *footer, *prefix, *suffix;
     int width;
     char questgiver[MSL];
@@ -9054,9 +9134,12 @@ SCRIPT_CMD(scriptcmd_questscroll)
     if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
     ch = arg->d.mob;
+    run = quest_runtime_get_focused_run(ch);
+    if (!run)
+        run = ch->quest;
 
     // Must be in the generation phase
-    if( ch->quest == NULL || !ch->quest->generating || !ch->quest->scripted ) return;
+    if( run == NULL || !run->generating || !run->scripted ) return;
 
     // Get questreceiver description
     if(!(rest = expand_argument(info,rest,arg)))
@@ -9115,7 +9198,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
 
         if( rest && arg->type == ENT_STRING )
         {
-            OBJ_DATA *scroll = generate_quest_scroll(ch,questgiver,vnum,header,footer,prefix,suffix,width);
+            OBJ_DATA *scroll = generate_quest_scroll(ch, run, questgiver, vnum, header, footer, prefix, suffix, width);
             if( scroll != NULL )
             {
                 variables_set_object(info->var, arg->d.str, scroll);
@@ -10687,6 +10770,8 @@ SCRIPT_CMD(scriptcmd_settimer)
         {
             if(!IS_NPC(victim) && IS_QUESTING(victim))
             {
+                victim->quest_runtime.expiry_modes |= QUEST_EXPIRY_COUNTDOWN;
+                victim->quest_runtime.expiry_countdown_minutes = amt;
                 victim->countdown = amt;
             }
         }
@@ -10694,7 +10779,22 @@ SCRIPT_CMD(scriptcmd_settimer)
         {
             if(!IS_NPC(victim))
             {
-                victim->nextquest = amt;
+                if (amt > 0)
+                {
+                    time_t cooldown_until = current_time + (time_t)amt * 60;
+
+                    if (victim->quest_runtime.mission_allowance > 0)
+                        victim->quest_runtime.mission_allowance = 0;
+
+                    if (victim->quest_runtime.allowance_last_update < cooldown_until)
+                        victim->quest_runtime.allowance_last_update = cooldown_until;
+                }
+                else
+                {
+                    victim->quest_runtime.allowance_last_update = current_time;
+                }
+
+                victim->nextquest = 0;
             }
         }
     }

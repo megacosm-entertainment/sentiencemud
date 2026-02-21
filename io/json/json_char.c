@@ -1295,8 +1295,23 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     json_object_set_new(basic, "monster_kills", json_integer(ch->monster_kills));
 
     // Quest data
+    json_t *quest_runtime = json_object();
+    long quest_points_bank = ch->quest_runtime.points_bank;
+    if (quest_points_bank <= 0 && ch->questpoints > 0)
+        quest_points_bank = ch->questpoints;
+
+    json_object_set_new(quest_runtime, "points_bank", json_integer(quest_points_bank));
+    json_object_set_new(quest_runtime, "mission_allowance", json_integer(ch->quest_runtime.mission_allowance));
+    json_object_set_new(quest_runtime, "allowance_last_update", json_integer(ch->quest_runtime.allowance_last_update));
+    json_object_set_new(quest_runtime, "next_run_id", json_integer(ch->quest_runtime.next_run_id));
+    json_object_set_new(quest_runtime, "focused_run_id", json_integer(ch->quest_runtime.focused_run_id));
+    json_object_set_new(quest_runtime, "expiry_modes", json_integer(ch->quest_runtime.expiry_modes));
+    json_object_set_new(quest_runtime, "expires_at", json_integer(ch->quest_runtime.expires_at));
+    json_object_set_new(quest_runtime, "expiry_countdown_minutes", json_integer(ch->quest_runtime.expiry_countdown_minutes));
+    json_object_set_new(quest_runtime, "manual_trigger_area_uid", json_integer(ch->quest_runtime.manual_trigger_area_uid));
+    json_object_set_new(basic, "quest_runtime", quest_runtime);
+
     json_object_set_new(basic, "questpoints", json_integer(ch->questpoints));
-    json_object_set_new(basic, "nextquest", json_integer(ch->nextquest));
     json_object_set_new(basic, "deitypoints", json_integer(ch->deitypoints));
     json_object_set_new(basic, "pneuma", json_integer(ch->pneuma));
     json_object_set_new(basic, "home", json_integer(ch->home));
@@ -1666,6 +1681,14 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         }
 
         json_t *quest = json_object();
+        json_object_set_new(quest, "quest_index_auid", json_integer(ch->quest->quest_index_auid));
+        json_object_set_new(quest, "quest_index_vnum", json_integer(ch->quest->quest_index_vnum));
+        json_object_set_new(quest, "run_id", json_integer(ch->quest->run_id));
+        json_object_set_new(quest, "started_at", json_integer(ch->quest->started_at));
+        json_object_set_new(quest, "target_scope", json_integer(ch->quest->target_scope));
+        json_object_set_new(quest, "scope_owner_id0", json_integer(ch->quest->scope_owner_id[0]));
+        json_object_set_new(quest, "scope_owner_id1", json_integer(ch->quest->scope_owner_id[1]));
+        json_object_set_new(quest, "scope_owner_uid", json_integer(ch->quest->scope_owner_uid));
         json_object_set_new(quest, "questgiver_type", json_integer(ch->quest->questgiver_type));
         json_object_set_new(quest, "questgiver", json_string(widevnum_string_wnum(questgiver_wnum, NULL)));
         json_object_set_new(quest, "questreceiver_type", json_integer(ch->quest->questreceiver_type));
@@ -1756,6 +1779,12 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
                 json_array_append_new(parts_array, part_obj);
             }
             json_object_set_new(quest, "parts", parts_array);
+        }
+
+        {
+            json_t *active_runs = json_array();
+            json_array_append(active_runs, quest);
+            json_object_set_new(quest_runtime, "active_runs", active_runs);
         }
 
         json_object_set_new(basic, "quest", quest);
@@ -3081,11 +3110,47 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     value = json_object_get(character, "monster_kills");
     if (value) ch->monster_kills = json_integer_value(value);
 
+    // Quest runtime data (new format)
+    json_t *quest_runtime_obj = json_object_get(character, "quest_runtime");
+    json_t *active_runs_obj = NULL;
+    if (quest_runtime_obj && json_is_object(quest_runtime_obj)) {
+        value = json_object_get(quest_runtime_obj, "points_bank");
+        if (value) ch->quest_runtime.points_bank = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "mission_allowance");
+        if (value) ch->quest_runtime.mission_allowance = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "allowance_last_update");
+        if (value) ch->quest_runtime.allowance_last_update = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "next_run_id");
+        if (value) ch->quest_runtime.next_run_id = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "focused_run_id");
+        if (value) ch->quest_runtime.focused_run_id = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "expiry_modes");
+        if (value) ch->quest_runtime.expiry_modes = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "expires_at");
+        if (value) ch->quest_runtime.expires_at = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "expiry_countdown_minutes");
+        if (value) ch->quest_runtime.expiry_countdown_minutes = json_integer_value(value);
+
+        value = json_object_get(quest_runtime_obj, "manual_trigger_area_uid");
+        if (value) ch->quest_runtime.manual_trigger_area_uid = json_integer_value(value);
+
+        active_runs_obj = json_object_get(quest_runtime_obj, "active_runs");
+    }
+
     // Quest data
+    int legacy_nextquest = 0;
+
     value = json_object_get(character, "questpoints");
     if (value) ch->questpoints = json_integer_value(value);
     value = json_object_get(character, "nextquest");
-    if (value) ch->nextquest = json_integer_value(value);
+    if (value) legacy_nextquest = json_integer_value(value);
     value = json_object_get(character, "deitypoints");
     if (value) ch->deitypoints = json_integer_value(value);
     value = json_object_get(character, "pneuma");
@@ -3096,6 +3161,32 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     if (value) ch->manastore = json_integer_value(value);
     value = json_object_get(character, "locker_tier");
     if (value) ch->locker_tier = json_integer_value(value);
+
+    if ((!quest_runtime_obj || !json_is_object(quest_runtime_obj)) && ch->questpoints > 0)
+        ch->quest_runtime.points_bank = ch->questpoints;
+    if (ch->quest_runtime.next_run_id <= 0)
+        ch->quest_runtime.next_run_id = 1;
+    if (ch->quest_runtime.points_bank > 0 && ch->questpoints == 0)
+        ch->questpoints = ch->quest_runtime.points_bank;
+
+    if ((!quest_runtime_obj || !json_is_object(quest_runtime_obj)) && ch->countdown > 0) {
+        ch->quest_runtime.expiry_modes |= QUEST_EXPIRY_COUNTDOWN;
+        ch->quest_runtime.expiry_countdown_minutes = ch->countdown;
+    }
+    if ((ch->quest_runtime.expiry_modes & QUEST_EXPIRY_COUNTDOWN) && ch->countdown == 0) {
+        ch->countdown = ch->quest_runtime.expiry_countdown_minutes;
+    }
+
+    if (legacy_nextquest > 0) {
+        time_t cooldown_until = current_time + (time_t)legacy_nextquest * 60;
+
+        if (ch->quest_runtime.mission_allowance > 0)
+            ch->quest_runtime.mission_allowance = 0;
+
+        if (ch->quest_runtime.allowance_last_update < cooldown_until)
+            ch->quest_runtime.allowance_last_update = cooldown_until;
+    }
+    ch->nextquest = 0;
 
     // PC_DATA fields
     if (ch->pcdata) {
@@ -3499,7 +3590,14 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     }
 
     // Quest data (if currently questing)
-    json_t *quest = json_object_get(character, "quest");
+    json_t *quest = NULL;
+    if (active_runs_obj && json_is_array(active_runs_obj) && json_array_size(active_runs_obj) > 0) {
+        json_t *run_obj = json_array_get(active_runs_obj, 0);
+        if (run_obj && json_is_object(run_obj))
+            quest = run_obj;
+    }
+    if (!quest)
+        quest = json_object_get(character, "quest");
     if (quest && ch->pcdata) {
         // Allocate quest structure if needed
         if (!ch->quest) {
@@ -3507,6 +3605,14 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             // Initialize all fields to prevent garbage memory access
             ch->quest->next = NULL;
             ch->quest->parts = NULL;
+            ch->quest->quest_index_auid = 0;
+            ch->quest->quest_index_vnum = 0;
+            ch->quest->run_id = 0;
+            ch->quest->started_at = 0;
+            ch->quest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+            ch->quest->scope_owner_id[0] = 0;
+            ch->quest->scope_owner_id[1] = 0;
+            ch->quest->scope_owner_uid = 0;
             ch->quest->questgiver_type = 0;
             ch->quest->questgiver_load.auid = 0;
             ch->quest->questgiver_load.vnum = -1;
@@ -3518,6 +3624,32 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             ch->quest->msg_complete = false;
             ch->quest->generating = false;
             ch->quest->scripted = false;
+        }
+
+        value = json_object_get(quest, "quest_index_auid");
+        if (value) ch->quest->quest_index_auid = json_integer_value(value);
+        value = json_object_get(quest, "quest_index_vnum");
+        if (value) ch->quest->quest_index_vnum = json_integer_value(value);
+        value = json_object_get(quest, "run_id");
+        if (value) ch->quest->run_id = json_integer_value(value);
+        value = json_object_get(quest, "started_at");
+        if (value) ch->quest->started_at = (time_t)json_integer_value(value);
+        value = json_object_get(quest, "target_scope");
+        if (value) ch->quest->target_scope = json_integer_value(value);
+        value = json_object_get(quest, "scope_owner_id0");
+        if (value) ch->quest->scope_owner_id[0] = (unsigned long)json_integer_value(value);
+        value = json_object_get(quest, "scope_owner_id1");
+        if (value) ch->quest->scope_owner_id[1] = (unsigned long)json_integer_value(value);
+        value = json_object_get(quest, "scope_owner_uid");
+        if (value) ch->quest->scope_owner_uid = json_integer_value(value);
+
+        if (ch->quest->target_scope < QUEST_TARGET_SCOPE_CHARACTER
+            || ch->quest->target_scope > QUEST_TARGET_SCOPE_CHURCH)
+            ch->quest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+        if (ch->quest->target_scope == QUEST_TARGET_SCOPE_CHARACTER
+            && ch->quest->scope_owner_id[0] == 0 && ch->quest->scope_owner_id[1] == 0) {
+            ch->quest->scope_owner_id[0] = ch->id[0];
+            ch->quest->scope_owner_id[1] = ch->id[1];
         }
 
         value = json_object_get(quest, "questgiver_type");
@@ -3987,6 +4119,19 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 }
             }
         }
+
+    }
+
+    if (ch->quest && ch->quest->run_id <= 0) {
+        plogf(LOG_QUEST,
+              "Clearing legacy quest payload for %s (missing/invalid run_id)",
+              ch->name ? ch->name : "(unknown)");
+        free_quest(ch->quest);
+        ch->quest = NULL;
+        ch->countdown = 0;
+        ch->nextquest = 0;
+    } else if (ch->quest) {
+        quest_runtime_attach_active_quest(ch, ch->quest->quest_index_auid, ch->quest->quest_index_vnum);
     }
 
     // Read skill groups section

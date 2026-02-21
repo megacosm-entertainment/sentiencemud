@@ -741,11 +741,6 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "QuestsCompleted %ld\n", ch->pcdata->quests_completed);
     if (ch->deitypoints != 0)
     fprintf(fp, "DeityPnts %ld\n", ch->deitypoints);
-    if (ch->nextquest != 0)
-        fprintf(fp, "QuestNext %d\n",  ch->nextquest  );
-    else if (ch->countdown != 0)
-        fprintf(fp, "QuestNext %d\n",  10             );
-
     if (IS_QUESTING(ch)) {
         WNUM questgiver_wnum = ch->quest->questgiver_wnum;
         WNUM questreceiver_wnum = ch->quest->questreceiver_wnum;
@@ -2268,7 +2263,27 @@ if (ch->in_room == NULL) {
         break;
         case 'Q':
             KEY("QuestPnts",   ch->questpoints,        fread_number(fp));
-            KEY("QuestNext",   ch->nextquest,          fread_number(fp));
+
+        if (!str_cmp(word, "QuestNext"))
+        {
+            int legacy_nextquest = fread_number(fp);
+
+            if (legacy_nextquest > 0)
+            {
+                time_t cooldown_until = current_time + (time_t)legacy_nextquest * 60;
+
+                if (ch->quest_runtime.mission_allowance > 0)
+                    ch->quest_runtime.mission_allowance = 0;
+
+                if (ch->quest_runtime.allowance_last_update < cooldown_until)
+                    ch->quest_runtime.allowance_last_update = cooldown_until;
+            }
+
+            ch->nextquest = 0;
+            fMatch = true;
+            break;
+        }
+
         KEY("QCountDown",  ch->countdown,		fread_number(fp));
         KEY("QuestsCompleted",
                 ch->pcdata->quests_completed, fread_number(fp));

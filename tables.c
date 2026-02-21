@@ -3089,6 +3089,7 @@ const struct do_func_type do_func_table[] =
         { "do_practice",                        do_practice },
         { "do_pull",                    do_pull },
         { "do_push",                    do_push },
+        { "do_qedit",                   do_qedit },
         { "do_quest",                   do_quest },
         { "do_rehearse",                        do_rehearse },
         { "do_renew",                   do_renew },

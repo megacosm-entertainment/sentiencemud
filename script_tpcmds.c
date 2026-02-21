@@ -109,6 +109,7 @@ const struct script_cmd_type token_cmd_table[] = {
     { "questcancel",          scriptcmd_questcancel,      false,  true    },
     { "questcomplete",        scriptcmd_questcomplete,    false,  true    },
     { "questgenerate",        scriptcmd_questgenerate,    false,  true    },
+    { "questsetindex",        scriptcmd_questsetindex,    false,  true    },
     { "questpartcustom",      scriptcmd_questpartcustom,  true,   true    },
     { "questpartgetitem",     scriptcmd_questpartgetitem, true,   true    },
     { "questpartgoto",        scriptcmd_questpartgoto,    true,   true    },

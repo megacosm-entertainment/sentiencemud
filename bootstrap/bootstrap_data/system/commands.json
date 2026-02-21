@@ -6257,6 +6257,22 @@
       "type": 10
     },
     {
+      "addl_types": 0,
+      "command_flags": 2,
+      "comments": "",
+      "description": "",
+      "enabled": true,
+      "function": "do_qedit",
+      "help_keywords": "",
+      "log": 1,
+      "name": "qedit",
+      "position": 0,
+      "rank": 6,
+      "reason": "",
+      "summary": "",
+      "type": 0
+    },
+    {
       "addl_types": 512,
       "command_flags": 2,
       "comments": "",

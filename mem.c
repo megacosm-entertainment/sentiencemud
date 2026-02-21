@@ -777,6 +777,15 @@ CHAR_DATA *new_char( void )
     }
 
     ch->quest			= NULL;
+    ch->quest_runtime.points_bank = 0;
+    ch->quest_runtime.mission_allowance = 1;
+    ch->quest_runtime.allowance_last_update = 0;
+    ch->quest_runtime.next_run_id = 1;
+    ch->quest_runtime.focused_run_id = 0;
+    ch->quest_runtime.expiry_modes = QUEST_EXPIRY_NONE;
+    ch->quest_runtime.expires_at = 0;
+    ch->quest_runtime.expiry_countdown_minutes = 0;
+    ch->quest_runtime.manual_trigger_area_uid = 0;
 
     ch->hit_damage		= 0;
     ch->hit_type		= TYPE_UNDEFINED;
@@ -1708,6 +1717,9 @@ CHURCH_DATA *new_church( void )
     pChurch->default_rank = 0;
     pChurch->max_rank_uid = 0;
     pChurch->deleted = false;
+    pChurch->quest_data.mission_allowance_bonus = 0;
+    pChurch->quest_data.board_last_refresh = 0;
+    pChurch->quest_data.available_missions = 0;
 
     top_church++;
 
@@ -2726,6 +2738,14 @@ QUEST_DATA *new_quest( void )
 
     pQuest->next = NULL;
     pQuest->parts = NULL;
+    pQuest->quest_index_auid = 0;
+    pQuest->quest_index_vnum = 0;
+    pQuest->run_id = 0;
+    pQuest->started_at = 0;
+    pQuest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+    pQuest->scope_owner_id[0] = 0;
+    pQuest->scope_owner_id[1] = 0;
+    pQuest->scope_owner_uid = 0;
     pQuest->msg_complete = false;
     pQuest->generating = false;
     pQuest->scripted = false;

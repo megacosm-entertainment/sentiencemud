@@ -3397,14 +3397,28 @@ DECL_IFC_FUN(ifc_timer)
         else if(!str_prefix(ARG_STR(1),"fade")) *ret = ARG_MOB(0)->fade;
         else if(!str_prefix(ARG_STR(1),"hide")) *ret = ARG_MOB(0)->hide;
         else if(!str_prefix(ARG_STR(1),"music")) *ret = ARG_MOB(0)->music;
-        else if(!str_prefix(ARG_STR(1),"next_quest")) *ret = ARG_MOB(0)->nextquest;
-        else if(!str_prefix(ARG_STR(1),"nextquest")) *ret = ARG_MOB(0)->nextquest;
+        else if(!str_prefix(ARG_STR(1),"next_quest") || !str_prefix(ARG_STR(1),"nextquest")) {
+            if (IS_NPC(ARG_MOB(0)) || ARG_MOB(0)->quest_runtime.mission_allowance > 0) {
+                *ret = 0;
+            } else if (ARG_MOB(0)->quest_runtime.allowance_last_update > current_time) {
+                long delta = (long)(ARG_MOB(0)->quest_runtime.allowance_last_update - current_time);
+                *ret = (int)((delta + 59) / 60);
+            } else {
+                *ret = 1;
+            }
+        }
         else if(!str_prefix(ARG_STR(1),"norecall")) *ret = ARG_MOB(0)->no_recall;
         else if(!str_prefix(ARG_STR(1),"panic")) *ret = ARG_MOB(0)->panic;
         else if(!str_prefix(ARG_STR(1),"paralyzed")) *ret = ARG_MOB(0)->paralyzed;
         else if(!str_prefix(ARG_STR(1),"paroxysm")) *ret = ARG_MOB(0)->paroxysm;
         else if(!str_prefix(ARG_STR(1),"pk")) *ret = ARG_MOB(0)->pk_timer;
-        else if(!str_prefix(ARG_STR(1),"quest")) *ret = ARG_MOB(0)->countdown;
+        else if(!str_prefix(ARG_STR(1),"quest")) {
+            if (!IS_NPC(ARG_MOB(0))
+                && (ARG_MOB(0)->quest_runtime.expiry_modes & QUEST_EXPIRY_COUNTDOWN))
+                *ret = ARG_MOB(0)->quest_runtime.expiry_countdown_minutes;
+            else
+                *ret = ARG_MOB(0)->countdown;
+        }
         else if(!str_prefix(ARG_STR(1),"ranged")) *ret = ARG_MOB(0)->ranged;
         else if(!str_prefix(ARG_STR(1),"recite")) *ret = ARG_MOB(0)->recite;
         else if(!str_prefix(ARG_STR(1),"resurrect")) *ret = ARG_MOB(0)->resurrect;

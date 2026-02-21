@@ -402,6 +402,7 @@ typedef struct	trainer_data	TRAINER_DATA;
 typedef struct	trainer_entry	TRAINER_ENTRY;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
+typedef struct	quest_runtime_data	QUEST_RUNTIME_DATA;
 typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
 typedef struct	ship_crew_index_data	SHIP_CREW_INDEX_DATA;
@@ -423,6 +424,7 @@ typedef struct  ambush_data             AMBUSH_DATA;
 typedef struct  chat_ban_data		CHAT_BAN_DATA;
 typedef struct  chat_op_data		CHAT_OP_DATA;
 typedef struct  church_data             CHURCH_DATA;
+typedef struct  church_quest_data       CHURCH_QUEST_DATA;
 typedef struct  church_player_data      CHURCH_PLAYER_DATA;
 typedef struct	church_treasure_room	CHURCH_TREASURE_ROOM;
 typedef struct  conditional_descr_data  CONDITIONAL_DESCR_DATA;
@@ -1669,6 +1671,13 @@ struct church_command_type
 #define CHLOG_TREASURE     (P)
 #define CHLOG_MEMBERSHIP_SETTINGS (Q)
 
+struct church_quest_data
+{
+    int mission_allowance_bonus;
+    time_t board_last_refresh;
+    int available_missions;
+};
+
 struct church_data
 {
     CHURCH_DATA 	*next;
@@ -1733,6 +1742,7 @@ char *colour2;
     CHURCH_RANK_DATA *default_rank; // Default rank for new members
     long max_rank_uid;
     bool deleted;
+    CHURCH_QUEST_DATA quest_data;
 };
 
 // New structure for church log entries
@@ -4354,6 +4364,13 @@ struct quest_data
 {
     QUEST_DATA *        next;
     QUEST_PART_DATA *   parts;
+    long                quest_index_auid;
+    long                quest_index_vnum;
+    long                run_id;
+    time_t              started_at;
+    int                 target_scope;
+    unsigned long       scope_owner_id[2];
+    long                scope_owner_uid;
     int					questgiver_type;
     WNUM_LOAD           questgiver_load;
     WNUM                questgiver_wnum;
@@ -4365,6 +4382,10 @@ struct quest_data
     bool		generating;
     bool		scripted;
 };
+
+#define QUEST_TARGET_SCOPE_CHARACTER  0
+#define QUEST_TARGET_SCOPE_GROUP      1
+#define QUEST_TARGET_SCOPE_CHURCH     2
 
 
 struct quest_part_data
@@ -4391,6 +4412,24 @@ struct quest_part_data
     bool		custom_task;
     bool		complete;
 };
+
+struct quest_runtime_data
+{
+    long points_bank;
+    int mission_allowance;
+    time_t allowance_last_update;
+    long next_run_id;
+    long focused_run_id;
+    int expiry_modes;
+    time_t expires_at;
+    int expiry_countdown_minutes;
+    long manual_trigger_area_uid;
+};
+
+#define QUEST_EXPIRY_NONE          0
+#define QUEST_EXPIRY_MANUAL_AREA   (1 << 0)
+#define QUEST_EXPIRY_WALL_TIME     (1 << 1)
+#define QUEST_EXPIRY_COUNTDOWN     (1 << 2)
 
 
 /* For immortal/builder-made quests (can only be done once per char) */
@@ -5086,6 +5125,7 @@ struct	char_data
 
     /* Quest */
     QUEST_DATA *	quest;
+    QUEST_RUNTIME_DATA quest_runtime;
     unsigned int     	questpoints;
     int              	nextquest;
     int              	countdown;
@@ -9365,8 +9405,20 @@ void quest_update(void);
 bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno );
 bool is_quest_item( OBJ_DATA *obj );
 bool is_quest_token( OBJ_DATA *obj );
+bool quest_runtime_has_token(CHAR_DATA *ch, WNUM token_wnum);
+TOKEN_DATA *quest_runtime_add_token(CHAR_DATA *ch, WNUM token_wnum);
+bool quest_runtime_remove_token(CHAR_DATA *ch, WNUM token_wnum, int count);
+bool quest_runtime_manual_trigger_ready(CHAR_DATA *ch);
+bool quest_runtime_is_expired(CHAR_DATA *ch, time_t now);
+void quest_runtime_tick_expiration(CHAR_DATA *ch, time_t now);
+long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, long quest_index_vnum);
+QUEST_DATA *quest_runtime_get_run_by_id(CHAR_DATA *ch, long run_id);
+QUEST_DATA *quest_runtime_get_run_by_index(CHAR_DATA *ch, int index);
+int quest_runtime_get_active_run_count(CHAR_DATA *ch);
+QUEST_DATA *quest_runtime_get_focused_run(CHAR_DATA *ch);
 int count_quest_parts( CHAR_DATA *ch );
 QUEST_INDEX_DATA *get_quest_index( long vnum );
+QUEST_INDEX_DATA *get_quest_index_wnum(WNUM wnum);
 void check_quest_rescue_mob( CHAR_DATA *ch, bool show );
 void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool show );
 void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob, bool show );
@@ -10704,7 +10756,7 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
 bool is_pullable(OBJ_DATA *obj);
 
-OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, QUEST_DATA *run, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
 OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all);
 
 void load_blueprints();

@@ -3049,20 +3049,28 @@ MEDIT(medit_addquest)
     MOB_INDEX_DATA *pMob;
     QUEST_LIST *quest;
     QUEST_INDEX_DATA *pQuestIndex;
+    WNUM quest_wnum = wnum_zero;
+    AREA_DATA *context;
+    long value;
 
     EDIT_MOB(ch, pMob);
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax:  addquest [quest vnum]\n\r", ch);
+        send_to_char("Syntax:  addquest [quest vnum|widevnum]\n\r", ch);
         return false;
     }
 
-    // Quest vnums are global, so use NULL context for global search
-    long value = atol(argument);
+    context = olc_relative_widevnum_context(pMob->area, argument);
+    if (parse_widevnum(argument, context, &quest_wnum) && quest_wnum.vnum > 0)
+        value = quest_wnum.vnum;
+    else
+        value = atol(argument);
+
+    // Quest vnums are currently global in this linkage path.
     if (value <= 0)
     {
-        send_to_char("Invalid quest vnum.\n\r", ch);
+        send_to_char("Invalid quest vnum/widevnum.\n\r", ch);
         return false;
     }
 
