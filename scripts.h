@@ -16,9 +16,10 @@
 #define	IFC_A	(E)	/* Allowed in aprogs */
 #define IFC_I	(F)	// Allowed in iprogs
 #define IFC_D	(G)	// Allowed in dprogs
+#define IFC_Q	(H)	// Allowed in qprogs
 
 #define IFC_MO	(IFC_M|IFC_O)
-#define	IFC_ANY	(IFC_M|IFC_O|IFC_R|IFC_T|IFC_A|IFC_I|IFC_D)	/* Any prog type */
+#define	IFC_ANY	(IFC_M|IFC_O|IFC_R|IFC_T|IFC_A|IFC_I|IFC_D|IFC_Q)	/* Any prog type */
 
 #define IFC_MAXPARAMS		20
 #define MAX_STACK		20	/* Adjust as desired */
@@ -344,6 +345,9 @@ enum variable_enum {
     VAR_INSTANCE,
     VAR_DUNGEON,
     VAR_SHIP,
+    VAR_QUEST,
+    VAR_QUEST_STAGE,
+    VAR_QUEST_OBJECTIVE,
     VAR_SONG,
     VAR_RACE,
     VAR_CLASS,
@@ -451,6 +455,7 @@ enum script_command_enum {
     OP_TOKEN,		/* A token command */
     OP_TOKENOTHER,		/* A token command from other scripts */
     OP_AREA,		 // An area command
+    OP_QUEST,		 // A quest command
     OP_INSTANCE,
     OP_DUNGEON,
     OP_LASTCODE
@@ -570,6 +575,8 @@ enum entity_type_enum {
     ENT_ILLIST_REPUTATION,
     ENT_ILLIST_REPUTATION_INDEX,
     ENT_ILLIST_SKILLGROUPS,
+    ENT_ILLIST_QUEST_STAGES,
+    ENT_ILLIST_QUEST_OBJECTIVES,
     ENT_ILLIST_MAX,
     //////////////////////////////
 
@@ -601,6 +608,8 @@ enum entity_type_enum {
 
     ENT_QUESTPART,
     ENT_QUEST,
+    ENT_QUEST_STAGE,
+    ENT_QUEST_OBJECTIVE,
 
     ENT_EQUIPMENT,
 
@@ -736,6 +745,9 @@ enum entity_variable_types_enum {
     ENTITY_VAR_INSTANCE,
     ENTITY_VAR_DUNGEON,
     ENTITY_VAR_SHIP,
+    ENTITY_VAR_QUEST,
+    ENTITY_VAR_QUEST_STAGE,
+    ENTITY_VAR_QUEST_OBJECTIVE,
 
     ENTITY_VAR_BLLIST_ROOM,
     ENTITY_VAR_BLLIST_MOB,
@@ -1601,6 +1613,62 @@ enum entity_shipindex_enum {
     ENTITY_SHIPINDEX_WNUM = ESCAPE_EXTRA,
 };
 
+enum entity_quest_enum {
+    ENTITY_QUEST_RUNID = ESCAPE_EXTRA,
+    ENTITY_QUEST_STATUS,
+    ENTITY_QUEST_ACTIVE,
+    ENTITY_QUEST_COMPLETED,
+    ENTITY_QUEST_FAILED,
+    ENTITY_QUEST_ABANDONED,
+    ENTITY_QUEST_SCOPE,
+    ENTITY_QUEST_INDEX,
+    ENTITY_QUEST_NAME,
+    ENTITY_QUEST_DESCRIPTION,
+    ENTITY_QUEST_STAGE,
+    ENTITY_QUEST_CURRENT_STAGE,
+    ENTITY_QUEST_STAGE_COMMENCED,
+    ENTITY_QUEST_STAGE_COMPLETE,
+    ENTITY_QUEST_STAGES,
+    ENTITY_QUEST_OBJECTIVES,
+    ENTITY_QUEST_OBJECTIVE_COUNT,
+    ENTITY_QUEST_PART_COUNT,
+    ENTITY_QUEST_GENERATING,
+    ENTITY_QUEST_SCRIPTED,
+};
+
+enum entity_quest_stage_enum {
+    ENTITY_QUEST_STAGE_ID = ESCAPE_EXTRA,
+    ENTITY_QUEST_STAGE_NAME,
+    ENTITY_QUEST_STAGE_SUMMARY,
+    ENTITY_QUEST_STAGE_DESCRIPTION,
+    ENTITY_QUEST_STAGE_SOURCE,
+    ENTITY_QUEST_STAGE_AUTOCOMMENCE,
+    ENTITY_QUEST_STAGE_COMPLETION_MODE,
+    ENTITY_QUEST_STAGE_NEXT_STAGE,
+    ENTITY_QUEST_STAGE_OBJECTIVES,
+    ENTITY_QUEST_STAGE_OBJECTIVE_COUNT,
+    ENTITY_QUEST_STAGE_RUNTIME_COMMENCED,
+    ENTITY_QUEST_STAGE_RUNTIME_COMPLETE,
+};
+
+enum entity_quest_objective_enum {
+    ENTITY_QUEST_OBJECTIVE_ID = ESCAPE_EXTRA,
+    ENTITY_QUEST_OBJECTIVE_TYPE,
+    ENTITY_QUEST_OBJECTIVE_SUMMARY,
+    ENTITY_QUEST_OBJECTIVE_DESCRIPTION,
+    ENTITY_QUEST_OBJECTIVE_OPTIONAL,
+    ENTITY_QUEST_OBJECTIVE_STRICT,
+    ENTITY_QUEST_OBJECTIVE_REQUIRED,
+    ENTITY_QUEST_OBJECTIVE_QUANTITY,
+    ENTITY_QUEST_OBJECTIVE_TARGET_MODE,
+    ENTITY_QUEST_OBJECTIVE_TARGET,
+    ENTITY_QUEST_OBJECTIVE_TARGET_TAG,
+    ENTITY_QUEST_OBJECTIVE_DESTINATION,
+    ENTITY_QUEST_OBJECTIVE_DESTINATION_TAG,
+    ENTITY_QUEST_OBJECTIVE_PROGRESS,
+    ENTITY_QUEST_OBJECTIVE_COMPLETE,
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // Object typed data sub-entity field enums
 ///////////////////////////////////////////////////////////////////////////////
@@ -1961,6 +2029,9 @@ struct script_var_type {
         INSTANCE *instance;
         DUNGEON *dungeon;
         SHIP_DATA *ship;
+        QUEST_DATA *quest;
+        QUEST_STAGE_INDEX_V2_DATA *quest_stage;
+        QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective;
         MOB_INDEX_DATA *mobindex;
         OBJ_INDEX_DATA *objindex;
         TOKEN_INDEX_DATA *token_index;
@@ -2193,6 +2264,10 @@ struct script_parameter {
         INSTANCE *instance;
         DUNGEON *dungeon;
         SHIP_DATA *ship;
+        QUEST_DATA *quest;
+        QUEST_PART_DATA *questpart;
+        QUEST_STAGE_INDEX_V2_DATA *quest_stage;
+        QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective;
         SECTOR_RUNTIME_DATA *sector;
         struct {
             CHAR_DATA *mob;
@@ -2971,6 +3046,7 @@ DECL_OPC_FUN(opc_room);
 DECL_OPC_FUN(opc_token);
 DECL_OPC_FUN(opc_tokenother);
 DECL_OPC_FUN(opc_area);
+DECL_OPC_FUN(opc_quest);
 DECL_OPC_FUN(opc_instance);
 DECL_OPC_FUN(opc_dungeon);
 
@@ -2981,6 +3057,21 @@ long script_flag_value( const struct flag_type *flag_table, char *argument);
 bool script_bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags);
 char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid);
 int execute_script(long pvnum, SCRIPT_DATA *script,
+    CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+    AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+    CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
+    TOKEN_DATA *tok, char *phrase, char *trigger, int trigger_type,
+    int number1, int number2, int number3, int number4, int number5);
+
+typedef struct script_execute_context {
+    QUEST_DATA *quest;
+    EVENT_DATA *event;
+} SCRIPT_EXECUTE_CONTEXT;
+
+const SCRIPT_EXECUTE_CONTEXT *script_get_execute_context(void);
+SCRIPT_EXECUTE_CONTEXT script_set_execute_context(const SCRIPT_EXECUTE_CONTEXT *context);
+QUEST_DATA *script_set_execute_quest_context(QUEST_DATA *quest);
+int execute_script_quest(long pvnum, SCRIPT_DATA *script, QUEST_DATA *quest,
     CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
     AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
     CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
@@ -3144,6 +3235,9 @@ bool variables_set_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION
 bool variables_set_instance (ppVARIABLE list,char *name,INSTANCE *instance);
 bool variables_set_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon);
 bool variables_set_ship (ppVARIABLE list,char *name,SHIP_DATA *ship);
+bool variables_set_quest (ppVARIABLE list,char *name,QUEST_DATA *quest);
+bool variables_set_quest_stage (ppVARIABLE list,char *name,QUEST_STAGE_INDEX_V2_DATA *quest_stage);
+bool variables_set_quest_objective (ppVARIABLE list,char *name,QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective);
 bool variables_set_song (ppVARIABLE list,char *name,SONG_DATA *song);
 bool variables_set_race (ppVARIABLE list,char *name,RACE_DATA *race);
 bool variables_set_class (ppVARIABLE list,char *name,CLASS_DATA *clazz);
@@ -3204,6 +3298,9 @@ bool variables_setsave_instance_section (ppVARIABLE list,char *name,INSTANCE_SEC
 bool variables_setsave_instance (ppVARIABLE list,char *name,INSTANCE *instance, bool save);
 bool variables_setsave_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon, bool save);
 bool variables_setsave_ship (ppVARIABLE list,char *name,SHIP_DATA *ship, bool save);
+bool variables_setsave_quest (ppVARIABLE list,char *name,QUEST_DATA *quest, bool save);
+bool variables_setsave_quest_stage (ppVARIABLE list,char *name,QUEST_STAGE_INDEX_V2_DATA *quest_stage, bool save);
+bool variables_setsave_quest_objective (ppVARIABLE list,char *name,QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective, bool save);
 bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool save);
 bool variables_setsave_race (ppVARIABLE list,char *name,RACE_DATA *race, bool save);
 bool variables_setsave_class (ppVARIABLE list,char *name,CLASS_DATA *clazz, bool save);
@@ -3666,6 +3763,8 @@ SCRIPT_CMD(scriptcmd_varset);
 SCRIPT_CMD(scriptcmd_varseton);
 
 SCRIPT_CMD(scriptcmd_echoat);
+SCRIPT_CMD(scriptcmd_quest);
+SCRIPT_CMD(scriptcmd_questechoat);
 SCRIPT_CMD(scriptcmd_dungeoncomplete);
 SCRIPT_CMD(scriptcmd_dungeoncommence);
 SCRIPT_CMD(scriptcmd_dungeonfailure);

@@ -449,6 +449,9 @@ varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
 varset(dungeon,DUNGEON,DUNGEON *,dungeon,dungeon)
 varset(ship,SHIP,SHIP_DATA *,ship,ship)
+varset(quest,QUEST,QUEST_DATA *,quest,quest)
+varset(quest_stage,QUEST_STAGE,QUEST_STAGE_INDEX_V2_DATA *,quest_stage,quest_stage)
+varset(quest_objective,QUEST_OBJECTIVE,QUEST_OBJECTIVE_INDEX_V2_DATA *,quest_objective,quest_objective)
 varset(song,SONG,SONG_DATA *,song,song)
 varset(race,RACE,RACE_DATA *,race,race)
 varset(class,CLASS,CLASS_DATA *,clazz,clazz)
@@ -1693,6 +1696,9 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
     case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
     case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
+    case VAR_QUEST:		newv->_.quest = oldv->_.quest; break;
+    case VAR_QUEST_STAGE:	newv->_.quest_stage = oldv->_.quest_stage; break;
+    case VAR_QUEST_OBJECTIVE:	newv->_.quest_objective = oldv->_.quest_objective; break;
     case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
 
     case VAR_PLLIST_STR:
@@ -1783,6 +1789,9 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
     case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
     case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
+    case VAR_QUEST:		newv->_.quest = oldv->_.quest; break;
+    case VAR_QUEST_STAGE:	newv->_.quest_stage = oldv->_.quest_stage; break;
+    case VAR_QUEST_OBJECTIVE:	newv->_.quest_objective = oldv->_.quest_objective; break;
     case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
     case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
 
@@ -1873,6 +1882,9 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
         case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
         case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
+        case VAR_QUEST:		newv->_.quest = oldv->_.quest; break;
+        case VAR_QUEST_STAGE:	newv->_.quest_stage = oldv->_.quest_stage; break;
+        case VAR_QUEST_OBJECTIVE:	newv->_.quest_objective = oldv->_.quest_objective; break;
         case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
         case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
 
@@ -1961,6 +1973,9 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
     case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
     case VAR_CHURCH:		newv->_.church = oldv->_.church; break;
+    case VAR_QUEST:		newv->_.quest = oldv->_.quest; break;
+    case VAR_QUEST_STAGE:	newv->_.quest_stage = oldv->_.quest_stage; break;
+    case VAR_QUEST_OBJECTIVE:	newv->_.quest_objective = oldv->_.quest_objective; break;
     case VAR_VARIABLE:		newv->_.variable = oldv->_.variable; break;
     case VAR_DICE:			newv->_.dice = oldv->_.dice; break;
 
@@ -2316,6 +2331,21 @@ void variable_clearfield(int type, void *ptr)
         case VAR_SHIP:
             if(type == VAR_SHIP && cur->_.ship == ptr)
                 cur->_.ship = NULL;
+            break;
+
+        case VAR_QUEST:
+            if(type == VAR_QUEST && cur->_.quest == ptr)
+                cur->_.quest = NULL;
+            break;
+
+        case VAR_QUEST_STAGE:
+            if(type == VAR_QUEST_STAGE && cur->_.quest_stage == ptr)
+                cur->_.quest_stage = NULL;
+            break;
+
+        case VAR_QUEST_OBJECTIVE:
+            if(type == VAR_QUEST_OBJECTIVE && cur->_.quest_objective == ptr)
+                cur->_.quest_objective = NULL;
             break;
 
         default:

@@ -2766,6 +2766,8 @@ void group_disband(GROUP_DATA *group)
         iterator_start(&it, group->members);
         while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
             if (IS_VALID(member) && member->group == group) {
+                if (!IS_NPC(member))
+                    quest_runtime_snapshot_group_runs_to_character(member, group->id);
                 member->group = NULL;
                 member->leader = NULL;
                 member->num_grouped = 0;
@@ -2800,6 +2802,9 @@ void group_remove_member(CHAR_DATA *ch, bool disband_if_empty)
 
     group = ch->group;
     was_player = !IS_NPC(ch);
+
+    if (was_player)
+        quest_runtime_snapshot_group_runs_to_character(ch, group->id);
 
     if (group->members && list_hasdata(group->members, ch))
         list_remlink(group->members, ch, false);
@@ -3694,6 +3699,9 @@ void do_whisper(CHAR_DATA *ch, char *argument)
 
     if (!IS_NPC(ch))
     p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_WHISPER);
+
+    if (!IS_NPC(ch))
+    check_quest_talk_target(ch, victim, argument, true);
 }
 
 /**
@@ -4306,6 +4314,9 @@ void do_sayto(CHAR_DATA *ch, char *argument)
     if ((!IS_NPC(ch) || IS_SWITCHED(ch)) &&
     (!IS_NPC(victim) || victim->position == victim->pIndexData->default_pos))
     p_act_trigger(msg, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SAYTO);
+
+    if (!IS_NPC(ch))
+    check_quest_talk_target(ch, victim, msg, true);
 
 }
 

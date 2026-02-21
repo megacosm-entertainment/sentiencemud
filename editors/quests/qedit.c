@@ -8,6 +8,7 @@
 #include "../../mxp_links.h"
 #include "../../olc.h"
 #include "../../recycle.h"
+#include "../../scripts.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
@@ -18,6 +19,7 @@ static bool qedit_show(CHAR_DATA *ch, char *argument);
 static void qedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void qedit_show_flow_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void qedit_show_rewards_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void qedit_show_scripting_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void qedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static AREA_DATA *qedit_get_area(void *pEdit);
 static bool qedit_exec_session_command(CHAR_DATA *ch, const char *command, char *argument);
@@ -36,6 +38,10 @@ static bool qedit_cmd_entry(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_enabled(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_seedpolicy(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_seed(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_varset(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_varclear(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_addqprog(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_delqprog(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_stage(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_objective(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_reward(CHAR_DATA *ch, char *argument);
@@ -59,6 +65,10 @@ static const struct olc_cmd_type qedit_table[] =
     { "enabled",     qedit_cmd_enabled  },
     { "seedpolicy",  qedit_cmd_seedpolicy },
     { "seed",        qedit_cmd_seed     },
+    { "varset",      qedit_cmd_varset   },
+    { "varclear",    qedit_cmd_varclear },
+    { "addqprog",    qedit_cmd_addqprog },
+    { "delqprog",    qedit_cmd_delqprog },
     { "stage",       qedit_cmd_stage    },
     { "objective",   qedit_cmd_objective },
     { "reward",      qedit_cmd_reward   },
@@ -71,11 +81,12 @@ static const OLC_EDITOR_DEF qedit_def = {
     .cmd_table   = qedit_table,
     .show_fn     = qedit_show,
     .tabs        = {
-        .count = 4,
+        .count = 5,
         .tabs = {
             { "General",    "Gen", qedit_show_general_tab },
             { "Flow",       "Flw", qedit_show_flow_tab },
             { "Rewards",    "Rwd", qedit_show_rewards_tab },
+            { "Scripts",    "Scr", qedit_show_scripting_tab },
             { "Notes",      "Nts", qedit_show_notes_tab },
         }
     },
@@ -1025,6 +1036,10 @@ static bool qedit_cmd_entry(CHAR_DATA *ch, char *argument)       { return qedit_
 static bool qedit_cmd_enabled(CHAR_DATA *ch, char *argument)     { return qedit_exec_session_command(ch, "enabled", argument); }
 static bool qedit_cmd_seedpolicy(CHAR_DATA *ch, char *argument)  { return qedit_exec_session_command(ch, "seedpolicy", argument); }
 static bool qedit_cmd_seed(CHAR_DATA *ch, char *argument)        { return qedit_exec_session_command(ch, "seed", argument); }
+static bool qedit_cmd_varset(CHAR_DATA *ch, char *argument)      { return qedit_exec_session_command(ch, "varset", argument); }
+static bool qedit_cmd_varclear(CHAR_DATA *ch, char *argument)    { return qedit_exec_session_command(ch, "varclear", argument); }
+static bool qedit_cmd_addqprog(CHAR_DATA *ch, char *argument)    { return qedit_exec_session_command(ch, "addqprog", argument); }
+static bool qedit_cmd_delqprog(CHAR_DATA *ch, char *argument)    { return qedit_exec_session_command(ch, "delqprog", argument); }
 static bool qedit_cmd_stage(CHAR_DATA *ch, char *argument)       { return qedit_exec_session_command(ch, "stage", argument); }
 static bool qedit_cmd_objective(CHAR_DATA *ch, char *argument)   { return qedit_exec_session_command(ch, "objective", argument); }
 static bool qedit_cmd_reward(CHAR_DATA *ch, char *argument)      { return qedit_exec_session_command(ch, "reward", argument); }
@@ -1184,6 +1199,8 @@ static void qedit_show_flow_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
                 objective->optional ? "on" : "off",
                 objective->required_count,
                 objective->quantity));
+            add_buf(ctx->buffer, formatf("      strict: %s\n\r",
+                objective->strict_target ? "on" : "off"));
 
             if (qedit_objective_target_relevant(objective->objective_type)
                 || qedit_objective_has_target_data(objective)) {
@@ -1277,6 +1294,22 @@ static void qedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
     add_buf(ctx->buffer, "  custom: script-defined (only populated fields shown)\n\r");
     add_buf(ctx->buffer, "  token: attaches to the resolved objective anchor (target, or destination fallback)\n\r");
     add_buf(ctx->buffer, "\n\r{YNotes:{x Flow tab hides irrelevant fields by type unless data is already set.\n\r");
+}
+
+static void qedit_show_scripting_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2 = (QUEST_INDEX_V2_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&qedit_def);
+
+    (void)ch;
+
+    if (!ctx || !quest_index_v2)
+        return;
+
+    olc_display_scripts(ctx, theme, quest_index_v2->progs, PRG_QPROG,
+        "QuestProg Vnum", "addqprog", "delqprog");
+
+    olc_display_vars(ctx, theme, quest_index_v2->index_vars, "varset", "varclear");
 }
 
 static void qedit_show_rewards_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
@@ -1429,6 +1462,10 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  qedit <ref> enabled <on|off>\n\r", ch);
         send_to_char("  qedit <ref> seedpolicy <auto|fixed>\n\r", ch);
         send_to_char("  qedit <ref> seed <number|none>\n\r", ch);
+        send_to_char("  qedit <ref> varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+        send_to_char("  qedit <ref> varclear <name>\n\r", ch);
+        send_to_char("  qedit <ref> addqprog <widevnum> <trigger> <phrase>\n\r", ch);
+        send_to_char("  qedit <ref> delqprog <group#> [trigger#]\n\r", ch);
         send_to_char("  qedit <ref> stage list\n\r", ch);
         send_to_char("  qedit <ref> stage add <stage_id>\n\r", ch);
         send_to_char("  qedit <ref> stage del <stage_id>\n\r", ch);
@@ -1437,6 +1474,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  qedit <ref> stage <stage_id> autocommence <on|off>\n\r", ch);
         send_to_char("  qedit <ref> stage <stage_id> complete <all|any|custom>\n\r", ch);
         send_to_char("  qedit <ref> stage <stage_id> next <stage_id|none>\n\r", ch);
+        send_to_char("  qedit <ref> stage <stage_id> enter <text|none>\n\r", ch);
+        send_to_char("  qedit <ref> stage <stage_id> exit <text|none>\n\r", ch);
         send_to_char("  qedit <ref> stage <stage_id> profile <text|none>\n\r", ch);
         send_to_char("  qedit <ref> stage <stage_id> salt <number|none>\n\r", ch);
         send_to_char("  qedit <ref> stage <stage_id> summary <text>\n\r", ch);
@@ -1449,6 +1488,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> required <count>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> quantity <count>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> optional <on|off>\n\r", ch);
+        send_to_char("  qedit <ref> objective <stage_id> <objective_id> strict <on|off>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> target mode <exact|pool>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> target wnum <auid>#<vnum|none>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> target ref <stage_id>:<objective_id|$refname|none>\n\r", ch);
@@ -1600,6 +1640,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  objective list <stage> | objective add <stage> <id> | objective edit <stage> <id> ...\n\r", ch);
         send_to_char("  objective edit <stage> <id> target|destination|token <wnum|ref|name|mode|pool> ...\n\r", ch);
         send_to_char("  reward list | reward add [type] | reward <index> ...\n\r", ch);
+        send_to_char("  addqprog <widevnum> <trigger> <phrase> | delqprog <group#> [trigger#]\n\r", ch);
         send_to_char("  done\n\r", ch);
         send_to_char("In [QEdit], use subcommands directly (do not prefix with 'qedit').\n\r", ch);
         return;
@@ -1809,6 +1850,146 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    if (!str_prefix(arg2, "varset")) {
+        if (!olc_varset(&quest_index_v2->index_vars, ch, argument, false))
+            send_to_char("Syntax: varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg2, "varclear")) {
+        if (!olc_varclear(&quest_index_v2->index_vars, ch, argument, false))
+            send_to_char("Syntax: varclear <name>\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg2, "addqprog")) {
+        int tindex;
+        int slot;
+        PROG_LIST *list;
+        SCRIPT_DATA *code;
+        WNUM script_wnum;
+        AREA_DATA *context;
+
+        if (IS_NULLSTR(arg3) || IS_NULLSTR(arg4) || IS_NULLSTR(arg5)) {
+            send_to_char("Syntax: addqprog <widevnum> <trigger> <phrase>\n\r", ch);
+            return;
+        }
+
+        if ((tindex = trigger_index(arg4, PRG_QPROG)) < 0) {
+            send_to_char("Valid flags are:\n\r", ch);
+            show_help(ch, "qprog");
+            return;
+        }
+
+        slot = trigger_table[tindex].slot;
+        context = olc_relative_widevnum_context(quest_index_v2->area, arg3);
+        if (!parse_widevnum(arg3, context, &script_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return;
+        }
+
+        if ((code = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_QPROG)) == NULL) {
+            send_to_char("No such QUESTProgram.\n\r", ch);
+            return;
+        }
+
+        if (!quest_index_v2->progs)
+            quest_index_v2->progs = new_prog_bank();
+
+        if (edit_trigger_exists(quest_index_v2->progs, code, tindex, arg5)) {
+            send_to_char("That trigger/phrase pair is already attached to that script on this quest.\n\r", ch);
+            return;
+        }
+
+        list = new_trigger();
+        list->vnum = script_wnum.vnum;
+        list->script_is_widevnum = (script_wnum.pArea != NULL);
+        if (list->script_is_widevnum) {
+            list->script_load.auid = script_wnum.pArea->uid;
+            list->script_load.vnum = script_wnum.vnum;
+        }
+        list->trig_type = tindex;
+        list->trig_phrase = str_dup(arg5);
+        if (is_widevnum_format(arg5)) {
+            list->numeric = true;
+            list->trig_is_widevnum = true;
+            parse_widevnum_load(arg5, &list->trig_load);
+            list->trig_number = (int)list->trig_load.vnum;
+        } else {
+            list->trig_number = atoi(list->trig_phrase);
+            list->numeric = is_number(list->trig_phrase);
+        }
+
+        list->script = code;
+        list_appendlink(quest_index_v2->progs[slot], list);
+
+        send_to_char("Qprog Added.\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg2, "delqprog")) {
+        int group_idx;
+        int trig_idx;
+        PROG_GROUP groups[MAX_PROG_GROUPS];
+        int num_groups;
+
+        if (!quest_index_v2->progs) {
+            send_to_char("This quest has no programs attached.\n\r", ch);
+            return;
+        }
+
+        if (IS_NULLSTR(arg3)) {
+            send_to_char("Syntax: delqprog <group#>\n\r", ch);
+            send_to_char("        delqprog <group#> <trigger#>\n\r", ch);
+            return;
+        }
+
+        if (!is_number(arg3)) {
+            send_to_char("Please specify a valid group number.\n\r", ch);
+            return;
+        }
+
+        group_idx = atoi(arg3);
+        num_groups = prog_build_groups(quest_index_v2->progs, groups, MAX_PROG_GROUPS, PRG_QPROG);
+
+        if (group_idx < 1 || group_idx > num_groups) {
+            send_to_char("Invalid group number.\n\r", ch);
+            return;
+        }
+
+        PROG_GROUP *group = &groups[group_idx - 1];
+
+        if (IS_NULLSTR(arg4)) {
+            if (edit_delscript(quest_index_v2->progs, group->script)) {
+                send_to_char("Script group removed.\n\r", ch);
+                return;
+            }
+        } else {
+            PROG_GROUP_ENTRY *entry;
+
+            if (!is_number(arg4)) {
+                send_to_char("Please specify a valid trigger number within the group.\n\r", ch);
+                return;
+            }
+
+            trig_idx = atoi(arg4);
+            if (trig_idx < 1 || trig_idx > group->trigger_count) {
+                send_to_char("Invalid trigger number within that group.\n\r", ch);
+                return;
+            }
+
+            entry = &group->triggers[trig_idx - 1];
+            if (edit_deltrigger_specific(quest_index_v2->progs, group->script,
+                entry->entry->trig_type, entry->entry->trig_phrase)) {
+                send_to_char("Trigger removed from script group.\n\r", ch);
+                return;
+            }
+        }
+
+        send_to_char("No such program or trigger found.\n\r", ch);
+        return;
+    }
+
     if (!str_prefix(arg2, "stage")) {
         long stage_id;
 
@@ -1907,6 +2088,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "  autocommence: %s\n\r", stage->auto_commence ? "on" : "off");
             printf_to_char(ch, "  complete  : %s\n\r", qedit_stage_completion_name(stage->completion_mode));
             printf_to_char(ch, "  next      : %d\n\r", stage->next_stage_id);
+            printf_to_char(ch, "  enter     : %s\n\r", IS_NULLSTR(stage->on_enter_script) ? "" : stage->on_enter_script);
+            printf_to_char(ch, "  exit      : %s\n\r", IS_NULLSTR(stage->on_exit_script) ? "" : stage->on_exit_script);
             printf_to_char(ch, "  profile   : %s\n\r", stage->generator_profile);
             printf_to_char(ch, "  salt      : %llu\n\r", stage->generator_salt);
             return;
@@ -1930,7 +2113,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         }
 
         if (IS_NULLSTR(arg4)) {
-            send_to_char("QEdit: stage edit requires a field (summary/description/source/autocommence/complete/next/profile/salt).\n\r", ch);
+            send_to_char("QEdit: stage edit requires a field (summary/description/source/autocommence/complete/next/enter/exit/profile/salt).\n\r", ch);
             return;
         }
 
@@ -2039,6 +2222,20 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             }
             stage->next_stage_id = (int)value;
             printf_to_char(ch, "QEdit: stage next set to %d.\n\r", stage->next_stage_id);
+            return;
+        }
+
+        if (!str_prefix(arg4, "enter") || !str_prefix(arg4, "onenter") || !str_prefix(arg4, "enterscript")) {
+            free_string(stage->on_enter_script);
+            stage->on_enter_script = str_dup((IS_NULLSTR(arg5) || !str_cmp(arg5, "none")) ? "" : text_after_arg4);
+            send_to_char("QEdit: stage enter script updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg4, "exit") || !str_prefix(arg4, "onexit") || !str_prefix(arg4, "exitscript")) {
+            free_string(stage->on_exit_script);
+            stage->on_exit_script = str_dup((IS_NULLSTR(arg5) || !str_cmp(arg5, "none")) ? "" : text_after_arg4);
+            send_to_char("QEdit: stage exit script updated.\n\r", ch);
             return;
         }
 
@@ -2323,9 +2520,10 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                     qedit_target_mode_name(objective->target_mode),
                     objective->optional ? "on" : "off");
 
-                printf_to_char(ch, "      required:%d  quantity:%d  pool:%d  tag:%s\n\r",
+                printf_to_char(ch, "      required:%d  quantity:%d  strict:%s  pool:%d  tag:%s\n\r",
                     objective->required_count,
                     objective->quantity,
+                    objective->strict_target ? "on" : "off",
                     qedit_count_pool_entries(objective),
                     tag);
                 if (objective->pool_entries) {
@@ -2452,6 +2650,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "  required : %d\n\r", objective->required_count);
             printf_to_char(ch, "  quantity : %d\n\r", objective->quantity);
             printf_to_char(ch, "  optional : %s\n\r", objective->optional ? "on" : "off");
+            printf_to_char(ch, "  strict   : %s\n\r", objective->strict_target ? "on" : "off");
             printf_to_char(ch, "  mode     : %s\n\r", qedit_target_mode_name(objective->target_mode));
             qedit_format_wnum_display(ch, objective->target_wnum, QEDIT_WNUM_ANY,
                 target_buf, sizeof(target_buf));
@@ -2534,7 +2733,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         }
 
         if (IS_NULLSTR(arg5)) {
-            send_to_char("QEdit: objective field required (type/required/quantity/optional/target/destination/token/destinationtoken/summary/description).\n\r", ch);
+            send_to_char("QEdit: objective field required (type/required/quantity/optional/strict/target/destination/token/destinationtoken/summary/description).\n\r", ch);
             send_to_char("       Use target|destination|token subfields: wnum/ref/name (and target mode|pool).\n\r", ch);
             return;
         }
@@ -2624,6 +2823,25 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             }
 
             printf_to_char(ch, "QEdit: objective optional set to %s.\n\r", objective->optional ? "on" : "off");
+            return;
+        }
+
+        if (!str_prefix(arg5, "strict")) {
+            if (IS_NULLSTR(arg6)) {
+                send_to_char("QEdit: strict requires on|off.\n\r", ch);
+                return;
+            }
+
+            if (!str_prefix(arg6, "on") || !str_prefix(arg6, "yes") || !str_cmp(arg6, "1"))
+                objective->strict_target = true;
+            else if (!str_prefix(arg6, "off") || !str_prefix(arg6, "no") || !str_cmp(arg6, "0"))
+                objective->strict_target = false;
+            else {
+                send_to_char("QEdit: strict requires on|off.\n\r", ch);
+                return;
+            }
+
+            printf_to_char(ch, "QEdit: objective strict set to %s.\n\r", objective->strict_target ? "on" : "off");
             return;
         }
 

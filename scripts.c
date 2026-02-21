@@ -33,6 +33,7 @@ bool script_destructed = false;
 bool wiznet_script = false;
 bool script_force_execute = false;	// Executes the script even if disabled
 SCRIPT_CB *script_call_stack = NULL;
+static SCRIPT_EXECUTE_CONTEXT script_exec_context = { NULL, NULL };
 
 #define SCRIPT_LOG_MAX_LEN 16384
 
@@ -1561,6 +1562,12 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
                 iterator_stop(&block->loops[i].d.l.list.it);
                 break;
 
+            case ENT_ILLIST_QUEST_STAGES:
+            case ENT_ILLIST_QUEST_OBJECTIVES:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                list_destroy(block->loops[i].d.l.list.lp);
+                break;
+
             case ENT_ILLIST_MOB_GROUP:
                 iterator_stop(&block->loops[i].d.l.list.it);
                 list_destroy(block->loops[i].d.l.list.lp);
@@ -1888,6 +1895,8 @@ DECL_OPC_FUN(opc_list)
     REPUTATION_INDEX_DATA *repIndex;
     REPUTATION_INDEX_RANK_DATA *repRank;
     SKILL_GROUP *skill_group;
+    QUEST_STAGE_INDEX_V2_DATA *quest_stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective;
     NAMED_SPECIAL_ROOM *special_room;
     SHIP_DATA *ship;
 
@@ -2948,6 +2957,56 @@ DECL_OPC_FUN(opc_list)
             variables_set_skill_group(block->info.var,block->loops[lp].var_name,skill_group);
             break;
 
+        case ENT_ILLIST_QUEST_STAGES:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST_STAGES;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_stage = (QUEST_STAGE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_stage ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest_stage(block->info.var,block->loops[lp].var_name,quest_stage);
+            break;
+
+        case ENT_ILLIST_QUEST_OBJECTIVES:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST_OBJECTIVES;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_objective = (QUEST_OBJECTIVE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_objective ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest_objective(block->info.var,block->loops[lp].var_name,quest_objective);
+            break;
+
         case ENT_ILLIST_SECTIONS:
             if(!IS_VALID(arg->d.blist))
             {
@@ -3726,6 +3785,34 @@ DECL_OPC_FUN(opc_list)
 
             break;
 
+        case ENT_ILLIST_QUEST_STAGES:
+            quest_stage = (QUEST_STAGE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest_stage(block->info.var,block->loops[lp].var_name,quest_stage);
+
+            if( !quest_stage ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_QUEST_OBJECTIVES:
+            quest_objective = (QUEST_OBJECTIVE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest_objective(block->info.var,block->loops[lp].var_name,quest_objective);
+
+            if( !quest_objective ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
         case ENT_ILLIST_MOB_GROUP:
             //log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
             ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -4104,6 +4191,32 @@ DECL_OPC_FUN(opc_area)
     return true;
 }
 
+DECL_OPC_FUN(opc_quest)
+{
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
+
+    if(block->type != IFC_Q) {
+        return false;
+    }
+
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,area_cmd_table[block->cur_line->param].name);
+
+    if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted quest command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
+    } else if(block->info.area) {
+        if( !area_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*area_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
+
+    opc_next_line(block);
+    return true;
+}
+
 DECL_OPC_FUN(opc_instance)
 {
     if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
@@ -4296,7 +4409,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
 
     } else if (area) {
         area->progs->lastreturn = PRET_EXECUTED;
-        block.type = IFC_A;
+        block.type = (script && script->type == PRG_QPROG) ? IFC_Q : IFC_A;
         block.info.progs = area->progs;
         block.info.location = NULL;
         block.info.var = &area->progs->vars;
@@ -4351,6 +4464,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
     block.info.area = area;
     block.info.instance = instance;
     block.info.dungeon = dungeon;
+    block.info.quest = script_exec_context.quest;
     block.info.ch = ch;
     block.info.obj1 = obj1;
     block.info.obj2 = obj2;
@@ -4428,6 +4542,62 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
     script_loop_cleanup(&block, 0);
 
     return block.ret_val;
+}
+
+const SCRIPT_EXECUTE_CONTEXT *script_get_execute_context(void)
+{
+    return &script_exec_context;
+}
+
+SCRIPT_EXECUTE_CONTEXT script_set_execute_context(const SCRIPT_EXECUTE_CONTEXT *context)
+{
+    SCRIPT_EXECUTE_CONTEXT saved_context = script_exec_context;
+
+    if (context)
+        script_exec_context = *context;
+    else {
+        script_exec_context.quest = NULL;
+        script_exec_context.event = NULL;
+    }
+
+    return saved_context;
+}
+
+QUEST_DATA *script_set_execute_quest_context(QUEST_DATA *quest)
+{
+    SCRIPT_EXECUTE_CONTEXT context = script_exec_context;
+    QUEST_DATA *saved_quest = context.quest;
+
+    context.quest = quest;
+    script_set_execute_context(&context);
+
+    return saved_quest;
+}
+
+int execute_script_quest(long pvnum, SCRIPT_DATA *script, QUEST_DATA *quest,
+    CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+    AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+    CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
+    TOKEN_DATA *tok, char *phrase, char *trigger, int trigger_type,
+    int number1, int number2, int number3, int number4, int number5)
+{
+    SCRIPT_EXECUTE_CONTEXT context;
+    SCRIPT_EXECUTE_CONTEXT saved_context;
+    int ret;
+
+    context = script_exec_context;
+    context.quest = quest;
+    saved_context = script_set_execute_context(&context);
+
+    ret = execute_script(pvnum, script,
+        mob, obj, room, token,
+        area, instance, dungeon,
+        ch, obj1, obj2, vch, vch2, rch,
+        tok, phrase, trigger, trigger_type,
+        number1, number2, number3, number4, number5);
+    script_set_execute_context(&saved_context);
+
+    return ret;
 }
 
 static ROOM_INDEX_DATA *script_room_from_obj_or_token(OBJ_DATA *obj, TOKEN_DATA *token)
@@ -5630,6 +5800,7 @@ int trigger_index(char *name, int type)
             case PRG_APROG: if (trigger_table[i].area) return i;
             case PRG_IPROG: if (trigger_table[i].instance) return i;
             case PRG_DPROG: if (trigger_table[i].dungeon) return i;
+            case PRG_QPROG: if (trigger_table[i].quest) return i;
             }
     }
 
@@ -5644,6 +5815,7 @@ int trigger_index(char *name, int type)
             case PRG_APROG: if (trigger_table[i].area) return i;
             case PRG_IPROG: if (trigger_table[i].instance) return i;
             case PRG_DPROG: if (trigger_table[i].dungeon) return i;
+            case PRG_QPROG: if (trigger_table[i].quest) return i;
             }
     }
 
@@ -6816,6 +6988,86 @@ int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKE
     CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
     return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase);
+}
+
+int p_lifecycle_bank_trigger(LLIST **bank, AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+    QUEST_DATA *quest, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2,
+    OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
+{
+    ITERATOR it;
+    PROG_LIST *prg;
+    int trigger_tindex = -1;
+    int slot;
+    int ret_val = PRET_NOSCRIPT;
+    const char *safe_phrase;
+
+    if (!bank || type < 0)
+        return PRET_NOSCRIPT;
+
+    safe_phrase = IS_NULLSTR(phrase) ? "" : phrase;
+
+    for (int i = 0; i < trigger_table_size; i++)
+    {
+        if (trigger_table[i].type == type)
+        {
+            trigger_tindex = i;
+            break;
+        }
+    }
+
+    if (trigger_tindex < 0)
+        return PRET_NOSCRIPT;
+
+    slot = trigger_table[trigger_tindex].slot;
+    if (slot < 0 || slot >= TRIGSLOT_MAX || !bank[slot])
+        return PRET_NOSCRIPT;
+
+    iterator_start(&it, bank[slot]);
+    while ((prg = (PROG_LIST *)iterator_nextdata(&it)) != NULL)
+    {
+        bool phrase_match;
+        int ret;
+        QUEST_DATA *saved_quest_context;
+
+        if (!prg->script || !is_trigger_type(prg->trig_type, type))
+            continue;
+
+        if (prg->numeric)
+        {
+            if (type == TRIG_RANDOM)
+                phrase_match = (number_percent() <= URANGE(0, prg->trig_number, 100));
+            else if (!IS_NULLSTR(safe_phrase) && is_number((char *)safe_phrase))
+                phrase_match = (prg->trig_number == atoi(safe_phrase));
+            else if (prg->trig_number > 0 && prg->trig_number <= 100)
+                phrase_match = (number_percent() <= prg->trig_number);
+            else
+                phrase_match = false;
+        }
+        else if (IS_NULLSTR(prg->trig_phrase) || !str_cmp(prg->trig_phrase, "*"))
+            phrase_match = true;
+        else
+            phrase_match = !str_cmp(prg->trig_phrase, safe_phrase);
+
+        if (!phrase_match)
+            continue;
+
+        saved_quest_context = script_set_execute_quest_context(quest);
+
+        ret = execute_script(prg->vnum, prg->script,
+            NULL, NULL, NULL, NULL,
+            area, instance, dungeon,
+            ch, obj1, obj2, victim, victim2, NULL,
+            NULL, (char *)safe_phrase, prg->trig_phrase, type,
+            0, 0, 0, 0, 0);
+
+        script_set_execute_quest_context(saved_quest_context);
+
+        if (ret != PRET_NOSCRIPT)
+            ret_val = ret;
+    }
+    iterator_stop(&it);
+
+    return ret_val;
 }
 
 int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
@@ -9976,6 +10228,23 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     } else if(!str_cmp(buf,"ship")) {
         if (arg->type == ENT_SHIP)
             variables_set_ship(vars, name, arg->d.ship);
+
+    // Format: QUEST <quest>
+    } else if(!str_cmp(buf,"quest")) {
+        if (arg->type == ENT_QUEST)
+            variables_set_quest(vars, name, arg->d.quest);
+
+    // Format: QUEST_STAGE <quest_stage>
+    // Format: QSTAGE <quest_stage>
+    } else if(!str_cmp(buf,"quest_stage") || !str_cmp(buf,"qstage")) {
+        if (arg->type == ENT_QUEST_STAGE)
+            variables_set_quest_stage(vars, name, arg->d.quest_stage);
+
+    // Format: QUEST_OBJECTIVE <quest_objective>
+    // Format: QOBJECTIVE <quest_objective>
+    } else if(!str_cmp(buf,"quest_objective") || !str_cmp(buf,"qobjective")) {
+        if (arg->type == ENT_QUEST_OBJECTIVE)
+            variables_set_quest_objective(vars, name, arg->d.quest_objective);
 
     // Format: CLASS <name>
     // Format: CLASS <class>

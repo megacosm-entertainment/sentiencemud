@@ -116,6 +116,7 @@ const struct olc_help_type help_table[] =
     {	"aprog",	trigger_table,	 "AreaProgram types."		 },
     {	"iprog",	trigger_table,	 "InstanceProgram types."		 },
     {	"dprog",	trigger_table,	 "DungeonProgram types."		 },
+    {	"qprog",	trigger_table,	 "QuestProgram types."		 },
     {   "condition",    room_condition_flags, "Room Condition types."    },
     {   "tokenflags",   token_flags,	 "Token flags."			 },
     {	"projectflags",	project_flags,	 "Project flags."		 },
@@ -153,6 +154,7 @@ const struct olc_help_type help_table[] =
     {	"damageclass",			STRUCT_FLAGS,		damage_classes,				"Types of damages."},
     {	"do_func",				STRUCT_SPELLFUNC,	do_func_table,				"Do_ functions (CMDEdit)"},
     {	"dprog",				STRUCT_TRIGGERS,	trigger_table,				"DungeonProgram types."	},
+    {	"qprog",				STRUCT_TRIGGERS,	trigger_table,				"QuestProgram types."	},
     {	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
     {	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
     {	"extra",				STRUCT_FLAGBANK,	extra_flagbank,				"Object attributes."	},
@@ -593,6 +595,24 @@ bool show_help(CHAR_DATA *ch, char *argument)
                 for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
                 {
                     if (trigger_table[i].dungeon)
+                    {
+                        n++;
+                        sprintf(buf, "%-20s", trigger_table[i].name);
+                        send_to_char(buf, ch);
+                        if (!(n % 4))
+                            send_to_char("\n\r", ch);
+                    }
+                }
+
+                if (n % 4)
+                    send_to_char("\n\r", ch);
+            }
+            else if (!str_prefix(arg, "qprog"))
+            {
+                send_to_char("QuestProgram Triggers:\n\r", ch);
+                for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+                {
+                    if (trigger_table[i].quest)
                     {
                         n++;
                         sprintf(buf, "%-20s", trigger_table[i].name);

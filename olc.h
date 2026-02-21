@@ -55,6 +55,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_APCODE	19
 #define ED_IPCODE	20
 #define ED_DPCODE	21
+#define ED_QPCODE	42
 #define ED_CMDEDIT  22
 #define ED_CHANGESET	23
 #define ED_ACCNOTE	24
@@ -652,6 +653,9 @@ DECLARE_OLC_FUN( ipedit_create		);
 
 DECLARE_OLC_FUN( dpedit_list		);
 DECLARE_OLC_FUN( dpedit_create		);
+
+DECLARE_OLC_FUN( qpedit_list		);
+DECLARE_OLC_FUN( qpedit_create		);
 
 
 

@@ -3110,6 +3110,7 @@ const struct script_type script_type_table[] =
     { PRG_APROG, "AreaProg", "ap"},
     { PRG_IPROG, "InstanceProg", "ip"},
     { PRG_DPROG, "DungeonProg", "dp"},
+    { PRG_QPROG, "QuestProg", "qp"},
     { -1, NULL, NULL }
 };
 

@@ -253,6 +253,7 @@ SCRIPT_DATA *tprog_list;
 SCRIPT_DATA *aprog_list;
 SCRIPT_DATA *iprog_list;
 SCRIPT_DATA *dprog_list;
+SCRIPT_DATA *qprog_list;
 PROJECT_DATA *		project_list;
 bool			projects_changed;
 SHOP_DATA *		shop_first;
@@ -355,6 +356,7 @@ long top_waypoint;
 long top_aprog_index;
 long top_iprog_index;
 long top_dprog_index;
+long top_qprog_index;
 
 LLIST *loaded_chars;
 // Temporarily disabled for reconnect crash.
@@ -473,6 +475,7 @@ void fix_tokenprogs(void);
 void check_area_versions(void);
 void migrate_shopkeeper_resets(AREA_DATA *area);
 void fix_areaprogs(void);
+void fix_questprogs(void);
 void fix_instanceprogs(void);
 void fix_dungeonprogs(void);
 void fix_dungeon_rooms(void);
@@ -977,6 +980,8 @@ void boot_db(void)
     fix_instanceprogs();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_dungeonprogs");
     fix_dungeonprogs();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing fix_questprogs");
+    fix_questprogs();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing dungeon room references");
     fix_dungeon_rooms();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing blueprint room references");
@@ -1932,6 +1937,59 @@ void fix_dungeonprogs(void)
                     iterator_stop(&it);
                 }
             }
+        }
+    }
+}
+
+void fix_questprogs(void)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+    PROG_LIST *trigger;
+    ITERATOR it;
+    int slot;
+
+    for (quest_index_v2 = quest_index_v2_list; quest_index_v2 != NULL; quest_index_v2 = quest_index_v2->next) {
+        AREA_DATA *pArea = quest_index_v2->area;
+
+        if (!pArea || !quest_index_v2->progs)
+            continue;
+
+        for (slot = 0; slot < TRIGSLOT_MAX; slot++) if (quest_index_v2->progs[slot]) {
+            iterator_start(&it, quest_index_v2->progs[slot]);
+            while ((trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+                WNUM script_wnum;
+                AREA_DATA *script_area = NULL;
+
+                trigger->script = NULL;
+                if (trigger->script_is_widevnum) {
+                    script_area = get_area_index(trigger->script_load.auid);
+                    if (script_area)
+                        trigger->script = get_script_index(script_area, trigger->script_load.vnum, PRG_QPROG);
+                }
+                if (!trigger->script && resolve_widevnum(trigger->vnum, pArea, &script_wnum))
+                    trigger->script = get_script_index(script_wnum.pArea, script_wnum.vnum, PRG_QPROG);
+
+                if (!trigger->script) {
+                    log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                        "fix_questprogs: script %s not found for quest index %s",
+                        trigger->script_is_widevnum
+                            ? widevnum_string(script_area, trigger->script_load.vnum, NULL)
+                            : widevnum_string(pArea, trigger->vnum, NULL),
+                        widevnum_string(pArea, quest_index_v2->vnum, NULL));
+                    exit(1);
+                }
+
+                if (!trigger->script_is_widevnum && trigger->script->area) {
+                    trigger->script_is_widevnum = true;
+                    trigger->script_load.auid = trigger->script->area->uid;
+                    trigger->script_load.vnum = trigger->script->vnum;
+                }
+
+                if (trigger->trig_is_widevnum) {
+                    resolve_wnum_load(&trigger->trig_load, &trigger->trig_wnum, pArea);
+                }
+            }
+            iterator_stop(&it);
         }
     }
 }
@@ -4609,6 +4667,9 @@ SCRIPT_DATA *get_script_index(AREA_DATA *pArea, long vnum, int type)
         break;
     case PRG_DPROG:
         prg = pArea->dprog_list;
+        break;
+    case PRG_QPROG:
+        prg = pArea->qprog_list;
         break;
     default:
         return NULL;

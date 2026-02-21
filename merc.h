@@ -674,6 +674,7 @@ struct script_varinfo {
     AREA_DATA *area;
     INSTANCE *instance;
     DUNGEON *dungeon;
+    QUEST_DATA *quest;
     VARIABLE **var;
     CHAR_DATA *ch;
     OBJ_DATA *obj1;
@@ -4440,6 +4441,7 @@ struct quest_objective_index_v2_data
     char *description;
 
     bool optional;
+    bool strict_target;
 };
 
 
@@ -4512,6 +4514,8 @@ struct quest_index_v2_data
 
     QUEST_STAGE_INDEX_V2_DATA *stages;
     QUEST_REWARD_INDEX_V2_DATA *rewards;
+    LLIST **progs;
+    pVARIABLE index_vars;
 
     bool enabled;
 };
@@ -4527,6 +4531,7 @@ struct quest_objective_state_v2_data
     int selected_pool_entry_id;
     WNUM_LOAD selected_target_load;
     WNUM selected_target_wnum;
+    unsigned long selected_target_uid[2];
     WNUM_LOAD selected_destination_load;
     WNUM selected_destination_wnum;
 };
@@ -4563,6 +4568,7 @@ struct quest_data
     int                 current_stage_commenced;
     QUEST_OBJECTIVE_STATE_V2_DATA *objective_states;
     QUEST_TARGET_BINDING_V2_DATA *target_bindings;
+    pVARIABLE           vars;
     int                 target_scope;
     unsigned long       scope_owner_id[2];
     long                scope_owner_uid;
@@ -6354,6 +6360,7 @@ struct	area_data
     SCRIPT_DATA *aprog_list;
     SCRIPT_DATA *iprog_list;
     SCRIPT_DATA *dprog_list;
+    SCRIPT_DATA *qprog_list;
 
     // Per-area instances (runtime)
     LLIST *instances;
@@ -8166,6 +8173,19 @@ enum trigger_index_enum {
     TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
     TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
     TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
+    TRIG_QUEST_ACCEPTED,
+    TRIG_QUEST_COMPLETED,
+    TRIG_QUEST_FAILED,
+    TRIG_QUEST_FOCUSED,
+    TRIG_STAGE_COMMENCED,
+    TRIG_STAGE_COMPLETED,
+    TRIG_STAGE_FAILED,
+    TRIG_STAGE_TARGET_RESOLVED,
+    TRIG_STAGE_DEST_RESOLVED,
+    TRIG_OBJECTIVE_COMPLETED,
+    TRIG_OBJECTIVE_FAILED,
+    TRIG_OBJECTIVE_TARGET_RESOLVED,
+    TRIG_OBJECTIVE_DEST_RESOLVED,
     TRIG_QUIT,
     TRIG_RANDOM,        // DEPRECATE
     TRIG_RECALL,
@@ -8256,6 +8276,7 @@ enum trigger_index_enum {
 #define PRG_APROG	4	// Area
 #define PRG_IPROG	5	// Instances
 #define PRG_DPROG	6	// Dungeons
+#define PRG_QPROG	7	// Quests
 
 #define NEWEST_OBJ_VERSION 1
 
@@ -8271,6 +8292,7 @@ struct trigger_type {
     bool area;
     bool instance;
     bool dungeon;
+    bool quest;
 };
 
 #define PROG_NODESTRUCT		(A)		/* Used to indicate the item is already destructing and should not fire any destructions */
@@ -8913,6 +8935,7 @@ extern          SCRIPT_DATA       *     tprog_list;
 extern          SCRIPT_DATA       *     aprog_list;
 extern          SCRIPT_DATA       *     iprog_list;
 extern          SCRIPT_DATA       *     dprog_list;
+extern          SCRIPT_DATA       *     qprog_list;
 extern          ROOM_INDEX_DATA   *	room_index_hash[MAX_KEY_HASH];
 extern		PROG_DATA	  *	prog_data_virtual;
 extern		char		  *     room_name_virtual;
@@ -9644,6 +9667,8 @@ bool quest_runtime_remove_token(CHAR_DATA *ch, WNUM token_wnum, int count);
 bool quest_runtime_manual_trigger_ready(CHAR_DATA *ch);
 bool quest_runtime_is_expired(CHAR_DATA *ch, time_t now);
 void quest_runtime_tick_expiration(CHAR_DATA *ch, time_t now);
+void quest_runtime_snapshot_group_runs_to_character(CHAR_DATA *ch, const unsigned long group_id[2]);
+void quest_runtime_snapshot_church_runs_to_character(CHAR_DATA *ch, long church_uid);
 long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, long quest_index_vnum);
 QUEST_DATA *quest_runtime_get_run_by_id(CHAR_DATA *ch, long run_id);
 QUEST_DATA *quest_runtime_get_run_by_index(CHAR_DATA *ch, int index);
@@ -9666,14 +9691,18 @@ QUEST_STAGE_INDEX_V2_DATA *quest_runtime_get_current_stage(QUEST_DATA *run);
 unsigned long long quest_runtime_seed_for_stage(QUEST_DATA *run, int stage_id);
 bool quest_runtime_update_objective_progress(QUEST_DATA *run, int objective_id, int delta);
 bool quest_runtime_complete_objective(QUEST_DATA *run, int objective_id);
+bool quest_runtime_fail_objective(QUEST_DATA *run, int objective_id, const char *reason_phrase);
 bool quest_runtime_is_stage_complete(QUEST_DATA *run);
 bool quest_runtime_try_advance_stage(QUEST_DATA *run);
 bool quest_runtime_set_stage(QUEST_DATA *run, int stage_id);
+bool quest_runtime_complete_run(QUEST_DATA *run, const char *reason_phrase);
+bool quest_runtime_fail_run(QUEST_DATA *run, int failed_status, const char *reason_phrase);
 QUEST_INDEX_DATA *get_quest_index( long vnum );
 QUEST_INDEX_DATA *get_quest_index_wnum(WNUM wnum);
 void check_quest_rescue_mob( CHAR_DATA *ch, bool show );
 void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool show );
 void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob, bool show );
+void check_quest_talk_target( CHAR_DATA *ch, CHAR_DATA *victim, const char *message, bool show );
 void check_quest_totally_complete( CHAR_DATA *ch, bool show );
 void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show);
 bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show);
@@ -10249,6 +10278,7 @@ int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DAT
 int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase);
 int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
+int p_lifecycle_bank_trigger(LLIST **bank, AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, QUEST_DATA *quest, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_number_trigger(int number, int wildcard, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount);
 int p_exit_trigger(CHAR_DATA *ch, int dir, int type);
@@ -11099,6 +11129,7 @@ void detach_instances_player(CHAR_DATA *ch);
 
 extern long top_iprog_index;
 extern long top_dprog_index;
+extern long top_qprog_index;
 
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
 bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);

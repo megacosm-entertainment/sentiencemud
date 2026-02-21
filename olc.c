@@ -143,6 +143,7 @@ const struct editor_cmd_type editor_table[] =
     { "aprog",		do_apedit	},
     { "iprog",		do_ipedit	},
     { "dprog",		do_dpedit	},
+    { "qprog",		do_qpedit	},
     { "wilderness",    do_wedit	},
     { "command",    do_cmdedit  },
     { "race",       do_racedit  },
@@ -290,6 +291,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     case ED_APCODE:
     case ED_IPCODE:
     case ED_DPCODE:
+    case ED_QPCODE:
         prog = (SCRIPT_DATA *)ch->desc->pEdit;
         sprintf(buf, "%s", prog ? widevnum_string_script(prog, NULL) : "0");
         break;

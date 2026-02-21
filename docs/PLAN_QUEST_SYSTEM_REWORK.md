@@ -14,13 +14,12 @@ Replace the legacy single-active autoquest flow with a modern quest platform tha
 
 Legacy autoquest and its command UX will be retired.
 
-## Delivery Priority (Locked)
+## Delivery Priority
 
-Foundation-first scope for this rework is **character-owned runs only**.
+Foundation-first scope for this rework was **character-owned runs only**.
 
 - Required for initial ship: mission allowance economy, multi-active run runtime, quest/mission definitions, objective/reward pipeline, persistence migration, and player command/runtime cleanup.
-- Deferred stretch goals: `target_scope=group` and `target_scope=church` execution semantics.
-- Existing group/church scaffolding remains compatibility-safe but is not part of the foundation acceptance criteria.
+- Current incremental extension (active): scoped runtime semantics for `target_scope=group` and `target_scope=church` are being implemented in controlled slices without blocking foundation stability.
 
 ## Product Model
 
@@ -421,9 +420,9 @@ Keep legacy fields read-only during transition and stop writing them after migra
 
 ### Post-Foundation Stretch
 
-- Enable group/church quest ownership semantics end-to-end
+- Complete church/group lifecycle hooks end-to-end (join/leave/disband/deletion)
 - Expand command UX and eligibility rules for non-character scopes
-- Integrate with finalized group/church refactors
+- Integrate group sync/catch-up flows for cooperative progression
 
 ### Phase 4: Editor
 
@@ -466,6 +465,39 @@ Keep legacy fields read-only during transition and stop writing them after migra
 - Implemented: quest index v2 registry API with explicit area-scoped storage (`AREA_DATA->quest_index_v2_hash`) and area+vnum lookup helpers to align quest templates with zone-owned indexing.
 - Implemented: quest run v2 structural fields on `QUEST_DATA` (index linkage, stage id, run status/timestamps, objective-state list) plus runtime helpers for index binding, stage activation, and objective-state lifecycle.
 - Next on track (Phase 1): continue replacing direct `ch->quest` assumptions in remaining runtime/update flows with true active-runs container semantics while preserving gameplay behavior.
+- Implemented: centralized qprog lifecycle dispatch through shared script-bank trigger walker (`p_lifecycle_bank_trigger`) instead of quest-local trigger loops.
+- Implemented: qprog lifecycle actor/enactor context is now threaded correctly for command-driven quest events (manual focus/request/grant).
+- Implemented: group/church scope gating now validates actual membership (group/church) rather than hard-blocking non-character scopes.
+- Implemented: group scope owner identity now uses stable `group_data.id` (replacing leader-UID fallback).
+- Implemented: scoped objective propagation for non-character scopes so relevant progress events can fan out across members in the same scope.
+- Implemented: snapshot-to-character on group context loss (`group_remove_member` and `group_disband`) to preserve progress when groups are ephemeral.
+- Implemented: snapshot-to-character on church membership removal (`remove_member`) and fallback normalization of stale non-character scope runs during runtime attach.
+
+## Scope Runtime Workplan (Consolidated)
+
+### Completed
+
+- Group scope ownership + matching based on `GROUP_DATA.id`.
+- Scope-aware owner resolution for scripts/runtime (character/group/church).
+- Group disband/leave snapshot behavior to character-scoped runs.
+- Church member-removal snapshot behavior to character-scoped runs.
+- Shared trigger dispatch path for qprogs and corrected enactor context wiring.
+
+### In Progress
+
+- Church lifecycle transition hooks mirroring group behavior (remaining edge paths: bulk church deletion/disband workflows).
+- Full validation pass for scoped propagation across kill/collect/travel/custom events.
+
+### Planned Next
+
+- Add automatic cooperative sync for members in the same group scope (default behavior).
+- Keep `quest sync` as an explicit/manual override command for edge-case recovery and debug.
+- Sync eligibility: same quest template (`auid#vnum`) and scope compatibility.
+- Catch-up semantics: promote lower-progress run to higher checkpoint (never downgrade).
+- First-pass checkpoint model: stage index + objective completion set within stage.
+- Move synced members to a single group-scoped canonical progression reference.
+- Auto-sync trigger points (first pass): on group member join/leave transitions, run focus changes, and objective progression events.
+- Safety guard: never perform automatic sync when either run is failed/abandoned/completed; only active runs participate.
 
 ## Session Handoff (2026-02-21)
 

@@ -22,6 +22,7 @@
 #include "json_common.h"
 #include "json_char.h"
 #include "json_persist.h"
+#include "json_area.h"
 #include "../../account/preferences.h"
 #include "../cache/redis_cache.h"
 #include "../../wilds.h"
@@ -31,6 +32,7 @@
 #include "../../skill_group.h"
 #include "../../account/unlock.h"
 #include "../../song_data.h"
+#include "../../scripts.h"
 #include "json_obj_types.h"
 
 /***************************************************************************
@@ -1696,6 +1698,19 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(quest, "countdown", json_integer(ch->countdown));
         json_object_set_new(quest, "msg_complete", json_boolean(ch->quest->msg_complete));
         json_object_set_new(quest, "scripted", json_boolean(ch->quest->scripted));
+        if (ch->quest->vars) {
+            AREA_DATA *vars_area = NULL;
+            json_t *vars_json;
+
+            if (ch->quest->quest_index_v2_auid > 0)
+                vars_area = get_area_index(ch->quest->quest_index_v2_auid);
+            if (!vars_area)
+                vars_area = get_system_area_fallback();
+
+            vars_json = json_area_serialize_index_vars(ch->quest->vars, vars_area);
+            if (vars_json)
+                json_object_set_new(quest, "vars", vars_json);
+        }
 
         // Quest parts
         if (ch->quest->parts) {
@@ -3607,8 +3622,22 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             ch->quest->parts = NULL;
             ch->quest->quest_index_auid = 0;
             ch->quest->quest_index_vnum = 0;
+            ch->quest->quest_index_v2_auid = 0;
+            ch->quest->quest_index_v2_vnum = 0;
             ch->quest->run_id = 0;
             ch->quest->started_at = 0;
+            ch->quest->completed_at = 0;
+            ch->quest->failed_at = 0;
+            ch->quest->abandoned_at = 0;
+            ch->quest->run_status = QUEST_RUN_STATUS_ACTIVE;
+            ch->quest->current_stage_id = 0;
+            ch->quest->generation_seed = 0;
+            ch->quest->current_stage_seed = 0;
+            ch->quest->current_stage_generation = 0;
+            ch->quest->current_stage_commenced = 0;
+            ch->quest->objective_states = NULL;
+            ch->quest->target_bindings = NULL;
+            ch->quest->vars = NULL;
             ch->quest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
             ch->quest->scope_owner_id[0] = 0;
             ch->quest->scope_owner_id[1] = 0;
@@ -3712,6 +3741,21 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) ch->quest->msg_complete = json_boolean_value(value);
         value = json_object_get(quest, "scripted");
         if (value) ch->quest->scripted = json_boolean_value(value);
+
+        {
+            json_t *vars_json = json_object_get(quest, "vars");
+            AREA_DATA *vars_area = NULL;
+
+            variable_freelist(&ch->quest->vars);
+
+            if (ch->quest->quest_index_v2_auid > 0)
+                vars_area = get_area_index(ch->quest->quest_index_v2_auid);
+            if (!vars_area)
+                vars_area = get_system_area_fallback();
+
+            if (vars_json)
+                ch->quest->vars = json_area_deserialize_index_vars(vars_json, vars_area);
+        }
 
         // Quest parts
         json_t *parts_array = json_object_get(quest, "parts");

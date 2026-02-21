@@ -599,6 +599,7 @@ DECLARE_DO_FUN( do_tplist	);
 DECLARE_DO_FUN( do_aplist	);
 DECLARE_DO_FUN( do_iplist	);
 DECLARE_DO_FUN( do_dplist	);
+DECLARE_DO_FUN( do_qplist	);
 
 
 DECLARE_DO_FUN( do_touch	);
@@ -628,10 +629,12 @@ DECLARE_DO_FUN( do_dngshow	);
 DECLARE_DO_FUN( do_apdump 	);
 DECLARE_DO_FUN( do_ipdump 	);
 DECLARE_DO_FUN( do_dpdump 	);
+DECLARE_DO_FUN( do_qpdump 	);
 
 DECLARE_DO_FUN(	do_apedit	);
 DECLARE_DO_FUN(	do_ipedit	);
 DECLARE_DO_FUN(	do_dpedit	);
+DECLARE_DO_FUN(	do_qpedit	);
 
 DECLARE_DO_FUN(	do_shedit	);
 DECLARE_DO_FUN(	do_shlist	);

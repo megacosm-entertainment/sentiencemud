@@ -1003,6 +1003,18 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
     json_object_set_new(json, "seed_policy", json_integer(quest_index_v2->seed_policy));
     json_object_set_new(json, "fixed_seed", json_integer((json_int_t)quest_index_v2->fixed_seed));
     json_object_set_new(json, "enabled", quest_index_v2->enabled ? json_true() : json_false());
+    if (quest_index_v2->progs)
+    {
+        json_t *progs_json = json_area_serialize_progs(quest_index_v2->progs, area);
+        if (progs_json)
+            json_object_set_new(json, "progs", progs_json);
+    }
+    if (quest_index_v2->index_vars)
+    {
+        json_t *index_vars = json_area_serialize_index_vars(quest_index_v2->index_vars, area);
+        if (index_vars)
+            json_object_set_new(json, "index_vars", index_vars);
+    }
 
     stages = json_array();
     for (stage = quest_index_v2->stages; stage != NULL; stage = stage->next)
@@ -1066,6 +1078,7 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
             json_object_set_new(objective_json, "target_tag", json_string_safe(objective->target_tag));
             json_object_set_new(objective_json, "description", json_string_safe(objective->description));
             json_object_set_new(objective_json, "optional", objective->optional ? json_true() : json_false());
+            json_object_set_new(objective_json, "strict_target", objective->strict_target ? json_true() : json_false());
 
             for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next)
             {
@@ -1151,6 +1164,8 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
     quest_index_v2->seed_policy = json_get_int_default(json, "seed_policy", quest_index_v2->seed_policy);
     quest_index_v2->fixed_seed = (unsigned long long)json_get_int_default(json, "fixed_seed", 0);
     quest_index_v2->enabled = json_get_bool_default(json, "enabled", true);
+    quest_index_v2->progs = json_area_deserialize_progs(json_object_get(json, "progs"), area, PRG_QPROG);
+    quest_index_v2->index_vars = json_area_deserialize_index_vars(json_object_get(json, "index_vars"), area);
 
     stages = json_object_get(json, "stages");
     if (stages && json_is_array(stages))
@@ -1243,6 +1258,7 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
                     objective->description = str_dup(json_get_string_default(objective_json, "description", ""));
 
                     objective->optional = json_get_bool_default(objective_json, "optional", objective->optional);
+                    objective->strict_target = json_get_bool_default(objective_json, "strict_target", objective->strict_target);
 
                     target_load = json_object_get(objective_json, "target_load");
                     if (target_load && json_is_object(target_load))
@@ -2439,6 +2455,23 @@ AREA_DATA *json_area_load(const char *filename)
             }
         }
     }
+
+    /* Quest progs */
+    scripts = json_object_get(root, "qprogs");
+    if (scripts && json_is_array(scripts)) {
+        json_array_foreach(scripts, script_index, script_json) {
+            script = json_area_deserialize_script(script_json, area, IFC_Q);
+            if (script) {
+                script->type = PRG_QPROG;
+                if (get_script_index(area, script->vnum, PRG_QPROG)) {
+                    free_script(script);
+                    continue;
+                }
+                script->next = area->qprog_list;
+                area->qprog_list = script;
+            }
+        }
+    }
     
     json_decref(root);
     
@@ -2796,7 +2829,7 @@ bool json_area_save(AREA_DATA *area)
         json_decref(ships);
     
     /* Serialize scripts */
-    /* Save all 7 types of scripts: mobprogs, oprogs, rprogs, tprogs, aprogs, iprogs, dprogs */
+    /* Save all 8 types of scripts: mobprogs, oprogs, rprogs, tprogs, aprogs, iprogs, dprogs, qprogs */
     json_t *mobprogs = json_array();
     json_t *oprogs = json_array();
     json_t *rprogs = json_array();
@@ -2804,6 +2837,7 @@ bool json_area_save(AREA_DATA *area)
     json_t *aprogs = json_array();
     json_t *iprogs = json_array();
     json_t *dprogs = json_array();
+    json_t *qprogs = json_array();
     
     /* Iterate through script linked lists directly */
     SCRIPT_DATA *script;
@@ -2864,6 +2898,14 @@ bool json_area_save(AREA_DATA *area)
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(dprogs, script_json);
     }
+
+    // QUESTprogs
+    for (script = area->qprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(qprogs, script->vnum))
+            continue;
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(qprogs, script_json);
+    }
     
     /* Only save script sections if they have content */
     if (json_array_size(mobprogs) > 0)
@@ -2900,6 +2942,11 @@ bool json_area_save(AREA_DATA *area)
         json_object_set_new(root, "dprogs", dprogs);
     else
         json_decref(dprogs);
+
+    if (json_array_size(qprogs) > 0)
+        json_object_set_new(root, "qprogs", qprogs);
+    else
+        json_decref(qprogs);
     
     /* Cache in Redis immediately (if available) */
     if (redis_is_available() && area->file_name && area->file_name[0]) {

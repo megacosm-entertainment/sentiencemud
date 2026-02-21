@@ -252,6 +252,8 @@ const struct script_cmd_type area_cmd_table[] = {
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "event",             scriptcmd_event,            false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
+    { "questechoat",       scriptcmd_questechoat,      false,  true    },
+    { "quest",             scriptcmd_quest,            false,  true    },
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
     { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
     { "mail",				scriptcmd_mail,				true,	true	},
@@ -290,6 +292,8 @@ const struct script_cmd_type instance_cmd_table[] = {
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "event",             scriptcmd_event,            false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
+    { "questechoat",       scriptcmd_questechoat,      false,  true    },
+    { "quest",             scriptcmd_quest,            false,  true    },
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
     { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
     { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
@@ -332,6 +336,8 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "event",             scriptcmd_event,            false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
+    { "questechoat",       scriptcmd_questechoat,      false,  true    },
+    { "quest",             scriptcmd_quest,            false,  true    },
     { "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
     { "instancefailure",	scriptcmd_instancefailure,	true,	true	},
     { "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
@@ -518,6 +524,45 @@ void do_dpdump(CHAR_DATA *ch, char *argument)
     }
 
     page_to_char(dprg->edit_src, ch);
+}
+
+///////////////////////////////////////////
+//
+// Function: do_qpdump
+//
+// Section: Script/QPROG
+//
+// Purpose: Displays the current edit source code of a QPROG.
+//
+// Syntax: qpdump <vnum>
+//
+// Restrictions: Viewer must have implementor staff rank.
+//
+void do_qpdump(CHAR_DATA *ch, char *argument)
+{
+    char buf[ MAX_INPUT_LENGTH ];
+    SCRIPT_DATA *qprg;
+    WNUM wnum = { NULL, 0 };
+
+    one_argument(argument, buf);
+    if (!parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
+
+    qprg = get_script_index(wnum.pArea, wnum.vnum, PRG_QPROG);
+
+    if (!qprg) {
+        send_to_char("No such QUESTprogram.\n\r", ch);
+        return;
+    }
+
+    if (!IS_STAFF(ch, STAFF_IMPLEMENTOR)) {
+        send_to_char("You do not have permission to view that script.\n\r", ch);
+        return;
+    }
+
+    page_to_char(qprg->edit_src, ch);
 }
 
 
@@ -1660,7 +1705,12 @@ SCRIPT_CMD(scriptcmd_call)
     else if(info->obj) space = PRG_OPROG;
     else if(info->room) space = PRG_RPROG;
     else if(info->token) space = PRG_TPROG;
-    else if(info->area) space = PRG_APROG;
+    else if(info->area) {
+        if (info->block && info->block->script && info->block->script->type == PRG_QPROG)
+            space = PRG_QPROG;
+        else
+            space = PRG_APROG;
+    }
     else if(info->instance) space = PRG_IPROG;
     else if(info->dungeon) space = PRG_DPROG;
     else return;
@@ -3427,6 +3477,288 @@ SCRIPT_CMD(scriptcmd_echoat)
         else
             act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
+    free_buf(buffer);
+}
+
+// QUEST <subcommand> [args]
+// Initial namespace dispatcher for quest-context helper commands.
+// Example: QUEST ECHOAT <message>
+static QUEST_DATA *scriptcmd_quest_default_run(SCRIPT_VARINFO *info)
+{
+    if (!info)
+        return NULL;
+
+    if (info->quest)
+        return info->quest;
+
+    if (info->ch && !IS_NPC(info->ch))
+        return quest_runtime_get_focused_run(info->ch);
+
+    return NULL;
+}
+
+static QUEST_DATA *scriptcmd_quest_resolve_run(SCRIPT_VARINFO *info, SCRIPT_PARAM *arg, char **argument)
+{
+    QUEST_DATA *run;
+    char *rest;
+
+    run = scriptcmd_quest_default_run(info);
+    if (!argument || IS_NULLSTR(*argument))
+        return run;
+
+    rest = expand_argument(info, *argument, arg);
+    if (!rest)
+        return run;
+
+    if (arg->type == ENT_QUEST)
+    {
+        *argument = rest;
+        return arg->d.quest;
+    }
+
+    if (arg->type == ENT_NUMBER && info && info->ch && !IS_NPC(info->ch))
+    {
+        QUEST_DATA *by_id = quest_runtime_get_run_by_id(info->ch, arg->d.num);
+        if (by_id)
+        {
+            *argument = rest;
+            return by_id;
+        }
+    }
+
+    return run;
+}
+
+SCRIPT_CMD(scriptcmd_quest)
+{
+    char subcmd[MIL];
+    QUEST_DATA *run;
+    char *rest;
+
+    if (!info || IS_NULLSTR(argument))
+        return;
+
+    if (info->progs)
+        info->progs->lastreturn = 0;
+
+    argument = one_argument(argument, subcmd);
+    if (IS_NULLSTR(subcmd))
+        return;
+
+    if (!str_prefix(subcmd, "echoat"))
+    {
+        scriptcmd_questechoat(info, argument, arg);
+        return;
+    }
+
+    if (!str_prefix(subcmd, "objectivecomplete") || !str_prefix(subcmd, "objective_completed") || !str_prefix(subcmd, "objcomplete"))
+    {
+        int objective_id;
+
+        rest = argument;
+        run = scriptcmd_quest_resolve_run(info, arg, &rest);
+        if (!run)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+            return;
+
+        objective_id = arg->d.num;
+        if (objective_id < 1)
+            return;
+
+        if (quest_runtime_complete_objective(run, objective_id) && info->progs)
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(subcmd, "objectivefail") || !str_prefix(subcmd, "objective_failed") || !str_prefix(subcmd, "objfail"))
+    {
+        int objective_id;
+
+        rest = argument;
+        run = scriptcmd_quest_resolve_run(info, arg, &rest);
+        if (!run)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+            return;
+
+        objective_id = arg->d.num;
+        if (objective_id < 1)
+            return;
+
+        if (quest_runtime_fail_objective(run, objective_id, "objective_failed") && info->progs)
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(subcmd, "objectiveadd") || !str_prefix(subcmd, "objective_add") || !str_prefix(subcmd, "objadd"))
+    {
+        int objective_id;
+        int delta = 1;
+
+        rest = argument;
+        run = scriptcmd_quest_resolve_run(info, arg, &rest);
+        if (!run)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+            return;
+
+        objective_id = arg->d.num;
+        if (objective_id < 1)
+            return;
+
+        if (*rest)
+        {
+            if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+                return;
+            delta = arg->d.num;
+        }
+
+        if (quest_runtime_update_objective_progress(run, objective_id, delta) && info->progs)
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(subcmd, "stageset") || !str_prefix(subcmd, "stage_set"))
+    {
+        int stage_id;
+
+        rest = argument;
+        run = scriptcmd_quest_resolve_run(info, arg, &rest);
+        if (!run)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+            return;
+
+        stage_id = arg->d.num;
+        if (stage_id < 1)
+            return;
+
+        if (quest_runtime_set_stage(run, stage_id) && info->progs)
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(subcmd, "stageadvance") || !str_prefix(subcmd, "stage_advance"))
+    {
+        QUEST_STAGE_INDEX_V2_DATA *stage;
+        bool advanced;
+
+        rest = argument;
+        run = scriptcmd_quest_resolve_run(info, arg, &rest);
+        if (!run)
+            return;
+
+        stage = quest_runtime_get_current_stage(run);
+        if (stage && stage->next_stage_id > 0)
+            advanced = quest_runtime_set_stage(run, stage->next_stage_id);
+        else
+            advanced = quest_runtime_try_advance_stage(run);
+
+        if (advanced && info->progs)
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(subcmd, "complete"))
+    {
+        rest = argument;
+        run = scriptcmd_quest_resolve_run(info, arg, &rest);
+        if (!run)
+            return;
+
+        if (quest_runtime_complete_run(run, "forced") && info->progs)
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(subcmd, "fail"))
+    {
+        char reason_buf[MIL];
+        const char *reason = "failed";
+
+        rest = argument;
+        run = scriptcmd_quest_resolve_run(info, arg, &rest);
+        if (!run)
+            return;
+
+        if (*rest)
+        {
+            if (!(rest = expand_argument(info, rest, arg)))
+                return;
+
+            if (arg->type == ENT_STRING)
+                reason = arg->d.str;
+            else if (arg->type == ENT_NUMBER)
+            {
+                sprintf(reason_buf, "%d", arg->d.num);
+                reason = reason_buf;
+            }
+        }
+
+        if (quest_runtime_fail_run(run, QUEST_RUN_STATUS_FAILED, reason) && info->progs)
+            info->progs->lastreturn = 1;
+        return;
+    }
+}
+
+// QUESTECHOAT string
+// Sends the expanded message to all currently-online recipients in the quest runtime scope.
+SCRIPT_CMD(scriptcmd_questechoat)
+{
+    QUEST_DATA *run;
+    BUFFER *buffer;
+    CHAR_DATA *vch;
+    ITERATOR it;
+    int len;
+
+    if (!info || !info->quest)
+        return;
+
+    run = info->quest;
+    buffer = new_buf();
+    expand_string(info, argument, buffer);
+
+    if (IS_NULLSTR(buffer->string)) {
+        free_buf(buffer);
+        return;
+    }
+
+    len = strlen(buffer->string);
+    if (len > 0 && buffer->string[len - 1] != '\n' && buffer->string[len - 1] != '\r')
+        add_buf(buffer, "\n\r");
+
+    iterator_start(&it, loaded_chars);
+    while ((vch = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        if (IS_NPC(vch))
+            continue;
+
+        switch (run->target_scope)
+        {
+        case QUEST_TARGET_SCOPE_CHARACTER:
+        case QUEST_TARGET_SCOPE_GROUP:
+            if (!uid_match(run->scope_owner_id, vch->id))
+                continue;
+            break;
+
+        case QUEST_TARGET_SCOPE_CHURCH:
+            if (run->scope_owner_uid <= 0 || !vch->church || vch->church->uid != run->scope_owner_uid)
+                continue;
+            break;
+
+        default:
+            continue;
+        }
+
+        send_to_char(buffer->string, vch);
+    }
+    iterator_stop(&it);
+
     free_buf(buffer);
 }
 
@@ -12115,7 +12447,15 @@ SCRIPT_CMD(scriptcmd_unlockdungeon)
 
 SCRIPT_CMD(scriptcmd_varclear)
 {
+    char target[MIL];
+
     if(!info || !info->var) return;
+
+    one_argument(argument, target);
+    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")) {
+        scriptcmd_varclearon(info, argument, arg);
+        return;
+    }
 
     script_varclearon(info,info->var, argument, arg);
 }
@@ -12123,8 +12463,32 @@ SCRIPT_CMD(scriptcmd_varclear)
 SCRIPT_CMD(scriptcmd_varclearon)
 {
     VARIABLE **vars;
+    char target[MIL];
+    char *rest;
+    QUEST_DATA *run;
+    QUEST_INDEX_V2_DATA *index_v2;
 
     if(!info) return;
+
+    rest = one_argument(argument, target);
+    if (!str_cmp(target, "quest")) {
+        run = info->quest;
+        if (!run)
+            run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
+        vars = run ? &run->vars : NULL;
+        script_varclearon(info, vars, rest, arg);
+        return;
+    }
+
+    if (!str_cmp(target, "questindex")) {
+        run = info->quest;
+        if (!run)
+            run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
+        index_v2 = run ? quest_runtime_get_index_v2(run) : NULL;
+        vars = index_v2 ? &index_v2->index_vars : NULL;
+        script_varclearon(info, vars, rest, arg);
+        return;
+    }
 
     // Get the target
     if(!(argument = expand_argument(info,argument,arg)))
@@ -12162,9 +12526,16 @@ SCRIPT_CMD(scriptcmd_varcopy)
 SCRIPT_CMD(scriptcmd_varsave)
 {
     char name[MIL],arg1[MIL];
+    char target[MIL];
     bool on;
 
     if(!info || !info->var) return;
+
+    one_argument(argument, target);
+    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")) {
+        scriptcmd_varsaveon(info, argument, arg);
+        return;
+    }
 
     // Get name
     argument = one_argument(argument,name);
@@ -12183,8 +12554,48 @@ SCRIPT_CMD(scriptcmd_varsaveon)
     bool on;
 
     VARIABLE *vars;
+    char target[MIL];
+    char *rest;
+    QUEST_DATA *run;
+    QUEST_INDEX_V2_DATA *index_v2;
 
     if(!info) return;
+
+    rest = one_argument(argument, target);
+    if (!str_cmp(target, "quest")) {
+        run = info->quest;
+        if (!run)
+            run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
+        vars = run ? run->vars : NULL;
+        if(!vars) return;
+
+        argument = one_argument(rest,name);
+        if(!name[0]) return;
+        argument = one_argument(argument,buf);
+        if(!buf[0]) return;
+
+        on = !str_cmp(buf,"on") || !str_cmp(buf,"true") || !str_cmp(buf,"yes");
+        variable_setsave(vars,name,on);
+        return;
+    }
+
+    if (!str_cmp(target, "questindex")) {
+        run = info->quest;
+        if (!run)
+            run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
+        index_v2 = run ? quest_runtime_get_index_v2(run) : NULL;
+        vars = index_v2 ? index_v2->index_vars : NULL;
+        if(!vars) return;
+
+        argument = one_argument(rest,name);
+        if(!name[0]) return;
+        argument = one_argument(argument,buf);
+        if(!buf[0]) return;
+
+        on = !str_cmp(buf,"on") || !str_cmp(buf,"true") || !str_cmp(buf,"yes");
+        variable_setsave(vars,name,on);
+        return;
+    }
 
     // Get the target
     if(!(argument = expand_argument(info,argument,arg)))
@@ -12213,7 +12624,15 @@ SCRIPT_CMD(scriptcmd_varsaveon)
 
 SCRIPT_CMD(scriptcmd_varset)
 {
+    char target[MIL];
+
     if(!info || !info->var) return;
+
+    one_argument(argument, target);
+    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")) {
+        scriptcmd_varseton(info, argument, arg);
+        return;
+    }
 
     script_varseton(info,info->var,argument, arg);
 }
@@ -12222,8 +12641,32 @@ SCRIPT_CMD(scriptcmd_varseton)
 {
 
     VARIABLE **vars;
+    char target[MIL];
+    char *rest;
+    QUEST_DATA *run;
+    QUEST_INDEX_V2_DATA *index_v2;
 
     if(!info) return;
+
+    rest = one_argument(argument, target);
+    if (!str_cmp(target, "quest")) {
+        run = info->quest;
+        if (!run)
+            run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
+        vars = run ? &run->vars : NULL;
+        script_varseton(info, vars, rest, arg);
+        return;
+    }
+
+    if (!str_cmp(target, "questindex")) {
+        run = info->quest;
+        if (!run)
+            run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
+        index_v2 = run ? quest_runtime_get_index_v2(run) : NULL;
+        vars = index_v2 ? &index_v2->index_vars : NULL;
+        script_varseton(info, vars, rest, arg);
+        return;
+    }
 
     // Get the target
     if(!(argument = expand_argument(info,argument,arg)))
@@ -12380,6 +12823,10 @@ SCRIPT_CMD(scriptcmd_xcall)
     case ENT_INSTANCE:	instance = arg->d.instance; space = PRG_IPROG; break;
     case ENT_DUNGEON:	dungeon = arg->d.dungeon; space = PRG_DPROG; break;
     }
+
+    if (space == PRG_APROG && info->block && info->block->script
+        && info->block->script->type == PRG_QPROG)
+        space = PRG_QPROG;
 
     if(!mob && !obj && !room && !token && !area && !instance && !dungeon) {
         // Restore the call depth to the previous value

@@ -69,6 +69,310 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 char *reboot_reason = NULL; // global
 void relic_update(void); // forward declaration
 
+static const char *quest_runtime_status_name(int status)
+{
+    switch (status)
+    {
+    case QUEST_RUN_STATUS_ACTIVE: return "active";
+    case QUEST_RUN_STATUS_COMPLETED: return "completed";
+    case QUEST_RUN_STATUS_FAILED: return "failed";
+    case QUEST_RUN_STATUS_ABANDONED: return "abandoned";
+    default: return "unknown";
+    }
+}
+
+static const char *quest_runtime_scope_name(int scope)
+{
+    switch (scope)
+    {
+    case QUEST_TARGET_SCOPE_CHARACTER: return "character";
+    case QUEST_TARGET_SCOPE_GROUP: return "group";
+    case QUEST_TARGET_SCOPE_CHURCH: return "church";
+    default: return "unknown";
+    }
+}
+
+static void quest_runtime_format_time(time_t when, char *out, size_t out_size)
+{
+    struct tm *tm_info;
+
+    if (!out || out_size == 0)
+        return;
+
+    if (when <= 0)
+    {
+        snprintf(out, out_size, "never");
+        return;
+    }
+
+    tm_info = localtime(&when);
+    if (!tm_info)
+    {
+        snprintf(out, out_size, "%ld", (long)when);
+        return;
+    }
+
+    if (strftime(out, out_size, "%Y-%m-%d %H:%M:%S %Z", tm_info) == 0)
+        snprintf(out, out_size, "%ld", (long)when);
+}
+
+static void do_stat_quest_runtime(CHAR_DATA *ch, char *argument)
+{
+    char arg_player[MIL];
+    char arg_id[MIL];
+    CHAR_DATA *victim;
+    QUEST_DATA *run;
+    QUEST_INDEX_V2_DATA *index_v2;
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+    QUEST_TARGET_BINDING_V2_DATA *binding;
+    BUFFER *buffer;
+    long run_id;
+    char buf[MSL];
+    char time_buf[64];
+
+    argument = one_argument(argument, arg_player);
+    argument = one_argument(argument, arg_id);
+
+    if (IS_NULLSTR(arg_player))
+    {
+        send_to_char("Syntax: stat quest <player> [run_id]\n\r", ch);
+        return;
+    }
+
+    victim = get_char_world(ch, arg_player);
+    if (!victim || IS_NPC(victim))
+    {
+        send_to_char("Player not found (must be online).\n\r", ch);
+        return;
+    }
+
+    if (IS_NULLSTR(arg_id))
+    {
+        QUEST_DATA *iter;
+        QUEST_INDEX_V2_DATA *iter_index;
+        QUEST_STAGE_INDEX_V2_DATA *iter_stage;
+        BUFFER *listbuf = new_buf();
+        bool found = false;
+
+        add_buf(listbuf, "\n\r{x[ {Wstat quest{x ]\n\r\n\r");
+        add_buf(listbuf, "Player        : ");
+        mxp_player_link(ch->desc, listbuf, victim->name, victim->name);
+        add_buf(listbuf, "\n\r");
+        add_buf(listbuf, "Runs:\n\r");
+
+        for (iter = victim->quest; iter != NULL; iter = iter->next)
+        {
+            found = true;
+            iter_index = quest_runtime_get_index_v2(iter);
+            iter_stage = quest_runtime_get_current_stage(iter);
+            quest_runtime_format_time((time_t)iter->current_stage_commenced, time_buf, sizeof(time_buf));
+
+            add_buf(listbuf, "  run ");
+            mxp_command_link(ch->desc, listbuf,
+                formatf("stat quest %s %ld", victim->name, iter->run_id),
+                "Show this quest runtime",
+                formatf("%ld", iter->run_id));
+
+            bprintf(listbuf,
+                "  status:{W%s{x focused:{W%s{x stage:{W%d{x commenced:{W%s{x index:{W%s{x%s\n\r",
+                quest_runtime_status_name(iter->run_status),
+                (victim->quest_runtime.focused_run_id == iter->run_id) ? "yes" : "no",
+                iter_stage ? iter_stage->id : 0,
+                iter->current_stage_commenced ? time_buf : "never",
+                iter_index ? widevnum_string(iter_index->area, iter_index->vnum, NULL)
+                           : ((iter->quest_index_v2_auid > 0 && iter->quest_index_v2_vnum > 0)
+                                ? widevnum_string(get_area_index(iter->quest_index_v2_auid), iter->quest_index_v2_vnum, NULL)
+                                : "(none)"),
+                iter_index && !IS_NULLSTR(iter_index->name) ? formatf(" ({Y%s{x)", iter_index->name) : "");
+        }
+
+        if (!found)
+            add_buf(listbuf, "  (none)\n\r");
+
+        page_to_char(buf_string(listbuf), ch);
+        free_buf(listbuf);
+        return;
+    }
+
+    if (!is_number(arg_id))
+    {
+        send_to_char("Run id must be numeric.\n\r", ch);
+        return;
+    }
+
+    run_id = atol(arg_id);
+    run = quest_runtime_get_run_by_id(victim, run_id);
+    if (!run)
+    {
+        send_to_char("No quest runtime with that run id on that player.\n\r", ch);
+        return;
+    }
+
+    index_v2 = quest_runtime_get_index_v2(run);
+    stage = quest_runtime_get_current_stage(run);
+
+    buffer = new_buf();
+
+    add_buf(buffer, "\n\r{x[ {Wstat quest{x ]\n\r\n\r");
+
+    add_buf(buffer, "Player        : ");
+    mxp_player_link(ch->desc, buffer, victim->name, victim->name);
+    add_buf(buffer, "\n\r");
+
+    sprintf(buf, "Run ID        : {W%ld{x\n\r", run->run_id);
+    add_buf(buffer, buf);
+
+    sprintf(buf, "Status        : {W%s{x\n\r", quest_runtime_status_name(run->run_status));
+    add_buf(buffer, buf);
+
+    sprintf(buf, "Focused       : {W%s{x\n\r",
+        (victim->quest_runtime.focused_run_id == run->run_id) ? "yes" : "no");
+    add_buf(buffer, buf);
+
+    sprintf(buf, "Scope         : {W%s{x\n\r", quest_runtime_scope_name(run->target_scope));
+    add_buf(buffer, buf);
+
+    sprintf(buf, "Seed          : {W%llu{x\n\r", run->generation_seed);
+    add_buf(buffer, buf);
+
+    sprintf(buf, "Stage Seed    : {W%llu{x\n\r", run->current_stage_seed);
+    add_buf(buffer, buf);
+
+    sprintf(buf, "Stage Gen     : {W%d{x\n\r", run->current_stage_generation);
+    add_buf(buffer, buf);
+
+    quest_runtime_format_time((time_t)run->current_stage_commenced, time_buf, sizeof(time_buf));
+    sprintf(buf, "Commenced     : {W%s{x ({W%d{x)\n\r", time_buf, run->current_stage_commenced);
+    add_buf(buffer, buf);
+
+    quest_runtime_format_time(run->started_at, time_buf, sizeof(time_buf));
+    sprintf(buf, "Started At    : {W%s{x ({W%ld{x)\n\r", time_buf, (long)run->started_at);
+    add_buf(buffer, buf);
+
+    quest_runtime_format_time(run->completed_at, time_buf, sizeof(time_buf));
+    sprintf(buf, "Completed At  : {W%s{x ({W%ld{x)\n\r", time_buf, (long)run->completed_at);
+    add_buf(buffer, buf);
+
+    quest_runtime_format_time(run->failed_at, time_buf, sizeof(time_buf));
+    sprintf(buf, "Failed At     : {W%s{x ({W%ld{x)\n\r", time_buf, (long)run->failed_at);
+    add_buf(buffer, buf);
+
+    quest_runtime_format_time(run->abandoned_at, time_buf, sizeof(time_buf));
+    sprintf(buf, "Abandoned At  : {W%s{x ({W%ld{x)\n\r", time_buf, (long)run->abandoned_at);
+    add_buf(buffer, buf);
+
+    sprintf(buf, "Legacy Index  : {W%s{x\n\r",
+        (run->quest_index_auid > 0 && run->quest_index_vnum > 0)
+            ? widevnum_string(get_area_index(run->quest_index_auid), run->quest_index_vnum, NULL)
+            : "(none)");
+    add_buf(buffer, buf);
+
+    if (index_v2)
+    {
+        add_buf(buffer, "V2 Index      : ");
+        mxp_command_link(ch->desc, buffer,
+            formatf("qedit %s", widevnum_string(index_v2->area, index_v2->vnum, NULL)),
+            "Open quest index in qedit",
+            widevnum_string(index_v2->area, index_v2->vnum, NULL));
+        add_buf(buffer, "  ");
+        mxp_command_link(ch->desc, buffer,
+            formatf("qshow %s", widevnum_string(index_v2->area, index_v2->vnum, NULL)),
+            "Show quest index",
+            index_v2->name ? index_v2->name : "(unnamed)");
+        add_buf(buffer, "\n\r");
+    }
+    else
+    {
+        sprintf(buf, "V2 Index      : {W%s{x\n\r",
+            (run->quest_index_v2_auid > 0 && run->quest_index_v2_vnum > 0)
+                ? widevnum_string(get_area_index(run->quest_index_v2_auid), run->quest_index_v2_vnum, NULL)
+                : "(none)");
+        add_buf(buffer, buf);
+    }
+
+    if (stage)
+    {
+        sprintf(buf, "Stage         : {W%d{x (%s)\n\r",
+            stage->id,
+            IS_NULLSTR(stage->name) ? "unnamed" : stage->name);
+        add_buf(buffer, buf);
+    }
+    else
+    {
+        add_buf(buffer, "Stage         : {W(none){x\n\r");
+    }
+
+    if (run->scope_owner_id[0] || run->scope_owner_id[1])
+    {
+        sprintf(buf, "Scope OwnerID : {W%lu %lu{x\n\r",
+            run->scope_owner_id[0], run->scope_owner_id[1]);
+        add_buf(buffer, buf);
+    }
+    if (run->scope_owner_uid > 0)
+    {
+        sprintf(buf, "Scope OwnerUID: {W%ld{x\n\r", run->scope_owner_uid);
+        add_buf(buffer, buf);
+    }
+
+    add_buf(buffer, "\n\r{WObjective States:{x\n\r");
+    if (!run->objective_states)
+    {
+        add_buf(buffer, "  (none)\n\r");
+    }
+    else
+    {
+        for (state = run->objective_states; state != NULL; state = state->next)
+        {
+            const char *objective_name = "(unknown)";
+            if (stage)
+            {
+                QUEST_OBJECTIVE_INDEX_V2_DATA *objective = quest_stage_index_v2_get_objective(stage, state->objective_id);
+                if (objective && !IS_NULLSTR(objective->target_tag))
+                    objective_name = objective->target_tag;
+            }
+
+            sprintf(buf,
+                "  [{W%d{x] progress:{W%d{x complete:{W%s{x pool:{W%d{x target:{W%s{x dest:{W%s{x uid:{W%lu %lu{x (%s)\n\r",
+                state->objective_id,
+                state->progress,
+                state->complete ? "yes" : "no",
+                state->selected_pool_entry_id,
+                widevnum_string_wnum(state->selected_target_wnum, NULL),
+                widevnum_string_wnum(state->selected_destination_wnum, NULL),
+                state->selected_target_uid[0],
+                state->selected_target_uid[1],
+                objective_name);
+            add_buf(buffer, buf);
+        }
+    }
+
+    add_buf(buffer, "\n\r{WTarget Bindings:{x\n\r");
+    if (!run->target_bindings)
+    {
+        add_buf(buffer, "  (none)\n\r");
+    }
+    else
+    {
+        for (binding = run->target_bindings; binding != NULL; binding = binding->next)
+        {
+            sprintf(buf, "  {Y%s{x -> {W%s{x\n\r",
+                binding->name ? binding->name : "(null)",
+                widevnum_string_wnum(binding->target_wnum, NULL));
+            add_buf(buffer, buf);
+        }
+    }
+
+    add_buf(buffer, "\n\r{WQuest Runtime Vars:{x\n\r");
+    if (!run->vars)
+        add_buf(buffer, "  (none)\n\r");
+    else
+        pstat_variable_list(buffer, run->vars);
+
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+}
+
 static AREA_DATA *relative_widevnum_context(AREA_DATA *context_area, const char *argument)
 {
     if (!context_area || IS_NULLSTR(argument) || argument[0] != '#')
@@ -2282,6 +2586,7 @@ void do_stat(CHAR_DATA *ch, char *argument)
     send_to_char("  stat wilds <wuid>\n\r", ch);
     send_to_char("  stat instance <#>\n\r", ch);
     send_to_char("  stat dungeon <#> [floor]\n\r", ch);
+    send_to_char("  stat quest <player> [run_id]\n\r", ch);
     send_to_char("  stat obj <name>\n\r",ch);
     send_to_char("  stat mob <name>\n\r",ch);
     send_to_char("  stat room <number>\n\r",ch);
@@ -2339,6 +2644,12 @@ void do_stat(CHAR_DATA *ch, char *argument)
         char cmd[MAX_INPUT_LENGTH];
         snprintf(cmd, sizeof(cmd), "entities %s", string);
         do_function(ch, &do_dungeon, cmd);
+        return;
+    }
+
+    if (!str_cmp(arg, "quest"))
+    {
+        do_stat_quest_runtime(ch, string);
         return;
     }
 

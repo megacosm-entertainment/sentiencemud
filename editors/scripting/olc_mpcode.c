@@ -1,10 +1,10 @@
 /***************************************************************************
  *  olc_mpcode.c — Script Editors (MobProg, ObjProg, RoomProg, etc.)      *
  *                                                                         *
- *  Provides 7 script editors, all sharing a common set of commands:       *
+ *  Provides 8 script editors, all sharing a common set of commands:       *
  *    MPEdit (mob progs), OPEdit (obj progs), RPEdit (room progs),         *
  *    TPEdit (token progs), APEdit (area progs), IPEdit (instance progs),  *
- *    DPEdit (dungeon progs)                                               *
+ *    DPEdit (dungeon progs), QPEdit (quest progs)                         *
  *                                                                         *
  *  Based on ILAB OLC by Jason Dinkel.                                     *
  *  Mobprogram code by Lordrom for Nevermore Mud.                          *
@@ -43,6 +43,7 @@ static int olc_script_typeifc[] = {
     IFC_A,
     IFC_I,
     IFC_D,
+    IFC_Q,
 };
 
 /**
@@ -95,6 +96,7 @@ static const char *script_type_label(int type)
         case PRG_APROG: return "AreaProg";
         case PRG_IPROG: return "InstanceProg";
         case PRG_DPROG: return "DungeonProg";
+        case PRG_QPROG: return "QuestProg";
         default:        return "Script";
     }
 }
@@ -254,6 +256,7 @@ static SCRIPT_DATA **scriptedit_get_area_script_list_head(AREA_DATA *area, int t
     case PRG_APROG: return &area->aprog_list;
     case PRG_IPROG: return &area->iprog_list;
     case PRG_DPROG: return &area->dprog_list;
+    case PRG_QPROG: return &area->qprog_list;
     default: return NULL;
     }
 }
@@ -482,6 +485,23 @@ const struct olc_cmd_type dpedit_table[] =
     { NULL,         0                   }
 };
 
+const struct olc_cmd_type qpedit_table[] =
+{
+    { "?",          show_help           },
+    { "code",       scriptedit_code     },
+    { "commands",   show_commands       },
+    { "comments",   scriptedit_comments },
+    { "compile",    scriptedit_compile  },
+    { "create",     qpedit_create       },
+    { "depth",      scriptedit_depth    },
+    { "flags",      scriptedit_flags    },
+    { "list",       qpedit_list         },
+    { "name",       scriptedit_name     },
+    { "security",   scriptedit_security },
+    { "show",       scriptedit_show     },
+    { NULL,         0                   }
+};
+
 /***************************************************************************
  * Tab Show Functions                                                      *
  ***************************************************************************/
@@ -599,6 +619,7 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
             TOKEN_INDEX_DATA *token;
             BLUEPRINT *bp;
             DUNGEON_INDEX_DATA *dng;
+            QUEST_INDEX_V2_DATA *quest_index_v2;
 
             for (mob = area->mob_index_hash[hash]; mob; mob = mob->next) {
                 char wnum[128], wnum_link[256];
@@ -671,6 +692,19 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                     dng->name ? dng->name : "(unnamed)");
                 total += scriptedit_show_uses_from_bank(ctx, pCode, dng->progs, owner, false, false,
                     PRG_DPROG);
+            }
+
+            for (quest_index_v2 = area->quest_index_v2_hash[hash]; quest_index_v2;
+                quest_index_v2 = quest_index_v2->next) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string(area, quest_index_v2->vnum, NULL));
+                scriptedit_build_owner_links(ch, wnum, NULL, "qedit",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Quest %s (%.120s)",
+                    wnum_link,
+                    quest_index_v2->name ? quest_index_v2->name : "(unnamed)");
+                total += scriptedit_show_uses_from_bank(ctx, pCode, quest_index_v2->progs, owner,
+                    false, false, PRG_QPROG);
             }
         }
 
@@ -832,6 +866,22 @@ static const OLC_EDITOR_DEF dpedit_def = {
     .audit_changes  = true,
 };
 
+static const OLC_EDITOR_DEF qpedit_def = {
+    .name           = "QPEdit",
+    .editor_type    = ED_QPCODE,
+    .cmd_table      = qpedit_table,
+    .show_fn        = scriptedit_show,
+    SCRIPT_EDITOR_TABS,
+    .theme          = &olc_theme_scripting,
+    .perm           = {
+        .flags          = OLC_PERM_STAFF_RANK,
+        .min_staff_rank = STAFF_IMPLEMENTOR,
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = script_get_area,
+    .audit_changes  = true,
+};
+
 /***************************************************************************
  * Show Function                                                           *
  ***************************************************************************/
@@ -866,6 +916,7 @@ SCRIPTEDIT(scriptedit_show)
         case PRG_APROG: def = &apedit_def; break;
         case PRG_IPROG: def = &ipedit_def; break;
         case PRG_DPROG: def = &dpedit_def; break;
+        case PRG_QPROG: def = &qpedit_def; break;
         default:        def = &mpedit_def; break;
     }
 
@@ -934,6 +985,11 @@ void ipedit(CHAR_DATA *ch, char *argument)
 void dpedit(CHAR_DATA *ch, char *argument)
 {
     olc_editor_interp(ch, argument, &dpedit_def);
+}
+
+void qpedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &qpedit_def);
 }
 
 /***************************************************************************
@@ -1197,6 +1253,34 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
 
     send_to_char("Syntax: dpedit [widevnum]\n\r", ch);
     send_to_char("        dpedit create [widevnum]\n\r", ch);
+}
+
+void do_qpedit(CHAR_DATA *ch, char *argument)
+{
+    SCRIPT_DATA *pQcode;
+    char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
+
+    argument = one_argument(argument, command);
+
+    if (parse_widevnum(command, NULL, &wnum)) {
+        if ((pQcode = get_script_index(wnum.pArea, wnum.vnum, PRG_QPROG)) == NULL) {
+            send_to_char("QPEdit: That widevnum does not exist.\n\r", ch);
+            return;
+        }
+
+        olc_editor_enter(ch, &qpedit_def, (void *)pQcode, true);
+        return;
+    }
+
+    if (!str_cmp(command, "create")) {
+        if (qpedit_create(ch, argument))
+            olc_editor_enter(ch, &qpedit_def, ch->desc->pEdit, true);
+        return;
+    }
+
+    send_to_char("Syntax: qpedit [widevnum]\n\r", ch);
+    send_to_char("        qpedit create [widevnum]\n\r", ch);
 }
 
 /***************************************************************************
@@ -1901,6 +1985,57 @@ SCRIPTEDIT(dpedit_create)
     return true;
 }
 
+SCRIPTEDIT(qpedit_create)
+{
+    SCRIPT_DATA *pQcode;
+    AREA_DATA *ad;
+    WNUM script_wnum;
+    long value;
+
+    if (argument[0] == '\0' || !strcmp(argument, "0")) {
+        ad = ch->in_room->area;
+        value = scriptedit_next_auto_vnum(ad, PRG_QPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
+            return false;
+        }
+    } else {
+        AREA_DATA *context = ch->in_room->area;
+        if (!parse_widevnum(argument, context, &script_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        ad = script_wnum.pArea;
+        value = script_wnum.vnum;
+    }
+
+    if (!IS_STAFF(ch, STAFF_IMPLEMENTOR)) {
+        send_to_char("QPEdit: Insufficient security to create QuestProgs.\n\r", ch);
+        return false;
+    }
+
+    if (get_script_index(ad, value, PRG_QPROG)) {
+        send_to_char("QPEdit: Code widevnum already exists.\n\r", ch);
+        return false;
+    }
+
+    pQcode              = new_script();
+    pQcode->vnum        = value;
+    pQcode->area        = ad;
+    pQcode->next        = ad->qprog_list;
+    ad->qprog_list      = pQcode;
+    pQcode->type        = PRG_QPROG;
+    ch->desc->pEdit     = (void *)pQcode;
+
+    if (value > top_qprog_index)
+        top_qprog_index = value;
+
+    SET_BIT(ad->area_flags, AREA_CHANGED);
+    send_to_char("QuestProgram Code Created.\n\r", ch);
+
+    return true;
+}
+
 /***************************************************************************
  * List Functions                                                          *
  ***************************************************************************/
@@ -1977,6 +2112,7 @@ void show_script_list(CHAR_DATA *ch, char *argument, int type)
     case PRG_APROG: list_head = area->aprog_list; break;
     case PRG_IPROG: list_head = area->iprog_list ? area->iprog_list : iprog_list; break;
     case PRG_DPROG: list_head = area->dprog_list ? area->dprog_list : dprog_list; break;
+    case PRG_QPROG: list_head = area->qprog_list ? area->qprog_list : qprog_list; break;
     default: return;
     }
 
@@ -2085,6 +2221,12 @@ SCRIPTEDIT(dpedit_list)
     return false;
 }
 
+SCRIPTEDIT(qpedit_list)
+{
+    show_script_list(ch, argument, PRG_QPROG);
+    return false;
+}
+
 /***************************************************************************
  * Standalone List Commands                                                *
  ***************************************************************************/
@@ -2122,4 +2264,9 @@ void do_iplist(CHAR_DATA *ch, char *argument)
 void do_dplist(CHAR_DATA *ch, char *argument)
 {
     show_script_list(ch, argument, PRG_DPROG);
+}
+
+void do_qplist(CHAR_DATA *ch, char *argument)
+{
+    show_script_list(ch, argument, PRG_QPROG);
 }

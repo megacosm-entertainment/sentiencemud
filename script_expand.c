@@ -714,6 +714,9 @@ void expand_argument_simple_code(SCRIPT_VARINFO *info,unsigned char code,SCRIPT_
         } else if(info->token) {
             arg->type = ENT_TOKEN;
             arg->d.token = info->token;
+        } else if(info->quest) {
+            arg->type = ENT_QUEST;
+            arg->d.quest = info->quest;
         }
         break;
     case ESCAPE_LN:
@@ -1169,6 +1172,30 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
         arg->type = ENT_SHIP;
         break;
 
+    case ENTITY_VAR_QUEST:
+        if(var && var->type == VAR_QUEST && var->_.quest)
+            arg->d.quest = var->_.quest;
+        else return NULL;
+
+        arg->type = ENT_QUEST;
+        break;
+
+    case ENTITY_VAR_QUEST_STAGE:
+        if(var && var->type == VAR_QUEST_STAGE && var->_.quest_stage)
+            arg->d.quest_stage = var->_.quest_stage;
+        else return NULL;
+
+        arg->type = ENT_QUEST_STAGE;
+        break;
+
+    case ENTITY_VAR_QUEST_OBJECTIVE:
+        if(var && var->type == VAR_QUEST_OBJECTIVE && var->_.quest_objective)
+            arg->d.quest_objective = var->_.quest_objective;
+        else return NULL;
+
+        arg->type = ENT_QUEST_OBJECTIVE;
+        break;
+
     case ENTITY_VAR_AREA_REGION:
         if(var && var->type == VAR_AREA_REGION && IS_VALID(var->_.aregion))
             arg->d.aregion = var->_.aregion;
@@ -1314,6 +1341,9 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         } else if(info->token) {
             arg->type = ENT_TOKEN;
             arg->d.token = info->token;
+        } else if(info->quest) {
+            arg->type = ENT_QUEST;
+            arg->d.quest = info->quest;
         } else if(info->area) {
             arg->type = ENT_AREA;
             arg->d.area = info->area;
@@ -7455,6 +7485,338 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+char *expand_entity_quest(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_DATA *run = arg->d.quest;
+    QUEST_INDEX_V2_DATA *quest_index_v2 = quest_runtime_get_index_v2(run);
+    QUEST_STAGE_INDEX_V2_DATA *stage = quest_runtime_get_current_stage(run);
+
+    switch((unsigned char)*str) {
+    case ENTITY_QUEST_RUNID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->run_id : 0;
+        break;
+
+    case ENTITY_QUEST_STATUS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->run_status : QUEST_RUN_STATUS_FAILED;
+        break;
+
+    case ENTITY_QUEST_ACTIVE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ACTIVE);
+        break;
+
+    case ENTITY_QUEST_COMPLETED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_COMPLETED);
+        break;
+
+    case ENTITY_QUEST_FAILED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_FAILED);
+        break;
+
+    case ENTITY_QUEST_ABANDONED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ABANDONED);
+        break;
+
+    case ENTITY_QUEST_SCOPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->target_scope : QUEST_TARGET_SCOPE_CHARACTER;
+        break;
+
+    case ENTITY_QUEST_INDEX:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = quest_index_v2 ? quest_index_v2->area : NULL;
+        arg->d.wnum.vnum = quest_index_v2 ? quest_index_v2->vnum : 0;
+        break;
+
+    case ENTITY_QUEST_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (quest_index_v2 && !IS_NULLSTR(quest_index_v2->name))
+            ? quest_index_v2->name : "";
+        break;
+
+    case ENTITY_QUEST_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (quest_index_v2 && !IS_NULLSTR(quest_index_v2->description))
+            ? quest_index_v2->description : "";
+        break;
+
+    case ENTITY_QUEST_STAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->current_stage_id : 0;
+        break;
+
+    case ENTITY_QUEST_CURRENT_STAGE:
+        arg->type = ENT_QUEST_STAGE;
+        arg->d.quest_stage = stage;
+        break;
+
+    case ENTITY_QUEST_STAGES:
+    {
+        LLIST *list = list_create(false);
+        QUEST_STAGE_INDEX_V2_DATA *iter_stage;
+
+        if (!list)
+            return NULL;
+
+        for (iter_stage = quest_index_v2 ? quest_index_v2->stages : NULL; iter_stage; iter_stage = iter_stage->next)
+            list_appendlink(list, iter_stage);
+
+        arg->type = ENT_ILLIST_QUEST_STAGES;
+        arg->d.blist = list;
+        break;
+    }
+
+    case ENTITY_QUEST_OBJECTIVES:
+    {
+        LLIST *list = list_create(false);
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+        if (!list)
+            return NULL;
+
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            list_appendlink(list, objective);
+
+        arg->type = ENT_ILLIST_QUEST_OBJECTIVES;
+        arg->d.blist = list;
+        break;
+    }
+
+    case ENTITY_QUEST_STAGE_COMMENCED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->current_stage_commenced != 0);
+        break;
+
+    case ENTITY_QUEST_STAGE_COMPLETE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ACTIVE)
+            ? quest_runtime_is_stage_complete(run)
+            : false;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_COUNT:
+    {
+        int count = 0;
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            count++;
+
+        arg->type = ENT_NUMBER;
+        arg->d.num = count;
+        break;
+    }
+
+    case ENTITY_QUEST_PART_COUNT:
+    {
+        int count = 0;
+        QUEST_PART_DATA *part;
+        for (part = run ? run->parts : NULL; part; part = part->next)
+            count++;
+
+        arg->type = ENT_NUMBER;
+        arg->d.num = count;
+        break;
+    }
+
+    case ENTITY_QUEST_GENERATING:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = run ? run->generating : false;
+        break;
+
+    case ENTITY_QUEST_SCRIPTED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = run ? run->scripted : false;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_quest_stage(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage = arg->d.quest_stage;
+    QUEST_DATA *run = info ? info->quest : NULL;
+    QUEST_STAGE_INDEX_V2_DATA *current_stage = quest_runtime_get_current_stage(run);
+
+    switch((unsigned char)*str) {
+    case ENTITY_QUEST_STAGE_ID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->id : 0;
+        break;
+
+    case ENTITY_QUEST_STAGE_NAME:
+    case ENTITY_QUEST_STAGE_SUMMARY:
+        arg->type = ENT_STRING;
+        arg->d.str = (stage && !IS_NULLSTR(stage->name)) ? stage->name : "";
+        break;
+
+    case ENTITY_QUEST_STAGE_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (stage && !IS_NULLSTR(stage->description)) ? stage->description : "";
+        break;
+
+    case ENTITY_QUEST_STAGE_SOURCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->stage_source : QUEST_STAGE_SOURCE_STATIC;
+        break;
+
+    case ENTITY_QUEST_STAGE_AUTOCOMMENCE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = stage ? stage->auto_commence : false;
+        break;
+
+    case ENTITY_QUEST_STAGE_COMPLETION_MODE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->completion_mode : QUEST_STAGE_COMPLETE_ALL;
+        break;
+
+    case ENTITY_QUEST_STAGE_NEXT_STAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->next_stage_id : 0;
+        break;
+
+    case ENTITY_QUEST_STAGE_OBJECTIVES:
+    {
+        LLIST *list = list_create(false);
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+        if (!list)
+            return NULL;
+
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            list_appendlink(list, objective);
+
+        arg->type = ENT_ILLIST_QUEST_OBJECTIVES;
+        arg->d.blist = list;
+        break;
+    }
+
+    case ENTITY_QUEST_STAGE_OBJECTIVE_COUNT:
+    {
+        int count = 0;
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            count++;
+
+        arg->type = ENT_NUMBER;
+        arg->d.num = count;
+        break;
+    }
+
+    case ENTITY_QUEST_STAGE_RUNTIME_COMMENCED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && stage && current_stage && stage->id == current_stage->id && run->current_stage_commenced != 0);
+        break;
+
+    case ENTITY_QUEST_STAGE_RUNTIME_COMPLETE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ACTIVE && stage && current_stage && stage->id == current_stage->id)
+            ? quest_runtime_is_stage_complete(run)
+            : false;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_quest_objective(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective = arg->d.quest_objective;
+    QUEST_DATA *run = info ? info->quest : NULL;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state = (run && objective)
+        ? quest_runtime_get_objective_state(run, objective->id, false)
+        : NULL;
+
+    switch((unsigned char)*str) {
+    case ENTITY_QUEST_OBJECTIVE_ID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->id : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->objective_type : QUEST_OBJECTIVE_KILL;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_SUMMARY:
+    case ENTITY_QUEST_OBJECTIVE_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (objective && !IS_NULLSTR(objective->description)) ? objective->description : "";
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_OPTIONAL:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = objective ? objective->optional : false;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_STRICT:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = objective ? objective->strict_target : false;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_REQUIRED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->required_count : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_QUANTITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->quantity : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TARGET_MODE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->target_mode : QUEST_OBJECTIVE_TARGET_EXACT;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TARGET:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = objective ? objective->target_wnum.pArea : NULL;
+        arg->d.wnum.vnum = objective ? objective->target_wnum.vnum : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TARGET_TAG:
+        arg->type = ENT_STRING;
+        arg->d.str = (objective && !IS_NULLSTR(objective->target_tag)) ? objective->target_tag : "";
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_DESTINATION:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = objective ? objective->destination_wnum.pArea : NULL;
+        arg->d.wnum.vnum = objective ? objective->destination_wnum.vnum : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_DESTINATION_TAG:
+        arg->type = ENT_STRING;
+        arg->d.str = (objective && !IS_NULLSTR(objective->destination_ref_name)) ? objective->destination_ref_name : "";
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_PROGRESS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = state ? state->progress : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_COMPLETE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = state ? state->complete : false;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
 char *expand_entity_blueprint(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     BLUEPRINT *blueprint = arg->d.blueprint;
@@ -9262,6 +9624,9 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
         case ENT_SECTION:		next = expand_entity_instance_section(info,str,arg); break;
         case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
+        case ENT_QUEST:		next = expand_entity_quest(info,str,arg); break;
+        case ENT_QUEST_STAGE:	next = expand_entity_quest_stage(info,str,arg); break;
+        case ENT_QUEST_OBJECTIVE:	next = expand_entity_quest_objective(info,str,arg); break;
         case ENT_BLUEPRINT:		next = expand_entity_blueprint(info,str,arg); break;
         case ENT_BLUEPRINT_SECTION:	next = expand_entity_blueprint_section(info,str,arg); break;
         case ENT_DUNGEON:		next = expand_entity_dungeon(info,str,arg); break;
@@ -9457,6 +9822,30 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
     case ENT_INSTANCE:
         add_buf(buffer, IS_VALID(arg->d.instance) ? arg->d.instance->blueprint->name : SOMEWHERE);
+        break;
+
+    case ENT_QUEST:
+    {
+        QUEST_INDEX_V2_DATA *quest_index_v2 = arg->d.quest ? quest_runtime_get_index_v2(arg->d.quest) : NULL;
+        if (quest_index_v2 && !IS_NULLSTR(quest_index_v2->name))
+            add_buf(buffer, quest_index_v2->name);
+        else
+            add_buf(buffer, "quest");
+        break;
+    }
+
+    case ENT_QUEST_STAGE:
+        if (arg->d.quest_stage && !IS_NULLSTR(arg->d.quest_stage->name))
+            add_buf(buffer, arg->d.quest_stage->name);
+        else
+            add_buf(buffer, "stage");
+        break;
+
+    case ENT_QUEST_OBJECTIVE:
+        if (arg->d.quest_objective && !IS_NULLSTR(arg->d.quest_objective->description))
+            add_buf(buffer, arg->d.quest_objective->description);
+        else
+            add_buf(buffer, "objective");
         break;
 
     case ENT_DUNGEON:

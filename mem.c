@@ -2773,6 +2773,7 @@ QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2(void)
     objective->target_tag = str_dup("");
     objective->description = str_dup("");
     objective->optional = false;
+    objective->strict_target = false;
 
     return objective;
 }
@@ -2962,6 +2963,8 @@ QUEST_INDEX_V2_DATA *new_quest_index_v2(void)
     quest_index_v2->fixed_seed = 0;
     quest_index_v2->stages = NULL;
     quest_index_v2->rewards = NULL;
+    quest_index_v2->progs = NULL;
+    quest_index_v2->index_vars = NULL;
     quest_index_v2->enabled = true;
 
     return quest_index_v2;
@@ -2992,8 +2995,12 @@ void free_quest_index_v2(QUEST_INDEX_V2_DATA *quest_index_v2)
         free_quest_reward_index_v2(reward);
     }
 
+    free_prog_list(quest_index_v2->progs);
+    quest_index_v2->progs = NULL;
+
     free_string(quest_index_v2->name);
     free_string(quest_index_v2->description);
+    variable_freelist(&quest_index_v2->index_vars);
 
     quest_index_v2->next = quest_index_v2_free;
     quest_index_v2_free = quest_index_v2;
@@ -3020,6 +3027,8 @@ QUEST_OBJECTIVE_STATE_V2_DATA *new_quest_objective_state_v2(void)
     state->selected_target_load.auid = 0;
     state->selected_target_load.vnum = 0;
     state->selected_target_wnum = wnum_zero;
+    state->selected_target_uid[0] = 0;
+    state->selected_target_uid[1] = 0;
     state->selected_destination_load.auid = 0;
     state->selected_destination_load.vnum = 0;
     state->selected_destination_wnum = wnum_zero;
@@ -3104,6 +3113,7 @@ QUEST_DATA *new_quest( void )
     pQuest->current_stage_commenced = 0;
     pQuest->objective_states = NULL;
     pQuest->target_bindings = NULL;
+    pQuest->vars = NULL;
     pQuest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
     pQuest->scope_owner_id[0] = 0;
     pQuest->scope_owner_id[1] = 0;
@@ -3161,6 +3171,10 @@ void free_quest( QUEST_DATA *pQuest )
         target_binding = next_target_binding;
     }
     pQuest->target_bindings = NULL;
+
+    variable_clearfield(VAR_QUEST, pQuest);
+
+    variable_freelist(&pQuest->vars);
 
     pQuest->next         =   quest_free;
     quest_free             =   pQuest;

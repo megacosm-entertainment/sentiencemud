@@ -330,9 +330,9 @@ char *compile_variable(char *str, char **store, int type, bool bracket, bool any
             if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
         }
         else {
-            char buf[MIL];
-            sprintf(buf,"Line %d: Invalid character in variable name.", compile_current_line);
-            compile_error_show(buf);
+            char err[MIL];
+            sprintf(err,"Line %d: Invalid character in variable name.", compile_current_line);
+            compile_error_show(err);
             return NULL;
         }
     }
@@ -1170,6 +1170,9 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
     } else if(type == IFC_A) {
         script->type = PRG_APROG;
         type_name = "AREA";
+    } else if(type == IFC_Q) {
+        script->type = PRG_QPROG;
+        type_name = "QUEST";
     } else if(type == IFC_I) {
         script->type = PRG_IPROG;
         type_name = "INSTANCE";
@@ -2305,6 +2308,44 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 
                     doquotes = false;
 
+                } else if(!str_cmp(buf,"quest")) {
+                    if(type != IFC_Q) {
+                        sprintf(rbuf,"Line %d: Attempting to do a quest command outside a qprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_QUEST;
+                    code[cline].level = level;
+                    code[cline].param = apcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid quest command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &area_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'quest %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+
                 } else if(!str_cmp(buf,"instance")) {
                     if(type != IFC_I) {
                         sprintf(rbuf,"Line %d: Attempting to do an instance command outside an iprog.", rline);
@@ -2388,7 +2429,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
                     line = start;
                     doquotes = false;
                 } else {
-                    sprintf(rbuf,"Line %d: Can only call interpreter commands in mprogs.", rline);
+                    sprintf(rbuf,"Line %d: Bare interpreter commands are mprog-only; use prefixed commands (mob/obj/room/token/area/quest/instance/dungeon) in other prog types.", rline);
                     compile_error_show(rbuf);
                     linevalid = false;
                     break;

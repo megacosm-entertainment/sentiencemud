@@ -53,6 +53,7 @@
 #include "recycle.h"
 #include "magic.h"
 #include "tables.h"
+#include "scripts.h"
 
 static bool check_quest_custom_task_run(CHAR_DATA *ch, QUEST_DATA *run, int task, bool show);
 static bool generate_quest_from_object(CHAR_DATA *ch, OBJ_DATA *questobj);
@@ -68,12 +69,27 @@ static bool quest_runtime_spawn_missing_kill_target(QUEST_DATA *run, QUEST_OBJEC
 static CHAR_DATA *quest_runtime_get_owner_character(QUEST_DATA *run);
 static void quest_runtime_apply_spawn_owner_lock(QUEST_DATA *run, CHAR_DATA *mob);
 static CHAR_DATA *quest_runtime_find_mob_target_instance(QUEST_DATA *run, WNUM target_wnum, AREA_DATA *scope_area);
+static CHAR_DATA *quest_runtime_find_unbound_mob_target_instance(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective,
+    WNUM target_wnum, AREA_DATA *scope_area);
 static OBJ_DATA *quest_runtime_find_object_target_instance(WNUM target_wnum, AREA_DATA *scope_area);
 static bool quest_runtime_attach_objective_target_token(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective, QUEST_OBJECTIVE_STATE_V2_DATA *state);
 static bool quest_runtime_attach_objective_destination_token(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective, QUEST_OBJECTIVE_STATE_V2_DATA *state);
 static void quest_runtime_clear_target_bindings(QUEST_DATA *run);
 static WNUM quest_runtime_get_target_binding(QUEST_DATA *run, const char *name);
 static bool quest_runtime_set_target_binding(QUEST_DATA *run, const char *name, WNUM target_wnum);
+static bool quest_runtime_scope_owner_online(QUEST_DATA *run);
+static void quest_runtime_propagate_scoped_objective_event(CHAR_DATA *actor, QUEST_DATA *source_run, int objective_type, WNUM target_wnum, int delta);
+static void quest_runtime_unbind_strict_targets(QUEST_DATA *run);
+static bool quest_runtime_is_mob_strictly_bound(CHAR_DATA *mob, QUEST_DATA *exclude_run, int exclude_objective_id);
+static bool quest_runtime_objective_target_matches(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective, WNUM target_wnum);
+static void quest_runtime_resolve_script_context(QUEST_DATA *run, CHAR_DATA **mob, OBJ_DATA **obj, ROOM_INDEX_DATA **room, AREA_DATA **area);
+static bool quest_runtime_fire_qprog_trigger(QUEST_DATA *run, int trig_type, const char *phrase, CHAR_DATA *enactor);
+static void quest_runtime_fire_stage_lifecycle_trigger(QUEST_DATA *run, int trig_type, int stage_id);
+static void quest_runtime_fire_objective_lifecycle_trigger(QUEST_DATA *run, int trig_type, int objective_id);
+static void quest_runtime_fire_quest_lifecycle_trigger(QUEST_DATA *run, int trig_type, const char *phrase);
+static void quest_runtime_fire_quest_lifecycle_trigger_actor(QUEST_DATA *run, int trig_type, const char *phrase, CHAR_DATA *enactor);
+static void quest_runtime_mark_run_failed(QUEST_DATA *run, int failed_status, const char *reason_phrase);
+static void quest_runtime_fire_stage_script(QUEST_DATA *run, const char *script_name);
 static WNUM quest_runtime_resolve_objective_target_reference(QUEST_DATA *run, QUEST_INDEX_V2_DATA *quest_index_v2,
     QUEST_STAGE_INDEX_V2_DATA *stage, QUEST_OBJECTIVE_INDEX_V2_DATA *objective);
 
@@ -292,6 +308,20 @@ static void quest_runtime_normalize_template_link(CHAR_DATA *ch, QUEST_DATA *run
     }
 }
 
+static void quest_runtime_seed_run_vars_from_index(QUEST_DATA *run)
+{
+    QUEST_INDEX_V2_DATA *index_v2;
+
+    if (!run || run->vars)
+        return;
+
+    index_v2 = quest_runtime_get_index_v2(run);
+    if (!index_v2 || !index_v2->index_vars)
+        return;
+
+    variable_copylist(&index_v2->index_vars, &run->vars, false);
+}
+
 static const char *quest_target_scope_name(int scope)
 {
     switch (scope)
@@ -390,10 +420,145 @@ static int quest_objective_required_display_count(QUEST_OBJECTIVE_INDEX_V2_DATA 
     return required;
 }
 
+static const char *quest_objective_target_summary(QUEST_DATA *run,
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective,
+    char *buf,
+    size_t buf_size)
+{
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+    WNUM target;
+    MOB_INDEX_DATA *mob_index;
+    OBJ_INDEX_DATA *obj_index;
+    ROOM_INDEX_DATA *room;
+
+    if (!buf || buf_size < 2)
+        return "target: (invalid)";
+
+    if (!objective)
+    {
+        snprintf(buf, buf_size, "target: (none)");
+        return buf;
+    }
+
+    state = run ? quest_runtime_get_objective_state(run, objective->id, false) : NULL;
+    target = (state && state->selected_target_wnum.pArea && state->selected_target_wnum.vnum > 0)
+        ? state->selected_target_wnum
+        : objective->target_wnum;
+
+    if (!target.pArea || target.vnum < 1)
+    {
+        snprintf(buf, buf_size, "target: (unspecified)");
+        return buf;
+    }
+
+    mob_index = get_mob_index(target.pArea, target.vnum);
+    if (mob_index)
+    {
+        snprintf(buf, buf_size, "target: %ld#%ld (mob: %s)",
+            target.pArea->uid,
+            target.vnum,
+            IS_NULLSTR(mob_index->short_descr) ? "(unnamed)" : mob_index->short_descr);
+        return buf;
+    }
+
+    obj_index = get_obj_index(target.pArea, target.vnum);
+    if (obj_index)
+    {
+        snprintf(buf, buf_size, "target: %ld#%ld (obj: %s)",
+            target.pArea->uid,
+            target.vnum,
+            IS_NULLSTR(obj_index->short_descr) ? "(unnamed)" : obj_index->short_descr);
+        return buf;
+    }
+
+    room = get_room_index(target.pArea, target.vnum);
+    if (room)
+    {
+        snprintf(buf, buf_size, "target: %ld#%ld (room: %s)",
+            target.pArea->uid,
+            target.vnum,
+            IS_NULLSTR(room->name) ? "(unnamed)" : room->name);
+        return buf;
+    }
+
+    snprintf(buf, buf_size, "target: %ld#%ld", target.pArea->uid, target.vnum);
+    return buf;
+}
+
+static const char *quest_runtime_commence_blocker(QUEST_DATA *run)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+
+    if (!run)
+        return "quest runtime data is missing";
+
+    if (run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        return "quest is not active";
+
+    stage = quest_runtime_get_current_stage(run);
+    if (!stage)
+        return "current stage is missing";
+
+    if (run->current_stage_commenced != 0)
+        return "stage is already commenced";
+
+    if (stage->stage_source == QUEST_STAGE_SOURCE_GENERATED && run->current_stage_generation == 0)
+        return "generated stage data is not ready yet";
+
+    for (objective = stage->objectives; objective != NULL; objective = objective->next)
+    {
+        state = quest_runtime_get_objective_state(run, objective->id, false);
+        if (!state)
+            return "objective runtime state is missing";
+
+        if (objective->target_mode == QUEST_OBJECTIVE_TARGET_POOL)
+        {
+            if (!state->selected_target_wnum.pArea || state->selected_target_wnum.vnum < 1)
+                return "a pooled objective has no selected target";
+        }
+
+        if (objective->target_token_wnum.pArea && objective->target_token_wnum.vnum > 0)
+        {
+            if (!get_token_index(objective->target_token_wnum.pArea, objective->target_token_wnum.vnum))
+                return "target token reference is invalid";
+        }
+
+        if (objective->destination_token_wnum.pArea && objective->destination_token_wnum.vnum > 0)
+        {
+            if (!get_token_index(objective->destination_token_wnum.pArea, objective->destination_token_wnum.vnum))
+                return "destination token reference is invalid";
+        }
+    }
+
+    return "required targets or token attachments could not be resolved";
+}
+
 static bool quest_target_scope_supported_for_player(CHAR_DATA *ch, int scope, bool show_message)
 {
     if (scope == QUEST_TARGET_SCOPE_CHARACTER)
         return true;
+
+    if (scope == QUEST_TARGET_SCOPE_GROUP)
+    {
+        if (ch && IS_VALID(ch->group) && ch->group->id[0] != 0)
+            return true;
+
+        if (show_message && ch)
+            send_to_char("You must be in a player group to use group-scoped quests.\n\r", ch);
+        return false;
+    }
+
+    if (scope == QUEST_TARGET_SCOPE_CHURCH)
+    {
+        if (ch && ch->church && ch->church->uid > 0)
+            return true;
+
+        if (show_message && ch)
+            send_to_char("You must belong to a church to use church-scoped quests.\n\r", ch);
+        return false;
+    }
 
     if (show_message && ch) {
         send_to_char("Foundation currently supports character-scoped quests only.\n\r", ch);
@@ -418,10 +583,9 @@ static void quest_scope_owner_seed(CHAR_DATA *ch, QUEST_DATA *run)
         break;
 
     case QUEST_TARGET_SCOPE_GROUP:
-        if (run->scope_owner_id[0] == 0 && run->scope_owner_id[1] == 0) {
-            CHAR_DATA *group_owner = ch->leader ? ch->leader : ch;
-            run->scope_owner_id[0] = group_owner->id[0];
-            run->scope_owner_id[1] = group_owner->id[1];
+        if (run->scope_owner_id[0] == 0 && run->scope_owner_id[1] == 0 && IS_VALID(ch->group)) {
+            run->scope_owner_id[0] = ch->group->id[0];
+            run->scope_owner_id[1] = ch->group->id[1];
         }
         run->scope_owner_uid = 0;
         break;
@@ -453,9 +617,7 @@ static bool quest_scope_owner_matches_player(CHAR_DATA *ch, QUEST_DATA *run)
         return uid_match(run->scope_owner_id, ch->id);
 
     case QUEST_TARGET_SCOPE_GROUP:
-        if (ch->leader)
-            return uid_match(run->scope_owner_id, ch->leader->id) || uid_match(run->scope_owner_id, ch->id);
-        return uid_match(run->scope_owner_id, ch->id);
+        return IS_VALID(ch->group) && uid_match(run->scope_owner_id, ch->group->id);
 
     case QUEST_TARGET_SCOPE_CHURCH:
         return (ch->church && run->scope_owner_uid > 0 && ch->church->uid == run->scope_owner_uid);
@@ -463,6 +625,384 @@ static bool quest_scope_owner_matches_player(CHAR_DATA *ch, QUEST_DATA *run)
     default:
         return false;
     }
+}
+
+static bool quest_runtime_scope_owner_online(QUEST_DATA *run)
+{
+    CHAR_DATA *ch;
+    ITERATOR it;
+
+    if (!run)
+        return false;
+
+    iterator_start(&it, loaded_chars);
+    while ((ch = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        if (IS_NPC(ch))
+            continue;
+
+        switch (run->target_scope)
+        {
+        case QUEST_TARGET_SCOPE_CHARACTER:
+            if (uid_match(run->scope_owner_id, ch->id))
+            {
+                iterator_stop(&it);
+                return true;
+            }
+            break;
+
+        case QUEST_TARGET_SCOPE_GROUP:
+            if (IS_VALID(ch->group) && uid_match(run->scope_owner_id, ch->group->id))
+            {
+                iterator_stop(&it);
+                return true;
+            }
+            break;
+
+        case QUEST_TARGET_SCOPE_CHURCH:
+            if (run->scope_owner_uid > 0 && ch->church && ch->church->uid == run->scope_owner_uid)
+            {
+                iterator_stop(&it);
+                return true;
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+    iterator_stop(&it);
+
+    return false;
+}
+
+static void quest_runtime_propagate_scoped_objective_event(CHAR_DATA *actor, QUEST_DATA *source_run, int objective_type, WNUM target_wnum, int delta)
+{
+    CHAR_DATA *member;
+    QUEST_DATA *peer_run;
+    ITERATOR it;
+
+    if (!source_run || delta == 0)
+        return;
+
+    if (source_run->target_scope == QUEST_TARGET_SCOPE_CHARACTER)
+        return;
+
+    iterator_start(&it, loaded_chars);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        if (IS_NPC(member) || member == actor || !member->quest)
+            continue;
+
+        if (!quest_scope_owner_matches_player(member, source_run))
+            continue;
+
+        for (peer_run = member->quest; peer_run != NULL; peer_run = peer_run->next)
+        {
+            if (peer_run == source_run)
+                continue;
+
+            if (peer_run->run_status != QUEST_RUN_STATUS_ACTIVE)
+                continue;
+
+            if (peer_run->target_scope != source_run->target_scope)
+                continue;
+
+            if (peer_run->quest_index_v2_auid != source_run->quest_index_v2_auid
+                || peer_run->quest_index_v2_vnum != source_run->quest_index_v2_vnum)
+                continue;
+
+            quest_runtime_apply_objective_event(peer_run, objective_type, target_wnum, delta);
+        }
+    }
+    iterator_stop(&it);
+}
+
+static void quest_runtime_unbind_strict_targets(QUEST_DATA *run)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+
+    if (!run)
+        return;
+
+    stage = quest_runtime_get_current_stage(run);
+    if (!stage)
+        return;
+
+    for (objective = stage->objectives; objective != NULL; objective = objective->next)
+    {
+        if (!objective->strict_target)
+            continue;
+
+        state = quest_runtime_get_objective_state(run, objective->id, false);
+        if (!state)
+            continue;
+
+        state->selected_target_uid[0] = 0;
+        state->selected_target_uid[1] = 0;
+    }
+}
+
+static bool quest_runtime_is_mob_strictly_bound(CHAR_DATA *mob, QUEST_DATA *exclude_run, int exclude_objective_id)
+{
+    CHAR_DATA *owner;
+    QUEST_DATA *run;
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+    ITERATOR it;
+
+    if (!mob || !IS_NPC(mob) || (!mob->id[0] && !mob->id[1]))
+        return false;
+
+    iterator_start(&it, loaded_chars);
+    while ((owner = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        if (IS_NPC(owner))
+            continue;
+
+        for (run = owner->quest; run != NULL; run = run->next)
+        {
+            if (run->run_status != QUEST_RUN_STATUS_ACTIVE)
+                continue;
+
+            stage = quest_runtime_get_current_stage(run);
+            if (!stage)
+                continue;
+
+            for (objective = stage->objectives; objective != NULL; objective = objective->next)
+            {
+                if (!objective->strict_target)
+                    continue;
+
+                if (run == exclude_run && objective->id == exclude_objective_id)
+                    continue;
+
+                state = quest_runtime_get_objective_state(run, objective->id, false);
+                if (!state)
+                    continue;
+
+                if (state->selected_target_uid[0] == mob->id[0]
+                    && state->selected_target_uid[1] == mob->id[1])
+                {
+                    iterator_stop(&it);
+                    return true;
+                }
+            }
+        }
+    }
+    iterator_stop(&it);
+
+    return false;
+}
+
+
+static void quest_runtime_resolve_script_context(QUEST_DATA *run, CHAR_DATA **mob, OBJ_DATA **obj, ROOM_INDEX_DATA **room, AREA_DATA **area)
+{
+    CHAR_DATA *owner;
+
+    if (mob)
+        *mob = NULL;
+    if (obj)
+        *obj = NULL;
+    if (room)
+        *room = NULL;
+    if (area)
+        *area = NULL;
+
+    if (!run)
+        return;
+
+    owner = quest_runtime_get_owner_character(run);
+    if (owner && owner->in_room)
+    {
+        if (room)
+            *room = owner->in_room;
+        if (area)
+            *area = owner->in_room->area;
+
+        switch (run->questgiver_type)
+        {
+        case QUESTOR_MOB:
+            if (mob)
+            {
+                CHAR_DATA *vch;
+                for (vch = owner->in_room->people; vch != NULL; vch = vch->next_in_room)
+                {
+                    if (IS_NPC(vch) && wnum_match_mob(run->questgiver_wnum, vch))
+                    {
+                        *mob = vch;
+                        break;
+                    }
+                }
+            }
+            break;
+
+        case QUESTOR_OBJ:
+            if (obj)
+            {
+                OBJ_DATA *vobj;
+                for (vobj = owner->in_room->contents; vobj != NULL; vobj = vobj->next_content)
+                {
+                    if (wnum_match_obj(run->questgiver_wnum, vobj))
+                    {
+                        *obj = vobj;
+                        break;
+                    }
+                }
+            }
+            break;
+
+        case QUESTOR_ROOM:
+            if (room && wnum_match_room(run->questgiver_wnum, owner->in_room))
+                *room = owner->in_room;
+            break;
+        }
+    }
+
+    if (area && !*area)
+    {
+        if (run->quest_index_v2_auid > 0)
+            *area = get_area_index(run->quest_index_v2_auid);
+    }
+}
+
+
+static void quest_runtime_fire_stage_script(QUEST_DATA *run, const char *script_name)
+{
+    CHAR_DATA *owner;
+    CHAR_DATA *mob;
+    OBJ_DATA *obj;
+    ROOM_INDEX_DATA *room;
+    AREA_DATA *area;
+
+    if (!run || IS_NULLSTR(script_name))
+        return;
+
+    quest_runtime_fire_qprog_trigger(run, TRIG_QUEST_PART, script_name, NULL);
+
+    owner = quest_runtime_get_owner_character(run);
+    mob = NULL;
+    obj = NULL;
+    room = NULL;
+    area = NULL;
+
+    quest_runtime_resolve_script_context(run, &mob, &obj, &room, &area);
+
+    if (mob || obj || room)
+        p_percent_trigger(mob, obj, room, NULL, owner, NULL, NULL, NULL, NULL, TRIG_QUEST_PART, (char *)script_name);
+
+    if (area)
+        p_percent2_trigger(area, NULL, NULL, owner, NULL, NULL, NULL, NULL, TRIG_RECKONING, (char *)script_name);
+}
+
+static bool quest_runtime_fire_qprog_trigger(QUEST_DATA *run, int trig_type, const char *phrase, CHAR_DATA *enactor)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+    CHAR_DATA *owner;
+    int ret;
+    const char *safe_phrase;
+
+    if (!run)
+        return false;
+
+    safe_phrase = IS_NULLSTR(phrase) ? "" : phrase;
+
+    quest_index_v2 = quest_runtime_get_index_v2(run);
+    if (!quest_index_v2 || !quest_index_v2->progs)
+        return false;
+
+    owner = enactor ? enactor : quest_runtime_get_owner_character(run);
+
+    ret = p_lifecycle_bank_trigger(quest_index_v2->progs,
+        quest_index_v2->area, NULL, NULL,
+        run,
+        owner, NULL, NULL,
+        NULL, NULL,
+        trig_type, (char *)safe_phrase);
+
+    return ret != PRET_NOSCRIPT;
+}
+
+static void quest_runtime_fire_stage_lifecycle_trigger(QUEST_DATA *run, int trig_type, int stage_id)
+{
+    char phrase[MIL];
+
+    if (!run || stage_id < 1)
+        return;
+
+    sprintf(phrase, "%d", stage_id);
+    quest_runtime_fire_qprog_trigger(run, trig_type, phrase, NULL);
+}
+
+static void quest_runtime_fire_objective_lifecycle_trigger(QUEST_DATA *run, int trig_type, int objective_id)
+{
+    char phrase[MIL];
+
+    if (!run || objective_id < 1)
+        return;
+
+    sprintf(phrase, "%d", objective_id);
+    quest_runtime_fire_qprog_trigger(run, trig_type, phrase, NULL);
+}
+
+static void quest_runtime_fire_quest_lifecycle_trigger(QUEST_DATA *run, int trig_type, const char *phrase)
+{
+    quest_runtime_fire_quest_lifecycle_trigger_actor(run, trig_type, phrase, NULL);
+}
+
+static void quest_runtime_fire_quest_lifecycle_trigger_actor(QUEST_DATA *run, int trig_type, const char *phrase, CHAR_DATA *enactor)
+{
+    if (!run)
+        return;
+
+    quest_runtime_fire_qprog_trigger(run, trig_type, phrase, enactor);
+}
+
+static void quest_runtime_mark_run_failed(QUEST_DATA *run, int failed_status, const char *reason_phrase)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+    if (!run || run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        return;
+
+    if (failed_status != QUEST_RUN_STATUS_FAILED && failed_status != QUEST_RUN_STATUS_ABANDONED)
+        failed_status = QUEST_RUN_STATUS_FAILED;
+
+    run->run_status = failed_status;
+    run->completed_at = 0;
+    if (failed_status == QUEST_RUN_STATUS_ABANDONED)
+    {
+        run->abandoned_at = current_time;
+        run->failed_at = 0;
+    }
+    else
+    {
+        run->failed_at = current_time;
+        run->abandoned_at = 0;
+    }
+
+    stage = quest_runtime_get_current_stage(run);
+    if (stage && run->current_stage_commenced)
+    {
+        quest_runtime_fire_stage_lifecycle_trigger(run, TRIG_STAGE_FAILED, stage->id);
+
+        for (objective = stage->objectives; objective != NULL; objective = objective->next)
+        {
+            QUEST_OBJECTIVE_STATE_V2_DATA *state;
+
+            state = quest_runtime_get_objective_state(run, objective->id, false);
+            if (state && state->complete)
+                continue;
+
+            quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_FAILED, objective->id);
+        }
+    }
+
+    quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_FAILED, reason_phrase);
 }
 
 static bool quest_run_accessible_by_player(CHAR_DATA *ch, QUEST_DATA *run, bool show_message)
@@ -674,7 +1214,69 @@ static void quest_runtime_normalize_target_scope(CHAR_DATA *ch, QUEST_DATA *run)
         || run->target_scope > QUEST_TARGET_SCOPE_CHURCH)
         run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
 
+    if (run->target_scope == QUEST_TARGET_SCOPE_GROUP
+        && (!IS_VALID(ch->group) || !uid_match(run->scope_owner_id, ch->group->id)))
+    {
+        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+        run->scope_owner_id[0] = ch->id[0];
+        run->scope_owner_id[1] = ch->id[1];
+        run->scope_owner_uid = 0;
+    }
+
+    if (run->target_scope == QUEST_TARGET_SCOPE_CHURCH
+        && (!ch->church || ch->church->uid <= 0 || ch->church->uid != run->scope_owner_uid))
+    {
+        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+        run->scope_owner_id[0] = ch->id[0];
+        run->scope_owner_id[1] = ch->id[1];
+        run->scope_owner_uid = 0;
+    }
+
     quest_scope_owner_seed(ch, run);
+}
+
+void quest_runtime_snapshot_group_runs_to_character(CHAR_DATA *ch, const unsigned long group_id[2])
+{
+    QUEST_DATA *run;
+
+    if (!ch || IS_NPC(ch) || !ch->quest || !group_id)
+        return;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+    {
+        if (run->target_scope != QUEST_TARGET_SCOPE_GROUP)
+            continue;
+
+        if (!uid_match(run->scope_owner_id, group_id))
+            continue;
+
+        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+        run->scope_owner_id[0] = ch->id[0];
+        run->scope_owner_id[1] = ch->id[1];
+        run->scope_owner_uid = 0;
+    }
+}
+
+void quest_runtime_snapshot_church_runs_to_character(CHAR_DATA *ch, long church_uid)
+{
+    QUEST_DATA *run;
+
+    if (!ch || IS_NPC(ch) || !ch->quest || church_uid <= 0)
+        return;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+    {
+        if (run->target_scope != QUEST_TARGET_SCOPE_CHURCH)
+            continue;
+
+        if (run->scope_owner_uid != church_uid)
+            continue;
+
+        run->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+        run->scope_owner_id[0] = ch->id[0];
+        run->scope_owner_id[1] = ch->id[1];
+        run->scope_owner_uid = 0;
+    }
 }
 
 long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, long quest_index_vnum)
@@ -705,6 +1307,7 @@ long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, lon
 
         quest_runtime_normalize_target_scope(ch, run);
         quest_runtime_normalize_template_link(ch, run);
+        quest_runtime_seed_run_vars_from_index(run);
     }
 
     if (ch->quest_runtime.focused_run_id <= 0)
@@ -724,6 +1327,7 @@ long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, lon
         target_run->quest_index_auid = quest_index_auid;
         target_run->quest_index_vnum = quest_index_vnum;
         quest_runtime_normalize_template_link(ch, target_run);
+        quest_runtime_seed_run_vars_from_index(target_run);
     }
 
     return target_run ? target_run->run_id : ch->quest->run_id;
@@ -909,6 +1513,7 @@ bool quest_runtime_remove_token(CHAR_DATA *ch, WNUM token_wnum, int count)
 
 static void quest_runtime_update_player(CHAR_DATA *ch)
 {
+    QUEST_DATA *run;
     int mission_cap;
     long elapsed_seconds;
     long elapsed_minutes;
@@ -924,6 +1529,15 @@ static void quest_runtime_update_player(CHAR_DATA *ch)
     }
 
     ch->quest_runtime.points_bank = ch->questpoints;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+    {
+        if (run->run_status != QUEST_RUN_STATUS_ACTIVE)
+            continue;
+
+        if (!quest_runtime_scope_owner_online(run))
+            quest_runtime_unbind_strict_targets(run);
+    }
 
     mission_cap = game_settings.max_mission_allowance;
     if (ch->church) {
@@ -1198,6 +1812,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
             return;
         }
 
+        quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_ACCEPTED, "grant", victim);
+        quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_FOCUSED, "grant", victim);
         quest_runtime_try_advance_stage(active_quest);
 
         printf_to_char(ch, "Granted quest %ld#%ld to %s (run %ld).\n\r",
@@ -1309,8 +1925,9 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 stage_name = "(none)";
 
             printf_to_char(ch,
-                "      stage: %s  started: %ld minute%s ago\n\r",
+                "      stage: %s (%s)  started: %ld minute%s ago\n\r",
                 stage_name,
+                run->current_stage_commenced ? "commenced" : "not commenced",
                 age_minutes,
                 age_minutes == 1 ? "" : "s");
 
@@ -1372,12 +1989,26 @@ void do_quest(CHAR_DATA *ch, char *argument)
                         required = quest_objective_required_display_count(objective);
                         progress = state ? state->progress : 0;
 
-                        printf_to_char(ch, "  [{Y%d{x] %s {D(%s){x %d/%d\n\r",
-                            objective->id,
-                            quest_objective_visible_label(objective),
-                            quest_objective_type_name(objective->objective_type),
-                            progress,
-                            required);
+                        if (!focused_run->current_stage_commenced)
+                        {
+                            printf_to_char(ch, "  [{Y%d{x] %s {D(%s){x [pending commence]\n\r",
+                                objective->id,
+                                quest_objective_visible_label(objective),
+                                quest_objective_type_name(objective->objective_type));
+                        }
+                        else
+                        {
+                            char target_buf[MSL];
+
+                            printf_to_char(ch, "  [{Y%d{x] %s {D(%s){x %d/%d\n\r",
+                                objective->id,
+                                quest_objective_visible_label(objective),
+                                quest_objective_type_name(objective->objective_type),
+                                progress,
+                                required);
+                            printf_to_char(ch, "       %s\n\r",
+                                quest_objective_target_summary(focused_run, objective, target_buf, sizeof(target_buf)));
+                        }
                         shown_objective = true;
                     }
 
@@ -1504,6 +2135,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             return;
 
         ch->quest_runtime.focused_run_id = run->run_id;
+        quest_runtime_fire_quest_lifecycle_trigger_actor(run, TRIG_QUEST_FOCUSED, "manual", ch);
         quest_index_v2 = quest_runtime_get_index_v2(run);
         quest_name = quest_index_v2 && !IS_NULLSTR(quest_index_v2->name)
             ? quest_index_v2->name
@@ -1548,7 +2180,9 @@ void do_quest(CHAR_DATA *ch, char *argument)
             stage_already_commenced = (focused_quest->current_stage_commenced != 0);
             if (!quest_runtime_commence_current_stage(focused_quest))
             {
-                send_to_char("That quest stage cannot be commenced right now.\n\r", ch);
+                printf_to_char(ch, "That quest stage cannot be commenced right now (%s).\n\r",
+                    quest_runtime_commence_blocker(focused_quest));
+                send_to_char("Use 'quest info' to review stage status and objective setup.\n\r", ch);
                 return;
             }
 
@@ -1733,6 +2367,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "Current stage {Y%d{x: %s\n\r",
                 stage->id,
                 IS_NULLSTR(stage->name) ? "(unnamed stage)" : stage->name);
+            printf_to_char(ch, "Stage status: %s\n\r",
+                focused_quest->current_stage_commenced ? "commenced" : "not commenced");
             if (!IS_NULLSTR(stage->description))
                 printf_to_char(ch, "Stage description: %s\n\r", stage->description);
 
@@ -1755,6 +2391,11 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
                 if (state && state->complete)
                     status = "complete";
+                else if (!focused_quest->current_stage_commenced)
+                {
+                    status = "pending";
+                    any_incomplete = true;
+                }
                 else {
                     status = "active";
                     any_incomplete = true;
@@ -1767,7 +2408,15 @@ void do_quest(CHAR_DATA *ch, char *argument)
                     progress,
                     required,
                     objective->optional ? " optional" : "");
+                {
+                    char target_buf[MSL];
+                    printf_to_char(ch, "       %s\n\r",
+                        quest_objective_target_summary(focused_quest, objective, target_buf, sizeof(target_buf)));
+                }
             }
+
+            if (!focused_quest->current_stage_commenced)
+                send_to_char("Use {Yquest commence{x to begin this stage.\n\r", ch);
 
             if (!any_incomplete)
             {
@@ -2059,6 +2708,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
             || (giver_obj && generate_quest_from_object(ch, giver_obj)))
         {
             active_quest->generating = false;
+            quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_ACCEPTED, "request", ch);
+            quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_FOCUSED, "request", ch);
 
             if (giver_mob) {
                 sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
@@ -2134,6 +2785,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
         if( active_quest->generating )
         {
+            quest_runtime_mark_run_failed(active_quest, QUEST_RUN_STATUS_ABANDONED, "cancelled");
             quest_runtime_detach_run(ch, active_quest);
             if (!IS_QUESTING(ch)) {
                 quest_runtime_reset_expiration(ch);
@@ -2196,6 +2848,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
                     ch->name);
                 do_say(mob, buf);
 
+                quest_runtime_mark_run_failed(active_quest, QUEST_RUN_STATUS_ABANDONED, "cancelled");
                 quest_runtime_detach_run(ch, active_quest);
 
                 mob->tempstore[0] = 10;
@@ -2209,6 +2862,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             {
                 // Objects will not complain by default
 
+                quest_runtime_mark_run_failed(active_quest, QUEST_RUN_STATUS_ABANDONED, "cancelled");
                 quest_runtime_detach_run(ch, active_quest);
 
                 obj->tempstore[0] = 10;
@@ -2220,6 +2874,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             }
             else if (room)
             {
+                quest_runtime_mark_run_failed(active_quest, QUEST_RUN_STATUS_ABANDONED, "cancelled");
                 quest_runtime_detach_run(ch, active_quest);
 
                 room->tempstore[0] = 10;
@@ -2658,12 +3313,16 @@ void quest_update(void)
 
         if (active_quest && !active_quest->generating)
         {
+        if (active_quest->run_status == QUEST_RUN_STATUS_ACTIVE)
+            quest_runtime_fire_qprog_trigger(active_quest, TRIG_RANDOM, NULL, NULL);
+
         if (ch->quest_runtime.expiry_modes != QUEST_EXPIRY_NONE)
         {
             if (ch->quest_runtime.expiry_modes & (QUEST_EXPIRY_COUNTDOWN | QUEST_EXPIRY_WALL_TIME))
                 quest_runtime_tick_expiration(ch, current_time);
 
             if (quest_runtime_is_expired(ch, current_time)) {
+                quest_runtime_mark_run_failed(active_quest, QUEST_RUN_STATUS_FAILED, "expired");
                 quest_runtime_detach_run(ch, active_quest);
                 if (!IS_QUESTING(ch)) {
                     quest_runtime_reset_expiration(ch);
@@ -2844,7 +3503,8 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
             }
         }
 
-        quest_runtime_apply_objective_event(run, QUEST_OBJECTIVE_COLLECT, target_wnum, 1);
+        if (quest_runtime_apply_objective_event(run, QUEST_OBJECTIVE_COLLECT, target_wnum, 1) > 0)
+            quest_runtime_propagate_scoped_objective_event(ch, run, QUEST_OBJECTIVE_COLLECT, target_wnum, 1);
     }
 }
 
@@ -2853,6 +3513,9 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 {
     QUEST_DATA *run;
     QUEST_PART_DATA *part;
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
     WNUM target_wnum;
     int i;
 
@@ -2902,7 +3565,96 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
             }
         }
 
-        quest_runtime_apply_objective_event(run, QUEST_OBJECTIVE_KILL, target_wnum, 1);
+        if (run->run_status != QUEST_RUN_STATUS_ACTIVE || run->generating || !run->current_stage_commenced)
+            continue;
+
+        stage = quest_runtime_get_current_stage(run);
+        if (!stage)
+            continue;
+
+        for (objective = stage->objectives; objective != NULL; objective = objective->next)
+        {
+            if (objective->objective_type != QUEST_OBJECTIVE_KILL)
+                continue;
+
+            if (!quest_runtime_objective_target_matches(run, objective, target_wnum))
+                continue;
+
+            if (objective->strict_target)
+            {
+                state = quest_runtime_get_objective_state(run, objective->id, false);
+                if (!state)
+                    continue;
+
+                if (state->selected_target_uid[0] != mob->id[0]
+                    || state->selected_target_uid[1] != mob->id[1])
+                    continue;
+            }
+
+            if (quest_runtime_update_objective_progress(run, objective->id, 1))
+                quest_runtime_propagate_scoped_objective_event(ch, run, QUEST_OBJECTIVE_KILL, target_wnum, 1);
+        }
+    }
+}
+
+void check_quest_talk_target(CHAR_DATA *ch, CHAR_DATA *victim, const char *message, bool show)
+{
+    QUEST_DATA *run;
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+    WNUM target_wnum;
+
+    (void)show;
+
+    if (!ch || IS_NPC(ch) || !victim || !IS_NPC(victim) || !victim->pIndexData)
+        return;
+
+    if (!ch->quest)
+        return;
+
+    target_wnum.pArea = victim->pIndexData->area;
+    target_wnum.vnum = victim->pIndexData->vnum;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+    {
+        if (!quest_run_accessible_by_player(ch, run, false))
+            continue;
+
+        if (run->run_status != QUEST_RUN_STATUS_ACTIVE || run->generating || !run->current_stage_commenced)
+            continue;
+
+        stage = quest_runtime_get_current_stage(run);
+        if (!stage)
+            continue;
+
+        for (objective = stage->objectives; objective != NULL; objective = objective->next)
+        {
+            if (objective->objective_type != QUEST_OBJECTIVE_TALK)
+                continue;
+
+            if (!quest_runtime_objective_target_matches(run, objective, target_wnum))
+                continue;
+
+            if (objective->strict_target)
+            {
+                state = quest_runtime_get_objective_state(run, objective->id, false);
+                if (!state)
+                    continue;
+
+                if (state->selected_target_uid[0] != victim->id[0]
+                    || state->selected_target_uid[1] != victim->id[1])
+                    continue;
+            }
+
+            if (!IS_NULLSTR(objective->target_tag))
+            {
+                if (IS_NULLSTR(message) || str_infix(objective->target_tag, message))
+                    continue;
+            }
+
+            quest_runtime_update_objective_progress(run, objective->id, 1);
+        }
     }
 }
 
@@ -2964,7 +3716,8 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
             }
         }
 
-        quest_runtime_apply_objective_event(run, QUEST_OBJECTIVE_TRAVEL, target_wnum, 1);
+        if (quest_runtime_apply_objective_event(run, QUEST_OBJECTIVE_TRAVEL, target_wnum, 1) > 0)
+            quest_runtime_propagate_scoped_objective_event(ch, run, QUEST_OBJECTIVE_TRAVEL, target_wnum, 1);
     }
 }
 
@@ -3003,7 +3756,8 @@ static bool check_quest_custom_task_run(CHAR_DATA *ch, QUEST_DATA *run, int task
             send_to_char(buf, ch);
         }
         part->complete = true;
-        quest_runtime_apply_objective_event(run, QUEST_OBJECTIVE_CUSTOM_SCRIPT, (WNUM){ .pArea = NULL, .vnum = 0 }, 1);
+        if (quest_runtime_apply_objective_event(run, QUEST_OBJECTIVE_CUSTOM_SCRIPT, (WNUM){ .pArea = NULL, .vnum = 0 }, 1) > 0)
+            quest_runtime_propagate_scoped_objective_event(ch, run, QUEST_OBJECTIVE_CUSTOM_SCRIPT, (WNUM){ .pArea = NULL, .vnum = 0 }, 1);
 
         return true;
     }
@@ -3485,6 +4239,8 @@ static bool quest_runtime_compile_generated_stage(QUEST_DATA *run, QUEST_STAGE_I
     QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *selected_entry;
     WNUM selected_target;
     WNUM selected_destination;
+    bool stage_target_resolved = false;
+    bool stage_destination_resolved = false;
 
     if (!run || !stage)
         return false;
@@ -3503,6 +4259,8 @@ static bool quest_runtime_compile_generated_stage(QUEST_DATA *run, QUEST_STAGE_I
         state->selected_target_load.auid = 0;
         state->selected_target_load.vnum = 0;
         state->selected_target_wnum = wnum_zero;
+        state->selected_target_uid[0] = 0;
+        state->selected_target_uid[1] = 0;
         state->selected_destination_load.auid = 0;
         state->selected_destination_load.vnum = 0;
         state->selected_destination_wnum = wnum_zero;
@@ -3540,6 +4298,8 @@ static bool quest_runtime_compile_generated_stage(QUEST_DATA *run, QUEST_STAGE_I
             state->selected_target_load.auid = selected_target.pArea->uid;
             state->selected_target_load.vnum = selected_target.vnum;
             state->selected_target_wnum = selected_target;
+            stage_target_resolved = true;
+            quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_TARGET_RESOLVED, objective->id);
 
             if (!IS_NULLSTR(objective->target_variable_name))
                 quest_runtime_set_target_binding(run, objective->target_variable_name, selected_target);
@@ -3557,11 +4317,19 @@ static bool quest_runtime_compile_generated_stage(QUEST_DATA *run, QUEST_STAGE_I
             state->selected_destination_load.auid = selected_destination.pArea->uid;
             state->selected_destination_load.vnum = selected_destination.vnum;
             state->selected_destination_wnum = selected_destination;
+            stage_destination_resolved = true;
+            quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_DEST_RESOLVED, objective->id);
 
             if (!IS_NULLSTR(objective->destination_variable_name))
                 quest_runtime_set_target_binding(run, objective->destination_variable_name, selected_destination);
         }
     }
+
+    if (stage_target_resolved)
+        quest_runtime_fire_stage_lifecycle_trigger(run, TRIG_STAGE_TARGET_RESOLVED, stage->id);
+
+    if (stage_destination_resolved)
+        quest_runtime_fire_stage_lifecycle_trigger(run, TRIG_STAGE_DEST_RESOLVED, stage->id);
 
     run->current_stage_generation = 1;
 
@@ -3685,7 +4453,18 @@ static CHAR_DATA *quest_runtime_get_owner_character(QUEST_DATA *run)
     CHAR_DATA *ch;
     ITERATOR it;
 
-    if (!run || run->scope_owner_id[0] == 0 || run->scope_owner_id[1] == 0)
+    if (!run)
+        return NULL;
+
+    if (run->target_scope == QUEST_TARGET_SCOPE_CHARACTER
+        && (run->scope_owner_id[0] == 0 && run->scope_owner_id[1] == 0))
+        return NULL;
+
+    if (run->target_scope == QUEST_TARGET_SCOPE_GROUP
+        && (run->scope_owner_id[0] == 0 && run->scope_owner_id[1] == 0))
+        return NULL;
+
+    if (run->target_scope == QUEST_TARGET_SCOPE_CHURCH && run->scope_owner_uid <= 0)
         return NULL;
 
     iterator_start(&it, loaded_chars);
@@ -3694,7 +4473,23 @@ static CHAR_DATA *quest_runtime_get_owner_character(QUEST_DATA *run)
         if (IS_NPC(ch))
             continue;
 
-        if (uid_match(ch->id, run->scope_owner_id))
+        if (run->target_scope == QUEST_TARGET_SCOPE_CHARACTER && uid_match(ch->id, run->scope_owner_id))
+        {
+            iterator_stop(&it);
+            return ch;
+        }
+
+        if (run->target_scope == QUEST_TARGET_SCOPE_GROUP
+            && IS_VALID(ch->group)
+            && uid_match(ch->group->id, run->scope_owner_id))
+        {
+            iterator_stop(&it);
+            return ch;
+        }
+
+        if (run->target_scope == QUEST_TARGET_SCOPE_CHURCH
+            && ch->church
+            && ch->church->uid == run->scope_owner_uid)
         {
             iterator_stop(&it);
             return ch;
@@ -3786,6 +4581,48 @@ static CHAR_DATA *quest_runtime_find_mob_target_instance(QUEST_DATA *run, WNUM t
         if (owner && !IS_NULLSTR(mob->owner)
             && str_cmp(mob->owner, "(no owner)")
             && str_cmp(mob->owner, owner->name))
+            continue;
+
+        iterator_stop(&it);
+        return mob;
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
+
+static CHAR_DATA *quest_runtime_find_unbound_mob_target_instance(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective,
+    WNUM target_wnum, AREA_DATA *scope_area)
+{
+    CHAR_DATA *mob;
+    CHAR_DATA *owner;
+    ITERATOR it;
+
+    if (!target_wnum.pArea || target_wnum.vnum < 1)
+        return NULL;
+
+    owner = quest_runtime_get_owner_character(run);
+
+    iterator_start(&it, loaded_chars);
+    while ((mob = (CHAR_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        if (!IS_NPC(mob) || !mob->pIndexData)
+            continue;
+
+        if (mob->pIndexData->area != target_wnum.pArea || mob->pIndexData->vnum != target_wnum.vnum)
+            continue;
+
+        if (scope_area && (!mob->in_room || mob->in_room->area != scope_area))
+            continue;
+
+        if (owner && !IS_NULLSTR(mob->owner)
+            && str_cmp(mob->owner, "(no owner)")
+            && str_cmp(mob->owner, owner->name))
+            continue;
+
+        if (objective && objective->strict_target
+            && quest_runtime_is_mob_strictly_bound(mob, run, objective->id))
             continue;
 
         iterator_stop(&it);
@@ -4024,6 +4861,7 @@ static bool quest_runtime_commence_current_stage(QUEST_DATA *run)
         if (objective->objective_type == QUEST_OBJECTIVE_KILL)
         {
             WNUM kill_target = state->selected_target_wnum;
+            CHAR_DATA *strict_mob = NULL;
             if (!kill_target.pArea || kill_target.vnum < 1)
                 kill_target = objective->target_wnum;
 
@@ -4037,7 +4875,29 @@ static bool quest_runtime_commence_current_stage(QUEST_DATA *run)
                 }
 
                 if (!quest_runtime_spawn_missing_kill_target(run, state))
-                    return false;
+                    plogf(LOG_DEBUG,
+                        "quest_runtime_commence_current_stage: spawn check failed for kill objective %d (%ld#%ld), proceeding",
+                        objective->id,
+                        kill_target.pArea ? kill_target.pArea->uid : 0,
+                        kill_target.vnum);
+
+                if (objective->strict_target)
+                {
+                    if (!quest_runtime_scope_owner_online(run))
+                        return false;
+
+                    strict_mob = quest_runtime_find_unbound_mob_target_instance(run, objective, kill_target, kill_target.pArea);
+                    if (!strict_mob)
+                        return false;
+
+                    state->selected_target_uid[0] = strict_mob->id[0];
+                    state->selected_target_uid[1] = strict_mob->id[1];
+                }
+                else
+                {
+                    state->selected_target_uid[0] = 0;
+                    state->selected_target_uid[1] = 0;
+                }
             }
         }
 
@@ -4045,6 +4905,7 @@ static bool quest_runtime_commence_current_stage(QUEST_DATA *run)
             || objective->objective_type == QUEST_OBJECTIVE_CUSTOM_SCRIPT)
         {
             WNUM mob_target = state->selected_target_wnum;
+            CHAR_DATA *strict_mob = NULL;
             if (!mob_target.pArea || mob_target.vnum < 1)
                 mob_target = objective->target_wnum;
 
@@ -4059,7 +4920,29 @@ static bool quest_runtime_commence_current_stage(QUEST_DATA *run)
                 }
 
                 if (!quest_runtime_spawn_missing_kill_target(run, state))
-                    return false;
+                    plogf(LOG_DEBUG,
+                        "quest_runtime_commence_current_stage: spawn check failed for talk/custom objective %d (%ld#%ld), proceeding",
+                        objective->id,
+                        mob_target.pArea ? mob_target.pArea->uid : 0,
+                        mob_target.vnum);
+
+                if (objective->strict_target)
+                {
+                    if (!quest_runtime_scope_owner_online(run))
+                        return false;
+
+                    strict_mob = quest_runtime_find_unbound_mob_target_instance(run, objective, mob_target, mob_target.pArea);
+                    if (!strict_mob)
+                        return false;
+
+                    state->selected_target_uid[0] = strict_mob->id[0];
+                    state->selected_target_uid[1] = strict_mob->id[1];
+                }
+                else
+                {
+                    state->selected_target_uid[0] = 0;
+                    state->selected_target_uid[1] = 0;
+                }
             }
         }
 
@@ -4083,7 +4966,8 @@ static bool quest_runtime_commence_current_stage(QUEST_DATA *run)
             return false;
     }
 
-    run->current_stage_commenced = 1;
+    run->current_stage_commenced = (int)current_time;
+    quest_runtime_fire_stage_lifecycle_trigger(run, TRIG_STAGE_COMMENCED, stage->id);
     return true;
 }
 
@@ -4209,12 +5093,18 @@ bool quest_runtime_try_advance_stage(QUEST_DATA *run)
         if (!quest_runtime_is_stage_complete(run))
             return changed;
 
+        quest_runtime_fire_stage_lifecycle_trigger(run, TRIG_STAGE_COMPLETED, stage->id);
+
         if (stage->next_stage_id < 1)
         {
+            if (!IS_NULLSTR(stage->on_exit_script))
+                quest_runtime_fire_stage_script(run, stage->on_exit_script);
+
             run->run_status = QUEST_RUN_STATUS_COMPLETED;
             run->completed_at = current_time;
             run->failed_at = 0;
             run->abandoned_at = 0;
+            quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_COMPLETED, "complete");
             return true;
         }
 
@@ -4236,6 +5126,7 @@ bool quest_runtime_update_objective_progress(QUEST_DATA *run, int objective_id, 
     int required;
     int new_progress;
     bool changed;
+    bool was_complete;
 
     if (!run || run->run_status != QUEST_RUN_STATUS_ACTIVE || objective_id < 1)
         return false;
@@ -4259,6 +5150,7 @@ bool quest_runtime_update_objective_progress(QUEST_DATA *run, int objective_id, 
         return false;
 
     required = quest_runtime_objective_required_count(objective);
+    was_complete = state->complete;
     new_progress = state->progress + delta;
     if (new_progress < 0)
         new_progress = 0;
@@ -4268,6 +5160,9 @@ bool quest_runtime_update_objective_progress(QUEST_DATA *run, int objective_id, 
     changed = (new_progress != state->progress);
     state->progress = new_progress;
     state->complete = (state->progress >= required);
+
+    if (!was_complete && state->complete)
+        quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_COMPLETED, objective_id);
 
     quest_runtime_try_advance_stage(run);
     return changed;
@@ -4301,9 +5196,60 @@ bool quest_runtime_complete_objective(QUEST_DATA *run, int objective_id)
     if (!state)
         return false;
 
+    if (!state->complete)
+        quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_COMPLETED, objective_id);
+
     state->progress = quest_runtime_objective_required_count(objective);
     state->complete = true;
     quest_runtime_try_advance_stage(run);
+    return true;
+}
+
+
+bool quest_runtime_fail_objective(QUEST_DATA *run, int objective_id, const char *reason_phrase)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+    if (!run || run->run_status != QUEST_RUN_STATUS_ACTIVE || objective_id < 1)
+        return false;
+
+    stage = quest_runtime_get_current_stage(run);
+    if (!stage)
+        return false;
+
+    objective = quest_stage_index_v2_get_objective(stage, objective_id);
+    if (!objective)
+        return false;
+
+    quest_runtime_mark_run_failed(run, QUEST_RUN_STATUS_FAILED,
+        IS_NULLSTR(reason_phrase) ? "objective_failed" : reason_phrase);
+    return true;
+}
+
+
+bool quest_runtime_complete_run(QUEST_DATA *run, const char *reason_phrase)
+{
+    if (!run || run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        return false;
+
+    run->run_status = QUEST_RUN_STATUS_COMPLETED;
+    run->completed_at = current_time;
+    run->failed_at = 0;
+    run->abandoned_at = 0;
+    quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_COMPLETED,
+        IS_NULLSTR(reason_phrase) ? "forced" : reason_phrase);
+    return true;
+}
+
+
+bool quest_runtime_fail_run(QUEST_DATA *run, int failed_status, const char *reason_phrase)
+{
+    if (!run || run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        return false;
+
+    quest_runtime_mark_run_failed(run, failed_status,
+        IS_NULLSTR(reason_phrase) ? "failed" : reason_phrase);
     return true;
 }
 
@@ -4413,6 +5359,7 @@ bool quest_runtime_set_stage(QUEST_DATA *run, int stage_id)
 {
     QUEST_INDEX_V2_DATA *quest_index_v2;
     QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_STAGE_INDEX_V2_DATA *previous_stage;
     QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
     unsigned long long stage_seed;
 
@@ -4426,6 +5373,11 @@ bool quest_runtime_set_stage(QUEST_DATA *run, int stage_id)
     stage = quest_index_v2_get_stage(quest_index_v2, stage_id);
     if (!stage)
         return false;
+
+    previous_stage = quest_runtime_get_current_stage(run);
+
+    if (previous_stage && previous_stage->id != stage->id && !IS_NULLSTR(previous_stage->on_exit_script))
+        quest_runtime_fire_stage_script(run, previous_stage->on_exit_script);
 
     if (run->current_stage_id < 1)
         quest_runtime_clear_target_bindings(run);
@@ -4458,6 +5410,9 @@ bool quest_runtime_set_stage(QUEST_DATA *run, int stage_id)
         if (!quest_runtime_commence_current_stage(run))
             return false;
     }
+
+    if (!IS_NULLSTR(stage->on_enter_script))
+        quest_runtime_fire_stage_script(run, stage->on_enter_script);
 
     return true;
 }

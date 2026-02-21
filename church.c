@@ -853,6 +853,7 @@ void remove_member(CHURCH_PLAYER_DATA * member)
 
     if (member->ch != NULL)
     {
+    quest_runtime_snapshot_church_runs_to_character(member->ch, member->church ? member->church->uid : 0);
     member->ch->church = NULL;
     free_string(member->ch->church_name);
 
