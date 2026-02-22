@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #include <hiredis/hiredis.h>
 #include <jansson.h>
@@ -18,6 +19,9 @@ typedef struct redis_outbound_event {
     char sender_uid[64];
     unsigned long sender_id0;
     unsigned long sender_id1;
+    char recipient_uid[64];
+    unsigned long recipient_id0;
+    unsigned long recipient_id1;
     char message_text[MSL];
     time_t timestamp;
 } REDIS_OUTBOUND_EVENT;
@@ -48,6 +52,7 @@ static redisContext *hydrate_ctx = NULL;
 static pthread_mutex_t connection_state_mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool command_connected = false;
 static bool subscribe_connected = false;
+static bool subscribe_active = false;
 
 static void set_connection_state(bool command_ok, bool subscribe_ok)
 {
@@ -86,6 +91,7 @@ static void redis_disconnect_subscribe(void)
         redisFree(subscribe_ctx);
         subscribe_ctx = NULL;
     }
+    subscribe_active = false;
     set_subscribe_connected(false);
 }
 
@@ -201,16 +207,32 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
 
     snprintf(history_stream, sizeof(history_stream), "history:%s", evt->topic);
 
-    reply = redisCommand(command_ctx,
-                         "XADD %s * channel %s sender %s sender_uid %s sender_id0 %lu sender_id1 %lu message %s ts %ld",
-                         history_stream,
-                         evt->channel_id,
-                         evt->sender_name,
-                         evt->sender_uid,
-                         evt->sender_id0,
-                         evt->sender_id1,
-                         evt->message_text,
-                         (long)evt->timestamp);
+    if (evt->recipient_uid[0]) {
+        reply = redisCommand(command_ctx,
+                             "XADD %s * channel %s sender %s sender_uid %s sender_id0 %lu sender_id1 %lu recipient_uid %s recipient_id0 %lu recipient_id1 %lu message %s ts %ld",
+                             history_stream,
+                             evt->channel_id,
+                             evt->sender_name,
+                             evt->sender_uid,
+                             evt->sender_id0,
+                             evt->sender_id1,
+                             evt->recipient_uid,
+                             evt->recipient_id0,
+                             evt->recipient_id1,
+                             evt->message_text,
+                             (long)evt->timestamp);
+    } else {
+        reply = redisCommand(command_ctx,
+                             "XADD %s * channel %s sender %s sender_uid %s sender_id0 %lu sender_id1 %lu message %s ts %ld",
+                             history_stream,
+                             evt->channel_id,
+                             evt->sender_name,
+                             evt->sender_uid,
+                             evt->sender_id0,
+                             evt->sender_id1,
+                             evt->message_text,
+                             (long)evt->timestamp);
+    }
     if (!reply || reply->type == REDIS_REPLY_ERROR) {
         if (reply)
             freeReplyObject(reply);
@@ -230,6 +252,11 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
     json_object_set_new(payload, "sender_uid", json_string(evt->sender_uid));
     json_object_set_new(payload, "sender_id0", json_integer((json_int_t)evt->sender_id0));
     json_object_set_new(payload, "sender_id1", json_integer((json_int_t)evt->sender_id1));
+    if (evt->recipient_uid[0]) {
+        json_object_set_new(payload, "recipient_uid", json_string(evt->recipient_uid));
+        json_object_set_new(payload, "recipient_id0", json_integer((json_int_t)evt->recipient_id0));
+        json_object_set_new(payload, "recipient_id1", json_integer((json_int_t)evt->recipient_id1));
+    }
     if (!game_settings.channel_publish_compact)
         json_object_set_new(payload, "message_text", json_string(evt->message_text));
     json_object_set_new(payload, "timestamp", json_integer((json_int_t)evt->timestamp));
@@ -311,6 +338,18 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
         snprintf(evt->sender_uid, sizeof(evt->sender_uid), "%lu:%lu", evt->sender_id0, evt->sender_id1);
     }
 
+    v = json_object_get(root, "recipient_uid");
+    if (json_is_string(v))
+        strlcpy(evt->recipient_uid, json_string_value(v), sizeof(evt->recipient_uid));
+
+    v = json_object_get(root, "recipient_id0");
+    if (json_is_integer(v))
+        evt->recipient_id0 = (unsigned long)json_integer_value(v);
+
+    v = json_object_get(root, "recipient_id1");
+    if (json_is_integer(v))
+        evt->recipient_id1 = (unsigned long)json_integer_value(v);
+
     v = json_object_get(root, "message_text");
     if (json_is_string(v))
         strlcpy(evt->message_text, json_string_value(v), sizeof(evt->message_text));
@@ -391,6 +430,12 @@ static bool hydrate_event_from_history(REDIS_OUTBOUND_EVENT *evt)
             evt->sender_id0 = strtoul(val->str, NULL, 10);
         } else if (!str_cmp(key->str, "sender_id1")) {
             evt->sender_id1 = strtoul(val->str, NULL, 10);
+        } else if (!str_cmp(key->str, "recipient_uid")) {
+            strlcpy(evt->recipient_uid, val->str, sizeof(evt->recipient_uid));
+        } else if (!str_cmp(key->str, "recipient_id0")) {
+            evt->recipient_id0 = strtoul(val->str, NULL, 10);
+        } else if (!str_cmp(key->str, "recipient_id1")) {
+            evt->recipient_id1 = strtoul(val->str, NULL, 10);
         } else if (!str_cmp(key->str, "ts")) {
             evt->timestamp = (time_t)strtol(val->str, NULL, 10);
         }
@@ -452,20 +497,27 @@ static bool ensure_subscription(void)
         subscribe_ctx = redis_connect_context();
         if (!subscribe_ctx || !redis_auth_ping(subscribe_ctx)) {
             redis_disconnect_subscribe();
+            subscribe_active = false;
             return false;
         }
         set_subscribe_connected(true);
+        subscribe_active = false;
     }
+
+    if (subscribe_active)
+        return true;
 
     reply = redisCommand(subscribe_ctx, "PSUBSCRIBE rt:*");
     if (!reply || reply->type != REDIS_REPLY_ARRAY) {
         if (reply)
             freeReplyObject(reply);
         redis_disconnect_subscribe();
+        subscribe_active = false;
         return false;
     }
 
     freeReplyObject(reply);
+    subscribe_active = true;
     return true;
 }
 
@@ -540,6 +592,8 @@ static bool redis_transport_init(void)
     outbound_dropped = 0;
     worker_stop = false;
     pthread_mutex_unlock(&outbound_mutex);
+
+    subscribe_active = false;
 
     pthread_mutex_lock(&inbound_mutex);
     inbound_head = 0;
@@ -643,6 +697,9 @@ static bool redis_transport_publish(const char *topic, const CHANNEL_MESSAGE *ms
     strlcpy(evt->sender_uid, msg->sender_uid ? msg->sender_uid : "", sizeof(evt->sender_uid));
     evt->sender_id0 = msg->sender_id0;
     evt->sender_id1 = msg->sender_id1;
+    strlcpy(evt->recipient_uid, msg->recipient_uid ? msg->recipient_uid : "", sizeof(evt->recipient_uid));
+    evt->recipient_id0 = msg->recipient_id0;
+    evt->recipient_id1 = msg->recipient_id1;
     strlcpy(evt->message_text, msg->message_text, sizeof(evt->message_text));
     evt->timestamp = msg->timestamp;
 
@@ -725,6 +782,9 @@ static int redis_transport_drain_inbound(int max_events)
         msg.sender_uid = evt.sender_uid;
         msg.sender_id0 = evt.sender_id0;
         msg.sender_id1 = evt.sender_id1;
+        msg.recipient_uid = evt.recipient_uid[0] ? evt.recipient_uid : NULL;
+        msg.recipient_id0 = evt.recipient_id0;
+        msg.recipient_id1 = evt.recipient_id1;
         msg.message_text = evt.message_text;
         msg.timestamp = evt.timestamp;
 

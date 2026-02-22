@@ -13,6 +13,7 @@
 #include "../../merc.h"
 #include "../../olc.h"
 #include "../../channel_service.h"
+#include "../../channel_registry.h"
 #include "../../recycle.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
@@ -26,11 +27,19 @@ typedef enum cedit_filter_mode {
     CEDIT_FILTER_REVIEW
 } CEDIT_FILTER_MODE;
 
+/* Channel modifier bitmasks — control text processing applied before publish */
+#define CHANNEL_MOD_PUNCTUATION_PARSE   (A)   /* normalize missing end punctuation  */
+#define CHANNEL_MOD_EMOTE_STRIP         (B)   /* strip leading emote-style prefixes */
+#define CHANNEL_MOD_COLOR_STRIP         (C)   /* strip player-injected color codes  */
+#define CHANNEL_MOD_CAPS_NORMALIZE      (D)   /* collapse excessive capitalization  */
+
 typedef struct cedit_channel_data {
     char id[32];
     char name[64];
+    char command[32];           /* player command that triggers the channel    */
     CHANNEL_SCOPE scope;
     bool allow_player_flags;
+    bool persistent;            /* true = always subscribed; false = transient */
     long channel_flags;
 
     bool filter_enabled;
@@ -44,18 +53,34 @@ typedef struct cedit_channel_data {
 
     bool review_enabled;
     char review_stream[64];
+
+    /* Text processing modifiers */
+    long modifiers;             /* CHANNEL_MOD_* bitmask */
+
+    /* Per-channel format overrides (empty = use system default) */
+    char fmt_self[256];         /* sender echo format; %1$s=name, %2$s=text */
+    char fmt_receiver[256];     /* recipient format;   %1$s=name, %2$s=text */
+
+    /* History retention policy */
+    int history_max_len;        /* max messages in stream (0 = unlimited) */
+    int history_max_age_seconds; /* max message age in seconds (0 = unlimited) */
+
     char *comments;
 } CEDIT_CHANNEL_DATA;
 
 static void cedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void cedit_show_moderation_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void cedit_show_review_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void cedit_show_format_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
 static bool cedit_show(CHAR_DATA *ch, char *argument);
 static bool cedit_create(CHAR_DATA *ch, char *argument);
 static bool cedit_name(CHAR_DATA *ch, char *argument);
 static bool cedit_scope(CHAR_DATA *ch, char *argument);
 static bool cedit_flags(CHAR_DATA *ch, char *argument);
+static bool cedit_modifiers(CHAR_DATA *ch, char *argument);
+static bool cedit_format(CHAR_DATA *ch, char *argument);
+static bool cedit_history_config(CHAR_DATA *ch, char *argument);
 static bool cedit_filter(CHAR_DATA *ch, char *argument);
 static bool cedit_review(CHAR_DATA *ch, char *argument);
 static bool cedit_modadd(CHAR_DATA *ch, char *argument);
@@ -63,6 +88,9 @@ static bool cedit_moddel(CHAR_DATA *ch, char *argument);
 static bool cedit_modlist(CHAR_DATA *ch, char *argument);
 static bool cedit_punish(CHAR_DATA *ch, char *argument);
 static bool cedit_comments(CHAR_DATA *ch, char *argument);
+
+static bool cedit_persistent(CHAR_DATA *ch, char *argument);
+static bool cedit_save(CHAR_DATA *ch, char *argument);
 
 static bool cedit_changed = false;
 
@@ -76,6 +104,14 @@ static const struct flag_type cedit_channel_flags[] = {
     { "staff_review",    (D), true, NULL },
     { "mod_actions",     (E), true, NULL },
     { NULL,               0, false, NULL }
+};
+
+static const struct flag_type cedit_modifier_flags[] = {
+    { "punctuation_parse", CHANNEL_MOD_PUNCTUATION_PARSE, true, NULL },
+    { "emote_strip",       CHANNEL_MOD_EMOTE_STRIP,       true, NULL },
+    { "color_strip",       CHANNEL_MOD_COLOR_STRIP,       true, NULL },
+    { "caps_normalize",    CHANNEL_MOD_CAPS_NORMALIZE,    true, NULL },
+    { NULL,                0,                             false, NULL }
 };
 
 static const char *cedit_filter_mode_name(CEDIT_FILTER_MODE mode)
@@ -155,15 +191,20 @@ const struct olc_cmd_type cedit_table[] = {
     { "create",   cedit_create },
     { "filter",   cedit_filter },
     { "flags",    cedit_flags },
+    { "format",   cedit_format },
+    { "history",  cedit_history_config },
     { "modadd",   cedit_modadd },
     { "moddel",   cedit_moddel },
+    { "modifiers",cedit_modifiers },
     { "modlist",  cedit_modlist },
-    { "name",     cedit_name },
-    { "punish",   cedit_punish },
-    { "review",   cedit_review },
-    { "scope",    cedit_scope },
-    { "show",     cedit_show },
-    { NULL,        0 }
+    { "name",       cedit_name },
+    { "persistent", cedit_persistent },
+    { "punish",     cedit_punish },
+    { "review",     cedit_review },
+    { "save",       cedit_save },
+    { "scope",      cedit_scope },
+    { "show",       cedit_show },
+    { NULL,          0 }
 };
 
 static const OLC_EDITOR_DEF cedit_def = {
@@ -172,11 +213,12 @@ static const OLC_EDITOR_DEF cedit_def = {
     .cmd_table       = cedit_table,
     .show_fn         = cedit_show,
     .tabs            = {
-        .count = 3,
+        .count = 4,
         .tabs = {
             { "General",    "Gen", cedit_show_general_tab },
             { "Moderation", "Mod", cedit_show_moderation_tab },
             { "Review",     "Rev", cedit_show_review_tab },
+            { "Format",     "Fmt", cedit_show_format_tab },
         }
     },
     .theme           = &olc_theme_system,
@@ -210,19 +252,33 @@ void do_cedit(CHAR_DATA *ch, char *argument)
     }
 
     if (cedit_channel_count == 0) {
-        CEDIT_CHANNEL_DATA seed[] = {
-            { "gossip", "Gossip", CHANNEL_SCOPE_GLOBAL, true, 0, false, CEDIT_FILTER_ALLOW, 2, 15, 0, {{0}}, false, "audit:filtered_messages", NULL },
-            { "ooc", "OOC", CHANNEL_SCOPE_GLOBAL, true, 0, false, CEDIT_FILTER_ALLOW, 2, 15, 0, {{0}}, false, "audit:filtered_messages", NULL },
-            { "yell", "Yell", CHANNEL_SCOPE_AREA, true, 0, false, CEDIT_FILTER_ALLOW, 2, 15, 0, {{0}}, false, "audit:filtered_messages", NULL },
-            { "gtell", "Group Tell", CHANNEL_SCOPE_GROUP_ID, true, 0, false, CEDIT_FILTER_ALLOW, 2, 15, 0, {{0}}, false, "audit:filtered_messages", NULL },
-            { "chtalk", "Church Talk", CHANNEL_SCOPE_CHURCH_ID, true, 0, false, CEDIT_FILTER_ALLOW, 2, 15, 0, {{0}}, false, "audit:filtered_messages", NULL },
-        };
-        int i;
+        /* Load working copies from the live channel registry.
+         * Cedit-specific fields not stored in the registry (modifiers, format
+         * strings, history retention, moderation config) receive sensible
+         * defaults so new channels come up ready to configure. */
+        int i, n = channel_registry_count();
 
-        for (i = 0; i < (int)elementsof(seed); i++) {
-            cedit_channels[cedit_channel_count] = seed[i];
-            cedit_channels[cedit_channel_count].comments = str_dup("");
-            cedit_channel_count++;
+        for (i = 0; i < n && cedit_channel_count < (int)elementsof(cedit_channels); i++) {
+            const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+            CEDIT_CHANNEL_DATA     *cch = &cedit_channels[cedit_channel_count++];
+
+            memset(cch, 0, sizeof(*cch));
+            strlcpy(cch->id,      def->id,      sizeof(cch->id));
+            strlcpy(cch->name,    def->name,    sizeof(cch->name));
+            strlcpy(cch->command, def->command, sizeof(cch->command));
+            cch->scope              = def->scope;
+            cch->allow_player_flags = def->allow_player_flags;
+            cch->persistent         = def->persistent;
+
+            /* Cedit-specific defaults */
+            cch->filter_mode             = CEDIT_FILTER_ALLOW;
+            cch->light_warn_threshold    = 2;
+            cch->light_mute_minutes      = 15;
+            strlcpy(cch->review_stream, "audit:filtered_messages",
+                    sizeof(cch->review_stream));
+            cch->history_max_len         = (def->scope == CHANNEL_SCOPE_GLOBAL) ? 50 : 25;
+            cch->history_max_age_seconds = (def->scope == CHANNEL_SCOPE_GLOBAL) ? 900 : 300;
+            cch->comments                = str_dup("");
         }
     }
 
@@ -307,17 +363,37 @@ static bool cedit_create(CHAR_DATA *ch, char *argument)
 
     channel = &cedit_channels[cedit_channel_count++];
     memset(channel, 0, sizeof(*channel));
-    strlcpy(channel->id, argument, sizeof(channel->id));
-    strlcpy(channel->name, argument, sizeof(channel->name));
-    channel->scope = CHANNEL_SCOPE_GLOBAL;
+    strlcpy(channel->id,      argument, sizeof(channel->id));
+    strlcpy(channel->name,    argument, sizeof(channel->name));
+    strlcpy(channel->command, argument, sizeof(channel->command));
+    channel->scope              = CHANNEL_SCOPE_GLOBAL;
     channel->allow_player_flags = true;
-    channel->channel_flags = 0;
-    channel->filter_mode = CEDIT_FILTER_ALLOW;
+    channel->persistent         = false;
+    channel->channel_flags      = 0;
+    channel->filter_mode        = CEDIT_FILTER_ALLOW;
     channel->light_warn_threshold = 2;
-    channel->light_mute_minutes = 15;
-    channel->mod_count = 0;
+    channel->light_mute_minutes   = 15;
+    channel->mod_count            = 0;
     strlcpy(channel->review_stream, "audit:filtered_messages", sizeof(channel->review_stream));
-    channel->comments = str_dup("");
+    channel->modifiers              = 0;
+    channel->fmt_self[0]            = '\0';
+    channel->fmt_receiver[0]        = '\0';
+    channel->history_max_len        = 50;
+    channel->history_max_age_seconds = 900;
+    channel->comments               = str_dup("");
+
+    /* Register immediately so channel_service_send can route to this id. */
+    {
+        CHANNEL_DEF_DATA def;
+        memset(&def, 0, sizeof(def));
+        strlcpy(def.id,      channel->id,      sizeof(def.id));
+        strlcpy(def.name,    channel->name,    sizeof(def.name));
+        strlcpy(def.command, channel->command, sizeof(def.command));
+        def.scope              = channel->scope;
+        def.allow_player_flags = channel->allow_player_flags;
+        def.persistent         = channel->persistent;
+        channel_registry_upsert(&def);
+    }
 
     ch->desc->pEdit = channel;
     send_to_char("Channel definition created.\n\r", ch);
@@ -594,6 +670,191 @@ static bool cedit_comments(CHAR_DATA *ch, char *argument)
         &channel->comments, NULL, NULL);
 }
 
+static bool cedit_persistent(CHAR_DATA *ch, char *argument)
+{
+    CEDIT_CHANNEL_DATA *channel = (CEDIT_CHANNEL_DATA *)ch->desc->pEdit;
+
+    if (!IS_NULLSTR(argument)) {
+        if (!str_cmp(argument, "on"))       channel->persistent = true;
+        else if (!str_cmp(argument, "off")) channel->persistent = false;
+        else {
+            send_to_char("Syntax: persistent <on|off>\n\r", ch);
+            return false;
+        }
+    } else {
+        channel->persistent = !channel->persistent;
+    }
+
+    send_to_char(channel->persistent
+        ? "Channel is now PERSISTENT (always subscribed).\n\r"
+        : "Channel is now TRANSIENT (context-driven subscription).\n\r", ch);
+    return true;
+}
+
+static bool cedit_save(CHAR_DATA *ch, char *argument)
+{
+    int i;
+
+    (void)argument;
+
+    /* Push all working copies back into the live registry. */
+    for (i = 0; i < cedit_channel_count; i++) {
+        CEDIT_CHANNEL_DATA *cch = &cedit_channels[i];
+        CHANNEL_DEF_DATA    def;
+
+        memset(&def, 0, sizeof(def));
+        strlcpy(def.id,      cch->id,   sizeof(def.id));
+        strlcpy(def.name,    cch->name, sizeof(def.name));
+        strlcpy(def.command, cch->command[0] ? cch->command : cch->id,
+                sizeof(def.command));
+        def.scope              = cch->scope;
+        def.allow_player_flags = cch->allow_player_flags;
+        def.persistent         = cch->persistent;
+
+        if (!channel_registry_upsert(&def)) {
+            send_to_char(formatf("CEdit: registry full — could not save '%s'.\n\r",
+                                 cch->id), ch);
+        }
+    }
+
+    if (channel_registry_save("data/system/channels.json"))
+        send_to_char("Channel definitions saved to data/system/channels.json.\n\r", ch);
+    else
+        send_to_char("CEdit: save failed — check server logs.\n\r", ch);
+
+    cedit_changed = false;
+    return false;
+}
+
+static bool cedit_modifiers(CHAR_DATA *ch, char *argument)
+{
+    CEDIT_CHANNEL_DATA *channel = (CEDIT_CHANNEL_DATA *)ch->desc->pEdit;
+
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax: modifiers <punctuation_parse|emote_strip|color_strip|caps_normalize>\n\r", ch);
+        return false;
+    }
+
+    return olc_cmd_flag_toggle(ch, argument, "Modifiers", "modifiers <modifier>",
+        &channel->modifiers, cedit_modifier_flags, channel, NULL);
+}
+
+static bool cedit_format(CHAR_DATA *ch, char *argument)
+{
+    CEDIT_CHANNEL_DATA *channel = (CEDIT_CHANNEL_DATA *)ch->desc->pEdit;
+    char arg1[MSL];
+
+    argument = one_argument(argument, arg1);
+
+    if (IS_NULLSTR(arg1)) {
+        send_to_char("Syntax: format self <format_string>\n\r", ch);
+        send_to_char("        format receiver <format_string>\n\r", ch);
+        send_to_char("        format clear <self|receiver>\n\r", ch);
+        send_to_char("  Placeholders: %%1$s = sender name, %%2$s = message text\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(arg1, "clear")) {
+        char arg2[MSL];
+        one_argument(argument, arg2);
+
+        if (!str_cmp(arg2, "self")) {
+            channel->fmt_self[0] = '\0';
+            send_to_char("Self format cleared (will use system default).\n\r", ch);
+            return true;
+        }
+        if (!str_cmp(arg2, "receiver")) {
+            channel->fmt_receiver[0] = '\0';
+            send_to_char("Receiver format cleared (will use system default).\n\r", ch);
+            return true;
+        }
+        send_to_char("CEdit: expected 'self' or 'receiver' after clear.\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(arg1, "self")) {
+        if (IS_NULLSTR(argument)) {
+            send_to_char("Syntax: format self <format_string>\n\r", ch);
+            return false;
+        }
+        strlcpy(channel->fmt_self, argument, sizeof(channel->fmt_self));
+        send_to_char("Self format string set.\n\r", ch);
+        return true;
+    }
+
+    if (!str_cmp(arg1, "receiver")) {
+        if (IS_NULLSTR(argument)) {
+            send_to_char("Syntax: format receiver <format_string>\n\r", ch);
+            return false;
+        }
+        strlcpy(channel->fmt_receiver, argument, sizeof(channel->fmt_receiver));
+        send_to_char("Receiver format string set.\n\r", ch);
+        return true;
+    }
+
+    send_to_char("CEdit: expected self, receiver, or clear.\n\r", ch);
+    return false;
+}
+
+static bool cedit_history_config(CHAR_DATA *ch, char *argument)
+{
+    CEDIT_CHANNEL_DATA *channel = (CEDIT_CHANNEL_DATA *)ch->desc->pEdit;
+    char arg1[MSL];
+
+    argument = one_argument(argument, arg1);
+
+    if (IS_NULLSTR(arg1)) {
+        send_to_char("Syntax: history max_len <count>    (0 = unlimited)\n\r", ch);
+        send_to_char("        history max_age <seconds>  (0 = unlimited)\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(arg1, "max_len")) {
+        int value;
+
+        if (IS_NULLSTR(argument) || !is_number(argument)) {
+            send_to_char("CEdit: numeric value required.\n\r", ch);
+            return false;
+        }
+
+        value = atoi(argument);
+        if (value < 0 || value > 10000) {
+            send_to_char("CEdit: max_len must be 0-10000.\n\r", ch);
+            return false;
+        }
+
+        channel->history_max_len = value;
+        send_to_char(value == 0
+            ? "History max_len set to unlimited.\n\r"
+            : "History max_len updated.\n\r", ch);
+        return true;
+    }
+
+    if (!str_cmp(arg1, "max_age")) {
+        int value;
+
+        if (IS_NULLSTR(argument) || !is_number(argument)) {
+            send_to_char("CEdit: numeric value required.\n\r", ch);
+            return false;
+        }
+
+        value = atoi(argument);
+        if (value < 0 || value > 604800) {
+            send_to_char("CEdit: max_age must be 0-604800 (0=unlimited, max=7 days).\n\r", ch);
+            return false;
+        }
+
+        channel->history_max_age_seconds = value;
+        send_to_char(value == 0
+            ? "History max_age set to unlimited.\n\r"
+            : "History max_age updated.\n\r", ch);
+        return true;
+    }
+
+    send_to_char("CEdit: expected max_len or max_age.\n\r", ch);
+    return false;
+}
+
 static void cedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
     CEDIT_CHANNEL_DATA *channel = (CEDIT_CHANNEL_DATA *)pEdit;
@@ -603,9 +864,13 @@ static void cedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     olc_display_string(ctx, theme, "Id:", NULL, channel->id);
     olc_display_string(ctx, theme, "Name:", "name", channel->name);
+    olc_display_string(ctx, theme, "Command:", NULL, channel->command[0] ? channel->command : channel->id);
     olc_display_string(ctx, theme, "Scope:", "scope", cedit_scope_name(channel->scope));
+    olc_display_bool(ctx, theme, "Persistent:", "persistent", channel->persistent);
+    olc_display_infof(ctx, theme, "persistent on = always subscribed; off = subscribe only while scope has active entities");
     olc_display_bool(ctx, theme, "Allow Player Flags:", "flags playerflags", channel->allow_player_flags);
     olc_display_flags(ctx, theme, "Channel Flags:", "flags", cedit_channel_flags, channel->channel_flags);
+    olc_display_flags(ctx, theme, "Modifiers:", "modifiers", cedit_modifier_flags, channel->modifiers);
 }
 
 static void cedit_show_moderation_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
@@ -641,4 +906,33 @@ static void cedit_show_review_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdi
     olc_display_bool(ctx, theme, "Review Enabled:", "review", channel->review_enabled);
     olc_display_string(ctx, theme, "Review Stream:", "review stream", channel->review_stream);
     olc_display_infof(ctx, theme, "Staff review queue stream for flagged content.");
+}
+
+static void cedit_show_format_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    CEDIT_CHANNEL_DATA *channel = (CEDIT_CHANNEL_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&cedit_def);
+
+    (void)ch;
+
+    olc_display_section(ctx, theme, "Format Strings");
+    olc_display_string(ctx, theme, "Self:",
+        "format self",
+        channel->fmt_self[0] ? channel->fmt_self : "(system default)");
+    olc_display_string(ctx, theme, "Receiver:",
+        "format receiver",
+        channel->fmt_receiver[0] ? channel->fmt_receiver : "(system default)");
+    olc_display_infof(ctx, theme, "Placeholders: %%1$s = sender name, %%2$s = message text");
+    olc_display_infof(ctx, theme, "Use: format self|receiver <string>  or  format clear self|receiver");
+
+    olc_display_section(ctx, theme, "History Retention");
+    if (channel->history_max_len == 0)
+        olc_display_string(ctx, theme, "Max Messages:", "history max_len", "unlimited");
+    else
+        olc_display_number(ctx, theme, "Max Messages:", "history max_len", channel->history_max_len);
+    if (channel->history_max_age_seconds == 0)
+        olc_display_string(ctx, theme, "Max Age:", "history max_age", "unlimited");
+    else
+        olc_display_number(ctx, theme, "Max Age (sec):", "history max_age", channel->history_max_age_seconds);
+    olc_display_infof(ctx, theme, "Use: history max_len <n>  or  history max_age <seconds>  (0 = unlimited)");
 }

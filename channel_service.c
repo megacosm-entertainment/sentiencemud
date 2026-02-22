@@ -2,8 +2,10 @@
 #include <string.h>
 #include "merc.h"
 #include "channel_service.h"
+#include "channel_registry.h"
 #include "channel_filter.h"
 #include "channel_review.h"
+#include "account/penalty.h"
 
 static bool channel_service_ready = false;
 static time_t channel_subscription_last_sync = 0;
@@ -18,19 +20,9 @@ typedef struct channel_subscription_topic {
 static CHANNEL_SUBSCRIPTION_TOPIC channel_active_topics[CHANNEL_SUBSCRIPTION_MAX_TOPICS];
 static int channel_active_topic_count = 0;
 
-static const CHANNEL_DEFINITION channel_definitions[] = {
-    { "gossip", "Gossip", "gossip", CHANNEL_SCOPE_GLOBAL, true, {0} },
-    { "ooc", "OOC", "ooc", CHANNEL_SCOPE_GLOBAL, true, {0} },
-    { "quote", "Quote", "quote", CHANNEL_SCOPE_GLOBAL, true, {0} },
-    { "flame", "Flame", "flame", CHANNEL_SCOPE_GLOBAL, true, {0} },
-    { "helper", "Helper", "helper", CHANNEL_SCOPE_GLOBAL, true, {0} },
-    { "music", "Music", "music", CHANNEL_SCOPE_GLOBAL, true, {0} },
-    { "immtalk", "Immtalk", "immtalk", CHANNEL_SCOPE_GLOBAL, true, {0} },
-    { "yell", "Yell", "yell", CHANNEL_SCOPE_AREA, true, {0} },
-    { "gtell", "Group Tell", "gtell", CHANNEL_SCOPE_GROUP_ID, true, {0} },
-    { "chtalk", "Church Talk", "chtalk", CHANNEL_SCOPE_CHURCH_ID, true, {0} },
-    { NULL, NULL, NULL, CHANNEL_SCOPE_GLOBAL, false, {0} }
-};
+/* Channel definitions are now owned by channel_registry.c and loaded from
+ * data/system/channels.json.  channel_registry_init() is called during
+ * channel_service_init() to ensure defaults are available before load. */
 
 static bool channel_build_area_scope_topic(AREA_DATA *area, char *topic_buf, size_t topic_buf_sz)
 {
@@ -81,6 +73,16 @@ static bool channel_build_group_scope_topic(GROUP_DATA *group, char *topic_buf, 
     return true;
 }
 
+static bool channel_build_entity_topic(CHAR_DATA *ch, char *topic_buf, size_t topic_buf_sz)
+{
+    if (!ch || !topic_buf || topic_buf_sz == 0)
+        return false;
+    if (ch->id[0] == 0 && ch->id[1] == 0)
+        return false;
+    snprintf(topic_buf, topic_buf_sz, "rt:entity:%lu:%lu", ch->id[0], ch->id[1]);
+    return true;
+}
+
 static bool channel_build_church_scope_topic(CHURCH_DATA *church, char *topic_buf, size_t topic_buf_sz)
 {
     if (!church || !topic_buf || topic_buf_sz == 0)
@@ -93,22 +95,117 @@ static bool channel_build_church_scope_topic(CHURCH_DATA *church, char *topic_bu
     return true;
 }
 
-static const CHANNEL_DEFINITION *channel_find_definition(const char *channel_id)
+static const CHANNEL_DEF_DATA *channel_find_definition(const char *channel_id)
 {
-    int i;
-
-    if (IS_NULLSTR(channel_id))
-        return NULL;
-
-    for (i = 0; channel_definitions[i].id; i++) {
-        if (!str_cmp(channel_definitions[i].id, channel_id))
-            return &channel_definitions[i];
-    }
-
-    return NULL;
+    return channel_registry_find(channel_id);
 }
 
-static bool channel_build_topic_for_sender(const CHANNEL_DEFINITION *def,
+/**
+ * channel_topic_expand - Expand a topic_pattern with context variables.
+ *
+ * Walks `pattern` character-by-character, copying literals and substituting
+ * $variable tokens resolved from `def` and the optional `sender` context.
+ * sender may be NULL — variables requiring sender context expand to nothing.
+ *
+ * Supported tokens:
+ *   $channel_id, $area_uid, $region_uid,
+ *   $group_id1, $group_id2, $church_uid,
+ *   $entity_id1, $entity_id2
+ *
+ * @return true if at least one character was written; false on empty output.
+ */
+static bool channel_topic_expand(const char    *pattern,
+                                 const CHANNEL_DEF_DATA *def,
+                                 CHAR_DATA     *sender,
+                                 char          *out,
+                                 size_t         out_sz)
+{
+    const char *src = pattern;
+    char       *dst = out;
+    char       *end = out + out_sz - 1;   /* leave room for NUL */
+
+    if (!pattern || !out || out_sz == 0)
+        return false;
+
+    while (*src && dst < end) {
+        if (*src != '$') {
+            *dst++ = *src++;
+            continue;
+        }
+
+        /* Attempt to match a known $variable token */
+        const char *subst = NULL;
+        char        num[32];
+        size_t      skip  = 0;
+
+#define TRY_VAR(token, val_expr, len) \
+        if (strncmp(src, token, len) == 0) { \
+            subst = (val_expr); skip = (len); \
+        } else
+
+        TRY_VAR("$channel_id",  def->id,  11)
+        if (sender && sender->in_room && sender->in_room->area) {
+            AREA_DATA *area = sender->in_room->area;
+            TRY_VAR("$area_uid",
+                    (!IS_NULLSTR(area->area_topic)
+                         ? area->area_topic
+                         : (snprintf(num, sizeof(num), "%ld", area->uid), num)),
+                    9)
+            TRY_VAR("$region_uid", ({
+                AREA_REGION *rgn = get_room_region(sender->in_room);
+                if (rgn && !IS_NULLSTR(rgn->topic))
+                    subst = rgn->topic;
+                else if (rgn && rgn->uid > 0)
+                    subst = (snprintf(num, sizeof(num), "%ld", rgn->uid), num);
+                skip = 11;
+                (void)0;
+            }), 0)  /* handled inline above */
+        } else {
+            TRY_VAR("$area_uid",   NULL, 9)
+            TRY_VAR("$region_uid", NULL, 11)
+        }
+        if (sender && IS_VALID(sender->group)) {
+            TRY_VAR("$group_id1",
+                    (snprintf(num, sizeof(num), "%lu", sender->group->id[0]), num), 10)
+            TRY_VAR("$group_id2",
+                    (snprintf(num, sizeof(num), "%lu", sender->group->id[1]), num), 10)
+        } else {
+            TRY_VAR("$group_id1", NULL, 10)
+            TRY_VAR("$group_id2", NULL, 10)
+        }
+        if (sender && sender->church) {
+            TRY_VAR("$church_uid",
+                    (snprintf(num, sizeof(num), "%ld", sender->church->uid), num), 11)
+        } else {
+            TRY_VAR("$church_uid", NULL, 11)
+        }
+        if (sender) {
+            TRY_VAR("$entity_id1",
+                    (snprintf(num, sizeof(num), "%lu", sender->id[0]), num), 11)
+            TRY_VAR("$entity_id2",
+                    (snprintf(num, sizeof(num), "%lu", sender->id[1]), num), 11)
+        } else {
+            TRY_VAR("$entity_id1", NULL, 11)
+            TRY_VAR("$entity_id2", NULL, 11)
+        }
+        /* Unknown $token — copy the '$' literally */
+        { *dst++ = *src++; continue; }
+
+#undef TRY_VAR
+
+        src += skip;
+        if (subst) {
+            while (*subst && dst < end)
+                *dst++ = *subst++;
+        }
+        /* NULL subst → variable resolved to empty; just skip the token */
+    }
+
+    *dst = '\0';
+    return dst > out;
+}
+
+static bool channel_build_topic_for_sender(const CHANNEL_DEF_DATA *def,
                                            CHAR_DATA *sender,
                                            char *topic_buf,
                                            size_t topic_buf_sz)
@@ -143,6 +240,13 @@ static bool channel_build_topic_for_sender(const CHANNEL_DEFINITION *def,
         if (!sender->church)
             return false;
         return channel_build_church_scope_topic(sender->church, topic_buf, topic_buf_sz);
+
+    case CHANNEL_SCOPE_DIRECT_ENTITY:
+        /* For subscription: each player listens on their own entity topic. */
+        if (sender->id[0] == 0 && sender->id[1] == 0)
+            return false;
+        snprintf(topic_buf, topic_buf_sz, "rt:entity:%lu:%lu", sender->id[0], sender->id[1]);
+        return true;
 
     default:
         snprintf(topic_buf, topic_buf_sz, "rt:%s", def->id);
@@ -196,51 +300,100 @@ static void channel_service_sync_subscriptions(void)
 {
     CHANNEL_SUBSCRIPTION_TOPIC desired[CHANNEL_SUBSCRIPTION_MAX_TOPICS];
     int desired_count = 0;
-    int i;
+    int i, j, n;
     DESCRIPTOR_DATA *d;
+    CHAR_DATA *npc;
+    ITERATOR npc_it;
 
     memset(desired, 0, sizeof(desired));
+    n = channel_registry_count();
 
-    for (i = 0; channel_definitions[i].id; i++) {
+    /* 1. Persistent channels: subscribe regardless of online population.
+     *    Currently only GLOBAL-scope channels are meaningful as persistent;
+     *    a persistent non-GLOBAL channel would need special route logic. */
+    for (i = 0; i < n; i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
         char topic[128];
 
-        if (channel_definitions[i].scope == CHANNEL_SCOPE_GLOBAL) {
-            snprintf(topic, sizeof(topic), "rt:%s", channel_definitions[i].id);
+        if (!def->persistent)
+            continue;
+
+        if (def->scope == CHANNEL_SCOPE_GLOBAL) {
+            snprintf(topic, sizeof(topic), "rt:%s", def->id);
             channel_topic_list_add_ref(desired, &desired_count, topic);
         }
     }
 
+    /* 2. PC players: subscribe to topics matching their current context.
+     *    Skips GLOBAL (handled above via persistent flag). */
     for (d = descriptor_list; d; d = d->next) {
         CHAR_DATA *ch = d->original ? d->original : d->character;
-        int j;
 
         if (!ch || d->connected != CON_PLAYING || !ch->in_room || !ch->in_room->area)
             continue;
 
-        for (j = 0; channel_definitions[j].id; j++) {
+        for (j = 0; j < n; j++) {
+            const CHANNEL_DEF_DATA *def = channel_registry_get(j);
             char topic[128];
 
-            if (channel_definitions[j].scope == CHANNEL_SCOPE_GLOBAL)
-                continue;
+            if (def->persistent && def->scope == CHANNEL_SCOPE_GLOBAL)
+                continue;   /* already in desired set */
 
-            if (channel_build_topic_for_sender(&channel_definitions[j], ch, topic, sizeof(topic)))
+            if (channel_build_topic_for_sender(def, ch, topic, sizeof(topic)))
                 channel_topic_list_add_ref(desired, &desired_count, topic);
         }
     }
 
-    for (i = 0; i < channel_active_topic_count; i++) {
-        if (channel_topic_list_find(desired, desired_count, channel_active_topics[i].topic) < 0) {
-            if (!channel_transport_unsubscribe(channel_active_topics[i].topic)) {
-                log_stringf("ChannelService: unsubscribe failed for topic '%s'", channel_active_topics[i].topic);
+    /* 3. NPC characters: add subscriptions for context-bound scopes where
+     *    NPCs participate.  This ensures the server receives area/group/church
+     *    channel traffic even when only NPCs are present — important for
+     *    trigger delivery and cross-server Redis routing.
+     *
+     *    Excluded scopes:
+     *      GLOBAL        — handled by persistent flag above
+     *      DIRECT_ENTITY — tells to NPCs are delivered locally, not via pubsub
+     *      ROOM_WV       — handled when Stage 4 is implemented
+     */
+    iterator_start(&npc_it, loaded_chars);
+    while ((npc = (CHAR_DATA *)iterator_nextdata(&npc_it)) != NULL) {
+        if (!IS_NPC(npc) || !npc->in_room || !npc->in_room->area)
+            continue;
+
+        for (j = 0; j < n; j++) {
+            const CHANNEL_DEF_DATA *def = channel_registry_get(j);
+            char topic[128];
+
+            switch (def->scope) {
+            case CHANNEL_SCOPE_AREA:
+            case CHANNEL_SCOPE_REGION:
+            case CHANNEL_SCOPE_GROUP_ID:
+            case CHANNEL_SCOPE_CHURCH_ID:
+                if (channel_build_topic_for_sender(def, npc, topic, sizeof(topic)))
+                    channel_topic_list_add_ref(desired, &desired_count, topic);
+                break;
+            default:
+                break;
             }
+        }
+    }
+    iterator_stop(&npc_it);
+
+    /* 4. Reconcile: unsubscribe stale topics, subscribe new ones. */
+    for (i = 0; i < channel_active_topic_count; i++) {
+        if (channel_topic_list_find(desired, desired_count,
+                                    channel_active_topics[i].topic) < 0) {
+            if (!channel_transport_unsubscribe(channel_active_topics[i].topic))
+                log_stringf("ChannelService: unsubscribe failed for '%s'",
+                            channel_active_topics[i].topic);
         }
     }
 
     for (i = 0; i < desired_count; i++) {
-        if (channel_topic_list_find(channel_active_topics, channel_active_topic_count, desired[i].topic) < 0) {
-            if (!channel_transport_subscribe(desired[i].topic)) {
-                log_stringf("ChannelService: subscribe failed for topic '%s'", desired[i].topic);
-            }
+        if (channel_topic_list_find(channel_active_topics, channel_active_topic_count,
+                                    desired[i].topic) < 0) {
+            if (!channel_transport_subscribe(desired[i].topic))
+                log_stringf("ChannelService: subscribe failed for '%s'",
+                            desired[i].topic);
         }
     }
 
@@ -554,6 +707,33 @@ static void channel_deliver_chtalk_legacy(CHAR_DATA *sender, const char *plain_t
     }
 }
 
+static void channel_deliver_tell_legacy(CHAR_DATA *sender, CHAR_DATA *recipient, const char *plain_text)
+{
+    char msg[2 * MSL];
+
+    if (!sender || !recipient || IS_NULLSTR(plain_text))
+        return;
+
+    /* Ignore check at delivery time — guards against cross-server cases
+     * where the sender-side pre-checks in do_tell may not have run. */
+    if (!IS_NPC(recipient) && !IS_NPC(sender) && is_ignoring(recipient, sender))
+        return;
+
+    if (!IS_NPC(sender) && sender->pcdata->flag && SHOW_CHANNEL_FLAG(recipient, FLAG_TELLS))
+        sprintf(msg, "{R%s tells you '%s {R%s{R'{x\n\r", sender->name, sender->pcdata->flag, plain_text);
+    else if (IS_NPC(sender))
+        sprintf(msg, "{R%s tells you '%s'{x\n\r", pers(sender, recipient), plain_text);
+    else
+        sprintf(msg, "{R%s tells you '%s'{x\n\r", sender->name, plain_text);
+
+    msg[2] = UPPER(msg[2]);
+    send_to_char(msg, recipient);
+
+    recipient->reply = sender;
+
+    p_act_trigger((char *)plain_text, recipient, NULL, NULL, sender, NULL, NULL, NULL, NULL, TRIG_SPEECH);
+}
+
 static bool channel_dispatch_legacy_by_id(CHAR_DATA *sender, const char *channel_id, const char *plain_text)
 {
     if (!sender || IS_NULLSTR(channel_id) || IS_NULLSTR(plain_text))
@@ -589,6 +769,7 @@ static bool channel_dispatch_legacy_by_id(CHAR_DATA *sender, const char *channel
 static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
 {
     CHAR_DATA *sender;
+    const CHANNEL_DEFINITION *def;
 
     if (!msg || IS_NULLSTR(msg->channel_id))
         return;
@@ -600,6 +781,16 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
     if (!sender)
         return;
 
+    def = channel_find_definition(msg->channel_id);
+
+    if (def && def->scope == CHANNEL_SCOPE_DIRECT_ENTITY) {
+        /* Directed delivery: find specific recipient and deliver only to them. */
+        CHAR_DATA *recipient = channel_find_sender(msg->recipient_id0, msg->recipient_id1, NULL);
+        if (recipient)
+            channel_deliver_tell_legacy(sender, recipient, msg->message_text);
+        return;
+    }
+
     channel_dispatch_legacy_by_id(sender, msg->channel_id, msg->message_text);
 }
 
@@ -607,6 +798,10 @@ bool channel_service_init(void)
 {
     if (channel_service_ready)
         return true;
+
+    /* Bootstrap channel definitions: load defaults then overlay from disk. */
+    channel_registry_init();
+    channel_registry_load("data/system/channels.json");   /* optional; falls back to defaults */
 
     if (!channel_transport_init()) {
         log_string("ChannelService: failed to initialize transport");
@@ -674,6 +869,15 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
     if (!def)
         return false;
 
+    /* Channel penalty check — blocks muted/banned characters silently from
+     * the transport layer, regardless of which do_* command was used. */
+    if (!IS_NPC(sender) && sender->desc && sender->desc->account) {
+        if (has_channel_penalty(sender->desc->account, channel_id, sender->name)) {
+            send_to_char("You are currently muted on that channel.\n\r", sender);
+            return true;
+        }
+    }
+
     if (!channel_filter_evaluate(sender, channel_id, raw_text, &filter_result))
         return false;
 
@@ -729,6 +933,99 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
     return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text);
 }
 
+bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
+                                   CHAR_DATA *recipient, const char *raw_text)
+{
+    const CHANNEL_DEFINITION *def;
+    CHANNEL_MESSAGE msg;
+    CHANNEL_FILTER_RESULT filter_result;
+    const char *delivery_text;
+    char topic[128];
+    char sender_uid[64];
+    char recipient_uid[64];
+    char review_id[64];
+
+    if (!sender || IS_NULLSTR(channel_id) || !recipient || IS_NULLSTR(raw_text))
+        return false;
+
+    def = channel_find_definition(channel_id);
+    if (!def || def->scope != CHANNEL_SCOPE_DIRECT_ENTITY)
+        return false;
+
+    /* Channel penalty check for directed messages (tell) */
+    if (!IS_NPC(sender) && sender->desc && sender->desc->account) {
+        if (has_channel_penalty(sender->desc->account, channel_id, sender->name)) {
+            send_to_char("You are currently muted on that channel.\n\r", sender);
+            return true;
+        }
+    }
+
+    if (!channel_filter_evaluate(sender, channel_id, raw_text, &filter_result))
+        return false;
+
+    delivery_text = raw_text;
+    if (filter_result.decision == CHANNEL_FILTER_REDACT)
+        delivery_text = filter_result.filtered_text;
+
+    if (filter_result.queue_for_review) {
+        memset(&msg, 0, sizeof(msg));
+        msg.channel_id = channel_id;
+        msg.sender_name = sender->name;
+        snprintf(sender_uid, sizeof(sender_uid), "%lu:%lu", sender->id[0], sender->id[1]);
+        msg.sender_uid = sender_uid;
+        msg.sender_id0 = sender->id[0];
+        msg.sender_id1 = sender->id[1];
+        snprintf(recipient_uid, sizeof(recipient_uid), "%lu:%lu", recipient->id[0], recipient->id[1]);
+        msg.recipient_uid = recipient_uid;
+        msg.recipient_id0 = recipient->id[0];
+        msg.recipient_id1 = recipient->id[1];
+        msg.message_text = delivery_text;
+        msg.timestamp = current_time;
+
+        if (!channel_review_queue_append(&msg, filter_result.decision, filter_result.reason,
+                                         raw_text, delivery_text, review_id, sizeof(review_id))) {
+            log_stringf("ChannelService: review queue append failed for channel '%s'", channel_id);
+        }
+    }
+
+    if (filter_result.decision == CHANNEL_FILTER_BLOCK) {
+        send_to_char("Your message was blocked by channel filters.\n\r", sender);
+        return true;
+    }
+
+    /* Legacy or uninitialized: deliver directly without going through transport. */
+    if (!channel_service_ready || channel_transport_backend_mode() == CHANNEL_BACKEND_LEGACY_ITERATIVE) {
+        channel_deliver_tell_legacy(sender, recipient, delivery_text);
+        return true;
+    }
+
+    /* Build recipient entity topic for the pubsub publish. */
+    if (!channel_build_entity_topic(recipient, topic, sizeof(topic)))
+        return false;
+
+    memset(&msg, 0, sizeof(msg));
+    msg.channel_id = channel_id;
+    msg.topic = topic;
+    msg.sender_name = sender->name;
+    snprintf(sender_uid, sizeof(sender_uid), "%lu:%lu", sender->id[0], sender->id[1]);
+    msg.sender_uid = sender_uid;
+    msg.sender_id0 = sender->id[0];
+    msg.sender_id1 = sender->id[1];
+    snprintf(recipient_uid, sizeof(recipient_uid), "%lu:%lu", recipient->id[0], recipient->id[1]);
+    msg.recipient_uid = recipient_uid;
+    msg.recipient_id0 = recipient->id[0];
+    msg.recipient_id1 = recipient->id[1];
+    msg.message_text = delivery_text;
+    msg.timestamp = current_time;
+
+    if (channel_transport_publish(topic, &msg))
+        return true;
+
+    log_stringf("ChannelService: directed publish failed for channel '%s', using direct fallback", channel_id);
+    channel_deliver_tell_legacy(sender, recipient, delivery_text);
+    return true;
+}
+
 const char *channel_service_backend_name(void)
 {
     return channel_transport_backend_name();
@@ -750,10 +1047,11 @@ int channel_service_describe_subscriptions(CHAR_DATA *ch, char *out, size_t out_
 
     memset(topics, 0, sizeof(topics));
 
-    for (i = 0; channel_definitions[i].id; i++) {
+    for (i = 0; i < channel_registry_count(); i++) {
         char topic[128];
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
 
-        if (channel_build_topic_for_sender(&channel_definitions[i], ch, topic, sizeof(topic)))
+        if (def && channel_build_topic_for_sender(def, ch, topic, sizeof(topic)))
             channel_topic_list_add_ref(topics, &topic_count, topic);
     }
 

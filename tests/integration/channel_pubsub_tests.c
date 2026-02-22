@@ -21,6 +21,9 @@ static test_result_t test_channel_chtalk_delivery_ignore_filter(test_case_t *tes
 static test_result_t test_channel_quote_delivery_filtering(test_case_t *test);
 static test_result_t test_channel_send_without_init_fallback(test_case_t *test);
 static test_result_t test_channel_compact_publish_hydrated_delivery(test_case_t *test);
+static test_result_t test_channel_local_end_to_end_delivery(test_case_t *test);
+static test_result_t test_channel_tell_directed_delivery(test_case_t *test);
+static test_result_t test_channel_tell_ignore_filter(test_case_t *test);
 
 static int g_inbound_count = 0;
 static CHANNEL_MESSAGE g_last_msg;
@@ -76,6 +79,15 @@ test_result_t run_channel_pubsub_test_case(test_case_t *test)
     }
     else if (strcmp(test->test_type, "channel_compact_publish_hydrated_delivery_test") == 0) {
         result = test_channel_compact_publish_hydrated_delivery(test);
+    }
+    else if (strcmp(test->test_type, "channel_local_end_to_end_delivery_test") == 0) {
+        result = test_channel_local_end_to_end_delivery(test);
+    }
+    else if (strcmp(test->test_type, "channel_tell_directed_delivery_test") == 0) {
+        result = test_channel_tell_directed_delivery(test);
+    }
+    else if (strcmp(test->test_type, "channel_tell_ignore_filter_test") == 0) {
+        result = test_channel_tell_ignore_filter(test);
     }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -177,9 +189,11 @@ static test_result_t test_channel_local_inbound_dispatch(test_case_t *test)
     memset(&g_last_msg, 0, sizeof(g_last_msg));
     channel_transport_set_inbound_handler(test_inbound_handler);
 
+    memset(&msg, 0, sizeof(msg));
     msg.channel_id = "gossip";
     msg.topic = "rt:gossip";
     msg.sender_name = "Tester";
+    msg.sender_uid = "101:202";
     msg.sender_id0 = 101;
     msg.sender_id1 = 202;
     msg.message_text = "hello local queue";
@@ -1004,6 +1018,27 @@ static test_result_t test_channel_compact_publish_hydrated_delivery(test_case_t 
     free_string(receiver->name);
     receiver->name = str_dup("CompactReceiver");
 
+    sender->id[0] = 90001;
+    sender->id[1] = 1;
+    sender->position = POS_STANDING;
+    receiver->id[0] = 90002;
+    receiver->id[1] = 1;
+    receiver->position = POS_STANDING;
+
+    {
+        static AREA_DATA compact_area;
+        static ROOM_INDEX_DATA compact_room;
+        memset(&compact_area, 0, sizeof(compact_area));
+        memset(&compact_room, 0, sizeof(compact_room));
+        compact_area.name = "Compact Test Area";
+        compact_room.area = &compact_area;
+        sender->in_room = &compact_room;
+        receiver->in_room = &compact_room;
+        sender->next_in_room = receiver;
+        receiver->next_in_room = NULL;
+        compact_room.people = sender;
+    }
+
     saved_descriptor_list = descriptor_list;
     sender_desc->next = receiver_desc;
     receiver_desc->next = NULL;
@@ -1042,6 +1077,9 @@ static test_result_t test_channel_compact_publish_hydrated_delivery(test_case_t 
         return TEST_SKIP;
     }
 
+    /* Allow inbound worker thread time to establish PSUBSCRIBE before publishing. */
+    usleep(100000);
+
     if (!channel_service_send(sender, "quote", "compact-hydration-check")) {
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                     "channel_service_send failed in compact hydration test");
@@ -1063,6 +1101,300 @@ static test_result_t test_channel_compact_publish_hydrated_delivery(test_case_t 
     descriptor_list = saved_descriptor_list;
     game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
     game_settings.channel_publish_compact = saved_compact;
+
+    test_utils_destroy_fake_player(receiver, receiver_desc);
+    test_utils_destroy_fake_player(sender, sender_desc);
+
+    return success ? TEST_SUCCESS : TEST_FAILURE;
+}
+
+static test_result_t test_channel_local_end_to_end_delivery(test_case_t *test)
+{
+    CHAR_DATA *sender = NULL;
+    CHAR_DATA *receiver = NULL;
+    DESCRIPTOR_DATA *sender_desc = NULL;
+    DESCRIPTOR_DATA *receiver_desc = NULL;
+    DESCRIPTOR_DATA *saved_descriptor_list;
+    AREA_DATA area;
+    ROOM_INDEX_DATA room;
+    const char *saved_backend;
+    bool success = true;
+
+    (void)test;
+
+    memset(&area, 0, sizeof(area));
+    memset(&room, 0, sizeof(room));
+    area.name = "Local E2E Area";
+    area.uid = 555;
+    room.area = &area;
+
+    if (!test_utils_create_fake_player(&sender, &sender_desc) ||
+        !test_utils_create_fake_player(&receiver, &receiver_desc)) {
+        if (sender || sender_desc)
+            test_utils_destroy_fake_player(sender, sender_desc);
+        if (receiver || receiver_desc)
+            test_utils_destroy_fake_player(receiver, receiver_desc);
+        return TEST_ERROR;
+    }
+
+    free_string(sender->name);
+    sender->name = str_dup("LocalSender");
+    free_string(receiver->name);
+    receiver->name = str_dup("LocalReceiver");
+
+    sender->id[0] = 80001;
+    sender->id[1] = 1;
+    sender->position = POS_STANDING;
+    sender->in_room = &room;
+    receiver->id[0] = 80002;
+    receiver->id[1] = 1;
+    receiver->position = POS_STANDING;
+    receiver->in_room = &room;
+
+    sender->next_in_room = receiver;
+    receiver->next_in_room = NULL;
+    room.people = sender;
+
+    saved_descriptor_list = descriptor_list;
+    sender_desc->next = receiver_desc;
+    receiver_desc->next = NULL;
+    descriptor_list = sender_desc;
+
+    sender_desc->outtop = 0;
+    if (sender_desc->outbuf)
+        sender_desc->outbuf[0] = '\0';
+    receiver_desc->outtop = 0;
+    if (receiver_desc->outbuf)
+        receiver_desc->outbuf[0] = '\0';
+
+    saved_backend = game_settings.channel_backend;
+    game_settings.channel_backend = "local";
+
+    if (!channel_service_init()) {
+        descriptor_list = saved_descriptor_list;
+        game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+        test_utils_destroy_fake_player(receiver, receiver_desc);
+        test_utils_destroy_fake_player(sender, sender_desc);
+        return TEST_FAILURE;
+    }
+
+    if (!channel_service_send(sender, "gossip", "local-e2e-check")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "channel_service_send failed in local e2e delivery test");
+        success = false;
+    }
+
+    channel_service_pulse();
+
+    if (receiver_desc->outtop <= 0 || !strstr(receiver_desc->outbuf, "local-e2e-check")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "Receiver did not get local backend gossip delivery");
+        success = false;
+    }
+
+    if (sender_desc->outtop > 0 && strstr(sender_desc->outbuf, "local-e2e-check")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "Sender should not receive their own gossip via transport delivery");
+        success = false;
+    }
+
+    channel_service_shutdown();
+    descriptor_list = saved_descriptor_list;
+    game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+
+    test_utils_destroy_fake_player(receiver, receiver_desc);
+    test_utils_destroy_fake_player(sender, sender_desc);
+
+    return success ? TEST_SUCCESS : TEST_FAILURE;
+}
+
+/*
+ * test_channel_tell_directed_delivery
+ *
+ * Verifies that channel_service_send_directed delivers a tell to the specific
+ * recipient via local transport.  The sender should NOT receive a copy through
+ * the transport path (their echo is handled by do_tell, not the inbound path).
+ */
+static test_result_t test_channel_tell_directed_delivery(test_case_t *test)
+{
+    CHAR_DATA *sender;
+    CHAR_DATA *receiver;
+    DESCRIPTOR_DATA *sender_desc;
+    DESCRIPTOR_DATA *receiver_desc;
+    DESCRIPTOR_DATA *saved_descriptor_list;
+    const char *saved_backend;
+    static AREA_DATA area;
+    static ROOM_INDEX_DATA room;
+    bool success = true;
+
+    (void)test;
+
+    if (!test_utils_create_fake_player(&sender, &sender_desc) ||
+        !test_utils_create_fake_player(&receiver, &receiver_desc)) {
+        return TEST_ERROR;
+    }
+
+    memset(&area, 0, sizeof(area));
+    memset(&room, 0, sizeof(room));
+    area.name = "Tell Test Area";
+    room.area = &area;
+
+    sender->id[0]   = 91001;
+    sender->id[1]   = 1;
+    sender->position = POS_STANDING;
+    sender->in_room = &room;
+
+    receiver->id[0]  = 91002;
+    receiver->id[1]  = 1;
+    receiver->position = POS_STANDING;
+    receiver->in_room = &room;
+
+    sender->next_in_room   = receiver;
+    receiver->next_in_room = NULL;
+    room.people = sender;
+
+    saved_descriptor_list = descriptor_list;
+    sender_desc->next   = receiver_desc;
+    receiver_desc->next = NULL;
+    descriptor_list = sender_desc;
+
+    sender_desc->outtop = 0;
+    if (sender_desc->outbuf)
+        sender_desc->outbuf[0] = '\0';
+    receiver_desc->outtop = 0;
+    if (receiver_desc->outbuf)
+        receiver_desc->outbuf[0] = '\0';
+
+    saved_backend = game_settings.channel_backend;
+    game_settings.channel_backend = "local";
+
+    if (!channel_service_init()) {
+        descriptor_list = saved_descriptor_list;
+        game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+        test_utils_destroy_fake_player(receiver, receiver_desc);
+        test_utils_destroy_fake_player(sender, sender_desc);
+        return TEST_FAILURE;
+    }
+
+    if (!channel_service_send_directed(sender, "tell", receiver, "tell-e2e-check")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "channel_service_send_directed failed in tell directed delivery test");
+        success = false;
+    }
+
+    channel_service_pulse();
+
+    if (receiver_desc->outtop <= 0 || !strstr(receiver_desc->outbuf, "tell-e2e-check")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "Receiver did not get tell via local backend directed delivery");
+        success = false;
+    }
+
+    /* The sender's output should NOT include the recipient's copy — that's handled
+     * by do_tell's echo, which is separate from the transport path. */
+    if (sender_desc->outtop > 0 && strstr(sender_desc->outbuf, "TellReceiver tells you")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "Sender should not receive a tell-back echo via transport");
+        success = false;
+    }
+
+    channel_service_shutdown();
+    descriptor_list = saved_descriptor_list;
+    game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+
+    test_utils_destroy_fake_player(receiver, receiver_desc);
+    test_utils_destroy_fake_player(sender, sender_desc);
+
+    return success ? TEST_SUCCESS : TEST_FAILURE;
+}
+
+/*
+ * test_channel_tell_ignore_filter
+ *
+ * Verifies that the delivery-side ignore check in channel_deliver_tell_legacy
+ * blocks delivery when the recipient is ignoring the sender.
+ */
+static test_result_t test_channel_tell_ignore_filter(test_case_t *test)
+{
+    CHAR_DATA *sender;
+    CHAR_DATA *receiver;
+    DESCRIPTOR_DATA *sender_desc;
+    DESCRIPTOR_DATA *receiver_desc;
+    DESCRIPTOR_DATA *saved_descriptor_list;
+    const char *saved_backend;
+    static AREA_DATA area2;
+    static ROOM_INDEX_DATA room2;
+    IGNORE_DATA ignore_entry;
+    bool success = true;
+
+    (void)test;
+
+    if (!test_utils_create_fake_player(&sender, &sender_desc) ||
+        !test_utils_create_fake_player(&receiver, &receiver_desc)) {
+        return TEST_ERROR;
+    }
+
+    memset(&area2, 0, sizeof(area2));
+    memset(&room2, 0, sizeof(room2));
+    area2.name = "Tell Ignore Area";
+    room2.area = &area2;
+
+    sender->id[0]    = 92001;
+    sender->id[1]    = 1;
+    sender->position = POS_STANDING;
+    sender->in_room  = &room2;
+
+    receiver->id[0]  = 92002;
+    receiver->id[1]  = 1;
+    receiver->position = POS_STANDING;
+    receiver->in_room = &room2;
+
+    sender->next_in_room   = receiver;
+    receiver->next_in_room = NULL;
+    room2.people = sender;
+
+    /* Set up ignore: receiver ignores sender. */
+    memset(&ignore_entry, 0, sizeof(ignore_entry));
+    ignore_entry.name   = sender->name;
+    ignore_entry.reason = "test ignore";
+    ignore_entry.next   = NULL;
+    receiver->pcdata->ignoring = &ignore_entry;
+
+    saved_descriptor_list = descriptor_list;
+    sender_desc->next   = receiver_desc;
+    receiver_desc->next = NULL;
+    descriptor_list = sender_desc;
+
+    receiver_desc->outtop = 0;
+    if (receiver_desc->outbuf)
+        receiver_desc->outbuf[0] = '\0';
+
+    saved_backend = game_settings.channel_backend;
+    game_settings.channel_backend = "local";
+
+    if (!channel_service_init()) {
+        receiver->pcdata->ignoring = NULL;
+        descriptor_list = saved_descriptor_list;
+        game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+        test_utils_destroy_fake_player(receiver, receiver_desc);
+        test_utils_destroy_fake_player(sender, sender_desc);
+        return TEST_FAILURE;
+    }
+
+    channel_service_send_directed(sender, "tell", receiver, "ignored-tell");
+
+    channel_service_pulse();
+
+    if (receiver_desc->outtop > 0 && strstr(receiver_desc->outbuf, "ignored-tell")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "Receiver got tell despite having sender on ignore list");
+        success = false;
+    }
+
+    channel_service_shutdown();
+    receiver->pcdata->ignoring = NULL;
+    descriptor_list = saved_descriptor_list;
+    game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
 
     test_utils_destroy_fake_player(receiver, receiver_desc);
     test_utils_destroy_fake_player(sender, sender_desc);

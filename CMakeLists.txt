@@ -102,8 +102,10 @@ set(SOURCE_FILES
     bootstrap/bootstrap_files.c
     bootstrap/bootstrap_prompts.c
     bootstrap/bootstrap_reserved.c
+    channel_registry.c
     channel_service.c
     channel_filter.c
+    channel_moderation.c
     channel_review.c
     channel_transport.c
     channel_transport_local.c

@@ -40,7 +40,11 @@ typedef struct char_data    CHAR_DATA;
 #define PENALTY_BAN_EMAIL     8  /* Email-based ban on account             */
 #define PENALTY_BAN_HOST      9  /* Hostname pattern ban on account        */
 #define PENALTY_RESTRICT     10  /* Generic restriction (future use)       */
-#define PENALTY_MAX          11  /* Sentinel - keep last                   */
+#define PENALTY_CHAN_MUTE    11  /* Per-channel mute; extra=channel_id     */
+                                 /* (empty extra = all channels)           */
+#define PENALTY_CHAN_WARN    12  /* Per-channel warning (no enforcement);  */
+                                 /* extra=channel_id or empty for all      */
+#define PENALTY_MAX          13  /* Sentinel - keep last                   */
 
 /***************************************************************************
  * Penalty Scope                                                           *
@@ -145,6 +149,14 @@ bool          has_penalty(ACCOUNT_DATA *account, int type,
 PENALTY_DATA *find_penalty(ACCOUNT_DATA *account, int type,
                            const char *char_name);
 bool          is_penalty_expired(PENALTY_DATA *penalty);
+
+/* Channel-specific penalty check.
+ * Returns true if sender is muted on channel_id (or all channels).
+ * Checks PENALTY_NOCHANNELS and PENALTY_CHAN_MUTE.
+ * channel_id == NULL checks for any active all-channel block. */
+bool          has_channel_penalty(ACCOUNT_DATA *account,
+                                  const char *channel_id,
+                                  const char *char_name);
 
 /* Expiration management */
 int           expire_penalties(ACCOUNT_DATA *account);

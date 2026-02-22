@@ -181,6 +181,36 @@
       "expected_output": {
         "success": true
       }
+    },
+    {
+      "name": "channel_local_end_to_end_delivery",
+      "description": "Local backend delivers gossip from sender to receiver via transport queue round-trip",
+      "dependencies": [],
+      "test_type": "channel_local_end_to_end_delivery_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_directed_delivery",
+      "description": "channel_service_send_directed delivers tell only to the specific recipient via local transport",
+      "dependencies": [],
+      "test_type": "channel_tell_directed_delivery_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_ignore_filter",
+      "description": "Tell delivery is blocked at receive time when recipient is ignoring sender",
+      "dependencies": [],
+      "test_type": "channel_tell_ignore_filter_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
     }
   ]
 }

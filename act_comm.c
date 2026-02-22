@@ -1149,35 +1149,29 @@ void do_tell(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    /* Sender echo — shown immediately regardless of transport. */
     if (!IS_NPC(ch) && ch->pcdata->flag != NULL && IS_SET(ch->pcdata->channel_flags, FLAG_TELLS))
         sprintf(msg, "{RYou tell %s '%s {R%s{R'{x\n\r", pers(victim, ch), ch->pcdata->flag, buf);
     else
         sprintf(msg, "{RYou tell %s '%s{R'{x\n\r", pers(victim, ch), buf);
-
     send_to_char(msg, ch);
 
-    if (!IS_NPC(ch)) {
-            if(ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_TELLS))
-                sprintf(msg, "{R%s tells you '%s {R%s'{x\n\r", ch->name, ch->pcdata->flag, buf);
-            else
-                sprintf(msg, "{R%s tells you '%s'{x\n\r", ch->name, buf);
-    } else
-        sprintf(msg, "{R%s tells you '%s'{x\n\r", pers(ch, victim), buf);
-
-    msg[2] = UPPER(msg[2]);
-    send_to_char(msg, victim);
-
+    /* Idle notification to sender (use msg buffer to avoid clobbering buf). */
     if (victim->timer > 1)
     {
-    sprintf(buf, "{RNote: $E $Z been idle for %d minutes.{x", victim->timer);
-    act(buf, ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, get_verb_form(victim, "has", "have"));
+        sprintf(msg, "{RNote: $E $Z been idle for %d minutes.{x", victim->timer);
+        act(msg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, get_verb_form(victim, "has", "have"));
     }
 
-    victim->reply = ch;
-    ch->reply     = victim;
+    /* Sender's reply pointer set immediately. */
+    ch->reply = victim;
 
-    if (!IS_NPC(ch))
-        p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH);
+    /*
+     * Recipient delivery: channel service handles formatting, reply pointer
+     * on recipient, and TRIG_SPEECH.  Falls back to direct delivery in
+     * legacy or uninitialized mode.  buf still holds the stripped message text.
+     */
+    channel_service_send_directed(ch, "tell", victim, buf);
 }
 
 

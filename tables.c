@@ -40,6 +40,7 @@
 #include "olc.h"
 #include "tables.h"
 #include "scripts.h"
+#include "channel_moderation.h"
 
 const struct hint_type hintsTable[] =
 {
@@ -3533,6 +3534,11 @@ const struct do_func_type do_func_table[] =
         { "do_leaderboard", do_leaderboard },
         { "do_penalty", do_penalty },
         { "do_bonus", do_bonus },
+        { "do_chanmute", do_chanmute },
+        { "do_chanban", do_chanban },
+        { "do_chanwarn", do_chanwarn },
+        { "do_chanunmute", do_chanunmute },
+        { "do_chanpenalties", do_chanpenalties },
         { "do_prefadmin", do_prefadmin },
         { "do_raceunlock", do_raceunlock },
         { "do_raceinfo", do_raceinfo },

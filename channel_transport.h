@@ -21,9 +21,12 @@ typedef struct channel_message {
     const char *history_stream;
     const char *history_id;
     const char *sender_name;
-    const char *sender_uid;    /* canonical sender id: "id0:id1" */
+    const char *sender_uid;       /* canonical sender id: "id0:id1" */
     unsigned long sender_id0;
     unsigned long sender_id1;
+    const char *recipient_uid;    /* for DIRECT_ENTITY channels: "id0:id1"; NULL for broadcast */
+    unsigned long recipient_id0;
+    unsigned long recipient_id1;
     const char *message_text;
     time_t timestamp;
 } CHANNEL_MESSAGE;

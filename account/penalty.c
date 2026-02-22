@@ -39,6 +39,8 @@ const char *penalty_type_names[] = {
     "ban-email",    /* PENALTY_BAN_EMAIL   */
     "ban-host",     /* PENALTY_BAN_HOST    */
     "restrict",     /* PENALTY_RESTRICT    */
+    "chanmute",     /* PENALTY_CHAN_MUTE   */
+    "chanwarn",     /* PENALTY_CHAN_WARN   */
     NULL
 };
 
@@ -611,6 +613,59 @@ PENALTY_DATA *find_penalty(ACCOUNT_DATA *account, int type,
             return p;
     }
     return NULL;
+}
+
+/**
+ * has_channel_penalty - Check if a character is blocked from a specific channel
+ *
+ * Returns true if the account has any active penalty that prevents the
+ * named character from sending on channel_id.  Checks in priority order:
+ *
+ *   1. PENALTY_NOCHANNELS  — blocks all channels (extra ignored)
+ *   2. PENALTY_CHAN_MUTE   — blocks a specific channel (extra = channel_id)
+ *                            or all channels if extra is empty
+ *
+ * PENALTY_CHAN_WARN entries are informational only and never block.
+ *
+ * @param account     Account to check
+ * @param channel_id  Channel being used (e.g. "gossip"); NULL = any block
+ * @param char_name   Character name for character-scoped penalty matching
+ * @return            true if the character is blocked from this channel
+ */
+bool has_channel_penalty(ACCOUNT_DATA *account,
+                         const char *channel_id,
+                         const char *char_name)
+{
+    PENALTY_DATA *p;
+
+    if (!account)
+        return false;
+
+    /* Global channel block supersedes per-channel entries */
+    if (find_penalty(account, PENALTY_NOCHANNELS, char_name))
+        return true;
+
+    /* Per-channel mute: extra empty = all channels; extra set = specific channel */
+    for (p = account->penalties; p; p = p->next) {
+        if (p->type != PENALTY_CHAN_MUTE)
+            continue;
+        if (is_penalty_expired(p))
+            continue;
+
+        /* Scope check: account-scoped always applies; character-scoped requires name match */
+        if (p->scope == PENALTY_SCOPE_CHARACTER
+            && (!char_name || str_cmp(p->target_name, char_name)))
+            continue;
+
+        /* extra empty = all channels; extra matches specific channel_id */
+        if (!p->extra || !p->extra[0])
+            return true;   /* all-channel mute */
+
+        if (channel_id && !str_cmp(p->extra, channel_id))
+            return true;   /* channel-specific mute */
+    }
+
+    return false;
 }
 
 /**

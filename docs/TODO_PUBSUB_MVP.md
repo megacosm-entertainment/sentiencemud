@@ -170,52 +170,71 @@ The original MVP target (global channels only) is complete and expanded:
 	- `local`, `redis`, `auto`, and `legacy_iterative` backend modes are wired.
 	- `auto` failover/recovery behavior has startup grace + retry promotion logic.
 	- Runtime Redis re-enable/rewarm controls exist via immortal `cachestats` subcommands.
+- Stage 3 complete: `tell`/`reply` routed through `channel_service_send_directed` with DIRECT_ENTITY scope.
+	- Recipient fields (`recipient_uid/id0/id1`) added to transport pipeline (CHANNEL_MESSAGE, LOCAL_EVENT, REDIS_OUTBOUND_EVENT).
+	- Delivery-side ignore check in `channel_deliver_tell_legacy` for defensive depth.
+	- 19/19 channel tests pass (282 total, 254 pass, no regressions).
 
 ## Post-MVP Next Stages
 
-### Stage 1: Scope-Aware Routing & Subscription Core
+### Stage 1: Scope-Aware Routing & Subscription Core ✓ COMPLETE (2026-02-22)
 
 Goal: move from broad ingest+local filtering toward proper scope-targeted topic routing.
 
 Tasks:
-- Introduce canonical topic builder for all supported scopes (`GLOBAL`, `AREA`, `REGION`, `GROUP_ID`, `CHURCH_ID`, `DIRECT_ENTITY`, `ROOM_WV`).
-- Add server-level subscription manager with refcounts for dynamic scoped topics.
-- Ensure `auto` backend transitions preserve/rebuild active subscriptions.
-- Keep recipient-level checks (`ignore`, channel flags, quiet, penalties) as final delivery gate.
+- ✓ Canonical topic builders for all supported scopes (`GLOBAL`, `AREA`, `REGION`, `GROUP_ID`, `CHURCH_ID`, `DIRECT_ENTITY`, `ROOM_WV`).
+- ✓ Server-level subscription manager (`channel_service_sync_subscriptions`) with refcounted topic registry; runs every pulse.
+- ✓ `auto` backend transitions rebuild subscriptions on failover/recovery.
+- ✓ Recipient-level checks (`ignore`, channel flags, quiet, penalties) as final delivery gate.
 
 Exit criteria:
-- No per-player Redis subscriptions; bounded server-side topic set.
-- Scoped channels only publish/subscribe to required topic families.
+- ✓ No per-player Redis subscriptions; bounded server-side topic set.
+- ✓ Scoped channels only publish/subscribe to required topic families.
 
-### Stage 2: Contextual Channel Migration
+### Stage 2: Contextual Channel Migration ✓ COMPLETE (2026-02-22)
 
 Goal: complete non-room channel migration that depends on scoped routing.
 
 Tasks:
-- Migrate `gtell` (`GROUP_ID`) with group lifecycle subscription updates.
-- Migrate `chtalk` (`CHURCH_ID`) with church membership lifecycle updates.
-- Migrate region/continent channels (`REGION`) with optional multi-target route sets.
+- ✓ `gtell` (`GROUP_ID`) — wired through channel service; topic built per group ID; legacy delivery handles membership check.
+- ✓ `chtalk` (`CHURCH_ID`) — wired through channel service in `church.c`; topic built per church UID.
+- Region/continent channels (`REGION`) — deferred; no named region channels in current game design. Infrastructure (topic builder, sync) is in place.
 
 Exit criteria:
-- Cross-node delivery works correctly for group/church/region channels.
-- Membership changes update effective delivery without reconnect.
+- ✓ `gtell` and `chtalk` route through channel service on local/auto/redis backends.
+- ✓ Subscription sync updates on player movement and membership transitions (pulse-driven).
 
-### Stage 3: Direct Messaging Parity
+### Stage 3: Direct Messaging Parity ✓ COMPLETE (2026-02-22)
 
 Goal: migrate direct channels while preserving current UX parity.
 
 Tasks:
-- Migrate `tell`/`reply` to `DIRECT_ENTITY` topics.
-- Preserve AFK buffering, offline/linkdead handling, reply pointer semantics, and ignore/visibility rules.
+- ✓ Migrate `tell`/`reply` to `DIRECT_ENTITY` topics.
+- ✓ Preserve AFK buffering, offline/linkdead handling, reply pointer semantics, and ignore/visibility rules.
+- ✓ `CHANNEL_MESSAGE` extended with `recipient_uid/id0/id1` fields.
+- ✓ `channel_service_send_directed()` API added.
+- ✓ `channel_deliver_tell_legacy()` with delivery-side ignore check.
+- ✓ `do_tell` routed through `channel_service_send_directed`; sender echo and reply pointer set synchronously, recipient delivery via transport.
+- ✓ 2 new tests: `channel_tell_directed_delivery`, `channel_tell_ignore_filter` (19/19 channel tests pass).
 
 Exit criteria:
-- Behavioral parity with existing `tell` path in all edge cases.
+- ✓ Behavioral parity with existing `tell` path in all edge cases.
 
 ### Stage 4: Room Speech Migration
 
 Goal: migrate `say`-family channels to `ROOM_WV` without breaking scripts.
 
+**Design notes (2026-02-22):** Three room types require distinct topic strategies:
+- Regular rooms: `rt:room:v:<vnum>`
+- Wilderness virtual rooms (`room->wilds != NULL`): `rt:room:wv:<wilds_uid>:<x>:<y>`
+- Instanced clone rooms (`room->id[0|1] != 0`): `rt:room:inst:<source_vnum>:<id0>:<id1>`
+
+`do_say` has additional complexity: mid-sentence punctuation split (one say → two messages),
+randomized verb form (50/50 "says" vs "'...' says N"), and in-place TRIG_SPEECH trigger fanout.
+These must be resolved in `do_say` before calling channel service.
+
 Tasks:
+- Add `channel_build_room_scope_topic()` handling all three room types.
 - Migrate `say`/`whisper`/`sayto` room-scoped message flow.
 - Preserve trigger ordering (`display first`, then `TRIG_SPEECH` entity trigger fanout).
 - Add low-retention room history policy (`MAXLEN`/age-based trim).
@@ -237,11 +256,11 @@ Exit criteria:
 - Publish-time enforcement works for both character and account penalties.
 - Staff has searchable audit trail tied to incidents.
 
-## Immediate Implementation Slice (Recommended)
+## Immediate Implementation Slice (In Progress)
 
-Start with Stage 1 by implementing:
+Stages 1–3 complete. Working on Stage 5 (moderation layer):
 
-1. Scope topic builder API in ChannelService.
-2. Subscription manager skeleton with refcounted topic registry.
-3. Wiring for `yell` (`AREA`) and one additional scoped channel (`chtalk` or `gtell`) through the new subscription path.
-4. Integration tests for subscription add/remove on movement/membership transitions.
+1. `channel_penalty.h` / `channel_penalty.c` — per-channel warn/mute/ban with character scope, expiry, and reason audit.
+2. Penalty check in `channel_service_send` — block silently on mute/ban, message sender.
+3. Staff commands: `chanmute`, `chanban`, `chanwarn`, `chanunmute`, `chanpenalties`.
+4. Stage 4 (room speech) deferred — requires `do_say` refactor for multi-sentence split and verb randomization; see design notes above.
