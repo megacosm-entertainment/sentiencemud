@@ -146,6 +146,8 @@ The "Channel Definition" becomes the brain of the system.
 
 The `cedit` OLC editor becomes even more critical in this model for managing the more complex channel definitions.
 
+**Implementation constraint:** `cedit` must follow existing OLC editor conventions used by editors like `medit` and `cmdedit` (framework-based entry/interpreter, tab/layout rendering patterns, command table structure, permission gating, show/display style, and change tracking behavior). `cedit` should be treated as another first-class editor module, not a bespoke command parser.
+
 ## 5. High-Level Implementation Plan
 
 The plan is adjusted to reflect the unified approach.
@@ -174,6 +176,31 @@ The plan is adjusted to reflect the unified approach.
       *   Handling group create/disband and membership transitions so topic membership follows current group composition.
     -   Implement subscription management for `CHURCH_ID` channels (joining/leaving churches).
     -   Refactor `do_say`, `do_yell`, `do_tell` (using `DIRECT_ENTITY` with `unique_id`), `do_gtell` (using `GROUP_ID` with `GROUP_DATA->id`), `do_chtalk` (using `CHURCH_ID`), and region channels (`REGION`) to use the generic handler.
+
+  ### 5.1 Phase-Gate Reality Check (2026-02-22)
+
+  To avoid scope drift, **Phase 2+ work should be treated as provisional until this Phase 1 gate is complete**.
+
+  #### Phase 1 Gate (Must Be Complete Before New Phase 2/3/4 Scope)
+
+  - [x] `cedit` design finalized (data model + command surface + persistence contract)
+  - [x] `cedit` implementation skeleton in code (editor entry points and validation flow)
+  - [x] Content filtering service interface defined (decision model: allow/redact/block/review)
+  - [x] Generic channel handler integrates filtering decision path before publish
+  - [x] Staff Review Queue stream contract defined (`audit:filtered_messages` payload schema)
+  - [x] Staff review tool (`rview`) command/OLC spec finalized
+  - [x] `rview` implementation skeleton present (list/read/ack action flow)
+
+  #### What Is Already Done (Useful, but Not a Full Phase 1 Exit)
+
+  - ChannelService exists and is used for multiple channel send paths.
+  - Scoped topic generation and subscription reconciliation are implemented.
+  - Final recipient gate parity (`quiet`, channel-off bits, `ignore`) has strong coverage in integration tests.
+  - Local fallback behavior is working for degraded/no-init scenarios.
+
+  #### Re-baseline Rule
+
+  Until all Phase 1 gate items above are complete, prioritize **design + scaffolding** over additional channel migrations or transport-depth work.
 
 ## 6. Channel Moderation System
 

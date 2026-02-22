@@ -6335,6 +6335,7 @@ struct area_region_data
     long uid;
 
     char *name;
+    char *topic;
     char *description;
     char *comments;
 
@@ -6420,6 +6421,7 @@ struct	area_data
 
     char *file_name;
     char *name;
+    char *area_topic;
     char *credits;
     char *  description;
     char *  comments;

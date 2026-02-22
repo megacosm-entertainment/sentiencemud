@@ -103,6 +103,8 @@ set(SOURCE_FILES
     bootstrap/bootstrap_prompts.c
     bootstrap/bootstrap_reserved.c
     channel_service.c
+    channel_filter.c
+    channel_review.c
     channel_transport.c
     channel_transport_local.c
     channel_transport_redis.c
@@ -125,6 +127,7 @@ set(SOURCE_FILES
     editors/areas/aedit.c
     editors/blueprints/bpedit.c
     editors/blueprints/bsedit.c
+    editors/channels/cedit.c
     editors/commands/cmdedit.c
     editors/corpses/corpsedit.c
     editors/dungeons/dngedit.c
@@ -227,6 +230,7 @@ set(SOURCE_FILES
     mxp_links.c
     quest.c
     reputation.c
+    rview.c
     io/cache/redis_cache.c
     io/cache/async_cache.c
     io/json/json_common.c

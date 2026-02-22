@@ -577,7 +577,6 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 void do_flame(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
-    DESCRIPTOR_DATA *d;
 
     if (!argument[0]) {
         if (IS_SET(ch->comm,COMM_NO_FLAMING))
@@ -604,20 +603,7 @@ void do_flame(CHAR_DATA *ch, char *argument)
         else
             sprintf(msg, "{r({WF{r): You flame '{r%s{r'{x\n\r", buf);
         send_to_char(msg, ch);
-        for (d = descriptor_list; d; d = d->next) {
-            CHAR_DATA *victim = d->original ? d->original : d->character;
-
-            if (d->connected == CON_PLAYING && d->character != ch &&
-                !IS_SET(victim->comm,COMM_NO_FLAMING) &&
-                !IS_SET(victim->comm,COMM_QUIET) &&
-                !is_ignoring(d->character, ch)) {
-                if (!IS_NPC(d->character) && !IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(d->character, FLAG_FLAMING))
-                    sprintf(msg, "%s {r%s", ch->pcdata->flag, buf);
-                else
-                    sprintf(msg, "{r%s", buf);
-                act_new("{r({WF{r): $$n flames '$t{r'{x", ch, d->character, NULL, NULL, NULL,NULL,NULL,msg,NULL, TO_VICT,POS_DEAD,NULL);
-            }
-        }
+        channel_service_send(ch, "flame", buf);
     }
 }
 
@@ -639,7 +625,6 @@ void do_flame(CHAR_DATA *ch, char *argument)
 void do_helper(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
-    DESCRIPTOR_DATA *d;
 
     if (!argument[0]) {
         if (IS_SET(ch->comm,COMM_NOHELPER)) {
@@ -670,23 +655,7 @@ void do_helper(CHAR_DATA *ch, char *argument)
         else
             sprintf(msg, "{Y({BH{Y)--> You say:{Y '%s{Y'{x\n\r", buf);
         send_to_char(msg, ch);
-
-        for (d = descriptor_list; d; d = d->next) {
-            CHAR_DATA *victim = d->original ? d->original : d->character;
-
-            if (d->connected == CON_PLAYING && victim != ch &&
-                !IS_SET(victim->comm,COMM_NOHELPER) &&
-                (IS_SET(victim->act[0], PLR_HELPER) || IS_IMMORTAL(victim)) &&
-                !IS_SET(victim->comm,COMM_QUIET) && !is_ignoring(victim, ch)) {
-                if (!IS_NPC(victim) && !IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(victim, FLAG_HELPER))
-                    sprintf(msg, "%s {Y%s", ch->pcdata->flag, buf);
-                else
-                    sprintf(msg, "%s", buf);
-
-                sprintf(msg, "{Y({BH{Y)--> %s: %s{Y'{x\n\r", ch->name, buf);
-                send_to_char(msg, victim);
-            }
-        }
+        channel_service_send(ch, "helper", buf);
     }
 }
 
@@ -731,7 +700,6 @@ void do_hints(CHAR_DATA *ch, char *argument)
 void do_music(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH], msg[2*MSL];
-    DESCRIPTOR_DATA *d;
 
     if (!argument[0]) {
         if (IS_SET(ch->comm,COMM_NOMUSIC))
@@ -757,21 +725,7 @@ void do_music(CHAR_DATA *ch, char *argument)
         else
             sprintf(msg, "{Y(o/~): %s{x\n\r", buf);
         send_to_char(msg, ch);
-        for (d = descriptor_list; d; d = d->next) {
-            CHAR_DATA *victim = d->original ? d->original : d->character;
-
-            if (d->connected == CON_PLAYING && d->character != ch &&
-                !IS_SET(victim->comm,COMM_NOMUSIC) &&
-                !IS_SET(victim->comm,COMM_QUIET) &&
-                !is_ignoring(d->character, ch)) {
-                if (!IS_NPC(victim) && !IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(victim, FLAG_MUSIC))
-                    sprintf(msg, "%s {Y%s", ch->pcdata->flag, buf);
-                else
-                    sprintf(msg, "%s", buf);
-
-                act_new("{Y($$n): o/~ $t{x", ch,d->character,NULL, NULL,NULL,NULL,NULL, msg,NULL,TO_VICT,POS_SLEEPING,NULL);
-            }
-        }
+        channel_service_send(ch, "music", buf);
     }
 }
 
@@ -791,9 +745,6 @@ void do_music(CHAR_DATA *ch, char *argument)
  */
 void do_immtalk(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
-    DESCRIPTOR_DATA *d;
-
     if (!argument[0]) {
         if (IS_SET(ch->comm,COMM_NOWIZ))
             send_to_char("Immortal channel is now ON\n\r",ch);
@@ -802,14 +753,8 @@ void do_immtalk(CHAR_DATA *ch, char *argument)
         TOGGLE_BIT(ch->comm,COMM_NOWIZ);
     } else {
         REMOVE_BIT(ch->comm,COMM_NOWIZ);
-
-        sprintf(buf, "{B[{G$n{B]: %s{x", argument);
         act_new("{B[{G$n{B]: $t{x",ch,NULL,NULL, NULL, NULL,NULL,NULL,argument,NULL,TO_CHAR,POS_DEAD,NULL);
-        for (d = descriptor_list; d; d = d->next) {
-            if (d->connected == CON_PLAYING && IS_IMMORTAL(d->character) &&
-                !IS_SET(d->character->comm,COMM_NOWIZ))
-                act_new("{B[{G$$n{B]: $t{x",ch,d->character,NULL, NULL,NULL,NULL,NULL,argument,NULL,TO_VICT,POS_DEAD,NULL);
-        }
+        channel_service_send(ch, "immtalk", argument);
     }
 }
 
@@ -1287,7 +1232,6 @@ void do_reply(CHAR_DATA *ch, char *argument)
 void do_yell(CHAR_DATA *ch, char *argument)
 {
     char buf[MSL], msg[2*MSL];
-    DESCRIPTOR_DATA *d;
 
     if (IS_SET(ch->comm, COMM_NOCHANNELS)
         || (!IS_NPC(ch) && ch->desc && ch->desc->account
@@ -1338,24 +1282,7 @@ void do_yell(CHAR_DATA *ch, char *argument)
 
     send_to_char(msg, ch);
 
-    for (d = descriptor_list; d != NULL; d = d->next)
-    {
-    if (d->connected == CON_PLAYING
-    && d->character != ch
-    && d->character->in_room != NULL
-    && d->character->in_room->area == ch->in_room->area
-    && !IS_SET(d->character->comm,COMM_QUIET)
-    && !is_ignoring(d->character, ch)
-    && !IS_SET(d->character->comm, COMM_NOYELL))
-    {
-    if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(d->character, FLAG_YELL))
-    sprintf(msg, "%s {Y%s", ch->pcdata->flag, buf);
-    else
-    sprintf(msg, "%s", buf);
-
-    act("{Y$n yells '$t{Y'{x",ch,d->character, NULL, NULL, NULL, msg, NULL,TO_VICT, NULL, NULL);
-    }
-    }
+    channel_service_send(ch, "yell", buf);
 }
 
 
@@ -2644,7 +2571,6 @@ void do_gtell(CHAR_DATA *ch, char *argument)
     while(( gch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
         if ((IS_VALID(group) && gch->group == group) || (!IS_VALID(group) && is_same_group(gch, ch))) {
-            act_new("{C$$n tells the group '$t'{x", ch,gch,NULL, NULL, NULL,NULL,NULL,argument,NULL,TO_VICT,POS_SLEEPING,NULL);
             if (gch != ch)
                 another_person = true;
         }
@@ -2655,6 +2581,19 @@ void do_gtell(CHAR_DATA *ch, char *argument)
         send_to_char("{CYou tell your group '", ch);
         send_to_char(argument, ch);
         send_to_char("'{x\n\r", ch);
+
+        if (!channel_service_send(ch, "gtell", argument)) {
+            if (IS_VALID(group) && group->members)
+                iterator_start(&it, group->members);
+            else
+                iterator_start(&it, loaded_chars);
+
+            while ((gch = (CHAR_DATA *)iterator_nextdata(&it))) {
+                if (gch != ch && ((IS_VALID(group) && gch->group == group) || (!IS_VALID(group) && is_same_group(gch, ch))))
+                    act_new("{C$$n tells the group '$t'{x", ch, gch, NULL, NULL, NULL, NULL, NULL, argument, NULL, TO_VICT, POS_SLEEPING, NULL);
+            }
+            iterator_stop(&it);
+        }
     } else
         send_to_char("There are no members in your group.\n\r", ch);
 
@@ -4012,26 +3951,23 @@ void do_quote(CHAR_DATA *ch, char *argument)
 
     send_to_char(msg, ch);
 
-    for (d = descriptor_list; d != NULL; d = d->next)
-    {
-    CHAR_DATA *victim;
+    if (!channel_service_send(ch, "quote", buf)) {
+        for (d = descriptor_list; d != NULL; d = d->next)
+        {
+        CHAR_DATA *victim;
 
-    victim = d->original ? d->original : d->character;
+        victim = d->original ? d->original : d->character;
 
-    if (d->connected == CON_PLAYING &&
-    d->character != NULL &&
-    d->character != ch &&
-    !IS_SET(victim->comm,COMM_NOQUOTE) &&
-    !IS_SET(victim->comm,COMM_QUIET) &&
-    !is_ignoring(d->character, ch))
-    {
-    if (!IS_NPC(ch) && ch->pcdata->flag != NULL
-    && !IS_NPC(victim) && IS_SET(victim->pcdata->channel_flags, FLAG_QUOTE))
-    sprintf(msg, "%s {W%s", ch->pcdata->flag, buf);
-    else
-    sprintf(msg, "%s", buf);
-    act_new("{x$$n quotes {D\"{W$t{D\"{x", ch, d->character,NULL, NULL, NULL,NULL,NULL, msg,NULL, TO_VICT,POS_SLEEPING,NULL);
-    }
+        if (channel_can_deliver_to_descriptor(ch, d, COMM_NOQUOTE, true, true, &victim))
+        {
+        if (!IS_NPC(ch) && ch->pcdata->flag != NULL
+        && !IS_NPC(victim) && SHOW_CHANNEL_FLAG(victim, FLAG_QUOTE))
+        sprintf(msg, "%s {W%s", ch->pcdata->flag, buf);
+        else
+        sprintf(msg, "%s", buf);
+        act_new("{x$$n quotes {D\"{W$t{D\"{x", ch, victim,NULL, NULL, NULL,NULL,NULL, msg,NULL, TO_VICT,POS_SLEEPING,NULL);
+        }
+        }
     }
     }
 }

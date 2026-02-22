@@ -1975,6 +1975,7 @@ AREA_DATA *new_area( void )
     SET_MEMTYPE(pArea,MEMTYPE_AREA);
     pArea->next             =   NULL;
     pArea->name             =   str_dup( "New area" );
+    pArea->area_topic       =   str_dup( "" );
     pArea->area_flags       =   AREA_ADDED;
     pArea->security         =   1;
     pArea->builders         =   str_dup( "None" );
@@ -2013,6 +2014,7 @@ AREA_DATA *new_area( void )
     pArea->region.area = pArea;
     pArea->region.uid = 0;
     pArea->region.name = str_dup("default region");
+    pArea->region.topic = str_dup("");
     pArea->region.description = str_dup("");
     pArea->region.comments = str_dup("");
     pArea->region.x = -1;
@@ -2036,6 +2038,7 @@ void free_area( AREA_DATA *pArea )
     OLC_POINT_BOOST *boost, *boost_next;
 
     free_string( pArea->name );
+    free_string( pArea->area_topic );
     free_string( pArea->file_name );
     free_string( pArea->builders );
     free_string( pArea->credits );
@@ -2046,6 +2049,7 @@ void free_area( AREA_DATA *pArea )
     list_destroy(pArea->regions);
 
     free_string(pArea->region.name);
+    free_string(pArea->region.topic);
     free_string(pArea->region.description);
     free_string(pArea->region.comments);
     list_destroy(pArea->region.players);
@@ -2084,6 +2088,7 @@ AREA_REGION *new_area_region( void )
     memset(region, 0, sizeof(AREA_REGION));
 
     region->name = str_dup("");
+    region->topic = str_dup("");
     region->description = str_dup("");
     region->comments = str_dup("");
     region->x = -1;
@@ -2105,6 +2110,7 @@ void free_area_region( AREA_REGION *region )
     if (!IS_VALID(region)) return;
 
     free_string(region->name);
+    free_string(region->topic);
     free_string(region->description);
     free_string(region->comments);
     list_destroy(region->players);

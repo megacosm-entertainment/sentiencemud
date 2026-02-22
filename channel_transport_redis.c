@@ -13,6 +13,7 @@ typedef struct redis_outbound_event {
     char topic[128];
     char channel_id[32];
     char sender_name[64];
+    char sender_uid[64];
     unsigned long sender_id0;
     unsigned long sender_id1;
     char message_text[MSL];
@@ -189,10 +190,11 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
     snprintf(history_stream, sizeof(history_stream), "history:%s", evt->topic);
 
     reply = redisCommand(command_ctx,
-                         "XADD %s * channel %s sender %s sender_id0 %lu sender_id1 %lu message %s ts %ld",
+                         "XADD %s * channel %s sender %s sender_uid %s sender_id0 %lu sender_id1 %lu message %s ts %ld",
                          history_stream,
                          evt->channel_id,
                          evt->sender_name,
+                         evt->sender_uid,
                          evt->sender_id0,
                          evt->sender_id1,
                          evt->message_text,
@@ -208,6 +210,7 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
     json_object_set_new(payload, "channel_id", json_string(evt->channel_id));
     json_object_set_new(payload, "topic", json_string(evt->topic));
     json_object_set_new(payload, "sender_name", json_string(evt->sender_name));
+    json_object_set_new(payload, "sender_uid", json_string(evt->sender_uid));
     json_object_set_new(payload, "sender_id0", json_integer((json_int_t)evt->sender_id0));
     json_object_set_new(payload, "sender_id1", json_integer((json_int_t)evt->sender_id1));
     json_object_set_new(payload, "message_text", json_string(evt->message_text));
@@ -266,6 +269,10 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
     if (json_is_string(v))
         strlcpy(evt->sender_name, json_string_value(v), sizeof(evt->sender_name));
 
+    v = json_object_get(root, "sender_uid");
+    if (json_is_string(v))
+        strlcpy(evt->sender_uid, json_string_value(v), sizeof(evt->sender_uid));
+
     v = json_object_get(root, "sender_id0");
     if (json_is_integer(v))
         evt->sender_id0 = (unsigned long)json_integer_value(v);
@@ -273,6 +280,10 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
     v = json_object_get(root, "sender_id1");
     if (json_is_integer(v))
         evt->sender_id1 = (unsigned long)json_integer_value(v);
+
+    if (IS_NULLSTR(evt->sender_uid)) {
+        snprintf(evt->sender_uid, sizeof(evt->sender_uid), "%lu:%lu", evt->sender_id0, evt->sender_id1);
+    }
 
     v = json_object_get(root, "message_text");
     if (!json_is_string(v)) {
@@ -521,6 +532,7 @@ static bool redis_transport_publish(const char *topic, const CHANNEL_MESSAGE *ms
     strlcpy(evt->topic, topic, sizeof(evt->topic));
     strlcpy(evt->channel_id, msg->channel_id, sizeof(evt->channel_id));
     strlcpy(evt->sender_name, msg->sender_name ? msg->sender_name : "", sizeof(evt->sender_name));
+    strlcpy(evt->sender_uid, msg->sender_uid ? msg->sender_uid : "", sizeof(evt->sender_uid));
     evt->sender_id0 = msg->sender_id0;
     evt->sender_id1 = msg->sender_id1;
     strlcpy(evt->message_text, msg->message_text, sizeof(evt->message_text));
@@ -600,6 +612,7 @@ static int redis_transport_drain_inbound(int max_events)
         msg.topic = evt.topic;
         msg.channel_id = evt.channel_id;
         msg.sender_name = evt.sender_name;
+        msg.sender_uid = evt.sender_uid;
         msg.sender_id0 = evt.sender_id0;
         msg.sender_id1 = evt.sender_id1;
         msg.message_text = evt.message_text;

@@ -68,6 +68,7 @@ const struct olc_cmd_type aedit_table[] =
     {   "security",     aedit_security      },
     {   "settrade",     aedit_set_trade     },
     {   "show",         aedit_show          },
+    {   "topic",        aedit_topic         },
     {   "varclear",     aedit_varclear      },
     {   "varset",       aedit_varset        },
     {   "viewtrade",    aedit_view_trade    },
@@ -194,6 +195,7 @@ AEDIT(aedit_show)
 
     /* --- Identity --- */
     olc_display_string(ctx, theme, "Name:", "name", pArea->name);
+    olc_display_string(ctx, theme, "Topic:", "topic", IS_NULLSTR(pArea->area_topic) ? "(default)" : pArea->area_topic);
     olc_display_number(ctx, theme, "Area ID:", NULL, pArea->uid);
 
     /* --- System Information --- */
@@ -663,17 +665,20 @@ AEDIT(aedit_regions)
             flag_string(area_region_flags, pArea->region.flags),
             pArea->region.rooms ? (int)list_size(pArea->region.rooms) : 0);
         add_buf(output, buf);
+        sprintf(buf, "         topic={W%s{x\n\r", IS_NULLSTR(pArea->region.topic) ? "(default)" : pArea->region.topic);
+        add_buf(output, buf);
         add_buf(output, "\n\r");
-        add_buf(output, " #   UID   Name                     Who              Place             Flags           Rooms\n\r");
-        add_buf(output, "-----------------------------------------------------------------------------------------------\n\r");
+        add_buf(output, " #   UID   Name                     Topic                Who              Place             Flags           Rooms\n\r");
+        add_buf(output, "--------------------------------------------------------------------------------------------------------------\n\r");
 
         iterator_start(&it, pArea->regions);
         while ((region = (AREA_REGION *)iterator_nextdata(&it)))
         {
-            sprintf(buf, "%2d  %4ld  %-24.24s %-16.16s %-16.16s %-14.14s %5d\n\r",
+            sprintf(buf, "%2d  %4ld  %-24.24s %-20.20s %-16.16s %-16.16s %-14.14s %5d\n\r",
                 ++idx,
                 region->uid,
                 region->name ? region->name : "",
+                IS_NULLSTR(region->topic) ? "(default)" : region->topic,
                 flag_string(area_who_titles, region->area_who),
                 flag_string(place_flags, region->rs_place_flags),
                 flag_string(area_region_flags, region->flags),
@@ -782,6 +787,24 @@ AEDIT(aedit_regions)
         return true;
     }
 
+    if (!str_prefix(arg1, "topic"))
+    {
+        if (IS_NULLSTR(argument))
+        {
+            send_to_char("Syntax: regions topic <#|default> <topic|clear>\n\r", ch);
+            return false;
+        }
+
+        free_string(region->topic);
+        if (!str_prefix(argument, "clear"))
+            region->topic = str_dup("");
+        else
+            region->topic = str_dup(argument);
+
+        send_to_char("Region topic changed.\n\r", ch);
+        return true;
+    }
+
     if (!str_prefix(arg1, "description"))
     {
         string_append(ch, &region->description);
@@ -847,12 +870,36 @@ AEDIT(aedit_regions)
     send_to_char("        regions add <name>\n\r", ch);
     send_to_char("        regions remove <#>\n\r", ch);
     send_to_char("        regions name <#|default> <name>\n\r", ch);
+    send_to_char("        regions topic <#|default> <topic|clear>\n\r", ch);
     send_to_char("        regions description <#|default>\n\r", ch);
     send_to_char("        regions comments <#|default>\n\r", ch);
     send_to_char("        regions flags <#|default> <flag>\n\r", ch);
     send_to_char("        regions who <#|default> <title|blank>\n\r", ch);
     send_to_char("        regions place <#|default> <placetype|none>\n\r", ch);
     return false;
+}
+
+
+AEDIT(aedit_topic)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (IS_NULLSTR(argument))
+    {
+        send_to_char("Syntax: topic <topic|clear>\n\r", ch);
+        return false;
+    }
+
+    free_string(pArea->area_topic);
+    if (!str_prefix(argument, "clear"))
+        pArea->area_topic = str_dup("");
+    else
+        pArea->area_topic = str_dup(argument);
+
+    send_to_char("Area topic changed.\n\r", ch);
+    return true;
 }
 
 

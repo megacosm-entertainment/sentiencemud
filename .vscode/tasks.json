@@ -36,28 +36,49 @@
         {
             "label": "Run Tests",
             "type": "shell",
-            "command": "./sent -test",
+            "command": "cd /sentience/src && ./build tests && cd /sentience && ./sent -test",
             "options": { "cwd": "/sentience" },
             "group": { "kind": "test", "isDefault": true },
-            "dependsOn": "Build Tests",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Tests (Fast)",
+            "type": "shell",
+            "command": "./sent -test",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
             "problemMatcher": []
         },
         {
             "label": "Run Unit Tests",
             "type": "shell",
+            "command": "cd /sentience/src && ./build tests && cd /sentience && ./sent -test:unit",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Unit Tests (Fast)",
+            "type": "shell",
             "command": "./sent -test:unit",
             "options": { "cwd": "/sentience" },
             "group": "test",
-            "dependsOn": "Build Tests",
             "problemMatcher": []
         },
         {
             "label": "Run Integration Tests",
             "type": "shell",
+            "command": "cd /sentience/src && ./build tests && cd /sentience && ./sent -test:integration",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Integration Tests (Fast)",
+            "type": "shell",
             "command": "./sent -test:integration",
             "options": { "cwd": "/sentience" },
             "group": "test",
-            "dependsOn": "Build Tests",
             "problemMatcher": []
         },
         {

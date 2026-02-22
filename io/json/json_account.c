@@ -210,7 +210,7 @@ static json_t *account_basic_to_json(ACCOUNT_DATA *account)
 static json_t *characters_to_json(ACCOUNT_DATA *account)
 {
     json_t *characters;
-    LLIST_LINK *node;
+    ITERATOR it;
     ACCOUNT_CHARACTER *ac;
 
     characters = json_array();
@@ -219,12 +219,17 @@ static json_t *characters_to_json(ACCOUNT_DATA *account)
         return characters;
     }
 
-    // Iterate through linked list of characters
-    for (node = account->characters->head; node; node = node->next) {
-        ac = (ACCOUNT_CHARACTER *)node->data;
-        if (!ac) continue;
+    // Iterate through linked list of characters via iterator API
+    iterator_start(&it, account->characters);
+    while ((ac = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {
+        if (!ac) {
+            continue;
+        }
 
         json_t *char_obj = json_object();
+        if (!char_obj) {
+            continue;
+        }
 
         // Skip entries with no valid name — these are phantom entries from
         // earlier bugs and should not be persisted
@@ -350,6 +355,7 @@ static json_t *characters_to_json(ACCOUNT_DATA *account)
 
         json_array_append_new(characters, char_obj);
     }
+    iterator_stop(&it);
 
     return characters;
 }

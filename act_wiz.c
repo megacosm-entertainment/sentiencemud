@@ -54,7 +54,11 @@
 #include "account/auth_sodium.h"
 #include "io/cache/async_cache.h"
 #include "io/json/json_game_settings.h"
+#include "io/json/json_account.h"
+#include "io/json/json_area.h"
+#include "io/json/json_persist.h"
 #include "log.h"
+#include "channel_service.h"
 #include "traits.h"
 #include "class_data.h"
 #include "io/json/json_olc.h"
@@ -3824,6 +3828,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 void do_mstat(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
+    char channel_subs[1024];
     char arg[MAX_INPUT_LENGTH];
     AFFECT_DATA *paf;
     CHAR_DATA *victim;
@@ -4003,6 +4008,12 @@ void do_mstat(CHAR_DATA *ch, char *argument)
         sprintf(buf,"{BComm:{x %s\n\r",comm_bit_name(victim->comm));
         send_to_char(buf,ch);
     }
+
+    if (channel_service_describe_subscriptions(victim, channel_subs, sizeof(channel_subs)) > 0)
+        sprintf(buf, "{BChannel subscriptions:{x %s\n\r", channel_subs);
+    else
+        sprintf(buf, "{BChannel subscriptions:{x (none)\n\r");
+    send_to_char(buf, ch);
 
     if (IS_NPC(victim) && victim->off_flags)
     {
@@ -14156,14 +14167,99 @@ void do_gcstats(CHAR_DATA *ch, char *argument)
  */
 void do_cachestats(CHAR_DATA *ch, char *argument)
 {
+    AREA_DATA *area;
+    DESCRIPTOR_DATA *d;
+    int online_chars_cached = 0;
+    int online_chars_marked_active = 0;
+    int online_accounts_cached = 0;
+    int queued_areas = 0;
+
     if (!IS_IMMORTAL(ch)) {
         send_to_char("Huh?\n\r", ch);
         return;
     }
 
+    if (!IS_NULLSTR(argument)) {
+        if (!str_prefix(argument, "on") || !str_prefix(argument, "enable") || !str_prefix(argument, "start")) {
+            game_settings.enable_redis = true;
+
+            if (!redis_is_available() && !redis_init()) {
+                send_to_char("Redis enable failed: connection/init unsuccessful.\n\r", ch);
+                return;
+            }
+        } else if (!str_prefix(argument, "off") || !str_prefix(argument, "disable") || !str_prefix(argument, "stop")) {
+            game_settings.enable_redis = false;
+
+            json_persist_worker_stop();
+            redis_shutdown();
+
+            send_to_char("Redis disabled for runtime; persist worker stopped and Redis connection closed.\n\r", ch);
+            return;
+        } else if (str_prefix(argument, "rewarm") && str_prefix(argument, "warm")) {
+            send_to_char("Syntax: cachestats [on|off|rewarm]\n\r", ch);
+            return;
+        }
+
+        if (!redis_is_available()) {
+            send_to_char("Redis is not available; cannot warm caches.\n\r", ch);
+            return;
+        }
+
+        /* Character warm-up (mirrors boot + immediate online seeding). */
+        redis_warm_cache(100);
+
+        for (d = descriptor_list; d; d = d->next) {
+            CHAR_DATA *vch = d->original ? d->original : d->character;
+
+            if (d->connected != CON_PLAYING || !vch || IS_NPC(vch))
+                continue;
+
+            if (redis_cache_char_info(vch))
+                online_chars_cached++;
+
+            if (redis_set_char_active(vch->name, true))
+                online_chars_marked_active++;
+
+            if (d->account && !IS_NULLSTR(d->account->username)) {
+                json_t *account_json = account_to_json(d->account);
+                if (account_json) {
+                    if (redis_cache_account_full(d->account->username, account_json))
+                        online_accounts_cached++;
+                    json_decref(account_json);
+                }
+            }
+        }
+
+        /* Persist/entity warm-up (same as boot). */
+        json_persist_warm_cache();
+
+        /* Zone warm-up (same as boot queueing behavior). */
+        for (area = area_first; area; area = area->next) {
+            if (area->file_name && area->file_name[0]) {
+                char *json_str = json_area_serialize_to_string(area);
+                if (json_str) {
+                    redis_queue_area_cache_warm(area->file_name, json_str);
+                    free(json_str);
+                    queued_areas++;
+                }
+            }
+        }
+
+        if (!json_persist_worker_start()) {
+            send_to_char("Redis connected, but persist worker did not start (see logs).\n\r", ch);
+        }
+
+        {
+            char warm_buf[MAX_STRING_LENGTH];
+            snprintf(warm_buf, sizeof(warm_buf),
+                     "Redis warm complete: online chars cached=%d, active-marked=%d, online accounts cached=%d, zones queued=%d\n\r",
+                     online_chars_cached, online_chars_marked_active, online_accounts_cached, queued_areas);
+            send_to_char(warm_buf, ch);
+        }
+    }
+
     // Use the redis_print_stats function which formats and displays stats
     redis_print_stats(ch);
-    log_stacktrace(LOG_LEVEL_ERROR, LOG_ERROR, "Unexpected null pointer in player data");
 }
 
 /**

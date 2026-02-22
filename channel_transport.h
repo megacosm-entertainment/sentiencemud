@@ -19,6 +19,7 @@ typedef struct channel_message {
     const char *channel_id;
     const char *topic;
     const char *sender_name;
+    const char *sender_uid;    /* canonical sender id: "id0:id1" */
     unsigned long sender_id0;
     unsigned long sender_id1;
     const char *message_text;
@@ -59,6 +60,10 @@ CHANNEL_BACKEND_MODE channel_transport_backend_mode(void);
 bool channel_transport_publish(const char *topic, const CHANNEL_MESSAGE *msg);
 bool channel_transport_subscribe(const char *topic);
 bool channel_transport_unsubscribe(const char *topic);
+bool channel_transport_append_history(const char *stream, const CHANNEL_MESSAGE *msg,
+                                      char *out_id, size_t out_id_sz);
+int channel_transport_fetch_history(const char *stream, const char *cursor,
+                                    int limit, void *out);
 
 void channel_transport_set_inbound_handler(channel_inbound_handler_fn handler);
 void channel_transport_dispatch_inbound(const CHANNEL_MESSAGE *msg);

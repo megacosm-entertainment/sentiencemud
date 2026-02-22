@@ -154,11 +154,94 @@ Implement these in one PR:
 - Moderation command suite (`chanmute`, `chanban`, etc.).
 - Staff review queue (`rview`) and reporting UI.
 
-## Follow-up Priority Order
+## MVP Status (Current)
 
-1. `yell` (`AREA`, with `area_topic` override support)
-2. `gtell` (`GROUP_ID`)
-3. region/continent channels (`REGION`, with optional multi-target routing)
-4. `chtalk` (`CHURCH_ID`)
-5. `tell` (`DIRECT_ENTITY`) including AFK/offline buffering parity
-6. `say` (`ROOM_WV`) with strict trigger ordering parity
+The original MVP target (global channels only) is complete and expanded:
+
+- Completed channel migrations to ChannelService:
+	- `gossip` (`GLOBAL`)
+	- `ooc` (`GLOBAL`)
+	- `flame` (`GLOBAL`)
+	- `helper` (role-restricted global)
+	- `music` (`GLOBAL`)
+	- `immtalk` (immortal-only global)
+	- `yell` (`AREA`)
+- Transport status:
+	- `local`, `redis`, `auto`, and `legacy_iterative` backend modes are wired.
+	- `auto` failover/recovery behavior has startup grace + retry promotion logic.
+	- Runtime Redis re-enable/rewarm controls exist via immortal `cachestats` subcommands.
+
+## Post-MVP Next Stages
+
+### Stage 1: Scope-Aware Routing & Subscription Core
+
+Goal: move from broad ingest+local filtering toward proper scope-targeted topic routing.
+
+Tasks:
+- Introduce canonical topic builder for all supported scopes (`GLOBAL`, `AREA`, `REGION`, `GROUP_ID`, `CHURCH_ID`, `DIRECT_ENTITY`, `ROOM_WV`).
+- Add server-level subscription manager with refcounts for dynamic scoped topics.
+- Ensure `auto` backend transitions preserve/rebuild active subscriptions.
+- Keep recipient-level checks (`ignore`, channel flags, quiet, penalties) as final delivery gate.
+
+Exit criteria:
+- No per-player Redis subscriptions; bounded server-side topic set.
+- Scoped channels only publish/subscribe to required topic families.
+
+### Stage 2: Contextual Channel Migration
+
+Goal: complete non-room channel migration that depends on scoped routing.
+
+Tasks:
+- Migrate `gtell` (`GROUP_ID`) with group lifecycle subscription updates.
+- Migrate `chtalk` (`CHURCH_ID`) with church membership lifecycle updates.
+- Migrate region/continent channels (`REGION`) with optional multi-target route sets.
+
+Exit criteria:
+- Cross-node delivery works correctly for group/church/region channels.
+- Membership changes update effective delivery without reconnect.
+
+### Stage 3: Direct Messaging Parity
+
+Goal: migrate direct channels while preserving current UX parity.
+
+Tasks:
+- Migrate `tell`/`reply` to `DIRECT_ENTITY` topics.
+- Preserve AFK buffering, offline/linkdead handling, reply pointer semantics, and ignore/visibility rules.
+
+Exit criteria:
+- Behavioral parity with existing `tell` path in all edge cases.
+
+### Stage 4: Room Speech Migration
+
+Goal: migrate `say`-family channels to `ROOM_WV` without breaking scripts.
+
+Tasks:
+- Migrate `say`/`whisper`/`sayto` room-scoped message flow.
+- Preserve trigger ordering (`display first`, then `TRIG_SPEECH` entity trigger fanout).
+- Add low-retention room history policy (`MAXLEN`/age-based trim).
+
+Exit criteria:
+- Script trigger behavior matches existing semantics.
+- Room history bounded by channel policy.
+
+### Stage 5: Moderation & Reporting Layer
+
+Goal: add enforceable, auditable, per-channel moderation on top of stabilized transport.
+
+Tasks:
+- Implement channel penalties (`warn/mute/ban`) with character/account scope.
+- Add moderator command surface (`chanwarn`, `chanmute`, `chanban`, penalty list/remove/history).
+- Add incident references and review queue integration.
+
+Exit criteria:
+- Publish-time enforcement works for both character and account penalties.
+- Staff has searchable audit trail tied to incidents.
+
+## Immediate Implementation Slice (Recommended)
+
+Start with Stage 1 by implementing:
+
+1. Scope topic builder API in ChannelService.
+2. Subscription manager skeleton with refcounted topic registry.
+3. Wiring for `yell` (`AREA`) and one additional scoped channel (`chtalk` or `gtell`) through the new subscription path.
+4. Integration tests for subscription add/remove on movement/membership transitions.

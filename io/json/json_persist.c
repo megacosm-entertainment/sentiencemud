@@ -3124,9 +3124,68 @@ static int parse_dirty_key(const char *key, char *id_buf, size_t id_size)
 }
 
 /*
+ * Validate cached JSON payload based on dirty key type before disk write.
+ */
+static bool validate_cached_payload_for_type(int type, const char *key, const char *json_str)
+{
+    json_error_t jerr;
+    json_t *root;
+    bool valid = false;
+
+    if (!json_str)
+        return false;
+
+    root = json_loads(json_str, 0, &jerr);
+    if (!root) {
+        log_stringf("persist_worker: Invalid JSON payload for key %s (line %d): %s",
+                    key ? key : "(null)", jerr.line, jerr.text);
+        return false;
+    }
+
+    switch (type) {
+    case 0: /* room */
+    case 1: /* mobile */
+    case 2: /* object */
+        /* Persist entity payloads are expected to be JSON objects. */
+        valid = json_is_object(root);
+        if (!valid) {
+            log_stringf("persist_worker: Invalid entity payload shape for key %s (expected object)",
+                        key ? key : "(null)");
+        }
+        break;
+
+    case 4: /* olc history file */
+    {
+        json_t *entries;
+        valid = json_is_object(root);
+        if (valid) {
+            entries = json_object_get(root, "entries");
+            valid = (entries && json_is_object(entries));
+        }
+        if (!valid) {
+            log_stringf("persist_worker: Invalid OLC history payload shape for key %s", key ? key : "(null)");
+        }
+        break;
+    }
+
+    case 3: /* area */
+        /* area jobs are intentionally ignored by this worker. */
+        valid = true;
+        break;
+
+    default:
+        valid = false;
+        break;
+    }
+
+    json_decref(root);
+    return valid;
+}
+
+/*
  * Write a dirty key's data from Redis to disk
  */
-static bool write_dirty_key_to_disk(const char *key)
+static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 {
     char *json_str;
     char id_buf[256];
@@ -3134,15 +3193,31 @@ static bool write_dirty_key_to_disk(const char *key)
     FILE *fp;
     int type;
 
+    if (retryable) {
+        *retryable = true;
+    }
+
     /* Get the JSON data from Redis */
     json_str = redis_get_persist_data(key);
     if (!json_str) {
         log_stringf("persist_worker: No data in Redis for key %s", key);
+        if (retryable) {
+            *retryable = false;
+        }
         return false;
     }
 
     /* Parse the key to determine file path */
     type = parse_dirty_key(key, id_buf, sizeof(id_buf));
+
+    /* Validate cache payload before touching disk */
+    if (!validate_cached_payload_for_type(type, key, json_str)) {
+        free(json_str);
+        if (retryable) {
+            *retryable = false;
+        }
+        return false;
+    }
 
     switch (type) {
     case 0: /* Room */
@@ -3166,28 +3241,14 @@ static bool write_dirty_key_to_disk(const char *key)
             snprintf(path, sizeof(path), "%s%s.json", objects_dir, id_buf);
         }
         break;
-    case 3: /* Area - extract filename from the cached JSON */
-        {
-            char area_dir_buf[MAX_INPUT_LENGTH];
-            const char *area_dir = resolve_game_path(AREA_DIR, area_dir_buf, sizeof(area_dir_buf));
-            json_t *root = json_loads(json_str, 0, NULL);
-            if (!root) {
-                log_stringf("persist_worker: Failed to parse area JSON for %s", id_buf);
-                free(json_str);
-                return false;
-            }
-            json_t *area_obj = json_object_get(root, "area");
-            const char *filename = area_obj ? json_string_value(json_object_get(area_obj, "filename")) : NULL;
-            if (!filename) {
-                log_stringf("persist_worker: No filename in area JSON for %s", id_buf);
-                json_decref(root);
-                free(json_str);
-                return false;
-            }
-            snprintf(path, sizeof(path), "%s%s", area_dir, filename);
-            json_decref(root);
-        }
-        break;
+    case 3: /* Area */
+        /*
+         * Area files are persisted synchronously by area save code.
+         * Do not persist area:full:* via this worker; discard stale
+         * queued keys to avoid mass unintended area rewrites.
+         */
+        free(json_str);
+        return true;
     case 4: /* OLC history file by hist type */
         {
             int hist_type = atoi(id_buf);
@@ -3221,6 +3282,9 @@ static bool write_dirty_key_to_disk(const char *key)
                 log_stringf("persist_worker: Unknown OLC history type %d for key %s",
                     hist_type, key);
                 free(json_str);
+                if (retryable) {
+                    *retryable = false;
+                }
                 return false;
             }
         }
@@ -3228,19 +3292,67 @@ static bool write_dirty_key_to_disk(const char *key)
     default:
         log_stringf("persist_worker: Unknown key type: %s", key);
         free(json_str);
+        if (retryable) {
+            *retryable = false;
+        }
         return false;
     }
 
-    /* Write to disk */
-    fp = fopen(path, "w");
-    if (!fp) {
-        log_stringf("persist_worker: Failed to open %s for writing: %s", path, strerror(errno));
-        free(json_str);
-        return false;
+    /* Write atomically: temp file in same directory, fsync, then rename */
+    {
+        char tmp_path[sizeof(path) + 64];
+        size_t json_len = strlen(json_str);
+        size_t written;
+
+        snprintf(tmp_path, sizeof(tmp_path), "%s.tmp.%ld", path, (long)getpid());
+
+        fp = fopen(tmp_path, "w");
+        if (!fp) {
+            log_stringf("persist_worker: Failed to open temp file %s for writing: %s", tmp_path, strerror(errno));
+            free(json_str);
+            return false;
+        }
+
+        written = fwrite(json_str, 1, json_len, fp);
+        if (written != json_len) {
+            log_stringf("persist_worker: Short write to %s (%zu/%zu): %s", tmp_path, written, json_len, strerror(errno));
+            fclose(fp);
+            unlink(tmp_path);
+            free(json_str);
+            return false;
+        }
+
+        if (fflush(fp) != 0) {
+            log_stringf("persist_worker: fflush failed for %s: %s", tmp_path, strerror(errno));
+            fclose(fp);
+            unlink(tmp_path);
+            free(json_str);
+            return false;
+        }
+
+        if (fsync(fileno(fp)) != 0) {
+            log_stringf("persist_worker: fsync failed for %s: %s", tmp_path, strerror(errno));
+            fclose(fp);
+            unlink(tmp_path);
+            free(json_str);
+            return false;
+        }
+
+        if (fclose(fp) != 0) {
+            log_stringf("persist_worker: fclose failed for %s: %s", tmp_path, strerror(errno));
+            unlink(tmp_path);
+            free(json_str);
+            return false;
+        }
+
+        if (rename(tmp_path, path) != 0) {
+            log_stringf("persist_worker: rename(%s -> %s) failed: %s", tmp_path, path, strerror(errno));
+            unlink(tmp_path);
+            free(json_str);
+            return false;
+        }
     }
 
-    fputs(json_str, fp);
-    fclose(fp);
     free(json_str);
 
     return true;
@@ -3254,6 +3366,7 @@ static void *persist_worker_func(void *arg)
     char *dirty_key;
     int processed = 0;
     int errors = 0;
+    int idle_sleep_us = 100000;
 
     (void)arg;  /* Unused */
 
@@ -3264,12 +3377,21 @@ static void *persist_worker_func(void *arg)
         dirty_key = redis_pop_dirty_key(0);
 
         if (dirty_key) {
-            if (write_dirty_key_to_disk(dirty_key)) {
+            bool retryable = true;
+
+            /* Queue active: poll aggressively */
+            idle_sleep_us = 10000;
+
+            if (write_dirty_key_to_disk(dirty_key, &retryable)) {
                 processed++;
             } else {
                 errors++;
-                /* Re-queue failed key for retry (at end of queue) */
-                redis_queue_dirty_key(dirty_key);
+                /* Re-queue only transient failures; drop corrupt/missing payload jobs */
+                if (retryable) {
+                    redis_queue_dirty_key(dirty_key);
+                } else {
+                    log_stringf("persist_worker: Dropping non-retryable dirty key %s", dirty_key);
+                }
             }
             free(dirty_key);
 
@@ -3278,8 +3400,13 @@ static void *persist_worker_func(void *arg)
                 log_stringf("persist_worker: Processed %d keys (%d errors)", processed, errors);
             }
         } else {
-            /* Queue empty - sleep 100ms before checking again */
-            usleep(100000);
+            /* Queue empty - back off poll interval to reduce Redis chatter */
+            usleep(idle_sleep_us);
+            if (idle_sleep_us < 1000000) {
+                idle_sleep_us *= 2;
+                if (idle_sleep_us > 1000000)
+                    idle_sleep_us = 1000000;
+            }
         }
     }
 

@@ -281,6 +281,7 @@ static json_t *json_area_serialize_region_data(AREA_REGION *region)
 
     json_object_set_new(json, "uid", json_integer(region->uid));
     json_object_set_new(json, "name", json_string_safe(region->name));
+    json_object_set_new(json, "topic", json_string_safe(region->topic));
     json_object_set_new(json, "description", json_string_safe(region->description));
     json_object_set_new(json, "comments", json_string_safe(region->comments));
     json_object_set_new(json, "area_who", json_integer(region->area_who));
@@ -319,6 +320,8 @@ static void json_area_deserialize_region_data(json_t *json, AREA_REGION *region)
 
     free_string(region->name);
     region->name = str_dup(json_get_string_default(json, "name", ""));
+    free_string(region->topic);
+    region->topic = str_dup(json_get_string_default(json, "topic", ""));
     free_string(region->description);
     region->description = str_dup(json_get_string_default(json, "description", ""));
     free_string(region->comments);
@@ -382,6 +385,7 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_object_set_new(root, "uid", json_integer(area->uid));
     json_object_set_new(root, "name", json_string_safe(area->name));
     json_object_set_new(root, "filename", json_string_safe(area->file_name));
+    json_object_set_new(root, "area_topic", json_string_safe(area->area_topic));
     
     /* Vnum range */
     json_object_set_new(vnums, "min", json_integer(area->min_vnum));
@@ -531,6 +535,8 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
     area->uid = json_get_int_default(json, "uid", 0);
     area->name = str_dup(json_get_string_default(json, "name", ""));
     area->file_name = str_dup(json_get_string_default(json, "filename", ""));
+    free_string(area->area_topic);
+    area->area_topic = str_dup(json_get_string_default(json, "area_topic", ""));
     
     /* Vnum range */
     vnums = json_object_get(json, "vnums");

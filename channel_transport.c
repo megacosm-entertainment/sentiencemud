@@ -81,6 +81,13 @@ static const channel_transport legacy_transport = {
 static const channel_transport *active_transport = &legacy_transport;
 static CHANNEL_BACKEND_MODE active_mode = CHANNEL_BACKEND_LEGACY_ITERATIVE;
 static channel_inbound_handler_fn inbound_handler = NULL;
+static time_t auto_redis_grace_until = 0;
+static int auto_redis_unhealthy_pulses = 0;
+static time_t auto_redis_retry_after = 0;
+
+#define AUTO_REDIS_INIT_GRACE_SEC 5
+#define AUTO_REDIS_UNHEALTHY_THRESHOLD 10
+#define AUTO_REDIS_RETRY_INTERVAL_SEC 5
 
 static CHANNEL_BACKEND_MODE parse_backend_mode(const char *mode)
 {
@@ -115,7 +122,7 @@ bool channel_transport_init(void)
 
         case CHANNEL_BACKEND_AUTO:
             selected_mode = CHANNEL_BACKEND_AUTO;
-            selected = game_settings.enable_redis ? channel_transport_redis_backend() : channel_transport_local_backend();
+            selected = channel_transport_redis_backend();
             break;
 
         case CHANNEL_BACKEND_REDIS:
@@ -136,13 +143,28 @@ bool channel_transport_init(void)
     if (active_transport && active_transport->init)
         init_ok = active_transport->init();
 
-    if (init_ok)
+    if (init_ok) {
+        if (requested == CHANNEL_BACKEND_AUTO && !str_cmp(channel_transport_backend_name(), "redis")) {
+            auto_redis_grace_until = current_time + AUTO_REDIS_INIT_GRACE_SEC;
+            auto_redis_unhealthy_pulses = 0;
+            auto_redis_retry_after = 0;
+        } else if (requested == CHANNEL_BACKEND_AUTO) {
+            auto_redis_grace_until = 0;
+            auto_redis_unhealthy_pulses = 0;
+            auto_redis_retry_after = current_time + AUTO_REDIS_RETRY_INTERVAL_SEC;
+        }
         return true;
+    }
 
     if (requested == CHANNEL_BACKEND_AUTO || requested == CHANNEL_BACKEND_REDIS) {
         log_string("ChannelTransport: selected backend init failed, falling back to local");
         active_transport = channel_transport_local_backend();
         if (active_transport && active_transport->init && active_transport->init()) {
+            if (requested == CHANNEL_BACKEND_AUTO) {
+                auto_redis_grace_until = 0;
+                auto_redis_unhealthy_pulses = 0;
+                auto_redis_retry_after = current_time + AUTO_REDIS_RETRY_INTERVAL_SEC;
+            }
             return true;
         }
     }
@@ -169,20 +191,58 @@ void channel_transport_shutdown(void)
 void channel_transport_pulse(void)
 {
     if (active_mode == CHANNEL_BACKEND_AUTO && active_transport &&
+        !str_cmp(channel_transport_backend_name(), "local") &&
+        current_time >= auto_redis_retry_after) {
+        const channel_transport *redis_transport = channel_transport_redis_backend();
+
+        auto_redis_retry_after = current_time + AUTO_REDIS_RETRY_INTERVAL_SEC;
+
+        if (redis_transport && redis_transport->init && redis_transport->init()) {
+            if (active_transport->shutdown)
+                active_transport->shutdown();
+
+            active_transport = redis_transport;
+            auto_redis_grace_until = current_time + AUTO_REDIS_INIT_GRACE_SEC;
+            auto_redis_unhealthy_pulses = 0;
+            log_string("ChannelTransport(auto): promoted local backend to redis");
+        }
+    }
+
+    if (active_mode == CHANNEL_BACKEND_AUTO && active_transport &&
         !str_cmp(channel_transport_backend_name(), "redis") &&
-        active_transport->health_check && !active_transport->health_check()) {
-        log_string("ChannelTransport(auto): redis unhealthy, failing over to local");
+        active_transport->health_check) {
+        if (active_transport->health_check()) {
+            auto_redis_unhealthy_pulses = 0;
+        } else {
+            if (current_time < auto_redis_grace_until) {
+                if (active_transport->drain_inbound)
+                    active_transport->drain_inbound(64);
+                return;
+            }
 
-        if (active_transport->shutdown)
-            active_transport->shutdown();
+            auto_redis_unhealthy_pulses++;
+            if (auto_redis_unhealthy_pulses < AUTO_REDIS_UNHEALTHY_THRESHOLD) {
+                if (active_transport->drain_inbound)
+                    active_transport->drain_inbound(64);
+                return;
+            }
 
-        active_transport = channel_transport_local_backend();
-        if (!active_transport || !active_transport->init || !active_transport->init()) {
-            log_string("ChannelTransport(auto): local failover failed, using legacy iterative");
-            active_transport = &legacy_transport;
-            active_mode = CHANNEL_BACKEND_LEGACY_ITERATIVE;
-            if (active_transport->init)
-                active_transport->init();
+            log_string("ChannelTransport(auto): redis unhealthy, failing over to local");
+
+            if (active_transport->shutdown)
+                active_transport->shutdown();
+
+            active_transport = channel_transport_local_backend();
+            if (!active_transport || !active_transport->init || !active_transport->init()) {
+                log_string("ChannelTransport(auto): local failover failed, using legacy iterative");
+                active_transport = &legacy_transport;
+                active_mode = CHANNEL_BACKEND_LEGACY_ITERATIVE;
+                if (active_transport->init)
+                    active_transport->init();
+            } else {
+                auto_redis_retry_after = current_time + AUTO_REDIS_RETRY_INTERVAL_SEC;
+                auto_redis_unhealthy_pulses = 0;
+            }
         }
     }
 
@@ -224,6 +284,24 @@ bool channel_transport_unsubscribe(const char *topic)
         return false;
 
     return active_transport->unsubscribe(topic);
+}
+
+bool channel_transport_append_history(const char *stream, const CHANNEL_MESSAGE *msg,
+                                      char *out_id, size_t out_id_sz)
+{
+    if (!active_transport || !active_transport->append_history)
+        return false;
+
+    return active_transport->append_history(stream, msg, out_id, out_id_sz);
+}
+
+int channel_transport_fetch_history(const char *stream, const char *cursor,
+                                    int limit, void *out)
+{
+    if (!active_transport || !active_transport->fetch_history)
+        return 0;
+
+    return active_transport->fetch_history(stream, cursor, limit, out);
 }
 
 void channel_transport_set_inbound_handler(channel_inbound_handler_fn handler)

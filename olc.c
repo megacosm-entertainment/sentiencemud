@@ -75,6 +75,8 @@ char *editor_name_table[] = {
     "RepEdit",      // 39 ED_REPUTATION
     "EVTEdit",      // 40 ED_EVENT
     "QEdit",        // 41 ED_QUEST
+    "QpEdit",       // 42 ED_QPCODE
+    "CEdit",        // 43 ED_CEDIT
 };
 
 int editor_max_tabs_table[] = {
@@ -120,6 +122,8 @@ int editor_max_tabs_table[] = {
     0,		// RepEdit
     0,		// EVTEdit
     0,		// QEdit
+    0,		// QpEdit
+    0,		// CEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -158,6 +162,7 @@ const struct editor_cmd_type editor_table[] =
     { "sector",     do_sectoredit },
     { "reputation", do_repedit   },
     { "event",      do_evtedit   },
+    { "channel",    do_cedit     },
     { NULL,			0,			}
 };
 

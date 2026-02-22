@@ -76,6 +76,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_REPUTATION    39
 #define ED_EVENT         40
 #define ED_QUEST         41
+#define ED_CEDIT         43
 
 
 
@@ -215,6 +216,7 @@ DECLARE_DO_FUN( do_corpsedit    );
 DECLARE_DO_FUN( do_sectoredit   );
 DECLARE_DO_FUN( do_repedit      );
 DECLARE_DO_FUN( do_evtedit      );
+DECLARE_DO_FUN( do_cedit        );
 
 
 /*
@@ -237,6 +239,7 @@ DECLARE_OLC_FUN( aedit_name		);
 DECLARE_OLC_FUN( aedit_notes    );
 DECLARE_OLC_FUN( aedit_open		);
 DECLARE_OLC_FUN( aedit_placetype	);
+DECLARE_OLC_FUN( aedit_topic		);
 DECLARE_OLC_FUN( aedit_regions     );
 DECLARE_OLC_FUN( aedit_recall		);
 DECLARE_OLC_FUN( aedit_remove_trade	);

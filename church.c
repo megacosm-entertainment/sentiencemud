@@ -20,6 +20,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "io/json/json_church.h"
+#include "channel_service.h"
 
 bool is_trusted(CHURCH_PLAYER_DATA *member, char *command);
 char *get_chrank(CHURCH_PLAYER_DATA *member);
@@ -1713,42 +1714,51 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-    CHAR_DATA *victim;
+    CHAR_DATA *victim = NULL;
 
-    victim = d->original ? d->original : d->character;
-
-    if (d->connected == CON_PLAYING
-    && d->character != ch
-    && !is_ignoring(d->character, ch)
-    && !IS_SET(d->character->comm, COMM_NOCT)
-    && d->character->church == ch->church)
+    if (channel_can_deliver_to_descriptor(ch, d, COMM_NOCT, true, true, &victim)
+    && victim->church == ch->church)
     {
         counter++;
-        if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_CT))
-        {
-        sprintf(buf, "%s[%s%s%s] says '%s %s%s%s'{x\n\r",
-            ch->church->colour2,
-            ch->church->colour1,
-            ch->name,
-            ch->church->colour2,
-            ch->pcdata->flag,
-            ch->church->colour1,
-            argument,
-            ch->church->colour2);
-        }
-        else
-        {
-        sprintf(buf, "%s[%s%s%s] says '%s%s%s'{x\n\r",
-            ch->church->colour2,
-            ch->church->colour1,
-            ch->name,
-            ch->church->colour2,
-            ch->church->colour1,
-            argument,
-            ch->church->colour2);
-        }
-        send_to_char(buf, d->character);
     }
+    }
+
+    if (counter > 0) {
+        if (!channel_service_send(ch, "chtalk", argument)) {
+            for (d = descriptor_list; d != NULL; d = d->next)
+            {
+                CHAR_DATA *victim;
+
+                if (channel_can_deliver_to_descriptor(ch, d, COMM_NOCT, true, true, &victim)
+                && victim->church == ch->church)
+                {
+                    if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_CT))
+                    {
+                        sprintf(buf, "%s[%s%s%s] says '%s %s%s%s'{x\n\r",
+                            ch->church->colour2,
+                            ch->church->colour1,
+                            ch->name,
+                            ch->church->colour2,
+                            ch->pcdata->flag,
+                            ch->church->colour1,
+                            argument,
+                            ch->church->colour2);
+                    }
+                    else
+                    {
+                        sprintf(buf, "%s[%s%s%s] says '%s%s%s'{x\n\r",
+                            ch->church->colour2,
+                            ch->church->colour1,
+                            ch->name,
+                            ch->church->colour2,
+                            ch->church->colour1,
+                            argument,
+                            ch->church->colour2);
+                    }
+                    send_to_char(buf, victim);
+                }
+            }
+        }
     }
 
     if (ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(ch, FLAG_CT))

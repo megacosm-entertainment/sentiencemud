@@ -71,6 +71,106 @@
       "expected_output": {
         "success": true
       }
+    },
+    {
+      "name": "channel_effective_subscriptions_area_uid",
+      "description": "Effective subscriptions include global and area UID topic when no area override is set",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_area_uid_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_area_override",
+      "description": "Effective subscriptions prefer area topic override instead of area UID topic",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_area_override_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_movement_delta",
+      "description": "Effective subscriptions switch area topic when actor moves between areas",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_movement_delta_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_auto_backend_subscription_continuity",
+      "description": "Effective subscriptions remain stable across auto backend init/pulse cycles",
+      "dependencies": [],
+      "test_type": "channel_auto_backend_subscription_continuity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_no_duplicates",
+      "description": "Effective subscriptions contain unique topics only",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_no_duplicates_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_group_scope",
+      "description": "Effective subscriptions include GROUP_ID topic for grouped actors",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_group_scope_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_chtalk_delivery_muted_filter",
+      "description": "Church talk delivery reaches church members and suppresses COMM_NOCT recipients",
+      "dependencies": [],
+      "test_type": "channel_chtalk_delivery_muted_filter_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_chtalk_delivery_ignore_filter",
+      "description": "Church talk delivery suppresses recipients who are ignoring the sender",
+      "dependencies": [],
+      "test_type": "channel_chtalk_delivery_ignore_filter_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_quote_delivery_filtering",
+      "description": "Quote delivery honors COMM_NOQUOTE, COMM_QUIET, and ignore filters",
+      "dependencies": [],
+      "test_type": "channel_quote_delivery_filtering_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_send_without_init_fallback",
+      "description": "ChannelService send falls back to local legacy delivery when service is not initialized",
+      "dependencies": [],
+      "test_type": "channel_send_without_init_fallback_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
     }
   ]
 }

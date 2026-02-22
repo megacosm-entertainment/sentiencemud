@@ -1226,12 +1226,45 @@ bool redis_delete_persist_data(const char *key)
 bool redis_queue_dirty_key(const char *key)
 {
     redisReply *reply;
+    bool should_enqueue = false;
 
     if (!redis_is_available() || !key) {
         return false;
     }
 
     pthread_mutex_lock(&redis_mutex);
+
+    /*
+     * Deduplicate queue entries:
+     * - SADD returns 1 when key is newly marked pending
+     * - SADD returns 0 when key is already pending
+     */
+    reply = redisCommand(redis_ctx, "SADD persist:dirty:pending %s", key);
+
+    if (reply == NULL) {
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        log_stringf("Redis: SADD error for dirty queue pending set: %s", reply->str);
+        freeReplyObject(reply);
+        stats.errors++;
+        pthread_mutex_unlock(&redis_mutex);
+        return false;
+    }
+
+    if (reply->type == REDIS_REPLY_INTEGER && reply->integer > 0) {
+        should_enqueue = true;
+    }
+
+    freeReplyObject(reply);
+
+    if (!should_enqueue) {
+        pthread_mutex_unlock(&redis_mutex);
+        return true;
+    }
 
     /* Use LPUSH to add to the front of the dirty queue */
     reply = redisCommand(redis_ctx, "LPUSH persist:dirty %s", key);
@@ -1285,6 +1318,12 @@ char *redis_pop_dirty_key(int timeout_sec)
     /* RPOP returns the value string or nil if empty */
     if (reply->type == REDIS_REPLY_STRING) {
         result = strdup(reply->str);
+
+        /* Mark key as no longer pending once it is popped for processing */
+        redisReply *srem_reply = redisCommand(redis_ctx, "SREM persist:dirty:pending %s", reply->str);
+        if (srem_reply) {
+            freeReplyObject(srem_reply);
+        }
     }
 
     freeReplyObject(reply);
@@ -1519,21 +1558,17 @@ void redis_invalidate_area(const char *filename)
 
 bool redis_cache_area_state(const char *filename, const char *json_str)
 {
-    char area_name[64];
-    char *key;
-
     if (!json_str || !filename || !filename[0]) {
         return false;
     }
 
-    if (!redis_cache_area_full(filename, json_str)) {
-        return false;
-    }
-
-    /* Queue for async disk write using main persist:dirty queue */
-    normalize_area_name(filename, area_name, sizeof(area_name));
-    key = redis_area_key(area_name);
-    return redis_queue_dirty_key(key);
+    /*
+     * Areas are written to disk synchronously by json_area_save().
+     * Cache writes must not enqueue persist:dirty work for area keys,
+     * otherwise the background persist worker can replay and rewrite
+     * large portions of AREA_DIR unexpectedly.
+     */
+    return redis_cache_area_full(filename, json_str);
 }
 
 /*
