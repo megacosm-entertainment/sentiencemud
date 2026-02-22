@@ -6,6 +6,7 @@
 #include "../framework/test_framework.h"
 #include "../framework/test_utils.h"
 #include <string.h>
+#include <unistd.h>
 
 static test_result_t test_channel_backend_mode(test_case_t *test);
 static test_result_t test_channel_local_inbound_dispatch(test_case_t *test);
@@ -19,6 +20,7 @@ static test_result_t test_channel_chtalk_delivery_muted_filter(test_case_t *test
 static test_result_t test_channel_chtalk_delivery_ignore_filter(test_case_t *test);
 static test_result_t test_channel_quote_delivery_filtering(test_case_t *test);
 static test_result_t test_channel_send_without_init_fallback(test_case_t *test);
+static test_result_t test_channel_compact_publish_hydrated_delivery(test_case_t *test);
 
 static int g_inbound_count = 0;
 static CHANNEL_MESSAGE g_last_msg;
@@ -71,6 +73,9 @@ test_result_t run_channel_pubsub_test_case(test_case_t *test)
     }
     else if (strcmp(test->test_type, "channel_send_without_init_fallback_test") == 0) {
         result = test_channel_send_without_init_fallback(test);
+    }
+    else if (strcmp(test->test_type, "channel_compact_publish_hydrated_delivery_test") == 0) {
+        result = test_channel_compact_publish_hydrated_delivery(test);
     }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -965,6 +970,100 @@ static test_result_t test_channel_send_without_init_fallback(test_case_t *test)
     }
 
     descriptor_list = saved_descriptor_list;
+    test_utils_destroy_fake_player(receiver, receiver_desc);
+    test_utils_destroy_fake_player(sender, sender_desc);
+
+    return success ? TEST_SUCCESS : TEST_FAILURE;
+}
+
+static test_result_t test_channel_compact_publish_hydrated_delivery(test_case_t *test)
+{
+    CHAR_DATA *sender = NULL;
+    CHAR_DATA *receiver = NULL;
+    DESCRIPTOR_DATA *sender_desc = NULL;
+    DESCRIPTOR_DATA *receiver_desc = NULL;
+    DESCRIPTOR_DATA *saved_descriptor_list;
+    const char *saved_backend;
+    bool saved_compact;
+    bool success = true;
+    int i;
+
+    (void)test;
+
+    if (!test_utils_create_fake_player(&sender, &sender_desc) ||
+        !test_utils_create_fake_player(&receiver, &receiver_desc)) {
+        if (sender || sender_desc)
+            test_utils_destroy_fake_player(sender, sender_desc);
+        if (receiver || receiver_desc)
+            test_utils_destroy_fake_player(receiver, receiver_desc);
+        return TEST_ERROR;
+    }
+
+    free_string(sender->name);
+    sender->name = str_dup("CompactSender");
+    free_string(receiver->name);
+    receiver->name = str_dup("CompactReceiver");
+
+    saved_descriptor_list = descriptor_list;
+    sender_desc->next = receiver_desc;
+    receiver_desc->next = NULL;
+    descriptor_list = sender_desc;
+
+    sender_desc->outtop = 0;
+    if (sender_desc->outbuf)
+        sender_desc->outbuf[0] = '\0';
+    receiver_desc->outtop = 0;
+    if (receiver_desc->outbuf)
+        receiver_desc->outbuf[0] = '\0';
+
+    saved_backend = game_settings.channel_backend;
+    saved_compact = game_settings.channel_publish_compact;
+    game_settings.channel_backend = "redis";
+    game_settings.channel_publish_compact = true;
+
+    if (!channel_service_init()) {
+        descriptor_list = saved_descriptor_list;
+        game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+        game_settings.channel_publish_compact = saved_compact;
+        test_utils_destroy_fake_player(receiver, receiver_desc);
+        test_utils_destroy_fake_player(sender, sender_desc);
+        return TEST_FAILURE;
+    }
+
+    if (str_cmp(channel_service_backend_name(), "redis")) {
+        channel_service_shutdown();
+        descriptor_list = saved_descriptor_list;
+        game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+        game_settings.channel_publish_compact = saved_compact;
+        test_utils_destroy_fake_player(receiver, receiver_desc);
+        test_utils_destroy_fake_player(sender, sender_desc);
+        log_message(LOG_LEVEL_WARN, LOG_UNIT_TESTS,
+                    "Skipping compact publish hydration test: redis backend unavailable");
+        return TEST_SKIP;
+    }
+
+    if (!channel_service_send(sender, "quote", "compact-hydration-check")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "channel_service_send failed in compact hydration test");
+        success = false;
+    }
+
+    for (i = 0; i < 100 && (!receiver_desc->outbuf || !strstr(receiver_desc->outbuf, "compact-hydration-check")); i++) {
+        channel_service_pulse();
+        usleep(20000);
+    }
+
+    if (!receiver_desc->outbuf || !strstr(receiver_desc->outbuf, "compact-hydration-check")) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                    "Receiver did not get hydrated compact publish delivery");
+        success = false;
+    }
+
+    channel_service_shutdown();
+    descriptor_list = saved_descriptor_list;
+    game_settings.channel_backend = (char *)(saved_backend ? saved_backend : "legacy_iterative");
+    game_settings.channel_publish_compact = saved_compact;
+
     test_utils_destroy_fake_player(receiver, receiver_desc);
     test_utils_destroy_fake_player(sender, sender_desc);
 

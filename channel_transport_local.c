@@ -8,6 +8,8 @@
 typedef struct local_event {
     char topic[128];
     char channel_id[32];
+    char history_stream[196];
+    char history_id[64];
     char sender_name[64];
     char sender_uid[64];
     unsigned long sender_id0;
@@ -62,6 +64,8 @@ static bool local_publish(const char *topic, const CHANNEL_MESSAGE *msg)
     evt = &local_queue[local_tail];
     strlcpy(evt->topic, topic, sizeof(evt->topic));
     strlcpy(evt->channel_id, msg->channel_id, sizeof(evt->channel_id));
+    strlcpy(evt->history_stream, msg->history_stream ? msg->history_stream : "", sizeof(evt->history_stream));
+    strlcpy(evt->history_id, msg->history_id ? msg->history_id : "", sizeof(evt->history_id));
     strlcpy(evt->sender_name, msg->sender_name ? msg->sender_name : "", sizeof(evt->sender_name));
     strlcpy(evt->sender_uid, msg->sender_uid ? msg->sender_uid : "", sizeof(evt->sender_uid));
     evt->sender_id0 = msg->sender_id0;
@@ -135,6 +139,8 @@ static int local_drain_inbound(int max_events)
 
         msg.topic = evt.topic;
         msg.channel_id = evt.channel_id;
+        msg.history_stream = evt.history_stream;
+        msg.history_id = evt.history_id;
         msg.sender_name = evt.sender_name;
         msg.sender_uid = evt.sender_uid;
         msg.sender_id0 = evt.sender_id0;

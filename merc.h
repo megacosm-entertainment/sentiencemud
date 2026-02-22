@@ -1416,6 +1416,7 @@ struct game_settings_data
 
     /* Channel Transport Settings */
     char *channel_backend;        // Channel backend mode: legacy_iterative|local|auto|redis
+    bool channel_publish_compact; // Publish compact realtime payloads (history refs), hydrate via stream lookup on receive
 
     /* Redis Settings */
     bool enable_redis;            // Enable Redis caching?

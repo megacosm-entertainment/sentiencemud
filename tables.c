@@ -3777,6 +3777,7 @@ const struct game_setting_type game_settings_table[] = {
     { "insecure_warning_msg", &game_settings.insecure_warning_msg, SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,  "Message for insecure connections",                           true,  false, false },
     { "max_logfile_size",    &game_settings.max_logfile_size,     SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Size to start rotating logs (in MB)",                        true,  false, false },
     { "channel_backend",     &game_settings.channel_backend,      SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Channel transport backend (legacy_iterative|local|auto|redis)", true, false, false },
+    { "channel_publish_compact", &game_settings.channel_publish_compact, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Publish compact channel events that hydrate from history stream", true, false, false },
     { "note_boot_errors",   &game_settings.note_boot_errors, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Sends notes with boot errors to 'coder' and 'head coder'", true, true, false },
     { "character_delete",    &game_settings.character_delete_delay_days, SETTING_TYPE_INT, SETTING_CAT_GLOBAL, "Number of days before a character is purged when flagged for deletion.", true, false, false },
 

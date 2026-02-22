@@ -171,6 +171,16 @@
       "expected_output": {
         "success": true
       }
+    },
+    {
+      "name": "channel_compact_publish_hydrated_delivery",
+      "description": "Compact Redis publish payloads are hydrated from stream history and still delivered",
+      "dependencies": [],
+      "test_type": "channel_compact_publish_hydrated_delivery_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
     }
   ]
 }

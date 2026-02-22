@@ -529,6 +529,7 @@ static void init_game_settings_defaults(void)
     game_settings.max_orgs = 0;
     game_settings.max_logfile_size = 0;
     game_settings.org_disable_pk_pneuma_cost = 0;
+    game_settings.channel_publish_compact = false;
 
     /* Email */
     game_settings.enable_email = false;

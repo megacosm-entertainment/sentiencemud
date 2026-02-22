@@ -18,6 +18,8 @@ typedef enum channel_backend_mode {
 typedef struct channel_message {
     const char *channel_id;
     const char *topic;
+    const char *history_stream;
+    const char *history_id;
     const char *sender_name;
     const char *sender_uid;    /* canonical sender id: "id0:id1" */
     unsigned long sender_id0;

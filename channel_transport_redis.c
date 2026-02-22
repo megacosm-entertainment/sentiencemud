@@ -12,6 +12,8 @@
 typedef struct redis_outbound_event {
     char topic[128];
     char channel_id[32];
+    char history_stream[196];
+    char history_id[64];
     char sender_name[64];
     char sender_uid[64];
     unsigned long sender_id0;
@@ -42,6 +44,7 @@ static bool worker_stop = false;
 
 static redisContext *command_ctx = NULL;
 static redisContext *subscribe_ctx = NULL;
+static redisContext *hydrate_ctx = NULL;
 static pthread_mutex_t connection_state_mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool command_connected = false;
 static bool subscribe_connected = false;
@@ -84,6 +87,14 @@ static void redis_disconnect_subscribe(void)
         subscribe_ctx = NULL;
     }
     set_subscribe_connected(false);
+}
+
+static void redis_disconnect_hydrate(void)
+{
+    if (hydrate_ctx) {
+        redisFree(hydrate_ctx);
+        hydrate_ctx = NULL;
+    }
 }
 
 static redisContext *redis_connect_context(void)
@@ -180,6 +191,7 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
 {
     redisReply *reply;
     char history_stream[196];
+    char history_id[64];
     json_t *payload;
     char *payload_json;
     bool success = true;
@@ -204,16 +216,22 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
             freeReplyObject(reply);
         return false;
     }
+    strlcpy(history_id,
+            (reply->type == REDIS_REPLY_STRING && reply->str) ? reply->str : "",
+            sizeof(history_id));
     freeReplyObject(reply);
 
     payload = json_object();
     json_object_set_new(payload, "channel_id", json_string(evt->channel_id));
     json_object_set_new(payload, "topic", json_string(evt->topic));
+    json_object_set_new(payload, "history_stream", json_string(history_stream));
+    json_object_set_new(payload, "history_id", json_string(history_id));
     json_object_set_new(payload, "sender_name", json_string(evt->sender_name));
     json_object_set_new(payload, "sender_uid", json_string(evt->sender_uid));
     json_object_set_new(payload, "sender_id0", json_integer((json_int_t)evt->sender_id0));
     json_object_set_new(payload, "sender_id1", json_integer((json_int_t)evt->sender_id1));
-    json_object_set_new(payload, "message_text", json_string(evt->message_text));
+    if (!game_settings.channel_publish_compact)
+        json_object_set_new(payload, "message_text", json_string(evt->message_text));
     json_object_set_new(payload, "timestamp", json_integer((json_int_t)evt->timestamp));
 
     payload_json = json_dumps(payload, JSON_COMPACT);
@@ -265,6 +283,14 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
     }
     strlcpy(evt->channel_id, json_string_value(v), sizeof(evt->channel_id));
 
+    v = json_object_get(root, "history_stream");
+    if (json_is_string(v))
+        strlcpy(evt->history_stream, json_string_value(v), sizeof(evt->history_stream));
+
+    v = json_object_get(root, "history_id");
+    if (json_is_string(v))
+        strlcpy(evt->history_id, json_string_value(v), sizeof(evt->history_id));
+
     v = json_object_get(root, "sender_name");
     if (json_is_string(v))
         strlcpy(evt->sender_name, json_string_value(v), sizeof(evt->sender_name));
@@ -286,11 +312,10 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
     }
 
     v = json_object_get(root, "message_text");
-    if (!json_is_string(v)) {
-        json_decref(root);
-        return false;
-    }
-    strlcpy(evt->message_text, json_string_value(v), sizeof(evt->message_text));
+    if (json_is_string(v))
+        strlcpy(evt->message_text, json_string_value(v), sizeof(evt->message_text));
+    else
+        evt->message_text[0] = '\0';
 
     v = json_object_get(root, "timestamp");
     if (json_is_integer(v))
@@ -300,6 +325,79 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
 
     json_decref(root);
     return true;
+}
+
+static bool hydrate_event_from_history(REDIS_OUTBOUND_EVENT *evt)
+{
+    redisReply *reply;
+    redisReply *entry;
+    redisReply *fields;
+    size_t i;
+
+    if (!evt || !IS_NULLSTR(evt->message_text))
+        return true;
+
+    if (IS_NULLSTR(evt->history_stream) || IS_NULLSTR(evt->history_id))
+        return false;
+
+    if (!hydrate_ctx) {
+        hydrate_ctx = redis_connect_context();
+        if (!hydrate_ctx || !redis_auth_ping(hydrate_ctx)) {
+            redis_disconnect_hydrate();
+            return false;
+        }
+    }
+
+    reply = redisCommand(hydrate_ctx,
+                         "XRANGE %s %s %s COUNT 1",
+                         evt->history_stream,
+                         evt->history_id,
+                         evt->history_id);
+    if (!reply || reply->type != REDIS_REPLY_ARRAY || reply->elements < 1) {
+        if (reply)
+            freeReplyObject(reply);
+        redis_disconnect_hydrate();
+        return false;
+    }
+
+    entry = reply->element[0];
+    if (!entry || entry->type != REDIS_REPLY_ARRAY || entry->elements < 2) {
+        freeReplyObject(reply);
+        return false;
+    }
+
+    fields = entry->element[1];
+    if (!fields || fields->type != REDIS_REPLY_ARRAY) {
+        freeReplyObject(reply);
+        return false;
+    }
+
+    for (i = 0; i + 1 < fields->elements; i += 2) {
+        redisReply *key = fields->element[i];
+        redisReply *val = fields->element[i + 1];
+
+        if (!key || !val || key->type != REDIS_REPLY_STRING || val->type != REDIS_REPLY_STRING)
+            continue;
+
+        if (!str_cmp(key->str, "message")) {
+            strlcpy(evt->message_text, val->str, sizeof(evt->message_text));
+        } else if (!str_cmp(key->str, "channel")) {
+            strlcpy(evt->channel_id, val->str, sizeof(evt->channel_id));
+        } else if (!str_cmp(key->str, "sender")) {
+            strlcpy(evt->sender_name, val->str, sizeof(evt->sender_name));
+        } else if (!str_cmp(key->str, "sender_uid")) {
+            strlcpy(evt->sender_uid, val->str, sizeof(evt->sender_uid));
+        } else if (!str_cmp(key->str, "sender_id0")) {
+            evt->sender_id0 = strtoul(val->str, NULL, 10);
+        } else if (!str_cmp(key->str, "sender_id1")) {
+            evt->sender_id1 = strtoul(val->str, NULL, 10);
+        } else if (!str_cmp(key->str, "ts")) {
+            evt->timestamp = (time_t)strtol(val->str, NULL, 10);
+        }
+    }
+
+    freeReplyObject(reply);
+    return !IS_NULLSTR(evt->message_text);
 }
 
 static void *redis_outbound_worker_main(void *arg)
@@ -415,6 +513,13 @@ static void *redis_inbound_worker_main(void *arg)
         }
 
         if (decode_payload(channel, payload, &evt)) {
+            if (IS_NULLSTR(evt.message_text)) {
+                if (!hydrate_event_from_history(&evt)) {
+                    freeReplyObject(reply);
+                    continue;
+                }
+            }
+
             push_inbound_event(&evt);
         }
 
@@ -496,6 +601,7 @@ static void redis_transport_shutdown(void)
     }
 
     redis_disconnect_command();
+    redis_disconnect_hydrate();
 
     pthread_mutex_lock(&outbound_mutex);
     outbound_head = 0;
@@ -531,6 +637,8 @@ static bool redis_transport_publish(const char *topic, const CHANNEL_MESSAGE *ms
     evt = &outbound_queue[outbound_tail];
     strlcpy(evt->topic, topic, sizeof(evt->topic));
     strlcpy(evt->channel_id, msg->channel_id, sizeof(evt->channel_id));
+    strlcpy(evt->history_stream, msg->history_stream ? msg->history_stream : "", sizeof(evt->history_stream));
+    strlcpy(evt->history_id, msg->history_id ? msg->history_id : "", sizeof(evt->history_id));
     strlcpy(evt->sender_name, msg->sender_name ? msg->sender_name : "", sizeof(evt->sender_name));
     strlcpy(evt->sender_uid, msg->sender_uid ? msg->sender_uid : "", sizeof(evt->sender_uid));
     evt->sender_id0 = msg->sender_id0;
@@ -611,6 +719,8 @@ static int redis_transport_drain_inbound(int max_events)
 
         msg.topic = evt.topic;
         msg.channel_id = evt.channel_id;
+        msg.history_stream = evt.history_stream;
+        msg.history_id = evt.history_id;
         msg.sender_name = evt.sender_name;
         msg.sender_uid = evt.sender_uid;
         msg.sender_id0 = evt.sender_id0;

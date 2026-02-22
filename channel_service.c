@@ -590,7 +590,10 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
 {
     CHAR_DATA *sender;
 
-    if (!msg || IS_NULLSTR(msg->channel_id) || IS_NULLSTR(msg->message_text))
+    if (!msg || IS_NULLSTR(msg->channel_id))
+        return;
+
+    if (IS_NULLSTR(msg->message_text))
         return;
 
     sender = channel_find_sender(msg->sender_id0, msg->sender_id1, msg->sender_name);
@@ -685,6 +688,8 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
     msg.sender_uid = sender_uid;
     msg.sender_id0 = sender->id[0];
     msg.sender_id1 = sender->id[1];
+    msg.history_stream = NULL;
+    msg.history_id = NULL;
     msg.message_text = delivery_text;
     msg.timestamp = current_time;
 
