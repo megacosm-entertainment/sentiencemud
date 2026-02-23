@@ -750,10 +750,12 @@ static bool channel_definition_available_for_sender(const CHANNEL_DEF_DATA *def,
     if (!def || !sender)
         return false;
 
-    memset(&req_context, 0, sizeof(req_context));
-    req_context.actor = sender;
-    if (!requirements_evaluate_text(def->publish_requirements, &req_context, true))
-        return false;
+    if (!IS_NPC(sender)) {
+        memset(&req_context, 0, sizeof(req_context));
+        req_context.actor = sender;
+        if (!requirements_evaluate_text(def->publish_requirements, &req_context, true))
+            return false;
+    }
 
     switch (def->scope) {
     case CHANNEL_SCOPE_INSTANCE_ID:

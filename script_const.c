@@ -1748,6 +1748,7 @@ struct trigger_type trigger_table	[] = {
 {	"quest_incomplete",		NULL,		TRIG_QUEST_INCOMPLETE,	TRIGSLOT_GENERAL,		true,	true,	true,	true,	false,	false,	false	},
 {	"quest_part",			NULL,		TRIG_QUEST_PART,		TRIGSLOT_GENERAL,		true,	false,	false,	true,	false,	false,	false,	false	},
 {   "quest_accepted",        NULL,       TRIG_QUEST_ACCEPTED,       TRIGSLOT_GENERAL,       false,  false,  false,  false,  false,  false,  false,  true    },
+{   "quest_accept",          NULL,       TRIG_QUEST_ACCEPTED,       TRIGSLOT_GENERAL,       false,  false,  false,  false,  false,  false,  false,  true    },
 {   "quest_completed",       NULL,       TRIG_QUEST_COMPLETED,      TRIGSLOT_GENERAL,       false,  false,  false,  false,  false,  false,  false,  true    },
 {   "quest_failed",          NULL,       TRIG_QUEST_FAILED,         TRIGSLOT_GENERAL,       false,  false,  false,  false,  false,  false,  false,  true    },
 {   "quest_focused",         NULL,       TRIG_QUEST_FOCUSED,        TRIGSLOT_GENERAL,       false,  false,  false,  false,  false,  false,  false,  true    },

@@ -23,6 +23,8 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+void do_emote(CHAR_DATA *ch, char *argument);
+
 extern const char *cmd_operator_table[];
 
 int script_security = INIT_SCRIPT_SECURITY;
@@ -1703,8 +1705,37 @@ DECL_OPC_FUN(opc_command)
     // Allow only MOBS to do this...
     if(block->type == IFC_M && block->info.mob) {
         BUFFER *buffer = new_buf();
+        char command[MAX_INPUT_LENGTH];
+        char expanded[MAX_STRING_LENGTH];
+        char *rest = NULL;
+        char *ptr;
+
         expand_string(&block->info,block->cur_line->rest,buffer);
-        interpret(block->info.mob,buf_string(buffer));
+
+        strlcpy(expanded, buf_string(buffer), sizeof(expanded));
+        ptr = expanded;
+        while (ISSPACE(*ptr))
+            ptr++;
+
+        if (!IS_NULLSTR(ptr) && !ISALPHA(*ptr) && !ISDIGIT(*ptr)) {
+            command[0] = *ptr;
+            command[1] = '\0';
+            ptr++;
+            while (ISSPACE(*ptr))
+                ptr++;
+            rest = ptr;
+        } else {
+            rest = one_argument(ptr, command);
+        }
+
+        if (!str_cmp(command, "say") || !str_cmp(command, "'")) {
+            do_say(block->info.mob, rest);
+        } else if (!str_cmp(command, "emote") || !str_cmp(command, ",")) {
+            do_emote(block->info.mob, rest);
+        } else {
+            interpret(block->info.mob, buf_string(buffer));
+        }
+
         free_buf(buffer);
     }
     // Ignore the others
