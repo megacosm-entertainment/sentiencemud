@@ -13,6 +13,7 @@ typedef struct local_event {
     char reports_json[256];
     char sender_name[64];
     char sender_uid[64];
+    char origin_uid[64];
     unsigned long sender_id0;
     unsigned long sender_id1;
     char recipient_uid[64];
@@ -73,6 +74,7 @@ static bool local_publish(const char *topic, const CHANNEL_MESSAGE *msg)
     strlcpy(evt->reports_json, msg->reports_json ? msg->reports_json : "", sizeof(evt->reports_json));
     strlcpy(evt->sender_name, msg->sender_name ? msg->sender_name : "", sizeof(evt->sender_name));
     strlcpy(evt->sender_uid, msg->sender_uid ? msg->sender_uid : "", sizeof(evt->sender_uid));
+    strlcpy(evt->origin_uid, msg->origin_uid ? msg->origin_uid : "", sizeof(evt->origin_uid));
     evt->sender_id0 = msg->sender_id0;
     evt->sender_id1 = msg->sender_id1;
     strlcpy(evt->recipient_uid, msg->recipient_uid ? msg->recipient_uid : "", sizeof(evt->recipient_uid));
@@ -152,6 +154,7 @@ static int local_drain_inbound(int max_events)
         msg.reports_json = evt.reports_json[0] ? evt.reports_json : NULL;
         msg.sender_name = evt.sender_name;
         msg.sender_uid = evt.sender_uid;
+        msg.origin_uid = evt.origin_uid[0] ? evt.origin_uid : NULL;
         msg.sender_id0 = evt.sender_id0;
         msg.sender_id1 = evt.sender_id1;
         msg.recipient_uid = evt.recipient_uid[0] ? evt.recipient_uid : NULL;

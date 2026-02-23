@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <jansson.h>
 #include "../merc.h"
 #include "../recycle.h"
@@ -24,6 +25,7 @@ char *buf_string(BUFFER *buffer);
 static bool channel_service_ready = false;
 static time_t channel_subscription_last_sync = 0;
 static time_t channel_registry_last_mtime = 0;
+static char channel_service_origin_uid[64];
 
 #define CHANNEL_REGISTRY_PATH "data/system/channels.json"
 #define CHANNEL_STAFF_REPORTS_PATH "data/system/channel_staff_reports.json"
@@ -1917,54 +1919,6 @@ static void channel_sender_name_mxp(descriptor_t *desc,
     free_buf(mxp_buf);
 }
 
-static bool channel_supports_service_self_echo(const char *channel_id)
-{
-    if (IS_NULLSTR(channel_id))
-        return false;
-
-    return !str_cmp(channel_id, "gossip")
-        || !str_cmp(channel_id, "ooc")
-        || !str_cmp(channel_id, "quote")
-        || !str_cmp(channel_id, "flame")
-        || !str_cmp(channel_id, "helper")
-        || !str_cmp(channel_id, "music")
-        || !str_cmp(channel_id, "immtalk")
-        || !str_cmp(channel_id, "yell")
-        || !str_cmp(channel_id, "gtell");
-}
-
-static void channel_send_formatted_to_sender(const char *channel_id,
-                                             CHAR_DATA *sender,
-                                             const char *plain_text)
-{
-    const CHANNEL_DEF_DATA *def;
-    const char *fmt = "{WYou:{x %2$s";
-    const char *message_text;
-    char message_with_flag[2 * MSL];
-    char rendered[MAX_STRING_LENGTH];
-
-    if (!sender || IS_NULLSTR(channel_id) || IS_NULLSTR(plain_text))
-        return;
-
-    def = channel_find_definition(channel_id);
-    if (def && !IS_NULLSTR(def->fmt_self))
-        fmt = def->fmt_self;
-
-    message_text = plain_text;
-    if (channel_should_include_sender_flag(channel_id, sender, sender)) {
-        snprintf(message_with_flag, sizeof(message_with_flag), "%s %s",
-                 sender->pcdata->flag, plain_text);
-        message_text = message_with_flag;
-    }
-
-    snprintf(rendered, sizeof(rendered), fmt, "You", message_text);
-
-    if (!strstr(rendered, "\n\r"))
-        strlcat(rendered, "\n\r", sizeof(rendered));
-
-    send_to_char(rendered, sender);
-}
-
 static void channel_format_for_recipient(const char *channel_id,
                                          CHAR_DATA *sender,
                                          CHAR_DATA *recipient,
@@ -3042,6 +2996,14 @@ static bool channel_dispatch_targeted_room_legacy_by_id(CHAR_DATA *sender,
     return false;
 }
 
+static bool channel_message_origin_is_local(const CHANNEL_MESSAGE *msg)
+{
+    if (!msg || IS_NULLSTR(msg->origin_uid) || IS_NULLSTR(channel_service_origin_uid))
+        return false;
+
+    return !str_cmp(msg->origin_uid, channel_service_origin_uid);
+}
+
 static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
 {
     CHAR_DATA *sender;
@@ -3052,6 +3014,9 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
         return;
 
     if (IS_NULLSTR(msg->message_text))
+        return;
+
+    if (channel_message_origin_is_local(msg))
         return;
 
     appended_report_id[0] = '\0';
@@ -3101,6 +3066,12 @@ bool channel_service_init(void)
     channel_registry_init();
     channel_registry_load(CHANNEL_REGISTRY_PATH);   /* optional; falls back to defaults */
     channel_registry_mark_loaded_mtime();
+
+    snprintf(channel_service_origin_uid,
+             sizeof(channel_service_origin_uid),
+             "%ld:%ld",
+             (long)getpid(),
+             (long)current_time);
 
     if (!channel_transport_init()) {
         log_string("ChannelService: failed to initialize transport");
@@ -3215,6 +3186,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
     msg.sender_name = sender->name;
     snprintf(sender_uid, sizeof(sender_uid), "%lu:%lu", sender->id[0], sender->id[1]);
     msg.sender_uid = sender_uid;
+    msg.origin_uid = channel_service_origin_uid;
     msg.sender_id0 = sender->id[0];
     msg.sender_id1 = sender->id[1];
     msg.history_stream = NULL;
@@ -3256,9 +3228,6 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
         return true;
     }
 
-    if (channel_supports_service_self_echo(channel_id))
-        channel_send_formatted_to_sender(channel_id, sender, delivery_text);
-
     if (!channel_service_ready)
     {
         channel_history_append(channel_id,
@@ -3279,8 +3248,18 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
     msg.topic = topic;
 
     if (channel_transport_backend_mode() != CHANNEL_BACKEND_LEGACY_ITERATIVE) {
-        if (channel_transport_publish(topic, &msg))
-            return true;
+        if (channel_transport_publish(topic, &msg)) {
+            channel_history_append(channel_id,
+                                   topic,
+                                   sender->name,
+                                   delivery_text,
+                                   current_time,
+                                   NULL,
+                                   msg.reports_json,
+                                   appended_report_id,
+                                   sizeof(appended_report_id));
+            return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
+        }
 
         log_stringf("ChannelService: publish failed for channel '%s', applying local legacy fallback", channel_id);
         channel_history_append(channel_id,
@@ -3434,6 +3413,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.sender_name = sender->name;
     snprintf(sender_uid, sizeof(sender_uid), "%lu:%lu", sender->id[0], sender->id[1]);
     msg.sender_uid = sender_uid;
+    msg.origin_uid = channel_service_origin_uid;
     msg.sender_id0 = sender->id[0];
     msg.sender_id1 = sender->id[1];
     snprintf(recipient_uid, sizeof(recipient_uid), "%lu:%lu", recipient->id[0], recipient->id[1]);
@@ -3445,8 +3425,19 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.message_text = delivery_text;
     msg.timestamp = current_time;
 
-    if (channel_transport_publish(topic, &msg))
+    if (channel_transport_publish(topic, &msg)) {
+        channel_history_append(channel_id,
+                               topic,
+                               sender->name,
+                               delivery_text,
+                               current_time,
+                               NULL,
+                               msg.reports_json,
+                               appended_report_id,
+                               sizeof(appended_report_id));
+        channel_deliver_tell_legacy(sender, recipient, delivery_text);
         return true;
+    }
 
     log_stringf("ChannelService: directed publish failed for channel '%s', using direct fallback", channel_id);
     channel_history_append(channel_id,
@@ -3572,6 +3563,7 @@ bool channel_service_send_room_targeted(CHAR_DATA *sender, const char *channel_i
     msg.sender_name = sender->name;
     snprintf(sender_uid, sizeof(sender_uid), "%lu:%lu", sender->id[0], sender->id[1]);
     msg.sender_uid = sender_uid;
+    msg.origin_uid = channel_service_origin_uid;
     msg.sender_id0 = sender->id[0];
     msg.sender_id1 = sender->id[1];
     snprintf(recipient_uid, sizeof(recipient_uid), "%lu:%lu", target->id[0], target->id[1]);
@@ -3583,8 +3575,18 @@ bool channel_service_send_room_targeted(CHAR_DATA *sender, const char *channel_i
     msg.message_text = delivery_text;
     msg.timestamp = current_time;
 
-    if (channel_transport_publish(topic, &msg))
-        return true;
+    if (channel_transport_publish(topic, &msg)) {
+        channel_history_append(channel_id,
+                               topic,
+                               sender->name,
+                               delivery_text,
+                               current_time,
+                               NULL,
+                               msg.reports_json,
+                               NULL,
+                               0);
+        return channel_dispatch_targeted_room_legacy_by_id(sender, channel_id, target, delivery_text);
+    }
 
     log_stringf("ChannelService: targeted room publish failed for channel '%s', using direct fallback",
                 channel_id);
