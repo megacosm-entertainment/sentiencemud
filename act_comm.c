@@ -345,6 +345,54 @@ bool dispatch_dynamic_channel_command(CHAR_DATA *ch, const char *command, char *
     if (!IS_NPC(ch) && ch->pcdata)
         pref_set_bool(&ch->pcdata->preferences, PREF_CAT_CHANNEL, pref_key, true);
 
+    if (IS_SET(def->channel_flags, CHANNEL_FLAG_REQUIRES_TARGET)) {
+        char arg[MAX_INPUT_LENGTH];
+        CHAR_DATA *victim;
+
+        argument = one_argument(argument, arg);
+
+        if (def->scope == CHANNEL_SCOPE_DIRECT_ENTITY)
+            victim = get_char_world(ch, arg);
+        else
+            victim = get_char_room(ch, NULL, arg);
+
+        if (!victim) {
+            if (def->scope == CHANNEL_SCOPE_DIRECT_ENTITY)
+                send_to_char("They aren't here.\n\r", ch);
+            else
+                send_to_char("They aren't in the room.\n\r", ch);
+            return true;
+        }
+
+        if (victim == ch) {
+            send_to_char("Talking to yourself is a sure sign that you need help.\n\r", ch);
+            return true;
+        }
+
+        if (IS_NULLSTR(argument)) {
+            send_to_char("Say what?\n\r", ch);
+            return true;
+        }
+
+        buf[0] = '\0';
+        STRIP_COLOUR(argument, buf);
+
+        if (!buf[0]) {
+            send_to_char("Say what?\n\r", ch);
+            return true;
+        }
+
+        if (def->scope == CHANNEL_SCOPE_DIRECT_ENTITY) {
+            if (!channel_service_send_directed(ch, def->id, victim, buf))
+                send_to_char("That channel is currently unavailable.\n\r", ch);
+        } else {
+            if (!channel_service_send_room_targeted(ch, def->id, victim, buf))
+                send_to_char("That channel is currently unavailable.\n\r", ch);
+        }
+
+        return true;
+    }
+
     buf[0] = '\0';
     STRIP_COLOUR(argument, buf);
 
