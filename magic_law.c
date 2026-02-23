@@ -16,6 +16,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "requirements.h"
 
 
 SPELL_FUNC(spell_armour)
@@ -496,6 +497,31 @@ SPELL_FUNC(spell_identify)
                 add_buf(buffer, buf);
             }
         }
+    }
+
+    /* Show player-visible prerequisites (player_string) and hidden unmet hints */
+    if (obj->pIndexData && !IS_NULLSTR(obj->pIndexData->prerequisites)) {
+        REQUIREMENT_CONTEXT prereq_ctx;
+        bool meets;
+        char *ps;
+        bool is_hidden;
+
+        memset(&prereq_ctx, 0, sizeof(prereq_ctx));
+        prereq_ctx.actor    = ch;
+        prereq_ctx.self_obj = obj;
+        meets     = requirements_evaluate_text(obj->pIndexData->prerequisites,
+                                              &prereq_ctx, true);
+        ps        = requirements_get_player_string(obj->pIndexData->prerequisites);
+        is_hidden = requirements_is_hidden(obj->pIndexData->prerequisites);
+
+        if (ps && *ps) {
+            sprintf(buf, "{MRequires:{x %s%s{x\n\r",
+                meets ? "{G\u2713 " : "{R\u2717 ", ps);
+            add_buf(buffer, buf);
+        }
+        if (is_hidden && !meets && !(ps && *ps))
+            add_buf(buffer, "{D* Additional requirements not met.{x\n\r");
+        if (ps) free(ps);
     }
 
     page_to_char(buf_string(buffer), ch);

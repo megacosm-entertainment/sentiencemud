@@ -51,6 +51,7 @@ RSGEDIT(rsgedit_create);
 RSGEDIT(rsgedit_show);
 RSGEDIT(rsgedit_pattern_list);
 RSGEDIT(rsgedit_pattern_create);
+RSGEDIT(rsgedit_pattern_edit);
 RSGEDIT(rsgedit_pattern_show);
 RSGEDIT(rsgedit_pattern_delete);
 RSGEDIT(rsgedit_pattern_help);
@@ -72,6 +73,8 @@ static void rsg_list_add(RANDOM_STRING *rsg);
 static void rsg_free_generator(RANDOM_STRING *rsg);
 static RANDOM_STRING *rsg_find_by_uid(long uid);
 static RANDOM_STRING *rsg_find_by_name(const char *name);
+static RANDOM_STRING *rsg_find_by_token(const char *token);
+static RANDOM_PATTERN *rsg_pattern_find_by_name(RANDOM_STRING *rsg, const char *name);
 static void rsgedit_show_patterns_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void rsgedit_show_classes_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void rsgedit_show_templates_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
@@ -80,6 +83,27 @@ static void rsg_escape_template_for_display(const char *src, char *dst, size_t d
 static bool rsg_use_mxp(CHAR_DATA *ch);
 static void rsg_mxp_send_text(CHAR_DATA *ch, const char *command,
                               const char *text, char *out, size_t out_size);
+static void rsg_trim_inplace(char *str);
+
+static void rsg_trim_inplace(char *str)
+{
+    char *start;
+    size_t len;
+
+    if (!str)
+        return;
+
+    start = str;
+    while (*start && isspace((unsigned char)*start))
+        start++;
+
+    if (start != str)
+        memmove(str, start, strlen(start) + 1);
+
+    len = strlen(str);
+    while (len > 0 && isspace((unsigned char)str[len - 1]))
+        str[--len] = '\0';
+}
 
 static void rsg_history_key(const RANDOM_STRING *rsg, char *buf, size_t buf_size)
 {
@@ -169,6 +193,7 @@ static void rsg_free_pattern(RANDOM_PATTERN *pattern)
         return;
 
     free_string(pattern->name);
+    free_string(pattern->template);
     if (pattern->c_list)
         free_mem(pattern->c_list, sizeof(RANDOM_CLASS *) * pattern->classes);
     free_mem(pattern, sizeof(*pattern));
@@ -242,6 +267,17 @@ static RANDOM_STRING *rsg_find_by_name(const char *name)
     return NULL;
 }
 
+static RANDOM_STRING *rsg_find_by_token(const char *token)
+{
+    if (IS_NULLSTR(token))
+        return NULL;
+
+    if (is_number(token))
+        return rsg_find_by_uid(atol(token));
+
+    return rsg_find_by_name(token);
+}
+
 static RANDOM_CLASS *rsg_class_find_by_uid(RANDOM_STRING *rsg, long uid)
 {
     RANDOM_CLASS *cls;
@@ -291,6 +327,31 @@ static RANDOM_PATTERN *rsg_pattern_by_index(RANDOM_STRING *rsg, int index)
             return pattern;
 
     return NULL;
+}
+
+static RANDOM_PATTERN *rsg_pattern_find_by_name(RANDOM_STRING *rsg, const char *name)
+{
+    RANDOM_PATTERN *pattern;
+
+    if (!rsg || IS_NULLSTR(name))
+        return NULL;
+
+    for (pattern = rsg->p_head; pattern; pattern = pattern->next)
+        if (!str_cmp(pattern->name, name))
+            return pattern;
+
+    return NULL;
+}
+
+static RANDOM_PATTERN *rsg_pattern_resolve(RANDOM_STRING *rsg, const char *token)
+{
+    if (IS_NULLSTR(token))
+        return NULL;
+
+    if (is_number(token))
+        return rsg_pattern_by_index(rsg, atoi(token));
+
+    return rsg_pattern_find_by_name(rsg, token);
 }
 
 static RANDOM_STRING_ENTRY *rsg_class_entry_by_index(RANDOM_CLASS *cls, int index)
@@ -359,7 +420,7 @@ static void rsg_pattern_rebuild_refs(RANDOM_STRING *rsg, RANDOM_PATTERN *pattern
     }
     pattern->classes = 0;
 
-    ptr = pattern->name;
+    ptr = pattern->template;
     while (*ptr) {
         int i = 0;
 
@@ -513,6 +574,7 @@ const struct olc_cmd_type rsgedit_table[] = {
 const struct olc_cmd_type rsgedit_pattern_table[] = {
     { "?",          rsgedit_pattern_help   },
     { "create",     rsgedit_pattern_create },
+    { "edit",       rsgedit_pattern_edit   },
     { "delete",     rsgedit_pattern_delete },
     { "list",       rsgedit_pattern_list   },
     { "show",       rsgedit_pattern_show   },
@@ -817,10 +879,11 @@ static void rsgedit_show_patterns_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
     RANDOM_PATTERN *pattern;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&rsgedit_def);
     int index = 1;
-    char cmd_list[MIL], cmd_create[MIL], cmd_show[MIL], cmd_delete[MIL];
+    char cmd_list[MIL], cmd_create[MIL], cmd_edit[MIL], cmd_show[MIL], cmd_delete[MIL];
 
     rsg_mxp_send_text(ch, "pattern list", "pattern list", cmd_list, sizeof(cmd_list));
     rsg_mxp_send_text(ch, "pattern create", "pattern create", cmd_create, sizeof(cmd_create));
+    rsg_mxp_send_text(ch, "pattern edit", "pattern edit", cmd_edit, sizeof(cmd_edit));
     rsg_mxp_send_text(ch, "pattern show", "pattern show", cmd_show, sizeof(cmd_show));
     rsg_mxp_send_text(ch, "pattern delete", "pattern delete", cmd_delete, sizeof(cmd_delete));
 
@@ -835,12 +898,13 @@ static void rsgedit_show_patterns_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
     if (!rsg->p_head) {
         add_buf(ctx->buffer, "(no patterns defined)\n\r");
     } else {
-        add_buf(ctx->buffer, "{WIdx  Weight  ClassRefs  Template{X\n\r");
-        add_buf(ctx->buffer, "{D---  ------  ---------  --------------------------------------{X\n\r");
+        add_buf(ctx->buffer, "{WIdx  Weight  ClassRefs  Name               Template{X\n\r");
+        add_buf(ctx->buffer, "{D---  ------  ---------  ------------------ ------------------------------{X\n\r");
         for (pattern = rsg->p_head; pattern; pattern = pattern->next, index++) {
             char cmd[MIL];
             char idx_txt[32];
             char idx_disp[MIL];
+            char name_escaped[MSL];
             char templ_escaped[MSL];
             char templ_disp[MSL];
 
@@ -848,20 +912,23 @@ static void rsgedit_show_patterns_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
             snprintf(idx_txt, sizeof(idx_txt), "%3d", index);
             rsg_mxp_send_text(ch, cmd, idx_txt, idx_disp, sizeof(idx_disp));
             rsg_escape_template_for_display(pattern->name ? pattern->name : "",
+                name_escaped, sizeof(name_escaped));
+            rsg_escape_template_for_display(pattern->template ? pattern->template : "",
                 templ_escaped, sizeof(templ_escaped));
             rsg_mxp_send_text(ch, cmd, templ_escaped, templ_disp, sizeof(templ_disp));
 
-            add_buf(ctx->buffer, formatf("{W%s  %6d  %9d  {x%s{X\n\r",
+            add_buf(ctx->buffer, formatf("{W%s  %6d  %9d  {x%-18.18s {x%s{X\n\r",
                 idx_disp,
                 pattern->weight,
                 pattern->classes,
+                name_escaped,
                 templ_disp));
         }
     }
 
     olc_display_infof(ctx, theme,
-        "%sCommands:%s %s | %s | %s | %s",
-        theme->label, theme->value, cmd_list, cmd_create, cmd_show, cmd_delete);
+            "%sCommands:%s %s | %s | %s | %s | %s",
+            theme->label, theme->value, cmd_list, cmd_create, cmd_edit, cmd_show, cmd_delete);
 }
 
 static void rsgedit_show_classes_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
@@ -931,7 +998,7 @@ static void rsgedit_show_templates_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx
             snprintf(cmd, sizeof(cmd), "pattern show %d", index);
             snprintf(label, sizeof(label), "[%d]", index);
             rsg_mxp_send_text(ch, cmd, label, idx_disp, sizeof(idx_disp));
-            rsg_escape_template_for_display(pattern->name ? pattern->name : "",
+            rsg_escape_template_for_display(pattern->template ? pattern->template : "",
                 templ_escaped, sizeof(templ_escaped));
             rsg_mxp_send_text(ch, cmd, templ_escaped, templ_disp, sizeof(templ_disp));
 
@@ -1142,6 +1209,221 @@ static void rsg_generate_from_template(RANDOM_STRING *rsg, const char *templ,
     }
 }
 
+bool rsg_generate_any(const char *generator_token, char *out, size_t out_size)
+{
+    RANDOM_STRING *rsg;
+    RANDOM_PATTERN *pattern;
+
+    if (!out || out_size == 0)
+        return false;
+
+    out[0] = '\0';
+    if (IS_NULLSTR(generator_token))
+        return false;
+
+    rsg_ensure_cache_loaded();
+    rsg = rsg_find_by_token(generator_token);
+    if (!rsg || !rsg->p_head)
+        return false;
+
+    pattern = rsg_pick_weighted_pattern(rsg);
+    if (!pattern || IS_NULLSTR(pattern->template))
+        return false;
+
+    rsg_generate_from_template(rsg, pattern->template, out, out_size);
+    return !IS_NULLSTR(out);
+}
+
+bool rsg_generate_pattern(const char *generator_token, int pattern_index,
+    char *out, size_t out_size)
+{
+    RANDOM_STRING *rsg;
+    RANDOM_PATTERN *pattern;
+
+    if (!out || out_size == 0)
+        return false;
+
+    out[0] = '\0';
+    if (IS_NULLSTR(generator_token) || pattern_index < 1)
+        return false;
+
+    rsg_ensure_cache_loaded();
+    rsg = rsg_find_by_token(generator_token);
+    if (!rsg)
+        return false;
+
+    pattern = rsg_pattern_by_index(rsg, pattern_index);
+    if (!pattern || IS_NULLSTR(pattern->template))
+        return false;
+
+    rsg_generate_from_template(rsg, pattern->template, out, out_size);
+    return !IS_NULLSTR(out);
+}
+
+bool rsg_generate_pattern_named(const char *generator_token, const char *pattern_name,
+    char *out, size_t out_size)
+{
+    RANDOM_STRING *rsg;
+    RANDOM_PATTERN *pattern;
+
+    if (!out || out_size == 0)
+        return false;
+
+    out[0] = '\0';
+    if (IS_NULLSTR(generator_token) || IS_NULLSTR(pattern_name))
+        return false;
+
+    rsg_ensure_cache_loaded();
+    rsg = rsg_find_by_token(generator_token);
+    if (!rsg)
+        return false;
+
+    pattern = rsg_pattern_find_by_name(rsg, pattern_name);
+    if (!pattern || IS_NULLSTR(pattern->template))
+        return false;
+
+    rsg_generate_from_template(rsg, pattern->template, out, out_size);
+    return !IS_NULLSTR(out);
+}
+
+bool rsg_generate_template_named(const char *generator_token, const char *template_name,
+    char *out, size_t out_size)
+{
+    return rsg_generate_pattern_named(generator_token, template_name, out, out_size);
+}
+
+bool rsg_generate_class(const char *generator_token, const char *class_name,
+    char *out, size_t out_size)
+{
+    RANDOM_STRING *rsg;
+    RANDOM_CLASS *cls;
+    RANDOM_STRING_ENTRY *entry;
+
+    if (!out || out_size == 0)
+        return false;
+
+    out[0] = '\0';
+    if (IS_NULLSTR(generator_token) || IS_NULLSTR(class_name))
+        return false;
+
+    rsg_ensure_cache_loaded();
+    rsg = rsg_find_by_token(generator_token);
+    if (!rsg)
+        return false;
+
+    cls = rsg_class_find_by_name(rsg, class_name);
+    if (!cls)
+        return false;
+
+    entry = rsg_pick_weighted_entry(cls);
+    if (!entry || IS_NULLSTR(entry->str))
+        return false;
+
+    snprintf(out, out_size, "%s", entry->str);
+    return true;
+}
+
+bool rsg_generate_template(const char *generator_token, const char *templ,
+    char *out, size_t out_size)
+{
+    RANDOM_STRING *rsg;
+
+    if (!out || out_size == 0)
+        return false;
+
+    out[0] = '\0';
+    if (IS_NULLSTR(generator_token) || IS_NULLSTR(templ))
+        return false;
+
+    rsg_ensure_cache_loaded();
+    rsg = rsg_find_by_token(generator_token);
+    if (!rsg)
+        return false;
+
+    rsg_generate_from_template(rsg, templ, out, out_size);
+    return !IS_NULLSTR(out);
+}
+
+bool rsg_generate_spec(const char *spec, char *out, size_t out_size)
+{
+    char work[MSL];
+    char *generator;
+    char *mode;
+    char *param;
+    char *first_colon;
+    char *second_colon;
+
+    if (!out || out_size == 0)
+        return false;
+
+    out[0] = '\0';
+    if (IS_NULLSTR(spec))
+        return false;
+
+    snprintf(work, sizeof(work), "%s", spec);
+    rsg_trim_inplace(work);
+    if (IS_NULLSTR(work))
+        return false;
+
+    generator = work;
+    while (*generator && isspace((unsigned char)*generator))
+        generator++;
+    if (*generator == '^')
+        generator++;
+
+    first_colon = strchr(generator, ':');
+    if (!first_colon)
+        return rsg_generate_any(generator, out, out_size);
+
+    *first_colon = '\0';
+    mode = first_colon + 1;
+    second_colon = strchr(mode, ':');
+    if (second_colon) {
+        *second_colon = '\0';
+        param = second_colon + 1;
+    } else {
+        param = NULL;
+    }
+
+    rsg_trim_inplace(generator);
+    rsg_trim_inplace(mode);
+    if (param)
+        rsg_trim_inplace(param);
+
+    if (IS_NULLSTR(generator) || IS_NULLSTR(mode))
+        return false;
+
+    if (!str_cmp(mode, "any"))
+        return rsg_generate_any(generator, out, out_size);
+
+    if (!str_cmp(mode, "pattern")) {
+        if (param && is_number(param))
+            return rsg_generate_pattern(generator, atoi(param), out, out_size);
+        if (!IS_NULLSTR(param))
+            return rsg_generate_pattern_named(generator, param, out, out_size);
+        return rsg_generate_any(generator, out, out_size);
+    }
+
+    if (!str_cmp(mode, "template")) {
+        if (IS_NULLSTR(param))
+            return false;
+
+        if (rsg_generate_template_named(generator, param, out, out_size))
+            return true;
+
+        // Backward compatibility: allow literal inline template text.
+        return rsg_generate_template(generator, param, out, out_size);
+    }
+
+    if (!str_cmp(mode, "class")) {
+        if (IS_NULLSTR(param))
+            return false;
+        return rsg_generate_class(generator, param, out, out_size);
+    }
+
+    return false;
+}
+
 RSGEDIT(rsgedit_generate)
 {
     RANDOM_STRING *rsg;
@@ -1159,7 +1441,7 @@ RSGEDIT(rsgedit_generate)
         count = 20;
 
     if (!rsg->p_head) {
-        send_to_char("No patterns defined. Use 'pattern create <weight> <template>'.\n\r", ch);
+        send_to_char("No patterns defined. Use 'pattern create <weight> <name> <template>'.\n\r", ch);
         return false;
     }
 
@@ -1167,10 +1449,10 @@ RSGEDIT(rsgedit_generate)
         RANDOM_PATTERN *pattern = rsg_pick_weighted_pattern(rsg);
         char out[MSL];
 
-        if (!pattern || IS_NULLSTR(pattern->name))
+        if (!pattern || IS_NULLSTR(pattern->template))
             continue;
 
-        rsg_generate_from_template(rsg, pattern->name, out, sizeof(out));
+        rsg_generate_from_template(rsg, pattern->template, out, sizeof(out));
         send_to_char(formatf("Generated [%2d]: {W%s{X\n\r", i + 1, out), ch);
     }
 
@@ -1236,12 +1518,18 @@ RSGEDIT(rsgedit_pattern_list)
         return false;
     }
 
-    send_to_char("{WIdx  Weight  Template{X\n\r", ch);
-    send_to_char("{D---  ------  ----------------------------------------------{X\n\r", ch);
+    send_to_char("{WIdx  Weight  Name               Template{X\n\r", ch);
+    send_to_char("{D---  ------  ------------------ ----------------------------------------------{X\n\r", ch);
     for (pattern = rsg->p_head; pattern; pattern = pattern->next, index++) {
+        char name_escaped[MSL];
         char templ_escaped[MSL];
-        rsg_escape_template_for_display(pattern->name, templ_escaped, sizeof(templ_escaped));
-        send_to_char(formatf("{W%3d  %6d  {x%s{X\n\r", index, pattern->weight, templ_escaped), ch);
+        rsg_escape_template_for_display(pattern->name, name_escaped, sizeof(name_escaped));
+        rsg_escape_template_for_display(pattern->template, templ_escaped, sizeof(templ_escaped));
+        send_to_char(formatf("{W%3d  %6d  {x%-18.18s {x%s{X\n\r",
+            index,
+            pattern->weight,
+            name_escaped,
+            templ_escaped), ch);
     }
 
     return false;
@@ -1251,36 +1539,125 @@ RSGEDIT(rsgedit_pattern_create)
 {
     RANDOM_STRING *rsg;
     RANDOM_PATTERN *pattern;
-    char arg[MIL];
+    char weight_arg[MIL];
+    char name_arg[MIL];
     int weight;
 
     EDIT_RSG(ch, rsg);
 
-    argument = one_argument(argument, arg);
-    if (IS_NULLSTR(arg) || !is_number(arg) || IS_NULLSTR(argument)) {
-        send_to_char("Syntax: pattern create <weight> <template>\n\r", ch);
-        send_to_char("Example: pattern create 100 {prefix}{root}{suffix}\n\r", ch);
+    argument = one_argument(argument, weight_arg);
+    argument = one_argument(argument, name_arg);
+    if (IS_NULLSTR(weight_arg) || !is_number(weight_arg) || IS_NULLSTR(name_arg) || IS_NULLSTR(argument)) {
+        send_to_char("Syntax: pattern create <weight> <name> <template>\n\r", ch);
+        send_to_char("Example: pattern create 100 classic_name {prefix}{root}{suffix}\n\r", ch);
         send_to_char("Use '{{' to emit a literal '{' inside templates.\n\r", ch);
         return false;
     }
 
-    weight = atoi(arg);
+    if (rsg_pattern_find_by_name(rsg, name_arg)) {
+        send_to_char("A pattern with that name already exists.\n\r", ch);
+        return false;
+    }
+
+    weight = atoi(weight_arg);
     if (weight < 1)
         weight = 1;
 
     pattern = alloc_mem(sizeof(*pattern));
     memset(pattern, 0, sizeof(*pattern));
     pattern->weight = weight;
-    pattern->name = str_dup(argument);
+    pattern->name = str_dup(name_arg);
+    pattern->template = str_dup(argument);
 
     rsg_append_pattern(rsg, pattern);
     rsg_pattern_rebuild_refs(rsg, pattern);
-    rsgedit_record(rsg, ch, "pattern", "", pattern->name);
+    rsgedit_record(rsg, ch, "pattern", "",
+        formatf("%s: %s", pattern->name, pattern->template));
 
     if (!rsg_mark_dirty_and_save())
         send_to_char("Pattern created, but failed to save rsg.json.\n\r", ch);
     else
         send_to_char("Pattern created.\n\r", ch);
+
+    return true;
+}
+
+RSGEDIT(rsgedit_pattern_edit)
+{
+    RANDOM_STRING *rsg;
+    RANDOM_PATTERN *pattern;
+    char target_arg[MIL];
+    char field_arg[MIL];
+    char old_text[MSL];
+    char new_text[MSL];
+    bool rebuild_refs = false;
+
+    EDIT_RSG(ch, rsg);
+
+    argument = one_argument(argument, target_arg);
+    argument = one_argument(argument, field_arg);
+
+    if (IS_NULLSTR(target_arg) || IS_NULLSTR(field_arg) || IS_NULLSTR(argument)) {
+        send_to_char("Syntax: pattern edit <index|name> <field> <value>\n\r", ch);
+        send_to_char("Fields: weight | name | template\n\r", ch);
+        return false;
+    }
+
+    pattern = rsg_pattern_resolve(rsg, target_arg);
+    if (!pattern) {
+        send_to_char("No pattern by that index or name.\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(field_arg, "weight")) {
+        int weight;
+
+        if (!is_number(argument)) {
+            send_to_char("Weight must be a number.\n\r", ch);
+            return false;
+        }
+
+        weight = atoi(argument);
+        if (weight < 1)
+            weight = 1;
+
+        snprintf(old_text, sizeof(old_text), "%d", pattern->weight);
+        pattern->weight = weight;
+        snprintf(new_text, sizeof(new_text), "%d", pattern->weight);
+        rsgedit_record(rsg, ch, "pattern weight", old_text, new_text);
+    } else if (!str_prefix(field_arg, "name")) {
+        RANDOM_PATTERN *name_conflict;
+
+        name_conflict = rsg_pattern_find_by_name(rsg, argument);
+        if (name_conflict && name_conflict != pattern) {
+            send_to_char("Another pattern already has that name.\n\r", ch);
+            return false;
+        }
+
+        snprintf(old_text, sizeof(old_text), "%s", pattern->name ? pattern->name : "");
+        free_string(pattern->name);
+        pattern->name = str_dup(argument);
+        snprintf(new_text, sizeof(new_text), "%s", pattern->name ? pattern->name : "");
+        rsgedit_record(rsg, ch, "pattern name", old_text, new_text);
+    } else if (!str_prefix(field_arg, "template")) {
+        snprintf(old_text, sizeof(old_text), "%s", pattern->template ? pattern->template : "");
+        free_string(pattern->template);
+        pattern->template = str_dup(argument);
+        snprintf(new_text, sizeof(new_text), "%s", pattern->template ? pattern->template : "");
+        rsgedit_record(rsg, ch, "pattern template", old_text, new_text);
+        rebuild_refs = true;
+    } else {
+        send_to_char("Unknown field. Valid fields: weight, name, template\n\r", ch);
+        return false;
+    }
+
+    if (rebuild_refs)
+        rsg_pattern_rebuild_refs(rsg, pattern);
+
+    if (!rsg_mark_dirty_and_save())
+        send_to_char("Pattern updated, but failed to save rsg.json.\n\r", ch);
+    else
+        send_to_char("Pattern updated.\n\r", ch);
 
     return true;
 }
@@ -1294,23 +1671,30 @@ RSGEDIT(rsgedit_pattern_show)
 
     EDIT_RSG(ch, rsg);
 
-    if (IS_NULLSTR(argument) || !is_number(argument)) {
-        send_to_char("Syntax: pattern show <index>\n\r", ch);
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax: pattern show <index|name>\n\r", ch);
         return false;
     }
 
-    index = atoi(argument);
-    pattern = rsg_pattern_by_index(rsg, index);
+    pattern = rsg_pattern_resolve(rsg, argument);
     if (!pattern) {
-        send_to_char("No pattern at that index.\n\r", ch);
+        send_to_char("No pattern by that index or name.\n\r", ch);
         return false;
     }
+
+    index = 1;
+    for (RANDOM_PATTERN *scan = rsg->p_head; scan; scan = scan->next, index++)
+        if (scan == pattern)
+            break;
 
     send_to_char(formatf("{WPattern #%d{X\n\r", index), ch);
     send_to_char(formatf("  Weight:   {C%d{X\n\r", pattern->weight), ch);
     {
+        char name_escaped[MSL];
         char templ_escaped[MSL];
-        rsg_escape_template_for_display(pattern->name, templ_escaped, sizeof(templ_escaped));
+        rsg_escape_template_for_display(pattern->name, name_escaped, sizeof(name_escaped));
+        rsg_escape_template_for_display(pattern->template, templ_escaped, sizeof(templ_escaped));
+        send_to_char(formatf("  Name:     {C%s{X\n\r", name_escaped), ch);
         send_to_char(formatf("  Template: {C%s{X\n\r", templ_escaped), ch);
     }
     send_to_char(formatf("  Classes:  {C%d{X\n\r", pattern->classes), ch);
@@ -1330,24 +1714,30 @@ RSGEDIT(rsgedit_pattern_delete)
 
     EDIT_RSG(ch, rsg);
 
-    if (IS_NULLSTR(argument) || !is_number(argument)) {
-        send_to_char("Syntax: pattern delete <index>\n\r", ch);
+    if (IS_NULLSTR(argument)) {
+        send_to_char("Syntax: pattern delete <index|name>\n\r", ch);
         return false;
     }
 
-    index = atoi(argument);
+    if (is_number(argument))
+        index = atoi(argument);
+    else
+        index = -1;
+
     for (pattern = rsg->p_head; pattern; pattern = pattern->next, position++) {
-        if (position == index)
+        if ((index > 0 && position == index) || (index <= 0 && !str_cmp(pattern->name, argument)))
             break;
         prev = pattern;
     }
 
     if (!pattern) {
-        send_to_char("No pattern at that index.\n\r", ch);
+        send_to_char("No pattern by that index or name.\n\r", ch);
         return false;
     }
 
-    rsgedit_record(rsg, ch, "pattern", pattern->name, "(deleted)");
+    rsgedit_record(rsg, ch, "pattern",
+        formatf("%s: %s", pattern->name ? pattern->name : "", pattern->template ? pattern->template : ""),
+        "(deleted)");
 
     if (prev)
         prev->next = pattern->next;
@@ -1372,10 +1762,12 @@ RSGEDIT(rsgedit_pattern_help)
 {
     send_to_char("Pattern commands:\n\r", ch);
     send_to_char("  pattern list\n\r", ch);
-    send_to_char("  pattern create <weight> <template>\n\r", ch);
-    send_to_char("    Placeholders use {class_name}; '{{' emits a literal '{'.\n\r", ch);
-    send_to_char("  pattern show <index>\n\r", ch);
-    send_to_char("  pattern delete <index>\n\r", ch);
+    send_to_char("  pattern create <weight> <name> <template>\n\r", ch);
+    send_to_char("  pattern edit <index|name> <field> <value>\n\r", ch);
+    send_to_char("    fields: weight | name | template\n\r", ch);
+    send_to_char("    Placeholders use {{class_name}}; '{{' emits a literal '{'.\n\r", ch);
+    send_to_char("  pattern show <index|name>\n\r", ch);
+    send_to_char("  pattern delete <index|name>\n\r", ch);
     return false;
 }
 

@@ -32,6 +32,7 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../../mxp_links.h"
 #include "../../strings.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
@@ -45,11 +46,21 @@ static void medit_show_defense_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 static void medit_show_economy_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void medit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void medit_show_inheritance_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
 static AREA_DATA *medit_get_area(void *pEdit)
 {
     MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
     return pMob ? pMob->area : NULL;
+}
+
+static void medit_rebuild_auto_tags(MOB_INDEX_DATA *pMob)
+{
+    if (!pMob)
+        return;
+
+    free_string(pMob->auto_tags);
+    pMob->auto_tags = short_to_name(pMob->player_name);
 }
 
 /*
@@ -60,6 +71,7 @@ const struct olc_cmd_type medit_table[] =
     {   "?",            show_help       },
     {   "act",          medit_act       },
     {   "addmprog",     medit_addmprog  },
+    {   "addquest",     medit_addquest   },
     {   "addreputation",medit_addreputation },
     {   "affect",       medit_affect    },
     {   "alignment",    medit_align     },
@@ -71,6 +83,7 @@ const struct olc_cmd_type medit_table[] =
     {   "damdice",      medit_damdice   },
     {   "damtype",      medit_damtype   },
     {   "delmprog",     medit_delmprog  },
+    {   "delquest",     medit_delquest   },
     {   "delreputation",medit_delreputation },
     {   "description",  medit_desc      },
     {   "hitdice",      medit_hitdice   },
@@ -85,6 +98,10 @@ const struct olc_cmd_type medit_table[] =
     {   "next",         medit_next      },
     {   "off",          medit_off       },
     {   "owner",        medit_owner     },
+    {   "parent",       medit_parent    },
+    {   "tags",         medit_tags      },
+    {   "listname",     medit_listname  },
+    {   "listkeywords", medit_listkeywords },
     {   "part",         medit_part      },
     {   "persist",      medit_persist   },
     {   "position",     medit_position  },
@@ -93,6 +110,7 @@ const struct olc_cmd_type medit_table[] =
     {   "trainer",      medit_trainer   },
     {   "crew",         medit_crew      },
     {   "boss",         medit_boss      },
+    {   "bodytype",     medit_bodytype  },
     {   "race",         medit_race      },
     {   "res",          medit_res       },
     {   "sex",          medit_sex       },
@@ -102,6 +120,11 @@ const struct olc_cmd_type medit_table[] =
     {   "sign",         medit_sign      },
     {   "size",         medit_size      },
     {   "spec",         medit_spec      },
+    {   "pronounss",    medit_pronounss },
+    {   "pronounos",    medit_pronounos },
+    {   "pronounpas",   medit_pronounpas },
+    {   "pronounpps",   medit_pronounpps },
+    {   "pronounrs",    medit_pronounrs },
     {   "vuln",         medit_vuln      },
     {   "wealth",       medit_gold      },
     {   "scriptkwd",    medit_skeywds   },
@@ -122,7 +145,7 @@ static const OLC_EDITOR_DEF medit_def = {
     .cmd_table      = medit_table,
     .show_fn        = medit_show,
     .tabs           = {
-        .count = 6,
+        .count = 7,
         .tabs = {
             { "General",  "Gen", medit_show_general_tab },
             { "Combat",   "Com", medit_show_combat_tab },
@@ -130,6 +153,7 @@ static const OLC_EDITOR_DEF medit_def = {
             { "Economy",  "Eco", medit_show_economy_tab },
             { "Scripts",  "Scr", medit_show_scripts_tab },
             { "Special",  "Spc", medit_show_special_tab },
+            { "Inheritance", "Inh", medit_show_inheritance_tab },
         }
     },
     .theme          = &olc_theme_entity,
@@ -244,12 +268,29 @@ static void medit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_number(ctx, theme, "Level:",       "level",     pMob->level);
     olc_display_number(ctx, theme, "Alignment:",   "alignment", pMob->alignment);
     olc_display_type(ctx, theme,   "Sex:",         "sex",       sex_flags, pMob->sex);
+    olc_display_type(ctx, theme,   "Body Type:",   "bodytype",  body_types, pMob->body_type);
     olc_display_type(ctx, theme,   "Size:",        "size",      size_flags, pMob->size);
     olc_display_string(ctx, theme, "Material:",    "material",  pMob->material);
     olc_display_string(ctx, theme, "Owner:",       "owner",     pMob->owner);
+    olc_display_string(ctx, theme, "Parent:",      "parent",
+        pMob->parent_wnum.vnum > 0
+            ? widevnum_string(pMob->parent_wnum.pArea, pMob->parent_wnum.vnum, pMob->area)
+            : (pMob->parent_load.vnum > 0
+                ? formatf("%ld#%ld", pMob->parent_load.auid, pMob->parent_load.vnum)
+                : "(none)"));
+
+    olc_display_section(ctx, theme, "Pronouns");
+    olc_display_string(ctx, theme, "Subjective:", "pronounss", pMob->pronoun_he_she);
+    olc_display_string(ctx, theme, "Objective:",  "pronounos", pMob->pronoun_him_her);
+    olc_display_string(ctx, theme, "Poss Adj:",   "pronounpas", pMob->pronoun_his_her);
+    olc_display_string(ctx, theme, "Poss Pron:",  "pronounpps", pMob->pronoun_his_hers);
+    olc_display_string(ctx, theme, "Reflexive:",  "pronounrs", pMob->pronoun_himself_herself);
 
     olc_display_type(ctx, theme,   "Start Pos:",   "position start", position_flags, pMob->start_pos);
     olc_display_type(ctx, theme,   "Default Pos:", "position default", position_flags, pMob->default_pos);
+        olc_display_section(ctx, theme, "Flags");
+        olc_display_flags(ctx, theme,   "Act:",         "act",   act_flags, pMob->act[0]);
+        olc_display_flags(ctx, theme,   "Act2:",        "act",   act2_flags, pMob->act[1]);
 
     olc_display_bool(ctx, theme,   "Boss:",        "boss",    pMob->boss);
     olc_display_bool(ctx, theme,   "Persist:",     "persist", pMob->persist);
@@ -262,6 +303,10 @@ static void medit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_section(ctx, theme, "Descriptions");
 
     olc_display_string(ctx, theme, "Short Descr:", "short", pMob->short_descr);
+    olc_display_string(ctx, theme, "List Name:", "listname", IS_NULLSTR(pMob->list_name) ? "(default: short)" : pMob->list_name);
+    olc_display_string(ctx, theme, "List Keywords:", "listkeywords", IS_NULLSTR(pMob->list_keywords) ? "(none)" : pMob->list_keywords);
+    olc_display_string(ctx, theme, "Tags:", "tags", IS_NULLSTR(pMob->tags) ? "(none)" : pMob->tags);
+    olc_display_string(ctx, theme, "Auto Tags:", NULL, IS_NULLSTR(pMob->auto_tags) ? "(none)" : pMob->auto_tags);
     olc_display_text(ctx, theme,   "Long Descr:",  "long",  pMob->long_descr);
     olc_display_text(ctx, theme,   "Description:", "description", pMob->description);
     olc_display_text(ctx, theme,   "Comments:",    "comments", pMob->comments);
@@ -312,6 +357,8 @@ static void medit_show_defense_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
 
     olc_display_flags(ctx, theme, "Immunities:",      "immune", imm_flags,  pMob->imm_flags);
+        olc_display_flags(ctx, theme, "Affect:",          "affect", affect_flags, pMob->affected_by[0]);
+        olc_display_flags(ctx, theme, "Affect2:",         "affect", affect2_flags, pMob->affected_by[1]);
     olc_display_flags(ctx, theme, "Resistances:",     "res",    res_flags,  pMob->res_flags);
     olc_display_flags(ctx, theme, "Vulnerabilities:", "vuln",   vuln_flags, pMob->vuln_flags);
 
@@ -678,10 +725,121 @@ static void medit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         olc_display_percent(ctx, theme, "Leadership:",  NULL, pMob->pCrew->leadership, 1);
     }
 
+    if (pMob->quests_v2) {
+        QUEST_V2_LIST *qv2;
+        int qidx = 1;
+        char wstr[MIL];
+
+        has_special_data = true;
+        olc_display_section(ctx, theme, "Available Quests (V2)");
+        add_buf(ctx->buffer, formatf("  %s%-3s %-35s  %s{x\n\r",
+            theme->label, "#", "Quest Name", "Widevnum"));
+        add_buf(ctx->buffer, formatf("  %s--- ----------------------------------- --------{x\n\r",
+            theme->label));
+
+        for (qv2 = pMob->quests_v2; qv2; qv2 = qv2->next, qidx++) {
+            QUEST_INDEX_V2_DATA *qi = get_quest_index_v2_wnum(qv2->wnum);
+            const char *qname = qi ? (qi->name && qi->name[0] ? qi->name : "(unnamed)") : "(invalid)";
+
+            if (qv2->wnum.pArea)
+                strncpy(wstr, widevnum_string(qv2->wnum.pArea, qv2->wnum.vnum, pMob->area), sizeof(wstr) - 1);
+            else
+                snprintf(wstr, sizeof(wstr), "%ld#%ld", qv2->load.auid, qv2->load.vnum);
+            wstr[sizeof(wstr) - 1] = '\0';
+
+            add_buf(ctx->buffer, formatf("  %-3d %-35.35s  %s%s\n\r",
+                qidx, qname, wstr,
+                qi && !qi->enabled ? " {D[disabled]{x" : ""));
+        }
+
+        olc_display_string(ctx, theme, "Add:",    NULL, "addquest <widevnum>");
+        olc_display_string(ctx, theme, "Delete:", NULL, "delquest <index>");
+    }
+
     if (!has_special_data) {
-        snprintf(buf, sizeof(buf), "  %s(No questor, trainer, or crew data){x\n\r", theme->unset);
+        snprintf(buf, sizeof(buf), "  %s(No questor, trainer, crew, or v2 quest data){x\n\r", theme->unset);
         add_buf(ctx->buffer, buf);
     }
+}
+
+static void medit_show_inheritance_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    MOB_INDEX_DATA *pMob = (MOB_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&medit_def);
+    AREA_DATA *area;
+    MOB_INDEX_DATA *mob;
+    int iHash;
+    int child_count = 0;
+
+    olc_display_section(ctx, theme, "Parent Chain");
+    if (pMob->parent) {
+        MOB_INDEX_DATA *cur = pMob->parent;
+        int depth = 0;
+
+        while (cur && depth < 32) {
+            if (depth > 0)
+                add_buf(ctx->buffer, " {D->{x ");
+
+            mxp_command_link(ch->desc, ctx->buffer,
+                formatf("medit %s", widevnum_string_mobile(cur, NULL)),
+                "Edit mobile",
+                widevnum_string_mobile(cur, NULL));
+            add_buf(ctx->buffer, formatf(" {x%s", cur->short_descr));
+
+            cur = cur->parent;
+            depth++;
+        }
+
+        if (cur)
+            add_buf(ctx->buffer, " {D->{x ...");
+        add_buf(ctx->buffer, "\n\r");
+    } else if (pMob->parent_load.vnum > 0) {
+        olc_display_infof(ctx, theme, "Unresolved parent: %ld#%ld",
+            pMob->parent_load.auid, pMob->parent_load.vnum);
+    } else {
+        olc_display_infof(ctx, theme, "(none)");
+    }
+
+    olc_display_section(ctx, theme, "Direct Children");
+    for (area = area_first; area != NULL; area = area->next) {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (mob = area->mob_index_hash[iHash]; mob != NULL; mob = mob->next) {
+                bool is_child = false;
+
+                if (mob == pMob)
+                    continue;
+
+                if (mob->parent == pMob)
+                    is_child = true;
+                else if (!mob->parent && mob->parent_load.vnum == pMob->vnum
+                    && (mob->parent_load.auid == 0 || mob->parent_load.auid == pMob->area->uid))
+                    is_child = true;
+
+                if (!is_child)
+                    continue;
+
+                mxp_command_link(ch->desc, ctx->buffer,
+                    formatf("medit %s", widevnum_string_mobile(mob, NULL)),
+                    "Edit mobile",
+                    widevnum_string_mobile(mob, NULL));
+                add_buf(ctx->buffer, formatf(" {x%s\n\r", mob->short_descr));
+                child_count++;
+            }
+        }
+    }
+    if (child_count < 1)
+        olc_display_infof(ctx, theme, "(none)");
+
+    olc_display_section(ctx, theme, "Field Source");
+    if (!pMob->parent) {
+        olc_display_infof(ctx, theme, "No parent set; all values are local.");
+        return;
+    }
+
+    olc_display_string(ctx, theme, "Act Flags:", NULL,
+        (pMob->act[0] == ACT_IS_NPC && pMob->act[1] == 0) ? "Inherited" : "Local");
+    olc_display_bool(ctx, theme, "Parent Resolved:", NULL, pMob->parent != NULL);
+    olc_display_bool(ctx, theme, "Inheritance Applied:", NULL, pMob->parent_inherited);
 }
 
 /*
@@ -1118,6 +1276,7 @@ MEDIT(medit_short)
     pMob->player_name = short_to_name(pMob->short_descr);
     send_to_char("Name keywords set.\n\r", ch);
     }
+    medit_rebuild_auto_tags(pMob);
     return true;
 }
 
@@ -1144,6 +1303,7 @@ MEDIT(medit_name)
     {
     free_string(pMob->player_name);
     pMob->player_name = str_dup(argument);
+    medit_rebuild_auto_tags(pMob);
 
     send_to_char("Name set.\n\r", ch);
     }
@@ -1210,6 +1370,84 @@ MEDIT(medit_skeywds)
     return false;
     }
 
+    return true;
+}
+
+MEDIT(medit_listname)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "List Name", NULL, &pMob->list_name,
+        OLC_STR_CLEARABLE, NULL, NULL);
+}
+
+MEDIT(medit_listkeywords)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "List Keywords", NULL, &pMob->list_keywords,
+        OLC_STR_CLEARABLE, NULL, NULL);
+}
+
+MEDIT(medit_tags)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "Tags", NULL, &pMob->tags,
+        OLC_STR_CLEARABLE, NULL, NULL);
+}
+
+MEDIT(medit_parent)
+{
+    MOB_INDEX_DATA *pMob;
+    MOB_INDEX_DATA *parent;
+    WNUM wnum;
+
+    EDIT_MOB(ch, pMob);
+
+    if (IS_NULLSTR(argument))
+    {
+        send_to_char("Syntax: parent <widevnum|none>\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "none") || !str_cmp(argument, "clear") || !str_cmp(argument, "0"))
+    {
+        pMob->parent_load.auid = 0;
+        pMob->parent_load.vnum = 0;
+        pMob->parent_wnum.pArea = NULL;
+        pMob->parent_wnum.vnum = 0;
+        pMob->parent = NULL;
+        send_to_char("Parent mobile cleared.\n\r", ch);
+        return true;
+    }
+
+    if (!parse_widevnum(argument, pMob->area, &wnum))
+    {
+        send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
+        return false;
+    }
+
+    parent = get_mob_index(wnum.pArea, wnum.vnum);
+    if (!parent)
+    {
+        send_to_char("That parent mobile does not exist.\n\r", ch);
+        return false;
+    }
+
+    if (parent == pMob)
+    {
+        send_to_char("A mobile cannot inherit from itself.\n\r", ch);
+        return false;
+    }
+
+    pMob->parent_load.auid = wnum.pArea->uid;
+    pMob->parent_load.vnum = wnum.vnum;
+    pMob->parent_wnum = wnum;
+    pMob->parent = parent;
+    pMob->parent_inherited = false;
+
+    send_to_char("Parent mobile set. Inheritance is resolved at load time.\n\r", ch);
     return true;
 }
 
@@ -2364,6 +2602,99 @@ MEDIT(medit_sex)
         &pMob->sex, sex_flags, NULL, NULL);
 }
 
+MEDIT(medit_bodytype)
+{
+    MOB_INDEX_DATA *pMob;
+    int16_t old_body_type;
+    int16_t body_type_value;
+
+    EDIT_MOB(ch, pMob);
+
+    old_body_type = (int16_t)pMob->body_type;
+    body_type_value = (int16_t)pMob->body_type;
+    if (!olc_cmd_type_set_i16(ch, argument, "Body Type",
+        "Syntax: bodytype [type]\n\rType '? body_types' for a list of body types.\n\r",
+        &body_type_value, body_types, NULL, NULL)) {
+        return false;
+    }
+
+    pMob->body_type = (body_type_t)body_type_value;
+
+    if (pMob->body_type < 0 || pMob->body_type >= BODY_TYPE_MAX)
+        pMob->body_type = BODY_TYPE_NEUTRAL;
+
+    if (pMob->body_type == BODY_TYPE_MALE)
+        pMob->sex = 1;
+    else if (pMob->body_type == BODY_TYPE_FEMALE)
+        pMob->sex = 2;
+    else if (pMob->body_type == BODY_TYPE_RANDOM)
+        pMob->sex = 3;
+    else
+        pMob->sex = 0;
+
+    if (old_body_type != pMob->body_type) {
+        free_string(pMob->pronoun_he_she);
+        pMob->pronoun_he_she = str_dup(body_type_info[pMob->body_type].default_he_she);
+        free_string(pMob->pronoun_him_her);
+        pMob->pronoun_him_her = str_dup(body_type_info[pMob->body_type].default_him_her);
+        free_string(pMob->pronoun_his_her);
+        pMob->pronoun_his_her = str_dup(body_type_info[pMob->body_type].default_his_her);
+        free_string(pMob->pronoun_his_hers);
+        pMob->pronoun_his_hers = str_dup(body_type_info[pMob->body_type].default_his_hers);
+        free_string(pMob->pronoun_himself_herself);
+        pMob->pronoun_himself_herself = str_dup(body_type_info[pMob->body_type].default_himself_herself);
+        pMob->verb_preference = body_type_info[pMob->body_type].verb_preference;
+        send_to_char("Pronouns reset to body type defaults.\n\r", ch);
+    }
+
+    return true;
+}
+
+MEDIT(medit_pronounss)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "Subjective Pronoun",
+        "Syntax: pronounss <value>\n\r",
+        &pMob->pronoun_he_she, OLC_STR_DEFAULT, NULL, NULL);
+}
+
+MEDIT(medit_pronounos)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "Objective Pronoun",
+        "Syntax: pronounos <value>\n\r",
+        &pMob->pronoun_him_her, OLC_STR_DEFAULT, NULL, NULL);
+}
+
+MEDIT(medit_pronounpas)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "Possessive Adjective Pronoun",
+        "Syntax: pronounpas <value>\n\r",
+        &pMob->pronoun_his_her, OLC_STR_DEFAULT, NULL, NULL);
+}
+
+MEDIT(medit_pronounpps)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "Possessive Pronoun",
+        "Syntax: pronounpps <value>\n\r",
+        &pMob->pronoun_his_hers, OLC_STR_DEFAULT, NULL, NULL);
+}
+
+MEDIT(medit_pronounrs)
+{
+    MOB_INDEX_DATA *pMob;
+    EDIT_MOB(ch, pMob);
+    return olc_cmd_string(ch, argument, "Reflexive Pronoun",
+        "Syntax: pronounrs <value>\n\r",
+        &pMob->pronoun_himself_herself, OLC_STR_DEFAULT, NULL, NULL);
+}
+
 
 MEDIT(medit_act)
 {
@@ -3047,57 +3378,48 @@ MEDIT (medit_delmprog)
 MEDIT(medit_addquest)
 {
     MOB_INDEX_DATA *pMob;
-    QUEST_LIST *quest;
-    QUEST_INDEX_DATA *pQuestIndex;
-    WNUM quest_wnum = wnum_zero;
+    QUEST_V2_LIST *qv2;
+    WNUM wnum;
     AREA_DATA *context;
-    long value;
 
     EDIT_MOB(ch, pMob);
 
     if (argument[0] == '\0')
     {
-        send_to_char("Syntax:  addquest [quest vnum|widevnum]\n\r", ch);
+        send_to_char("Syntax:  addquest <quest widevnum>\n\r", ch);
         return false;
     }
 
     context = olc_relative_widevnum_context(pMob->area, argument);
-    if (parse_widevnum(argument, context, &quest_wnum) && quest_wnum.vnum > 0)
-        value = quest_wnum.vnum;
-    else
-        value = atol(argument);
-
-    // Quest vnums are currently global in this linkage path.
-    if (value <= 0)
+    if (!parse_widevnum(argument, context, &wnum) || !wnum.pArea || wnum.vnum < 1)
     {
-        send_to_char("Invalid quest vnum/widevnum.\n\r", ch);
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
         return false;
     }
 
-    pQuestIndex = get_quest_index(value);
-    if (pQuestIndex == NULL)
+    if (!get_quest_index_v2_wnum(wnum))
     {
-        send_to_char("That quest vnum doesn't exist.\n\r", ch);
+        send_to_char("No v2 quest with that widevnum exists.\n\r", ch);
         return false;
     }
 
-    for (quest = pMob->quests; quest != NULL; quest = quest->next)
+    for (qv2 = pMob->quests_v2; qv2 != NULL; qv2 = qv2->next)
     {
-        if (quest->vnum == value)
+        if (qv2->load.auid == wnum.pArea->uid && qv2->load.vnum == wnum.vnum)
         {
-            send_to_char("That would be redundant as you've already added that quest.\n\r", ch);
+            send_to_char("That quest is already in the list.\n\r", ch);
             return false;
         }
     }
 
-    quest = new_quest_list();
-    quest->vnum = pQuestIndex->vnum;
-
-    quest->next = pMob->quests;
-    pMob->quests = quest;
+    qv2 = new_quest_v2_list();
+    qv2->load.auid = wnum.pArea->uid;
+    qv2->load.vnum = wnum.vnum;
+    qv2->wnum = wnum;
+    qv2->next = pMob->quests_v2;
+    pMob->quests_v2 = qv2;
 
     send_to_char("Quest added.\n\r", ch);
-
     return true;
 }
 
@@ -3252,43 +3574,44 @@ MEDIT(medit_delreputation)
 MEDIT(medit_delquest)
 {
     MOB_INDEX_DATA *pMob;
-    QUEST_LIST *quest_list;
-    QUEST_LIST *prev_quest_list = NULL;
-    int i;
-    int counter;
+    QUEST_V2_LIST *qv2, *prev = NULL;
+    int i, counter;
 
     EDIT_MOB(ch, pMob);
 
     if (argument[0] == '\0' || !is_number(argument))
     {
-    send_to_char("Syntax:  delquest [#]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  delquest <#>\n\r", ch);
+        return false;
     }
 
-    i = atoi (argument);
+    i = atoi(argument) - 1;  /* list display is 1-based */
+    if (i < 0)
+    {
+        send_to_char("Index must be 1 or greater.\n\r", ch);
+        return false;
+    }
+
     counter = 0;
-    for (quest_list = pMob->quests; quest_list != NULL;
-      quest_list = quest_list->next)
+    for (qv2 = pMob->quests_v2; qv2 != NULL; qv2 = qv2->next)
     {
-    if (i == counter)
-        break;
-
-    counter++;
-    prev_quest_list = quest_list;
+        if (counter == i) break;
+        prev = qv2;
+        counter++;
     }
 
-    if (quest_list == NULL)
+    if (qv2 == NULL)
     {
-    send_to_char("Number not found.\n\r", ch);
-    return false;
+        send_to_char("Index not found.\n\r", ch);
+        return false;
     }
 
-    if (prev_quest_list != NULL)
-    prev_quest_list->next = quest_list->next;
+    if (prev != NULL)
+        prev->next = qv2->next;
     else
-    pMob->quests = quest_list->next;
+        pMob->quests_v2 = qv2->next;
 
-    free_quest_list(quest_list);
+    free_quest_v2_list(qv2);
     send_to_char("Quest removed.\n\r", ch);
     return true;
 }

@@ -4,7 +4,9 @@
 #include <string.h>
 #include <time.h>
 
+#include <jansson.h>
 #include "../../merc.h"
+#include "../../requirements.h"
 #include "../../tables.h"
 #include "../../mxp_links.h"
 #include "../../olc.h"
@@ -44,6 +46,7 @@ static bool qedit_cmd_seedpolicy(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_seed(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_varset(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_varclear(CHAR_DATA *ch, char *argument);
+static bool qedit_cmd_prerequisites(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_addqprog(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_delqprog(CHAR_DATA *ch, char *argument);
 static bool qedit_cmd_stage(CHAR_DATA *ch, char *argument);
@@ -72,6 +75,7 @@ static const struct olc_cmd_type qedit_table[] =
     { "enabled",     qedit_cmd_enabled  },
     { "seedpolicy",  qedit_cmd_seedpolicy },
     { "seed",        qedit_cmd_seed     },
+    { "prerequisites", qedit_cmd_prerequisites },
     { "varset",      qedit_cmd_varset   },
     { "varclear",    qedit_cmd_varclear },
     { "addqprog",    qedit_cmd_addqprog },
@@ -1082,6 +1086,7 @@ static bool qedit_cmd_entry(CHAR_DATA *ch, char *argument)       { return qedit_
 static bool qedit_cmd_enabled(CHAR_DATA *ch, char *argument)     { return qedit_exec_session_command(ch, "enabled", argument); }
 static bool qedit_cmd_seedpolicy(CHAR_DATA *ch, char *argument)  { return qedit_exec_session_command(ch, "seedpolicy", argument); }
 static bool qedit_cmd_seed(CHAR_DATA *ch, char *argument)        { return qedit_exec_session_command(ch, "seed", argument); }
+static bool qedit_cmd_prerequisites(CHAR_DATA *ch, char *argument) { return qedit_exec_session_command(ch, "prerequisites", argument); }
 static bool qedit_cmd_varset(CHAR_DATA *ch, char *argument)      { return qedit_exec_session_command(ch, "varset", argument); }
 static bool qedit_cmd_varclear(CHAR_DATA *ch, char *argument)    { return qedit_exec_session_command(ch, "varclear", argument); }
 static bool qedit_cmd_addqprog(CHAR_DATA *ch, char *argument)    { return qedit_exec_session_command(ch, "addqprog", argument); }
@@ -1138,6 +1143,12 @@ static void qedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         quest_index_v2->enabled ? "on" : "off",
         qedit_seed_policy_name(quest_index_v2->seed_policy),
         quest_index_v2->fixed_seed));
+    {
+        char *dsl = requirements_json_to_text(quest_index_v2->prerequisites);
+        add_buf(ctx->buffer, formatf("{YPrerequisites:{x %s\n\r",
+            dsl ? dsl : "(none)"));
+        free(dsl);
+    }
     add_buf(ctx->buffer, formatf("{YCounts:{x stages=%d objectives=%d rewards=%d\n\r",
         stage_count, objective_count, reward_count));
 }
@@ -1394,6 +1405,8 @@ static void qedit_show_rewards_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
             add_buf(ctx->buffer, formatf("      currency:%s\n\r", reward->currency));
         if (!IS_NULLSTR(reward->script))
             add_buf(ctx->buffer, formatf("      script:%s\n\r", reward->script));
+        if (!IS_NULLSTR(reward->display_string))
+            add_buf(ctx->buffer, formatf("      display:%s\n\r", reward->display_string));
     }
 }
 
@@ -1514,6 +1527,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  qedit <ref> enabled <on|off>\n\r", ch);
         send_to_char("  qedit <ref> seedpolicy <auto|fixed>\n\r", ch);
         send_to_char("  qedit <ref> seed <number|none>\n\r", ch);
+        send_to_char("  qedit <ref> prerequisites <dsl|none>  (e.g. tot_level 50 AND race elf)\n\r", ch);
         send_to_char("  qedit <ref> varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
         send_to_char("  qedit <ref> varclear <name>\n\r", ch);
         send_to_char("  qedit <ref> addqprog <widevnum> <trigger> <phrase>\n\r", ch);
@@ -1566,6 +1580,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  qedit <ref> reward <index> target <auid>#<vnum|none>\n\r", ch);
         send_to_char("  qedit <ref> reward <index> currency <text|none>\n\r", ch);
         send_to_char("  qedit <ref> reward <index> script <text|none>\n\r", ch);
+        send_to_char("  qedit <ref> reward <index> display <text|none>  (overrides default reward message)\n\r", ch);
         send_to_char("  (legacy aliases still accepted: targetmode/targetref/refname/destinationref/.../targettokenref...)\n\r", ch);
         return;
     }
@@ -1959,6 +1974,31 @@ void do_qedit(CHAR_DATA *ch, char *argument)
 
         quest_index_v2->fixed_seed = (unsigned long long)strtoull(arg3, NULL, 10);
         printf_to_char(ch, "QEdit: fixed seed set to %llu.\n\r", quest_index_v2->fixed_seed);
+        return;
+    }
+
+    if (!str_prefix(arg2, "prerequisites")) {
+        if (IS_NULLSTR(arg3) || !str_cmp(text_after_arg2, "none")) {
+            free_string(quest_index_v2->prerequisites);
+            quest_index_v2->prerequisites = str_dup("");
+            send_to_char("QEdit: prerequisites cleared.\n\r", ch);
+            return;
+        }
+
+        /* Compile DSL text -> JSON */
+        {
+            char  err[256];
+            char *json_str = requirements_text_to_json(text_after_arg2, err, sizeof(err));
+            if (!json_str) {
+                printf_to_char(ch, "QEdit: prerequisites error: %s\n\r", err);
+                return;
+            }
+            free_string(quest_index_v2->prerequisites);
+            quest_index_v2->prerequisites = str_dup(json_str);
+            free(json_str);
+        }
+
+        send_to_char("QEdit: prerequisites set.\n\r", ch);
         return;
     }
 
@@ -3752,6 +3792,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                     printf_to_char(ch, "      currency:%s\n\r", reward->currency);
                 if (!IS_NULLSTR(reward->script))
                     printf_to_char(ch, "      script:%s\n\r", reward->script);
+                if (!IS_NULLSTR(reward->display_string))
+                    printf_to_char(ch, "      display:%s\n\r", reward->display_string);
             }
             return;
         }
@@ -3832,6 +3874,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "  target   : %s\n\r", target_buf);
             printf_to_char(ch, "  currency : %s\n\r", IS_NULLSTR(reward->currency) ? "" : reward->currency);
             printf_to_char(ch, "  script   : %s\n\r", IS_NULLSTR(reward->script) ? "" : reward->script);
+            printf_to_char(ch, "  display  : %s\n\r", IS_NULLSTR(reward->display_string) ? "" : reward->display_string);
             return;
         }
 
@@ -3870,7 +3913,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         }
 
         if (IS_NULLSTR(arg4)) {
-            send_to_char("QEdit: reward field required (type/amount/target/currency/script).\n\r", ch);
+            send_to_char("QEdit: reward field required (type/amount/target/currency/script/display).\n\r", ch);
             return;
         }
 
@@ -3948,7 +3991,21 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        send_to_char("QEdit: unknown reward field.\n\r", ch);
+        if (!str_prefix(arg4, "display")) {
+            if (IS_NULLSTR(text_after_arg4) || !str_cmp(text_after_arg4, "none")) {
+                free_string(reward->display_string);
+                reward->display_string = str_dup("");
+                printf_to_char(ch, "QEdit: reward %ld display cleared.\n\r", reward_index);
+                return;
+            }
+
+            free_string(reward->display_string);
+            reward->display_string = str_dup(text_after_arg4);
+            printf_to_char(ch, "QEdit: reward %ld display updated.\n\r", reward_index);
+            return;
+        }
+
+        send_to_char("QEdit: unknown reward field (type/amount/target/currency/script/display).\n\r", ch);
         return;
     }
 

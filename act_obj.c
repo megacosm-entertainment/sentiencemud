@@ -45,6 +45,7 @@
 #include "tables.h"
 #include "traits.h"
 #include "skill_data.h"
+#include "requirements.h"
 
 /**
  * obj_has_money - Check if a container has money visible to character
@@ -3405,6 +3406,21 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
         return;
     }
 
+    /* Prerequisites check — evaluated before any wear position logic */
+    if (!IS_NPC(ch) && obj->pIndexData && !IS_NULLSTR(obj->pIndexData->prerequisites)) {
+        REQUIREMENT_CONTEXT prereq_ctx;
+        prereq_ctx.actor      = ch;
+        prereq_ctx.self_mob   = NULL;
+        prereq_ctx.self_obj   = obj;
+        prereq_ctx.self_room  = NULL;
+        prereq_ctx.self_token = NULL;
+        prereq_ctx.self_quest = NULL;
+        if (!requirements_evaluate_text(obj->pIndexData->prerequisites, &prereq_ctx, true)) {
+            send_to_char("You don't meet the requirements to use this item.\n\r", ch);
+            return;
+        }
+    }
+
     if (obj->item_type == ITEM_LIGHT) {
         if (!remove_obj(ch, WEAR_LIGHT, fReplace))
             return;
@@ -6751,7 +6767,9 @@ void do_list(CHAR_DATA *ch, char *argument)
             case STOCK_OBJECT:
                 if( stock->entity.wnum.vnum > 0 && stock->obj != NULL )
                 {
-                    if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
+                    if( arg[0] != '\0' &&
+                        !is_name(arg, stock->obj->name) &&
+                        (IS_NULLSTR(stock->obj->list_keywords) || !is_name(arg, stock->obj->list_keywords)) )
                         continue;
 
                     if (!found)
@@ -6768,7 +6786,9 @@ void do_list(CHAR_DATA *ch, char *argument)
                     int pwidth = get_colour_width(pricing) + 14;
 
                     char *descr =
-                        IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
+                        IS_NULLSTR(stock->custom_descr)
+                            ? (IS_NULLSTR(stock->obj->list_name) ? stock->obj->short_descr : stock->obj->list_name)
+                            : stock->custom_descr;
 
                     if ( stock->max_quantity > 0 && (stock->duration > 0 || stock->obj->timer > 0))
                     {
@@ -6797,7 +6817,9 @@ void do_list(CHAR_DATA *ch, char *argument)
             case STOCK_CREW:
                 if( stock->entity.wnum.vnum > 0 && stock->mob != NULL )
                 {
-                    if( arg[0] != '\0' && !is_name(arg, stock->mob->player_name) )
+                    if( arg[0] != '\0' &&
+                        !is_name(arg, stock->mob->player_name) &&
+                        (IS_NULLSTR(stock->mob->list_keywords) || !is_name(arg, stock->mob->list_keywords)) )
                         continue;
 
                     if (!found)
@@ -6814,7 +6836,9 @@ void do_list(CHAR_DATA *ch, char *argument)
                     int pwidth = get_colour_width(pricing) + 14;
 
                     char *descr =
-                        IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
+                        IS_NULLSTR(stock->custom_descr)
+                            ? (IS_NULLSTR(stock->mob->list_name) ? stock->mob->short_descr : stock->mob->list_name)
+                            : stock->custom_descr;
                     if (stock->max_quantity > 0 && stock->duration > 0)
                     {
                         sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s {Y[HIRELING]{x\n\r", level,pwidth,pricing,stock->quantity,descr);

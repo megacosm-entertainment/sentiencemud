@@ -689,7 +689,7 @@ static void dngedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
     sprintf(buf, "[%5ld] %s", dng->vnum, dng->name);
     olc_display_string(ctx, theme, "Name:", "name", buf);
 
-    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(dungeon_flags, dng->flags));
+    olc_display_flags(ctx, theme, "Flags:", "flags", dungeon_flags, dng->flags);
     olc_display_string(ctx, theme, "AreaWho:", "areawho", flag_string(area_who_titles, dng->area_who));
 
     if (dng->repop > 0)

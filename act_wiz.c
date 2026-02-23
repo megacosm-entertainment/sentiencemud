@@ -4458,6 +4458,33 @@ static bool parse_find_filter(CHAR_DATA *ch, const char *argument,
     return true;
 }
 
+static bool wiz_match_search_field(const char *needle, const char *field)
+{
+    char normalized[MSL];
+    size_t i;
+
+    if (IS_NULLSTR(needle) || IS_NULLSTR(field))
+        return false;
+
+    snprintf(normalized, sizeof(normalized), "%s", field);
+    for (i = 0; normalized[i] != '\0'; i++)
+    {
+        if (normalized[i] == ',' || normalized[i] == ';' || normalized[i] == '|')
+            normalized[i] = ' ';
+    }
+
+    return is_name((char *)needle, normalized);
+}
+
+static bool wiz_match_index_search(const char *needle, const char *primary_keywords,
+    const char *list_keywords, const char *tags, const char *auto_tags)
+{
+    return wiz_match_search_field(needle, primary_keywords)
+        || wiz_match_search_field(needle, list_keywords)
+        || wiz_match_search_field(needle, tags)
+        || wiz_match_search_field(needle, auto_tags);
+}
+
 /**
  * do_vnum - Search for entities by name
  *
@@ -4617,10 +4644,17 @@ void do_mfind(CHAR_DATA *ch, char *argument)
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (pMobIndex = area->mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next) {
                 nMatch++;
-                if (is_name(pattern, pMobIndex->player_name)) {
+                if (wiz_match_index_search(pattern,
+                        pMobIndex->player_name,
+                        pMobIndex->list_keywords,
+                        pMobIndex->tags,
+                        pMobIndex->auto_tags)) {
+                    const char *display_name = !IS_NULLSTR(pMobIndex->list_name)
+                        ? pMobIndex->list_name
+                        : pMobIndex->short_descr;
                     found = true;
                     sprintf(buf, "[%s] %s\n\r",
-                        widevnum_string_mobile(pMobIndex, NULL), pMobIndex->short_descr);
+                        widevnum_string_mobile(pMobIndex, NULL), display_name);
                     send_to_char(buf, ch);
                 }
             }
@@ -4669,10 +4703,17 @@ void do_ofind(CHAR_DATA *ch, char *argument)
         for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
             for (pObjIndex = area->obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next) {
                 nMatch++;
-                if (is_name(pattern, pObjIndex->name)) {
+                if (wiz_match_index_search(pattern,
+                        pObjIndex->name,
+                        pObjIndex->list_keywords,
+                        pObjIndex->tags,
+                        pObjIndex->auto_tags)) {
+                    const char *display_name = !IS_NULLSTR(pObjIndex->list_name)
+                        ? pObjIndex->list_name
+                        : pObjIndex->short_descr;
                     found = true;
                     sprintf(buf, "[%s] %s\n\r",
-                        widevnum_string_object(pObjIndex, NULL), pObjIndex->short_descr);
+                        widevnum_string_object(pObjIndex, NULL), display_name);
                     send_to_char(buf, ch);
                 }
             }
@@ -5183,7 +5224,15 @@ void do_owhere(CHAR_DATA *ch, char *argument)
     iterator_start(&it, loaded_objects);
     while(( obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-        if (!can_see_obj(ch, obj) || !is_name(argument, obj->name))
+                OBJ_INDEX_DATA *obj_index = obj->pIndexData;
+
+        if (!can_see_obj(ch, obj) ||
+                        !(is_name(argument, obj->name) ||
+                            (obj_index && wiz_match_index_search(argument,
+                                    obj_index->name,
+                                    obj_index->list_keywords,
+                                    obj_index->tags,
+                                    obj_index->auto_tags))))
             continue;
 
         found = true;
@@ -5196,7 +5245,8 @@ void do_owhere(CHAR_DATA *ch, char *argument)
         bprintf(buffer, "{Y%3d) {WID{X: [", number);
         mxp_obj_id_link(ch->desc, buffer, obj);
         bprintf(buffer, "]{x ");
-        mxp_obj_vnum_link(ch->desc, buffer, obj->pIndexData, obj->short_descr);
+        mxp_obj_vnum_link(ch->desc, buffer, obj->pIndexData,
+            !IS_NULLSTR(obj->pIndexData->list_name) ? obj->pIndexData->list_name : obj->short_descr);
 
         if (in_obj->carried_by != NULL && can_see(ch,in_obj->carried_by) && in_obj->carried_by->in_room != NULL)
         {
@@ -5369,15 +5419,24 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
     iterator_start(&vit, loaded_chars);
     while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
     {
+        MOB_INDEX_DATA *mob_index = IS_NPC(victim) ? victim->pIndexData : NULL;
+
         if (victim->in_room != NULL &&
-            is_name(argument, victim->name)) {
+            (is_name(argument, victim->name) ||
+             (mob_index && wiz_match_index_search(argument,
+                 mob_index->player_name,
+                 mob_index->list_keywords,
+                 mob_index->tags,
+                 mob_index->auto_tags)))) {
             found = true;
             count++;
             bprintf(buffer, "{Y%3d) {WID{X: [{W%ld %ld{X]{x [%s] ", count,
                 (long)victim->id[0], (long)victim->id[1],
                 IS_NPC(victim) ? widevnum_string_mobile(victim->pIndexData, NULL) : "0");
             mxp_mob_link(ch->desc, buffer, victim,
-                IS_NPC(victim) ? victim->short_descr : victim->name);
+                IS_NPC(victim)
+                    ? (!IS_NULLSTR(victim->pIndexData->list_name) ? victim->pIndexData->list_name : victim->short_descr)
+                    : victim->name);
             bprintf(buffer, "{x [");
             mxp_room_link(ch->desc, buffer, victim->in_room,
                 widevnum_string_room(victim->in_room, NULL));
@@ -6131,7 +6190,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
         p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 
         sprintf(buf, "Loaded %s (%s)",
-            pMobIndex->short_descr,
+            victim->short_descr,
             widevnum_string_mobile(pMobIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
@@ -6153,15 +6212,15 @@ void do_mload(CHAR_DATA *ch, char *argument)
         }
 
         sprintf(buf, "{Y({G%d{Y){x $n has created %s!",
-            amt, pMobIndex->short_descr);
+            amt, victim ? victim->short_descr : pMobIndex->short_descr);
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         
         sprintf(buf, "{Y({G%d{Y){x Loaded %s (%s)",
-            amt, pMobIndex->short_descr, widevnum_string_mobile(pMobIndex, NULL));
+            amt, victim ? victim->short_descr : pMobIndex->short_descr, widevnum_string_mobile(pMobIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.",
-            amt, pMobIndex->short_descr);
+            amt, victim ? victim->short_descr : pMobIndex->short_descr);
         wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
     }
 }

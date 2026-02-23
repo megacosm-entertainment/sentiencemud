@@ -236,7 +236,7 @@ static void bsedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
     olc_display_string(ctx, theme, "Name:", "name", buf);
 
     olc_display_string(ctx, theme, "Type:", "type", flag_string(blueprint_section_types, bs->type));
-    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(blueprint_section_flags, bs->flags));
+    olc_display_flags(ctx, theme, "Flags:", "flags", blueprint_section_flags, bs->flags);
 
     if (bs->recall_room)
     {

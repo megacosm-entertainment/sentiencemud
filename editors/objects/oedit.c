@@ -24,7 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <jansson.h>
 #include "strings.h"
+#include "../../requirements.h"
 #include "../../merc.h"
 #include "../../tables.h"
 #include "../../olc.h"
@@ -32,6 +34,7 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../../mxp_links.h"
 #include "../../item_types.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
@@ -47,11 +50,21 @@ static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
 static void oedit_show_affects_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void oedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void oedit_show_type_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void oedit_show_inheritance_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
 static AREA_DATA *oedit_get_area(void *pEdit)
 {
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
     return pObj ? pObj->area : NULL;
+}
+
+static void oedit_rebuild_auto_tags(OBJ_INDEX_DATA *pObj)
+{
+    if (!pObj)
+        return;
+
+    free_string(pObj->auto_tags);
+    pObj->auto_tags = short_to_name(pObj->name);
 }
 
 /*
@@ -64,6 +77,7 @@ const struct olc_cmd_type oedit_table[] =
     { "addcatalyst",    oedit_addcatalyst   },
     { "addimmune",      oedit_addimmune     },
     { "addoprog",       oedit_addoprog      },
+    { "addquest",       oedit_addquest      },
     { "addskill",       oedit_addskill      },
     { "addspell",       oedit_addspell      },
     { "addtype",        oedit_addtype       },
@@ -77,6 +91,7 @@ const struct olc_cmd_type oedit_table[] =
     { "delcatalyst",    oedit_delcatalyst   },
     { "delimmune",      oedit_delimmune     },
     { "deloprog",       oedit_deloprog      },
+    { "delquest",       oedit_delquest      },
     { "delspell",       oedit_delspell      },
     { "description",    oedit_desc          },
     { "ed",             oedit_ed            },
@@ -87,8 +102,13 @@ const struct olc_cmd_type oedit_table[] =
     { "long",           oedit_long          },
     { "material",       oedit_material      },
     { "name",           oedit_name          },
+    { "parent",         oedit_parent        },
+    { "tags",           oedit_tags          },
+    { "listname",       oedit_listname      },
+    { "listkeywords",   oedit_listkeywords  },
     { "next",           oedit_next          },
     { "persist",        oedit_persist       },
+    { "prerequisites",  oedit_prerequisites },
     { "prev",           oedit_prev          },
     { "removetype",     oedit_removetype    },
     { "scriptkwd",      oedit_skeywds       },
@@ -155,13 +175,14 @@ static const OLC_EDITOR_DEF oedit_def = {
     .cmd_table      = oedit_table,
     .show_fn        = oedit_show,
     .tabs           = {
-        .count = 5,
+        .count = 6,
         .tabs = {
             { "General",    "Gen", oedit_show_general_tab },
             { "Properties", "Prp", oedit_show_properties_tab },
             { "Affects",    "Aff", oedit_show_affects_tab },
             { "Scripts",    "Scr", oedit_show_scripts_tab },
             { "Type",       "Typ", oedit_show_type_tab },
+            { "Inheritance", "Inh", oedit_show_inheritance_tab },
         }
     },
     .theme          = &olc_theme_entity,
@@ -283,6 +304,16 @@ static void oedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_string(ctx, theme, "Imp Sig:", NULL, pObj->imp_sig);
     olc_display_string(ctx, theme, "Creator Sig:", NULL, pObj->creator_sig);
     olc_display_string(ctx, theme, "Script Kwds:", "scriptkwd", pObj->skeywds);
+    olc_display_string(ctx, theme, "Parent:", "parent",
+        pObj->parent_wnum.vnum > 0
+            ? widevnum_string(pObj->parent_wnum.pArea, pObj->parent_wnum.vnum, pObj->area)
+            : (pObj->parent_load.vnum > 0
+                ? formatf("%ld#%ld", pObj->parent_load.auid, pObj->parent_load.vnum)
+                : "(none)"));
+    olc_display_string(ctx, theme, "List Name:", "listname", IS_NULLSTR(pObj->list_name) ? "(default: short)" : pObj->list_name);
+    olc_display_string(ctx, theme, "List Keywords:", "listkeywords", IS_NULLSTR(pObj->list_keywords) ? "(none)" : pObj->list_keywords);
+    olc_display_string(ctx, theme, "Tags:", "tags", IS_NULLSTR(pObj->tags) ? "(none)" : pObj->tags);
+    olc_display_string(ctx, theme, "Auto Tags:", NULL, IS_NULLSTR(pObj->auto_tags) ? "(none)" : pObj->auto_tags);
 
     olc_display_hr(ctx, theme);
 
@@ -290,6 +321,12 @@ static void oedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_text(ctx, theme, "Long Desc:", "long", pObj->description);
     olc_display_text(ctx, theme, "Description:", "description", pObj->full_description);
     olc_display_text(ctx, theme, "Comments:", "comments", pObj->comments);
+    {
+        char *dsl = requirements_json_to_text(pObj->prerequisites);
+        olc_display_string(ctx, theme, "Prerequisites:", "prerequisites",
+            dsl ? dsl : "(none)");
+        free(dsl);
+    }
 }
 
 static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
@@ -369,6 +406,7 @@ static void oedit_show_affects_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
                 add_buf(ctx->buffer, buf);
                 add_buf(ctx->buffer, "\n\r");
             }
+
             snprintf(buf, sizeof(buf), "  {B[{W%4d{B] {%c%-20s{x %-20d %d%%\n\r",
                 cnt,
                 (paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) ? 'Y' : 'G',
@@ -497,6 +535,36 @@ static void oedit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         "ObjProg Vnum", "addoprog", "deloprog");
 
     olc_display_vars(ctx, theme, pObj->index_vars, "varset", "varclear");
+
+    if (pObj->quests_v2) {
+        QUEST_V2_LIST *qv2;
+        int qidx = 1;
+        char wstr[MIL];
+
+        olc_display_section(ctx, theme, "Available Quests (V2)");
+        add_buf(ctx->buffer, formatf("  %s%-3s %-35s  %s{x\n\r",
+            theme->label, "#", "Quest Name", "Widevnum"));
+        add_buf(ctx->buffer, formatf("  %s--- ----------------------------------- --------{x\n\r",
+            theme->label));
+
+        for (qv2 = pObj->quests_v2; qv2; qv2 = qv2->next, qidx++) {
+            QUEST_INDEX_V2_DATA *qi = get_quest_index_v2_wnum(qv2->wnum);
+            const char *qname = qi ? (qi->name && qi->name[0] ? qi->name : "(unnamed)") : "(invalid)";
+
+            if (qv2->wnum.pArea)
+                strncpy(wstr, widevnum_string(qv2->wnum.pArea, qv2->wnum.vnum, pObj->area), sizeof(wstr) - 1);
+            else
+                snprintf(wstr, sizeof(wstr), "%ld#%ld", qv2->load.auid, qv2->load.vnum);
+            wstr[sizeof(wstr) - 1] = '\0';
+
+            add_buf(ctx->buffer, formatf("  %-3d %-35.35s  %s%s\n\r",
+                qidx, qname, wstr,
+                qi && !qi->enabled ? " {D[disabled]{x" : ""));
+        }
+
+        olc_display_string(ctx, theme, "Add:",    NULL, "addquest <widevnum>");
+        olc_display_string(ctx, theme, "Delete:", NULL, "delquest <index>");
+    }
 }
 
 static void oedit_show_type_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
@@ -504,6 +572,90 @@ static void oedit_show_type_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
     OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
 
     oedit_show_type_data(pObj, ctx->buffer);
+}
+
+static void oedit_show_inheritance_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    OBJ_INDEX_DATA *pObj = (OBJ_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&oedit_def);
+    AREA_DATA *area;
+    OBJ_INDEX_DATA *obj;
+    int iHash;
+    int child_count = 0;
+    bool extra_is_default = (pObj->extra[0] == 0 && pObj->extra[1] == 0 && pObj->extra[2] == 0 && pObj->extra[3] == 0);
+
+    olc_display_section(ctx, theme, "Parent Chain");
+    if (pObj->parent) {
+        OBJ_INDEX_DATA *cur = pObj->parent;
+        int depth = 0;
+
+        while (cur && depth < 32) {
+            if (depth > 0)
+                add_buf(ctx->buffer, " {D->{x ");
+
+            mxp_command_link(ch->desc, ctx->buffer,
+                formatf("oedit %s", widevnum_string_object(cur, NULL)),
+                "Edit object",
+                widevnum_string_object(cur, NULL));
+            add_buf(ctx->buffer, formatf(" {x%s", cur->short_descr));
+
+            cur = cur->parent;
+            depth++;
+        }
+
+        if (cur)
+            add_buf(ctx->buffer, " {D->{x ...");
+        add_buf(ctx->buffer, "\n\r");
+    } else if (pObj->parent_load.vnum > 0) {
+        olc_display_infof(ctx, theme, "Unresolved parent: %ld#%ld",
+            pObj->parent_load.auid, pObj->parent_load.vnum);
+    } else {
+        olc_display_infof(ctx, theme, "(none)");
+    }
+
+    olc_display_section(ctx, theme, "Direct Children");
+    for (area = area_first; area != NULL; area = area->next) {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (obj = area->obj_index_hash[iHash]; obj != NULL; obj = obj->next) {
+                bool is_child = false;
+
+                if (obj == pObj)
+                    continue;
+
+                if (obj->parent == pObj)
+                    is_child = true;
+                else if (!obj->parent && obj->parent_load.vnum == pObj->vnum
+                    && (obj->parent_load.auid == 0 || obj->parent_load.auid == pObj->area->uid))
+                    is_child = true;
+
+                if (!is_child)
+                    continue;
+
+                mxp_command_link(ch->desc, ctx->buffer,
+                    formatf("oedit %s", widevnum_string_object(obj, NULL)),
+                    "Edit object",
+                    widevnum_string_object(obj, NULL));
+                add_buf(ctx->buffer, formatf(" {x%s\n\r", obj->short_descr));
+                child_count++;
+            }
+        }
+    }
+    if (child_count < 1)
+        olc_display_infof(ctx, theme, "(none)");
+
+    olc_display_section(ctx, theme, "Field Source");
+    if (!pObj->parent) {
+        olc_display_infof(ctx, theme, "No parent set; all values are local.");
+        return;
+    }
+
+    olc_display_string(ctx, theme, "Item Type:", NULL,
+        pObj->item_type == ITEM_TRASH ? "Inherited" : "Local");
+    olc_display_string(ctx, theme, "Extra Flags:", NULL,
+        extra_is_default ? "Inherited" : "Local");
+    olc_display_string(ctx, theme, "Wear Flags:", NULL,
+        pObj->wear_flags == 0 ? "Inherited" : "Local");
+    olc_display_bool(ctx, theme, "Inheritance Applied:", NULL, pObj->parent_inherited);
 }
 
 /*
@@ -1717,8 +1869,11 @@ OEDIT(oedit_name)
 {
     OBJ_INDEX_DATA *pObj;
     EDIT_OBJ(ch, pObj);
-    return olc_cmd_string(ch, argument, "Name", NULL, &pObj->name,
+    bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pObj->name,
         OLC_STR_DEFAULT, NULL, NULL);
+    if (changed)
+        oedit_rebuild_auto_tags(pObj);
+    return changed;
 }
 
 
@@ -1747,6 +1902,84 @@ OEDIT(oedit_skeywds)
     EDIT_OBJ(ch, pObj);
     return olc_cmd_string(ch, argument, "Script Keywords", NULL, &pObj->skeywds,
         OLC_STR_CLEARABLE, NULL, NULL);
+}
+
+OEDIT(oedit_listname)
+{
+    OBJ_INDEX_DATA *pObj;
+    EDIT_OBJ(ch, pObj);
+    return olc_cmd_string(ch, argument, "List Name", NULL, &pObj->list_name,
+        OLC_STR_CLEARABLE, NULL, NULL);
+}
+
+OEDIT(oedit_listkeywords)
+{
+    OBJ_INDEX_DATA *pObj;
+    EDIT_OBJ(ch, pObj);
+    return olc_cmd_string(ch, argument, "List Keywords", NULL, &pObj->list_keywords,
+        OLC_STR_CLEARABLE, NULL, NULL);
+}
+
+OEDIT(oedit_tags)
+{
+    OBJ_INDEX_DATA *pObj;
+    EDIT_OBJ(ch, pObj);
+    return olc_cmd_string(ch, argument, "Tags", NULL, &pObj->tags,
+        OLC_STR_CLEARABLE, NULL, NULL);
+}
+
+OEDIT(oedit_parent)
+{
+    OBJ_INDEX_DATA *pObj;
+    OBJ_INDEX_DATA *parent;
+    WNUM wnum;
+
+    EDIT_OBJ(ch, pObj);
+
+    if (IS_NULLSTR(argument))
+    {
+        send_to_char("Syntax: parent <widevnum|none>\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "none") || !str_cmp(argument, "clear") || !str_cmp(argument, "0"))
+    {
+        pObj->parent_load.auid = 0;
+        pObj->parent_load.vnum = 0;
+        pObj->parent_wnum.pArea = NULL;
+        pObj->parent_wnum.vnum = 0;
+        pObj->parent = NULL;
+        send_to_char("Parent object cleared.\n\r", ch);
+        return true;
+    }
+
+    if (!parse_widevnum(argument, pObj->area, &wnum))
+    {
+        send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
+        return false;
+    }
+
+    parent = get_obj_index(wnum.pArea, wnum.vnum);
+    if (!parent)
+    {
+        send_to_char("That parent object does not exist.\n\r", ch);
+        return false;
+    }
+
+    if (parent == pObj)
+    {
+        send_to_char("An object cannot inherit from itself.\n\r", ch);
+        return false;
+    }
+
+    pObj->parent_load.auid = wnum.pArea->uid;
+    pObj->parent_load.vnum = wnum.vnum;
+    pObj->parent_wnum = wnum;
+    pObj->parent = parent;
+    pObj->parent_inherited = false;
+
+    send_to_char("Parent object set. Inheritance is resolved at load time.\n\r", ch);
+    return true;
 }
 
 OEDIT(oedit_varset)
@@ -1794,6 +2027,7 @@ OEDIT(oedit_short)
     pObj->name = short_to_name(pObj->short_descr);
     send_to_char("Name keywords set.\n\r", ch);
     }
+    oedit_rebuild_auto_tags(pObj);
     return true;
 }
 
@@ -2971,4 +3205,137 @@ OEDIT(oedit_timer)
     return olc_cmd_number(ch, argument, "Timer",
         "Syntax: timer <#ticks>  (0 to 10000)\n\r",
         &pObj->timer, 0, 10000, NULL, NULL);
+}
+
+OEDIT(oedit_prerequisites)
+{
+    OBJ_INDEX_DATA *pObj;
+    EDIT_OBJ(ch, pObj);
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  prerequisites <dsl>\n\r", ch);
+        send_to_char("         prerequisites none\n\r", ch);
+        send_to_char("Example: prerequisites tot_level 50\n\r", ch);
+        send_to_char("Example: prerequisites race elf AND tot_level 20\n\r", ch);
+        send_to_char("Example: prerequisites (race elf OR race human) AND class_current warrior\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "none"))
+    {
+        free_string(pObj->prerequisites);
+        pObj->prerequisites = str_dup("");
+        send_to_char("Prerequisites cleared.\n\r", ch);
+        return true;
+    }
+
+    /* Compile DSL text -> JSON */
+    {
+        char  err[256];
+        char *json_str = requirements_text_to_json(argument, err, sizeof(err));
+        if (!json_str) {
+            printf_to_char(ch, "Prerequisites syntax error: %s\n\r", err);
+            return false;
+        }
+        free_string(pObj->prerequisites);
+        pObj->prerequisites = str_dup(json_str);
+        free(json_str);
+    }
+
+    send_to_char("Prerequisites set.\n\r", ch);
+    return true;
+}
+
+OEDIT(oedit_addquest)
+{
+    OBJ_INDEX_DATA *pObj;
+    QUEST_V2_LIST *qv2;
+    WNUM wnum;
+    AREA_DATA *context;
+
+    EDIT_OBJ(ch, pObj);
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  addquest <quest widevnum>\n\r", ch);
+        return false;
+    }
+
+    context = olc_relative_widevnum_context(pObj->area, argument);
+    if (!parse_widevnum(argument, context, &wnum) || !wnum.pArea || wnum.vnum < 1)
+    {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    if (!get_quest_index_v2_wnum(wnum))
+    {
+        send_to_char("No v2 quest with that widevnum exists.\n\r", ch);
+        return false;
+    }
+
+    for (qv2 = pObj->quests_v2; qv2 != NULL; qv2 = qv2->next)
+    {
+        if (qv2->load.auid == wnum.pArea->uid && qv2->load.vnum == wnum.vnum)
+        {
+            send_to_char("That quest is already in the list.\n\r", ch);
+            return false;
+        }
+    }
+
+    qv2 = new_quest_v2_list();
+    qv2->load.auid = wnum.pArea->uid;
+    qv2->load.vnum = wnum.vnum;
+    qv2->wnum = wnum;
+    qv2->next = pObj->quests_v2;
+    pObj->quests_v2 = qv2;
+
+    send_to_char("Quest added.\n\r", ch);
+    return true;
+}
+
+OEDIT(oedit_delquest)
+{
+    OBJ_INDEX_DATA *pObj;
+    QUEST_V2_LIST *qv2, *prev = NULL;
+    int i, counter;
+
+    EDIT_OBJ(ch, pObj);
+
+    if (argument[0] == '\0' || !is_number(argument))
+    {
+        send_to_char("Syntax:  delquest <#>\n\r", ch);
+        return false;
+    }
+
+    i = atoi(argument) - 1;  /* list display is 1-based */
+    if (i < 0)
+    {
+        send_to_char("Index must be 1 or greater.\n\r", ch);
+        return false;
+    }
+
+    counter = 0;
+    for (qv2 = pObj->quests_v2; qv2 != NULL; qv2 = qv2->next)
+    {
+        if (counter == i) break;
+        prev = qv2;
+        counter++;
+    }
+
+    if (qv2 == NULL)
+    {
+        send_to_char("Index not found.\n\r", ch);
+        return false;
+    }
+
+    if (prev != NULL)
+        prev->next = qv2->next;
+    else
+        pObj->quests_v2 = qv2->next;
+
+    free_quest_v2_list(qv2);
+    send_to_char("Quest removed.\n\r", ch);
+    return true;
 }

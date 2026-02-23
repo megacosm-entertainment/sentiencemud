@@ -244,9 +244,8 @@ CLSEDIT(clsedit_show)
         olc_display_text(ctx, theme, "Comments:", "comments", clazz->comments);
 
     /* Type & flags */
-    olc_display_pair(ctx, theme,
-        "Type:", "type", flag_name(class_types, clazz->type),
-        "Flags:", "flags", clazz->flags ? flag_string(class_flags, clazz->flags) : "none");
+    olc_display_string(ctx, theme, "Type:", "type", flag_name(class_types, clazz->type));
+    olc_display_flags(ctx, theme, "Flags:", "flags", class_flags, clazz->flags);
 
     /* Display / Who names */
     olc_display_pair(ctx, theme,

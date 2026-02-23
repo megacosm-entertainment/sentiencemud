@@ -8566,6 +8566,22 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             break;
         }
 
+    // Generates and stores an RSG value from a generator spec.
+    // Format: RSG <generator_spec>
+    // Example: varset myname rsg ^sith_names:pattern:2
+    } else if(!str_cmp(buf,"rsg") || !str_cmp(buf,"generator")) {
+        BUFFER *spec_buf = new_buf();
+        char generated[MSL];
+
+        expand_string(info, argument, spec_buf);
+        if (!rsg_generate_spec(buf_string(spec_buf), generated, sizeof(generated))) {
+            free_buf(spec_buf);
+            return;
+        }
+
+        variables_set_string(vars, name, generated, false);
+        free_buf(spec_buf);
+
     // Decrements the variable, if it's a NUMBER by the specified decrement
     // Format: DEC <step>
     // Format: DECREMENT <step>

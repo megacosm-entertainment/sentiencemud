@@ -40,6 +40,89 @@ bool variable_validname(char *str)
     return true;
 }
 
+void variables_resolve_rsg_bindings(ppVARIABLE vars)
+{
+    pVARIABLE var;
+
+    if (!vars || !*vars)
+        return;
+
+    for (var = *vars; var; var = var->next) {
+        char generated[MSL];
+        const char *spec;
+
+        if (!var->name)
+            continue;
+
+        if (var->type != VAR_STRING && var->type != VAR_STRING_S)
+            continue;
+
+        if (IS_NULLSTR(var->_.s) || strncmp(var->_.s, "$rsg:", 5))
+            continue;
+
+        spec = var->_.s + 5;
+        if (!rsg_generate_spec(spec, generated, sizeof(generated)))
+            continue;
+
+        variables_set_string(vars, var->name, generated, false);
+    }
+}
+
+char *variables_expand_text_dup(pVARIABLE vars, const char *src)
+{
+    BUFFER *buffer;
+    const char *ptr;
+
+    if (IS_NULLSTR(src))
+        return str_dup("");
+
+    if (!strstr(src, "$<"))
+        return str_dup(src);
+
+    buffer = new_buf();
+    ptr = src;
+
+    while (*ptr) {
+        if (ptr[0] == '$' && ptr[1] == '<') {
+            const char *end = strchr(ptr + 2, '>');
+
+            if (end && end > (ptr + 2)) {
+                char var_name[MIL];
+                size_t len = (size_t)(end - (ptr + 2));
+                pVARIABLE var;
+
+                if (len >= sizeof(var_name))
+                    len = sizeof(var_name) - 1;
+
+                memcpy(var_name, ptr + 2, len);
+                var_name[len] = '\0';
+
+                var = variable_get(vars, var_name);
+                if (var) {
+                    if ((var->type == VAR_STRING || var->type == VAR_STRING_S) && !IS_NULLSTR(var->_.s)) {
+                        add_buf(buffer, var->_.s);
+                        ptr = end + 1;
+                        continue;
+                    }
+
+                    if (var->type == VAR_INTEGER) {
+                        add_buf(buffer, formatf("%d", var->_.i));
+                        ptr = end + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        add_buf_char(buffer, *ptr);
+        ptr++;
+    }
+
+    char *result = str_dup(buf_string(buffer));
+    free_buf(buffer);
+    return result;
+}
+
 pVARIABLE variable_new(void)
 {
     pVARIABLE v;
@@ -3696,10 +3779,13 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silen
     char name[MIL];
     char type[MIL];
     char yesno[MIL];
+    char generated[MSL];
     bool saved;
 
     if (argument[0] == '\0') {
-    send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+    send_to_char("Syntax:  varset <name> <number|string|room|rsg> <yes|no> <value>\n\r", ch);
+    send_to_char("Example: varset my_name rsg yes sith_names:pattern:full_name\n\r", ch);
+    send_to_char("         varset my_title rsg yes sith_names:class:title\n\r", ch);
     return false;
     }
 
@@ -3728,6 +3814,16 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silen
     variables_setindex_room(index_vars,name,atoi(argument), saved);
     } else if(!str_cmp(type,"string"))
         variables_setindex_string(index_vars,name,argument,false,saved);
+    else if(!str_cmp(type,"rsg") || !str_cmp(type,"generator"))
+    {
+        if (!rsg_generate_spec(argument, generated, sizeof(generated))) {
+            send_to_char("Invalid generator spec. Use <generator>[:any|pattern:<name|index>|template:<name>|class:<name>]\n\r", ch);
+            return false;
+        }
+
+        variables_setindex_string(index_vars, name,
+            formatf("$rsg:%s", argument), false, saved);
+    }
     else if(!str_cmp(type,"number"))
     {
         if(!is_number(argument)) {

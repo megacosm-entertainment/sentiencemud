@@ -54,6 +54,7 @@
 #include "magic.h"
 #include "tables.h"
 #include "scripts.h"
+#include "requirements.h"
 
 static bool check_quest_custom_task_run(CHAR_DATA *ch, QUEST_DATA *run, int task, bool show);
 static bool generate_quest_from_object(CHAR_DATA *ch, OBJ_DATA *questobj);
@@ -100,6 +101,7 @@ static void quest_runtime_reset_expiration(CHAR_DATA *ch);
 static WNUM quest_runtime_resolve_objective_target_reference(QUEST_DATA *run, QUEST_INDEX_V2_DATA *quest_index_v2,
     QUEST_STAGE_INDEX_V2_DATA *stage, QUEST_OBJECTIVE_INDEX_V2_DATA *objective);
 static const char *quest_run_display_name(QUEST_DATA *run);
+static void quest_runtime_apply_rewards(QUEST_DATA *run, CHAR_DATA *enactor);
 
 #define QUEST_LIST_MAX_ENTRIES 128
 
@@ -232,6 +234,79 @@ static int quest_collect_object_offerings(OBJ_INDEX_DATA *obj_index, QUEST_INDEX
     return count;
 }
 
+/* Collect enabled v2 quests from a mob's quests_v2 list */
+static int quest_collect_mob_v2_offerings(MOB_INDEX_DATA *mob_index, QUEST_INDEX_V2_DATA **results, int max_results)
+{
+    QUEST_V2_LIST *entry;
+    AREA_DATA *fallback;
+    int count = 0;
+
+    if (!mob_index || !results || max_results < 1)
+        return 0;
+
+    fallback = mob_index->area ? mob_index->area : get_system_area_fallback();
+
+    for (entry = mob_index->quests_v2; entry != NULL && count < max_results; entry = entry->next) {
+        if (!entry->wnum.pArea && entry->load.vnum > 0)
+            resolve_wnum_load(&entry->load, &entry->wnum, fallback);
+        if (!entry->wnum.pArea)
+            continue;
+        QUEST_INDEX_V2_DATA *qi = get_quest_index_v2_wnum(entry->wnum);
+        if (qi && qi->enabled)
+            results[count++] = qi;
+    }
+
+    return count;
+}
+
+/* Collect enabled v2 quests from an object's quests_v2 list */
+static int quest_collect_obj_v2_offerings(OBJ_INDEX_DATA *obj_index, QUEST_INDEX_V2_DATA **results, int max_results)
+{
+    QUEST_V2_LIST *entry;
+    AREA_DATA *fallback;
+    int count = 0;
+
+    if (!obj_index || !results || max_results < 1)
+        return 0;
+
+    fallback = obj_index->area ? obj_index->area : get_system_area_fallback();
+
+    for (entry = obj_index->quests_v2; entry != NULL && count < max_results; entry = entry->next) {
+        if (!entry->wnum.pArea && entry->load.vnum > 0)
+            resolve_wnum_load(&entry->load, &entry->wnum, fallback);
+        if (!entry->wnum.pArea)
+            continue;
+        QUEST_INDEX_V2_DATA *qi = get_quest_index_v2_wnum(entry->wnum);
+        if (qi && qi->enabled)
+            results[count++] = qi;
+    }
+
+    return count;
+}
+
+/* Find a v2 quest offering by list index (1-based) or name infix */
+static QUEST_INDEX_V2_DATA *quest_find_v2_offering_by_name(QUEST_INDEX_V2_DATA **offerings, int count, const char *name)
+{
+    int i;
+
+    if (!offerings || count < 1 || IS_NULLSTR(name))
+        return NULL;
+
+    if (is_number((char *)name)) {
+        i = atoi(name);
+        if (i >= 1 && i <= count)
+            return offerings[i - 1];
+    }
+
+    for (i = 0; i < count; i++) {
+        if (offerings[i] && !IS_NULLSTR(offerings[i]->name)
+        &&  !str_infix((char *)name, offerings[i]->name))
+            return offerings[i];
+    }
+
+    return NULL;
+}
+
 static QUEST_INDEX_DATA *quest_find_offering_by_name(QUEST_INDEX_DATA **offerings, int offering_count, const char *name)
 {
     int i;
@@ -328,6 +403,7 @@ static void quest_runtime_seed_run_vars_from_index(QUEST_DATA *run)
         return;
 
     variable_copylist(&index_v2->index_vars, &run->vars, false);
+    variables_resolve_rsg_bindings(&run->vars);
 }
 
 static const char *quest_target_scope_name(int scope)
@@ -445,6 +521,30 @@ static bool quest_parse_history_category(const char *name, int *category)
     if (!str_prefix(name, "crafting")) { *category = QUEST_LOG_CATEGORY_CRAFTING; return true; }
     if (!str_prefix(name, "event")) { *category = QUEST_LOG_CATEGORY_EVENT; return true; }
     if (!str_prefix(name, "other")) { *category = QUEST_LOG_CATEGORY_OTHER; return true; }
+
+    return false;
+}
+
+static bool quest_parse_type(const char *name, int *type)
+{
+    if (IS_NULLSTR(name) || !type)
+        return false;
+
+    if (is_number((char *)name)) {
+        int value = atoi(name);
+        if (value >= QUEST_TYPE_MAIN_STORY && value <= QUEST_TYPE_OTHER) {
+            *type = value;
+            return true;
+        }
+        return false;
+    }
+
+    if (!str_prefix(name, "main")) { *type = QUEST_TYPE_MAIN_STORY; return true; }
+    if (!str_prefix(name, "side")) { *type = QUEST_TYPE_SIDE_QUEST; return true; }
+    if (!str_prefix(name, "unlock")) { *type = QUEST_TYPE_UNLOCK; return true; }
+    if (!str_prefix(name, "class")) { *type = QUEST_TYPE_CLASS_QUEST; return true; }
+    if (!str_prefix(name, "event")) { *type = QUEST_TYPE_EVENT; return true; }
+    if (!str_prefix(name, "other")) { *type = QUEST_TYPE_OTHER; return true; }
 
     return false;
 }
@@ -2568,6 +2668,165 @@ OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, QUEST_DATA *run, char *questgiver
     return scroll;
 }
 
+/*
+ * quest_list_show_v2 - print one v2 quest entry in the quest list
+ *
+ * Evaluates prerequisites and appends a tag if the player can't take it:
+ *   {R(locked: reason){x  — unmet, has player_string
+ *   {D(locked: additional requirements){x  — unmet, hidden flag, no player_string
+ *   {D(locked){x          — unmet, no player_string, not hidden
+ *   (nothing)             — met
+ */
+static void quest_list_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2,
+                               int *total_shown, bool indent4)
+{
+    const char *qname  = IS_NULLSTR(qv2->name) ? "(unnamed quest)" : qv2->name;
+    const char *indent = indent4 ? "    " : "  ";
+    char        req_tag[MAX_INPUT_LENGTH];
+    bool        meets = true;
+    char       *ps    = NULL;
+
+    req_tag[0] = '\0';
+
+    if (!IS_IMMORTAL(ch) && !IS_NULLSTR(qv2->prerequisites)) {
+        REQUIREMENT_CONTEXT ctx;
+
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.actor      = ch;
+        ctx.self_quest = qv2;
+        meets = requirements_evaluate_text(qv2->prerequisites, &ctx, true);
+        ps    = requirements_get_player_string(qv2->prerequisites);
+    }
+
+    if (!meets) {
+        if (ps && *ps)
+            snprintf(req_tag, sizeof(req_tag), " {R(locked: %s){x", ps);
+        else if (requirements_is_hidden(qv2->prerequisites))
+            snprintf(req_tag, sizeof(req_tag), " {D(locked: additional requirements){x");
+        else
+            snprintf(req_tag, sizeof(req_tag), " {D(locked){x");
+    }
+
+    if (ps) free(ps);
+
+    printf_to_char(ch, "%s[{Y%d{x] %s%s\n\r",
+        indent, ++(*total_shown), qname, req_tag);
+}
+
+/*
+ * quest_inspect_show_v2 - show pre-accept details for a v2 quest
+ *
+ * Displays the quest name, description, allowance cost, prerequisites
+ * (with met/unmet indicator), first-stage objectives, and rewards.
+ * Only shows prerequisite lines that carry a player_string annotation.
+ * If overall prerequisites fail but have no player_string, a generic
+ * "Requirements not met" line is shown instead.
+ */
+static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
+{
+    QUEST_STAGE_INDEX_V2_DATA        *stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA    *obj;
+    QUEST_REWARD_INDEX_V2_DATA       *rew;
+    REQUIREMENT_CONTEXT               ctx;
+    bool                              meets        = true;
+    bool                              has_prereqs  = false;
+    char                             *ps           = NULL;
+    int                               obj_count;
+
+    line(ch, 50, "{Y", "-");
+    printf_to_char(ch, "{Y%s{x\n\r",
+        IS_NULLSTR(qv2->name) ? "(unnamed quest)" : qv2->name);
+    line(ch, 50, "{Y", "-");
+
+    /* Description */
+    if (!IS_NULLSTR(qv2->description))
+        printf_to_char(ch, "%s\n\r", qv2->description);
+
+    /* Allowance cost */
+    if (qv2->allowance_cost > 0)
+        printf_to_char(ch, "{WCost:{x %d mission allowance%s\n\r",
+            qv2->allowance_cost,
+            qv2->allowance_cost == 1 ? "" : "s");
+
+    /* Prerequisites */
+    if (!IS_NULLSTR(qv2->prerequisites)) {
+        has_prereqs = true;
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.actor      = ch;
+        ctx.self_quest = qv2;
+        meets = requirements_evaluate_text(qv2->prerequisites, &ctx, true);
+        ps    = requirements_get_player_string(qv2->prerequisites);
+
+        if (ps && *ps) {
+            printf_to_char(ch, "{WRequires:{x %s%s{x\n\r",
+                meets ? "{G\u2713 " : "{R\u2717 ", ps);
+        } else if (!meets) {
+            send_to_char("{WRequires:{x {Radditional requirements not met{x\n\r", ch);
+        }
+
+        if (ps) free(ps);
+    }
+
+    /* Objectives from the first stage */
+    stage = qv2->stages;
+    if (stage && stage->objectives) {
+        send_to_char("{WObjectives:{x\n\r", ch);
+        obj_count = 0;
+        for (obj = stage->objectives; obj; obj = obj->next) {
+            const char *label = quest_objective_visible_label(obj);
+            printf_to_char(ch, "  %s%s{x\n\r",
+                obj->optional ? "{D(optional) " : "",
+                IS_NULLSTR(label) ? quest_objective_type_name(obj->objective_type) : label);
+            obj_count++;
+        }
+        if (obj_count == 0)
+            send_to_char("  (no objectives listed)\n\r", ch);
+    }
+
+    /* Rewards */
+    if (qv2->rewards) {
+        send_to_char("{WRewards:{x\n\r", ch);
+        for (rew = qv2->rewards; rew; rew = rew->next) {
+            if (!IS_NULLSTR(rew->display_string)) {
+                printf_to_char(ch, "  %s\n\r", rew->display_string);
+                continue;
+            }
+            switch (rew->reward_type) {
+                case QUEST_REWARD_POINTS:
+                    printf_to_char(ch, "  %d quest point%s\n\r",
+                        rew->amount, rew->amount == 1 ? "" : "s");
+                    break;
+                case QUEST_REWARD_CURRENCY:
+                    printf_to_char(ch, "  %d %s\n\r",
+                        rew->amount,
+                        IS_NULLSTR(rew->currency) ? "coin(s)" : rew->currency);
+                    break;
+                case QUEST_REWARD_REPUTATION:
+                    printf_to_char(ch, "  %d reputation\n\r", rew->amount);
+                    break;
+                case QUEST_REWARD_TOKEN:
+                    printf_to_char(ch, "  token (x%d)\n\r", rew->amount);
+                    break;
+                case QUEST_REWARD_ITEM:
+                    send_to_char("  item reward\n\r", ch);
+                    break;
+                case QUEST_REWARD_SCRIPT:
+                    /* intentionally silent */
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    line(ch, 50, "{Y", "-");
+
+    if (has_prereqs && !meets)
+        send_to_char("Use {Yquest list{x — items marked {R(locked){x cannot be accepted yet.\n\r", ch);
+    else
+        send_to_char("Use {Yquest accept <name>{x to take this quest.\n\r", ch);
+}
+
 void do_quest(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob = NULL;
@@ -2592,7 +2851,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0')
     {
-        send_to_char("QUEST commands: LOG HISTORY LIST FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE GRANT.\n\r", ch);
+        send_to_char("QUEST commands: LOG HISTORY LIST INSPECT FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE GRANT.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r",ch);
         return;
     }
@@ -2661,6 +2920,22 @@ void do_quest(CHAR_DATA *ch, char *argument)
         active_quest->scope_owner_uid = 0;
         quest_scope_owner_seed(victim, active_quest);
 
+        /* Prerequisites check (bypassed if granting immortal forces it) */
+        if (!IS_IMMORTAL(ch) && !IS_NULLSTR(quest_index_v2->prerequisites)) {
+            REQUIREMENT_CONTEXT prereq_ctx;
+            prereq_ctx.actor      = victim;
+            prereq_ctx.self_mob   = NULL;
+            prereq_ctx.self_obj   = NULL;
+            prereq_ctx.self_room  = NULL;
+            prereq_ctx.self_token = NULL;
+            prereq_ctx.self_quest = quest_index_v2;
+            if (!requirements_evaluate_text(quest_index_v2->prerequisites, &prereq_ctx, true)) {
+                quest_runtime_detach_run(victim, active_quest);
+                printf_to_char(ch, "Quest grant failed: %s does not meet the prerequisites.\n\r", victim->name);
+                return;
+            }
+        }
+
         if (!quest_runtime_bind_index_v2(active_quest, wnum)) {
             quest_runtime_detach_run(victim, active_quest);
             send_to_char("Quest grant failed: unable to bind quest index.\n\r", ch);
@@ -2687,34 +2962,148 @@ void do_quest(CHAR_DATA *ch, char *argument)
     }
 
     //
-    // QUEST LOG
+    // QUEST LOG  (own quests; arg2 reserved for future category/type filter)
+    // QUEST ADMINLOG <player>  (immortal view of another player's quest log)
     //
-    if (!str_cmp(arg1, "log"))
+    if (!str_cmp(arg1, "log") || !str_cmp(arg1, "adminlog"))
     {
         long age_minutes = 0;
         int index = 0;
         bool shown_any = false;
         bool admin_view = false;
+        bool explicit_type = false;
+        bool explicit_category = false;
+        int type_filter = -1;
+        int category_filter = -1;
         CHAR_DATA *view_ch = ch;
         long view_active_run_id;
         QUEST_DATA *focused_run;
 
-        if (!IS_NULLSTR(arg2))
+        if (!str_cmp(arg1, "adminlog"))
         {
             if (!IS_IMMORTAL(ch))
             {
-                send_to_char("Only immortals can view another player's quest log.\n\r", ch);
+                send_to_char("Only immortals can use quest adminlog.\n\r", ch);
+                return;
+            }
+
+            if (IS_NULLSTR(arg2))
+            {
+                send_to_char("Usage: quest adminlog <player>\n\r", ch);
                 return;
             }
 
             view_ch = get_char_world(ch, arg2);
             if (!view_ch || IS_NPC(view_ch))
             {
-                send_to_char("Quest log target must be an online player character.\n\r", ch);
+                send_to_char("Quest adminlog target must be an online player character.\n\r", ch);
                 return;
             }
 
             admin_view = (view_ch != ch);
+        }
+
+        // For "quest log", parse optional type/category filters from remaining args
+        if (!admin_view && !IS_NULLSTR(arg2))
+        {
+            char parse_buf[MSL];
+            char token[MIL];
+            char type_name[MIL];
+            char category_name[MIL];
+            bool expect_type = false;
+            bool expect_category = false;
+
+            parse_buf[0] = '\0';
+            strncat(parse_buf, arg2, sizeof(parse_buf) - strlen(parse_buf) - 1);
+            if (!IS_NULLSTR(argument))
+            {
+                strncat(parse_buf, " ", sizeof(parse_buf) - strlen(parse_buf) - 1);
+                strncat(parse_buf, argument, sizeof(parse_buf) - strlen(parse_buf) - 1);
+            }
+
+            argument = parse_buf;
+            while (!IS_NULLSTR(argument))
+            {
+                argument = one_argument(argument, token);
+                if (IS_NULLSTR(token))
+                    break;
+
+                if (expect_type)
+                {
+                    if (!quest_parse_type(token, &type_filter))
+                    {
+                        send_to_char("Unknown quest type. Use main, side, unlock, class, event, or other.\n\r", ch);
+                        return;
+                    }
+                    explicit_type = true;
+                    expect_type = false;
+                    continue;
+                }
+
+                if (expect_category)
+                {
+                    if (!quest_parse_history_category(token, &category_filter))
+                    {
+                        send_to_char("Unknown category. Use none/regional/class/story/church/dungeon/crafting/event/other.\n\r", ch);
+                        return;
+                    }
+                    explicit_category = true;
+                    expect_category = false;
+                    continue;
+                }
+
+                if (!str_prefix(token, "type"))
+                {
+                    if (token[4] == ':' || token[4] == '=')
+                    {
+                        strncpy(type_name, token + 5, sizeof(type_name) - 1);
+                        type_name[sizeof(type_name) - 1] = '\0';
+                        if (!quest_parse_type(type_name, &type_filter))
+                        {
+                            send_to_char("Unknown quest type. Use main, side, unlock, class, event, or other.\n\r", ch);
+                            return;
+                        }
+                        explicit_type = true;
+                    }
+                    else
+                        expect_type = true;
+                    continue;
+                }
+
+                if (!str_prefix(token, "category"))
+                {
+                    if (token[8] == ':' || token[8] == '=')
+                    {
+                        strncpy(category_name, token + 9, sizeof(category_name) - 1);
+                        category_name[sizeof(category_name) - 1] = '\0';
+                        if (!quest_parse_history_category(category_name, &category_filter))
+                        {
+                            send_to_char("Unknown category. Use none/regional/class/story/church/dungeon/crafting/event/other.\n\r", ch);
+                            return;
+                        }
+                        explicit_category = true;
+                    }
+                    else
+                        expect_category = true;
+                    continue;
+                }
+
+                send_to_char("Usage: quest log [type:<type>] [category:<category>]\n\r"
+                             "  Types: main, side, unlock, class, event, other\n\r"
+                             "  Categories: none, regional, class, story, church, dungeon, crafting, event, other\n\r", ch);
+                return;
+            }
+
+            if (expect_type)
+            {
+                send_to_char("Missing quest type value.\n\r", ch);
+                return;
+            }
+            if (expect_category)
+            {
+                send_to_char("Missing category value.\n\r", ch);
+                return;
+            }
         }
 
         if (!IS_QUESTING(view_ch))
@@ -2735,6 +3124,15 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
         if (admin_view)
             printf_to_char(ch, "Admin view: %s's quest log\n\r", view_ch->name);
+        else
+        {
+            printf_to_char(ch, "Quest log");
+            if (explicit_type)
+                printf_to_char(ch, " type:%s", quest_type_name(type_filter));
+            if (explicit_category)
+                printf_to_char(ch, " category:%s", quest_category_name(category_filter));
+            send_to_char("\n\r", ch);
+        }
 
         for (run = view_ch->quest; run != NULL; run = run->next)
         {
@@ -2746,12 +3144,19 @@ void do_quest(CHAR_DATA *ch, char *argument)
             if (!quest_run_accessible_by_player(view_ch, run, false))
                 continue;
 
+            run_index_v2 = quest_runtime_get_index_v2(run);
+
+            // Apply log filters (only skip when we have index data to filter against)
+            if (run_index_v2 && type_filter >= 0 && run_index_v2->quest_type != type_filter)
+                continue;
+            if (run_index_v2 && category_filter >= 0 && run_index_v2->category != category_filter)
+                continue;
+
             index++;
 
             bool focused = (view_ch->quest_runtime.focused_run_id == run->run_id);
             shown_any = true;
 
-            run_index_v2 = quest_runtime_get_index_v2(run);
             if (run_index_v2 && !IS_NULLSTR(run_index_v2->name))
                 run_name = run_index_v2->name;
 
@@ -2802,6 +3207,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
         {
             if (admin_view)
                 printf_to_char(ch, "%s has no active quests available to their character scope.\n\r", view_ch->name);
+            else if (type_filter >= 0 || category_filter >= 0)
+                send_to_char("No active quests match your filters.\n\r", ch);
             else
                 send_to_char("You have no active quests available to your character scope.\n\r", ch);
             return;
@@ -3071,13 +3478,20 @@ void do_quest(CHAR_DATA *ch, char *argument)
     //
     if (!str_cmp(arg1, "list"))
     {
-        QUEST_INDEX_DATA *offerings[QUEST_LIST_MAX_ENTRIES];
-        QUEST_INDEX_DATA *index;
-        CHAR_DATA *giver_mob = NULL;
-        OBJ_DATA *giver_obj = NULL;
+        QUEST_INDEX_V2_DATA *v2_offerings[QUEST_LIST_MAX_ENTRIES];
+        QUEST_INDEX_DATA *v1_offerings[QUEST_LIST_MAX_ENTRIES];
         char target_name[MSL];
-        int offering_count = 0;
-        int i;
+        int total_shown = 0;
+        int v2_count, v1_count, i;
+        bool found_any_giver = false;
+        CHAR_DATA *scan_ch;
+        OBJ_DATA *scan_obj;
+
+        if (!ch->in_room)
+        {
+            send_to_char("You can't do that here.\n\r", ch);
+            return;
+        }
 
         target_name[0] = '\0';
         if (!IS_NULLSTR(arg2)) {
@@ -3089,43 +3503,299 @@ void do_quest(CHAR_DATA *ch, char *argument)
             }
         }
 
-        giver_mob = quest_find_room_mob_giver(ch, target_name[0] ? target_name : NULL);
-        if (!giver_mob)
-            giver_obj = quest_find_room_object_giver(ch, target_name[0] ? target_name : NULL);
+        if (target_name[0])
+        {
+            /* Named target: find specific mob or obj in room */
+            CHAR_DATA *mob = NULL;
+            OBJ_DATA *obj = NULL;
 
-        if (!giver_mob && !giver_obj) {
-            send_to_char("No questgiver found here with that name.\n\r", ch);
-            return;
+            for (scan_ch = ch->in_room->people; scan_ch; scan_ch = scan_ch->next_in_room) {
+                if (!IS_NPC(scan_ch) || !scan_ch->pIndexData) continue;
+                if (is_name(target_name, scan_ch->name)) { mob = scan_ch; break; }
+            }
+            if (!mob) {
+                for (scan_obj = ch->in_room->contents; scan_obj; scan_obj = scan_obj->next_content) {
+                    if (!scan_obj->pIndexData) continue;
+                    if (is_name(target_name, scan_obj->name)) { obj = scan_obj; break; }
+                }
+            }
+
+            if (!mob && !obj) {
+                send_to_char("No mob or object by that name found here.\n\r", ch);
+                return;
+            }
+
+            if (mob) {
+                v2_count = quest_collect_mob_v2_offerings(mob->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+                v1_count = quest_collect_mob_offerings(mob->pIndexData, v1_offerings, QUEST_LIST_MAX_ENTRIES);
+                if (v2_count > 0 || v1_count > 0) {
+                    printf_to_char(ch, "Available quests from {Y%s{x:\n\r", HANDLE(mob));
+                    for (i = 0; i < v2_count; i++) {
+                        if (!v2_offerings[i]) continue;
+                        quest_list_show_v2(ch, v2_offerings[i], &total_shown, false);
+                    }
+                    for (i = 0; i < v1_count; i++) {
+                        if (!v1_offerings[i]) continue;
+                        printf_to_char(ch, "  [{Y%d{x] %s {D(v1){x\n\r",
+                            ++total_shown,
+                            IS_NULLSTR(v1_offerings[i]->name) ? "(unnamed quest)" : v1_offerings[i]->name);
+                    }
+                    found_any_giver = true;
+                }
+            }
+            if (obj) {
+                v2_count = quest_collect_obj_v2_offerings(obj->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+                v1_count = quest_collect_object_offerings(obj->pIndexData, v1_offerings, QUEST_LIST_MAX_ENTRIES);
+                if (v2_count > 0 || v1_count > 0) {
+                    printf_to_char(ch, "Available quests from {Y%s{x:\n\r",
+                        obj->short_descr ? obj->short_descr : "object");
+                    for (i = 0; i < v2_count; i++) {
+                        if (!v2_offerings[i]) continue;
+                        quest_list_show_v2(ch, v2_offerings[i], &total_shown, false);
+                    }
+                    for (i = 0; i < v1_count; i++) {
+                        if (!v1_offerings[i]) continue;
+                        printf_to_char(ch, "  [{Y%d{x] %s {D(v1){x\n\r",
+                            ++total_shown,
+                            IS_NULLSTR(v1_offerings[i]->name) ? "(unnamed quest)" : v1_offerings[i]->name);
+                    }
+                    found_any_giver = true;
+                }
+            }
         }
-
-        if (giver_mob && giver_mob->pIndexData)
-            offering_count = quest_collect_mob_offerings(giver_mob->pIndexData, offerings, QUEST_LIST_MAX_ENTRIES);
-        else if (giver_obj && giver_obj->pIndexData)
-            offering_count = quest_collect_object_offerings(giver_obj->pIndexData, offerings, QUEST_LIST_MAX_ENTRIES);
-
-        if (giver_mob)
-            printf_to_char(ch, "Available quests from {Y%s{x:\n\r", HANDLE(giver_mob));
         else
-            printf_to_char(ch, "Available quests from {Y%s{x:\n\r", giver_obj->short_descr ? giver_obj->short_descr : "quest board");
+        {
+            /* No arg: scan all mobs and objects in room */
+            for (scan_ch = ch->in_room->people; scan_ch; scan_ch = scan_ch->next_in_room)
+            {
+                if (!IS_NPC(scan_ch) || !scan_ch->pIndexData) continue;
+                v2_count = quest_collect_mob_v2_offerings(scan_ch->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+                v1_count = quest_collect_mob_offerings(scan_ch->pIndexData, v1_offerings, QUEST_LIST_MAX_ENTRIES);
+                if (v2_count < 1 && v1_count < 1) continue;
 
-        if (offering_count < 1) {
-            send_to_char("  (No indexed quests are currently available.)\n\r", ch);
+                found_any_giver = true;
+                printf_to_char(ch, "  {Y%s{x:\n\r", HANDLE(scan_ch));
+                for (i = 0; i < v2_count; i++) {
+                    if (!v2_offerings[i]) continue;
+                    quest_list_show_v2(ch, v2_offerings[i], &total_shown, true);
+                }
+                for (i = 0; i < v1_count; i++) {
+                    if (!v1_offerings[i]) continue;
+                    printf_to_char(ch, "    [{Y%d{x] %s {D(v1){x\n\r",
+                        ++total_shown,
+                        IS_NULLSTR(v1_offerings[i]->name) ? "(unnamed quest)" : v1_offerings[i]->name);
+                }
+            }
+
+            for (scan_obj = ch->in_room->contents; scan_obj; scan_obj = scan_obj->next_content)
+            {
+                if (!scan_obj->pIndexData) continue;
+                v2_count = quest_collect_obj_v2_offerings(scan_obj->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+                if (v2_count < 1) continue;
+
+                found_any_giver = true;
+                printf_to_char(ch, "  {Y%s{x:\n\r",
+                    scan_obj->short_descr ? scan_obj->short_descr : "object");
+                for (i = 0; i < v2_count; i++) {
+                    if (!v2_offerings[i]) continue;
+                    quest_list_show_v2(ch, v2_offerings[i], &total_shown, true);
+                }
+            }
+        }
+
+        if (!found_any_giver || total_shown < 1) {
+            send_to_char("No quests are available here.\n\r", ch);
             return;
         }
 
-        for (i = 0; i < offering_count; i++) {
-            index = offerings[i];
-            if (!index)
-                continue;
+        send_to_char("Use {Yquest accept <name>{x or {Yquest request <name>{x to take a quest.\n\r", ch);
+        return;
+    }
 
-            printf_to_char(ch, "  [{Y%d{x] %s ({%ld#%ld{x)\n\r",
-                i + 1,
-                IS_NULLSTR(index->name) ? "(unnamed quest)" : index->name,
-                index->area ? index->area->uid : 0,
-                index->vnum);
+    //
+    // QUEST INSPECT (pre-accept details for a named v2 quest)
+    //
+    if (!str_cmp(arg1, "inspect"))
+    {
+        QUEST_INDEX_V2_DATA *v2_offerings[QUEST_LIST_MAX_ENTRIES];
+        QUEST_INDEX_V2_DATA *selected = NULL;
+        CHAR_DATA *scan_ch;
+        OBJ_DATA *scan_obj;
+        char quest_name[MSL];
+        int v2_count;
+
+        if (IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: quest inspect <quest name>\n\r", ch);
+            send_to_char("Use {Yquest list{x to see quests available here.\n\r", ch);
+            return;
         }
 
-        send_to_char("Use {Yquest request <quest name or #>{x to request one.\n\r", ch);
+        quest_name[0] = '\0';
+        strncpy(quest_name, arg2, sizeof(quest_name) - 1);
+        quest_name[sizeof(quest_name) - 1] = '\0';
+        if (!IS_NULLSTR(argument)) {
+            strncat(quest_name, " ", sizeof(quest_name) - strlen(quest_name) - 1);
+            strncat(quest_name, argument, sizeof(quest_name) - strlen(quest_name) - 1);
+        }
+
+        if (!ch->in_room) {
+            send_to_char("You can't do that here.\n\r", ch);
+            return;
+        }
+
+        for (scan_ch = ch->in_room->people; scan_ch && !selected; scan_ch = scan_ch->next_in_room) {
+            if (!IS_NPC(scan_ch) || !scan_ch->pIndexData) continue;
+            v2_count = quest_collect_mob_v2_offerings(scan_ch->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+            selected = quest_find_v2_offering_by_name(v2_offerings, v2_count, quest_name);
+        }
+
+        for (scan_obj = ch->in_room->contents; scan_obj && !selected; scan_obj = scan_obj->next_content) {
+            if (!scan_obj->pIndexData) continue;
+            v2_count = quest_collect_obj_v2_offerings(scan_obj->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+            selected = quest_find_v2_offering_by_name(v2_offerings, v2_count, quest_name);
+        }
+
+        if (!selected) {
+            send_to_char("No available quest by that name here. Use {Yquest list{x first.\n\r", ch);
+            return;
+        }
+
+        quest_inspect_show_v2(ch, selected);
+        return;
+    }
+
+    //
+    // QUEST ACCEPT (player-initiated v2 quest)
+    //
+    if (!str_cmp(arg1, "accept"))
+    {
+        QUEST_INDEX_V2_DATA *v2_offerings[QUEST_LIST_MAX_ENTRIES];
+        QUEST_INDEX_V2_DATA *selected = NULL;
+        QUEST_DATA *active_quest;
+        CHAR_DATA *scan_ch;
+        OBJ_DATA *scan_obj;
+        char quest_name[MSL];
+        WNUM wnum;
+        REQUIREMENT_CONTEXT prereq_ctx;
+        int v2_count;
+
+        if (IS_NULLSTR(arg2))
+        {
+            send_to_char("Syntax: quest accept <quest name>\n\r", ch);
+            send_to_char("Use {Yquest list{x to see quests available here.\n\r", ch);
+            return;
+        }
+
+        quest_name[0] = '\0';
+        strncpy(quest_name, arg2, sizeof(quest_name) - 1);
+        quest_name[sizeof(quest_name) - 1] = '\0';
+        if (!IS_NULLSTR(argument)) {
+            strncat(quest_name, " ", sizeof(quest_name) - strlen(quest_name) - 1);
+            strncat(quest_name, argument, sizeof(quest_name) - strlen(quest_name) - 1);
+        }
+
+        if (!ch->in_room)
+        {
+            send_to_char("You can't do that here.\n\r", ch);
+            return;
+        }
+
+        /* Scan mobs in room for the named v2 quest */
+        for (scan_ch = ch->in_room->people; scan_ch && !selected; scan_ch = scan_ch->next_in_room) {
+            if (!IS_NPC(scan_ch) || !scan_ch->pIndexData) continue;
+            v2_count = quest_collect_mob_v2_offerings(scan_ch->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+            selected = quest_find_v2_offering_by_name(v2_offerings, v2_count, quest_name);
+        }
+
+        /* Scan objects in room for the named v2 quest */
+        for (scan_obj = ch->in_room->contents; scan_obj && !selected; scan_obj = scan_obj->next_content) {
+            if (!scan_obj->pIndexData) continue;
+            v2_count = quest_collect_obj_v2_offerings(scan_obj->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
+            selected = quest_find_v2_offering_by_name(v2_offerings, v2_count, quest_name);
+        }
+
+        if (!selected)
+        {
+            send_to_char("No available quest by that name here. Use {Yquest list{x first.\n\r", ch);
+            return;
+        }
+
+        if (!IS_AWAKE(ch))
+        {
+            send_to_char("In your dreams, or what?\n\r", ch);
+            return;
+        }
+
+        if (IS_DEAD(ch))
+        {
+            send_to_char("You must come back to the world of the living first.\n\r", ch);
+            return;
+        }
+
+        if (!IS_IMMORTAL(ch) && selected->allowance_cost > 0
+        &&  game_settings.telnet_port != PORT_RAE
+        &&  ch->quest_runtime.mission_allowance < selected->allowance_cost)
+        {
+            printf_to_char(ch, "You need at least %d mission allowance%s to accept that quest.\n\r",
+                selected->allowance_cost,
+                selected->allowance_cost == 1 ? "" : "s");
+            return;
+        }
+
+        active_quest = new_quest();
+        active_quest->next = ch->quest;
+        ch->quest = active_quest;
+
+        ch->quest_runtime.focused_run_id = 0;
+        quest_runtime_attach_active_quest(ch, 0, 0);
+        active_quest = quest_runtime_get_focused_run(ch);
+
+        if (!active_quest)
+        {
+            send_to_char("Quest accept failed: unable to initialize runtime state.\n\r", ch);
+            return;
+        }
+
+        active_quest->quest_index_auid = 0;
+        active_quest->quest_index_vnum = 0;
+        active_quest->target_scope = selected->target_scope;
+        active_quest->scope_owner_id[0] = 0;
+        active_quest->scope_owner_id[1] = 0;
+        active_quest->scope_owner_uid = 0;
+        quest_scope_owner_seed(ch, active_quest);
+
+        /* Prerequisites check */
+        if (!IS_NULLSTR(selected->prerequisites)) {
+            prereq_ctx.actor      = ch;
+            prereq_ctx.self_mob   = NULL;
+            prereq_ctx.self_obj   = NULL;
+            prereq_ctx.self_room  = NULL;
+            prereq_ctx.self_token = NULL;
+            prereq_ctx.self_quest = selected;
+            if (!requirements_evaluate_text(selected->prerequisites, &prereq_ctx, true)) {
+                quest_runtime_detach_run(ch, active_quest);
+                send_to_char("You do not meet the prerequisites for that quest.\n\r", ch);
+                return;
+            }
+        }
+
+        wnum.pArea = selected->area;
+        wnum.vnum = selected->vnum;
+        if (!quest_runtime_bind_index_v2(active_quest, wnum)) {
+            quest_runtime_detach_run(ch, active_quest);
+            send_to_char("Quest accept failed: unable to bind quest data.\n\r", ch);
+            return;
+        }
+
+        if (!IS_IMMORTAL(ch) && selected->allowance_cost > 0)
+            ch->quest_runtime.mission_allowance -= selected->allowance_cost;
+
+        quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_ACCEPTED, "player_accept", ch);
+        quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_FOCUSED, "player_accept", ch);
+        quest_runtime_try_advance_stage(active_quest);
+
+        printf_to_char(ch, "You have accepted the quest: {Y%s{x.\n\r",
+            IS_NULLSTR(selected->name) ? "(unnamed quest)" : selected->name);
         return;
     }
 
@@ -4290,7 +4960,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
     }
     else
     {
-        send_to_char("QUEST commands: LOG HISTORY LIST FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE.\n\r", ch);
+        send_to_char("QUEST commands: LOG HISTORY LIST INSPECT FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r", ch);
     }
 }
@@ -5074,6 +5744,8 @@ void fix_quests_v2(void)
     QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry;
     QUEST_REWARD_INDEX_V2_DATA *reward;
     AREA_DATA *fallback;
+    AREA_DATA *pArea;
+    int iHash;
 
     for (quest_index_v2 = quest_index_v2_list; quest_index_v2 != NULL; quest_index_v2 = quest_index_v2->next)
     {
@@ -5098,6 +5770,29 @@ void fix_quests_v2(void)
         for (reward = quest_index_v2->rewards; reward != NULL; reward = reward->next)
         {
             resolve_wnum_load(&reward->target_load, &reward->target_wnum, fallback);
+        }
+    }
+
+    /* Resolve quests_v2 wnums on mob and obj indices */
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            MOB_INDEX_DATA *mob;
+            for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next)
+            {
+                QUEST_V2_LIST *qv2;
+                for (qv2 = mob->quests_v2; qv2 != NULL; qv2 = qv2->next)
+                    resolve_wnum_load(&qv2->load, &qv2->wnum, pArea);
+            }
+
+            OBJ_INDEX_DATA *obj;
+            for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
+            {
+                QUEST_V2_LIST *qv2;
+                for (qv2 = obj->quests_v2; qv2 != NULL; qv2 = qv2->next)
+                    resolve_wnum_load(&qv2->load, &qv2->wnum, pArea);
+            }
         }
     }
 }
@@ -6220,6 +6915,7 @@ bool quest_runtime_try_advance_stage(QUEST_DATA *run)
             run->completed_at = current_time;
             run->failed_at = 0;
             run->abandoned_at = 0;
+            quest_runtime_apply_rewards(run, NULL);
             quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_COMPLETED, "complete");
             quest_runtime_record_terminal_history(run);
             return true;
@@ -6345,6 +7041,141 @@ bool quest_runtime_fail_objective(QUEST_DATA *run, int objective_id, const char 
 }
 
 
+/* Apply all configured rewards from the quest index to the quest owner.
+ * Rewards include quest points, currency (silver/gold), reputation,
+ * tokens placed on the player, items, and inline scripts.
+ * enactor may be provided to override the scope-owner lookup. */
+static void quest_runtime_apply_rewards(QUEST_DATA *run, CHAR_DATA *enactor)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+    QUEST_REWARD_INDEX_V2_DATA *reward;
+    CHAR_DATA *ch;
+
+    if (!run)
+        return;
+
+    quest_index_v2 = quest_runtime_get_index_v2(run);
+    if (!quest_index_v2 || !quest_index_v2->rewards)
+        return;
+
+    ch = enactor ? enactor : quest_runtime_get_owner_character(run);
+    if (!ch || IS_NPC(ch))
+        return;
+
+    for (reward = quest_index_v2->rewards; reward != NULL; reward = reward->next)
+    {
+        switch (reward->reward_type)
+        {
+            case QUEST_REWARD_POINTS:
+            {
+                long amount = UMAX(reward->amount, 0);
+                if (amount <= 0)
+                    break;
+                ch->questpoints += (int)amount;
+                if (!IS_NULLSTR(reward->display_string))
+                    printf_to_char(ch, "%s\n\r", reward->display_string);
+                else
+                    printf_to_char(ch, "You gain {Y%ld{x quest point%s!\n\r",
+                        amount, amount == 1 ? "" : "s");
+                break;
+            }
+
+            case QUEST_REWARD_CURRENCY:
+            {
+                long amount = UMAX(reward->amount, 0);
+                bool is_gold;
+                if (amount <= 0)
+                    break;
+                is_gold = !IS_NULLSTR(reward->currency)
+                    && !str_prefix(reward->currency, "gold");
+                if (is_gold)
+                    ch->gold += amount;
+                else
+                    ch->silver += amount;
+                if (!IS_NULLSTR(reward->display_string))
+                    printf_to_char(ch, "%s\n\r", reward->display_string);
+                else
+                    printf_to_char(ch, "You receive {Y%ld{x %s coin%s!\n\r",
+                        amount,
+                        is_gold ? "gold" : "silver",
+                        amount == 1 ? "" : "s");
+                break;
+            }
+
+            case QUEST_REWARD_REPUTATION:
+            {
+                REPUTATION_INDEX_DATA *repIndex;
+                long given = 0;
+                if (!reward->target_wnum.pArea || reward->target_wnum.vnum < 1)
+                    break;
+                repIndex = get_reputation_index_wnum(reward->target_wnum);
+                if (!repIndex)
+                    break;
+                gain_reputation(ch, repIndex, reward->amount, NULL, &given, false);
+                if (!IS_NULLSTR(reward->display_string))
+                    printf_to_char(ch, "%s\n\r", reward->display_string);
+                else if (given != 0)
+                    printf_to_char(ch, "You gain {Y%ld{x reputation with {W%s{x.\n\r",
+                        given, repIndex->name);
+                break;
+            }
+
+            case QUEST_REWARD_TOKEN:
+            {
+                TOKEN_INDEX_DATA *token_index;
+                if (!reward->target_wnum.pArea || reward->target_wnum.vnum < 1)
+                    break;
+                token_index = get_token_index(
+                    reward->target_wnum.pArea, reward->target_wnum.vnum);
+                if (!token_index)
+                    break;
+                if (!give_token(token_index, ch, NULL, NULL))
+                    break;
+                if (!IS_NULLSTR(reward->display_string))
+                    printf_to_char(ch, "%s\n\r", reward->display_string);
+                break;
+            }
+
+            case QUEST_REWARD_ITEM:
+            {
+                OBJ_INDEX_DATA *obj_index;
+                OBJ_DATA *obj;
+                long count = UMAX(reward->amount, 1);
+                long i;
+                if (!reward->target_wnum.pArea || reward->target_wnum.vnum < 1)
+                    break;
+                obj_index = get_obj_index(
+                    reward->target_wnum.pArea, reward->target_wnum.vnum);
+                if (!obj_index)
+                    break;
+                for (i = 0; i < count; i++)
+                {
+                    obj = create_object(obj_index, 0, true);
+                    if (obj)
+                        obj_to_char(obj, ch);
+                }
+                if (!IS_NULLSTR(reward->display_string))
+                    printf_to_char(ch, "%s\n\r", reward->display_string);
+                else
+                    printf_to_char(ch, "You receive {C%s{x as a reward.\n\r",
+                        obj_index->short_descr);
+                break;
+            }
+
+            case QUEST_REWARD_SCRIPT:
+            {
+                if (IS_NULLSTR(reward->script))
+                    break;
+                if (!IS_NULLSTR(reward->display_string))
+                    printf_to_char(ch, "%s\n\r", reward->display_string);
+                quest_runtime_fire_stage_script(run, reward->script);
+                break;
+            }
+        }
+    }
+}
+
+
 bool quest_runtime_complete_run(QUEST_DATA *run, const char *reason_phrase)
 {
     if (!run || run->run_status != QUEST_RUN_STATUS_ACTIVE)
@@ -6354,6 +7185,7 @@ bool quest_runtime_complete_run(QUEST_DATA *run, const char *reason_phrase)
     run->completed_at = current_time;
     run->failed_at = 0;
     run->abandoned_at = 0;
+    quest_runtime_apply_rewards(run, NULL);
     quest_runtime_fire_quest_lifecycle_trigger(run, TRIG_QUEST_COMPLETED,
         IS_NULLSTR(reason_phrase) ? "forced" : reason_phrase);
     quest_runtime_record_terminal_history(run);

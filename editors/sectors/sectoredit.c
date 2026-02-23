@@ -240,7 +240,6 @@ static void sectoredit_show_basic_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
     int index;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
     const char *class_name;
-    const char *flags;
 
     (void)ch;
 
@@ -252,14 +251,11 @@ static void sectoredit_show_basic_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
     if (IS_NULLSTR(class_name))
         class_name = "none";
 
-    flags = flag_string(sector_runtime_flag_table(), sector_runtime_flags_value(index));
-    if (IS_NULLSTR(flags))
-        flags = "(none)";
-
     olc_display_section(ctx, theme, "Basics");
     olc_display_string(ctx, theme, "Name:", "name", sector_name(index));
     olc_display_string(ctx, theme, "Class:", "class", class_name);
-    olc_display_string(ctx, theme, "Flags:", "flags", flags);
+    olc_display_flags(ctx, theme, "Flags:", "flags",
+        sector_runtime_flag_table(), sector_runtime_flags_value(index));
     olc_display_number(ctx, theme, "Move Cost:", "movecost", sector_move_cost(index));
     olc_display_number(ctx, theme, "Health Rate:", "health", sector_heal_rate(index));
     olc_display_number(ctx, theme, "Mana Rate:", "mana", sector_mana_rate(index));

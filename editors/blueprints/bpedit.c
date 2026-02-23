@@ -254,7 +254,7 @@ static void bpedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
     sprintf(buf, "[%s] [%s]", flag_string(area_who_titles, bp->area_who), flag_string(area_who_display, bp->area_who));
     olc_display_string(ctx, theme, "AreaWho:", "areawho", buf);
 
-    olc_display_string(ctx, theme, "Flags:", "flags", flag_string(instance_flags, bp->flags));
+    olc_display_flags(ctx, theme, "Flags:", "flags", instance_flags, bp->flags);
 
     switch (bp->mode)
     {

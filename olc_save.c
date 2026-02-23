@@ -458,6 +458,10 @@ void save_area_new(AREA_DATA *area)
     log_string(buf);
 
     fprintf(fp, "#AREA %s~\n", 		area->name);
+        if (!IS_NULLSTR(area->tags))
+            fprintf(fp, "Tags %s~\n", fix_string(area->tags));
+        if (!IS_NULLSTR(area->auto_tags))
+            fprintf(fp, "AutoTags %s~\n", fix_string(area->auto_tags));
     fprintf(fp, "FileName %s~\n",	area->file_name);
     fprintf(fp, "Uid %ld\n",		area->uid);
     fprintf(fp, "AreaWho %d\n", 	area->area_who);
@@ -721,6 +725,14 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
         fprintf(fp, "#ROOM %ld\n", room->vnum);
     else
         fprintf(fp, "#ROOM\n");
+    if (room->parent_wnum.vnum > 0)
+        fprintf(fp, "Parent %s\n", widevnum_string(room->parent_wnum.pArea, room->parent_wnum.vnum, room->area));
+    else if (room->parent_load.vnum > 0)
+        fprintf(fp, "Parent %ld#%ld\n", room->parent_load.auid, room->parent_load.vnum);
+    if (!IS_NULLSTR(room->tags))
+        fprintf(fp, "Tags %s~\n", fix_string(room->tags));
+    if (!IS_NULLSTR(room->auto_tags))
+        fprintf(fp, "AutoTags %s~\n", fix_string(room->auto_tags));
     fprintf(fp, "Name %s~\n", room->name);
     fprintf(fp, "Description %s~\n", fix_string(room->description));
     if(room->persist)
@@ -844,6 +856,14 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     race = mob->race;
 
     fprintf(fp, "#MOBILE %ld\n", mob->vnum);
+    if (mob->parent_wnum.vnum > 0)
+        fprintf(fp, "Parent %s\n", widevnum_string(mob->parent_wnum.pArea, mob->parent_wnum.vnum, mob->area));
+    else if (mob->parent_load.vnum > 0)
+        fprintf(fp, "Parent %ld#%ld\n", mob->parent_load.auid, mob->parent_load.vnum);
+    if (!IS_NULLSTR(mob->tags))
+        fprintf(fp, "Tags %s~\n", fix_string(mob->tags));
+    if (!IS_NULLSTR(mob->auto_tags))
+        fprintf(fp, "AutoTags %s~\n", fix_string(mob->auto_tags));
     fprintf(fp, "Name %s~\n", mob->player_name);
     fprintf(fp, "ShortDesc %s~\n", mob->short_descr);
     fprintf(fp, "LongDesc %s~\n", mob->long_descr);
@@ -854,6 +874,10 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     if(mob->persist)
         fprintf(fp, "Persist\n");
     fprintf(fp, "Skeywds %s~\n", mob->skeywds);
+    if (!IS_NULLSTR(mob->list_name))
+        fprintf(fp, "ListName %s~\n", mob->list_name);
+    if (!IS_NULLSTR(mob->list_keywords))
+        fprintf(fp, "ListKeywords %s~\n", mob->list_keywords);
     fprintf(fp, "Race %s~\n", race ? race->name : "unique");
     if (mob->act[0] != 0)
     fprintf(fp, "Act %ld\n", mob->act[0] | (race ? race->act[0] : 0));
@@ -969,6 +993,14 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
     int i;
 
     fprintf(fp, "#OBJECT %ld\n", obj->vnum);
+    if (obj->parent_wnum.vnum > 0)
+        fprintf(fp, "Parent %s\n", widevnum_string(obj->parent_wnum.pArea, obj->parent_wnum.vnum, obj->area));
+    else if (obj->parent_load.vnum > 0)
+        fprintf(fp, "Parent %ld#%ld\n", obj->parent_load.auid, obj->parent_load.vnum);
+    if (!IS_NULLSTR(obj->tags))
+        fprintf(fp, "Tags %s~\n", fix_string(obj->tags));
+    if (!IS_NULLSTR(obj->auto_tags))
+        fprintf(fp, "AutoTags %s~\n", fix_string(obj->auto_tags));
     fprintf(fp, "Name %s~\n", obj->name);
     fprintf(fp, "ShortDesc %s~\n", obj->short_descr);
     fprintf(fp, "LongDesc %s~\n", obj->description);
@@ -983,6 +1015,10 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
         fprintf(fp, "Persist\n");
     fprintf(fp, "CreatorSig %s~\n", obj->creator_sig);
     fprintf(fp, "SKeywds %s~\n", obj->skeywds);
+    if (!IS_NULLSTR(obj->list_name))
+        fprintf(fp, "ListName %s~\n", obj->list_name);
+    if (!IS_NULLSTR(obj->list_keywords))
+        fprintf(fp, "ListKeywords %s~\n", obj->list_keywords);
     fprintf(fp, "TimesAllowedFixed %d Fragility %d Points %d Update %d Timer %d\n", obj->times_allowed_fixed, obj->fragility, obj->points, obj->update, obj->timer);
     fprintf(fp, "ItemType %s~\n", item_name(obj->item_type));
     fprintf(fp, "ExtraFlags %ld\n", obj->extra[0]);
@@ -1383,6 +1419,7 @@ AREA_DATA *read_area_new(FILE *fp)
             area->room_index_hash[iHash]  = room;
             top_room++;
             top_vnum_room = top_vnum_room < vnum ? vnum : top_vnum_room; /* OLC */
+            fMatch = true;
         }
         else if (!str_cmp(word, "#MOBILE"))
         {
@@ -1394,6 +1431,7 @@ AREA_DATA *read_area_new(FILE *fp)
             mob->area = area;
             top_mob_index++;
             top_vnum_mob = top_vnum_mob < vnum ? vnum : top_vnum_mob;
+            fMatch = true;
         }
         else if (!str_cmp( word, "#TRADE"	) ) {
             load_area_trade( area, fp );
@@ -1409,6 +1447,7 @@ AREA_DATA *read_area_new(FILE *fp)
             obj->area = area;
             top_obj_index++;
             top_vnum_obj = top_vnum_obj < vnum ? vnum : top_vnum_obj;
+            fMatch = true;
         }
         else if (!str_cmp(word, "#TOKEN"))
         {
@@ -1418,6 +1457,7 @@ AREA_DATA *read_area_new(FILE *fp)
             token->next = area->token_index_hash[iHash];
             area->token_index_hash[iHash] = token;
             token->area = area;
+            fMatch = true;
         }
         else if (!str_cmp(word, "#REPUTATION"))
         {
@@ -1429,6 +1469,7 @@ AREA_DATA *read_area_new(FILE *fp)
                 reputation->next = area->reputation_index_hash[iHash];
                 area->reputation_index_hash[iHash] = reputation;
             }
+            fMatch = true;
         }
         else if (!str_cmp(word, "#ROOMPROG"))
         {
@@ -1437,6 +1478,7 @@ AREA_DATA *read_area_new(FILE *fp)
             rpr->next = area->rprog_list;
             area->rprog_list = rpr;
             }
+            fMatch = true;
         }
         else if (!str_cmp(word, "#MOBPROG"))
         {
@@ -1445,6 +1487,7 @@ AREA_DATA *read_area_new(FILE *fp)
             mpr->next = area->mprog_list;
             area->mprog_list = mpr;
             }
+            fMatch = true;
         }
         else if (!str_cmp(word, "#OBJPROG"))
         {
@@ -1453,6 +1496,7 @@ AREA_DATA *read_area_new(FILE *fp)
             opr->next = area->oprog_list;
             area->oprog_list = opr;
             }
+            fMatch = true;
         }
         else if (!str_cmp(word, "#TOKENPROG"))
         {
@@ -1461,6 +1505,7 @@ AREA_DATA *read_area_new(FILE *fp)
             tpr->next = area->tprog_list;
             area->tprog_list = tpr;
             }
+            fMatch = true;
         }
         else if (!str_cmp(word, "#AREAPROG"))
         {
@@ -1469,6 +1514,7 @@ AREA_DATA *read_area_new(FILE *fp)
             apr->next = area->aprog_list;
             area->aprog_list = apr;
             }
+            fMatch = true;
         }
         /* VIZZWILDS */
         else if (!str_cmp(word, "#WILDS"))
@@ -1484,6 +1530,7 @@ AREA_DATA *read_area_new(FILE *fp)
         break;
 
         case 'A':
+        KEYS("AutoTags", area->auto_tags, fread_string(fp));
         KEY("AreaFlags",	area->area_flags,	fread_number(fp));
 
         if (!str_cmp(word, "AreaProg")) {
@@ -1545,6 +1592,10 @@ AREA_DATA *read_area_new(FILE *fp)
 
         case 'B':
         KEYS("Builders",	area->builders,		fread_string(fp));
+        break;
+
+        case 'T':
+        KEYS("Tags", area->tags, fread_string(fp));
         break;
 
         case 'C':
@@ -2191,6 +2242,10 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
             KEYS("Comments", room->comments, fread_string(fp));
         break;
 
+        case 'A':
+            KEYS("AutoTags", room->auto_tags, fread_string(fp));
+        break;
+
         case 'D':
             KEYS("Description", room->description, fread_string(fp));
         break;
@@ -2212,6 +2267,16 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
             KEYS("Owner",	room->owner,	fread_string(fp));
         break;
         case 'P':
+            if(!str_cmp(word, "Parent")) {
+                const char *parent_ref = fread_word(fp);
+                if (!parse_widevnum_load(parent_ref, &room->parent_load))
+                    pbugf(LOG_ERROR, "read_room_new: invalid Parent widevnum '%s'", parent_ref);
+                else
+                    room->parent_wnum.vnum = room->parent_load.vnum;
+
+                fMatch = true;
+                break;
+            }
             if(!str_cmp(word, "Persist")) {
                 room->persist = true;
 
@@ -2291,6 +2356,10 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
                 room_set_rs_sector_type(room, fread_number(fp));
                 fMatch = true;
             }
+        break;
+
+        case 'T':
+            KEYS("Tags", room->tags, fread_string(fp));
         break;
 
         case 'V':
@@ -2449,6 +2518,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
             break;
 
         case 'A':
+            KEYS("AutoTags", mob->auto_tags, fread_string(fp));
             KEY("Act",	mob->act[0],	fread_number(fp));
             KEY("Act2",	mob->act[1],	fread_number(fp));
                 KEY("Affected_by", mob->affected_by[0],	fread_number(fp));
@@ -2505,6 +2575,8 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
         KEY("ImmFlags", 	mob->imm_flags, fread_number(fp));
 
         case 'L':
+            KEYS("ListName", mob->list_name, fread_string(fp));
+            KEYS("ListKeywords", mob->list_keywords, fread_string(fp));
             KEYS("LongDesc",	mob->long_descr,	fread_string(fp));
         KEY("Level",		mob->level,		fread_number(fp));
         break;
@@ -2602,6 +2674,16 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
         KEY("OffFlags", mob->off_flags, fread_number(fp));
         break;
         case 'P':
+            if(!str_cmp(word, "Parent")) {
+                const char *parent_ref = fread_word(fp);
+                if (!parse_widevnum_load(parent_ref, &mob->parent_load))
+                    pbugf(LOG_ERROR, "read_mobile_new: invalid Parent widevnum '%s'", parent_ref);
+                else
+                    mob->parent_wnum.vnum = mob->parent_load.vnum;
+
+                fMatch = true;
+                break;
+            }
             KEY("Parts",	mob->parts,	fread_number(fp));
             KEY("Persist",	mob->persist, true);
         KEY("PronounSS", mob->pronoun_he_she, fread_string(fp));
@@ -2678,6 +2760,9 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
         break;
 
             case 'T':
+            KEYS("Tags", mob->tags, fread_string(fp));
+            break;
+
             case 'V':
                 if (olc_load_index_vars(fp, word, &mob->index_vars, area))
                 {
@@ -2784,6 +2869,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
         break;
 
             case 'A':
+            KEYS("AutoTags", obj->auto_tags, fread_string(fp));
         break;
 
         case 'C':
@@ -2823,6 +2909,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
         case 'L':
             KEY("Level",		obj->level,		fread_number(fp));
+            KEYS("ListName", obj->list_name, fread_string(fp));
+            KEYS("ListKeywords", obj->list_keywords, fread_string(fp));
             if( !str_cmp(word, "Lock") )
             {
                 if( !obj->lock )
@@ -2943,6 +3031,16 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
         break;
 
         case 'P':
+            if(!str_cmp(word, "Parent")) {
+                const char *parent_ref = fread_word(fp);
+                if (!parse_widevnum_load(parent_ref, &obj->parent_load))
+                    pbugf(LOG_ERROR, "read_object_new: invalid Parent widevnum '%s'", parent_ref);
+                else
+                    obj->parent_wnum.vnum = obj->parent_load.vnum;
+
+                fMatch = true;
+                break;
+            }
             if(!str_cmp(word, "Persist")) {
                 obj->persist = true;
                 fMatch = true;
@@ -3027,6 +3125,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
         break;
 
             case 'T':
+            KEYS("Tags", obj->tags, fread_string(fp));
             KEY("TimesAllowedFixed",	obj->times_allowed_fixed,	fread_number(fp));
         KEY("Timer",			obj->timer,			fread_number(fp));
 	if (!str_cmp(word, "TypeData")) {

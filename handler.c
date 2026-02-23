@@ -7284,6 +7284,12 @@ TOKEN_DATA *create_token(TOKEN_INDEX_DATA *token_index)
     get_token_id(token);
 
     variable_copylist(&token_index->index_vars,&token->progs->vars,false);
+    variables_resolve_rsg_bindings(&token->progs->vars);
+
+    free_string(token->name);
+    token->name = variables_expand_text_dup(token->progs->vars, token_index->name);
+    free_string(token->description);
+    token->description = variables_expand_text_dup(token->progs->vars, token_index->description);
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++)
         token->value[i] = token_index->value[i];

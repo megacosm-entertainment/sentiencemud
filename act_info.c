@@ -907,8 +907,10 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     if (IS_QUESTING(ch) && IS_NPC(victim))
     {
         QUEST_PART_DATA *part;
+        bool marked = false;
 
-        for (part = ch->quest->parts; part != NULL; part = part->next)
+        /* v1 quest kill indicator */
+        for (part = ch->quest->parts; part != NULL && !marked; part = part->next)
         {
         if (part->mob_load.vnum != -1 && !part->complete)
         {
@@ -924,9 +926,42 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
                 if (wnum_match_mob(part->mob_wnum, victim))
                 {
                 strcat(buf, "{R[X] {G");
+                marked = true;
             break;
         }
         }
+        }
+
+        /* v2 quest kill/escort/rescue objective indicator */
+        if (!marked)
+        {
+            QUEST_DATA *run;
+            for (run = ch->quest; run != NULL && !marked; run = run->next)
+            {
+                QUEST_STAGE_INDEX_V2_DATA *stage;
+                QUEST_OBJECTIVE_INDEX_V2_DATA *obj;
+                if (run->run_status != QUEST_RUN_STATUS_ACTIVE) continue;
+                stage = quest_runtime_get_current_stage(run);
+                if (!stage) continue;
+                for (obj = stage->objectives; obj != NULL && !marked; obj = obj->next)
+                {
+                    if (obj->objective_type != QUEST_OBJECTIVE_KILL
+                    &&  obj->objective_type != QUEST_OBJECTIVE_ESCORT
+                    &&  obj->objective_type != QUEST_OBJECTIVE_RESCUE)
+                        continue;
+
+                    if (!obj->target_wnum.pArea && obj->target_load.vnum > 0) {
+                        AREA_DATA *fallback = get_system_area_fallback();
+                        resolve_wnum_load(&obj->target_load, &obj->target_wnum, fallback);
+                    }
+
+                    if (obj->target_wnum.pArea && wnum_match_mob(obj->target_wnum, victim))
+                    {
+                        strcat(buf, "{R[!] {G");
+                        marked = true;
+                    }
+                }
+            }
         }
     }
 

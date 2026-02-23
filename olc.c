@@ -31,6 +31,9 @@ extern GLOBAL_DATA gconfig;
  *   */
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
+static bool olc_match_search_field(const char *needle, const char *field);
+static bool olc_match_index_search(const char *needle, const char *primary_keywords,
+    const char *list_keywords, const char *tags, const char *auto_tags);
 
 char *editor_name_table[] = {
     " ",
@@ -1419,6 +1422,10 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     new_room->mana_rate = old_room->mana_rate;
     new_room->move_rate = old_room->move_rate;
     new_room->comments = old_room->comments;
+    new_room->parent_load = old_room->parent_load;
+    new_room->parent_wnum = old_room->parent_wnum;
+    new_room->parent = old_room->parent;
+    new_room->parent_inherited = false;
 
     SET_BIT(area->area_flags, AREA_CHANGED);
     send_to_char("Room copied.\n\r", ch);
@@ -1545,6 +1552,12 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
     new_mob->parts	  = old_mob->parts;
     new_mob->size	  = old_mob->size;
     new_mob->material     = str_dup(old_mob->material);
+    new_mob->list_name    = str_dup(old_mob->list_name);
+    new_mob->list_keywords = str_dup(old_mob->list_keywords);
+    new_mob->parent_load  = old_mob->parent_load;
+    new_mob->parent_wnum  = old_mob->parent_wnum;
+    new_mob->parent       = old_mob->parent;
+    new_mob->parent_inherited = false;
     new_mob->move	  = old_mob->move;
     new_mob->attacks      = old_mob->attacks;
 
@@ -1669,6 +1682,12 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     new_obj->description = str_dup(old_obj->description);
     new_obj->full_description = str_dup(old_obj->full_description);
     new_obj->material = str_dup(old_obj->material);
+    new_obj->list_name = str_dup(old_obj->list_name);
+    new_obj->list_keywords = str_dup(old_obj->list_keywords);
+    new_obj->parent_load = old_obj->parent_load;
+    new_obj->parent_wnum = old_obj->parent_wnum;
+    new_obj->parent = old_obj->parent;
+    new_obj->parent_inherited = false;
     new_obj->item_type =  old_obj->item_type;
     new_obj->extra[0] = old_obj->extra[0];
     new_obj->extra[1] = old_obj->extra[1];
@@ -2104,7 +2123,8 @@ void do_mlist(CHAR_DATA *ch, char *argument)
     {
     for (pMobIndex = pArea->mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next)
     {
-        if (fAll || is_name(arg, pMobIndex->player_name))
+        if (fAll || olc_match_index_search(arg, pMobIndex->player_name,
+            pMobIndex->list_keywords, pMobIndex->tags, pMobIndex->auto_tags))
         {
         char *noc;
         found = true;
@@ -2130,6 +2150,33 @@ void do_mlist(CHAR_DATA *ch, char *argument)
     page_to_char(buf_string(buf1), ch);
     free_buf(buf1);
     return;
+}
+
+static bool olc_match_search_field(const char *needle, const char *field)
+{
+    char normalized[MSL];
+    size_t i;
+
+    if (IS_NULLSTR(needle) || IS_NULLSTR(field))
+        return false;
+
+    snprintf(normalized, sizeof(normalized), "%s", field);
+    for (i = 0; normalized[i] != '\0'; i++)
+    {
+        if (normalized[i] == ',' || normalized[i] == ';' || normalized[i] == '|')
+            normalized[i] = ' ';
+    }
+
+    return is_name((char *)needle, normalized);
+}
+
+static bool olc_match_index_search(const char *needle, const char *primary_keywords,
+    const char *list_keywords, const char *tags, const char *auto_tags)
+{
+    return olc_match_search_field(needle, primary_keywords)
+        || olc_match_search_field(needle, list_keywords)
+        || olc_match_search_field(needle, tags)
+        || olc_match_search_field(needle, auto_tags);
 }
 
 int strlen_colours_limit( const char *str, int limit )
@@ -2196,7 +2243,8 @@ void do_olist(CHAR_DATA *ch, char *argument)
     {
     for (pObjIndex = pArea->obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next)
     {
-        if (fAll || is_name(arg, pObjIndex->name)
+        if (fAll || olc_match_index_search(arg, pObjIndex->name,
+            pObjIndex->list_keywords, pObjIndex->tags, pObjIndex->auto_tags)
         || flag_value(type_flags, arg) == pObjIndex->item_type)
         {
         found = true;

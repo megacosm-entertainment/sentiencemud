@@ -386,6 +386,8 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_object_set_new(root, "name", json_string_safe(area->name));
     json_object_set_new(root, "filename", json_string_safe(area->file_name));
     json_object_set_new(root, "area_topic", json_string_safe(area->area_topic));
+    json_object_set_new(root, "tags", json_string_safe(area->tags));
+    json_object_set_new(root, "auto_tags", json_string_safe(area->auto_tags));
     
     /* Vnum range */
     json_object_set_new(vnums, "min", json_integer(area->min_vnum));
@@ -537,6 +539,10 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
     area->file_name = str_dup(json_get_string_default(json, "filename", ""));
     free_string(area->area_topic);
     area->area_topic = str_dup(json_get_string_default(json, "area_topic", ""));
+    free_string(area->tags);
+    area->tags = str_dup(json_get_string_default(json, "tags", ""));
+    free_string(area->auto_tags);
+    area->auto_tags = str_dup(json_get_string_default(json, "auto_tags", ""));
     
     /* Vnum range */
     vnums = json_object_get(json, "vnums");
@@ -1011,6 +1017,8 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
     json_object_set_new(json, "seed_policy", json_integer(quest_index_v2->seed_policy));
     json_object_set_new(json, "fixed_seed", json_integer((json_int_t)quest_index_v2->fixed_seed));
     json_object_set_new(json, "enabled", quest_index_v2->enabled ? json_true() : json_false());
+    if (!IS_NULLSTR(quest_index_v2->prerequisites))
+        json_object_set_new(json, "prerequisites", json_string(quest_index_v2->prerequisites));
     if (quest_index_v2->progs)
     {
         json_t *progs_json = json_area_serialize_progs(quest_index_v2->progs, area);
@@ -1122,6 +1130,7 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
         json_object_set_new(reward_json, "target_load", reward_target_load);
         json_object_set_new(reward_json, "currency", json_string_safe(reward->currency));
         json_object_set_new(reward_json, "script", json_string_safe(reward->script));
+        json_object_set_new(reward_json, "display_string", json_string_safe(reward->display_string));
 
         json_array_append_new(rewards, reward_json);
     }
@@ -1174,6 +1183,13 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
     quest_index_v2->seed_policy = json_get_int_default(json, "seed_policy", quest_index_v2->seed_policy);
     quest_index_v2->fixed_seed = (unsigned long long)json_get_int_default(json, "fixed_seed", 0);
     quest_index_v2->enabled = json_get_bool_default(json, "enabled", true);
+    {
+        const char *prereqs = json_get_string_default(json, "prerequisites", "");
+        if (!IS_NULLSTR(prereqs)) {
+            free_string(quest_index_v2->prerequisites);
+            quest_index_v2->prerequisites = str_dup(prereqs);
+        }
+    }
     quest_index_v2->progs = json_area_deserialize_progs(json_object_get(json, "progs"), area, PRG_QPROG);
     quest_index_v2->index_vars = json_area_deserialize_index_vars(json_object_get(json, "index_vars"), area);
 
@@ -1360,6 +1376,9 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
 
             free_string(reward->script);
             reward->script = str_dup(json_get_string_default(reward_json, "script", ""));
+
+            free_string(reward->display_string);
+            reward->display_string = str_dup(json_get_string_default(reward_json, "display_string", ""));
 
             if (target_load && json_is_object(target_load))
             {
@@ -3105,6 +3124,7 @@ json_t *json_area_serialize_room(ROOM_INDEX_DATA *room)
     if (!room) return NULL;
     
     json_t *json = json_object();
+    char parent_buf[64];
     if (!json) return NULL;
     
     // Basic info
@@ -3126,6 +3146,19 @@ json_t *json_area_serialize_room(ROOM_INDEX_DATA *room)
     
     if (room->home_owner && room->home_owner[0] != '\0')
         json_object_set_new(json, "home_owner", json_string(room->home_owner));
+
+    if (room->tags && room->tags[0] != '\0')
+        json_object_set_new(json, "tags", json_string(room->tags));
+    if (room->auto_tags && room->auto_tags[0] != '\0')
+        json_object_set_new(json, "auto_tags", json_string(room->auto_tags));
+
+    if (room->parent_wnum.vnum > 0)
+        json_object_set_new(json, "parent", json_string(widevnum_string(room->parent_wnum.pArea, room->parent_wnum.vnum, room->area)));
+    else if (room->parent_load.vnum > 0)
+    {
+        snprintf(parent_buf, sizeof(parent_buf), "%ld#%ld", room->parent_load.auid, room->parent_load.vnum);
+        json_object_set_new(json, "parent", json_string(parent_buf));
+    }
     
     // Flags and sector
     json_object_set_new(json, "flags", flags_to_json_array(room->rs_room_flag[0], room_flags));
@@ -3287,6 +3320,23 @@ ROOM_INDEX_DATA *json_area_deserialize_room(json_t *json, AREA_DATA *area)
     const char *home_owner = json_get_string_default(json, "home_owner", "");
     if (home_owner && home_owner[0] != '\0')
         room->home_owner = str_dup(home_owner);
+
+    {
+        const char *tags = json_get_string_default(json, "tags", "");
+        if (tags && tags[0] != '\0')
+            room->tags = str_dup(tags);
+    }
+    {
+        const char *auto_tags = json_get_string_default(json, "auto_tags", "");
+        if (auto_tags && auto_tags[0] != '\0')
+            room->auto_tags = str_dup(auto_tags);
+    }
+
+    {
+        const char *parent_ref = json_get_string_default(json, "parent", "");
+        if (parent_ref && parent_ref[0] != '\0')
+            parse_widevnum_load(parent_ref, &room->parent_load);
+    }
     
     // Flags and sector
     json_t *flags = json_object_get(json, "flags");
@@ -3436,6 +3486,7 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
     if (!mob) return NULL;
     
     json_t *json = json_object();
+    char parent_buf[64];
     if (!json) return NULL;
     
     // Basic info
@@ -3459,6 +3510,25 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
     
     if (mob->skeywds && mob->skeywds[0] != '\0')
         json_object_set_new(json, "script_keywords", json_string(mob->skeywds));
+
+    if (mob->list_name && mob->list_name[0] != '\0')
+        json_object_set_new(json, "list_name", json_string(mob->list_name));
+
+    if (mob->list_keywords && mob->list_keywords[0] != '\0')
+        json_object_set_new(json, "list_keywords", json_string(mob->list_keywords));
+
+    if (mob->tags && mob->tags[0] != '\0')
+        json_object_set_new(json, "tags", json_string(mob->tags));
+    if (mob->auto_tags && mob->auto_tags[0] != '\0')
+        json_object_set_new(json, "auto_tags", json_string(mob->auto_tags));
+
+    if (mob->parent_wnum.vnum > 0)
+        json_object_set_new(json, "parent", json_string(widevnum_string(mob->parent_wnum.pArea, mob->parent_wnum.vnum, mob->area)));
+    else if (mob->parent_load.vnum > 0)
+    {
+        snprintf(parent_buf, sizeof(parent_buf), "%ld#%ld", mob->parent_load.auid, mob->parent_load.vnum);
+        json_object_set_new(json, "parent", json_string(parent_buf));
+    }
     
     if (mob->comments && mob->comments[0] != '\0')
         json_object_set_new(json, "comments", json_string(mob->comments));
@@ -3603,6 +3673,23 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
         if (index_vars)
             json_object_set_new(json, "index_vars", index_vars);
     }
+
+    /* Quests V2 */
+    if (mob->quests_v2) {
+        json_t *qv2arr = json_array();
+        QUEST_V2_LIST *qv2;
+        for (qv2 = mob->quests_v2; qv2 != NULL; qv2 = qv2->next) {
+            if (!qv2->wnum.pArea && qv2->load.vnum < 1) continue;
+            AREA_DATA *qa = qv2->wnum.pArea ? qv2->wnum.pArea :
+                            (qv2->load.auid ? get_area_index(qv2->load.auid) : NULL);
+            long qv = qv2->wnum.pArea ? qv2->wnum.vnum : qv2->load.vnum;
+            json_array_append_new(qv2arr, json_string(widevnum_string(qa, qv, mob->area)));
+        }
+        if (json_array_size(qv2arr) > 0)
+            json_object_set_new(json, "quests_v2", qv2arr);
+        else
+            json_decref(qv2arr);
+    }
     
     /* Questor */
     if (mob->pQuestor) {
@@ -3713,10 +3800,36 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
     const char *skeywds = json_get_string_default(json, "script_keywords", "");
     if (skeywds && skeywds[0] != '\0')
         mob->skeywds = str_dup(skeywds);
+
+    const char *list_name = json_get_string_default(json, "list_name", "");
+    if (list_name && list_name[0] != '\0')
+        mob->list_name = str_dup(list_name);
+
+    const char *list_keywords = json_get_string_default(json, "list_keywords", "");
+    if (list_keywords && list_keywords[0] != '\0')
+        mob->list_keywords = str_dup(list_keywords);
+
+    {
+        const char *tags = json_get_string_default(json, "tags", "");
+        if (tags && tags[0] != '\0')
+            mob->tags = str_dup(tags);
+    }
+
+    {
+        const char *auto_tags = json_get_string_default(json, "auto_tags", "");
+        if (auto_tags && auto_tags[0] != '\0')
+            mob->auto_tags = str_dup(auto_tags);
+    }
     
     const char *comments = json_get_string_default(json, "comments", "");
     if (comments && comments[0] != '\0')
         mob->comments = str_dup(comments);
+
+    {
+        const char *parent_ref = json_get_string_default(json, "parent", "");
+        if (parent_ref && parent_ref[0] != '\0')
+            parse_widevnum_load(parent_ref, &mob->parent_load);
+    }
     
     // Race
     const char *race_name = json_get_string_default(json, "race", "unique");
@@ -3874,6 +3987,31 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
     
     // Index vars
     mob->index_vars = json_area_deserialize_index_vars(json_object_get(json, "index_vars"), area);
+
+    /* Quests V2 */
+    {
+        json_t *qv2arr = json_object_get(json, "quests_v2");
+        if (qv2arr && json_is_array(qv2arr)) {
+            size_t qidx;
+            json_t *qelem;
+            QUEST_V2_LIST *qv2_tail = NULL;
+            json_array_foreach(qv2arr, qidx, qelem) {
+                if (!json_is_string(qelem)) continue;
+                WNUM_LOAD wload;
+                if (!parse_widevnum_load(json_string_value(qelem), &wload)) continue;
+                QUEST_V2_LIST *entry = new_quest_v2_list();
+                entry->load = wload;
+                /* wnum resolved at fix_quests_v2 time */
+                if (!mob->quests_v2) {
+                    mob->quests_v2 = entry;
+                    qv2_tail = entry;
+                } else {
+                    qv2_tail->next = entry;
+                    qv2_tail = entry;
+                }
+            }
+        }
+    }
     
     /* Questor */
     {
@@ -3968,6 +4106,7 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
     if (!obj) return NULL;
     
     json_t *json = json_object();
+    char parent_buf[64];
     if (!json) return NULL;
     
     // Basic info
@@ -3991,10 +4130,32 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
     
     if (obj->skeywds && obj->skeywds[0] != '\0')
         json_object_set_new(json, "script_keywords", json_string(obj->skeywds));
+
+    if (obj->list_name && obj->list_name[0] != '\0')
+        json_object_set_new(json, "list_name", json_string(obj->list_name));
+
+    if (obj->list_keywords && obj->list_keywords[0] != '\0')
+        json_object_set_new(json, "list_keywords", json_string(obj->list_keywords));
+
+    if (obj->tags && obj->tags[0] != '\0')
+        json_object_set_new(json, "tags", json_string(obj->tags));
+    if (obj->auto_tags && obj->auto_tags[0] != '\0')
+        json_object_set_new(json, "auto_tags", json_string(obj->auto_tags));
+
+    if (obj->parent_wnum.vnum > 0)
+        json_object_set_new(json, "parent", json_string(widevnum_string(obj->parent_wnum.pArea, obj->parent_wnum.vnum, obj->area)));
+    else if (obj->parent_load.vnum > 0)
+    {
+        snprintf(parent_buf, sizeof(parent_buf), "%ld#%ld", obj->parent_load.auid, obj->parent_load.vnum);
+        json_object_set_new(json, "parent", json_string(parent_buf));
+    }
     
     if (obj->comments && obj->comments[0] != '\0')
         json_object_set_new(json, "comments", json_string(obj->comments));
-    
+
+    if (!IS_NULLSTR(obj->prerequisites))
+        json_object_set_new(json, "prerequisites", json_string(obj->prerequisites));
+
     // Stats
     json_object_set_new(json, "times_allowed_fixed", json_integer(obj->times_allowed_fixed));
     json_object_set_new(json, "fragility", json_integer(obj->fragility));
@@ -4122,6 +4283,23 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
         if (index_vars)
             json_object_set_new(json, "index_vars", index_vars);
     }
+
+    /* Quests V2 */
+    if (obj->quests_v2) {
+        json_t *qv2arr = json_array();
+        QUEST_V2_LIST *qv2;
+        for (qv2 = obj->quests_v2; qv2 != NULL; qv2 = qv2->next) {
+            if (!qv2->wnum.pArea && qv2->load.vnum < 1) continue;
+            AREA_DATA *qa = qv2->wnum.pArea ? qv2->wnum.pArea :
+                            (qv2->load.auid ? get_area_index(qv2->load.auid) : NULL);
+            long qv = qv2->wnum.pArea ? qv2->wnum.vnum : qv2->load.vnum;
+            json_array_append_new(qv2arr, json_string(widevnum_string(qa, qv, obj->area)));
+        }
+        if (json_array_size(qv2arr) > 0)
+            json_object_set_new(json, "quests_v2", qv2arr);
+        else
+            json_decref(qv2arr);
+    }
     
     /* Spells */
     if (obj->spells) {
@@ -4171,10 +4349,44 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
     const char *skeywds = json_get_string_default(json, "script_keywords", "");
     if (skeywds && skeywds[0] != '\0')
         obj->skeywds = str_dup(skeywds);
+
+    const char *list_name = json_get_string_default(json, "list_name", "");
+    if (list_name && list_name[0] != '\0')
+        obj->list_name = str_dup(list_name);
+
+    const char *list_keywords = json_get_string_default(json, "list_keywords", "");
+    if (list_keywords && list_keywords[0] != '\0')
+        obj->list_keywords = str_dup(list_keywords);
+
+    {
+        const char *tags = json_get_string_default(json, "tags", "");
+        if (tags && tags[0] != '\0')
+            obj->tags = str_dup(tags);
+    }
+
+    {
+        const char *auto_tags = json_get_string_default(json, "auto_tags", "");
+        if (auto_tags && auto_tags[0] != '\0')
+            obj->auto_tags = str_dup(auto_tags);
+    }
     
     const char *comments = json_get_string_default(json, "comments", "");
     if (comments && comments[0] != '\0')
         obj->comments = str_dup(comments);
+
+    {
+        const char *prereqs = json_get_string_default(json, "prerequisites", "");
+        if (!IS_NULLSTR(prereqs)) {
+            free_string(obj->prerequisites);
+            obj->prerequisites = str_dup(prereqs);
+        }
+    }
+
+    {
+        const char *parent_ref = json_get_string_default(json, "parent", "");
+        if (parent_ref && parent_ref[0] != '\0')
+            parse_widevnum_load(parent_ref, &obj->parent_load);
+    }
     
     // Item type
     const char *item_type_str = json_get_string_default(json, "item_type", "trash");
@@ -4307,7 +4519,31 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
     
     // Index vars
     obj->index_vars = json_area_deserialize_index_vars(json_object_get(json, "index_vars"), area);
-    
+
+    /* Quests V2 */
+    {
+        json_t *qv2arr = json_object_get(json, "quests_v2");
+        if (qv2arr && json_is_array(qv2arr)) {
+            size_t qidx;
+            json_t *qelem;
+            QUEST_V2_LIST *qv2_tail = NULL;
+            json_array_foreach(qv2arr, qidx, qelem) {
+                if (!json_is_string(qelem)) continue;
+                WNUM_LOAD wload;
+                if (!parse_widevnum_load(json_string_value(qelem), &wload)) continue;
+                QUEST_V2_LIST *entry = new_quest_v2_list();
+                entry->load = wload;
+                if (!obj->quests_v2) {
+                    obj->quests_v2 = entry;
+                    qv2_tail = entry;
+                } else {
+                    qv2_tail->next = entry;
+                    qv2_tail = entry;
+                }
+            }
+        }
+    }
+
     obj->persist = json_get_bool_default(json, "persist", false);
     
     /* Spells - load from explicit spell array */

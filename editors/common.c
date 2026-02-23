@@ -656,8 +656,10 @@ void olc_render_tabs(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_TABS *tabs)
             // Inactive tab - green with optional MXP
             if (use_mxp) {
                 const char *mxp_result;
-                char cmd[32];
-                sprintf(cmd, "%d", i + 1);
+                char cmd[MIL];
+                const char *tab_selector =
+                    !IS_NULLSTR(tabs->tabs[i].short_name) ? tabs->tabs[i].short_name : tabs->tabs[i].name;
+                snprintf(cmd, sizeof(cmd), "tab %s", tab_selector);
                 mxp_result = MXPCreateSend(ctx->ch->desc, cmd, buf);
                 strncpy(mxp_buf, mxp_result, sizeof(mxp_buf) - 1);
                 mxp_buf[sizeof(mxp_buf) - 1] = '\0';

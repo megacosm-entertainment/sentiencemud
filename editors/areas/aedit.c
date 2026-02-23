@@ -32,6 +32,15 @@ static AREA_DATA *aedit_get_area(void *pEdit)
     return (AREA_DATA *)pEdit;
 }
 
+static void aedit_rebuild_auto_tags(AREA_DATA *pArea)
+{
+    if (!pArea)
+        return;
+
+    free_string(pArea->auto_tags);
+    pArea->auto_tags = short_to_name(pArea->name);
+}
+
 /***************************************************************************
  * Area Editor Command Table (moved from olc.c)                            *
  ***************************************************************************/
@@ -68,6 +77,7 @@ const struct olc_cmd_type aedit_table[] =
     {   "security",     aedit_security      },
     {   "settrade",     aedit_set_trade     },
     {   "show",         aedit_show          },
+    {   "tags",         aedit_tags          },
     {   "topic",        aedit_topic         },
     {   "varclear",     aedit_varclear      },
     {   "varset",       aedit_varset        },
@@ -195,6 +205,8 @@ AEDIT(aedit_show)
 
     /* --- Identity --- */
     olc_display_string(ctx, theme, "Name:", "name", pArea->name);
+    olc_display_string(ctx, theme, "Tags:", "tags", IS_NULLSTR(pArea->tags) ? "(none)" : pArea->tags);
+    olc_display_string(ctx, theme, "Auto Tags:", NULL, IS_NULLSTR(pArea->auto_tags) ? "(none)" : pArea->auto_tags);
     olc_display_string(ctx, theme, "Topic:", "topic", IS_NULLSTR(pArea->area_topic) ? "(default)" : pArea->area_topic);
     olc_display_number(ctx, theme, "Area ID:", NULL, pArea->uid);
 
@@ -626,17 +638,23 @@ AEDIT(aedit_open)
 AEDIT(aedit_create)
 {
     AREA_DATA *pArea;
+    char filename[MSL];
 
     pArea               =   new_area();
     pArea->uid = gconfig.next_area_uid++;
     gconfig_write();
+
+    snprintf(filename, sizeof(filename), "area%ld.json", pArea->uid);
+    free_string(pArea->file_name);
+    pArea->file_name = str_dup(filename);
+
     area_last->next     =   pArea;
     area_last           =   pArea;      /* Thanks, Walker. */
     ch->desc->pEdit     =   (void *)pArea;
 
     SET_BIT(pArea->area_flags, AREA_ADDED);
     send_to_char("Area Created.\n\r", ch);
-    return false;
+    return true;
 }
 
 
@@ -766,10 +784,25 @@ AEDIT(aedit_regions)
         if (region_no >= 1 && region_no <= list_size(pArea->regions))
             region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
     }
+    else if (!IS_NULLSTR(arg2))
+    {
+        AREA_REGION *r;
+        ITERATOR it;
+        iterator_start(&it, pArea->regions);
+        while ((r = (AREA_REGION *)iterator_nextdata(&it)))
+        {
+            if (r->name && !str_prefix(arg2, r->name))
+            {
+                region = r;
+                break;
+            }
+        }
+        iterator_stop(&it);
+    }
 
     if (!region)
     {
-        send_to_char("Please specify <#|default>.\n\r", ch);
+        send_to_char("Please specify <#|name|default>.\n\r", ch);
         return false;
     }
 
@@ -777,7 +810,7 @@ AEDIT(aedit_regions)
     {
         if (IS_NULLSTR(argument))
         {
-            send_to_char("Syntax: regions name <#|default> <name>\n\r", ch);
+            send_to_char("Syntax: regions name <#|name|default> <name>\n\r", ch);
             return false;
         }
 
@@ -791,7 +824,7 @@ AEDIT(aedit_regions)
     {
         if (IS_NULLSTR(argument))
         {
-            send_to_char("Syntax: regions topic <#|default> <topic|clear>\n\r", ch);
+            send_to_char("Syntax: regions topic <#|name|default> <topic|clear>\n\r", ch);
             return false;
         }
 
@@ -822,7 +855,7 @@ AEDIT(aedit_regions)
         long value;
         if ((value = flag_value(area_region_flags, argument)) == NO_FLAG)
         {
-            send_to_char("Syntax: regions flags <#|default> <flag>\n\r", ch);
+            send_to_char("Syntax: regions flags <#|name|default> <flag>\n\r", ch);
             send_to_char("Type '? area_region_flags' for values.\n\r", ch);
             return false;
         }
@@ -839,7 +872,7 @@ AEDIT(aedit_regions)
             value = AREA_BLANK;
         else if ((value = flag_value(area_who_titles, argument)) == NO_FLAG)
         {
-            send_to_char("Syntax: regions who <#|default> <title|blank>\n\r", ch);
+            send_to_char("Syntax: regions who <#|name|default> <title|blank>\n\r", ch);
             send_to_char("Type '? areawho' for values.\n\r", ch);
             return false;
         }
@@ -856,7 +889,7 @@ AEDIT(aedit_regions)
             value = PLACE_NOWHERE;
         else if ((value = flag_value(place_flags, argument)) == NO_FLAG)
         {
-            send_to_char("Syntax: regions place <#|default> <placetype|none>\n\r", ch);
+            send_to_char("Syntax: regions place <#|name|default> <placetype|none>\n\r", ch);
             send_to_char("Type '? placetype' for values.\n\r", ch);
             return false;
         }
@@ -869,13 +902,13 @@ AEDIT(aedit_regions)
     send_to_char("Syntax: regions list\n\r", ch);
     send_to_char("        regions add <name>\n\r", ch);
     send_to_char("        regions remove <#>\n\r", ch);
-    send_to_char("        regions name <#|default> <name>\n\r", ch);
-    send_to_char("        regions topic <#|default> <topic|clear>\n\r", ch);
-    send_to_char("        regions description <#|default>\n\r", ch);
-    send_to_char("        regions comments <#|default>\n\r", ch);
-    send_to_char("        regions flags <#|default> <flag>\n\r", ch);
-    send_to_char("        regions who <#|default> <title|blank>\n\r", ch);
-    send_to_char("        regions place <#|default> <placetype|none>\n\r", ch);
+    send_to_char("        regions name <#|name|default> <name>\n\r", ch);
+    send_to_char("        regions topic <#|name|default> <topic|clear>\n\r", ch);
+    send_to_char("        regions description <#|name|default>\n\r", ch);
+    send_to_char("        regions comments <#|name|default>\n\r", ch);
+    send_to_char("        regions flags <#|name|default> <flag>\n\r", ch);
+    send_to_char("        regions who <#|name|default> <title|blank>\n\r", ch);
+    send_to_char("        regions place <#|name|default> <placetype|none>\n\r", ch);
     return false;
 }
 
@@ -907,8 +940,19 @@ AEDIT(aedit_name)
 {
     AREA_DATA *pArea;
     EDIT_AREA(ch, pArea);
-    return olc_cmd_string(ch, argument, "Name", NULL, &pArea->name,
+    bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pArea->name,
         OLC_STR_DEFAULT, NULL, NULL);
+    if (changed)
+        aedit_rebuild_auto_tags(pArea);
+    return changed;
+}
+
+AEDIT(aedit_tags)
+{
+    AREA_DATA *pArea;
+    EDIT_AREA(ch, pArea);
+    return olc_cmd_string(ch, argument, "Tags", NULL, &pArea->tags,
+        OLC_STR_CLEARABLE, NULL, NULL);
 }
 
 AEDIT(aedit_desc)

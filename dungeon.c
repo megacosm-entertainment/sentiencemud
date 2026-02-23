@@ -1007,7 +1007,7 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
     }
 
     NAMED_SPECIAL_EXIT *special = new_named_special_exit();
-    special->name = str_dup(dsex->name);
+    special->name = variables_expand_text_dup(dng->progs->vars, dsex->name);
     if(from_room)
     {
         special->room = from_room;
@@ -1043,6 +1043,7 @@ DUNGEON *create_dungeon(WNUM wnum)
     dng->progs			= new_prog_data();
     dng->progs->progs	= index->progs;
     variable_copylist(&index->index_vars,&dng->progs->vars,false);
+    variables_resolve_rsg_bindings(&dng->progs->vars);
 
     /* Use the resolved room pointers from the index */
     dng->entry_room = index->entry_room;
@@ -1106,7 +1107,7 @@ DUNGEON *create_dungeon(WNUM wnum)
                     NAMED_SPECIAL_ROOM *dsr = new_named_special_room();
 
                     free_string(dsr->name);
-                    dsr->name = str_dup(special->name);
+                    dsr->name = variables_expand_text_dup(dng->progs->vars, special->name);
                     dsr->room = isr->room;
 
                     list_appendlink(dng->special_rooms, dsr);

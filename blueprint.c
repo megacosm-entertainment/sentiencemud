@@ -2206,6 +2206,7 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
         instance->progs			= new_prog_data();
         instance->progs->progs	= blueprint->progs;
         variable_copylist(&blueprint->index_vars,&instance->progs->vars,false);
+        variables_resolve_rsg_bindings(&instance->progs->vars);
 
         if( blueprint->mode == BLUEPRINT_MODE_STATIC )
         {
@@ -2241,7 +2242,7 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
                     NAMED_SPECIAL_ROOM *isr = new_named_special_room();
 
                     free_string(isr->name);
-                    isr->name = str_dup(special->name);
+                    isr->name = variables_expand_text_dup(instance->progs->vars, special->name);
                     isr->room = room;
 
                     list_appendlink(instance->special_rooms, isr);

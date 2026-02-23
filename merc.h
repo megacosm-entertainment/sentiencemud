@@ -447,6 +447,7 @@ typedef struct  prog_list              	PROG_LIST;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
 typedef struct  quest_index_part_data   QUEST_INDEX_PART_DATA;
 typedef struct  quest_list		QUEST_LIST;
+typedef struct  quest_v2_list		QUEST_V2_LIST;
 typedef struct  string_data		STRING_DATA; /* for lists of strings */
 typedef struct	weather_data		WEATHER_DATA;
 typedef struct  token_index_data	TOKEN_INDEX_DATA;
@@ -782,7 +783,8 @@ struct random_string_pattern {
     RANDOM_PATTERN	*next;
 
     int		weight;
-    char		*name;
+    char		*name;		/* Stable pattern name/key */
+    char		*template;	/* Expansion template */
 
     int		classes;
     RANDOM_CLASS	**c_list;
@@ -4204,6 +4206,7 @@ struct	mob_index_data
     SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
+    QUEST_V2_LIST *	quests_v2;
     MOB_REPUTATION_DATA *mob_reputations;
     bool	persist;
 
@@ -4249,6 +4252,14 @@ struct	mob_index_data
 
     char *		owner; /* mainly for personal mounts */
     char *		skeywds; /* script keywords */
+    char *              list_name; /* display name for list/vnum outputs */
+    char *              list_keywords; /* extra lookup keywords for list/vnum */
+    char *              tags; /* manual builder tags (comma-separated) */
+    char *              auto_tags; /* generated tags from keywords/name */
+    WNUM_LOAD           parent_load;
+    WNUM                parent_wnum;
+    MOB_INDEX_DATA *    parent;
+    bool                parent_inherited;
     pVARIABLE		index_vars;
     WNUM_LOAD	corpse_load;
     WNUM		corpse_wnum;
@@ -4509,8 +4520,9 @@ struct quest_reward_index_v2_data
     WNUM_LOAD target_load;
     WNUM target_wnum;
 
-    char *currency;
-    char *script;
+    char *currency;       /* QUEST_REWARD_CURRENCY: "silver" or "gold" */
+    char *script;         /* QUEST_REWARD_SCRIPT: prog name to fire */
+    char *display_string; /* Override default reward message shown to player */
 };
 
 
@@ -4540,6 +4552,7 @@ struct quest_index_v2_data
     pVARIABLE index_vars;
 
     bool enabled;
+    char *prerequisites;  /* JSON requirements spec; NULL/empty = no check */
 };
 
 
@@ -4732,6 +4745,13 @@ struct quest_list
     QUEST_LIST *next;
 
     long vnum;
+};
+
+struct quest_v2_list
+{
+    QUEST_V2_LIST  *next;
+    WNUM_LOAD       load;
+    WNUM            wnum;
 };
 
 #define MAX_TOKEN_VALUES 	8
@@ -5983,7 +6003,17 @@ struct	obj_index_data
     bool 		update;
     int			timer;
     char *		skeywds; /* Script keywords */
+    char *              list_name; /* display name for list/vnum outputs */
+    char *              list_keywords; /* extra lookup keywords for list/vnum */
+    char *              tags; /* manual builder tags (comma-separated) */
+    char *              auto_tags; /* generated tags from keywords/name */
+    WNUM_LOAD           parent_load;
+    WNUM                parent_wnum;
+    OBJ_INDEX_DATA *    parent;
+    bool                parent_inherited;
     char *      comments;
+    char *      prerequisites;  /* JSON requirements spec; NULL/empty = no check */
+    QUEST_V2_LIST * quests_v2;
     pVARIABLE		index_vars;
 
     int light;		/* Inherent light [-1000 to 1000] */
@@ -6424,6 +6454,8 @@ struct	area_data
 
     char *file_name;
     char *name;
+    char *tags;
+    char *auto_tags;
     char *area_topic;
     char *credits;
     char *  description;
@@ -7052,6 +7084,12 @@ struct	room_index_data
     char *		description;
     char *		owner;
     char *      comments;
+    char *              tags; /* manual builder tags (comma-separated) */
+    char *              auto_tags; /* generated tags from name */
+    WNUM_LOAD           parent_load;
+    WNUM                parent_wnum;
+    ROOM_INDEX_DATA *   parent;
+    bool                parent_inherited;
     long		vnum;
 
     // OLC Reset data
@@ -9634,6 +9672,7 @@ QUEST_TARGET_BINDING_V2_DATA *new_quest_target_binding_v2( void );
 QUEST_HISTORY_DATA *new_quest_history( void );
 QUEST_DATA *new_quest( void );
 QUEST_LIST *new_quest_list( void );
+QUEST_V2_LIST *new_quest_v2_list( void );
 QUEST_PART_DATA *new_quest_part(void);
 QUESTOR_DATA *new_questor_data( void );
 RESET_DATA *new_reset_data( void );
@@ -9684,6 +9723,7 @@ void free_quest_target_binding_v2( QUEST_TARGET_BINDING_V2_DATA *target_binding_
 void free_quest_history( QUEST_HISTORY_DATA *history );
 void free_quest( QUEST_DATA *pQuest );
 void free_quest_list( QUEST_LIST *quest_list );
+void free_quest_v2_list( QUEST_V2_LIST *quest_v2_list );
 void free_quest_part( QUEST_PART_DATA *pPart );
 void free_reset_data( RESET_DATA *pReset );
 void free_ship_crew( SHIP_CREW_DATA *crew );
@@ -10648,6 +10688,18 @@ long get_total_minutes(PROJECT_DATA *project);
 /* rsgedit.c */
 void load_rsg_data(void);
 bool save_rsg_data(void);
+bool rsg_generate_any(const char *generator_token, char *out, size_t out_size);
+bool rsg_generate_pattern(const char *generator_token, int pattern_index,
+    char *out, size_t out_size);
+bool rsg_generate_pattern_named(const char *generator_token, const char *pattern_name,
+    char *out, size_t out_size);
+bool rsg_generate_template_named(const char *generator_token, const char *template_name,
+    char *out, size_t out_size);
+bool rsg_generate_class(const char *generator_token, const char *class_name,
+    char *out, size_t out_size);
+bool rsg_generate_template(const char *generator_token, const char *templ,
+    char *out, size_t out_size);
+bool rsg_generate_spec(const char *spec, char *out, size_t out_size);
 
 /* liqedit.c */
 void load_liquid_data(void);

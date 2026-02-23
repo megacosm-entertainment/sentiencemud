@@ -95,6 +95,118 @@ static inline int legacy_obj_index_value_get(const OBJ_INDEX_DATA *obj, int slot
     return obj->value[slot];
 }
 
+static char *reset_room_expand_field(pVARIABLE vars, const char *src, ROOM_INDEX_DATA *pRoom, const char *field)
+{
+    char *expanded;
+
+    if (!src)
+        return NULL;
+
+    expanded = variables_expand_text_dup(vars, src);
+
+    if (strstr(src, "$<") && strstr(expanded, "$<"))
+    {
+        log_message_f(LOG_LEVEL_INFO, LOG_INFO,
+            "reset_room: unresolved variable placeholder in room %ld field '%s'",
+            pRoom ? pRoom->vnum : 0,
+            field ? field : "unknown");
+    }
+
+    return expanded;
+}
+
+static void reset_room_expand_text(ROOM_INDEX_DATA *pRoom)
+{
+    EXTRA_DESCR_DATA *ed;
+    CONDITIONAL_DESCR_DATA *cd;
+    int door;
+
+    if (!pRoom || !pRoom->progs)
+        return;
+
+    {
+        const char *name_template = pRoom->source ? pRoom->source->name : pRoom->name;
+        const char *desc_template = pRoom->source ? pRoom->source->description : pRoom->description;
+
+        if (name_template)
+        {
+            char *expanded_name = reset_room_expand_field(pRoom->progs->vars, name_template, pRoom, "name");
+            free_string(pRoom->name);
+            pRoom->name = expanded_name;
+        }
+
+        if (desc_template)
+        {
+            char *expanded_desc = reset_room_expand_field(pRoom->progs->vars, desc_template, pRoom, "description");
+            free_string(pRoom->description);
+            pRoom->description = expanded_desc;
+        }
+    }
+
+    for (ed = pRoom->extra_descr; ed; ed = ed->next)
+    {
+        if (ed->keyword)
+        {
+            char *expanded_keyword = reset_room_expand_field(pRoom->progs->vars, ed->keyword, pRoom, "extra.keyword");
+            free_string(ed->keyword);
+            ed->keyword = expanded_keyword;
+        }
+
+        if (ed->description)
+        {
+            char *expanded_desc = reset_room_expand_field(pRoom->progs->vars, ed->description, pRoom, "extra.description");
+            free_string(ed->description);
+            ed->description = expanded_desc;
+        }
+    }
+
+    for (cd = pRoom->conditional_descr; cd; cd = cd->next)
+    {
+        if (cd->description)
+        {
+            char *expanded_cond_desc = reset_room_expand_field(pRoom->progs->vars, cd->description, pRoom, "conditional.description");
+            free_string(cd->description);
+            cd->description = expanded_cond_desc;
+        }
+    }
+
+    for (door = 0; door < MAX_DIR; door++)
+    {
+        EXIT_DATA *ex = pRoom->exit[door];
+
+        if (!ex)
+            continue;
+
+        if (ex->keyword)
+        {
+            char *expanded_keyword = reset_room_expand_field(pRoom->progs->vars, ex->keyword, pRoom, "exit.keyword");
+            free_string(ex->keyword);
+            ex->keyword = expanded_keyword;
+        }
+
+        if (ex->short_desc)
+        {
+            char *expanded_short = reset_room_expand_field(pRoom->progs->vars, ex->short_desc, pRoom, "exit.short_desc");
+            free_string(ex->short_desc);
+            ex->short_desc = expanded_short;
+        }
+
+        if (ex->long_desc)
+        {
+            char *expanded_long = reset_room_expand_field(pRoom->progs->vars, ex->long_desc, pRoom, "exit.long_desc");
+            free_string(ex->long_desc);
+            ex->long_desc = expanded_long;
+        }
+
+        if (ex->door.material)
+        {
+            char *expanded_material = reset_room_expand_field(pRoom->progs->vars, ex->door.material, pRoom, "exit.material");
+            free_string(ex->door.material);
+            ex->door.material = expanded_material;
+        }
+    }
+}
+
 static inline void legacy_obj_index_value_set(OBJ_INDEX_DATA *obj, int slot, int value)
 {
     if (!obj || slot < 0 || slot > 7)
@@ -468,6 +580,7 @@ void fix_object_locks(void);
 void fix_portal_destinations(void);
 void fix_object_type_data(void);
 void fix_area_fields(void);
+void fix_index_inheritance(void);
 void fix_mobprogs(void);
 void reset_area(AREA_DATA * pArea);
 void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int chance);
@@ -949,6 +1062,8 @@ void boot_db(void)
     fix_object_type_data();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving area/mob/trade widevnum fields");
     fix_area_fields();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving room/mob/object parent inheritance");
+    fix_index_inheritance();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving channel requirement token widevnums");
     channel_registry_fix_requirements();
     resolve_newbie_tables();
@@ -1482,6 +1597,434 @@ void fix_area_fields(void)
                     }
                 }
             }
+        }
+    }
+}
+
+static bool has_any_prog_bank(LLIST **progs)
+{
+    int slot;
+
+    if (!progs)
+        return false;
+
+    for (slot = 0; slot < TRIGSLOT_MAX; slot++)
+    {
+        if (progs[slot] && list_size(progs[slot]) > 0)
+            return true;
+    }
+
+    return false;
+}
+
+static bool same_trigger(const PROG_LIST *a, const PROG_LIST *b)
+{
+    if (!a || !b)
+        return false;
+
+    if (a->trig_type != b->trig_type)
+        return false;
+
+    if (a->vnum != b->vnum)
+        return false;
+
+    return !str_cmp(a->trig_phrase, b->trig_phrase);
+}
+
+static void inherit_prog_bank(LLIST ***dest_bank, LLIST **src_bank)
+{
+    int slot;
+    ITERATOR it;
+    PROG_LIST *src_trigger;
+
+    if (!dest_bank || !src_bank)
+        return;
+
+    if (!*dest_bank)
+        *dest_bank = new_prog_bank();
+
+    for (slot = 0; slot < TRIGSLOT_MAX; slot++)
+    {
+        if (!src_bank[slot] || list_size(src_bank[slot]) < 1)
+            continue;
+
+        iterator_start(&it, src_bank[slot]);
+        while ((src_trigger = (PROG_LIST *)iterator_nextdata(&it)))
+        {
+            bool exists = false;
+            ITERATOR dit;
+            PROG_LIST *dst_trigger;
+
+            iterator_start(&dit, (*dest_bank)[slot]);
+            while ((dst_trigger = (PROG_LIST *)iterator_nextdata(&dit)))
+            {
+                if (same_trigger(dst_trigger, src_trigger))
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            iterator_stop(&dit);
+
+            if (!exists)
+            {
+                PROG_LIST *copy = new_trigger();
+                copy->trig_type = src_trigger->trig_type;
+                copy->trig_phrase = str_dup(src_trigger->trig_phrase);
+                copy->trig_number = src_trigger->trig_number;
+                copy->numeric = src_trigger->numeric;
+                copy->trig_is_widevnum = src_trigger->trig_is_widevnum;
+                copy->trig_load = src_trigger->trig_load;
+                copy->trig_wnum = src_trigger->trig_wnum;
+                copy->vnum = src_trigger->vnum;
+                copy->script_is_widevnum = src_trigger->script_is_widevnum;
+                copy->script_load = src_trigger->script_load;
+                copy->script = src_trigger->script;
+
+                list_appendlink((*dest_bank)[slot], copy);
+            }
+        }
+        iterator_stop(&it);
+    }
+}
+
+static void inherit_index_vars_with_override(ppVARIABLE child_vars, pVARIABLE parent_vars)
+{
+    pVARIABLE parent_src;
+    pVARIABLE child_saved = NULL;
+
+    if (!child_vars || !parent_vars)
+        return;
+
+    if (*child_vars)
+        variable_copylist(child_vars, &child_saved, true);
+
+    variable_freelist(child_vars);
+
+    parent_src = parent_vars;
+    variable_copylist(&parent_src, child_vars, true);
+
+    if (child_saved)
+    {
+        variable_copylist(&child_saved, child_vars, true);
+        variable_freelist(&child_saved);
+    }
+}
+
+static void apply_room_parent_inheritance(ROOM_INDEX_DATA *room, ROOM_INDEX_DATA **stack, int depth)
+{
+    int i;
+    ROOM_INDEX_DATA *parent;
+
+    if (!room || room->parent_inherited)
+        return;
+
+    if (!room->parent)
+    {
+        room->parent_inherited = true;
+        return;
+    }
+
+    if (depth >= 64)
+    {
+        pbugf(LOG_ERROR, "apply_room_parent_inheritance: depth exceeded for room %s", widevnum_string_room(room, NULL));
+        return;
+    }
+
+    for (i = 0; i < depth; i++)
+    {
+        if (stack[i] == room)
+        {
+            pbugf(LOG_ERROR, "apply_room_parent_inheritance: cycle detected at room %s", widevnum_string_room(room, NULL));
+            room->parent = NULL;
+            return;
+        }
+    }
+
+    stack[depth] = room;
+    apply_room_parent_inheritance(room->parent, stack, depth + 1);
+
+    parent = room->parent;
+    if (!parent || parent == room)
+    {
+        room->parent_inherited = true;
+        return;
+    }
+
+    if (room->rs_room_flag[0] == 0 && room->rs_room_flag[1] == 0)
+    {
+        room->rs_room_flag[0] = parent->rs_room_flag[0];
+        room->rs_room_flag[1] = parent->rs_room_flag[1];
+    }
+
+    if (room_rs_sector_type(room) == SECT_INSIDE)
+        room_set_rs_sector_type(room, room_rs_sector_type(parent));
+
+    if (room->rs_heal_rate == 100)
+        room->rs_heal_rate = parent->rs_heal_rate;
+    if (room->rs_mana_rate == 100)
+        room->rs_mana_rate = parent->rs_mana_rate;
+    if (room->rs_move_rate == 100)
+        room->rs_move_rate = parent->rs_move_rate;
+
+    if (IS_NULLSTR(room->name))
+        room->name = str_dup(parent->name);
+    if (IS_NULLSTR(room->description))
+        room->description = str_dup(parent->description);
+
+    if (room->progs && parent->progs && !has_any_prog_bank(room->progs->progs) && has_any_prog_bank(parent->progs->progs))
+        inherit_prog_bank(&room->progs->progs, parent->progs->progs);
+
+    inherit_index_vars_with_override(&room->index_vars, parent->index_vars);
+
+    room->parent_inherited = true;
+}
+
+static void apply_mob_parent_inheritance(MOB_INDEX_DATA *mob, MOB_INDEX_DATA **stack, int depth)
+{
+    int i;
+    MOB_INDEX_DATA *parent;
+
+    if (!mob || mob->parent_inherited)
+        return;
+
+    if (!mob->parent)
+    {
+        mob->parent_inherited = true;
+        return;
+    }
+
+    if (depth >= 64)
+    {
+        pbugf(LOG_ERROR, "apply_mob_parent_inheritance: depth exceeded for mobile %s", widevnum_string_mobile(mob, NULL));
+        return;
+    }
+
+    for (i = 0; i < depth; i++)
+    {
+        if (stack[i] == mob)
+        {
+            pbugf(LOG_ERROR, "apply_mob_parent_inheritance: cycle detected at mobile %s", widevnum_string_mobile(mob, NULL));
+            mob->parent = NULL;
+            return;
+        }
+    }
+
+    stack[depth] = mob;
+    apply_mob_parent_inheritance(mob->parent, stack, depth + 1);
+
+    parent = mob->parent;
+    if (!parent || parent == mob)
+    {
+        mob->parent_inherited = true;
+        return;
+    }
+
+    if (mob->act[0] == ACT_IS_NPC && mob->act[1] == 0)
+    {
+        mob->act[0] = parent->act[0];
+        mob->act[1] = parent->act[1];
+    }
+
+    if (!mob->progs && parent->progs)
+        mob->progs = new_prog_bank();
+    if (!has_any_prog_bank(mob->progs) && has_any_prog_bank(parent->progs))
+        inherit_prog_bank(&mob->progs, parent->progs);
+
+    inherit_index_vars_with_override(&mob->index_vars, parent->index_vars);
+
+    mob->parent_inherited = true;
+}
+
+static void apply_obj_parent_inheritance(OBJ_INDEX_DATA *obj, OBJ_INDEX_DATA **stack, int depth)
+{
+    int i;
+    OBJ_INDEX_DATA *parent;
+
+    if (!obj || obj->parent_inherited)
+        return;
+
+    if (!obj->parent)
+    {
+        obj->parent_inherited = true;
+        return;
+    }
+
+    if (depth >= 64)
+    {
+        pbugf(LOG_ERROR, "apply_obj_parent_inheritance: depth exceeded for object %s", widevnum_string_object(obj, NULL));
+        return;
+    }
+
+    for (i = 0; i < depth; i++)
+    {
+        if (stack[i] == obj)
+        {
+            pbugf(LOG_ERROR, "apply_obj_parent_inheritance: cycle detected at object %s", widevnum_string_object(obj, NULL));
+            obj->parent = NULL;
+            return;
+        }
+    }
+
+    stack[depth] = obj;
+    apply_obj_parent_inheritance(obj->parent, stack, depth + 1);
+
+    parent = obj->parent;
+    if (!parent || parent == obj)
+    {
+        obj->parent_inherited = true;
+        return;
+    }
+
+    if (obj->item_type == ITEM_TRASH)
+        obj->item_type = parent->item_type;
+
+    if (obj->extra[0] == 0 && obj->extra[1] == 0 && obj->extra[2] == 0 && obj->extra[3] == 0)
+    {
+        obj->extra[0] = parent->extra[0];
+        obj->extra[1] = parent->extra[1];
+        obj->extra[2] = parent->extra[2];
+        obj->extra[3] = parent->extra[3];
+    }
+
+    if (obj->wear_flags == 0)
+        obj->wear_flags = parent->wear_flags;
+
+    if (!obj->progs && parent->progs)
+        obj->progs = new_prog_bank();
+    if (!has_any_prog_bank(obj->progs) && has_any_prog_bank(parent->progs))
+        inherit_prog_bank(&obj->progs, parent->progs);
+
+    inherit_index_vars_with_override(&obj->index_vars, parent->index_vars);
+
+    obj->parent_inherited = true;
+}
+
+void fix_index_inheritance(void)
+{
+    AREA_DATA *pArea;
+    int iHash;
+    ROOM_INDEX_DATA *room;
+    MOB_INDEX_DATA *mob;
+    OBJ_INDEX_DATA *obj;
+    ROOM_INDEX_DATA *room_stack[64];
+    MOB_INDEX_DATA *mob_stack[64];
+    OBJ_INDEX_DATA *obj_stack[64];
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (room = pArea->room_index_hash[iHash]; room != NULL; room = room->next)
+            {
+                AREA_DATA *parent_area;
+
+                room->parent = NULL;
+                room->parent_wnum.pArea = NULL;
+                room->parent_wnum.vnum = 0;
+                room->parent_inherited = false;
+
+                if (room->parent_load.vnum <= 0)
+                    continue;
+
+                parent_area = room->parent_load.auid > 0
+                    ? get_area_from_uid(room->parent_load.auid)
+                    : room->area;
+
+                if (!parent_area)
+                    parent_area = find_area_by_vnum(room->parent_load.vnum, room->area);
+
+                if (!parent_area)
+                {
+                    pbugf(LOG_ERROR, "fix_index_inheritance: unresolved room parent %ld#%ld for room %s",
+                          room->parent_load.auid, room->parent_load.vnum,
+                          widevnum_string_room(room, NULL));
+                    continue;
+                }
+
+                room->parent_wnum.pArea = parent_area;
+                room->parent_wnum.vnum = room->parent_load.vnum;
+                room->parent = get_room_index(parent_area, room->parent_load.vnum);
+            }
+
+            for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next)
+            {
+                AREA_DATA *parent_area;
+
+                mob->parent = NULL;
+                mob->parent_wnum.pArea = NULL;
+                mob->parent_wnum.vnum = 0;
+                mob->parent_inherited = false;
+
+                if (mob->parent_load.vnum <= 0)
+                    continue;
+
+                parent_area = mob->parent_load.auid > 0
+                    ? get_area_from_uid(mob->parent_load.auid)
+                    : mob->area;
+
+                if (!parent_area)
+                    parent_area = find_area_by_vnum(mob->parent_load.vnum, mob->area);
+
+                if (!parent_area)
+                {
+                    pbugf(LOG_ERROR, "fix_index_inheritance: unresolved mobile parent %ld#%ld for mobile %s",
+                          mob->parent_load.auid, mob->parent_load.vnum,
+                          widevnum_string_mobile(mob, NULL));
+                    continue;
+                }
+
+                mob->parent_wnum.pArea = parent_area;
+                mob->parent_wnum.vnum = mob->parent_load.vnum;
+                mob->parent = get_mob_index(parent_area, mob->parent_load.vnum);
+            }
+
+            for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
+            {
+                AREA_DATA *parent_area;
+
+                obj->parent = NULL;
+                obj->parent_wnum.pArea = NULL;
+                obj->parent_wnum.vnum = 0;
+                obj->parent_inherited = false;
+
+                if (obj->parent_load.vnum <= 0)
+                    continue;
+
+                parent_area = obj->parent_load.auid > 0
+                    ? get_area_from_uid(obj->parent_load.auid)
+                    : obj->area;
+
+                if (!parent_area)
+                    parent_area = find_area_by_vnum(obj->parent_load.vnum, obj->area);
+
+                if (!parent_area)
+                {
+                    pbugf(LOG_ERROR, "fix_index_inheritance: unresolved object parent %ld#%ld for object %s",
+                          obj->parent_load.auid, obj->parent_load.vnum,
+                          widevnum_string_object(obj, NULL));
+                    continue;
+                }
+
+                obj->parent_wnum.pArea = parent_area;
+                obj->parent_wnum.vnum = obj->parent_load.vnum;
+                obj->parent = get_obj_index(parent_area, obj->parent_load.vnum);
+            }
+        }
+    }
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next)
+    {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (room = pArea->room_index_hash[iHash]; room != NULL; room = room->next)
+                apply_room_parent_inheritance(room, room_stack, 0);
+
+            for (mob = pArea->mob_index_hash[iHash]; mob != NULL; mob = mob->next)
+                apply_mob_parent_inheritance(mob, mob_stack, 0);
+
+            for (obj = pArea->obj_index_hash[iHash]; obj != NULL; obj = obj->next)
+                apply_obj_parent_inheritance(obj, obj_stack, 0);
         }
     }
 }
@@ -2906,6 +3449,18 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
     pMob = NULL;
     last = false;
 
+    /*
+     * Forced room resets (builder reload/resetroom) should restore room
+     * variables back to index defaults before running resets.
+     */
+    if (force)
+    {
+        variable_freelist(&pRoom->progs->vars);
+        variable_copylist(&pRoom->index_vars, &pRoom->progs->vars, false);
+        variables_resolve_rsg_bindings(&pRoom->progs->vars);
+        reset_room_expand_text(pRoom);
+    }
+
     // Reset all of the mutable things
     pRoom->room_flag[0] = pRoom->rs_room_flag[0];
     pRoom->room_flag[1] = pRoom->rs_room_flag[1];
@@ -3401,7 +3956,6 @@ SHIP_CREW_DATA *copy_ship_crew(SHIP_CREW_INDEX_DATA *index)
     return crew;
 }
 
-
 /* Create a mobile from a mob index template.*/
 CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 {
@@ -3423,11 +3977,6 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
     mob->pIndexData	= pMobIndex;
 
-    mob->name			= str_dup(pMobIndex->player_name);
-    mob->short_descr	= str_dup(pMobIndex->short_descr);
-    mob->long_descr		= str_dup(pMobIndex->long_descr);
-    mob->description	= str_dup(pMobIndex->description);
-
     if (pMobIndex->owner != NULL)
         mob->owner	= str_dup(pMobIndex->owner);
     else
@@ -3440,6 +3989,12 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
     mob->progs			= new_prog_data();
     mob->progs->progs	= pMobIndex->progs;
     variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,false);
+    variables_resolve_rsg_bindings(&mob->progs->vars);
+
+    mob->name = variables_expand_text_dup(mob->progs->vars, pMobIndex->player_name);
+    mob->short_descr = variables_expand_text_dup(mob->progs->vars, pMobIndex->short_descr);
+    mob->long_descr = variables_expand_text_dup(mob->progs->vars, pMobIndex->long_descr);
+    mob->description = variables_expand_text_dup(mob->progs->vars, pMobIndex->description);
 
     mob->deitypoints    = 0;
     mob->questpoints    = 0;
@@ -4267,6 +4822,19 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     }
 
     variable_copylist(&pObjIndex->index_vars,&obj->progs->vars,false);
+    variables_resolve_rsg_bindings(&obj->progs->vars);
+
+    free_string(obj->name);
+    obj->name = variables_expand_text_dup(obj->progs->vars, pObjIndex->name);
+    free_string(obj->short_descr);
+    obj->short_descr = variables_expand_text_dup(obj->progs->vars, pObjIndex->short_descr);
+    free_string(obj->description);
+    obj->description = variables_expand_text_dup(obj->progs->vars, pObjIndex->description);
+    free_string(obj->full_description);
+    if (!IS_NULLSTR(pObjIndex->full_description))
+        obj->full_description = variables_expand_text_dup(obj->progs->vars, pObjIndex->full_description);
+    else
+        obj->full_description = variables_expand_text_dup(obj->progs->vars, pObjIndex->description);
 
     obj->num_enchanted = 0;
     obj->version = VERSION_OBJECT_000;
@@ -4331,9 +4899,9 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
         for (EXTRA_DESCR_DATA *ed = pObjIndex->extra_descr; ed != NULL; ed = ed->next)
         {
             EXTRA_DESCR_DATA *ed_new	= new_extra_descr();
-            ed_new->keyword				= str_dup(ed->keyword);
+            ed_new->keyword				= variables_expand_text_dup(obj->progs->vars, ed->keyword);
             if( ed->description )
-                ed_new->description			= str_dup(ed->description);
+                ed_new->description			= variables_expand_text_dup(obj->progs->vars, ed->description);
             else
                 ed_new->description			= NULL;
             ed_new->next				= obj->extra_descr;
@@ -6469,6 +7037,50 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 
     /* Copy index variables*/
     variable_copylist(&source->index_vars,&vroom->progs->vars,false);
+    variables_resolve_rsg_bindings(&vroom->progs->vars);
+
+    {
+        char *expanded_name = variables_expand_text_dup(vroom->progs->vars, vroom->name);
+        char *expanded_desc = variables_expand_text_dup(vroom->progs->vars, vroom->description);
+        free_string(vroom->name);
+        vroom->name = expanded_name;
+        free_string(vroom->description);
+        vroom->description = expanded_desc;
+    }
+
+    for(ed2 = vroom->extra_descr; ed2; ed2 = ed2->next) {
+        char *expanded_keyword = variables_expand_text_dup(vroom->progs->vars, ed2->keyword);
+        free_string(ed2->keyword);
+        ed2->keyword = expanded_keyword;
+        if (ed2->description) {
+            char *expanded_ed_desc = variables_expand_text_dup(vroom->progs->vars, ed2->description);
+            free_string(ed2->description);
+            ed2->description = expanded_ed_desc;
+        }
+    }
+
+    for(cd2 = vroom->conditional_descr; cd2; cd2 = cd2->next) {
+        char *expanded_cond_desc = variables_expand_text_dup(vroom->progs->vars, cd2->description);
+        free_string(cd2->description);
+        cd2->description = expanded_cond_desc;
+    }
+
+    for(door = 0; door < MAX_DIR; door++) {
+        if ((ex2 = vroom->exit[door])) {
+            char *expanded_keyword = variables_expand_text_dup(vroom->progs->vars, ex2->keyword);
+            char *expanded_short = variables_expand_text_dup(vroom->progs->vars, ex2->short_desc);
+            char *expanded_long = variables_expand_text_dup(vroom->progs->vars, ex2->long_desc);
+            char *expanded_material = variables_expand_text_dup(vroom->progs->vars, ex2->door.material);
+            free_string(ex2->keyword);
+            ex2->keyword = expanded_keyword;
+            free_string(ex2->short_desc);
+            ex2->short_desc = expanded_short;
+            free_string(ex2->long_desc);
+            ex2->long_desc = expanded_long;
+            free_string(ex2->door.material);
+            ex2->door.material = expanded_material;
+        }
+    }
 
     /* If enabled, copy all contents */
     if(objects) {

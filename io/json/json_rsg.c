@@ -236,7 +236,7 @@ static void rsg_pattern_rebuild_refs(RANDOM_STRING *rsg, RANDOM_PATTERN *pattern
     }
     pattern->classes = 0;
 
-    ptr = pattern->name;
+    ptr = pattern->template;
     while (*ptr) {
         int i = 0;
         bool already_added = false;
@@ -321,7 +321,8 @@ static json_t *rsg_pattern_to_json(RANDOM_PATTERN *pattern)
 {
     json_t *obj = json_object();
     json_object_set_new(obj, "weight", json_integer(pattern->weight));
-    json_object_set_new(obj, "template", json_string(pattern->name ? pattern->name : ""));
+    json_object_set_new(obj, "name", json_string(pattern->name ? pattern->name : ""));
+    json_object_set_new(obj, "template", json_string(pattern->template ? pattern->template : ""));
     return obj;
 }
 
@@ -405,12 +406,17 @@ static RANDOM_CLASS *rsg_class_from_json(json_t *obj)
 static RANDOM_PATTERN *rsg_pattern_from_json(json_t *obj)
 {
     RANDOM_PATTERN *pattern;
+    const char *name;
     const char *template;
 
     if (!obj || !json_is_object(obj))
         return NULL;
 
+    name = json_get_string(obj, "name", "");
     template = json_get_string(obj, "template", NULL);
+    if (IS_NULLSTR(template))
+        template = json_get_string(obj, "name", NULL);
+
     if (IS_NULLSTR(template))
         return NULL;
 
@@ -419,7 +425,8 @@ static RANDOM_PATTERN *rsg_pattern_from_json(json_t *obj)
     pattern->weight = json_get_int(obj, "weight", 1);
     if (pattern->weight < 1)
         pattern->weight = 1;
-    pattern->name = str_dup(template);
+    pattern->name = str_dup(IS_NULLSTR(name) ? template : name);
+    pattern->template = str_dup(template);
     return pattern;
 }
 

@@ -18,6 +18,7 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../../mxp_links.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
@@ -33,6 +34,7 @@ static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
 static void redit_show_resets_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void redit_show_extra_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void redit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void redit_show_inheritance_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
 /***************************************************************************
  * Framework Helpers                                                       *
@@ -41,6 +43,15 @@ static void redit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 static AREA_DATA *redit_get_area(void *pEdit)
 {
     return pEdit ? ((ROOM_INDEX_DATA *)pEdit)->area : NULL;
+}
+
+static void redit_rebuild_auto_tags(ROOM_INDEX_DATA *pRoom)
+{
+    if (!pRoom)
+        return;
+
+    free_string(pRoom->auto_tags);
+    pRoom->auto_tags = short_to_name(pRoom->name);
 }
 
 /***************************************************************************
@@ -75,12 +86,14 @@ const struct olc_cmd_type redit_table[] =
     {   "northwest",    redit_northwest     },
     {   "oreset",       redit_oreset        },
     {   "owner",        redit_owner         },
+    {   "parent",       redit_parent        },
     {   "persist",      redit_persist       },
     {   "recall",       redit_recall        },
     {   "region",       redit_region        },
     {   "room",         redit_room          },
     {   "sector",       redit_sector        },
     {   "show",         redit_show          },
+    {   "tags",         redit_tags          },
     {   "south",        redit_south         },
     {   "southeast",    redit_southeast     },
     {   "southwest",    redit_southwest     },
@@ -101,13 +114,14 @@ static const OLC_EDITOR_DEF redit_def = {
     .cmd_table      = redit_table,
     .show_fn        = redit_show,
     .tabs           = {
-        .count = 5,
+        .count = 6,
         .tabs = {
             { "General",  "Gen",  redit_show_general_tab },
             { "Exits",    "Exit", redit_show_exits_tab },
             { "Resets",   "Rst",  redit_show_resets_tab },
             { "Extra",    "Ext",  redit_show_extra_tab },
             { "Scripts",  "Scr",  redit_show_scripts_tab },
+            { "Inheritance", "Inh", redit_show_inheritance_tab },
         }
     },
     .theme          = &olc_theme_world,
@@ -297,6 +311,16 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     if (!IS_NULLSTR(pRoom->owner))
         olc_display_string(ctx, theme, "Owner:", "owner", pRoom->owner);
+
+    olc_display_string(ctx, theme, "Tags:", "tags", IS_NULLSTR(pRoom->tags) ? "(none)" : pRoom->tags);
+    olc_display_string(ctx, theme, "Auto Tags:", NULL, IS_NULLSTR(pRoom->auto_tags) ? "(none)" : pRoom->auto_tags);
+
+    olc_display_string(ctx, theme, "Parent:", "parent",
+        pRoom->parent_wnum.vnum > 0
+            ? widevnum_string(pRoom->parent_wnum.pArea, pRoom->parent_wnum.vnum, pRoom->area)
+            : (pRoom->parent_load.vnum > 0
+                ? formatf("%ld#%ld", pRoom->parent_load.auid, pRoom->parent_load.vnum)
+                : "(none)"));
 
     if (!IS_NULLSTR(pRoom->home_owner))
         olc_display_string(ctx, theme, "Home owner:", NULL, pRoom->home_owner);
@@ -497,6 +521,92 @@ static void redit_show_scripts_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         "RoomProg Vnum", "addrprog", "delrprog");
 
     olc_display_vars(ctx, theme, pRoom->index_vars, "varset", "varclear");
+}
+
+static void redit_show_inheritance_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    ROOM_INDEX_DATA *pRoom = (ROOM_INDEX_DATA *)pEdit;
+    const OLC_EDITOR_THEME *theme = olc_get_theme(&redit_def);
+    AREA_DATA *area;
+    ROOM_INDEX_DATA *room;
+    int iHash;
+    int child_count = 0;
+
+    olc_display_section(ctx, theme, "Parent Chain");
+    if (pRoom->parent) {
+        ROOM_INDEX_DATA *cur = pRoom->parent;
+        int depth = 0;
+
+        while (cur && depth < 32) {
+            if (depth > 0)
+                add_buf(ctx->buffer, " {D->{x ");
+
+            mxp_command_link(ch->desc, ctx->buffer,
+                formatf("redit %s", widevnum_string_room(cur, NULL)),
+                "Edit room",
+                widevnum_string_room(cur, NULL));
+            add_buf(ctx->buffer, formatf(" {x%s", cur->name));
+
+            cur = cur->parent;
+            depth++;
+        }
+
+        if (cur)
+            add_buf(ctx->buffer, " {D->{x ...");
+        add_buf(ctx->buffer, "\n\r");
+    } else if (pRoom->parent_load.vnum > 0) {
+        olc_display_infof(ctx, theme, "Unresolved parent: %ld#%ld",
+            pRoom->parent_load.auid, pRoom->parent_load.vnum);
+    } else {
+        olc_display_infof(ctx, theme, "(none)");
+    }
+
+    olc_display_section(ctx, theme, "Direct Children");
+    for (area = area_first; area != NULL; area = area->next) {
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (room = area->room_index_hash[iHash]; room != NULL; room = room->next) {
+                bool is_child = false;
+
+                if (room == pRoom)
+                    continue;
+
+                if (room->parent == pRoom)
+                    is_child = true;
+                else if (!room->parent && room->parent_load.vnum == pRoom->vnum
+                    && (room->parent_load.auid == 0 || room->parent_load.auid == pRoom->area->uid))
+                    is_child = true;
+
+                if (!is_child)
+                    continue;
+
+                mxp_command_link(ch->desc, ctx->buffer,
+                    formatf("redit %s", widevnum_string_room(room, NULL)),
+                    "Edit room",
+                    widevnum_string_room(room, NULL));
+                add_buf(ctx->buffer, formatf(" {x%s\n\r", room->name));
+                child_count++;
+            }
+        }
+    }
+    if (child_count < 1)
+        olc_display_infof(ctx, theme, "(none)");
+
+    olc_display_section(ctx, theme, "Field Source");
+    if (!pRoom->parent) {
+        olc_display_infof(ctx, theme, "No parent set; all values are local.");
+        return;
+    }
+
+    olc_display_string(ctx, theme, "Room Flags:", NULL,
+        (pRoom->rs_room_flag[0] == 0 && pRoom->rs_room_flag[1] == 0) ? "Inherited" : "Local");
+    olc_display_string(ctx, theme, "Sector:", NULL,
+        room_rs_sector_type(pRoom) == SECT_INSIDE ? "Inherited" : "Local");
+    olc_display_string(ctx, theme, "Heal Rate:", NULL,
+        pRoom->rs_heal_rate == 100 ? "Inherited" : "Local");
+    olc_display_string(ctx, theme, "Mana Rate:", NULL,
+        pRoom->rs_mana_rate == 100 ? "Inherited" : "Local");
+    olc_display_string(ctx, theme, "Move Rate:", NULL,
+        pRoom->rs_move_rate == 100 ? "Inherited" : "Local");
 }
 
 /***************************************************************************
@@ -1059,8 +1169,19 @@ REDIT(redit_name)
     ROOM_INDEX_DATA *pRoom;
     EDIT_ROOM(ch, pRoom);
 
-    return olc_cmd_string(ch, argument, "Name", NULL, &pRoom->name,
+    bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pRoom->name,
         OLC_STR_DEFAULT, NULL, NULL);
+    if (changed)
+        redit_rebuild_auto_tags(pRoom);
+    return changed;
+}
+
+REDIT(redit_tags)
+{
+    ROOM_INDEX_DATA *pRoom;
+    EDIT_ROOM(ch, pRoom);
+    return olc_cmd_string(ch, argument, "Tags", NULL, &pRoom->tags,
+        OLC_STR_CLEARABLE, NULL, NULL);
 }
 
 
@@ -1497,6 +1618,60 @@ REDIT(redit_owner)
         OLC_STR_CLEARABLE, NULL, NULL);
 }
 
+REDIT(redit_parent)
+{
+    ROOM_INDEX_DATA *pRoom;
+    ROOM_INDEX_DATA *parent;
+    WNUM wnum;
+
+    EDIT_ROOM(ch, pRoom);
+
+    if (IS_NULLSTR(argument))
+    {
+        send_to_char("Syntax: parent <widevnum|none>\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "none") || !str_cmp(argument, "clear") || !str_cmp(argument, "0"))
+    {
+        pRoom->parent_load.auid = 0;
+        pRoom->parent_load.vnum = 0;
+        pRoom->parent_wnum.pArea = NULL;
+        pRoom->parent_wnum.vnum = 0;
+        pRoom->parent = NULL;
+        send_to_char("Parent room cleared.\n\r", ch);
+        return true;
+    }
+
+    if (!parse_widevnum(argument, pRoom->area, &wnum))
+    {
+        send_to_char("Invalid widevnum. Use vnum, #vnum, or area#vnum.\n\r", ch);
+        return false;
+    }
+
+    parent = get_room_index(wnum.pArea, wnum.vnum);
+    if (!parent)
+    {
+        send_to_char("That parent room does not exist.\n\r", ch);
+        return false;
+    }
+
+    if (parent == pRoom)
+    {
+        send_to_char("A room cannot inherit from itself.\n\r", ch);
+        return false;
+    }
+
+    pRoom->parent_load.auid = wnum.pArea->uid;
+    pRoom->parent_load.vnum = wnum.vnum;
+    pRoom->parent_wnum = wnum;
+    pRoom->parent = parent;
+    pRoom->parent_inherited = false;
+
+    send_to_char("Parent room set. Inheritance is resolved at load time.\n\r", ch);
+    return true;
+}
+
 
 
 
@@ -1767,16 +1942,33 @@ REDIT(redit_region)
     if (IS_NULLSTR(argument))
     {
         AREA_REGION *current = get_room_region(room);
-        if (!current)
-        {
-            send_to_char("Room has no resolved region.\n\r", ch);
-            return false;
-        }
+        AREA_REGION *r;
+        BUFFER *output = new_buf();
+        ITERATOR it;
+        int idx = 0;
 
-        if (current == &room->area->region)
-            send_to_char("Room region is default.\n\r", ch);
-        else
-            printf_to_char(ch, "Room region: %s (uid %ld).\n\r", current->name, current->uid);
+        add_buf(output, "Area regions (* = this room's region):\n\r");
+        sprintf(buf, "  %s  default  %s\n\r",
+            (current == &room->area->region) ? "*" : " ",
+            room->area->region.name ? room->area->region.name : "(default)");
+        add_buf(output, buf);
+
+        iterator_start(&it, room->area->regions);
+        while ((r = (AREA_REGION *)iterator_nextdata(&it)))
+        {
+            sprintf(buf, "  %s  %2d  %s\n\r",
+                (current == r) ? "*" : " ",
+                ++idx,
+                r->name ? r->name : "(unnamed)");
+            add_buf(output, buf);
+        }
+        iterator_stop(&it);
+
+        if (idx == 0)
+            add_buf(output, "     (No custom regions — use 'aedit regions add <name>')\n\r");
+
+        page_to_char(buf_string(output), ch);
+        free_buf(output);
         return false;
     }
 
@@ -1798,8 +1990,24 @@ REDIT(redit_region)
     }
     else
     {
-        send_to_char("Syntax: region <#|default>\n\r", ch);
-        return false;
+        AREA_REGION *r;
+        ITERATOR it;
+        iterator_start(&it, room->area->regions);
+        while ((r = (AREA_REGION *)iterator_nextdata(&it)))
+        {
+            if (r->name && !str_prefix(argument, r->name))
+            {
+                region = r;
+                break;
+            }
+        }
+        iterator_stop(&it);
+
+        if (!region)
+        {
+            send_to_char("Syntax: region <#|name|default>\n\r", ch);
+            return false;
+        }
     }
 
     if (!IS_VALID(region))

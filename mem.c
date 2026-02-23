@@ -1979,6 +1979,8 @@ AREA_DATA *new_area( void )
     SET_MEMTYPE(pArea,MEMTYPE_AREA);
     pArea->next             =   NULL;
     pArea->name             =   str_dup( "New area" );
+    pArea->tags             =   str_dup( "" );
+    pArea->auto_tags        =   str_dup( "" );
     pArea->area_topic       =   str_dup( "" );
     pArea->area_flags       =   AREA_ADDED;
     pArea->security         =   1;
@@ -1992,7 +1994,7 @@ AREA_DATA *new_area( void )
     pArea->nplayer          =   0;
     //pArea->flags	    =   0;
     pArea->empty            =   true;              /* ROM patch */
-    sprintf( buf, "area%ld.are", pArea->anum );
+    sprintf( buf, "area%ld.json", pArea->anum );
     pArea->file_name        =   str_dup( buf );
     pArea->anum             =   top_area-1;
     pArea->uid              =   0;  /* Vizz - uid 0 is invalid */
@@ -2042,6 +2044,8 @@ void free_area( AREA_DATA *pArea )
     OLC_POINT_BOOST *boost, *boost_next;
 
     free_string( pArea->name );
+    free_string( pArea->tags );
+    free_string( pArea->auto_tags );
     free_string( pArea->area_topic );
     free_string( pArea->file_name );
     free_string( pArea->builders );
@@ -2227,6 +2231,14 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->visited = 0;
     pRoom->id[0] = pRoom->id[1] = 0;	// Explicitly make this 0,0 until set, or left for static rooms
     pRoom->comments         =   &str_empty[0];
+    pRoom->tags             =   str_dup( "" );
+    pRoom->auto_tags        =   str_dup( "" );
+    pRoom->parent_load.auid = 0;
+    pRoom->parent_load.vnum = 0;
+    pRoom->parent_wnum.pArea = NULL;
+    pRoom->parent_wnum.vnum = 0;
+    pRoom->parent = NULL;
+    pRoom->parent_inherited = false;
 
     pRoom->reset_first = NULL;
     pRoom->reset_last = NULL;
@@ -2258,6 +2270,8 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
     free_string( pRoom->owner );
     free_string( pRoom->home_owner );
     free_string( pRoom->comments );
+    free_string( pRoom->tags );
+    free_string( pRoom->auto_tags );
     if(pRoom->progs && pRoom->progs->progs) free_prog_list(pRoom->progs->progs);
     free_prog_data(pRoom->progs);
 
@@ -2496,9 +2510,21 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->condition     =   100;                        /* ROM */
     pObj->timer		=   0;
     pObj->skeywds		=	str_dup( "none" );
+    pObj->list_name      =   str_dup( "" );
+    pObj->list_keywords  =   str_dup( "" );
+    pObj->tags           =   str_dup( "" );
+    pObj->auto_tags      =   str_dup( "" );
+    pObj->parent_load.auid = 0;
+    pObj->parent_load.vnum = 0;
+    pObj->parent_wnum.pArea = NULL;
+    pObj->parent_wnum.vnum = 0;
+    pObj->parent = NULL;
+    pObj->parent_inherited = false;
     for ( value = 0; value < 8; value++ )               /* 5 - ROM */
         pObj->value[value]  =   0;
     pObj->comments      = &str_empty[0];
+    pObj->prerequisites  = str_dup("");
+    pObj->quests_v2     = NULL;
     pObj->lock			= NULL;
     pObj->waypoints		= NULL;
 
@@ -2511,6 +2537,7 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
     EXTRA_DESCR_DATA *pExtra;
     AFFECT_DATA *pAf;
     CATALYST_DATA *cat, *cat_next;
+    QUEST_V2_LIST *q2, *q2_next;
 
     free_string( pObj->name );
     free_string( pObj->short_descr );
@@ -2518,7 +2545,18 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
     free_string( pObj->imp_sig );
     free_string( pObj->creator_sig );
     free_string( pObj->skeywds );
+    free_string( pObj->list_name );
+    free_string( pObj->list_keywords );
+    free_string( pObj->tags );
+    free_string( pObj->auto_tags );
     free_string( pObj->comments );
+    free_string( pObj->prerequisites );
+
+    for (q2 = pObj->quests_v2; q2 != NULL; q2 = q2_next)
+    {
+        q2_next = q2->next;
+        free_quest_v2_list(q2);
+    }
 
     free_prog_list(pObj->progs);
     variable_freelist(&pObj->index_vars);
@@ -2619,8 +2657,19 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->default_pos           =   POS_STANDING;
     pMob->wealth                =   0;
     pMob->skeywds		=	str_dup( "none" );
+    pMob->list_name             =   str_dup( "" );
+    pMob->list_keywords         =   str_dup( "" );
+    pMob->tags                  =   str_dup( "" );
+    pMob->auto_tags             =   str_dup( "" );
+    pMob->parent_load.auid = 0;
+    pMob->parent_load.vnum = 0;
+    pMob->parent_wnum.pArea = NULL;
+    pMob->parent_wnum.vnum = 0;
+    pMob->parent = NULL;
+    pMob->parent_inherited = false;
     pMob->attacks	=   0;
     pMob->quests =  NULL;
+    pMob->quests_v2 = NULL;
     pMob->mob_reputations = NULL;
 
     return pMob;
@@ -2631,6 +2680,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 {
     QUEST_LIST *quest_list;
     QUEST_LIST *quest_list_next;
+    QUEST_V2_LIST *q2, *q2_next;
     MOB_REPUTATION_DATA *rep;
     MOB_REPUTATION_DATA *rep_next;
 
@@ -2642,6 +2692,10 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     free_string( pMob->material );
     free_string( pMob->sig );
     free_string( pMob->skeywds );
+    free_string( pMob->list_name );
+    free_string( pMob->list_keywords );
+    free_string( pMob->tags );
+    free_string( pMob->auto_tags );
 
     free_prog_list(pMob->progs);
     variable_freelist(&pMob->index_vars);
@@ -2651,6 +2705,12 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     quest_list_next = quest_list->next;
 
     free_quest_list( quest_list );
+    }
+
+    for (q2 = pMob->quests_v2; q2 != NULL; q2 = q2_next)
+    {
+        q2_next = q2->next;
+        free_quest_v2_list(q2);
     }
 
     for (rep = pMob->mob_reputations; rep != NULL; rep = rep_next)
@@ -2940,6 +3000,7 @@ QUEST_REWARD_INDEX_V2_DATA *new_quest_reward_index_v2(void)
     reward->target_wnum = wnum_zero;
     reward->currency = str_dup("");
     reward->script = str_dup("");
+    reward->display_string = str_dup("");
 
     return reward;
 }
@@ -2952,6 +3013,7 @@ void free_quest_reward_index_v2(QUEST_REWARD_INDEX_V2_DATA *reward)
 
     free_string(reward->currency);
     free_string(reward->script);
+    free_string(reward->display_string);
 
     reward->next = quest_reward_index_v2_free;
     quest_reward_index_v2_free = reward;
@@ -2990,6 +3052,7 @@ QUEST_INDEX_V2_DATA *new_quest_index_v2(void)
     quest_index_v2->progs = NULL;
     quest_index_v2->index_vars = NULL;
     quest_index_v2->enabled = true;
+    quest_index_v2->prerequisites = str_dup("");
 
     return quest_index_v2;
 }
@@ -3024,6 +3087,7 @@ void free_quest_index_v2(QUEST_INDEX_V2_DATA *quest_index_v2)
 
     free_string(quest_index_v2->name);
     free_string(quest_index_v2->description);
+    free_string(quest_index_v2->prerequisites);
     variable_freelist(&quest_index_v2->index_vars);
 
     quest_index_v2->next = quest_index_v2_free;
@@ -3965,6 +4029,21 @@ void free_quest_list( QUEST_LIST *quest_list )
 {
     quest_list->next = quest_list_free;
     quest_list_free = quest_list;
+}
+
+
+QUEST_V2_LIST *new_quest_v2_list( void )
+{
+    QUEST_V2_LIST *entry = alloc_perm(sizeof(*entry));
+    memset(entry, 0, sizeof(*entry));
+    return entry;
+}
+
+
+void free_quest_v2_list( QUEST_V2_LIST *entry )
+{
+    /* QUEST_V2_LIST contains no heap strings; just return to system pool. */
+    (void)entry;
 }
 
 
