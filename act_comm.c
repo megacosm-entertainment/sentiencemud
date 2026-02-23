@@ -38,6 +38,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <ctype.h>
 #include "merc.h"
 #include "interp.h"
 #include "olc.h"
@@ -58,12 +59,31 @@ void string_end_chreport(CHAR_DATA *ch)
 {
     char *notes;
     bool submitted;
+    const char *cursor;
+    bool has_content = false;
 
     if (!ch || !ch->desc)
         return;
 
     notes = ch->temp_log_entry;
     ch->temp_log_entry = NULL;
+
+    for (cursor = notes; cursor && *cursor != '\0'; cursor++) {
+        if (!isspace((unsigned char)*cursor)) {
+            has_content = true;
+            break;
+        }
+    }
+
+    if (!has_content) {
+        free_string(notes);
+        free_string(ch->temp_report_channel);
+        free_string(ch->temp_report_message_id);
+        ch->temp_report_channel = NULL;
+        ch->temp_report_message_id = NULL;
+        send_to_char("Report cancelled (no notes entered).\n\r", ch);
+        return;
+    }
 
     submitted = channel_service_report_message(ch,
                                                ch->temp_report_channel,

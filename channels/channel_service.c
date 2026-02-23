@@ -57,6 +57,7 @@ static int channel_history_ring_next = 0;
 static int channel_history_ring_count = 0;
 static unsigned long long channel_history_local_seq = 0ULL;
 static bool channel_history_dirty = false;
+static char channel_delivery_report_id[64];
 
 #define CHANNEL_STAFF_REPORT_RING_MAX 2048
 
@@ -543,7 +544,9 @@ static void channel_history_append(const char *channel_id,
                                    const char *message_text,
                                    time_t timestamp,
                                    const char *report_id,
-                                   const char *reports_json)
+                                   const char *reports_json,
+                                   char *out_report_id,
+                                   size_t out_report_id_sz)
 {
     CHANNEL_HISTORY_RECORD *record;
 
@@ -574,6 +577,9 @@ static void channel_history_append(const char *channel_id,
 
     if (!IS_NULLSTR(reports_json))
         strlcpy(record->reports_json, reports_json, sizeof(record->reports_json));
+
+    if (out_report_id && out_report_id_sz > 0)
+        strlcpy(out_report_id, record->report_id, out_report_id_sz);
 
     channel_history_ring_next = (channel_history_ring_next + 1) % CHANNEL_HISTORY_RING_MAX;
     if (channel_history_ring_count < CHANNEL_HISTORY_RING_MAX)
@@ -1755,6 +1761,7 @@ static void channel_send_targeted_notvict(const char *channel_id,
 }
 
 static void channel_sender_name_mxp(descriptor_t *desc,
+                                                                        const char *report_id,
                                     const char *channel_id,
                                     const char *sender_name,
                                     char *out,
@@ -1765,12 +1772,13 @@ static void channel_sender_name_mxp(descriptor_t *desc,
     char whois_target[MIL];
     char whois_cmd[MSL];
     char tell_cmd[MSL];
+    char report_cmd[MSL];
     char history_cmd[MSL];
     char warn_cmd[MSL];
     char mute_cmd[MSL];
     char ban_cmd[MSL];
     bool can_moderate = false;
-    mxp_cmd_hint_t items[6];
+    mxp_cmd_hint_t items[7];
     int nitems = 0;
     int i;
     CHAR_DATA *viewer;
@@ -1813,6 +1821,13 @@ static void channel_sender_name_mxp(descriptor_t *desc,
     items[nitems].cmd = tell_cmd;
     items[nitems].hint = "Tell player";
     nitems++;
+
+    if (!IS_NULLSTR(channel_id) && !IS_NULLSTR(report_id)) {
+        snprintf(report_cmd, sizeof(report_cmd), "history %s report %s ", channel_id, report_id);
+        items[nitems].cmd = report_cmd;
+        items[nitems].hint = "Report message";
+        nitems++;
+    }
 
     if (!IS_NULLSTR(channel_id)) {
         snprintf(history_cmd, sizeof(history_cmd), "history %s", channel_id);
@@ -1923,6 +1938,7 @@ static void channel_format_for_recipient(const char *channel_id,
     channel_sender_name_mxp(recipient ? recipient->desc : NULL,
                             channel_id,
                             sender_name,
+                            channel_delivery_report_id,
                             sender_name_mxp,
                             sizeof(sender_name_mxp));
     sender_name_render = sender_name_mxp[0] ? sender_name_mxp : sender_name;
@@ -2900,10 +2916,21 @@ static bool channel_deliver_intone_legacy(CHAR_DATA *sender,
     return true;
 }
 
-static bool channel_dispatch_legacy_by_id(CHAR_DATA *sender, const char *channel_id, const char *plain_text)
+static bool channel_dispatch_legacy_by_id(CHAR_DATA *sender,
+                                          const char *channel_id,
+                                          const char *plain_text,
+                                          const char *report_id)
 {
+    char previous_report_id[sizeof(channel_delivery_report_id)];
+
     if (!sender || IS_NULLSTR(channel_id) || IS_NULLSTR(plain_text))
         return false;
+
+    strlcpy(previous_report_id, channel_delivery_report_id, sizeof(previous_report_id));
+    if (IS_NULLSTR(report_id))
+        channel_delivery_report_id[0] = '\0';
+    else
+        strlcpy(channel_delivery_report_id, report_id, sizeof(channel_delivery_report_id));
 
     if (!str_cmp(channel_id, "ooc")) {
         channel_deliver_ooc_legacy(sender, plain_text);
@@ -2928,9 +2955,11 @@ static bool channel_dispatch_legacy_by_id(CHAR_DATA *sender, const char *channel
     } else if (!str_cmp(channel_id, "chtalk")) {
         channel_deliver_chtalk_legacy(sender, plain_text);
     } else {
+        strlcpy(channel_delivery_report_id, previous_report_id, sizeof(channel_delivery_report_id));
         return false;
     }
 
+    strlcpy(channel_delivery_report_id, previous_report_id, sizeof(channel_delivery_report_id));
     return true;
 }
 
@@ -2959,6 +2988,7 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
 {
     CHAR_DATA *sender;
     const CHANNEL_DEFINITION *def;
+    char appended_report_id[64];
 
     if (!msg || IS_NULLSTR(msg->channel_id))
         return;
@@ -2966,13 +2996,17 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
     if (IS_NULLSTR(msg->message_text))
         return;
 
+    appended_report_id[0] = '\0';
+
     channel_history_append(msg->channel_id,
                            msg->topic,
                            msg->sender_name,
                            msg->message_text,
                            msg->timestamp,
                            msg->history_id,
-                           msg->reports_json);
+                           msg->reports_json,
+                           appended_report_id,
+                           sizeof(appended_report_id));
 
     sender = channel_find_sender(msg->sender_id0, msg->sender_id1, msg->sender_name);
     if (!sender)
@@ -2995,7 +3029,7 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
         return;
     }
 
-    channel_dispatch_legacy_by_id(sender, msg->channel_id, msg->message_text);
+    channel_dispatch_legacy_by_id(sender, msg->channel_id, msg->message_text, appended_report_id);
 }
 
 bool channel_service_init(void)
@@ -3083,11 +3117,13 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
     char sender_uid[64];
     char review_id[64];
     char reports_json[256];
+    char appended_report_id[64];
 
     if (!sender || IS_NULLSTR(channel_id) || IS_NULLSTR(raw_text))
         return false;
 
     reports_json[0] = '\0';
+    appended_report_id[0] = '\0';
 
     def = channel_find_definition(channel_id);
     if (!def)
@@ -3171,8 +3207,10 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                delivery_text,
                                current_time,
                                NULL,
-                               msg.reports_json);
-        return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text);
+                               msg.reports_json,
+                               appended_report_id,
+                               sizeof(appended_report_id));
+        return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
     if (!channel_build_topic_for_sender(def, sender, topic, sizeof(topic)))
@@ -3191,8 +3229,10 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                delivery_text,
                                current_time,
                                NULL,
-                               msg.reports_json);
-        return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text);
+                               msg.reports_json,
+                               appended_report_id,
+                               sizeof(appended_report_id));
+        return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
     channel_history_append(channel_id,
@@ -3201,8 +3241,10 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                            delivery_text,
                            current_time,
                            NULL,
-                           msg.reports_json);
-    return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text);
+                           msg.reports_json,
+                           appended_report_id,
+                           sizeof(appended_report_id));
+    return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
 }
 
 bool channel_service_channel_available_for_sender(CHAR_DATA *sender,
@@ -3225,6 +3267,8 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     char recipient_uid[64];
     char review_id[64];
     char reports_json[256];
+    char appended_report_id[64];
+    appended_report_id[0] = '\0';
 
     if (!sender || IS_NULLSTR(channel_id) || !recipient || IS_NULLSTR(raw_text))
         return false;
@@ -3313,7 +3357,9 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
                                delivery_text,
                                current_time,
                                NULL,
-                               msg.reports_json);
+                               msg.reports_json,
+                               appended_report_id,
+                               sizeof(appended_report_id));
         channel_deliver_tell_legacy(sender, recipient, delivery_text);
         return true;
     }
@@ -3349,7 +3395,9 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
                            delivery_text,
                            current_time,
                            NULL,
-                           msg.reports_json);
+                           msg.reports_json,
+                           appended_report_id,
+                           sizeof(appended_report_id));
     channel_deliver_tell_legacy(sender, recipient, delivery_text);
     return true;
 }
@@ -3449,7 +3497,9 @@ bool channel_service_send_room_targeted(CHAR_DATA *sender, const char *channel_i
                                delivery_text,
                                current_time,
                                NULL,
-                               msg.reports_json);
+                               msg.reports_json,
+                               NULL,
+                               0);
         return channel_dispatch_targeted_room_legacy_by_id(sender, channel_id, target, delivery_text);
     }
 
@@ -3484,7 +3534,9 @@ bool channel_service_send_room_targeted(CHAR_DATA *sender, const char *channel_i
                            delivery_text,
                            current_time,
                            NULL,
-                           msg.reports_json);
+                           msg.reports_json,
+                           NULL,
+                           0);
     return channel_dispatch_targeted_room_legacy_by_id(sender, channel_id, target, delivery_text);
 }
 
