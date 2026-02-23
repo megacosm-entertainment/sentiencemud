@@ -29,6 +29,22 @@ void mxp_link(descriptor_t *d, BUFFER *buf, const char *text,
         bprintf(buf, "\t<send href=\"%s\">%s\t</send>", command, text);
 }
 
+void mxp_link_prompt(descriptor_t *d, BUFFER *buf, const char *text,
+                     const char *command, const char *hint)
+{
+    if (!text) text = "";
+    if (!command || !command[0] || !isMXP(d)) {
+        add_buf(buf, (char *)text);
+        return;
+    }
+
+    if (hint && hint[0])
+        bprintf(buf, "\t<send href=\"%s\" hint=\"%s\" prompt>%s\t</send>",
+                command, hint, text);
+    else
+        bprintf(buf, "\t<send href=\"%s\" prompt>%s\t</send>", command, text);
+}
+
 void mxp_link_multi(descriptor_t *d, BUFFER *buf, const char *text,
                     const mxp_cmd_hint_t *items, int nitems)
 {

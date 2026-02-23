@@ -137,4 +137,7 @@ void mxp_help_link(descriptor_t *d, BUFFER *buf, const char *keyword,
 void mxp_command_link(descriptor_t *d, BUFFER *buf, const char *command,
                       const char *hint, const char *text);
 
+void mxp_link_prompt(descriptor_t *d, BUFFER *buf, const char *text,
+                     const char *command, const char *hint);
+
 #endif /* MXP_LINKS_H */

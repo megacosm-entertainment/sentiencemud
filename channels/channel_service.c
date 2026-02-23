@@ -325,8 +325,7 @@ static void channel_history_load(void)
             channel_history_local_seq++;
             snprintf(record->report_id,
                      sizeof(record->report_id),
-                     "local-%ld-%llu",
-                     (long)record->timestamp,
+                     "local-%llu",
                      channel_history_local_seq);
         }
 
@@ -569,8 +568,7 @@ static void channel_history_append(const char *channel_id,
         channel_history_local_seq++;
         snprintf(record->report_id,
                  sizeof(record->report_id),
-                 "local-%ld-%llu",
-                 (long)record->timestamp,
+                 "local-%llu",
                  channel_history_local_seq);
     }
 
@@ -1558,10 +1556,6 @@ static void channel_sender_name_mxp(descriptor_t *desc,
     nitems++;
 
     snprintf(tell_cmd, sizeof(tell_cmd), "tell %s ", whois_target);
-    items[nitems].cmd = tell_cmd;
-    items[nitems].hint = "Tell player";
-    nitems++;
-
     if (!IS_NULLSTR(channel_id)) {
         snprintf(history_cmd, sizeof(history_cmd), "history %s", channel_id);
         items[nitems].cmd = history_cmd;
@@ -1588,6 +1582,8 @@ static void channel_sender_name_mxp(descriptor_t *desc,
 
     mxp_buf = new_buf();
     mxp_link_multi(desc, mxp_buf, sender_name, items, nitems);
+    add_buf(mxp_buf, " ");
+    mxp_link_prompt(desc, mxp_buf, "[tell]", tell_cmd, "Insert tell command");
     strlcpy(out, buf_string(mxp_buf), out_sz);
     free_buf(mxp_buf);
 }
