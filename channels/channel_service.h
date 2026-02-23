@@ -59,6 +59,11 @@ bool channel_service_history_by_report_id(CHAR_DATA *viewer,
                                           const char *channel_id,
                                           const char *report_id,
                                           CHANNEL_HISTORY_ENTRY *out_entry);
+bool channel_service_apply_preference_filters(const char *channel_id,
+                                              CHAR_DATA *recipient,
+                                              const char *plain_text,
+                                              char *out_text,
+                                              size_t out_text_sz);
 bool channel_service_report_message(CHAR_DATA *reporter,
                                     const char *channel_id,
                                     const char *report_id,

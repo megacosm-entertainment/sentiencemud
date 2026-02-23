@@ -1649,6 +1649,28 @@ static bool channel_delivery_filtered_by_preferences(const char *channel_id,
     return false;
 }
 
+bool channel_service_apply_preference_filters(const char *channel_id,
+                                              CHAR_DATA *recipient,
+                                              const char *plain_text,
+                                              char *out_text,
+                                              size_t out_text_sz)
+{
+    if (!out_text || out_text_sz == 0)
+        return false;
+
+    if (IS_NULLSTR(plain_text)) {
+        out_text[0] = '\0';
+        return false;
+    }
+
+    strlcpy(out_text, plain_text, out_text_sz);
+    return channel_delivery_filtered_by_preferences(channel_id,
+                                                    recipient,
+                                                    plain_text,
+                                                    out_text,
+                                                    out_text_sz);
+}
+
 static void channel_extract_whois_target(const char *display_name,
                                          char *out,
                                          size_t out_sz)

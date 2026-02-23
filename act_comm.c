@@ -650,6 +650,7 @@ void do_history(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
     if (arg2[0] == '\0') {
         char buf[MSL];
+        int shown = 0;
 
         count = channel_service_history_recent(ch,
                                def->id,
@@ -668,9 +669,18 @@ void do_history(CHAR_DATA *ch, char *argument)
             char when_buf[32];
             char report_link[512];
             char reported_marker[64];
+            char filtered_text[sizeof(entries[i].message_text)];
             int report_count = 0;
             bool show_report_link = (ch->desc && isMXP(ch->desc));
             struct tm *tm_info = localtime(&entries[i].timestamp);
+
+            if (channel_service_apply_preference_filters(def->id,
+                                                         ch,
+                                                         entries[i].message_text,
+                                                         filtered_text,
+                                                         sizeof(filtered_text))) {
+                continue;
+            }
 
             if (tm_info)
                 strftime(when_buf, sizeof(when_buf), "%Y-%m-%d %H:%M", tm_info);
@@ -701,7 +711,7 @@ void do_history(CHAR_DATA *ch, char *argument)
                          entries[i].sender_name,
                          report_link,
                          reported_marker,
-                         entries[i].message_text);
+                         filtered_text);
             else
                 snprintf(buf,
                          sizeof(buf),
@@ -710,8 +720,14 @@ void do_history(CHAR_DATA *ch, char *argument)
                          when_buf,
                          entries[i].sender_name,
                          reported_marker,
-                         entries[i].message_text);
+                         filtered_text);
             send_to_char(buf, ch);
+            shown++;
+        }
+
+        if (shown == 0) {
+            send_to_char("No visible history for that channel after your filters.\n\r", ch);
+            return;
         }
 
         send_to_char("Use 'history <channel> info <#|message-id>' for full details.\n\r", ch);
@@ -1204,11 +1220,6 @@ void do_say(CHAR_DATA *ch, char *argument)
     char *second;
     bool break_line = true;
 
-    if (!argument[0]) {
-    send_to_char("Say what?\n\r", ch);
-    return;
-    }
-
     if (IS_AFFECTED2(ch, AFF2_SILENCE))
     {
     send_to_char("You attempt to say something but fail!\n\r", ch);
@@ -1234,7 +1245,6 @@ void do_say(CHAR_DATA *ch, char *argument)
     && msg[i+1] != ' ')
     break_line = false;
     }
-
     if (break_line)
     {
     second = stptok(msg, buf, sizeof(buf), "!");

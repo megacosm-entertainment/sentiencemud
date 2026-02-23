@@ -62,6 +62,41 @@ static void cedit_filter_trim_rule(char *text)
         end--;
     *end = '\0';
 }
+
+static void cedit_display_filter_rules(OLC_LAYOUT_CTX *ctx,
+                                       const OLC_EDITOR_THEME *theme,
+                                       const char *label,
+                                       const char *command,
+                                       const char *spec)
+{
+    char copy[512];
+    char *line;
+    char *saveptr = NULL;
+    int idx = 0;
+
+    if (IS_NULLSTR(spec)) {
+        olc_display_string(ctx, theme, label, command, "(none)");
+        return;
+    }
+
+    strlcpy(copy, spec, sizeof(copy));
+    line = strtok_r(copy, "\n", &saveptr);
+    while (line) {
+        cedit_filter_trim_rule(line);
+        if (!IS_NULLSTR(line)) {
+            if (idx == 0)
+                olc_display_string(ctx, theme, label, command, formatf("%2d) %s", idx + 1, line));
+            else
+                olc_display_string(ctx, theme, "", NULL, formatf("%2d) %s", idx + 1, line));
+            idx++;
+        }
+        line = strtok_r(NULL, "\n", &saveptr);
+    }
+
+    if (idx == 0)
+        olc_display_string(ctx, theme, label, command, "(none)");
+}
+
 static bool cedit_review(CHAR_DATA *ch, char *argument);
 static bool cedit_modadd(CHAR_DATA *ch, char *argument);
 static bool cedit_moddel(CHAR_DATA *ch, char *argument);
@@ -1486,10 +1521,10 @@ static void cedit_show_moderation_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
 
     olc_display_bool(ctx, theme, "Filter Enabled:", "filter", channel->filter_enabled);
     olc_display_string(ctx, theme, "Filter Mode:", "filter", channel_filter_mode_to_name(channel->filter_mode));
-    olc_display_string(ctx, theme, "Simple Match:", "filter simple",
-        channel->filter_simple[0] ? channel->filter_simple : "(none)");
-    olc_display_string(ctx, theme, "Regex Match:", "filter regex",
-        channel->filter_regex[0] ? channel->filter_regex : "(none)");
+    cedit_display_filter_rules(ctx, theme, "Simple Rules:", "filter simple list", channel->filter_simple);
+    cedit_display_filter_rules(ctx, theme, "Regex Rules:", "filter regex list", channel->filter_regex);
+    olc_display_infof(ctx, theme, "Use: filter simple|regex add <match> [replacement], del <index>, list");
+    olc_display_infof(ctx, theme, "Use: filter clear <simple|regex|all>  and  filter <on|off> [allow|redact|block|review]");
     olc_display_number(ctx, theme, "Warn Threshold:", "punish warn_threshold", channel->light_warn_threshold);
     olc_display_number(ctx, theme, "Mute Minutes:", "punish mute_minutes", channel->light_mute_minutes);
 
