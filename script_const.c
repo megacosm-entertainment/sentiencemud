@@ -366,6 +366,8 @@ ENT_FIELD entity_mobile[] = {
     {"totalmissions",   ENTITY_MOB_TOTALQUESTS,         ENT_NUMBER },
     {"isquesting",      ENTITY_MOB_ONMISSION,           ENT_BOOLEAN },
     {"onmission",       ENTITY_MOB_ONMISSION,           ENT_BOOLEAN },
+    {"quests",          ENTITY_MOB_QUESTS,              ENT_ILLIST_QUEST },
+    {"questhistory",    ENTITY_MOB_QUESTHISTORY,        ENT_ILLIST_QUEST_HISTORY },
     {"reputations",     ENTITY_MOB_REPUTATIONS,         ENT_ILLIST_REPUTATION },
     {"reputation",      ENTITY_MOB_REPUTATION,          ENT_REPUTATION },
     {"factions",        ENTITY_MOB_FACTIONS,            ENT_ILLIST_REPUTATION_INDEX },
@@ -1139,6 +1141,21 @@ ENT_FIELD entity_quest[] = {
     {NULL,                 0,                              ENT_UNKNOWN     }
 };
 
+ENT_FIELD entity_quest_history[] = {
+    {"id",                ENTITY_QHIST_RUNID,             ENT_NUMBER      },
+    {"runid",             ENTITY_QHIST_RUNID,             ENT_NUMBER      },
+    {"status",            ENTITY_QHIST_STATUS,            ENT_NUMBER      },
+    {"active",            ENTITY_QHIST_ACTIVE,            ENT_BOOLEAN     },
+    {"completed",         ENTITY_QHIST_COMPLETED,         ENT_BOOLEAN     },
+    {"failed",            ENTITY_QHIST_FAILED,            ENT_BOOLEAN     },
+    {"abandoned",         ENTITY_QHIST_ABANDONED,         ENT_BOOLEAN     },
+    {"index",             ENTITY_QHIST_INDEX,             ENT_WIDEVNUM    },
+    {"wnum",              ENTITY_QHIST_INDEX,             ENT_WIDEVNUM    },
+    {"name",              ENTITY_QHIST_NAME,              ENT_STRING      },
+    {"scope",             ENTITY_QHIST_SCOPE,             ENT_NUMBER      },
+    {NULL,                 0,                              ENT_UNKNOWN     }
+};
+
 ENT_FIELD entity_quest_stage[] = {
     {"id",                ENTITY_QUEST_STAGE_ID,                ENT_NUMBER      },
     {"name",              ENTITY_QUEST_STAGE_NAME,              ENT_STRING      },
@@ -1509,6 +1526,7 @@ struct _entity_type_info entity_type_info[] = {
     { ENT_SHIP,           ENT_SHIP,           entity_ship,                false   },
     { ENT_SHIPINDEX,      ENT_SHIPINDEX,      entity_ship_index,          false   },
     { ENT_QUEST,          ENT_QUEST,          entity_quest,               false   },
+    { ENT_QUEST_HISTORY,  ENT_QUEST_HISTORY,  entity_quest_history,       false   },
     { ENT_QUEST_STAGE,    ENT_QUEST_STAGE,    entity_quest_stage,         false   },
     { ENT_QUEST_OBJECTIVE, ENT_QUEST_OBJECTIVE, entity_quest_objective,   false   },
     { ENT_SECTOR,		ENT_SECTOR,		entity_sector,		false	},
@@ -1946,6 +1964,7 @@ IFCHECK_DATA ifcheck_table[] = {
     { "hascheckpoint",		IFC_ANY,	"ES",	true,	ifc_hascheckpoint,		"ifcheck hascheckpoint" },
     { "hasenviroment",		IFC_ANY,	"ES",	true,	ifc_hasenvironment,		"ifcheck hasenvironment" },
     { "hasprompt",			IFC_ANY,	"E",	false,	ifc_hasprompt,			"ifcheck hasprompt" },
+    { "hasquest",			IFC_ANY,	"EN",	false,	ifc_hasquest,			"ifcheck hasquest" },
     { "hasqueue",			IFC_ANY,	"E",	false,	ifc_hasqueue,			"ifcheck hasqueue" },
     { "hasreputation",		IFC_ANY,	"EN",	false,	ifc_hasreputation,		"ifcheck hasreputation" },
     { "hasfaction",			IFC_ANY,	"E",	false,	ifc_hasfaction,			"ifcheck hasfaction" },
@@ -2171,6 +2190,12 @@ IFCHECK_DATA ifcheck_table[] = {
     { "pos",				IFC_ANY,	"ES",	false,	ifc_pos,				"ifcheck pos" },
     { "practices",			IFC_ANY,	"E",	true,	ifc_practices,			"ifcheck practices" },
     { "protocol",			IFC_ANY,	"ES",	false,	ifc_protocol,			"ifcheck protocol" },
+    { "questabandoned",		IFC_ANY,	"EN",	false,	ifc_questabandoned,		"ifcheck questabandoned" },
+    { "questactive",		IFC_ANY,	"EN",	false,	ifc_questactive,		"ifcheck questactive" },
+    { "questcomplete",		IFC_ANY,	"EN",	false,	ifc_questcomplete,		"ifcheck questcomplete" },
+    { "questcompletions",	IFC_ANY,	"EN",	true,	ifc_questcompletions,	"ifcheck questcompletions" },
+    { "questfailed",		IFC_ANY,	"EN",	false,	ifc_questfailed,		"ifcheck questfailed" },
+    { "questfailures",		IFC_ANY,	"EN",	true,	ifc_questfailures,		"ifcheck questfailures" },
     { "questpoint",			IFC_ANY,	"E",	true,	ifc_quest,				"ifcheck questpoint" },
     { "race",				IFC_ANY,	"ES",	false,	ifc_race,				"ifcheck race" },
     { "racepath",			IFC_ANY,	"E",	false,	ifc_racepath,			"ifcheck racepath" },

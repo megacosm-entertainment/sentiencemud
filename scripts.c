@@ -1584,6 +1584,12 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
                 list_destroy(block->loops[i].d.l.list.lp);
                 break;
 
+            case ENT_ILLIST_QUEST:
+            case ENT_ILLIST_QUEST_HISTORY:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                list_destroy(block->loops[i].d.l.list.lp);
+                break;
+
             case ENT_ILLIST_MOB_GROUP:
                 iterator_stop(&block->loops[i].d.l.list.it);
                 list_destroy(block->loops[i].d.l.list.lp);
@@ -1913,6 +1919,8 @@ DECL_OPC_FUN(opc_list)
     SKILL_GROUP *skill_group;
     QUEST_STAGE_INDEX_V2_DATA *quest_stage;
     QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective;
+    QUEST_DATA *quest_run;
+    QUEST_HISTORY_DATA *quest_hist;
     NAMED_SPECIAL_ROOM *special_room;
     SHIP_DATA *ship;
 
@@ -3023,6 +3031,56 @@ DECL_OPC_FUN(opc_list)
             variables_set_quest_objective(block->info.var,block->loops[lp].var_name,quest_objective);
             break;
 
+        case ENT_ILLIST_QUEST:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_run = (QUEST_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_run ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest(block->info.var,block->loops[lp].var_name,quest_run);
+            break;
+
+        case ENT_ILLIST_QUEST_HISTORY:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST_HISTORY;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_hist = (QUEST_HISTORY_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_hist ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest_history(block->info.var,block->loops[lp].var_name,quest_hist);
+            break;
+
         case ENT_ILLIST_SECTIONS:
             if(!IS_VALID(arg->d.blist))
             {
@@ -3821,6 +3879,34 @@ DECL_OPC_FUN(opc_list)
             variables_set_quest_objective(block->info.var,block->loops[lp].var_name,quest_objective);
 
             if( !quest_objective ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_QUEST:
+            quest_run = (QUEST_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest(block->info.var,block->loops[lp].var_name,quest_run);
+
+            if( !quest_run ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_QUEST_HISTORY:
+            quest_hist = (QUEST_HISTORY_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest_history(block->info.var,block->loops[lp].var_name,quest_hist);
+
+            if( !quest_hist ) {
                 iterator_stop(&block->loops[lp].d.l.list.it);
                 list_destroy(block->loops[lp].d.l.list.lp);
                 skip = true;

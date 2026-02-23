@@ -2205,6 +2205,288 @@ DECL_IFC_FUN(ifc_mission)
     return true;
 }
 
+/*
+ * Helper to parse a quest v2 widevnum from ifcheck arguments.
+ * Supports ENT_WIDEVNUM, ENT_NUMBER (legacy vnum), and ENT_STRING.
+ * Returns true if a valid widevnum was extracted.
+ */
+static bool ifc_parse_quest_wnum(SCRIPT_PARAM **argv, int idx, CHAR_DATA *mob, long *auid, long *vnum)
+{
+    *auid = 0;
+    *vnum = 0;
+
+    if (ISARG_WNUM(idx))
+    {
+        if (ARG_WNUM(idx).pArea)
+            *auid = ARG_WNUM(idx).pArea->uid;
+        *vnum = ARG_WNUM(idx).vnum;
+    }
+    else if (ISARG_NUM(idx))
+    {
+        *vnum = ARG_NUM(idx);
+    }
+    else if (ISARG_STR(idx))
+    {
+        AREA_DATA *context = (mob && mob->in_room) ? mob->in_room->area : NULL;
+        WNUM wnum;
+        char arg[MIL];
+
+        strncpy(arg, ARG_STR(idx), sizeof(arg) - 1);
+        arg[sizeof(arg) - 1] = '\0';
+
+        if (parse_widevnum(arg, context, &wnum))
+        {
+            if (wnum.pArea)
+                *auid = wnum.pArea->uid;
+            *vnum = wnum.vnum;
+        }
+    }
+
+    return (*vnum > 0);
+}
+
+// HASQUEST $MOBILE <widevnum> — true if any run or history entry exists
+DECL_IFC_FUN(ifc_hasquest)
+{
+    long auid, vnum;
+
+    *ret = false;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    if (quest_runtime_find_run_by_v2_wnum(ARG_MOB(0), auid, vnum))
+        *ret = true;
+    else if (quest_history_find_by_v2_wnum(ARG_MOB(0), auid, vnum))
+        *ret = true;
+
+    return true;
+}
+
+// QUESTACTIVE $MOBILE <widevnum> — true if an active run exists
+DECL_IFC_FUN(ifc_questactive)
+{
+    long auid, vnum;
+    QUEST_DATA *run;
+
+    *ret = false;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    run = quest_runtime_find_run_by_v2_wnum(ARG_MOB(0), auid, vnum);
+    if (run && run->run_status == QUEST_RUN_STATUS_ACTIVE && !run->generating)
+        *ret = true;
+
+    return true;
+}
+
+// QUESTCOMPLETE $MOBILE <widevnum> — true if any completed run/history exists
+DECL_IFC_FUN(ifc_questcomplete)
+{
+    long auid, vnum;
+    QUEST_DATA *run;
+    QUEST_HISTORY_DATA *history;
+
+    *ret = false;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    /* Check active runs first (recently completed may still be on ch->quest) */
+    for (run = ARG_MOB(0)->quest; run != NULL; run = run->next)
+    {
+        if (run->run_status != QUEST_RUN_STATUS_COMPLETED)
+            continue;
+        if (auid > 0)
+        {
+            if (run->quest_index_v2_auid == auid && run->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+        else
+        {
+            if (run->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+    }
+
+    /* Check history */
+    for (history = ARG_MOB(0)->pcdata->quest_history; history != NULL; history = history->next)
+    {
+        if (history->run_status != QUEST_RUN_STATUS_COMPLETED)
+            continue;
+        if (auid > 0)
+        {
+            if (history->quest_index_v2_auid == auid && history->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+        else
+        {
+            if (history->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+    }
+
+    return true;
+}
+
+// QUESTFAILED $MOBILE <widevnum> — true if any failed run/history exists
+DECL_IFC_FUN(ifc_questfailed)
+{
+    long auid, vnum;
+    QUEST_DATA *run;
+    QUEST_HISTORY_DATA *history;
+
+    *ret = false;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    for (run = ARG_MOB(0)->quest; run != NULL; run = run->next)
+    {
+        if (run->run_status != QUEST_RUN_STATUS_FAILED)
+            continue;
+        if (auid > 0)
+        {
+            if (run->quest_index_v2_auid == auid && run->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+        else
+        {
+            if (run->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+    }
+
+    for (history = ARG_MOB(0)->pcdata->quest_history; history != NULL; history = history->next)
+    {
+        if (history->run_status != QUEST_RUN_STATUS_FAILED)
+            continue;
+        if (auid > 0)
+        {
+            if (history->quest_index_v2_auid == auid && history->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+        else
+        {
+            if (history->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+    }
+
+    return true;
+}
+
+// QUESTABANDONED $MOBILE <widevnum> — true if any abandoned run/history exists
+DECL_IFC_FUN(ifc_questabandoned)
+{
+    long auid, vnum;
+    QUEST_DATA *run;
+    QUEST_HISTORY_DATA *history;
+
+    *ret = false;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    for (run = ARG_MOB(0)->quest; run != NULL; run = run->next)
+    {
+        if (run->run_status != QUEST_RUN_STATUS_ABANDONED)
+            continue;
+        if (auid > 0)
+        {
+            if (run->quest_index_v2_auid == auid && run->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+        else
+        {
+            if (run->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+    }
+
+    for (history = ARG_MOB(0)->pcdata->quest_history; history != NULL; history = history->next)
+    {
+        if (history->run_status != QUEST_RUN_STATUS_ABANDONED)
+            continue;
+        if (auid > 0)
+        {
+            if (history->quest_index_v2_auid == auid && history->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+        else
+        {
+            if (history->quest_index_v2_vnum == vnum)
+            { *ret = true; return true; }
+        }
+    }
+
+    return true;
+}
+
+// QUESTCOMPLETIONS $MOBILE <widevnum> — count of completed history entries
+DECL_IFC_FUN(ifc_questcompletions)
+{
+    long auid, vnum;
+
+    *ret = 0;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    *ret = quest_history_count_by_v2_wnum(ARG_MOB(0), auid, vnum, QUEST_RUN_STATUS_COMPLETED);
+    return true;
+}
+
+// QUESTFAILURES $MOBILE <widevnum> — count of failed history entries
+DECL_IFC_FUN(ifc_questfailures)
+{
+    long auid, vnum;
+
+    *ret = 0;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    *ret = quest_history_count_by_v2_wnum(ARG_MOB(0), auid, vnum, QUEST_RUN_STATUS_FAILED);
+    return true;
+}
+
 DECL_IFC_FUN(ifc_race)
 {
     RACE_DATA *target_race;

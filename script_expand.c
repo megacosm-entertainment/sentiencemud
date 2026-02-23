@@ -2538,6 +2538,42 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_MOB_TRAIT:
         arg->type = ENT_MOB_TRAIT;
         break;
+    case ENTITY_MOB_QUESTS:
+    {
+        LLIST *list = list_create(false);
+        QUEST_DATA *run;
+
+        if (!list)
+            return NULL;
+
+        if (self)
+        {
+            for (run = self->quest; run != NULL; run = run->next)
+                list_appendlink(list, run);
+        }
+
+        arg->type = ENT_ILLIST_QUEST;
+        arg->d.blist = list;
+        break;
+    }
+    case ENTITY_MOB_QUESTHISTORY:
+    {
+        LLIST *list = list_create(false);
+        QUEST_HISTORY_DATA *history;
+
+        if (!list)
+            return NULL;
+
+        if (self && !IS_NPC(self) && self->pcdata)
+        {
+            for (history = self->pcdata->quest_history; history != NULL; history = history->next)
+                list_appendlink(list, history);
+        }
+
+        arg->type = ENT_ILLIST_QUEST_HISTORY;
+        arg->d.blist = list;
+        break;
+    }
     default: return NULL;
     }
 
@@ -2613,6 +2649,14 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_MOB_TRAIT:
         arg->type = ENT_NULL;
         arg->d.num = 0;
+        break;
+    case ENTITY_MOB_QUESTS:
+        arg->type = ENT_ILLIST_QUEST;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_QUESTHISTORY:
+        arg->type = ENT_ILLIST_QUEST_HISTORY;
+        arg->d.blist = NULL;
         break;
     case ENTITY_MOB_EVENT:
         arg->type = ENT_EVENT;
@@ -7639,6 +7683,63 @@ char *expand_entity_quest(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+char *expand_entity_quest_history(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_HISTORY_DATA *history = arg->d.quest_history;
+
+    switch((unsigned char)*str) {
+    case ENTITY_QHIST_RUNID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = history ? history->run_id : 0;
+        break;
+
+    case ENTITY_QHIST_STATUS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = history ? history->run_status : QUEST_RUN_STATUS_FAILED;
+        break;
+
+    case ENTITY_QHIST_ACTIVE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_ACTIVE);
+        break;
+
+    case ENTITY_QHIST_COMPLETED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_COMPLETED);
+        break;
+
+    case ENTITY_QHIST_FAILED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_FAILED);
+        break;
+
+    case ENTITY_QHIST_ABANDONED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_ABANDONED);
+        break;
+
+    case ENTITY_QHIST_INDEX:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = history ? get_area_index(history->quest_index_v2_auid) : NULL;
+        arg->d.wnum.vnum = history ? history->quest_index_v2_vnum : 0;
+        break;
+
+    case ENTITY_QHIST_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (history && !IS_NULLSTR(history->name)) ? history->name : "";
+        break;
+
+    case ENTITY_QHIST_SCOPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = history ? history->target_scope : QUEST_TARGET_SCOPE_CHARACTER;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
 char *expand_entity_quest_stage(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     QUEST_STAGE_INDEX_V2_DATA *stage = arg->d.quest_stage;
@@ -9625,6 +9726,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_SECTION:		next = expand_entity_instance_section(info,str,arg); break;
         case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
         case ENT_QUEST:		next = expand_entity_quest(info,str,arg); break;
+        case ENT_QUEST_HISTORY:	next = expand_entity_quest_history(info,str,arg); break;
         case ENT_QUEST_STAGE:	next = expand_entity_quest_stage(info,str,arg); break;
         case ENT_QUEST_OBJECTIVE:	next = expand_entity_quest_objective(info,str,arg); break;
         case ENT_BLUEPRINT:		next = expand_entity_blueprint(info,str,arg); break;
@@ -9833,6 +9935,13 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
             add_buf(buffer, "quest");
         break;
     }
+
+    case ENT_QUEST_HISTORY:
+        if (arg->d.quest_history && !IS_NULLSTR(arg->d.quest_history->name))
+            add_buf(buffer, arg->d.quest_history->name);
+        else
+            add_buf(buffer, "quest");
+        break;
 
     case ENT_QUEST_STAGE:
         if (arg->d.quest_stage && !IS_NULLSTR(arg->d.quest_stage->name))

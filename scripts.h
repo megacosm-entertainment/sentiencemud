@@ -346,6 +346,7 @@ enum variable_enum {
     VAR_DUNGEON,
     VAR_SHIP,
     VAR_QUEST,
+    VAR_QUEST_HISTORY,
     VAR_QUEST_STAGE,
     VAR_QUEST_OBJECTIVE,
     VAR_SONG,
@@ -577,6 +578,8 @@ enum entity_type_enum {
     ENT_ILLIST_SKILLGROUPS,
     ENT_ILLIST_QUEST_STAGES,
     ENT_ILLIST_QUEST_OBJECTIVES,
+    ENT_ILLIST_QUEST,
+    ENT_ILLIST_QUEST_HISTORY,
     ENT_ILLIST_MAX,
     //////////////////////////////
 
@@ -608,6 +611,7 @@ enum entity_type_enum {
 
     ENT_QUESTPART,
     ENT_QUEST,
+    ENT_QUEST_HISTORY,
     ENT_QUEST_STAGE,
     ENT_QUEST_OBJECTIVE,
 
@@ -912,6 +916,20 @@ enum entity_mobile_enum {
     ENTITY_MOB_FACTIONS,
     ENTITY_MOB_TRAIT,
     ENTITY_MOB_TRAITS,
+    ENTITY_MOB_QUESTS,
+    ENTITY_MOB_QUESTHISTORY,
+};
+
+enum entity_quest_history_enum {
+    ENTITY_QHIST_RUNID = ESCAPE_EXTRA,
+    ENTITY_QHIST_STATUS,
+    ENTITY_QHIST_ACTIVE,
+    ENTITY_QHIST_COMPLETED,
+    ENTITY_QHIST_FAILED,
+    ENTITY_QHIST_ABANDONED,
+    ENTITY_QHIST_INDEX,
+    ENTITY_QHIST_NAME,
+    ENTITY_QHIST_SCOPE,
 };
 
 enum entity_object_enum {
@@ -2030,6 +2048,7 @@ struct script_var_type {
         DUNGEON *dungeon;
         SHIP_DATA *ship;
         QUEST_DATA *quest;
+        QUEST_HISTORY_DATA *quest_history;
         QUEST_STAGE_INDEX_V2_DATA *quest_stage;
         QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective;
         MOB_INDEX_DATA *mobindex;
@@ -2265,6 +2284,7 @@ struct script_parameter {
         DUNGEON *dungeon;
         SHIP_DATA *ship;
         QUEST_DATA *quest;
+        QUEST_HISTORY_DATA *quest_history;
         QUEST_PART_DATA *questpart;
         QUEST_STAGE_INDEX_V2_DATA *quest_stage;
         QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective;
@@ -2832,6 +2852,13 @@ DECL_IFC_FUN(ifc_portalexit);
 DECL_IFC_FUN(ifc_pos);
 DECL_IFC_FUN(ifc_practices);
 DECL_IFC_FUN(ifc_quest);
+DECL_IFC_FUN(ifc_hasquest);
+DECL_IFC_FUN(ifc_questactive);
+DECL_IFC_FUN(ifc_questcomplete);
+DECL_IFC_FUN(ifc_questcompletions);
+DECL_IFC_FUN(ifc_questfailed);
+DECL_IFC_FUN(ifc_questfailures);
+DECL_IFC_FUN(ifc_questabandoned);
 DECL_IFC_FUN(ifc_race);
 DECL_IFC_FUN(ifc_racepath);
 DECL_IFC_FUN(ifc_raceremort);
@@ -3236,6 +3263,7 @@ bool variables_set_instance (ppVARIABLE list,char *name,INSTANCE *instance);
 bool variables_set_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon);
 bool variables_set_ship (ppVARIABLE list,char *name,SHIP_DATA *ship);
 bool variables_set_quest (ppVARIABLE list,char *name,QUEST_DATA *quest);
+bool variables_set_quest_history (ppVARIABLE list,char *name,QUEST_HISTORY_DATA *quest_history);
 bool variables_set_quest_stage (ppVARIABLE list,char *name,QUEST_STAGE_INDEX_V2_DATA *quest_stage);
 bool variables_set_quest_objective (ppVARIABLE list,char *name,QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective);
 bool variables_set_song (ppVARIABLE list,char *name,SONG_DATA *song);

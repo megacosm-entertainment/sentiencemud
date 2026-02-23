@@ -145,10 +145,11 @@ long flag_value( const struct flag_type *flag_table, char *argument)
     {
     one_argument( argument, word );
 
-    if ( ( bit = flag_lookup( word, flag_table ) ) != 0 )
-        return bit;
-    else
-        return NO_FLAG;
+    /* Use stat_lookup with NO_FLAG sentinel so that value 0 is valid.
+     * flag_lookup returns 0 for not-found, which is ambiguous when
+     * 0 is a legitimate enum value (e.g., BODY_TYPE_NEUTRAL). */
+    bit = stat_lookup( word, flag_table, NO_FLAG );
+    return bit;
     }
 
     /*

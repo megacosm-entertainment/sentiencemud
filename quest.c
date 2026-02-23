@@ -2372,6 +2372,125 @@ QUEST_DATA *quest_runtime_get_focused_run(CHAR_DATA *ch)
     return NULL;
 }
 
+
+/**
+ * quest_runtime_find_run_by_v2_wnum - Find a quest run by its v2 index widevnum
+ *
+ * Searches the character's active quest run list for a run matching
+ * the given quest index v2 area UID and vnum. If auid is 0, matches
+ * on vnum alone (legacy/local lookup).
+ *
+ * @param ch    Character to search
+ * @param auid  Area UID of the quest index (0 for vnum-only match)
+ * @param vnum  Vnum of the quest index
+ * @return      First matching QUEST_DATA, or NULL if not found
+ */
+QUEST_DATA *quest_runtime_find_run_by_v2_wnum(CHAR_DATA *ch, long auid, long vnum)
+{
+    QUEST_DATA *run;
+
+    if (!ch || IS_NPC(ch) || vnum <= 0)
+        return NULL;
+
+    for (run = ch->quest; run != NULL; run = run->next)
+    {
+        if (auid > 0)
+        {
+            if (run->quest_index_v2_auid == auid
+                && run->quest_index_v2_vnum == vnum)
+                return run;
+        }
+        else
+        {
+            if (run->quest_index_v2_vnum == vnum)
+                return run;
+        }
+    }
+
+    return NULL;
+}
+
+
+/**
+ * quest_history_find_by_v2_wnum - Find a quest history entry by v2 index widevnum
+ *
+ * Searches the character's quest history for an entry matching the given
+ * quest index v2 area UID and vnum. Returns the first match (most recent).
+ *
+ * @param ch    Character to search
+ * @param auid  Area UID of the quest index (0 for vnum-only match)
+ * @param vnum  Vnum of the quest index
+ * @return      First matching QUEST_HISTORY_DATA, or NULL if not found
+ */
+QUEST_HISTORY_DATA *quest_history_find_by_v2_wnum(CHAR_DATA *ch, long auid, long vnum)
+{
+    QUEST_HISTORY_DATA *history;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata || vnum <= 0)
+        return NULL;
+
+    for (history = ch->pcdata->quest_history; history != NULL; history = history->next)
+    {
+        if (auid > 0)
+        {
+            if (history->quest_index_v2_auid == auid
+                && history->quest_index_v2_vnum == vnum)
+                return history;
+        }
+        else
+        {
+            if (history->quest_index_v2_vnum == vnum)
+                return history;
+        }
+    }
+
+    return NULL;
+}
+
+
+/**
+ * quest_history_count_by_v2_wnum - Count quest history entries by status
+ *
+ * Counts how many quest history entries match the given v2 index widevnum
+ * and have the specified run status. Useful for tracking repeatable quest
+ * completions or failures.
+ *
+ * @param ch      Character to search
+ * @param auid    Area UID of the quest index (0 for vnum-only match)
+ * @param vnum    Vnum of the quest index
+ * @param status  Run status to count (QUEST_RUN_STATUS_COMPLETED, etc.)
+ * @return        Number of matching history entries
+ */
+int quest_history_count_by_v2_wnum(CHAR_DATA *ch, long auid, long vnum, int status)
+{
+    QUEST_HISTORY_DATA *history;
+    int count = 0;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata || vnum <= 0)
+        return 0;
+
+    for (history = ch->pcdata->quest_history; history != NULL; history = history->next)
+    {
+        if (history->run_status != status)
+            continue;
+
+        if (auid > 0)
+        {
+            if (history->quest_index_v2_auid == auid
+                && history->quest_index_v2_vnum == vnum)
+                count++;
+        }
+        else
+        {
+            if (history->quest_index_v2_vnum == vnum)
+                count++;
+        }
+    }
+
+    return count;
+}
+
+
 static void quest_runtime_detach_run(CHAR_DATA *ch, QUEST_DATA *run)
 {
     QUEST_DATA *iter;
@@ -4119,10 +4238,16 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            printf_to_char(ch, "Quest: {Y%s{x ({%ld#%ld{x)\n\r",
-                IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name,
-                quest_index_v2->area ? quest_index_v2->area->uid : 0,
-                quest_index_v2->vnum);
+            /* Show correct widevnum (auid#vnum) for v2 quests */
+            if (quest_index_v2->area && quest_index_v2->area->uid > 0)
+                printf_to_char(ch, "Quest: {Y%s{x ({Y%ld#%ld{x)\n\r",
+                    IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name,
+                    quest_index_v2->area->uid,
+                    quest_index_v2->vnum);
+            else
+                printf_to_char(ch, "Quest: {Y%s{x ({Y%ld{x)\n\r",
+                    IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name,
+                    quest_index_v2->vnum);
 
             if (focused_quest->started_at > 0)
                 age_minutes = UMAX(0, (long)((current_time - focused_quest->started_at) / 60));
