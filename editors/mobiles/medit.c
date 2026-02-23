@@ -819,7 +819,7 @@ static void medit_show_inheritance_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void 
                     continue;
 
                 mxp_command_link(ch->desc, ctx->buffer,
-                    formatf("medit %s", widevnum_string_mobile(mob, NULL)),
+                    formatf("medit %s", widevnum_string_mobile(mob, mob->area)),
                     "Edit mobile",
                     widevnum_string_mobile(mob, NULL));
                 add_buf(ctx->buffer, formatf(" {x%s\n\r", mob->short_descr));
@@ -859,8 +859,8 @@ MEDIT(medit_show)
 
     ctx = olc_display_new(ch, theme);
 
-    olc_display_header(ctx, "MEdit", pMob->short_descr,
-        formatf("%ld", pMob->vnum), &medit_def);
+    olc_display_header(ctx, "MEdit", pMob->list_name,
+        formatf("%s", widevnum_string_mobile(pMob, pMob->area)), &medit_def);
 
     /* Dispatch to active tab's show function */
     tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
