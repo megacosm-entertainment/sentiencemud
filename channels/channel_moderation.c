@@ -15,10 +15,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "merc.h"
-#include "recycle.h"
+#include "../merc.h"
+#include "../recycle.h"
 #include "channel_moderation.h"
-#include "account/penalty.h"
+#include "../account/penalty.h"
 
 /* -------------------------------------------------------------------------
  * Internal helpers
@@ -89,6 +89,61 @@ static const char *chanmod_channel_label(const char *extra)
     return (IS_NULLSTR(extra)) ? "all channels" : extra;
 }
 
+/**
+ * chanmod_try_parse_duration - Strictly parse a duration token.
+ *
+ * Accepts "permanent"/"perm", plain numbers (minutes), and composed
+ * number+unit forms like "30m", "2h", "1d12h".
+ * Rejects arbitrary words (e.g. channel ids) so command parsing can
+ * distinguish duration tokens from channel names.
+ */
+static bool chanmod_try_parse_duration(const char *token, time_t *out_duration)
+{
+    const char *p;
+    int current_digits = 0;
+    bool saw_digit = false;
+
+    if (IS_NULLSTR(token))
+        return false;
+
+    if (!str_cmp(token, "permanent") || !str_cmp(token, "perm")) {
+        if (out_duration)
+            *out_duration = 0;
+        return true;
+    }
+
+    for (p = token; *p; p++) {
+        if (isdigit((unsigned char)*p)) {
+            current_digits++;
+            saw_digit = true;
+            continue;
+        }
+
+        switch (LOWER(*p)) {
+        case 's':
+        case 'm':
+        case 'h':
+        case 'd':
+        case 'w':
+            if (current_digits <= 0)
+                return false;
+            current_digits = 0;
+            break;
+
+        default:
+            return false;
+        }
+    }
+
+    if (!saw_digit)
+        return false;
+
+    if (out_duration)
+        *out_duration = parse_duration(token);
+
+    return true;
+}
+
 /* -------------------------------------------------------------------------
  * do_chanmute
  * ---------------------------------------------------------------------- */
@@ -134,14 +189,12 @@ void do_chanmute(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    /* Peek: if parse_duration fails on arg_chan, treat it as channel + next is duration */
-    duration = parse_duration(arg_chan);
-    if (duration < 0) {
+    /* If first token is not a duration, treat it as channel and parse next as duration. */
+    if (!chanmod_try_parse_duration(arg_chan, &duration)) {
         /* arg_chan is the channel id; next arg is duration */
         argument = one_argument(argument, arg_dur);
         chanmod_channel_extra(arg_chan, channel_extra, sizeof(channel_extra));
-        duration = parse_duration(arg_dur);
-        if (duration < 0) {
+        if (!chanmod_try_parse_duration(arg_dur, &duration)) {
             send_to_char("ChanMute: invalid duration. Use 30m, 2h, 1d, or permanent.\n\r", ch);
             return;
         }
@@ -226,7 +279,7 @@ void do_chanban(CHAR_DATA *ch, char *argument)
 
     /* Next token: optional channel id */
     argument = one_argument(argument, arg_chan);
-    if (!IS_NULLSTR(arg_chan) && parse_duration(arg_chan) < 0) {
+    if (!IS_NULLSTR(arg_chan) && !chanmod_try_parse_duration(arg_chan, NULL)) {
         /* Not a duration token — treat as channel id */
         chanmod_channel_extra(arg_chan, channel_extra, sizeof(channel_extra));
     } else {
@@ -235,7 +288,11 @@ void do_chanban(CHAR_DATA *ch, char *argument)
         if (!IS_NULLSTR(arg_chan)) {
             /* Prepend it back to argument as reason */
             char tmp[MSL];
-            snprintf(tmp, sizeof(tmp), "%s %s", arg_chan, IS_NULLSTR(argument) ? "" : argument);
+            strlcpy(tmp, arg_chan, sizeof(tmp));
+            if (!IS_NULLSTR(argument)) {
+                strlcat(tmp, " ", sizeof(tmp));
+                strlcat(tmp, argument, sizeof(tmp));
+            }
             strlcpy(reason_buf, tmp, sizeof(reason_buf));
             goto apply;
         }
@@ -299,14 +356,18 @@ void do_chanwarn(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg_chan);
     if (!IS_NULLSTR(arg_chan) && str_cmp(arg_chan, "*") && str_cmp(arg_chan, "all")
-        && parse_duration(arg_chan) < 0) {
+        && !chanmod_try_parse_duration(arg_chan, NULL)) {
         chanmod_channel_extra(arg_chan, channel_extra, sizeof(channel_extra));
     } else {
         channel_extra[0] = '\0';
         /* arg_chan (if any) becomes start of reason */
         if (!IS_NULLSTR(arg_chan)) {
             char tmp[MSL];
-            snprintf(tmp, sizeof(tmp), "%s %s", arg_chan, IS_NULLSTR(argument) ? "" : argument);
+            strlcpy(tmp, arg_chan, sizeof(tmp));
+            if (!IS_NULLSTR(argument)) {
+                strlcat(tmp, " ", sizeof(tmp));
+                strlcat(tmp, argument, sizeof(tmp));
+            }
             strlcpy(reason_buf, tmp, sizeof(reason_buf));
             goto apply_warn;
         }

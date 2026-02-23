@@ -1854,14 +1854,35 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     }
 
     if (dclose->account) {
-        dclose->account->refcount--;
+        ACCOUNT_DATA *account = dclose->account;
+        bool account_in_use_elsewhere = false;
+        DESCRIPTOR_DATA *d;
+
+        for (d = descriptor_list; d; d = d->next) {
+            if (d != dclose && d->account == account) {
+                account_in_use_elsewhere = true;
+                break;
+            }
+        }
+
+        if (account->refcount > 0)
+            account->refcount--;
+
         log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "close_socket: Account %s refcount decreased to %d",
-                   dclose->account->username, dclose->account->refcount);
-        if (dclose->account->refcount <= 0) {
-            log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "close_socket: Freeing account %s (refcount %d)",
-                       dclose->account->username, dclose->account->refcount);
-            list_remlink(loaded_accounts, dclose->account, false);
-            free_account(dclose->account);
+                   account->username, account->refcount);
+
+        if (account->refcount <= 0) {
+            if (account_in_use_elsewhere) {
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                    "close_socket: Account %s refcount <= 0 but still referenced by another descriptor; deferring free",
+                    account->username);
+                account->refcount = 1;
+            } else {
+                log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "close_socket: Freeing account %s (refcount %d)",
+                           account->username, account->refcount);
+                list_remlink(loaded_accounts, account, false);
+                free_account(account);
+            }
         }
         dclose->account = NULL;
     }
@@ -2450,6 +2471,9 @@ void bust_a_prompt(CHAR_DATA *ch)
 
     if (IS_IMMORTAL(ch) && count_project_inquiries(ch) > 0)
     send_to_char("{g[{GINQUIRY{g]{x ", ch);
+
+    if (IS_IMMORTAL(ch) && channel_service_staff_report_count() > 0)
+        printf_to_char(ch, "{R[{WREPORT:%d{R]{x ", channel_service_staff_report_count());
 
     if (MOUNTED(ch))
     {

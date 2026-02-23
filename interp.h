@@ -271,6 +271,7 @@ DECLARE_DO_FUN( do_hands	);
 DECLARE_DO_FUN( do_hedit	);
 DECLARE_DO_FUN(	do_help		);
 DECLARE_DO_FUN( do_helper	);
+DECLARE_DO_FUN( do_history	);
 DECLARE_DO_FUN(	do_hide		);
 DECLARE_DO_FUN(	do_hints	);
 DECLARE_DO_FUN(	do_holdup	);
@@ -686,5 +687,7 @@ DECLARE_DO_FUN( do_bonus );
 DECLARE_DO_FUN( do_prefadmin );
 DECLARE_DO_FUN( do_prefs );
 DECLARE_DO_FUN( do_raceunlock );
+
+bool dispatch_dynamic_channel_command(CHAR_DATA *ch, const char *command, char *argument);
 
 #endif /* __INTERP_H__ */

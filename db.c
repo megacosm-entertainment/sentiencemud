@@ -64,6 +64,7 @@
 #include "skill_group.h"
 #include "song_data.h"
 #include "item_types.h"
+#include "channel_registry.h"
 
 #ifndef ENABLE_LEGACY_AREA_READ
 /* Keep enabled by default until remaining legacy maze .are zones
@@ -948,6 +949,8 @@ void boot_db(void)
     fix_object_type_data();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving area/mob/trade widevnum fields");
     fix_area_fields();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving channel requirement token widevnums");
+    channel_registry_fix_requirements();
     resolve_newbie_tables();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving quest-v2 widevnum fields");
     fix_quests_v2();

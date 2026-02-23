@@ -1633,7 +1633,12 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
 
     // Position (room location or wilderness)
     json_t *position = json_object();
-    
+    ROOM_INDEX_DATA *limbo_room = get_reserved_room_index("room_limbo");
+    bool idled_in_limbo = (ch->in_room != NULL &&
+                           limbo_room != NULL &&
+                           ch->in_room == limbo_room &&
+                           (ch->was_in_room != NULL || ch->was_in_wilds != NULL));
+
     if (ch->in_wilds) {
         // Character is in wilderness - save coordinates
         json_object_set_new(position, "type", json_string("wilderness"));
@@ -1641,6 +1646,13 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(position, "y", json_integer(ch->in_room ? ch->in_room->y : ch->at_wilds_y));
         json_object_set_new(position, "area_uid", json_integer(ch->in_wilds->pArea->uid));
         json_object_set_new(position, "wilds_uid", json_integer(ch->in_wilds->uid));
+    } else if (idled_in_limbo && ch->was_in_wilds) {
+        // If idled in Limbo, persist the pre-idle wilderness location.
+        json_object_set_new(position, "type", json_string("wilderness"));
+        json_object_set_new(position, "x", json_integer(ch->was_at_wilds_x));
+        json_object_set_new(position, "y", json_integer(ch->was_at_wilds_y));
+        json_object_set_new(position, "area_uid", json_integer(ch->was_in_wilds->pArea->uid));
+        json_object_set_new(position, "wilds_uid", json_integer(ch->was_in_wilds->uid));
     } else if (ch->was_in_wilds) {
         // Fallback to was_in_wilds if in_wilds not set
         json_object_set_new(position, "type", json_string("wilderness"));
@@ -1648,6 +1660,21 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_object_set_new(position, "y", json_integer(ch->was_at_wilds_y));
         json_object_set_new(position, "area_uid", json_integer(ch->was_in_wilds->pArea->uid));
         json_object_set_new(position, "wilds_uid", json_integer(ch->was_in_wilds->uid));
+    } else if (idled_in_limbo && ch->was_in_room) {
+        // If idled in Limbo, persist the pre-idle room location.
+        json_object_set_new(position, "type", json_string("room"));
+
+        ROOM_INDEX_DATA *save_room = ch->was_in_room;
+        if (IS_VALID(ch->was_in_room->instance_section)
+            && IS_VALID(ch->was_in_room->instance_section->instance))
+        {
+            INSTANCE *inst = ch->was_in_room->instance_section->instance;
+            if (inst->dungeon && inst->dungeon->entry_room)
+                save_room = inst->dungeon->entry_room;
+            else if (inst->entrance)
+                save_room = inst->entrance;
+        }
+        json_object_set_new(position, "room_vnum", json_string(widevnum_string_room(save_room, NULL)));
     } else if (ch->in_room) {
         // Character is in regular room - use widevnum format
         json_object_set_new(position, "type", json_string("room"));

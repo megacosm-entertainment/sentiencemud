@@ -13,10 +13,19 @@
 #ifdef BUILD_TESTS
 
 #include "../../merc.h"
+#include "../../recycle.h"
 #include "../framework/test_framework.h"
 #include "../../io/json/json_instance.h"
+#include "../../io/json/json_area.h"
+#include <jansson.h>
 #include <string.h>
 #include <sys/stat.h>
+
+/* json_area.c does not currently expose these in json_area.h */
+extern json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area);
+extern BLUEPRINT *json_area_deserialize_blueprint(json_t *json, AREA_DATA *area);
+extern json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area);
+extern DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area);
 
 /* Forward declarations */
 static test_result_t test_blueprint_lookup(test_case_t *test);
@@ -29,6 +38,28 @@ static test_result_t test_blueprint_section_ref(test_case_t *test);
 static test_result_t test_ship_blueprint_ref(test_case_t *test);
 static test_result_t test_dungeon_room_ref(test_case_t *test);
 static test_result_t test_persist_directory(test_case_t *test);
+static test_result_t test_blueprint_channel_defs_json(test_case_t *test);
+static test_result_t test_dungeon_channel_defs_json(test_case_t *test);
+
+static bool string_list_contains(LLIST *list, const char *needle)
+{
+    ITERATOR it;
+    char *value;
+
+    if (!list || IS_NULLSTR(needle))
+        return false;
+
+    iterator_start(&it, list);
+    while ((value = (char *)iterator_nextdata(&it))) {
+        if (!str_cmp(value, needle)) {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+
+    return false;
+}
 
 /**
  * Main test dispatcher for instance/blueprint tests
@@ -80,6 +111,12 @@ test_result_t run_instance_test_case(test_case_t *test)
     }
     else if (strcmp(test->test_type, "persist_directory_test") == 0) {
         result = test_persist_directory(test);
+    }
+    else if (strcmp(test->test_type, "blueprint_channel_defs_json_test") == 0) {
+        result = test_blueprint_channel_defs_json(test);
+    }
+    else if (strcmp(test->test_type, "dungeon_channel_defs_json_test") == 0) {
+        result = test_dungeon_channel_defs_json(test);
     }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -397,6 +434,102 @@ static test_result_t test_persist_directory(test_case_t *test)
     }
 
     return TEST_SUCCESS; // Directories may not exist yet, not a failure
+}
+
+static test_result_t test_blueprint_channel_defs_json(test_case_t *test)
+{
+    AREA_DATA area;
+    BLUEPRINT *blueprint;
+    BLUEPRINT *loaded;
+    json_t *json;
+    bool ok = true;
+
+    (void)test;
+
+    memset(&area, 0, sizeof(area));
+    area.uid = 1234;
+
+    blueprint = new_blueprint();
+    blueprint->area = &area;
+    blueprint->vnum = 4567;
+    free_string(blueprint->name);
+    blueprint->name = str_dup("Channel Blueprint");
+
+    list_appendlink(blueprint->channel_defs, str_dup("inst_chat"));
+    list_appendlink(blueprint->channel_defs, str_dup("inst_alert"));
+
+    json = json_area_serialize_blueprint(blueprint, &area);
+    if (!json) {
+        free_blueprint(blueprint);
+        return TEST_FAILURE;
+    }
+
+    loaded = json_area_deserialize_blueprint(json, &area);
+    if (!loaded) {
+        json_decref(json);
+        free_blueprint(blueprint);
+        return TEST_FAILURE;
+    }
+
+    if (!loaded->channel_defs || list_size(loaded->channel_defs) != 2)
+        ok = false;
+
+    if (!string_list_contains(loaded->channel_defs, "inst_chat") ||
+        !string_list_contains(loaded->channel_defs, "inst_alert"))
+        ok = false;
+
+    json_decref(json);
+    free_blueprint(blueprint);
+
+    return ok ? TEST_SUCCESS : TEST_FAILURE;
+}
+
+static test_result_t test_dungeon_channel_defs_json(test_case_t *test)
+{
+    AREA_DATA area;
+    DUNGEON_INDEX_DATA *dungeon;
+    DUNGEON_INDEX_DATA *loaded;
+    json_t *json;
+    bool ok = true;
+
+    (void)test;
+
+    memset(&area, 0, sizeof(area));
+    area.uid = 2233;
+
+    dungeon = new_dungeon_index();
+    dungeon->area = &area;
+    dungeon->vnum = 8899;
+    free_string(dungeon->name);
+    dungeon->name = str_dup("Channel Dungeon");
+
+    list_appendlink(dungeon->channel_defs, str_dup("dng_chat"));
+    list_appendlink(dungeon->channel_defs, str_dup("dng_event"));
+
+    json = json_area_serialize_dungeon(dungeon, &area);
+    if (!json) {
+        free_dungeon_index(dungeon);
+        return TEST_FAILURE;
+    }
+
+    loaded = json_area_deserialize_dungeon(json, &area);
+    if (!loaded) {
+        json_decref(json);
+        free_dungeon_index(dungeon);
+        return TEST_FAILURE;
+    }
+
+    if (!loaded->channel_defs || list_size(loaded->channel_defs) != 2)
+        ok = false;
+
+    if (!string_list_contains(loaded->channel_defs, "dng_chat") ||
+        !string_list_contains(loaded->channel_defs, "dng_event"))
+        ok = false;
+
+    json_decref(json);
+    free_dungeon_index(dungeon);
+
+    return ok ? TEST_SUCCESS : TEST_FAILURE;
 }
 
 #endif /* BUILD_TESTS */

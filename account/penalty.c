@@ -669,6 +669,51 @@ bool has_channel_penalty(ACCOUNT_DATA *account,
 }
 
 /**
+ * has_channel_ban_penalty - Check if a character is channel-banned
+ *
+ * Channel ban semantics are represented by permanent PENALTY_CHAN_MUTE
+ * records (expires_at == 0), typically applied by chanban. This helper is
+ * intended for receive-side suppression where channels opt in via allow_ban.
+ *
+ * @param account     Account to check
+ * @param channel_id  Channel being viewed (e.g. "gossip")
+ * @param char_name   Character name for character-scoped matching
+ * @return            true if the character is channel-banned for this channel
+ */
+bool has_channel_ban_penalty(ACCOUNT_DATA *account,
+                             const char *channel_id,
+                             const char *char_name)
+{
+    PENALTY_DATA *p;
+
+    if (!account)
+        return false;
+
+    for (p = account->penalties; p; p = p->next) {
+        if (p->type != PENALTY_CHAN_MUTE)
+            continue;
+        if (is_penalty_expired(p))
+            continue;
+
+        /* Only permanent mutes count as bans. */
+        if (p->expires_at != 0)
+            continue;
+
+        if (p->scope == PENALTY_SCOPE_CHARACTER
+            && (!char_name || str_cmp(p->target_name, char_name)))
+            continue;
+
+        if (!p->extra || !p->extra[0])
+            return true;
+
+        if (channel_id && !str_cmp(p->extra, channel_id))
+            return true;
+    }
+
+    return false;
+}
+
+/**
  * expire_penalties - Remove all expired penalties from an account
  *
  * @param account  Target account

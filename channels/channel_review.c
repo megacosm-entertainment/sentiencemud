@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "merc.h"
+#include "../merc.h"
 #include "channel_review.h"
 
 static const char *channel_filter_decision_name(CHANNEL_FILTER_DECISION decision)
@@ -19,6 +19,7 @@ static const char *channel_filter_decision_name(CHANNEL_FILTER_DECISION decision
 }
 
 bool channel_review_queue_append(const CHANNEL_MESSAGE *original_msg,
+                                 const char *review_stream,
                                  CHANNEL_FILTER_DECISION decision,
                                  const char *reason,
                                  const char *original_text,
@@ -28,9 +29,12 @@ bool channel_review_queue_append(const CHANNEL_MESSAGE *original_msg,
 {
     CHANNEL_MESSAGE review_msg;
     char payload[MSL];
+    const char *target_stream;
 
     if (!original_msg)
         return false;
+
+    target_stream = IS_NULLSTR(review_stream) ? CHANNEL_REVIEW_STREAM : review_stream;
 
     memset(&review_msg, 0, sizeof(review_msg));
     memset(payload, 0, sizeof(payload));
@@ -45,7 +49,7 @@ bool channel_review_queue_append(const CHANNEL_MESSAGE *original_msg,
              IS_NULLSTR(delivered_text) ? "" : delivered_text);
 
     review_msg.channel_id = "staff_review";
-    review_msg.topic = CHANNEL_REVIEW_STREAM;
+    review_msg.topic = target_stream;
     review_msg.sender_name = original_msg->sender_name;
     review_msg.sender_uid = original_msg->sender_uid;
     review_msg.sender_id0 = original_msg->sender_id0;
@@ -53,7 +57,7 @@ bool channel_review_queue_append(const CHANNEL_MESSAGE *original_msg,
     review_msg.message_text = payload;
     review_msg.timestamp = original_msg->timestamp;
 
-    return channel_transport_append_history(CHANNEL_REVIEW_STREAM,
+    return channel_transport_append_history(target_stream,
                                             &review_msg,
                                             out_stream_id,
                                             out_stream_id_sz);

@@ -10,6 +10,7 @@
 #define CHANNEL_REVIEW_SCHEMA_VERSION 1
 
 bool channel_review_queue_append(const CHANNEL_MESSAGE *original_msg,
+                                 const char *review_stream,
                                  CHANNEL_FILTER_DECISION decision,
                                  const char *reason,
                                  const char *original_text,

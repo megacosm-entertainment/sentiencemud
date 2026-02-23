@@ -14,13 +14,23 @@ LIBCOTP_DIR = $(DEPS_DIR)/libcotp
 LIBBACKTRACE_DIR = $(DEPS_DIR)/libbacktrace
 
 # Include paths for local dependencies
-INCLUDES = -I$(LIBCOTP_DIR)/src -I$(LIBBACKTRACE_DIR)
+INCLUDES = -I. -I$(LIBCOTP_DIR)/src -I$(LIBBACKTRACE_DIR) -Ichannels
+
+# Required PCRE2 support for channel filtering
+PCRE2_CFLAGS := $(shell pkg-config --cflags libpcre2-8 2>/dev/null)
+PCRE2_LIBS := $(shell pkg-config --libs libpcre2-8 2>/dev/null)
+
+ifeq ($(strip $(PCRE2_LIBS)),)
+$(error libpcre2-8 is required but was not found via pkg-config)
+endif
 
 # Library paths for local dependencies
 LIB_PATHS = -L$(LIBCOTP_DIR) -L$(LIBBACKTRACE_DIR)/.libs
 
 # Libraries (system: zlog, jansson, quickmail; local: cotp, backtrace)
 LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng -lhiredis -ljansson -lzlog -lbacktrace -lsodium
+INCLUDES += $(PCRE2_CFLAGS)
+LIBS += $(PCRE2_LIBS)
 
 GIT_VERSION := "$(shell git describe --dirty --always --tags)"
 CUR_BUILD_DATE := "$(shell sh date.sh)"
@@ -31,7 +41,7 @@ GIT_URL := "$(shell sh giturl.sh)"
 ENABLE_LEGACY_AREA_READ ?= 1
 ENABLE_LEGACY_PFILE_READ ?= 1
 
-C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DENABLE_LEGACY_AREA_READ=$(ENABLE_LEGACY_AREA_READ) -DENABLE_LEGACY_PFILE_READ=$(ENABLE_LEGACY_PFILE_READ) -DMUD_DEBUG -MMD -MP $(INCLUDES)
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DENABLE_LEGACY_AREA_READ=$(ENABLE_LEGACY_AREA_READ) -DENABLE_LEGACY_PFILE_READ=$(ENABLE_LEGACY_PFILE_READ) -DMUD_DEBUG -DCHANNEL_FILTER_USE_PCRE2 -MMD -MP $(INCLUDES)
 # -rdynamic exports symbols for stack trace support (backtrace_symbols)
 L_FLAGS = $(PROF) -rdynamic $(LIB_PATHS) $(LIBS)
 
@@ -81,14 +91,16 @@ C_FILES = \
     bootstrap/bootstrap_files.c \
     bootstrap/bootstrap_prompts.c \
     bootstrap/bootstrap_reserved.c \
-    channel_registry.c \
-    channel_service.c \
-    channel_filter.c \
-    channel_moderation.c \
-    channel_review.c \
-    channel_transport.c \
-    channel_transport_local.c \
-    channel_transport_redis.c \
+    channels/channels_common.c \
+    channels/channel_policy.c \
+    channels/channel_registry.c \
+    channels/channel_service.c \
+    channels/channel_filter.c \
+    channels/channel_moderation.c \
+    channels/channel_review.c \
+    channels/channel_transport.c \
+    channels/channel_transport_local.c \
+    channels/channel_transport_redis.c \
     chat_rooms.c \
     church.c \
     class_data.c \
@@ -205,6 +217,7 @@ C_FILES = \
     mxp_links.c \
     quest.c \
     reputation.c \
+    requirements.c \
     rview.c \
     io/cache/redis_cache.c \
     io/cache/async_cache.c \

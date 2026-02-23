@@ -155,6 +155,12 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 
         string_end_chlog(ch);
     }
+
+    if (ch->desc->editor == ED_CHREPORT) {
+        ch->desc->editor = ED_NONE;
+
+        string_end_chreport(ch);
+    }
     
     if (ch->desc->editor == ED_GAMESETTING) {
         ch->desc->editor = ED_NONE;

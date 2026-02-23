@@ -77,6 +77,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_EVENT         40
 #define ED_QUEST         41
 #define ED_CEDIT         43
+#define ED_CHREPORT      44
 
 
 
@@ -618,6 +619,7 @@ DECLARE_OLC_FUN( bpedit_addiprog		);
 DECLARE_OLC_FUN( bpedit_deliprog		);
 DECLARE_OLC_FUN( bpedit_repop			);
 DECLARE_OLC_FUN( bpedit_flags			);
+DECLARE_OLC_FUN( bpedit_channel			);
 
 // Dungeon Editor
 DECLARE_OLC_FUN( dngedit_list			);
@@ -646,6 +648,7 @@ DECLARE_OLC_FUN( dngedit_varclear		);
 DECLARE_OLC_FUN( dngedit_adddprog		);
 DECLARE_OLC_FUN( dngedit_deldprog		);
 DECLARE_OLC_FUN( dngedit_repop			);
+DECLARE_OLC_FUN( dngedit_channel			);
 
 
 DECLARE_OLC_FUN( apedit_list		);

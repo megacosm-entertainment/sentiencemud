@@ -5509,6 +5509,8 @@ int temp_log_entry_id;
     bool deleted;
     time_t delete_time;
     char *temp_log_entry;  /* Temporary log entry being edited */
+    char *temp_report_channel; /* Channel id targeted by history report editor */
+    char *temp_report_message_id; /* Stable message/report id targeted by report editor */
 
 /*
     struct char_data_stats {
@@ -7314,6 +7316,8 @@ struct blueprint_data {
 
     int mode;
 
+    LLIST *channel_defs;                 // char* channel definition ids for instance-scoped comms
+
     LLIST *sections;						// BLUEPRINT_SECTION_REF
     LLIST *special_rooms;
 
@@ -7335,6 +7339,7 @@ struct blueprint_data {
 #define INSTANCE_IDLE_ON_COMPLETE	(C)
 #define INSTANCE_NO_IDLE			(D)
 #define INSTANCE_FAILED				(E)
+#define INSTANCE_ISOLATED			(F)
 #define INSTANCE_DESTROY			(Z)
 
 #define INSTANCE_DESTROY_TIMEOUT	5
@@ -7434,6 +7439,7 @@ struct instance_data {
 #define DUNGEON_GROUP_COMMENCE		(H)		// Auto-commence when min_group is satisfied
 #define DUNGEON_FAILURE_ON_WIPE		(I)		// Failure when all players die in boss encounter
 #define DUNGEON_FAILURE_ON_EMPTY	(J)		// Failure if commenced and everyone leaves
+#define DUNGEON_ISOLATED		(K)		// Excludes participants from area-scoped channels
 #define DUNGEON_LOCKED			(W)		// Requires per-player unlock to enter
 #define DUNGEON_SOLO_INSTANCE		(X)		// On-demand, player-owned instance with idle timeout
 #define DUNGEON_SHARED				(Y)		// One instance for all players
@@ -7546,6 +7552,8 @@ struct dungeon_index_data
     char *comments;
 
     int area_who;
+
+    LLIST *channel_defs;                 // char* channel definition ids for dungeon-scoped comms
 
     LLIST *floors;                  // Master list of floors
     LLIST *levels;                  // Levels to be instanced in the generated dungeon, references the FLOORS variable.
@@ -11292,6 +11300,7 @@ void refresh_ssl_context(void);
 DH *get_dh_params(void);
 
 void string_end_chlog(CHAR_DATA *ch);
+void string_end_chreport(CHAR_DATA *ch);
 void game_settings_string_edit(CHAR_DATA *ch);
 
 

@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <hiredis/hiredis.h>
 #include <jansson.h>
-#include "merc.h"
+#include "../merc.h"
 #include "channel_transport.h"
 
 #define CHANNEL_REDIS_QUEUE_CAPACITY 1024
@@ -15,6 +15,7 @@ typedef struct redis_outbound_event {
     char channel_id[32];
     char history_stream[196];
     char history_id[64];
+    char reports_json[256];
     char sender_name[64];
     char sender_uid[64];
     unsigned long sender_id0;
@@ -199,6 +200,7 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
     char history_stream[196];
     char history_id[64];
     json_t *payload;
+    json_t *reports;
     char *payload_json;
     bool success = true;
 
@@ -252,6 +254,15 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
     json_object_set_new(payload, "sender_uid", json_string(evt->sender_uid));
     json_object_set_new(payload, "sender_id0", json_integer((json_int_t)evt->sender_id0));
     json_object_set_new(payload, "sender_id1", json_integer((json_int_t)evt->sender_id1));
+    if (!IS_NULLSTR(evt->reports_json)) {
+        json_error_t report_err;
+        reports = json_loads(evt->reports_json, 0, &report_err);
+        if (reports && json_is_object(reports)) {
+            json_object_set_new(payload, "reports", reports);
+        } else if (reports) {
+            json_decref(reports);
+        }
+    }
     if (evt->recipient_uid[0]) {
         json_object_set_new(payload, "recipient_uid", json_string(evt->recipient_uid));
         json_object_set_new(payload, "recipient_id0", json_integer((json_int_t)evt->recipient_id0));
@@ -289,6 +300,8 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
     json_error_t error;
     json_t *root;
     json_t *v;
+    json_t *reports;
+    char *reports_json = NULL;
 
     if (!payload || !evt)
         return false;
@@ -317,6 +330,15 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
     v = json_object_get(root, "history_id");
     if (json_is_string(v))
         strlcpy(evt->history_id, json_string_value(v), sizeof(evt->history_id));
+
+    reports = json_object_get(root, "reports");
+    if (reports && json_is_object(reports)) {
+        reports_json = json_dumps(reports, JSON_COMPACT);
+        if (reports_json) {
+            strlcpy(evt->reports_json, reports_json, sizeof(evt->reports_json));
+            free(reports_json);
+        }
+    }
 
     v = json_object_get(root, "sender_name");
     if (json_is_string(v))
@@ -693,6 +715,7 @@ static bool redis_transport_publish(const char *topic, const CHANNEL_MESSAGE *ms
     strlcpy(evt->channel_id, msg->channel_id, sizeof(evt->channel_id));
     strlcpy(evt->history_stream, msg->history_stream ? msg->history_stream : "", sizeof(evt->history_stream));
     strlcpy(evt->history_id, msg->history_id ? msg->history_id : "", sizeof(evt->history_id));
+    strlcpy(evt->reports_json, msg->reports_json ? msg->reports_json : "", sizeof(evt->reports_json));
     strlcpy(evt->sender_name, msg->sender_name ? msg->sender_name : "", sizeof(evt->sender_name));
     strlcpy(evt->sender_uid, msg->sender_uid ? msg->sender_uid : "", sizeof(evt->sender_uid));
     evt->sender_id0 = msg->sender_id0;
@@ -725,10 +748,63 @@ static bool redis_transport_unsubscribe(const char *topic)
 static bool redis_transport_append_history(const char *stream, const CHANNEL_MESSAGE *msg,
                                           char *out_id, size_t out_id_sz)
 {
-    (void)stream;
-    (void)msg;
-    if (out_id && out_id_sz > 0)
-        strlcpy(out_id, "queued", out_id_sz);
+    redisContext *ctx;
+    redisReply *reply;
+
+    if (IS_NULLSTR(stream) || !msg || IS_NULLSTR(msg->channel_id) || IS_NULLSTR(msg->message_text))
+        return false;
+
+    ctx = redis_connect_context();
+    if (!ctx)
+        return false;
+
+    if (!redis_auth_ping(ctx)) {
+        redisFree(ctx);
+        return false;
+    }
+
+    if (!IS_NULLSTR(msg->recipient_uid)) {
+        reply = redisCommand(ctx,
+                             "XADD %s * channel %s sender %s sender_uid %s sender_id0 %lu sender_id1 %lu recipient_uid %s recipient_id0 %lu recipient_id1 %lu message %s ts %ld",
+                             stream,
+                             msg->channel_id,
+                             IS_NULLSTR(msg->sender_name) ? "" : msg->sender_name,
+                             IS_NULLSTR(msg->sender_uid) ? "" : msg->sender_uid,
+                             msg->sender_id0,
+                             msg->sender_id1,
+                             msg->recipient_uid,
+                             msg->recipient_id0,
+                             msg->recipient_id1,
+                             msg->message_text,
+                             (long)msg->timestamp);
+    } else {
+        reply = redisCommand(ctx,
+                             "XADD %s * channel %s sender %s sender_uid %s sender_id0 %lu sender_id1 %lu message %s ts %ld",
+                             stream,
+                             msg->channel_id,
+                             IS_NULLSTR(msg->sender_name) ? "" : msg->sender_name,
+                             IS_NULLSTR(msg->sender_uid) ? "" : msg->sender_uid,
+                             msg->sender_id0,
+                             msg->sender_id1,
+                             msg->message_text,
+                             (long)msg->timestamp);
+    }
+
+    if (!reply || reply->type == REDIS_REPLY_ERROR) {
+        if (reply)
+            freeReplyObject(reply);
+        redisFree(ctx);
+        return false;
+    }
+
+    if (out_id && out_id_sz > 0) {
+        strlcpy(out_id,
+                (reply->type == REDIS_REPLY_STRING && reply->str) ? reply->str : "",
+                out_id_sz);
+    }
+
+    freeReplyObject(reply);
+    redisFree(ctx);
     return true;
 }
 
@@ -778,6 +854,7 @@ static int redis_transport_drain_inbound(int max_events)
         msg.channel_id = evt.channel_id;
         msg.history_stream = evt.history_stream;
         msg.history_id = evt.history_id;
+        msg.reports_json = evt.reports_json[0] ? evt.reports_json : NULL;
         msg.sender_name = evt.sender_name;
         msg.sender_uid = evt.sender_uid;
         msg.sender_id0 = evt.sender_id0;

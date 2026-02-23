@@ -135,6 +135,26 @@
       }
     },
     {
+      "name": "blueprint_channel_defs_json",
+      "description": "Blueprint channel_defs are serialized and deserialized intact",
+      "dependencies": [],
+      "test_type": "blueprint_channel_defs_json_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "dungeon_channel_defs_json",
+      "description": "Dungeon channel_defs are serialized and deserialized intact",
+      "dependencies": [],
+      "test_type": "dungeon_channel_defs_json_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
       "name": "persist_directory_structure",
       "description": "Test persist directory structure for ships/dungeons/instances",
       "dependencies": [],

@@ -1420,6 +1420,21 @@ DUNGEON_INDEX_DATA *json_area_deserialize_dungeon(json_t *json, AREA_DATA *area)
     dungeon->area_who = json_get_int_default(json, "area_who", 0);
     dungeon->repop = json_get_int_default(json, "repop", 0);
     dungeon->flags = json_get_int_default(json, "flags", 0);
+
+    dungeon->channel_defs = list_create(false);
+    {
+        json_t *channel_defs = json_object_get(json, "channel_defs");
+        if (channel_defs && json_is_array(channel_defs)) {
+            size_t channel_index;
+            json_t *channel_json;
+
+            json_array_foreach(channel_defs, channel_index, channel_json) {
+                const char *channel_id = json_string_value(channel_json);
+                if (!IS_NULLSTR(channel_id))
+                    list_appendlink(dungeon->channel_defs, str_dup(channel_id));
+            }
+        }
+    }
     
     // Group management
     dungeon->min_group = json_get_int_default(json, "min_group", 0);
@@ -2006,6 +2021,21 @@ BLUEPRINT *json_area_deserialize_blueprint(json_t *json, AREA_DATA *area)
     blueprint->repop = json_get_int_default(json, "repop", 0);
     blueprint->flags = json_get_int_default(json, "flags", 0);
     blueprint->mode = json_get_int_default(json, "mode", 0);
+
+    blueprint->channel_defs = list_create(false);
+    {
+        json_t *channel_defs = json_object_get(json, "channel_defs");
+        if (channel_defs && json_is_array(channel_defs)) {
+            size_t channel_index;
+            json_t *channel_json;
+
+            json_array_foreach(channel_defs, channel_index, channel_json) {
+                const char *channel_id = json_string_value(channel_json);
+                if (!IS_NULLSTR(channel_id))
+                    list_appendlink(blueprint->channel_defs, str_dup(channel_id));
+            }
+        }
+    }
     
     // Sections - list of section references with WNUM_LOAD
     json_t *sections = json_object_get(json, "sections");
@@ -5992,6 +6022,24 @@ json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area)
     json_object_set_new(json, "mode", json_integer(blueprint->mode));
     json_object_set_new(json, "repop", json_integer(blueprint->repop));
     json_object_set_new(json, "area_who", json_integer(blueprint->area_who));
+
+    if (blueprint->channel_defs && list_size(blueprint->channel_defs) > 0) {
+        json_t *channel_defs = json_array();
+        ITERATOR channel_it;
+        char *channel_id;
+
+        iterator_start(&channel_it, blueprint->channel_defs);
+        while ((channel_id = (char *)iterator_nextdata(&channel_it))) {
+            if (!IS_NULLSTR(channel_id))
+                json_array_append_new(channel_defs, json_string(channel_id));
+        }
+        iterator_stop(&channel_it);
+
+        if (json_array_size(channel_defs) > 0)
+            json_object_set_new(json, "channel_defs", channel_defs);
+        else
+            json_decref(channel_defs);
+    }
     
     /* Sections array - store section vnums */
     if (blueprint->sections && list_size(blueprint->sections) > 0) {
@@ -6158,6 +6206,24 @@ json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area
     json_object_set_new(json, "area_who", json_integer(dungeon->area_who));
     json_object_set_new(json, "repop", json_integer(dungeon->repop));
     json_object_set_new(json, "flags", json_integer(dungeon->flags));
+
+    if (dungeon->channel_defs && list_size(dungeon->channel_defs) > 0) {
+        json_t *channel_defs = json_array();
+        ITERATOR channel_it;
+        char *channel_id;
+
+        iterator_start(&channel_it, dungeon->channel_defs);
+        while ((channel_id = (char *)iterator_nextdata(&channel_it)) ) {
+            if (!IS_NULLSTR(channel_id))
+                json_array_append_new(channel_defs, json_string(channel_id));
+        }
+        iterator_stop(&channel_it);
+
+        if (json_array_size(channel_defs) > 0)
+            json_object_set_new(json, "channel_defs", channel_defs);
+        else
+            json_decref(channel_defs);
+    }
     
     /* Group management */
     if (dungeon->min_group > 0)

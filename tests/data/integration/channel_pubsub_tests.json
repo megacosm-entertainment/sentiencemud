@@ -103,6 +103,56 @@
       }
     },
     {
+      "name": "channel_effective_subscriptions_room_regular",
+      "description": "Effective subscriptions include static room topic for ROOM_WV channels in regular rooms",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_room_regular_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_room_wilds",
+      "description": "Effective subscriptions include wilderness room topic for ROOM_WV channels in wilds rooms",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_room_wilds_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_instance_scope",
+      "description": "Effective subscriptions include instance-scoped topic when actor is inside an instance",
+      "dependencies": [],
+      "test_type": "channel_scope_inst_subscriptions_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_dungeon_scope",
+      "description": "Effective subscriptions include dungeon-scoped topic when actor is inside a dungeon instance",
+      "dependencies": [],
+      "test_type": "channel_scope_dng_subscriptions_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_area_isolated",
+      "description": "Area-scoped topic is suppressed when actor is in an isolated instance or dungeon context",
+      "dependencies": [],
+      "test_type": "channel_area_isolated_subscriptions_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
       "name": "channel_auto_backend_subscription_continuity",
       "description": "Effective subscriptions remain stable across auto backend init/pulse cycles",
       "dependencies": [],
@@ -193,6 +243,16 @@
       }
     },
     {
+      "name": "channel_modifier_order_behavior",
+      "description": "Channel modifier_order changes transform sequence outcomes for the same modifier set",
+      "dependencies": [],
+      "test_type": "channel_modifier_order_behavior_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
       "name": "channel_tell_directed_delivery",
       "description": "channel_service_send_directed delivers tell only to the specific recipient via local transport",
       "dependencies": [],
@@ -207,6 +267,86 @@
       "description": "Tell delivery is blocked at receive time when recipient is ignoring sender",
       "dependencies": [],
       "test_type": "channel_tell_ignore_filter_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_afk_replay_parity",
+      "description": "Directed tell to AFK recipient is buffered and replay prints then clears it",
+      "dependencies": [],
+      "test_type": "channel_tell_afk_replay_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_linkdead_replay_parity",
+      "description": "Directed tell to linkdead recipient is buffered and replay prints then clears it after reconnect",
+      "dependencies": [],
+      "test_type": "channel_tell_linkdead_replay_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_linkdead_quiet_buffer_parity",
+      "description": "Directed tell to linkdead recipient buffers even when recipient has quiet set, matching legacy ordering",
+      "dependencies": [],
+      "test_type": "channel_tell_linkdead_quiet_buffer_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_object_targeted_parity",
+      "description": "Object-targeted intone routes through channel service and preserves sender/room visible output",
+      "dependencies": [],
+      "test_type": "channel_intone_object_targeted_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_block",
+      "description": "Object-targeted intone applies channel filtering and blocks marker-matched blocked text",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_block_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_redact",
+      "description": "Object-targeted intone applies channel filtering redaction and delivers redacted text",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_redact_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_review",
+      "description": "Object-targeted intone applies review marker behavior and enqueues a staff report",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_review_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_def_block",
+      "description": "Object-targeted intone honors channel-definition simple filter block rules",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_def_block_test",
       "input": {},
       "expected_output": {
         "success": true

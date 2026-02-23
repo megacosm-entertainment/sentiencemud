@@ -46,6 +46,66 @@
 #include "account/penalty.h"
 #include "account/unlock.h"
 #include "class_data.h"
+#include "channel_registry.h"
+#include "channel_service.h"
+
+static bool dynamic_channel_is_ooc_command(const char *command)
+{
+    int i;
+    int j;
+    const CHANNEL_DEF_DATA *match = NULL;
+
+    if (IS_NULLSTR(command))
+        return false;
+
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+        bool matches_id;
+        bool matches_command;
+
+        if (!def)
+            continue;
+
+        matches_id = !str_cmp(command, def->id);
+        matches_command = !IS_NULLSTR(def->command) && !str_cmp(command, def->command);
+        if (matches_id || matches_command)
+            return IS_SET(def->channel_flags, CHANNEL_FLAG_IS_OOC);
+
+        for (j = 0; j < def->alias_count; j++) {
+            if (!IS_NULLSTR(def->aliases[j]) && !str_cmp(command, def->aliases[j]))
+                return IS_SET(def->channel_flags, CHANNEL_FLAG_IS_OOC);
+        }
+    }
+
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+        bool matches_id;
+        bool matches_command;
+        bool matches_alias = false;
+
+        if (!def)
+            continue;
+
+        matches_id = !str_prefix(command, def->id);
+        matches_command = !IS_NULLSTR(def->command) && !str_prefix(command, def->command);
+        for (j = 0; j < def->alias_count; j++) {
+            if (!IS_NULLSTR(def->aliases[j]) && !str_prefix(command, def->aliases[j])) {
+                matches_alias = true;
+                break;
+            }
+        }
+
+        if (!matches_id && !matches_command && !matches_alias)
+            continue;
+
+        if (match && match != def)
+            return false;
+
+        match = def;
+    }
+
+    return match && IS_SET(match->channel_flags, CHANNEL_FLAG_IS_OOC);
+}
 
 // Log-all switch
 bool				logAll		= false;
@@ -949,6 +1009,8 @@ if (ch->pk_question)
     iterator_stop(&it);
 
     allowed = is_allowed(command);
+    if (!allowed && !found && dynamic_channel_is_ooc_command(command))
+        allowed = true;
 
     if (found && !selected_command->enabled)
     {
@@ -1156,6 +1218,9 @@ if (ch->pk_question)
     if (!found)
     {
         if (check_verbs(ch,command,argument))
+            return;
+
+        if (dispatch_dynamic_channel_command(ch, command, argument))
             return;
 
         if (check_social(ch, command, argument))
@@ -1524,6 +1589,104 @@ static void delete_extra_commands(void *ptr)
     free_string((char *)ptr);
 }
 
+static bool command_list_has_exact_name(const char *name)
+{
+    ITERATOR it;
+    CMD_DATA *command;
+
+    if (IS_NULLSTR(name))
+        return false;
+
+    iterator_start(&it, commands_list);
+    while ((command = (CMD_DATA *)iterator_nextdata(&it))) {
+        if (!str_cmp(command->name, name)) {
+            iterator_stop(&it);
+            return true;
+        }
+    }
+    iterator_stop(&it);
+
+    return false;
+}
+
+static void do_commands_emit_dynamic_channels(CHAR_DATA *ch, int *col)
+{
+    int i;
+
+    if (!ch || !col)
+        return;
+
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+        const char *command_name;
+        HELP_DATA *help;
+        char mxp_str[1024];
+        char hint_buf[256];
+        char help_target[64];
+        char summary_buf[128];
+        char display_name[32];
+        bool has_summary;
+
+        if (!def)
+            continue;
+
+        command_name = IS_NULLSTR(def->command) ? def->id : def->command;
+        if (IS_NULLSTR(command_name))
+            continue;
+
+        strlcpy(display_name, command_name, sizeof(display_name));
+
+        if (command_list_has_exact_name(command_name))
+            continue;
+
+        if (!channel_service_channel_available_for_sender(ch, def))
+            continue;
+
+        help = NULL;
+        if (!IS_NULLSTR(def->help_keywords) && str_cmp(def->help_keywords, "(null)"))
+            help = lookup_help_exact((char *)def->help_keywords, get_staff_rank(ch), topHelpCat);
+
+        strlcpy(summary_buf, IS_NULLSTR(def->summary) ? "" : def->summary, sizeof(summary_buf));
+        has_summary = !IS_NULLSTR(summary_buf);
+
+        if (help)
+            snprintf(help_target, sizeof(help_target), "help #%d", help->index);
+        else
+            help_target[0] = '\0';
+
+        if (help && has_summary)
+            snprintf(hint_buf, sizeof(hint_buf), "%s|View '%s' helpfile", summary_buf, command_name);
+        else if (help)
+            snprintf(hint_buf, sizeof(hint_buf), "Execute %s|View '%s' helpfile", command_name, command_name);
+        else if (has_summary)
+            snprintf(hint_buf, sizeof(hint_buf), "%s", summary_buf);
+        else
+            snprintf(hint_buf, sizeof(hint_buf), "Execute %s", command_name);
+
+        if (help)
+            snprintf(mxp_str,
+                     sizeof(mxp_str),
+                     "\t<send href=\"%s|%s\" hint=\"%s\">{X%s\t</send>%s",
+                     command_name,
+                     help_target,
+                     hint_buf,
+                     command_name,
+                     pad_string(display_name, 13, NULL, NULL));
+        else
+            snprintf(mxp_str,
+                     sizeof(mxp_str),
+                     "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s",
+                     command_name,
+                     hint_buf,
+                     command_name,
+                     pad_string(display_name, 13, NULL, NULL));
+
+        send_to_char(mxp_str, ch);
+        if (++(*col) % 6 == 0)
+            send_to_char("\n\r", ch);
+    }
+}
+
 // Output a table of commands.
 void do_commands( CHAR_DATA *ch, char *argument )
 {
@@ -1573,6 +1736,10 @@ void do_commands( CHAR_DATA *ch, char *argument )
                 }
             }
             iterator_stop(&cit);
+
+            if (cmdtype == CMDTYPE_COMM)
+                do_commands_emit_dynamic_channels(ch, &col);
+
             send_to_char("\n\r", ch);
         }
 
@@ -1681,6 +1848,10 @@ void do_commands( CHAR_DATA *ch, char *argument )
             }
         }
         iterator_stop(&cit);
+
+        if (cmdtype == CMDTYPE_COMM)
+            do_commands_emit_dynamic_channels(ch, &col);
+
         send_to_char("\n\r", ch);
     }
 

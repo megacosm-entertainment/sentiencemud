@@ -24,4 +24,8 @@ bool channel_filter_evaluate(CHAR_DATA *sender,
                              const char *raw_text,
                              CHANNEL_FILTER_RESULT *out_result);
 
+bool channel_filter_text_matches(const char *text,
+                                 const char *pattern,
+                                 bool regex_mode);
+
 #endif

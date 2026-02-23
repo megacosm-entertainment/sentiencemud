@@ -25,8 +25,32 @@ typedef enum channel_scope {
     CHANNEL_SCOPE_ROOM_WV       = 3, /* All entities in the same room (Stg 4) */
     CHANNEL_SCOPE_DIRECT_ENTITY = 4, /* Point-to-point sender → entity         */
     CHANNEL_SCOPE_GROUP_ID      = 5, /* All members of a specific group        */
-    CHANNEL_SCOPE_CHURCH_ID     = 6  /* All members of a specific church       */
+    CHANNEL_SCOPE_CHURCH_ID     = 6, /* All members of a specific church       */
+    CHANNEL_SCOPE_INSTANCE_ID   = 7, /* All entities in the same instance      */
+    CHANNEL_SCOPE_DUNGEON_ID    = 8  /* All entities in the same dungeon       */
 } CHANNEL_SCOPE;
+
+#define CHANNEL_MODERATOR_MAX        8
+#define CHANNEL_MODERATOR_NAME_MAX  32
+#define CHANNEL_ALIAS_MAX            8
+#define CHANNEL_ALIAS_LEN           32
+
+/* Channel text processing modifiers (configurable via cedit). */
+#define CHANNEL_MOD_PUNCTUATION_PARSE   (1L << 0)
+#define CHANNEL_MOD_EMOTE_STRIP         (1L << 1)
+#define CHANNEL_MOD_COLOR_STRIP         (1L << 2)
+#define CHANNEL_MOD_CAPS_NORMALIZE      (1L << 3)
+#define CHANNEL_MOD_DRUNK_SPEECH        (1L << 4)
+
+/* Channel identity/visibility delivery flags (configurable via cedit). */
+#define CHANNEL_FLAG_HONOR_PERS         (1L << 0) /* resolve sender via pers(sender, recipient) */
+#define CHANNEL_FLAG_HONOR_WIZI         (1L << 1) /* hide sender when invis_level exceeds recipient level */
+#define CHANNEL_FLAG_ALLOW_BAN          (1L << 2) /* if set, channel bans suppress receiving this channel */
+#define CHANNEL_FLAG_IS_OOC             (1L << 3) /* treat channel command as OOC/allowed-style command */
+#define CHANNEL_FLAG_RESPECT_SILENCE    (1L << 4) /* sender under AFF2_SILENCE cannot use channel */
+#define CHANNEL_FLAG_IGNORE_QUIET       (1L << 5) /* sender can use channel while COMM_QUIET is set */
+#define CHANNEL_FLAG_GUARD_STR_EDIT_CMDS (1L << 6) /* block accidental string-editor command text as channel messages */
+#define CHANNEL_FLAG_TOGGLE_ONLY        (1L << 7) /* command toggles receive preference only; publishing text is disallowed */
 
 /*=========================================================================*
  * Route Targets (for multi-target scope channels)                         *
@@ -58,6 +82,8 @@ typedef struct channel_def_data {
     char id[32];
     char name[64];
     char command[32];               /* player command that invokes the channel */
+    int alias_count;
+    char aliases[CHANNEL_ALIAS_MAX][CHANNEL_ALIAS_LEN];
     CHANNEL_SCOPE scope;
     bool allow_player_flags;        /* honour per-player display flags         */
     bool persistent;                /* true = always-on; false = context-bound */
@@ -81,7 +107,40 @@ typedef struct channel_def_data {
      */
     char topic_pattern[128];
 
+    long modifiers;                  /* CHANNEL_MOD_* bitmask                   */
+    char modifier_order[128];        /* comma-separated modifier names           */
+
     CHANNEL_ROUTE_TARGETS route_targets;
+
+    long channel_flags;
+
+    bool filter_enabled;
+    int filter_mode; /* CHANNEL_FILTER_* from channel_filter.h */
+    char filter_simple[256];
+    char filter_regex[256];
+
+    int light_warn_threshold;
+    int light_mute_minutes;
+
+    int mod_count;
+    char moderators[CHANNEL_MODERATOR_MAX][CHANNEL_MODERATOR_NAME_MAX];
+
+    bool review_enabled;
+    char review_stream[64];
+
+    char fmt_self[256];
+    char fmt_receiver[256];
+    char fmt_notvict[256];
+
+    int history_max_len;
+    int history_max_age_seconds;
+
+    char publish_requirements[1024];
+    char subscribe_requirements[1024];
+
+    char comments[512];
+    char help_keywords[128];
+    char summary[128];
 } CHANNEL_DEF_DATA;
 
 /*=========================================================================*
@@ -157,5 +216,13 @@ bool channel_registry_upsert(const CHANNEL_DEF_DATA *def);
  * @return true if found and removed; false if not found
  */
 bool channel_registry_remove(const char *id);
+
+/**
+ * channel_registry_fix_requirements - Resolve/canonicalize token requirement widevnums.
+ *
+ * Run this after areas are loaded so token requirement specs can be normalized
+ * to explicit widevnum strings.
+ */
+void channel_registry_fix_requirements(void);
 
 #endif /* CHANNEL_REGISTRY_H */

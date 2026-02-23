@@ -21,6 +21,7 @@
 #include "wilds.h"
 #include "io/json/json_church.h"
 #include "channel_service.h"
+#include "account/preferences.h"
 
 bool is_trusted(CHURCH_PLAYER_DATA *member, char *command);
 char *get_chrank(CHURCH_PLAYER_DATA *member);
@@ -1692,16 +1693,17 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-        if (IS_SET(ch->comm, COMM_NOCT))
-    {
-        send_to_char("You will now hear church talks.\n\r", ch);
-        REMOVE_BIT(ch->comm, COMM_NOCT);
-    }
-    else
-    {
-        send_to_char("You will no longer hear church talks.\n\r", ch);
-        SET_BIT(ch->comm, COMM_NOCT);
-    }
+        bool enabled = pref_check_channel(ch, "chtalk");
+
+        if (enabled)
+            send_to_char("You will no longer hear church talks.\n\r", ch);
+        else
+            send_to_char("You will now hear church talks.\n\r", ch);
+
+        pref_set_bool(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                      "channel_chtalk", !enabled);
+        pref_remove(&ch->pcdata->preferences, "channel_ct");
+        save_char_obj(ch);
 
     return;
     }
@@ -1716,7 +1718,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
     {
     CHAR_DATA *victim = NULL;
 
-    if (channel_can_deliver_to_descriptor(ch, d, COMM_NOCT, true, true, &victim)
+    if (channel_can_deliver_to_descriptor(ch, d, COMM_NOCT, true, true, true, &victim)
     && victim->church == ch->church)
     {
         counter++;
@@ -1729,7 +1731,7 @@ void do_chtalk(CHAR_DATA *ch, char *argument)
             {
                 CHAR_DATA *victim;
 
-                if (channel_can_deliver_to_descriptor(ch, d, COMM_NOCT, true, true, &victim)
+                if (channel_can_deliver_to_descriptor(ch, d, COMM_NOCT, true, true, true, &victim)
                 && victim->church == ch->church)
                 {
                     if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(victim, FLAG_CT))

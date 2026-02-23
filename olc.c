@@ -77,6 +77,7 @@ char *editor_name_table[] = {
     "QEdit",        // 41 ED_QUEST
     "QpEdit",       // 42 ED_QPCODE
     "CEdit",        // 43 ED_CEDIT
+    "ChReport",     // 44 ED_CHREPORT
 };
 
 int editor_max_tabs_table[] = {
@@ -124,6 +125,7 @@ int editor_max_tabs_table[] = {
     0,		// QEdit
     0,		// QpEdit
     0,		// CEdit
+    0,		// ChReport
 };
 
 const struct editor_cmd_type editor_table[] =

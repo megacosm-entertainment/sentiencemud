@@ -1,5 +1,5 @@
 #include <string.h>
-#include "merc.h"
+#include "../merc.h"
 #include "channel_transport.h"
 
 const channel_transport *channel_transport_local_backend(void);

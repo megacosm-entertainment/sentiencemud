@@ -467,11 +467,13 @@ void pref_snapshot_channels(CHAR_DATA *ch, PREF_ENTRY **list)
         { "channel_quote",     COMM_NOQUOTE    },
         { "channel_helper",    COMM_NOHELPER   },
         { "channel_ct",        COMM_NOCT       },
+        { "channel_chtalk",    COMM_NOCT       },
         { "channel_gq",        COMM_NOGQ       },
         { "channel_autowar",   COMM_NOAUTOWAR  },
         { "channel_announce",  COMM_NOANNOUNCE },
         { "channel_hints",     COMM_NOHINTS    },
         { "channel_flaming",   COMM_NO_FLAMING },
+        { "channel_flame",     COMM_NO_FLAMING },
         { NULL, 0 }
     };
 
@@ -582,9 +584,54 @@ static const struct {
     { "autowar",   COMM_NOAUTOWAR  },
     { "announce",  COMM_NOANNOUNCE },
     { "hints",     COMM_NOHINTS    },
+    { "tells",     COMM_NOTELLS    },
+    { "immtalk",   COMM_NOWIZ      },
     { "flaming",   COMM_NO_FLAMING },
     { NULL, 0 }
 };
+
+static const char *pref_channel_canonical_name(const char *channel)
+{
+    if (IS_NULLSTR(channel))
+        return "";
+
+    if (!str_cmp(channel, "flaming"))
+        return "flame";
+    if (!str_cmp(channel, "ct"))
+        return "chtalk";
+
+    return channel;
+}
+
+static const char *pref_channel_legacy_alias(const char *canonical)
+{
+    if (IS_NULLSTR(canonical))
+        return NULL;
+
+    if (!str_cmp(canonical, "flame"))
+        return "flaming";
+    if (!str_cmp(canonical, "chtalk"))
+        return "ct";
+
+    return NULL;
+}
+
+static bool pref_channel_key_exists(ACCOUNT_DATA *account, CHAR_DATA *ch, const char *key)
+{
+    PREF_ENTRY *char_prefs;
+
+    if (IS_NULLSTR(key))
+        return false;
+
+    char_prefs = get_char_prefs(ch);
+    if (pref_find(char_prefs, key))
+        return true;
+
+    if (account && pref_find(account->preferences, key))
+        return true;
+
+    return false;
+}
 
 /***************************************************************************
  * Apply Game Defaults and Account Preferences                             *
@@ -712,7 +759,8 @@ void pref_apply_game_defaults(CHAR_DATA *ch)
                     chan_name += 8;
 
                 for (int i = 0; channel_mute_table[i].name; i++) {
-                    if (str_cmp(channel_mute_table[i].name, chan_name))
+                    if (str_cmp(pref_channel_canonical_name(channel_mute_table[i].name),
+                                pref_channel_canonical_name(chan_name)))
                         continue;
                     if (gp->val.b)
                         REMOVE_BIT(ch->comm, channel_mute_table[i].flag);
@@ -831,11 +879,13 @@ void pref_apply_to_character(ACCOUNT_DATA *account, CHAR_DATA *ch,
                         { "channel_quote",     COMM_NOQUOTE    },
                         { "channel_helper",    COMM_NOHELPER   },
                         { "channel_ct",        COMM_NOCT       },
+                        { "channel_chtalk",    COMM_NOCT       },
                         { "channel_gq",        COMM_NOGQ       },
                         { "channel_autowar",   COMM_NOAUTOWAR  },
                         { "channel_announce",  COMM_NOANNOUNCE },
                         { "channel_hints",     COMM_NOHINTS    },
                         { "channel_flaming",   COMM_NO_FLAMING },
+                        { "channel_flame",     COMM_NO_FLAMING },
                         { NULL, 0 }
                     };
                     for (int i = 0; channel_mute[i].name; i++) {
@@ -935,11 +985,13 @@ void pref_apply_to_character(ACCOUNT_DATA *account, CHAR_DATA *ch,
                     { "channel_quote",     COMM_NOQUOTE    },
                     { "channel_helper",    COMM_NOHELPER   },
                     { "channel_ct",        COMM_NOCT       },
+                    { "channel_chtalk",    COMM_NOCT       },
                     { "channel_gq",        COMM_NOGQ       },
                     { "channel_autowar",   COMM_NOAUTOWAR  },
                     { "channel_announce",  COMM_NOANNOUNCE },
                     { "channel_hints",     COMM_NOHINTS    },
                     { "channel_flaming",   COMM_NO_FLAMING },
+                    { "channel_flame",     COMM_NO_FLAMING },
                     { NULL, 0 }
                 };
                 for (int i = 0; channel_mute[i].name; i++) {
@@ -2010,15 +2062,36 @@ bool pref_check(CHAR_DATA *ch, const char *key)
  */
 bool pref_check_channel(CHAR_DATA *ch, const char *channel)
 {
+    ACCOUNT_DATA *account;
+    int i;
+    char key[64];
+    char legacy_key[64];
+    const char *canonical;
+    const char *legacy;
+
     if (!ch)
         return false;
 
-    for (int i = 0; channel_mute_table[i].name; i++) {
-        if (!str_cmp(channel_mute_table[i].name, channel))
+    account = ch->desc ? ch->desc->account : NULL;
+    canonical = pref_channel_canonical_name(channel);
+    snprintf(key, sizeof(key), "channel_%s", canonical);
+
+    if (pref_channel_key_exists(account, ch, key))
+        return pref_get_bool(account, ch, key, true);
+
+    legacy = pref_channel_legacy_alias(canonical);
+    if (!IS_NULLSTR(legacy)) {
+        snprintf(legacy_key, sizeof(legacy_key), "channel_%s", legacy);
+        if (pref_channel_key_exists(account, ch, legacy_key))
+            return pref_get_bool(account, ch, legacy_key, true);
+    }
+
+    for (i = 0; channel_mute_table[i].name; i++) {
+        if (!str_cmp(pref_channel_canonical_name(channel_mute_table[i].name), canonical))
             return !IS_SET(ch->comm, channel_mute_table[i].flag);
     }
 
-    return false;
+    return true;
 }
 
 /**
@@ -2141,7 +2214,7 @@ static void show_channel_settings(CHAR_DATA *ch)
         char pref_key[64];
         snprintf(pref_key, sizeof(pref_key), "channel_%s", channel_mute_table[i].name);
 
-        bool enabled = !IS_SET(ch->comm, channel_mute_table[i].flag);
+        bool enabled = pref_check_channel(ch, channel_mute_table[i].name);
         int source = pref_get_source(acct, ch, pref_key);
 
         sprintf(buf, "  %-16s %s    %s\n\r",
@@ -2304,6 +2377,79 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    /* Subcommand: filter */
+    if (!str_prefix(arg, "filter")) {
+        char mode[MAX_INPUT_LENGTH];
+        char opt[MAX_INPUT_LENGTH];
+        ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
+
+        argument = one_argument(argument, mode);
+        argument = one_argument(argument, opt);
+
+        if (IS_NULLSTR(mode)) {
+            const char *simple = pref_get_string(acct, ch, "filter_simple", "");
+            const char *regex = pref_get_string(acct, ch, "filter_regex", "");
+
+            sprintf(buf,
+                    "Filter settings:\n\r  simple: %s\n\r  regex : %s\n\r"
+                    "Use: prefs filter simple <text>\n\r"
+                    "     prefs filter regex <pattern>\n\r"
+                    "     prefs filter clear <simple|regex|all>\n\r",
+                    IS_NULLSTR(simple) ? "(none)" : simple,
+                    IS_NULLSTR(regex) ? "(none)" : regex);
+            send_to_char(buf, ch);
+            return;
+        }
+
+        if (!str_cmp(mode, "simple")) {
+            if (IS_NULLSTR(argument)) {
+                send_to_char("Syntax: prefs filter simple <text>\n\r", ch);
+                return;
+            }
+            pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                            "filter_simple", argument);
+            save_char_obj(ch);
+            send_to_char("Simple filter updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_cmp(mode, "regex")) {
+            if (IS_NULLSTR(argument)) {
+                send_to_char("Syntax: prefs filter regex <pattern>\n\r", ch);
+                return;
+            }
+            pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                            "filter_regex", argument);
+            save_char_obj(ch);
+            send_to_char("Regex filter updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_cmp(mode, "clear")) {
+            if (IS_NULLSTR(opt)) {
+                send_to_char("Syntax: prefs filter clear <simple|regex|all>\n\r", ch);
+                return;
+            }
+
+            if (!str_cmp(opt, "simple") || !str_cmp(opt, "all"))
+                pref_remove(&ch->pcdata->preferences, "filter_simple");
+            if (!str_cmp(opt, "regex") || !str_cmp(opt, "all"))
+                pref_remove(&ch->pcdata->preferences, "filter_regex");
+
+            if (str_cmp(opt, "simple") && str_cmp(opt, "regex") && str_cmp(opt, "all")) {
+                send_to_char("Expected simple, regex, or all.\n\r", ch);
+                return;
+            }
+
+            save_char_obj(ch);
+            send_to_char("Filter settings cleared.\n\r", ch);
+            return;
+        }
+
+        send_to_char("Syntax: prefs filter <simple|regex|clear> ...\n\r", ch);
+        return;
+    }
+
     /* Toggle a setting by name */
 
     /* Check pc_set_table first */
@@ -2375,27 +2521,20 @@ void do_prefs(CHAR_DATA *ch, char *argument)
 
     /* Check channel names */
     for (int i = 0; channel_mute_table[i].name; i++) {
-        if (!str_prefix(arg, channel_mute_table[i].name)) {
+        const char *canonical = pref_channel_canonical_name(channel_mute_table[i].name);
+        if (!str_prefix(arg, channel_mute_table[i].name) ||
+            !str_prefix(arg, canonical)) {
             char pref_key[64];
-            snprintf(pref_key, sizeof(pref_key), "channel_%s",
-                     channel_mute_table[i].name);
+            snprintf(pref_key, sizeof(pref_key), "channel_%s", canonical);
 
-            /* Toggle: COMM_NO* set = muted */
-            if (IS_SET(ch->comm, channel_mute_table[i].flag)) {
-                REMOVE_BIT(ch->comm, channel_mute_table[i].flag);
-                sprintf(buf, "%s channel is now {WON{x. {Y(character override){x\n\r",
-                        channel_mute_table[i].name);
-            } else {
-                SET_BIT(ch->comm, channel_mute_table[i].flag);
-                sprintf(buf, "%s channel is now {DOFF{x. {Y(character override){x\n\r",
-                        channel_mute_table[i].name);
-            }
-            send_to_char(buf, ch);
-
-            /* Record as character override */
-            bool enabled = !IS_SET(ch->comm, channel_mute_table[i].flag);
+                bool enabled = !pref_check_channel(ch, canonical);
             pref_set_bool(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
                           pref_key, enabled);
+
+                sprintf(buf, "%s channel is now %s. {Y(character override){x\n\r",
+                    canonical,
+                    enabled ? "{WON{x" : "{DOFF{x");
+                send_to_char(buf, ch);
 
             save_char_obj(ch);
             return;

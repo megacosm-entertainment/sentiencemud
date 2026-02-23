@@ -137,9 +137,10 @@ void update_handler(void)
         }
     }
 
-    /* Process channel transport inbound queue (non-blocking) */
+    /* Process channel transport inbound queue (non-blocking).
+     * Run every game pulse to minimize local pub/sub delivery latency. */
     if (--pulse_channel <= 0) {
-        pulse_channel = PULSE_PER_SECOND;
+        pulse_channel = 1;
         channel_service_pulse();
     }
 

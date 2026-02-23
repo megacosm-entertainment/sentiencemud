@@ -256,11 +256,195 @@ Exit criteria:
 - Publish-time enforcement works for both character and account penalties.
 - Staff has searchable audit trail tied to incidents.
 
+### Stage 6: Subscription Lifecycle & History Correctness (Next)
+
+Goal: ensure scoped topics are created only when needed, retained briefly for continuity, and dropped when no longer relevant, while preserving correct history semantics for movement/membership/direct channels.
+
+#### 6.1 Topic lifecycle policy (refcount + grace TTL)
+
+Design:
+- Keep server-owned refcounted topic subscriptions (already in place) and add delayed cleanup per topic when refcount drops to zero.
+- Apply scope-aware grace windows before unsubscribe to absorb churn:
+	- `ROOM_WV`: 10 minutes
+	- `GROUP_ID`, `CHURCH_ID`, `DIRECT_ENTITY`: 30 minutes
+	- `AREA`, `REGION`: 10 minutes (or config override)
+- If a topic becomes active again during grace, cancel pending unsubscribe.
+
+Why:
+- Avoids rapid subscribe/unsubscribe thrash during movement, group invite churn, reconnects.
+- Preserves short-term continuity for late-arriving messages/history fetch.
+
+Exit criteria:
+- No immediate unsubscribe on transient refcount drops.
+- Topic set remains bounded and converges after inactivity.
+
+#### 6.2 Previous-subscription tracking for context-aware history
+
+Design:
+- Track each active entity's previous effective topic set in channel service.
+- On location/group/church changes, compute `{removed, added}` delta from previous set.
+- Fetch recent history for newly added topics.
+- Optionally fetch small trailing history for recently removed room/group topics for continuity UX (configurable).
+
+Why:
+- Movement and membership transitions otherwise lose context or duplicate replay.
+
+Exit criteria:
+- Movement/group membership transitions produce deterministic history hydration with no duplicate floods.
+
+#### 6.3 Membership-driven subscription updates
+
+Design:
+- Group/channel scope transitions must react to both movement and membership events:
+	- join/leave group
+	- group disband
+	- church join/leave
+	- direct entity online/offline transitions
+- Ensure subscription sync is triggered by event hooks where available, with pulse reconciliation as fallback safety net.
+
+Exit criteria:
+- Group/church scope subscriptions update immediately on membership changes and remain correct after pulse reconciliation.
+
+#### 6.4 Direct entity (`tell`) history model
+
+Problem:
+- Topic history for `DIRECT_ENTITY` alone is awkward for conversation retrieval since relevant messages are those where user is sender or receiver.
+
+Design target:
+- Keep delivery topics per entity (`rt:entity:<id1>:<id2>`) for fanout.
+- Add conversation history indexing keyed by participant pair (canonicalized uid pair), e.g. `hist:dm:<low_uid>-<high_uid>`.
+- On directed send, write one history record with sender/recipient metadata.
+- For replay/query, fetch records where entity is participant (pair index + optional recent-peer index).
+
+Exit criteria:
+- Tell history retrieval returns both sent and received messages with correct ordering.
+- No dependence on recipient being currently subscribed to reconstruct conversation history.
+
+#### 6.5 Channel policy surface (cedit + defaults)
+
+Add policy fields (or equivalent runtime config) to control:
+- history max length
+- history max age
+- subscription grace TTL
+- hydration replay count/window
+
+Current note:
+- `history_max_len` and `history_max_age_seconds` already exist in channel definitions; wire runtime enforcement and add grace/hydration policy fields next.
+
 ## Immediate Implementation Slice (In Progress)
 
-Stages 1–3 complete. Working on Stage 5 (moderation layer):
+Stages 1–3 remain complete. Stage 4 has now started with foundational routing work:
 
-1. `channel_penalty.h` / `channel_penalty.c` — per-channel warn/mute/ban with character scope, expiry, and reason audit.
-2. Penalty check in `channel_service_send` — block silently on mute/ban, message sender.
-3. Staff commands: `chanmute`, `chanban`, `chanwarn`, `chanunmute`, `chanpenalties`.
-4. Stage 4 (room speech) deferred — requires `do_say` refactor for multi-sentence split and verb randomization; see design notes above.
+Completed in current slice:
+1. `CHANNEL_SCOPE_ROOM_WV` topic building in `channel_service.c`:
+	- regular room: `rt:room:v:<vnum>`
+	- wilderness room: `rt:room:wv:<wilds_uid>:<x>:<y>`
+	- instance/clone room: `rt:room:inst:<source_vnum>:<id0>:<id1>`
+2. Subscription sync now includes `ROOM_WV` scope for NPC context reconciliation.
+3. Channel defaults now include `say`, `whisper`, and `sayto` as `ROOM_WV` definitions.
+4. `cedit` now exposes and persists `topic_pattern` editing (`topic <pattern|clear>`), so scoped/topic overrides are manageable in-editor.
+5. Integration coverage added for regular + wilderness room subscription topics.
+
+Next implementation slice (active target):
+1. Migrate `do_say` send path to `channel_service_send(..., "say", ...)` while preserving exact output/trigger ordering.
+2. Add legacy room-delivery dispatcher path keyed by `say` for transport receive handling.
+3. Migrate `do_sayto` and `do_whisper` to room-scoped channel service paths (or documented intentional direct-local path where required by trigger semantics).
+4. Add parity tests for room speech behavior (format variants + trigger ordering + ignore/quiet compatibility where applicable).
+
+Stage 5 moderation remains in-progress; complete account-scope parity and incident-reference linking after room speech migration stabilizes.
+
+### Next Concrete Slice (Subscription/History)
+
+1. Implement topic grace-TTL unsubscribe scheduler in `channel_service_sync_subscriptions` flow.
+2. Add per-entity previous-topic snapshot and delta-based history hydration hooks.
+3. Add membership event triggers (group/church join/leave) to force sync pass, keeping pulse sync as fallback.
+4. Implement directed-message conversation history index keyed by participant pair.
+5. Add integration tests for:
+	- room move churn (topic add/remove with grace)
+	- group membership add/remove subscription delta
+	- tell history includes sent+received paths.
+
+### Stage 7: Dynamic Channels (Dungeon/Instance-Attached)
+
+Goal: support channels created from runtime context (dungeon/instance/blueprint attachments) with strict access boundaries and automatic lifecycle management.
+
+#### 7.1 Source of truth and composition
+
+Design:
+- Keep global channel definitions in `channels.json` as reusable templates.
+- Attach channel template IDs to content indexes:
+	- `DUNGEON_INDEX_DATA.channel_defs`
+	- `BLUEPRINT.channel_defs`
+- At runtime, derive effective dynamic channels from template + context:
+	- scope key (dungeon uid / instance uid / room instance key)
+	- optional display alias (future)
+
+Rules:
+- No ad-hoc mutation of template definitions at runtime.
+- Runtime context only supplies scope identifiers and access checks.
+
+#### 7.2 Access control semantics (hard requirements)
+
+Dungeon-scoped channel:
+- A player may publish/receive only while currently in that dungeon context.
+- Leaving dungeon removes eligibility immediately (with subscription grace window only for transport churn, not visibility).
+
+Instance-scoped channel:
+- A player may publish/receive only while in that instance context.
+
+Blueprint-attached instance channels:
+- Membership is determined by resolved instance section/owner policy (existing instance ownership/group checks where applicable).
+
+Security invariant:
+- Delivery gate always revalidates context membership, even if subscription cache is stale.
+
+#### 7.3 Topic naming and routing
+
+Design target:
+- Keep stable topic families, context-qualified:
+	- `rt:dungeon:<uid1>:<uid2>:<channel_id>`
+	- `rt:instance:<uid1>:<uid2>:<channel_id>`
+- Use deterministic builders in channel service so all publishers/subscribers converge on identical keys.
+
+Notes:
+- Existing scope builders already emit dungeon/instance topics; extend to include channel namespace where needed for multi-channel-per-context isolation.
+
+#### 7.4 Runtime lifecycle
+
+Create:
+- Channel becomes active when at least one eligible entity is present and subscription refcount > 0.
+
+Retain:
+- Apply Stage 6 grace TTL when refcount drops to 0.
+
+Remove:
+- Unsubscribe after grace expiry.
+- History retention follows per-channel policy (`history_max_len`, `history_max_age_seconds`).
+
+#### 7.5 History behavior for dynamic channels
+
+Dungeon/instance history:
+- Hydrate when entering context from previous-subscription delta.
+- Do not expose history once actor is no longer context-eligible, except optional local replay cache already fetched.
+
+Room-derived dynamic channels:
+- Same delta hydration policy as Stage 6 room movement.
+
+#### 7.6 Editor and tooling surface
+
+Required authoring features:
+- `dedit` / dungeon index editor: manage `channel_defs` list.
+- `bpedit` / blueprint editor: manage `channel_defs` list.
+- Validation command: ensure attached channel IDs exist in registry.
+
+Optional (later):
+- Context-local overrides (format/modifier) layered over template with explicit precedence.
+
+#### 7.7 Test gates
+
+Add integration tests for:
+- enter dungeon => subscription and delivery enabled
+- leave dungeon => delivery denied immediately; subscription drops after grace
+- group change inside dungeon => group-scoped dynamic channels update correctly
+- two parallel dungeon instances with same index do not cross-deliver
+- blueprint-attached channel defs are loaded/saved round-trip in area JSON

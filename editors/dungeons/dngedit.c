@@ -17,6 +17,7 @@
 #include "../../recycle.h"
 #include "../../interp.h"
 #include "../../scripts.h"
+#include "channel_registry.h"
 #include "../../wilds.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
@@ -71,6 +72,7 @@ const struct olc_cmd_type dngedit_table[] = {
     { "areawho",        dngedit_areawho     },
     { "commands",       show_commands       },
     { "comments",       dngedit_comments    },
+    { "channel",        dngedit_channel     },
     { "create",         dngedit_create      },
     { "deathrelease",   dngedit_deathrelease },
     { "deldprog",       dngedit_deldprog    },
@@ -1164,6 +1166,146 @@ DNGEDIT( dngedit_floors )
     }
 
     dngedit_floors(ch, "");
+    return false;
+}
+
+DNGEDIT( dngedit_channel )
+{
+    DUNGEON_INDEX_DATA *dng;
+    char arg[MIL];
+    char channel_id[MIL];
+
+    EDIT_DUNGEON(ch, dng);
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  channel add <channel_id>\n\r", ch);
+        send_to_char("         channel del <#|channel_id>\n\r", ch);
+        send_to_char("         channel list\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    if (!str_prefix(arg, "list"))
+    {
+        BUFFER *buffer = new_buf();
+        ITERATOR it;
+        char *id;
+        char buf[MSL];
+        int index = 1;
+
+        add_buf(buffer, "{WDungeon Channel Definitions:{x\n\r");
+        if (!dng->channel_defs || list_size(dng->channel_defs) < 1)
+        {
+            add_buf(buffer, "  None\n\r");
+        }
+        else
+        {
+            iterator_start(&it, dng->channel_defs);
+            while ((id = (char *)iterator_nextdata(&it)))
+            {
+                sprintf(buf, "  {W%2d{x) %s\n\r", index++, id);
+                add_buf(buffer, buf);
+            }
+            iterator_stop(&it);
+        }
+
+        page_to_char(buffer->string, ch);
+        free_buf(buffer);
+        return false;
+    }
+
+    if (!str_prefix(arg, "add"))
+    {
+        const CHANNEL_DEF_DATA *def;
+        ITERATOR it;
+        char *existing;
+
+        argument = one_argument(argument, channel_id);
+        if (channel_id[0] == '\0')
+        {
+            send_to_char("Please specify a channel id.\n\r", ch);
+            return false;
+        }
+
+        def = channel_registry_find(channel_id);
+        if (!def)
+        {
+            send_to_char("Unknown channel id. Use cedit to create it first.\n\r", ch);
+            return false;
+        }
+
+        iterator_start(&it, dng->channel_defs);
+        while ((existing = (char *)iterator_nextdata(&it)))
+        {
+            if (!str_cmp(existing, channel_id))
+            {
+                iterator_stop(&it);
+                send_to_char("That channel id is already attached.\n\r", ch);
+                return false;
+            }
+        }
+        iterator_stop(&it);
+
+        list_appendlink(dng->channel_defs, str_dup(def->id));
+        send_to_char("Channel definition attached to dungeon.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg, "del") || !str_prefix(arg, "delete") || !str_prefix(arg, "remove"))
+    {
+        if (argument[0] == '\0')
+        {
+            send_to_char("Please specify an index or channel id.\n\r", ch);
+            return false;
+        }
+
+        if (is_number(argument))
+        {
+            int index = atoi(argument);
+            char *id;
+
+            if (index < 1 || index > list_size(dng->channel_defs))
+            {
+                send_to_char("Index out of range.\n\r", ch);
+                return false;
+            }
+
+            id = (char *)list_nthdata(dng->channel_defs, index);
+            if (id)
+                free_string(id);
+            list_remnthlink(dng->channel_defs, index, false);
+            send_to_char("Channel definition removed from dungeon.\n\r", ch);
+            return true;
+        }
+        else
+        {
+            ITERATOR it;
+            char *id;
+            int index = 1;
+
+            iterator_start(&it, dng->channel_defs);
+            while ((id = (char *)iterator_nextdata(&it)))
+            {
+                if (!str_cmp(id, argument))
+                {
+                    iterator_stop(&it);
+                    free_string(id);
+                    list_remnthlink(dng->channel_defs, index, false);
+                    send_to_char("Channel definition removed from dungeon.\n\r", ch);
+                    return true;
+                }
+                index++;
+            }
+            iterator_stop(&it);
+
+            send_to_char("That channel id is not attached.\n\r", ch);
+            return false;
+        }
+    }
+
+    dngedit_channel(ch, "");
     return false;
 }
 

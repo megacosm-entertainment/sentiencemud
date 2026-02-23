@@ -158,6 +158,13 @@ bool          has_channel_penalty(ACCOUNT_DATA *account,
                                   const char *channel_id,
                                   const char *char_name);
 
+/* Channel-specific ban check (receive-side suppression).
+ * Returns true only for permanent PENALTY_CHAN_MUTE records (chanban semantics)
+ * where extra is empty (all channels) or matches channel_id. */
+bool          has_channel_ban_penalty(ACCOUNT_DATA *account,
+                                      const char *channel_id,
+                                      const char *char_name);
+
 /* Expiration management */
 int           expire_penalties(ACCOUNT_DATA *account);
 

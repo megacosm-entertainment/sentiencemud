@@ -1,6 +1,6 @@
 #include <pthread.h>
 #include <string.h>
-#include "merc.h"
+#include "../merc.h"
 #include "channel_transport.h"
 
 #define CHANNEL_LOCAL_MAX_EVENTS 1024
@@ -10,6 +10,7 @@ typedef struct local_event {
     char channel_id[32];
     char history_stream[196];
     char history_id[64];
+    char reports_json[256];
     char sender_name[64];
     char sender_uid[64];
     unsigned long sender_id0;
@@ -69,6 +70,7 @@ static bool local_publish(const char *topic, const CHANNEL_MESSAGE *msg)
     strlcpy(evt->channel_id, msg->channel_id, sizeof(evt->channel_id));
     strlcpy(evt->history_stream, msg->history_stream ? msg->history_stream : "", sizeof(evt->history_stream));
     strlcpy(evt->history_id, msg->history_id ? msg->history_id : "", sizeof(evt->history_id));
+    strlcpy(evt->reports_json, msg->reports_json ? msg->reports_json : "", sizeof(evt->reports_json));
     strlcpy(evt->sender_name, msg->sender_name ? msg->sender_name : "", sizeof(evt->sender_name));
     strlcpy(evt->sender_uid, msg->sender_uid ? msg->sender_uid : "", sizeof(evt->sender_uid));
     evt->sender_id0 = msg->sender_id0;
@@ -147,6 +149,7 @@ static int local_drain_inbound(int max_events)
         msg.channel_id = evt.channel_id;
         msg.history_stream = evt.history_stream;
         msg.history_id = evt.history_id;
+        msg.reports_json = evt.reports_json[0] ? evt.reports_json : NULL;
         msg.sender_name = evt.sender_name;
         msg.sender_uid = evt.sender_uid;
         msg.sender_id0 = evt.sender_id0;

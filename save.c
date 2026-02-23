@@ -6215,7 +6215,10 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     if (found && loaded_accounts)
     {
         if (!list_haslink(loaded_accounts, account))
-        list_appendlink(loaded_accounts, account);
+            list_appendlink(loaded_accounts, account);
+
+        if (account->refcount < 1)
+            account->refcount = 1;
     }
     account->last_login = current_time;
 
@@ -7429,10 +7432,14 @@ ACCOUNT_DATA *find_account_by_id(unsigned long id0, unsigned long id1)
                         account = d.account;
                         found = true;
                     } else {
-                        if (d.account->refcount > 1)
+                        if (d.account->refcount > 0)
                             d.account->refcount--;
-                        else
+
+                        if (d.account->refcount <= 0) {
+                            if (loaded_accounts)
+                                list_remlink(loaded_accounts, d.account, false);
                             free_account(d.account);
+                        }
                     }
                 }
                 continue;

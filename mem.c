@@ -774,6 +774,8 @@ CHAR_DATA *new_char( void )
 
     ch->challenger = NULL;
     ch->temp_log_entry = NULL;
+    ch->temp_report_channel = NULL;
+    ch->temp_report_message_id = NULL;
         ch->lcarrying_temp = list_create(false);
     ch->temp_log_category = 0;
 
@@ -985,6 +987,8 @@ void free_char( CHAR_DATA *ch )
     wipe_clearinfo_mobile(ch);
     free_prog_data(ch->progs);
     free_string(ch->temp_log_entry);
+    free_string(ch->temp_report_channel);
+    free_string(ch->temp_report_message_id);
 
     /* be sure to free any events hooked up to this char so that they aren't called
        on the freed memory space */
@@ -5299,6 +5303,7 @@ BLUEPRINT *new_blueprint()
 
     bp->area_who = AREA_INSTANCE;
     bp->mode = BLUEPRINT_MODE_STATIC;
+    bp->channel_defs = list_create(false);
 
     bp->sections = list_create(false);
     bp->special_rooms = list_createx(false, NULL, delete_blueprint_special_room);
@@ -5331,6 +5336,17 @@ void free_blueprint(BLUEPRINT *bp)
 
     free_string(bp->name);
     free_string(bp->description);
+
+    if (bp->channel_defs) {
+        ITERATOR chan_it;
+        char *channel_id;
+
+        iterator_start(&chan_it, bp->channel_defs);
+        while ((channel_id = (char *)iterator_nextdata(&chan_it)))
+            free_string(channel_id);
+        iterator_stop(&chan_it);
+        list_destroy(bp->channel_defs);
+    }
 
     list_destroy(bp->sections);
     list_destroy(bp->special_rooms);
@@ -5733,6 +5749,7 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
     dungeon_index->comments = &str_empty[0];
 
     dungeon_index->area_who = AREA_BLANK;
+    dungeon_index->channel_defs = list_create(false);
 
     dungeon_index->floors = list_create(false);
     dungeon_index->levels = list_createx(false, NULL, delete_dungeon_index_level);
@@ -5760,6 +5777,17 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
     free_string(dungeon_index->name);
     free_string(dungeon_index->description);
     free_string(dungeon_index->comments);
+
+    if (dungeon_index->channel_defs) {
+        ITERATOR chan_it;
+        char *channel_id;
+
+        iterator_start(&chan_it, dungeon_index->channel_defs);
+        while ((channel_id = (char *)iterator_nextdata(&chan_it)))
+            free_string(channel_id);
+        iterator_stop(&chan_it);
+        list_destroy(dungeon_index->channel_defs);
+    }
 
     list_destroy(dungeon_index->floors);
     list_destroy(dungeon_index->special_rooms);

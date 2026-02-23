@@ -42,6 +42,41 @@ void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 bool commands_changed = false;
 
+static CMD_DATA *cmdedit_find_command_exact(const char *name)
+{
+    ITERATOR it;
+    CMD_DATA *command;
+
+    if (IS_NULLSTR(name))
+        return NULL;
+
+    iterator_start(&it, commands_list);
+    while ((command = (CMD_DATA *)iterator_nextdata(&it))) {
+        if (!str_cmp(command->name, name))
+            break;
+    }
+    iterator_stop(&it);
+
+    return command;
+}
+
+static bool cmdedit_delete_command(CHAR_DATA *ch, CMD_DATA *command)
+{
+    if (!command)
+        return false;
+
+    if (!str_cmp(command->name, "cmdedit")) {
+        send_to_char("You cannot delete cmdedit.\n\r", ch);
+        return false;
+    }
+
+    list_remlink(commands_list, command, true);
+    commands_changed = true;
+
+    send_to_char("Command deleted. Use 'asave changed' to persist changes.\n\r", ch);
+    return true;
+}
+
 static long cmdedit_addl_types_mask(void)
 {
     long mask = 0;
@@ -179,12 +214,17 @@ static const OLC_EDITOR_DEF cmdedit_def = {
  *
  * Syntax:
  *   cmdedit <command name>  - Edit an existing command
+ *   cmdedit <command> delete - Delete a command (requires confirmation)
  *   cmdedit create <name>   - Create a new command
+ *   cmdedit delete <name>   - Legacy delete syntax (still supported)
  */
 void do_cmdedit(CHAR_DATA *ch, char *argument)
 {
     CMD_DATA *command;
     char arg1[MSL];
+    char arg2[MSL];
+    char arg3[MSL];
+    char arg4[MSL];
 
     argument = one_argument(argument, arg1);
 
@@ -204,6 +244,57 @@ void do_cmdedit(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg1, "create")) {
         if (cmdedit_create(ch, argument))
             olc_editor_enter(ch, &cmdedit_def, ch->desc->pEdit, false);
+        return;
+    }
+
+    if (!str_cmp(arg1, "delete")) {
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+        one_argument(argument, arg4);
+
+        if (IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: cmdedit delete <command>\n\r", ch);
+            send_to_char("        cmdedit delete <command> delete <command>\n\r", ch);
+            return;
+        }
+
+        command = cmdedit_find_command_exact(arg2);
+        if (!command) {
+            send_to_char("No command by that exact name.\n\r", ch);
+            return;
+        }
+
+        if (str_cmp(arg3, "delete") || str_cmp(arg4, arg2)) {
+            printf_to_char(ch,
+                "Type 'cmdedit delete %s delete %s' to confirm permanent deletion.\n\r",
+                arg2,
+                arg2);
+            return;
+        }
+
+        (void)cmdedit_delete_command(ch, command);
+        return;
+    }
+
+    argument = one_argument(argument, arg2);
+    one_argument(argument, arg3);
+
+    if (!str_cmp(arg2, "delete")) {
+        command = cmdedit_find_command_exact(arg1);
+        if (!command) {
+            send_to_char("No command by that exact name.\n\r", ch);
+            return;
+        }
+
+        if (str_cmp(arg3, arg1)) {
+            printf_to_char(ch,
+                "Type 'cmdedit %s delete %s' to confirm permanent deletion.\n\r",
+                arg1,
+                arg1);
+            return;
+        }
+
+        (void)cmdedit_delete_command(ch, command);
         return;
     }
 
@@ -643,8 +734,21 @@ CMDEDIT (cmdedit_show)
 
 CMDEDIT( cmdedit_delete )
 {
-    send_to_char("WIP\n\r",ch);
-    return false;
+    CMD_DATA *command;
+    EDIT_CMD(ch, command);
+
+    if (str_cmp(argument, "confirm")) {
+        send_to_char("Type 'delete confirm' to permanently delete this command.\n\r", ch);
+        send_to_char("You can also delete from outside the editor with:\n\r", ch);
+        printf_to_char(ch, "  cmdedit %s delete %s\n\r", command->name, command->name);
+        return false;
+    }
+
+    if (!cmdedit_delete_command(ch, command))
+        return false;
+
+    edit_done(ch);
+    return true;
 }
 
 CMDEDIT( cmdedit_name )

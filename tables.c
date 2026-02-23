@@ -2924,7 +2924,7 @@ const struct flag_type instance_flags[] =
     { "destroy",			INSTANCE_DESTROY,			false	},
     { "failed",				INSTANCE_FAILED,			false	},
     { "idle_on_complete",	INSTANCE_IDLE_ON_COMPLETE,	true	},
-    { "no_idle",			INSTANCE_NO_IDLE,			true	},
+    { "isolated",		INSTANCE_ISOLATED,	true	},
     { "no_save",			INSTANCE_NO_SAVE,			true	},
     { NULL,					0,							false	}
 };
@@ -2951,7 +2951,7 @@ const struct flag_type dungeon_flags[] =
 const struct flag_type death_release_types[] =
 {
     { "normal",			DEATH_RELEASE_NORMAL,		true	},
-    { "to_start",		DEATH_RELEASE_TO_START,		true	},
+    { "isolated",		DUNGEON_ISOLATED,	true	},
     { "to_floor",		DEATH_RELEASE_TO_FLOOR,		true	},
     { "to_checkpoint",	DEATH_RELEASE_TO_CHECKPOINT,true	},
     { "failure",		DEATH_RELEASE_FAILURE,		true	},
@@ -3177,6 +3177,7 @@ const struct do_func_type do_func_table[] =
         { "do_gossip",                  do_gossip },
         { "do_gtell",                   do_gtell },
         { "do_helper",                  do_helper },
+        { "do_history",                 do_history },
         { "do_hints",                   do_hints },
         { "do_ignore",                  do_ignore },
         { "do_intone",                  do_intone },

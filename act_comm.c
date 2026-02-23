@@ -40,15 +40,304 @@
 #include <time.h>
 #include "merc.h"
 #include "interp.h"
+#include "olc.h"
 #include "recycle.h"
 #include "tables.h"
 #include "io/cache/redis_cache.h"
 #include "channel_service.h"
+#include "channel_policy.h"
 #include "traits.h"
-#include "account/penalty.h"
 #include "account/preferences.h"
+#include "mxp_links.h"
+#include "requirements.h"
 
 static void group_sync_legacy_state(GROUP_DATA *group);
+bool can_speak_channels(CHAR_DATA *ch);
+
+void string_end_chreport(CHAR_DATA *ch)
+{
+    char *notes;
+    bool submitted;
+
+    if (!ch || !ch->desc)
+        return;
+
+    notes = ch->temp_log_entry;
+    ch->temp_log_entry = NULL;
+
+    submitted = channel_service_report_message(ch,
+                                               ch->temp_report_channel,
+                                               ch->temp_report_message_id,
+                                               notes);
+
+    free_string(notes);
+    free_string(ch->temp_report_channel);
+    free_string(ch->temp_report_message_id);
+    ch->temp_report_channel = NULL;
+    ch->temp_report_message_id = NULL;
+
+    if (submitted)
+        send_to_char("Report submitted to staff review with surrounding message context.\n\r", ch);
+    else
+        send_to_char("Unable to submit report for that message ID.\n\r", ch);
+}
+
+static const CHANNEL_DEF_DATA *history_find_channel(const char *name_or_command,
+                                                    bool *out_ambiguous)
+{
+    int i;
+    int j;
+    const CHANNEL_DEF_DATA *match = NULL;
+
+    if (out_ambiguous)
+        *out_ambiguous = false;
+
+    if (IS_NULLSTR(name_or_command))
+        return NULL;
+
+    match = channel_registry_find(name_or_command);
+        if (match)
+        return match;
+
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+        bool matches_id;
+        bool matches_command;
+        bool matches_alias = false;
+
+        if (!def)
+            continue;
+
+        matches_id = !str_prefix(name_or_command, def->id);
+        matches_command = !IS_NULLSTR(def->command) && !str_prefix(name_or_command, def->command);
+        for (j = 0; j < def->alias_count; j++) {
+            if (!IS_NULLSTR(def->aliases[j]) && !str_prefix(name_or_command, def->aliases[j])) {
+                matches_alias = true;
+                break;
+            }
+        }
+
+        if (!matches_id && !matches_command && !matches_alias)
+            continue;
+
+        if (match && match != def) {
+            if (out_ambiguous)
+                *out_ambiguous = true;
+            return NULL;
+        }
+
+        match = def;
+    }
+
+    return match;
+}
+
+static const CHANNEL_DEF_DATA *resolve_channel_command(const char *input,
+                                                       bool *out_ambiguous)
+{
+    const CHANNEL_DEF_DATA *exact_match = NULL;
+    const CHANNEL_DEF_DATA *prefix_match = NULL;
+    int i;
+    int j;
+
+    if (out_ambiguous)
+        *out_ambiguous = false;
+
+    if (IS_NULLSTR(input))
+        return NULL;
+
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+
+        if (!def)
+            continue;
+
+        if (!str_cmp(input, def->id) || (!IS_NULLSTR(def->command) && !str_cmp(input, def->command))) {
+            if (exact_match && exact_match != def) {
+                if (out_ambiguous)
+                    *out_ambiguous = true;
+                return NULL;
+            }
+            exact_match = def;
+            continue;
+        }
+
+        for (j = 0; j < def->alias_count; j++) {
+            if (!IS_NULLSTR(def->aliases[j]) && !str_cmp(input, def->aliases[j])) {
+                if (exact_match && exact_match != def) {
+                    if (out_ambiguous)
+                        *out_ambiguous = true;
+                    return NULL;
+                }
+                exact_match = def;
+                break;
+            }
+        }
+    }
+
+    if (exact_match)
+        return exact_match;
+
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+        bool matches_id;
+        bool matches_command;
+        bool matches_alias = false;
+
+        if (!def)
+            continue;
+
+        matches_id = !str_prefix(input, def->id);
+        matches_command = !IS_NULLSTR(def->command) && !str_prefix(input, def->command);
+        for (j = 0; j < def->alias_count; j++) {
+            if (!IS_NULLSTR(def->aliases[j]) && !str_prefix(input, def->aliases[j])) {
+                matches_alias = true;
+                break;
+            }
+        }
+
+        if (!matches_id && !matches_command && !matches_alias)
+            continue;
+
+        if (prefix_match && prefix_match != def) {
+            if (out_ambiguous)
+                *out_ambiguous = true;
+            return NULL;
+        }
+
+        prefix_match = def;
+    }
+
+    return prefix_match;
+}
+
+static bool channel_guard_string_editor_commands(CHAR_DATA *ch, const char *argument)
+{
+    if (IS_NULLSTR(argument))
+        return false;
+
+    if (strlen(argument) == 1
+        && (argument[0] == 'h'
+            || argument[0] == 's'
+            || argument[0] == 'f'
+            || argument[0] == 'c')) {
+        send_to_char("Are you sure that's all you want to say?\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix("r ", argument)) {
+        send_to_char("You're not in the string editor!\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix("ld ", argument)
+        || !str_prefix("lr ", argument)
+        || !str_prefix("li ", argument)
+        || !str_prefix("/ ", argument)) {
+        send_to_char("You're not in the string editor.\n\r", ch);
+        return true;
+    }
+
+    return false;
+}
+
+bool dispatch_dynamic_channel_command(CHAR_DATA *ch, const char *command, char *argument)
+{
+    const CHANNEL_DEF_DATA *def;
+    ACCOUNT_DATA *account;
+    char pref_key[80];
+    char buf[MAX_STRING_LENGTH];
+    bool ambiguous = false;
+    bool enabled;
+
+    if (!ch || IS_NULLSTR(command))
+        return false;
+
+    def = resolve_channel_command(command, &ambiguous);
+    if (!def) {
+        if (ambiguous)
+            send_to_char("That channel alias is ambiguous. Please be more specific.\n\r", ch);
+        return ambiguous;
+    }
+
+    account = (ch->desc ? ch->desc->account : NULL);
+    snprintf(pref_key, sizeof(pref_key), "channel_%s", def->id);
+
+    if (IS_NULLSTR(argument)) {
+        if (IS_NPC(ch) || !ch->pcdata)
+            return true;
+
+        enabled = pref_get_bool(account, ch, pref_key, true);
+
+        if (!enabled) {
+            REQUIREMENT_CONTEXT req_context;
+
+            memset(&req_context, 0, sizeof(req_context));
+            req_context.actor = ch;
+
+            if (!requirements_evaluate_text(def->subscribe_requirements, &req_context, true)) {
+                send_to_char("You do not meet the requirements to toggle this channel on.\n\r", ch);
+                return true;
+            }
+        }
+
+        pref_set_bool(&ch->pcdata->preferences, PREF_CAT_CHANNEL, pref_key, !enabled);
+
+        if (enabled)
+            printf_to_char(ch, "%s channel is now OFF.\n\r", def->name);
+        else
+            printf_to_char(ch, "%s channel is now ON.\n\r", def->name);
+
+        return true;
+    }
+
+    if (!IS_SET(def->channel_flags, CHANNEL_FLAG_IGNORE_QUIET) && IS_SET(ch->comm, COMM_QUIET)) {
+        send_to_char("You must turn off quiet mode first.\n\r", ch);
+        return true;
+    }
+
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM)) {
+        send_to_char("No one can hear you.\n\r", ch);
+        return true;
+    }
+
+    if (channel_policy_global_revoked(ch)) {
+        send_to_char("The gods have revoked your channel priviliges.\n\r", ch);
+        return true;
+    }
+
+    if (IS_SET(def->channel_flags, CHANNEL_FLAG_RESPECT_SILENCE) && IS_AFFECTED2(ch, AFF2_SILENCE)) {
+        send_to_char("You attempt to say something but fail!\n\r", ch);
+        act("$n opens $s mouth but nothing comes out.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        return true;
+    }
+
+    if (IS_SET(def->channel_flags, CHANNEL_FLAG_TOGGLE_ONLY)) {
+        printf_to_char(ch, "You cannot talk over the %s channel.\n\r", def->name);
+        return true;
+    }
+
+    if (IS_SET(def->channel_flags, CHANNEL_FLAG_GUARD_STR_EDIT_CMDS)
+        && channel_guard_string_editor_commands(ch, argument)) {
+        return true;
+    }
+
+    if (!IS_NPC(ch) && ch->pcdata)
+        pref_set_bool(&ch->pcdata->preferences, PREF_CAT_CHANNEL, pref_key, true);
+
+    buf[0] = '\0';
+    STRIP_COLOUR(argument, buf);
+
+    if (!buf[0]) {
+        send_to_char("Is that all you want to say?\n\r", ch);
+        return true;
+    }
+
+    if (!channel_service_send(ch, def->id, buf))
+        send_to_char("That channel is currently unavailable.\n\r", ch);
+
+    return true;
+}
 
 
 
@@ -162,58 +451,107 @@ void do_delete(CHAR_DATA *ch, char *argument)
 void do_channels(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
+    REQUIREMENT_CONTEXT req_context;
+    int i;
+    int shown = 0;
+    char flag_capable[MAX_STRING_LENGTH];
 
-    send_to_char("{Ychannel        status{x\n\r",ch);
-    send_to_char("{Y---------------------{x\n\r",ch);
+    (void)argument;
 
-    send_to_char("announcements  ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOANNOUNCE) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+    memset(&req_context, 0, sizeof(req_context));
+    req_context.actor = ch;
+    flag_capable[0] = '\0';
 
-    send_to_char("gossip         ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOGOSSIP) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+    send_to_char("{Ychannel         receive role{x\n\r", ch);
+    send_to_char("{Y-------------------------------------------------{x\n\r", ch);
 
-    send_to_char("OOC            ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NO_OOC) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+        bool can_publish;
+        bool can_subscribe;
+        bool can_moderate = false;
+        const char *role;
+        const char *recv;
+        int j;
 
-    send_to_char("yell           ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOYELL) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+        if (!def)
+            continue;
 
-    send_to_char("flaming        ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NO_FLAMING) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+        can_publish = channel_service_channel_available_for_sender(ch, def);
+        can_subscribe = requirements_evaluate_text(def->subscribe_requirements,
+                                                   &req_context,
+                                                   true);
 
-    send_to_char("war            ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOAUTOWAR) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+        if (IS_IMMORTAL(ch))
+            can_moderate = true;
+        else {
+            for (j = 0; j < def->mod_count; j++) {
+                if (!str_cmp(def->moderators[j], ch->name)) {
+                    can_moderate = true;
+                    break;
+                }
+            }
+        }
 
-    send_to_char("quotes         ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOQUOTE) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+        if (!can_publish && !can_subscribe && !can_moderate)
+            continue;
 
-    if (IS_IMMORTAL(ch)) {
-        send_to_char("god channel    ",ch);
-        send_to_char((IS_SET(ch->comm,COMM_NOWIZ) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+        if (can_moderate)
+            role = "Moderator";
+        else if (can_publish && can_subscribe)
+            role = "Send/Receive";
+        else if (can_publish)
+            role = "Send";
+        else
+            role = "Receive";
+
+        recv = pref_check_channel(ch, def->id) ? "{WON{X" : "{DOFF{X";
+
+        snprintf(buf,
+                 sizeof(buf),
+                 "{W%-15.15s{x %-7s %-14.14s\n\r",
+                 def->id,
+                 recv,
+                 role);
+        send_to_char(buf, ch);
+        shown++;
+
+        if (def->alias_count > 0) {
+            int a;
+            char alias_buf[MAX_STRING_LENGTH];
+
+            alias_buf[0] = '\0';
+            for (a = 0; a < def->alias_count; a++) {
+                if (IS_NULLSTR(def->aliases[a]))
+                    continue;
+
+                if (alias_buf[0] != '\0')
+                    strlcat(alias_buf, ", ", sizeof(alias_buf));
+
+                strlcat(alias_buf, def->aliases[a], sizeof(alias_buf));
+            }
+
+            if (alias_buf[0] != '\0') {
+                snprintf(buf, sizeof(buf), "{D  aliases:{x %s\n\r", alias_buf);
+                send_to_char(buf, ch);
+            }
+        }
+
+        if (def->allow_player_flags) {
+            if (flag_capable[0] != '\0')
+                strlcat(flag_capable, ", ", sizeof(flag_capable));
+            strlcat(flag_capable, def->id, sizeof(flag_capable));
+        }
     }
 
-    if (IS_SET(ch->act[0], PLR_HELPER) || IS_IMMORTAL(ch)) {
-        send_to_char("helper channel ",ch);
-        send_to_char((IS_SET(ch->comm,COMM_NOHELPER) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
-    }
+    if (shown == 0)
+        send_to_char("(No channels currently available in this context.)\n\r", ch);
 
-    if (global) {
-        send_to_char("GQ channel     ",ch);
-        send_to_char((IS_SET(ch->comm,COMM_NOGQ) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
-    }
-
-
-    send_to_char("tells          ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOTELLS) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
-
-    send_to_char("auction        ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOAUCTION) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
-
-    send_to_char("music          ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOMUSIC) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+    send_to_char("{Y-------------------------------------------------{x\n\r", ch);
+    send_to_char("{YCommunication toggles{x\n\r", ch);
 
     send_to_char("notify         ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOMUSIC) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
+    send_to_char((IS_SET(ch->comm,COMM_NOTIFY) ? "{WON{X\n\r" : "{DOFF{X\n\r"),ch);
 
     send_to_char("quiet mode     ",ch);
     send_to_char((IS_SET(ch->comm,COMM_QUIET) ? "{WON{X\n\r" : "{DOFF{X\n\r"),ch);
@@ -224,28 +562,7 @@ void do_channels(CHAR_DATA *ch, char *argument)
     send_to_char("form state     ", ch);
     send_to_char((IS_SET(ch->comm,COMM_SHOW_FORM_STATE) ? "{WON{X\n\r" : "{DOFF{X\n\r"),ch);
 
-    if (ch->church) {
-        send_to_char("church talks   ",ch);
-        send_to_char((IS_SET(ch->comm,COMM_NOCT) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
-    }
-
-    send_to_char("hints mode     ",ch);
-    send_to_char((IS_SET(ch->comm,COMM_NOHINTS) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
-
     if (IS_SET(ch->comm,COMM_AFK)) send_to_char("You are AFK.\n\r",ch);
-
-    if (ch->lines != PAGELEN) {
-        if (ch->lines) {
-            sprintf(buf,"You display %d lines of scroll.\n\r",ch->lines+2);
-            send_to_char(buf,ch);
-        } else
-            send_to_char("Scroll buffering is off.\n\r",ch);
-    }
-
-    if (ch->prompt) {
-        sprintf(buf,"Your current prompt is: %s\n\r",ch->prompt);
-        send_to_char(buf,ch);
-    }
 
     if (!ch->pcdata->flag || IS_NULLSTR(ch->pcdata->flag))
         send_to_char("You currently have no flag.\n\r", ch);
@@ -261,9 +578,244 @@ void do_channels(CHAR_DATA *ch, char *argument)
         send_to_char(buf, ch);
     }
 
-    if (IS_SET(ch->comm,COMM_NOTELL)) send_to_char("You cannot use tells.\n\r",ch);
+    if (flag_capable[0] != '\0') {
+        send_to_char("Your current channels that support player flags: ", ch);
+        send_to_char(flag_capable, ch);
+        send_to_char("\n\r", ch);
+    }
 
-    if (IS_SET(ch->comm,COMM_NOCHANNELS)) send_to_char("You cannot use channels.\n\r",ch);
+    if (channel_policy_sender_revoked(ch, "tell") || channel_policy_sender_revoked(ch, "gtell"))
+        send_to_char("You cannot use tells.\n\r",ch);
+
+    if (channel_policy_global_revoked(ch)) send_to_char("You cannot use channels.\n\r",ch);
+}
+
+void do_history(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MIL];
+    char arg2[MIL];
+    char arg3[MIL];
+    const CHANNEL_DEF_DATA *def;
+    bool ambiguous = false;
+    CHANNEL_HISTORY_ENTRY entries[15];
+    CHANNEL_HISTORY_ENTRY entry;
+    int count;
+    int i;
+
+    #define HISTORY_REPORT_LINK(_ch,_def,_rid,_out,_outsz) do { \
+        BUFFER *mxp_buf = new_buf(); \
+        char cmd_info[MSL]; \
+        char cmd_report[MSL]; \
+        mxp_cmd_hint_t items[2]; \
+        snprintf(cmd_info, sizeof(cmd_info), "history %s info %s", (_def)->id, (_rid)); \
+        snprintf(cmd_report, sizeof(cmd_report), "history %s report %s ", (_def)->id, (_rid)); \
+        items[0].cmd = cmd_info; items[0].hint = "Show history details"; \
+        items[1].cmd = cmd_report; items[1].hint = "Report this message"; \
+        mxp_link_multi((_ch)->desc, mxp_buf, (_rid), items, 2); \
+        strlcpy((_out), buf_string(mxp_buf), (_outsz)); \
+        free_buf(mxp_buf); \
+    } while (0)
+
+    #define HISTORY_REPORT_COUNT(_json,_out_count) do { \
+        const char *_p = (_json); \
+        (_out_count) = 0; \
+        if (!IS_NULLSTR(_p)) { \
+            _p = strstr(_p, "\"count\":"); \
+            if (_p) (_out_count) = atoi(_p + 8); \
+        } \
+    } while (0)
+
+    if (IS_NPC(ch))
+        return;
+
+    argument = one_argument(argument, arg1);
+    if (arg1[0] == '\0') {
+        send_to_char("Syntax: history <channel>\n\r", ch);
+        send_to_char("        history <channel> info <#>\n\r", ch);
+        send_to_char("        history <channel> report <message-id> [notes]\n\r", ch);
+        return;
+    }
+
+    def = history_find_channel(arg1, &ambiguous);
+    if (!def) {
+        if (ambiguous)
+            send_to_char("That channel prefix is ambiguous. Please be more specific.\n\r", ch);
+        else
+            send_to_char("No such channel.\n\r", ch);
+        return;
+    }
+
+    argument = one_argument(argument, arg2);
+    if (arg2[0] == '\0') {
+        char buf[MSL];
+
+        count = channel_service_history_recent(ch,
+                               def->id,
+                                               (int)(sizeof(entries) / sizeof(entries[0])),
+                                               entries,
+                                               (int)(sizeof(entries) / sizeof(entries[0])));
+        if (count <= 0) {
+            send_to_char("No recent history for that channel.\n\r", ch);
+            return;
+        }
+
+        sprintf(buf, "{YRecent history for %s (%s){x\n\r", def->id, def->name);
+        send_to_char(buf, ch);
+
+        for (i = 0; i < count; i++) {
+            char when_buf[32];
+            char report_link[MAX_STRING_LENGTH];
+            char reported_marker[64];
+            int report_count = 0;
+            bool show_report_link = (ch->desc && isMXP(ch->desc));
+            struct tm *tm_info = localtime(&entries[i].timestamp);
+
+            if (tm_info)
+                strftime(when_buf, sizeof(when_buf), "%Y-%m-%d %H:%M", tm_info);
+            else
+                strlcpy(when_buf, "unknown-time", sizeof(when_buf));
+
+            if (show_report_link)
+                HISTORY_REPORT_LINK(ch, def, entries[i].report_id, report_link, sizeof(report_link));
+            else
+                report_link[0] = '\0';
+
+            HISTORY_REPORT_COUNT(entries[i].reports_json, report_count);
+            if (report_count > 0) {
+                if (IS_IMMORTAL(ch))
+                    snprintf(reported_marker, sizeof(reported_marker), " {R[REPORT:%d]{x", report_count);
+                else
+                    reported_marker[0] = '\0';
+            } else {
+                reported_marker[0] = '\0';
+            }
+
+            if (show_report_link)
+                snprintf(buf,
+                         sizeof(buf),
+                         "{Y#%2d{x [%s] {W%.48s{x {D[%.96s]{x%s: %.3000s\n\r",
+                         i + 1,
+                         when_buf,
+                         entries[i].sender_name,
+                         report_link,
+                         reported_marker,
+                         entries[i].message_text);
+            else
+                snprintf(buf,
+                         sizeof(buf),
+                         "{Y#%2d{x [%s] {W%.48s{x%s: %.3000s\n\r",
+                         i + 1,
+                         when_buf,
+                         entries[i].sender_name,
+                         reported_marker,
+                         entries[i].message_text);
+            send_to_char(buf, ch);
+        }
+
+        send_to_char("Use 'history <channel> info <#>' for full details.\n\r", ch);
+        return;
+    }
+
+    if (str_cmp(arg2, "info")) {
+        if (!str_cmp(arg2, "report")) {
+            CHANNEL_HISTORY_ENTRY report_target;
+
+            argument = one_argument(argument, arg3);
+            if (IS_NULLSTR(arg3)) {
+                send_to_char("Syntax: history <channel> report <message-id> [notes]\n\r", ch);
+                return;
+            }
+
+            if (!channel_service_history_by_report_id(ch, def->id, arg3, &report_target)) {
+                send_to_char("No history entry exists for that message ID.\n\r", ch);
+                return;
+            }
+
+            if (IS_NULLSTR(argument)) {
+                free_string(ch->temp_report_channel);
+                free_string(ch->temp_report_message_id);
+                free_string(ch->temp_log_entry);
+
+                ch->temp_report_channel = str_dup(def->id);
+                ch->temp_report_message_id = str_dup(arg3);
+                ch->temp_log_entry = str_dup("");
+
+                send_to_char("Enter additional report notes. Type @ when done.\n\r", ch);
+                string_append(ch, &ch->temp_log_entry);
+                ch->desc->editor = ED_CHREPORT;
+                return;
+            }
+
+            if (!channel_service_report_message(ch, def->id, arg3, argument)) {
+                send_to_char("Unable to submit report for that message ID.\n\r", ch);
+                return;
+            }
+
+            send_to_char("Report submitted to staff review with surrounding message context.\n\r", ch);
+            return;
+        }
+
+        send_to_char("Syntax: history <channel> info <#>\n\r", ch);
+        send_to_char("        history <channel> report <message-id> [notes]\n\r", ch);
+        return;
+    }
+
+    argument = one_argument(argument, arg3);
+    if (!is_number(arg3) || atoi(arg3) <= 0) {
+        send_to_char("Please provide a positive history entry number.\n\r", ch);
+        return;
+    }
+
+    if (!channel_service_history_by_index(ch, def->id, atoi(arg3), &entry)) {
+        send_to_char("No history entry exists at that index.\n\r", ch);
+        return;
+    }
+
+    {
+        char buf[MSL];
+        char when_buf[64];
+        char report_link[MAX_STRING_LENGTH];
+        int report_count = 0;
+        struct tm *tm_info = localtime(&entry.timestamp);
+
+        if (tm_info)
+            strftime(when_buf, sizeof(when_buf), "%Y-%m-%d %H:%M:%S", tm_info);
+        else
+            strlcpy(when_buf, "unknown-time", sizeof(when_buf));
+
+        if (ch->desc && isMXP(ch->desc))
+            HISTORY_REPORT_LINK(ch, def, entry.report_id, report_link, sizeof(report_link));
+        else
+            strlcpy(report_link, entry.report_id, sizeof(report_link));
+
+        HISTORY_REPORT_COUNT(entry.reports_json, report_count);
+
+        snprintf(buf,
+                 sizeof(buf),
+                 "{YHistory detail{x\n\r"
+                 "  Channel : {W%.32s{x (%.32s)\n\r"
+                 "  Index   : #%.32s\n\r"
+                 "  Time    : %.63s\n\r"
+                 "  Sender  : %.64s\n\r"
+                 "  Report  : {W%.128s{x\n\r"
+                 "  Reports : %d\n\r"
+                 "  Meta    : %.1200s\n\r"
+                 "  Message : %.2400s\n\r",
+                 def->id,
+                 def->name,
+                 arg3,
+                 when_buf,
+                 entry.sender_name,
+                 report_link,
+                 report_count,
+                 IS_NULLSTR(entry.reports_json) ? "(none)" : entry.reports_json,
+                 entry.message_text);
+        send_to_char(buf, ch);
+        send_to_char("Use this ID for reporting: history <channel> report <message-id> [notes]\n\r", ch);
+    }
+
+    #undef HISTORY_REPORT_LINK
+    #undef HISTORY_REPORT_COUNT
 }
 
 
@@ -378,9 +930,7 @@ bool can_speak_channels(CHAR_DATA *ch)
         return false;
     }
 
-    if (IS_SET(ch->comm,COMM_NOCHANNELS)
-        || (!IS_NPC(ch) && ch->desc && ch->desc->account
-            && has_penalty(ch->desc->account, PENALTY_NOCHANNELS, ch->name))) {
+    if (channel_policy_global_revoked(ch)) {
         send_to_char("The gods have revoked your channel priviliges.\n\r",ch);
         return false;
     }
@@ -402,32 +952,7 @@ bool can_speak_channels(CHAR_DATA *ch)
  */
 void do_ooc(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], msg[2*MSL];
-
-    if (!argument[0]) {
-        if (IS_SET(ch->comm,COMM_NO_OOC))
-            send_to_char("Out of character channel is now ON.\n\r",ch);
-        else
-            send_to_char("Out of character channel is now OFF.\n\r",ch);
-        TOGGLE_BIT(ch->comm,COMM_NO_OOC);
-    } else if(can_speak_channels(ch)) {
-        REMOVE_BIT(ch->comm,COMM_NO_OOC);
-
-        buf[0] = '\0';
-        STRIP_COLOUR(argument, buf);
-
-        if(!buf[0]) {
-            send_to_char("Is that all you want to say?\n\r",ch);
-            return;
-        }
-
-        if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_OOC))
-            sprintf(msg, "{gOOC, you say: {G%s {G%s\n\r", ch->pcdata->flag, buf);
-        else
-            sprintf(msg, "{gOOC, you say: {G%s{x\n\r", buf);
-        send_to_char(msg, ch);
-        channel_service_send(ch, "ooc", buf);
-    }
+    (void)dispatch_dynamic_channel_command(ch, "ooc", argument);
 }
 
 
@@ -495,70 +1020,7 @@ void gecho(char *message)
  */
 void do_gossip(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], msg[2*MSL];
-    /* Not yet
-    time_t rawtime;
-    struct tm *info;
-    */
-
-    if (!argument[0]) {
-        if (IS_SET(ch->comm,COMM_NOGOSSIP))
-            send_to_char("Gossip channel is now ON.\n\r",ch);
-        else
-            send_to_char("Gossip channel is now OFF.\n\r",ch);
-        TOGGLE_BIT(ch->comm,COMM_NOGOSSIP);
-    } else if(can_speak_channels(ch)) {
-
-            /* prevent 1-letter string editor commands with no argument */
-        if (strlen(argument) == 1 &&
-               (argument[0] == 'h' ||
-            argument[0] == 's' ||
-            argument[0] == 'f' ||
-            argument[0] == 'c'))// ||
-               // argument[0] == '/'))
-        {
-            send_to_char("Are you sure that's all you want to say?\n\r", ch);
-            return;
-        }
-
-        if (!str_prefix("r ", argument)) {
-            send_to_char("You're not in the string editor!\n\r", ch);
-            return;
-        }
-
-        if (!str_prefix("ld ", argument) || !str_prefix("lr ", argument) || !str_prefix("li ", argument) || !str_prefix("/ ", argument)) {
-            send_to_char("You're not in the string editor.\n\r", ch);
-            return;
-        }
-
-
-        REMOVE_BIT(ch->comm,COMM_NOGOSSIP);
-
-        /* Make the words drunk if needed */
-        if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-            argument = makedrunk(argument,ch);
-
-        buf[0] = '\0';
-        STRIP_COLOUR(argument, buf);
-        if(!buf[0]) {
-            send_to_char("Is that all you want to say?\n\r",ch);
-            return;
-        }
-/*
-   time( &rawtime );
-
-   info = localtime( &rawtime );
-
-   strftime(timebuf,80,"%x - %I:%M%p", info);
-*/
-        if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_GOSSIP))
-            sprintf(msg, "{MYou gossip '%s {M%s{M'{x\n\r", ch->pcdata->flag, buf);
-        else
-            sprintf(msg, "{MYou gossip '%s{M'{x\n\r", buf);
-        send_to_char(msg, ch);
-
-        channel_service_send(ch, "gossip", buf);
-    }
+    (void)dispatch_dynamic_channel_command(ch, "gossip", argument);
 }
 
 
@@ -576,35 +1038,7 @@ void do_gossip(CHAR_DATA *ch, char *argument)
  */
 void do_flame(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], msg[2*MSL];
-
-    if (!argument[0]) {
-        if (IS_SET(ch->comm,COMM_NO_FLAMING))
-            send_to_char("{RFLAMING{x channel is now ON.\n\r",ch);
-        else
-            send_to_char("{RFLAMING{x channel is now OFF.\n\r",ch);
-        TOGGLE_BIT(ch->comm,COMM_NO_FLAMING);
-    } else if(can_speak_channels(ch)) {
-        REMOVE_BIT(ch->comm,COMM_NO_FLAMING);
-
-        /* Make the words drunk if needed */
-        if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-            argument = makedrunk(argument,ch);
-
-        buf[0] = '\0';
-        STRIP_COLOUR(argument, buf);
-        if(!buf[0]) {
-            send_to_char("Is that all you want to say?\n\r",ch);
-            return;
-        }
-
-        if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_FLAMING))
-            sprintf(msg, "{r({WF{r): You flame '%s {r%s{r'{x\n\r", ch->pcdata->flag, buf);
-        else
-            sprintf(msg, "{r({WF{r): You flame '{r%s{r'{x\n\r", buf);
-        send_to_char(msg, ch);
-        channel_service_send(ch, "flame", buf);
-    }
+    (void)dispatch_dynamic_channel_command(ch, "flame", argument);
 }
 
 
@@ -624,39 +1058,7 @@ void do_flame(CHAR_DATA *ch, char *argument)
  */
 void do_helper(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], msg[2*MSL];
-
-    if (!argument[0]) {
-        if (IS_SET(ch->comm,COMM_NOHELPER)) {
-            if(!IS_SET(ch->act[0], PLR_HELPER) && !IS_IMMORTAL(ch)) {
-                send_to_char("Only helpers may toggle this channel on.\n\r", ch);
-                return;
-            }
-
-            send_to_char("Helper channel is now ON.\n\r",ch);
-        } else
-            send_to_char("Helper channel is now OFF.\n\r",ch);
-        TOGGLE_BIT(ch->comm,COMM_NOHELPER);
-    } else {
-        if (IS_SET(ch->comm,COMM_QUIET)) {
-            send_to_char("You must turn off quiet mode first.\n\r",ch);
-            return;
-        }
-
-        buf[0] = '\0';
-        STRIP_COLOUR(argument, buf);
-        if(!buf[0]) {
-            send_to_char("Is that all you want to say?\n\r",ch);
-            return;
-        }
-
-        if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_HELPER))
-            sprintf(msg, "{Y({BH{Y)--> You say:{Y '%s {Y%s{Y'{x\n\r", ch->pcdata->flag, buf);
-        else
-            sprintf(msg, "{Y({BH{Y)--> You say:{Y '%s{Y'{x\n\r", buf);
-        send_to_char(msg, ch);
-        channel_service_send(ch, "helper", buf);
-    }
+    (void)dispatch_dynamic_channel_command(ch, "helper", argument);
 }
 
 
@@ -674,14 +1076,7 @@ void do_helper(CHAR_DATA *ch, char *argument)
  */
 void do_hints(CHAR_DATA *ch, char *argument)
 {
-    if (!argument[0]) {
-        if (IS_SET(ch->comm,COMM_NOHINTS))
-            send_to_char("Hints channel is now ON.\n\r", ch);
-        else
-            send_to_char("Hints channel is now OFF.\n\r",ch);
-        TOGGLE_BIT(ch->comm,COMM_NOHINTS);
-    } else
-        send_to_char("You cannot talk over the hints channel.\n\r", ch);
+    (void)dispatch_dynamic_channel_command(ch, "hints", argument);
 }
 
 
@@ -699,34 +1094,7 @@ void do_hints(CHAR_DATA *ch, char *argument)
  */
 void do_music(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], msg[2*MSL];
-
-    if (!argument[0]) {
-        if (IS_SET(ch->comm,COMM_NOMUSIC))
-            send_to_char("Music channel is now ON.\n\r",ch);
-        else
-            send_to_char("Music channel is now OFF.\n\r",ch);
-        TOGGLE_BIT(ch->comm,COMM_NOMUSIC);
-    } else if(can_speak_channels(ch)) {
-        REMOVE_BIT(ch->comm,COMM_NOMUSIC);
-
-        if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-            argument = makedrunk(argument,ch);
-
-        buf[0] = '\0';
-        STRIP_COLOUR(argument, buf);
-        if(!buf[0]) {
-            send_to_char("Is that all you want to say?\n\r",ch);
-            return;
-        }
-
-        if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_MUSIC))
-            sprintf(msg, "{Y(o/~): %s {Y%s{x\n\r", ch->pcdata->flag, buf);
-        else
-            sprintf(msg, "{Y(o/~): %s{x\n\r", buf);
-        send_to_char(msg, ch);
-        channel_service_send(ch, "music", buf);
-    }
+    (void)dispatch_dynamic_channel_command(ch, "music", argument);
 }
 
 
@@ -745,17 +1113,7 @@ void do_music(CHAR_DATA *ch, char *argument)
  */
 void do_immtalk(CHAR_DATA *ch, char *argument)
 {
-    if (!argument[0]) {
-        if (IS_SET(ch->comm,COMM_NOWIZ))
-            send_to_char("Immortal channel is now ON\n\r",ch);
-        else
-            send_to_char("Immortal channel is now OFF\n\r",ch);
-        TOGGLE_BIT(ch->comm,COMM_NOWIZ);
-    } else {
-        REMOVE_BIT(ch->comm,COMM_NOWIZ);
-        act_new("{B[{G$n{B]: $t{x",ch,NULL,NULL, NULL, NULL,NULL,NULL,argument,NULL,TO_CHAR,POS_DEAD,NULL);
-        channel_service_send(ch, "immtalk", argument);
-    }
+    (void)dispatch_dynamic_channel_command(ch, "immtalk", argument);
 }
 
 
@@ -801,9 +1159,6 @@ void do_say(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-    argument = makedrunk(argument,ch);
-
     msg[0] = '\0';
     STRIP_COLOUR(argument, msg);
 
@@ -811,6 +1166,9 @@ void do_say(CHAR_DATA *ch, char *argument)
         send_to_char("Say what?\n\r", ch);
         return;
     }
+
+    if (channel_service_send(ch, "say", msg))
+    return;
 
     buf[0] = '\0';
     for (i = 0; msg[i] != '\0'; i++)
@@ -985,18 +1343,7 @@ iterator_stop(&obj_it);
  */
 void do_tells(CHAR_DATA *ch, char *argument)
 {
-    if (IS_SET(ch->comm, COMM_NOTELLS))
-    {
-    REMOVE_BIT(ch->comm, COMM_NOTELLS);
-    act("You will now receive tells.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    return;
-    }
-    else
-    {
-    SET_BIT(ch->comm, COMM_NOTELLS);
-    act("You will no longer receive tells.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    return;
-    }
+    (void)dispatch_dynamic_channel_command(ch, "tells", argument);
 }
 
 
@@ -1012,7 +1359,7 @@ void do_tells(CHAR_DATA *ch, char *argument)
  *   - Wizi level visibility for immortals
  *
  * Sets both sender's and recipient's reply pointer for easy replies.
- * Supports player flags. Triggers TRIG_SPEECH on the recipient.
+ * Supports player flags.
  *
  * @param ch        The character sending the tell
  * @param argument  "<target> <message>"
@@ -1027,10 +1374,9 @@ void do_tell(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char msg[2*MSL];
     CHAR_DATA *victim;
+    CHANNEL_TELL_POLICY_BLOCK tell_block;
 
-    if (IS_SET(ch->comm, COMM_NOTELL)
-        || (!IS_NPC(ch) && ch->desc && ch->desc->account
-            && has_penalty(ch->desc->account, PENALTY_NOTELL, ch->name)))
+    if (channel_policy_sender_revoked(ch, "tell"))
     {
         send_to_char("Your tells have been revoked.\n\r", ch);
         return;
@@ -1068,29 +1414,27 @@ void do_tell(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (is_ignoring(victim, ch) && !(!IS_NPC(ch) && IS_IMMORTAL(ch) && ch->tot_level >= victim->tot_level))
-    {
-        IGNORE_DATA *ignore;
+    if (!channel_policy_tell_delivery_allowed(ch, victim, false, &tell_block)) {
+        if (tell_block == CHANNEL_TELL_POLICY_BLOCK_IGNORE) {
+            IGNORE_DATA *ignore;
 
-        for (ignore = victim->pcdata->ignoring; ignore != NULL; ignore = ignore->next)
-        {
-            if (!str_cmp(ignore->name, ch->name)) break;
+            for (ignore = victim->pcdata->ignoring; ignore != NULL; ignore = ignore->next)
+            {
+                if (!str_cmp(ignore->name, ch->name)) break;
+            }
+
+            sprintf(buf, "{R$E $Z ignoring you.{x\n\r{RReason:{x %s", ignore->reason);
+            act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR,NULL, get_verb_form(victim, "is", "are"));
+            return;
         }
 
-        sprintf(buf, "{R$E $Z ignoring you.{x\n\r{RReason:{x %s", ignore->reason);
-        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR,NULL, get_verb_form(victim, "is", "are"));
+        send_to_char("Your message didn't get through.\n\r", ch);
         return;
     }
 
     if (IS_SET(ch->comm, COMM_QUIET) && !can_tell_while_quiet(victim, ch))
     {
         send_to_char("You must turn off quiet mode first.\n\r", ch);
-        return;
-    }
-
-    if (IS_SET(victim->comm, COMM_NOTELLS) && !(!IS_NPC(ch) && IS_IMMORTAL(ch) && ch->tot_level >= victim->tot_level))
-    {
-        send_to_char("Your message didn't get through.\n\r", ch);
         return;
     }
 
@@ -1117,12 +1461,12 @@ void do_tell(CHAR_DATA *ch, char *argument)
         msg[2] = UPPER(msg[2]);
 
         add_buf(victim->pcdata->buffer,msg);
+        victim->reply = ch;
         return;
     }
 
-    if (IS_SET(victim->comm,COMM_QUIET) && !IS_IMMORTAL(ch) &&
-        !(!IS_NPC(ch) && IS_IMMORTAL(ch) && ch->tot_level >= victim->tot_level) &&
-        !can_tell_while_quiet(ch, victim))
+    if (!channel_policy_tell_delivery_allowed(ch, victim, true, &tell_block)
+        && tell_block == CHANNEL_TELL_POLICY_BLOCK_QUIET)
     {
         act("$E $Z not receiving tells.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, get_verb_form(victim, "is", "are"));
         return;
@@ -1140,6 +1484,7 @@ void do_tell(CHAR_DATA *ch, char *argument)
 
         msg[2] = UPPER(msg[2]);
         add_buf(victim->pcdata->buffer,msg);
+        victim->reply = ch;
 
         sprintf(buf, "{R$E $Z AFK, and has been idle for %d minutes.{x", victim->timer);
         act(buf, ch,victim,NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, get_verb_form(victim, "is", "are"));
@@ -1166,9 +1511,12 @@ void do_tell(CHAR_DATA *ch, char *argument)
     /* Sender's reply pointer set immediately. */
     ch->reply = victim;
 
+    /* Recipient reply pointer set immediately for local tell/reply parity. */
+    victim->reply = ch;
+
     /*
-     * Recipient delivery: channel service handles formatting, reply pointer
-     * on recipient, and TRIG_SPEECH.  Falls back to direct delivery in
+    * Recipient delivery: channel service handles formatting and reply pointer
+    * on recipient. Falls back to direct delivery in
      * legacy or uninitialized mode.  buf still holds the stripped message text.
      */
     channel_service_send_directed(ch, "tell", victim, buf);
@@ -1219,64 +1567,13 @@ void do_reply(CHAR_DATA *ch, char *argument)
  * @param ch        The character yelling
  * @param argument  Message to yell, or empty to toggle receiving yells
  *
- * Blocked by: COMM_NOCHANNELS, ROOM_NOCOMM
+ * Blocked by: global channel revocation policy, ROOM_NOCOMM
  *
  * Planned refactor: channels.c (never executed)
  */
 void do_yell(CHAR_DATA *ch, char *argument)
 {
-    char buf[MSL], msg[2*MSL];
-
-    if (IS_SET(ch->comm, COMM_NOCHANNELS)
-        || (!IS_NPC(ch) && ch->desc && ch->desc->account
-            && has_penalty(ch->desc->account, PENALTY_NOCHANNELS, ch->name)))
-    {
-    send_to_char("You can't yell.\n\r", ch);
-    return;
-    }
-
-    if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM))
-    {
-    send_to_char("You can't seem to gather enough energy to do it.\n\r",
-    ch);
-    return;
-    }
-
-    if (argument[0] == '\0')
-    {
-    if (IS_SET(ch->comm, COMM_NOYELL))
-    {
-    REMOVE_BIT(ch->comm, COMM_NOYELL);
-    send_to_char("You will now hear yells.\n\r", ch);
-    }
-    else
-    {
-    SET_BIT(ch->comm, COMM_NOYELL);
-    send_to_char("You will no longer hear yells.\n\r", ch);
-    }
-
-    return;
-    }
-
-    /* Make the words drunk if needed */
-    if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-    argument = makedrunk(argument,ch);
-
-    buf[0] = '\0';
-    STRIP_COLOUR(argument, buf);
-    if(!buf[0]) {
-        send_to_char("Is that all you want to say?\n\r",ch);
-        return;
-    }
-
-    if (!IS_NPC(ch) && ch->pcdata->flag != NULL && SHOW_CHANNEL_FLAG(ch, FLAG_YELL))
-    sprintf(msg, "{YYou yell '%s {Y%s'{x\n\r", ch->pcdata->flag, buf);
-    else
-    sprintf(msg, "{YYou yell '%s'{x\n\r", buf);
-
-    send_to_char(msg, ch);
-
-    channel_service_send(ch, "yell", buf);
+    (void)dispatch_dynamic_channel_command(ch, "yell", argument);
 }
 
 
@@ -1610,19 +1907,10 @@ iterator_stop(&it);
 void do_logout(CHAR_DATA *ch, char *argument)
 {
     DESCRIPTOR_DATA *d;
+    ACCOUNT_DATA *account = NULL;
     OBJ_DATA *obj;
     AFFECT_DATA *paf;
     TOKEN_DATA *token, *token_next;
-    ACCOUNT_DATA *account = NULL;
-
-    if (IS_SWITCHED(ch))
-    {
-        send_to_char("You can't logout in morphed form.\n\r", ch);
-        return;
-    }
-
-    if (IS_NPC(ch))
-        return;
 
     if (ch->position == POS_FIGHTING)
     {
@@ -2548,9 +2836,7 @@ void do_gtell(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (IS_SET(ch->comm, COMM_NOTELL)
-        || (!IS_NPC(ch) && ch->desc && ch->desc->account
-            && has_penalty(ch->desc->account, PENALTY_NOTELL, ch->name))) {
+    if (channel_policy_sender_revoked(ch, "gtell")) {
         send_to_char("Your message didn't get through!\n\r", ch);
         return;
     }
@@ -2572,11 +2858,11 @@ void do_gtell(CHAR_DATA *ch, char *argument)
     iterator_stop(&it);
 
     if (another_person) {
-        send_to_char("{CYou tell your group '", ch);
-        send_to_char(argument, ch);
-        send_to_char("'{x\n\r", ch);
-
         if (!channel_service_send(ch, "gtell", argument)) {
+            send_to_char("{CYou tell your group '", ch);
+            send_to_char(argument, ch);
+            send_to_char("'{x\n\r", ch);
+
             if (IS_VALID(group) && group->members)
                 iterator_start(&it, group->members);
             else
@@ -3023,7 +3309,7 @@ void stop_grouped(CHAR_DATA *ch)
  *
  * @param argument  The announcement message
  *
- * Respects: COMM_NOANNOUNCE, COMM_QUIET
+ * Respects: channel announce preference, COMM_QUIET
  *
  * Planned refactor: channels.c (never executed)
  */
@@ -3040,7 +3326,7 @@ void crier_announce(char *argument)
     victim = d->original ? d->original : d->character;
 
     if (d->connected == CON_PLAYING
-    &&  !IS_SET(victim->comm,COMM_NOANNOUNCE)
+    &&  pref_check_channel(victim, "announce")
     &&  !IS_SET(victim->comm,COMM_QUIET))
     send_to_char(buf, victim);
     }
@@ -3059,16 +3345,7 @@ void crier_announce(char *argument)
  */
 void do_announcements(CHAR_DATA *ch, char *argument)
 {
-    if (IS_SET(ch->comm,COMM_NOANNOUNCE))
-    {
-    send_to_char("Announcements are now ON.\n\r",ch);
-    REMOVE_BIT(ch->comm,COMM_NOANNOUNCE);
-    }
-    else
-    {
-    send_to_char("Announcements are now OFF.\n\r",ch);
-    SET_BIT(ch->comm,COMM_NOANNOUNCE);
-    }
+    (void)dispatch_dynamic_channel_command(ch, "announcements", argument);
 }
 
 
@@ -3600,6 +3877,9 @@ void do_whisper(CHAR_DATA *ch, char *argument)
     return;
     }
 
+    if (channel_service_send_room_targeted(ch, "whisper", victim, argument))
+    return;
+
     act("{CYou whisper to $N '$t'{x", ch, victim,NULL,NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
     act("{C$n whispers something to $N.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
     act("{C$n whispers to you '$t'{x", ch, victim,NULL,NULL, NULL, argument, NULL, TO_VICT, NULL, NULL);
@@ -3880,90 +4160,13 @@ void do_toggle(CHAR_DATA *ch, char *argument)
  * @param ch        The character quoting
  * @param argument  Quote text to share, or empty to toggle channel
  *
- * Blocked by: COMM_QUIET, ROOM_NOCOMM, COMM_NOCHANNELS
+ * Blocked by: COMM_QUIET, ROOM_NOCOMM, global channel revocation policy
  *
  * Planned refactor: channels.c (never executed)
  */
 void do_quote(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], msg[2*MSL];
-    DESCRIPTOR_DATA *d;
-
-    if (argument[0] == '\0')
-    {
-    if (IS_SET(ch->comm,COMM_NOQUOTE))
-    {
-    send_to_char("Quote channel is now ON.\n\r",ch);
-    REMOVE_BIT(ch->comm,COMM_NOQUOTE);
-    }
-    else
-    {
-    send_to_char("Quote channel is now OFF.\n\r",ch);
-    SET_BIT(ch->comm,COMM_NOQUOTE);
-    }
-    }
-    else  /* gossip message sent, turn gossip on if it isn't already */
-    {
-    if (IS_SET(ch->comm,COMM_QUIET))
-    {
-    send_to_char("You must turn off quiet mode first.\n\r",ch);
-    return;
-    }
-
-    if (IS_SET(ch->in_room->room_flag[0], ROOM_NOCOMM))
-    {
-    send_to_char("You can't seem to gather enough energy to do it.\n\r",
-    ch);
-    return;
-    }
-
-    if (IS_SET(ch->comm,COMM_NOCHANNELS)
-        || (!IS_NPC(ch) && ch->desc && ch->desc->account
-            && has_penalty(ch->desc->account, PENALTY_NOCHANNELS, ch->name)))
-    {
-    send_to_char("The gods have revoked your channel priviliges.\n\r", ch);
-    return;
-
-    }
-
-    if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-    argument = makedrunk(argument,ch);
-
-    REMOVE_BIT(ch->comm,COMM_NOQUOTE);
-
-    buf[0] = '\0';
-    STRIP_COLOUR(argument, buf);
-    if(!buf[0]) {
-        send_to_char("Is that all you want to say?\n\r",ch);
-        return;
-    }
-
-    if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_QUOTE))
-    sprintf(msg, "{XYou quote {D\"%s {W%s{D\"{x\n\r", ch->pcdata->flag, buf);
-    else
-    sprintf(msg, "{XYou quote {D\"{W%s{D\"{x\n\r", buf);
-
-    send_to_char(msg, ch);
-
-    if (!channel_service_send(ch, "quote", buf)) {
-        for (d = descriptor_list; d != NULL; d = d->next)
-        {
-        CHAR_DATA *victim;
-
-        victim = d->original ? d->original : d->character;
-
-        if (channel_can_deliver_to_descriptor(ch, d, COMM_NOQUOTE, true, true, &victim))
-        {
-        if (!IS_NPC(ch) && ch->pcdata->flag != NULL
-        && !IS_NPC(victim) && SHOW_CHANNEL_FLAG(victim, FLAG_QUOTE))
-        sprintf(msg, "%s {W%s", ch->pcdata->flag, buf);
-        else
-        sprintf(msg, "%s", buf);
-        act_new("{x$$n quotes {D\"{W$t{D\"{x", ch, victim,NULL, NULL, NULL,NULL,NULL, msg,NULL, TO_VICT,POS_SLEEPING,NULL);
-        }
-        }
-    }
-    }
+    (void)dispatch_dynamic_channel_command(ch, "quote", argument);
 }
 
 
@@ -4101,11 +4304,16 @@ void do_sayto(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-    argument = makedrunk(argument,ch);
-
     msg[0] = '\0';
     STRIP_COLOUR(argument, msg);
+
+    if (!msg[0]) {
+    send_to_char("Say what?\n\r", ch);
+    return;
+    }
+
+    if (channel_service_send_room_targeted(ch, "sayto", victim, msg))
+    return;
 
     buf[0] = '\0';
     for (i = 0; msg[i]; i++)
@@ -4278,6 +4486,14 @@ void do_intone(CHAR_DATA *ch, char *argument)
 
     msg[0] = '\0';
     STRIP_COLOUR(argument, msg);
+
+    if (!msg[0]) {
+    send_to_char("Say what?\n\r", ch);
+    return;
+    }
+
+    if (channel_service_send_object_targeted(ch, "intone", obj, msg))
+    return;
 
     act("{C$n intones to $p '$t'{x", ch, NULL, NULL, obj, NULL, msg, NULL, TO_ROOM, NULL, NULL);
     act("{CYou intone to $p '$t'{x", ch, NULL, NULL, obj, NULL, msg, NULL, TO_CHAR, NULL, NULL);

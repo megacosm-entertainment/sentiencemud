@@ -35,6 +35,11 @@ endif()
 set(CMAKE_BUILD_PARALLEL_LEVEL ${DEFAULT_JOBS} CACHE STRING "Default parallel build jobs")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/.deps/libbacktrace)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/channels)
+
+# Required PCRE2 support for channel filtering.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PCRE2 REQUIRED libpcre2-8)
 
 # libbacktrace for stack trace file:line resolution (prebuilt)
 add_library(backtrace STATIC IMPORTED)
@@ -102,14 +107,16 @@ set(SOURCE_FILES
     bootstrap/bootstrap_files.c
     bootstrap/bootstrap_prompts.c
     bootstrap/bootstrap_reserved.c
-    channel_registry.c
-    channel_service.c
-    channel_filter.c
-    channel_moderation.c
-    channel_review.c
-    channel_transport.c
-    channel_transport_local.c
-    channel_transport_redis.c
+    channels/channels_common.c
+    channels/channel_policy.c
+    channels/channel_registry.c
+    channels/channel_service.c
+    channels/channel_filter.c
+    channels/channel_moderation.c
+    channels/channel_review.c
+    channels/channel_transport.c
+    channels/channel_transport_local.c
+    channels/channel_transport_redis.c
     chat_rooms.c
     church.c
     class_data.c
@@ -232,6 +239,7 @@ set(SOURCE_FILES
     mxp_links.c
     quest.c
     reputation.c
+    requirements.c
     rview.c
     io/cache/redis_cache.c
     io/cache/async_cache.c
@@ -318,6 +326,13 @@ if(BUILD_TESTS)
 endif()
 
 add_executable(sent ${SOURCE_FILES})
+
+target_include_directories(sent PRIVATE ${PCRE2_INCLUDE_DIRS})
+target_compile_options(sent PRIVATE ${PCRE2_CFLAGS_OTHER})
+target_compile_definitions(sent PRIVATE CHANNEL_FILTER_USE_PCRE2)
+target_link_libraries(sent PRIVATE ${PCRE2_LIBRARIES})
+target_link_directories(sent PRIVATE ${PCRE2_LIBRARY_DIRS})
+message(STATUS "Channel filter: PCRE2 enabled (required)")
 
 target_compile_definitions(sent PRIVATE
     VERSION="${GIT_VERSION}"
