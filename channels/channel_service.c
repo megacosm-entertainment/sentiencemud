@@ -50,6 +50,8 @@ typedef struct channel_history_record {
     char sender_name[64];
     char message_text[1024];
     time_t timestamp;
+    unsigned long sender_id[2];
+    unsigned long recipient_id[2];
 } CHANNEL_HISTORY_RECORD;
 
 static CHANNEL_HISTORY_RECORD channel_history_ring[CHANNEL_HISTORY_RING_MAX];
@@ -586,6 +588,23 @@ static void channel_history_append(const char *channel_id,
         channel_history_ring_count++;
 
     channel_service_mark_history_dirty();
+}
+
+static void channel_history_set_participants(unsigned long sender_id0,
+                                             unsigned long sender_id1,
+                                             unsigned long recipient_id0,
+                                             unsigned long recipient_id1)
+{
+    int last;
+
+    if (channel_history_ring_count == 0)
+        return;
+
+    last = (channel_history_ring_next - 1 + CHANNEL_HISTORY_RING_MAX) % CHANNEL_HISTORY_RING_MAX;
+    channel_history_ring[last].sender_id[0] = sender_id0;
+    channel_history_ring[last].sender_id[1] = sender_id1;
+    channel_history_ring[last].recipient_id[0] = recipient_id0;
+    channel_history_ring[last].recipient_id[1] = recipient_id1;
 }
 
 static bool channel_history_match_channel(const CHANNEL_HISTORY_RECORD *record,
@@ -1312,14 +1331,37 @@ static bool channel_requires_history_topic_filter(const CHANNEL_DEF_DATA *def)
     }
 }
 
+static bool channel_history_viewer_is_participant(const CHANNEL_HISTORY_RECORD *record,
+                                                   CHAR_DATA *viewer)
+{
+    if (!record || !viewer)
+        return false;
+
+    if (record->sender_id[0] == viewer->id[0] && record->sender_id[1] == viewer->id[1])
+        return true;
+
+    if (record->recipient_id[0] == viewer->id[0] && record->recipient_id[1] == viewer->id[1])
+        return true;
+
+    return false;
+}
+
 static bool channel_history_matches_context(const CHANNEL_HISTORY_RECORD *record,
-                                            const CHANNEL_DEF_DATA *def,
-                                            CHAR_DATA *viewer)
+                                             const CHANNEL_DEF_DATA *def,
+                                             CHAR_DATA *viewer)
 {
     char expected_topic[128];
 
     if (!record || !def)
         return false;
+
+    if (IS_SET(def->channel_flags, CHANNEL_FLAG_PRIVATE)) {
+        if (!viewer)
+            return false;
+
+        if (!channel_history_viewer_is_participant(record, viewer))
+            return false;
+    }
 
     if (!channel_requires_history_topic_filter(def))
         return true;
@@ -3021,6 +3063,8 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
                            msg->reports_json,
                            appended_report_id,
                            sizeof(appended_report_id));
+    channel_history_set_participants(msg->sender_id0, msg->sender_id1,
+                                     msg->recipient_id0, msg->recipient_id1);
 
     sender = channel_find_sender(msg->sender_id0, msg->sender_id1, msg->sender_name);
     if (!sender)

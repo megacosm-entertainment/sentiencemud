@@ -52,6 +52,7 @@ typedef enum channel_scope {
 #define CHANNEL_FLAG_GUARD_STR_EDIT_CMDS (1L << 6) /* block accidental string-editor command text as channel messages */
 #define CHANNEL_FLAG_TOGGLE_ONLY        (1L << 7) /* command toggles receive preference only; publishing text is disallowed */
 #define CHANNEL_FLAG_REQUIRES_TARGET    (1L << 8) /* first argument is a target name (e.g., sayto, whisper) */
+#define CHANNEL_FLAG_PRIVATE            (1L << 9) /* history visible only to sender/recipient */
 
 /*=========================================================================*
  * Route Targets (for multi-target scope channels)                         *
