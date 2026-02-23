@@ -633,8 +633,8 @@ void do_history(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg1);
     if (arg1[0] == '\0') {
         send_to_char("Syntax: history <channel>\n\r", ch);
-        send_to_char("        history <channel> info <#>\n\r", ch);
-        send_to_char("        history <channel> report <message-id> [notes]\n\r", ch);
+        send_to_char("        history <channel> info <#|message-id>\n\r", ch);
+        send_to_char("        history <channel> report <#|message-id> [notes]\n\r", ch);
         return;
     }
 
@@ -714,23 +714,42 @@ void do_history(CHAR_DATA *ch, char *argument)
             send_to_char(buf, ch);
         }
 
-        send_to_char("Use 'history <channel> info <#>' for full details.\n\r", ch);
+        send_to_char("Use 'history <channel> info <#|message-id>' for full details.\n\r", ch);
         return;
     }
 
     if (str_cmp(arg2, "info")) {
         if (!str_cmp(arg2, "report")) {
             CHANNEL_HISTORY_ENTRY report_target;
+            char report_id[64];
 
             argument = one_argument(argument, arg3);
             if (IS_NULLSTR(arg3)) {
-                send_to_char("Syntax: history <channel> report <message-id> [notes]\n\r", ch);
+                send_to_char("Syntax: history <channel> report <#|message-id> [notes]\n\r", ch);
                 return;
             }
 
-            if (!channel_service_history_by_report_id(ch, def->id, arg3, &report_target)) {
-                send_to_char("No history entry exists for that message ID.\n\r", ch);
-                return;
+            if (is_number(arg3)) {
+                int index = atoi(arg3);
+
+                if (index <= 0) {
+                    send_to_char("Please provide a positive history entry number.\n\r", ch);
+                    return;
+                }
+
+                if (!channel_service_history_by_index(ch, def->id, index, &report_target)) {
+                    send_to_char("No history entry exists at that index.\n\r", ch);
+                    return;
+                }
+
+                strlcpy(report_id, report_target.report_id, sizeof(report_id));
+            } else {
+                if (!channel_service_history_by_report_id(ch, def->id, arg3, &report_target)) {
+                    send_to_char("No history entry exists for that message ID.\n\r", ch);
+                    return;
+                }
+
+                strlcpy(report_id, arg3, sizeof(report_id));
             }
 
             if (IS_NULLSTR(argument)) {
@@ -739,7 +758,7 @@ void do_history(CHAR_DATA *ch, char *argument)
                 free_string(ch->temp_log_entry);
 
                 ch->temp_report_channel = str_dup(def->id);
-                ch->temp_report_message_id = str_dup(arg3);
+                ch->temp_report_message_id = str_dup(report_id);
                 ch->temp_log_entry = str_dup("");
 
                 send_to_char("Enter additional report notes. Type @ when done.\n\r", ch);
@@ -748,7 +767,7 @@ void do_history(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            if (!channel_service_report_message(ch, def->id, arg3, argument)) {
+            if (!channel_service_report_message(ch, def->id, report_id, argument)) {
                 send_to_char("Unable to submit report for that message ID.\n\r", ch);
                 return;
             }
@@ -757,20 +776,33 @@ void do_history(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        send_to_char("Syntax: history <channel> info <#>\n\r", ch);
-        send_to_char("        history <channel> report <message-id> [notes]\n\r", ch);
+        send_to_char("Syntax: history <channel> info <#|message-id>\n\r", ch);
+        send_to_char("        history <channel> report <#|message-id> [notes]\n\r", ch);
         return;
     }
 
     argument = one_argument(argument, arg3);
-    if (!is_number(arg3) || atoi(arg3) <= 0) {
-        send_to_char("Please provide a positive history entry number.\n\r", ch);
+    if (IS_NULLSTR(arg3)) {
+        send_to_char("Please provide a history index or message ID.\n\r", ch);
         return;
     }
 
-    if (!channel_service_history_by_index(ch, def->id, atoi(arg3), &entry)) {
-        send_to_char("No history entry exists at that index.\n\r", ch);
-        return;
+    if (is_number(arg3)) {
+        int index = atoi(arg3);
+        if (index <= 0) {
+            send_to_char("Please provide a positive history entry number.\n\r", ch);
+            return;
+        }
+
+        if (!channel_service_history_by_index(ch, def->id, index, &entry)) {
+            send_to_char("No history entry exists at that index.\n\r", ch);
+            return;
+        }
+    } else {
+        if (!channel_service_history_by_report_id(ch, def->id, arg3, &entry)) {
+            send_to_char("No history entry exists for that message ID.\n\r", ch);
+            return;
+        }
     }
 
     {
@@ -836,7 +868,7 @@ void do_history(CHAR_DATA *ch, char *argument)
                      entry.message_text);
         }
         send_to_char(buf, ch);
-        send_to_char("Use this ID for reporting: history <channel> report <message-id> [notes]\n\r", ch);
+        send_to_char("Use this ID or index for reporting: history <channel> report <#|message-id> [notes]\n\r", ch);
     }
 
     #undef HISTORY_REPORT_LINK
