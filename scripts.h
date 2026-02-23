@@ -3355,6 +3355,7 @@ bool variables_setsave_dungeonindex (ppVARIABLE list,char *name,DUNGEON_INDEX_DA
 bool variables_setsave_shipindex (ppVARIABLE list,char *name,SHIP_INDEX_DATA *ship_index, bool save);
 void variables_resolve_rsg_bindings(ppVARIABLE vars);
 char *variables_expand_text_dup(pVARIABLE vars, const char *src);
+void variables_resolve_entity_fields_mob(ppVARIABLE vars, CHAR_DATA *mob);
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);

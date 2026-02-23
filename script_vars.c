@@ -68,6 +68,102 @@ void variables_resolve_rsg_bindings(ppVARIABLE vars)
     }
 }
 
+/**
+ * resolve_self_field_mob - Resolve a $(self.field) reference for a mobile
+ *
+ * @param field  The field name (after "self.")
+ * @param mob    The mobile whose fields are referenced
+ * @return       The resolved string, or NULL if the field is not recognized
+ */
+static const char *resolve_self_field_mob(const char *field, CHAR_DATA *mob)
+{
+    if (!strcmp(field, "he"))        return get_he_she(mob);
+    if (!strcmp(field, "him"))       return get_him_her(mob);
+    if (!strcmp(field, "his"))       return get_his_her(mob);
+    if (!strcmp(field, "hisobj"))    return get_his_hers(mob);
+    if (!strcmp(field, "himself"))   return get_himself_herself(mob);
+    if (!strcmp(field, "gender"))    return get_body_type_name(mob);
+    if (!strcmp(field, "race"))      return mob->race ? mob->race->name : "unknown";
+    if (!strcmp(field, "name"))      return mob->name;
+    if (!strcmp(field, "short"))     return mob->short_descr;
+    if (!strcmp(field, "long"))      return mob->long_descr;
+    return NULL;
+}
+
+/**
+ * variables_resolve_entity_fields_mob - Resolve $(self.field) in variable values
+ *
+ * Iterates all string variables and replaces any $(self.FIELD) patterns with
+ * the corresponding mob field values. Supports pronoun fields (he, him, his,
+ * hisobj, himself), gender, race, name, short, and long descriptions.
+ *
+ * This provides lightweight entity resolution at instantiation time without
+ * requiring the full scripting engine. Should be called after RSG bindings
+ * are resolved and before variable text expansion.
+ *
+ * @param vars  Pointer to the variable list
+ * @param mob   The mobile whose fields are referenced by "self"
+ */
+void variables_resolve_entity_fields_mob(ppVARIABLE vars, CHAR_DATA *mob)
+{
+    pVARIABLE var;
+
+    if (!vars || !*vars || !mob)
+        return;
+
+    for (var = *vars; var; var = var->next) {
+        const char *ptr;
+        BUFFER *buffer;
+        bool changed;
+
+        if (!var->name)
+            continue;
+
+        if (var->type != VAR_STRING && var->type != VAR_STRING_S)
+            continue;
+
+        if (IS_NULLSTR(var->_.s) || !strstr(var->_.s, "$(self."))
+            continue;
+
+        buffer = new_buf();
+        ptr = var->_.s;
+        changed = false;
+
+        while (*ptr) {
+            if (ptr[0] == '$' && ptr[1] == '(' && !strncmp(ptr + 2, "self.", 5)) {
+                const char *field_start = ptr + 7;
+                const char *end = strchr(field_start, ')');
+
+                if (end && end > field_start) {
+                    char field_name[MIL];
+                    size_t len = (size_t)(end - field_start);
+
+                    if (len < sizeof(field_name)) {
+                        memcpy(field_name, field_start, len);
+                        field_name[len] = '\0';
+
+                        const char *resolved = resolve_self_field_mob(field_name, mob);
+                        if (resolved) {
+                            add_buf(buffer, (char *)resolved);
+                            ptr = end + 1;
+                            changed = true;
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            add_buf_char(buffer, *ptr);
+            ptr++;
+        }
+
+        if (changed)
+            variables_set_string(vars, var->name, buf_string(buffer), false);
+
+        free_buf(buffer);
+    }
+}
+
 char *variables_expand_text_dup(pVARIABLE vars, const char *src)
 {
     BUFFER *buffer;

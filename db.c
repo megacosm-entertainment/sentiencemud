@@ -3990,6 +3990,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
     mob->progs->progs	= pMobIndex->progs;
     variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,false);
     variables_resolve_rsg_bindings(&mob->progs->vars);
+    variables_resolve_entity_fields_mob(&mob->progs->vars, mob);
 
     mob->name = variables_expand_text_dup(mob->progs->vars, pMobIndex->player_name);
     mob->short_descr = variables_expand_text_dup(mob->progs->vars, pMobIndex->short_descr);
