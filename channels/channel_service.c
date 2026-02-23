@@ -1379,41 +1379,273 @@ static bool channel_delivery_blocked_by_ban(const char *channel_id,
     return has_channel_ban_penalty(recipient->desc->account, channel_id, recipient->name);
 }
 
+static void channel_replace_all_simple(char *text,
+                                       size_t text_sz,
+                                       const char *needle,
+                                       const char *replacement)
+{
+    char out[MSL];
+    const char *src;
+    size_t needle_len;
+    size_t repl_len;
+
+    if (!text || text_sz == 0 || IS_NULLSTR(needle) || !replacement)
+        return;
+
+    needle_len = strlen(needle);
+    repl_len = strlen(replacement);
+    src = text;
+    out[0] = '\0';
+
+    while (*src && strlen(out) < sizeof(out) - 1) {
+        const char *pos = strstr(src, needle);
+        size_t prefix_len;
+
+        if (!pos)
+            break;
+
+        prefix_len = (size_t)(pos - src);
+        if (prefix_len > 0)
+            strncat(out, src, UMIN(prefix_len, sizeof(out) - strlen(out) - 1));
+
+        if (repl_len > 0)
+            strncat(out, replacement, UMIN(repl_len, sizeof(out) - strlen(out) - 1));
+
+        src = pos + needle_len;
+    }
+
+    if (*src)
+        strncat(out, src, UMIN(strlen(src), sizeof(out) - strlen(out) - 1));
+
+    strlcpy(text, out, text_sz);
+}
+
+static void channel_trim_spaces(char *text)
+{
+    char *start;
+    char *end;
+
+    if (!text)
+        return;
+
+    start = text;
+    while (*start == ' ' || *start == '\t')
+        start++;
+
+    if (start != text)
+        memmove(text, start, strlen(start) + 1);
+
+    end = text + strlen(text);
+    while (end > text && (end[-1] == ' ' || end[-1] == '\t'))
+        end--;
+    *end = '\0';
+}
+
+static bool channel_apply_plaintext_filter_rules(const char *spec,
+                                                 bool regex_mode,
+                                                 char *io_text,
+                                                 size_t text_sz)
+{
+    char rules[1024];
+    char *line;
+    char *saveptr = NULL;
+
+    if (IS_NULLSTR(spec) || !io_text || text_sz == 0)
+        return false;
+
+    strlcpy(rules, spec, sizeof(rules));
+
+    line = strtok_r(rules, "\n", &saveptr);
+    while (line) {
+        char rule[512];
+        char *sep;
+
+        strlcpy(rule, line, sizeof(rule));
+        channel_trim_spaces(rule);
+
+        if (!IS_NULLSTR(rule)) {
+            sep = strstr(rule, "=>");
+            if (sep) {
+                const char *replacement;
+
+                *sep = '\0';
+                sep += 2;
+                channel_trim_spaces(rule);
+                channel_trim_spaces(sep);
+
+                if (!IS_NULLSTR(rule) && channel_filter_text_matches(io_text, rule, regex_mode)) {
+                    replacement = sep;
+                    if (IS_NULLSTR(replacement))
+                        return true;
+
+                    if (regex_mode)
+                        strlcpy(io_text, replacement, text_sz);
+                    else
+                        channel_replace_all_simple(io_text, text_sz, rule, replacement);
+                }
+            } else if (strchr(rule, ',')) {
+                char *tok;
+                char *csv_save = NULL;
+
+                tok = strtok_r(rule, ",", &csv_save);
+                while (tok) {
+                    channel_trim_spaces(tok);
+                    if (!IS_NULLSTR(tok) && channel_filter_text_matches(io_text, tok, regex_mode))
+                        return true;
+                    tok = strtok_r(NULL, ",", &csv_save);
+                }
+            } else {
+                if (channel_filter_text_matches(io_text, rule, regex_mode))
+                    return true;
+            }
+        }
+
+        line = strtok_r(NULL, "\n", &saveptr);
+    }
+
+    return false;
+}
+
+static bool channel_apply_pref_filter_spec(const char *spec,
+                                           bool regex_mode,
+                                           char *io_text,
+                                           size_t text_sz)
+{
+    json_t *root;
+    json_error_t err;
+
+    if (IS_NULLSTR(spec) || !io_text || text_sz == 0)
+        return false;
+
+    root = json_loads(spec, 0, &err);
+    if (!root) {
+        return channel_apply_plaintext_filter_rules(spec, regex_mode, io_text, text_sz);
+    }
+
+    if (json_is_array(root)) {
+        size_t i;
+        json_t *item;
+
+        json_array_foreach(root, i, item) {
+            if (json_is_string(item)) {
+                const char *pattern = json_string_value(item);
+                if (!IS_NULLSTR(pattern)
+                    && channel_filter_text_matches(io_text, pattern, regex_mode)) {
+                    json_decref(root);
+                    return true;
+                }
+            } else if (json_is_object(item)) {
+                const char *pattern = json_string_value(json_object_get(item, "match"));
+                const char *replacement = json_string_value(json_object_get(item, "replace"));
+                json_t *block_val = json_object_get(item, "block");
+                bool force_block = (block_val && json_is_boolean(block_val) && json_is_true(block_val));
+
+                if (IS_NULLSTR(pattern)
+                    || !channel_filter_text_matches(io_text, pattern, regex_mode))
+                    continue;
+
+                if (force_block || IS_NULLSTR(replacement)) {
+                    json_decref(root);
+                    return true;
+                }
+
+                if (regex_mode)
+                    strlcpy(io_text, replacement, text_sz);
+                else
+                    channel_replace_all_simple(io_text, text_sz, pattern, replacement);
+            }
+        }
+
+        json_decref(root);
+        return false;
+    }
+
+    if (json_is_object(root)) {
+        const char *pattern = json_string_value(json_object_get(root, "match"));
+        const char *replacement = json_string_value(json_object_get(root, "replace"));
+        json_t *block_val = json_object_get(root, "block");
+        bool force_block = (block_val && json_is_boolean(block_val) && json_is_true(block_val));
+
+        if (!IS_NULLSTR(pattern) && channel_filter_text_matches(io_text, pattern, regex_mode)) {
+            if (force_block || IS_NULLSTR(replacement)) {
+                json_decref(root);
+                return true;
+            }
+
+            if (regex_mode)
+                strlcpy(io_text, replacement, text_sz);
+            else
+                channel_replace_all_simple(io_text, text_sz, pattern, replacement);
+        }
+
+        json_decref(root);
+        return false;
+    }
+
+    json_decref(root);
+    return false;
+}
+
 static bool channel_delivery_filtered_by_preferences(const char *channel_id,
                                                      CHAR_DATA *recipient,
-                                                     const char *plain_text)
+                                                     const char *plain_text,
+                                                     char *out_text,
+                                                     size_t out_text_sz)
 {
     ACCOUNT_DATA *acct;
     char key_simple[96];
     char key_regex[96];
+    char key_simple_list[96];
+    char key_regex_list[96];
     const char *simple_global;
     const char *regex_global;
+    const char *simple_global_list;
+    const char *regex_global_list;
     const char *simple_channel;
     const char *regex_channel;
+    const char *simple_channel_list;
+    const char *regex_channel_list;
+    char working[MSL];
 
-    if (!recipient || IS_NPC(recipient) || IS_NULLSTR(plain_text))
+    if (!recipient || IS_NPC(recipient) || IS_NULLSTR(plain_text) || !out_text || out_text_sz == 0)
         return false;
 
     acct = recipient->desc ? recipient->desc->account : NULL;
+    strlcpy(working, plain_text, sizeof(working));
 
     simple_global = pref_get_string(acct, recipient, "filter_simple", "");
     regex_global = pref_get_string(acct, recipient, "filter_regex", "");
+    simple_global_list = pref_get_string(acct, recipient, "filter_simple_list", "");
+    regex_global_list = pref_get_string(acct, recipient, "filter_regex_list", "");
 
     snprintf(key_simple, sizeof(key_simple), "filter_%s_simple", IS_NULLSTR(channel_id) ? "channel" : channel_id);
     snprintf(key_regex, sizeof(key_regex), "filter_%s_regex", IS_NULLSTR(channel_id) ? "channel" : channel_id);
+    snprintf(key_simple_list, sizeof(key_simple_list), "filter_%s_simple_list", IS_NULLSTR(channel_id) ? "channel" : channel_id);
+    snprintf(key_regex_list, sizeof(key_regex_list), "filter_%s_regex_list", IS_NULLSTR(channel_id) ? "channel" : channel_id);
 
     simple_channel = pref_get_string(acct, recipient, key_simple, "");
     regex_channel = pref_get_string(acct, recipient, key_regex, "");
+    simple_channel_list = pref_get_string(acct, recipient, key_simple_list, "");
+    regex_channel_list = pref_get_string(acct, recipient, key_regex_list, "");
 
-    if (!IS_NULLSTR(simple_global) && channel_filter_text_matches(plain_text, simple_global, false))
+    if (channel_apply_pref_filter_spec(simple_global, false, working, sizeof(working)))
         return true;
-    if (!IS_NULLSTR(regex_global) && channel_filter_text_matches(plain_text, regex_global, true))
+    if (channel_apply_pref_filter_spec(regex_global, true, working, sizeof(working)))
         return true;
-    if (!IS_NULLSTR(simple_channel) && channel_filter_text_matches(plain_text, simple_channel, false))
+    if (channel_apply_pref_filter_spec(simple_global_list, false, working, sizeof(working)))
         return true;
-    if (!IS_NULLSTR(regex_channel) && channel_filter_text_matches(plain_text, regex_channel, true))
+    if (channel_apply_pref_filter_spec(regex_global_list, true, working, sizeof(working)))
+        return true;
+    if (channel_apply_pref_filter_spec(simple_channel, false, working, sizeof(working)))
+        return true;
+    if (channel_apply_pref_filter_spec(regex_channel, true, working, sizeof(working)))
+        return true;
+    if (channel_apply_pref_filter_spec(simple_channel_list, false, working, sizeof(working)))
+        return true;
+    if (channel_apply_pref_filter_spec(regex_channel_list, true, working, sizeof(working)))
         return true;
 
+    strlcpy(out_text, working, out_text_sz);
     return false;
 }
 
@@ -1556,6 +1788,10 @@ static void channel_sender_name_mxp(descriptor_t *desc,
     nitems++;
 
     snprintf(tell_cmd, sizeof(tell_cmd), "tell %s ", whois_target);
+    items[nitems].cmd = tell_cmd;
+    items[nitems].hint = "Tell player";
+    nitems++;
+
     if (!IS_NULLSTR(channel_id)) {
         snprintf(history_cmd, sizeof(history_cmd), "history %s", channel_id);
         items[nitems].cmd = history_cmd;
@@ -1582,8 +1818,6 @@ static void channel_sender_name_mxp(descriptor_t *desc,
 
     mxp_buf = new_buf();
     mxp_link_multi(desc, mxp_buf, sender_name, items, nitems);
-    add_buf(mxp_buf, " ");
-    mxp_link_prompt(desc, mxp_buf, "[tell]", tell_cmd, "Insert tell command");
     strlcpy(out, buf_string(mxp_buf), out_sz);
     free_buf(mxp_buf);
 }
@@ -1690,6 +1924,7 @@ static void channel_send_formatted_to_recipient(const char *channel_id,
                                                 const char *plain_text)
 {
     char rendered[MAX_STRING_LENGTH];
+    char filtered_text[MSL];
     const CHANNEL_DEF_DATA *def;
 
     if (!sender || !recipient || IS_NULLSTR(channel_id) || IS_NULLSTR(plain_text))
@@ -1705,11 +1940,13 @@ static void channel_send_formatted_to_recipient(const char *channel_id,
     if (channel_delivery_blocked_by_ban(channel_id, recipient))
         return;
 
-    if (channel_delivery_filtered_by_preferences(channel_id, recipient, plain_text))
+    if (channel_delivery_filtered_by_preferences(channel_id, recipient, plain_text,
+                                                 filtered_text, sizeof(filtered_text)))
         return;
 
     channel_format_for_recipient(channel_id, sender, recipient,
-                                 plain_text, rendered, sizeof(rendered));
+                                 filtered_text[0] ? filtered_text : plain_text,
+                                 rendered, sizeof(rendered));
 
     if (rendered[0] != '\0')
         send_to_char(rendered, recipient);

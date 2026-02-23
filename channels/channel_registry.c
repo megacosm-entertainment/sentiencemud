@@ -225,6 +225,55 @@ static bool channel_requirements_fix_serialized(char *serialized, size_t out_sz)
     return true;
 }
 
+static void channel_filter_store_json_value(const json_t *value,
+                                            char *out,
+                                            size_t out_sz)
+{
+    char *serialized;
+
+    if (!out || out_sz == 0 || !value)
+        return;
+
+    if (json_is_string(value)) {
+        const char *text = json_string_value(value);
+        if (!IS_NULLSTR(text))
+            strlcpy(out, text, out_sz);
+        return;
+    }
+
+    if (!json_is_array(value) && !json_is_object(value))
+        return;
+
+    serialized = json_dumps(value, JSON_COMPACT);
+    if (!serialized)
+        return;
+
+    strlcpy(out, serialized, out_sz);
+    free(serialized);
+}
+
+static void channel_filter_emit_json_value(json_t *entry,
+                                           const char *key,
+                                           const char *serialized)
+{
+    json_t *parsed;
+    json_error_t err;
+
+    if (!entry || IS_NULLSTR(key) || IS_NULLSTR(serialized))
+        return;
+
+    parsed = json_loads(serialized, 0, &err);
+    if (parsed && (json_is_array(parsed) || json_is_object(parsed))) {
+        json_object_set_new(entry, key, parsed);
+        return;
+    }
+
+    if (parsed)
+        json_decref(parsed);
+
+    json_object_set_new(entry, key, json_string(serialized));
+}
+
 
 /*=========================================================================*
  * Built-in defaults                                                        *
@@ -408,13 +457,13 @@ bool channel_registry_load(const char *filepath)
         s = json_string_value(json_object_get(entry, "filter_mode"));
         def.filter_mode = channel_filter_mode_from_name(s, NULL);
 
-        s = json_string_value(json_object_get(entry, "filter_simple"));
-        if (s)
-            strlcpy(def.filter_simple, s, sizeof(def.filter_simple));
+        channel_filter_store_json_value(json_object_get(entry, "filter_simple"),
+                                        def.filter_simple,
+                                        sizeof(def.filter_simple));
 
-        s = json_string_value(json_object_get(entry, "filter_regex"));
-        if (s)
-            strlcpy(def.filter_regex, s, sizeof(def.filter_regex));
+        channel_filter_store_json_value(json_object_get(entry, "filter_regex"),
+                                        def.filter_regex,
+                                        sizeof(def.filter_regex));
 
         v = json_object_get(entry, "light_warn_threshold");
         if (v && json_is_integer(v))
@@ -548,9 +597,9 @@ bool channel_registry_save(const char *filepath)
         json_object_set_new(entry, "filter_enabled", json_boolean(def->filter_enabled));
         json_object_set_new(entry, "filter_mode", json_string(channel_filter_mode_to_name(def->filter_mode)));
         if (def->filter_simple[0])
-            json_object_set_new(entry, "filter_simple", json_string(def->filter_simple));
+            channel_filter_emit_json_value(entry, "filter_simple", def->filter_simple);
         if (def->filter_regex[0])
-            json_object_set_new(entry, "filter_regex", json_string(def->filter_regex));
+            channel_filter_emit_json_value(entry, "filter_regex", def->filter_regex);
         json_object_set_new(entry, "light_warn_threshold", json_integer(def->light_warn_threshold));
         json_object_set_new(entry, "light_mute_minutes", json_integer(def->light_mute_minutes));
 

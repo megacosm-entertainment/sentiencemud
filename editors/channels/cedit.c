@@ -42,6 +42,26 @@ static bool cedit_format(CHAR_DATA *ch, char *argument);
 static bool cedit_history_config(CHAR_DATA *ch, char *argument);
 static bool cedit_aliases(CHAR_DATA *ch, char *argument);
 static bool cedit_filter(CHAR_DATA *ch, char *argument);
+
+static void cedit_filter_trim_rule(char *text)
+{
+    char *start;
+    char *end;
+
+    if (!text)
+        return;
+
+    start = text;
+    while (*start == ' ' || *start == '\t')
+        start++;
+    if (start != text)
+        memmove(text, start, strlen(start) + 1);
+
+    end = text + strlen(text);
+    while (end > text && (end[-1] == ' ' || end[-1] == '\t'))
+        end--;
+    *end = '\0';
+}
 static bool cedit_review(CHAR_DATA *ch, char *argument);
 static bool cedit_modadd(CHAR_DATA *ch, char *argument);
 static bool cedit_moddel(CHAR_DATA *ch, char *argument);
@@ -495,31 +515,259 @@ static bool cedit_filter(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0') {
         send_to_char("Syntax: filter <on|off> [allow|redact|block|review]\n\r", ch);
-        send_to_char("        filter simple <text>\n\r", ch);
-        send_to_char("        filter regex <pattern>\n\r", ch);
+        send_to_char("        filter simple <add|del|list> ...\n\r", ch);
+        send_to_char("        filter regex <add|del|list> ...\n\r", ch);
         send_to_char("        filter clear <simple|regex|all>\n\r", ch);
         return false;
     }
 
     if (!str_cmp(arg1, "simple")) {
+        if (!str_cmp(arg2, "list")) {
+            char copy[512];
+            char *line;
+            char *saveptr = NULL;
+            int idx = 0;
+            char out[MSL];
+
+            send_to_char("Simple filter rules:\n\r", ch);
+            if (IS_NULLSTR(channel->filter_simple)) {
+                send_to_char("  (none)\n\r", ch);
+                return true;
+            }
+
+            strlcpy(copy, channel->filter_simple, sizeof(copy));
+            line = strtok_r(copy, "\n", &saveptr);
+            while (line) {
+                cedit_filter_trim_rule(line);
+                if (!IS_NULLSTR(line)) {
+                    snprintf(out, sizeof(out), "  %2d) %s\n\r", ++idx, line);
+                    send_to_char(out, ch);
+                }
+                line = strtok_r(NULL, "\n", &saveptr);
+            }
+
+            if (idx == 0)
+                send_to_char("  (none)\n\r", ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "add")) {
+            char match[MIL];
+            char rule[512];
+            char updated[512];
+            size_t required_len;
+
+            argument = one_argument(argument, match);
+            if (IS_NULLSTR(match)) {
+                send_to_char("Syntax: filter simple add <match> [replacement]\n\r", ch);
+                return false;
+            }
+
+            if (IS_NULLSTR(argument))
+                strlcpy(rule, match, sizeof(rule));
+            else {
+                required_len = strlen(match) + 2 + strlen(argument) + 1;
+                if (required_len > sizeof(rule)) {
+                    send_to_char("CEdit: filter rule is too long.\n\r", ch);
+                    return false;
+                }
+
+                strlcpy(rule, match, sizeof(rule));
+                strlcat(rule, "=>", sizeof(rule));
+                strlcat(rule, argument, sizeof(rule));
+            }
+
+            updated[0] = '\0';
+            if (!IS_NULLSTR(channel->filter_simple)) {
+                strlcpy(updated, channel->filter_simple, sizeof(updated));
+                strlcat(updated, "\n", sizeof(updated));
+            }
+            strlcat(updated, rule, sizeof(updated));
+
+            if (strlen(updated) >= sizeof(channel->filter_simple)) {
+                send_to_char("CEdit: filter rule set is too large.\n\r", ch);
+                return false;
+            }
+
+            strlcpy(channel->filter_simple, updated, sizeof(channel->filter_simple));
+            send_to_char("Simple filter rule added.\n\r", ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "del")) {
+            int del_idx;
+            int idx = 0;
+            bool removed = false;
+            char copy[512];
+            char rebuilt[512];
+            char *line;
+            char *saveptr = NULL;
+
+            if (!is_number(argument) || (del_idx = atoi(argument)) <= 0) {
+                send_to_char("Syntax: filter simple del <index>\n\r", ch);
+                return false;
+            }
+
+            rebuilt[0] = '\0';
+            strlcpy(copy, channel->filter_simple, sizeof(copy));
+            line = strtok_r(copy, "\n", &saveptr);
+            while (line) {
+                cedit_filter_trim_rule(line);
+                if (!IS_NULLSTR(line)) {
+                    idx++;
+                    if (idx == del_idx) {
+                        removed = true;
+                    } else {
+                        if (rebuilt[0] != '\0')
+                            strlcat(rebuilt, "\n", sizeof(rebuilt));
+                        strlcat(rebuilt, line, sizeof(rebuilt));
+                    }
+                }
+                line = strtok_r(NULL, "\n", &saveptr);
+            }
+
+            if (!removed) {
+                send_to_char("CEdit: no simple rule at that index.\n\r", ch);
+                return false;
+            }
+
+            strlcpy(channel->filter_simple, rebuilt, sizeof(channel->filter_simple));
+            send_to_char("Simple filter rule removed.\n\r", ch);
+            return true;
+        }
+
         if (IS_NULLSTR(argument)) {
-            send_to_char("Syntax: filter simple <text>\n\r", ch);
+            send_to_char("Syntax: filter simple <add|del|list> ...\n\r", ch);
             return false;
         }
 
         strlcpy(channel->filter_simple, argument, sizeof(channel->filter_simple));
-        send_to_char("Simple filter text updated.\n\r", ch);
+        send_to_char("Simple filter rules replaced.\n\r", ch);
         return true;
     }
 
     if (!str_cmp(arg1, "regex")) {
+        if (!str_cmp(arg2, "list")) {
+            char copy[512];
+            char *line;
+            char *saveptr = NULL;
+            int idx = 0;
+            char out[MSL];
+
+            send_to_char("Regex filter rules:\n\r", ch);
+            if (IS_NULLSTR(channel->filter_regex)) {
+                send_to_char("  (none)\n\r", ch);
+                return true;
+            }
+
+            strlcpy(copy, channel->filter_regex, sizeof(copy));
+            line = strtok_r(copy, "\n", &saveptr);
+            while (line) {
+                cedit_filter_trim_rule(line);
+                if (!IS_NULLSTR(line)) {
+                    snprintf(out, sizeof(out), "  %2d) %s\n\r", ++idx, line);
+                    send_to_char(out, ch);
+                }
+                line = strtok_r(NULL, "\n", &saveptr);
+            }
+
+            if (idx == 0)
+                send_to_char("  (none)\n\r", ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "add")) {
+            char match[MIL];
+            char rule[512];
+            char updated[512];
+            size_t required_len;
+
+            argument = one_argument(argument, match);
+            if (IS_NULLSTR(match)) {
+                send_to_char("Syntax: filter regex add <pattern> [replacement]\n\r", ch);
+                return false;
+            }
+
+            if (IS_NULLSTR(argument))
+                strlcpy(rule, match, sizeof(rule));
+            else {
+                required_len = strlen(match) + 2 + strlen(argument) + 1;
+                if (required_len > sizeof(rule)) {
+                    send_to_char("CEdit: filter rule is too long.\n\r", ch);
+                    return false;
+                }
+
+                strlcpy(rule, match, sizeof(rule));
+                strlcat(rule, "=>", sizeof(rule));
+                strlcat(rule, argument, sizeof(rule));
+            }
+
+            updated[0] = '\0';
+            if (!IS_NULLSTR(channel->filter_regex)) {
+                strlcpy(updated, channel->filter_regex, sizeof(updated));
+                strlcat(updated, "\n", sizeof(updated));
+            }
+            strlcat(updated, rule, sizeof(updated));
+
+            if (strlen(updated) >= sizeof(channel->filter_regex)) {
+                send_to_char("CEdit: filter rule set is too large.\n\r", ch);
+                return false;
+            }
+
+            strlcpy(channel->filter_regex, updated, sizeof(channel->filter_regex));
+            send_to_char("Regex filter rule added.\n\r", ch);
+            return true;
+        }
+
+        if (!str_cmp(arg2, "del")) {
+            int del_idx;
+            int idx = 0;
+            bool removed = false;
+            char copy[512];
+            char rebuilt[512];
+            char *line;
+            char *saveptr = NULL;
+
+            if (!is_number(argument) || (del_idx = atoi(argument)) <= 0) {
+                send_to_char("Syntax: filter regex del <index>\n\r", ch);
+                return false;
+            }
+
+            rebuilt[0] = '\0';
+            strlcpy(copy, channel->filter_regex, sizeof(copy));
+            line = strtok_r(copy, "\n", &saveptr);
+            while (line) {
+                cedit_filter_trim_rule(line);
+                if (!IS_NULLSTR(line)) {
+                    idx++;
+                    if (idx == del_idx) {
+                        removed = true;
+                    } else {
+                        if (rebuilt[0] != '\0')
+                            strlcat(rebuilt, "\n", sizeof(rebuilt));
+                        strlcat(rebuilt, line, sizeof(rebuilt));
+                    }
+                }
+                line = strtok_r(NULL, "\n", &saveptr);
+            }
+
+            if (!removed) {
+                send_to_char("CEdit: no regex rule at that index.\n\r", ch);
+                return false;
+            }
+
+            strlcpy(channel->filter_regex, rebuilt, sizeof(channel->filter_regex));
+            send_to_char("Regex filter rule removed.\n\r", ch);
+            return true;
+        }
+
         if (IS_NULLSTR(argument)) {
-            send_to_char("Syntax: filter regex <pattern>\n\r", ch);
+            send_to_char("Syntax: filter regex <add|del|list> ...\n\r", ch);
             return false;
         }
 
         strlcpy(channel->filter_regex, argument, sizeof(channel->filter_regex));
-        send_to_char("Regex filter pattern updated.\n\r", ch);
+        send_to_char("Regex filter rules replaced.\n\r", ch);
         return true;
     }
 

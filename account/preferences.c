@@ -2274,6 +2274,127 @@ static void show_prompt_settings(CHAR_DATA *ch)
     send_to_char(buf, ch);
 }
 
+static void show_filter_settings(CHAR_DATA *ch)
+{
+    ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
+    char buf[MAX_STRING_LENGTH];
+    const char *simple = pref_get_string(acct, ch, "filter_simple", "");
+    const char *regex = pref_get_string(acct, ch, "filter_regex", "");
+
+    send_to_char("\n\r{Y--- Filters ---{x\n\r", ch);
+    snprintf(buf, sizeof(buf),
+             "  simple: %s\n\r"
+             "  regex : %s\n\r",
+             IS_NULLSTR(simple) ? "(none)" : simple,
+             IS_NULLSTR(regex) ? "(none)" : regex);
+    send_to_char(buf, ch);
+}
+
+static void prefs_filter_rules_list(CHAR_DATA *ch, const char *label, const char *spec)
+{
+    char copy[1024];
+    char *line;
+    char *saveptr = NULL;
+    int index = 0;
+    char buf[MAX_STRING_LENGTH];
+
+    snprintf(buf, sizeof(buf), "  %s rules:\n\r", label);
+    send_to_char(buf, ch);
+
+    if (IS_NULLSTR(spec)) {
+        send_to_char("    (none)\n\r", ch);
+        return;
+    }
+
+    strlcpy(copy, spec, sizeof(copy));
+    line = strtok_r(copy, "\n", &saveptr);
+    while (line) {
+        if (!IS_NULLSTR(line)) {
+            snprintf(buf, sizeof(buf), "    %2d) %s\n\r", ++index, line);
+            send_to_char(buf, ch);
+        }
+        line = strtok_r(NULL, "\n", &saveptr);
+    }
+
+    if (index == 0)
+        send_to_char("    (none)\n\r", ch);
+}
+
+static bool prefs_filter_rules_add(char *out,
+                                   size_t out_sz,
+                                   const char *existing,
+                                   const char *match,
+                                   const char *replacement)
+{
+    char rule[512];
+    size_t required_len;
+
+    if (!out || out_sz == 0 || IS_NULLSTR(match))
+        return false;
+
+    if (IS_NULLSTR(replacement))
+        strlcpy(rule, match, sizeof(rule));
+    else {
+        required_len = strlen(match) + 2 + strlen(replacement) + 1;
+        if (required_len > sizeof(rule))
+            return false;
+
+        strlcpy(rule, match, sizeof(rule));
+        strlcat(rule, "=>", sizeof(rule));
+        strlcat(rule, replacement, sizeof(rule));
+    }
+
+    out[0] = '\0';
+    if (!IS_NULLSTR(existing)) {
+        strlcpy(out, existing, out_sz);
+        if (strlen(out) + 1 < out_sz)
+            strlcat(out, "\n", out_sz);
+    }
+
+    if (strlen(out) + strlen(rule) >= out_sz)
+        return false;
+
+    strlcat(out, rule, out_sz);
+    return true;
+}
+
+static bool prefs_filter_rules_delete(char *out,
+                                      size_t out_sz,
+                                      const char *existing,
+                                      int del_index)
+{
+    char copy[1024];
+    char *line;
+    char *saveptr = NULL;
+    int index = 0;
+    bool removed = false;
+
+    if (!out || out_sz == 0 || IS_NULLSTR(existing) || del_index <= 0)
+        return false;
+
+    out[0] = '\0';
+    strlcpy(copy, existing, sizeof(copy));
+
+    line = strtok_r(copy, "\n", &saveptr);
+    while (line) {
+        if (!IS_NULLSTR(line)) {
+            index++;
+            if (index == del_index) {
+                removed = true;
+            } else {
+                if (out[0] != '\0')
+                    strlcat(out, "\n", out_sz);
+                if (strlen(out) + strlen(line) >= out_sz)
+                    return false;
+                strlcat(out, line, out_sz);
+            }
+        }
+        line = strtok_r(NULL, "\n", &saveptr);
+    }
+
+    return removed;
+}
+
 /**
  * do_prefs - Player command to view and toggle preferences
  *
@@ -2306,6 +2427,7 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         show_toggle_settings(ch);
         show_channel_settings(ch);
         show_prompt_settings(ch);
+        show_filter_settings(ch);
 
         /* Show override summary */
         int char_overrides = ch->pcdata->preferences
@@ -2392,8 +2514,12 @@ void do_prefs(CHAR_DATA *ch, char *argument)
 
             sprintf(buf,
                     "Filter settings:\n\r  simple: %s\n\r  regex : %s\n\r"
-                    "Use: prefs filter simple <text>\n\r"
-                    "     prefs filter regex <pattern>\n\r"
+                    "Use: prefs filter simple add <match> [replacement]\n\r"
+                    "     prefs filter simple del <index>\n\r"
+                    "     prefs filter simple list\n\r"
+                    "     prefs filter regex add <pattern> [replacement]\n\r"
+                    "     prefs filter regex del <index>\n\r"
+                    "     prefs filter regex list\n\r"
                     "     prefs filter clear <simple|regex|all>\n\r",
                     IS_NULLSTR(simple) ? "(none)" : simple,
                     IS_NULLSTR(regex) ? "(none)" : regex);
@@ -2402,26 +2528,136 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         }
 
         if (!str_cmp(mode, "simple")) {
-            if (IS_NULLSTR(argument)) {
-                send_to_char("Syntax: prefs filter simple <text>\n\r", ch);
+            const char *existing = pref_get_string(acct, ch, "filter_simple", "");
+            if (!str_cmp(opt, "list")) {
+                prefs_filter_rules_list(ch, "simple", existing);
                 return;
             }
-            pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
-                            "filter_simple", argument);
-            save_char_obj(ch);
-            send_to_char("Simple filter updated.\n\r", ch);
+
+            if (!str_cmp(opt, "add")) {
+                char match[MIL];
+                char new_spec[1024];
+
+                argument = one_argument(argument, match);
+                if (IS_NULLSTR(match)) {
+                    send_to_char("Syntax: prefs filter simple add <match> [replacement]\n\r", ch);
+                    return;
+                }
+
+                if (!prefs_filter_rules_add(new_spec, sizeof(new_spec), existing,
+                                            match, IS_NULLSTR(argument) ? NULL : argument)) {
+                    send_to_char("Unable to add rule (too many/too long rules).\n\r", ch);
+                    return;
+                }
+
+                pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                                "filter_simple", new_spec);
+                save_char_obj(ch);
+                send_to_char("Simple filter rule added.\n\r", ch);
+                return;
+            }
+
+            if (!str_cmp(opt, "del")) {
+                int del_index;
+                char new_spec[1024];
+
+                if (!is_number(argument) || (del_index = atoi(argument)) <= 0) {
+                    send_to_char("Syntax: prefs filter simple del <index>\n\r", ch);
+                    return;
+                }
+
+                if (!prefs_filter_rules_delete(new_spec, sizeof(new_spec), existing, del_index)) {
+                    send_to_char("No simple filter rule found at that index.\n\r", ch);
+                    return;
+                }
+
+                if (IS_NULLSTR(new_spec))
+                    pref_remove(&ch->pcdata->preferences, "filter_simple");
+                else
+                    pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                                    "filter_simple", new_spec);
+
+                save_char_obj(ch);
+                send_to_char("Simple filter rule removed.\n\r", ch);
+                return;
+            }
+
+            if (!IS_NULLSTR(argument)) {
+                pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                                "filter_simple", argument);
+                save_char_obj(ch);
+                send_to_char("Simple filter rules replaced.\n\r", ch);
+                return;
+            }
+
+            send_to_char("Syntax: prefs filter simple <add|del|list> ...\n\r", ch);
             return;
         }
 
         if (!str_cmp(mode, "regex")) {
-            if (IS_NULLSTR(argument)) {
-                send_to_char("Syntax: prefs filter regex <pattern>\n\r", ch);
+            const char *existing = pref_get_string(acct, ch, "filter_regex", "");
+            if (!str_cmp(opt, "list")) {
+                prefs_filter_rules_list(ch, "regex", existing);
                 return;
             }
-            pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
-                            "filter_regex", argument);
-            save_char_obj(ch);
-            send_to_char("Regex filter updated.\n\r", ch);
+
+            if (!str_cmp(opt, "add")) {
+                char match[MIL];
+                char new_spec[1024];
+
+                argument = one_argument(argument, match);
+                if (IS_NULLSTR(match)) {
+                    send_to_char("Syntax: prefs filter regex add <pattern> [replacement]\n\r", ch);
+                    return;
+                }
+
+                if (!prefs_filter_rules_add(new_spec, sizeof(new_spec), existing,
+                                            match, IS_NULLSTR(argument) ? NULL : argument)) {
+                    send_to_char("Unable to add rule (too many/too long rules).\n\r", ch);
+                    return;
+                }
+
+                pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                                "filter_regex", new_spec);
+                save_char_obj(ch);
+                send_to_char("Regex filter rule added.\n\r", ch);
+                return;
+            }
+
+            if (!str_cmp(opt, "del")) {
+                int del_index;
+                char new_spec[1024];
+
+                if (!is_number(argument) || (del_index = atoi(argument)) <= 0) {
+                    send_to_char("Syntax: prefs filter regex del <index>\n\r", ch);
+                    return;
+                }
+
+                if (!prefs_filter_rules_delete(new_spec, sizeof(new_spec), existing, del_index)) {
+                    send_to_char("No regex filter rule found at that index.\n\r", ch);
+                    return;
+                }
+
+                if (IS_NULLSTR(new_spec))
+                    pref_remove(&ch->pcdata->preferences, "filter_regex");
+                else
+                    pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                                    "filter_regex", new_spec);
+
+                save_char_obj(ch);
+                send_to_char("Regex filter rule removed.\n\r", ch);
+                return;
+            }
+
+            if (!IS_NULLSTR(argument)) {
+                pref_set_string(&ch->pcdata->preferences, PREF_CAT_CHANNEL,
+                                "filter_regex", argument);
+                save_char_obj(ch);
+                send_to_char("Regex filter rules replaced.\n\r", ch);
+                return;
+            }
+
+            send_to_char("Syntax: prefs filter regex <add|del|list> ...\n\r", ch);
             return;
         }
 
