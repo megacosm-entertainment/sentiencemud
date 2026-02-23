@@ -532,7 +532,9 @@ void do_channels(CHAR_DATA *ch, char *argument)
             }
 
             if (alias_buf[0] != '\0') {
-                snprintf(buf, sizeof(buf), "{D  aliases:{x %s\n\r", alias_buf);
+                strlcpy(buf, "{D  aliases:{x ", sizeof(buf));
+                strlcat(buf, alias_buf, sizeof(buf));
+                strlcat(buf, "\n\r", sizeof(buf));
                 send_to_char(buf, ch);
             }
         }
@@ -664,7 +666,7 @@ void do_history(CHAR_DATA *ch, char *argument)
 
         for (i = 0; i < count; i++) {
             char when_buf[32];
-            char report_link[MAX_STRING_LENGTH];
+            char report_link[512];
             char reported_marker[64];
             int report_count = 0;
             bool show_report_link = (ch->desc && isMXP(ch->desc));
@@ -693,7 +695,7 @@ void do_history(CHAR_DATA *ch, char *argument)
             if (show_report_link)
                 snprintf(buf,
                          sizeof(buf),
-                         "{Y#%2d{x [%s] {W%.48s{x {D[%.96s]{x%s: %.3000s\n\r",
+                         "{Y#%2d{x [%s] {W%.48s{x {D[%s]{x%s: %.3000s\n\r",
                          i + 1,
                          when_buf,
                          entries[i].sender_name,
@@ -774,7 +776,7 @@ void do_history(CHAR_DATA *ch, char *argument)
     {
         char buf[MSL];
         char when_buf[64];
-        char report_link[MAX_STRING_LENGTH];
+        char report_link[512];
         int report_count = 0;
         struct tm *tm_info = localtime(&entry.timestamp);
 
@@ -790,26 +792,49 @@ void do_history(CHAR_DATA *ch, char *argument)
 
         HISTORY_REPORT_COUNT(entry.reports_json, report_count);
 
-        snprintf(buf,
-                 sizeof(buf),
-                 "{YHistory detail{x\n\r"
-                 "  Channel : {W%.32s{x (%.32s)\n\r"
-                 "  Index   : #%.32s\n\r"
-                 "  Time    : %.63s\n\r"
-                 "  Sender  : %.64s\n\r"
-                 "  Report  : {W%.128s{x\n\r"
-                 "  Reports : %d\n\r"
-                 "  Meta    : %.1200s\n\r"
-                 "  Message : %.2400s\n\r",
-                 def->id,
-                 def->name,
-                 arg3,
-                 when_buf,
-                 entry.sender_name,
-                 report_link,
-                 report_count,
-                 IS_NULLSTR(entry.reports_json) ? "(none)" : entry.reports_json,
-                 entry.message_text);
+        if (ch->desc && isMXP(ch->desc)) {
+            snprintf(buf,
+                     sizeof(buf),
+                     "{YHistory detail{x\n\r"
+                     "  Channel : {W%.32s{x (%.32s)\n\r"
+                     "  Index   : #%.32s\n\r"
+                     "  Time    : %.63s\n\r"
+                     "  Sender  : %.64s\n\r"
+                     "  Report  : {W%s{x\n\r"
+                     "  Reports : %d\n\r"
+                     "  Meta    : %.1200s\n\r"
+                     "  Message : %.2400s\n\r",
+                     def->id,
+                     def->name,
+                     arg3,
+                     when_buf,
+                     entry.sender_name,
+                     report_link,
+                     report_count,
+                     IS_NULLSTR(entry.reports_json) ? "(none)" : entry.reports_json,
+                     entry.message_text);
+        } else {
+            snprintf(buf,
+                     sizeof(buf),
+                     "{YHistory detail{x\n\r"
+                     "  Channel : {W%.32s{x (%.32s)\n\r"
+                     "  Index   : #%.32s\n\r"
+                     "  Time    : %.63s\n\r"
+                     "  Sender  : %.64s\n\r"
+                     "  Report  : {W%.128s{x\n\r"
+                     "  Reports : %d\n\r"
+                     "  Meta    : %.1200s\n\r"
+                     "  Message : %.2400s\n\r",
+                     def->id,
+                     def->name,
+                     arg3,
+                     when_buf,
+                     entry.sender_name,
+                     report_link,
+                     report_count,
+                     IS_NULLSTR(entry.reports_json) ? "(none)" : entry.reports_json,
+                     entry.message_text);
+        }
         send_to_char(buf, ch);
         send_to_char("Use this ID for reporting: history <channel> report <message-id> [notes]\n\r", ch);
     }
