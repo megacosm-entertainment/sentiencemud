@@ -1207,6 +1207,20 @@ static CHAR_DATA *channel_find_sender(unsigned long id0, unsigned long id1, cons
             return ch;
     }
 
+    if (id0 > 0 && loaded_chars) {
+        ITERATOR it;
+        CHAR_DATA *ch;
+
+        iterator_start(&it, loaded_chars);
+        while ((ch = (CHAR_DATA *)iterator_nextdata(&it)) != NULL) {
+            if (ch->id[0] == id0 && ch->id[1] == id1) {
+                iterator_stop(&it);
+                return ch;
+            }
+        }
+        iterator_stop(&it);
+    }
+
     if (!IS_NULLSTR(name))
         return get_char_world(NULL, (char *)name);
 

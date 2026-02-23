@@ -242,7 +242,10 @@ bool channel_build_room_scope_topic(ROOM_INDEX_DATA *room, char *topic_buf, size
         return true;
     }
 
-    snprintf(topic_buf, topic_buf_sz, "rt:room:v:%ld", room->vnum);
+    if (!room->area || room->area->uid <= 0)
+        return false;
+
+    snprintf(topic_buf, topic_buf_sz, "rt:room:v:%ld:%ld", room->area->uid, room->vnum);
     return true;
 }
 
