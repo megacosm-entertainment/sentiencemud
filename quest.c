@@ -4809,7 +4809,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
         int pracreward;
         int expreward;
         int i;
-        int *tempstores;
+        int *tempstores = NULL;
 
         if (!IS_AWAKE(ch))
         {
@@ -4878,6 +4878,12 @@ void do_quest(CHAR_DATA *ch, char *argument)
         }
 
         if (!mob && !obj && !room)
+        {
+            send_to_char("You can't do that here\n\r", ch);
+            return;
+        }
+
+        if (tempstores == NULL)
         {
             send_to_char("You can't do that here\n\r", ch);
             return;

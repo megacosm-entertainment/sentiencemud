@@ -564,7 +564,7 @@ SHIP_DATA *json_to_ship(json_t *json)
     SHIP_DATA *ship;
     json_t *value;
     WNUM wnum;
-    SHIP_INDEX_DATA *index;
+    SHIP_INDEX_DATA *index = NULL;
     
     if (!json || json_is_null(json)) {
         return NULL;
@@ -776,7 +776,7 @@ DUNGEON *json_to_dungeon(json_t *json)
     DUNGEON *dungeon;
     json_t *value, *array;
     WNUM wnum;
-    DUNGEON_INDEX_DATA *index;
+    DUNGEON_INDEX_DATA *index = NULL;
     size_t idx;
     json_t *elem;
     

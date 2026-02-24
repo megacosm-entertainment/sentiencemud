@@ -283,7 +283,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 //	SCRIPT_DATA *script;
 //	unsigned long uid[2];
     int slot;
-    int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
+    int ret_val = PRET_NOSCRIPT, ret = PRET_NOSCRIPT; // @@@NIB Default for a trigger loop is NO SCRIPT
 
 //	log_stringf("check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
 //	printf_to_char(ch, "check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
@@ -547,7 +547,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     // Deal with scripted input
     if(ch->desc && ch->desc->input && ch->desc->input_script > 0 && ch->desc->inputString == NULL) {
 
-        int ret;
+        int ret = PRET_NOSCRIPT;
         SCRIPT_DATA *script = NULL;
         VARIABLE **var = NULL;
         CHAR_DATA *mob = ch->desc->input_mob;

@@ -2023,7 +2023,7 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
         }
         if (idx < 0) {
             idx = num_players++;
-            strncpy(entries[idx].name, player, sizeof(entries[idx].name) - 1);
+            strlcpy(entries[idx].name, player, sizeof(entries[idx].name));
         }
 
         if (strcmp(suffix, "kills") == 0) {

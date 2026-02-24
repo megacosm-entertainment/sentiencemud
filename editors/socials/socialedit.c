@@ -261,7 +261,7 @@ SOCEDIT(socialedit_create)
     social.char_auto = NULL;
     social.others_auto = NULL;
     
-    strncpy(social.name, argument, 20);
+    strlcpy(social.name, argument, sizeof(social.name));
     
     /* Add to social table */
     social_table[social_count] = social;
@@ -295,7 +295,7 @@ SOCEDIT(socialedit_name)
         }
     }
     
-    strncpy(social->name, argument, 20);
+    strlcpy(social->name, argument, sizeof(social->name));
     send_to_char("Social name changed.\n\r", ch);
     return true;
 }

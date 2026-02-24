@@ -900,7 +900,7 @@ SCRIPT_CMD(do_rpgdamage)
 SCRIPT_CMD(do_rplink)
 {
     char *rest;
-    ROOM_INDEX_DATA *room, *dest;
+    ROOM_INDEX_DATA *room, *dest = NULL;
     int door, vnum;
     AREA_DATA *link_area = NULL;
     AREA_DATA *context_area = NULL;
@@ -3056,7 +3056,7 @@ SCRIPT_CMD(do_rpcloneroom)
     if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
         return;
 
-    strncpy(name,arg->d.str,MIL); name[MIL] = 0;
+    strlcpy(name, arg->d.str, sizeof(name));
 
     clone = create_virtual_room(source,false,false);
     if(!clone) return;

@@ -219,7 +219,8 @@ static char* generate_accept_key(const char *client_key)
     char combined[256];
     unsigned char hash[SHA_DIGEST_LENGTH];
 
-    snprintf(combined, sizeof(combined), "%s%s", client_key, magic);
+    strlcpy(combined, client_key, sizeof(combined));
+    strlcat(combined, magic, sizeof(combined));
     SHA1((unsigned char*)combined, strlen(combined), hash);
 
     return ws_base64_encode(hash, SHA_DIGEST_LENGTH);
@@ -259,7 +260,7 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
     }
 
     int key_len = key_end - key_start;
-    if (key_len >= sizeof(client_key)) {
+    if (key_len <= 0 || key_len >= sizeof(client_key) || key_len > 64) {
         log_string("WebSocket handshake: Key too long");
         return false;
     }

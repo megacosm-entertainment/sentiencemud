@@ -9490,26 +9490,17 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
                 }
 
                 if(IS_KEY("RepopRoom")) {
-                    ch->recall.id[0] = fread_number(fp);
-                    ch->recall.id[1] =
-                    ch->recall.id[2] =
-                    ch->recall.id[3] = 0;
+                    location_set(&ch->recall, 0, fread_number(fp), 0, 0);
                     fMatch = true;
                 }
 
                 if(IS_KEY("RepopRoomC")) {
-                    ch->recall.id[0] = fread_number(fp);
-                    ch->recall.id[1] = fread_number(fp);
-                    ch->recall.id[2] = fread_number(fp);
-                    ch->recall.id[3] = 0;
+                    location_set(&ch->recall, 0, fread_number(fp), fread_number(fp), fread_number(fp));
                     fMatch = true;
                 }
 
                 if(IS_KEY("RepopRoomW")) {
-                    ch->recall.id[0] = fread_number(fp);
-                    ch->recall.id[1] = fread_number(fp);
-                    ch->recall.id[2] = fread_number(fp);
-                    ch->recall.id[3] = fread_number(fp);
+                    location_set(&ch->recall, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp));
                     fMatch = true;
                 }
 

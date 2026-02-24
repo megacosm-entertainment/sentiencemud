@@ -3355,7 +3355,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
         {
             char buf[MAX_STRING_LENGTH];
             char buf2[MAX_STRING_LENGTH];
-            int chance;
+            int chance = 0;
             CHAR_DATA *others;
 
             if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT)) {

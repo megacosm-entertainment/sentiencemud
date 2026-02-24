@@ -4822,8 +4822,7 @@ EVTEDIT(evtedit_phaseplan)
             return false;
         }
 
-        strncpy(step.name, arg1, sizeof(step.name) - 1);
-        step.name[sizeof(step.name) - 1] = '\0';
+        strlcpy(step.name, arg1, sizeof(step.name));
 
         if (!IS_NULLSTR(arg2)) {
             if (!is_number(arg2) || atoi(arg2) < 0) {
@@ -4877,8 +4876,7 @@ EVTEDIT(evtedit_phaseplan)
             return false;
         }
 
-        strncpy(step.name, arg2, sizeof(step.name) - 1);
-        step.name[sizeof(step.name) - 1] = '\0';
+        strlcpy(step.name, arg2, sizeof(step.name));
 
         if (!IS_NULLSTR(arg3)) {
             if (!is_number(arg3) || atoi(arg3) < 0) {
@@ -4929,8 +4927,7 @@ EVTEDIT(evtedit_phaseplan)
             return false;
         }
 
-        strncpy(steps[index - 1].name, arg2, sizeof(steps[index - 1].name) - 1);
-        steps[index - 1].name[sizeof(steps[index - 1].name) - 1] = '\0';
+        strlcpy(steps[index - 1].name, arg2, sizeof(steps[index - 1].name));
 
         if (!IS_NULLSTR(arg3)) {
             if (!is_number(arg3) || atoi(arg3) < 0) {
@@ -4993,8 +4990,7 @@ EVTEDIT(evtedit_phaseplan)
             return false;
         }
 
-        strncpy(steps[index - 1].name, arg2, sizeof(steps[index - 1].name) - 1);
-        steps[index - 1].name[sizeof(steps[index - 1].name) - 1] = '\0';
+        strlcpy(steps[index - 1].name, arg2, sizeof(steps[index - 1].name));
         event_phase_steps_store(evt, steps, count);
         send_to_char("Phase name updated.\n\r", ch);
         return evtedit_save_after_change(ch);

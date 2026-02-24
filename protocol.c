@@ -676,6 +676,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
       if ( apData[j] == '\t' )
       {
          const char *pCopyFrom = NULL;
+         char localCopyBuf[8] = {'\0'};
 
          switch ( apData[++j] )
          {
@@ -720,7 +721,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case '[':
                if ( tolower(apData[++j]) == 'u' )
                {
-                  char Buffer[8] = {'\0'}, BugString[256];
+                  char BugString[256];
                   int Index = 0;
                   int Number = 0;
                   bool bDone = false, bValid = true;
@@ -739,7 +740,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                      if ( apData[j] == ']' )
                         bDone = true;
                      else if ( Index < 7 )
-                        Buffer[Index++] = apData[j++];
+                        localCopyBuf[Index++] = apData[j++];
                      else /* It's too long, so ignore the rest and note the problem */
                      {
                         j++;
@@ -749,12 +750,12 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
 
                   if ( !bDone )
                   {
-                     sprintf( BugString, "BUG: Unicode substitute '%s' wasn't terminated with ']'.\n", Buffer );
+                     sprintf( BugString, "BUG: Unicode substitute '%s' wasn't terminated with ']'.\n", localCopyBuf );
                      ReportBug( BugString );
                   }
                   else if ( !bValid )
                   {
-                     sprintf( BugString, "BUG: Unicode substitute '%s' truncated.  Missing ']'?\n", Buffer );
+                     sprintf( BugString, "BUG: Unicode substitute '%s' truncated.  Missing ']'?\n", localCopyBuf );
                      ReportBug( BugString );
                   }
                   else if ( pProtocol->pVariables[eMSDP_UTF_8]->ValueInt )
@@ -763,7 +764,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                   }
                   else /* Display the substitute string */
                   {
-                     pCopyFrom = Buffer;
+                     pCopyFrom = localCopyBuf;
                   }
 
                   /* Terminate if we've reached the end of the string */
@@ -771,19 +772,19 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                }
                else if ( tolower(apData[j]) == 'f' || tolower(apData[j]) == 'b' )
                {
-                  char Buffer[8] = {'\0'}, BugString[256];
+                  char BugString[256];
                   int Index = 0;
                   bool bDone = false, bValid = true;
 
                   /* Copy the 'f' (foreground) or 'b' (background) */
-                  Buffer[Index++] = apData[j++];
+                  localCopyBuf[Index++] = apData[j++];
 
                   while ( apData[j] != '\0' && !bDone && bValid )
                   {
                      if ( apData[j] == ']' )
                         bDone = true;
                      else if ( Index < 4 )
-                        Buffer[Index++] = apData[j++];
+                        localCopyBuf[Index++] = apData[j++];
                      else /* It's too long, so drop out - the colour code may still be valid */
                         bValid = false;
                   }
@@ -791,23 +792,23 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                   if ( !bDone || !bValid )
                   {
                      sprintf( BugString, "BUG: RGB %sground colour '%s' wasn't terminated with ']'.\n", 
-                        (tolower(Buffer[0]) == 'f') ? "fore" : "back", &Buffer[1] );
+                        (tolower(localCopyBuf[0]) == 'f') ? "fore" : "back", &localCopyBuf[1] );
                      ReportBug( BugString );
                   }
-                  else if ( !IsValidColour(Buffer) )
+                  else if ( !IsValidColour(localCopyBuf) )
                   {
                      sprintf( BugString, "BUG: RGB %sground colour '%s' invalid (each digit must be in the range 0-5).\n", 
-                        (tolower(Buffer[0]) == 'f') ? "fore" : "back", &Buffer[1] );
+                        (tolower(localCopyBuf[0]) == 'f') ? "fore" : "back", &localCopyBuf[1] );
                      ReportBug( BugString );
                   }
                   else /* Success */
                   {
-                     pCopyFrom = ColourRGB(apDescriptor, Buffer);
+                     pCopyFrom = ColourRGB(apDescriptor, localCopyBuf);
                   }
                }
                else if ( tolower(apData[j]) == 'x' )
                {
-                  char Buffer[8] = {'\0'}, BugString[256];
+                  char BugString[256];
                   int Index = 0;
                   bool bDone = false, bValid = true;
 
@@ -818,7 +819,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                      if ( apData[j] == ']' )
                         bDone = true;
                      else if ( Index < 7 )
-                        Buffer[Index++] = apData[j++];
+                        localCopyBuf[Index++] = apData[j++];
                      else /* It's too long, so ignore the rest and note the problem */
                      {
                         j++;
@@ -828,16 +829,16 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
 
                   if ( !bDone )
                   {
-                     sprintf( BugString, "BUG: Required MXP version '%s' wasn't terminated with ']'.\n", Buffer );
+                     sprintf( BugString, "BUG: Required MXP version '%s' wasn't terminated with ']'.\n", localCopyBuf );
                      ReportBug( BugString );
                   }
                   else if ( !bValid )
                   {
-                     sprintf( BugString, "BUG: Required MXP version '%s' too long.  Missing ']'?\n", Buffer );
+                     sprintf( BugString, "BUG: Required MXP version '%s' too long.  Missing ']'?\n", localCopyBuf );
                      ReportBug( BugString );
                   }
                   else if ( !strcmp(pProtocol->pMXPVersion, "Unknown") || 
-                     strcmp(pProtocol->pMXPVersion, Buffer) < 0 )
+                     strcmp(pProtocol->pMXPVersion, localCopyBuf) < 0 )
                   {
                      /* Their version of MXP isn't high enough */
                      pProtocol->bBlockMXP = true;

@@ -2266,14 +2266,18 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
             continue;
 
         char rbuf[MSL];
-        int max_desc = (int)sizeof(rbuf) - 32;
+        int max_desc = (int)sizeof(rbuf) - 64;
         const char *tag = "";
+        char summary_buf[MSL];
+        const char *summary = "A playable race.";
         if (!r->starting && d->account && account_has_race_unlock(d->account, r->id)) {
             tag = " {Y(unlocked){x";
             has_unlocked = true;
         }
+        summary_buf[0] = '\0';
         if (!IS_NULLSTR(r->summary)) {
-            snprintf(rbuf, sizeof(rbuf), "{G%-12s{B - %.*s%s\n\r", capitalize(r->name), max_desc, r->summary, tag);
+            snprintf(summary_buf, sizeof(summary_buf), "%.*s", max_desc, r->summary);
+            summary = summary_buf;
         } else if (!IS_NULLSTR(r->description)) {
             /* Trim trailing newlines from description for one-line display */
             char desc_buf[MSL];
@@ -2282,10 +2286,14 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
             char *p = desc_buf + strlen(desc_buf) - 1;
             while (p >= desc_buf && (*p == '\n' || *p == '\r'))
                 *p-- = '\0';
-            snprintf(rbuf, sizeof(rbuf), "{G%-12s{B - %.*s%s\n\r", capitalize(r->name), max_desc, desc_buf, tag);
-        } else {
-            snprintf(rbuf, sizeof(rbuf), "{G%-12s{B - A playable race.%s\n\r", capitalize(r->name), tag);
+            snprintf(summary_buf, sizeof(summary_buf), "%.*s", max_desc, desc_buf);
+            summary = summary_buf;
         }
+
+        snprintf(rbuf, sizeof(rbuf), "{G%-12s{B - ", capitalize(r->name));
+        strlcat(rbuf, summary, sizeof(rbuf));
+        strlcat(rbuf, tag, sizeof(rbuf));
+        strlcat(rbuf, "\n\r", sizeof(rbuf));
         send_to_char(rbuf, ch);
     }
 
@@ -2377,7 +2385,7 @@ void login_get_new_race(DESCRIPTOR_DATA *d, char *argument)
     char races[MSL];
     CHAR_DATA *ch;
     RACE_DATA *race;
-    HELP_DATA *help;
+    HELP_DATA *help = NULL;
 
     while (ISSPACE(*argument))
         argument++;
@@ -5353,7 +5361,7 @@ void login_get_new_class(DESCRIPTOR_DATA *d, char *argument)
     char classes[MSL];
     CHAR_DATA *ch;
     int iClass;
-    HELP_DATA *help;
+    HELP_DATA *help = NULL;
     ch = d->character;
 
         sprintf(classes, "\n\r{YChoose your class {B[{Cmage cleric thief warrior{B]{Y:{x ");

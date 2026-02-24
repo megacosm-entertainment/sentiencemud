@@ -4569,8 +4569,8 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
         return PRET_BADTYPE;
     }
 
-    if(phrase) strncpy(block.info.phrase,phrase,MSL);
-    if(trigger) strncpy(block.info.trigger,trigger,MSL);
+    if(phrase) strlcpy(block.info.phrase, phrase, sizeof(block.info.phrase));
+    if(trigger) strlcpy(block.info.trigger, trigger, sizeof(block.info.trigger));
 
     if(wiznet_script) {
         sprintf(buf,"{BScript{C({W%d{C){D: {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){x",

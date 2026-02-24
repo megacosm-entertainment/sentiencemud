@@ -1000,8 +1000,10 @@ static bool channel_build_topic_for_sender(const CHANNEL_DEF_DATA *def,
         channel_topic_expand_pattern(def->topic_pattern, def, sender, expanded, sizeof(expanded))) {
         if (!str_prefix("rt:", expanded))
             strlcpy(topic_buf, expanded, topic_buf_sz);
-        else
-            snprintf(topic_buf, topic_buf_sz, "rt:%s", expanded);
+        else {
+            strlcpy(topic_buf, "rt:", topic_buf_sz);
+            strlcat(topic_buf, expanded, topic_buf_sz);
+        }
         return true;
     }
 

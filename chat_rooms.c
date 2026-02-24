@@ -289,7 +289,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
  */
 void do_chat_exit(CHAR_DATA *ch, char *argument)
 {
-    ROOM_INDEX_DATA *room;
+    ROOM_INDEX_DATA *room = NULL;
 
     if (!IS_SOCIAL(ch))
     {
@@ -1514,6 +1514,7 @@ void read_chat_rooms()
 
 	// Look up the area and room using area_uid + vnum
 	AREA_DATA *chat_area = NULL;
+    room = NULL;
 	if (chat->area_uid > 0) {
 	    chat_area = get_area_from_uid(chat->area_uid);
 	    if (chat_area) {

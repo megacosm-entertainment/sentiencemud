@@ -19,7 +19,7 @@
 
 void do_smite(CHAR_DATA *ch, char *argument)
 {
-    CHAR_DATA *victim;
+    CHAR_DATA *victim = NULL;
     OBJ_DATA *wield;
     char arg[MAX_STRING_LENGTH];
     int chance;
@@ -656,7 +656,7 @@ bool check_evasion(CHAR_DATA *ch)
 
 void do_behead(CHAR_DATA *ch, char *argument)
 {
-    CHAR_DATA *victim;
+    CHAR_DATA *victim = NULL;
     OBJ_DATA *wield;
     int skill, hit, chance;
     char arg[MIL];

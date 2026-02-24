@@ -1745,7 +1745,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     new_obj->times_allowed_fixed = old_obj->times_allowed_fixed;
     new_obj->comments = old_obj->comments;
 
-    for (i = 0; i <= 8; i++)
+    for (i = 0; i < 8; i++)
     new_obj->value[i] = old_obj->value[i];
 
     // Only copy impsig if imp (to block cheaters)

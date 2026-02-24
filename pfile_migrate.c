@@ -244,7 +244,7 @@ static bool pfile_is_complete(const char *file_path)
 
         /* Track last non-empty line */
         if (len > 0)
-            strncpy(last_line, line, sizeof(last_line) - 1);
+            strlcpy(last_line, line, sizeof(last_line));
     }
     fclose(fp);
 

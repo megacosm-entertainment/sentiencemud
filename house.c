@@ -318,7 +318,7 @@ void do_housemove(CHAR_DATA *ch, char *argument)
 
 void do_gohome(CHAR_DATA *ch, char *argument)
 {
-    ROOM_INDEX_DATA *location;
+    ROOM_INDEX_DATA *location = NULL;
 
     if (IS_DEAD(ch))
     {

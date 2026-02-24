@@ -4070,7 +4070,7 @@ SCRIPT_CMD(do_mpcloneroom)
     if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
         return;
 
-    strncpy(name,arg->d.str,MIL); name[MIL] = 0;
+    strlcpy(name, arg->d.str, sizeof(name));
 
     clone = create_virtual_room(source,false,false);
     if(!clone) return;

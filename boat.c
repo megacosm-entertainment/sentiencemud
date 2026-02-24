@@ -943,7 +943,7 @@ SHIP_DATA *create_ship(WNUM wnum)
     OBJ_DATA *obj;						// Physical ship object
     OBJ_INDEX_DATA *obj_index;			// Ship object index to create
     SHIP_DATA *ship;					// Runtime ship data
-    SHIP_INDEX_DATA *ship_index;		// Ship index to create
+    SHIP_INDEX_DATA *ship_index = NULL;		// Ship index to create
     INSTANCE *instance;
     ITERATOR it;
 
@@ -5886,7 +5886,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
     {
         char arg2[MIL];
         char arg3[MIL];
-        int x, y;
+        int x = -1, y = -1;
 
         // Is navigator here?
         if( IS_VALID(ship->navigator) &&

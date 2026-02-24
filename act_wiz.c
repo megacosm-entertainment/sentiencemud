@@ -124,7 +124,7 @@ static void do_stat_quest_runtime(CHAR_DATA *ch, char *argument)
 {
     char arg_player[MIL];
     char arg_id[MIL];
-    CHAR_DATA *victim;
+    CHAR_DATA *victim = NULL;
     QUEST_DATA *run;
     QUEST_INDEX_V2_DATA *index_v2;
     QUEST_STAGE_INDEX_V2_DATA *stage;
@@ -6212,15 +6212,15 @@ void do_mload(CHAR_DATA *ch, char *argument)
         }
 
         sprintf(buf, "{Y({G%d{Y){x $n has created %s!",
-            amt, victim ? victim->short_descr : pMobIndex->short_descr);
+            amt, pMobIndex->short_descr);
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         
         sprintf(buf, "{Y({G%d{Y){x Loaded %s (%s)",
-            amt, victim ? victim->short_descr : pMobIndex->short_descr, widevnum_string_mobile(pMobIndex, NULL));
+            amt, pMobIndex->short_descr, widevnum_string_mobile(pMobIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.",
-            amt, victim ? victim->short_descr : pMobIndex->short_descr);
+            amt, pMobIndex->short_descr);
         wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
     }
 }
@@ -14700,8 +14700,11 @@ void do_pwmigrate(CHAR_DATA *ch, char *argument)
 
             /* Get account name (remove .json) */
             char acct_name[256];
-            strncpy(acct_name, ent->d_name, len - 5);
-            acct_name[len - 5] = '\0';
+            size_t copy_len = len - 5;
+            if (copy_len >= sizeof(acct_name))
+                copy_len = sizeof(acct_name) - 1;
+            memcpy(acct_name, ent->d_name, copy_len);
+            acct_name[copy_len] = '\0';
 
             /* Load account */
             acct = get_account_online_or_offline(acct_name, &was_loaded);
@@ -15063,8 +15066,11 @@ void do_cryptorotate(CHAR_DATA *ch, char *argument)
 
             /* Get account name */
             char acct_name[256];
-            strncpy(acct_name, ent->d_name, len - 5);
-            acct_name[len - 5] = '\0';
+            size_t copy_len = len - 5;
+            if (copy_len >= sizeof(acct_name))
+                copy_len = sizeof(acct_name) - 1;
+            memcpy(acct_name, ent->d_name, copy_len);
+            acct_name[copy_len] = '\0';
 
             /* Load account */
             acct = get_account_online_or_offline(acct_name, &was_loaded);

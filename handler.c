@@ -8506,7 +8506,7 @@ void get_random_room_target(ROOM_INDEX_DATA *room, OBJ_DATA **obj, CHAR_DATA **c
 // @@@REMOVEME: This function is invalid (id1 is used as a vnum and an id part)
 ROOM_INDEX_DATA *idfind_vroom(register unsigned long id1, register unsigned long id2)
 {
-    ROOM_INDEX_DATA *room;
+    ROOM_INDEX_DATA *room = NULL;
     WNUM wnum;
     if (resolve_widevnum((long)id1, NULL, &wnum))
         room = get_room_index(wnum.pArea, wnum.vnum);

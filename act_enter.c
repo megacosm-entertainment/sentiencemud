@@ -63,7 +63,7 @@
  */
 void do_disembark( CHAR_DATA *ch, char *argument)
 {
-    ROOM_INDEX_DATA *location;
+    ROOM_INDEX_DATA *location = NULL;
     OBJ_DATA *ship_obj;
     SHIP_DATA *ship;
 
@@ -172,7 +172,7 @@ void do_disembark( CHAR_DATA *ch, char *argument)
  */
 void do_enter( CHAR_DATA *ch, char *argument)
 {
-    ROOM_INDEX_DATA *location;
+    ROOM_INDEX_DATA *location = NULL;
 
     if ( ch->fighting != NULL )
     return;

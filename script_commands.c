@@ -1301,8 +1301,7 @@ SCRIPT_CMD(scriptcmd_attach)
         return;
 
     if( arg->type != ENT_STRING ) return;
-    strncpy(field,arg->d.str,MIL-1);
-    field[MIL] = '\0';
+    strlcpy(field, arg->d.str, sizeof(field));
 
     if(*rest) {
         if (!(rest = expand_argument(info,rest,arg)))
@@ -3280,8 +3279,7 @@ SCRIPT_CMD(scriptcmd_detach)
         return;
 
     if( arg->type != ENT_STRING ) return;
-    strncpy(field,arg->d.str,MIL-1);
-    field[MIL] = '\0';
+    strlcpy(field, arg->d.str, sizeof(field));
 
     if(*rest) {
         if (!(rest = expand_argument(info,rest,arg)))
@@ -11057,7 +11055,7 @@ SCRIPT_CMD(scriptcmd_settimer)
 
     switch(arg->type) {
     case ENT_STRING:
-        strncpy(buf,arg->d.str,MIL);
+        strlcpy(buf, arg->d.str, sizeof(buf));
         break;
     default:
         break;
@@ -11949,7 +11947,7 @@ SCRIPT_CMD(scriptcmd_specialkey)
 {
     char *rest;
     LLIST *keys;
-    OBJ_INDEX_DATA *index;
+    OBJ_INDEX_DATA *index = NULL;
     OBJ_DATA *obj;
 
     if(!info) return;
