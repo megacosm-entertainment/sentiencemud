@@ -1601,7 +1601,7 @@ MEDIT(medit_shop)
     if (!str_prefix(command, "hours"))
     {
         if (arg1[0] == '\0' || !is_number(arg1) ||
-            argument[0] == '\0' || !is_number(arg2))
+            arg2[0] == '\0' || !is_number(arg2))
         {
             send_to_char("Syntax:  shop hours [#xopening] [#xclosing]\n\r", ch);
             return false;
@@ -1763,7 +1763,7 @@ MEDIT(medit_shop)
     if (!str_prefix(command, "profit"))
     {
         if (arg1[0] == '\0' || !is_number(arg1) ||
-            argument[0] == '\0' || !is_number(arg2))
+            arg2[0] == '\0' || !is_number(arg2))
         {
             send_to_char("Syntax:  shop profit [#xbuying%] [#xselling%]\n\r", ch);
             return false;
