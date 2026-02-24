@@ -4023,24 +4023,43 @@ SCRIPT_CMD(do_mpvarsaveon)
 SCRIPT_CMD(do_mpcloneroom)
 {
     char name[MIL];
-    long vnum;
+    WNUM source_wnum = wnum_zero;
     CHAR_DATA *mob;
     OBJ_DATA *obj;
     TOKEN_DATA *tok;
     ROOM_INDEX_DATA *source, *room, *clone;
+    AREA_DATA *context_area;
     bool no_env = false;
 
     if(!info || !info->mob) return;
 
     info->progs->lastreturn = 0;
+    context_area = get_area_from_scriptinfo(info);
 
     // Get vnum
-    if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+    if(!(argument = expand_argument(info,argument,arg)))
         return;
 
-    vnum = arg->d.num;
+    switch (arg->type) {
+    case ENT_NUMBER:
+        if (!resolve_widevnum(arg->d.num, NULL, &source_wnum))
+            return;
+        break;
+    case ENT_WIDEVNUM:
+        source_wnum = arg->d.wnum;
+        break;
+    case ENT_STRING:
+        if (!parse_widevnum(arg->d.str, context_area, &source_wnum))
+            return;
+        break;
+    default:
+        return;
+    }
 
-    source = get_room_index_from_info(info, vnum);
+    if (!source_wnum.pArea || source_wnum.vnum < 1)
+        return;
+
+    source = get_room_index(source_wnum.pArea, source_wnum.vnum);
     if(!source) return;
 
     if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
@@ -4088,14 +4107,16 @@ SCRIPT_CMD(do_mpcloneroom)
 // destroyroom <room>
 SCRIPT_CMD(do_mpdestroyroom)
 {
-    long vnum;
     unsigned long id1, id2;
     ROOM_INDEX_DATA *room;
+    WNUM room_wnum = wnum_zero;
+    AREA_DATA *context_area;
 
 
     if(!info || !info->mob) return;
 
     info->mob->progs->lastreturn = 0;
+    context_area = get_area_from_scriptinfo(info);
 
     if(!(argument = expand_argument(info,argument,arg)))
         return;
@@ -4108,11 +4129,26 @@ SCRIPT_CMD(do_mpdestroyroom)
         return;
     }
 
-    if(arg->type != ENT_NUMBER) return;
+    switch (arg->type) {
+    case ENT_NUMBER:
+        if (!resolve_widevnum(arg->d.num, NULL, &room_wnum))
+            return;
+        break;
+    case ENT_WIDEVNUM:
+        room_wnum = arg->d.wnum;
+        break;
+    case ENT_STRING:
+        if (!parse_widevnum(arg->d.str, context_area, &room_wnum))
+            return;
+        break;
+    default:
+        return;
+    }
 
-    vnum = arg->d.num;
+    if (!room_wnum.pArea || room_wnum.vnum < 1)
+        return;
 
-    room = get_room_index_from_info(info, vnum);
+    room = get_room_index(room_wnum.pArea, room_wnum.vnum);
     if(!room) return;
 
     // Get id

@@ -11532,6 +11532,16 @@ SCRIPT_DATA *get_script_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM *arg, int ty
     }
 
     switch (arg->type) {
+    case ENT_WIDEVNUM:
+        if (!arg->d.wnum.pArea || arg->d.wnum.vnum < 1)
+            return NULL;
+
+        if (resolved_vnum) {
+            *resolved_vnum = arg->d.wnum.vnum;
+        }
+
+        return get_script_index(arg->d.wnum.pArea, arg->d.wnum.vnum, type);
+
     case ENT_NUMBER:
         vnum = arg->d.num;
         if (resolved_vnum) {

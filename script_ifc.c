@@ -176,6 +176,16 @@ static TOKEN_INDEX_DATA *get_token_index_from_arg(SCRIPT_VARINFO *info, SCRIPT_P
     return get_token_index(wnum.pArea, wnum.vnum);
 }
 
+static ROOM_INDEX_DATA *get_room_index_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM *param)
+{
+    WNUM wnum;
+
+    if (!script_arg_to_wnum(info, param, &wnum))
+        return NULL;
+
+    return get_room_index(wnum.pArea, wnum.vnum);
+}
+
 static bool script_match_npc_vnum(CHAR_DATA *mob, long vnum)
 {
     WNUM wnum;
@@ -1010,15 +1020,22 @@ DECL_IFC_FUN(ifc_hastarget)
 
 DECL_IFC_FUN(ifc_hastoken)
 {
-    long vnum = 0;
-    if(ISARG_NUM(1))
-        vnum = ARG_NUM(1);
-    else if(ISARG_TOK(1))
-        vnum = ARG_TOK(1)->pIndexData->vnum;
+    TOKEN_INDEX_DATA *ti = NULL;
+    int count = ISARG_NUM(2) ? ARG_NUM(2) : 1;
 
-    if(ISARG_MOB(0)) *ret = true && get_token_char(ARG_MOB(0), vnum, NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
-    else if(ISARG_OBJ(0)) *ret = true && get_token_obj(ARG_OBJ(0), vnum, NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
-    else if(ISARG_ROOM(0)) *ret = true && get_token_room(ARG_ROOM(0), vnum, NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+    if (ISARG_TOK(1) && ARG_TOK(1)->pIndexData)
+        ti = ARG_TOK(1)->pIndexData;
+    else if (ISARG_NUM(1) || ISARG_WNUM(1) || ISARG_STR(1))
+        ti = get_token_index_from_arg(info, argv[1]);
+
+    if (!ti) {
+        *ret = false;
+        return true;
+    }
+
+    if(ISARG_MOB(0)) *ret = (get_token_char(ARG_MOB(0), ti->vnum, ti->area, count) != NULL);
+    else if(ISARG_OBJ(0)) *ret = (get_token_obj(ARG_OBJ(0), ti->vnum, ti->area, count) != NULL);
+    else if(ISARG_ROOM(0)) *ret = (get_token_room(ARG_ROOM(0), ti->vnum, ti->area, count) != NULL);
     else return false;
 
     return true;
@@ -1149,11 +1166,17 @@ DECL_IFC_FUN(ifc_isbrewing)
 DECL_IFC_FUN(ifc_iscasting)
 {
     int sn;
+    TOKEN_INDEX_DATA *ti = NULL;
+    TOKEN_DATA *cast_token = NULL;
+
+    if (ISARG_MOB(0) && (ISARG_NUM(1) || ISARG_WNUM(1) || ISARG_STR(1))
+        && (ti = get_token_index_from_arg(info, argv[1])))
+        cast_token = get_token_char(ARG_MOB(0), ti->vnum, ti->area, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
 
     *ret = ISARG_MOB(0) && ARG_MOB(0)->cast > 0 &&
-        ((ISARG_NUM(1) && (token = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1))) &&
-                token->pIndexData->type == TOKEN_SPELL && ARG_MOB(0)->cast_token == token) ||
-            (ISARG_TOK(1) && ARG_TOK(0)->pIndexData->type == TOKEN_SPELL &&
+        (((ISARG_NUM(1) || ISARG_WNUM(1) || ISARG_STR(1)) && cast_token &&
+                cast_token->pIndexData->type == TOKEN_SPELL && ARG_MOB(0)->cast_token == cast_token) ||
+            (ISARG_TOK(1) && ARG_TOK(1)->pIndexData->type == TOKEN_SPELL &&
                 ARG_TOK(1)->player == ARG_MOB(0) && ARG_MOB(0)->cast_token == ARG_TOK(1)) ||
             !ISARG_STR(1) || !*ARG_STR(1) ||
             ((sn = skill_lookup(ARG_STR(1))) > 0 &&
@@ -4550,8 +4573,15 @@ DECL_IFC_FUN(ifc_testtokenspell)
 
 DECL_IFC_FUN(ifc_isspell)
 {
-    if(ISARG_MOB(0) && ISARG_NUM(1)) {
-        token = get_token_char(ARG_MOB(0), ARG_NUM(1), NULL, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+    if(ISARG_MOB(0) && (ISARG_NUM(1) || ISARG_WNUM(1) || ISARG_STR(1) || ISARG_TOK(1))) {
+        TOKEN_INDEX_DATA *ti = NULL;
+
+        token = NULL;
+        if (ISARG_TOK(1))
+            token = ARG_TOK(1);
+        else if ((ti = get_token_index_from_arg(info, argv[1])) != NULL)
+            token = get_token_char(ARG_MOB(0), ti->vnum, ti->area, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+
         *ret = token ? (token->pIndexData->type == TOKEN_SPELL) : false;
     } else if(ISARG_TOK(0)) {
         *ret = (ARG_TOK(0)->pIndexData->type == TOKEN_SPELL);
@@ -5079,19 +5109,27 @@ DECL_IFC_FUN(ifc_findpath)
 {
     long start = 0, end = 0;
     int depth = 10, in_zone = 1, thru_doors = 0;
+    ROOM_INDEX_DATA *start_room = NULL;
+    ROOM_INDEX_DATA *end_room = NULL;
 
     if( argc < 2 ) {
         *ret = -1;
         return false;
     }
 
-    if(ISARG_NUM(0)) start = ARG_NUM(0);
+    if(ISARG_NUM(0) || ISARG_WNUM(0) || ISARG_STR(0)) {
+        start_room = get_room_index_from_arg(info, argv[0]);
+        start = start_room ? start_room->vnum : 0;
+    }
     else if(ISARG_MOB(0)) start = ARG_MOB(0)->in_room ? ARG_MOB(0)->in_room->vnum : 0;
     else if(ISARG_OBJ(0)) { room = obj_room(ARG_OBJ(0)); start = room ? room->vnum : 0; }
     else if(ISARG_ROOM(0)) start = ARG_ROOM(0)->vnum;
     else if(ISARG_TOK(0)) { room = token_room(ARG_TOK(0)); start = room ? room->vnum : 0; }
 
-    if(ISARG_NUM(1)) end = ARG_NUM(1);
+    if(ISARG_NUM(1) || ISARG_WNUM(1) || ISARG_STR(1)) {
+        end_room = get_room_index_from_arg(info, argv[1]);
+        end = end_room ? end_room->vnum : 1;
+    }
     else if(ISARG_MOB(1)) end = ARG_MOB(1)->in_room ? ARG_MOB(1)->in_room->vnum : 1;
     else if(ISARG_OBJ(1)) { room = obj_room(ARG_OBJ(1)); end = room ? room->vnum : 1; }
     else if(ISARG_ROOM(1)) end = ARG_ROOM(1)->vnum;
@@ -5135,6 +5173,7 @@ DECL_IFC_FUN(ifc_istreasureroom)
 {
     CHURCH_DATA *church = NULL;
     ROOM_INDEX_DATA *here = NULL;
+    ROOM_INDEX_DATA *arg_room = NULL;
     ITERATOR it;
 
     *ret = false;
@@ -5143,11 +5182,10 @@ DECL_IFC_FUN(ifc_istreasureroom)
     else if(ISARG_STR(0)) church = find_church_name(ARG_STR(0));
     else {
         if(ISARG_ROOM(0)) here = ARG_ROOM(0);
-        else if(ISARG_NUM(0)) {
-            long vnum = ARG_NUM(0);
-            WNUM wnum;
-            if (resolve_widevnum(vnum, NULL, &wnum))
-                here = get_room_index(wnum.pArea, wnum.vnum);
+        else if (ISARG_NUM(0) || ISARG_WNUM(0) || ISARG_STR(0)) {
+            arg_room = get_room_index_from_arg(info, argv[0]);
+            if (arg_room)
+                here = arg_room;
         }
 
         if(here) {

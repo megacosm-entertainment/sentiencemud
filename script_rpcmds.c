@@ -3008,25 +3008,43 @@ SCRIPT_CMD(do_rpvarsaveon)
 SCRIPT_CMD(do_rpcloneroom)
 {
     char name[MIL];
-    long vnum;
+    WNUM source_wnum = wnum_zero;
     CHAR_DATA *mob;
     OBJ_DATA *obj;
     TOKEN_DATA *tok;
     ROOM_INDEX_DATA *source, *room, *clone;
+    AREA_DATA *context_area;
     bool no_env = false;
 
     if(!info || !info->room) return;
 
     info->progs->lastreturn = 0;
+    context_area = get_area_from_scriptinfo(info);
 
     // Get vnum
-    if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+    if(!(argument = expand_argument(info,argument,arg)))
         return;
 
-    vnum = arg->d.num;
+    switch (arg->type) {
+    case ENT_NUMBER:
+        if (!resolve_widevnum(arg->d.num, NULL, &source_wnum))
+            return;
+        break;
+    case ENT_WIDEVNUM:
+        source_wnum = arg->d.wnum;
+        break;
+    case ENT_STRING:
+        if (!parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &source_wnum))
+            return;
+        break;
+    default:
+        return;
+    }
 
-    WNUM source_wnum;
-    if (!resolve_widevnum(vnum, NULL, &source_wnum) || !(source = get_room_index(source_wnum.pArea, source_wnum.vnum)))
+    if (!source_wnum.pArea || source_wnum.vnum < 1)
+        return;
+
+    if (!(source = get_room_index(source_wnum.pArea, source_wnum.vnum)))
         return;
 
     if( IS_SET(source->room_flag[1], ROOM_NOCLONE) )
@@ -3073,14 +3091,16 @@ SCRIPT_CMD(do_rpcloneroom)
 // destroyroom <room>
 SCRIPT_CMD(do_rpdestroyroom)
 {
-    long vnum;
     unsigned long id1, id2;
     ROOM_INDEX_DATA *room;
+    WNUM room_wnum = wnum_zero;
+    AREA_DATA *context_area;
 
 
     if(!info || !info->room) return;
 
     info->room->progs->lastreturn = 0;
+    context_area = get_area_from_scriptinfo(info);
 
     if(!(argument = expand_argument(info,argument,arg)))
         return;
@@ -3093,12 +3113,26 @@ SCRIPT_CMD(do_rpdestroyroom)
         return;
     }
 
-    if(arg->type != ENT_NUMBER) return;
+    switch (arg->type) {
+    case ENT_NUMBER:
+        if (!resolve_widevnum(arg->d.num, NULL, &room_wnum))
+            return;
+        break;
+    case ENT_WIDEVNUM:
+        room_wnum = arg->d.wnum;
+        break;
+    case ENT_STRING:
+        if (!parse_widevnum(arg->d.str, script_relative_widevnum_context(context_area, arg->d.str), &room_wnum))
+            return;
+        break;
+    default:
+        return;
+    }
 
-    vnum = arg->d.num;
+    if (!room_wnum.pArea || room_wnum.vnum < 1)
+        return;
 
-    WNUM room_wnum;
-    if (!resolve_widevnum(vnum, NULL, &room_wnum) || !(room = get_room_index(room_wnum.pArea, room_wnum.vnum)))
+    if (!(room = get_room_index(room_wnum.pArea, room_wnum.vnum)))
         return;
 
     // Get id
