@@ -289,8 +289,8 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
     CHAR_DATA *victim;
     OBJ_DATA *obj;
     AREA_DATA *area;
-    ROOM_INDEX_DATA *room = NULL, *rm;
-    int vnum;
+    ROOM_INDEX_DATA *room = NULL;
+    ITERATOR it;
     char *save;
     char arg1[MIL];
     char arg2[MIL];
@@ -298,12 +298,18 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
     // Goto <area name> ie "goto plith"
     for (area = area_first; area != NULL; area = area->next) {
         if (!is_number(arg) && !str_infix(arg, area->name)) {
-            if (!(room = location_to_room(&area->recall))) {
-                for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-                    WNUM search_wnum;
-                    if (resolve_widevnum(vnum, NULL, &search_wnum) && (rm = get_room_index(search_wnum.pArea, search_wnum.vnum)))
-                        room = rm;
-                }
+            room = location_to_room(&area->recall);
+
+            /* Legacy recall values can be stored as plain vnum with no area uid.
+             * When matching by area name, force that lookup to stay in the matched area.
+             */
+            if (!room && area->recall.id[0] > 0)
+                room = get_room_index(area, area->recall.id[0]);
+
+            if (!room && area->room_list) {
+                iterator_start(&it, area->room_list);
+                room = (ROOM_INDEX_DATA *)iterator_nextdata(&it);
+                iterator_stop(&it);
             }
 
             if (room)
@@ -13221,18 +13227,16 @@ AREA_DATA *get_area_index(long uid)
 /**
  * find_area_by_vnum - Locate which area contains a specific vnum
  *
- * Searches all loaded areas to find which one contains the given
- * vnum in its vnum range (min_vnum to max_vnum). Used to support
- * legacy bare vnum input by automatically determining area context.
+ * Resolves the area owning a bare room vnum. Prefers direct room lookup,
+ * then falls back to legacy min/max range checks for compatibility.
  *
  * This function enables backward compatibility: when a user enters
  * a bare vnum like "3001" without an area prefix, the system can
  * still determine which area owns that vnum and create the proper
  * WNUM structure.
  *
- * Each area has defined min_vnum and max_vnum boundaries. The function
- * performs a linear search through all loaded areas checking if the
- * vnum falls within each area's range.
+ * Older areas relied on min_vnum/max_vnum boundaries, but wide-only areas
+ * may leave those unset. Direct room resolution keeps both models working.
  *
  * @param vnum         The vnum to search for
  * @param current_area Reserved for future use (currently unused)
@@ -13240,9 +13244,16 @@ AREA_DATA *get_area_index(long uid)
  */
 AREA_DATA *find_area_by_vnum(long vnum, AREA_DATA *current_area)
 {
+    ROOM_INDEX_DATA *room;
     AREA_DATA *pArea;
+
+    (void)current_area;
+
+    room = get_room_index_global(vnum);
+    if (room && room->area)
+        return room->area;
     
-    // Scan all areas checking vnum ranges
+    // Legacy fallback: scan all areas checking vnum ranges
     for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
         if (vnum >= pArea->min_vnum && vnum <= pArea->max_vnum) {
             return pArea;

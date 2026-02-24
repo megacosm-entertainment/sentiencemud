@@ -214,9 +214,11 @@ SPELL_FUNC(spell_exorcism)
         return false;
     }
 
-    do
-        room = get_room_index(area, number_range(area->min_vnum, area->max_vnum));
-    while (!room);
+    room = get_random_room_area_byflags(NULL, area, 0, 0);
+    if (!room) {
+        pbugf(LOG_ERROR, "No valid room for exorcism in area %s.", area->name ? area->name : "(unknown)");
+        return false;
+    }
 
     chance = (ch->tot_level - victim->tot_level) + (catalyst / lvl);
 

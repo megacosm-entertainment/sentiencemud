@@ -884,19 +884,20 @@ MEDIT(medit_show)
 MEDIT(medit_next)
 {
     MOB_INDEX_DATA *pMob;
+    MOB_INDEX_DATA *candidate;
     MOB_INDEX_DATA *nextMob = NULL;
-    long next_vnum;
+    int hash;
 
     EDIT_MOB(ch, pMob);
 
-    next_vnum = pMob->vnum;
-
-    next_vnum++;
-    while (nextMob == NULL
-    && next_vnum <= pMob->area->max_vnum)
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
     {
-        nextMob = get_mob_index(pMob->area, next_vnum);
-    next_vnum++;
+        for (candidate = pMob->area->mob_index_hash[hash]; candidate != NULL; candidate = candidate->next)
+        {
+            if (candidate->vnum > pMob->vnum
+            && (!nextMob || candidate->vnum < nextMob->vnum))
+                nextMob = candidate;
+        }
     }
 
     if (nextMob == NULL)
@@ -966,19 +967,20 @@ MEDIT(medit_boss)
 MEDIT(medit_prev)
 {
     MOB_INDEX_DATA *pMob;
+    MOB_INDEX_DATA *candidate;
     MOB_INDEX_DATA *prevMob = NULL;
-    long prev_vnum;
+    int hash;
 
     EDIT_MOB(ch, pMob);
 
-    prev_vnum = pMob->vnum;
-
-    prev_vnum--;
-    while (prevMob == NULL
-    && prev_vnum >= pMob->area->min_vnum)
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
     {
-    prevMob = get_mob_index(pMob->area, prev_vnum);
-    prev_vnum--;
+        for (candidate = pMob->area->mob_index_hash[hash]; candidate != NULL; candidate = candidate->next)
+        {
+            if (candidate->vnum < pMob->vnum
+            && (!prevMob || candidate->vnum > prevMob->vnum))
+                prevMob = candidate;
+        }
     }
 
     if (prevMob == NULL)

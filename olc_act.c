@@ -867,22 +867,20 @@ void show_material_list(CHAR_DATA *ch)
 // Purpose:	Ensures the range spans only one area.
 bool check_range(long lower, long upper)
 {
-    AREA_DATA *pArea;
-    int cnt = 0;
+    AREA_DATA *low_area;
+    AREA_DATA *high_area;
 
-    for (pArea = area_first; pArea; pArea = pArea->next)
+    if (lower > upper)
     {
-    /*
-     * lower < area < upper
-     */
-        if ((lower <= pArea->min_vnum && pArea->min_vnum <= upper)
-    ||   (lower <= pArea->max_vnum && pArea->max_vnum <= upper))
-        ++cnt;
-
-    if (cnt > 1)
-        return false;
+        long tmp = lower;
+        lower = upper;
+        upper = tmp;
     }
-    return true;
+
+    low_area = get_vnum_area(lower);
+    high_area = get_vnum_area(upper);
+
+    return (low_area != NULL && high_area != NULL && low_area == high_area);
 }
 
 /**
@@ -995,16 +993,10 @@ bool edit_deltrigger_specific(LLIST **progs, SCRIPT_DATA *script, int trig_type,
 
 AREA_DATA *get_vnum_area(long vnum)
 {
-    AREA_DATA *pArea;
+    ROOM_INDEX_DATA *room;
 
-    for (pArea = area_first; pArea; pArea = pArea->next)
-    {
-        if (vnum >= pArea->min_vnum
-          && vnum <= pArea->max_vnum)
-            return pArea;
-    }
-
-    return 0;
+    room = get_room_index_global(vnum);
+    return room ? room->area : NULL;
 }
 
 

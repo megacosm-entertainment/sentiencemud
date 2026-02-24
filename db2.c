@@ -510,27 +510,50 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 
 OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *room)
 {
+    int hash;
+    int count = 0;
+    int nth;
     OBJ_INDEX_DATA *oIndex;
     OBJ_DATA *obj = NULL;
-    int tries;
 
     if (area == NULL)
         return NULL;
 
-    for (tries = 0; tries < 200; tries++)
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
     {
-        oIndex = get_obj_index(area, number_range( area->min_vnum, area->max_vnum));
-        if ( oIndex == NULL )
-            continue;
-
-        if ( oIndex != NULL &&
-            IS_SET( oIndex->wear_flags, ITEM_TAKE ) &&
-            !IS_SET( oIndex->wear_flags, ITEM_NO_SAC ) &&
-            !IS_SET( oIndex->extra[1], ITEM_NOQUEST ) &&
-            !IS_SET( oIndex->extra[0], ITEM_MELT_DROP ) &&
-            oIndex->item_type != ITEM_MONEY )
-            break;
+        for (oIndex = area->obj_index_hash[hash]; oIndex != NULL; oIndex = oIndex->next)
+        {
+            if ( IS_SET( oIndex->wear_flags, ITEM_TAKE ) &&
+                !IS_SET( oIndex->wear_flags, ITEM_NO_SAC ) &&
+                !IS_SET( oIndex->extra[1], ITEM_NOQUEST ) &&
+                !IS_SET( oIndex->extra[0], ITEM_MELT_DROP ) &&
+                oIndex->item_type != ITEM_MONEY )
+                count++;
+        }
     }
+
+    if (count < 1)
+        return NULL;
+
+    nth = number_range(1, count);
+
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
+    {
+        for (oIndex = area->obj_index_hash[hash]; oIndex != NULL; oIndex = oIndex->next)
+        {
+            if ( IS_SET( oIndex->wear_flags, ITEM_TAKE ) &&
+                !IS_SET( oIndex->wear_flags, ITEM_NO_SAC ) &&
+                !IS_SET( oIndex->extra[1], ITEM_NOQUEST ) &&
+                !IS_SET( oIndex->extra[0], ITEM_MELT_DROP ) &&
+                oIndex->item_type != ITEM_MONEY &&
+                --nth == 0 )
+                goto found_object;
+        }
+    }
+
+found_object:
+    if (oIndex == NULL)
+        return NULL;
 
     if (room != NULL) {
         obj = create_object(oIndex, oIndex->level, true);
@@ -565,25 +588,39 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 
 CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 {
+    int hash;
+    int mob_count = 0;
+    int nth;
     MOB_INDEX_DATA *mIndex;
     CHAR_DATA *mob = NULL;
-    ROOM_INDEX_DATA *first_room;
-    long first_vnum;
     int attempts;
 
     if (area == NULL)
         return NULL;
 
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
+        for (mIndex = area->mob_index_hash[hash]; mIndex != NULL; mIndex = mIndex->next)
+            mob_count++;
+
+    if (mob_count < 1)
+        return NULL;
+
     for (attempts = 0; attempts < 1000; attempts++)
     {
-        /* grab a pIndexData first to increase diversity */
-    mIndex = get_mob_index(area, number_range( area->min_vnum, area->max_vnum));
-    first_vnum = area->min_vnum;
-    do
-    {
-        first_room = get_room_index(area, first_vnum++ );
-    }
-    while ( first_room == NULL );
+        nth = number_range(1, mob_count);
+        mIndex = NULL;
+        for (hash = 0; hash < MAX_KEY_HASH && !mIndex; hash++)
+        {
+            MOB_INDEX_DATA *candidate;
+            for (candidate = area->mob_index_hash[hash]; candidate != NULL; candidate = candidate->next)
+            {
+                if (--nth == 0)
+                {
+                    mIndex = candidate;
+                    break;
+                }
+            }
+        }
 
     if ( mIndex == NULL )
         continue;
@@ -708,19 +745,10 @@ ROOM_INDEX_DATA *get_random_room_list_byflags( CHAR_DATA *ch, LLIST *rooms, int 
 
 ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, int n_room_flags, int n_room2_flags )
 {
-    ROOM_INDEX_DATA *room;
-
-    if (area == NULL)
+    if (area == NULL || area->room_list == NULL)
         return NULL;
 
-    for ( ; ; )
-    {
-        room = get_room_index(area, number_range( area->min_vnum, area->max_vnum));
-        if( valid_random_room(ch, room, n_room_flags, n_room2_flags) )
-            break;
-    }
-
-    return room;
+    return get_random_room_list_byflags(ch, area->room_list, n_room_flags, n_room2_flags);
 }
 
 
@@ -1425,104 +1453,4 @@ void load_area_trade( AREA_DATA *pArea, FILE *fp )
 }
 
 
-
-// Generate the resets in the Pyramid of the Abyss. This is here
-// so we can edit the areas dynamically just like real areas and the
-// resets will be set up.
-void generate_poa_resets( int level )
-{
-    AREA_DATA *area;
-    ROOM_INDEX_DATA *room;
-    RESET_DATA *reset;
-    int i;
-    long vnum;
-    char buf[MSL];
-
-    if ( level == -1 )
-    {
-    for ( i = 1; i <= MAX_POA_LEVELS; i++ )
-    {
-        generate_poa_resets( i );
-    }
-
-    return;
-    }
-
-    sprintf( buf, "Maze-Level%d", level );
-
-    if ( ( area = find_area( buf)) == NULL )
-    {
-    pbugf(LOG_ERROR, "generate_poa_resets: couldn't find area for level %d.", level );
-    return;
-    }
-
-    vnum = area->min_vnum;
-    while ( vnum <= area->max_vnum )
-    {
-    int num_resets;
-    int count = 0;
-
-    if ( ( room = get_room_index(area, vnum)) == NULL )
-        continue;
-
-    // Decide on # resets per room. Not hugely necesarry now but may be
-    // more when we add more mobs/levels.
-    switch ( level )
-    {
-        case 1:  num_resets = 2; break;
-        case 2:  num_resets = 2; break;
-        case 3:  num_resets = 2; break;
-        case 4:  num_resets = 2; break;
-        case 5:  num_resets = 2; break;
-        default: num_resets = 2; break;
-    }
-
-    while ( count++ < num_resets )
-    {
-        MOB_INDEX_DATA *mob;
-
-        do
-        mob = get_random_mob_index( area );
-        while ( mob == NULL );
-
-        reset = new_reset_data();
-        reset->command = 'M';
-        reset->arg1.wnum.pArea = area;
-        reset->arg1.wnum.vnum = mob->vnum; // Mob vnum
-        if ( IS_SET( mob->act[1], ACT2_RESET_ONCE )
-            || mob->vnum == area->max_vnum )
-        reset->arg2 = 1;
-        else
-        switch ( level )
-        {
-        case 1: reset->arg2 = 15; break;
-        case 2: reset->arg2 = 25; break;
-        case 3: reset->arg2 = 35; break;
-        case 4: reset->arg2 = 45; break;
-        case 5: reset->arg2 = 55; break;
-        }
-        reset->arg3.value = room->vnum;
-        reset->arg4    = 1;
-        add_reset( room, reset, 0 );
-    }
-    vnum++;
-    }
-}
-
-
-// Get random mob_index from an area. Usually for POA and the like.
-MOB_INDEX_DATA *get_random_mob_index( AREA_DATA *area )
-{
-    MOB_INDEX_DATA *mob = NULL;
-    int attempts = 200;
-    int i = 0;
-
-    do
-    {
-    mob = get_mob_index(area, number_range( area->min_vnum, area->max_vnum));
-    }
-    while ( mob == NULL && i++ < attempts );
-
-    return mob;
-}
 

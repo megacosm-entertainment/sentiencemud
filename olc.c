@@ -35,6 +35,40 @@ static bool olc_match_search_field(const char *needle, const char *field);
 static bool olc_match_index_search(const char *needle, const char *primary_keywords,
     const char *list_keywords, const char *tags, const char *auto_tags);
 
+static void olc_area_display_bounds(const AREA_DATA *area, long *out_min, long *out_max)
+{
+    long min_vnum = 0;
+    long max_vnum = 0;
+
+    if (area && area->room_list && list_size(area->room_list) > 0)
+    {
+        ITERATOR it;
+        ROOM_INDEX_DATA *room;
+
+        iterator_start(&it, area->room_list);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) != NULL)
+        {
+            if (room->vnum <= 0)
+                continue;
+
+            if (min_vnum == 0 || room->vnum < min_vnum)
+                min_vnum = room->vnum;
+            if (max_vnum == 0 || room->vnum > max_vnum)
+                max_vnum = room->vnum;
+        }
+        iterator_stop(&it);
+    }
+
+    if (min_vnum == 0 || max_vnum == 0)
+    {
+        min_vnum = area ? area->min_vnum : 0;
+        max_vnum = area ? area->max_vnum : 0;
+    }
+
+    if (out_min) *out_min = min_vnum;
+    if (out_max) *out_max = max_vnum;
+}
+
 char *editor_name_table[] = {
     " ",
     "AEdit",
@@ -1245,12 +1279,16 @@ void do_asearch(CHAR_DATA *ch, char *argument)
     {
     if (!str_infix(arg, pArea->name))
     {
+        long display_min = 0;
+        long display_max = 0;
+        olc_area_display_bounds(pArea, &display_min, &display_max);
+
         sprintf(buf,
         "[%6ld] %-27.27s (%-5ld-%5ld) %-12.12s [%d] [%-10.10s]\n\r",
             pArea->uid,
         pArea->name,
-        pArea->min_vnum,
-        pArea->max_vnum,
+        display_min,
+        display_max,
         pArea->file_name,
         pArea->security,
         pArea->builders);
@@ -1289,6 +1327,10 @@ void do_alist(CHAR_DATA *ch, char *argument)
     {
     if (place_type == 0 || (pArea->place_flags == place_type))
     {
+    long display_min = 0;
+    long display_max = 0;
+    olc_area_display_bounds(pArea, &display_min, &display_max);
+
     dot = pArea->file_name ? strrchr(pArea->file_name, '.') : NULL;
     if (dot && !str_cmp(dot, ".json"))
         fmt = "JSON";
@@ -1302,8 +1344,8 @@ void do_alist(CHAR_DATA *ch, char *argument)
          pArea->open ? "{G" : "{R",
          pArea->name,
          "{x",
-         pArea->min_vnum,
-         pArea->max_vnum,
+         display_min,
+         display_max,
          pArea->file_name,
          fmt,
          pArea->security,

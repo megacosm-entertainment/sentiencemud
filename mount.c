@@ -161,7 +161,7 @@ CHAR_DATA *find_personal_mount(char *name)
     MOB_INDEX_DATA *mIndex;
     CHAR_DATA *mount;
     AREA_DATA *area;
-    int vnum;
+    int hash;
 
     if ((area = find_area("Housing")) == NULL)
     {
@@ -169,16 +169,16 @@ CHAR_DATA *find_personal_mount(char *name)
     return NULL;
     }
 
-    for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
     {
-        if ((mIndex = get_mob_index(area, vnum)) != NULL)
-    {
-        if (!str_cmp(mIndex->owner, name))
+        for (mIndex = area->mob_index_hash[hash]; mIndex != NULL; mIndex = mIndex->next)
         {
-            if ((mount = get_char_world_index(NULL, mIndex)) != NULL)
-            return mount;
+            if (!str_cmp(mIndex->owner, name))
+            {
+                if ((mount = get_char_world_index(NULL, mIndex)) != NULL)
+                    return mount;
+            }
         }
-    }
     }
 
     return NULL;

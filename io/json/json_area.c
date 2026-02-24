@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <limits.h>
 #include <jansson.h>
 #include "../../merc.h"
 #include "../../tables.h"
@@ -31,6 +32,69 @@ static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, ARE
 static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2, AREA_DATA *area);
 static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DATA *area);
 static bool json_script_array_has_vnum(json_t *scripts, long vnum);
+
+static void json_set_room_ref_from_vnum(json_t *obj, const char *key,
+                                        AREA_DATA *context_area,
+                                        AREA_DATA *explicit_area,
+                                        long vnum)
+{
+    AREA_DATA *target_area;
+
+    if (!obj || IS_NULLSTR(key) || vnum <= 0)
+        return;
+
+    target_area = explicit_area ? explicit_area : context_area;
+
+    if (!target_area)
+        target_area = find_area_by_vnum(vnum, NULL);
+
+    if (target_area)
+    {
+        char wnum_buf[MIL];
+        snprintf(wnum_buf, sizeof(wnum_buf), "%ld#%ld", target_area->uid, vnum);
+        json_object_set_new(obj, key, json_string(wnum_buf));
+    }
+    else
+        json_object_set_new(obj, key, json_integer(vnum));
+}
+
+static void json_read_room_ref_to_load(json_t *obj, const char *key,
+                                       WNUM_LOAD *dest,
+                                       AREA_DATA *default_area)
+{
+    json_t *value;
+
+    if (!obj || !dest || IS_NULLSTR(key))
+        return;
+
+    value = json_object_get(obj, key);
+    if (!value)
+        return;
+
+    dest->auid = 0;
+    dest->vnum = 0;
+
+    if (json_is_string(value))
+    {
+        parse_widevnum_load(json_string_value(value), dest);
+    }
+    else
+    {
+        dest->vnum = json_integer_value(value);
+    }
+
+    if (dest->vnum > 0 && dest->auid <= 0 && default_area)
+        dest->auid = default_area->uid;
+}
+
+static long json_read_room_ref_to_vnum(json_t *obj, const char *key,
+                                       AREA_DATA *default_area)
+{
+    WNUM_LOAD load = {0, 0};
+
+    json_read_room_ref_to_load(obj, key, &load, default_area);
+    return load.vnum;
+}
 
 // --- WILDS_TERRAIN JSON helpers ---
 static json_t *wilds_terrain_to_json(WILDS_TERRAIN *terrain) {
@@ -294,7 +358,7 @@ static json_t *json_area_serialize_region_data(AREA_REGION *region)
         json_object_set_new(recall, "y", json_integer(region->rs_recall.id[1]));
         json_object_set_new(recall, "z", json_integer(region->rs_recall.id[2]));
     } else {
-        json_object_set_new(recall, "vnum", json_integer(region->rs_recall.id[0]));
+        json_set_room_ref_from_vnum(recall, "vnum", region->area, NULL, region->rs_recall.id[0]);
     }
     json_object_set_new(json, "recall", recall);
 
@@ -305,8 +369,8 @@ static json_t *json_area_serialize_region_data(AREA_REGION *region)
     json_object_set_new(coords, "land_y", json_integer(region->rs_land_y));
     json_object_set_new(json, "coordinates", coords);
 
-    json_object_set_new(json, "airship_land", json_integer(region->rs_airship_land_spot));
-    json_object_set_new(json, "post_office", json_integer(region->post_office));
+    json_set_room_ref_from_vnum(json, "airship_land", region->area, NULL, region->rs_airship_land_spot);
+    json_set_room_ref_from_vnum(json, "post_office", region->area, NULL, region->post_office);
 
     return json;
 }
@@ -347,7 +411,7 @@ static void json_area_deserialize_region_data(json_t *json, AREA_REGION *region)
             region->rs_recall.id[2] = json_get_int_default(recall, "z", 0);
         } else {
             region->rs_recall.wuid = 0;
-            region->rs_recall.id[0] = json_get_int_default(recall, "vnum", 0);
+            region->rs_recall.id[0] = json_read_room_ref_to_vnum(recall, "vnum", region->area);
         }
     }
 
@@ -363,8 +427,8 @@ static void json_area_deserialize_region_data(json_t *json, AREA_REGION *region)
         region->rs_land_y = json_get_int_default(coords, "land_y", -1);
     }
 
-    region->rs_airship_land_spot = json_get_int_default(json, "airship_land", 0);
-    region->post_office = json_get_int_default(json, "post_office", 0);
+    region->rs_airship_land_spot = json_read_room_ref_to_vnum(json, "airship_land", region->area);
+    region->post_office = json_read_room_ref_to_vnum(json, "post_office", region->area);
 }
 
 /***************************************************************************
@@ -380,6 +444,10 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_t *recall = json_object();
     json_t *versions = json_object();
     json_t *regions = json_array();
+    long min_vnum = LONG_MAX;
+    long max_vnum = LONG_MIN;
+    ITERATOR room_it;
+    ROOM_INDEX_DATA *room_iter;
     
     /* Basic info */
     json_object_set_new(root, "uid", json_integer(area->uid));
@@ -389,10 +457,32 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_object_set_new(root, "tags", json_string_safe(area->tags));
     json_object_set_new(root, "auto_tags", json_string_safe(area->auto_tags));
     
-    /* Vnum range */
-    json_object_set_new(vnums, "min", json_integer(area->min_vnum));
-    json_object_set_new(vnums, "max", json_integer(area->max_vnum));
-    json_object_set_new(root, "vnums", vnums);
+    /* Vnum range (legacy metadata): derive from actual rooms when available. */
+    if (area->room_list) {
+        iterator_start(&room_it, area->room_list);
+        while ((room_iter = (ROOM_INDEX_DATA *)iterator_nextdata(&room_it)) != NULL) {
+            if (room_iter->vnum > 0) {
+                if (room_iter->vnum < min_vnum)
+                    min_vnum = room_iter->vnum;
+                if (room_iter->vnum > max_vnum)
+                    max_vnum = room_iter->vnum;
+            }
+        }
+        iterator_stop(&room_it);
+    }
+
+    if (min_vnum == LONG_MAX || max_vnum == LONG_MIN) {
+        min_vnum = area->min_vnum;
+        max_vnum = area->max_vnum;
+    }
+
+    if (min_vnum > 0 && max_vnum >= min_vnum) {
+        json_object_set_new(vnums, "min", json_integer(min_vnum));
+        json_object_set_new(vnums, "max", json_integer(max_vnum));
+        json_object_set_new(root, "vnums", vnums);
+    } else {
+        json_decref(vnums);
+    }
     
     /* Metadata */
     json_object_set_new(metadata, "builders", json_string(area->builders ? area->builders : "None"));
@@ -435,21 +525,20 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
         json_object_set_new(recall, "y", json_integer(area->recall.id[1]));
         json_object_set_new(recall, "z", json_integer(area->recall.id[2]));
     } else if (area->recall.id[0] > 0) {
-        /* Use widevnum format for room recall */
-        ROOM_INDEX_DATA *recall_room = get_room_index_global(area->recall.id[0]);
-        if (recall_room) {
-            json_object_set_new(recall, "vnum", json_string(widevnum_string_room(recall_room, NULL)));
-        } else {
-            json_object_set_new(recall, "vnum", json_integer(area->recall.id[0]));
-        }
+        json_set_room_ref_from_vnum(recall, "vnum", area, NULL, area->recall.id[0]);
     }
     json_object_set_new(root, "recall", recall);
     
     /* Other settings */
     json_object_set_new(root, "wilds_uid", json_integer(area->wilds_uid));
     json_object_set_new(root, "repop", json_integer(area->repop));
-    json_object_set_new(root, "post_office", json_integer(area->post_office_load.vnum));
-    json_object_set_new(root, "airship_land", json_integer(area->airship_land_load.vnum));
+    json_set_room_ref_from_vnum(root, "post_office", area,
+        area->post_office_load.auid > 0 ? get_area_from_uid(area->post_office_load.auid) : area,
+        area->post_office_load.vnum);
+
+    json_set_room_ref_from_vnum(root, "airship_land", area,
+        area->airship_land_load.auid > 0 ? get_area_from_uid(area->airship_land_load.auid) : NULL,
+        area->airship_land_load.vnum);
     
     /* Descriptions */
     json_object_set_new(root, "description", json_string_safe(area->description));
@@ -546,9 +635,12 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
     
     /* Vnum range */
     vnums = json_object_get(json, "vnums");
-    if (vnums) {
+    if (vnums && json_is_object(vnums)) {
         area->min_vnum = json_get_int_default(vnums, "min", 0);
         area->max_vnum = json_get_int_default(vnums, "max", 0);
+    } else {
+        area->min_vnum = 0;
+        area->max_vnum = 0;
     }
     
     /* Metadata */
@@ -634,8 +726,8 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
         }
     }
     area->repop = json_get_int_default(json, "repop", 15);
-    area->post_office_load.vnum = json_get_int_default(json, "post_office", 0);
-    area->airship_land_load.vnum = json_get_int_default(json, "airship_land", 0);
+    json_read_room_ref_to_load(json, "post_office", &area->post_office_load, area);
+    json_read_room_ref_to_load(json, "airship_land", &area->airship_land_load, NULL);
     
     /* Descriptions */
     area->description = str_dup(json_get_string_default(json, "description", ""));

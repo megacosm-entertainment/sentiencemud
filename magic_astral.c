@@ -174,7 +174,12 @@ SPELL_FUNC(spell_maze)
         }
 
         area = combat_maze ? geldoff_area : poa_area;
-        while (!(room = get_room_index(area, number_range(area->min_vnum, area->max_vnum))));
+        room = get_random_room_area_byflags(NULL, area, 0, 0);
+        if (!room) {
+            send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
+            ch->daze += 10 - number_range(0, skill_pct/10);
+            return false;
+        }
     }
 
     if (victim->fighting) stop_fighting(victim, true);

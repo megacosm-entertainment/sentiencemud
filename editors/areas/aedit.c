@@ -231,9 +231,35 @@ AEDIT(aedit_show)
 
     /* --- OLC Info --- */
     olc_display_section(ctx, theme, "OLC Info");
-    olc_display_pair(ctx, theme,
-        "Min Vnum:", NULL, formatf("%ld", pArea->min_vnum),
-        "Max Vnum:", NULL, formatf("%ld", pArea->max_vnum));
+    {
+        long display_min = 0;
+        long display_max = 0;
+        if (pArea->room_list && list_size(pArea->room_list) > 0) {
+            ITERATOR it;
+            ROOM_INDEX_DATA *room_iter;
+
+            iterator_start(&it, pArea->room_list);
+            while ((room_iter = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) != NULL) {
+                if (room_iter->vnum <= 0)
+                    continue;
+
+                if (display_min == 0 || room_iter->vnum < display_min)
+                    display_min = room_iter->vnum;
+                if (display_max == 0 || room_iter->vnum > display_max)
+                    display_max = room_iter->vnum;
+            }
+            iterator_stop(&it);
+        }
+
+        if (display_min == 0 || display_max == 0) {
+            display_min = pArea->min_vnum;
+            display_max = pArea->max_vnum;
+        }
+
+        olc_display_pair(ctx, theme,
+            "Min Vnum:", NULL, formatf("%ld", display_min),
+            "Max Vnum:", NULL, formatf("%ld", display_max));
+    }
     olc_display_number(ctx, theme, "Security:", "security", pArea->security);
     olc_display_string(ctx, theme, "Builders:", "builder", pArea->builders);
     olc_display_pair(ctx, theme,
@@ -1397,23 +1423,23 @@ AEDIT(aedit_levels)
 AEDIT(aedit_postoffice)
 {
     AREA_DATA *pArea;
-    long vnum;
+    WNUM room_wnum;
     char buf[MSL];
     ROOM_INDEX_DATA *room;
 
     EDIT_AREA(ch, pArea);
 
     if (argument[0] == '\0') {
-    send_to_char("Syntax:   postoffice <vnum in the area>\n\r", ch);
+    send_to_char("Syntax:   postoffice <widevnum in the area>\n\r", ch);
     return false;
     }
 
-    if ((vnum = atol(argument)) < pArea->min_vnum || vnum > pArea->max_vnum) {
-    send_to_char("That vnum is not in the area.\n\r", ch);
-    return false;
+    if (!parse_widevnum(argument, pArea, &room_wnum) || room_wnum.pArea != pArea) {
+        send_to_char("That room must be in the current area.\n\r", ch);
+        return false;
     }
 
-    if ((room = get_room_index(pArea, vnum)) == NULL) {
+    if ((room = get_room_index(room_wnum.pArea, room_wnum.vnum)) == NULL) {
     send_to_char("That room vnum doesn't exist.\n\r", ch);
     return false;
     }
@@ -1421,7 +1447,8 @@ AEDIT(aedit_postoffice)
     sprintf(buf, "Set post office of %s to %s(%s)\n\r", pArea->name, room->name, widevnum_string_room(room, pArea));
     send_to_char(buf, ch);
 
-    pArea->post_office_load.vnum = vnum;
+    pArea->post_office_load.auid = pArea->uid;
+    pArea->post_office_load.vnum = room_wnum.vnum;
     return true;
 }
 

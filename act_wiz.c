@@ -10819,8 +10819,8 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     for (parea = area_first; parea != NULL; parea = parea->next)
     {
         /* First things, add area name  and vnums to the buffer */
-        sprintf(buf, "*** %s (%ld to %ld) ***\n\r",
-             parea->name, parea->min_vnum, parea->max_vnum);
+           sprintf(buf, "*** %s (uid %ld) ***\n\r",
+               parea->name, parea->uid);
         /*fp ? fprintf(fp, buf) : */add_buf(buffer, buf);
 
         /* Now let's start looping through all the rooms. */
@@ -10835,8 +10835,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
              * If the room isn't in the current area,
              * then skip it, not interested.
              */
-            if (from_room->vnum < parea->min_vnum
-            ||   from_room->vnum > parea->max_vnum)
+            if (from_room->area != parea)
             continue;
 
             /* Aha, room is in the area, lets check all directions */
@@ -10852,8 +10851,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
                  * then add it to the buffer/file
                  */
                 if(to_room != NULL
-                &&  (to_room->vnum < parea->min_vnum
-                ||   to_room->vnum > parea->max_vnum))
+                &&  to_room->area != parea)
                 {
                 found = true;
                 sprintf(buf, "    (%ld) links %s to %s (%ld)\n\r",
@@ -10905,16 +10903,15 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     {
     vnum = room_wnum.vnum;
 
-    /* Keep legacy behavior for bare vnum: require it to belong to a known area range */
+    /* Keep bare-vnum behavior by resolving room globally and using its owning area. */
     if (is_number(arg1))
     {
-        parea = find_area_by_vnum(vnum, NULL);
+        ROOM_INDEX_DATA *room = get_room_index_global(vnum);
+        parea = room ? room->area : NULL;
     }
     else
     {
         parea = room_wnum.pArea;
-        if (vnum < parea->min_vnum || vnum > parea->max_vnum)
-            parea = NULL;
     }
 
     if (parea == NULL)
@@ -10951,8 +10948,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
          from_room = from_room->next)
     {
         /* Gotta make sure the room belongs to the desired area */
-        if (from_room->vnum < parea->min_vnum
-        ||   from_room->vnum > parea->max_vnum)
+        if (from_room->area != parea)
         continue;
 
         /* Room's good, let's check all the directions for exits */
@@ -10964,8 +10960,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 
             /* Found an exit, does it lead to a different area? */
             if(to_room != NULL
-            &&  (to_room->vnum < parea->min_vnum
-            ||   to_room->vnum > parea->max_vnum))
+            &&  to_room->area != parea)
             {
             found = true;
             sprintf(buf, "%s (%ld) links %s to %s (%ld)\n\r",

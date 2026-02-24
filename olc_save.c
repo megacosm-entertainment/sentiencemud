@@ -483,8 +483,33 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "Recall %ld\n", 	area->recall.id[0]);
     fprintf(fp, "Open %d\n", 	  	area->open);
     fprintf(fp, "Repop %d\n",		area->repop);
-    fprintf(fp, "PostOffice %ld\n",	area->post_office_load.vnum);
-    fprintf(fp, "AirshipLand %ld\n", 	area->airship_land_load.vnum);
+    if (area->post_office_load.vnum > 0) {
+        long post_auid = area->post_office_load.auid > 0
+            ? area->post_office_load.auid
+            : (area->uid > 0 ? area->uid : 0);
+
+        if (post_auid > 0)
+            fprintf(fp, "PostOfficeW %ld %ld\n", post_auid, area->post_office_load.vnum);
+        else
+            fprintf(fp, "PostOffice %ld\n", area->post_office_load.vnum);
+    } else {
+        fprintf(fp, "PostOffice %ld\n", area->post_office_load.vnum);
+    }
+
+    if (area->airship_land_load.vnum > 0) {
+        long airship_auid = area->airship_land_load.auid;
+        if (airship_auid <= 0) {
+            AREA_DATA *airship_area = find_area_by_vnum(area->airship_land_load.vnum, NULL);
+            airship_auid = airship_area ? airship_area->uid : 0;
+        }
+
+        if (airship_auid > 0)
+            fprintf(fp, "AirshipLandW %ld %ld\n", airship_auid, area->airship_land_load.vnum);
+        else
+            fprintf(fp, "AirshipLand %ld\n", area->airship_land_load.vnum);
+    } else {
+        fprintf(fp, "AirshipLand %ld\n", area->airship_land_load.vnum);
+    }
     fprintf(fp, "Description %s~\n", fix_string(area->description));
     if(area->comments)
         fprintf(fp, "Comments %s~\n", fix_string(area->comments));
@@ -1588,6 +1613,11 @@ AREA_DATA *read_area_new(FILE *fp)
         KEY("AreaWhoFlags2",	dummy,	fread_number(fp));
         KEY("AreaWho",		area->area_who,	fread_number(fp));
         KEY("AirshipLand",	area->airship_land_load.vnum, fread_number(fp));
+        if (!str_cmp(word, "AirshipLandW")) {
+            area->airship_land_load.auid = fread_number(fp);
+            area->airship_land_load.vnum = fread_number(fp);
+            fMatch = true;
+        }
         break;
 
         case 'B':
@@ -1629,6 +1659,11 @@ AREA_DATA *read_area_new(FILE *fp)
 
         case 'P':
             KEY("PostOffice",	area->post_office_load.vnum,	fread_number(fp));
+        if (!str_cmp(word, "PostOfficeW")) {
+            area->post_office_load.auid = fread_number(fp);
+            area->post_office_load.vnum = fread_number(fp);
+            fMatch = true;
+        }
         KEY("PlaceType",	area->place_flags,	fread_number(fp));
         break;
 

@@ -1482,6 +1482,9 @@ void fix_area_fields(void)
         /* Area-level fields (always area-local for post_office, cross-area for airship) */
         if (pArea->post_office_load.vnum > 0)
         {
+            if (pArea->post_office_load.auid <= 0)
+                pArea->post_office_load.auid = pArea->uid;
+
             pArea->post_office_wnum.pArea = pArea->post_office_load.auid > 0
                 ? get_area_from_uid(pArea->post_office_load.auid) : pArea;
             pArea->post_office_wnum.vnum = pArea->post_office_load.vnum;
@@ -1489,6 +1492,13 @@ void fix_area_fields(void)
 
         if (pArea->airship_land_load.vnum > 0)
         {
+            if (pArea->airship_land_load.auid <= 0)
+            {
+                AREA_DATA *resolved_area = find_area_by_vnum(pArea->airship_land_load.vnum, NULL);
+                if (resolved_area)
+                    pArea->airship_land_load.auid = resolved_area->uid;
+            }
+
             pArea->airship_land_wnum.pArea = pArea->airship_land_load.auid > 0
                 ? get_area_from_uid(pArea->airship_land_load.auid)
                 : find_area_by_vnum(pArea->airship_land_load.vnum, NULL);
@@ -3105,7 +3115,7 @@ void reset_wilds(WILDS_DATA *pWilds)
 void reset_area(AREA_DATA *pArea)
 {
     ROOM_INDEX_DATA *pRoom;
-    long vnum;
+    ITERATOR it;
 
 /*  VIZZWILDS - disabled this legacy hack - now handled by vlinks!*/
 /*
@@ -3204,11 +3214,10 @@ void reset_area(AREA_DATA *pArea)
 
     p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL);
 
-    for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
-    {
-        if ((pRoom = get_room_index(pArea, vnum)))
-            reset_room(pRoom, false);
-    }
+    iterator_start(&it, pArea->room_list);
+    while ((pRoom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) != NULL)
+        reset_room(pRoom, false);
+    iterator_stop(&it);
 }
 
 void room_update(ROOM_INDEX_DATA *room)

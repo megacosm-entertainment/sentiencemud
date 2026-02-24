@@ -1328,19 +1328,20 @@ OEDIT(oedit_delcatalyst)
 OEDIT(oedit_next)
 {
     OBJ_INDEX_DATA *pObj;
+    OBJ_INDEX_DATA *candidate;
     OBJ_INDEX_DATA *nextObj = NULL;
-    long next_vnum;
+    int hash;
 
     EDIT_OBJ(ch, pObj);
 
-    next_vnum = pObj->vnum;
-
-    next_vnum++;
-    while (nextObj == NULL
-    && next_vnum <= pObj->area->max_vnum)
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
     {
-    nextObj = get_obj_index(pObj->area, next_vnum);
-    next_vnum++;
+        for (candidate = pObj->area->obj_index_hash[hash]; candidate != NULL; candidate = candidate->next)
+        {
+            if (candidate->vnum > pObj->vnum
+            && (!nextObj || candidate->vnum < nextObj->vnum))
+                nextObj = candidate;
+        }
     }
 
     if (nextObj == NULL)
@@ -1718,19 +1719,20 @@ OEDIT(oedit_persist)
 OEDIT(oedit_prev)
 {
     OBJ_INDEX_DATA *pObj;
+    OBJ_INDEX_DATA *candidate;
     OBJ_INDEX_DATA *prevObj = NULL;
-    long prev_vnum;
+    int hash;
 
     EDIT_OBJ(ch, pObj);
 
-    prev_vnum = pObj->vnum;
-
-    prev_vnum--;
-    while (prevObj == NULL
-    && prev_vnum >= pObj->area->min_vnum)
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
     {
-    prevObj = get_obj_index(pObj->area, prev_vnum);
-    prev_vnum--;
+        for (candidate = pObj->area->obj_index_hash[hash]; candidate != NULL; candidate = candidate->next)
+        {
+            if (candidate->vnum < pObj->vnum
+            && (!prevObj || candidate->vnum > prevObj->vnum))
+                prevObj = candidate;
+        }
     }
 
     if (prevObj == NULL)
