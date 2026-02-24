@@ -3059,6 +3059,7 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
     CHAR_DATA *sender;
     const CHANNEL_DEFINITION *def;
     char appended_report_id[64];
+    bool local_origin;
 
     if (!msg || IS_NULLSTR(msg->channel_id))
         return;
@@ -3066,8 +3067,7 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
     if (IS_NULLSTR(msg->message_text))
         return;
 
-    if (channel_message_origin_is_local(msg))
-        return;
+    local_origin = channel_message_origin_is_local(msg);
 
     appended_report_id[0] = '\0';
 
@@ -3082,6 +3082,9 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
                            sizeof(appended_report_id));
     channel_history_set_participants(msg->sender_id0, msg->sender_id1,
                                      msg->recipient_id0, msg->recipient_id1);
+
+    if (local_origin)
+        return;
 
     sender = channel_find_sender(msg->sender_id0, msg->sender_id1, msg->sender_name);
     if (!sender)
@@ -3302,16 +3305,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
 
     if (channel_transport_backend_mode() != CHANNEL_BACKEND_LEGACY_ITERATIVE) {
         if (channel_transport_publish(topic, &msg)) {
-            channel_history_append(channel_id,
-                                   topic,
-                                   sender->name,
-                                   delivery_text,
-                                   current_time,
-                                   NULL,
-                                   msg.reports_json,
-                                   appended_report_id,
-                                   sizeof(appended_report_id));
-            return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
+            return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, NULL);
         }
 
         log_stringf("ChannelService: publish failed for channel '%s', applying local legacy fallback", channel_id);
@@ -3479,15 +3473,6 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.timestamp = current_time;
 
     if (channel_transport_publish(topic, &msg)) {
-        channel_history_append(channel_id,
-                               topic,
-                               sender->name,
-                               delivery_text,
-                               current_time,
-                               NULL,
-                               msg.reports_json,
-                               appended_report_id,
-                               sizeof(appended_report_id));
         channel_deliver_tell_legacy(sender, recipient, delivery_text);
         return true;
     }
@@ -3629,15 +3614,6 @@ bool channel_service_send_room_targeted(CHAR_DATA *sender, const char *channel_i
     msg.timestamp = current_time;
 
     if (channel_transport_publish(topic, &msg)) {
-        channel_history_append(channel_id,
-                               topic,
-                               sender->name,
-                               delivery_text,
-                               current_time,
-                               NULL,
-                               msg.reports_json,
-                               NULL,
-                               0);
         return channel_dispatch_targeted_room_legacy_by_id(sender, channel_id, target, delivery_text);
     }
 
