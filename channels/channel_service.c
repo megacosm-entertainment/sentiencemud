@@ -1921,6 +1921,54 @@ static void channel_sender_name_mxp(descriptor_t *desc,
     free_buf(mxp_buf);
 }
 
+static bool channel_supports_service_self_echo(const char *channel_id)
+{
+    if (IS_NULLSTR(channel_id))
+        return false;
+
+    return !str_cmp(channel_id, "gossip")
+        || !str_cmp(channel_id, "ooc")
+        || !str_cmp(channel_id, "quote")
+        || !str_cmp(channel_id, "flame")
+        || !str_cmp(channel_id, "helper")
+        || !str_cmp(channel_id, "music")
+        || !str_cmp(channel_id, "immtalk")
+        || !str_cmp(channel_id, "yell")
+        || !str_cmp(channel_id, "gtell");
+}
+
+static void channel_send_formatted_to_sender(const char *channel_id,
+                                             CHAR_DATA *sender,
+                                             const char *plain_text)
+{
+    const CHANNEL_DEF_DATA *def;
+    const char *fmt = "{WYou:{x %2$s";
+    const char *message_text;
+    char message_with_flag[2 * MSL];
+    char rendered[MAX_STRING_LENGTH];
+
+    if (!sender || IS_NULLSTR(channel_id) || IS_NULLSTR(plain_text))
+        return;
+
+    def = channel_find_definition(channel_id);
+    if (def && !IS_NULLSTR(def->fmt_self))
+        fmt = def->fmt_self;
+
+    message_text = plain_text;
+    if (channel_should_include_sender_flag(channel_id, sender, sender)) {
+        snprintf(message_with_flag, sizeof(message_with_flag), "%s %s",
+                 sender->pcdata->flag, plain_text);
+        message_text = message_with_flag;
+    }
+
+    snprintf(rendered, sizeof(rendered), fmt, "You", message_text);
+
+    if (!strstr(rendered, "\n\r"))
+        strlcat(rendered, "\n\r", sizeof(rendered));
+
+    send_to_char(rendered, sender);
+}
+
 static void channel_format_for_recipient(const char *channel_id,
                                          CHAR_DATA *sender,
                                          CHAR_DATA *recipient,
@@ -3229,6 +3277,9 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
         send_to_char("Your message was blocked by channel filters.\n\r", sender);
         return true;
     }
+
+    if (channel_supports_service_self_echo(channel_id))
+        channel_send_formatted_to_sender(channel_id, sender, delivery_text);
 
     if (!channel_service_ready)
     {
