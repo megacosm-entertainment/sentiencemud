@@ -210,7 +210,6 @@ void do_oedit(CHAR_DATA *ch, char *argument)
     OBJ_INDEX_DATA *pObj;
     AREA_DATA *pArea;
     char arg1[MAX_STRING_LENGTH];
-    long value;
 
     if (IS_NPC(ch))
         return;
@@ -242,11 +241,15 @@ void do_oedit(CHAR_DATA *ch, char *argument)
     }
     else if (!str_cmp(arg1, "create"))
     {
-        value = atol(argument);
-
         if (argument[0] != '\0')
         {
-            pArea = get_vnum_area(value);
+            WNUM wnum;
+            AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
+            if (!parse_widevnum(argument, context, &wnum)) {
+                send_to_char("OEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
+                return;
+            }
+            pArea = wnum.pArea;
 
             if (!pArea)
             {

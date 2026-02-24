@@ -180,7 +180,6 @@ void do_medit(CHAR_DATA *ch, char *argument)
 {
     MOB_INDEX_DATA *pMob;
     AREA_DATA *pArea;
-    long value;
     char arg1[MAX_STRING_LENGTH];
 
     argument = one_argument(argument, arg1);
@@ -213,10 +212,14 @@ void do_medit(CHAR_DATA *ch, char *argument)
     }
     else if (!str_cmp(arg1, "create"))
     {
-        value = atol(argument);
-
         if (argument[0] != '\0') {
-            pArea = get_vnum_area(value);
+            WNUM wnum;
+            AREA_DATA *context = ch->in_room ? ch->in_room->area : NULL;
+            if (!parse_widevnum(argument, context, &wnum)) {
+                send_to_char("MEdit: Invalid widevnum format. Use vnum, #vnum or area#vnum.\n\r", ch);
+                return;
+            }
+            pArea = wnum.pArea;
 
             if (!pArea)
             {
