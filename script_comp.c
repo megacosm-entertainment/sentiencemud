@@ -2532,10 +2532,22 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
         code[cline].length = 0;
     }
 
+    char *compiled_source = str_dup(source ? source : "");
+    if (!compiled_source) {
+        compile_error("Out of memory duplicating script source.");
+        free_script_code(code, lines);
+        compile_err_buffer = saved_err_buffer;
+        compile_current_line = saved_current_line;
+        compile_store_limit = saved_store_limit;
+        return false;
+    }
+
     free_script_code(script->code,script->lines);
-    free_string(script->src);
+    if (script->src && script->src != script->edit_src)
+        free_string(script->src);
+
     script->code = code;
-    script->src = source;
+    script->src = compiled_source;
     script->lines = lines+1;
 
     // Create Switch Table data and cleanup

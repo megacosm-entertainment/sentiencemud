@@ -182,6 +182,10 @@ static TOKEN_INDEX_DATA *get_token_index_from_arg(SCRIPT_VARINFO *info, SCRIPT_P
             if (token_index)
                 return token_index;
         }
+
+        token_index = get_token_index_global(param->d.num);
+        if (token_index)
+            return token_index;
     }
 
     if (!script_arg_to_wnum(info, param, &wnum))

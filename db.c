@@ -3524,8 +3524,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             break;
 
         case 'M':
-            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
-            if (!(pMobIndex = get_mob_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
+        {
+            AREA_DATA *mob_area = pReset->arg1.wnum.pArea;
+            pMobIndex = get_mob_index(mob_area ? mob_area : pRoom->area, pReset->arg1.wnum.vnum);
+            if (!pMobIndex && !mob_area)
+                pMobIndex = get_mob_index_global(pReset->arg1.wnum.vnum);
+
+            if (!pMobIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'M': bad vnum %ld.", pReset->arg1.wnum.vnum);
                 continue;
@@ -3596,10 +3601,16 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             objRepop = true;
             p_percent_trigger(pMob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
             break;
+        }
 
         case 'O':
-            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
-            if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
+        {
+            AREA_DATA *obj_area = pReset->arg1.wnum.pArea;
+            pObjIndex = get_obj_index(obj_area ? obj_area : pRoom->area, pReset->arg1.wnum.vnum);
+            if (!pObjIndex && !obj_area)
+                pObjIndex = get_obj_index_global(pReset->arg1.wnum.vnum);
+
+            if (!pObjIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 1 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg1.wnum.vnum, pReset->arg1.wnum.vnum, pReset->arg2, pReset->arg3.value, pReset->arg4);
                 continue;
@@ -3649,16 +3660,28 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             obj_to_room(pObj, pRoom);
             last = true;
             break;
+        }
 
         case 'P':
-            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
-            if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
+        {
+            AREA_DATA *obj_area = pReset->arg1.wnum.pArea;
+            AREA_DATA *container_area = pReset->arg3.wnum.pArea;
+
+            pObjIndex = get_obj_index(obj_area ? obj_area : pRoom->area, pReset->arg1.wnum.vnum);
+            if (!pObjIndex && !obj_area)
+                pObjIndex = get_obj_index_global(pReset->arg1.wnum.vnum);
+
+            if (!pObjIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg1.wnum.vnum);
                 continue;
             }
 
-            if (!(pObjToIndex = get_obj_index(pReset->arg3.wnum.pArea ? pReset->arg3.wnum.pArea : pRoom->area, pReset->arg3.wnum.vnum)))
+            pObjToIndex = get_obj_index(container_area ? container_area : pRoom->area, pReset->arg3.wnum.vnum);
+            if (!pObjToIndex && !container_area)
+                pObjToIndex = get_obj_index_global(pReset->arg3.wnum.vnum);
+
+            if (!pObjToIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg3.wnum.vnum);
                 continue;
@@ -3726,11 +3749,17 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
                 legacy_obj_index_value_get(LastObj->pIndexData, 1));
             last = true;
             break;
+        }
 
         case 'G':
         case 'E':
-            // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
-            if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
+        {
+            AREA_DATA *obj_area = pReset->arg1.wnum.pArea;
+            pObjIndex = get_obj_index(obj_area ? obj_area : pRoom->area, pReset->arg1.wnum.vnum);
+            if (!pObjIndex && !obj_area)
+                pObjIndex = get_obj_index_global(pReset->arg1.wnum.vnum);
+
+            if (!pObjIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1.wnum.vnum);
                 continue;
@@ -3781,6 +3810,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
                 equip_char(LastMob, pObj, pReset->arg3.value);
             last = true;
             break;
+        }
 
         case 'D':
             break;
@@ -6781,6 +6811,14 @@ void check_area_versions(void)
             area->version_token != VERSION_TOKEN ||
             area->version_script != VERSION_SCRIPT ||
             area->version_wilds != VERSION_WILDS) {
+
+            area->version_area = VERSION_AREA;
+            area->version_mobile = VERSION_MOBILE;
+            area->version_object = VERSION_OBJECT;
+            area->version_room = VERSION_ROOM;
+            area->version_token = VERSION_TOKEN;
+            area->version_script = VERSION_SCRIPT;
+            area->version_wilds = VERSION_WILDS;
 
             REMOVE_BIT(area->area_flags, AREA_CHANGED);
             save_area_new(area);

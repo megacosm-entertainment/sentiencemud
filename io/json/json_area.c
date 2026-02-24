@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <limits.h>
@@ -32,6 +33,40 @@ static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, ARE
 static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2, AREA_DATA *area);
 static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DATA *area);
 static bool json_script_array_has_vnum(json_t *scripts, long vnum);
+
+static bool json_try_parse_explicit_widevnum(const char *raw, WNUM_LOAD *out)
+{
+    char buf[MSL];
+    char *start;
+    char *end;
+
+    if (!raw || !out)
+        return false;
+
+    strncpy(buf, raw, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    start = buf;
+    while (*start && isspace((unsigned char)*start))
+        ++start;
+
+    if (!*start)
+        return false;
+
+    end = start + strlen(start) - 1;
+    while (end >= start && isspace((unsigned char)*end)) {
+        *end = '\0';
+        --end;
+    }
+
+    if (!strchr(start, '#'))
+        return false;
+
+    if (!parse_widevnum_load(start, out))
+        return false;
+
+    return (out->auid > 0 && out->vnum > 0);
+}
 
 static void json_set_room_ref_from_vnum(json_t *obj, const char *key,
                                         AREA_DATA *context_area,
@@ -5746,10 +5781,9 @@ static LLIST **json_area_deserialize_progs_flat(json_t *json, AREA_DATA *area, i
         trigger->vnum = vnum;
         trigger->trig_type = tindex;
         trigger->trig_phrase = str_dup(phrase);
-        if (is_widevnum_format(phrase)) {
+        if (json_try_parse_explicit_widevnum(phrase, &trigger->trig_load)) {
             trigger->numeric = true;
             trigger->trig_is_widevnum = true;
-            parse_widevnum_load(phrase, &trigger->trig_load);
             trigger->trig_number = (int)trigger->trig_load.vnum;
         } else {
             trigger->numeric = json_get_bool_default(prog_json, "numeric", false);
@@ -5783,12 +5817,13 @@ static LLIST **json_area_deserialize_progs_grouped(json_t *json, AREA_DATA *area
         
         if (json_is_string(vnum_json)) {
             const char *vnum_str = json_string_value(vnum_json);
-            if (is_widevnum_format(vnum_str)) {
-                parse_widevnum_load(vnum_str, &script_load);
+            if (json_try_parse_explicit_widevnum(vnum_str, &script_load)) {
                 bare_vnum = script_load.vnum;
                 has_widevnum = true;
-            } else {
+            } else if (is_number(vnum_str)) {
                 bare_vnum = atol(vnum_str);
+            } else {
+                continue;
             }
         } else {
             bare_vnum = json_integer_value(vnum_json);
@@ -5823,10 +5858,9 @@ static LLIST **json_area_deserialize_progs_grouped(json_t *json, AREA_DATA *area
             trigger->script_load = script_load;
             trigger->trig_type = tindex;
             trigger->trig_phrase = str_dup(phrase);
-            if (is_widevnum_format(phrase)) {
+            if (json_try_parse_explicit_widevnum(phrase, &trigger->trig_load)) {
                 trigger->numeric = true;
                 trigger->trig_is_widevnum = true;
-                parse_widevnum_load(phrase, &trigger->trig_load);
                 trigger->trig_number = (int)trigger->trig_load.vnum;
             } else {
                 trigger->numeric = is_number((char *)phrase);

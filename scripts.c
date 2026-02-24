@@ -5900,7 +5900,18 @@ bool has_trigger(LLIST **bank, int trigger)
 
 //	DBG3MSG3("trigger = %d, name = '%s', slot = %d\n",trigger, trigger_table[trigger].name,trigger_slots[trigger]);
 
-    slot = trigger_table[trigger].slot;
+    int trigger_tindex = -1;
+    for (int i = 0; i < trigger_table_size; i++) {
+        if (trigger_table[i].type == trigger) {
+            trigger_tindex = i;
+            break;
+        }
+    }
+
+    if (trigger_tindex < 0)
+        return false;
+
+    slot = trigger_table[trigger_tindex].slot;
 
     if(bank) {
         iterator_start(&it, bank[slot]);
@@ -6095,8 +6106,12 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 
 char *trigger_name(int type)
 {
-    if(type >= 0 && type < trigger_table_size && trigger_table[type].name)
-        return trigger_table[type].name;
+    int tindex;
+
+    for (tindex = 0; tindex < trigger_table_size; tindex++) {
+        if (trigger_table[tindex].type == type && trigger_table[tindex].name)
+            return trigger_table[tindex].name;
+    }
 
     return "INVALID";
 }
@@ -6104,7 +6119,14 @@ char *trigger_name(int type)
 char *trigger_phrase(int type, char *phrase)
 {
     int sn;
-    if(type >= 0 && type < trigger_table_size && trigger_table[type].name) {
+    int tindex;
+
+    for (tindex = 0; tindex < trigger_table_size; tindex++) {
+        if (trigger_table[tindex].type == type && trigger_table[tindex].name)
+            break;
+    }
+
+    if (tindex < trigger_table_size) {
         if(type == TRIG_SPELLCAST) {
             sn = atoi(phrase);
             if(sn < 0) return "reserved";
@@ -6118,7 +6140,14 @@ char *trigger_phrase(int type, char *phrase)
 char *trigger_phrase_olcshow(int type, char *phrase, bool is_rprog, bool is_tprog)
 {
     int sn;
-    if(type >= 0 && type < trigger_table_size && trigger_table[type].name) {
+    int tindex;
+
+    for (tindex = 0; tindex < trigger_table_size; tindex++) {
+        if (trigger_table[tindex].type == type && trigger_table[tindex].name)
+            break;
+    }
+
+    if (tindex < trigger_table_size) {
         if(type == TRIG_SPELLCAST) {
             sn = atoi(phrase);
             if(sn < 0) return "reserved";
@@ -6305,7 +6334,20 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
         PRETURN;
     }
 
-    slot = trigger_table[type].slot;
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == type) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_string_trigger: unknown trigger type %d.", type);
+            PRETURN;
+        }
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
 
     if (mob) {
@@ -6719,7 +6761,20 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
         PRETURN;
     }
 
-    slot = trigger_table[type].slot;
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == type) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_number_trigger: unknown trigger type %d.", type);
+            PRETURN;
+        }
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
 
     if (mob) {
@@ -7249,14 +7304,34 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
         PRETURN;
     }
 
-    // They must be in the same slot
-    if( trigger_table[type].slot != trigger_table[typeall].slot )
     {
-        pbugf(LOG_SCRIPTS, "test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
-        PRETURN;
-    }
+        int type_tindex = -1;
+        int typeall_tindex = -1;
+        int i;
 
-    slot = trigger_table[typeall].slot;
+        for (i = 0; i < trigger_table_size; i++) {
+            if (type_tindex < 0 && trigger_table[i].type == type)
+                type_tindex = i;
+            if (typeall_tindex < 0 && trigger_table[i].type == typeall)
+                typeall_tindex = i;
+            if (type_tindex >= 0 && typeall_tindex >= 0)
+                break;
+        }
+
+        if (type_tindex < 0 || typeall_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_number_sight_trigger: unknown trigger type(s) %d/%d.", type, typeall);
+            PRETURN;
+        }
+
+        // They must be in the same slot
+        if( trigger_table[type_tindex].slot != trigger_table[typeall_tindex].slot )
+        {
+            pbugf(LOG_SCRIPTS, "test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
+            PRETURN;
+        }
+
+        slot = trigger_table[typeall_tindex].slot;
+    }
 
     if (mob) {
         script_mobile_addref(mob);
@@ -7811,7 +7886,20 @@ int test_vnumname_trigger(char *name, int vnum, AREA_DATA *entity_area, int type
         PRETURN;
     }
 
-    slot = trigger_table[type].slot;
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == type) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_vnumname_trigger: unknown trigger type %d.", type);
+            PRETURN;
+        }
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
 
     if (mob) {
@@ -8302,7 +8390,18 @@ int script_login(CHAR_DATA *ch) // @@@NIB
     }
 
     // Run the TRIG_LOGIN
-    slot = trigger_table[TRIG_LOGIN].slot;
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == TRIG_LOGIN) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0)
+            return PRET_NOSCRIPT;
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
     // Save the UID
     uid[0] = ch->id[0];
