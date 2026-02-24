@@ -19,6 +19,7 @@
 #include "db.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "wilderness_storage.h"
 #include "io/json/json_area.h"
 #include "io/json/json_obj_types.h"
 
@@ -130,6 +131,8 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
             REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
         }
 
+        wilderness_storage_save_all_now();
+
         send_to_char("You saved the world.\n\r", ch);
         return;
     }
@@ -215,6 +218,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
                     sprintf(log_buf,"olc_save.c, do_asave: changed, saving %s", pArea->name);
                         log_string(log_buf);
                     save_area_new(pArea);
+                    wilderness_storage_save_area_now(pArea);
                 }
 
                 sprintf(buf, "%24s - '%s'\n\r", pArea->name, pArea->file_name);
@@ -239,6 +243,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 
         save_area_list();
         save_area_new(ch->in_room->area);
+        wilderness_storage_save_area_now(ch->in_room->area);
         act("Saved $t.", ch, NULL, NULL, NULL, NULL, ch->in_room->area->name, NULL, TO_CHAR, NULL, NULL);
         return;
     }
@@ -1743,6 +1748,12 @@ AREA_DATA *read_area_new(FILE *fp)
     if( area->version_area < VERSION_AREA_003 )
     {
         // Handled after all areas are loaded, since there can be cross area handling
+    }
+
+    if (area->version_wilds < VERSION_WILDS_001)
+    {
+        int loaded_wilds_version = area->version_wilds;
+        migrate_area_wilds_version(area, loaded_wilds_version);
     }
 
     if (!area->wilds_uid && area->airship_land_load.vnum > 0)

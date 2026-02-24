@@ -4,7 +4,9 @@
 #include "../../scripts.h"
 #include "../../recycle.h"
 #include "../../class_data.h"
+#include "../../wilds.h"
 #include "../framework/test_framework.h"
+#include "../framework/test_utils.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -68,6 +70,7 @@ static test_result_t test_script_number_trigger_guard_and_wildcard(test_case_t *
 static test_result_t test_script_number_sight_slot_guard(test_case_t *test);
 static test_result_t test_script_direction_trigger_exec(test_case_t *test);
 static test_result_t test_script_greet_trigger_exec(test_case_t *test);
+static test_result_t test_script_mpgoto_wilds_fallback_guard(test_case_t *test);
 static test_result_t test_script_varset_classlevel_mobile_class(test_case_t *test);
 static void log_entity_table_validation_diagnostics(void);
 
@@ -392,6 +395,9 @@ test_result_t run_script_engine_test_case(test_case_t *test)
 
     if (strcmp(test->test_type, "script_engine_greet_trigger_exec_test") == 0)
         return test_script_greet_trigger_exec(test);
+
+    if (strcmp(test->test_type, "script_engine_mpgoto_wilds_fallback_guard_test") == 0)
+        return test_script_mpgoto_wilds_fallback_guard(test);
 
     if (strcmp(test->test_type, "script_engine_varset_classlevel_mobile_class_test") == 0)
         return test_script_varset_classlevel_mobile_class(test);
@@ -3619,6 +3625,72 @@ static test_result_t test_script_greet_trigger_exec(test_case_t *test)
     free_prog_data(mob.progs);
     list_destroy(room.lpeople);
     free_script_code(script.code, script.lines);
+    return TEST_SUCCESS;
+}
+
+static test_result_t test_script_mpgoto_wilds_fallback_guard(test_case_t *test)
+{
+    CHAR_DATA *ch = NULL;
+    DESCRIPTOR_DATA *desc = NULL;
+    ROOM_INDEX_DATA *room_default;
+    WILDS_DATA wilds;
+    int invalid_x;
+    int invalid_y;
+
+    (void)test;
+
+    memset(&wilds, 0, sizeof(wilds));
+    wilds.uid = 999999;
+    wilds.map_size_x = 4;
+    wilds.map_size_y = 4;
+    wilds.loaded_vrooms = list_create(false);
+    if (!wilds.loaded_vrooms)
+        return TEST_ERROR;
+
+    room_default = get_reserved_room_index("room_default");
+    if (!room_default) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "script_engine_mpgoto_wilds_fallback_guard: room_default is unavailable");
+        list_destroy(wilds.loaded_vrooms);
+        return TEST_ERROR;
+    }
+
+    if (!test_utils_create_fake_player(&ch, &desc)) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "script_engine_mpgoto_wilds_fallback_guard: failed to create fake player");
+        list_destroy(wilds.loaded_vrooms);
+        return TEST_ERROR;
+    }
+
+    invalid_x = wilds.map_size_x + 5;
+    invalid_y = wilds.map_size_y + 5;
+    char_to_vroom(ch, &wilds, invalid_x, invalid_y);
+
+    if (ch->in_room != room_default) {
+        if (ch->in_room)
+            char_from_room(ch);
+        test_utils_destroy_fake_player(ch, desc);
+        list_destroy(wilds.loaded_vrooms);
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "script_engine_mpgoto_wilds_fallback_guard: expected fallback to room_default for (%d,%d)",
+                     invalid_x, invalid_y);
+        return TEST_FAILURE;
+    }
+
+    if (ch->in_wilds != NULL) {
+        if (ch->in_room)
+            char_from_room(ch);
+        test_utils_destroy_fake_player(ch, desc);
+        list_destroy(wilds.loaded_vrooms);
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "script_engine_mpgoto_wilds_fallback_guard: expected in_wilds to be cleared on fallback");
+        return TEST_FAILURE;
+    }
+
+    if (ch->in_room)
+        char_from_room(ch);
+    test_utils_destroy_fake_player(ch, desc);
+    list_destroy(wilds.loaded_vrooms);
     return TEST_SUCCESS;
 }
 

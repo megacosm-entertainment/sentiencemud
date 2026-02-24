@@ -26,7 +26,7 @@
       "y_land": 0
     },
     "recall": {},
-    "wilds_uid": 0,
+    "wilds_uid": 1,
     "repop": 100,
     "post_office": 0,
     "airship_land": 0,
@@ -41,6 +41,39 @@
       "token": 16777216,
       "script": 33554432,
       "wilds": 16777216
+    },
+    "wilderness": {
+      "uid": 1,
+      "name": "Bootstrap Test Wilds",
+      "wilds_format": 0,
+      "map_size_x": 8,
+      "map_size_y": 8,
+      "startx": 0,
+      "starty": 0,
+      "sector_size_x": 0,
+      "sector_size_y": 0,
+      "cDefaultTerrain": 83,
+      "wildgen_grid_rows": 1,
+      "wildgen_grid_cols": 1,
+      "wildgen_tile_width": 8,
+      "wildgen_tile_height": 8,
+      "wildgen_terrain_base": "",
+      "wildgen_elevation_base": "",
+      "wilderness_storage_mode": "external_v1",
+      "legacy_embedded_map": false,
+      "legacy_embedded_terrains": false,
+      "legacy_embedded_vlinks": false,
+      "storage": {
+        "provider": "wilderness_storage_v1",
+        "wilds_uid": 1,
+        "artifact_dir": "data/world/wilderness_state/1_bootstrap_test_wilds",
+        "wmap": "wilderness.wmap",
+        "wterr": "wilderness.wterr.json",
+        "mods": "wilderness_mods.json",
+        "state": "wilderness_state.json",
+        "vlinks": "wilderness_vlinks.json",
+        "images_dir": "images"
+      }
     }
   },
   "rooms": [

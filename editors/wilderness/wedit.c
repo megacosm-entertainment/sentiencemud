@@ -43,6 +43,22 @@ static AREA_DATA *wedit_get_area(void *pEdit)
     return pEdit ? ((WILDS_DATA *)pEdit)->pArea : NULL;
 }
 
+static bool wedit_parse_rgb_hex(const char *value, unsigned char *r, unsigned char *g, unsigned char *b)
+{
+    unsigned int tr, tg, tb;
+
+    if (IS_NULLSTR(value) || value[0] != '#' || strlen(value) != 7)
+        return false;
+
+    if (sscanf(value + 1, "%02x%02x%02x", &tr, &tg, &tb) != 3)
+        return false;
+
+    *r = (unsigned char)tr;
+    *g = (unsigned char)tg;
+    *b = (unsigned char)tb;
+    return true;
+}
+
 /***************************************************************************
  * Wilderness Editor Command Table (moved from olc.c)                      *
  ***************************************************************************/
@@ -53,10 +69,12 @@ const struct olc_cmd_type wedit_table[] = {
     {   "create",       wedit_create    },
     {   "delete",       wedit_delete    },
     {   "name",         wedit_name      },
+    {   "overlay",      wedit_overlay   },
     {   "placetype",    wedit_placetype },
     {   "region",       wedit_region    },
     {   "show",         wedit_show      },
     {   "terrain",      wedit_terrain   },
+    {   "wildgen",      wedit_wildgen   },
     {   "vlink",        wedit_vlink     },
     {   NULL,           0               }
 };
@@ -334,7 +352,10 @@ static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 {
     WILDS_DATA *pWilds = (WILDS_DATA *)pEdit;
     WILDS_TERRAIN *pTerrain;
+    WILDS_CHUNK *chunk;
     const OLC_EDITOR_THEME *theme = &olc_theme_world;
+    int runtime_chunk_count = 0;
+    int runtime_overlay_records = 0;
 
     olc_display_section(ctx, theme, "Properties");
     olc_display_string(ctx, theme, "Name:", "name", pWilds->name);
@@ -369,6 +390,29 @@ static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     olc_display_section(ctx, theme, "Current State");
     olc_display_number(ctx, theme, "Players:", NULL, pWilds->nplayer);
     olc_display_number(ctx, theme, "Age:", NULL, pWilds->age);
+
+    wilds_cleanup_expired_temporary_zones(pWilds);
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+    {
+        WILDS_OVERLAY *overlay;
+        runtime_chunk_count++;
+        for (overlay = chunk->overlays; overlay; overlay = overlay->next)
+            runtime_overlay_records++;
+    }
+
+    olc_display_section(ctx, theme, "Runtime Overlay");
+    olc_display_number(ctx, theme, "Chunks:", NULL, runtime_chunk_count);
+    olc_display_number(ctx, theme, "Overlay records:", NULL, runtime_overlay_records);
+
+    olc_display_section(ctx, theme, "Wildgen Definition");
+    olc_display_string(ctx, theme, "Terrain base:", NULL,
+        IS_NULLSTR(pWilds->wildgen_terrain_base) ? "(unset)" : pWilds->wildgen_terrain_base);
+    olc_display_string(ctx, theme, "Elevation base:", NULL,
+        IS_NULLSTR(pWilds->wildgen_elevation_base) ? "(unset)" : pWilds->wildgen_elevation_base);
+    olc_display_infof(ctx, theme, "Grid:", "%d x %d",
+        UMAX(1, pWilds->wildgen_grid_rows), UMAX(1, pWilds->wildgen_grid_cols));
+    olc_display_infof(ctx, theme, "Grid tile size:", "%d x %d (0x0=auto)",
+        UMAX(0, pWilds->wildgen_tile_width), UMAX(0, pWilds->wildgen_tile_height));
 }
 
 /**
@@ -751,6 +795,336 @@ WEDIT (wedit_placetype)
     return false;
 }
 
+WEDIT (wedit_overlay)
+{
+    WILDS_DATA *pWilds;
+    WILDS_CHUNK *chunk;
+    WILDS_OVERLAY *overlay;
+    char arg[MIL], arg2[MIL], arg3[MIL], arg4[MIL], arg5[MIL], arg6[MIL], arg7[MIL], arg8[MIL];
+
+    EDIT_WILDS(ch, pWilds);
+
+    argument = one_argument(argument, arg);
+
+    if (IS_NULLSTR(arg))
+    {
+        send_to_char("Syntax: overlay list\n\r", ch);
+        send_to_char("        overlay add <x1> <y1> <x2> <y2> <terrain_token> [duration_sec] [region]\n\r", ch);
+        send_to_char("        overlay addregion <region> <terrain_token> [duration_sec]\n\r", ch);
+        send_to_char("        overlay set <x> <y> <terrain_token>\n\r", ch);
+        send_to_char("        overlay clear <zone_id>\n\r", ch);
+        send_to_char("        overlay clearregion <region>\n\r", ch);
+        send_to_char("        overlay cleanup\n\r", ch);
+        send_to_char("        overlay tile <x> <y>\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(arg, "cleanup"))
+    {
+        int removed = wilds_cleanup_expired_temporary_zones(pWilds);
+        printf_to_char(ch, "Overlay cleanup removed %d expired record(s).\n\r", removed);
+        return true;
+    }
+
+    if (!str_prefix(arg, "list"))
+    {
+        BUFFER *out = new_buf();
+        int count = 0;
+
+        wilds_cleanup_expired_temporary_zones(pWilds);
+        add_buf(out, "[WEdit Overlay] Chunked runtime overlay records:\n\r");
+        add_buf(out, "chunk   zone_id  bounds (x1,y1)-(x2,y2)  tile  region                expires\n\r");
+        add_buf(out, "--------------------------------------------------------------------------------\n\r");
+
+        for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+        {
+            for (overlay = chunk->overlays; overlay; overlay = overlay->next)
+            {
+                char line[MSL];
+                char expires[64];
+
+                if (overlay->expires_at > 0)
+                    sprintf(expires, "%ld", (long)(overlay->expires_at - current_time));
+                else
+                    sprintf(expires, "permanent");
+
+                sprintf(line,
+                    "(%2d,%2d)  %-7ld  (%4d,%4d)-(%4d,%4d)   '%c'   %-20s %s\n\r",
+                    chunk->cx,
+                    chunk->cy,
+                    overlay->zone_id,
+                    overlay->x1,
+                    overlay->y1,
+                    overlay->x2,
+                    overlay->y2,
+                    overlay->tile,
+                    flag_string(wilderness_regions, overlay->region),
+                    expires);
+                add_buf(out, line);
+                count++;
+            }
+        }
+
+        if (count == 0)
+            add_buf(out, "(none)\n\r");
+
+        page_to_char(buf_string(out), ch);
+        free_buf(out);
+        return false;
+    }
+
+    if (!str_prefix(arg, "add"))
+    {
+        int x1, y1, x2, y2;
+        int duration = 0;
+        int region = REGION_UNKNOWN;
+        WILDS_TERRAIN *terrain;
+        long zone_id;
+
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+        argument = one_argument(argument, arg4);
+        argument = one_argument(argument, arg5);
+        argument = one_argument(argument, arg6);
+        argument = one_argument(argument, arg7);
+        argument = one_argument(argument, arg8);
+
+        if (!is_number(arg2) || !is_number(arg3) || !is_number(arg4) || !is_number(arg5) || IS_NULLSTR(arg6))
+        {
+            send_to_char("Syntax: overlay add <x1> <y1> <x2> <y2> <terrain_token> [duration_sec] [region]\n\r", ch);
+            return false;
+        }
+
+        x1 = atoi(arg2);
+        y1 = atoi(arg3);
+        x2 = atoi(arg4);
+        y2 = atoi(arg5);
+
+        terrain = get_terrain_by_token(pWilds, arg6[0]);
+        if (!terrain)
+        {
+            send_to_char("Invalid terrain token for this wilderness.\n\r", ch);
+            return false;
+        }
+
+        if (!IS_NULLSTR(arg7))
+        {
+            if (!is_number(arg7))
+            {
+                send_to_char("Duration must be a number of seconds.\n\r", ch);
+                return false;
+            }
+            duration = atoi(arg7);
+            if (duration < 0)
+                duration = 0;
+        }
+
+        if (!IS_NULLSTR(arg8))
+        {
+            region = flag_value(wilderness_regions, arg8);
+            if (region == NO_FLAG)
+            {
+                send_to_char("Invalid region. Type '? wilderness_regions'.\n\r", ch);
+                return false;
+            }
+        }
+
+        zone_id = wilds_add_temporary_zone(pWilds, x1, y1, x2, y2, terrain->mapchar, region, duration);
+        if (zone_id < 1)
+        {
+            send_to_char("Failed to add overlay zone (bounds outside map?).\n\r", ch);
+            return false;
+        }
+
+        printf_to_char(ch, "Overlay zone created with zone id %ld.\n\r", zone_id);
+        return true;
+    }
+
+    if (!str_prefix(arg, "addregion"))
+    {
+        WILDS_REGION *region_rec;
+        WILDS_TERRAIN *terrain;
+        int region;
+        int duration = 0;
+        int created = 0;
+
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+        argument = one_argument(argument, arg4);
+
+        if (IS_NULLSTR(arg2) || IS_NULLSTR(arg3))
+        {
+            send_to_char("Syntax: overlay addregion <region> <terrain_token> [duration_sec]\n\r", ch);
+            return false;
+        }
+
+        region = flag_value(wilderness_regions, arg2);
+        if (region == NO_FLAG)
+        {
+            send_to_char("Invalid region. Type '? wilderness_regions'.\n\r", ch);
+            return false;
+        }
+
+        terrain = get_terrain_by_token(pWilds, arg3[0]);
+        if (!terrain)
+        {
+            send_to_char("Invalid terrain token for this wilderness.\n\r", ch);
+            return false;
+        }
+
+        if (!IS_NULLSTR(arg4))
+        {
+            if (!is_number(arg4))
+            {
+                send_to_char("Duration must be a number of seconds.\n\r", ch);
+                return false;
+            }
+            duration = atoi(arg4);
+            if (duration < 0)
+                duration = 0;
+        }
+
+        for (region_rec = pWilds->pRegion; region_rec; region_rec = region_rec->next)
+        {
+            if (region_rec->region != region)
+                continue;
+
+            if (wilds_add_temporary_zone(
+                    pWilds,
+                    region_rec->startx,
+                    region_rec->starty,
+                    region_rec->endx,
+                    region_rec->endy,
+                    terrain->mapchar,
+                    region,
+                    duration) > 0)
+            {
+                created++;
+            }
+        }
+
+        printf_to_char(ch, "Added %d region overlay zone(s) for %s.\n\r", created, flag_string(wilderness_regions, region));
+        return created > 0;
+    }
+
+    if (!str_prefix(arg, "set"))
+    {
+        int x, y;
+        WILDS_TERRAIN *terrain;
+
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+        argument = one_argument(argument, arg4);
+
+        if (!is_number(arg2) || !is_number(arg3) || IS_NULLSTR(arg4))
+        {
+            send_to_char("Syntax: overlay set <x> <y> <terrain_token>\n\r", ch);
+            return false;
+        }
+
+        x = atoi(arg2);
+        y = atoi(arg3);
+        terrain = get_terrain_by_token(pWilds, arg4[0]);
+        if (!terrain)
+        {
+            send_to_char("Invalid terrain token for this wilderness.\n\r", ch);
+            return false;
+        }
+
+        if (!set_wilds_runtime_tile(pWilds, x, y, terrain->mapchar))
+        {
+            send_to_char("Failed to set runtime tile at those coordinates.\n\r", ch);
+            return false;
+        }
+
+        send_to_char("Runtime tile updated.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg, "clearregion"))
+    {
+        int region;
+        int removed;
+
+        argument = one_argument(argument, arg2);
+        if (IS_NULLSTR(arg2))
+        {
+            send_to_char("Syntax: overlay clearregion <region>\n\r", ch);
+            return false;
+        }
+
+        region = flag_value(wilderness_regions, arg2);
+        if (region == NO_FLAG)
+        {
+            send_to_char("Invalid region. Type '? wilderness_regions'.\n\r", ch);
+            return false;
+        }
+
+        removed = wilds_remove_region_temporary_zones(pWilds, region);
+        printf_to_char(ch, "Removed %d overlay record(s) for region %s.\n\r", removed, flag_string(wilderness_regions, region));
+        return removed > 0;
+    }
+
+    if (!str_prefix(arg, "clear"))
+    {
+        long zone_id;
+        int removed;
+
+        argument = one_argument(argument, arg2);
+        if (!is_number(arg2))
+        {
+            send_to_char("Syntax: overlay clear <zone_id>\n\r", ch);
+            return false;
+        }
+
+        zone_id = atol(arg2);
+        removed = wilds_remove_temporary_zone(pWilds, zone_id);
+        printf_to_char(ch, "Removed %d overlay record(s) with zone id %ld.\n\r", removed, zone_id);
+        return removed > 0;
+    }
+
+    if (!str_prefix(arg, "tile"))
+    {
+        int x, y;
+        char base_tile;
+        char effective_tile;
+        int region;
+
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+
+        if (!is_number(arg2) || !is_number(arg3))
+        {
+            send_to_char("Syntax: overlay tile <x> <y>\n\r", ch);
+            return false;
+        }
+
+        x = atoi(arg2);
+        y = atoi(arg3);
+        base_tile = get_wilds_base_tile(pWilds, x, y);
+        effective_tile = get_wilds_effective_tile(pWilds, x, y);
+        region = get_wilds_effective_region(pWilds, x, y);
+
+        if (base_tile == '\0')
+        {
+            send_to_char("Coordinates are outside this wilderness map.\n\r", ch);
+            return false;
+        }
+
+        printf_to_char(ch,
+            "Tile (%d,%d): base='%c' effective='%c' region=%s\n\r",
+            x,
+            y,
+            base_tile,
+            effective_tile,
+            flag_string(wilderness_regions, region));
+        return false;
+    }
+
+    send_to_char("Unknown overlay command. Type 'overlay' for syntax.\n\r", ch);
+    return false;
+}
+
 WEDIT ( wedit_terrain )
 {
     WILDS_DATA *pWilds;
@@ -769,6 +1143,7 @@ WEDIT ( wedit_terrain )
                       "         terrain <token> ansi <string>\n\r"
                       "         terrain <token> showname <string>\n\r"
                       "         terrain <token> briefdesc <string>\n\r"
+                      "         terrain <token> wildcolor <#RRGGBB|clear>\n\r"
                       "         terrain <token> room_flag <flag>\n\r"
                       "         terrain <token> room2flag <flag>\n\r"
                       "         terrain <token> sector <sector>\n\r"
@@ -786,15 +1161,18 @@ WEDIT ( wedit_terrain )
 
         output = new_buf();
         add_buf(output, "[{WWedit{x] Full Terrain List:\n\r\n\r");
-        add_buf(output, "Token  Ansi  Showname        Sector          Nonroom?  Flags\n\r");
+        add_buf(output, "Token  Ansi  Showname        Sector          Nonroom?  WildColor  Flags\n\r");
 
         for(pTerrain=pWilds->pTerrain;pTerrain;pTerrain=pTerrain->next)
         {
-            sprintf(buf, " '{W%c{x'   '%s{x'   {W%-15s{x  {W%-15s{x  {W%s%s{x\n\r",
+            sprintf(buf, " '{W%c{x'   '%s{x'   {W%-15s{x  {W%-15s{x  {W%s{x  %-9s  {W%s{x\n\r",
                      pTerrain->mapchar, pTerrain->showchar,
                      pTerrain->showname ? pTerrain->showname : "(Not Set)",
                      sector_name(room_sector_type(pTerrain->template)),
-                     pTerrain->nonroom ? "  Yes    " : "  No     ",
+                     pTerrain->nonroom ? "Yes" : "No",
+                     pTerrain->wildgen_has_color ?
+                        formatf("#%02X%02X%02X", pTerrain->wildgen_r, pTerrain->wildgen_g, pTerrain->wildgen_b) :
+                        "(none)",
                      bitmatrix_string(room_flagbank, pTerrain->template->room_flag));
                      //flag_string(room2_flags, pTerrain->template->room_flag[1]));
             add_buf(output, buf);
@@ -928,6 +1306,46 @@ WEDIT ( wedit_terrain )
         return true;
     }
 
+    if (!str_cmp(arg2, "wildcolor"))
+    {
+        unsigned char r, g, b;
+
+        if (pTerrain == NULL)
+        {
+            send_to_char ("[Wedit] That token does not exist.\n\r", ch);
+            return false;
+        }
+
+        if (argument[0] == '\0')
+        {
+            send_to_char ("Syntax: terrain <token> wildcolor <#RRGGBB|clear>\n\r", ch);
+            return false;
+        }
+
+        if (!str_cmp(argument, "clear"))
+        {
+            pTerrain->wildgen_has_color = false;
+            pTerrain->wildgen_r = 0;
+            pTerrain->wildgen_g = 0;
+            pTerrain->wildgen_b = 0;
+            send_to_char("[Wedit] Terrain wildgen color cleared.\n\r", ch);
+            return true;
+        }
+
+        if (!wedit_parse_rgb_hex(argument, &r, &g, &b))
+        {
+            send_to_char("Syntax: terrain <token> wildcolor <#RRGGBB|clear>\n\r", ch);
+            return false;
+        }
+
+        pTerrain->wildgen_has_color = true;
+        pTerrain->wildgen_r = r;
+        pTerrain->wildgen_g = g;
+        pTerrain->wildgen_b = b;
+        send_to_char("[Wedit] Terrain wildgen color set.\n\r", ch);
+        return true;
+    }
+
     if (!str_cmp(arg2, "room_flag"))
     {
     long room_flag[2];
@@ -989,6 +1407,195 @@ WEDIT ( wedit_terrain )
         return true;
     }
 
+    return false;
+}
+
+WEDIT (wedit_wildgen)
+{
+    WILDS_DATA *pWilds;
+    char arg[MIL];
+    char arg2[MIL];
+    char arg3[MIL];
+    char arg4[MIL];
+    char arg5[MIL];
+    char status_buf[MSL];
+    char err_buf[MSL];
+
+    EDIT_WILDS(ch, pWilds);
+
+    argument = one_argument(argument, arg);
+
+    if (IS_NULLSTR(arg))
+    {
+        send_to_char("Syntax: wildgen import [png_filename.png]\n\r", ch);
+        send_to_char("        wildgen importgrid <terrain_base> <rows> <cols> [elevation_base]\n\r", ch);
+        send_to_char("        wildgen config show\n\r", ch);
+        send_to_char("        wildgen config base <terrain_base|none> [elevation_base|none]\n\r", ch);
+        send_to_char("        wildgen config grid <rows> <cols>\n\r", ch);
+        send_to_char("        wildgen config tilesize <tile_width> <tile_height>\n\r", ch);
+        send_to_char("        (imports from data/world/wilderness_maps/<uid>/images/)\n\r", ch);
+        send_to_char("        (grid naming: base_row_col.png / base_row.png / base_col.png / base.png)\n\r", ch);
+        send_to_char("        wildgen status\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(arg, "status"))
+    {
+        wilds_wildgen_status(pWilds, status_buf, sizeof(status_buf));
+        printf_to_char(ch, "%s\n\r", status_buf);
+        return false;
+    }
+
+    if (!str_prefix(arg, "import"))
+    {
+        if (IS_NULLSTR(argument))
+        {
+            if (!IS_NULLSTR(pWilds->wildgen_terrain_base))
+            {
+                if (!wilds_wildgen_enqueue_grid(
+                        pWilds,
+                        pWilds->wildgen_terrain_base,
+                        UMAX(1, pWilds->wildgen_grid_rows),
+                        UMAX(1, pWilds->wildgen_grid_cols),
+                        IS_NULLSTR(pWilds->wildgen_elevation_base) ? NULL : pWilds->wildgen_elevation_base,
+                        err_buf,
+                        sizeof(err_buf)))
+                {
+                    printf_to_char(ch, "Wildgen import failed: %s\n\r", err_buf[0] ? err_buf : "unknown error");
+                    return false;
+                }
+
+                send_to_char("Wildgen import queued using wilderness definition. Use 'wildgen status'.\n\r", ch);
+                return true;
+            }
+
+            send_to_char("Syntax: wildgen import [png_filename.png]\n\r", ch);
+            send_to_char("Tip: set 'wildgen config base ...' to enable definition-based auto import.\n\r", ch);
+            return false;
+        }
+
+        if (!wilds_wildgen_enqueue(pWilds, argument, err_buf, sizeof(err_buf)))
+        {
+            printf_to_char(ch, "Wildgen import failed: %s\n\r", err_buf[0] ? err_buf : "unknown error");
+            return false;
+        }
+
+        send_to_char("Wildgen import queued on worker thread. Use 'wildgen status' to monitor progress.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg, "importgrid"))
+    {
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+        argument = one_argument(argument, arg4);
+        argument = one_argument(argument, arg5);
+
+        if (IS_NULLSTR(arg2) || !is_number(arg3) || !is_number(arg4))
+        {
+            send_to_char("Syntax: wildgen importgrid <terrain_base> <rows> <cols> [elevation_base]\n\r", ch);
+            return false;
+        }
+
+        if (!wilds_wildgen_enqueue_grid(pWilds, arg2, atoi(arg3), atoi(arg4), IS_NULLSTR(arg5) ? NULL : arg5, err_buf, sizeof(err_buf)))
+        {
+            printf_to_char(ch, "Wildgen grid import failed: %s\n\r", err_buf[0] ? err_buf : "unknown error");
+            return false;
+        }
+
+        send_to_char("Wildgen grid import queued on worker thread. Use 'wildgen status' to monitor progress.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg, "config"))
+    {
+        argument = one_argument(argument, arg2);
+
+        if (IS_NULLSTR(arg2) || !str_prefix(arg2, "show"))
+        {
+            printf_to_char(ch, "Wildgen config:\n\r");
+            printf_to_char(ch, "  terrain base: %s\n\r", IS_NULLSTR(pWilds->wildgen_terrain_base) ? "(unset)" : pWilds->wildgen_terrain_base);
+            printf_to_char(ch, "  elevation base: %s\n\r", IS_NULLSTR(pWilds->wildgen_elevation_base) ? "(unset)" : pWilds->wildgen_elevation_base);
+            printf_to_char(ch, "  grid: %d x %d\n\r", UMAX(1, pWilds->wildgen_grid_rows), UMAX(1, pWilds->wildgen_grid_cols));
+            printf_to_char(ch, "  grid tile size: %d x %d (0x0 = auto from map/grid)\n\r",
+                UMAX(0, pWilds->wildgen_tile_width), UMAX(0, pWilds->wildgen_tile_height));
+            return false;
+        }
+
+        if (!str_prefix(arg2, "base"))
+        {
+            argument = one_argument(argument, arg3);
+            argument = one_argument(argument, arg4);
+
+            if (IS_NULLSTR(arg3))
+            {
+                send_to_char("Syntax: wildgen config base <terrain_base|none> [elevation_base|none]\n\r", ch);
+                return false;
+            }
+
+            free_string(pWilds->wildgen_terrain_base);
+            if (!str_cmp(arg3, "none"))
+                pWilds->wildgen_terrain_base = str_dup("");
+            else
+                pWilds->wildgen_terrain_base = str_dup(arg3);
+
+            if (!IS_NULLSTR(arg4))
+            {
+                free_string(pWilds->wildgen_elevation_base);
+                if (!str_cmp(arg4, "none"))
+                    pWilds->wildgen_elevation_base = str_dup("");
+                else
+                    pWilds->wildgen_elevation_base = str_dup(arg4);
+            }
+
+            send_to_char("Wildgen base configuration updated.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(arg2, "grid"))
+        {
+            argument = one_argument(argument, arg3);
+            argument = one_argument(argument, arg4);
+            if (!is_number(arg3) || !is_number(arg4) || atoi(arg3) < 1 || atoi(arg4) < 1)
+            {
+                send_to_char("Syntax: wildgen config grid <rows> <cols>\n\r", ch);
+                return false;
+            }
+
+            pWilds->wildgen_grid_rows = atoi(arg3);
+            pWilds->wildgen_grid_cols = atoi(arg4);
+            send_to_char("Wildgen grid configuration updated.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(arg2, "tilesize"))
+        {
+            argument = one_argument(argument, arg3);
+            argument = one_argument(argument, arg4);
+            if (!is_number(arg3) || !is_number(arg4) || atoi(arg3) < 0 || atoi(arg4) < 0)
+            {
+                send_to_char("Syntax: wildgen config tilesize <tile_width> <tile_height>\n\r", ch);
+                send_to_char("Use 0 0 to auto-compute from map size and grid rows/cols.\n\r", ch);
+                return false;
+            }
+
+            pWilds->wildgen_tile_width = atoi(arg3);
+            pWilds->wildgen_tile_height = atoi(arg4);
+            send_to_char("Wildgen tile-size configuration updated.\n\r", ch);
+            return true;
+        }
+
+        send_to_char("Syntax: wildgen config show\n\r", ch);
+        send_to_char("        wildgen config base <terrain_base|none> [elevation_base|none]\n\r", ch);
+        send_to_char("        wildgen config grid <rows> <cols>\n\r", ch);
+        send_to_char("        wildgen config tilesize <tile_width> <tile_height>\n\r", ch);
+        return false;
+    }
+
+    send_to_char("Syntax: wildgen import [png_filename.png]\n\r", ch);
+    send_to_char("        wildgen importgrid <terrain_base> <rows> <cols> [elevation_base]\n\r", ch);
+    send_to_char("        wildgen config show\n\r", ch);
+    send_to_char("        wildgen status\n\r", ch);
     return false;
 }
 

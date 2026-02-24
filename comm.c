@@ -92,6 +92,7 @@
 #include "channel_service.h"
 #include "traits.h"
 #include "account/unlock.h"
+#include "wilderness_storage.h"
 
 /*
  * Socket and TCP/IP stuff.
@@ -926,6 +927,14 @@ int main(int argc, char **argv)
             log_message(LOG_LEVEL_WARN, LOG_WARN, "Async cache system failed to initialize");
         }
 
+        if (!wilds_wildgen_init()) {
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Wildgen worker failed to initialize");
+        }
+
+        if (!wilderness_storage_init()) {
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "Wilderness storage system failed to initialize");
+        }
+
         log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Sentience is up on port %d.", telnet_port);
     }
     
@@ -942,6 +951,12 @@ int main(int argc, char **argv)
     }
     
     game_loop(control_telnet, control_tls, control_websocket);
+
+    wilderness_storage_shutdown();
+
+    // Stop wilderness wildgen worker before tearing down world data lists.
+    wilds_wildgen_shutdown();
+
     groups_clear_all();
     list_destroy(conn_players);
     list_destroy(conn_immortals);

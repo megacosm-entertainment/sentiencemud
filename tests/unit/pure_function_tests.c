@@ -6,6 +6,7 @@
 #include "../../merc.h"
 #include "../../log.h"
 #include "../../tables.h"
+#include "../../wilds.h"
 
 bool string_argremove_index(char *src, int argindex, char *buf);
 bool string_argremove_phrase(char *src, char *phrase, char *buf);
@@ -2421,6 +2422,146 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
                              name, table_name, value, invalid);
                 return TEST_FAILURE;
             }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "wilds_resolver_consistency") == 0) {
+        size_t index;
+        json_t *test_case;
+
+        json_array_foreach(test_cases, index, test_case) {
+            int width = test_json_get_int(test_case, "width");
+            int height = test_json_get_int(test_case, "height");
+            int runtime_x = test_json_get_int(test_case, "runtime_x");
+            int runtime_y = test_json_get_int(test_case, "runtime_y");
+            const char *base_tile_str = test_json_get_string(test_case, "base_tile");
+            const char *runtime_tile_str = test_json_get_string(test_case, "runtime_tile");
+            const char *overlay_tile_str = test_json_get_string(test_case, "overlay_tile");
+            char base_tile = (base_tile_str && base_tile_str[0]) ? base_tile_str[0] : '.';
+            char runtime_tile = (runtime_tile_str && runtime_tile_str[0]) ? runtime_tile_str[0] : '^';
+            char overlay_tile = (overlay_tile_str && overlay_tile_str[0]) ? overlay_tile_str[0] : '~';
+            size_t map_len;
+            WILDS_DATA wilds;
+            WILDS_CHUNK chunk;
+            WILDS_OVERLAY overlay;
+            bool set_ok;
+
+            if (width <= 0 || height <= 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu has invalid dimensions %dx%d",
+                             index, width, height);
+                return TEST_ERROR;
+            }
+
+            if (runtime_x < 0 || runtime_y < 0 || runtime_x >= width || runtime_y >= height) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu has invalid runtime coords (%d,%d) for %dx%d",
+                             index, runtime_x, runtime_y, width, height);
+                return TEST_ERROR;
+            }
+
+            memset(&wilds, 0, sizeof(wilds));
+            memset(&chunk, 0, sizeof(chunk));
+            memset(&overlay, 0, sizeof(overlay));
+
+            map_len = (size_t)width * (size_t)height;
+            wilds.staticmap = malloc(map_len);
+            wilds.map = malloc(map_len);
+            if (!wilds.staticmap || !wilds.map) {
+                if (wilds.staticmap)
+                    free(wilds.staticmap);
+                if (wilds.map)
+                    free(wilds.map);
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "wilds_resolver_consistency memory allocation failed");
+                return TEST_ERROR;
+            }
+
+            memset(wilds.staticmap, base_tile, map_len);
+            memset(wilds.map, base_tile, map_len);
+            wilds.map_size_x = width;
+            wilds.map_size_y = height;
+
+            set_ok = set_wilds_runtime_tile(&wilds, runtime_x, runtime_y, runtime_tile);
+            if (!set_ok) {
+                free(wilds.staticmap);
+                free(wilds.map);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu failed runtime set at (%d,%d)",
+                             index, runtime_x, runtime_y);
+                return TEST_FAILURE;
+            }
+
+            if (get_wilds_base_tile(&wilds, runtime_x, runtime_y) != base_tile) {
+                free(wilds.staticmap);
+                free(wilds.map);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu base tile changed unexpectedly",
+                             index);
+                return TEST_FAILURE;
+            }
+
+            if (get_wilds_effective_tile(&wilds, runtime_x, runtime_y) != runtime_tile) {
+                free(wilds.staticmap);
+                free(wilds.map);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu effective tile did not reflect runtime map",
+                             index);
+                return TEST_FAILURE;
+            }
+
+            chunk.cx = runtime_x / WILDS_OVERLAY_CHUNK_SIZE;
+            chunk.cy = runtime_y / WILDS_OVERLAY_CHUNK_SIZE;
+            overlay.x1 = runtime_x;
+            overlay.y1 = runtime_y;
+            overlay.x2 = runtime_x;
+            overlay.y2 = runtime_y;
+            overlay.tile = overlay_tile;
+            overlay.region = 0;
+            overlay.expires_at = 0;
+            chunk.overlays = &overlay;
+            wilds.runtime_chunks = &chunk;
+
+            if (get_wilds_effective_tile(&wilds, runtime_x, runtime_y) != overlay_tile) {
+                free(wilds.staticmap);
+                free(wilds.map);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu overlay tile did not override effective tile",
+                             index);
+                return TEST_FAILURE;
+            }
+
+            if (set_wilds_runtime_tile(&wilds, -1, runtime_y, runtime_tile)) {
+                free(wilds.staticmap);
+                free(wilds.map);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu accepted out-of-bounds runtime write",
+                             index);
+                return TEST_FAILURE;
+            }
+
+            if (get_wilds_base_tile(&wilds, width, runtime_y) != '\0') {
+                free(wilds.staticmap);
+                free(wilds.map);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu expected base out-of-bounds to return NUL",
+                             index);
+                return TEST_FAILURE;
+            }
+
+            if (get_wilds_effective_tile(&wilds, runtime_x, height) != '\0') {
+                free(wilds.staticmap);
+                free(wilds.map);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "wilds_resolver_consistency case %zu expected effective out-of-bounds to return NUL",
+                             index);
+                return TEST_FAILURE;
+            }
+
+            free(wilds.staticmap);
+            free(wilds.map);
         }
 
         return TEST_SUCCESS;

@@ -22,6 +22,7 @@
 #include "class_data.h"
 #include "io/json/json_olc.h"
 #include "channel_service.h"
+#include "wilderness_storage.h"
 
 extern void persist_save(void);
 
@@ -89,6 +90,9 @@ void update_handler(void)
     static int pulse_gmcp;
     static int pulse_cache_warm;
     static int pulse_channel;
+    static int pulse_wildgen;
+    static int pulse_wilderness_storage;
+    static int pulse_wilds_chunks;
     char buf[MSL];
     int i;
 
@@ -142,6 +146,24 @@ void update_handler(void)
     if (--pulse_channel <= 0) {
         pulse_channel = 1;
         channel_service_pulse();
+    }
+
+    if (--pulse_wildgen <= 0)
+    {
+        pulse_wildgen = PULSE_PER_SECOND;
+        wilds_wildgen_pulse();
+    }
+
+    if (--pulse_wilderness_storage <= 0)
+    {
+        pulse_wilderness_storage = PULSE_PER_SECOND;
+        wilderness_storage_pulse();
+    }
+
+    if (--pulse_wilds_chunks <= 0)
+    {
+        pulse_wilds_chunks = PULSE_PER_SECOND;
+        wilds_chunk_pulse();
     }
 
     if (--pulse_auction <= 0)

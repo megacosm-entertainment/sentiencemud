@@ -25,6 +25,8 @@
 #include "wilds.h"
 #include "olc_save.h"
 #include "tables.h"
+#include "wilderness_mods.h"
+#include "wilderness_state.h"
 
 /* external global variables */
 extern bool fBootDb;
@@ -99,6 +101,703 @@ void            free_region args ((WILDS_REGION *pRegion));
 bool            add_region args ((WILDS_DATA *pWilds, WILDS_REGION *pRegion));
 bool            del_region args ((WILDS_DATA *pWilds, WILDS_REGION *pRegion));
 static bool     resolve_vlink_dest_wnum(WILDS_VLINK *pVLink);
+static bool     wilds_coords_valid(WILDS_DATA *pWilds, int x, int y);
+static int      wilds_tile_index(WILDS_DATA *pWilds, int x, int y);
+static WILDS_CHUNK *wilds_get_chunk(WILDS_DATA *pWilds, int cx, int cy, bool create);
+static void     wilds_sync_loaded_vroom_tile(WILDS_DATA *pWilds, int x, int y);
+static void     wilds_touch_chunk(WILDS_DATA *pWilds, int x, int y);
+static void     wilds_chunk_recount_usage(WILDS_DATA *pWilds);
+static int      wilds_unload_chunk_rooms(WILDS_DATA *pWilds, WILDS_CHUNK *chunk);
+static int      wilds_count_chunks(WILDS_DATA *pWilds);
+static int      wilds_prefetch_ring(WILDS_DATA *pWilds, int budget);
+static int      wilds_lru_pressure_unload(WILDS_DATA *pWilds, int max_rooms, int max_chunks);
+static int      wilds_prewarm_around(WILDS_DATA *pWilds, int center_x, int center_y, int radius, int budget);
+static void     wilds_collect_chunk_stats(WILDS_DATA *pWilds, int *active_chunks, int *pinned_chunks);
+
+#define WILDS_CHUNK_UNLOAD_TTL_SECONDS 60
+#define WILDS_CHUNK_PREFETCH_RADIUS 1
+#define WILDS_CHUNK_PREFETCH_BUDGET 8
+#define WILDS_CHUNK_MAX_LOADED_ROOMS 2000
+#define WILDS_CHUNK_MAX_TRACKED_CHUNKS 512
+#define WILDS_CHUNK_TELEMETRY_INTERVAL 60
+
+static bool wilds_coords_valid(WILDS_DATA *pWilds, int x, int y)
+{
+    return pWilds && x >= 0 && y >= 0 && x < pWilds->map_size_x && y < pWilds->map_size_y;
+}
+
+static int wilds_tile_index(WILDS_DATA *pWilds, int x, int y)
+{
+    return y * pWilds->map_size_x + x;
+}
+
+static WILDS_CHUNK *wilds_get_chunk(WILDS_DATA *pWilds, int cx, int cy, bool create)
+{
+    WILDS_CHUNK *chunk;
+
+    if (!pWilds)
+        return NULL;
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+        if (chunk->cx == cx && chunk->cy == cy)
+            return chunk;
+
+    if (!create)
+        return NULL;
+
+    chunk = alloc_mem(sizeof(*chunk));
+    memset(chunk, 0, sizeof(*chunk));
+    chunk->cx = cx;
+    chunk->cy = cy;
+    chunk->last_access = current_time;
+    chunk->next = pWilds->runtime_chunks;
+    pWilds->runtime_chunks = chunk;
+    return chunk;
+}
+
+static void wilds_touch_chunk(WILDS_DATA *pWilds, int x, int y)
+{
+    int cx;
+    int cy;
+    WILDS_CHUNK *chunk;
+
+    if (!wilds_coords_valid(pWilds, x, y))
+        return;
+
+    cx = x / WILDS_OVERLAY_CHUNK_SIZE;
+    cy = y / WILDS_OVERLAY_CHUNK_SIZE;
+    chunk = wilds_get_chunk(pWilds, cx, cy, true);
+    if (!chunk)
+        return;
+
+    chunk->last_access = current_time;
+}
+
+static void wilds_chunk_recount_usage(WILDS_DATA *pWilds)
+{
+    WILDS_CHUNK *chunk;
+    ITERATOR it;
+    ROOM_INDEX_DATA *room;
+
+    if (!pWilds)
+        return;
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+    {
+        chunk->loaded_rooms = 0;
+        chunk->active_actors = 0;
+        chunk->pin_flags = chunk->overlays ? WILDS_CHUNK_PIN_OVERLAY : WILDS_CHUNK_PIN_NONE;
+    }
+
+    if (!pWilds->loaded_vrooms)
+        return;
+
+    iterator_start(&it, pWilds->loaded_vrooms);
+    while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+    {
+        int rel_x;
+        int rel_y;
+        int cx;
+        int cy;
+
+        if (!room)
+            continue;
+
+        rel_x = room->x - pWilds->startx;
+        rel_y = room->y - pWilds->starty;
+        if (!wilds_coords_valid(pWilds, rel_x, rel_y))
+            continue;
+
+        cx = rel_x / WILDS_OVERLAY_CHUNK_SIZE;
+        cy = rel_y / WILDS_OVERLAY_CHUNK_SIZE;
+        chunk = wilds_get_chunk(pWilds, cx, cy, true);
+        if (!chunk)
+            continue;
+
+        chunk->loaded_rooms++;
+        if (room->people)
+            chunk->active_actors++;
+    }
+    iterator_stop(&it);
+}
+
+static int wilds_unload_chunk_rooms(WILDS_DATA *pWilds, WILDS_CHUNK *chunk)
+{
+    int unloaded = 0;
+    bool removed;
+
+    if (!pWilds || !chunk || !pWilds->loaded_vrooms)
+        return 0;
+
+    do
+    {
+        ITERATOR it;
+        ROOM_INDEX_DATA *room;
+
+        removed = false;
+        iterator_start(&it, pWilds->loaded_vrooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            int rel_x;
+            int rel_y;
+            int cx;
+            int cy;
+
+            if (!room || room->people || room->persist)
+                continue;
+
+            rel_x = room->x - pWilds->startx;
+            rel_y = room->y - pWilds->starty;
+            if (!wilds_coords_valid(pWilds, rel_x, rel_y))
+                continue;
+
+            cx = rel_x / WILDS_OVERLAY_CHUNK_SIZE;
+            cy = rel_y / WILDS_OVERLAY_CHUNK_SIZE;
+            if (cx != chunk->cx || cy != chunk->cy)
+                continue;
+
+            destroy_wilds_vroom(room);
+            unloaded++;
+            removed = true;
+            break;
+        }
+        iterator_stop(&it);
+    }
+    while (removed);
+
+    return unloaded;
+}
+
+static int wilds_count_chunks(WILDS_DATA *pWilds)
+{
+    int count = 0;
+    WILDS_CHUNK *chunk;
+
+    if (!pWilds)
+        return 0;
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+        count++;
+
+    return count;
+}
+
+static int wilds_prefetch_ring(WILDS_DATA *pWilds, int budget)
+{
+    ITERATOR it;
+    ROOM_INDEX_DATA *room;
+    int prefetched = 0;
+
+    if (!pWilds || budget < 1 || !pWilds->loaded_vrooms)
+        return 0;
+
+    iterator_start(&it, pWilds->loaded_vrooms);
+    while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) && prefetched < budget)
+    {
+        int rel_x;
+        int rel_y;
+        int base_cx;
+        int base_cy;
+
+        if (!room || !room->people)
+            continue;
+
+        rel_x = room->x - pWilds->startx;
+        rel_y = room->y - pWilds->starty;
+        if (!wilds_coords_valid(pWilds, rel_x, rel_y))
+            continue;
+
+        base_cx = rel_x / WILDS_OVERLAY_CHUNK_SIZE;
+        base_cy = rel_y / WILDS_OVERLAY_CHUNK_SIZE;
+
+        for (int dcx = -WILDS_CHUNK_PREFETCH_RADIUS; dcx <= WILDS_CHUNK_PREFETCH_RADIUS && prefetched < budget; dcx++)
+        {
+            for (int dcy = -WILDS_CHUNK_PREFETCH_RADIUS; dcy <= WILDS_CHUNK_PREFETCH_RADIUS && prefetched < budget; dcy++)
+            {
+                int cx = base_cx + dcx;
+                int cy = base_cy + dcy;
+                int px;
+                int py;
+                ROOM_INDEX_DATA *prefetch_room;
+
+                if (cx < 0 || cy < 0)
+                    continue;
+
+                if ((cx * WILDS_OVERLAY_CHUNK_SIZE) >= pWilds->map_size_x
+                ||  (cy * WILDS_OVERLAY_CHUNK_SIZE) >= pWilds->map_size_y)
+                    continue;
+
+                px = cx * WILDS_OVERLAY_CHUNK_SIZE;
+                py = cy * WILDS_OVERLAY_CHUNK_SIZE;
+                if (px >= pWilds->map_size_x)
+                    px = pWilds->map_size_x - 1;
+                if (py >= pWilds->map_size_y)
+                    py = pWilds->map_size_y - 1;
+
+                wilds_touch_chunk(pWilds, px, py);
+
+                prefetch_room = get_wilds_vroom(pWilds, px + pWilds->startx, py + pWilds->starty);
+                if (prefetch_room)
+                    continue;
+
+                prefetch_room = create_wilds_vroom(pWilds, px, py);
+                if (prefetch_room)
+                    prefetched++;
+            }
+        }
+    }
+    iterator_stop(&it);
+
+    return prefetched;
+}
+
+static int wilds_lru_pressure_unload(WILDS_DATA *pWilds, int max_rooms, int max_chunks)
+{
+    int unloaded = 0;
+    int guard = 0;
+
+    if (!pWilds)
+        return 0;
+
+    while ((pWilds->loaded_rooms > max_rooms || wilds_count_chunks(pWilds) > max_chunks) && guard < 128)
+    {
+        WILDS_CHUNK *chunk;
+        WILDS_CHUNK *candidate = NULL;
+
+        for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+        {
+            if (chunk->pin_flags != WILDS_CHUNK_PIN_NONE)
+                continue;
+
+            if (chunk->active_actors > 0 || chunk->loaded_rooms < 1)
+                continue;
+
+            if (!candidate || chunk->last_access < candidate->last_access)
+                candidate = chunk;
+        }
+
+        if (!candidate)
+            break;
+
+        guard++;
+        if (wilds_unload_chunk_rooms(pWilds, candidate) < 1)
+            break;
+
+        wilds_chunk_recount_usage(pWilds);
+        candidate->last_access = current_time;
+        unloaded++;
+    }
+
+    return unloaded;
+}
+
+static int wilds_prewarm_around(WILDS_DATA *pWilds, int center_x, int center_y, int radius, int budget)
+{
+    int prefetched = 0;
+
+    if (!pWilds || budget < 1 || radius < 0)
+        return 0;
+
+    if (!wilds_coords_valid(pWilds, center_x, center_y))
+        return 0;
+
+    for (int dx = -radius; dx <= radius && prefetched < budget; dx++)
+    {
+        for (int dy = -radius; dy <= radius && prefetched < budget; dy++)
+        {
+            int tx = center_x + dx;
+            int ty = center_y + dy;
+
+            if (!wilds_coords_valid(pWilds, tx, ty))
+                continue;
+
+            wilds_touch_chunk(pWilds, tx, ty);
+
+            if (!get_wilds_vroom(pWilds, tx + pWilds->startx, ty + pWilds->starty))
+            {
+                ROOM_INDEX_DATA *prefetch_room = create_wilds_vroom(pWilds, tx, ty);
+                if (prefetch_room)
+                    prefetched++;
+            }
+        }
+    }
+
+    return prefetched;
+}
+
+static void wilds_collect_chunk_stats(WILDS_DATA *pWilds, int *active_chunks, int *pinned_chunks)
+{
+    WILDS_CHUNK *chunk;
+    int active = 0;
+    int pinned = 0;
+
+    if (!pWilds)
+    {
+        if (active_chunks) *active_chunks = 0;
+        if (pinned_chunks) *pinned_chunks = 0;
+        return;
+    }
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+    {
+        if (chunk->active_actors > 0)
+            active++;
+        if (chunk->pin_flags != WILDS_CHUNK_PIN_NONE)
+            pinned++;
+    }
+
+    if (active_chunks) *active_chunks = active;
+    if (pinned_chunks) *pinned_chunks = pinned;
+}
+
+char get_wilds_base_tile(WILDS_DATA *pWilds, int x, int y)
+{
+    if (!wilds_coords_valid(pWilds, x, y) || !pWilds->staticmap)
+        return '\0';
+
+    return pWilds->staticmap[wilds_tile_index(pWilds, x, y)];
+}
+
+int wilds_cleanup_expired_temporary_zones(WILDS_DATA *pWilds)
+{
+    WILDS_CHUNK *chunk;
+    int removed = 0;
+
+    if (!pWilds)
+        return 0;
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+    {
+        WILDS_OVERLAY *overlay = chunk->overlays;
+        WILDS_OVERLAY *prev = NULL;
+
+        while (overlay)
+        {
+            WILDS_OVERLAY *next = overlay->next;
+
+            if (overlay->expires_at > 0 && overlay->expires_at <= current_time)
+            {
+                if (prev)
+                    prev->next = next;
+                else
+                    chunk->overlays = next;
+
+                free_mem(overlay, sizeof(*overlay));
+                removed++;
+            }
+            else
+            {
+                prev = overlay;
+            }
+
+            overlay = next;
+        }
+    }
+
+    if (removed > 0)
+        wilderness_state_mark_dirty(pWilds, "temporary_zone_expired");
+
+    return removed;
+}
+
+char get_wilds_effective_tile(WILDS_DATA *pWilds, int x, int y)
+{
+    WILDS_CHUNK *chunk;
+    WILDS_OVERLAY *overlay;
+    char tile;
+    int cx;
+    int cy;
+
+    if (!wilds_coords_valid(pWilds, x, y) || !pWilds->map)
+        return '\0';
+
+    tile = pWilds->map[wilds_tile_index(pWilds, x, y)];
+
+    wilds_cleanup_expired_temporary_zones(pWilds);
+
+    cx = x / WILDS_OVERLAY_CHUNK_SIZE;
+    cy = y / WILDS_OVERLAY_CHUNK_SIZE;
+    chunk = wilds_get_chunk(pWilds, cx, cy, false);
+    if (!chunk)
+        return tile;
+
+    for (overlay = chunk->overlays; overlay; overlay = overlay->next)
+    {
+        if (x >= overlay->x1 && x <= overlay->x2 && y >= overlay->y1 && y <= overlay->y2)
+            return overlay->tile;
+    }
+
+    return tile;
+}
+
+int get_wilds_effective_region(WILDS_DATA *pWilds, int x, int y)
+{
+    WILDS_CHUNK *chunk;
+    WILDS_OVERLAY *overlay;
+    WILDS_REGION *region;
+    int cx;
+    int cy;
+
+    if (!wilds_coords_valid(pWilds, x, y))
+        return REGION_UNKNOWN;
+
+    wilds_cleanup_expired_temporary_zones(pWilds);
+
+    cx = x / WILDS_OVERLAY_CHUNK_SIZE;
+    cy = y / WILDS_OVERLAY_CHUNK_SIZE;
+    chunk = wilds_get_chunk(pWilds, cx, cy, false);
+    if (chunk)
+    {
+        for (overlay = chunk->overlays; overlay; overlay = overlay->next)
+        {
+            if (overlay->region <= REGION_UNKNOWN)
+                continue;
+
+            if (x >= overlay->x1 && x <= overlay->x2 && y >= overlay->y1 && y <= overlay->y2)
+                return overlay->region;
+        }
+    }
+
+    region = get_region_by_coors(pWilds, x, y);
+    if (region)
+        return region->region;
+
+    return pWilds->defaultRegion;
+}
+
+bool set_wilds_runtime_tile(WILDS_DATA *pWilds, int x, int y, char tile)
+{
+    if (!wilds_coords_valid(pWilds, x, y) || !pWilds->map)
+        return false;
+
+    pWilds->map[wilds_tile_index(pWilds, x, y)] = tile;
+    wilderness_mods_mark_dirty(pWilds, "runtime_tile_update");
+    wilds_touch_chunk(pWilds, x, y);
+    wilds_sync_loaded_vroom_tile(pWilds, x, y);
+    return true;
+}
+
+bool wilds_apply_static_tiles(WILDS_DATA *pWilds, const char *tiles, int width, int height)
+{
+    ITERATOR it;
+    ROOM_INDEX_DATA *vroom;
+
+    if (!pWilds || !tiles || !pWilds->staticmap || !pWilds->map)
+        return false;
+
+    if (width != pWilds->map_size_x || height != pWilds->map_size_y)
+        return false;
+
+    memcpy(pWilds->staticmap, tiles, (size_t)width * (size_t)height);
+    memcpy(pWilds->map, tiles, (size_t)width * (size_t)height);
+
+    if (!pWilds->loaded_vrooms)
+        return true;
+
+    iterator_start(&it, pWilds->loaded_vrooms);
+    while ((vroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+    {
+        int rel_x = vroom->x - pWilds->startx;
+        int rel_y = vroom->y - pWilds->starty;
+        WILDS_TERRAIN *terrain;
+
+        if (!wilds_coords_valid(pWilds, rel_x, rel_y))
+            continue;
+
+        terrain = get_terrain_by_coors(pWilds, rel_x, rel_y);
+        if (!terrain || !terrain->template)
+            continue;
+
+        vroom->parent_template = terrain;
+        room_set_sector_type(vroom, room_rs_sector_type(terrain->template));
+        vroom->room_flag[0] = terrain->template->rs_room_flag[0];
+        vroom->room_flag[1] = terrain->template->rs_room_flag[1] | ROOM_VIRTUAL_ROOM;
+    }
+    iterator_stop(&it);
+
+    return true;
+}
+
+long wilds_add_temporary_zone(WILDS_DATA *pWilds, int x1, int y1, int x2, int y2, char tile, int region, int duration)
+{
+    int tx;
+    int ty;
+    int cx1;
+    int cy1;
+    int cx2;
+    int cy2;
+    long zone_id;
+
+    if (!pWilds || !pWilds->map || pWilds->map_size_x < 1 || pWilds->map_size_y < 1)
+        return 0;
+
+    if (x1 > x2)
+    {
+        tx = x1;
+        x1 = x2;
+        x2 = tx;
+    }
+
+    if (y1 > y2)
+    {
+        ty = y1;
+        y1 = y2;
+        y2 = ty;
+    }
+
+    if (x2 < 0 || y2 < 0 || x1 >= pWilds->map_size_x || y1 >= pWilds->map_size_y)
+        return 0;
+
+    if (x1 < 0) x1 = 0;
+    if (y1 < 0) y1 = 0;
+    if (x2 >= pWilds->map_size_x) x2 = pWilds->map_size_x - 1;
+    if (y2 >= pWilds->map_size_y) y2 = pWilds->map_size_y - 1;
+
+    zone_id = ++pWilds->next_runtime_zone_id;
+    if (zone_id < 1)
+    {
+        pWilds->next_runtime_zone_id = 1;
+        zone_id = 1;
+    }
+
+    cx1 = x1 / WILDS_OVERLAY_CHUNK_SIZE;
+    cy1 = y1 / WILDS_OVERLAY_CHUNK_SIZE;
+    cx2 = x2 / WILDS_OVERLAY_CHUNK_SIZE;
+    cy2 = y2 / WILDS_OVERLAY_CHUNK_SIZE;
+
+    for (int cx = cx1; cx <= cx2; cx++)
+    {
+        for (int cy = cy1; cy <= cy2; cy++)
+        {
+            WILDS_CHUNK *chunk = wilds_get_chunk(pWilds, cx, cy, true);
+            WILDS_OVERLAY *overlay;
+
+            if (!chunk)
+                continue;
+
+            overlay = alloc_mem(sizeof(*overlay));
+            memset(overlay, 0, sizeof(*overlay));
+            overlay->zone_id = zone_id;
+            overlay->x1 = x1;
+            overlay->y1 = y1;
+            overlay->x2 = x2;
+            overlay->y2 = y2;
+            overlay->tile = tile;
+            overlay->region = region;
+            overlay->expires_at = (duration > 0) ? (current_time + duration) : 0;
+            overlay->next = chunk->overlays;
+            chunk->overlays = overlay;
+        }
+    }
+
+    wilderness_state_mark_dirty(pWilds, "temporary_zone_add");
+
+    return zone_id;
+}
+
+int wilds_remove_temporary_zone(WILDS_DATA *pWilds, long zone_id)
+{
+    WILDS_CHUNK *chunk;
+    int removed = 0;
+
+    if (!pWilds || zone_id < 1)
+        return 0;
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+    {
+        WILDS_OVERLAY *overlay = chunk->overlays;
+        WILDS_OVERLAY *prev = NULL;
+
+        while (overlay)
+        {
+            WILDS_OVERLAY *next = overlay->next;
+            if (overlay->zone_id == zone_id)
+            {
+                if (prev)
+                    prev->next = next;
+                else
+                    chunk->overlays = next;
+
+                free_mem(overlay, sizeof(*overlay));
+                removed++;
+            }
+            else
+            {
+                prev = overlay;
+            }
+
+            overlay = next;
+        }
+    }
+
+    if (removed > 0)
+        wilderness_state_mark_dirty(pWilds, "temporary_zone_remove");
+
+    return removed;
+}
+
+int wilds_remove_region_temporary_zones(WILDS_DATA *pWilds, int region)
+{
+    WILDS_CHUNK *chunk;
+    int removed = 0;
+
+    if (!pWilds || region <= REGION_UNKNOWN)
+        return 0;
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+    {
+        WILDS_OVERLAY *overlay = chunk->overlays;
+        WILDS_OVERLAY *prev = NULL;
+
+        while (overlay)
+        {
+            WILDS_OVERLAY *next = overlay->next;
+            if (overlay->region == region)
+            {
+                if (prev)
+                    prev->next = next;
+                else
+                    chunk->overlays = next;
+
+                free_mem(overlay, sizeof(*overlay));
+                removed++;
+            }
+            else
+            {
+                prev = overlay;
+            }
+
+            overlay = next;
+        }
+    }
+
+    if (removed > 0)
+        wilderness_state_mark_dirty(pWilds, "temporary_zone_region_remove");
+
+    return removed;
+}
+
+static void wilds_sync_loaded_vroom_tile(WILDS_DATA *pWilds, int x, int y)
+{
+    ROOM_INDEX_DATA *vroom;
+    WILDS_TERRAIN *terrain;
+
+    if (!wilds_coords_valid(pWilds, x, y))
+        return;
+
+    vroom = get_wilds_vroom(pWilds, x + pWilds->startx, y + pWilds->starty);
+    if (!vroom)
+        return;
+
+    terrain = get_terrain_by_coors(pWilds, x, y);
+    if (!terrain || !terrain->template)
+        return;
+
+    vroom->parent_template = terrain;
+    room_set_sector_type(vroom, room_rs_sector_type(terrain->template));
+    vroom->room_flag[0] = terrain->template->rs_room_flag[0];
+    vroom->room_flag[1] = terrain->template->rs_room_flag[1] | ROOM_VIRTUAL_ROOM;
+}
 
 static bool resolve_vlink_dest_wnum(WILDS_VLINK *pVLink)
 {
@@ -275,13 +974,15 @@ int get_squares_to_show_y(int bonus_view)
 bool map_char_cmp(WILDS_DATA *pWilds, int x, int y, char *check)
 {
     char map_char[2];
+    char tile;
 
     // Get character on the map at these coordinates
-    if ( x > pWilds->map_size_x )
-        sprintf(map_char, "%c",
-                pWilds->map[y * pWilds->map_size_x + x - pWilds->map_size_x]);
+    if (x > pWilds->map_size_x)
+        tile = get_wilds_effective_tile(pWilds, x - pWilds->map_size_x, y);
     else
-        sprintf(map_char, "%c", pWilds->map[y * pWilds->map_size_x + x]);
+        tile = get_wilds_effective_tile(pWilds, x, y);
+
+    sprintf(map_char, "%c", tile);
 
     if (!str_cmp(map_char, check))
         return true;
@@ -345,6 +1046,7 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
 
     list_appendlink(pWilds->loaded_vrooms,pRoomIndex);
     pWilds->loaded_rooms++;
+    wilds_touch_chunk(pWilds, x, y);
 
     top_wilds_vroom++;
 
@@ -478,6 +1180,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
 
     list_remlink(pWilds->loaded_vrooms,pRoomIndex, false);
     pWilds->loaded_rooms--;
+    wilds_touch_chunk(pWilds, pRoomIndex->x - pWilds->startx, pRoomIndex->y - pWilds->starty);
 
 //	sprintf(buf, "destroy_wilds_vroom: %ld %ld %ld - destroying room", pWilds->uid, pRoomIndex->x, pRoomIndex->y);
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
@@ -669,6 +1372,36 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
 
                 break;
 
+            case 'W':
+                if (!str_cmp(word, "WildgenGridRows"))
+                {
+                    pWilds->wildgen_grid_rows = UMAX(1, fread_number(fp));
+                }
+                else if (!str_cmp(word, "WildgenGridCols"))
+                {
+                    pWilds->wildgen_grid_cols = UMAX(1, fread_number(fp));
+                }
+                else if (!str_cmp(word, "WildgenTileWidth"))
+                {
+                    pWilds->wildgen_tile_width = UMAX(0, fread_number(fp));
+                }
+                else if (!str_cmp(word, "WildgenTileHeight"))
+                {
+                    pWilds->wildgen_tile_height = UMAX(0, fread_number(fp));
+                }
+                else if (!str_cmp(word, "WildgenTerrainBase"))
+                {
+                    free_string(pWilds->wildgen_terrain_base);
+                    pWilds->wildgen_terrain_base = fread_string(fp);
+                }
+                else if (!str_cmp(word, "WildgenElevationBase"))
+                {
+                    free_string(pWilds->wildgen_elevation_base);
+                    pWilds->wildgen_elevation_base = fread_string(fp);
+                }
+
+                break;
+
             case 'U':
                 if ( !str_cmp( word, "Uid" ) )
                     pWilds->uid = fread_number(fp);
@@ -692,6 +1425,9 @@ ROOM_INDEX_DATA *get_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
         if (pVroom->x == x && pVroom->y == y)
             break;
     iterator_stop(&it);
+
+    if (pVroom)
+        wilds_touch_chunk(pWilds, x - pWilds->startx, y - pWilds->starty);
 
     return pVroom;
 }
@@ -803,7 +1539,10 @@ WILDS_TERRAIN *get_terrain_by_coors (WILDS_DATA *pWilds, int x, int y)
         return(NULL);
     }
 
-    j = pWilds->staticmap[(y * pWilds->map_size_x) + x];
+    if (!wilds_coords_valid(pWilds, x, y))
+        return NULL;
+
+    j = get_wilds_effective_tile(pWilds, x, y);
 
     for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
     {
@@ -1122,6 +1861,28 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
 
                 break;
 
+            case 'W':
+                if (!str_cmp(word, "WildColor"))
+                {
+                    char *wild_color = fread_word(fp);
+                    unsigned int r, g, b;
+
+                    if (wild_color && wild_color[0] == '#' && strlen(wild_color) == 7 &&
+                        sscanf(wild_color + 1, "%02x%02x%02x", &r, &g, &b) == 3)
+                    {
+                        pTerrain->wildgen_has_color = true;
+                        pTerrain->wildgen_r = (unsigned char)r;
+                        pTerrain->wildgen_g = (unsigned char)g;
+                        pTerrain->wildgen_b = (unsigned char)b;
+                    }
+                    else
+                    {
+                        pTerrain->wildgen_has_color = false;
+                    }
+                }
+
+                break;
+
         } /* End switch */
 
     } /* End for */
@@ -1149,6 +1910,8 @@ void fwrite_terrain (FILE *fp, WILDS_TERRAIN *pTerrain)
     fprintf(fp, "Showname %s~\n", fix_string(pTerrain->showname));
     fprintf(fp, "Briefdesc %s~\n", fix_string(pTerrain->briefdesc));
     fprintf(fp, "Nonroom %d\n", pTerrain->nonroom);
+    if (pTerrain->wildgen_has_color)
+        fprintf(fp, "WildColor #%02X%02X%02X\n", pTerrain->wildgen_r, pTerrain->wildgen_g, pTerrain->wildgen_b);
     save_room_new(fp, pTerrain->template, ROOMTYPE_TERRAIN);
     fprintf(fp, "#-TERRAIN\n\n");
     return;
@@ -1329,7 +2092,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
                                             pVLink->door);
 
         // Mark the vlink entrance on the wildsmap
-        pWilds->map[(portal_y * pWilds->map_size_x)+ portal_x] = '0';
+        set_wilds_runtime_tile(pWilds, portal_x, portal_y, '0');
 
 
     if (IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS)) {
@@ -1492,8 +2255,7 @@ portal_y = get_wilds_vroom_y_by_dir(pWilds,
                     pVLink->door);
 
 /* Remove the vlink entrance from the wildsmap, restoring the original terrain tile */
-pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
-    pWilds->staticmap[(portal_y * pWilds->map_size_x) + portal_x];
+set_wilds_runtime_tile(pWilds, portal_x, portal_y, get_wilds_base_tile(pWilds, portal_x, portal_y));
 
     if (IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS))
     {
@@ -1559,6 +2321,11 @@ WILDS_VLINK *find_vlink_to_coord(WILDS_DATA *pWilds, int x, int y)
     }
 
     return pVLink;
+}
+
+bool wilds_coord_has_vlink_marker(WILDS_DATA *pWilds, int x, int y)
+{
+    return find_vlink_to_coord(pWilds, x, y) != NULL;
 }
 
 WILDS_VLINK *find_vlink_from_coord(WILDS_DATA *pWilds, int x, int y, int door)
@@ -1716,7 +2483,6 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     WILDS_TERRAIN *pTerrain;
     WILDS_VLINK *pVLink;
     int x, y;
-    long index;
     DESCRIPTOR_DATA * d;
     bool foundterrain = false;
     char j[6];
@@ -1829,8 +2595,10 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
         {
             if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
             {
-                index = y * pWilds->map_size_x + x;
-                sprintf(j, "%c",pWilds->map[index]);
+                {
+                    char tile = get_wilds_effective_tile(pWilds, x, y);
+                    sprintf(j, "%c", tile);
+                }
                 if (!str_cmp(j, last_terrain))
                 {
                     sprintf(temp, last_terrain);
@@ -1841,7 +2609,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
                     foundterrain = false;
                     for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
                     {
-                        if (pWilds->map[index] == pTerrain->mapchar)
+                        if (j[0] == pTerrain->mapchar)
                         {
                             sprintf(temp, pTerrain->showchar);
                             sprintf(last_terrain, temp);
@@ -2129,7 +2897,10 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
                 if (!found)
                 {
-                    sprintf(j, "%c",pWilds->map[index]);
+                    {
+                        char tile = get_wilds_effective_tile(pWilds, x, y);
+                        sprintf(j, "%c", tile);
+                    }
                     if (!str_cmp(j, last_terrain))
                     {
                         sprintf(temp, last_terrain);
@@ -2140,7 +2911,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
                         foundterrain = false;
                         for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
                         {
-                            if (pWilds->map[index] == pTerrain->mapchar)
+                            if (j[0] == pTerrain->mapchar)
                             {
                                 sprintf(temp, pTerrain->showchar);
                                 sprintf(last_terrain, temp);
@@ -2302,7 +3073,6 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
     WILDS_TERRAIN *pTerrain;
     WILDS_VLINK *pVLink;
     int x, y;
-    long index;
     bool found = false;
     bool foundterrain = false;
     char j[6];
@@ -2335,8 +3105,6 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 
         {
             found = false;
-            index = y * pWilds->map_size_x + x;
-
             if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
             {
                 if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
@@ -2352,7 +3120,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 
                 if (!found)
                 {
-                    j[0] = pWilds->map[index];
+                    j[0] = get_wilds_effective_tile(pWilds, x, y);
                     j[1] = '\0';
                     if (!str_cmp(j, last_terrain))
                     {
@@ -2363,7 +3131,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
                         foundterrain = false;
                         for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
                         {
-                            if (pWilds->map[index] == pTerrain->mapchar)
+                            if (j[0] == pTerrain->mapchar)
                             {
                                 sprintf(temp, pTerrain->showchar);
                                 sprintf(last_terrain, temp);
@@ -2726,6 +3494,12 @@ void save_wilds (FILE * fp, AREA_DATA * pArea)
         fprintf(fp, "Repop %d~\n", pWilds->repop);
         fprintf(fp, "DefaultPlace '%s'\n", flag_string(place_flags, pWilds->defaultPlaceFlags));
         fprintf(fp, "DefaultRegion '%s'\n", flag_string(wilderness_regions, pWilds->defaultRegion));
+        fprintf(fp, "WildgenGridRows %d\n", UMAX(1, pWilds->wildgen_grid_rows));
+        fprintf(fp, "WildgenGridCols %d\n", UMAX(1, pWilds->wildgen_grid_cols));
+        fprintf(fp, "WildgenTileWidth %d\n", UMAX(0, pWilds->wildgen_tile_width));
+        fprintf(fp, "WildgenTileHeight %d\n", UMAX(0, pWilds->wildgen_tile_height));
+        fprintf(fp, "WildgenTerrainBase %s~\n", fix_string(pWilds->wildgen_terrain_base));
+        fprintf(fp, "WildgenElevationBase %s~\n", fix_string(pWilds->wildgen_elevation_base));
         fprintf(fp, "#VMAP %d %d\n", pWilds->map_size_x, pWilds->map_size_y);
 
         for (y = 0, j = 0; y < pWilds->map_size_y; y++, j+=pWilds->map_size_x)
@@ -2758,6 +3532,106 @@ void save_wilds (FILE * fp, AREA_DATA * pArea)
     }
 
     return;
+}
+
+void migrate_area_wilds_version(AREA_DATA *pArea, int loaded_version)
+{
+    WILDS_DATA *pWilds;
+    char base_stem[MIL];
+    int changed = 0;
+
+    if (!pArea)
+        return;
+
+    if (loaded_version >= VERSION_WILDS_001)
+        return;
+
+    base_stem[0] = '\0';
+    if (!IS_NULLSTR(pArea->file_name))
+    {
+        size_t i = 0;
+        for (const char *src = pArea->file_name; *src && i < sizeof(base_stem) - 1; src++)
+        {
+            if (*src == '.')
+                break;
+
+            if (isalnum((unsigned char)*src) || *src == '_' || *src == '-')
+                base_stem[i++] = *src;
+            else
+                base_stem[i++] = '_';
+        }
+        base_stem[i] = '\0';
+    }
+
+    if (IS_NULLSTR(base_stem))
+        snprintf(base_stem, sizeof(base_stem), "wilderness");
+
+    for (pWilds = pArea->wilds; pWilds; pWilds = pWilds->next)
+    {
+        if (pWilds->wildgen_grid_rows < 1)
+        {
+            pWilds->wildgen_grid_rows = 1;
+            changed++;
+        }
+
+        if (pWilds->wildgen_grid_cols < 1)
+        {
+            pWilds->wildgen_grid_cols = 1;
+            changed++;
+        }
+
+        if (pWilds->wildgen_tile_width < 0)
+        {
+            pWilds->wildgen_tile_width = 0;
+            changed++;
+        }
+
+        if (pWilds->wildgen_tile_height < 0)
+        {
+            pWilds->wildgen_tile_height = 0;
+            changed++;
+        }
+
+        if (IS_NULLSTR(pWilds->wildgen_terrain_base))
+        {
+            char buf[MIL];
+            char uid_suffix[32];
+            size_t base_len = strlen(base_stem);
+
+            if (base_len > sizeof(buf) - sizeof(uid_suffix) - 1)
+                base_len = sizeof(buf) - sizeof(uid_suffix) - 1;
+
+            memcpy(buf, base_stem, base_len);
+            buf[base_len] = '\0';
+
+            snprintf(uid_suffix, sizeof(uid_suffix), "_%ld", pWilds->uid > 0 ? pWilds->uid : 0L);
+            strncat(buf, uid_suffix, sizeof(buf) - strlen(buf) - 1);
+
+            free_string(pWilds->wildgen_terrain_base);
+            pWilds->wildgen_terrain_base = str_dup(buf);
+            changed++;
+        }
+
+        if (!pWilds->wildgen_elevation_base)
+        {
+            pWilds->wildgen_elevation_base = str_dup("");
+            changed++;
+        }
+    }
+
+    pArea->version_wilds = VERSION_WILDS_001;
+
+    if (changed > 0)
+    {
+        SET_BIT(pArea->area_flags, AREA_CHANGED);
+        plogf(LOG_INFO,
+            "Migrated wilds version for area %ld (%s): v0x%08X -> v0x%08X (%d field updates)",
+            pArea->uid,
+            !IS_NULLSTR(pArea->name) ? pArea->name : "(unnamed)",
+            loaded_version,
+            VERSION_WILDS_001,
+            changed);
+    }
 }
 
 void do_vlinks(CHAR_DATA *ch, char *argument)
@@ -2865,6 +3739,14 @@ WILDS_DATA *new_wilds (void)
 //    pWilds->obj_matrix = NULL;
     pWilds->loaded_rooms = 0;
     pWilds->loaded_vrooms = list_create(false);
+    pWilds->runtime_chunks = NULL;
+    pWilds->next_runtime_zone_id = 0;
+    pWilds->wildgen_grid_rows = 1;
+    pWilds->wildgen_grid_cols = 1;
+    pWilds->wildgen_tile_width = 0;
+    pWilds->wildgen_tile_height = 0;
+    pWilds->wildgen_terrain_base = str_dup("");
+    pWilds->wildgen_elevation_base = str_dup("");
     VALIDATE (pWilds);
 
     return pWilds;
@@ -2877,11 +3759,14 @@ void free_wilds (WILDS_DATA * pWilds)
     WILDS_VLINK *pVLink, *pVLink_next;
     WILDS_TERRAIN *pTerrain, *pTerrain_next;
     WILDS_REGION *pRegion, *pRegion_next;
+    WILDS_CHUNK *chunk, *chunk_next;
 
     if (!IS_VALID (pWilds))
         return;
 
     free_string (pWilds->name);
+    free_string (pWilds->wildgen_terrain_base);
+    free_string (pWilds->wildgen_elevation_base);
 
 /* Vizz - calloc'ed, to avoid MAX_PERM_BLOCK having to be huge
  *        if we were using alloc_perm and free_string
@@ -2921,6 +3806,22 @@ void free_wilds (WILDS_DATA * pWilds)
     pWilds->pVLink = NULL;
     pWilds->pTerrain = NULL;
     pWilds->pRegion = NULL;
+
+    for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk_next)
+    {
+        WILDS_OVERLAY *overlay, *overlay_next;
+        chunk_next = chunk->next;
+
+        for (overlay = chunk->overlays; overlay; overlay = overlay_next)
+        {
+            overlay_next = overlay->next;
+            free_mem(overlay, sizeof(*overlay));
+        }
+
+        free_mem(chunk, sizeof(*chunk));
+    }
+
+    pWilds->runtime_chunks = NULL;
     list_destroy(pWilds->loaded_vrooms);
     INVALIDATE (pWilds);
 
@@ -2933,6 +3834,12 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
 {
     ROOM_INDEX_DATA *room;
     OBJ_DATA *obj;
+
+    if (ch == NULL)
+    {
+        pbugf(LOG_ERROR, "char_to_vroom called with NULL character.");
+        return;
+    }
 
     // Check arguments are valid.
     if (pWilds == NULL)
@@ -2961,10 +3868,39 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     ch->in_wilds = pWilds;
     ch->at_wilds_x = x;
     ch->at_wilds_y = y;
+    wilds_touch_chunk(pWilds, x, y);
+
+    if (!IS_NPC(ch))
+        wilds_prewarm_around(pWilds, x, y, 1, 6);
 
     // Check if there's a loaded vroom for them, or load one up.
     if(!(room = get_wilds_vroom(pWilds, x, y)))
         room = create_wilds_vroom(pWilds, x, y);
+
+    if (room == NULL)
+    {
+        ROOM_INDEX_DATA *fallback = get_reserved_room_index("room_default");
+
+        pbugf(LOG_ERROR,
+              "char_to_vroom failed to resolve room for wilds uid %ld at (%d,%d). Falling back to room_default.",
+              pWilds ? pWilds->uid : 0,
+              x,
+              y);
+
+        if (fallback != NULL)
+        {
+            ch->in_wilds = NULL;
+            ch->at_wilds_x = 0;
+            ch->at_wilds_y = 0;
+            char_to_room(ch, fallback);
+        }
+        else
+        {
+            pbugf(LOG_ERROR, "room_default missing while handling char_to_vroom failure.");
+        }
+
+        return;
+    }
 
     ch->in_room = room;
     ch->next_in_room = room->people;
@@ -3053,6 +3989,77 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     }
 
     return;
+}
+
+void wilds_chunk_pulse(void)
+{
+    ITERATOR witer;
+    LLIST_WILDS_DATA *data;
+    static time_t last_telemetry = 0;
+
+    if (!loaded_wilds)
+        return;
+
+    iterator_start(&witer, loaded_wilds);
+    while ((data = (LLIST_WILDS_DATA *)iterator_nextdata(&witer)))
+    {
+        WILDS_DATA *pWilds = data ? data->wilds : NULL;
+        WILDS_CHUNK *chunk;
+        int prefetched;
+        int ttl_unloaded = 0;
+        int lru_unloaded;
+        int chunk_count;
+
+        if (!pWilds)
+            continue;
+
+        wilds_chunk_recount_usage(pWilds);
+        prefetched = wilds_prefetch_ring(pWilds, WILDS_CHUNK_PREFETCH_BUDGET);
+        if (prefetched > 0)
+            wilds_chunk_recount_usage(pWilds);
+
+        for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
+        {
+            time_t idle_seconds;
+
+            if (chunk->pin_flags != WILDS_CHUNK_PIN_NONE)
+                continue;
+
+            if (chunk->loaded_rooms < 1 || chunk->active_actors > 0)
+                continue;
+
+            idle_seconds = current_time - chunk->last_access;
+            if (idle_seconds < WILDS_CHUNK_UNLOAD_TTL_SECONDS)
+                continue;
+
+            if (wilds_unload_chunk_rooms(pWilds, chunk) > 0)
+            {
+                chunk->last_access = current_time;
+                ttl_unloaded++;
+            }
+        }
+
+        wilds_chunk_recount_usage(pWilds);
+        lru_unloaded = wilds_lru_pressure_unload(pWilds,
+            WILDS_CHUNK_MAX_LOADED_ROOMS,
+            WILDS_CHUNK_MAX_TRACKED_CHUNKS);
+
+        chunk_count = wilds_count_chunks(pWilds);
+        if ((prefetched > 0 || ttl_unloaded > 0 || lru_unloaded > 0)
+        && (last_telemetry == 0 || (current_time - last_telemetry) >= WILDS_CHUNK_TELEMETRY_INTERVAL))
+        {
+            plogf(LOG_INFO,
+                "Wilds chunk pulse uid=%ld prefetch=%d ttl_unload=%d lru_unload=%d loaded_rooms=%d tracked_chunks=%d",
+                pWilds->uid,
+                prefetched,
+                ttl_unloaded,
+                lru_unloaded,
+                pWilds->loaded_rooms,
+                chunk_count);
+            last_telemetry = current_time;
+        }
+    }
+    iterator_stop(&witer);
 }
 
 void add_vlink (WILDS_DATA *pWilds, WILDS_VLINK *pVLink)
@@ -3288,6 +4295,10 @@ WILDS_TERRAIN *new_terrain (WILDS_DATA *pWilds)
     pTerrain->next = NULL;
     pTerrain->showname = NULL;
     pTerrain->briefdesc = NULL;
+    pTerrain->wildgen_has_color = false;
+    pTerrain->wildgen_r = 0;
+    pTerrain->wildgen_g = 0;
+    pTerrain->wildgen_b = 0;
     pTerrain->template = new_room_index();
     pTerrain->pWilds = pWilds;
     VALIDATE (pTerrain);
@@ -3607,11 +4618,15 @@ void do_wlist(CHAR_DATA *ch, char *argument)
     LLIST_WILDS_DATA *data;
     WILDS_DATA *pWilds;
     BUFFER *buffer;
+    int active_chunks;
+    int pinned_chunks;
+    int chunk_count;
     //int place_type = 0;
 
     buffer = new_buf();
 
-    sprintf(buf, "[%-7s] [%-26.26s] [%15s] [%-10s]\n\r", "UID", "Name", "Dimensions", "Area");
+    sprintf(buf, "[%-7s] [%-22.22s] [%11s] [%6s] [%6s] [%6s] [%-10s]\n\r",
+        "UID", "Name", "Dimensions", "Chunks", "Active", "Loaded", "Area");
     add_buf(buffer, buf);
 
 
@@ -3619,9 +4634,17 @@ void do_wlist(CHAR_DATA *ch, char *argument)
     while((data = (LLIST_WILDS_DATA *)iterator_nextdata(&iter)))
     {
         pWilds = data->wilds;
-        sprintf(buf,"[%7ld] [%-26.26s] [ %5d x %-5d ] %s\n\r", pWilds->uid,
+
+        wilds_chunk_recount_usage(pWilds);
+        chunk_count = wilds_count_chunks(pWilds);
+        wilds_collect_chunk_stats(pWilds, &active_chunks, &pinned_chunks);
+
+        sprintf(buf,"[%7ld] [%-22.22s] [ %4d x %-4d ] [%6d] [%6d] [%6d] %s\n\r", pWilds->uid,
             (IS_NULLSTR(pWilds->name) ? "no name" : pWilds->name),
             pWilds->map_size_x, pWilds->map_size_y,
+            chunk_count,
+            active_chunks + pinned_chunks,
+            pWilds->loaded_rooms,
             ((!IS_NULLSTR(pWilds->pArea->name)) ? pWilds->pArea->name : ""));
         add_buf(buffer, buf);
     }

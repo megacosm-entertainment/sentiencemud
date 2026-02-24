@@ -9,7 +9,7 @@
   "tests": [
     {
       "name": "bootstrap_tests_area_exists",
-      "description": "Bootstrap Tests area from bootstrap_data/area/tests.json is present",
+      "description": "Bootstrap Reserved and Bootstrap Tests areas from bootstrap_data are present",
       "test_type": "area_existence_check",
       "input": {
         "required_areas": [

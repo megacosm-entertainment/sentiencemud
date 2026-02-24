@@ -278,7 +278,14 @@ C_FILES = \
     treasuremap.c \
     update.c \
     weather.c \
-    wilds.c
+    wilderness_mods.c \
+    wilderness_state.c \
+    wilderness_storage.c \
+    wilderness_vlinks.c \
+    wilderness_wmap.c \
+    wilderness_wterr.c \
+    wilds.c \
+    wilds_wildgen.c
 
 # Add test integration source file only when BUILD_TESTS is enabled
 ifdef BUILD_TESTS

@@ -3,6 +3,8 @@
 **Date:** February 8, 2026
 **Status:** Early Design / Sketch
 
+**Program dependency:** See `PLAN_CORE_SYSTEMS_INTEGRATION.md` for cross-system sequencing and phase gates with combat, casting, and class evolution.
+
 ---
 
 ## Motivation
@@ -92,6 +94,18 @@ A player's own alternate character, manifested as an NPC companion.
 ---
 
 ## Architecture
+
+### Dependency: Combat Actor Model
+
+Tiered companions (especially Tier 2-4) depend on the combat actor-model migration described in `PLAN_COMBAT_LOOP_AND_DAMAGE_REWORK.md`.
+
+Required foundations:
+
+- NPC archetype/class-like role definitions (not flag-only behavior)
+- Companion skill packages and tactical behavior profiles
+- Expanded runtime combat stats beyond legacy AC/flag-only tuning
+
+Without this foundation, higher-tier companions risk collapsing into raw-stat followers rather than meaningful party roles.
 
 ### Party Slots
 

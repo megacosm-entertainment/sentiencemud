@@ -606,7 +606,9 @@ DECLARE_OLC_FUN( wedit_show             );
 DECLARE_OLC_FUN( wedit_name             );
 DECLARE_OLC_FUN( wedit_region           );
 DECLARE_OLC_FUN( wedit_placetype        );
+DECLARE_OLC_FUN( wedit_overlay          );
 DECLARE_OLC_FUN( wedit_terrain          );
+DECLARE_OLC_FUN( wedit_wildgen          );
 DECLARE_OLC_FUN( wedit_vlink            );
 
 /* Blueprint Section Editor */

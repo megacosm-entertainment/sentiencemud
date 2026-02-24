@@ -303,6 +303,8 @@ struct script_type {
 //	Change #2: forgot persistent exits
 
 #define VERSION_CHURCH_001 0x01000001
+#define VERSION_WILDS_001  0x01000001
+//  Change #1: Wildgen definition defaults and migration gate for externalized wilderness architecture
 
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
@@ -313,7 +315,7 @@ struct script_type {
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
-#define VERSION_WILDS		0x01000000
+#define VERSION_WILDS		VERSION_WILDS_001
 #define VERSION_DATABASE	0x01000000
 #define VERSION_CHURCH      VERSION_CHURCH_001
 

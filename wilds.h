@@ -25,14 +25,33 @@ long next_wilds_uid;
 
 /* Structure types */
 /* typedef struct    wilds_vlink      WILDS_VLINK; */
+typedef struct    wilds_overlay    WILDS_OVERLAY;
+typedef struct    wilds_chunk      WILDS_CHUNK;
 
 /* Exported local routines */
 char            *vlinkage_bit_name  args ((int vlinktype ));
 void            load_wilds args (( FILE *fp, AREA_DATA *pArea ));
 void            save_wilds args (( FILE *fp, AREA_DATA *pArea ));
+void            migrate_area_wilds_version args (( AREA_DATA *pArea, int loaded_version ));
 WILDS_DATA      *new_wilds args (( void ));
 void            free_wilds args (( WILDS_DATA *pWilds ));
 char            *allocate_wildsmap args (( int map_size_x, int map_size_y ));
+char            get_wilds_base_tile args ((WILDS_DATA *pWilds, int x, int y));
+char            get_wilds_effective_tile args ((WILDS_DATA *pWilds, int x, int y));
+int             get_wilds_effective_region args ((WILDS_DATA *pWilds, int x, int y));
+bool            set_wilds_runtime_tile args ((WILDS_DATA *pWilds, int x, int y, char tile));
+bool            wilds_apply_static_tiles args ((WILDS_DATA *pWilds, const char *tiles, int width, int height));
+long            wilds_add_temporary_zone args ((WILDS_DATA *pWilds, int x1, int y1, int x2, int y2, char tile, int region, int duration));
+int             wilds_remove_temporary_zone args ((WILDS_DATA *pWilds, long zone_id));
+int             wilds_remove_region_temporary_zones args ((WILDS_DATA *pWilds, int region));
+int             wilds_cleanup_expired_temporary_zones args ((WILDS_DATA *pWilds));
+bool            wilds_wildgen_init args ((void));
+void            wilds_wildgen_shutdown args ((void));
+bool            wilds_wildgen_enqueue args ((WILDS_DATA *pWilds, const char *png_path, char *err_buf, size_t err_buf_size));
+bool            wilds_wildgen_enqueue_grid args ((WILDS_DATA *pWilds, const char *terrain_base, int rows, int cols, const char *elevation_base, char *err_buf, size_t err_buf_size));
+void            wilds_wildgen_status args ((WILDS_DATA *pWilds, char *buf, size_t buf_size));
+void            wilds_wildgen_pulse args ((void));
+void            wilds_chunk_pulse args ((void));
 
 ROOM_INDEX_DATA *create_wilds_vroom args ((WILDS_DATA *pWilds, int x, int y));
 void            destroy_wilds_vroom args ((ROOM_INDEX_DATA *room));
@@ -62,12 +81,14 @@ WILDS_VLINK     *new_vlink args(( void ));
 WILDS_VLINK     *fread_vlink args(( FILE *fp, WILDS_DATA *pWilds ));
 WILDS_VLINK	*get_vlink_from_uid args ((WILDS_DATA *pWilds, long uid));
 WILDS_VLINK	*get_vlink_from_index args ((WILDS_DATA *pWilds, long index));
+bool            wilds_coord_has_vlink_marker args ((WILDS_DATA *pWilds, int x, int y));
 void            add_vlink args (( WILDS_DATA *pWilds, WILDS_VLINK *pVLink ));
 bool            link_vlink args (( WILDS_VLINK *pVLink ));
 bool            unlink_vlink args (( WILDS_VLINK *pVLink ));
 void		fix_vlinks ();
 
 bool            check_for_bad_room args (( WILDS_DATA *pWilds, int x, int y ));
+bool            wilds_coord_has_vlink_marker args ((WILDS_DATA *pWilds, int x, int y));
 bool            map_char_cmp args (( WILDS_DATA *pWilds, int x, int y, char *check ));
 int             get_squares_to_show_x args (( int bonus_view ));
 int             get_squares_to_show_y args (( int bonus_view ));
@@ -114,6 +135,10 @@ struct    wilds_terrain
     char            *showname;
     char            *briefdesc;
     bool            nonroom;
+    bool            wildgen_has_color;
+    unsigned char   wildgen_r;
+    unsigned char   wildgen_g;
+    unsigned char   wildgen_b;
     ROOM_INDEX_DATA *template;
 };
 
@@ -155,6 +180,14 @@ struct wilds_data
     bool            empty;
     int             age;            /* current age */
     int             repop;          /* age to repop at */
+    WILDS_CHUNK     *runtime_chunks;
+    long            next_runtime_zone_id;
+    int             wildgen_grid_rows;
+    int             wildgen_grid_cols;
+    int             wildgen_tile_width;
+    int             wildgen_tile_height;
+    char            *wildgen_terrain_base;
+    char            *wildgen_elevation_base;
 };
 
 
@@ -211,6 +244,36 @@ struct wilds_region
     int             region;
     long            area_place_flags;
 };
+
+#define WILDS_OVERLAY_CHUNK_SIZE   32
+
+struct wilds_overlay
+{
+    WILDS_OVERLAY   *next;
+    long            zone_id;
+    int             x1;
+    int             y1;
+    int             x2;
+    int             y2;
+    char            tile;
+    int             region;
+    time_t          expires_at;
+};
+
+struct wilds_chunk
+{
+    WILDS_CHUNK     *next;
+    int             cx;
+    int             cy;
+    WILDS_OVERLAY   *overlays;
+    int             loaded_rooms;
+    int             active_actors;
+    time_t          last_access;
+    int             pin_flags;
+};
+
+#define WILDS_CHUNK_PIN_NONE       0
+#define WILDS_CHUNK_PIN_OVERLAY    (A)
 
 
 

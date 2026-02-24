@@ -20,6 +20,7 @@
 #include "json_obj_types.h"
 #include "../cache/redis_cache.h"
 #include "../../editors/common.h"
+#include "../../wilderness_storage.h"
 
 #include "../../wilds.h"
 
@@ -33,6 +34,72 @@ static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, ARE
 static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2, AREA_DATA *area);
 static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DATA *area);
 static bool json_script_array_has_vnum(json_t *scripts, long vnum);
+
+static void json_wilds_add_storage_ref(json_t *json, WILDS_DATA *wilds)
+{
+    json_t *storage;
+    char state_path[MSL];
+    char mods_path[MSL];
+    char wmap_path[MSL];
+    char wterr_path[MSL];
+    char dir_path[MSL];
+    const char *state_name;
+    const char *mods_name;
+    const char *wmap_name;
+    const char *wterr_name;
+    const char *display_dir;
+
+    if (!json || !wilds)
+        return;
+
+    if (!wilderness_storage_build_state_path(wilds, state_path, sizeof(state_path))
+    || !wilderness_storage_build_mods_path(wilds, mods_path, sizeof(mods_path))
+    || !wilderness_storage_build_wmap_path(wilds, wmap_path, sizeof(wmap_path))
+    || !wilderness_storage_build_wterr_path(wilds, wterr_path, sizeof(wterr_path)))
+        return;
+
+    if (snprintf(dir_path, sizeof(dir_path), "%s", wmap_path) >= (int)sizeof(dir_path))
+        return;
+
+    {
+        char *slash = strrchr(dir_path, '/');
+        if (!slash)
+            return;
+        *slash = '\0';
+    }
+
+    state_name = strrchr(state_path, '/');
+    mods_name = strrchr(mods_path, '/');
+    wmap_name = strrchr(wmap_path, '/');
+    wterr_name = strrchr(wterr_path, '/');
+
+    if (!state_name || !mods_name || !wmap_name || !wterr_name)
+        return;
+
+    state_name++;
+    mods_name++;
+    wmap_name++;
+    wterr_name++;
+
+    display_dir = dir_path;
+    if (!str_prefix(GAME_DIR, dir_path))
+        display_dir = dir_path + strlen(GAME_DIR);
+
+    storage = json_object();
+    if (!storage)
+        return;
+
+    json_object_set_new(storage, "provider", json_string("wilderness_storage_v1"));
+    json_object_set_new(storage, "wilds_uid", json_integer(wilds->uid));
+    json_object_set_new(storage, "artifact_dir", json_string_safe(display_dir));
+    json_object_set_new(storage, "wmap", json_string_safe(wmap_name));
+    json_object_set_new(storage, "wterr", json_string_safe(wterr_name));
+    json_object_set_new(storage, "mods", json_string_safe(mods_name));
+    json_object_set_new(storage, "state", json_string_safe(state_name));
+    json_object_set_new(storage, "images_dir", json_string("images"));
+
+    json_object_set_new(json, "storage", storage);
+}
 
 static bool json_try_parse_explicit_widevnum(const char *raw, WNUM_LOAD *out)
 {
@@ -131,21 +198,6 @@ static long json_read_room_ref_to_vnum(json_t *obj, const char *key,
     return load.vnum;
 }
 
-// --- WILDS_TERRAIN JSON helpers ---
-static json_t *wilds_terrain_to_json(WILDS_TERRAIN *terrain) {
-    if (!terrain) return NULL;
-    json_t *json = json_object();
-    json_object_set_new(json, "mapchar", json_integer(terrain->mapchar));
-    json_object_set_new(json, "showchar", json_string_safe(terrain->showchar));
-    json_object_set_new(json, "showname", json_string_safe(terrain->showname));
-    json_object_set_new(json, "briefdesc", json_string_safe(terrain->briefdesc));
-    json_object_set_new(json, "nonroom", terrain->nonroom ? json_true() : json_false());
-    if (terrain->template) {
-        json_object_set_new(json, "template", json_area_serialize_room(terrain->template));
-    }
-    return json;
-}
-
 static WILDS_TERRAIN *json_to_wilds_terrain(json_t *json, WILDS_DATA *pWilds) {
     if (!json) return NULL;
     WILDS_TERRAIN *terrain = new_terrain(pWilds);
@@ -159,44 +211,6 @@ static WILDS_TERRAIN *json_to_wilds_terrain(json_t *json, WILDS_DATA *pWilds) {
         terrain->template = json_area_deserialize_room(template_json, pWilds->pArea);
     }
     return terrain;
-}
-
-// --- WILDS_VLINK JSON helpers ---
-static json_t *wilds_vlink_to_json(WILDS_VLINK *vlink) {
-    if (!vlink) return NULL;
-    json_t *json = json_object();
-    json_object_set_new(json, "uid", json_integer(vlink->uid));
-    json_object_set_new(json, "wildsorigin_x", json_integer(vlink->wildsorigin_x));
-    json_object_set_new(json, "wildsorigin_y", json_integer(vlink->wildsorigin_y));
-    json_object_set_new(json, "door", json_integer(vlink->door));
-    json_object_set_new(json, "map_tile", json_string_safe(vlink->map_tile));
-    if (vlink->dest_load.auid > 0 && vlink->dest_load.vnum > 0) {
-        char wnum_buf[MIL];
-        snprintf(wnum_buf, sizeof(wnum_buf), "%ld#%ld", vlink->dest_load.auid, vlink->dest_load.vnum);
-        json_object_set_new(json, "destvnum", json_string(wnum_buf));
-    } else if (vlink->pDestRoom) {
-        json_object_set_new(json, "destvnum", json_string(widevnum_string_room(vlink->pDestRoom, NULL)));
-    } else if (vlink->destvnum > 0) {
-        json_object_set_new(json, "destvnum", json_integer(vlink->destvnum));
-    }
-    json_object_set_new(json, "destination_mode", json_integer(vlink->destination_mode));
-    json_object_set_new(json, "dungeon_floor", json_integer(UMAX(1, vlink->dungeon_floor)));
-    json_object_set_new(json, "default_linkage", json_integer(vlink->default_linkage));
-    json_object_set_new(json, "current_linkage", json_integer(vlink->current_linkage));
-    json_object_set_new(json, "orig_description", json_string_safe(vlink->orig_description));
-    json_object_set_new(json, "orig_keyword", json_string_safe(vlink->orig_keyword));
-    json_object_set_new(json, "orig_rs_flags", json_integer(vlink->orig_rs_flags));
-    json_object_set_new(json, "orig_key", json_integer(vlink->orig_key));
-    json_object_set_new(json, "orig_lock", json_integer(vlink->orig_lock));
-    json_object_set_new(json, "orig_pick", json_integer(vlink->orig_pick));
-    json_object_set_new(json, "rev_description", json_string_safe(vlink->rev_description));
-    json_object_set_new(json, "rev_keyword", json_string_safe(vlink->rev_keyword));
-    json_object_set_new(json, "rev_rs_flags", json_integer(vlink->rev_rs_flags));
-    json_object_set_new(json, "rev_key", json_integer(vlink->rev_key));
-    json_object_set_new(json, "rev_lock", json_integer(vlink->rev_lock));
-    json_object_set_new(json, "rev_pick", json_integer(vlink->rev_pick));
-    // pWilds, pWildsVroom, pDestRoom not serialized
-    return json;
 }
 
 static WILDS_VLINK *json_to_wilds_vlink(json_t *json, WILDS_DATA *pWilds) {
@@ -251,7 +265,6 @@ static json_t *wilds_to_json(WILDS_DATA *wilds) {
     json_object_set_new(json, "uid", json_integer(wilds->uid));
     json_object_set_new(json, "name", json_string_safe(wilds->name));
     json_object_set_new(json, "wilds_format", json_integer(wilds->wilds_format));
-    json_object_set_new(json, "staticmap", json_string_safe(wilds->staticmap));
     json_object_set_new(json, "map_size_x", json_integer(wilds->map_size_x));
     json_object_set_new(json, "map_size_y", json_integer(wilds->map_size_y));
     json_object_set_new(json, "startx", json_integer(wilds->startx));
@@ -259,46 +272,56 @@ static json_t *wilds_to_json(WILDS_DATA *wilds) {
     json_object_set_new(json, "sector_size_x", json_integer(wilds->sector_size_x));
     json_object_set_new(json, "sector_size_y", json_integer(wilds->sector_size_y));
     json_object_set_new(json, "cDefaultTerrain", json_integer(wilds->cDefaultTerrain));
-    // Terrain list
-    json_t *terrains = json_array();
-    for (WILDS_TERRAIN *t = wilds->pTerrain; t; t = t->next) {
-        json_t *tjson = wilds_terrain_to_json(t);
-        if (tjson) json_array_append_new(terrains, tjson);
-    }
-    json_object_set_new(json, "terrains", terrains);
-    // Vlink list
-    json_t *vlinks = json_array();
-    for (WILDS_VLINK *vl = wilds->pVLink; vl; vl = vl->next) {
-        json_t *vj = wilds_vlink_to_json(vl);
-        if (vj) json_array_append_new(vlinks, vj);
-    }
-    json_object_set_new(json, "vlinks", vlinks);
+    json_object_set_new(json, "wildgen_grid_rows", json_integer(wilds->wildgen_grid_rows));
+    json_object_set_new(json, "wildgen_grid_cols", json_integer(wilds->wildgen_grid_cols));
+    json_object_set_new(json, "wildgen_tile_width", json_integer(wilds->wildgen_tile_width));
+    json_object_set_new(json, "wildgen_tile_height", json_integer(wilds->wildgen_tile_height));
+    json_object_set_new(json, "wildgen_terrain_base", json_string_safe(wilds->wildgen_terrain_base));
+    json_object_set_new(json, "wildgen_elevation_base", json_string_safe(wilds->wildgen_elevation_base));
+
+    json_object_set_new(json, "wilderness_storage_mode", json_string("external_v1"));
+    json_object_set_new(json, "legacy_embedded_map", json_false());
+    json_object_set_new(json, "legacy_embedded_terrains", json_false());
+
+    json_object_set_new(json, "legacy_embedded_vlinks", json_false());
+    json_wilds_add_storage_ref(json, wilds);
     return json;
 }
 
 static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
     if (!json) return NULL;
     WILDS_DATA *wilds = new_wilds();
+    bool loaded_embedded_map = false;
     wilds->pArea = area;
     wilds->uid = json_get_int_default(json, "uid", 0);
     wilds->name = str_dup(json_get_string_default(json, "name", ""));
     wilds->wilds_format = json_get_int_default(json, "wilds_format", 0);
     wilds->map_size_x = json_get_int_default(json, "map_size_x", 0);
     wilds->map_size_y = json_get_int_default(json, "map_size_y", 0);
+    wilds->wildgen_grid_rows = json_get_int_default(json, "wildgen_grid_rows", wilds->wildgen_grid_rows);
+    wilds->wildgen_grid_cols = json_get_int_default(json, "wildgen_grid_cols", wilds->wildgen_grid_cols);
+    wilds->wildgen_tile_width = json_get_int_default(json, "wildgen_tile_width", wilds->wildgen_tile_width);
+    wilds->wildgen_tile_height = json_get_int_default(json, "wildgen_tile_height", wilds->wildgen_tile_height);
+    free_string(wilds->wildgen_terrain_base);
+    wilds->wildgen_terrain_base = str_dup(json_get_string_default(json, "wildgen_terrain_base", ""));
+    free_string(wilds->wildgen_elevation_base);
+    wilds->wildgen_elevation_base = str_dup(json_get_string_default(json, "wildgen_elevation_base", ""));
 
-    // Allocate staticmap and map buffers like the .are loader does
+    // Allocate staticmap/map buffers. Embedded staticmap is legacy migration input only.
     const char *json_map = json_get_string_default(json, "staticmap", "");
     int map_total = wilds->map_size_x * wilds->map_size_y;
     if (map_total > 0) {
         wilds->staticmap = allocate_wildsmap(wilds->map_size_x, wilds->map_size_y);
         wilds->map = allocate_wildsmap(wilds->map_size_x, wilds->map_size_y);
 
-        // Copy map data directly - newlines in the JSON ARE terrain data, not separators
-        // The .are format stores rows with trailing newlines stripped, but embedded newlines
-        // (like at the start of the map) are valid terrain characters
-        memcpy(wilds->staticmap, json_map, map_total);
-        // Copy staticmap to map (working copy)
-        memcpy(wilds->map, wilds->staticmap, map_total);
+        if (json_map && (int)strlen(json_map) >= map_total) {
+            memcpy(wilds->staticmap, json_map, map_total);
+            memcpy(wilds->map, wilds->staticmap, map_total);
+            loaded_embedded_map = true;
+        } else {
+            memset(wilds->staticmap, wilds->cDefaultTerrain ? wilds->cDefaultTerrain : '?', map_total);
+            memset(wilds->map, wilds->cDefaultTerrain ? wilds->cDefaultTerrain : '?', map_total);
+        }
     } else {
         wilds->staticmap = str_dup("");
         wilds->map = str_dup("");
@@ -308,11 +331,29 @@ static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
     wilds->sector_size_x = json_get_int_default(json, "sector_size_x", 0);
     wilds->sector_size_y = json_get_int_default(json, "sector_size_y", 0);
     wilds->cDefaultTerrain = (char)json_get_int_default(json, "cDefaultTerrain", '?');
+
+    {
+        json_t *storage = json_object_get(json, "storage");
+        if (storage && json_is_object(storage))
+        {
+            long storage_uid = (long)json_integer_value(json_object_get(storage, "wilds_uid"));
+            if (storage_uid > 0 && wilds->uid > 0 && storage_uid != wilds->uid)
+            {
+                plogf(LOG_WARN,
+                    "json_to_wilds: storage wilds_uid mismatch for area '%s' (wilds uid=%ld storage uid=%ld)",
+                    area ? area->name : "(unknown)",
+                    wilds->uid,
+                    storage_uid);
+            }
+        }
+    }
+
     // Terrains
     json_t *terrains = json_object_get(json, "terrains");
     if (terrains && json_is_array(terrains)) {
         size_t idx; json_t *tjson;
         WILDS_TERRAIN *last = NULL;
+        bool loaded_embedded_terrains = false;
         json_array_foreach(terrains, idx, tjson) {
             WILDS_TERRAIN *t = json_to_wilds_terrain(tjson, wilds);
             if (t) {
@@ -320,7 +361,18 @@ static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
                 else last->next = t;
                 t->prev = last;
                 last = t;
+                loaded_embedded_terrains = true;
             }
+        }
+
+        if (loaded_embedded_terrains || loaded_embedded_map)
+        {
+            plogf(LOG_INFO,
+                "json_to_wilds: loaded legacy embedded wilderness payload for area '%s' wilds uid %ld (map=%s terrains=%s)",
+                area ? area->name : "(unknown)",
+                wilds->uid,
+                loaded_embedded_map ? "yes" : "no",
+                loaded_embedded_terrains ? "yes" : "no");
         }
     }
     // Vlinks
@@ -328,13 +380,23 @@ static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
     if (vlinks && json_is_array(vlinks)) {
         size_t idx; json_t *vj;
         WILDS_VLINK *last = NULL;
+        bool loaded_embedded_vlinks = false;
         json_array_foreach(vlinks, idx, vj) {
             WILDS_VLINK *vl = json_to_wilds_vlink(vj, wilds);
             if (vl) {
                 if (!wilds->pVLink) wilds->pVLink = vl;
                 else last->next = vl;
                 last = vl;
+                loaded_embedded_vlinks = true;
             }
+        }
+
+        if (loaded_embedded_vlinks)
+        {
+            plogf(LOG_INFO,
+                "json_to_wilds: loaded legacy embedded vlinks for area '%s' wilds uid %ld",
+                area ? area->name : "(unknown)",
+                wilds->uid);
         }
     }
     return wilds;

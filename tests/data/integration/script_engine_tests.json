@@ -858,6 +858,16 @@
       "expected_output": {
         "success": true
       }
+    },
+    {
+      "name": "script_mpgoto_wilds_fallback_guard",
+      "description": "Verify invalid wilds destination movement resolves safely to room_default without crash",
+      "dependencies": [],
+      "test_type": "script_engine_mpgoto_wilds_fallback_guard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
     }
   ]
 }
