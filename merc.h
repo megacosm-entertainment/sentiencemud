@@ -4469,6 +4469,7 @@ struct quest_objective_index_v2_data
     char *destination_token_ref_name;
     char *destination_token_variable_name;
     char *target_tag;
+    char *talk_phrase;
     char *description;
 
     bool optional;

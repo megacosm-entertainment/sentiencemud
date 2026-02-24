@@ -2197,6 +2197,7 @@ IFCHECK_DATA ifcheck_table[] = {
     { "questcompletions",	IFC_ANY,	"EN",	true,	ifc_questcompletions,	"ifcheck questcompletions" },
     { "questfailed",		IFC_ANY,	"EN",	false,	ifc_questfailed,		"ifcheck questfailed" },
     { "questfailures",		IFC_ANY,	"EN",	true,	ifc_questfailures,		"ifcheck questfailures" },
+    { "queststage",		IFC_ANY,	"EN",	true,	ifc_queststage,		"ifcheck queststage" },
     { "questpoint",			IFC_ANY,	"E",	true,	ifc_quest,				"ifcheck questpoint" },
     { "race",				IFC_ANY,	"ES",	false,	ifc_race,				"ifcheck race" },
     { "racepath",			IFC_ANY,	"E",	false,	ifc_racepath,			"ifcheck racepath" },

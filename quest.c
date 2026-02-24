@@ -5564,9 +5564,16 @@ void check_quest_talk_target(CHAR_DATA *ch, CHAR_DATA *victim, const char *messa
                     continue;
             }
 
-            if (!IS_NULLSTR(objective->target_tag))
             {
-                if (IS_NULLSTR(message) || str_infix(objective->target_tag, message))
+                const char *required_phrase = NULL;
+
+                if (!IS_NULLSTR(objective->talk_phrase))
+                    required_phrase = objective->talk_phrase;
+                else if (!IS_NULLSTR(objective->target_tag))
+                    required_phrase = objective->target_tag;
+
+                if (!IS_NULLSTR(required_phrase)
+                    && (IS_NULLSTR(message) || str_infix(required_phrase, message)))
                     continue;
             }
 

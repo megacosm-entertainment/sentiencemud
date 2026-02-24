@@ -668,6 +668,37 @@ typedef enum {
     QEDIT_WNUM_DUNGEON
 } qedit_wnum_kind_t;
 
+static qedit_wnum_kind_t qedit_objective_target_kind(int objective_type)
+{
+    switch (objective_type) {
+    case QUEST_OBJECTIVE_COLLECT:
+        return QEDIT_WNUM_OBJ;
+
+    case QUEST_OBJECTIVE_KILL:
+    case QUEST_OBJECTIVE_TALK:
+    case QUEST_OBJECTIVE_RESCUE:
+    case QUEST_OBJECTIVE_ESCORT:
+        return QEDIT_WNUM_MOB;
+
+    default:
+        return QEDIT_WNUM_ANY;
+    }
+}
+
+static qedit_wnum_kind_t qedit_reward_target_kind(int reward_type)
+{
+    switch (reward_type) {
+    case QUEST_REWARD_ITEM:
+        return QEDIT_WNUM_OBJ;
+
+    case QUEST_REWARD_TOKEN:
+        return QEDIT_WNUM_TOKEN;
+
+    default:
+        return QEDIT_WNUM_ANY;
+    }
+}
+
 static bool qedit_use_mxp(CHAR_DATA *ch)
 {
     if (!ch || !ch->desc)
@@ -1219,7 +1250,8 @@ static void qedit_show_flow_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
             char destination_token_buf[MSL];
             char destination_token_ref_buf[MIL];
 
-            qedit_format_wnum_display(ch, objective->target_wnum, QEDIT_WNUM_ANY,
+            qedit_format_wnum_display(ch, objective->target_wnum,
+                qedit_objective_target_kind(objective->objective_type),
                 target_buf, sizeof(target_buf));
 
             if (!IS_NULLSTR(objective->target_ref_name))
@@ -1271,7 +1303,8 @@ static void qedit_show_flow_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
                     add_buf(ctx->buffer, formatf("      target: pool (%d entries)\n\r", qedit_count_pool_entries(objective)));
                     for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next) {
                         char pool_target_buf[MSL];
-                        qedit_format_wnum_display(ch, pool_entry->target_wnum, QEDIT_WNUM_ANY,
+                        qedit_format_wnum_display(ch, pool_entry->target_wnum,
+                            qedit_objective_target_kind(objective->objective_type),
                             pool_target_buf, sizeof(pool_target_buf));
                         add_buf(ctx->buffer, formatf("          - [%d] %s weight:%d\n\r",
                             pool_entry->id,
@@ -1393,7 +1426,8 @@ static void qedit_show_rewards_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     for (reward = quest_index_v2->rewards; reward != NULL; reward = reward->next) {
         char target_buf[MSL];
 
-        qedit_format_wnum_display(ch, reward->target_wnum, QEDIT_WNUM_ANY,
+        qedit_format_wnum_display(ch, reward->target_wnum,
+            qedit_reward_target_kind(reward->reward_type),
             target_buf, sizeof(target_buf));
 
         add_buf(ctx->buffer, formatf("[{W%d{x] type:%s amount:%ld target:%s\n\r",
@@ -1569,6 +1603,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> token wnum <auid>#<vnum|$refname|none>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> token ref <$refname|none>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> token name <refname|none>\n\r", ch);
+        send_to_char("  qedit <ref> objective <stage_id> <objective_id> talkphrase <text|none>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> summary <text|none>\n\r", ch);
         send_to_char("  qedit <ref> objective <stage_id> <objective_id> description [none]  (opens string editor)\n\r", ch);
         send_to_char("  qedit <ref> reward list\n\r", ch);
@@ -2481,7 +2516,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 printf_to_char(ch, "Pool entries for objective %d (stage %d):\n\r", objective->id, stage->id);
                 for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next) {
                     char target_buf[MSL];
-                    qedit_format_wnum_display(ch, pool_entry->target_wnum, QEDIT_WNUM_ANY,
+                    qedit_format_wnum_display(ch, pool_entry->target_wnum,
+                        qedit_objective_target_kind(objective->objective_type),
                         target_buf, sizeof(target_buf));
                     printf_to_char(ch, "  [%d] target:%s weight:%d\n\r",
                         pool_entry->id,
@@ -2634,6 +2670,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 const char *token_refname = !IS_NULLSTR(objective->target_token_variable_name) ? objective->target_token_variable_name : "(none)";
                 const char *destination_token_refname = !IS_NULLSTR(objective->destination_token_variable_name) ? objective->destination_token_variable_name : "(none)";
                 const char *tag = IS_NULLSTR(objective->target_tag) ? "(none)" : objective->target_tag;
+                const char *talkphrase = IS_NULLSTR(objective->talk_phrase) ? "(none)" : objective->talk_phrase;
 
                 if (!IS_NULLSTR(objective->target_ref_name))
                     snprintf(ref_buf, sizeof(ref_buf), "$%s", objective->target_ref_name);
@@ -2657,7 +2694,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 else
                     snprintf(destination_token_ref_buf, sizeof(destination_token_ref_buf), "none");
 
-                qedit_format_wnum_display(ch, objective->target_wnum, QEDIT_WNUM_ANY,
+                qedit_format_wnum_display(ch, objective->target_wnum,
+                    qedit_objective_target_kind(objective->objective_type),
                     target_buf, sizeof(target_buf));
                 qedit_format_wnum_display(ch, objective->destination_wnum, QEDIT_WNUM_ROOM,
                     destination_buf, sizeof(destination_buf));
@@ -2678,11 +2716,14 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                     objective->strict_target ? "on" : "off",
                     qedit_count_pool_entries(objective),
                     tag);
+                if (objective->objective_type == QUEST_OBJECTIVE_TALK)
+                    printf_to_char(ch, "      talkphrase:%s\n\r", talkphrase);
                 if (objective->pool_entries) {
                     QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry;
                     for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next) {
                         char pool_target_buf[MSL];
-                        qedit_format_wnum_display(ch, pool_entry->target_wnum, QEDIT_WNUM_ANY,
+                        qedit_format_wnum_display(ch, pool_entry->target_wnum,
+                            qedit_objective_target_kind(objective->objective_type),
                             pool_target_buf, sizeof(pool_target_buf));
                         printf_to_char(ch, "          pool[%d]: %s weight:%d\n\r",
                             pool_entry->id,
@@ -2804,7 +2845,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "  optional : %s\n\r", objective->optional ? "on" : "off");
             printf_to_char(ch, "  strict   : %s\n\r", objective->strict_target ? "on" : "off");
             printf_to_char(ch, "  mode     : %s\n\r", qedit_target_mode_name(objective->target_mode));
-            qedit_format_wnum_display(ch, objective->target_wnum, QEDIT_WNUM_ANY,
+            qedit_format_wnum_display(ch, objective->target_wnum,
+                qedit_objective_target_kind(objective->objective_type),
                 target_buf, sizeof(target_buf));
             qedit_format_wnum_display(ch, objective->destination_wnum, QEDIT_WNUM_ROOM,
                 destination_buf, sizeof(destination_buf));
@@ -2847,7 +2889,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry;
                 for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next) {
                     char pool_target_buf[MSL];
-                    qedit_format_wnum_display(ch, pool_entry->target_wnum, QEDIT_WNUM_ANY,
+                    qedit_format_wnum_display(ch, pool_entry->target_wnum,
+                        qedit_objective_target_kind(objective->objective_type),
                         pool_target_buf, sizeof(pool_target_buf));
                     printf_to_char(ch, "      [%d] %s weight:%d\n\r",
                         pool_entry->id,
@@ -2856,6 +2899,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 }
             }
             printf_to_char(ch, "  summary  : %s\n\r", objective->target_tag);
+            printf_to_char(ch, "  talkphrase: %s\n\r",
+                IS_NULLSTR(objective->talk_phrase) ? "" : objective->talk_phrase);
             printf_to_char(ch, "  description: %s\n\r", objective->description);
             return;
         }
@@ -2885,8 +2930,22 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         }
 
         if (IS_NULLSTR(arg5)) {
-            send_to_char("QEdit: objective field required (type/required/quantity/optional/strict/target/destination/token/destinationtoken/summary/description).\n\r", ch);
+            send_to_char("QEdit: objective field required (type/required/quantity/optional/strict/target/destination/token/destinationtoken/talkphrase/summary/description).\n\r", ch);
             send_to_char("       Use target|destination|token subfields: wnum/ref/name (and target mode|pool).\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg5, "talkphrase") || !str_prefix(arg5, "phrase")) {
+            if (IS_NULLSTR(text_after_arg5) || !str_cmp(text_after_arg5, "none")) {
+                free_string(objective->talk_phrase);
+                objective->talk_phrase = str_dup("");
+                send_to_char("QEdit: objective talkphrase cleared.\n\r", ch);
+                return;
+            }
+
+            free_string(objective->talk_phrase);
+            objective->talk_phrase = str_dup(text_after_arg5);
+            send_to_char("QEdit: objective talkphrase updated.\n\r", ch);
             return;
         }
 
@@ -3781,7 +3840,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
 
             for (reward = quest_index_v2->rewards; reward != NULL; reward = reward->next) {
                 char target_buf[MSL];
-                qedit_format_wnum_display(ch, reward->target_wnum, QEDIT_WNUM_ANY,
+                qedit_format_wnum_display(ch, reward->target_wnum,
+                    qedit_reward_target_kind(reward->reward_type),
                     target_buf, sizeof(target_buf));
                 printf_to_char(ch, "  [%d] type:%s amount:%ld target:%s\n\r",
                     index++,
@@ -3869,7 +3929,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "Reward %ld\n\r", reward_index);
             printf_to_char(ch, "  type     : %s\n\r", qedit_reward_type_name(reward->reward_type));
             printf_to_char(ch, "  amount   : %ld\n\r", reward->amount);
-            qedit_format_wnum_display(ch, reward->target_wnum, QEDIT_WNUM_ANY,
+            qedit_format_wnum_display(ch, reward->target_wnum,
+                qedit_reward_target_kind(reward->reward_type),
                 target_buf, sizeof(target_buf));
             printf_to_char(ch, "  target   : %s\n\r", target_buf);
             printf_to_char(ch, "  currency : %s\n\r", IS_NULLSTR(reward->currency) ? "" : reward->currency);

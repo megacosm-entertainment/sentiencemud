@@ -2854,6 +2854,7 @@ DECL_IFC_FUN(ifc_practices);
 DECL_IFC_FUN(ifc_quest);
 DECL_IFC_FUN(ifc_hasquest);
 DECL_IFC_FUN(ifc_questactive);
+DECL_IFC_FUN(ifc_queststage);
 DECL_IFC_FUN(ifc_questcomplete);
 DECL_IFC_FUN(ifc_questcompletions);
 DECL_IFC_FUN(ifc_questfailed);

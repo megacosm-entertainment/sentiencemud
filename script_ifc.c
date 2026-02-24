@@ -2314,6 +2314,29 @@ DECL_IFC_FUN(ifc_questactive)
     return true;
 }
 
+// QUESTSTAGE $MOBILE <widevnum> — current active stage id (0 if not active/found)
+DECL_IFC_FUN(ifc_queststage)
+{
+    long auid, vnum;
+    QUEST_DATA *run;
+
+    *ret = 0;
+
+    if (!ISARG_MOB(0) || !IS_VALID(ARG_MOB(0)))
+        return true;
+    if (IS_NPC(ARG_MOB(0)))
+        return true;
+
+    if (!ifc_parse_quest_wnum(argv, 1, ARG_MOB(0), &auid, &vnum))
+        return true;
+
+    run = quest_runtime_find_run_by_v2_wnum(ARG_MOB(0), auid, vnum);
+    if (run && run->run_status == QUEST_RUN_STATUS_ACTIVE && !run->generating)
+        *ret = run->current_stage_id;
+
+    return true;
+}
+
 // QUESTCOMPLETE $MOBILE <widevnum> — true if any completed run/history exists
 DECL_IFC_FUN(ifc_questcomplete)
 {

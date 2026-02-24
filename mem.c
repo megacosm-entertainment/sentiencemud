@@ -2853,6 +2853,7 @@ QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2(void)
     objective->destination_token_ref_name = str_dup("");
     objective->destination_token_variable_name = str_dup("");
     objective->target_tag = str_dup("");
+    objective->talk_phrase = str_dup("");
     objective->description = str_dup("");
     objective->optional = false;
     objective->strict_target = false;
@@ -2885,6 +2886,7 @@ void free_quest_objective_index_v2(QUEST_OBJECTIVE_INDEX_V2_DATA *objective)
     free_string(objective->destination_token_ref_name);
     free_string(objective->destination_token_variable_name);
     free_string(objective->target_tag);
+    free_string(objective->talk_phrase);
     free_string(objective->description);
 
     objective->next = quest_objective_index_v2_free;

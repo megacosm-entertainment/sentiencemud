@@ -1184,6 +1184,7 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
             json_object_set_new(objective_json, "destination_token_ref_name", json_string_safe(objective->destination_token_ref_name));
             json_object_set_new(objective_json, "destination_token_variable_name", json_string_safe(objective->destination_token_variable_name));
             json_object_set_new(objective_json, "target_tag", json_string_safe(objective->target_tag));
+            json_object_set_new(objective_json, "talk_phrase", json_string_safe(objective->talk_phrase));
             json_object_set_new(objective_json, "description", json_string_safe(objective->description));
             json_object_set_new(objective_json, "optional", objective->optional ? json_true() : json_false());
             json_object_set_new(objective_json, "strict_target", objective->strict_target ? json_true() : json_false());
@@ -1371,6 +1372,9 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
 
                     free_string(objective->target_tag);
                     objective->target_tag = str_dup(json_get_string_default(objective_json, "target_tag", ""));
+
+                    free_string(objective->talk_phrase);
+                    objective->talk_phrase = str_dup(json_get_string_default(objective_json, "talk_phrase", ""));
 
                     free_string(objective->description);
                     objective->description = str_dup(json_get_string_default(objective_json, "description", ""));
