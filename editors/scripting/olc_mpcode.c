@@ -584,8 +584,8 @@ static void scriptedit_show_logs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
     olc_display_infof(ctx, theme, "Last Attempt: %s%s{x",
         theme->value, scriptedit_format_time(pCode->last_compile_time));
     olc_display_infof(ctx, theme, "Result:       %s%s{x",
-        pCode->last_compile_success ? "{G" : "{R",
-        pCode->last_compile_success ? "success" : "failure");
+        (pCode->last_compile_time <= 0) ? "{D" : (pCode->last_compile_success ? "{G" : "{R"),
+        (pCode->last_compile_time <= 0) ? "not run" : (pCode->last_compile_success ? "success" : "failure"));
     if (pCode->last_compile_log && pCode->last_compile_log[0])
         olc_display_text(ctx, theme, NULL, NULL, pCode->last_compile_log);
     else
