@@ -2366,6 +2366,12 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
 
     /* Create or find room based on type */
     if (!str_cmp(room_type, "static")) {
+        bool persisted_snapshot = false;
+
+        value = json_object_get(json, "persist");
+        if (value)
+            persisted_snapshot = json_boolean_value(value);
+
         json_t *vnum_val = json_object_get(json, "vnum");
         if (json_is_string(vnum_val)) {
             /* New widevnum format */
@@ -2382,7 +2388,18 @@ ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json)
             log_string("json_persist_json_to_room: bad vnum");
             return NULL;
         }
-        /* Static rooms exist - we just apply persistent changes */
+
+        /* Static room overlays are only valid for rooms currently marked persistent.
+         * This prevents stale persisted snapshots from clobbering normal area rooms. */
+        if (!room->persist) {
+            if (persisted_snapshot) {
+                log_stringf("json_persist_json_to_room: skipping stale persistent snapshot for non-persistent room %s",
+                            widevnum_string_room(room, NULL));
+            }
+            return room;
+        }
+
+        /* Static rooms exist - apply persistent changes */
     } else if (!str_cmp(room_type, "clone")) {
         json_t *src_vnum_val = json_object_get(json, "source_vnum");
         ROOM_INDEX_DATA *source = NULL;
