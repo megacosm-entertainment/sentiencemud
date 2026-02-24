@@ -469,9 +469,9 @@ static test_result_t test_channel_effective_subscriptions_room_regular(test_case
         return TEST_FAILURE;
     }
 
-    if (!strstr(out, "rt:room:v:4201")) {
+    if (!strstr(out, "rt:room:v:9191:4201")) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                      "Expected regular room topic rt:room:v:4201, got: %s", out);
+                      "Expected regular room topic rt:room:v:9191:4201, got: %s", out);
         return TEST_FAILURE;
     }
 

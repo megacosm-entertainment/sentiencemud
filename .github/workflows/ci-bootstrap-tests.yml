@@ -37,9 +37,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       failure_snippet: ${{ steps.ci_tests.outputs.failure_snippet }}
-    env:
-      SENTIENCE_BOOTSTRAP_DATA_SOURCE: ${{ github.workspace }}/bootstrap/bootstrap_data
-      SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
     container:
       image: ghcr.io/megacosm-entertainment/sentience_trixie:latest
       options: --user root
@@ -52,6 +49,38 @@ jobs:
       - name: Mark repo as safe for git
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Resolve bootstrap seed source path
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/bootstrap/bootstrap_data" ]; then
+            BOOTSTRAP_SOURCE="$GITHUB_WORKSPACE/bootstrap/bootstrap_data"
+          elif [ -d "$GITHUB_WORKSPACE/src/bootstrap/bootstrap_data" ]; then
+            BOOTSTRAP_SOURCE="$GITHUB_WORKSPACE/src/bootstrap/bootstrap_data"
+          else
+            echo "Bootstrap seed data not found under expected locations:" >&2
+            echo "  - $GITHUB_WORKSPACE/bootstrap/bootstrap_data" >&2
+            echo "  - $GITHUB_WORKSPACE/src/bootstrap/bootstrap_data" >&2
+            exit 1
+          fi
+
+          echo "SENTIENCE_BOOTSTRAP_DATA_SOURCE=$BOOTSTRAP_SOURCE" >> "$GITHUB_ENV"
+          echo "Resolved SENTIENCE_BOOTSTRAP_DATA_SOURCE=$BOOTSTRAP_SOURCE"
+
+      - name: Resolve test source data path
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/tests/data" ]; then
+            TEST_SOURCE_DIR="$GITHUB_WORKSPACE/tests/data"
+          elif [ -d "$GITHUB_WORKSPACE/src/tests/data" ]; then
+            TEST_SOURCE_DIR="$GITHUB_WORKSPACE/src/tests/data"
+          else
+            echo "Test source data not found under expected locations:" >&2
+            echo "  - $GITHUB_WORKSPACE/tests/data" >&2
+            echo "  - $GITHUB_WORKSPACE/src/tests/data" >&2
+            exit 1
+          fi
+
+          echo "SENTIENCE_TEST_SOURCE_DIR=$TEST_SOURCE_DIR" >> "$GITHUB_ENV"
+          echo "Resolved SENTIENCE_TEST_SOURCE_DIR=$TEST_SOURCE_DIR"
 
       - name: Build dependencies
         working-directory: ${{ github.workspace }}
@@ -68,7 +97,6 @@ jobs:
         working-directory: ${{ github.workspace }}
         env:
           BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
-          SENTIENCE_TEST_SOURCE_DIR: ${{ github.workspace }}/tests/data
         run: |
           rm -rf "$BOOT_ROOT"
           mkdir -p "$BOOT_ROOT"

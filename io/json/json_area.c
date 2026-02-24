@@ -479,10 +479,8 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_t *recall = json_object();
     json_t *versions = json_object();
     json_t *regions = json_array();
-    long min_vnum = LONG_MAX;
-    long max_vnum = LONG_MIN;
-    ITERATOR room_it;
-    ROOM_INDEX_DATA *room_iter;
+    long min_vnum;
+    long max_vnum;
     
     /* Basic info */
     json_object_set_new(root, "uid", json_integer(area->uid));
@@ -492,24 +490,9 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_object_set_new(root, "tags", json_string_safe(area->tags));
     json_object_set_new(root, "auto_tags", json_string_safe(area->auto_tags));
     
-    /* Vnum range (legacy metadata): derive from actual rooms when available. */
-    if (area->room_list) {
-        iterator_start(&room_it, area->room_list);
-        while ((room_iter = (ROOM_INDEX_DATA *)iterator_nextdata(&room_it)) != NULL) {
-            if (room_iter->vnum > 0) {
-                if (room_iter->vnum < min_vnum)
-                    min_vnum = room_iter->vnum;
-                if (room_iter->vnum > max_vnum)
-                    max_vnum = room_iter->vnum;
-            }
-        }
-        iterator_stop(&room_it);
-    }
-
-    if (min_vnum == LONG_MAX || max_vnum == LONG_MIN) {
-        min_vnum = area->min_vnum;
-        max_vnum = area->max_vnum;
-    }
+    /* Vnum range (legacy metadata): preserve authoritative area values. */
+    min_vnum = area->min_vnum;
+    max_vnum = area->max_vnum;
 
     if (min_vnum > 0 && max_vnum >= min_vnum) {
         json_object_set_new(vnums, "min", json_integer(min_vnum));

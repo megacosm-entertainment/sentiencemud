@@ -4471,6 +4471,12 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
         return PRET_NOSCRIPT;
     }
 
+    if (!script->src || script->src[0] == '\0') {
+        script_append_runtime_logf(script, 0, "No script source available for execution.");
+        pbugf(LOG_SCRIPTS, "PROGs: No script source to execute for vnum %d.", pvnum);
+        return PRET_NOSCRIPT;
+    }
+
     if (IS_VALID(mob) && !IS_NPC(mob) )
     {
         script_append_runtime_logf(script, 0, "Attempted to run script with a player actor.");
