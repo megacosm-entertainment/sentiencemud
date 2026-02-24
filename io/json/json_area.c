@@ -812,7 +812,7 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
     /* Destination - save as widevnum string */
     if (exit->u1.to_room && exit->u1.to_room->vnum > 0) {
         json_object_set_new(obj, "destination", json_string(widevnum_string_room(exit->u1.to_room, NULL)));
-    } else if (!IS_SET(exit->exit_info, EX_VLINK) && exit->from_room) {
+    } else if (!IS_SET(exit->rs_flags, EX_VLINK) && exit->from_room) {
         /* Exit has no resolved destination and isn't a wilderness vlink.
          * This likely indicates data corruption - log it so we can investigate. */
         log_stringf("Warning: exit %s from room %ld (%s) has no destination - "
@@ -830,21 +830,21 @@ json_t *json_area_serialize_exit(EXIT_DATA *exit)
     if (exit->long_desc && exit->long_desc[0] != '\0')
         json_object_set_new(obj, "long_description", json_string(exit->long_desc));
 
-    /* Lock/key/pick fields - use widevnum for key */
-    if (exit->door.lock.key_wnum.pArea && exit->door.lock.key_wnum.vnum > 0) {
-        OBJ_INDEX_DATA *key_obj = get_obj_index(exit->door.lock.key_wnum.pArea, exit->door.lock.key_wnum.vnum);
+    /* Lock/key/pick fields - persist reset/base lock state (rs_lock) */
+    if (exit->door.rs_lock.key_wnum.pArea && exit->door.rs_lock.key_wnum.vnum > 0) {
+        OBJ_INDEX_DATA *key_obj = get_obj_index(exit->door.rs_lock.key_wnum.pArea, exit->door.rs_lock.key_wnum.vnum);
         if (key_obj) {
             json_object_set_new(obj, "key_vnum", json_string(widevnum_string_object(key_obj, NULL)));
         } else {
             /* Fallback to bare vnum if object not found */
-            json_object_set_new(obj, "key_vnum", json_integer(exit->door.lock.key_wnum.vnum));
+            json_object_set_new(obj, "key_vnum", json_integer(exit->door.rs_lock.key_wnum.vnum));
         }
     }
-    json_object_set_new(obj, "lock_flags", flags_to_json_array(exit->door.lock.flags, lock_flags));
-    json_object_set_new(obj, "pick_chance", json_integer(exit->door.lock.pick_chance));
+    json_object_set_new(obj, "lock_flags", flags_to_json_array(exit->door.rs_lock.flags, lock_flags));
+    json_object_set_new(obj, "pick_chance", json_integer(exit->door.rs_lock.pick_chance));
 
-    /* Flags */
-    json_object_set_new(obj, "flags", flags_to_json_array(exit->exit_info, exit_flags));
+    /* Flags - persist reset/base flags, not mutable runtime state */
+    json_object_set_new(obj, "flags", flags_to_json_array(exit->rs_flags, exit_flags));
 
     return obj;
 }
@@ -918,24 +918,39 @@ EXIT_DATA *json_area_deserialize_exit(json_t *json, AREA_DATA *area)
     if (key_json && json_is_string(key_json)) {
         WNUM_LOAD wload;
         if (parse_widevnum_load(json_string_value(key_json), &wload)) {
-            exit->door.lock.key_load = wload;
+            exit->door.rs_lock.key_load = wload;
         }
     } else {
-        exit->door.lock.key_load.vnum = json_get_int_default(json, "key_vnum", 0);
+        exit->door.rs_lock.key_load.vnum = json_get_int_default(json, "key_vnum", 0);
     }
     
     /* Load lock_flags - try as array first, fall back to integer for legacy */
     json_t *lock_flags_json = json_object_get(json, "lock_flags");
     if (lock_flags_json && json_is_array(lock_flags_json)) {
-        exit->door.lock.flags = json_array_to_flags(lock_flags_json, lock_flags);
+        exit->door.rs_lock.flags = json_array_to_flags(lock_flags_json, lock_flags);
     } else {
-        exit->door.lock.flags = json_get_int_default(json, "lock_flags", 0);
+        exit->door.rs_lock.flags = json_get_int_default(json, "lock_flags", 0);
     }
     
-    exit->door.lock.pick_chance = json_get_int_default(json, "pick_chance", 100);
+    exit->door.rs_lock.pick_chance = json_get_int_default(json, "pick_chance", 100);
 
-    /* Flags */
-    exit->exit_info = json_array_to_flags(json_object_get(json, "flags"), exit_flags);
+    /* Flags - restore persistent/reset flags and initialize runtime state from it.
+     * Supports both array and legacy integer encodings. */
+    {
+        json_t *flags_json = json_object_get(json, "flags");
+        long parsed_flags = 0;
+
+        if (flags_json && json_is_array(flags_json))
+            parsed_flags = json_array_to_flags(flags_json, exit_flags);
+        else
+            parsed_flags = json_get_int_default(json, "flags", 0);
+
+        exit->rs_flags = parsed_flags;
+        exit->exit_info = parsed_flags;
+    }
+
+    /* Initialize runtime lock state from reset/base state */
+    exit->door.lock = exit->door.rs_lock;
 
     return exit;
 }
@@ -4363,7 +4378,7 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
                 json_object_set_new(lock, "key_vnum", json_integer(obj->lock->key_load.vnum));
             }
         }
-        json_object_set_new(lock, "flags", json_integer(obj->lock->flags));
+        json_object_set_new(lock, "flags", flags_to_json_array(obj->lock->flags, lock_flags));
         json_object_set_new(lock, "pick_chance", json_integer(obj->lock->pick_chance));
         json_object_set_new(json, "lock", lock);
     }
@@ -4603,8 +4618,10 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         }
         
         json_t *lock_flags_json = json_object_get(lock, "flags");
-        if (lock_flags_json) {
+        if (lock_flags_json && json_is_array(lock_flags_json)) {
             obj->lock->flags = json_array_to_flags(lock_flags_json, lock_flags);
+        } else {
+            obj->lock->flags = json_get_int_default(lock, "flags", 0);
         }
         
         obj->lock->pick_chance = json_get_int_default(lock, "pick_chance", 0);
