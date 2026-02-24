@@ -57,7 +57,6 @@
 #include "requirements.h"
 
 static bool check_quest_custom_task_run(CHAR_DATA *ch, QUEST_DATA *run, int task, bool show);
-static bool generate_quest_from_object(CHAR_DATA *ch, OBJ_DATA *questobj);
 static int quest_runtime_apply_objective_event(QUEST_DATA *run, int objective_type, WNUM target_wnum, int delta);
 static unsigned long long quest_runtime_mix_seed(unsigned long long value);
 static void quest_runtime_ensure_generation_seed(QUEST_DATA *run);
@@ -104,135 +103,6 @@ static const char *quest_run_display_name(QUEST_DATA *run);
 static void quest_runtime_apply_rewards(QUEST_DATA *run, CHAR_DATA *enactor);
 
 #define QUEST_LIST_MAX_ENTRIES 128
-
-static CHAR_DATA *quest_find_room_mob_giver(CHAR_DATA *ch, const char *name)
-{
-    CHAR_DATA *mob;
-
-    if (!ch || !ch->in_room)
-        return NULL;
-
-    if (!IS_NULLSTR(name)) {
-        mob = get_char_room(ch, NULL, (char *)name);
-        if (mob && IS_NPC(mob) && mob->pIndexData && mob->pIndexData->pQuestor)
-            return mob;
-        return NULL;
-    }
-
-    for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room) {
-        if (IS_NPC(mob) && mob->pIndexData && mob->pIndexData->pQuestor)
-            return mob;
-    }
-
-    return NULL;
-}
-
-
-static bool generate_quest_from_object(CHAR_DATA *ch, OBJ_DATA *questobj)
-{
-    QUEST_DATA *active_run;
-    QUEST_PART_DATA *part;
-    int parts;
-    int i;
-
-    if (!ch || IS_NPC(ch) || !questobj || !questobj->pIndexData)
-        return false;
-
-    active_run = quest_runtime_get_focused_run(ch);
-    if (!active_run)
-        return false;
-
-    active_run->generating = true;
-    active_run->scripted = false;
-
-    if (ch->tot_level <= 30)
-        parts = number_range(1, 3);
-    else if (ch->tot_level <= 60)
-        parts = number_range(3, 6);
-    else if (ch->tot_level <= 90)
-        parts = number_range(7, 9);
-    else
-        parts = number_range(8, 15);
-
-    questobj->tempstore[0] = parts;
-    questobj->tempstore[1] = 0;
-
-    if (p_percent_trigger(NULL, questobj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREQUEST, NULL) > 0)
-        return false;
-
-    parts = questobj->tempstore[0];
-    if (parts < 1)
-        parts = 1;
-
-    for (i = 0; i < parts; i++)
-    {
-        part = new_quest_part();
-        part->next = active_run->parts;
-        active_run->parts = part;
-        part->index = parts - i;
-
-        questobj->tempstore[0] = parts - i;
-        if (p_percent_trigger(NULL, questobj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_QUEST_PART, NULL) <= 0)
-            return false;
-    }
-
-    return true;
-}
-
-static OBJ_DATA *quest_find_room_object_giver(CHAR_DATA *ch, const char *name)
-{
-    OBJ_DATA *obj;
-
-    if (!ch || !ch->in_room)
-        return NULL;
-
-    if (!IS_NULLSTR(name)) {
-        obj = get_obj_here(ch, NULL, (char *)name);
-        if (obj && obj->pIndexData && obj->progs)
-            return obj;
-        return NULL;
-    }
-
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
-        if (obj->pIndexData && obj->progs)
-            return obj;
-    }
-
-    return NULL;
-}
-
-static int quest_collect_mob_offerings(MOB_INDEX_DATA *mob_index, QUEST_INDEX_DATA **results, int max_results)
-{
-    QUEST_LIST *entry;
-    int count = 0;
-
-    if (!mob_index || !results || max_results < 1)
-        return 0;
-
-    for (entry = mob_index->quests; entry != NULL && count < max_results; entry = entry->next) {
-        QUEST_INDEX_DATA *index = get_quest_index(entry->vnum);
-        if (index)
-            results[count++] = index;
-    }
-
-    return count;
-}
-
-static int quest_collect_object_offerings(OBJ_INDEX_DATA *obj_index, QUEST_INDEX_DATA **results, int max_results)
-{
-    QUEST_INDEX_DATA *index;
-    int count = 0;
-
-    if (!obj_index || !obj_index->area || !results || max_results < 1)
-        return 0;
-
-    for (index = quest_index_list; index != NULL && count < max_results; index = index->next) {
-        if (index->area == obj_index->area)
-            results[count++] = index;
-    }
-
-    return count;
-}
 
 /* Collect enabled v2 quests from a mob's quests_v2 list */
 static int quest_collect_mob_v2_offerings(MOB_INDEX_DATA *mob_index, QUEST_INDEX_V2_DATA **results, int max_results)
@@ -305,38 +175,6 @@ static QUEST_INDEX_V2_DATA *quest_find_v2_offering_by_name(QUEST_INDEX_V2_DATA *
     }
 
     return NULL;
-}
-
-static QUEST_INDEX_DATA *quest_find_offering_by_name(QUEST_INDEX_DATA **offerings, int offering_count, const char *name)
-{
-    int i;
-
-    if (!offerings || offering_count < 1 || IS_NULLSTR(name))
-        return NULL;
-
-    if (is_number((char *)name)) {
-        i = atoi(name);
-        if (i >= 1 && i <= offering_count)
-            return offerings[i - 1];
-    }
-
-    for (i = 0; i < offering_count; i++) {
-        QUEST_INDEX_DATA *index = offerings[i];
-        if (index && index->name && !str_infix((char *)name, index->name))
-            return index;
-    }
-
-    return NULL;
-}
-
-static void quest_set_wnum(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *area, long vnum)
-{
-    if (!load || !wnum) return;
-
-    load->auid = area ? area->uid : 0;
-    load->vnum = vnum;
-    wnum->pArea = area;
-    wnum->vnum = vnum;
 }
 
 static void quest_part_resolve(WNUM_LOAD *load, WNUM *wnum)
@@ -2970,7 +2808,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0')
     {
-        send_to_char("QUEST commands: LOG HISTORY LIST INSPECT FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE GRANT.\n\r", ch);
+        send_to_char("QUEST commands: LOG HISTORY LIST INSPECT ACCEPT FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE CANCEL COMPLETE GRANT.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r",ch);
         return;
     }
@@ -3598,10 +3436,9 @@ void do_quest(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg1, "list"))
     {
         QUEST_INDEX_V2_DATA *v2_offerings[QUEST_LIST_MAX_ENTRIES];
-        QUEST_INDEX_DATA *v1_offerings[QUEST_LIST_MAX_ENTRIES];
         char target_name[MSL];
         int total_shown = 0;
-        int v2_count, v1_count, i;
+        int v2_count, i;
         bool found_any_giver = false;
         CHAR_DATA *scan_ch;
         OBJ_DATA *scan_obj;
@@ -3646,37 +3483,23 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
             if (mob) {
                 v2_count = quest_collect_mob_v2_offerings(mob->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
-                v1_count = quest_collect_mob_offerings(mob->pIndexData, v1_offerings, QUEST_LIST_MAX_ENTRIES);
-                if (v2_count > 0 || v1_count > 0) {
+                if (v2_count > 0) {
                     printf_to_char(ch, "Available quests from {Y%s{x:\n\r", HANDLE(mob));
                     for (i = 0; i < v2_count; i++) {
                         if (!v2_offerings[i]) continue;
                         quest_list_show_v2(ch, v2_offerings[i], &total_shown, false);
-                    }
-                    for (i = 0; i < v1_count; i++) {
-                        if (!v1_offerings[i]) continue;
-                        printf_to_char(ch, "  [{Y%d{x] %s {D(v1){x\n\r",
-                            ++total_shown,
-                            IS_NULLSTR(v1_offerings[i]->name) ? "(unnamed quest)" : v1_offerings[i]->name);
                     }
                     found_any_giver = true;
                 }
             }
             if (obj) {
                 v2_count = quest_collect_obj_v2_offerings(obj->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
-                v1_count = quest_collect_object_offerings(obj->pIndexData, v1_offerings, QUEST_LIST_MAX_ENTRIES);
-                if (v2_count > 0 || v1_count > 0) {
+                if (v2_count > 0) {
                     printf_to_char(ch, "Available quests from {Y%s{x:\n\r",
                         obj->short_descr ? obj->short_descr : "object");
                     for (i = 0; i < v2_count; i++) {
                         if (!v2_offerings[i]) continue;
                         quest_list_show_v2(ch, v2_offerings[i], &total_shown, false);
-                    }
-                    for (i = 0; i < v1_count; i++) {
-                        if (!v1_offerings[i]) continue;
-                        printf_to_char(ch, "  [{Y%d{x] %s {D(v1){x\n\r",
-                            ++total_shown,
-                            IS_NULLSTR(v1_offerings[i]->name) ? "(unnamed quest)" : v1_offerings[i]->name);
                     }
                     found_any_giver = true;
                 }
@@ -3689,20 +3512,13 @@ void do_quest(CHAR_DATA *ch, char *argument)
             {
                 if (!IS_NPC(scan_ch) || !scan_ch->pIndexData) continue;
                 v2_count = quest_collect_mob_v2_offerings(scan_ch->pIndexData, v2_offerings, QUEST_LIST_MAX_ENTRIES);
-                v1_count = quest_collect_mob_offerings(scan_ch->pIndexData, v1_offerings, QUEST_LIST_MAX_ENTRIES);
-                if (v2_count < 1 && v1_count < 1) continue;
+                if (v2_count < 1) continue;
 
                 found_any_giver = true;
                 printf_to_char(ch, "  {Y%s{x:\n\r", HANDLE(scan_ch));
                 for (i = 0; i < v2_count; i++) {
                     if (!v2_offerings[i]) continue;
                     quest_list_show_v2(ch, v2_offerings[i], &total_shown, true);
-                }
-                for (i = 0; i < v1_count; i++) {
-                    if (!v1_offerings[i]) continue;
-                    printf_to_char(ch, "    [{Y%d{x] %s {D(v1){x\n\r",
-                        ++total_shown,
-                        IS_NULLSTR(v1_offerings[i]->name) ? "(unnamed quest)" : v1_offerings[i]->name);
                 }
             }
 
@@ -3727,7 +3543,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             return;
         }
 
-        send_to_char("Use {Yquest accept <name>{x or {Yquest request <name>{x to take a quest.\n\r", ch);
+        send_to_char("Use {Yquest accept <name>{x to take a quest.\n\r", ch);
         return;
     }
 
@@ -4459,204 +4275,9 @@ void do_quest(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    //
-    // Quest Request
-    //
     if (!str_cmp(arg1, "request"))
     {
-        QUEST_DATA *active_quest;
-        QUEST_DATA *new_run;
-        QUEST_DATA *existing_run;
-        QUEST_INDEX_DATA *offerings[QUEST_LIST_MAX_ENTRIES];
-        QUEST_INDEX_DATA *selected_index = NULL;
-        CHAR_DATA *giver_mob = NULL;
-        OBJ_DATA *giver_obj = NULL;
-        char requested_name[MSL];
-        int offering_count = 0;
-
-        requested_name[0] = '\0';
-        if (!IS_NULLSTR(arg2)) {
-            strncpy(requested_name, arg2, sizeof(requested_name) - 1);
-            requested_name[sizeof(requested_name) - 1] = '\0';
-            if (!IS_NULLSTR(argument)) {
-                strncat(requested_name, " ", sizeof(requested_name) - strlen(requested_name) - 1);
-                strncat(requested_name, argument, sizeof(requested_name) - strlen(requested_name) - 1);
-            }
-        }
-
-        giver_mob = quest_find_room_mob_giver(ch, NULL);
-        if (!giver_mob)
-            giver_obj = quest_find_room_object_giver(ch, NULL);
-
-        if (!giver_mob && !giver_obj)
-        {
-            send_to_char("You can't do that here\n\r", ch);
-            return;
-        }
-
-        if (giver_mob && giver_mob->pIndexData)
-            offering_count = quest_collect_mob_offerings(giver_mob->pIndexData, offerings, QUEST_LIST_MAX_ENTRIES);
-        else if (giver_obj && giver_obj->pIndexData)
-            offering_count = quest_collect_object_offerings(giver_obj->pIndexData, offerings, QUEST_LIST_MAX_ENTRIES);
-
-        if (!IS_NULLSTR(requested_name)) {
-            selected_index = quest_find_offering_by_name(offerings, offering_count, requested_name);
-            if (!selected_index) {
-                if (giver_mob)
-                    printf_to_char(ch, "No available quest named '%s' from %s. Use {Yquest list{x first.\n\r", requested_name, HANDLE(giver_mob));
-                else
-                    printf_to_char(ch, "No available quest named '%s' on %s. Use {Yquest list{x first.\n\r",
-                        requested_name,
-                        giver_obj && giver_obj->short_descr ? giver_obj->short_descr : "that board");
-                return;
-            }
-        }
-
-        if (!IS_AWAKE(ch))
-        {
-            send_to_char("In your dreams, or what?\n\r", ch);
-            return;
-        }
-
-        if (giver_mob) {
-            act("$n asks $N for a quest.", ch, giver_mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            act ("You ask $N for a quest.",ch, giver_mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        } else {
-            act("$n examines $p for available quests.", ch, NULL, NULL, giver_obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            act("You check $p for available quests.", ch, NULL, NULL, giver_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        }
-
-        for (existing_run = ch->quest; existing_run != NULL; existing_run = existing_run->next)
-        {
-            if (existing_run->generating)
-            {
-                if (giver_mob) {
-                    sprintf(buf, "Finish preparing your current pending quest first, %s.", HANDLE(ch));
-                    do_say(giver_mob, buf);
-                } else {
-                    send_to_char("Finish preparing your current pending quest first.\n\r", ch);
-                }
-                return;
-            }
-        }
-
-        if (IS_DEAD(ch))
-        {
-            if (giver_mob) {
-                sprintf(buf, "You must come back to the world of the living first, %s.", HANDLE(ch));
-                do_say(giver_mob, buf);
-            } else {
-                send_to_char("You must come back to the world of the living first.\n\r", ch);
-            }
-            return;
-        }
-
-        if (!IS_IMMORTAL(ch)
-            && game_settings.telnet_port != PORT_RAE
-            && ch->quest_runtime.mission_allowance < 1)
-        {
-            sprintf(buf, "You're very brave, %s, but let someone else have a chance.", ch->name);
-            if (giver_mob == NULL)
-            {
-                send_to_char("You need at least one mission allowance.\n\r", ch);
-                return;
-            }
-
-            do_say(giver_mob, buf);
-            sprintf(buf, "You need at least one mission allowance.");
-            do_say(giver_mob, buf);
-            return;
-        }
-
-        new_run = new_quest();
-        new_run->next = ch->quest;
-        ch->quest = new_run;
-
-        ch->quest_runtime.focused_run_id = 0;
-        quest_runtime_attach_active_quest(ch, 0, 0);
-        active_quest = quest_runtime_get_focused_run(ch);
-
-        if (!active_quest)
-        {
-            send_to_char("Unable to initialize quest runtime state.\n\r", ch);
-            return;
-        }
-
-        active_quest->quest_index_auid = selected_index && selected_index->area ? selected_index->area->uid : 0;
-        active_quest->quest_index_vnum = selected_index ? selected_index->vnum : 0;
-        active_quest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
-        active_quest->scope_owner_id[0] = 0;
-        active_quest->scope_owner_id[1] = 0;
-        active_quest->scope_owner_uid = 0;
-        quest_scope_owner_seed(ch, active_quest);
-
-        if (giver_mob) {
-            active_quest->questgiver_type = QUESTOR_MOB;
-            quest_set_wnum(&active_quest->questgiver_load, &active_quest->questgiver_wnum,
-                giver_mob->pIndexData->area, giver_mob->pIndexData->vnum);
-            active_quest->questreceiver_type = QUESTOR_MOB;
-            quest_set_wnum(&active_quest->questreceiver_load, &active_quest->questreceiver_wnum,
-                giver_mob->pIndexData->area, giver_mob->pIndexData->vnum);
-        } else {
-            active_quest->questgiver_type = QUESTOR_OBJ;
-            quest_set_wnum(&active_quest->questgiver_load, &active_quest->questgiver_wnum,
-                giver_obj->pIndexData->area, giver_obj->pIndexData->vnum);
-            active_quest->questreceiver_type = QUESTOR_OBJ;
-            quest_set_wnum(&active_quest->questreceiver_load, &active_quest->questreceiver_wnum,
-                giver_obj->pIndexData->area, giver_obj->pIndexData->vnum);
-        }
-
-        if ((giver_mob && generate_quest(ch, giver_mob))
-            || (giver_obj && generate_quest_from_object(ch, giver_obj)))
-        {
-            active_quest->generating = false;
-            quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_ACCEPTED, "request", ch);
-            quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_FOCUSED, "request", ch);
-
-            if (giver_mob) {
-                sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
-                do_say(giver_mob, buf);
-            } else {
-                send_to_char("You have accepted a quest from the board.\n\r", ch);
-            }
-        }
-        else
-        {
-            if (giver_mob) {
-                sprintf(buf, "I'm sorry, %s, but I don't have any quests for you to do. Try again later.", ch->name);
-                do_say(giver_mob, buf);
-            } else {
-                send_to_char("No quests are currently available from this board.\n\r", ch);
-            }
-            quest_runtime_detach_run(ch, active_quest);
-            return;
-        }
-
-        if (IS_QUESTING(ch))
-        {
-            QUEST_PART_DATA *qp;
-
-            ch->countdown = 0;
-
-            for (qp = active_quest->parts; qp != NULL; qp = qp->next)
-                ch->countdown += qp->minutes;
-
-            ch->quest_runtime.expiry_modes |= QUEST_EXPIRY_COUNTDOWN;
-            ch->quest_runtime.expiry_countdown_minutes = ch->countdown;
-            if (!(ch->quest_runtime.expiry_modes & QUEST_EXPIRY_WALL_TIME))
-                ch->quest_runtime.expires_at = 0;
-
-            sprintf(buf, "You have %d minutes to complete this quest.", ch->countdown);
-            if (giver_mob)
-                do_say(giver_mob, buf);
-            else
-                printf_to_char(ch, "%s\n\r", buf);
-
-            if (!IS_IMMORTAL(ch) && game_settings.telnet_port != PORT_RAE
-                && ch->quest_runtime.mission_allowance > 0)
-                ch->quest_runtime.mission_allowance--;
-        }
-
+        send_to_char("{Yquest request{x has been retired. Use {Yquest list{x and {Yquest accept <name>{x.\n\r", ch);
         return;
     }
 
@@ -5091,7 +4712,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
     }
     else
     {
-        send_to_char("QUEST commands: LOG HISTORY LIST INSPECT FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE REQUEST CANCEL COMPLETE.\n\r", ch);
+        send_to_char("QUEST commands: LOG HISTORY LIST INSPECT ACCEPT FOCUS SYNC POINTS INFO DETAILS TIME COMMENCE CANCEL COMPLETE.\n\r", ch);
         send_to_char("For more information, type 'HELP QUEST'.\n\r", ch);
     }
 }
