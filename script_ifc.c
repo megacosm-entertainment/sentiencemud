@@ -168,7 +168,21 @@ static OBJ_INDEX_DATA *get_obj_index_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM
 
 static TOKEN_INDEX_DATA *get_token_index_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM *param)
 {
+    AREA_DATA *context;
+    TOKEN_INDEX_DATA *token_index;
     WNUM wnum;
+
+    if (!param)
+        return NULL;
+
+    if (param->type == ENT_NUMBER && param->d.num > 0) {
+        context = get_area_from_scriptinfo(info);
+        if (context) {
+            token_index = get_token_index(context, param->d.num);
+            if (token_index)
+                return token_index;
+        }
+    }
 
     if (!script_arg_to_wnum(info, param, &wnum))
         return NULL;
@@ -1036,7 +1050,10 @@ DECL_IFC_FUN(ifc_hastoken)
     if(ISARG_MOB(0)) *ret = (get_token_char(ARG_MOB(0), ti->vnum, ti->area, count) != NULL);
     else if(ISARG_OBJ(0)) *ret = (get_token_obj(ARG_OBJ(0), ti->vnum, ti->area, count) != NULL);
     else if(ISARG_ROOM(0)) *ret = (get_token_room(ARG_ROOM(0), ti->vnum, ti->area, count) != NULL);
-    else return false;
+    else {
+        *ret = false;
+        return true;
+    }
 
     return true;
 }
