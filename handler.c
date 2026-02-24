@@ -13244,14 +13244,18 @@ AREA_DATA *get_area_index(long uid)
  */
 AREA_DATA *find_area_by_vnum(long vnum, AREA_DATA *current_area)
 {
-    ROOM_INDEX_DATA *room;
     AREA_DATA *pArea;
 
-    (void)current_area;
+    if (vnum <= 0)
+        return NULL;
 
-    room = get_room_index_global(vnum);
-    if (room && room->area)
-        return room->area;
+    if (current_area && get_room_index(current_area, vnum))
+        return current_area;
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+        if (get_room_index(pArea, vnum))
+            return pArea;
+    }
     
     // Legacy fallback: scan all areas checking vnum ranges
     for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
