@@ -11000,6 +11000,7 @@ bool area_has_read_access(CHAR_DATA *ch, AREA_DATA *area);
 bool area_has_write_access(CHAR_DATA *ch, AREA_DATA *area);
 
 ROOM_INDEX_DATA *location_to_room(LOCATION *loc);
+ROOM_INDEX_DATA *get_area_recall_room(AREA_DATA *area);
 void location_from_room(LOCATION *loc,ROOM_INDEX_DATA *room);
 ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death);
 void location_clear(LOCATION *loc);

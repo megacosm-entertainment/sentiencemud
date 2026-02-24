@@ -11536,7 +11536,7 @@ char *script_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA *
                 loc = NULL;
                 for (area = area_first; area; area = area->next) {
                     if (!str_infix(arg->d.str, area->name)) {
-                        if(!(loc = location_to_room(&area->recall))) {
+                        if(!(loc = get_area_recall_room(area))) {
                             // Find any room in this area by iterating hash buckets
                             for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
                                 if ((loc = area->room_index_hash[iHash]) != NULL)

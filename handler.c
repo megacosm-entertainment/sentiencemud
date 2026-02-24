@@ -298,7 +298,7 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
     // Goto <area name> ie "goto plith"
     for (area = area_first; area != NULL; area = area->next) {
         if (!is_number(arg) && !str_infix(arg, area->name)) {
-            room = location_to_room(&area->recall);
+            room = get_area_recall_room(area);
 
             /* Legacy recall values can be stored as plain vnum with no area uid.
              * When matching by area name, force that lookup to stay in the matched area.
@@ -9781,6 +9781,28 @@ ROOM_INDEX_DATA *location_to_room(LOCATION *loc)
     return room;
 }
 
+ROOM_INDEX_DATA *get_area_recall_room(AREA_DATA *area)
+{
+    ROOM_INDEX_DATA *room;
+
+    if (!area)
+        return NULL;
+
+    if (area->recall.wuid > 0)
+        return location_to_room(&area->recall);
+
+    if (area->recall.id[0] > 0) {
+        room = get_room_index(area, area->recall.id[0]);
+        if (room && (area->recall.id[1] || area->recall.id[2]))
+            room = get_clone_room(room, area->recall.id[1], area->recall.id[2]);
+
+        if (room)
+            return room;
+    }
+
+    return location_to_room(&area->recall);
+}
+
 // Converts the room into a location
 void location_from_room(LOCATION *loc, ROOM_INDEX_DATA *room)
 {
@@ -9826,7 +9848,7 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death)
     if(!loc) loc = location_to_room(&ch->in_room->recall);
 
     // 4) Area assigned recalls
-    if(!loc) loc = location_to_room(&ch->in_room->area->recall);
+    if(!loc) loc = get_area_recall_room(ch->in_room->area);
 
     return loc;
 }

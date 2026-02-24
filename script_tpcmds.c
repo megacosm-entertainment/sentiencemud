@@ -494,7 +494,7 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                 loc = NULL;
                 for (area = area_first; area; area = area->next) {
                     if (!str_infix(arg->d.str, area->name)) {
-                        if(!(loc = location_to_room(&area->recall))) {
+                        if(!(loc = get_area_recall_room(area))) {
                             // Find any room in this area by iterating hash buckets
                             for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
                                 if ((loc = area->room_index_hash[iHash]) != NULL)
@@ -664,6 +664,17 @@ SCRIPT_CMD(do_tpadjust)
                 token_area = token_wnum.pArea;
             } else {
                 vnum = 0;
+            }
+            break;
+        case ENT_WIDEVNUM:
+            token_wnum = arg->d.wnum;
+            count = 1;
+            if (token_wnum.pArea && token_wnum.vnum > 0) {
+                vnum = token_wnum.vnum;
+                token_area = token_wnum.pArea;
+            } else {
+                vnum = 0;
+                token_area = NULL;
             }
             break;
         case ENT_NUMBER:
@@ -860,6 +871,13 @@ SCRIPT_CMD(do_tpgive)
             token_area = token_wnum.pArea;
         }
         break;
+    case ENT_WIDEVNUM:
+        token_wnum = arg->d.wnum;
+        if (token_wnum.pArea && token_wnum.vnum > 0) {
+            vnum = token_wnum.vnum;
+            token_area = token_wnum.pArea;
+        }
+        break;
     case ENT_NUMBER:
         vnum = arg->d.num;
         if (resolve_widevnum(vnum, NULL, &token_wnum) && token_wnum.pArea)
@@ -968,6 +986,18 @@ SCRIPT_CMD(do_tpjunk)
                 token_area = token_wnum.pArea;
             } else {
                 vnum = 0;
+            }
+            break;
+
+        case ENT_WIDEVNUM:
+            token_wnum = arg->d.wnum;
+            count = 1;
+            if (token_wnum.pArea && token_wnum.vnum > 0) {
+                vnum = token_wnum.vnum;
+                token_area = token_wnum.pArea;
+            } else {
+                vnum = 0;
+                token_area = NULL;
             }
             break;
 
@@ -1574,6 +1604,12 @@ SCRIPT_CMD(do_tpremove)
 
     name[0] = '\0';
     switch(arg->type) {
+    case ENT_WIDEVNUM:
+        if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0) {
+            vnum = arg->d.wnum.vnum;
+            item_area = arg->d.wnum.pArea;
+        }
+        break;
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
         if(!str_cmp(arg->d.str,"all"))
@@ -1748,6 +1784,12 @@ SCRIPT_CMD(do_tplink)
             if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
                 return;
             id2 = arg->d.num;
+        }
+        break;
+    case ENT_WIDEVNUM:
+        if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0) {
+            vnum = arg->d.wnum.vnum;
+            link_area = arg->d.wnum.pArea;
         }
         break;
     case ENT_NUMBER:

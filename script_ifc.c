@@ -1039,21 +1039,48 @@ DECL_IFC_FUN(ifc_hastarget)
 DECL_IFC_FUN(ifc_hastoken)
 {
     TOKEN_INDEX_DATA *ti = NULL;
+    WNUM token_wnum;
+    AREA_DATA *token_area = NULL;
+    long token_vnum = 0;
     int count = ISARG_NUM(2) ? ARG_NUM(2) : 1;
 
-    if (ISARG_TOK(1) && ARG_TOK(1)->pIndexData)
+    if (ISARG_TOK(1) && ARG_TOK(1)->pIndexData) {
         ti = ARG_TOK(1)->pIndexData;
-    else if (ISARG_NUM(1) || ISARG_WNUM(1) || ISARG_STR(1))
-        ti = get_token_index_from_arg(info, argv[1]);
+        token_area = ti->area;
+        token_vnum = ti->vnum;
+    } else if (ISARG_WNUM(1)) {
+        token_wnum = ARG_WNUM(1);
+        if (token_wnum.pArea && token_wnum.vnum > 0) {
+            token_area = token_wnum.pArea;
+            token_vnum = token_wnum.vnum;
+            ti = get_token_index(token_area, token_vnum);
+        }
+    } else if (ISARG_STR(1)) {
+        if (parse_widevnum(ARG_STR(1), get_area_from_scriptinfo(info), &token_wnum)
+            && token_wnum.pArea
+            && token_wnum.vnum > 0) {
+            token_area = token_wnum.pArea;
+            token_vnum = token_wnum.vnum;
+            ti = get_token_index(token_area, token_vnum);
+        }
+    }
 
-    if (!ti) {
+    if (!token_area && (ISARG_NUM(1) || ISARG_WNUM(1) || ISARG_STR(1))) {
+        ti = get_token_index_from_arg(info, argv[1]);
+        if (ti) {
+            token_area = ti->area;
+            token_vnum = ti->vnum;
+        }
+    }
+
+    if (!token_area || token_vnum <= 0) {
         *ret = false;
         return true;
     }
 
-    if(ISARG_MOB(0)) *ret = (get_token_char(ARG_MOB(0), ti->vnum, ti->area, count) != NULL);
-    else if(ISARG_OBJ(0)) *ret = (get_token_obj(ARG_OBJ(0), ti->vnum, ti->area, count) != NULL);
-    else if(ISARG_ROOM(0)) *ret = (get_token_room(ARG_ROOM(0), ti->vnum, ti->area, count) != NULL);
+    if(ISARG_MOB(0)) *ret = (get_token_char(ARG_MOB(0), token_vnum, token_area, count) != NULL);
+    else if(ISARG_OBJ(0)) *ret = (get_token_obj(ARG_OBJ(0), token_vnum, token_area, count) != NULL);
+    else if(ISARG_ROOM(0)) *ret = (get_token_room(ARG_ROOM(0), token_vnum, token_area, count) != NULL);
     else {
         *ret = false;
         return true;

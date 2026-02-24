@@ -218,7 +218,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    recall = location_to_room(&ch->in_room->area->recall);
+    recall = get_area_recall_room(ch->in_room->area);
 
     if (!IS_IMMORTAL(ch) && (!recall || ch->in_room != recall || !IS_SET(ch->in_room->room_flag[0], ROOM_SAFE)))
     {

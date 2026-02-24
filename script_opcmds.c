@@ -411,7 +411,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
                 loc = NULL;
                 for (area = area_first; area; area = area->next) {
                     if (!str_infix(arg->d.str, area->name)) {
-                        if(!(loc = location_to_room(&area->recall))) {
+                        if(!(loc = get_area_recall_room(area))) {
                             for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
                                 if ((loc = area->room_index_hash[iHash]) != NULL)
                                     break;
@@ -1074,6 +1074,12 @@ SCRIPT_CMD(do_oplink)
             id2 = arg->d.num;
         }
         break;
+    case ENT_WIDEVNUM:
+        if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0) {
+            vnum = arg->d.wnum.vnum;
+            link_area = arg->d.wnum.pArea;
+        }
+        break;
     case ENT_NUMBER:
         vnum = arg->d.num;
         break;
@@ -1239,6 +1245,12 @@ SCRIPT_CMD(do_opremove)
 
     name[0] = '\0';
     switch(arg->type) {
+    case ENT_WIDEVNUM:
+        if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0) {
+            vnum = arg->d.wnum.vnum;
+            item_area = arg->d.wnum.pArea;
+        }
+        break;
     case ENT_NUMBER: vnum = arg->d.num; break;
     case ENT_STRING:
         if(!str_cmp(arg->d.str,"all"))

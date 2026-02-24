@@ -3914,7 +3914,7 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
     case ENTITY_AREA_RECALL:
         arg->type = ENT_ROOM;
-        arg->d.room = (arg->d.area && location_isset(&arg->d.area->recall)) ? location_to_room(&arg->d.area->recall) : NULL;
+        arg->d.room = arg->d.area ? get_area_recall_room(arg->d.area) : NULL;
     if (arg->d.area && arg->d.area->post_office_wnum.vnum > 0) {
         AREA_DATA *post_area = find_area_by_vnum(arg->d.area->post_office_wnum.vnum, NULL);
         if (!post_area) post_area = get_system_area_fallback();
