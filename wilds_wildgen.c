@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <setjmp.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -422,6 +423,510 @@ static bool wildgen_convert_pixels_to_tiles(const WILDS_WILDGEN_JOB *job,
         *unknown_pixels = unknown;
 
     return true;
+}
+
+static int wildgen_collect_colors(WILDS_DATA *pWilds, WILDS_WILDGEN_COLOR_MAP *colors, int max_colors)
+{
+    WILDS_TERRAIN *terrain;
+    int count = 0;
+
+    if (!pWilds || !colors || max_colors < 1)
+        return 0;
+
+    for (terrain = pWilds->pTerrain; terrain; terrain = terrain->next)
+    {
+        if (!terrain->wildgen_has_color)
+            continue;
+
+        if (count >= max_colors)
+            break;
+
+        colors[count].r = terrain->wildgen_r;
+        colors[count].g = terrain->wildgen_g;
+        colors[count].b = terrain->wildgen_b;
+        colors[count].tile = terrain->mapchar;
+        count++;
+    }
+
+    return count;
+}
+
+bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size)
+{
+    typedef struct unmatched_rgb_count UNMATCHED_RGB_COUNT;
+    struct unmatched_rgb_count
+    {
+        unsigned char r;
+        unsigned char g;
+        unsigned char b;
+        size_t count;
+    };
+
+    WILDS_WILDGEN_COLOR_MAP colors[256];
+    UNMATCHED_RGB_COUNT unmatched_colors[512];
+    unsigned char *pixels = NULL;
+    char resolved_path[MSL];
+    char top_buf[MSL];
+    int color_count;
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    int unmatched_unique = 0;
+    int top_k;
+    bool unmatched_overflow = false;
+    size_t total = 0;
+    size_t i;
+    size_t unmatched = 0;
+    size_t matched = 0;
+
+    if (out_buf && out_buf_size > 0)
+        out_buf[0] = '\0';
+
+    if (!pWilds || IS_NULLSTR(png_path))
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Usage: wildgen check <png_filename.png>");
+        return false;
+    }
+
+    if (!wildgen_build_image_path(pWilds, png_path, resolved_path, sizeof(resolved_path), out_buf, out_buf_size))
+        return false;
+
+    if (!wildgen_verify_png_signature(resolved_path, out_buf, out_buf_size))
+        return false;
+
+    color_count = wildgen_collect_colors(pWilds, colors, (int)(sizeof(colors) / sizeof(colors[0])));
+    if (color_count < 1)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "No terrain wildgen colors are configured. Set with 'terrain <token> wildcolor #RRGGBB'.");
+        return false;
+    }
+
+    pixels = stbi_load(resolved_path, &width, &height, &channels, 3);
+    if (!pixels)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Failed to load PNG '%s': %s", png_path,
+                stbi_failure_reason() ? stbi_failure_reason() : "unknown error");
+        return false;
+    }
+
+    if (width != pWilds->map_size_x || height != pWilds->map_size_y)
+    {
+        stbi_image_free(pixels);
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size,
+                "Check failed: PNG dimensions %dx%d do not match wilds %dx%d",
+                width, height, pWilds->map_size_x, pWilds->map_size_y);
+        return false;
+    }
+
+    total = (size_t)width * (size_t)height;
+    memset(unmatched_colors, 0, sizeof(unmatched_colors));
+    top_buf[0] = '\0';
+
+    for (i = 0; i < total; i++)
+    {
+        unsigned char r = pixels[i * 3 + 0];
+        unsigned char g = pixels[i * 3 + 1];
+        unsigned char b = pixels[i * 3 + 2];
+        bool known = false;
+        int c;
+
+        for (c = 0; c < color_count; c++)
+        {
+            if (colors[c].r == r && colors[c].g == g && colors[c].b == b)
+            {
+                known = true;
+                break;
+            }
+        }
+
+        if (known)
+        {
+            matched++;
+        }
+        else
+        {
+            int idx;
+
+            unmatched++;
+
+            for (idx = 0; idx < unmatched_unique; idx++)
+            {
+                if (unmatched_colors[idx].r == r && unmatched_colors[idx].g == g && unmatched_colors[idx].b == b)
+                {
+                    unmatched_colors[idx].count++;
+                    break;
+                }
+            }
+
+            if (idx >= unmatched_unique)
+            {
+                if (unmatched_unique < (int)(sizeof(unmatched_colors) / sizeof(unmatched_colors[0])))
+                {
+                    unmatched_colors[unmatched_unique].r = r;
+                    unmatched_colors[unmatched_unique].g = g;
+                    unmatched_colors[unmatched_unique].b = b;
+                    unmatched_colors[unmatched_unique].count = 1;
+                    unmatched_unique++;
+                }
+                else
+                {
+                    unmatched_overflow = true;
+                }
+            }
+        }
+    }
+
+    stbi_image_free(pixels);
+
+    if (out_buf && out_buf_size > 0)
+    {
+        if (unmatched > 0)
+        {
+            size_t top_used[5] = { 0, 0, 0, 0, 0 };
+            double pct = total > 0 ? ((double)unmatched * 100.0 / (double)total) : 0.0;
+            size_t top_offset = 0;
+
+            top_k = UMIN(5, unmatched_unique);
+            for (int rank = 0; rank < top_k; rank++)
+            {
+                size_t best_count = 0;
+                int best_idx = -1;
+
+                for (int idx = 0; idx < unmatched_unique; idx++)
+                {
+                    bool already_used = false;
+
+                    for (int used_i = 0; used_i < rank; used_i++)
+                    {
+                        if (top_used[used_i] == (size_t)idx)
+                        {
+                            already_used = true;
+                            break;
+                        }
+                    }
+
+                    if (already_used)
+                        continue;
+
+                    if (unmatched_colors[idx].count > best_count)
+                    {
+                        best_count = unmatched_colors[idx].count;
+                        best_idx = idx;
+                    }
+                }
+
+                if (best_idx < 0)
+                    break;
+
+                top_used[rank] = (size_t)best_idx;
+
+                {
+                    int nearest_idx = -1;
+                    int nearest_dist = INT_MAX;
+
+                    for (int c = 0; c < color_count; c++)
+                    {
+                        int dr = abs((int)unmatched_colors[best_idx].r - (int)colors[c].r);
+                        int dg = abs((int)unmatched_colors[best_idx].g - (int)colors[c].g);
+                        int db = abs((int)unmatched_colors[best_idx].b - (int)colors[c].b);
+                        int dist = dr + dg + db;
+
+                        if (dist < nearest_dist)
+                        {
+                            nearest_dist = dist;
+                            nearest_idx = c;
+                        }
+                    }
+
+                    if (nearest_idx >= 0)
+                    {
+                        top_offset += snprintf(top_buf + top_offset,
+                            sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
+                            "%s#%02X%02X%02X:%zu->#%02X%02X%02X('%c')",
+                            rank == 0 ? "" : ", ",
+                            unmatched_colors[best_idx].r,
+                            unmatched_colors[best_idx].g,
+                            unmatched_colors[best_idx].b,
+                            unmatched_colors[best_idx].count,
+                            colors[nearest_idx].r,
+                            colors[nearest_idx].g,
+                            colors[nearest_idx].b,
+                            colors[nearest_idx].tile);
+                    }
+                    else
+                    {
+                        top_offset += snprintf(top_buf + top_offset,
+                            sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
+                            "%s#%02X%02X%02X:%zu",
+                            rank == 0 ? "" : ", ",
+                            unmatched_colors[best_idx].r,
+                            unmatched_colors[best_idx].g,
+                            unmatched_colors[best_idx].b,
+                            unmatched_colors[best_idx].count);
+                    }
+                }
+
+                if (top_offset >= sizeof(top_buf))
+                    break;
+            }
+
+            snprintf(out_buf, out_buf_size,
+                "Wildgen check: %dx%d, colors configured=%d, matched=%zu unmatched=%zu (%.2f%%). Top unmatched: %s%s",
+                width,
+                height,
+                color_count,
+                matched,
+                unmatched,
+                pct,
+                top_buf[0] ? top_buf : "(none)",
+                unmatched_overflow ? " (plus additional unmatched colors)" : "");
+        }
+        else
+        {
+            snprintf(out_buf, out_buf_size,
+                "Wildgen check: %dx%d, colors configured=%d, matched=%zu unmatched=0 (0.00%%). Ready to import.",
+                width,
+                height,
+                color_count,
+                matched);
+        }
+    }
+
+    return true;
+}
+
+static bool wildgen_export_image_internal(WILDS_DATA *pWilds, const char *png_path,
+    bool use_effective_map, char *out_buf, size_t out_buf_size)
+{
+    unsigned char tile_r[256];
+    unsigned char tile_g[256];
+    unsigned char tile_b[256];
+    bool tile_has_color[256];
+    unsigned char default_r = 0;
+    unsigned char default_g = 0;
+    unsigned char default_b = 0;
+    bool default_has_color = false;
+    const char *source_map;
+    char resolved_path[MSL];
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    unsigned char *pixels = NULL;
+    png_bytep *rows = NULL;
+    WILDS_TERRAIN *terrain;
+    int width;
+    int height;
+    int x, y;
+    size_t total;
+    size_t unknown_tiles = 0;
+    bool success = false;
+
+    if (out_buf && out_buf_size > 0)
+        out_buf[0] = '\0';
+
+    if (!pWilds || IS_NULLSTR(png_path))
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Usage: wildgen export <png_filename.png>");
+        return false;
+    }
+
+    if (pWilds->map_size_x < 1 || pWilds->map_size_y < 1)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Wilderness dimensions are invalid");
+        return false;
+    }
+
+    if (use_effective_map)
+        source_map = pWilds->map;
+    else
+        source_map = pWilds->staticmap ? pWilds->staticmap : pWilds->map;
+
+    if (!source_map)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size,
+                use_effective_map
+                    ? "No effective wilderness map data is loaded"
+                    : "No wilderness map data is loaded");
+        return false;
+    }
+
+    if (!wildgen_build_image_path(pWilds, png_path, resolved_path, sizeof(resolved_path), out_buf, out_buf_size))
+        return false;
+
+    memset(tile_has_color, 0, sizeof(tile_has_color));
+    memset(tile_r, 0, sizeof(tile_r));
+    memset(tile_g, 0, sizeof(tile_g));
+    memset(tile_b, 0, sizeof(tile_b));
+
+    for (terrain = pWilds->pTerrain; terrain; terrain = terrain->next)
+    {
+        unsigned char idx = (unsigned char)terrain->mapchar;
+
+        if (!terrain->wildgen_has_color)
+            continue;
+
+        tile_has_color[idx] = true;
+        tile_r[idx] = terrain->wildgen_r;
+        tile_g[idx] = terrain->wildgen_g;
+        tile_b[idx] = terrain->wildgen_b;
+    }
+
+    {
+        unsigned char idx = (unsigned char)pWilds->cDefaultTerrain;
+        if (tile_has_color[idx])
+        {
+            default_has_color = true;
+            default_r = tile_r[idx];
+            default_g = tile_g[idx];
+            default_b = tile_b[idx];
+        }
+    }
+
+    width = pWilds->map_size_x;
+    height = pWilds->map_size_y;
+    total = (size_t)width * (size_t)height;
+    pixels = malloc(total * 3);
+    if (!pixels)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Out of memory preparing exported PNG buffer");
+        goto cleanup;
+    }
+
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
+        {
+            size_t map_idx = (size_t)y * (size_t)width + (size_t)x;
+            size_t pix_idx = map_idx * 3;
+            unsigned char tile = (unsigned char)source_map[map_idx];
+
+            if (tile_has_color[tile])
+            {
+                pixels[pix_idx + 0] = tile_r[tile];
+                pixels[pix_idx + 1] = tile_g[tile];
+                pixels[pix_idx + 2] = tile_b[tile];
+            }
+            else if (default_has_color)
+            {
+                pixels[pix_idx + 0] = default_r;
+                pixels[pix_idx + 1] = default_g;
+                pixels[pix_idx + 2] = default_b;
+                unknown_tiles++;
+            }
+            else
+            {
+                pixels[pix_idx + 0] = 0;
+                pixels[pix_idx + 1] = 0;
+                pixels[pix_idx + 2] = 0;
+                unknown_tiles++;
+            }
+        }
+    }
+
+    fp = fopen(resolved_path, "wb");
+    if (!fp)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Failed to open export path '%s': %s", resolved_path, strerror(errno));
+        goto cleanup;
+    }
+
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Failed to initialize PNG writer");
+        goto cleanup;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Failed to initialize PNG info struct");
+        goto cleanup;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "PNG export failed while writing '%s'", resolved_path);
+        goto cleanup;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_set_IHDR(png_ptr,
+        info_ptr,
+        (png_uint_32)width,
+        (png_uint_32)height,
+        8,
+        PNG_COLOR_TYPE_RGB,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png_ptr, info_ptr);
+
+    rows = malloc(sizeof(png_bytep) * (size_t)height);
+    if (!rows)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Out of memory preparing PNG rows");
+        goto cleanup;
+    }
+
+    for (y = 0; y < height; y++)
+        rows[y] = pixels + ((size_t)y * (size_t)width * 3);
+
+    png_write_image(png_ptr, rows);
+    png_write_end(png_ptr, NULL);
+
+    if (out_buf && out_buf_size > 0)
+    {
+        double pct = total > 0 ? ((double)unknown_tiles * 100.0 / (double)total) : 0.0;
+        snprintf(out_buf, out_buf_size,
+            "Wildgen export (%s) wrote %dx%d PNG to %s (tiles without explicit color: %zu, %.2f%%)",
+            use_effective_map ? "effective map" : "static map",
+            width,
+            height,
+            png_path,
+            unknown_tiles,
+            pct);
+    }
+
+    success = true;
+
+cleanup:
+    if (rows)
+        free(rows);
+
+    if (png_ptr || info_ptr)
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+
+    if (fp)
+        fclose(fp);
+
+    if (pixels)
+        free(pixels);
+
+    return success;
+}
+
+bool wilds_wildgen_export_image(WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size)
+{
+    return wildgen_export_image_internal(pWilds, png_path, false, out_buf, out_buf_size);
+}
+
+bool wilds_wildgen_export_effective_image(WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size)
+{
+    return wildgen_export_image_internal(pWilds, png_path, true, out_buf, out_buf_size);
 }
 
 static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILDS_WILDGEN_JOB *job, char *err, size_t err_size)
@@ -866,7 +1371,6 @@ bool wilds_wildgen_enqueue(WILDS_DATA *pWilds, const char *png_path, char *err_b
 {
     WILDS_WILDGEN_JOB *job;
     WILDS_WILDGEN_STATUS_REC *status;
-    WILDS_TERRAIN *terrain;
 
     if (err_buf && err_buf_size > 0)
         err_buf[0] = '\0';
@@ -917,20 +1421,7 @@ bool wilds_wildgen_enqueue(WILDS_DATA *pWilds, const char *png_path, char *err_b
         return false;
     }
 
-    for (terrain = pWilds->pTerrain; terrain; terrain = terrain->next)
-    {
-        if (!terrain->wildgen_has_color)
-            continue;
-
-        if (job->color_count >= (int)(sizeof(job->colors) / sizeof(job->colors[0])))
-            break;
-
-        job->colors[job->color_count].r = terrain->wildgen_r;
-        job->colors[job->color_count].g = terrain->wildgen_g;
-        job->colors[job->color_count].b = terrain->wildgen_b;
-        job->colors[job->color_count].tile = terrain->mapchar;
-        job->color_count++;
-    }
+    job->color_count = wildgen_collect_colors(pWilds, job->colors, (int)(sizeof(job->colors) / sizeof(job->colors[0])));
 
     if (job->color_count < 1)
     {
@@ -974,7 +1465,6 @@ bool wilds_wildgen_enqueue_grid(WILDS_DATA *pWilds, const char *terrain_base, in
 {
     WILDS_WILDGEN_JOB *job;
     WILDS_WILDGEN_STATUS_REC *status;
-    WILDS_TERRAIN *terrain;
     char sample_path[MSL];
 
     if (err_buf && err_buf_size > 0)
@@ -1033,20 +1523,7 @@ bool wilds_wildgen_enqueue_grid(WILDS_DATA *pWilds, const char *terrain_base, in
         }
     }
 
-    for (terrain = pWilds->pTerrain; terrain; terrain = terrain->next)
-    {
-        if (!terrain->wildgen_has_color)
-            continue;
-
-        if (job->color_count >= (int)(sizeof(job->colors) / sizeof(job->colors[0])))
-            break;
-
-        job->colors[job->color_count].r = terrain->wildgen_r;
-        job->colors[job->color_count].g = terrain->wildgen_g;
-        job->colors[job->color_count].b = terrain->wildgen_b;
-        job->colors[job->color_count].tile = terrain->mapchar;
-        job->color_count++;
-    }
+    job->color_count = wildgen_collect_colors(pWilds, job->colors, (int)(sizeof(job->colors) / sizeof(job->colors[0])));
 
     if (job->color_count < 1)
     {

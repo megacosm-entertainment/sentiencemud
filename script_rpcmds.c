@@ -167,6 +167,8 @@ const struct script_cmd_type room_cmd_table[] = {
     { "varset",				scriptcmd_varset,			false,	true	},
     { "varseton",			scriptcmd_varseton,		false,	true	},
     { "vforce",				scriptcmd_vforce,		false,	true	},
+    { "wildsoverlay",		scriptcmd_wildsoverlay,	false,	true	},
+    { "wildstile",			scriptcmd_wildstile,		false,	true	},
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
     { "wiretransfer",		scriptcmd_wiretransfer,	false,	true	},
     { "wiznet",				scriptcmd_wiznet,			false,	true    },

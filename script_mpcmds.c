@@ -110,6 +110,9 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "varsaveon",          scriptcmd_varsaveon,    false,  true    },
     { "varset",             scriptcmd_varset,       false,  true    },
     { "varseton",           scriptcmd_varseton,     false,  true    },
+    { "wildsoverlay",       scriptcmd_wildsoverlay, false,  true    },
+    { "wildstile",          scriptcmd_wildstile,    false,  true    },
+    { "wildernessmap",      scriptcmd_wildernessmap,false,  true    },
     { "xcall",              scriptcmd_xcall,        false,  true    },
     { NULL,					NULL,					false,	false	}
 };

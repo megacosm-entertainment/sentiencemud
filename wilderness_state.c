@@ -9,6 +9,8 @@
 #include "wilderness_state.h"
 #include "wilderness_storage.h"
 
+extern void free_vlink(WILDS_VLINK *pVLink);
+
 typedef struct wilderness_feature_node
 {
     WILDERNESS_FEATURE_RECORD record;
@@ -25,6 +27,12 @@ typedef struct wilderness_actor_node
     struct wilderness_actor_node *next;
 } WILDERNESS_ACTOR_NODE;
 
+typedef struct wilderness_runtime_vlink_node
+{
+    WILDERNESS_RUNTIME_VLINK_RECORD record;
+    struct wilderness_runtime_vlink_node *next;
+} WILDERNESS_RUNTIME_VLINK_NODE;
+
 typedef struct wilderness_state_runtime
 {
     long wilds_uid;
@@ -32,10 +40,13 @@ typedef struct wilderness_state_runtime
     bool suppress_dirty;
     int loaded_feature_count;
     int loaded_actor_count;
+    int loaded_runtime_vlink_count;
+    long next_runtime_vlink_uid;
     time_t dirty_since;
     char dirty_reason[MIL];
     WILDERNESS_FEATURE_NODE *features;
     WILDERNESS_ACTOR_NODE *actors;
+    WILDERNESS_RUNTIME_VLINK_NODE *runtime_vlinks;
     struct wilderness_state_runtime *next;
 } WILDERNESS_STATE_RUNTIME;
 
@@ -101,17 +112,77 @@ static void wilderness_state_free_actors(WILDERNESS_ACTOR_NODE *node)
     }
 }
 
-static void wilderness_state_clear_runtime_payload(WILDERNESS_STATE_RUNTIME *runtime)
+static WILDS_VLINK *wilderness_state_find_vlink_uid(WILDS_DATA *pWilds, long uid)
+{
+    WILDS_VLINK *iter;
+
+    if (!pWilds || uid == 0)
+        return NULL;
+
+    for (iter = pWilds->pVLink; iter; iter = iter->next)
+        if (iter->uid == uid)
+            return iter;
+
+    return NULL;
+}
+
+static bool wilderness_state_remove_vlink_uid(WILDS_DATA *pWilds, long uid)
+{
+    WILDS_VLINK *iter;
+    WILDS_VLINK *prev = NULL;
+
+    if (!pWilds || uid == 0)
+        return false;
+
+    for (iter = pWilds->pVLink; iter; prev = iter, iter = iter->next)
+    {
+        if (iter->uid != uid)
+            continue;
+
+        if (iter->current_linkage != VLINK_UNLINKED)
+            unlink_vlink(iter);
+
+        if (prev)
+            prev->next = iter->next;
+        else
+            pWilds->pVLink = iter->next;
+
+        iter->next = NULL;
+        free_vlink(iter);
+        return true;
+    }
+
+    return false;
+}
+
+static void wilderness_state_free_runtime_vlinks(WILDS_DATA *pWilds, WILDERNESS_RUNTIME_VLINK_NODE *node)
+{
+    WILDERNESS_RUNTIME_VLINK_NODE *next;
+
+    while (node)
+    {
+        next = node->next;
+        wilderness_state_remove_vlink_uid(pWilds, node->record.uid);
+        free(node);
+        node = next;
+    }
+}
+
+static void wilderness_state_clear_runtime_payload(WILDS_DATA *pWilds, WILDERNESS_STATE_RUNTIME *runtime)
 {
     if (!runtime)
         return;
 
     wilderness_state_free_features(runtime->features);
     wilderness_state_free_actors(runtime->actors);
+    wilderness_state_free_runtime_vlinks(pWilds, runtime->runtime_vlinks);
     runtime->features = NULL;
     runtime->actors = NULL;
+    runtime->runtime_vlinks = NULL;
     runtime->loaded_feature_count = 0;
     runtime->loaded_actor_count = 0;
+    runtime->loaded_runtime_vlink_count = 0;
+    runtime->next_runtime_vlink_uid = -1;
 }
 
 static void wilderness_state_clear_area_storms(AREA_DATA *pArea)
@@ -155,6 +226,115 @@ static WILDERNESS_STATE_RUNTIME *wilderness_state_get_runtime(WILDS_DATA *pWilds
     return runtime;
 }
 
+static bool wilderness_state_apply_runtime_vlink(WILDS_DATA *pWilds, const WILDERNESS_RUNTIME_VLINK_RECORD *record)
+{
+    WILDS_VLINK *vlink;
+    AREA_DATA *dest_area;
+
+    if (!pWilds || !record)
+        return false;
+
+    if (record->uid == 0)
+        return false;
+
+    if (record->x < 0 || record->x >= pWilds->map_size_x || record->y < 0 || record->y >= pWilds->map_size_y)
+        return false;
+
+    if (record->door < 0 || record->door >= MAX_DIR)
+        return false;
+
+    if (record->destination_mode == VLINK_DEST_ROOM && record->dest_vnum < 1)
+        return false;
+
+    if (wilderness_state_find_vlink_uid(pWilds, record->uid))
+        wilderness_state_remove_vlink_uid(pWilds, record->uid);
+
+    vlink = new_vlink();
+    if (!vlink)
+        return false;
+
+    vlink->uid = record->uid;
+    vlink->wildsorigin_x = record->x;
+    vlink->wildsorigin_y = record->y;
+    vlink->door = record->door;
+    vlink->default_linkage = record->linkage;
+    vlink->destination_mode = record->destination_mode;
+    vlink->dungeon_floor = UMAX(1, record->dungeon_floor);
+    vlink->orig_description = str_dup("A temporary entrance has appeared here.\n\r");
+    vlink->orig_keyword = str_dup("entrance camp");
+    vlink->rev_description = str_dup("A temporary wilderness entrance leads out.\n\r");
+    vlink->rev_keyword = str_dup("wilderness entrance");
+
+    if (record->destination_mode == VLINK_DEST_DUNGEON)
+    {
+        vlink->dest_load.auid = record->dest_area_uid;
+        vlink->dest_load.vnum = record->dest_vnum;
+    }
+    else
+    {
+        dest_area = record->dest_area_uid > 0
+            ? get_area_from_uid(record->dest_area_uid)
+            : get_system_area_fallback();
+        if (!dest_area)
+            dest_area = get_system_area_fallback();
+
+        vlink->dest_wnum.pArea = dest_area;
+        vlink->dest_wnum.vnum = record->dest_vnum;
+        vlink->dest_load.auid = dest_area ? dest_area->uid : 0;
+        vlink->dest_load.vnum = record->dest_vnum;
+        vlink->destvnum = record->dest_vnum;
+    }
+
+    add_vlink(pWilds, vlink);
+
+    if (vlink->default_linkage != VLINK_UNLINKED && !link_vlink(vlink))
+    {
+        wilderness_state_remove_vlink_uid(pWilds, vlink->uid);
+        return false;
+    }
+
+    return true;
+}
+
+static int wilderness_state_cleanup_runtime_vlinks_internal(WILDS_DATA *pWilds, WILDERNESS_STATE_RUNTIME *runtime)
+{
+    WILDERNESS_RUNTIME_VLINK_NODE *node;
+    WILDERNESS_RUNTIME_VLINK_NODE *next;
+    WILDERNESS_RUNTIME_VLINK_NODE *prev = NULL;
+    int removed = 0;
+
+    if (!pWilds || !runtime)
+        return 0;
+
+    for (node = runtime->runtime_vlinks; node; node = next)
+    {
+        bool expired;
+        next = node->next;
+
+        expired = node->record.expires_at > 0 && node->record.expires_at <= current_time;
+        if (!expired)
+        {
+            prev = node;
+            continue;
+        }
+
+        if (prev)
+            prev->next = node->next;
+        else
+            runtime->runtime_vlinks = node->next;
+
+        wilderness_state_remove_vlink_uid(pWilds, node->record.uid);
+        free(node);
+        runtime->loaded_runtime_vlink_count = UMAX(0, runtime->loaded_runtime_vlink_count - 1);
+        removed++;
+    }
+
+    if (removed > 0)
+        wilderness_state_mark_dirty(pWilds, "runtime vlink expiry cleanup");
+
+    return removed;
+}
+
 bool wilderness_state_init(void)
 {
     wilderness_state_ready = true;
@@ -168,8 +348,9 @@ void wilderness_state_shutdown(void)
 
     for (runtime = wilderness_state_runtime_head; runtime; runtime = next)
     {
+        WILDS_DATA *pWilds = get_wilds_from_uid(NULL, runtime->wilds_uid);
         next = runtime->next;
-        wilderness_state_clear_runtime_payload(runtime);
+        wilderness_state_clear_runtime_payload(pWilds, runtime);
         free(runtime);
     }
 
@@ -186,6 +367,11 @@ void wilderness_state_pulse(void)
 
     for (runtime = wilderness_state_runtime_head; runtime; runtime = runtime->next)
     {
+        WILDS_DATA *pWilds = get_wilds_from_uid(NULL, runtime->wilds_uid);
+
+        if (pWilds)
+            wilderness_state_cleanup_runtime_vlinks_internal(pWilds, runtime);
+
         if (!runtime->dirty)
             continue;
 
@@ -205,6 +391,7 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
     json_t *root;
     json_t *features;
     json_t *actors;
+    json_t *runtime_vlinks;
     json_t *storms;
     const char *stored_checksum;
     char current_checksum[65];
@@ -221,7 +408,7 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
     if (!runtime)
         return false;
 
-    wilderness_state_clear_runtime_payload(runtime);
+    wilderness_state_clear_runtime_payload(pWilds, runtime);
 
     if (pWilds->pArea)
         wilderness_state_clear_area_storms(pWilds->pArea);
@@ -374,6 +561,54 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
         }
     }
 
+    runtime_vlinks = json_object_get(root, "runtime_vlinks");
+    if (json_is_array(runtime_vlinks))
+    {
+        for (i = 0; i < json_array_size(runtime_vlinks); i++)
+        {
+            json_t *entry = json_array_get(runtime_vlinks, i);
+            WILDERNESS_RUNTIME_VLINK_NODE *node;
+
+            if (!json_is_object(entry))
+                continue;
+
+            node = calloc(1, sizeof(*node));
+            if (!node)
+                continue;
+
+            node->record.uid = (long)json_integer_value(json_object_get(entry, "uid"));
+            node->record.x = (int)json_integer_value(json_object_get(entry, "x"));
+            node->record.y = (int)json_integer_value(json_object_get(entry, "y"));
+            node->record.door = (int)json_integer_value(json_object_get(entry, "door"));
+            node->record.dest_area_uid = (long)json_integer_value(json_object_get(entry, "dest_area_uid"));
+            node->record.dest_vnum = (long)json_integer_value(json_object_get(entry, "dest_vnum"));
+            node->record.linkage = (int)json_integer_value(json_object_get(entry, "linkage"));
+            node->record.destination_mode = (int)json_integer_value(json_object_get(entry, "destination_mode"));
+            node->record.dungeon_floor = (int)json_integer_value(json_object_get(entry, "dungeon_floor"));
+            node->record.created_at = (time_t)json_integer_value(json_object_get(entry, "created_at"));
+            node->record.expires_at = (time_t)json_integer_value(json_object_get(entry, "expires_at"));
+
+            if (node->record.uid >= runtime->next_runtime_vlink_uid)
+                runtime->next_runtime_vlink_uid = node->record.uid - 1;
+
+            if (node->record.expires_at > 0 && node->record.expires_at <= current_time)
+            {
+                free(node);
+                continue;
+            }
+
+            if (!wilderness_state_apply_runtime_vlink(pWilds, &node->record))
+            {
+                free(node);
+                continue;
+            }
+
+            node->next = runtime->runtime_vlinks;
+            runtime->runtime_vlinks = node;
+            runtime->loaded_runtime_vlink_count++;
+        }
+    }
+
     storms = json_object_get(root, "storms");
     if (json_is_array(storms) && pWilds->pArea)
     {
@@ -412,9 +647,10 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
     json_decref(root);
 
     plogf(LOG_DEBUG,
-        "wilderness_state_load: loaded features=%d actors=%d for wilds uid %ld",
+        "wilderness_state_load: loaded features=%d actors=%d runtime_vlinks=%d for wilds uid %ld",
         runtime->loaded_feature_count,
         runtime->loaded_actor_count,
+        runtime->loaded_runtime_vlink_count,
         pWilds->uid);
     return true;
 }
@@ -425,11 +661,13 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
     json_t *root;
     json_t *features;
     json_t *actors;
+    json_t *runtime_vlinks;
     json_t *storms;
     char checksum[65];
     char path[MSL];
     WILDERNESS_FEATURE_NODE *feature_node;
     WILDERNESS_ACTOR_NODE *actor_node;
+    WILDERNESS_RUNTIME_VLINK_NODE *runtime_vlink_node;
     STORM_DATA *storm_node;
     WILDS_CHUNK *chunk;
 
@@ -446,10 +684,12 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
     root = json_object();
     features = json_array();
     actors = json_array();
+    runtime_vlinks = json_array();
     storms = json_array();
-    if (!root || !features || !actors || !storms)
+    if (!root || !features || !actors || !runtime_vlinks || !storms)
     {
         if (storms) json_decref(storms);
+        if (runtime_vlinks) json_decref(runtime_vlinks);
         if (actors) json_decref(actors);
         if (features) json_decref(features);
         if (root) json_decref(root);
@@ -537,6 +777,28 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
         json_array_append_new(actors, entry);
     }
 
+    for (runtime_vlink_node = runtime->runtime_vlinks; runtime_vlink_node; runtime_vlink_node = runtime_vlink_node->next)
+    {
+        json_t *entry = json_object();
+
+        if (!entry)
+            continue;
+
+        json_object_set_new(entry, "uid", json_integer(runtime_vlink_node->record.uid));
+        json_object_set_new(entry, "x", json_integer(runtime_vlink_node->record.x));
+        json_object_set_new(entry, "y", json_integer(runtime_vlink_node->record.y));
+        json_object_set_new(entry, "door", json_integer(runtime_vlink_node->record.door));
+        json_object_set_new(entry, "dest_area_uid", json_integer(runtime_vlink_node->record.dest_area_uid));
+        json_object_set_new(entry, "dest_vnum", json_integer(runtime_vlink_node->record.dest_vnum));
+        json_object_set_new(entry, "linkage", json_integer(runtime_vlink_node->record.linkage));
+        json_object_set_new(entry, "destination_mode", json_integer(runtime_vlink_node->record.destination_mode));
+        json_object_set_new(entry, "dungeon_floor", json_integer(runtime_vlink_node->record.dungeon_floor));
+        json_object_set_new(entry, "created_at", json_integer((json_int_t)runtime_vlink_node->record.created_at));
+        json_object_set_new(entry, "expires_at", json_integer((json_int_t)runtime_vlink_node->record.expires_at));
+
+        json_array_append_new(runtime_vlinks, entry);
+    }
+
     if (pWilds->pArea)
     {
         for (storm_node = pWilds->pArea->storm; storm_node; storm_node = storm_node->next)
@@ -562,6 +824,7 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
 
     json_object_set_new(root, "features", features);
     json_object_set_new(root, "actors", actors);
+    json_object_set_new(root, "runtime_vlinks", runtime_vlinks);
     json_object_set_new(root, "storms", storms);
 
     if (!wilderness_storage_build_state_path(pWilds, path, sizeof(path)))
@@ -583,6 +846,117 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
     runtime->dirty_since = 0;
     runtime->dirty_reason[0] = '\0';
     return true;
+}
+
+bool wilderness_state_add_runtime_vlink(WILDS_DATA *pWilds, int x, int y, int door,
+    long dest_area_uid, long dest_vnum, int linkage, int duration_seconds, long *out_uid)
+{
+    WILDERNESS_STATE_RUNTIME *runtime;
+    WILDERNESS_RUNTIME_VLINK_NODE *node;
+
+    if (out_uid)
+        *out_uid = 0;
+
+    if (!wilderness_state_ready || !pWilds)
+        return false;
+
+    if (x < 0 || x >= pWilds->map_size_x || y < 0 || y >= pWilds->map_size_y)
+        return false;
+
+    if (door < 0 || door >= MAX_DIR)
+        return false;
+
+    if (dest_vnum < 1)
+        return false;
+
+    if (linkage == VLINK_UNLINKED)
+        linkage = VLINK_FROM_WILDS;
+
+    runtime = wilderness_state_get_runtime(pWilds, true);
+    if (!runtime)
+        return false;
+
+    node = calloc(1, sizeof(*node));
+    if (!node)
+        return false;
+
+    if (runtime->next_runtime_vlink_uid >= 0)
+        runtime->next_runtime_vlink_uid = -1;
+
+    node->record.uid = runtime->next_runtime_vlink_uid--;
+    node->record.x = x;
+    node->record.y = y;
+    node->record.door = door;
+    node->record.dest_area_uid = dest_area_uid;
+    node->record.dest_vnum = dest_vnum;
+    node->record.linkage = linkage;
+    node->record.destination_mode = VLINK_DEST_ROOM;
+    node->record.dungeon_floor = 1;
+    node->record.created_at = current_time;
+    node->record.expires_at = (duration_seconds > 0) ? (current_time + duration_seconds) : 0;
+
+    if (!wilderness_state_apply_runtime_vlink(pWilds, &node->record))
+    {
+        free(node);
+        return false;
+    }
+
+    node->next = runtime->runtime_vlinks;
+    runtime->runtime_vlinks = node;
+    runtime->loaded_runtime_vlink_count++;
+
+    if (out_uid)
+        *out_uid = node->record.uid;
+
+    wilderness_state_mark_dirty(pWilds, "runtime vlink add");
+    return true;
+}
+
+int wilderness_state_remove_runtime_vlink(WILDS_DATA *pWilds, long uid)
+{
+    WILDERNESS_STATE_RUNTIME *runtime;
+    WILDERNESS_RUNTIME_VLINK_NODE *node;
+    WILDERNESS_RUNTIME_VLINK_NODE *prev = NULL;
+
+    if (!wilderness_state_ready || !pWilds || uid == 0)
+        return 0;
+
+    runtime = wilderness_state_get_runtime(pWilds, false);
+    if (!runtime)
+        return 0;
+
+    for (node = runtime->runtime_vlinks; node; prev = node, node = node->next)
+    {
+        if (node->record.uid != uid)
+            continue;
+
+        if (prev)
+            prev->next = node->next;
+        else
+            runtime->runtime_vlinks = node->next;
+
+        wilderness_state_remove_vlink_uid(pWilds, node->record.uid);
+        free(node);
+        runtime->loaded_runtime_vlink_count = UMAX(0, runtime->loaded_runtime_vlink_count - 1);
+        wilderness_state_mark_dirty(pWilds, "runtime vlink remove");
+        return 1;
+    }
+
+    return 0;
+}
+
+int wilderness_state_cleanup_runtime_vlinks(WILDS_DATA *pWilds)
+{
+    WILDERNESS_STATE_RUNTIME *runtime;
+
+    if (!wilderness_state_ready || !pWilds)
+        return 0;
+
+    runtime = wilderness_state_get_runtime(pWilds, false);
+    if (!runtime)
+        return 0;
+
+    return wilderness_state_cleanup_runtime_vlinks_internal(pWilds, runtime);
 }
 
 void wilderness_state_mark_dirty(WILDS_DATA *pWilds, const char *reason)

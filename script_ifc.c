@@ -4232,7 +4232,36 @@ DECL_IFC_FUN(ifc_maparea)
 
 DECL_IFC_FUN(ifc_hasvlink)
 {
-    *ret = false;
+    if (ISARG_NUM(0) && ISARG_NUM(1) && ISARG_NUM(2))
+    {
+        WILDS_DATA *pWilds = get_wilds_from_uid(NULL, ARG_NUM(0));
+        if (!pWilds)
+        {
+            *ret = false;
+            return true;
+        }
+
+        *ret = wilds_coord_has_vlink_marker(pWilds, ARG_NUM(1), ARG_NUM(2)) ? true : false;
+        return true;
+    }
+
+    if(ISARG_MOB(0)) room = ARG_MOB(0)->in_room;
+    else if(ISARG_OBJ(0)) room = obj_room(ARG_OBJ(0));
+    else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
+    else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
+    else
+    {
+        *ret = false;
+        return true;
+    }
+
+    if (!room || !room->wilds)
+    {
+        *ret = false;
+        return true;
+    }
+
+    *ret = wilds_coord_has_vlink_marker(room->wilds, room->x, room->y) ? true : false;
     return true;
 }
 

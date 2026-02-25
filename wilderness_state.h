@@ -47,6 +47,21 @@ typedef struct wilderness_actor_record
     bool active;
 } WILDERNESS_ACTOR_RECORD;
 
+typedef struct wilderness_runtime_vlink_record
+{
+    long uid;
+    int x;
+    int y;
+    int door;
+    long dest_area_uid;
+    long dest_vnum;
+    int linkage;
+    int destination_mode;
+    int dungeon_floor;
+    time_t created_at;
+    time_t expires_at;
+} WILDERNESS_RUNTIME_VLINK_RECORD;
+
 bool wilderness_state_init(void);
 void wilderness_state_shutdown(void);
 void wilderness_state_pulse(void);
@@ -54,5 +69,9 @@ void wilderness_state_pulse(void);
 bool wilderness_state_load(WILDS_DATA *pWilds);
 bool wilderness_state_save(WILDS_DATA *pWilds);
 void wilderness_state_mark_dirty(WILDS_DATA *pWilds, const char *reason);
+bool wilderness_state_add_runtime_vlink(WILDS_DATA *pWilds, int x, int y, int door,
+    long dest_area_uid, long dest_vnum, int linkage, int duration_seconds, long *out_uid);
+int wilderness_state_remove_runtime_vlink(WILDS_DATA *pWilds, long uid);
+int wilderness_state_cleanup_runtime_vlinks(WILDS_DATA *pWilds);
 
 #endif

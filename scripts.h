@@ -8,6 +8,8 @@
 #ifndef __SCRIPTS_H__
 #define __SCRIPTS_H__
 
+typedef struct quest_history_data QUEST_HISTORY_DATA;
+
 #define IFC_NONE	0
 #define	IFC_M	(A)	/* Allowed in mprogs */
 #define	IFC_O	(B)	/* Allowed in oprogs */
@@ -3821,6 +3823,10 @@ SCRIPT_CMD(scriptcmd_lockremove);
 
 SCRIPT_CMD(scriptcmd_treasuremap);
 SCRIPT_CMD(scriptcmd_wildernessmap);
+SCRIPT_CMD(scriptcmd_wildsanchor);
+SCRIPT_CMD(scriptcmd_wildstile);
+SCRIPT_CMD(scriptcmd_wildsoverlay);
+SCRIPT_CMD(scriptcmd_wildsvlink);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_event);
 SCRIPT_CMD(scriptcmd_zot);

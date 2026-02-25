@@ -18,6 +18,8 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../../wilderness_mods.h"
+#include "../../wilderness_storage.h"
 #include "../../requirements.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
@@ -2679,6 +2681,10 @@ WEDIT (wedit_wildgen)
 
     if (IS_NULLSTR(arg))
     {
+        send_to_char("Syntax: wildgen check <png_filename.png>\n\r", ch);
+        send_to_char("        wildgen bake\n\r", ch);
+        send_to_char("        wildgen export static <png_filename.png>\n\r", ch);
+        send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
         send_to_char("Syntax: wildgen import [png_filename.png]\n\r", ch);
         send_to_char("        wildgen importgrid <terrain_base> <rows> <cols> [elevation_base]\n\r", ch);
         send_to_char("        wildgen config show\n\r", ch);
@@ -2695,6 +2701,119 @@ WEDIT (wedit_wildgen)
     {
         wilds_wildgen_status(pWilds, status_buf, sizeof(status_buf));
         printf_to_char(ch, "%s\n\r", status_buf);
+        return false;
+    }
+
+    if (!str_prefix(arg, "bake"))
+    {
+        size_t map_len;
+        size_t index;
+        int baked = 0;
+
+        if (!pWilds->staticmap || !pWilds->map || pWilds->map_size_x < 1 || pWilds->map_size_y < 1)
+        {
+            send_to_char("Wildgen bake failed: wilderness map buffers are not initialized.\n\r", ch);
+            return false;
+        }
+
+        map_len = (size_t)pWilds->map_size_x * (size_t)pWilds->map_size_y;
+        for (index = 0; index < map_len; index++)
+        {
+            if (pWilds->staticmap[index] != pWilds->map[index])
+                baked++;
+        }
+
+        if (baked < 1)
+        {
+            send_to_char("Wildgen bake: no runtime tile mods to merge into staticmap.\n\r", ch);
+            return false;
+        }
+
+        memcpy(pWilds->staticmap, pWilds->map, map_len);
+        wilderness_mods_mark_dirty(pWilds, "wildgen bake");
+
+        if (pWilds->pArea)
+            wilderness_storage_save_area_now(pWilds->pArea);
+        else
+            wilderness_storage_save_all_now();
+
+        printf_to_char(ch,
+            "Wildgen bake complete: merged %d runtime tile mod%s into staticmap and saved wilderness sidecars.\n\r",
+            baked,
+            baked == 1 ? "" : "s");
+        send_to_char("Note: temporary overlays are separate runtime records and are not baked by this command.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg, "check"))
+    {
+        argument = one_argument(argument, arg2);
+        if (IS_NULLSTR(arg2))
+        {
+            send_to_char("Syntax: wildgen check <png_filename.png>\n\r", ch);
+            return false;
+        }
+
+        if (!wilds_wildgen_check_image(pWilds, arg2, status_buf, sizeof(status_buf)))
+        {
+            printf_to_char(ch, "Wildgen check failed: %s\n\r", status_buf[0] ? status_buf : "unknown error");
+            return false;
+        }
+
+        printf_to_char(ch, "%s\n\r", status_buf);
+        return false;
+    }
+
+    if (!str_prefix(arg, "export"))
+    {
+        argument = one_argument(argument, arg2);
+        argument = one_argument(argument, arg3);
+
+        if (IS_NULLSTR(arg2))
+        {
+            send_to_char("Syntax: wildgen export static <png_filename.png>\n\r", ch);
+            send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
+            return false;
+        }
+
+        if (!str_prefix(arg2, "static"))
+        {
+            if (IS_NULLSTR(arg3))
+            {
+                send_to_char("Syntax: wildgen export static <png_filename.png>\n\r", ch);
+                return false;
+            }
+
+            if (!wilds_wildgen_export_image(pWilds, arg3, status_buf, sizeof(status_buf)))
+            {
+                printf_to_char(ch, "Wildgen export failed: %s\n\r", status_buf[0] ? status_buf : "unknown error");
+                return false;
+            }
+
+            printf_to_char(ch, "%s\n\r", status_buf);
+            return true;
+        }
+
+        if (!str_prefix(arg2, "effective"))
+        {
+            if (IS_NULLSTR(arg3))
+            {
+                send_to_char("Syntax: wildgen export effective <png_filename.png>\n\r", ch);
+                return false;
+            }
+
+            if (!wilds_wildgen_export_effective_image(pWilds, arg3, status_buf, sizeof(status_buf)))
+            {
+                printf_to_char(ch, "Wildgen export failed: %s\n\r", status_buf[0] ? status_buf : "unknown error");
+                return false;
+            }
+
+            printf_to_char(ch, "%s\n\r", status_buf);
+            return true;
+        }
+
+        send_to_char("Syntax: wildgen export static <png_filename.png>\n\r", ch);
+        send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
         return false;
     }
 
@@ -2844,7 +2963,11 @@ WEDIT (wedit_wildgen)
         return false;
     }
 
-    send_to_char("Syntax: wildgen import [png_filename.png]\n\r", ch);
+    send_to_char("Syntax: wildgen check <png_filename.png>\n\r", ch);
+    send_to_char("        wildgen bake\n\r", ch);
+    send_to_char("        wildgen export static <png_filename.png>\n\r", ch);
+    send_to_char("        wildgen export effective <png_filename.png>\n\r", ch);
+    send_to_char("        wildgen import [png_filename.png]\n\r", ch);
     send_to_char("        wildgen importgrid <terrain_base> <rows> <cols> [elevation_base]\n\r", ch);
     send_to_char("        wildgen config show\n\r", ch);
     send_to_char("        wildgen status\n\r", ch);

@@ -9124,6 +9124,52 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             }
         }
 
+    // Format: COORD <wilds_room>
+    // Format: COORD <room-in-wilds>
+    // Format: COORD <wilds|wilds_id|wilds_uid> <x> <y>
+    } else if(!str_cmp(buf,"coord") || !str_cmp(buf,"coords") || !str_cmp(buf,"wilds_room") || !str_cmp(buf,"wcoord")) {
+        WILDS_DATA *wilds = NULL;
+        int x = 0;
+        int y = 0;
+
+        if (arg->type == ENT_WILDS_ROOM) {
+            wilds = get_wilds_from_uid(NULL, arg->d.wroom.wuid);
+            x = arg->d.wroom.x;
+            y = arg->d.wroom.y;
+        } else if (arg->type == ENT_ROOM && arg->d.room && arg->d.room->wilds) {
+            wilds = arg->d.room->wilds;
+            x = arg->d.room->x;
+            y = arg->d.room->y;
+        } else if (arg->type == ENT_WILDS || arg->type == ENT_WILDS_ID || arg->type == ENT_NUMBER) {
+            if (arg->type == ENT_WILDS)
+                wilds = arg->d.wilds;
+            else if (arg->type == ENT_WILDS_ID)
+                wilds = get_wilds_from_uid(NULL, arg->d.wid);
+            else
+                wilds = get_wilds_from_uid(NULL, arg->d.num);
+
+            if (!wilds)
+                return;
+
+            if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+                return;
+            x = arg->d.num;
+
+            if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+                return;
+            y = arg->d.num;
+        } else {
+            return;
+        }
+
+        if (!wilds)
+            return;
+
+        if (x < 0 || x >= wilds->map_size_x || y < 0 || y >= wilds->map_size_y)
+            return;
+
+        variables_set_wilds_room(vars, name, wilds->uid, x, y, false);
+
     // Format: EXIT <STRING> - finds the exit at the given direction in the current room
     // Format: EXIT <ROOM> <STRING> - same as EXIT <STRING> but at the given room
     // Format: EXIT <EXIT> - explicit exit

@@ -11,6 +11,7 @@
 #include "scripts.h"
 #include "magic.h"
 #include "wilds.h"
+#include "wilderness_state.h"
 #include "class_data.h"
 #include "song_data.h"
 #include "traits.h"
@@ -189,6 +190,119 @@ static bool scriptcmd_event_get_source_from_param(SCRIPT_PARAM *param, long *eve
     return false;
 }
 
+static bool scriptcmd_parse_wilds_coord(SCRIPT_VARINFO *info, SCRIPT_PARAM *arg, WILDS_DATA **wilds, int *x, int *y, char **rest)
+{
+    char *next;
+
+    if (!info || !arg || !wilds || !x || !y || !rest)
+        return false;
+
+    next = expand_argument(info, *rest, arg);
+    if (!next)
+        return false;
+
+    switch (arg->type)
+    {
+    case ENT_WILDS_ROOM:
+        *wilds = get_wilds_from_uid(NULL, arg->d.wroom.wuid);
+        *x = arg->d.wroom.x;
+        *y = arg->d.wroom.y;
+        *rest = next;
+        return *wilds != NULL;
+
+    case ENT_ROOM:
+        if (!arg->d.room || !arg->d.room->wilds)
+            return false;
+        *wilds = arg->d.room->wilds;
+        *x = arg->d.room->x;
+        *y = arg->d.room->y;
+        *rest = next;
+        return true;
+
+    case ENT_NUMBER:
+        *wilds = get_wilds_from_uid(NULL, arg->d.num);
+        if (!*wilds)
+            return false;
+
+        next = expand_argument(info, next, arg);
+        if (!next || arg->type != ENT_NUMBER)
+            return false;
+        *x = arg->d.num;
+
+        next = expand_argument(info, next, arg);
+        if (!next || arg->type != ENT_NUMBER)
+            return false;
+        *y = arg->d.num;
+
+        *rest = next;
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+static int scriptcmd_parse_vlink_linkage(const char *text)
+{
+    if (IS_NULLSTR(text))
+        return VLINK_FROM_WILDS;
+
+    if (!str_prefix(text, "to_wilds"))
+        return VLINK_TO_WILDS;
+
+    if (!str_prefix(text, "from_wilds"))
+        return VLINK_FROM_WILDS;
+
+    if (!str_prefix(text, "two_way") || !str_prefix(text, "twoway"))
+        return VLINK_TO_WILDS | VLINK_FROM_WILDS;
+
+    return -1;
+}
+
+static bool scriptcmd_parse_dest_wnum_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM *arg, WNUM *dest_wnum, char **rest)
+{
+    char *next;
+    AREA_DATA *context_area;
+
+    if (!info || !arg || !dest_wnum || !rest)
+        return false;
+
+    next = expand_argument(info, *rest, arg);
+    if (!next)
+        return false;
+
+    context_area = get_area_from_scriptinfo(info);
+    dest_wnum->pArea = NULL;
+    dest_wnum->vnum = 0;
+
+    if (arg->type == ENT_WIDEVNUM)
+    {
+        *dest_wnum = arg->d.wnum;
+        *rest = next;
+        return dest_wnum->pArea != NULL && dest_wnum->vnum > 0;
+    }
+
+    if (arg->type == ENT_NUMBER)
+    {
+        char vnum_str[32];
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        if (!parse_widevnum(vnum_str, context_area, dest_wnum))
+            return false;
+        *rest = next;
+        return dest_wnum->pArea != NULL && dest_wnum->vnum > 0;
+    }
+
+    if (arg->type == ENT_STRING)
+    {
+        if (!parse_widevnum(arg->d.str, context_area, dest_wnum))
+            return false;
+        *rest = next;
+        return dest_wnum->pArea != NULL && dest_wnum->vnum > 0;
+    }
+
+    return false;
+}
+
 static bool scriptcmd_event_parse_uid(SCRIPT_PARAM *arg, long *value)
 {
     if (!arg || !value)
@@ -277,6 +391,10 @@ const struct script_cmd_type area_cmd_table[] = {
     { "varsaveon",			scriptcmd_varsaveon,		false,	true	},
     { "varset",				scriptcmd_varset,			false,	true	},
     { "varseton",			scriptcmd_varseton,			false,	true	},
+    { "wildsoverlay",		scriptcmd_wildsoverlay,		false,	true	},
+    { "wildsanchor",		scriptcmd_wildsanchor,		false,	true	},
+    { "wildstile",			scriptcmd_wildstile,		false,	true	},
+    { "wildsvlink",		scriptcmd_wildsvlink,		false,	true	},
     { "wiznet",				scriptcmd_wiznet,			false,	true    },
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
     { "xcall",				scriptcmd_xcall,			false,	true	},
@@ -321,6 +439,10 @@ const struct script_cmd_type instance_cmd_table[] = {
     { "varsaveon",			scriptcmd_varsaveon,		false,	true	},
     { "varset",				scriptcmd_varset,			false,	true	},
     { "varseton",			scriptcmd_varseton,			false,	true	},
+    { "wildsoverlay",		scriptcmd_wildsoverlay,		false,	true	},
+    { "wildsanchor",		scriptcmd_wildsanchor,		false,	true	},
+    { "wildstile",			scriptcmd_wildstile,		false,	true	},
+    { "wildsvlink",		scriptcmd_wildsvlink,		false,	true	},
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
     { "wiznet",				scriptcmd_wiznet,			false,	true    },
     { "xcall",				scriptcmd_xcall,			false,	true	},
@@ -365,6 +487,10 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { "varsaveon",			scriptcmd_varsaveon,		false,	true	},
     { "varset",				scriptcmd_varset,			false,	true	},
     { "varseton",			scriptcmd_varseton,			false,	true	},
+    { "wildsoverlay",		scriptcmd_wildsoverlay,		false,	true	},
+    { "wildsanchor",		scriptcmd_wildsanchor,		false,	true	},
+    { "wildstile",			scriptcmd_wildstile,		false,	true	},
+    { "wildsvlink",		scriptcmd_wildsvlink,		false,	true	},
     { "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
     { "wiznet",				scriptcmd_wiznet,			false,	true    },
     { "xcall",				scriptcmd_xcall,			false,	true	},
@@ -12684,6 +12810,425 @@ SCRIPT_CMD(scriptcmd_varseton)
 
 //////////////////////////////////////
 // W
+
+// WILDSTILE $WUID $X $Y $TILE
+// $WUID - wilderness uid
+// $X/$Y - wilderness coordinates
+// $TILE - terrain token (single character)
+// Returns: lastreturn = 1 on success, 0 on failure
+SCRIPT_CMD(scriptcmd_wildstile)
+{
+    char *rest;
+    WILDS_DATA *wilds;
+    WILDS_TERRAIN *terrain;
+    int x;
+    int y;
+    int dx = 0;
+    int dy = 0;
+    char tile = '\0';
+
+    if (!info)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    rest = argument;
+    if (!scriptcmd_parse_wilds_coord(info, arg, &wilds, &x, &y, &rest))
+        return;
+
+    if (!(rest = expand_argument(info, rest, arg)))
+        return;
+
+    if (arg->type == ENT_NUMBER && rest && *rest)
+    {
+        dx = arg->d.num;
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+            return;
+        dy = arg->d.num;
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+    }
+
+    if (arg->type == ENT_STRING)
+    {
+        if (IS_NULLSTR(arg->d.str))
+            return;
+        tile = arg->d.str[0];
+        if (arg->d.str[1] != '\0')
+            return;
+    }
+    else if (arg->type == ENT_NUMBER)
+    {
+        if (arg->d.num < 0 || arg->d.num > 255)
+            return;
+        tile = (char)arg->d.num;
+    }
+    else
+    {
+        return;
+    }
+
+    terrain = get_terrain_by_token(wilds, tile);
+    if (!terrain)
+        return;
+
+    x += dx;
+    y += dy;
+    if (x < 0 || x >= wilds->map_size_x || y < 0 || y >= wilds->map_size_y)
+        return;
+
+    if (!set_wilds_runtime_tile(wilds, x, y, tile))
+        return;
+
+    info->progs->lastreturn = 1;
+}
+
+// WILDSOVERLAY ADD $WUID $X1 $Y1 $X2 $Y2 $TILE [ $REGION ] [ $DURATION ]
+// WILDSOVERLAY REMOVE $WUID $ZONE_ID
+// WILDSOVERLAY CLEARREGION $WUID $REGION
+// WILDSOVERLAY CLEANUP $WUID
+// Returns:
+//   ADD -> zone id in lastreturn (0 on failure)
+//   REMOVE/CLEARREGION/CLEANUP -> removed count in lastreturn
+SCRIPT_CMD(scriptcmd_wildsoverlay)
+{
+    char cmd[MIL];
+    char *rest;
+    WILDS_DATA *wilds;
+
+    if (!info)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    argument = one_argument(argument, cmd);
+    if (IS_NULLSTR(cmd))
+        return;
+
+    if (!str_cmp(cmd, "add"))
+    {
+        int x1;
+        int y1;
+        int x2;
+        int y2;
+        int anchor_x = 0;
+        int anchor_y = 0;
+        bool anchored = false;
+        int region = REGION_UNKNOWN;
+        int duration = 0;
+        char tile = '\0';
+        long zone_id;
+
+        if (!(rest = expand_argument(info, argument, arg)))
+            return;
+
+        if (arg->type == ENT_WILDS_ROOM)
+        {
+            wilds = get_wilds_from_uid(NULL, arg->d.wroom.wuid);
+            anchor_x = arg->d.wroom.x;
+            anchor_y = arg->d.wroom.y;
+            anchored = true;
+        }
+        else if (arg->type == ENT_ROOM && arg->d.room && arg->d.room->wilds)
+        {
+            wilds = arg->d.room->wilds;
+            anchor_x = arg->d.room->x;
+            anchor_y = arg->d.room->y;
+            anchored = true;
+        }
+        else if (arg->type == ENT_NUMBER)
+        {
+            wilds = get_wilds_from_uid(NULL, arg->d.num);
+        }
+        else
+        {
+            return;
+        }
+
+        if (!wilds)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+            return;
+        x1 = arg->d.num;
+
+        if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+            return;
+        y1 = arg->d.num;
+
+        if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+            return;
+        x2 = arg->d.num;
+
+        if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+            return;
+        y2 = arg->d.num;
+
+        if (anchored)
+        {
+            x1 += anchor_x;
+            y1 += anchor_y;
+            x2 += anchor_x;
+            y2 += anchor_y;
+        }
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        if (arg->type == ENT_STRING)
+        {
+            if (IS_NULLSTR(arg->d.str))
+                return;
+            tile = arg->d.str[0];
+            if (arg->d.str[1] != '\0')
+                return;
+        }
+        else if (arg->type == ENT_NUMBER)
+        {
+            if (arg->d.num < 0 || arg->d.num > 255)
+                return;
+            tile = (char)arg->d.num;
+        }
+        else
+        {
+            return;
+        }
+
+        if (!get_terrain_by_token(wilds, tile))
+            return;
+
+        if (rest && *rest)
+        {
+            if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+                return;
+            region = arg->d.num;
+        }
+
+        if (rest && *rest)
+        {
+            if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+                return;
+            duration = arg->d.num;
+            if (duration < 0)
+                return;
+        }
+
+        zone_id = wilds_add_temporary_zone(wilds, x1, y1, x2, y2, tile, region, duration);
+        if (zone_id < 1)
+            return;
+
+        info->progs->lastreturn = zone_id;
+        return;
+    }
+
+    if (!str_cmp(cmd, "remove"))
+    {
+        if (!(rest = expand_argument(info, argument, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        wilds = get_wilds_from_uid(NULL, arg->d.num);
+        if (!wilds)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        info->progs->lastreturn = wilds_remove_temporary_zone(wilds, arg->d.num);
+        return;
+    }
+
+    if (!str_cmp(cmd, "clearregion"))
+    {
+        if (!(rest = expand_argument(info, argument, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        wilds = get_wilds_from_uid(NULL, arg->d.num);
+        if (!wilds)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        info->progs->lastreturn = wilds_remove_region_temporary_zones(wilds, arg->d.num);
+        return;
+    }
+
+    if (!str_cmp(cmd, "cleanup"))
+    {
+        if (!(rest = expand_argument(info, argument, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        wilds = get_wilds_from_uid(NULL, arg->d.num);
+        if (!wilds)
+            return;
+
+        info->progs->lastreturn = wilds_cleanup_expired_temporary_zones(wilds);
+        return;
+    }
+}
+
+// WILDSANCHOR $VARIABLENAME <WUID X Y|$ROOM|$WILDS_ROOM> [ $DX $DY ]
+// Stores a coordinate anchor as a wilderness-room variable (wuid/x/y tuple).
+SCRIPT_CMD(scriptcmd_wildsanchor)
+{
+    char *rest = argument;
+    WILDS_DATA *wilds;
+    int x;
+    int y;
+    int dx = 0;
+    int dy = 0;
+    char var_name[MIL];
+
+    if (!info || !info->var)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING || IS_NULLSTR(arg->d.str))
+        return;
+
+    snprintf(var_name, sizeof(var_name), "%s", arg->d.str);
+
+    if (!scriptcmd_parse_wilds_coord(info, arg, &wilds, &x, &y, &rest))
+        return;
+
+    if (rest && *rest)
+    {
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+            return;
+        dx = arg->d.num;
+
+        if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+            return;
+        dy = arg->d.num;
+    }
+
+    x += dx;
+    y += dy;
+    if (x < 0 || x >= wilds->map_size_x || y < 0 || y >= wilds->map_size_y)
+        return;
+
+    if (!variables_set_wilds_room(info->var, var_name, wilds->uid, x, y, false))
+        return;
+
+    info->progs->lastreturn = 1;
+}
+
+// WILDSVLINK ADD <WUID X Y|$ROOM|$WILDS_ROOM> <DOOR> <DEST_WNUM> [LINKAGE] [DURATION_SECONDS]
+// WILDSVLINK REMOVE $WUID $RUNTIME_VLINK_UID
+// WILDSVLINK CLEANUP $WUID
+SCRIPT_CMD(scriptcmd_wildsvlink)
+{
+    char cmd[MIL];
+    char *rest;
+    WILDS_DATA *wilds = NULL;
+
+    if (!info)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    argument = one_argument(argument, cmd);
+    if (IS_NULLSTR(cmd))
+        return;
+
+    if (!str_cmp(cmd, "add"))
+    {
+        int x;
+        int y;
+        int door;
+        int linkage = VLINK_FROM_WILDS;
+        int duration = 0;
+        WNUM dest_wnum = wnum_zero;
+        long uid = 0;
+
+        rest = argument;
+        if (!scriptcmd_parse_wilds_coord(info, arg, &wilds, &x, &y, &rest))
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        if (arg->type == ENT_NUMBER)
+            door = arg->d.num;
+        else if (arg->type == ENT_STRING)
+            door = get_num_dir(arg->d.str);
+        else
+            return;
+
+        if (door < 0 || door >= MAX_DIR)
+            return;
+
+        if (!scriptcmd_parse_dest_wnum_from_arg(info, arg, &dest_wnum, &rest))
+            return;
+
+        if (rest && *rest)
+        {
+            if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING)
+                return;
+
+            linkage = scriptcmd_parse_vlink_linkage(arg->d.str);
+            if (linkage < 0)
+                return;
+        }
+
+        if (rest && *rest)
+        {
+            if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+                return;
+            duration = arg->d.num;
+            if (duration < 0)
+                return;
+        }
+
+        if (!wilderness_state_add_runtime_vlink(wilds,
+            x,
+            y,
+            door,
+            dest_wnum.pArea ? dest_wnum.pArea->uid : 0,
+            dest_wnum.vnum,
+            linkage,
+            duration,
+            &uid))
+            return;
+
+        info->progs->lastreturn = uid;
+        return;
+    }
+
+    if (!str_cmp(cmd, "remove"))
+    {
+        long uid;
+
+        if (!(rest = expand_argument(info, argument, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        wilds = get_wilds_from_uid(NULL, arg->d.num);
+        if (!wilds)
+            return;
+
+        if (!(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        uid = arg->d.num;
+        info->progs->lastreturn = wilderness_state_remove_runtime_vlink(wilds, uid);
+        return;
+    }
+
+    if (!str_cmp(cmd, "cleanup"))
+    {
+        if (!(rest = expand_argument(info, argument, arg)) && arg->type != ENT_NUMBER)
+            return;
+
+        wilds = get_wilds_from_uid(NULL, arg->d.num);
+        if (!wilds)
+            return;
+
+        info->progs->lastreturn = wilderness_state_cleanup_runtime_vlinks(wilds);
+        return;
+    }
+}
 
 // WILDERNESSMAP $WUID $X $Y $MAP $OFFSET%[ $MARKER]
 // $WUID         - wilderness map uid
