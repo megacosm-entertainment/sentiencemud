@@ -4980,7 +4980,7 @@ void do_weather(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg);
 
-    if (!str_prefix(arg, "storm"))
+    if (arg[0] != '\0' && !str_prefix(arg, "storm"))
     {
         weather_handle_storm_command(ch, argument);
         return;
