@@ -1576,7 +1576,7 @@ void time_update(void)
     {
         if (d->connected == CON_PLAYING
             &&   (d->character->in_room != NULL &&
-            !room_in_sector(d->character->in_room, SECT_INSIDE))//IS_OUTSIDE(d->character)
+            IS_OUTSIDE(d->character))
             && !IN_EDEN(d->character)
             && !IN_NETHERWORLD(d->character)
             &&   IS_AWAKE(d->character)) {
@@ -1592,7 +1592,7 @@ void time_update(void)
         {
         if (d->connected == CON_PLAYING
         && d->character->in_room != NULL
-        && !room_in_sector(d->character->in_room, SECT_INSIDE)
+        && IS_OUTSIDE(d->character)
         &&   IS_AWAKE(d->character))
         {
             if (number_percent() < 50)
@@ -1984,8 +1984,7 @@ void char_update(void)
                 }
 
                 if (ch->in_room != NULL &&
-                    !room_in_sector(ch->in_room, SECT_INSIDE) &&
-                    !IS_SET(ch->in_room->room_flag[0], ROOM_INDOORS))
+                    IS_OUTSIDE(ch))
                 {
                     switch(num)
                     {

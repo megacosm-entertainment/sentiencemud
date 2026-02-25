@@ -5310,7 +5310,7 @@ DECL_IFC_FUN(ifc_sunlight)
         else if(token) room = token_room(token);
     }
 
-    if (room && (room->wilds || (!room_in_sector(room, SECT_INSIDE) && !room_in_sector(room, SECT_NETHERWORLD) && !IS_SET(room->room_flag[0], ROOM_INDOORS)))) {
+    if (room && (room->wilds || (!room_in_sector(room, SECT_INSIDE) && !room_in_sector(room, SECT_NETHERWORLD) && !IS_SET(room->room_flag[0], ROOM_INDOORS) && !room_sector_has_flag(room, SECTOR_INDOORS)))) {
         *ret = (int)(-1000 * cos(3.1415926 * time_info.hour / 12));
         if(*ret < 0) *ret = 0;
     } else

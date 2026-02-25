@@ -8951,7 +8951,9 @@ struct log_entry_data
 
 #define IS_OUTSIDE(ch)	( (ch)->in_room->wilds || \
         (!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
-            !room_in_sector((ch)->in_room, SECT_INSIDE) && !room_in_sector((ch)->in_room, SECT_NETHERWORLD) ) )
+            !room_in_sector((ch)->in_room, SECT_INSIDE) && \
+            !room_in_sector((ch)->in_room, SECT_NETHERWORLD) && \
+            !room_sector_has_flag((ch)->in_room, SECTOR_INDOORS) ) )
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->in_room->area->area_flags, AREA_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
