@@ -663,6 +663,7 @@ typedef enum {
     QEDIT_WNUM_MOB,
     QEDIT_WNUM_OBJ,
     QEDIT_WNUM_ROOM,
+    QEDIT_WNUM_REPUTATION,
     QEDIT_WNUM_TOKEN,
     QEDIT_WNUM_BLUEPRINT,
     QEDIT_WNUM_DUNGEON
@@ -690,6 +691,9 @@ static qedit_wnum_kind_t qedit_reward_target_kind(int reward_type)
     switch (reward_type) {
     case QUEST_REWARD_ITEM:
         return QEDIT_WNUM_OBJ;
+
+    case QUEST_REWARD_REPUTATION:
+        return QEDIT_WNUM_REPUTATION;
 
     case QUEST_REWARD_TOKEN:
         return QEDIT_WNUM_TOKEN;
@@ -767,6 +771,7 @@ static bool qedit_resolve_wnum_info(WNUM wnum, qedit_wnum_kind_t preferred,
     MOB_INDEX_DATA *mob = NULL;
     OBJ_INDEX_DATA *obj = NULL;
     ROOM_INDEX_DATA *room = NULL;
+    REPUTATION_INDEX_DATA *reputation = NULL;
     TOKEN_INDEX_DATA *token = NULL;
     BLUEPRINT *bp = NULL;
     DUNGEON_INDEX_DATA *dng = NULL;
@@ -794,11 +799,13 @@ static bool qedit_resolve_wnum_info(WNUM wnum, qedit_wnum_kind_t preferred,
         obj = get_obj_index(wnum.pArea, wnum.vnum);
     if (!mob && !obj && (preferred == QEDIT_WNUM_ROOM || preferred == QEDIT_WNUM_ANY))
         room = get_room_index(wnum.pArea, wnum.vnum);
-    if (!mob && !obj && !room && (preferred == QEDIT_WNUM_TOKEN || preferred == QEDIT_WNUM_ANY))
+    if (!mob && !obj && !room && (preferred == QEDIT_WNUM_REPUTATION || preferred == QEDIT_WNUM_ANY))
+        reputation = get_reputation_index(wnum.pArea, wnum.vnum);
+    if (!mob && !obj && !room && !reputation && (preferred == QEDIT_WNUM_TOKEN || preferred == QEDIT_WNUM_ANY))
         token = get_token_index(wnum.pArea, wnum.vnum);
-    if (!mob && !obj && !room && !token && (preferred == QEDIT_WNUM_BLUEPRINT || preferred == QEDIT_WNUM_ANY))
+    if (!mob && !obj && !room && !reputation && !token && (preferred == QEDIT_WNUM_BLUEPRINT || preferred == QEDIT_WNUM_ANY))
         bp = get_blueprint_for_area(wnum.pArea, wnum.vnum);
-    if (!mob && !obj && !room && !token && !bp && (preferred == QEDIT_WNUM_DUNGEON || preferred == QEDIT_WNUM_ANY))
+    if (!mob && !obj && !room && !reputation && !token && !bp && (preferred == QEDIT_WNUM_DUNGEON || preferred == QEDIT_WNUM_ANY))
         dng = get_dungeon_index_for_area(wnum.pArea, wnum.vnum);
 
     if (mob) {
@@ -840,6 +847,20 @@ static bool qedit_resolve_wnum_info(WNUM wnum, qedit_wnum_kind_t preferred,
             *out_edit_cmd = "redit";
         if (out_wnum && out_wnum_size > 0)
             snprintf(out_wnum, out_wnum_size, "%s", widevnum_string_room(room, NULL));
+        return true;
+    }
+
+    if (reputation) {
+        if (out_type)
+            *out_type = "reputation";
+        if (out_name)
+            *out_name = reputation->name ? reputation->name : "(unnamed)";
+        if (out_show_cmd)
+            *out_show_cmd = "repedit";
+        if (out_edit_cmd)
+            *out_edit_cmd = "repedit";
+        if (out_wnum && out_wnum_size > 0)
+            snprintf(out_wnum, out_wnum_size, "%ld#%ld", wnum.pArea->uid, wnum.vnum);
         return true;
     }
 

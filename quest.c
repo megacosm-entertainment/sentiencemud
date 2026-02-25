@@ -2962,13 +2962,11 @@ static void quest_list_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2,
 static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
 {
     QUEST_STAGE_INDEX_V2_DATA        *stage;
-    QUEST_OBJECTIVE_INDEX_V2_DATA    *obj;
     QUEST_REWARD_INDEX_V2_DATA       *rew;
     REQUIREMENT_CONTEXT               ctx;
     bool                              meets        = true;
     bool                              has_prereqs  = false;
     char                             *ps           = NULL;
-    int                               obj_count;
 
     line(ch, 50, "{Y", "-");
     printf_to_char(ch, "{Y%s{x\n\r",
@@ -3004,21 +3002,10 @@ static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
         if (ps) free(ps);
     }
 
-    /* Objectives from the first stage */
+    /* Stage summary (description-first inspect output, no objective dump) */
     stage = qv2->stages;
-    if (stage && stage->objectives) {
-        send_to_char("{WObjectives:{x\n\r", ch);
-        obj_count = 0;
-        for (obj = stage->objectives; obj; obj = obj->next) {
-            const char *label = quest_objective_visible_label(obj);
-            printf_to_char(ch, "  %s%s{x\n\r",
-                obj->optional ? "{D(optional) " : "",
-                IS_NULLSTR(label) ? quest_objective_type_name(obj->objective_type) : label);
-            obj_count++;
-        }
-        if (obj_count == 0)
-            send_to_char("  (no objectives listed)\n\r", ch);
-    }
+    if (stage && !IS_NULLSTR(stage->name))
+        printf_to_char(ch, "{WFirst stage:{x %s\n\r", stage->name);
 
     /* Rewards */
     if (qv2->rewards) {
@@ -3039,14 +3026,46 @@ static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
                         IS_NULLSTR(rew->currency) ? "coin(s)" : rew->currency);
                     break;
                 case QUEST_REWARD_REPUTATION:
-                    printf_to_char(ch, "  %d reputation\n\r", rew->amount);
+                {
+                    REPUTATION_INDEX_DATA *rep_index = NULL;
+
+                    if (rew->target_wnum.pArea && rew->target_wnum.vnum > 0)
+                        rep_index = get_reputation_index_wnum(rew->target_wnum);
+
+                    if (rep_index && !IS_NULLSTR(rep_index->name))
+                        printf_to_char(ch, "  %d reputation with %s\n\r", rew->amount, rep_index->name);
+                    else
+                        printf_to_char(ch, "  %d reputation\n\r", rew->amount);
                     break;
+                }
                 case QUEST_REWARD_TOKEN:
                     printf_to_char(ch, "  token (x%d)\n\r", rew->amount);
                     break;
                 case QUEST_REWARD_ITEM:
-                    send_to_char("  item reward\n\r", ch);
+                {
+                    OBJ_INDEX_DATA *obj_index = NULL;
+                    long item_count = UMAX(1, rew->amount);
+                    const char *item_name = "item reward";
+
+                    if (rew->target_wnum.pArea && rew->target_wnum.vnum > 0)
+                        obj_index = get_obj_index(rew->target_wnum.pArea, rew->target_wnum.vnum);
+
+                    if (obj_index)
+                    {
+                        if (!IS_NULLSTR(obj_index->list_name))
+                            item_name = obj_index->list_name;
+                        else if (!IS_NULLSTR(obj_index->short_descr))
+                            item_name = obj_index->short_descr;
+                        else if (!IS_NULLSTR(obj_index->name))
+                            item_name = obj_index->name;
+                    }
+
+                    if (item_count > 1)
+                        printf_to_char(ch, "  %s (x%ld)\n\r", item_name, item_count);
+                    else
+                        printf_to_char(ch, "  %s\n\r", item_name);
                     break;
+                }
                 case QUEST_REWARD_SCRIPT:
                     /* intentionally silent */
                     break;
