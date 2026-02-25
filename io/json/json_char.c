@@ -1717,7 +1717,15 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
     }
 
     // Quest data (if currently questing)
-    if (IS_QUESTING(ch) && ch->quest) {
+    {
+        QUEST_DATA *active_quest = ch->quest;
+        if (!active_quest)
+            active_quest = quest_runtime_get_focused_run(ch);
+
+        if (active_quest) {
+            if (!ch->quest)
+                ch->quest = active_quest;
+
         WNUM questgiver_wnum = ch->quest->questgiver_wnum;
         WNUM questreceiver_wnum = ch->quest->questreceiver_wnum;
 
@@ -1742,8 +1750,16 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         json_t *quest = json_object();
         json_object_set_new(quest, "quest_index_auid", json_integer(ch->quest->quest_index_auid));
         json_object_set_new(quest, "quest_index_vnum", json_integer(ch->quest->quest_index_vnum));
+        json_object_set_new(quest, "quest_index_v2_auid", json_integer(ch->quest->quest_index_v2_auid));
+        json_object_set_new(quest, "quest_index_v2_vnum", json_integer(ch->quest->quest_index_v2_vnum));
         json_object_set_new(quest, "run_id", json_integer(ch->quest->run_id));
         json_object_set_new(quest, "started_at", json_integer(ch->quest->started_at));
+        json_object_set_new(quest, "run_status", json_integer(ch->quest->run_status));
+        json_object_set_new(quest, "current_stage_id", json_integer(ch->quest->current_stage_id));
+        json_object_set_new(quest, "current_stage_generation", json_integer(ch->quest->current_stage_generation));
+        json_object_set_new(quest, "current_stage_commenced", json_integer(ch->quest->current_stage_commenced));
+        json_object_set_new(quest, "generation_seed", json_integer((json_int_t)ch->quest->generation_seed));
+        json_object_set_new(quest, "current_stage_seed", json_integer((json_int_t)ch->quest->current_stage_seed));
         json_object_set_new(quest, "target_scope", json_integer(ch->quest->target_scope));
         json_object_set_new(quest, "scope_owner_id0", json_integer(ch->quest->scope_owner_id[0]));
         json_object_set_new(quest, "scope_owner_id1", json_integer(ch->quest->scope_owner_id[1]));
@@ -1767,6 +1783,81 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
             vars_json = json_area_serialize_index_vars(ch->quest->vars, vars_area);
             if (vars_json)
                 json_object_set_new(quest, "vars", vars_json);
+        }
+
+        if (ch->quest->objective_states) {
+            json_t *objective_states_array = json_array();
+            QUEST_OBJECTIVE_STATE_V2_DATA *state;
+
+            for (state = ch->quest->objective_states; state; state = state->next) {
+                json_t *state_obj = json_object();
+                WNUM selected_target_wnum = state->selected_target_wnum;
+                WNUM selected_destination_wnum = state->selected_destination_wnum;
+
+                if (!selected_target_wnum.pArea && state->selected_target_load.vnum > 0) {
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(state->selected_target_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
+                    if (!fallback) fallback = get_system_area_fallback();
+                    resolve_wnum_load(&state->selected_target_load, &selected_target_wnum, fallback);
+                }
+
+                if (!selected_destination_wnum.pArea && state->selected_destination_load.vnum > 0) {
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(state->selected_destination_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
+                    if (!fallback) fallback = get_system_area_fallback();
+                    resolve_wnum_load(&state->selected_destination_load, &selected_destination_wnum, fallback);
+                }
+
+                json_object_set_new(state_obj, "objective_id", json_integer(state->objective_id));
+                json_object_set_new(state_obj, "progress", json_integer(state->progress));
+                json_object_set_new(state_obj, "complete", json_boolean(state->complete));
+                json_object_set_new(state_obj, "selected_pool_entry_id", json_integer(state->selected_pool_entry_id));
+                json_object_set_new(state_obj, "selected_target_uid0", json_integer((json_int_t)state->selected_target_uid[0]));
+                json_object_set_new(state_obj, "selected_target_uid1", json_integer((json_int_t)state->selected_target_uid[1]));
+
+                if (selected_target_wnum.pArea && selected_target_wnum.vnum > 0)
+                    json_object_set_new(state_obj, "selected_target", json_string(widevnum_string_wnum(selected_target_wnum, NULL)));
+
+                if (selected_destination_wnum.pArea && selected_destination_wnum.vnum > 0)
+                    json_object_set_new(state_obj, "selected_destination", json_string(widevnum_string_wnum(selected_destination_wnum, NULL)));
+
+                json_array_append_new(objective_states_array, state_obj);
+            }
+
+            json_object_set_new(quest, "objective_states", objective_states_array);
+        }
+
+        if (ch->quest->target_bindings) {
+            json_t *target_bindings_array = json_array();
+            QUEST_TARGET_BINDING_V2_DATA *binding;
+
+            for (binding = ch->quest->target_bindings; binding; binding = binding->next) {
+                json_t *binding_obj = json_object();
+                WNUM target_wnum = binding->target_wnum;
+
+                if (!target_wnum.pArea && binding->target_load.vnum > 0) {
+                    AREA_DATA *fallback = NULL;
+                    WNUM wnum;
+                    if (resolve_widevnum(binding->target_load.vnum, NULL, &wnum))
+                        fallback = wnum.pArea;
+                    if (!fallback) fallback = get_system_area_fallback();
+                    resolve_wnum_load(&binding->target_load, &target_wnum, fallback);
+                }
+
+                if (!IS_NULLSTR(binding->name))
+                    json_object_set_new(binding_obj, "name", json_string(binding->name));
+
+                if (target_wnum.pArea && target_wnum.vnum > 0)
+                    json_object_set_new(binding_obj, "target", json_string(widevnum_string_wnum(target_wnum, NULL)));
+
+                json_array_append_new(target_bindings_array, binding_obj);
+            }
+
+            json_object_set_new(quest, "target_bindings", target_bindings_array);
         }
 
         // Quest parts
@@ -1860,6 +1951,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
         }
 
         json_object_set_new(basic, "quest", quest);
+        }
     }
 
     return basic;
@@ -3736,7 +3828,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (run_obj && json_is_object(run_obj))
             quest = run_obj;
     }
-    if (!quest && (!quest_runtime_obj || !json_is_object(quest_runtime_obj)))
+    if (!quest)
         quest = json_object_get(character, "quest");
     if (quest && ch->pcdata) {
         // Allocate quest structure if needed
@@ -3784,10 +3876,26 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) ch->quest->quest_index_auid = json_integer_value(value);
         value = json_object_get(quest, "quest_index_vnum");
         if (value) ch->quest->quest_index_vnum = json_integer_value(value);
+        value = json_object_get(quest, "quest_index_v2_auid");
+        if (value) ch->quest->quest_index_v2_auid = json_integer_value(value);
+        value = json_object_get(quest, "quest_index_v2_vnum");
+        if (value) ch->quest->quest_index_v2_vnum = json_integer_value(value);
         value = json_object_get(quest, "run_id");
         if (value) ch->quest->run_id = json_integer_value(value);
         value = json_object_get(quest, "started_at");
         if (value) ch->quest->started_at = (time_t)json_integer_value(value);
+        value = json_object_get(quest, "run_status");
+        if (value) ch->quest->run_status = json_integer_value(value);
+        value = json_object_get(quest, "current_stage_id");
+        if (value) ch->quest->current_stage_id = json_integer_value(value);
+        value = json_object_get(quest, "current_stage_generation");
+        if (value) ch->quest->current_stage_generation = json_integer_value(value);
+        value = json_object_get(quest, "current_stage_commenced");
+        if (value) ch->quest->current_stage_commenced = json_integer_value(value);
+        value = json_object_get(quest, "generation_seed");
+        if (value) ch->quest->generation_seed = (unsigned long long)json_integer_value(value);
+        value = json_object_get(quest, "current_stage_seed");
+        if (value) ch->quest->current_stage_seed = (unsigned long long)json_integer_value(value);
         value = json_object_get(quest, "target_scope");
         if (value) ch->quest->target_scope = json_integer_value(value);
         value = json_object_get(quest, "scope_owner_id0");
@@ -3880,6 +3988,146 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
             if (vars_json)
                 ch->quest->vars = json_area_deserialize_index_vars(vars_json, vars_area);
+        }
+
+        quest_runtime_clear_objective_states(ch->quest);
+
+        {
+            QUEST_TARGET_BINDING_V2_DATA *binding = ch->quest->target_bindings;
+            while (binding) {
+                QUEST_TARGET_BINDING_V2_DATA *next = binding->next;
+                free_quest_target_binding_v2(binding);
+                binding = next;
+            }
+            ch->quest->target_bindings = NULL;
+        }
+
+        {
+            json_t *objective_states_array = json_object_get(quest, "objective_states");
+            if (objective_states_array && json_is_array(objective_states_array)) {
+                size_t state_idx;
+                json_t *state_elem;
+
+                json_array_foreach(objective_states_array, state_idx, state_elem) {
+                    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+
+                    if (!state_elem || !json_is_object(state_elem))
+                        continue;
+
+                    state = new_quest_objective_state_v2();
+                    state->next = ch->quest->objective_states;
+                    ch->quest->objective_states = state;
+
+                    value = json_object_get(state_elem, "objective_id");
+                    if (value) state->objective_id = json_integer_value(value);
+                    value = json_object_get(state_elem, "progress");
+                    if (value) state->progress = json_integer_value(value);
+                    value = json_object_get(state_elem, "complete");
+                    if (value) state->complete = json_boolean_value(value);
+                    value = json_object_get(state_elem, "selected_pool_entry_id");
+                    if (value) state->selected_pool_entry_id = json_integer_value(value);
+                    value = json_object_get(state_elem, "selected_target_uid0");
+                    if (value) state->selected_target_uid[0] = (unsigned long)json_integer_value(value);
+                    value = json_object_get(state_elem, "selected_target_uid1");
+                    if (value) state->selected_target_uid[1] = (unsigned long)json_integer_value(value);
+
+                    value = json_object_get(state_elem, "selected_target");
+                    if (value) {
+                        if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &state->selected_target_load)) {
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(state->selected_target_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
+                            if (!fallback) fallback = get_system_area_fallback();
+                            resolve_wnum_load(&state->selected_target_load, &state->selected_target_wnum, fallback);
+                        } else if (json_is_integer(value)) {
+                            state->selected_target_load.auid = 0;
+                            state->selected_target_load.vnum = json_integer_value(value);
+                            if (state->selected_target_load.vnum > 0) {
+                                AREA_DATA *fallback = NULL;
+                                WNUM wnum;
+                                if (resolve_widevnum(state->selected_target_load.vnum, NULL, &wnum))
+                                    fallback = wnum.pArea;
+                                if (!fallback) fallback = get_system_area_fallback();
+                                resolve_wnum_load(&state->selected_target_load, &state->selected_target_wnum, fallback);
+                            }
+                        }
+                    }
+
+                    value = json_object_get(state_elem, "selected_destination");
+                    if (value) {
+                        if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &state->selected_destination_load)) {
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(state->selected_destination_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
+                            if (!fallback) fallback = get_system_area_fallback();
+                            resolve_wnum_load(&state->selected_destination_load, &state->selected_destination_wnum, fallback);
+                        } else if (json_is_integer(value)) {
+                            state->selected_destination_load.auid = 0;
+                            state->selected_destination_load.vnum = json_integer_value(value);
+                            if (state->selected_destination_load.vnum > 0) {
+                                AREA_DATA *fallback = NULL;
+                                WNUM wnum;
+                                if (resolve_widevnum(state->selected_destination_load.vnum, NULL, &wnum))
+                                    fallback = wnum.pArea;
+                                if (!fallback) fallback = get_system_area_fallback();
+                                resolve_wnum_load(&state->selected_destination_load, &state->selected_destination_wnum, fallback);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        {
+            json_t *target_bindings_array = json_object_get(quest, "target_bindings");
+            if (target_bindings_array && json_is_array(target_bindings_array)) {
+                size_t binding_idx;
+                json_t *binding_elem;
+
+                json_array_foreach(target_bindings_array, binding_idx, binding_elem) {
+                    QUEST_TARGET_BINDING_V2_DATA *binding;
+                    const char *binding_name;
+
+                    if (!binding_elem || !json_is_object(binding_elem))
+                        continue;
+
+                    binding_name = json_string_value(json_object_get(binding_elem, "name"));
+                    if (IS_NULLSTR(binding_name))
+                        continue;
+
+                    binding = new_quest_target_binding_v2();
+                    free_string(binding->name);
+                    binding->name = str_dup(binding_name);
+
+                    value = json_object_get(binding_elem, "target");
+                    if (value) {
+                        if (json_is_string(value) && parse_widevnum_load(json_string_value(value), &binding->target_load)) {
+                            AREA_DATA *fallback = NULL;
+                            WNUM wnum;
+                            if (resolve_widevnum(binding->target_load.vnum, NULL, &wnum))
+                                fallback = wnum.pArea;
+                            if (!fallback) fallback = get_system_area_fallback();
+                            resolve_wnum_load(&binding->target_load, &binding->target_wnum, fallback);
+                        } else if (json_is_integer(value)) {
+                            binding->target_load.auid = 0;
+                            binding->target_load.vnum = json_integer_value(value);
+                            if (binding->target_load.vnum > 0) {
+                                AREA_DATA *fallback = NULL;
+                                WNUM wnum;
+                                if (resolve_widevnum(binding->target_load.vnum, NULL, &wnum))
+                                    fallback = wnum.pArea;
+                                if (!fallback) fallback = get_system_area_fallback();
+                                resolve_wnum_load(&binding->target_load, &binding->target_wnum, fallback);
+                            }
+                        }
+                    }
+
+                    binding->next = ch->quest->target_bindings;
+                    ch->quest->target_bindings = binding;
+                }
+            }
         }
 
         // Quest parts

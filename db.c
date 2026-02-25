@@ -367,6 +367,7 @@ SCRIPT_DATA *aprog_list;
 SCRIPT_DATA *iprog_list;
 SCRIPT_DATA *dprog_list;
 SCRIPT_DATA *qprog_list;
+SCRIPT_DATA *eprog_list;
 PROJECT_DATA *		project_list;
 bool			projects_changed;
 SHOP_DATA *		shop_first;
@@ -754,6 +755,11 @@ void boot_db(void)
      * Init random number generator.
      */
     init_mm();
+
+    if (!script_validate_trigger_table()) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR,
+                    "Trigger table validation failed; startup state is unsafe.");
+    }
 
 
     crypto_init();
@@ -5282,6 +5288,9 @@ SCRIPT_DATA *get_script_index(AREA_DATA *pArea, long vnum, int type)
         break;
     case PRG_QPROG:
         prg = pArea->qprog_list;
+        break;
+    case PRG_EPROG:
+        prg = pArea->eprog_list;
         break;
     default:
         return NULL;

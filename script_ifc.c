@@ -73,6 +73,7 @@ extern bool wiznet_script;
 #define ISARG_INSTANCE(x)	((argv[(x)]->type == ENT_INSTANCE) && argv[(x)]->d.instance)
 #define ISARG_DUNGEON(x)	((argv[(x)]->type == ENT_DUNGEON) && argv[(x)]->d.dungeon)
 #define ISARG_SHIP(x)		((argv[(x)]->type == ENT_SHIP) && argv[(x)]->d.ship)
+#define ISARG_EVENT(x)	((argv[(x)]->type == ENT_EVENT) && (argv[(x)]->d.event.uid > 0 || argv[(x)]->d.event.mob || argv[(x)]->d.event.obj))
 #define ISARG_BV(x)			((argv[(x)]->type == ENT_BITVECTOR) && argv[(x)]->d.bv.table)
 #define ISARG_BM(x)			((argv[(x)]->type == ENT_BITMATRIX) && argv[(x)]->d.bv.table)
 
@@ -104,8 +105,22 @@ extern bool wiznet_script;
 #define ARG_INSTANCE(x) ARG_TYPE(x,instance)
 #define ARG_DUNGEON(x) ARG_TYPE(x,dungeon)
 #define ARG_SHIP(x)	ARG_TYPE(x,ship)
+#define ARG_EVENT(x) ARG_TYPE(x,event)
 #define ARG_BV(x) ARG_TYPE(x,bv)
 #define ARG_BM(x) ARG_TYPE(x,bm)
+
+static pVARIABLE script_ifc_event_vars_from_arg(SCRIPT_PARAM **argv)
+{
+    pVARIABLE *vars = NULL;
+
+    if (!argv || !argv[0] || !ISARG_EVENT(0))
+        return NULL;
+
+    if (!event_runtime_get_vars_by_ref(ARG_EVENT(0).uid, ARG_EVENT(0).instance_id, &vars))
+        return NULL;
+
+    return vars ? *vars : NULL;
+}
 
 #define SHIFT_MOB()	do { if(ISARG_MOB(0)) { mob = ARG_MOB(0); ++argv; --argc; } } while(0)
 #define SHIFT_OBJ()	do { if(ISARG_OBJ(0)) { obj = ARG_OBJ(0); ++argv; --argc; } } while(0)
@@ -3192,6 +3207,7 @@ DECL_IFC_FUN(ifc_varexit)
 DECL_IFC_FUN(ifc_varnumber)
 {
     PROG_DATA * progs = NULL;
+    pVARIABLE event_vars = NULL;
     pVARIABLE var;
     if(ISARG_MOB(0)) { progs  = ARG_MOB(0)->progs; ++argv; }
     else if(ISARG_OBJ(0)) { progs  = ARG_OBJ(0)->progs; ++argv; }
@@ -3200,6 +3216,7 @@ DECL_IFC_FUN(ifc_varnumber)
     else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
     else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
     else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
+    else if(ISARG_EVENT(0)) { event_vars = script_ifc_event_vars_from_arg(argv); ++argv; }
     else if(mob) progs  = mob->progs;
     else if(obj) progs  = obj->progs;
     else if(room) progs  = room->progs;
@@ -3208,7 +3225,14 @@ DECL_IFC_FUN(ifc_varnumber)
     else if(IS_VALID(info->instance)) progs = info->instance->progs;
     else if(IS_VALID(info->dungeon)) progs = info->dungeon->progs;
 
-    if(progs && progs->vars && ISARG_STR(0)) {
+    if(event_vars && ISARG_STR(0)) {
+        var = variable_get(event_vars,ARG_STR(0));
+
+        if(var && var->type == VAR_INTEGER) {
+            *ret = var->_.i;
+            return true;
+        }
+    } else if(progs && progs->vars && ISARG_STR(0)) {
         var = variable_get(progs->vars,ARG_STR(0));
 
         if(var && var->type == VAR_INTEGER) {
@@ -3222,6 +3246,7 @@ DECL_IFC_FUN(ifc_varnumber)
 DECL_IFC_FUN(ifc_varbool)
 {
     PROG_DATA * progs = NULL;
+    pVARIABLE event_vars = NULL;
     pVARIABLE var;
     if(ISARG_MOB(0)) { progs  = ARG_MOB(0)->progs; ++argv; }
     else if(ISARG_OBJ(0)) { progs  = ARG_OBJ(0)->progs; ++argv; }
@@ -3230,6 +3255,7 @@ DECL_IFC_FUN(ifc_varbool)
     else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
     else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
     else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
+    else if(ISARG_EVENT(0)) { event_vars = script_ifc_event_vars_from_arg(argv); ++argv; }
     else if(mob) progs  = mob->progs;
     else if(obj) progs  = obj->progs;
     else if(room) progs  = room->progs;
@@ -3238,7 +3264,14 @@ DECL_IFC_FUN(ifc_varbool)
     else if(IS_VALID(info->instance)) progs = info->instance->progs;
     else if(IS_VALID(info->dungeon)) progs = info->dungeon->progs;
 
-    if(progs && progs->vars && ISARG_STR(0)) {
+    if(event_vars && ISARG_STR(0)) {
+        var = variable_get(event_vars,ARG_STR(0));
+
+        if(var && var->type == VAR_BOOLEAN) {
+            *ret = var->_.i == true;
+            return true;
+        }
+    } else if(progs && progs->vars && ISARG_STR(0)) {
         var = variable_get(progs->vars,ARG_STR(0));
 
         if(var && var->type == VAR_BOOLEAN) {
@@ -3253,6 +3286,7 @@ DECL_IFC_FUN(ifc_vardefined)
 {
     PROG_DATA * progs = NULL;
     PROG_DATA * fallback_progs = NULL;
+    pVARIABLE event_vars = NULL;
     ROOM_INDEX_DATA *ctx_room = NULL;
     pVARIABLE var;
 
@@ -3263,6 +3297,7 @@ DECL_IFC_FUN(ifc_vardefined)
     else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
     else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
     else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
+    else if(ISARG_EVENT(0)) { event_vars = script_ifc_event_vars_from_arg(argv); ++argv; }
     else if(mob) { progs = mob->progs; }
     else if(obj) { progs = obj->progs; }
     else if(room) { progs = room->progs; }
@@ -3298,6 +3333,12 @@ DECL_IFC_FUN(ifc_vardefined)
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //	}
 
+    if(event_vars && ISARG_STR(0)) {
+        var = variable_get(event_vars,ARG_STR(0));
+        *ret = var ? true : false;
+        return true;
+    }
+
     if(progs && progs->vars && ISARG_STR(0)) {
         var = variable_get(progs->vars,ARG_STR(0));
 
@@ -3326,6 +3367,7 @@ DECL_IFC_FUN(ifc_vardefined)
 DECL_IFC_FUN(ifc_varstring)
 {
     PROG_DATA * progs = NULL;
+    pVARIABLE event_vars = NULL;
     pVARIABLE var;
     if(ISARG_MOB(0)) { progs = ARG_MOB(0)->progs; ++argv; }
     else if(ISARG_OBJ(0)) { progs = ARG_OBJ(0)->progs; ++argv; }
@@ -3334,6 +3376,7 @@ DECL_IFC_FUN(ifc_varstring)
     else if(ISARG_AREA(0)) { progs = ARG_AREA(0)->progs; ++argv; }
     else if(ISARG_INSTANCE(0)) { progs = ARG_INSTANCE(0)->progs; ++argv; }
     else if(ISARG_DUNGEON(0)) { progs = ARG_DUNGEON(0)->progs; ++argv; }
+    else if(ISARG_EVENT(0)) { event_vars = script_ifc_event_vars_from_arg(argv); ++argv; }
     else if(mob) progs = mob->progs;
     else if(obj) progs = obj->progs;
     else if(room) progs = room->progs;
@@ -3342,7 +3385,14 @@ DECL_IFC_FUN(ifc_varstring)
     else if(IS_VALID(info->instance)) progs = info->instance->progs;
     else if(IS_VALID(info->dungeon)) progs = info->dungeon->progs;
 
-    if(progs && progs->vars && ISARG_STR(0) && ISARG_STR(1)) {
+    if(event_vars && ISARG_STR(0) && ISARG_STR(1)) {
+        var = variable_get(event_vars,ARG_STR(0));
+
+        if(var && (var->type == VAR_STRING || var->type == VAR_STRING_S)) {
+            *ret = is_name(ARG_STR(1),var->_.s);
+            return true;
+        }
+    } else if(progs && progs->vars && ISARG_STR(0) && ISARG_STR(1)) {
         var = variable_get(progs->vars,ARG_STR(0));
 
         if(var && (var->type == VAR_STRING || var->type == VAR_STRING_S)) {

@@ -44,6 +44,7 @@
 #include "wilds.h"
 #include "traits.h"
 #include "skill_data.h"
+#include "event_types.h"
 
 
 /**
@@ -468,6 +469,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
     int to_vroom_y = 0; */
     char buf[MAX_STRING_LENGTH];
     int move;
+    bool area_changed = false;
 
     /* Check door variable is valid */
     if (door < 0 || door >= MAX_DIR) {
@@ -756,6 +758,8 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
     char_from_room(ch);
 
+    area_changed = in_room && to_room && in_room->area != to_room->area;
+
     /* VIZZWILDS */
     if (to_room->wilds)
         char_to_vroom (ch, to_room->wilds, to_room->x, to_room->y);
@@ -824,6 +828,9 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
         hurt_vampires(ch);
 
     do_function(ch, &do_look, "auto");
+
+    if (!IS_NPC(ch) && area_changed)
+        event_notify_active_events_for_char(ch, true);
 
     check_see_hidden(ch);
 

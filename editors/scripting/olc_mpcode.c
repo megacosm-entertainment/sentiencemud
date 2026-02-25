@@ -1,10 +1,10 @@
 /***************************************************************************
  *  olc_mpcode.c — Script Editors (MobProg, ObjProg, RoomProg, etc.)      *
  *                                                                         *
- *  Provides 8 script editors, all sharing a common set of commands:       *
+ *  Provides 9 script editors, all sharing a common set of commands:       *
  *    MPEdit (mob progs), OPEdit (obj progs), RPEdit (room progs),         *
  *    TPEdit (token progs), APEdit (area progs), IPEdit (instance progs),  *
- *    DPEdit (dungeon progs), QPEdit (quest progs)                         *
+ *    DPEdit (dungeon progs), QPEdit (quest progs), EPEdit (event progs)   *
  *                                                                         *
  *  Based on ILAB OLC by Jason Dinkel.                                     *
  *  Mobprogram code by Lordrom for Nevermore Mud.                          *
@@ -44,6 +44,7 @@ static int olc_script_typeifc[] = {
     IFC_I,
     IFC_D,
     IFC_Q,
+    IFC_E,
 };
 
 /**
@@ -97,6 +98,7 @@ static const char *script_type_label(int type)
         case PRG_IPROG: return "InstanceProg";
         case PRG_DPROG: return "DungeonProg";
         case PRG_QPROG: return "QuestProg";
+        case PRG_EPROG: return "EventProg";
         default:        return "Script";
     }
 }
@@ -257,6 +259,7 @@ static SCRIPT_DATA **scriptedit_get_area_script_list_head(AREA_DATA *area, int t
     case PRG_IPROG: return &area->iprog_list;
     case PRG_DPROG: return &area->dprog_list;
     case PRG_QPROG: return &area->qprog_list;
+    case PRG_EPROG: return &area->eprog_list;
     default: return NULL;
     }
 }
@@ -502,6 +505,23 @@ const struct olc_cmd_type qpedit_table[] =
     { NULL,         0                   }
 };
 
+const struct olc_cmd_type epedit_table[] =
+{
+    { "?",          show_help           },
+    { "code",       scriptedit_code     },
+    { "commands",   show_commands       },
+    { "comments",   scriptedit_comments },
+    { "compile",    scriptedit_compile  },
+    { "create",     epedit_create       },
+    { "depth",      scriptedit_depth    },
+    { "flags",      scriptedit_flags    },
+    { "list",       epedit_list         },
+    { "name",       scriptedit_name     },
+    { "security",   scriptedit_security },
+    { "show",       scriptedit_show     },
+    { NULL,         0                   }
+};
+
 /***************************************************************************
  * Tab Show Functions                                                      *
  ***************************************************************************/
@@ -620,6 +640,7 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
             BLUEPRINT *bp;
             DUNGEON_INDEX_DATA *dng;
             QUEST_INDEX_V2_DATA *quest_index_v2;
+            EVENT_INDEX_DATA *event_index;
 
             for (mob = area->mob_index_hash[hash]; mob; mob = mob->next) {
                 char wnum[128], wnum_link[256];
@@ -705,6 +726,19 @@ static void scriptedit_show_uses_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                     quest_index_v2->name ? quest_index_v2->name : "(unnamed)");
                 total += scriptedit_show_uses_from_bank(ctx, pCode, quest_index_v2->progs, owner,
                     false, false, PRG_QPROG);
+            }
+
+            for (event_index = area->event_index_hash[hash]; event_index;
+                event_index = event_index->next_hash) {
+                char wnum[128], wnum_link[256];
+                snprintf(wnum, sizeof(wnum), "%s", widevnum_string_event(event_index, NULL));
+                scriptedit_build_owner_links(ch, wnum, "evtedit", "evtedit",
+                    wnum_link, sizeof(wnum_link));
+                snprintf(owner, sizeof(owner), "Event %s (%.120s)",
+                    wnum_link,
+                    event_index->name ? event_index->name : "(unnamed)");
+                total += scriptedit_show_uses_from_bank(ctx, pCode, event_index->progs, owner,
+                    false, false, PRG_EPROG);
             }
         }
 
@@ -882,6 +916,21 @@ static const OLC_EDITOR_DEF qpedit_def = {
     .audit_changes  = true,
 };
 
+static const OLC_EDITOR_DEF epedit_def = {
+    .name           = "EPEdit",
+    .editor_type    = ED_EPCODE,
+    .cmd_table      = epedit_table,
+    .show_fn        = scriptedit_show,
+    SCRIPT_EDITOR_TABS,
+    .theme          = &olc_theme_scripting,
+    .perm           = {
+        .flags          = OLC_PERM_AREA_SECURITY,
+    },
+    .change_mode    = OLC_CHANGE_AREA_FLAG,
+    .get_area_fn    = script_get_area,
+    .audit_changes  = true,
+};
+
 /***************************************************************************
  * Show Function                                                           *
  ***************************************************************************/
@@ -917,6 +966,7 @@ SCRIPTEDIT(scriptedit_show)
         case PRG_IPROG: def = &ipedit_def; break;
         case PRG_DPROG: def = &dpedit_def; break;
         case PRG_QPROG: def = &qpedit_def; break;
+        case PRG_EPROG: def = &epedit_def; break;
         default:        def = &mpedit_def; break;
     }
 
@@ -990,6 +1040,11 @@ void dpedit(CHAR_DATA *ch, char *argument)
 void qpedit(CHAR_DATA *ch, char *argument)
 {
     olc_editor_interp(ch, argument, &qpedit_def);
+}
+
+void epedit(CHAR_DATA *ch, char *argument)
+{
+    olc_editor_interp(ch, argument, &epedit_def);
 }
 
 /***************************************************************************
@@ -1281,6 +1336,34 @@ void do_qpedit(CHAR_DATA *ch, char *argument)
 
     send_to_char("Syntax: qpedit [widevnum]\n\r", ch);
     send_to_char("        qpedit create [widevnum]\n\r", ch);
+}
+
+void do_epedit(CHAR_DATA *ch, char *argument)
+{
+    SCRIPT_DATA *pEcode;
+    char command[MAX_INPUT_LENGTH];
+    WNUM wnum;
+
+    argument = one_argument(argument, command);
+
+    if (parse_widevnum(command, ch->in_room->area, &wnum)) {
+        if ((pEcode = get_script_index(wnum.pArea, wnum.vnum, PRG_EPROG)) == NULL) {
+            send_to_char("EPEdit: That widevnum does not exist.\n\r", ch);
+            return;
+        }
+
+        olc_editor_enter(ch, &epedit_def, (void *)pEcode, true);
+        return;
+    }
+
+    if (!str_cmp(command, "create")) {
+        if (epedit_create(ch, argument))
+            olc_editor_enter(ch, &epedit_def, ch->desc->pEdit, true);
+        return;
+    }
+
+    send_to_char("Syntax: epedit [widevnum]\n\r", ch);
+    send_to_char("        epedit create [widevnum]\n\r", ch);
 }
 
 /***************************************************************************
@@ -2036,6 +2119,54 @@ SCRIPTEDIT(qpedit_create)
     return true;
 }
 
+SCRIPTEDIT(epedit_create)
+{
+    SCRIPT_DATA *pEcode;
+    AREA_DATA *ad;
+    WNUM script_wnum;
+    long value;
+
+    if (argument[0] == '\0' || !strcmp(argument, "0")) {
+        ad = ch->in_room->area;
+        value = scriptedit_next_auto_vnum(ad, PRG_EPROG);
+        if (value <= 0) {
+            send_to_char("Unable to allocate a new script vnum.\n\r", ch);
+            return false;
+        }
+    } else {
+        AREA_DATA *context = ch->in_room->area;
+        if (!parse_widevnum(argument, context, &script_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+        ad = script_wnum.pArea;
+        value = script_wnum.vnum;
+    }
+
+    if (!IS_BUILDER(ch, ad)) {
+        send_to_char("EPEdit: Insufficient security to create EventProgs.\n\r", ch);
+        return false;
+    }
+
+    if (get_script_index(ad, value, PRG_EPROG)) {
+        send_to_char("EPEdit: Code widevnum already exists.\n\r", ch);
+        return false;
+    }
+
+    pEcode              = new_script();
+    pEcode->vnum        = value;
+    pEcode->area        = ad;
+    pEcode->next        = ad->eprog_list;
+    ad->eprog_list      = pEcode;
+    pEcode->type        = PRG_EPROG;
+    ch->desc->pEdit     = (void *)pEcode;
+
+    SET_BIT(ad->area_flags, AREA_CHANGED);
+    send_to_char("EventProgram Code Created.\n\r", ch);
+
+    return true;
+}
+
 /***************************************************************************
  * List Functions                                                          *
  ***************************************************************************/
@@ -2113,6 +2244,7 @@ void show_script_list(CHAR_DATA *ch, char *argument, int type)
     case PRG_IPROG: list_head = area->iprog_list ? area->iprog_list : iprog_list; break;
     case PRG_DPROG: list_head = area->dprog_list ? area->dprog_list : dprog_list; break;
     case PRG_QPROG: list_head = area->qprog_list ? area->qprog_list : qprog_list; break;
+    case PRG_EPROG: list_head = area->eprog_list ? area->eprog_list : eprog_list; break;
     default: return;
     }
 
@@ -2227,6 +2359,12 @@ SCRIPTEDIT(qpedit_list)
     return false;
 }
 
+SCRIPTEDIT(epedit_list)
+{
+    show_script_list(ch, argument, PRG_EPROG);
+    return false;
+}
+
 /***************************************************************************
  * Standalone List Commands                                                *
  ***************************************************************************/
@@ -2269,4 +2407,9 @@ void do_dplist(CHAR_DATA *ch, char *argument)
 void do_qplist(CHAR_DATA *ch, char *argument)
 {
     show_script_list(ch, argument, PRG_QPROG);
+}
+
+void do_eplist(CHAR_DATA *ch, char *argument)
+{
+    show_script_list(ch, argument, PRG_EPROG);
 }

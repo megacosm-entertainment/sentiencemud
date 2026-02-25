@@ -17,7 +17,7 @@
 #include "tables.h"
 #include "wilds.h"
 
-static ROOM_INDEX_DATA *maze_spawn_destination(CHAR_DATA *victim, const char *reserved_dungeon)
+static ROOM_INDEX_DATA *maze_spawn_destination(CHAR_DATA *victim, const char *reserved_dungeon, bool randomize_room)
 {
     DUNGEON_INDEX_DATA *index;
     WNUM wnum;
@@ -38,11 +38,14 @@ static ROOM_INDEX_DATA *maze_spawn_destination(CHAR_DATA *victim, const char *re
     if (!room)
         return NULL;
 
-    dungeon = find_dungeon_byplayer(victim, wnum);
-    if (IS_VALID(dungeon)) {
+    if (randomize_room)
+    {
+        dungeon = find_dungeon_byplayer(victim, wnum);
+        if (IS_VALID(dungeon)) {
         ROOM_INDEX_DATA *random_room = dungeon_random_room(victim, dungeon);
         if (random_room)
             room = random_room;
+        }
     }
 
     return room;
@@ -111,10 +114,8 @@ SPELL_FUNC(spell_gate)
 SPELL_FUNC(spell_maze)
 {
     int sn __attribute__((unused)) = skill->uid;
-    int skill_pct;
     CHAR_DATA *victim = NULL;
     ROOM_INDEX_DATA *room = NULL;
-    AREA_DATA *area;
     int lvl, catalyst;
     bool combat_maze;
 
@@ -153,33 +154,16 @@ SPELL_FUNC(spell_maze)
     combat_maze = (victim->fighting == ch || ch->fighting);
 
     if (combat_maze) {
-        room = maze_spawn_destination(victim, "maze_death");
+        room = maze_spawn_destination(victim, "maze_death", true);
         victim->maze_time_left = 3;
     } else {
-        room = maze_spawn_destination(victim, "maze_poa");
+        room = maze_spawn_destination(victim, "maze_abyss", false);
     }
 
     if (!room) {
-        AREA_DATA *poa_area;
-        AREA_DATA *geldoff_area;
-
-        skill_pct = get_skill(ch, skill_resolve_gsn("maze"));
-        poa_area = find_area("Maze-Level1");
-        geldoff_area = find_area("Geldoff's Maze");
-
-        if (!poa_area || !geldoff_area) {
-            send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
-            ch->daze += 10 - number_range(0, skill_pct/10);
-            return false;
-        }
-
-        area = combat_maze ? geldoff_area : poa_area;
-        room = get_random_room_area_byflags(NULL, area, 0, 0);
-        if (!room) {
-            send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
-            ch->daze += 10 - number_range(0, skill_pct/10);
-            return false;
-        }
+        pbugf(LOG_ERROR, "spell_maze: unable to resolve or spawn reserved dungeon '%s'", combat_maze ? "maze_death" : "maze_abyss");
+        send_to_char("A twisting astral maze flickers into existence, then collapses before it can take hold.\n\r", ch);
+        return false;
     }
 
     if (victim->fighting) stop_fighting(victim, true);

@@ -19,14 +19,16 @@ typedef struct quest_history_data QUEST_HISTORY_DATA;
 #define IFC_I	(F)	// Allowed in iprogs
 #define IFC_D	(G)	// Allowed in dprogs
 #define IFC_Q	(H)	// Allowed in qprogs
+#define IFC_E	(I)	// Allowed in eprogs
 
 #define IFC_MO	(IFC_M|IFC_O)
-#define	IFC_ANY	(IFC_M|IFC_O|IFC_R|IFC_T|IFC_A|IFC_I|IFC_D|IFC_Q)	/* Any prog type */
+#define	IFC_ANY	(IFC_M|IFC_O|IFC_R|IFC_T|IFC_A|IFC_I|IFC_D|IFC_Q|IFC_E)	/* Any prog type */
 
 #define IFC_MAXPARAMS		20
 #define MAX_STACK		20	/* Adjust as desired */
 #define MAX_NAMED_LABELS	256
 #define MAX_NESTED_LOOPS	20
+#define SCRIPT_EVENT_LIST_MAX 64
 #define SYSTEM_SCRIPT_SECURITY	(10)
 #define MAX_SCRIPT_SECURITY	(9)
 #define MIN_SCRIPT_SECURITY	(0)
@@ -365,6 +367,7 @@ enum variable_enum {
     VAR_LIQUID,
     VAR_MATERIAL,
     VAR_LOCK_STATE,
+    VAR_EVENT,
     VAR_MOBINDEX,
     VAR_OBJINDEX,
     VAR_TOKENINDEX,
@@ -461,6 +464,7 @@ enum script_command_enum {
     OP_QUEST,		 // A quest command
     OP_INSTANCE,
     OP_DUNGEON,
+    OP_EVENT,
     OP_LASTCODE
 };
 
@@ -582,6 +586,7 @@ enum entity_type_enum {
     ENT_ILLIST_QUEST_OBJECTIVES,
     ENT_ILLIST_QUEST,
     ENT_ILLIST_QUEST_HISTORY,
+    ENT_ILLIST_EVENT,
     ENT_ILLIST_MAX,
     //////////////////////////////
 
@@ -671,6 +676,7 @@ ENT_SCRIPT_DATA,
 
     ENT_SECTOR,
     ENT_EVENT,
+    ENT_EVENTLIST,
 
     ENT_MAX,
     ENT_UNKNOWN = ENT_MAX+1,
@@ -909,10 +915,18 @@ enum entity_mobile_enum {
     ENTITY_MOB_EVENT_ITEMS,
     ENTITY_MOB_EVENT_GOAL,
     ENTITY_MOB_EVENT_PHASE,
+    ENTITY_MOB_EVENT_STAGE,
+    ENTITY_MOB_EVENT_STAGE_INDEX,
+    ENTITY_MOB_EVENT_STAGE_COUNT,
+    ENTITY_MOB_EVENT_OBJECTIVES_MET,
+    ENTITY_MOB_EVENT_OBJECTIVES_TOTAL,
+    ENTITY_MOB_EVENT_OBJECTIVE_PROGRESS,
+    ENTITY_MOB_EVENT_COMPLETION,
     ENTITY_MOB_QUESTPOINTS,
     ENTITY_MOB_TOTALQUESTS,
     ENTITY_MOB_ONMISSION,
     ENTITY_MOB_EVENT,
+    ENTITY_MOB_EVENTS,
     ENTITY_MOB_REPUTATIONS,
     ENTITY_MOB_REPUTATION,
     ENTITY_MOB_FACTIONS,
@@ -1004,7 +1018,15 @@ enum entity_object_enum {
     ENTITY_OBJ_EVENT_ITEMS,
     ENTITY_OBJ_EVENT_GOAL,
     ENTITY_OBJ_EVENT_PHASE,
+    ENTITY_OBJ_EVENT_STAGE,
+    ENTITY_OBJ_EVENT_STAGE_INDEX,
+    ENTITY_OBJ_EVENT_STAGE_COUNT,
+    ENTITY_OBJ_EVENT_OBJECTIVES_MET,
+    ENTITY_OBJ_EVENT_OBJECTIVES_TOTAL,
+    ENTITY_OBJ_EVENT_OBJECTIVE_PROGRESS,
+    ENTITY_OBJ_EVENT_COMPLETION,
     ENTITY_OBJ_EVENT,
+    ENTITY_OBJ_EVENTS,
 };
 
 enum entity_event_enum {
@@ -1018,6 +1040,13 @@ enum entity_event_enum {
     ENTITY_EVENT_ITEMS,
     ENTITY_EVENT_GOAL,
     ENTITY_EVENT_PHASE,
+    ENTITY_EVENT_STAGE,
+    ENTITY_EVENT_STAGE_INDEX,
+    ENTITY_EVENT_STAGE_COUNT,
+    ENTITY_EVENT_OBJECTIVES_MET,
+    ENTITY_EVENT_OBJECTIVES_TOTAL,
+    ENTITY_EVENT_OBJECTIVE_PROGRESS,
+    ENTITY_EVENT_COMPLETION,
 };
 
 enum entity_room_enum {
@@ -1056,6 +1085,8 @@ enum entity_room_enum {
     ENTITY_ROOM_FLAGS,
     ENTITY_ROOM_SECTOR,
     ENTITY_ROOM_SECTORFLAGS,
+    ENTITY_ROOM_EVENT,
+    ENTITY_ROOM_EVENTS,
 };
 
 enum entity_sector_enum {
@@ -1125,6 +1156,8 @@ enum entity_area_enum {
     ENTITY_AREA_MAXLEVEL,
     ENTITY_AREA_REGION,
     ENTITY_AREA_ROOMS,
+    ENTITY_AREA_EVENT,
+    ENTITY_AREA_EVENTS,
 };
 
 enum entity_area_region_enum {
@@ -1597,6 +1630,8 @@ enum entity_instance_enum {
     ENTITY_INSTANCE_OBJECTS,
     ENTITY_INSTANCE_BOSSES,
     ENTITY_INSTANCE_SPECIAL_ROOMS,
+    ENTITY_INSTANCE_EVENT,
+    ENTITY_INSTANCE_EVENTS,
 };
 
 enum entity_blueprint_enum {
@@ -1617,6 +1652,8 @@ enum entity_dungeon_enum {
     ENTITY_DUNGEON_OBJECTS,
     ENTITY_DUNGEON_BOSSES,
     ENTITY_DUNGEON_SPECIAL_ROOMS,
+    ENTITY_DUNGEON_EVENT,
+    ENTITY_DUNGEON_EVENTS,
 };
 
 enum entity_dungeonindex_enum {
@@ -2067,6 +2104,10 @@ struct script_var_type {
             long uid;
             uint32_t instance_id;
         } event;
+        struct {
+            EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+            int count;
+        } event_list;
         bool boolean;
         int sn;
         SKILL_GROUP *skill_group;
@@ -2462,6 +2503,7 @@ extern const struct script_cmd_type tokenother_cmd_table[];
 extern const struct script_cmd_type area_cmd_table[];
 extern const struct script_cmd_type instance_cmd_table[];
 extern const struct script_cmd_type dungeon_cmd_table[];
+extern const struct script_cmd_type evt_cmd_table[];
 extern ENT_FIELD entity_primary[];
 extern ENT_FIELD entity_types[];
 extern ENT_FIELD entity_number[];
@@ -3079,6 +3121,7 @@ DECL_OPC_FUN(opc_area);
 DECL_OPC_FUN(opc_quest);
 DECL_OPC_FUN(opc_instance);
 DECL_OPC_FUN(opc_dungeon);
+DECL_OPC_FUN(opc_event);
 
 void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 
@@ -3283,6 +3326,7 @@ bool variables_set_spell (ppVARIABLE list,char *name,SPELL_DATA *spell);
 bool variables_set_lock_state (ppVARIABLE list,char *name,LOCK_STATE *lock_state);
 bool variables_set_liquid (ppVARIABLE list,char *name,int liquid);
 bool variables_set_material (ppVARIABLE list,char *name,int material);
+bool variables_set_event (ppVARIABLE list,char *name,EVENT_RUNTIME_REF event);
 bool variables_set_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation);
 bool variables_set_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index);
 bool variables_set_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank);
@@ -3346,6 +3390,7 @@ bool variables_setsave_spell (ppVARIABLE list,char *name,SPELL_DATA *spell, bool
 bool variables_setsave_lock_state (ppVARIABLE list,char *name,LOCK_STATE *lock_state, bool save);
 bool variables_setsave_liquid (ppVARIABLE list,char *name,int liquid, bool save);
 bool variables_setsave_material (ppVARIABLE list,char *name,int material, bool save);
+bool variables_setsave_event (ppVARIABLE list,char *name,EVENT_RUNTIME_REF event, bool save);
 bool variables_setsave_reputation (ppVARIABLE list,char *name,REPUTATION_DATA *reputation, bool save);
 bool variables_setsave_reputation_index (ppVARIABLE list,char *name,REPUTATION_INDEX_DATA *reputation_index, bool save);
 bool variables_setsave_reputation_rank (ppVARIABLE list,char *name,REPUTATION_INDEX_RANK_DATA *reputation_rank, bool save);
@@ -3415,6 +3460,7 @@ int tpcmd_lookup(char *command,bool istoken);
 int apcmd_lookup(char *command);
 int ipcmd_lookup(char *command);
 int dpcmd_lookup(char *command);
+int evtcmd_lookup(char *command);
 void mob_interpret(SCRIPT_VARINFO *info, char *argument);
 void obj_interpret(SCRIPT_VARINFO *info, char *argument);
 void room_interpret(SCRIPT_VARINFO *info, char *argument);
@@ -3829,6 +3875,9 @@ SCRIPT_CMD(scriptcmd_wildsoverlay);
 SCRIPT_CMD(scriptcmd_wildsvlink);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_event);
+SCRIPT_CMD(scriptcmd_startevent);
+SCRIPT_CMD(scriptcmd_stopevent);
+SCRIPT_CMD(scriptcmd_phaseevent);
 SCRIPT_CMD(scriptcmd_zot);
 SCRIPT_CMD(scriptcmd_loadinstanced);
 SCRIPT_CMD(scriptcmd_startreckoning);

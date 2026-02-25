@@ -83,6 +83,7 @@
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
+#include "event_types.h"
 #include "class_data.h"
 #include "protocol.h"
 #include "bootstrap/bootstrap.h"
@@ -2993,6 +2994,7 @@ void join_world(DESCRIPTOR_DATA * d)
                  "       Make sure you can see the above line (80 chars) all on one line---------^\n\r", ch);
     act ("$n has entered the game.", ch, NULL, NULL, TO_ROOM);
     do_function (ch, &do_look, "auto");
+    event_notify_active_events_for_char(ch, true);
 
     wiznet ("$N has left real life behind.", ch, NULL,
             WIZ_LOGINS, WIZ_SITES, get_staff_rank (ch));
@@ -3345,6 +3347,7 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     
     // Show room to player
     do_function(ch, &do_look, "auto");
+    event_notify_active_events_for_char(ch, true);
 }
 
 /**

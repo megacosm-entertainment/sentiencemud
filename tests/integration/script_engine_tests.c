@@ -2451,7 +2451,8 @@ static test_result_t test_script_event_entity_expansion(test_case_t *test)
     mob.valid = true;
     mob.act[0] = ACT_IS_NPC;
     mob.pIndexData = &mob_index;
-    mob.event_source_uid = 321;
+    mob.event_source.pArea = NULL;
+    mob.event_source.vnum = 321;
     mob.event_source_instance_id = 17;
 
     info.mob = &mob;

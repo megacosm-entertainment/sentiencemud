@@ -33,6 +33,8 @@ static json_t *json_area_serialize_reputation(REPUTATION_INDEX_DATA *reputation,
 static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, AREA_DATA *area);
 static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2, AREA_DATA *area);
 static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DATA *area);
+static json_t *json_area_serialize_event(EVENT_INDEX_DATA *event_index, AREA_DATA *area);
+static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *area);
 static bool json_script_array_has_vnum(json_t *scripts, long vnum);
 
 static void json_register_loaded_wilds(WILDS_DATA *wilds)
@@ -1426,6 +1428,10 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
         json_object_set_new(stage_json, "stage_source", json_integer(stage->stage_source));
         json_object_set_new(stage_json, "auto_commence", stage->auto_commence ? json_true() : json_false());
         json_object_set_new(stage_json, "next_stage_id", json_integer(stage->next_stage_id));
+        json_object_set_new(stage_json, "complete_message", json_string_safe(stage->complete_message));
+        json_object_set_new(stage_json, "fail_message", json_string_safe(stage->fail_message));
+        json_object_set_new(stage_json, "silent_complete", stage->silent_complete ? json_true() : json_false());
+        json_object_set_new(stage_json, "silent_fail", stage->silent_fail ? json_true() : json_false());
         json_object_set_new(stage_json, "generator_profile", json_string_safe(stage->generator_profile));
         json_object_set_new(stage_json, "generator_salt", json_integer((json_int_t)stage->generator_salt));
         json_object_set_new(stage_json, "on_enter_script", json_string_safe(stage->on_enter_script));
@@ -1475,8 +1481,12 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
             json_object_set_new(objective_json, "target_tag", json_string_safe(objective->target_tag));
             json_object_set_new(objective_json, "talk_phrase", json_string_safe(objective->talk_phrase));
             json_object_set_new(objective_json, "description", json_string_safe(objective->description));
+            json_object_set_new(objective_json, "complete_message", json_string_safe(objective->complete_message));
+            json_object_set_new(objective_json, "fail_message", json_string_safe(objective->fail_message));
             json_object_set_new(objective_json, "optional", objective->optional ? json_true() : json_false());
             json_object_set_new(objective_json, "strict_target", objective->strict_target ? json_true() : json_false());
+            json_object_set_new(objective_json, "silent_complete", objective->silent_complete ? json_true() : json_false());
+            json_object_set_new(objective_json, "silent_fail", objective->silent_fail ? json_true() : json_false());
 
             for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next)
             {
@@ -1601,6 +1611,15 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
             stage->auto_commence = json_get_bool_default(stage_json, "auto_commence", stage->auto_commence);
             stage->next_stage_id = json_get_int_default(stage_json, "next_stage_id", stage->next_stage_id);
 
+            free_string(stage->complete_message);
+            stage->complete_message = str_dup(json_get_string_default(stage_json, "complete_message", ""));
+
+            free_string(stage->fail_message);
+            stage->fail_message = str_dup(json_get_string_default(stage_json, "fail_message", ""));
+
+            stage->silent_complete = json_get_bool_default(stage_json, "silent_complete", stage->silent_complete);
+            stage->silent_fail = json_get_bool_default(stage_json, "silent_fail", stage->silent_fail);
+
             free_string(stage->generator_profile);
             stage->generator_profile = str_dup(json_get_string_default(stage_json, "generator_profile", ""));
             stage->generator_salt = (unsigned long long)json_get_int_default(stage_json, "generator_salt", 0);
@@ -1668,8 +1687,16 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
                     free_string(objective->description);
                     objective->description = str_dup(json_get_string_default(objective_json, "description", ""));
 
+                    free_string(objective->complete_message);
+                    objective->complete_message = str_dup(json_get_string_default(objective_json, "complete_message", ""));
+
+                    free_string(objective->fail_message);
+                    objective->fail_message = str_dup(json_get_string_default(objective_json, "fail_message", ""));
+
                     objective->optional = json_get_bool_default(objective_json, "optional", objective->optional);
                     objective->strict_target = json_get_bool_default(objective_json, "strict_target", objective->strict_target);
+                    objective->silent_complete = json_get_bool_default(objective_json, "silent_complete", objective->silent_complete);
+                    objective->silent_fail = json_get_bool_default(objective_json, "silent_fail", objective->silent_fail);
 
                     target_load = json_object_get(objective_json, "target_load");
                     if (target_load && json_is_object(target_load))
@@ -1787,6 +1814,575 @@ static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DA
     }
 
     return quest_index_v2;
+}
+
+static json_t *json_area_serialize_event(EVENT_INDEX_DATA *event_index, AREA_DATA *area)
+{
+    json_t *json;
+    json_t *roster;
+    json_t *phases;
+    json_t *stages;
+    json_t *index_vars;
+    json_t *progs;
+    EVT_ROSTER_ENTRY *entry;
+    EVT_PHASE_DEF *phase;
+    EVT_STAGE_DEF *stage;
+
+    if (!event_index || !area)
+        return NULL;
+
+    json = json_object();
+    roster = json_array();
+    phases = json_array();
+    stages = json_array();
+
+    json_object_set_new(json, "vnum", json_integer(event_index->vnum));
+    json_object_set_new(json, "name", json_string_safe(event_index->name));
+    json_object_set_new(json, "description", json_string_safe(event_index->description));
+    json_object_set_new(json, "announce_msg", json_string_safe(event_index->announce_msg));
+    json_object_set_new(json, "end_msg", json_string_safe(event_index->end_msg));
+    json_object_set_new(json, "join_msg", json_string_safe(event_index->join_msg));
+    json_object_set_new(json, "event_type", json_integer(event_index->event_type));
+    json_object_set_new(json, "scope_type", json_integer(event_index->scope_type));
+    json_object_set_new(json, "scope_area_uid", json_integer(event_index->scope_area_uid));
+    json_object_set_new(json, "scope_floating", json_integer(event_index->scope_floating ? 1 : 0));
+    json_object_set_new(json, "sched_type", json_integer(event_index->sched_type));
+    json_object_set_new(json, "sched_interval", json_integer(event_index->sched_interval));
+    json_object_set_new(json, "sched_variance", json_integer(event_index->sched_variance));
+    json_object_set_new(json, "sched_duration", json_integer(event_index->sched_duration));
+    json_object_set_new(json, "sched_cooldown", json_integer(event_index->sched_cooldown));
+    json_object_set_new(json, "min_level", json_integer(event_index->min_level));
+    json_object_set_new(json, "max_level", json_integer(event_index->max_level));
+    json_object_set_new(json, "min_players", json_integer(event_index->min_players));
+    json_object_set_new(json, "max_players", json_integer(event_index->max_players));
+    json_object_set_new(json, "completion_goal", json_integer(event_index->completion_goal));
+    json_object_set_new(json, "leader_required", json_integer(event_index->leader_required ? 1 : 0));
+    json_object_set_new(json, "display_title", json_string_safe(event_index->display_title));
+    json_object_set_new(json, "short_summary", json_string_safe(event_index->short_summary));
+    json_object_set_new(json, "news_slug", json_string_safe(event_index->news_slug));
+    json_object_set_new(json, "news_announcement", json_string_safe(event_index->news_announcement));
+    json_object_set_new(json, "news_body", json_string_safe(event_index->news_body));
+    json_object_set_new(json, "theme_tags", json_string_safe(event_index->theme_tags));
+    json_object_set_new(json, "spawn_brackets", json_string_safe(event_index->spawn_brackets));
+    json_object_set_new(json, "collection_brackets", json_string_safe(event_index->collection_brackets));
+    json_object_set_new(json, "bracket_mode", json_string_safe(event_index->bracket_mode));
+    json_object_set_new(json, "progress_aggregation", json_string_safe(event_index->progress_aggregation));
+    json_object_set_new(json, "phase_plan", json_string_safe(event_index->phase_plan));
+    for (phase = event_index->phases; phase; phase = phase->next) {
+        json_t *phase_json = json_object();
+
+        json_object_set_new(phase_json, "name", json_string_safe(phase->name));
+        json_object_set_new(phase_json, "minutes", json_integer(phase->minutes));
+        json_object_set_new(phase_json, "script_vnum", json_integer(phase->script_vnum));
+        json_array_append_new(phases, phase_json);
+    }
+    json_object_set_new(json, "phases", phases);
+
+    for (stage = event_index->stages; stage; stage = stage->next) {
+        json_t *stage_json = json_object();
+        EVT_STAGE_OBJECTIVE_DEF *objective;
+        json_t *objectives = json_array();
+
+        json_object_set_new(stage_json, "name", json_string_safe(stage->name));
+        json_object_set_new(stage_json, "transition_mode", json_integer(stage->transition_mode));
+        json_object_set_new(stage_json, "objective_mode", json_integer(stage->objective_mode));
+        json_object_set_new(stage_json, "duration_minutes", json_integer(stage->duration_minutes));
+        json_object_set_new(stage_json, "on_enter_script", json_integer(stage->on_enter_script));
+        json_object_set_new(stage_json, "on_tick_script", json_integer(stage->on_tick_script));
+        json_object_set_new(stage_json, "on_complete_script", json_integer(stage->on_complete_script));
+
+        for (objective = stage->objectives; objective; objective = objective->next) {
+            json_t *objective_json = json_object();
+
+            json_object_set_new(objective_json, "name", json_string_safe(objective->name));
+            json_object_set_new(objective_json, "objective_type", json_integer(objective->objective_type));
+            json_object_set_new(objective_json, "target_count", json_integer(objective->target_count));
+            json_object_set_new(objective_json, "script_vnum", json_integer(objective->script_vnum));
+            json_object_set_new(objective_json, "data", json_string_safe(objective->data));
+            json_array_append_new(objectives, objective_json);
+        }
+
+        json_object_set_new(stage_json, "objectives", objectives);
+        json_array_append_new(stages, stage_json);
+    }
+    json_object_set_new(json, "stages", stages);
+
+    json_object_set_new(json, "reward_phase_script", json_integer(event_index->reward_phase_script));
+    json_object_set_new(json, "reward_success_script", json_integer(event_index->reward_success_script));
+    json_object_set_new(json, "reward_failure_script", json_integer(event_index->reward_failure_script));
+    json_object_set_new(json, "enabled", json_integer(event_index->enabled ? 1 : 0));
+    json_object_set_new(json, "flags", json_integer(event_index->flags));
+    json_object_set_new(json, "comments", json_string_safe(event_index->comments));
+    json_object_set_new(json, "scheduled_time", json_integer((json_int_t)event_index->scheduled_time));
+
+    index_vars = json_area_serialize_index_vars(event_index->index_vars, area);
+    if (index_vars)
+        json_object_set_new(json, "index_vars", index_vars);
+
+    progs = json_area_serialize_progs(event_index->progs, area);
+    if (progs)
+        json_object_set_new(json, "progs", progs);
+
+    for (entry = event_index->roster; entry; entry = entry->next) {
+        json_t *entry_json = json_object();
+        json_object_set_new(entry_json, "kind", json_integer(entry->kind));
+        json_object_set_new(entry_json, "vnum", json_integer(entry->vnum));
+        json_object_set_new(entry_json, "wnum", json_string(widevnum_string(area, entry->vnum, area)));
+        json_object_set_new(entry_json, "count", json_integer(entry->count));
+        json_object_set_new(entry_json, "chance", json_integer(entry->chance));
+        json_object_set_new(entry_json, "min_level", json_integer(entry->min_level));
+        json_object_set_new(entry_json, "max_level", json_integer(entry->max_level));
+        json_object_set_new(entry_json, "boss", json_integer(entry->boss ? 1 : 0));
+        json_object_set_new(entry_json, "stage", json_integer(entry->stage));
+        json_array_append_new(roster, entry_json);
+    }
+
+    json_object_set_new(json, "roster", roster);
+    return json;
+}
+
+static void json_event_free_phases(EVENT_INDEX_DATA *event_index)
+{
+    EVT_PHASE_DEF *phase;
+
+    if (!event_index)
+        return;
+
+    while (event_index->phases) {
+        phase = event_index->phases;
+        event_index->phases = phase->next;
+        free_string(phase->name);
+        free_mem(phase, sizeof(*phase));
+    }
+
+    event_index->phase_count = 0;
+}
+
+static void json_event_free_stages(EVENT_INDEX_DATA *event_index)
+{
+    EVT_STAGE_DEF *stage;
+
+    if (!event_index)
+        return;
+
+    while (event_index->stages) {
+        EVT_STAGE_OBJECTIVE_DEF *objective;
+
+        stage = event_index->stages;
+        event_index->stages = stage->next;
+
+        while (stage->objectives) {
+            objective = stage->objectives;
+            stage->objectives = objective->next;
+            free_string(objective->name);
+            free_string(objective->data);
+            free_mem(objective, sizeof(*objective));
+        }
+
+        free_string(stage->name);
+        free_mem(stage, sizeof(*stage));
+    }
+
+    event_index->stage_count = 0;
+}
+
+static void json_event_add_phase(EVENT_INDEX_DATA *event_index,
+    const char *name, int minutes, long script_vnum)
+{
+    EVT_PHASE_DEF *phase;
+    EVT_PHASE_DEF *tail;
+
+    if (!event_index || IS_NULLSTR(name))
+        return;
+
+    phase = alloc_mem(sizeof(*phase));
+    memset(phase, 0, sizeof(*phase));
+    phase->name = str_dup(name);
+    phase->minutes = UMAX(0, minutes);
+    phase->script_vnum = UMAX(0, script_vnum);
+
+    if (!event_index->phases)
+        event_index->phases = phase;
+    else {
+        tail = event_index->phases;
+        while (tail->next)
+            tail = tail->next;
+        tail->next = phase;
+    }
+
+    event_index->phase_count++;
+}
+
+static EVT_STAGE_DEF *json_event_add_stage(EVENT_INDEX_DATA *event_index,
+    const char *name, int transition_mode, int objective_mode,
+    int duration_minutes, long on_enter_script, long on_tick_script, long on_complete_script)
+{
+    EVT_STAGE_DEF *stage;
+    EVT_STAGE_DEF *tail;
+
+    if (!event_index || IS_NULLSTR(name))
+        return NULL;
+
+    stage = alloc_mem(sizeof(*stage));
+    memset(stage, 0, sizeof(*stage));
+    stage->name = str_dup(name);
+    stage->transition_mode = transition_mode;
+    stage->objective_mode = objective_mode;
+    stage->duration_minutes = UMAX(0, duration_minutes);
+    stage->on_enter_script = UMAX(0, on_enter_script);
+    stage->on_tick_script = UMAX(0, on_tick_script);
+    stage->on_complete_script = UMAX(0, on_complete_script);
+
+    if (!event_index->stages)
+        event_index->stages = stage;
+    else {
+        tail = event_index->stages;
+        while (tail->next)
+            tail = tail->next;
+        tail->next = stage;
+    }
+
+    event_index->stage_count++;
+    return stage;
+}
+
+static void json_event_add_stage_objective(EVT_STAGE_DEF *stage,
+    const char *name, int objective_type, int target_count,
+    long script_vnum, const char *data)
+{
+    EVT_STAGE_OBJECTIVE_DEF *objective;
+    EVT_STAGE_OBJECTIVE_DEF *tail;
+
+    if (!stage)
+        return;
+
+    objective = alloc_mem(sizeof(*objective));
+    memset(objective, 0, sizeof(*objective));
+    objective->name = str_dup(IS_NULLSTR(name) ? "objective" : name);
+    objective->objective_type = objective_type;
+    objective->target_count = UMAX(0, target_count);
+    objective->script_vnum = UMAX(0, script_vnum);
+    objective->data = str_dup(IS_NULLSTR(data) ? "" : data);
+
+    if (!stage->objectives)
+        stage->objectives = objective;
+    else {
+        tail = stage->objectives;
+        while (tail->next)
+            tail = tail->next;
+        tail->next = objective;
+    }
+
+    stage->objective_count++;
+}
+
+static void json_event_load_legacy_phase_plan(EVENT_INDEX_DATA *event_index, const char *plan)
+{
+    const char *cursor;
+
+    if (!event_index || IS_NULLSTR(plan) || event_index->phase_count > 0)
+        return;
+
+    cursor = plan;
+    while (*cursor) {
+        char token[MIL];
+        char name_buf[MIL];
+        char *at;
+        char *hash;
+        int pos = 0;
+        int minutes = 0;
+        long script_vnum = 0;
+
+        while (*cursor && (isspace((unsigned char)*cursor) || *cursor == ';' || *cursor == ','))
+            cursor++;
+        if (!*cursor)
+            break;
+
+        while (*cursor && *cursor != ';' && *cursor != ',' && pos < MIL - 1)
+            token[pos++] = *cursor++;
+        token[pos] = '\0';
+
+        strlcpy(name_buf, token, sizeof(name_buf));
+        at = strchr(name_buf, '@');
+        hash = strchr(name_buf, '#');
+
+        if (at) {
+            char *endptr = NULL;
+            *at = '\0';
+            minutes = (int)strtol(at + 1, &endptr, 10);
+            if (endptr == at + 1 || minutes < 0)
+                minutes = 0;
+        }
+
+        if (hash) {
+            char *endptr = NULL;
+            *hash = '\0';
+            script_vnum = strtol(hash + 1, &endptr, 10);
+            if (endptr == hash + 1 || script_vnum < 0)
+                script_vnum = 0;
+        }
+
+        while (*name_buf && isspace((unsigned char)*name_buf))
+            memmove(name_buf, name_buf + 1, strlen(name_buf));
+        while (!IS_NULLSTR(name_buf) && isspace((unsigned char)name_buf[strlen(name_buf) - 1]))
+            name_buf[strlen(name_buf) - 1] = '\0';
+
+        if (!IS_NULLSTR(name_buf))
+            json_event_add_phase(event_index, name_buf, minutes, script_vnum);
+
+        while (*cursor && *cursor != ';' && *cursor != ',')
+            cursor++;
+    }
+}
+
+static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *area)
+{
+    EVENT_INDEX_DATA *event_index;
+    json_t *roster;
+    size_t i;
+    json_t *entry_json;
+
+    if (!json || !area)
+        return NULL;
+
+    event_index = alloc_mem(sizeof(*event_index));
+    memset(event_index, 0, sizeof(*event_index));
+
+    event_index->area = area;
+    event_index->vnum = json_get_int_default(json, "vnum", 0);
+    if (event_index->vnum < 1) {
+        free_mem(event_index, sizeof(*event_index));
+        return NULL;
+    }
+
+    event_index->uid = event_index->vnum;
+    event_index->name = str_dup(json_get_string_default(json, "name", "event"));
+    event_index->description = str_dup(json_get_string_default(json, "description", ""));
+    event_index->announce_msg = str_dup(json_get_string_default(json, "announce_msg", ""));
+    event_index->end_msg = str_dup(json_get_string_default(json, "end_msg", ""));
+    event_index->join_msg = str_dup(json_get_string_default(json, "join_msg", ""));
+    event_index->event_type = (int16_t)json_get_int_default(json, "event_type", EVT_TYPE_COLLECTION);
+    event_index->scope_type = (int16_t)json_get_int_default(json, "scope_type", EVT_SCOPE_GLOBAL);
+    event_index->scope_area_uid = json_get_int_default(json, "scope_area_uid", 0);
+    event_index->scope_floating = json_get_bool_default(json, "scope_floating", false);
+    event_index->sched_type = (int16_t)json_get_int_default(json, "sched_type", EVT_SCHED_MANUAL);
+    event_index->sched_interval = (int16_t)json_get_int_default(json, "sched_interval", 60);
+    event_index->sched_variance = (int16_t)json_get_int_default(json, "sched_variance", 0);
+    event_index->sched_duration = (int16_t)json_get_int_default(json, "sched_duration", 60);
+    event_index->sched_cooldown = (int16_t)json_get_int_default(json, "sched_cooldown", 0);
+    event_index->min_level = (int16_t)json_get_int_default(json, "min_level", 0);
+    event_index->max_level = (int16_t)json_get_int_default(json, "max_level", 0);
+    event_index->min_players = (int16_t)json_get_int_default(json, "min_players", 0);
+    event_index->max_players = (int16_t)json_get_int_default(json, "max_players", 0);
+    event_index->completion_goal = (int16_t)json_get_int_default(json, "completion_goal", 0);
+    event_index->leader_required = json_get_bool_default(json, "leader_required", true);
+    event_index->display_title = str_dup(json_get_string_default(json, "display_title", ""));
+    event_index->short_summary = str_dup(json_get_string_default(json, "short_summary", ""));
+    event_index->news_slug = str_dup(json_get_string_default(json, "news_slug", ""));
+    event_index->news_announcement = str_dup(json_get_string_default(json, "news_announcement", ""));
+    event_index->news_body = str_dup(json_get_string_default(json, "news_body", ""));
+    event_index->theme_tags = str_dup(json_get_string_default(json, "theme_tags", ""));
+    event_index->spawn_brackets = str_dup(json_get_string_default(json, "spawn_brackets", ""));
+    event_index->collection_brackets = str_dup(json_get_string_default(json, "collection_brackets", ""));
+    event_index->bracket_mode = str_dup(json_get_string_default(json, "bracket_mode", "auto_by_level"));
+    event_index->progress_aggregation = str_dup(json_get_string_default(json, "progress_aggregation", "shared"));
+    event_index->phase_plan = str_dup(json_get_string_default(json, "phase_plan", ""));
+    event_index->phases = NULL;
+    event_index->phase_count = 0;
+    event_index->stages = NULL;
+    event_index->stage_count = 0;
+    event_index->reward_phase_script = json_get_int_default(json, "reward_phase_script", 0);
+    event_index->reward_success_script = json_get_int_default(json, "reward_success_script", 0);
+    event_index->reward_failure_script = json_get_int_default(json, "reward_failure_script", 0);
+    event_index->enabled = json_get_bool_default(json, "enabled", true);
+    event_index->flags = json_get_int_default(json, "flags", 0);
+    event_index->comments = str_dup(json_get_string_default(json, "comments", ""));
+    event_index->index_vars = json_area_deserialize_index_vars(json_object_get(json, "index_vars"), area);
+    event_index->progs = json_area_deserialize_progs(json_object_get(json, "progs"), area, PRG_EPROG);
+    event_index->scheduled_time = (time_t)json_get_int_default(json, "scheduled_time", 0);
+    event_index->cooldown_until = 0;
+    event_index->next_auto_time = 0;
+
+    roster = json_object_get(json, "roster");
+    if (roster && json_is_array(roster)) {
+        EVT_ROSTER_ENTRY *tail = NULL;
+
+        json_array_foreach(roster, i, entry_json) {
+            EVT_ROSTER_ENTRY *entry;
+            json_t *wnum_json;
+
+            if (!json_is_object(entry_json))
+                continue;
+
+            entry = alloc_mem(sizeof(*entry));
+            memset(entry, 0, sizeof(*entry));
+
+            entry->kind = json_get_int_default(entry_json, "kind", EVT_ROSTER_NPC);
+            entry->vnum = json_get_int_default(entry_json, "vnum", 0);
+            wnum_json = json_object_get(entry_json, "wnum");
+            if (json_is_string(wnum_json)) {
+                WNUM_LOAD wload;
+                if (parse_widevnum_load(json_string_value(wnum_json), &wload) && wload.vnum > 0)
+                    entry->vnum = wload.vnum;
+            }
+            entry->count = json_get_int_default(entry_json, "count", 1);
+            entry->chance = json_get_int_default(entry_json, "chance", 100);
+            entry->min_level = json_get_int_default(entry_json, "min_level", 0);
+            entry->max_level = json_get_int_default(entry_json, "max_level", 0);
+            entry->boss = json_get_bool_default(entry_json, "boss", false);
+            entry->stage = UMAX(0, json_get_int_default(entry_json, "stage", 0));
+
+            if (entry->vnum < 1) {
+                free_mem(entry, sizeof(*entry));
+                continue;
+            }
+
+            if (!event_index->roster)
+                event_index->roster = entry;
+            else
+                tail->next = entry;
+            tail = entry;
+        }
+    }
+
+    {
+        json_t *phases_json = json_object_get(json, "phases");
+
+        if (phases_json && json_is_array(phases_json)) {
+            size_t phase_i;
+            json_t *phase_json;
+
+            json_array_foreach(phases_json, phase_i, phase_json) {
+                const char *name;
+                int minutes;
+                long script_vnum;
+
+                if (!json_is_object(phase_json))
+                    continue;
+
+                name = json_get_string_default(phase_json, "name", "");
+                minutes = json_get_int_default(phase_json, "minutes", 0);
+                script_vnum = json_get_int_default(phase_json, "script_vnum", 0);
+
+                if (IS_NULLSTR(name))
+                    continue;
+
+                json_event_add_phase(event_index, name, minutes, script_vnum);
+            }
+        }
+    }
+
+    if (event_index->phase_count <= 0)
+        json_event_load_legacy_phase_plan(event_index, event_index->phase_plan);
+
+    {
+        json_t *stages_json = json_object_get(json, "stages");
+
+        if (stages_json && json_is_array(stages_json)) {
+            size_t stage_i;
+            json_t *stage_json;
+
+            json_array_foreach(stages_json, stage_i, stage_json) {
+                EVT_STAGE_DEF *stage;
+                const char *name;
+                int transition_mode;
+                int objective_mode;
+                int duration_minutes;
+                long on_enter_script;
+                long on_tick_script;
+                long on_complete_script;
+                json_t *objectives_json;
+
+                if (!json_is_object(stage_json))
+                    continue;
+
+                name = json_get_string_default(stage_json, "name", "stage");
+                transition_mode = json_get_int_default(stage_json, "transition_mode", EVT_STAGE_TRANSITION_ON_COMPLETE);
+                objective_mode = json_get_int_default(stage_json, "objective_mode", EVT_STAGE_OBJECTIVE_ALL);
+                duration_minutes = json_get_int_default(stage_json, "duration_minutes", 0);
+                on_enter_script = json_get_int_default(stage_json, "on_enter_script", 0);
+                on_tick_script = json_get_int_default(stage_json, "on_tick_script", 0);
+                on_complete_script = json_get_int_default(stage_json, "on_complete_script", 0);
+
+                stage = json_event_add_stage(event_index,
+                    IS_NULLSTR(name) ? "stage" : name,
+                    transition_mode,
+                    objective_mode,
+                    duration_minutes,
+                    on_enter_script,
+                    on_tick_script,
+                    on_complete_script);
+                if (!stage)
+                    continue;
+
+                objectives_json = json_object_get(stage_json, "objectives");
+                if (!objectives_json || !json_is_array(objectives_json))
+                    continue;
+
+                {
+                    size_t objective_i;
+                    json_t *objective_json;
+
+                    json_array_foreach(objectives_json, objective_i, objective_json) {
+                        const char *objective_name;
+                        const char *objective_data;
+                        int objective_type;
+                        int target_count;
+                        long script_vnum;
+
+                        if (!json_is_object(objective_json))
+                            continue;
+
+                        objective_name = json_get_string_default(objective_json, "name", "objective");
+                        objective_data = json_get_string_default(objective_json, "data", "");
+                        objective_type = json_get_int_default(objective_json, "objective_type", EVT_STAGE_OBJECTIVE_CUSTOM);
+                        target_count = json_get_int_default(objective_json, "target_count", 0);
+                        script_vnum = json_get_int_default(objective_json, "script_vnum", 0);
+
+                        json_event_add_stage_objective(stage,
+                            objective_name,
+                            objective_type,
+                            target_count,
+                            script_vnum,
+                            objective_data);
+                    }
+                }
+            }
+        }
+    }
+
+    if (!event_index_register(event_index)) {
+        free_string(event_index->name);
+        free_string(event_index->description);
+        free_string(event_index->announce_msg);
+        free_string(event_index->end_msg);
+        free_string(event_index->join_msg);
+        free_string(event_index->display_title);
+        free_string(event_index->short_summary);
+        free_string(event_index->news_slug);
+        free_string(event_index->news_announcement);
+        free_string(event_index->news_body);
+        free_string(event_index->theme_tags);
+        free_string(event_index->spawn_brackets);
+        free_string(event_index->collection_brackets);
+        free_string(event_index->bracket_mode);
+        free_string(event_index->progress_aggregation);
+        free_string(event_index->phase_plan);
+        json_event_free_phases(event_index);
+        json_event_free_stages(event_index);
+        free_string(event_index->comments);
+        free_prog_list(event_index->progs);
+        variable_freelist(&event_index->index_vars);
+        while (event_index->roster) {
+            EVT_ROSTER_ENTRY *next = event_index->roster->next;
+            free_mem(event_index->roster, sizeof(EVT_ROSTER_ENTRY));
+            event_index->roster = next;
+        }
+        free_mem(event_index, sizeof(*event_index));
+        return NULL;
+    }
+
+    return event_index;
 }
 
 /*
@@ -2680,6 +3276,16 @@ AREA_DATA *json_area_load(const char *filename)
             (void)json_area_deserialize_quest_v2(quest_json, area);
         }
     }
+
+    /* Deserialize events */
+    json_t *events = json_object_get(root, "events");
+    if (events && json_is_array(events)) {
+        size_t index;
+        json_t *event_json;
+        json_array_foreach(events, index, event_json) {
+            (void)json_area_deserialize_event(event_json, area);
+        }
+    }
     
     /* Deserialize dungeons */
     json_t *dungeons = json_object_get(root, "dungeons");
@@ -2913,6 +3519,23 @@ AREA_DATA *json_area_load(const char *filename)
                 }
                 script->next = area->qprog_list;
                 area->qprog_list = script;
+            }
+        }
+    }
+
+    /* Event progs */
+    scripts = json_object_get(root, "eprogs");
+    if (scripts && json_is_array(scripts)) {
+        json_array_foreach(scripts, script_index, script_json) {
+            script = json_area_deserialize_script(script_json, area, IFC_E);
+            if (script) {
+                script->type = PRG_EPROG;
+                if (get_script_index(area, script->vnum, PRG_EPROG)) {
+                    free_script(script);
+                    continue;
+                }
+                script->next = area->eprog_list;
+                area->eprog_list = script;
             }
         }
     }
@@ -3195,6 +3818,22 @@ bool json_area_save(AREA_DATA *area)
         json_object_set_new(root, "quests_v2", quests_v2);
     else
         json_decref(quests_v2);
+
+    /* Serialize events */
+    json_t *events = json_array();
+    for (int j = 0; j < MAX_KEY_HASH; j++) {
+        for (EVENT_INDEX_DATA *event_index = area->event_index_hash[j]; event_index; event_index = event_index->next_hash) {
+            if (event_index->vnum && event_index->area == area) {
+                json_t *event_json = json_area_serialize_event(event_index, area);
+                if (event_json)
+                    json_array_append_new(events, event_json);
+            }
+        }
+    }
+    if (json_array_size(events) > 0)
+        json_object_set_new(root, "events", events);
+    else
+        json_decref(events);
     
     /* Serialize blueprints */
     json_t *blueprints = json_array();
@@ -3282,6 +3921,7 @@ bool json_area_save(AREA_DATA *area)
     json_t *iprogs = json_array();
     json_t *dprogs = json_array();
     json_t *qprogs = json_array();
+    json_t *eprogs = json_array();
     
     /* Iterate through script linked lists directly */
     SCRIPT_DATA *script;
@@ -3350,6 +3990,14 @@ bool json_area_save(AREA_DATA *area)
         script_json = json_area_serialize_script(script);
         if (script_json) json_array_append_new(qprogs, script_json);
     }
+
+    // EVENTprogs
+    for (script = area->eprog_list; script; script = script->next) {
+        if (json_script_array_has_vnum(eprogs, script->vnum))
+            continue;
+        script_json = json_area_serialize_script(script);
+        if (script_json) json_array_append_new(eprogs, script_json);
+    }
     
     /* Only save script sections if they have content */
     if (json_array_size(mobprogs) > 0)
@@ -3391,6 +4039,11 @@ bool json_area_save(AREA_DATA *area)
         json_object_set_new(root, "qprogs", qprogs);
     else
         json_decref(qprogs);
+
+    if (json_array_size(eprogs) > 0)
+        json_object_set_new(root, "eprogs", eprogs);
+    else
+        json_decref(eprogs);
     
     /* Cache in Redis immediately (if available) */
     if (redis_is_available() && area->file_name && area->file_name[0]) {

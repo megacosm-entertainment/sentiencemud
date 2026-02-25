@@ -347,6 +347,11 @@ static bool scriptcmd_event_param_to_token(SCRIPT_PARAM *arg, char *buf, size_t 
     case ENT_NUMBER:
         snprintf(buf, size, "%d", arg->d.num);
         return true;
+    case ENT_WIDEVNUM:
+        if (!arg->d.wnum.pArea || arg->d.wnum.vnum < 1)
+            return false;
+        snprintf(buf, size, "%ld#%ld", arg->d.wnum.pArea->uid, arg->d.wnum.vnum);
+        return true;
     case ENT_STRING:
         if (IS_NULLSTR(arg->d.str))
             return false;
@@ -357,6 +362,90 @@ static bool scriptcmd_event_param_to_token(SCRIPT_PARAM *arg, char *buf, size_t 
     }
 }
 
+static CHAR_DATA *scriptcmd_event_default_starter(SCRIPT_VARINFO *info)
+{
+    if (!info)
+        return NULL;
+
+    if (info->mob)
+        return info->mob;
+
+    if (info->token && info->token->player)
+        return info->token->player;
+
+    if (info->obj && info->obj->carried_by)
+        return info->obj->carried_by;
+
+    return NULL;
+}
+
+static VARIABLE **scriptcmd_event_runtime_vars_from_param(SCRIPT_PARAM *arg)
+{
+    VARIABLE **vars = NULL;
+
+    if (!arg)
+        return NULL;
+
+    switch (arg->type) {
+    case ENT_EVENT:
+        if (event_runtime_get_vars_by_ref(arg->d.event.uid, arg->d.event.instance_id, &vars))
+            return vars;
+        break;
+
+    case ENT_STRING:
+        if (event_runtime_get_vars(arg->d.str, &vars))
+            return vars;
+        break;
+
+    case ENT_NUMBER:
+        if (event_runtime_get_vars_by_ref(arg->d.num, 0, &vars))
+            return vars;
+        break;
+
+    default:
+        break;
+    }
+
+    return NULL;
+}
+
+static VARIABLE **scriptcmd_event_index_vars_from_param(SCRIPT_PARAM *arg)
+{
+    VARIABLE **vars = NULL;
+    EVENT_INDEX_DATA *event_index;
+
+    if (!arg)
+        return NULL;
+
+    switch (arg->type) {
+    case ENT_EVENT:
+        if (event_index_get_vars_by_uid(arg->d.event.uid, &vars))
+            return vars;
+        break;
+
+    case ENT_STRING:
+        if (event_index_get_vars(arg->d.str, &vars))
+            return vars;
+        break;
+
+    case ENT_NUMBER:
+        if (event_index_get_vars_by_uid(arg->d.num, &vars))
+            return vars;
+        break;
+
+    case ENT_WIDEVNUM:
+        event_index = get_event_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum);
+        if (event_index)
+            return &event_index->index_vars;
+        break;
+
+    default:
+        break;
+    }
+
+    return NULL;
+}
+
 const struct script_cmd_type area_cmd_table[] = {
     { "alterroom",			scriptcmd_alterroom,		true,	true	},
     { "call",				scriptcmd_call,				false,	true	},
@@ -365,6 +454,10 @@ const struct script_cmd_type area_cmd_table[] = {
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "event",             scriptcmd_event,            false,  true    },
+    { "phaseevent",        scriptcmd_phaseevent,       false,  true    },
+    { "stageevent",        scriptcmd_phaseevent,       false,  true    },
+    { "startevent",        scriptcmd_startevent,       false,  true    },
+    { "stopevent",         scriptcmd_stopevent,        false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "questechoat",       scriptcmd_questechoat,      false,  true    },
     { "quest",             scriptcmd_quest,            false,  true    },
@@ -409,6 +502,10 @@ const struct script_cmd_type instance_cmd_table[] = {
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "event",             scriptcmd_event,            false,  true    },
+    { "phaseevent",        scriptcmd_phaseevent,       false,  true    },
+    { "stageevent",        scriptcmd_phaseevent,       false,  true    },
+    { "startevent",        scriptcmd_startevent,       false,  true    },
+    { "stopevent",         scriptcmd_stopevent,        false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "questechoat",       scriptcmd_questechoat,      false,  true    },
     { "quest",             scriptcmd_quest,            false,  true    },
@@ -457,6 +554,10 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { "dungeoncommence",	scriptcmd_dungeoncommence,	true,	true	},
     { "dungeonfailure",	scriptcmd_dungeonfailure,	true,	true	},
     { "event",             scriptcmd_event,            false,  true    },
+    { "phaseevent",        scriptcmd_phaseevent,       false,  true    },
+    { "stageevent",        scriptcmd_phaseevent,       false,  true    },
+    { "startevent",        scriptcmd_startevent,       false,  true    },
+    { "stopevent",         scriptcmd_stopevent,        false,  true    },
     { "echoat",				scriptcmd_echoat,			false,	true	},
     { "questechoat",       scriptcmd_questechoat,      false,  true    },
     { "quest",             scriptcmd_quest,            false,  true    },
@@ -497,6 +598,54 @@ const struct script_cmd_type dungeon_cmd_table[] = {
     { NULL,					NULL,						false,	false	}
 };
 
+const struct script_cmd_type evt_cmd_table[] = {
+    { "alterroom",            scriptcmd_alterroom,        true,   true    },
+    { "call",                 scriptcmd_call,             false,  true    },
+    { "churchannouncetheft",  scriptcmd_churchannouncetheft, true, true },
+    { "dungeoncomplete",      scriptcmd_dungeoncomplete,  true,   true    },
+    { "dungeoncommence",      scriptcmd_dungeoncommence,  true,   true    },
+    { "dungeonfailure",       scriptcmd_dungeonfailure,   true,   true    },
+    { "event",                scriptcmd_event,            false,  true    },
+    { "phaseevent",           scriptcmd_phaseevent,       false,  true    },
+    { "stageevent",           scriptcmd_phaseevent,       false,  true    },
+    { "startevent",           scriptcmd_startevent,       false,  true    },
+    { "stopevent",            scriptcmd_stopevent,        false,  true    },
+    { "echoat",               scriptcmd_echoat,           false,  true    },
+    { "questechoat",          scriptcmd_questechoat,      false,  true    },
+    { "quest",                scriptcmd_quest,            false,  true    },
+    { "instancecomplete",     scriptcmd_instancecomplete, true,   true    },
+    { "instancefailure",      scriptcmd_instancefailure,  true,   true    },
+    { "mail",                 scriptcmd_mail,             true,   true    },
+    { "mload",                scriptcmd_mload,            false,  true    },
+    { "mute",                 scriptcmd_mute,             false,  true    },
+    { "oload",                scriptcmd_oload,            false,  true    },
+    { "reckoning",            scriptcmd_reckoning,        true,   true    },
+    { "resetroom",            scriptcmd_resetroom,        true,   true    },
+    { "sendfloor",            scriptcmd_sendfloor,        false,  true    },
+    { "specialkey",           scriptcmd_specialkey,       false,  true    },
+    { "startreckoning",       scriptcmd_startreckoning,   true,   true    },
+    { "stopreckoning",        scriptcmd_stopreckoning,    true,   true    },
+    { "treasuremap",          scriptcmd_treasuremap,      false,  true    },
+    { "unlockarea",           scriptcmd_unlockarea,       true,   true    },
+    { "unlockdungeon",        scriptcmd_unlockdungeon,    true,   true    },
+    { "unmute",               scriptcmd_unmute,           false,  true    },
+    { "varclear",             scriptcmd_varclear,         false,  true    },
+    { "varclearon",           scriptcmd_varclearon,       false,  true    },
+    { "varcopy",              scriptcmd_varcopy,          false,  true    },
+    { "varsave",              scriptcmd_varsave,          false,  true    },
+    { "varsaveon",            scriptcmd_varsaveon,        false,  true    },
+    { "varset",               scriptcmd_varset,           false,  true    },
+    { "varseton",             scriptcmd_varseton,         false,  true    },
+    { "wildsoverlay",         scriptcmd_wildsoverlay,     false,  true    },
+    { "wildsanchor",          scriptcmd_wildsanchor,      false,  true    },
+    { "wildstile",            scriptcmd_wildstile,        false,  true    },
+    { "wildsvlink",           scriptcmd_wildsvlink,       false,  true    },
+    { "wildernessmap",        scriptcmd_wildernessmap,    false,  true    },
+    { "wiznet",               scriptcmd_wiznet,           false,  true    },
+    { "xcall",                scriptcmd_xcall,            false,  true    },
+    { NULL,                     NULL,                       false,  false   }
+};
+
 int apcmd_lookup(char *command)
 {
     int cmd;
@@ -528,6 +677,18 @@ int dpcmd_lookup(char *command)
     for (cmd = 0; dungeon_cmd_table[cmd].name; cmd++)
         if (command[0] == dungeon_cmd_table[cmd].name[0] &&
             !str_prefix(command, dungeon_cmd_table[cmd].name))
+            return cmd;
+
+    return -1;
+}
+
+int evtcmd_lookup(char *command)
+{
+    int cmd;
+
+    for (cmd = 0; evt_cmd_table[cmd].name; cmd++)
+        if (command[0] == evt_cmd_table[cmd].name[0] &&
+            !str_prefix(command, evt_cmd_table[cmd].name))
             return cmd;
 
     return -1;
@@ -689,6 +850,45 @@ void do_qpdump(CHAR_DATA *ch, char *argument)
     }
 
     page_to_char(qprg->edit_src, ch);
+}
+
+///////////////////////////////////////////
+//
+// Function: do_epdump
+//
+// Section: Script/EPROG
+//
+// Purpose: Displays the current edit source code of an EPROG.
+//
+// Syntax: epdump <vnum>
+//
+// Restrictions: Viewer must have read access to the owning area.
+//
+void do_epdump(CHAR_DATA *ch, char *argument)
+{
+    char buf[ MAX_INPUT_LENGTH ];
+    SCRIPT_DATA *eprg;
+    WNUM wnum = { NULL, 0 };
+
+    one_argument(argument, buf);
+    if (!parse_widevnum(buf, ch->in_room ? ch->in_room->area : NULL, &wnum)) {
+        send_to_char("Invalid vnum format.\n\r", ch);
+        return;
+    }
+
+    eprg = get_script_index(wnum.pArea, wnum.vnum, PRG_EPROG);
+
+    if (!eprg) {
+        send_to_char("No such EVENTprogram.\n\r", ch);
+        return;
+    }
+
+    if (!area_has_read_access(ch, eprg->area)) {
+        send_to_char("You do not have permission to view that script.\n\r", ch);
+        return;
+    }
+
+    page_to_char(eprg->edit_src, ch);
 }
 
 
@@ -8403,7 +8603,8 @@ SCRIPT_CMD(scriptcmd_mload)
 }
 
 // EVENT clear|inherit|set|copy <target_mob|target_obj> [args]
-// EVENT phase <event> next
+// EVENT phase|stage <event> next|set <phase_or_stage_name>
+// EVENT objective <event> check|next|advance|complete
 // clear   <target>
 // inherit <target>
 // set     <target> <event_uid> [instance_id]
@@ -8467,7 +8668,7 @@ SCRIPT_CMD(scriptcmd_event)
         return;
     }
 
-    if (!str_prefix(command, "phase")) {
+    if (!str_prefix(command, "phase") || !str_prefix(command, "stage")) {
         if (!(rest = expand_argument(info, rest, arg)))
             return;
         if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
@@ -8488,6 +8689,33 @@ SCRIPT_CMD(scriptcmd_event)
 
         if (event_runtime_set_phase(event_token, arg->d.str))
             info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (!str_prefix(command, "objective")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
+            return;
+
+        rest = one_argument(rest, operation);
+        if (IS_NULLSTR(operation))
+            return;
+
+        if (!str_cmp(operation, "check")) {
+            if (event_runtime_check_objectives(event_token))
+                info->progs->lastreturn = 1;
+            return;
+        }
+
+        if (!str_cmp(operation, "next")
+            || !str_cmp(operation, "advance")
+            || !str_cmp(operation, "complete")) {
+            if (event_runtime_next_phase(event_token))
+                info->progs->lastreturn = 1;
+            return;
+        }
+
         return;
     }
 
@@ -8618,6 +8846,96 @@ SCRIPT_CMD(scriptcmd_event)
         info->progs->lastreturn = 1;
         return;
     }
+}
+
+// STARTEVENT <event_uid|name|widevnum> [starter_mob]
+SCRIPT_CMD(scriptcmd_startevent)
+{
+    char event_token[MIL];
+    char *rest;
+    CHAR_DATA *starter;
+
+    if (!info)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+    if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
+        return;
+
+    starter = scriptcmd_event_default_starter(info);
+
+    if (!IS_NULLSTR(rest)) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        if (arg->type != ENT_MOBILE || !arg->d.mob)
+            return;
+
+        starter = arg->d.mob;
+    }
+
+    if (event_runtime_start(event_token, starter, NULL, NULL))
+        info->progs->lastreturn = 1;
+}
+
+// STOPEVENT <event_uid|name|widevnum>
+SCRIPT_CMD(scriptcmd_stopevent)
+{
+    char event_token[MIL];
+
+    if (!info)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    if (!expand_argument(info, argument, arg))
+        return;
+    if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
+        return;
+
+    if (event_runtime_stop(event_token))
+        info->progs->lastreturn = 1;
+}
+
+// PHASEEVENT|STAGEEVENT <event_uid|name|widevnum> next
+// PHASEEVENT|STAGEEVENT <event_uid|name|widevnum> set <phase_or_stage_name>
+SCRIPT_CMD(scriptcmd_phaseevent)
+{
+    char event_token[MIL];
+    char operation[MIL];
+    char *rest;
+
+    if (!info)
+        return;
+
+    info->progs->lastreturn = 0;
+
+    if (!(rest = expand_argument(info, argument, arg)))
+        return;
+    if (!scriptcmd_event_param_to_token(arg, event_token, sizeof(event_token)))
+        return;
+
+    rest = one_argument(rest, operation);
+    if (IS_NULLSTR(operation))
+        return;
+
+    if (!str_cmp(operation, "next")) {
+        if (event_runtime_next_phase(event_token))
+            info->progs->lastreturn = 1;
+        return;
+    }
+
+    if (str_cmp(operation, "set") || IS_NULLSTR(rest))
+        return;
+
+    if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING || IS_NULLSTR(arg->d.str))
+        return;
+
+    if (event_runtime_set_phase(event_token, arg->d.str))
+        info->progs->lastreturn = 1;
 }
 
 // MUTE $PLAYER
@@ -12576,7 +12894,8 @@ SCRIPT_CMD(scriptcmd_varclear)
     if(!info || !info->var) return;
 
     one_argument(argument, target);
-    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")) {
+    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")
+        || !str_cmp(target, "event") || !str_cmp(target, "eventindex")) {
         scriptcmd_varclearon(info, argument, arg);
         return;
     }
@@ -12610,6 +12929,22 @@ SCRIPT_CMD(scriptcmd_varclearon)
             run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
         index_v2 = run ? quest_runtime_get_index_v2(run) : NULL;
         vars = index_v2 ? &index_v2->index_vars : NULL;
+        script_varclearon(info, vars, rest, arg);
+        return;
+    }
+
+    if (!str_cmp(target, "event")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        vars = scriptcmd_event_runtime_vars_from_param(arg);
+        script_varclearon(info, vars, rest, arg);
+        return;
+    }
+
+    if (!str_cmp(target, "eventindex")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        vars = scriptcmd_event_index_vars_from_param(arg);
         script_varclearon(info, vars, rest, arg);
         return;
     }
@@ -12656,7 +12991,8 @@ SCRIPT_CMD(scriptcmd_varsave)
     if(!info || !info->var) return;
 
     one_argument(argument, target);
-    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")) {
+    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")
+        || !str_cmp(target, "event") || !str_cmp(target, "eventindex")) {
         scriptcmd_varsaveon(info, argument, arg);
         return;
     }
@@ -12678,6 +13014,7 @@ SCRIPT_CMD(scriptcmd_varsaveon)
     bool on;
 
     VARIABLE *vars;
+    VARIABLE **target_vars;
     char target[MIL];
     char *rest;
     QUEST_DATA *run;
@@ -12721,6 +13058,48 @@ SCRIPT_CMD(scriptcmd_varsaveon)
         return;
     }
 
+    if (!str_cmp(target, "event")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        target_vars = scriptcmd_event_runtime_vars_from_param(arg);
+        vars = target_vars ? *target_vars : NULL;
+        if (!vars)
+            return;
+
+        argument = one_argument(rest, name);
+        if (!name[0])
+            return;
+        argument = one_argument(argument, buf);
+        if (!buf[0])
+            return;
+
+        on = !str_cmp(buf,"on") || !str_cmp(buf,"true") || !str_cmp(buf,"yes");
+        variable_setsave(vars, name, on);
+        return;
+    }
+
+    if (!str_cmp(target, "eventindex")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        target_vars = scriptcmd_event_index_vars_from_param(arg);
+        vars = target_vars ? *target_vars : NULL;
+        if (!vars)
+            return;
+
+        argument = one_argument(rest, name);
+        if (!name[0])
+            return;
+        argument = one_argument(argument, buf);
+        if (!buf[0])
+            return;
+
+        on = !str_cmp(buf,"on") || !str_cmp(buf,"true") || !str_cmp(buf,"yes");
+        variable_setsave(vars, name, on);
+        return;
+    }
+
     // Get the target
     if(!(argument = expand_argument(info,argument,arg)))
         return;
@@ -12753,7 +13132,8 @@ SCRIPT_CMD(scriptcmd_varset)
     if(!info || !info->var) return;
 
     one_argument(argument, target);
-    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")) {
+    if (!str_cmp(target, "quest") || !str_cmp(target, "questindex")
+        || !str_cmp(target, "event") || !str_cmp(target, "eventindex")) {
         scriptcmd_varseton(info, argument, arg);
         return;
     }
@@ -12788,6 +13168,22 @@ SCRIPT_CMD(scriptcmd_varseton)
             run = (info->ch && !IS_NPC(info->ch)) ? quest_runtime_get_focused_run(info->ch) : NULL;
         index_v2 = run ? quest_runtime_get_index_v2(run) : NULL;
         vars = index_v2 ? &index_v2->index_vars : NULL;
+        script_varseton(info, vars, rest, arg);
+        return;
+    }
+
+    if (!str_cmp(target, "event")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        vars = scriptcmd_event_runtime_vars_from_param(arg);
+        script_varseton(info, vars, rest, arg);
+        return;
+    }
+
+    if (!str_cmp(target, "eventindex")) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+        vars = scriptcmd_event_index_vars_from_param(arg);
         script_varseton(info, vars, rest, arg);
         return;
     }

@@ -1239,6 +1239,13 @@ static void qedit_show_flow_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
             stage->next_stage_id));
         if (!IS_NULLSTR(stage->description))
             add_buf(ctx->buffer, formatf("  {YStage Desc:{x %s\n\r", stage->description));
+        if (!IS_NULLSTR(stage->complete_message))
+            add_buf(ctx->buffer, formatf("  {YStage Complete Msg:{x %s\n\r", stage->complete_message));
+        if (!IS_NULLSTR(stage->fail_message))
+            add_buf(ctx->buffer, formatf("  {YStage Fail Msg:{x %s\n\r", stage->fail_message));
+        add_buf(ctx->buffer, formatf("  {YSilent Defaults:{x complete:%s fail:%s\n\r",
+            stage->silent_complete ? "on" : "off",
+            stage->silent_fail ? "on" : "off"));
 
         for (objective = stage->objectives; objective != NULL; objective = objective->next) {
             char target_buf[MSL];
@@ -1346,6 +1353,13 @@ static void qedit_show_flow_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
                 add_buf(ctx->buffer, formatf("      talkphrase: %s\n\r", objective->talk_phrase));
             if (!IS_NULLSTR(objective->description))
                 add_buf(ctx->buffer, formatf("      description: %s\n\r", objective->description));
+            if (!IS_NULLSTR(objective->complete_message))
+                add_buf(ctx->buffer, formatf("      complete_msg: %s\n\r", objective->complete_message));
+            if (!IS_NULLSTR(objective->fail_message))
+                add_buf(ctx->buffer, formatf("      fail_msg: %s\n\r", objective->fail_message));
+            add_buf(ctx->buffer, formatf("      silent_defaults: complete:%s fail:%s\n\r",
+                objective->silent_complete ? "on" : "off",
+                objective->silent_fail ? "on" : "off"));
         }
     }
 }
@@ -2206,6 +2220,9 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 printf_to_char(ch, "       autocommence:%s  profile:%s\n\r",
                     stage->auto_commence ? "on" : "off",
                     IS_NULLSTR(stage->generator_profile) ? "" : stage->generator_profile);
+                printf_to_char(ch, "       silentdefaults complete:%s fail:%s\n\r",
+                    stage->silent_complete ? "on" : "off",
+                    stage->silent_fail ? "on" : "off");
             }
             return;
         }
@@ -2280,6 +2297,10 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "  next      : %d\n\r", stage->next_stage_id);
             printf_to_char(ch, "  enter     : %s\n\r", IS_NULLSTR(stage->on_enter_script) ? "" : stage->on_enter_script);
             printf_to_char(ch, "  exit      : %s\n\r", IS_NULLSTR(stage->on_exit_script) ? "" : stage->on_exit_script);
+            printf_to_char(ch, "  completemsg: %s\n\r", IS_NULLSTR(stage->complete_message) ? "" : stage->complete_message);
+            printf_to_char(ch, "  failmsg   : %s\n\r", IS_NULLSTR(stage->fail_message) ? "" : stage->fail_message);
+            printf_to_char(ch, "  silentcomplete: %s\n\r", stage->silent_complete ? "on" : "off");
+            printf_to_char(ch, "  silentfail: %s\n\r", stage->silent_fail ? "on" : "off");
             printf_to_char(ch, "  profile   : %s\n\r", stage->generator_profile);
             printf_to_char(ch, "  salt      : %llu\n\r", stage->generator_salt);
             return;
@@ -2303,7 +2324,7 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         }
 
         if (IS_NULLSTR(arg4)) {
-            send_to_char("QEdit: stage edit requires a field (summary/description/source/autocommence/complete/next/enter/exit/profile/salt).\n\r", ch);
+            send_to_char("QEdit: stage edit requires a field (summary/description/source/autocommence/complete/next/enter/exit/completemsg/failmsg/silentcomplete/silentfail/profile/salt).\n\r", ch);
             return;
         }
 
@@ -2426,6 +2447,58 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             free_string(stage->on_exit_script);
             stage->on_exit_script = str_dup((IS_NULLSTR(arg5) || !str_cmp(arg5, "none")) ? "" : text_after_arg4);
             send_to_char("QEdit: stage exit script updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg4, "completemsg") || !str_prefix(arg4, "completemessage") || !str_prefix(arg4, "oncomplete")) {
+            free_string(stage->complete_message);
+            stage->complete_message = str_dup((IS_NULLSTR(arg5) || !str_cmp(arg5, "none")) ? "" : text_after_arg4);
+            send_to_char("QEdit: stage completion message updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg4, "failmsg") || !str_prefix(arg4, "failmessage") || !str_prefix(arg4, "onfail")) {
+            free_string(stage->fail_message);
+            stage->fail_message = str_dup((IS_NULLSTR(arg5) || !str_cmp(arg5, "none")) ? "" : text_after_arg4);
+            send_to_char("QEdit: stage failure message updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg4, "silentcomplete") || !str_prefix(arg4, "silent_completion")) {
+            if (IS_NULLSTR(arg5)) {
+                send_to_char("QEdit: silentcomplete requires on|off.\n\r", ch);
+                return;
+            }
+
+            if (!str_prefix(arg5, "on") || !str_prefix(arg5, "yes") || !str_cmp(arg5, "1"))
+                stage->silent_complete = true;
+            else if (!str_prefix(arg5, "off") || !str_prefix(arg5, "no") || !str_cmp(arg5, "0"))
+                stage->silent_complete = false;
+            else {
+                send_to_char("QEdit: silentcomplete requires on|off.\n\r", ch);
+                return;
+            }
+
+            printf_to_char(ch, "QEdit: stage silentcomplete set to %s.\n\r", stage->silent_complete ? "on" : "off");
+            return;
+        }
+
+        if (!str_prefix(arg4, "silentfail") || !str_prefix(arg4, "silent_failure")) {
+            if (IS_NULLSTR(arg5)) {
+                send_to_char("QEdit: silentfail requires on|off.\n\r", ch);
+                return;
+            }
+
+            if (!str_prefix(arg5, "on") || !str_prefix(arg5, "yes") || !str_cmp(arg5, "1"))
+                stage->silent_fail = true;
+            else if (!str_prefix(arg5, "off") || !str_prefix(arg5, "no") || !str_cmp(arg5, "0"))
+                stage->silent_fail = false;
+            else {
+                send_to_char("QEdit: silentfail requires on|off.\n\r", ch);
+                return;
+            }
+
+            printf_to_char(ch, "QEdit: stage silentfail set to %s.\n\r", stage->silent_fail ? "on" : "off");
             return;
         }
 
@@ -2674,6 +2747,8 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                 const char *destination_token_refname = !IS_NULLSTR(objective->destination_token_variable_name) ? objective->destination_token_variable_name : "(none)";
                 const char *tag = IS_NULLSTR(objective->target_tag) ? "(none)" : objective->target_tag;
                 const char *talkphrase = IS_NULLSTR(objective->talk_phrase) ? "(none)" : objective->talk_phrase;
+                const char *complete_msg = IS_NULLSTR(objective->complete_message) ? "(none)" : objective->complete_message;
+                const char *fail_msg = IS_NULLSTR(objective->fail_message) ? "(none)" : objective->fail_message;
 
                 if (!IS_NULLSTR(objective->target_ref_name))
                     snprintf(ref_buf, sizeof(ref_buf), "$%s", objective->target_ref_name);
@@ -2719,6 +2794,11 @@ void do_qedit(CHAR_DATA *ch, char *argument)
                     objective->strict_target ? "on" : "off",
                     qedit_count_pool_entries(objective),
                     tag);
+                printf_to_char(ch, "      complete_msg:%s  fail_msg:%s  silentdefaults complete:%s fail:%s\n\r",
+                    complete_msg,
+                    fail_msg,
+                    objective->silent_complete ? "on" : "off",
+                    objective->silent_fail ? "on" : "off");
                 if (objective->objective_type == QUEST_OBJECTIVE_TALK)
                     printf_to_char(ch, "      talkphrase:%s\n\r", talkphrase);
                 if (objective->pool_entries) {
@@ -2905,6 +2985,10 @@ void do_qedit(CHAR_DATA *ch, char *argument)
             printf_to_char(ch, "  talkphrase: %s\n\r",
                 IS_NULLSTR(objective->talk_phrase) ? "" : objective->talk_phrase);
             printf_to_char(ch, "  description: %s\n\r", objective->description);
+            printf_to_char(ch, "  completemsg: %s\n\r", IS_NULLSTR(objective->complete_message) ? "" : objective->complete_message);
+            printf_to_char(ch, "  failmsg  : %s\n\r", IS_NULLSTR(objective->fail_message) ? "" : objective->fail_message);
+            printf_to_char(ch, "  silentcomplete: %s\n\r", objective->silent_complete ? "on" : "off");
+            printf_to_char(ch, "  silentfail: %s\n\r", objective->silent_fail ? "on" : "off");
             return;
         }
 
@@ -2933,8 +3017,74 @@ void do_qedit(CHAR_DATA *ch, char *argument)
         }
 
         if (IS_NULLSTR(arg5)) {
-            send_to_char("QEdit: objective field required (type/required/quantity/optional/strict/target/destination/token/destinationtoken/talkphrase/summary/description).\n\r", ch);
+            send_to_char("QEdit: objective field required (type/required/quantity/optional/strict/target/destination/token/destinationtoken/talkphrase/summary/description/completemsg/failmsg/silentcomplete/silentfail).\n\r", ch);
             send_to_char("       Use target|destination|token subfields: wnum/ref/name (and target mode|pool).\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg5, "completemsg") || !str_prefix(arg5, "completemessage") || !str_prefix(arg5, "oncomplete")) {
+            if (IS_NULLSTR(text_after_arg5) || !str_cmp(text_after_arg5, "none")) {
+                free_string(objective->complete_message);
+                objective->complete_message = str_dup("");
+                send_to_char("QEdit: objective completion message cleared.\n\r", ch);
+                return;
+            }
+
+            free_string(objective->complete_message);
+            objective->complete_message = str_dup(text_after_arg5);
+            send_to_char("QEdit: objective completion message updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg5, "failmsg") || !str_prefix(arg5, "failmessage") || !str_prefix(arg5, "onfail")) {
+            if (IS_NULLSTR(text_after_arg5) || !str_cmp(text_after_arg5, "none")) {
+                free_string(objective->fail_message);
+                objective->fail_message = str_dup("");
+                send_to_char("QEdit: objective failure message cleared.\n\r", ch);
+                return;
+            }
+
+            free_string(objective->fail_message);
+            objective->fail_message = str_dup(text_after_arg5);
+            send_to_char("QEdit: objective failure message updated.\n\r", ch);
+            return;
+        }
+
+        if (!str_prefix(arg5, "silentcomplete") || !str_prefix(arg5, "silent_completion")) {
+            if (IS_NULLSTR(arg6)) {
+                send_to_char("QEdit: silentcomplete requires on|off.\n\r", ch);
+                return;
+            }
+
+            if (!str_prefix(arg6, "on") || !str_prefix(arg6, "yes") || !str_cmp(arg6, "1"))
+                objective->silent_complete = true;
+            else if (!str_prefix(arg6, "off") || !str_prefix(arg6, "no") || !str_cmp(arg6, "0"))
+                objective->silent_complete = false;
+            else {
+                send_to_char("QEdit: silentcomplete requires on|off.\n\r", ch);
+                return;
+            }
+
+            printf_to_char(ch, "QEdit: objective silentcomplete set to %s.\n\r", objective->silent_complete ? "on" : "off");
+            return;
+        }
+
+        if (!str_prefix(arg5, "silentfail") || !str_prefix(arg5, "silent_failure")) {
+            if (IS_NULLSTR(arg6)) {
+                send_to_char("QEdit: silentfail requires on|off.\n\r", ch);
+                return;
+            }
+
+            if (!str_prefix(arg6, "on") || !str_prefix(arg6, "yes") || !str_cmp(arg6, "1"))
+                objective->silent_fail = true;
+            else if (!str_prefix(arg6, "off") || !str_prefix(arg6, "no") || !str_cmp(arg6, "0"))
+                objective->silent_fail = false;
+            else {
+                send_to_char("QEdit: silentfail requires on|off.\n\r", ch);
+                return;
+            }
+
+            printf_to_char(ch, "QEdit: objective silentfail set to %s.\n\r", objective->silent_fail ? "on" : "off");
             return;
         }
 

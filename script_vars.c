@@ -658,6 +658,28 @@ varset(blueprint_section,BLUEPRINT_SECTION,BLUEPRINT_SECTION *,blueprint_section
 varset(dungeonindex,DUNGEONINDEX,DUNGEON_INDEX_DATA *,dungeon_index,dungeon_index)
 varset(shipindex,SHIPINDEX,SHIP_INDEX_DATA *,ship_index,ship_index)
 
+bool variables_setsave_event (ppVARIABLE list,char *name,EVENT_RUNTIME_REF event, bool save)
+{
+    pVARIABLE var = variable_create(list,name,false,true);
+
+    if(!var) return false;
+
+    var->type = VAR_EVENT;
+    if( save != false )
+        var->save = save;
+    var->_.event.mob = NULL;
+    var->_.event.obj = NULL;
+    var->_.event.uid = event.uid;
+    var->_.event.instance_id = event.instance_id;
+
+    return true;
+}
+
+bool variables_set_event (ppVARIABLE list,char *name,EVENT_RUNTIME_REF event)
+{
+    return variables_setsave_event(list, name, event, false);
+}
+
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
@@ -1860,6 +1882,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
     case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
     case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
     case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
+    case VAR_EVENT:         newv->_.event = oldv->_.event; break;
     case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
     case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
     case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
@@ -1953,6 +1976,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
     case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
     case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
     case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
+    case VAR_EVENT:         newv->_.event = oldv->_.event; break;
     case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
     case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
     case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
@@ -2046,6 +2070,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
         case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
         case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
         case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
+        case VAR_EVENT:         newv->_.event = oldv->_.event; break;
         case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
         case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
         case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;
@@ -2137,6 +2162,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
     case VAR_LOCK_STATE:    newv->_.lock_state = oldv->_.lock_state; break;
     case VAR_LIQUID:        newv->_.liquid = oldv->_.liquid; break;
     case VAR_MATERIAL:      newv->_.material = oldv->_.material; break;
+    case VAR_EVENT:         newv->_.event = oldv->_.event; break;
     case VAR_REPUTATION:    newv->_.reputation = oldv->_.reputation; break;
     case VAR_REPUTATION_INDEX: newv->_.reputation_index = oldv->_.reputation_index; break;
     case VAR_REPUTATION_RANK: newv->_.reputation_rank = oldv->_.reputation_rank; break;

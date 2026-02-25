@@ -4946,8 +4946,12 @@ void do_time(CHAR_DATA * ch, char *argument)
     //}
     }
 
-    if(!IS_NPC(ch) && lunar)
-        p_percent_trigger(ch,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_MOON, NULL);
+    if (!IS_NPC(ch) && lunar) {
+        p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOON, NULL);
+
+        if (ch->in_room && ch->in_room->area)
+            p_percent2_trigger(ch->in_room->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOON, NULL);
+    }
 }
 
 

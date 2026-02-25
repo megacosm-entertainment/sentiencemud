@@ -2861,8 +2861,12 @@ QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2(void)
     objective->target_tag = str_dup("");
     objective->talk_phrase = str_dup("");
     objective->description = str_dup("");
+    objective->complete_message = str_dup("");
+    objective->fail_message = str_dup("");
     objective->optional = false;
     objective->strict_target = false;
+    objective->silent_complete = false;
+    objective->silent_fail = false;
 
     return objective;
 }
@@ -2894,6 +2898,8 @@ void free_quest_objective_index_v2(QUEST_OBJECTIVE_INDEX_V2_DATA *objective)
     free_string(objective->target_tag);
     free_string(objective->talk_phrase);
     free_string(objective->description);
+    free_string(objective->complete_message);
+    free_string(objective->fail_message);
 
     objective->next = quest_objective_index_v2_free;
     quest_objective_index_v2_free = objective;
@@ -2953,6 +2959,10 @@ QUEST_STAGE_INDEX_V2_DATA *new_quest_stage_index_v2(void)
     stage->stage_source = QUEST_STAGE_SOURCE_STATIC;
     stage->auto_commence = false;
     stage->next_stage_id = 0;
+    stage->complete_message = str_dup("");
+    stage->fail_message = str_dup("");
+    stage->silent_complete = false;
+    stage->silent_fail = false;
     stage->objectives = NULL;
     stage->generator_profile = str_dup("");
     stage->generator_salt = 0;
@@ -2979,6 +2989,8 @@ void free_quest_stage_index_v2(QUEST_STAGE_INDEX_V2_DATA *stage)
 
     free_string(stage->name);
     free_string(stage->description);
+    free_string(stage->complete_message);
+    free_string(stage->fail_message);
     free_string(stage->generator_profile);
     free_string(stage->on_enter_script);
     free_string(stage->on_exit_script);

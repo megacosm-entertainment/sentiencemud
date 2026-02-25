@@ -6,6 +6,7 @@
  **************************************************************************/
 
 #include "strings.h"
+#include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <time.h>
@@ -1592,6 +1593,11 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
                 list_destroy(block->loops[i].d.l.list.lp);
                 break;
 
+            case ENT_ILLIST_EVENT:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                list_destroy(block->loops[i].d.l.list.lp);
+                break;
+
             case ENT_ILLIST_MOB_GROUP:
                 iterator_stop(&block->loops[i].d.l.list.it);
                 list_destroy(block->loops[i].d.l.list.lp);
@@ -1954,6 +1960,8 @@ DECL_OPC_FUN(opc_list)
     QUEST_HISTORY_DATA *quest_hist;
     NAMED_SPECIAL_ROOM *special_room;
     SHIP_DATA *ship;
+    EVENT_RUNTIME_REF *event_ref;
+    EVENT_RUNTIME_REF empty_event_ref = { 0, 0 };
 
     if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
         return opc_skip_block(block,block->cur_line->level-1,false);
@@ -3112,6 +3120,31 @@ DECL_OPC_FUN(opc_list)
             variables_set_quest_history(block->info.var,block->loops[lp].var_name,quest_hist);
             break;
 
+        case ENT_ILLIST_EVENT:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_EVENT;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            event_ref = (EVENT_RUNTIME_REF *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !event_ref ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_event(block->info.var,block->loops[lp].var_name,*event_ref);
+            break;
+
         case ENT_ILLIST_SECTIONS:
             if(!IS_VALID(arg->d.blist))
             {
@@ -3946,6 +3979,23 @@ DECL_OPC_FUN(opc_list)
 
             break;
 
+        case ENT_ILLIST_EVENT:
+            event_ref = (EVENT_RUNTIME_REF *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( event_ref )
+                variables_set_event(block->info.var,block->loops[lp].var_name,*event_ref);
+            else
+                variables_set_event(block->info.var,block->loops[lp].var_name,empty_event_ref);
+
+            if( !event_ref ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
         case ENT_ILLIST_MOB_GROUP:
             //log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
             ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -4407,6 +4457,32 @@ DECL_OPC_FUN(opc_dungeon)
     return true;
 }
 
+DECL_OPC_FUN(opc_event)
+{
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
+
+    if(block->type != IFC_E) {
+        return false;
+    }
+
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,evt_cmd_table[block->cur_line->param].name);
+
+    if(evt_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted evt command '%s' with nulled security.",evt_cmd_table[block->cur_line->param].name);
+    } else if(block->info.area) {
+        if( !evt_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*evt_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
+
+    opc_next_line(block);
+    return true;
+}
+
 
 bool echo_line(SCRIPT_CB *block)
 {
@@ -4548,7 +4624,12 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
 
     } else if (area) {
         area->progs->lastreturn = PRET_EXECUTED;
-        block.type = (script && script->type == PRG_QPROG) ? IFC_Q : IFC_A;
+        if (script && script->type == PRG_QPROG)
+            block.type = IFC_Q;
+        else if (script && script->type == PRG_EPROG)
+            block.type = IFC_E;
+        else
+            block.type = IFC_A;
         block.info.progs = area->progs;
         block.info.location = NULL;
         block.info.var = &area->progs->vars;
@@ -5951,6 +6032,7 @@ int trigger_index(char *name, int type)
             case PRG_IPROG: if (trigger_table[i].instance) return i;
             case PRG_DPROG: if (trigger_table[i].dungeon) return i;
             case PRG_QPROG: if (trigger_table[i].quest) return i;
+            case PRG_EPROG: if (trigger_table[i].event) return i;
             }
     }
 
@@ -5966,6 +6048,7 @@ int trigger_index(char *name, int type)
             case PRG_IPROG: if (trigger_table[i].instance) return i;
             case PRG_DPROG: if (trigger_table[i].dungeon) return i;
             case PRG_QPROG: if (trigger_table[i].quest) return i;
+            case PRG_EPROG: if (trigger_table[i].event) return i;
             }
     }
 
@@ -5979,6 +6062,52 @@ bool is_trigger_type(int tindex, int type)
 //	log_stringf("is_trigger_type: %d, %s, %d", tindex, trigger_table[tindex].name, type);
 
     return (trigger_table[tindex].type == type);
+}
+
+bool script_validate_trigger_table(void)
+{
+    bool ok = true;
+    int canonical_count = 0;
+
+    for (int i = 0; i < trigger_table_size && trigger_table[i].name; i++) {
+        canonical_count++;
+
+        if (trigger_table[i].type != i) {
+            pbugf(LOG_ERROR,
+                  "trigger_table mismatch: index %d ('%s') has type %d (expected %d)",
+                  i,
+                  trigger_table[i].name,
+                  trigger_table[i].type,
+                  i);
+            ok = false;
+        }
+
+        if (trigger_table[i].slot < 0 || trigger_table[i].slot >= TRIGSLOT_MAX) {
+            pbugf(LOG_ERROR,
+                  "trigger_table mismatch: index %d ('%s') has invalid slot %d",
+                  i,
+                  trigger_table[i].name,
+                  trigger_table[i].slot);
+            ok = false;
+        }
+    }
+
+    if (canonical_count != (TRIG_ZAP + 1)) {
+        pbugf(LOG_ERROR,
+              "trigger_table mismatch: canonical entry count is %d (expected %d)",
+              canonical_count,
+              TRIG_ZAP + 1);
+        ok = false;
+    }
+
+    if (!ok) {
+#ifndef NDEBUG
+        assert(ok);
+#endif
+        return false;
+    }
+
+    return true;
 }
 
 bool mp_same_group(CHAR_DATA *ch,CHAR_DATA *vch,CHAR_DATA *to)

@@ -46,6 +46,7 @@
 #include <openssl/evp.h>
 #include <sodium.h>
 #include "merc.h"
+#include "event_types.h"
 #include "account/auth_sodium.h"
 #include "interp.h"
 #include "magic.h"
@@ -6854,6 +6855,8 @@ bool can_drop_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool silent)
 bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *mail, bool silent)
 {
     CHAR_DATA *gch;
+    long event_uid = 0;
+    uint32_t instance_id = 0;
 
     if (!ch)
     {
@@ -6881,6 +6884,12 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
     if (!can_see_obj(ch, obj))
     return false;
+
+    if (!IS_NPC(ch)
+    && event_get_object_spawn_source(obj, &event_uid, &instance_id)
+    && event_uid > 0
+    && !event_runtime_ensure_participation_for_action(ch, event_uid, instance_id, "collection", !silent))
+        return false;
 
     if (ch->carry_number + get_obj_number(obj) > can_carry_n(ch))
     MSG(act("$p: you can't carry that many items.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL))
@@ -13914,6 +13923,13 @@ const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea)
 {
     if (ship && ship->area)
         return widevnum_string(ship->area, ship->vnum, pRefArea);
+    return "0#0";
+}
+
+const char *widevnum_string_event(EVENT_INDEX_DATA *event, AREA_DATA *pRefArea)
+{
+    if (event && event->area)
+        return widevnum_string(event->area, event->vnum, pRefArea);
     return "0#0";
 }
 

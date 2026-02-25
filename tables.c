@@ -3497,6 +3497,10 @@ const struct do_func_type do_func_table[] =
         { "do_qpdump",                  do_qpdump },
         { "do_qpedit",                  do_qpedit },
         { "do_qplist",                  do_qplist },
+        { "do_epdump",                  do_epdump },
+        { "do_epstat",                  do_epstat },
+        { "do_epedit",                  do_epedit },
+        { "do_eplist",                  do_eplist },
         { "do_shedit",                  do_shedit },
         { "do_shlist",                  do_shlist },
         { "do_shshow",                  do_shshow },
@@ -3561,6 +3565,7 @@ const struct do_func_type do_func_table[] =
         { "do_sectoredit", do_sectoredit },
         { "do_evtedit", do_evtedit },
         { "do_event", do_event },
+        { "do_events", do_events },
         { "do_cedit", do_cedit },
         { "do_rview", do_rview },
         { NULL, NULL }

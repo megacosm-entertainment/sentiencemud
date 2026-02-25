@@ -1179,6 +1179,9 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
     } else if(type == IFC_D) {
         script->type = PRG_DPROG;
         type_name = "DUNGEON";
+    } else if(type == IFC_E) {
+        script->type = PRG_EPROG;
+        type_name = "EVENT";
     } else {
         script->type = -1;
         type_name = "???";
@@ -2422,6 +2425,44 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 
                     doquotes = false;
 
+                } else if(!str_cmp(buf,"evt")) {
+                    if(type != IFC_E) {
+                        sprintf(rbuf,"Line %d: Attempting to do an evt command outside an eprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_EVENT;
+                    code[cline].level = level;
+                    code[cline].param = evtcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid evt command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &evt_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'evt %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+
                 } else if(type == IFC_M) {
                     state[level] = IN_BLOCK;
                     code[cline].opcode = OP_COMMAND;
@@ -2429,7 +2470,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
                     line = start;
                     doquotes = false;
                 } else {
-                    sprintf(rbuf,"Line %d: Bare interpreter commands are mprog-only; use prefixed commands (mob/obj/room/token/area/quest/instance/dungeon) in other prog types.", rline);
+                    sprintf(rbuf,"Line %d: Bare interpreter commands are mprog-only; use prefixed commands (mob/obj/room/token/area/quest/instance/dungeon/evt) in other prog types.", rline);
                     compile_error_show(rbuf);
                     linevalid = false;
                     break;

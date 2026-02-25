@@ -1,62 +1,99 @@
-# PLAN_event_eprogs
+# Plan: Event Progs (`eprogs`) and System Progs (`sprogs`)
 
 ## Goal
-Add definition-level `eprogs` (event program hooks) so events can run scoped world mutations without hardcoding behavior in event runtime C paths.
 
-Primary target use case:
-- Area/zone scoped procedural effects (example: spawn a mist object in every room matching sector filters), enabling Reckoning-style events that stay local to event scope.
+Add script surfaces for:
+- **`eprogs`**: event-definition lifecycle scripting where `$(self)` is the event.
+- **`sprogs`**: system-level scripting for global orchestration, with optional area/zone placement.
 
-## Scope (Minimal Viable)
-- Data model only + execution points, not a full script language.
-- `evtedit` supports adding/removing/listing hook entries per event definition.
-- Runtime executes configured hook scripts at defined lifecycle moments.
+Primary use cases:
+- Event-local world mutation (spawn effects, room overlays, scoped encounters).
+- Global orchestration hooks (startup/tick/shutdown/admin workflows).
+- Builder ownership by area/zone instead of one global script pool.
 
-## Proposed Definition Data
-`eprogs[]` on each event definition, each entry:
-- `name` (optional label)
+## Data Model
+
+### `eprogs` on `EVENT_INDEX_DATA`
+Each entry:
+- `name` (optional)
 - `trigger` (`on_start`, `on_phase_change`, `on_tick`, `on_complete`, `on_fail`, `on_stop`)
-- `script_vnum` (area prog)
-- `interval_seconds` (for `on_tick` only; `0` = every event tick)
+- `script` (`WNUM` for script index)
+- `interval_seconds` (`on_tick` only; `0` means every event runtime tick)
 - `scope_mode` (`event_scope`, `global`)
-- `filters` (optional structured payload for sectors/flags/room ranges)
-- `enabled` (bool)
+- `filters` (optional structured constraints)
+- `enabled`
+
+### `sprogs` registry
+Each entry:
+- `name`
+- `trigger` (`on_boot`, `on_shutdown`, `on_tick`, `on_admin`, etc.)
+- `script` (`WNUM`)
+- `placement` (`global`, `area`, `zone`)
+- `interval_seconds` (for ticked hooks)
+- `enabled`
+
+## Persistence
+
+- `eprogs` are serialized inside each event definition in area JSON (`json_area.c`).
+- `sprogs` can be persisted either:
+  - globally in game settings JSON, or
+  - per area/zone in area JSON arrays for builder-local ownership.
 
 ## Runtime Contract
-- Runtime passes event context to scripts:
-  - definition uid, instance id, current phase, scope info, success/fail reason where relevant.
-- `event_scope` mode constrains room iteration/mutation to resolved runtime scope anchor.
-- Fail-safe behavior:
-  - missing script = skip with warning log
-  - script error = do not crash event runtime loop
 
-## OLC Command Surface (Proposed)
+### `eprogs`
+Dispatch points:
+- `on_start`: after event instance creation and scope resolution
+- `on_phase_change`: immediately after phase transition
+- `on_tick`: each runtime tick per interval
+- `on_complete`: before teardown/reward script dispatch
+- `on_fail`: before teardown on failure
+- `on_stop`: manual/system cancellation path
+
+Context passed to scripts includes:
+- event definition WNUM
+- instance id
+- phase name/index
+- progress counters/goals
+- success/failure reason where applicable
+
+### `sprogs`
+Dispatch from system runtime hooks independent of one event definition.
+
+## OLC/Command Surface
+
+### `evtedit` (`eprogs`)
 - `eprog list`
-- `eprog add <trigger> <scriptvnum> [name]`
+- `eprog add <trigger> <script_wnum> [name]`
 - `eprog set <index> trigger|script|interval|scope|enabled <value>`
-- `eprog filter <index> <filter-expr>`
+- `eprog filter <index> <expr>`
 - `eprog remove <index>`
 - `eprog clear`
 
-## Phase Order Integration
-- `on_start` after instance creation/scope resolution.
-- `on_phase_change` immediately after phase transition application.
-- `on_tick` in runtime tick for active instances.
-- `on_complete`/`on_fail` before teardown reward script dispatch.
-- `on_stop` on manual/system cancellation path.
+### `spedit` (`sprogs`)
+- `sprog list`
+- `sprog add <trigger> <script_wnum> [placement] [name]`
+- `sprog set <index> ...`
+- `sprog remove <index>`
+- `sprog clear`
 
-## Constraints
-- Backward compatible JSON load/save when `eprogs` missing.
-- No requirement for scripts to exist to keep event definition valid.
-- Keep scheduler semantics unchanged.
+## Safety / Failure Behavior
 
-## Delivery Steps
-1. Add `eprogs` definition structs + JSON persistence.
-2. Add `evtedit` commands for CRUD.
-3. Wire runtime trigger execution points.
-4. Add scope-constrained room iteration helpers for common map effects.
-5. Document operator usage and script examples.
+- Missing script index: warn and skip.
+- Script runtime error: log and continue event/system loop.
+- Scope enforcement for `event_scope`: no out-of-scope mutation.
 
-## Out of Scope (This Phase)
-- Full declarative DSL for room/object mutation.
-- New trigger types beyond lifecycle set above.
-- Automatic rollback/undo of all world mutations.
+## Minimal Delivery Sequence
+
+1. Add data structs and JSON serialization/deserialization.
+2. Add `evtedit eprog` CRUD.
+3. Wire `eprog` dispatch in event runtime lifecycle points.
+4. Add `sprog` registry + persistence.
+5. Add system dispatch points.
+6. Build and smoke test.
+
+## Out of Scope (initial)
+
+- Full declarative world-mutation DSL.
+- Automatic rollback of all scripted mutations.
+- New trigger classes beyond lifecycle/system hooks listed above.

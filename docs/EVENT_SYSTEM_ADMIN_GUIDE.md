@@ -136,6 +136,31 @@ Short answer: old `gq` mob/object lists are not edited in `evtedit` anymore.
 
 Use `event info gq_hunt` and `event status` to confirm active instance and progress. If progress never changes, your scripts are not issuing `event progress ...` updates for the active event token.
 
+### Script example: iterate scoped runtime events
+
+Scripts now expose an iterable `events` list on key entities (`mob`, `obj`, `room`, `area`, `instance`, `dungeon`).
+
+Use it like any other `LIST` surface:
+
+```text
+list ev $self.events
+   if $ev.active
+      echo Active event uid=$ev.uid instance=$ev.instance phase=$ev.phase
+   endif
+endlist
+```
+
+Common per-event fields available on each `ev` item:
+
+- `ev.uid` / `ev.source_uid`
+- `ev.instance` / `ev.source_instance`
+- `ev.bracket`
+- `ev.active`
+- `ev.kills`, `ev.items`, `ev.goal`
+- `ev.phase`
+
+You can still use singular `event` where needed (first/matching source behavior), but `events` is the preferred surface when scripts need to inspect all in-scope active runtimes.
+
 ---
 
 ## 3) `evtedit` Command Surface (Definition Editing)

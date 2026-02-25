@@ -424,6 +424,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"nosummon",	PLR_NOSUMMON,	 0,		0,		false,	STAFF_PLAYER,	SETTING_ON	},
     {   "nowake",	0,		 PLR_NO_WAKE,	0,		false,  STAFF_PLAYER,      SETTING_OFF	},
     {   "notify",	0,	 	 0,		COMM_NOTIFY,	false,	STAFF_PLAYER,	SETTING_ON	},
+    {   "eventnotify",0,	 	 0,		0,		false,	STAFF_PLAYER,	SETTING_ON	},
     {	"prompt",	0,		 0,		COMM_PROMPT,	false,	STAFF_PLAYER,	SETTING_ON	},
     {	"pursuit",	PLR_PURSUIT,	 0,		0,		false,	STAFF_PLAYER,	SETTING_OFF	},
     {	"quiet",	0,		 0,		COMM_QUIET,	false,	STAFF_PLAYER,	SETTING_OFF	},
@@ -3111,6 +3112,7 @@ const struct script_type script_type_table[] =
     { PRG_IPROG, "InstanceProg", "ip"},
     { PRG_DPROG, "DungeonProg", "dp"},
     { PRG_QPROG, "QuestProg", "qp"},
+    { PRG_EPROG, "EventProg", "ep"},
     { -1, NULL, NULL }
 };
 

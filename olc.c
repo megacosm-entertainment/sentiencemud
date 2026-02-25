@@ -149,6 +149,7 @@ char *editor_name_table[] = {
     "QpEdit",       // 42 ED_QPCODE
     "CEdit",        // 43 ED_CEDIT
     "ChReport",     // 44 ED_CHREPORT
+    "EpEdit",       // 45 ED_EPCODE
 };
 
 int editor_max_tabs_table[] = {
@@ -197,6 +198,7 @@ int editor_max_tabs_table[] = {
     0,		// QpEdit
     0,		// CEdit
     0,		// ChReport
+    0,		// EpEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -221,6 +223,7 @@ const struct editor_cmd_type editor_table[] =
     { "iprog",		do_ipedit	},
     { "dprog",		do_dpedit	},
     { "qprog",		do_qpedit	},
+    { "eprog",		do_epedit	},
     { "wilderness",    do_wedit	},
     { "command",    do_cmdedit  },
     { "race",       do_racedit  },
@@ -563,7 +566,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
         {
             EVENT_INDEX_DATA *event_ed = (EVENT_INDEX_DATA *)ch->desc->pEdit;
             if (event_ed)
-                snprintf(buf, sizeof(buf), "%ld:%s", event_index_get_uid(event_ed), event_index_get_name(event_ed));
+                snprintf(buf, sizeof(buf), "%s:%s", widevnum_string_event(event_ed, NULL), event_index_get_name(event_ed));
             else
                 sprintf(buf, "--");
         }

@@ -43,6 +43,7 @@
 #include "tables.h"
 #include "magic.h"
 #include "scripts.h"
+#include "event_types.h"
 #include "wilds.h"
 #include "traits.h"
 #include "skill_data.h"
@@ -1969,6 +1970,15 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
     // NPC victim
     if (IS_NPC(victim))
     {
+    long event_uid = 0;
+    uint32_t instance_id = 0;
+
+    if (!IS_NPC(ch)
+    && event_get_mobile_spawn_source(victim, &event_uid, &instance_id)
+    && event_uid > 0
+    && !event_runtime_ensure_participation_for_action(ch, event_uid, instance_id, "combat", show))
+        return true;
+
     /* Syn- only mobs with act flag "protected" are automatically
        protected by the gods now. All mobs such as guildmasters,
        churchmasters, healers, bankers, etc, have been set to

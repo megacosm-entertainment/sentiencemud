@@ -569,6 +569,13 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case VAR_LIQUID:    arg->type = ENT_LIQUID; arg->d.liquid = var->_.liquid; break;
         case VAR_MATERIAL:  arg->type = ENT_MATERIAL; arg->d.material = var->_.material; break;
         case VAR_LOCK_STATE:arg->type = ENT_LOCK_STATE; arg->d.lock_state = var->_.lock_state; break;
+        case VAR_EVENT:
+            arg->type = ENT_EVENT;
+            arg->d.event.mob = var->_.event.mob;
+            arg->d.event.obj = var->_.event.obj;
+            arg->d.event.uid = var->_.event.uid;
+            arg->d.event.instance_id = var->_.event.instance_id;
+            break;
         case VAR_MOBINDEX:  arg->type = ENT_MOBINDEX; arg->d.mobindex = var->_.mobindex; break;
         case VAR_OBJINDEX:  arg->type = ENT_OBJINDEX; arg->d.objindex = var->_.objindex; break;
         case VAR_TOKENINDEX:arg->type = ENT_TOKEN_INDEX; arg->d.token_index = var->_.token_index; break;
@@ -1379,10 +1386,10 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.event.uid = 0;
         arg->d.event.instance_id = 0;
         if (arg->d.event.mob) {
-            arg->d.event.uid = arg->d.event.mob->event_source_uid;
+            arg->d.event.uid = arg->d.event.mob->event_source.vnum;
             arg->d.event.instance_id = arg->d.event.mob->event_source_instance_id;
         } else if (arg->d.event.obj) {
-            arg->d.event.uid = arg->d.event.obj->event_source_uid;
+            arg->d.event.uid = arg->d.event.obj->event_source.vnum;
             arg->d.event.instance_id = arg->d.event.obj->event_source_instance_id;
         }
         break;
@@ -2053,6 +2060,37 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     return str+1;
 }
 
+static void script_event_runtime_ref_delete(void *data)
+{
+    if (data)
+        free_mem(data, sizeof(EVENT_RUNTIME_REF));
+}
+
+static LLIST *script_event_runtime_list_from_refs(const EVENT_RUNTIME_REF *refs, int count)
+{
+    LLIST *list;
+    int index;
+
+    list = list_createx(false, NULL, script_event_runtime_ref_delete);
+    if (!list)
+        return NULL;
+
+    for (index = 0; index < count; ++index)
+    {
+        EVENT_RUNTIME_REF *copy;
+
+        copy = alloc_mem(sizeof(*copy));
+        if (!copy)
+            continue;
+
+        *copy = refs[index];
+        if (!list_appendlink(list, copy))
+            free_mem(copy, sizeof(*copy));
+    }
+
+    return list;
+}
+
 char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     CHAR_DATA *self = arg->d.mob;
@@ -2063,6 +2101,12 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     int event_kills = 0;
     int event_items = 0;
     int event_goal = 0;
+    int event_stage_index = 0;
+    int event_stage_count = 0;
+    int event_objectives_met = 0;
+    int event_objectives_total = 0;
+    int event_objective_progress = 0;
+    int event_completion = 0;
     int mission_points = 0;
     int mission_total_completed = 0;
     bool event_active = false;
@@ -2083,6 +2127,12 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
         if (event_active)
             event_runtime_get_source_phase(event_uid, event_instance_id, event_phase_name, sizeof(event_phase_name));
+        if (event_active)
+            event_runtime_get_source_stage_progress(event_uid, event_instance_id,
+                &event_stage_index, &event_stage_count, &event_completion);
+        if (event_active)
+            event_runtime_get_source_objective_progress(event_uid, event_instance_id,
+                &event_objectives_met, &event_objectives_total, &event_objective_progress);
     }
 
     switch((unsigned char)*str) {
@@ -2464,7 +2514,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
     case ENTITY_MOB_EVENT_SOURCE_UID:
         arg->type = ENT_NUMBER;
-        arg->d.num = self ? (int)self->event_source_uid : 0;
+        arg->d.num = self ? (int)self->event_source.vnum : 0;
         break;
     case ENTITY_MOB_EVENT_SOURCE_INSTANCE:
         arg->type = ENT_NUMBER;
@@ -2496,6 +2546,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.num = event_goal;
         break;
     case ENTITY_MOB_EVENT_PHASE:
+    case ENTITY_MOB_EVENT_STAGE:
         arg->type = ENT_STRING;
         if (!event_active)
             arg->d.str = (char *)&str_empty[0];
@@ -2504,13 +2555,46 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
         break;
+    case ENTITY_MOB_EVENT_STAGE_INDEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_index;
+        break;
+    case ENTITY_MOB_EVENT_STAGE_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_count;
+        break;
+    case ENTITY_MOB_EVENT_OBJECTIVES_MET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_met;
+        break;
+    case ENTITY_MOB_EVENT_OBJECTIVES_TOTAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_total;
+        break;
+    case ENTITY_MOB_EVENT_OBJECTIVE_PROGRESS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objective_progress;
+        break;
+    case ENTITY_MOB_EVENT_COMPLETION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_completion;
+        break;
     case ENTITY_MOB_EVENT:
         arg->type = ENT_EVENT;
         arg->d.event.mob = self;
         arg->d.event.obj = NULL;
-        arg->d.event.uid = self ? self->event_source_uid : 0;
+        arg->d.event.uid = self ? self->event_source.vnum : 0;
         arg->d.event.instance_id = self ? self->event_source_instance_id : 0;
         break;
+    case ENTITY_MOB_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_character(self, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
     case ENTITY_MOB_QUESTPOINTS:
         arg->type = ENT_NUMBER;
         arg->d.num = mission_points;
@@ -2664,6 +2748,10 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.event.obj = NULL;
         arg->d.event.uid = 0;
         arg->d.event.instance_id = 0;
+        break;
+    case ENTITY_MOB_EVENTS:
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = NULL;
         break;
     case ENTITY_MOB_RACE:
         arg->type = ENT_STRING;
@@ -2884,11 +2972,18 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_MOB_EVENT_KILLS:
     case ENTITY_MOB_EVENT_ITEMS:
     case ENTITY_MOB_EVENT_GOAL:
+    case ENTITY_MOB_EVENT_STAGE_INDEX:
+    case ENTITY_MOB_EVENT_STAGE_COUNT:
+    case ENTITY_MOB_EVENT_OBJECTIVES_MET:
+    case ENTITY_MOB_EVENT_OBJECTIVES_TOTAL:
+    case ENTITY_MOB_EVENT_OBJECTIVE_PROGRESS:
+    case ENTITY_MOB_EVENT_COMPLETION:
         arg->type = ENT_NUMBER;
         arg->d.num = 0;
         break;
 
     case ENTITY_MOB_EVENT_PHASE:
+    case ENTITY_MOB_EVENT_STAGE:
         arg->type = ENT_STRING;
         arg->d.str = (char*)&str_empty[0];
         break;
@@ -3024,7 +3119,7 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
     case ENTITY_OBJ_EVENT_SOURCE_UID:
         arg->type = ENT_NUMBER;
-        arg->d.num = self ? (int)self->event_source_uid : 0;
+        arg->d.num = self ? (int)self->event_source.vnum : 0;
         break;
 
     case ENTITY_OBJ_EVENT_SOURCE_INSTANCE:
@@ -3041,12 +3136,24 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJ_EVENT_KILLS:
     case ENTITY_OBJ_EVENT_ITEMS:
     case ENTITY_OBJ_EVENT_GOAL:
+    case ENTITY_OBJ_EVENT_STAGE_INDEX:
+    case ENTITY_OBJ_EVENT_STAGE_COUNT:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_MET:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_TOTAL:
+    case ENTITY_OBJ_EVENT_OBJECTIVE_PROGRESS:
+    case ENTITY_OBJ_EVENT_COMPLETION:
     {
         long event_uid = 0;
         uint32_t event_instance_id = 0;
         int kills = 0;
         int items = 0;
         int goal = 0;
+        int stage_index = 0;
+        int stage_count = 0;
+        int objectives_met = 0;
+        int objectives_total = 0;
+        int objective_progress = 0;
+        int completion = 0;
         bool active = false;
 
         if (self)
@@ -3054,6 +3161,12 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
         if (event_uid > 0)
             active = event_runtime_get_source_progress(event_uid, event_instance_id, &kills, &items, &goal);
+        if (active)
+            event_runtime_get_source_stage_progress(event_uid, event_instance_id,
+                &stage_index, &stage_count, &completion);
+        if (active)
+            event_runtime_get_source_objective_progress(event_uid, event_instance_id,
+                &objectives_met, &objectives_total, &objective_progress);
 
         arg->type = ENT_NUMBER;
         if ((unsigned char)*str == ENTITY_OBJ_EVENT_ACTIVE)
@@ -3062,12 +3175,25 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             arg->d.num = kills;
         else if ((unsigned char)*str == ENTITY_OBJ_EVENT_ITEMS)
             arg->d.num = items;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_STAGE_INDEX)
+            arg->d.num = stage_index;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_STAGE_COUNT)
+            arg->d.num = stage_count;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_OBJECTIVES_MET)
+            arg->d.num = objectives_met;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_OBJECTIVES_TOTAL)
+            arg->d.num = objectives_total;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_OBJECTIVE_PROGRESS)
+            arg->d.num = objective_progress;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_COMPLETION)
+            arg->d.num = completion;
         else
             arg->d.num = goal;
         break;
     }
 
     case ENTITY_OBJ_EVENT_PHASE:
+    case ENTITY_OBJ_EVENT_STAGE:
     {
         long event_uid = 0;
         uint32_t event_instance_id = 0;
@@ -3096,13 +3222,23 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
         break;
+    }
 
     case ENTITY_OBJ_EVENT:
         arg->type = ENT_EVENT;
         arg->d.event.mob = NULL;
         arg->d.event.obj = self;
-        arg->d.event.uid = self ? self->event_source_uid : 0;
+        arg->d.event.uid = self ? self->event_source.vnum : 0;
         arg->d.event.instance_id = self ? self->event_source_instance_id : 0;
+        break;
+
+    case ENTITY_OBJ_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_object(self, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
         break;
     }
 
@@ -3365,11 +3501,18 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     case ENTITY_OBJ_EVENT_KILLS:
     case ENTITY_OBJ_EVENT_ITEMS:
     case ENTITY_OBJ_EVENT_GOAL:
+    case ENTITY_OBJ_EVENT_STAGE_INDEX:
+    case ENTITY_OBJ_EVENT_STAGE_COUNT:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_MET:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_TOTAL:
+    case ENTITY_OBJ_EVENT_OBJECTIVE_PROGRESS:
+    case ENTITY_OBJ_EVENT_COMPLETION:
         arg->type = ENT_NUMBER;
         arg->d.num = 0;
         break;
 
     case ENTITY_OBJ_EVENT_PHASE:
+    case ENTITY_OBJ_EVENT_STAGE:
         arg->type = ENT_STRING;
         arg->d.str = (char*)&str_empty[0];
         break;
@@ -3379,6 +3522,10 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.event.obj = NULL;
         arg->d.event.uid = 0;
         arg->d.event.instance_id = 0;
+        break;
+    case ENTITY_OBJ_EVENTS:
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = NULL;
         break;
         
 
@@ -3536,6 +3683,28 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.bv.value = room && room->sector ? room->sector->flags : 0;
         arg->d.bv.table = sector_runtime_flag_table();
         break;
+
+    case ENTITY_ROOM_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_room(room, refs, 1);
+
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_ROOM_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_room(room, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
 
     default: return NULL;
     }
@@ -3718,6 +3887,12 @@ char *expand_entity_event(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
     int event_kills = 0;
     int event_items = 0;
     int event_goal = 0;
+    int event_stage_index = 0;
+    int event_stage_count = 0;
+    int event_objectives_met = 0;
+    int event_objectives_total = 0;
+    int event_objective_progress = 0;
+    int event_completion = 0;
     bool event_active = false;
     bool leader_phase = false;
     char event_phase_name[MIL];
@@ -3738,6 +3913,10 @@ char *expand_entity_event(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         if (event_active) {
             event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
             event_runtime_get_source_phase(event_uid, event_instance_id, event_phase_name, sizeof(event_phase_name));
+            event_runtime_get_source_stage_progress(event_uid, event_instance_id,
+                &event_stage_index, &event_stage_count, &event_completion);
+            event_runtime_get_source_objective_progress(event_uid, event_instance_id,
+                &event_objectives_met, &event_objectives_total, &event_objective_progress);
         }
     }
 
@@ -3787,6 +3966,7 @@ char *expand_entity_event(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
 
     case ENTITY_EVENT_PHASE:
+    case ENTITY_EVENT_STAGE:
         arg->type = ENT_STRING;
         if (!event_active)
             arg->d.str = (char *)&str_empty[0];
@@ -3794,6 +3974,36 @@ char *expand_entity_event(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             arg->d.str = event_phase_name;
         else
             arg->d.str = (char *)(leader_phase ? "leader" : "active");
+        break;
+
+    case ENTITY_EVENT_STAGE_INDEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_index;
+        break;
+
+    case ENTITY_EVENT_STAGE_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_count;
+        break;
+
+    case ENTITY_EVENT_OBJECTIVES_MET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_met;
+        break;
+
+    case ENTITY_EVENT_OBJECTIVES_TOTAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_total;
+        break;
+
+    case ENTITY_EVENT_OBJECTIVE_PROGRESS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objective_progress;
+        break;
+
+    case ENTITY_EVENT_COMPLETION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_completion;
         break;
 
     default:
@@ -3950,6 +4160,27 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_PLLIST_ROOM;
         arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
         break;
+    case ENTITY_AREA_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_area(arg->d.area, refs, 1);
+
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_AREA_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_area(arg->d.area, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
     case ESCAPE_VARIABLE:
         str = expand_escape_variable(info,arg->d.area?arg->d.area->progs->vars:NULL,str+1,arg);
         if(!str) return NULL;
@@ -3993,6 +4224,17 @@ char *expand_entity_area_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
     case ENTITY_AREA_ROOMS:
         arg->type = ENT_BLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_AREA_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        break;
+    case ENTITY_AREA_EVENTS:
+        arg->type = ENT_ILLIST_EVENT;
         arg->d.blist = NULL;
         break;
     default: return NULL;
@@ -4870,6 +5112,14 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.bv.table = sector_runtime_flag_table();
         break;
 
+    case ENTITY_ROOM_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        break;
+
     case ESCAPE_VARIABLE:
         str = expand_escape_variable(info,NULL,str+1,arg);
         if(!str) return NULL;
@@ -4993,6 +5243,14 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_BITVECTOR;
         arg->d.bv.value = 0;
         arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
+    case ENTITY_ROOM_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
         break;
 
     case ESCAPE_VARIABLE:
@@ -7523,6 +7781,28 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.blist = IS_VALID(instance) ? instance->special_rooms : NULL;
         break;
 
+    case ENTITY_INSTANCE_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_instance(instance, refs, 1);
+
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_INSTANCE_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_instance(instance, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
+
     default: return NULL;
     }
 
@@ -8008,6 +8288,28 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->type = ENT_ILLIST_SPECIALROOMS;
         arg->d.blist = IS_VALID(dungeon) ? dungeon->special_rooms : NULL;
         break;
+
+    case ENTITY_DUNGEON_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_dungeon(dungeon, refs, 1);
+
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_DUNGEON_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_dungeon(dungeon, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
 
     default: return NULL;
     }
@@ -10491,6 +10793,10 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
             add_buf(buffer, (var->_.lock_state && var->_.lock_state->key_wnum.pArea)
                 ? (char *)widevnum_string_wnum(var->_.lock_state->key_wnum, NULL)
                 : "0");
+            break;
+
+        case VAR_EVENT:
+            add_buf(buffer, formatf("%ld#%u", var->_.event.uid, var->_.event.instance_id));
             break;
 
         case VAR_LIQUID:

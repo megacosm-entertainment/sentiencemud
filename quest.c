@@ -101,6 +101,8 @@ static WNUM quest_runtime_resolve_objective_target_reference(QUEST_DATA *run, QU
     QUEST_STAGE_INDEX_V2_DATA *stage, QUEST_OBJECTIVE_INDEX_V2_DATA *objective);
 static const char *quest_run_display_name(QUEST_DATA *run);
 static void quest_runtime_apply_rewards(QUEST_DATA *run, CHAR_DATA *enactor);
+static void quest_runtime_emit_objective_message(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective, bool failed);
+static void quest_runtime_emit_stage_message(QUEST_DATA *run, QUEST_STAGE_INDEX_V2_DATA *stage, bool failed);
 
 #define QUEST_LIST_MAX_ENTRIES 128
 
@@ -656,6 +658,70 @@ static const char *quest_objective_visible_label(QUEST_OBJECTIVE_INDEX_V2_DATA *
     return quest_objective_type_name(objective->objective_type);
 }
 
+static void quest_runtime_emit_objective_message(QUEST_DATA *run, QUEST_OBJECTIVE_INDEX_V2_DATA *objective, bool failed)
+{
+    CHAR_DATA *owner;
+    const char *custom;
+    bool silent_default;
+    const char *label;
+
+    if (!run || !objective)
+        return;
+
+    owner = quest_runtime_get_owner_character(run);
+    if (!owner || IS_NPC(owner))
+        return;
+
+    custom = failed ? objective->fail_message : objective->complete_message;
+    silent_default = failed ? objective->silent_fail : objective->silent_complete;
+    if (!IS_NULLSTR(custom))
+    {
+        printf_to_char(owner, "%s\n\r", custom);
+        return;
+    }
+
+    if (silent_default)
+        return;
+
+    label = quest_objective_visible_label(objective);
+    if (failed)
+        printf_to_char(owner, "Objective failed: {R%s{x\n\r", label);
+    else
+        printf_to_char(owner, "Objective complete: {G%s{x\n\r", label);
+}
+
+static void quest_runtime_emit_stage_message(QUEST_DATA *run, QUEST_STAGE_INDEX_V2_DATA *stage, bool failed)
+{
+    CHAR_DATA *owner;
+    const char *custom;
+    bool silent_default;
+    const char *name;
+
+    if (!run || !stage)
+        return;
+
+    owner = quest_runtime_get_owner_character(run);
+    if (!owner || IS_NPC(owner))
+        return;
+
+    custom = failed ? stage->fail_message : stage->complete_message;
+    silent_default = failed ? stage->silent_fail : stage->silent_complete;
+    if (!IS_NULLSTR(custom))
+    {
+        printf_to_char(owner, "%s\n\r", custom);
+        return;
+    }
+
+    if (silent_default)
+        return;
+
+    name = IS_NULLSTR(stage->name) ? "(unnamed stage)" : stage->name;
+    if (failed)
+        printf_to_char(owner, "Stage failed: {R%s{x\n\r", name);
+    else
+        printf_to_char(owner, "Stage complete: {G%s{x\n\r", name);
+}
+
 static int quest_objective_required_display_count(QUEST_OBJECTIVE_INDEX_V2_DATA *objective)
 {
     int required;
@@ -675,13 +741,30 @@ static int quest_objective_required_display_count(QUEST_OBJECTIVE_INDEX_V2_DATA 
 static const char *quest_objective_target_summary(QUEST_DATA *run,
     QUEST_OBJECTIVE_INDEX_V2_DATA *objective,
     char *buf,
-    size_t buf_size)
+    size_t buf_size,
+    bool include_widevnum)
 {
     QUEST_OBJECTIVE_STATE_V2_DATA *state;
     WNUM target;
     MOB_INDEX_DATA *mob_index;
     OBJ_INDEX_DATA *obj_index;
     ROOM_INDEX_DATA *room;
+    char pool_suffix[8];
+
+#define QUEST_TARGET_LABEL_MOB(m) \
+    (IS_NULLSTR((m)->list_name) ? \
+        (IS_NULLSTR((m)->short_descr) ? \
+            (IS_NULLSTR((m)->player_name) ? "(unnamed)" : (m)->player_name) : \
+            (m)->short_descr) : \
+        (m)->list_name)
+#define QUEST_TARGET_LABEL_OBJ(o) \
+    (IS_NULLSTR((o)->list_name) ? \
+        (IS_NULLSTR((o)->short_descr) ? \
+            (IS_NULLSTR((o)->name) ? "(unnamed)" : (o)->name) : \
+            (o)->short_descr) : \
+        (o)->list_name)
+#define QUEST_TARGET_LABEL_ROOM(r) \
+    (IS_NULLSTR((r)->name) ? "(unnamed room)" : (r)->name)
 
     if (!buf || buf_size < 2)
         return "target: (invalid)";
@@ -697,44 +780,236 @@ static const char *quest_objective_target_summary(QUEST_DATA *run,
         ? state->selected_target_wnum
         : objective->target_wnum;
 
+    pool_suffix[0] = '\0';
+
     if (!target.pArea || target.vnum < 1)
     {
-        snprintf(buf, buf_size, "target: (unspecified)");
+        snprintf(buf, buf_size, "target: (unspecified)%s", pool_suffix);
+        return buf;
+    }
+
+    if (objective->objective_type == QUEST_OBJECTIVE_COLLECT)
+    {
+        obj_index = get_obj_index(target.pArea, target.vnum);
+        if (obj_index)
+        {
+            if (include_widevnum)
+                snprintf(buf, buf_size, "target: %ld#%ld (obj: %s)%s",
+                    target.pArea->uid,
+                    target.vnum,
+                    QUEST_TARGET_LABEL_OBJ(obj_index),
+                    pool_suffix);
+            else
+                snprintf(buf, buf_size, "target: %s%s", QUEST_TARGET_LABEL_OBJ(obj_index), pool_suffix);
+            return buf;
+        }
+    }
+
+    if (objective->objective_type == QUEST_OBJECTIVE_TRAVEL)
+    {
+        room = get_room_index(target.pArea, target.vnum);
+        if (room)
+        {
+            if (include_widevnum)
+                snprintf(buf, buf_size, "target: %ld#%ld (room: %s)%s",
+                    target.pArea->uid,
+                    target.vnum,
+                    QUEST_TARGET_LABEL_ROOM(room),
+                    pool_suffix);
+            else
+                snprintf(buf, buf_size, "target: %s%s", QUEST_TARGET_LABEL_ROOM(room), pool_suffix);
+            return buf;
+        }
+    }
+
+    if (objective->objective_type == QUEST_OBJECTIVE_KILL
+    ||  objective->objective_type == QUEST_OBJECTIVE_TALK
+    ||  objective->objective_type == QUEST_OBJECTIVE_RESCUE
+    ||  objective->objective_type == QUEST_OBJECTIVE_ESCORT)
+    {
+        mob_index = get_mob_index(target.pArea, target.vnum);
+        if (mob_index)
+        {
+            if (include_widevnum)
+                snprintf(buf, buf_size, "target: %ld#%ld (mob: %s)%s",
+                    target.pArea->uid,
+                    target.vnum,
+                    QUEST_TARGET_LABEL_MOB(mob_index),
+                    pool_suffix);
+            else
+                snprintf(buf, buf_size, "target: %s%s", QUEST_TARGET_LABEL_MOB(mob_index), pool_suffix);
+            return buf;
+        }
+    }
+
+    obj_index = get_obj_index(target.pArea, target.vnum);
+    if (obj_index)
+    {
+        if (include_widevnum)
+            snprintf(buf, buf_size, "target: %ld#%ld (obj: %s)%s",
+                target.pArea->uid,
+                target.vnum,
+                QUEST_TARGET_LABEL_OBJ(obj_index),
+                pool_suffix);
+        else
+            snprintf(buf, buf_size, "target: %s%s", QUEST_TARGET_LABEL_OBJ(obj_index), pool_suffix);
         return buf;
     }
 
     mob_index = get_mob_index(target.pArea, target.vnum);
     if (mob_index)
     {
-        snprintf(buf, buf_size, "target: %ld#%ld (mob: %s)",
-            target.pArea->uid,
-            target.vnum,
-            IS_NULLSTR(mob_index->short_descr) ? "(unnamed)" : mob_index->short_descr);
-        return buf;
-    }
-
-    obj_index = get_obj_index(target.pArea, target.vnum);
-    if (obj_index)
-    {
-        snprintf(buf, buf_size, "target: %ld#%ld (obj: %s)",
-            target.pArea->uid,
-            target.vnum,
-            IS_NULLSTR(obj_index->short_descr) ? "(unnamed)" : obj_index->short_descr);
+        if (include_widevnum)
+            snprintf(buf, buf_size, "target: %ld#%ld (mob: %s)%s",
+                target.pArea->uid,
+                target.vnum,
+                QUEST_TARGET_LABEL_MOB(mob_index),
+                pool_suffix);
+        else
+            snprintf(buf, buf_size, "target: %s%s", QUEST_TARGET_LABEL_MOB(mob_index), pool_suffix);
         return buf;
     }
 
     room = get_room_index(target.pArea, target.vnum);
     if (room)
     {
-        snprintf(buf, buf_size, "target: %ld#%ld (room: %s)",
-            target.pArea->uid,
-            target.vnum,
-            IS_NULLSTR(room->name) ? "(unnamed)" : room->name);
+        if (include_widevnum)
+            snprintf(buf, buf_size, "target: %ld#%ld (room: %s)%s",
+                target.pArea->uid,
+                target.vnum,
+                QUEST_TARGET_LABEL_ROOM(room),
+                pool_suffix);
+        else
+            snprintf(buf, buf_size, "target: %s%s", QUEST_TARGET_LABEL_ROOM(room), pool_suffix);
         return buf;
     }
 
-    snprintf(buf, buf_size, "target: %ld#%ld", target.pArea->uid, target.vnum);
+    if (include_widevnum)
+        snprintf(buf, buf_size, "target: %ld#%ld%s", target.pArea->uid, target.vnum, pool_suffix);
+    else
+        snprintf(buf, buf_size, "target: (unknown target)%s", pool_suffix);
+
+#undef QUEST_TARGET_LABEL_MOB
+#undef QUEST_TARGET_LABEL_OBJ
+#undef QUEST_TARGET_LABEL_ROOM
+
     return buf;
+}
+
+
+static void quest_objective_target_options_display(CHAR_DATA *ch,
+    QUEST_DATA *run,
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective,
+    bool include_widevnum)
+{
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry;
+    int pool_count = 0;
+
+    if (!ch || !objective || objective->target_mode != QUEST_OBJECTIVE_TARGET_POOL)
+        return;
+
+    for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next)
+        pool_count++;
+
+    if (pool_count < 2)
+        return;
+
+    state = run ? quest_runtime_get_objective_state(run, objective->id, false) : NULL;
+
+    send_to_char("       options:\n\r", ch);
+
+    for (pool_entry = objective->pool_entries; pool_entry != NULL; pool_entry = pool_entry->next)
+    {
+        WNUM pool_target = pool_entry->target_wnum;
+        MOB_INDEX_DATA *mob_index = NULL;
+        OBJ_INDEX_DATA *obj_index = NULL;
+        ROOM_INDEX_DATA *room = NULL;
+        const char *entry_label = "(unspecified)";
+        bool selected = false;
+
+        if (state)
+        {
+            if (state->selected_pool_entry_id > 0)
+                selected = (state->selected_pool_entry_id == pool_entry->id);
+            else if (state->selected_target_wnum.pArea && state->selected_target_wnum.vnum > 0
+                && state->selected_target_wnum.pArea == pool_target.pArea
+                && state->selected_target_wnum.vnum == pool_target.vnum)
+            {
+                selected = true;
+            }
+        }
+
+        if (pool_target.pArea && pool_target.vnum > 0)
+        {
+            if (objective->objective_type == QUEST_OBJECTIVE_COLLECT)
+            {
+                obj_index = get_obj_index(pool_target.pArea, pool_target.vnum);
+                if (obj_index)
+                    entry_label = IS_NULLSTR(obj_index->list_name)
+                        ? (IS_NULLSTR(obj_index->short_descr)
+                            ? (IS_NULLSTR(obj_index->name) ? "(unnamed)" : obj_index->name)
+                            : obj_index->short_descr)
+                        : obj_index->list_name;
+            }
+            else if (objective->objective_type == QUEST_OBJECTIVE_TRAVEL)
+            {
+                room = get_room_index(pool_target.pArea, pool_target.vnum);
+                if (room)
+                    entry_label = IS_NULLSTR(room->name) ? "(unnamed room)" : room->name;
+            }
+            else
+            {
+                mob_index = get_mob_index(pool_target.pArea, pool_target.vnum);
+                if (mob_index)
+                    entry_label = IS_NULLSTR(mob_index->list_name)
+                        ? (IS_NULLSTR(mob_index->short_descr)
+                            ? (IS_NULLSTR(mob_index->player_name) ? "(unnamed)" : mob_index->player_name)
+                            : mob_index->short_descr)
+                        : mob_index->list_name;
+            }
+
+            if (!str_cmp(entry_label, "(unspecified)"))
+            {
+                obj_index = get_obj_index(pool_target.pArea, pool_target.vnum);
+                if (obj_index)
+                    entry_label = IS_NULLSTR(obj_index->list_name)
+                        ? (IS_NULLSTR(obj_index->short_descr)
+                            ? (IS_NULLSTR(obj_index->name) ? "(unnamed)" : obj_index->name)
+                            : obj_index->short_descr)
+                        : obj_index->list_name;
+            }
+            if (!str_cmp(entry_label, "(unspecified)"))
+            {
+                mob_index = get_mob_index(pool_target.pArea, pool_target.vnum);
+                if (mob_index)
+                    entry_label = IS_NULLSTR(mob_index->list_name)
+                        ? (IS_NULLSTR(mob_index->short_descr)
+                            ? (IS_NULLSTR(mob_index->player_name) ? "(unnamed)" : mob_index->player_name)
+                            : mob_index->short_descr)
+                        : mob_index->list_name;
+            }
+            if (!str_cmp(entry_label, "(unspecified)"))
+            {
+                room = get_room_index(pool_target.pArea, pool_target.vnum);
+                if (room)
+                    entry_label = IS_NULLSTR(room->name) ? "(unnamed room)" : room->name;
+            }
+        }
+
+        if (include_widevnum && pool_target.pArea && pool_target.vnum > 0)
+            printf_to_char(ch, "         - %s%ld#%ld (%s)%s\n\r",
+                selected ? "*" : "",
+                pool_target.pArea->uid,
+                pool_target.vnum,
+                entry_label,
+                selected ? "*" : "");
+        else
+            printf_to_char(ch, "         - %s%s%s\n\r",
+                selected ? "*" : "",
+                entry_label,
+                selected ? "*" : "");
+    }
 }
 
 static const char *quest_runtime_commence_blocker(QUEST_DATA *run)
@@ -1060,7 +1335,10 @@ static bool quest_runtime_merge_stage_progress(QUEST_DATA *target_run, QUEST_DAT
             target_state->complete = true;
 
         if (!old_complete && target_state->complete)
+        {
+            quest_runtime_emit_objective_message(target_run, objective, false);
             quest_runtime_fire_objective_lifecycle_trigger(target_run, TRIG_OBJECTIVE_COMPLETED, objective->id);
+        }
 
         if (target_state->progress != old_progress || target_state->complete != old_complete)
             changed = true;
@@ -1524,6 +1802,7 @@ static void quest_runtime_mark_run_failed(QUEST_DATA *run, int failed_status, co
     stage = quest_runtime_get_current_stage(run);
     if (stage && run->current_stage_commenced)
     {
+        quest_runtime_emit_stage_message(run, stage, true);
         quest_runtime_fire_stage_lifecycle_trigger(run, TRIG_STAGE_FAILED, stage->id);
 
         for (objective = stage->objectives; objective != NULL; objective = objective->next)
@@ -1534,6 +1813,7 @@ static void quest_runtime_mark_run_failed(QUEST_DATA *run, int failed_status, co
             if (state && state->complete)
                 continue;
 
+            quest_runtime_emit_objective_message(run, objective, true);
             quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_FAILED, objective->id);
         }
     }
@@ -3200,33 +3480,47 @@ void do_quest(CHAR_DATA *ch, char *argument)
                         QUEST_OBJECTIVE_STATE_V2_DATA *state;
                         int required;
                         int progress;
+                        bool objective_complete;
+                        bool objective_failed;
+                        bool objective_pending;
+                        char indicator_buf[128];
 
                         state = quest_runtime_get_objective_state(focused_run, objective->id, false);
-                        if (state && state->complete)
-                            continue;
+                        objective_complete = (state && state->complete);
+                        objective_failed = (!objective_complete
+                            && focused_run->run_status == QUEST_RUN_STATUS_FAILED);
+                        objective_pending = (!objective_complete
+                            && !objective_failed
+                            && !focused_run->current_stage_commenced);
 
                         required = quest_objective_required_display_count(objective);
                         progress = state ? state->progress : 0;
 
-                        if (!focused_run->current_stage_commenced)
-                        {
-                            printf_to_char(ch, "  [{Y%d{x] %s {D(%s){x [pending commence]\n\r",
-                                objective->id,
-                                quest_objective_visible_label(objective),
-                                quest_objective_type_name(objective->objective_type));
-                        }
-                        else
+                        indicator_buf[0] = '\0';
+                        if (objective->optional)
+                            strncat(indicator_buf, " {C[optional]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+                        if (objective_complete)
+                            strncat(indicator_buf, " {G[completed]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+                        else if (objective_failed && objective->optional)
+                            strncat(indicator_buf, " {R[failed]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+                        else if (objective_pending)
+                            strncat(indicator_buf, " {Y[pending]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+
                         {
                             char target_buf[MSL];
 
-                            printf_to_char(ch, "  [{Y%d{x] %s {D(%s){x %d/%d\n\r",
+                            printf_to_char(ch, "  [{Y%d{x] %s {D(%s){x %d/%d%s\n\r",
                                 objective->id,
                                 quest_objective_visible_label(objective),
                                 quest_objective_type_name(objective->objective_type),
                                 progress,
-                                required);
+                                required,
+                                indicator_buf);
                             printf_to_char(ch, "       %s\n\r",
-                                quest_objective_target_summary(focused_run, objective, target_buf, sizeof(target_buf)));
+                                quest_objective_target_summary(focused_run, objective, target_buf, sizeof(target_buf),
+                                    admin_view || IS_STAFF(ch, STAFF_GIMP)));
+                            quest_objective_target_options_display(ch, focused_run, objective,
+                                admin_view || IS_STAFF(ch, STAFF_GIMP));
                         }
                         shown_objective = true;
                     }
@@ -3729,8 +4023,17 @@ void do_quest(CHAR_DATA *ch, char *argument)
         quest_runtime_fire_quest_lifecycle_trigger_actor(active_quest, TRIG_QUEST_FOCUSED, "player_accept", ch);
         quest_runtime_try_advance_stage(active_quest);
 
+        if (selected->quest_class != QUEST_CLASS_MISSION
+            && active_quest->run_status == QUEST_RUN_STATUS_ACTIVE
+            && active_quest->current_stage_commenced == 0)
+        {
+            (void)quest_runtime_commence_current_stage(active_quest);
+        }
+
         printf_to_char(ch, "You have accepted the quest: {Y%s{x.\n\r",
             IS_NULLSTR(selected->name) ? "(unnamed quest)" : selected->name);
+        if (selected->quest_class != QUEST_CLASS_MISSION)
+            send_to_char("This quest begins immediately.\n\r", ch);
         return;
     }
 
@@ -4054,16 +4357,23 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            /* Show correct widevnum (auid#vnum) for v2 quests */
-            if (quest_index_v2->area && quest_index_v2->area->uid > 0)
-                printf_to_char(ch, "Quest: {Y%s{x ({Y%ld#%ld{x)\n\r",
-                    IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name,
-                    quest_index_v2->area->uid,
-                    quest_index_v2->vnum);
+            if (IS_STAFF(ch, STAFF_GIMP))
+            {
+                if (quest_index_v2->area && quest_index_v2->area->uid > 0)
+                    printf_to_char(ch, "Quest: {Y%s{x ({Y%ld#%ld{x)\n\r",
+                        IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name,
+                        quest_index_v2->area->uid,
+                        quest_index_v2->vnum);
+                else
+                    printf_to_char(ch, "Quest: {Y%s{x ({Y%ld{x)\n\r",
+                        IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name,
+                        quest_index_v2->vnum);
+            }
             else
-                printf_to_char(ch, "Quest: {Y%s{x ({Y%ld{x)\n\r",
-                    IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name,
-                    quest_index_v2->vnum);
+            {
+                printf_to_char(ch, "Quest: {Y%s{x\n\r",
+                    IS_NULLSTR(quest_index_v2->name) ? "(unnamed quest)" : quest_index_v2->name);
+            }
 
             if (focused_quest->started_at > 0)
                 age_minutes = UMAX(0, (long)((current_time - focused_quest->started_at) / 60));
@@ -4101,42 +4411,56 @@ void do_quest(CHAR_DATA *ch, char *argument)
                 QUEST_OBJECTIVE_STATE_V2_DATA *state;
                 int required;
                 int progress;
-                const char *status;
+                bool objective_complete;
+                bool objective_failed;
+                bool objective_pending;
+                char indicator_buf[128];
 
                 state = quest_runtime_get_objective_state(focused_quest, objective->id, false);
                 required = quest_objective_required_display_count(objective);
                 progress = state ? state->progress : 0;
+                objective_complete = (state && state->complete);
+                objective_failed = (!objective_complete)
+                    && objective->optional
+                    && focused_quest->run_status == QUEST_RUN_STATUS_FAILED;
+                objective_pending = (!objective_complete
+                    && !objective_failed
+                    && !focused_quest->current_stage_commenced);
 
-                if (state && state->complete)
-                    status = "complete";
-                else if (!focused_quest->current_stage_commenced)
-                {
-                    status = "pending";
+                if (!objective_complete && focused_quest->run_status == QUEST_RUN_STATUS_ACTIVE)
                     any_incomplete = true;
-                }
-                else {
-                    status = "active";
-                    any_incomplete = true;
-                }
 
-                printf_to_char(ch, "  [{Y%d{x] %s\n\r", objective->id, quest_objective_visible_label(objective));
-                printf_to_char(ch, "       type:%s status:%s progress:%d/%d%s\n\r",
+                indicator_buf[0] = '\0';
+                if (objective->optional)
+                    strncat(indicator_buf, " {C[optional]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+                if (objective_complete)
+                    strncat(indicator_buf, " {G[completed]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+                else if (objective_failed)
+                    strncat(indicator_buf, " {R[failed]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+                else if (objective_pending)
+                    strncat(indicator_buf, " {Y[pending]{x", sizeof(indicator_buf) - strlen(indicator_buf) - 1);
+
+                printf_to_char(ch, "  [{Y%d{x] %s {D(%s){x %d/%d%s\n\r",
+                    objective->id,
+                    quest_objective_visible_label(objective),
                     quest_objective_type_name(objective->objective_type),
-                    status,
                     progress,
                     required,
-                    objective->optional ? " optional" : "");
+                    indicator_buf);
                 {
                     char target_buf[MSL];
                     printf_to_char(ch, "       %s\n\r",
-                        quest_objective_target_summary(focused_quest, objective, target_buf, sizeof(target_buf)));
+                        quest_objective_target_summary(focused_quest, objective, target_buf, sizeof(target_buf),
+                            IS_STAFF(ch, STAFF_GIMP)));
+                    quest_objective_target_options_display(ch, focused_quest, objective,
+                        IS_STAFF(ch, STAFF_GIMP));
                 }
             }
 
             if (!focused_quest->current_stage_commenced)
                 send_to_char("Use {Yquest commence{x to begin this stage.\n\r", ch);
 
-            if (!any_incomplete)
+            if (!any_incomplete && focused_quest->run_status == QUEST_RUN_STATUS_ACTIVE)
             {
                 send_to_char("{YCurrent stage objectives are complete.{x\n\r", ch);
                 send_to_char("Use {Yquest complete{x when ready to turn in if the run is finished.\n\r", ch);
@@ -6663,6 +6987,7 @@ bool quest_runtime_try_advance_stage(QUEST_DATA *run)
         if (!quest_runtime_is_stage_complete(run))
             return changed;
 
+        quest_runtime_emit_stage_message(run, stage, false);
         quest_runtime_fire_stage_lifecycle_trigger(run, TRIG_STAGE_COMPLETED, stage->id);
 
         if (stage->next_stage_id < 1)
@@ -6734,7 +7059,10 @@ bool quest_runtime_update_objective_progress(QUEST_DATA *run, int objective_id, 
     state->complete = (state->progress >= required);
 
     if (!was_complete && state->complete)
+    {
+        quest_runtime_emit_objective_message(run, objective, false);
         quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_COMPLETED, objective_id);
+    }
 
     quest_runtime_try_advance_stage(run);
     return changed;
@@ -6769,7 +7097,10 @@ bool quest_runtime_complete_objective(QUEST_DATA *run, int objective_id)
         return false;
 
     if (!state->complete)
+    {
+        quest_runtime_emit_objective_message(run, objective, false);
         quest_runtime_fire_objective_lifecycle_trigger(run, TRIG_OBJECTIVE_COMPLETED, objective_id);
+    }
 
     state->progress = quest_runtime_objective_required_count(objective);
     state->complete = true;

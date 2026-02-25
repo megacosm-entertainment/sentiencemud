@@ -367,6 +367,14 @@ typedef struct	ban_data		BAN_DATA;
 typedef struct	bounty_data		BOUNTY_DATA;
 typedef struct	char_data		CHAR_DATA;
 typedef struct  event_data		EVENT_DATA;
+typedef struct  event_index_data EVENT_INDEX_DATA;
+typedef struct  event_instance EVENT_INSTANCE;
+typedef struct  event_part EVENT_PART;
+typedef struct  event_runtime_ref EVENT_RUNTIME_REF;
+typedef struct  evt_roster_entry EVT_ROSTER_ENTRY;
+typedef struct  evt_phase_def EVT_PHASE_DEF;
+typedef struct  evt_stage_def EVT_STAGE_DEF;
+typedef struct  evt_stage_objective_def EVT_STAGE_OBJECTIVE_DEF;
 typedef struct	race_data		RACE_DATA;
 typedef struct	invasion_quest		INVASION_QUEST;
 typedef struct	skill_data		SKILL_DATA;
@@ -4475,9 +4483,13 @@ struct quest_objective_index_v2_data
     char *target_tag;
     char *talk_phrase;
     char *description;
+    char *complete_message;
+    char *fail_message;
 
     bool optional;
     bool strict_target;
+    bool silent_complete;
+    bool silent_fail;
 };
 
 
@@ -4504,6 +4516,10 @@ struct quest_stage_index_v2_data
     int stage_source;
     bool auto_commence;
     int next_stage_id;
+    char *complete_message;
+    char *fail_message;
+    bool silent_complete;
+    bool silent_fail;
 
     QUEST_OBJECTIVE_INDEX_V2_DATA *objectives;
 
@@ -5298,7 +5314,7 @@ struct	char_data
 
     /* invasion - invasion the leader belongs to */
     INVASION_QUEST *invasion_quest;
-    long                event_source_uid;           /* Event definition UID that spawned this entity (0 = none) */
+    WNUM                event_source;               /* Event definition WNUM that spawned this entity */
     uint32_t            event_source_instance_id;   /* Event instance ID that spawned this entity (0 = none) */
     int16_t             event_source_bracket;       /* Event bracket this entity belongs to (0 = none) */
 
@@ -6141,7 +6157,7 @@ struct	obj_data
     WNUM        created_script_wnum;
     int         created_script_type;
     time_t      creation_time;
-    long        event_source_uid;           /* Event definition UID that spawned this object (0 = none) */
+    WNUM        event_source;               /* Event definition WNUM that spawned this object */
     uint32_t    event_source_instance_id;   /* Event instance ID that spawned this object (0 = none) */
     int16_t     event_source_bracket;       /* Event bracket this object belongs to (0 = none) */
     int			item_type;
@@ -6416,6 +6432,212 @@ struct area_region_data
 #define AREA_REGION_NO_RECALL (A)
 #define AREA_REGION_KEEP_LIVE (B)
 
+struct evt_roster_entry {
+    EVT_ROSTER_ENTRY *next;
+    int kind;
+    long vnum;
+    int count;
+    int chance;
+    int min_level;
+    int max_level;
+    bool boss;
+    int16_t stage;
+};
+
+struct evt_phase_def {
+    EVT_PHASE_DEF *next;
+    char *name;
+    int16_t minutes;
+    long script_vnum;
+};
+
+struct evt_stage_objective_def {
+    EVT_STAGE_OBJECTIVE_DEF *next;
+    char *name;
+    int16_t objective_type;
+    int16_t target_count;
+    long script_vnum;
+    char *data;
+};
+
+struct evt_stage_def {
+    EVT_STAGE_DEF *next;
+    char *name;
+    int16_t transition_mode;
+    int16_t objective_mode;
+    int16_t duration_minutes;
+    long on_enter_script;
+    long on_tick_script;
+    long on_complete_script;
+    EVT_STAGE_OBJECTIVE_DEF *objectives;
+    int16_t objective_count;
+};
+
+struct event_index_data {
+    AREA_DATA *area;
+    long vnum;
+    long uid;
+    char *name;
+    char *description;
+    char *announce_msg;
+    char *end_msg;
+    char *join_msg;
+    int16_t event_type;
+    int16_t scope_type;
+    long scope_area_uid;
+    bool scope_floating;
+    int16_t sched_type;
+    int16_t sched_interval;
+    int16_t sched_variance;
+    int16_t sched_duration;
+    int16_t sched_cooldown;
+    int16_t min_level;
+    int16_t max_level;
+    int16_t min_players;
+    int16_t max_players;
+    int16_t completion_goal;
+    bool leader_required;
+    char *display_title;
+    char *short_summary;
+    char *news_slug;
+    char *news_announcement;
+    char *news_body;
+    char *theme_tags;
+    char *spawn_brackets;
+    char *collection_brackets;
+    char *bracket_mode;
+    char *progress_aggregation;
+    char *phase_plan;
+    EVT_PHASE_DEF *phases;
+    int16_t phase_count;
+    EVT_STAGE_DEF *stages;
+    int16_t stage_count;
+    long reward_phase_script;
+    long reward_success_script;
+    long reward_failure_script;
+    bool enabled;
+    long flags;
+    LLIST **progs;
+    pVARIABLE index_vars;
+    char *comments;
+    EVT_ROSTER_ENTRY *roster;
+    time_t scheduled_time;
+    time_t cooldown_until;
+    time_t next_auto_time;
+    EVENT_INDEX_DATA *next;
+    EVENT_INDEX_DATA *next_hash;
+};
+
+struct event_part {
+    EVENT_PART *next;
+    EVENT_INSTANCE *inst;
+    CHAR_DATA *ch;
+    int kills;
+    int items_turned;
+    int team;
+    int phases_completed;
+    bool event_completed;
+};
+
+struct event_instance {
+    uint32_t instance_id;
+    EVENT_INDEX_DATA *def;
+    int state;
+    time_t started_at;
+    time_t end_time;
+    EVENT_PART *participants;
+    int participant_count;
+    int progress_kills;
+    int progress_items;
+    int progress_goal;
+    long scope_area_uid;
+    bool scope_floating;
+    bool leader_phase;
+    int phase_index;
+    time_t phase_due;
+    char phase_name[MIL];
+    pVARIABLE runtime_vars;
+    bool dirty;
+    EVENT_INSTANCE *next;
+};
+
+struct event_runtime_ref {
+    long uid;
+    uint32_t instance_id;
+};
+
+enum {
+    EVT_TYPE_COLLECTION = 0,
+    EVT_TYPE_INVASION,
+    EVT_TYPE_BOSS,
+    EVT_TYPE_WAR_FFA,
+    EVT_TYPE_WAR_GENOCIDE,
+    EVT_TYPE_WAR_JIHAD,
+    EVT_TYPE_WORLDSTATE,
+    EVT_TYPE_CUSTOM,
+};
+
+enum {
+    EVT_SCOPE_GLOBAL = 0,
+    EVT_SCOPE_AREA,
+    EVT_SCOPE_REGION,
+    EVT_SCOPE_ZONES,
+    EVT_SCOPE_BATTLEFIELD,
+};
+
+enum {
+    EVT_SCHED_MANUAL = 0,
+    EVT_SCHED_RECURRING,
+    EVT_SCHED_CALENDAR,
+    EVT_SCHED_WORLDCONDITION,
+    EVT_SCHED_TRIGGERED,
+};
+
+enum {
+    EVT_FLAG_WINNER_ONLY      = (A),
+    EVT_FLAG_ALL_PARTS        = (B),
+    EVT_FLAG_TOP3             = (C),
+    EVT_FLAG_NOANNOUNCE       = (D),
+    EVT_FLAG_JOINLATE         = (E),
+    EVT_FLAG_EXCLUSIVE_PLAYER = (F),
+    EVT_FLAG_UNIQUE_GLOBAL    = (G),
+    EVT_FLAG_SCALING          = (H),
+    EVT_FLAG_REPEATABLE       = (I),
+    EVT_FLAG_PASSIVE          = (J),
+    EVT_FLAG_INSTANCE_EXCLUSIVE = (K),
+    EVT_FLAG_AUTO_ADD         = (L),
+};
+
+enum {
+    EVTS_PENDING = 0,
+    EVTS_ACTIVE,
+    EVTS_COMPLETE,
+    EVTS_CANCELLED,
+};
+
+enum {
+    EVT_ROSTER_NPC = 0,
+    EVT_ROSTER_OBJECT,
+};
+
+enum {
+    EVT_STAGE_TRANSITION_ON_COMPLETE = 0,
+    EVT_STAGE_TRANSITION_ON_TIMER,
+    EVT_STAGE_TRANSITION_SCRIPT,
+};
+
+enum {
+    EVT_STAGE_OBJECTIVE_ALL = 0,
+    EVT_STAGE_OBJECTIVE_ANY,
+};
+
+enum {
+    EVT_STAGE_OBJECTIVE_KILL = 0,
+    EVT_STAGE_OBJECTIVE_COLLECT,
+    EVT_STAGE_OBJECTIVE_SURVIVE,
+    EVT_STAGE_OBJECTIVE_CUSTOM,
+};
+
 /*
  * Area definition.
  */
@@ -6442,6 +6664,7 @@ struct	area_data
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
     REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
     QUEST_INDEX_V2_DATA *quest_index_v2_hash[MAX_KEY_HASH];
+    EVENT_INDEX_DATA *event_index_hash[MAX_KEY_HASH];
 
     // Per-area script indexes
     SCRIPT_DATA *mprog_list;
@@ -6452,6 +6675,7 @@ struct	area_data
     SCRIPT_DATA *iprog_list;
     SCRIPT_DATA *dprog_list;
     SCRIPT_DATA *qprog_list;
+    SCRIPT_DATA *eprog_list;
 
     // Per-area instances (runtime)
     LLIST *instances;
@@ -8389,6 +8613,7 @@ enum trigger_index_enum {
 #define PRG_IPROG	5	// Instances
 #define PRG_DPROG	6	// Dungeons
 #define PRG_QPROG	7	// Quests
+#define PRG_EPROG	8	// Events
 
 #define NEWEST_OBJ_VERSION 1
 
@@ -8401,10 +8626,11 @@ struct trigger_type {
     bool obj;
     bool room;
     bool token;
-    bool area;
+    bool area;      // APROG applicability
     bool instance;
     bool dungeon;
-    bool quest;
+    bool quest;     // QPROG applicability
+    bool event;     // EPROG applicability
 };
 
 #define PROG_NODESTRUCT		(A)		/* Used to indicate the item is already destructing and should not fire any destructions */
@@ -9048,6 +9274,7 @@ extern          SCRIPT_DATA       *     aprog_list;
 extern          SCRIPT_DATA       *     iprog_list;
 extern          SCRIPT_DATA       *     dprog_list;
 extern          SCRIPT_DATA       *     qprog_list;
+extern          SCRIPT_DATA       *     eprog_list;
 extern          ROOM_INDEX_DATA   *	room_index_hash[MAX_KEY_HASH];
 extern		PROG_DATA	  *	prog_data_virtual;
 extern		char		  *     room_name_virtual;
@@ -10154,6 +10381,7 @@ const char *widevnum_string_blueprint(BLUEPRINT *bp, AREA_DATA *pRefArea);
 const char *widevnum_string_blueprint_section(BLUEPRINT_SECTION *bs, AREA_DATA *pRefArea);
 const char *widevnum_string_dungeon(DUNGEON_INDEX_DATA *dng, AREA_DATA *pRefArea);
 const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea);
+const char *widevnum_string_event(EVENT_INDEX_DATA *event, AREA_DATA *pRefArea);
 
 void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);
 void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type);
@@ -10413,6 +10641,7 @@ int p_greet_trigger(CHAR_DATA *ch, int type);
 int	p_hprct_trigger(CHAR_DATA *mob, CHAR_DATA *ch);
 int p_emoteat_trigger(CHAR_DATA *mob, CHAR_DATA *ch, char *emote);
 int p_emote_trigger(CHAR_DATA *ch, char *emote);
+bool script_validate_trigger_table(void);
 
 
 int	script_login(CHAR_DATA *ch);
@@ -11223,6 +11452,9 @@ void load_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
 DUNGEON_INDEX_DATA *get_dungeon_index_for_area(AREA_DATA *area, long vnum);
+EVENT_INDEX_DATA *get_event_index(long vnum);
+EVENT_INDEX_DATA *get_event_index_for_area(AREA_DATA *area, long vnum);
+bool event_index_register(EVENT_INDEX_DATA *event_index);
 DUNGEON *create_dungeon(WNUM wnum);
 DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, WNUM wnum);
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor);
