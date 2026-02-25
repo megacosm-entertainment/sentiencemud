@@ -2685,7 +2685,7 @@ WEDIT (wedit_wildgen)
         send_to_char("        wildgen config base <terrain_base|none> [elevation_base|none]\n\r", ch);
         send_to_char("        wildgen config grid <rows> <cols>\n\r", ch);
         send_to_char("        wildgen config tilesize <tile_width> <tile_height>\n\r", ch);
-        send_to_char("        (imports from data/world/wilderness_maps/<uid>/images/)\n\r", ch);
+        send_to_char("        (imports from data/world/wilderness_state/<uid>_<name>/images/)\n\r", ch);
         send_to_char("        (grid naming: base_row_col.png / base_row.png / base_col.png / base.png)\n\r", ch);
         send_to_char("        wildgen status\n\r", ch);
         return false;

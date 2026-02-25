@@ -518,3 +518,16 @@ bool wilderness_storage_build_vlinks_path(const WILDS_DATA *pWilds, char *out, s
 
     return snprintf(out, out_size, "%s/%s", wilds_dir, WILDERNESS_VLINKS_FILENAME) < (int)out_size;
 }
+
+bool wilderness_storage_build_images_dir_path(const WILDS_DATA *pWilds, char *out, size_t out_size)
+{
+    char wilds_dir[MSL];
+
+    if (!pWilds || !out || out_size < 2)
+        return false;
+
+    if (!wilderness_storage_build_wilds_dir_path(pWilds, wilds_dir, sizeof(wilds_dir)))
+        return false;
+
+    return snprintf(out, out_size, "%s/%s", wilds_dir, WILDERNESS_IMAGES_DIR_NAME) < (int)out_size;
+}

@@ -42,6 +42,11 @@ Alignment snapshot (2026-02-24):
 - Implemented (foundation): area-region weather profile controls (`aedit regions weather`) with JSON persistence.
 - Pending (core architecture): explicit world/interior sync state machine, fleet entity model, and NPC ship ecosystem loops.
 
+Alignment update (2026-02-25):
+
+- Implemented (projection clarity): wilderness room/exits/location displays now prefer wilderness map names and terrain shownames over generic UID tuples, improving world/interior context readability for transport operations and staff diagnostics.
+- Implemented (ops readability): staff index/reset listings now prefer `list_name` for spawned entities, reducing ambiguity during ship/weather-adjacent tuning and troubleshooting.
+
 ---
 
 ## Core Design Principles

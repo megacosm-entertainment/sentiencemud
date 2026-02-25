@@ -38,6 +38,11 @@ Without these, weather and NPC ship systems will remain partial or brittle.
 - NPC ship behavior, weather coupling, and wilderness-scale encounter orchestration are incomplete.
 - Virtual room lifecycle complexity has historically disrupted persistent simulation behavior.
 
+Status update (2026-02-25):
+
+- Player/staff-facing wilderness projection labels are now materially clearer in runtime views: room/exits/location diagnostics prefer wilderness map names and terrain shownames over UID-only labels.
+- Builder/admin observability for wilderness spawns improved: region spawn entries resolve wnums to readable indexed names (`list_name` preferred), reducing ambiguity when tuning transport-adjacent ambient ecosystems.
+
 ---
 
 ## System Goals

@@ -329,6 +329,12 @@ Status (2026-02-24):
 - Implemented: vlink map marker writes/restores route through runtime/base tile helpers.
 - Confirmed: remaining direct map/static indexing in `wilds.c` is in legacy `#if 0` code path.
 
+Status update (2026-02-25):
+
+- Implemented: wilderness room title rendering in `look/auto` now resolves terrain `showname` (fallback-safe) with optional region-name suffix for clearer map context.
+- Implemented: wilderness-aware location diagnostics now prefer map/terrain naming over generic `wilds <uid>` labels in key staff-facing flows (`mwhere`, `owhere`, and wilderness exit context labels).
+- Implemented: wilderness exits now render destination wilderness name plus showname-derived room label rather than raw coordinate-only/UID-only tuples.
+
 ## Phase 1.4 - Hardening and Regression Safety
 
 - Add regression tests for resolver consistency and crash-prone movement paths.
@@ -482,9 +488,16 @@ Cross-phase mapping to ship architecture plan:
    - `wedit region <name|idx|uid> spawnmobreq <requirements|none>`
    - `wedit region <name|idx|uid> spawnobj <auid#vnum|none> [chance] [cap]`
    - `wedit region <name|idx|uid> spawnobjreq <requirements|none>`
+- **Spawn display resolution:**
+   - region spawn list/show now resolves `spawnmob/spawnobj` wnums to indexed entity names with `list_name` preference (fallback to `short_descr`).
 - **Spawn requirement predicates:** `terrain`, `sector`, `storm`.
 - **Runtime storm controls (imm/admin):** `weather storm help` (`list`, `spawn`, `move`, `set`, `delete`, `clear`).
 - **Operational visibility:** `wlist` for overview and `wlist status` for chunk guard pressure snapshot.
+
+Staff list/readability updates (2026-02-25):
+
+- `mlist`, `olist`, and reset listings now consistently prefer `list_name` over `short_descr`, improving readability for generated/template-heavy entities.
+- `wedit terrain` tab/list output now uses adaptive showname column widths to prevent table breakage with long terrain names.
 - **Fully NPC-controlled ship workflow (imm/admin):**
    - `ships load <auid#vnum> <ownerName|none> <ship name>` (load a hull template into current room)
    - `ships owner <npcName|none>` (set current ship owner to an NPC; enables persistence UID binding)

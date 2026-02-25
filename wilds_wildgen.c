@@ -16,6 +16,7 @@
 
 #include "merc.h"
 #include "wilds.h"
+#include "wilderness_storage.h"
 
 typedef struct wilds_wildgen_color_map WILDS_WILDGEN_COLOR_MAP;
 typedef struct wilds_wildgen_job WILDS_WILDGEN_JOB;
@@ -97,8 +98,6 @@ static WILDS_WILDGEN_JOB *wildgen_queue_tail = NULL;
 static WILDS_WILDGEN_RESULT *wildgen_result_head = NULL;
 static WILDS_WILDGEN_RESULT *wildgen_result_tail = NULL;
 static WILDS_WILDGEN_STATUS_REC *wildgen_status_head = NULL;
-
-#define WILDGEN_MAPS_ROOT   WORLD_DIR "wilderness_maps"
 
 static const char *wildgen_state_name(int state)
 {
@@ -291,11 +290,10 @@ static bool wildgen_verify_png_signature(const char *path, char *err_buf, size_t
 static bool wildgen_build_image_path(WILDS_DATA *pWilds, const char *file_name,
     char *resolved_path, size_t resolved_size, char *err_buf, size_t err_buf_size)
 {
-    char maps_root[MSL];
-    char wilds_dir[MSL];
     char images_dir[MSL];
-    char resolved_root[MSL];
-    const char *root;
+    char wilds_dir[MSL];
+    char state_path[MSL];
+    char *last_slash;
 
     if (!pWilds || pWilds->uid < 1)
     {
@@ -311,38 +309,35 @@ static bool wildgen_build_image_path(WILDS_DATA *pWilds, const char *file_name,
         return false;
     }
 
-    root = resolve_game_path(WILDGEN_MAPS_ROOT, resolved_root, sizeof(resolved_root));
-    snprintf(maps_root, sizeof(maps_root), "%s", root ? root : WILDGEN_MAPS_ROOT);
-
-    if (strlen(maps_root) > sizeof(wilds_dir) - 32)
+    if (!wilderness_storage_build_images_dir_path(pWilds, images_dir, sizeof(images_dir)))
     {
         if (err_buf && err_buf_size > 0)
-            snprintf(err_buf, err_buf_size, "Wildgen path is too long for wilderness %ld", pWilds->uid);
+            snprintf(err_buf, err_buf_size,
+                "Wildgen images path is invalid for wilderness %ld (expected <uid>_<name>/images)",
+                pWilds->uid);
         return false;
     }
 
-    if (snprintf(wilds_dir, sizeof(wilds_dir), "%s/%ld", maps_root, pWilds->uid) >= (int)sizeof(wilds_dir))
+    if (!wilderness_storage_build_state_path(pWilds, state_path, sizeof(state_path)))
     {
         if (err_buf && err_buf_size > 0)
-            snprintf(err_buf, err_buf_size, "Wildgen directory path is too long for wilderness %ld", pWilds->uid);
+            snprintf(err_buf, err_buf_size,
+                "Wildgen state path is invalid for wilderness %ld", pWilds->uid);
         return false;
     }
 
-    if (strlen(wilds_dir) > sizeof(images_dir) - 16)
+    snprintf(wilds_dir, sizeof(wilds_dir), "%s", state_path);
+    last_slash = strrchr(wilds_dir, '/');
+    if (!last_slash)
     {
         if (err_buf && err_buf_size > 0)
-            snprintf(err_buf, err_buf_size, "Wildgen images directory path is too long for wilderness %ld", pWilds->uid);
+            snprintf(err_buf, err_buf_size,
+                "Wildgen storage path is invalid for wilderness %ld", pWilds->uid);
         return false;
     }
+    *last_slash = '\0';
 
-    if (snprintf(images_dir, sizeof(images_dir), "%s/images", wilds_dir) >= (int)sizeof(images_dir))
-    {
-        if (err_buf && err_buf_size > 0)
-            snprintf(err_buf, err_buf_size, "Wildgen images directory path is too long for wilderness %ld", pWilds->uid);
-        return false;
-    }
-
-    if (!wildgen_ensure_directory(maps_root, err_buf, err_buf_size))
+    if (!wildgen_ensure_directory(WORLD_DIR "wilderness_state", err_buf, err_buf_size))
         return false;
     if (!wildgen_ensure_directory(wilds_dir, err_buf, err_buf_size))
         return false;

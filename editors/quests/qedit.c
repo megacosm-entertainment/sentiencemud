@@ -1341,6 +1341,9 @@ static void qedit_show_flow_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 
             if (!IS_NULLSTR(objective->target_tag))
                 add_buf(ctx->buffer, formatf("      summary: %s\n\r", objective->target_tag));
+            if (objective->objective_type == QUEST_OBJECTIVE_TALK
+                && !IS_NULLSTR(objective->talk_phrase))
+                add_buf(ctx->buffer, formatf("      talkphrase: %s\n\r", objective->talk_phrase));
             if (!IS_NULLSTR(objective->description))
                 add_buf(ctx->buffer, formatf("      description: %s\n\r", objective->description));
         }

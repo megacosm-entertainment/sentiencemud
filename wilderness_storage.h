@@ -24,5 +24,6 @@ bool wilderness_storage_build_mods_path(const WILDS_DATA *pWilds, char *out, siz
 bool wilderness_storage_build_wmap_path(const WILDS_DATA *pWilds, char *out, size_t out_size);
 bool wilderness_storage_build_wterr_path(const WILDS_DATA *pWilds, char *out, size_t out_size);
 bool wilderness_storage_build_vlinks_path(const WILDS_DATA *pWilds, char *out, size_t out_size);
+bool wilderness_storage_build_images_dir_path(const WILDS_DATA *pWilds, char *out, size_t out_size);
 
 #endif
