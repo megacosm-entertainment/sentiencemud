@@ -2953,15 +2953,14 @@ static void quest_list_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2,
 /*
  * quest_inspect_show_v2 - show pre-accept details for a v2 quest
  *
- * Displays the quest name, description, allowance cost, prerequisites
- * (with met/unmet indicator), first-stage objectives, and rewards.
+ * Displays the quest name, quest-level description, allowance cost,
+ * prerequisites (with met/unmet indicator), and rewards.
  * Only shows prerequisite lines that carry a player_string annotation.
  * If overall prerequisites fail but have no player_string, a generic
  * "Requirements not met" line is shown instead.
  */
 static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
 {
-    QUEST_STAGE_INDEX_V2_DATA        *stage;
     QUEST_REWARD_INDEX_V2_DATA       *rew;
     REQUIREMENT_CONTEXT               ctx;
     bool                              meets        = true;
@@ -3002,11 +3001,6 @@ static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
         if (ps) free(ps);
     }
 
-    /* Stage summary (description-first inspect output, no objective dump) */
-    stage = qv2->stages;
-    if (stage && !IS_NULLSTR(stage->name))
-        printf_to_char(ch, "{WFirst stage:{x %s\n\r", stage->name);
-
     /* Rewards */
     if (qv2->rewards) {
         send_to_char("{WRewards:{x\n\r", ch);
@@ -3046,6 +3040,8 @@ static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
                     OBJ_INDEX_DATA *obj_index = NULL;
                     long item_count = UMAX(1, rew->amount);
                     const char *item_name = "item reward";
+                    char item_name_buf[MSL];
+                    size_t idx;
 
                     if (rew->target_wnum.pArea && rew->target_wnum.vnum > 0)
                         obj_index = get_obj_index(rew->target_wnum.pArea, rew->target_wnum.vnum);
@@ -3060,10 +3056,26 @@ static void quest_inspect_show_v2(CHAR_DATA *ch, QUEST_INDEX_V2_DATA *qv2)
                             item_name = obj_index->name;
                     }
 
+                    snprintf(item_name_buf, sizeof(item_name_buf), "%s", item_name);
+                    for (idx = 0; item_name_buf[idx] != '\0'; idx++)
+                    {
+                        if (item_name_buf[idx] == '{' && item_name_buf[idx + 1] != '\0')
+                        {
+                            idx++;
+                            continue;
+                        }
+
+                        if (item_name_buf[idx] >= 'a' && item_name_buf[idx] <= 'z')
+                        {
+                            item_name_buf[idx] = UPPER(item_name_buf[idx]);
+                            break;
+                        }
+                    }
+
                     if (item_count > 1)
-                        printf_to_char(ch, "  %s (x%ld)\n\r", item_name, item_count);
+                        printf_to_char(ch, "  %s (x%ld)\n\r", item_name_buf, item_count);
                     else
-                        printf_to_char(ch, "  %s\n\r", item_name);
+                        printf_to_char(ch, "  %s\n\r", item_name_buf);
                     break;
                 }
                 case QUEST_REWARD_SCRIPT:
