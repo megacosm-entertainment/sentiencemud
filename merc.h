@@ -1397,6 +1397,8 @@ struct game_settings_data
     bool alignment_system;        // Do we use the alignment system?
     bool restrict_races_align;    // Restrict races by alignment (Legacy style)
     bool restrict_classes_align;  // Restrict classes by alignment? (Legacy style)
+    bool weather_storms_enabled;  // Enable wilderness storm simulation updates?
+    bool weather_ambience_enabled; // Enable background weather ambience/effects for characters?
     int max_login_attempts;       // How many login attempts are allowed before disconnecting?
     int idle_time;                // How many ticks until a user is considered idle?
     int idle_disconnect_time;     // How many ticks until an idle user is disconnected?
@@ -6381,6 +6383,10 @@ struct area_region_data
 
     long flags;
 
+    int weather_density_percent;
+    int weather_life_percent;
+    int weather_severity_bias;
+
     LLIST *players;
     LLIST *rooms;
 
@@ -6726,6 +6732,7 @@ struct rep_type
 #define NPC_SHIP_STATE_CHASING         5
 
 #define SHIP_PROTECTED				(A)		// Ship cannot be attacked
+#define SHIP_AUTONOMOUS_NPC      (B)     // Ambient NPC-controlled roaming ship
 
 /* Reports / Leaderboards */
 #define REPORT_TOP_PLAYER_KILLERS      0
@@ -7025,6 +7032,11 @@ struct ship_data
 
     bool				seek_navigator;		// Is the seeking the navigator or the owner
     WILDS_COORD			seek_point;
+
+    bool                npc_autonomous;
+    bool                npc_offpath_active;
+    int                 npc_goal_cooldown;
+    WILDS_COORD         npc_resume_point;
 
     int					sextant_x;
     int					sextant_y;
@@ -9266,6 +9278,9 @@ void update_weather_for_chars();
 void storm_affect_char_background args((CHAR_DATA *ch, int storm_type));
 void storm_affect_char args((CHAR_DATA *ch, int storm_type));
 int get_storm_for_room(ROOM_INDEX_DATA *pRoom);
+int weather_movement_modifier(ROOM_INDEX_DATA *from_room, ROOM_INDEX_DATA *to_room, int base_move);
+bool weather_show_forecast(CHAR_DATA *ch);
+bool weather_handle_storm_command(CHAR_DATA *ch, char *argument);
 void update_weather args((void));
 
 /* invasion.c */

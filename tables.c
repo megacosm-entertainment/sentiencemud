@@ -3765,6 +3765,8 @@ const struct game_setting_type game_settings_table[] = {
     { "alignment_system",    &game_settings.alignment_system,     SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Use alignment system",                                       true,  false, false },
     { "restrict_races_align", &game_settings.restrict_races_align, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Restrict races by alignment",                         true, false, false },
     { "restrict_classes_align", &game_settings.restrict_classes_align, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Restrict classes by alignment",                   true, false, false },
+    { "weather_storms_enabled", &game_settings.weather_storms_enabled, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Enable wilderness storm simulation updates",        true, false, false },
+    { "weather_ambience_enabled", &game_settings.weather_ambience_enabled, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Enable weather ambience/effects on characters", true, false, false },
     { "max_login_attempts",  &game_settings.max_login_attempts,   SETTING_TYPE_INT,    SETTING_CAT_SECURITY, "Maximum login attempts before disconnecting",                true,  false, false },
     { "idle_time",           &game_settings.idle_time,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Ticks until a user is considered idle",                      true,  false, false },
     { "idle_disconnect_time", &game_settings.idle_disconnect_time, SETTING_TYPE_INT,   SETTING_CAT_GLOBAL,   "Ticks until an idle user is disconnected",                   true,  false, false },

@@ -57,6 +57,7 @@ void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
 void steering_set_turning(SHIP_DATA *ship, char direction);
+void steering_calc_heading(SHIP_DATA *ship);
 void ship_stop(SHIP_DATA *ship);
 void do_ship_speed( CHAR_DATA *ch, char *argument );
 
@@ -77,6 +78,602 @@ long top_ship_index_vnum = 0;
 LLIST *loaded_ships;
 LLIST *loaded_waypoints;
 LLIST *loaded_waypoint_paths;
+
+static bool ship_is_npc_autonomous_candidate(SHIP_DATA *ship)
+{
+    if (!IS_VALID(ship) || !IS_VALID(ship->ship))
+        return false;
+
+    if (ship->npc_autonomous)
+        return true;
+
+    if (ship->npc_ship)
+        return true;
+
+    if (IS_VALID(ship->owner) && IS_NPC(ship->owner))
+        return true;
+
+    return false;
+}
+
+static void ship_npc_set_seek_goal(SHIP_DATA *ship, WILDS_DATA *wilds, int x, int y)
+{
+    if (!ship || !wilds)
+        return;
+
+    ship->seek_point.wilds = wilds;
+    ship->seek_point.w = wilds->uid;
+    ship->seek_point.x = URANGE(0, x, wilds->map_size_x - 1);
+    ship->seek_point.y = URANGE(0, y, wilds->map_size_y - 1);
+}
+
+static bool ship_npc_begin_route(SHIP_DATA *ship, SHIP_ROUTE *route)
+{
+    ITERATOR it;
+    WAYPOINT_DATA *wp;
+
+    if (!ship || !IS_VALID(route) || list_size(route->waypoints) < 1)
+        return false;
+
+    ship_cancel_route(ship);
+
+    iterator_start(&it, route->waypoints);
+    while ((wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        WAYPOINT_DATA *copy = clone_waypoint(wp);
+        list_appendlink(ship->route_waypoints, copy);
+    }
+    iterator_stop(&it);
+
+    iterator_start(&ship->route_it, ship->route_waypoints);
+    wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
+    if (!wp)
+    {
+        ship_cancel_route(ship);
+        return false;
+    }
+
+    ship_npc_set_seek_goal(ship, get_wilds_from_uid(NULL, wp->w), wp->x, wp->y);
+    ship->seek_navigator = false;
+    ship->current_waypoint = wp;
+    ship->current_route = route;
+
+    return (ship->seek_point.wilds != NULL);
+}
+
+static bool ship_npc_try_offpath_goal(SHIP_DATA *ship, ROOM_INDEX_DATA *room)
+{
+    int radius;
+    int gx;
+    int gy;
+
+    if (!ship || !room || !room->wilds)
+        return false;
+
+    if (ship->npc_offpath_active || ship->npc_goal_cooldown > 0)
+        return false;
+
+    if (ship->current_route == NULL || ship->seek_point.wilds == NULL)
+        return false;
+
+    ship->npc_resume_point = ship->seek_point;
+
+    radius = number_range(8, 28);
+    gx = room->x + number_range(-radius, radius);
+    gy = room->y + number_range(-radius, radius);
+
+    gx = URANGE(0, gx, room->wilds->map_size_x - 1);
+    gy = URANGE(0, gy, room->wilds->map_size_y - 1);
+
+    if (gx == room->x && gy == room->y)
+        return false;
+
+    ship_npc_set_seek_goal(ship, room->wilds, gx, gy);
+    ship->npc_offpath_active = true;
+    ship->npc_goal_cooldown = number_range(60, 180);
+
+    ship_echo(ship, "{YThe crew diverts toward a nearby objective off the main route.{x");
+    return true;
+}
+
+static bool ship_npc_try_trade_goal(SHIP_DATA *ship, ROOM_INDEX_DATA *room)
+{
+    AREA_DATA *area;
+    AREA_DATA *target = NULL;
+    int seen = 0;
+
+    if (!ship || !room || !room->wilds)
+        return false;
+
+    if (ship->npc_offpath_active || ship->npc_goal_cooldown > 0)
+        return false;
+
+    if (ship->current_route == NULL || ship->seek_point.wilds == NULL)
+        return false;
+
+    for (area = area_first; area != NULL; area = area->next)
+    {
+        if (area->wilds_uid != room->wilds->uid)
+            continue;
+
+        if (area->trade_list == NULL)
+            continue;
+
+        if (area->x < 0 || area->x >= room->wilds->map_size_x)
+            continue;
+        if (area->y < 0 || area->y >= room->wilds->map_size_y)
+            continue;
+
+        if (area->x == room->x && area->y == room->y)
+            continue;
+
+        seen++;
+        if (number_range(1, seen) == 1)
+            target = area;
+    }
+
+    if (!target)
+        return false;
+
+    ship->npc_resume_point = ship->seek_point;
+    ship_npc_set_seek_goal(ship, room->wilds, target->x, target->y);
+    ship->npc_offpath_active = true;
+    ship->npc_goal_cooldown = number_range(120, 320);
+
+    ship_echo(ship, "{CThe crew adjusts course for a profitable trade stop.{x");
+    return true;
+}
+
+static bool ship_npc_try_patrol_goal(SHIP_DATA *ship, ROOM_INDEX_DATA *room)
+{
+    int radius;
+    int gx;
+    int gy;
+
+    if (!ship || !room || !room->wilds)
+        return false;
+
+    if (ship->npc_offpath_active || ship->npc_goal_cooldown > 0)
+        return false;
+
+    if (ship->current_route == NULL || ship->seek_point.wilds == NULL)
+        return false;
+
+    ship->npc_resume_point = ship->seek_point;
+
+    if (ship->npc_ship && ship->npc_ship->pShipData
+        && ship->npc_ship->pShipData->original_x >= 0
+        && ship->npc_ship->pShipData->original_y >= 0)
+    {
+        gx = ship->npc_ship->pShipData->original_x + number_range(-10, 10);
+        gy = ship->npc_ship->pShipData->original_y + number_range(-10, 10);
+    }
+    else
+    {
+        radius = number_range(6, 20);
+        gx = room->x + number_range(-radius, radius);
+        gy = room->y + number_range(-radius, radius);
+    }
+
+    gx = URANGE(0, gx, room->wilds->map_size_x - 1);
+    gy = URANGE(0, gy, room->wilds->map_size_y - 1);
+
+    if (gx == room->x && gy == room->y)
+        return false;
+
+    ship_npc_set_seek_goal(ship, room->wilds, gx, gy);
+    ship->npc_offpath_active = true;
+    ship->npc_goal_cooldown = number_range(90, 220);
+
+    ship_echo(ship, "{WThe crew diverts for a local patrol sweep.{x");
+    return true;
+}
+
+static SHIP_DATA *ship_npc_find_escort_leader(SHIP_DATA *ship, ROOM_INDEX_DATA *room)
+{
+    ITERATOR it;
+    SHIP_DATA *other;
+    SHIP_DATA *best = NULL;
+    int best_dist = 0;
+
+    if (!ship || !room || !room->wilds)
+        return NULL;
+
+    iterator_start(&it, loaded_ships);
+    while ((other = (SHIP_DATA *)iterator_nextdata(&it)) != NULL)
+    {
+        ROOM_INDEX_DATA *other_room;
+        int dx;
+        int dy;
+        int dist_sq;
+
+        if (!IS_VALID(other) || other == ship || !IS_VALID(other->ship))
+            continue;
+
+        other_room = obj_room(other->ship);
+        if (!IS_WILDERNESS(other_room) || other_room->wilds != room->wilds)
+            continue;
+
+        if (!ship_is_npc_autonomous_candidate(other))
+            continue;
+
+        if (other->seek_point.wilds == NULL && other->current_route == NULL)
+            continue;
+
+        if (ship->npc_ship && ship->npc_ship->pShipData && other->npc_ship && other->npc_ship->pShipData)
+        {
+            if (ship->npc_ship->pShipData->npc_sub_type != other->npc_ship->pShipData->npc_sub_type)
+                continue;
+        }
+
+        dx = other_room->x - room->x;
+        dy = other_room->y - room->y;
+        dist_sq = dx * dx + dy * dy;
+
+        if (dist_sq > (40 * 40))
+            continue;
+
+        if (!best || dist_sq < best_dist)
+        {
+            best = other;
+            best_dist = dist_sq;
+        }
+    }
+    iterator_stop(&it);
+
+    return best;
+}
+
+static bool ship_npc_try_escort_goal(SHIP_DATA *ship, ROOM_INDEX_DATA *room)
+{
+    SHIP_DATA *leader;
+    ROOM_INDEX_DATA *leader_room;
+    int gx;
+    int gy;
+
+    if (!ship || !room || !room->wilds)
+        return false;
+
+    if (ship->npc_offpath_active || ship->npc_goal_cooldown > 0)
+        return false;
+
+    if (ship->current_route == NULL || ship->seek_point.wilds == NULL)
+        return false;
+
+    leader = ship_npc_find_escort_leader(ship, room);
+    if (!leader)
+        return false;
+
+    leader_room = obj_room(leader->ship);
+    if (!IS_WILDERNESS(leader_room) || leader_room->wilds != room->wilds)
+        return false;
+
+    ship->npc_resume_point = ship->seek_point;
+
+    gx = leader_room->x + number_range(-4, 4);
+    gy = leader_room->y + number_range(-4, 4);
+    gx = URANGE(0, gx, room->wilds->map_size_x - 1);
+    gy = URANGE(0, gy, room->wilds->map_size_y - 1);
+
+    if (gx == room->x && gy == room->y)
+        return false;
+
+    ship_npc_set_seek_goal(ship, room->wilds, gx, gy);
+    ship->npc_offpath_active = true;
+    ship->npc_goal_cooldown = number_range(40, 110);
+
+    ship_echo(ship, "{WThe crew forms up and escorts a nearby vessel.{x");
+    return true;
+}
+
+static int ship_npc_goal_profile(SHIP_DATA *ship)
+{
+    if (ship && ship->npc_ship && ship->npc_ship->pShipData)
+    {
+        switch (ship->npc_ship->pShipData->npc_sub_type)
+        {
+        case NPC_SHIP_SUB_TYPE_COAST_GUARD_ATHEMIA:
+        case NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA:
+            return 4; /* escort/patrol */
+
+        case NPC_SHIP_SUB_TYPE_LIGHT_TRADER:
+        case NPC_SHIP_SUB_TYPE_MEDIUM_TRADER:
+            return 2; /* trader */
+
+        case NPC_SHIP_SUB_TYPE_TREASURE_BOAT:
+            return 3; /* raider/hunter */
+
+        default:
+            break;
+        }
+    }
+
+    return 0; /* generic */
+}
+
+static void ship_npc_try_weighted_goals(SHIP_DATA *ship, ROOM_INDEX_DATA *room)
+{
+    int profile;
+    int roll;
+
+    if (!ship || !room)
+        return;
+
+    if (ship->npc_offpath_active || ship->npc_goal_cooldown > 0)
+        return;
+
+    if (ship->current_route == NULL || ship->seek_point.wilds == NULL)
+        return;
+
+    profile = ship_npc_goal_profile(ship);
+
+    roll = number_range(1, 1000);
+
+    if (profile == 2)
+    {
+        if (roll <= 60 && ship_npc_try_trade_goal(ship, room))
+            return;
+
+        if (roll <= 90)
+            (void)ship_npc_try_offpath_goal(ship, room);
+
+        return;
+    }
+
+    if (profile == 1)
+    {
+        if (roll <= 55 && ship_npc_try_patrol_goal(ship, room))
+            return;
+
+        if (roll <= 70)
+            (void)ship_npc_try_offpath_goal(ship, room);
+
+        return;
+    }
+
+    if (profile == 4)
+    {
+        if (roll <= 65 && ship_npc_try_escort_goal(ship, room))
+            return;
+
+        if (roll <= 85 && ship_npc_try_patrol_goal(ship, room))
+            return;
+
+        if (roll <= 92)
+            (void)ship_npc_try_offpath_goal(ship, room);
+
+        return;
+    }
+
+    if (profile == 3)
+    {
+        if (roll <= 42)
+            (void)ship_npc_try_offpath_goal(ship, room);
+
+        return;
+    }
+
+    if (roll <= 18)
+    {
+        if (ship_npc_try_trade_goal(ship, room))
+            return;
+    }
+
+    if (roll <= 30)
+    {
+        (void)ship_npc_try_offpath_goal(ship, room);
+    }
+}
+
+static void ship_npc_autopilot_tick(SHIP_DATA *ship)
+{
+    ROOM_INDEX_DATA *room;
+    SHIP_ROUTE *route;
+    int route_count;
+    int heading;
+
+    if (!ship_is_npc_autonomous_candidate(ship))
+        return;
+
+    room = obj_room(ship->ship);
+    if (!IS_WILDERNESS(room))
+        return;
+
+    if (ship->npc_goal_cooldown > 0)
+        ship->npc_goal_cooldown--;
+
+    if (ship->seek_point.wilds == NULL)
+    {
+        route_count = list_size(ship->routes);
+        if (route_count > 0)
+        {
+            int pick = number_range(1, route_count);
+            route = (SHIP_ROUTE *)list_nthdata(ship->routes, pick);
+            ship_npc_begin_route(ship, route);
+        }
+
+        if (ship->seek_point.wilds == NULL)
+        {
+            int radius = number_range(12, 36);
+            int gx = room->x + number_range(-radius, radius);
+            int gy = room->y + number_range(-radius, radius);
+
+            ship_npc_set_seek_goal(ship, room->wilds, gx, gy);
+            ship->seek_navigator = false;
+            ship->current_waypoint = NULL;
+            ship->current_route = NULL;
+            ship->npc_goal_cooldown = number_range(40, 120);
+        }
+    }
+
+    ship_npc_try_weighted_goals(ship, room);
+
+    if (ship->ship_power > SHIP_SPEED_STOPPED)
+    {
+        if (ship->seek_point.wilds == NULL && ship->steering.turning_dir == 0
+            && number_percent() <= 4)
+        {
+            heading = number_range(0, 359);
+            steering_set_heading(ship, heading);
+            steering_set_turning(ship, (number_percent() < 50) ? -1 : 1);
+        }
+
+        return;
+    }
+
+    if (ship->ship_type == SHIP_AIR_SHIP && ship->ship_power == SHIP_SPEED_LANDED)
+        ship->ship_power = SHIP_SPEED_HALF_SPEED;
+    else if (ship->ship_power <= SHIP_SPEED_STOPPED)
+        ship->ship_power = SHIP_SPEED_FULL_SPEED;
+
+    if (ship->steering.heading < 0)
+    {
+        heading = number_range(0, 359);
+        ship->steering.heading = heading;
+        ship->steering.heading_target = heading;
+        steering_calc_heading(ship);
+    }
+
+    ship_set_move_steps(ship);
+    if (ship->ship_move <= 0)
+        ship->ship_move = UMAX(1, ship->index ? ship->index->move_delay : 1);
+}
+
+static int ship_weather_speed_penalty_percent(ROOM_INDEX_DATA *room, SHIP_DATA *ship)
+{
+    int storm_type;
+
+    if (!room || !ship)
+        return 0;
+
+    if (!IS_WILDERNESS(room))
+        return 0;
+
+    storm_type = get_storm_for_room(room);
+
+    if (ship->ship_type == SHIP_AIR_SHIP)
+    {
+        switch (storm_type)
+        {
+        default:
+        case WEATHER_NONE: return 0;
+        case WEATHER_RAIN_STORM: return 6;
+        case WEATHER_SNOW_STORM: return 10;
+        case WEATHER_LIGHTNING_STORM: return 24;
+        case WEATHER_HURRICANE: return 42;
+        case WEATHER_TORNADO: return 58;
+        }
+    }
+
+    switch (storm_type)
+    {
+    default:
+    case WEATHER_NONE: return 0;
+    case WEATHER_RAIN_STORM: return 10;
+    case WEATHER_SNOW_STORM: return 15;
+    case WEATHER_LIGHTNING_STORM: return 20;
+    case WEATHER_HURRICANE: return 40;
+    case WEATHER_TORNADO: return 55;
+    }
+}
+
+static void ship_weather_apply_drift(SHIP_DATA *ship, ROOM_INDEX_DATA *room)
+{
+    int storm_type;
+    int chance;
+    int max_drift;
+    int delta;
+    int heading;
+
+    if (!ship || !room)
+        return;
+
+    if (!IS_WILDERNESS(room) || ship->steering.heading < 0)
+        return;
+
+    storm_type = get_storm_for_room(room);
+
+    if (ship->ship_type == SHIP_AIR_SHIP)
+    {
+        switch (storm_type)
+        {
+        default:
+        case WEATHER_NONE:
+            return;
+        case WEATHER_RAIN_STORM:
+            chance = 4;
+            max_drift = 14;
+            break;
+        case WEATHER_SNOW_STORM:
+            chance = 7;
+            max_drift = 22;
+            break;
+        case WEATHER_LIGHTNING_STORM:
+            chance = 14;
+            max_drift = 45;
+            break;
+        case WEATHER_HURRICANE:
+            chance = 30;
+            max_drift = 95;
+            break;
+        case WEATHER_TORNADO:
+            chance = 45;
+            max_drift = 140;
+            break;
+        }
+    }
+    else
+    {
+    switch (storm_type)
+    {
+    default:
+    case WEATHER_NONE:
+        return;
+    case WEATHER_RAIN_STORM:
+        chance = 3;
+        max_drift = 15;
+        break;
+    case WEATHER_SNOW_STORM:
+        chance = 5;
+        max_drift = 20;
+        break;
+    case WEATHER_LIGHTNING_STORM:
+        chance = 7;
+        max_drift = 30;
+        break;
+    case WEATHER_HURRICANE:
+        chance = 24;
+        max_drift = 75;
+        break;
+    case WEATHER_TORNADO:
+        chance = 35;
+        max_drift = 110;
+        break;
+    }
+    }
+
+    if (number_percent() > chance)
+        return;
+
+    delta = number_range(-max_drift, max_drift);
+    if (delta == 0)
+        delta = (number_percent() < 50) ? -1 : 1;
+
+    heading = ship->steering.heading + delta;
+    while (heading < 0)
+        heading += 360;
+    while (heading >= 360)
+        heading -= 360;
+
+    ship->steering.heading = heading;
+    ship->steering.heading_target = heading;
+    steering_calc_heading(ship);
+
+    if (ship->ship_type == SHIP_AIR_SHIP)
+        ship_echo(ship, "{YTurbulence buffets the airship off course.{x");
+    else
+        ship_echo(ship, "{YCrosswinds push the vessel off course.{x");
+}
 
 /**
  * Crew Skill Indices
@@ -232,6 +829,20 @@ bool ship_seek_point(SHIP_DATA *ship)
         // Within 2.44 block radius of location
         if( distSq <= 6 )
         {
+            if( ship->npc_offpath_active )
+            {
+                ship->npc_offpath_active = false;
+
+                if (ship->npc_resume_point.wilds)
+                {
+                    ship->seek_point = ship->npc_resume_point;
+                    memset(&ship->npc_resume_point, 0, sizeof(ship->npc_resume_point));
+                    ship->npc_goal_cooldown = UMAX(ship->npc_goal_cooldown, number_range(80, 200));
+                    ship_echo(ship, "{WThe crew completes the detour and resumes the plotted route.{x");
+                    return true;
+                }
+            }
+
             int skill = 0;
             if( ship->seek_navigator )
             {
@@ -1330,6 +1941,8 @@ bool move_ship_success(SHIP_DATA *ship)
     if( !in_room || !in_room->wilds )
         return false;
 
+    ship_weather_apply_drift(ship, in_room);
+
     if( !steering_movement(ship, &x, &y, &door) ) return false;
 
     if (x < 0 || x >= in_room->wilds->map_size_x ) return false;
@@ -1454,6 +2067,8 @@ void ship_set_move_steps(SHIP_DATA *ship)
 {
     if( ship->ship_power > SHIP_SPEED_STOPPED || ship->oar_power > SHIP_SPEED_STOPPED )
     {
+        ROOM_INDEX_DATA *room;
+        int penalty_percent;
         int speed = ship->ship_power;
 
         if( ship->oar_power > 0 && list_size(ship->oarsmen) > 0 )
@@ -1478,6 +2093,16 @@ void ship_set_move_steps(SHIP_DATA *ship)
         // - damaged propulsion
         // - wind?
         // - relic modifier
+
+        room = obj_room(ship->ship);
+        penalty_percent = ship_weather_speed_penalty_percent(room, ship);
+        if (penalty_percent > 0)
+        {
+            speed = UMAX(1, (speed * (100 - penalty_percent)) / 100);
+
+            if (number_percent() <= UMIN(35, penalty_percent))
+                ship_echo(ship, "{WHeavy weather slows the vessel.{x");
+        }
 
         ship->move_steps = speed * ship->index->move_steps / 100;
         ship->move_steps = UMAX(1, ship->move_steps);
@@ -1547,6 +2172,8 @@ void ship_move_update(SHIP_DATA *ship)
 void ship_pulse_update(SHIP_DATA *ship)
 {
     if( !IS_VALID(ship) ) return;
+
+    ship_npc_autopilot_tick(ship);
 
     if( ship->ship_move > 0 )
     {
@@ -1952,12 +2579,31 @@ SHIP_DATA *ship_load(FILE *fp)
 
         case 'N':
             KEYS("Name", ship->ship_name, fread_string(fp));
+            KEY("NpcAutonomous", ship->npc_autonomous, fread_number(fp));
+            KEY("NpcGoalCooldown", ship->npc_goal_cooldown, fread_number(fp));
+            KEY("NpcOffpath", ship->npc_offpath_active, fread_number(fp));
             if( !str_cmp(word, "Navigator") )
             {
                 unsigned long id1 = fread_number(fp);
                 unsigned long id2 = fread_number(fp);
 
                 ship->navigator = ship_load_find_crew(ship, id1, id2);
+
+                fMatch = true;
+                break;
+            }
+            if( !str_cmp(word, "NpcResumePoint") )
+            {
+                long wuid = fread_number(fp);
+                ship->npc_resume_point.wilds = get_wilds_from_uid(NULL, wuid);
+                ship->npc_resume_point.w = wuid;
+                ship->npc_resume_point.x = fread_number(fp);
+                ship->npc_resume_point.y = fread_number(fp);
+
+                if( !ship->npc_resume_point.wilds )
+                {
+                    memset(&ship->npc_resume_point, 0, sizeof(ship->npc_resume_point));
+                }
 
                 fMatch = true;
                 break;
@@ -2219,6 +2865,18 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
             ship->seek_point.wilds->uid,
             ship->seek_point.x,
             ship->seek_point.y);
+    }
+
+    fprintf(fp, "NpcAutonomous %d\n", ship->npc_autonomous ? 1 : 0);
+    fprintf(fp, "NpcOffpath %d\n", ship->npc_offpath_active ? 1 : 0);
+    fprintf(fp, "NpcGoalCooldown %d\n", ship->npc_goal_cooldown);
+
+    if( ship->npc_resume_point.wilds != NULL )
+    {
+        fprintf(fp, "NpcResumePoint %ld %d %d\n",
+            ship->npc_resume_point.wilds->uid,
+            ship->npc_resume_point.x,
+            ship->npc_resume_point.y);
     }
 
     WAYPOINT_DATA *wp;
@@ -2849,6 +3507,8 @@ void do_ships(CHAR_DATA *ch, char *argument)
         {
             send_to_char("Syntax:  ships list[ player]\n\r", ch);
             send_to_char("         ships load [vnum] [owner] [name]\n\r", ch);
+            send_to_char("         ships owner <name|none>\n\r", ch);
+            send_to_char("         ships ai <on|off>\n\r", ch);
             // TODO: NPC ship handling
             send_to_char("         ships unload [#]\n\r", ch);
             return;
@@ -2940,6 +3600,100 @@ void do_ships(CHAR_DATA *ch, char *argument)
             }
             free_buf(buffer);
         }
+        else if( !str_prefix(arg, "owner") )
+        {
+            SHIP_DATA *room_ship = get_room_ship(ch->in_room);
+            CHAR_DATA *owner = NULL;
+            CHAR_DATA *old_owner;
+
+            if( !IS_VALID(room_ship) )
+            {
+                send_to_char("You must be on a ship to set owner.\n\r", ch);
+                return;
+            }
+
+            if( argument[0] == '\0' )
+            {
+                send_to_char("Syntax: ships owner <name|none>\n\r", ch);
+                return;
+            }
+
+            if( str_cmp(argument, "none") )
+            {
+                owner = get_char_world(ch, argument);
+
+                if( !owner )
+                {
+                    send_to_char("No such character found.\n\r", ch);
+                    return;
+                }
+            }
+
+            old_owner = room_ship->owner;
+            room_ship->owner = owner;
+
+            if( old_owner && !IS_NPC(old_owner) && old_owner->pcdata )
+                list_remlink(old_owner->pcdata->ships, room_ship, false);
+
+            if( owner )
+            {
+                room_ship->owner_uid[0] = owner->id[0];
+                room_ship->owner_uid[1] = owner->id[1];
+                room_ship->npc_autonomous = IS_NPC(owner) ? true : room_ship->npc_autonomous;
+
+                if( !IS_NPC(owner) && owner->pcdata )
+                {
+                    if( !list_hasdata(owner->pcdata->ships, room_ship) )
+                        list_appendlink(owner->pcdata->ships, room_ship);
+                }
+
+                send_to_char("Ship owner updated.\n\r", ch);
+            }
+            else
+            {
+                room_ship->owner_uid[0] = 0;
+                room_ship->owner_uid[1] = 0;
+                send_to_char("Ship owner cleared.\n\r", ch);
+            }
+
+            return;
+        }
+        else if( !str_prefix(arg, "ai") )
+        {
+            SHIP_DATA *room_ship = get_room_ship(ch->in_room);
+
+            if( !IS_VALID(room_ship) )
+            {
+                send_to_char("You must be on a ship to toggle AI.\n\r", ch);
+                return;
+            }
+
+            if( argument[0] == '\0' )
+            {
+                send_to_char("Syntax: ships ai <on|off>\n\r", ch);
+                return;
+            }
+
+            if( !str_prefix(argument, "on") )
+            {
+                room_ship->npc_autonomous = true;
+                send_to_char("Ship autonomous NPC control enabled.\n\r", ch);
+                return;
+            }
+
+            if( !str_prefix(argument, "off") )
+            {
+                room_ship->npc_autonomous = false;
+                room_ship->npc_offpath_active = false;
+                room_ship->npc_goal_cooldown = 0;
+                memset(&room_ship->npc_resume_point, 0, sizeof(room_ship->npc_resume_point));
+                send_to_char("Ship autonomous NPC control disabled.\n\r", ch);
+                return;
+            }
+
+            send_to_char("Syntax: ships ai <on|off>\n\r", ch);
+            return;
+        }
         else if( !str_prefix(arg, "load") )
         {
             char buf[2*MSL];
@@ -2998,7 +3752,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
                 }
             }
 
-            CHAR_DATA *owner = get_player(arg3);
+            CHAR_DATA *owner = get_char_world(ch, arg3);
 
             if( owner )
             {
@@ -3023,6 +3777,8 @@ void do_ships(CHAR_DATA *ch, char *argument)
             {
                 ship->owner_uid[0] = owner->id[0];
                 ship->owner_uid[1] = owner->id[1];
+                if( IS_NPC(owner) )
+                    ship->npc_autonomous = true;
             }
 
             free_string(ship->ship_name);

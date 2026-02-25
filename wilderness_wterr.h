@@ -5,7 +5,7 @@
 
 typedef struct wilds_data WILDS_DATA;
 
-#define WILDERNESS_WTERR_VERSION 1
+#define WILDERNESS_WTERR_VERSION 2
 
 bool wilderness_wterr_init(void);
 void wilderness_wterr_shutdown(void);

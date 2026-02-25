@@ -2023,6 +2023,9 @@ AREA_DATA *new_area( void )
     pArea->region.topic = str_dup("");
     pArea->region.description = str_dup("");
     pArea->region.comments = str_dup("");
+    pArea->region.weather_density_percent = 100;
+    pArea->region.weather_life_percent = 100;
+    pArea->region.weather_severity_bias = 0;
     pArea->region.x = -1;
     pArea->region.y = -1;
     pArea->region.land_x = -1;
@@ -2099,6 +2102,9 @@ AREA_REGION *new_area_region( void )
     region->topic = str_dup("");
     region->description = str_dup("");
     region->comments = str_dup("");
+    region->weather_density_percent = 100;
+    region->weather_life_percent = 100;
+    region->weather_severity_bias = 0;
     region->x = -1;
     region->y = -1;
     region->land_x = -1;

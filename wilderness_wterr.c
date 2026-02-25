@@ -48,6 +48,38 @@ static WILDS_TERRAIN *wilderness_wterr_get_or_create(WILDS_DATA *pWilds, char to
     return terrain;
 }
 
+static void wilderness_wterr_apply_template_metadata(WILDS_TERRAIN *terrain, json_t *entry)
+{
+    json_t *value;
+
+    if (!terrain || !terrain->template || !json_is_object(entry))
+        return;
+
+    value = json_object_get(entry, "room_flags");
+    if (json_is_integer(value))
+    {
+        long flags = (long)json_integer_value(value);
+        terrain->template->rs_room_flag[0] = flags;
+        terrain->template->room_flag[0] = flags;
+    }
+
+    value = json_object_get(entry, "room2_flags");
+    if (json_is_integer(value))
+    {
+        long flags2 = (long)json_integer_value(value);
+        terrain->template->rs_room_flag[1] = flags2;
+        terrain->template->room_flag[1] = flags2;
+    }
+
+    value = json_object_get(entry, "sector_type");
+    if (json_is_integer(value))
+    {
+        int sector_type = (int)json_integer_value(value);
+        room_set_rs_sector_type(terrain->template, sector_type);
+        room_set_sector_type(terrain->template, sector_type);
+    }
+}
+
 bool wilderness_wterr_init(void)
 {
     wilderness_wterr_ready = true;
@@ -104,6 +136,8 @@ bool wilderness_wterr_load(WILDS_DATA *pWilds)
             json_t *tile_json;
             const char *tile;
             WILDS_TERRAIN *terrain;
+            json_t *template_vnum_json;
+            json_t *template_area_uid_json;
 
             if (!json_is_object(entry))
                 continue;
@@ -135,6 +169,36 @@ bool wilderness_wterr_load(WILDS_DATA *pWilds)
             terrain->wildgen_r = (unsigned char)json_integer_value(json_object_get(entry, "wildgen_r"));
             terrain->wildgen_g = (unsigned char)json_integer_value(json_object_get(entry, "wildgen_g"));
             terrain->wildgen_b = (unsigned char)json_integer_value(json_object_get(entry, "wildgen_b"));
+
+            template_vnum_json = json_object_get(entry, "template_vnum");
+            template_area_uid_json = json_object_get(entry, "template_area_uid");
+            if (json_is_integer(template_vnum_json) && json_is_integer(template_area_uid_json))
+            {
+                long template_vnum = (long)json_integer_value(template_vnum_json);
+                long template_area_uid = (long)json_integer_value(template_area_uid_json);
+
+                if (template_vnum > 0 && template_area_uid > 0)
+                {
+                    AREA_DATA *template_area = get_area_from_uid(template_area_uid);
+                    if (template_area)
+                    {
+                        ROOM_INDEX_DATA *template_room = get_room_index(template_area, template_vnum);
+                        if (template_room)
+                        {
+                            terrain->template->vnum = template_room->vnum;
+                            terrain->template->area = template_room->area;
+                            terrain->template->rs_room_flag[0] = template_room->rs_room_flag[0];
+                            terrain->template->rs_room_flag[1] = template_room->rs_room_flag[1];
+                            terrain->template->room_flag[0] = template_room->room_flag[0];
+                            terrain->template->room_flag[1] = template_room->room_flag[1];
+                            room_set_rs_sector_type(terrain->template, room_rs_sector_type(template_room));
+                            room_set_sector_type(terrain->template, room_sector_type(template_room));
+                        }
+                    }
+                }
+            }
+
+            wilderness_wterr_apply_template_metadata(terrain, entry);
         }
     }
 
@@ -189,6 +253,9 @@ bool wilderness_wterr_save(WILDS_DATA *pWilds)
         json_object_set_new(entry, "wildgen_r", json_integer(terrain->wildgen_r));
         json_object_set_new(entry, "wildgen_g", json_integer(terrain->wildgen_g));
         json_object_set_new(entry, "wildgen_b", json_integer(terrain->wildgen_b));
+        json_object_set_new(entry, "room_flags", json_integer(terrain->template ? terrain->template->rs_room_flag[0] : 0));
+        json_object_set_new(entry, "room2_flags", json_integer(terrain->template ? terrain->template->rs_room_flag[1] : 0));
+        json_object_set_new(entry, "sector_type", json_integer(terrain->template ? room_rs_sector_type(terrain->template) : 0));
 
         if (terrain->template)
         {

@@ -6,6 +6,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "requirements.h"
+#include "wilds.h"
 
 #define REQUIREMENTS_MAX_DEPTH 16
 
@@ -693,6 +694,227 @@ static bool requirements_eval_quest_points(const json_t *value,
     return requirements_compare_int((int)actor->questpoints, op, expected);
 }
 
+static ROOM_INDEX_DATA *requirements_context_room(const REQUIREMENT_CONTEXT *context)
+{
+    if (!context)
+        return NULL;
+
+    if (context->self_room)
+        return context->self_room;
+
+    if (context->actor)
+        return context->actor->in_room;
+
+    return NULL;
+}
+
+static int requirements_storm_type_from_name(const char *name)
+{
+    if (IS_NULLSTR(name))
+        return WEATHER_NONE;
+
+    if (!str_cmp(name, "none"))
+        return WEATHER_NONE;
+    if (!str_prefix(name, "rain"))
+        return WEATHER_RAIN_STORM;
+    if (!str_prefix(name, "lightning") || !str_prefix(name, "storm"))
+        return WEATHER_LIGHTNING_STORM;
+    if (!str_prefix(name, "snow"))
+        return WEATHER_SNOW_STORM;
+    if (!str_prefix(name, "hurricane"))
+        return WEATHER_HURRICANE;
+    if (!str_prefix(name, "tornado"))
+        return WEATHER_TORNADO;
+
+    return -1;
+}
+
+static bool requirements_eval_terrain(const json_t *value,
+                                      const REQUIREMENT_CONTEXT *context)
+{
+    ROOM_INDEX_DATA *room;
+    WILDS_DATA *wilds;
+    int rel_x;
+    int rel_y;
+    WILDS_TERRAIN *terrain;
+    const char *name = NULL;
+    int token = -1;
+    bool invert = false;
+
+    room = requirements_context_room(context);
+    if (!room || !(wilds = room->wilds))
+        return false;
+
+    rel_x = room->x - wilds->startx;
+    rel_y = room->y - wilds->starty;
+    terrain = get_terrain_by_coors(wilds, rel_x, rel_y);
+    if (!terrain)
+        return false;
+
+    if (json_is_string(value)) {
+        const char *text = json_string_value(value);
+        if (!IS_NULLSTR(text) && strlen(text) == 1)
+            token = (unsigned char)text[0];
+        else
+            name = text;
+    } else if (json_is_integer(value)) {
+        token = (int)json_integer_value(value);
+    } else if (json_is_object(value)) {
+        json_t *tv = json_object_get(value, "token");
+        json_t *nv = json_object_get(value, "name");
+        json_t *ov = json_object_get(value, "op");
+
+        if (json_is_string(ov))
+            invert = !str_cmp(json_string_value(ov), "!=") || !str_cmp(json_string_value(ov), "ne");
+
+        if (json_is_string(tv)) {
+            const char *text = json_string_value(tv);
+            if (!IS_NULLSTR(text) && strlen(text) == 1)
+                token = (unsigned char)text[0];
+            else
+                return false;
+        } else if (json_is_integer(tv)) {
+            token = (int)json_integer_value(tv);
+        } else if (json_is_string(nv)) {
+            name = json_string_value(nv);
+        } else if (json_is_string(json_object_get(value, "value"))) {
+            const char *text = json_string_value(json_object_get(value, "value"));
+            if (!IS_NULLSTR(text) && strlen(text) == 1)
+                token = (unsigned char)text[0];
+            else
+                name = text;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    if (token >= 0)
+        return ((terrain->mapchar == (char)token) != 0) != invert;
+
+    if (!IS_NULLSTR(name)) {
+        bool matches = false;
+
+        if (!IS_NULLSTR(terrain->showname) && !str_cmp(name, terrain->showname))
+            matches = true;
+        else if (!IS_NULLSTR(terrain->briefdesc) && !str_cmp(name, terrain->briefdesc))
+            matches = true;
+
+        return matches != invert;
+    }
+
+    return false;
+}
+
+static bool requirements_eval_sector(const json_t *value,
+                                     const REQUIREMENT_CONTEXT *context)
+{
+    ROOM_INDEX_DATA *room;
+    int actual;
+    int expected;
+    REQUIREMENT_COMPARE_OP op = REQUIREMENT_OP_EQ;
+
+    room = requirements_context_room(context);
+    if (!room)
+        return false;
+
+    actual = room_sector_type(room);
+
+    if (json_is_integer(value)) {
+        expected = (int)json_integer_value(value);
+    } else if (json_is_string(value)) {
+        expected = (int)flag_value(sector_flags, (char *)json_string_value(value));
+        if (expected == NO_FLAG)
+            return false;
+    } else if (json_is_object(value)) {
+        json_t *vv = json_object_get(value, "value");
+        json_t *ov = json_object_get(value, "op");
+
+        if (json_is_string(ov))
+            op = requirements_parse_compare_op(json_string_value(ov), REQUIREMENT_OP_EQ);
+
+        if (json_is_integer(vv))
+            expected = (int)json_integer_value(vv);
+        else if (json_is_string(vv)) {
+            expected = (int)flag_value(sector_flags, (char *)json_string_value(vv));
+            if (expected == NO_FLAG)
+                return false;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    return requirements_compare_int(actual, op, expected);
+}
+
+static bool requirements_eval_storm(const json_t *value,
+                                    const REQUIREMENT_CONTEXT *context)
+{
+    ROOM_INDEX_DATA *room;
+    int actual;
+    int expected;
+    REQUIREMENT_COMPARE_OP op = REQUIREMENT_OP_EQ;
+
+    room = requirements_context_room(context);
+    if (!room)
+        return false;
+
+    actual = get_storm_for_room(room);
+
+    if (json_is_boolean(value))
+        return json_boolean_value(value) ? (actual != WEATHER_NONE) : (actual == WEATHER_NONE);
+
+    if (json_is_integer(value)) {
+        expected = (int)json_integer_value(value);
+        return requirements_compare_int(actual, op, expected);
+    }
+
+    if (json_is_string(value)) {
+        const char *text = json_string_value(value);
+
+        if (!str_cmp(text, "any") || !str_cmp(text, "active"))
+            return actual != WEATHER_NONE;
+
+        expected = requirements_storm_type_from_name(text);
+        if (expected < 0)
+            return false;
+        return requirements_compare_int(actual, op, expected);
+    }
+
+    if (json_is_object(value)) {
+        json_t *active = json_object_get(value, "active");
+        json_t *type = json_object_get(value, "type");
+        json_t *raw = json_object_get(value, "value");
+        json_t *ov = json_object_get(value, "op");
+
+        if (json_is_boolean(active))
+            return json_boolean_value(active) ? (actual != WEATHER_NONE) : (actual == WEATHER_NONE);
+
+        if (json_is_string(ov))
+            op = requirements_parse_compare_op(json_string_value(ov), REQUIREMENT_OP_EQ);
+
+        if (!type)
+            type = raw;
+
+        if (json_is_integer(type))
+            expected = (int)json_integer_value(type);
+        else if (json_is_string(type)) {
+            expected = requirements_storm_type_from_name(json_string_value(type));
+            if (expected < 0)
+                return false;
+        } else {
+            return false;
+        }
+
+        return requirements_compare_int(actual, op, expected);
+    }
+
+    return false;
+}
+
 /*
  * requirements_eval_script - fire a prog trigger on the owning entity
  *
@@ -791,6 +1013,12 @@ static bool requirements_eval_leaf(const char *key,
         return requirements_eval_race(value, context);
     if (!str_cmp(key, "quest_points"))
         return requirements_eval_quest_points(value, context);
+    if (!str_cmp(key, "terrain"))
+        return requirements_eval_terrain(value, context);
+    if (!str_cmp(key, "sector"))
+        return requirements_eval_sector(value, context);
+    if (!str_cmp(key, "storm"))
+        return requirements_eval_storm(value, context);
     if (!str_cmp(key, "script"))
         return requirements_eval_script(value, context);
 
@@ -843,6 +1071,9 @@ static bool requirements_eval_node(const json_t *node,
             !str_cmp(key, "class_level") ||
             !str_cmp(key, "race") ||
             !str_cmp(key, "quest_points") ||
+            !str_cmp(key, "terrain") ||
+            !str_cmp(key, "sector") ||
+            !str_cmp(key, "storm") ||
             !str_cmp(key, "script")) {
             has_known = true;
             result = result && requirements_eval_leaf(key, value, context);
@@ -879,6 +1110,9 @@ static bool requirements_eval_node(const json_t *node,
  *     quest_completed WNUM
  *     quest_active WNUM
  *     reputation WNUM [rank [op] N]
+ *     terrain TOKEN_OR_NAME
+ *     sector [op] SECTOR
+ *     storm [op] TYPE | storm any | storm none
  *     script [PHRASE]
  *
  *   combinators (AND binds tighter than OR):
@@ -1103,6 +1337,47 @@ static json_t *req_build_word_key(const char *key, RTok *vt, int nv,
         return NULL;
     }
     return json_pack("{ss}", key, vt[0].text);
+}
+
+/*
+ * req_build_word_or_num_op_key - build JSON for keys with optional [op] scalar
+ * Used by: sector, storm, terrain
+ */
+static json_t *req_build_word_or_num_op_key(const char *key, RTok *vt, int nv,
+                                            char *err, size_t esz)
+{
+    int idx = 0;
+    const char *op = NULL;
+    json_t *obj;
+    json_t *value;
+
+    if (nv < 1) {
+        snprintf(err, esz, "%s: expected value", key);
+        return NULL;
+    }
+
+    if (vt[idx].type == RTOK_OP)
+        op = vt[idx++].text;
+
+    if (idx >= nv || vt[idx].type != RTOK_WORD) {
+        snprintf(err, esz, "%s: expected value", key);
+        return NULL;
+    }
+
+    if (idx + 1 != nv) {
+        snprintf(err, esz, "%s: unexpected extra tokens", key);
+        return NULL;
+    }
+
+    value = vt[idx].is_number ? json_integer(vt[idx].ival) : json_string(vt[idx].text);
+
+    if (!op)
+        return json_pack("{so*}", key, value);
+
+    obj = json_object();
+    json_object_set_new(obj, "op", json_string(op));
+    json_object_set_new(obj, "value", value);
+    return json_pack("{so*}", key, obj);
 }
 
 /*
@@ -1361,6 +1636,10 @@ static json_t *rp_parse_atom(RParser *rp)
         result = req_build_quest_ref(key, vt, nv, err, sizeof(err));
     else if (!str_cmp(key, "reputation"))
         result = req_build_reputation(vt, nv, err, sizeof(err));
+    else if (!str_cmp(key, "terrain")
+             || !str_cmp(key, "sector")
+             || !str_cmp(key, "storm"))
+        result = req_build_word_or_num_op_key(key, vt, nv, err, sizeof(err));
     else if (!str_cmp(key, "script"))
         result = req_build_script(vt, nv, err, sizeof(err));
     else {
@@ -1870,6 +2149,89 @@ static void req_decompile_node(const json_t *node, RBuf *b, bool wrap)
         if (json_is_string(v)) {
             rbuf_cat(b, " ");
             rbuf_cat(b, json_string_value(v));
+        }
+        return;
+    }
+
+    /* terrain */
+    v = json_object_get(node, "terrain");
+    if (v) {
+        rbuf_cat(b, "terrain ");
+        if (json_is_string(v))
+            rbuf_cat(b, json_string_value(v));
+        else if (json_is_integer(v))
+            rbuf_cat_long(b, json_integer_value(v));
+        else if (json_is_object(v)) {
+            json_t *ov = json_object_get(v, "op");
+            json_t *vv = json_object_get(v, "value");
+            if (ov && json_is_string(ov)) {
+                rbuf_cat(b, json_string_value(ov));
+                rbuf_cat(b, " ");
+            }
+            if (json_is_string(vv))
+                rbuf_cat(b, json_string_value(vv));
+            else if (json_is_integer(vv))
+                rbuf_cat_long(b, json_integer_value(vv));
+        }
+        return;
+    }
+
+    /* sector */
+    v = json_object_get(node, "sector");
+    if (v) {
+        rbuf_cat(b, "sector ");
+        if (json_is_string(v))
+            rbuf_cat(b, json_string_value(v));
+        else if (json_is_integer(v))
+            rbuf_cat_long(b, json_integer_value(v));
+        else if (json_is_object(v)) {
+            json_t *ov = json_object_get(v, "op");
+            json_t *vv = json_object_get(v, "value");
+            if (ov && json_is_string(ov)) {
+                rbuf_cat(b, json_string_value(ov));
+                rbuf_cat(b, " ");
+            }
+            if (json_is_string(vv))
+                rbuf_cat(b, json_string_value(vv));
+            else if (json_is_integer(vv))
+                rbuf_cat_long(b, json_integer_value(vv));
+        }
+        return;
+    }
+
+    /* storm */
+    v = json_object_get(node, "storm");
+    if (v) {
+        rbuf_cat(b, "storm ");
+        if (json_is_boolean(v))
+            rbuf_cat(b, json_boolean_value(v) ? "any" : "none");
+        else if (json_is_string(v))
+            rbuf_cat(b, json_string_value(v));
+        else if (json_is_integer(v))
+            rbuf_cat_long(b, json_integer_value(v));
+        else if (json_is_object(v)) {
+            json_t *active = json_object_get(v, "active");
+            json_t *ov = json_object_get(v, "op");
+            json_t *vv = json_object_get(v, "value");
+            json_t *tv = json_object_get(v, "type");
+
+            if (json_is_boolean(active)) {
+                rbuf_cat(b, json_boolean_value(active) ? "any" : "none");
+                return;
+            }
+
+            if (!tv)
+                tv = vv;
+
+            if (ov && json_is_string(ov)) {
+                rbuf_cat(b, json_string_value(ov));
+                rbuf_cat(b, " ");
+            }
+
+            if (json_is_string(tv))
+                rbuf_cat(b, json_string_value(tv));
+            else if (json_is_integer(tv))
+                rbuf_cat_long(b, json_integer_value(tv));
         }
         return;
     }

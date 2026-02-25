@@ -225,7 +225,9 @@ static void wilderness_storage_save_wilds(WILDS_DATA *pWilds)
 static void wilderness_storage_load_all(void)
 {
     ITERATOR iter;
+    ITERATOR save_iter;
     LLIST_WILDS_DATA *data;
+    LLIST_WILDS_DATA *save_data;
     int loaded = 0;
 
     if (!loaded_wilds)
@@ -258,6 +260,26 @@ static void wilderness_storage_load_all(void)
         loaded++;
     }
     iterator_stop(&iter);
+
+    /*
+     * Sidecar vlinks are loaded after boot_db() has already run fix_vlinks().
+     * Re-run linkage reconciliation here so sidecar-provided vlinks are wired.
+     */
+    fix_vlinks();
+
+    /*
+     * fix_vlinks() canonicalizes destination resolution (dest_load/dest_wnum).
+     * Persist vlinks after this pass so corrected widevnums survive first boot.
+     */
+    iterator_start(&save_iter, loaded_wilds);
+    while ((save_data = (LLIST_WILDS_DATA *)iterator_nextdata(&save_iter)))
+    {
+        if (!save_data || !save_data->wilds)
+            continue;
+
+        wilderness_vlinks_save(save_data->wilds);
+    }
+    iterator_stop(&save_iter);
 
     plogf(LOG_DEBUG, "wilderness_storage: initialized load pass for %d wilderness instance(s)", loaded);
 }

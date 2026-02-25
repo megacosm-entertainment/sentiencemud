@@ -16,6 +16,11 @@ Define a complete ship system architecture for Sentience, including:
 - following, convoy, and fleet mechanics
 - integration with wilderness and weather simulation
 
+Scope note:
+
+- This architecture includes the existing goblin airship travel path as a first-class transport mode.
+- Land travel actors (trade caravans, wagons, teams) should integrate through the same wilderness/runtime contracts, with legacy yoke/cart mechanics from `src_20_dev` treated as backport candidates.
+
 This plan complements `PLAN_WEATHER_AND_NPC_SHIP_SYSTEMS.md` and treats ship completion as a first-class systems program.
 
 ---
@@ -28,6 +33,14 @@ Existing ship functionality appears partially implemented (movement/navigation a
 - following/convoy/fleet systems are missing or incomplete
 - NPC ship behavior depth is limited
 - interior/world synchronization rules are not formalized as a stable contract
+
+Alignment snapshot (2026-02-24):
+
+- Implemented (foundation): wilderness-coordinate storm actors with persistence and region-aware weighting.
+- Implemented (foundation): weather-to-ship baseline coupling (storm-severity movement penalty and drift events).
+- Implemented (foundation): weather coupling now includes airship movement/drift tuning.
+- Implemented (foundation): area-region weather profile controls (`aedit regions weather`) with JSON persistence.
+- Pending (core architecture): explicit world/interior sync state machine, fleet entity model, and NPC ship ecosystem loops.
 
 ---
 
@@ -171,6 +184,25 @@ Soft dependencies:
 
 - class/party systems (for marine/crew role expression)
 - crafting/gathering/exploration outputs (ship supplies, repairs, route intel)
+
+## Three-Doc Execution Contract
+
+This architecture plan is coupled to:
+
+- `PLAN_WEATHER_AND_NPC_SHIP_SYSTEMS.md`
+- `PLAN_WILDERNESS_STORAGE_AND_SIMULATION.md`
+
+Execution guardrails:
+
+- Ship architecture changes must not bypass wilderness runtime/storage authority.
+- Weather/NPC transport implementation slices should land in the weather plan but remain architecture-compliant here.
+- Any change that alters actor authority, fleet semantics, or interior/world sync assumptions requires synchronized updates in all three plans.
+
+Ownership boundaries:
+
+- **This plan:** transport architecture and mission-level semantics (combat, convoy/fleet, actor/interior authority).
+- **Weather/NPC plan:** incremental behavior delivery and tuning on top of architecture.
+- **Wilderness plan:** runtime substrate, persistence order, and simulation lifecycle constraints.
 
 ---
 

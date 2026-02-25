@@ -35,6 +35,37 @@ static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2,
 static QUEST_INDEX_V2_DATA *json_area_deserialize_quest_v2(json_t *json, AREA_DATA *area);
 static bool json_script_array_has_vnum(json_t *scripts, long vnum);
 
+static void json_register_loaded_wilds(WILDS_DATA *wilds)
+{
+    ITERATOR it;
+    LLIST_WILDS_DATA *data;
+
+    if (!wilds || !loaded_wilds)
+        return;
+
+    iterator_start(&it, loaded_wilds);
+    while ((data = (LLIST_WILDS_DATA *)iterator_nextdata(&it)))
+    {
+        if (!data)
+            continue;
+
+        if (data->wilds == wilds || (wilds->uid > 0 && data->uid == wilds->uid))
+        {
+            iterator_stop(&it);
+            return;
+        }
+    }
+    iterator_stop(&it);
+
+    data = alloc_mem(sizeof(LLIST_WILDS_DATA));
+    if (!data)
+        return;
+
+    data->wilds = wilds;
+    data->uid = wilds->uid;
+    list_appendlink(loaded_wilds, data);
+}
+
 static void json_wilds_add_storage_ref(json_t *json, WILDS_DATA *wilds)
 {
     json_t *storage;
@@ -258,10 +289,136 @@ static WILDS_VLINK *json_to_wilds_vlink(json_t *json, WILDS_DATA *pWilds) {
     return vlink;
 }
 
+static json_t *wilds_region_to_json(const WILDS_REGION *region)
+{
+    json_t *json;
+    json_t *spawn_mobs;
+    json_t *spawn_objs;
+    ITERATOR it;
+    WILDS_REGION_SPAWN *spawn;
+
+    if (!region)
+        return NULL;
+
+    json = json_object();
+    if (!json)
+        return NULL;
+
+    json_object_set_new(json, "uid", json_integer(region->uid));
+    json_object_set_new(json, "name", json_string_safe(region->name));
+    json_object_set_new(json, "startx", json_integer(region->startx));
+    json_object_set_new(json, "starty", json_integer(region->starty));
+    json_object_set_new(json, "endx", json_integer(region->endx));
+    json_object_set_new(json, "endy", json_integer(region->endy));
+    json_object_set_new(json, "region", json_integer(region->region));
+    json_object_set_new(json, "area_place_flags", json_integer(region->area_place_flags));
+
+    spawn_mobs = json_array();
+    spawn_objs = json_array();
+
+    iterator_start(&it, region->spawn_mobs);
+    while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
+    {
+        json_t *entry = json_object();
+        json_object_set_new(entry, "wnum", json_string_safe(spawn->wnum));
+        json_object_set_new(entry, "chance", json_integer(spawn->chance));
+        json_object_set_new(entry, "cap", json_integer(spawn->cap));
+        json_object_set_new(entry, "requirements", json_string_safe(spawn->requirements));
+        json_array_append_new(spawn_mobs, entry);
+    }
+    iterator_stop(&it);
+
+    iterator_start(&it, region->spawn_objs);
+    while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
+    {
+        json_t *entry = json_object();
+        json_object_set_new(entry, "wnum", json_string_safe(spawn->wnum));
+        json_object_set_new(entry, "chance", json_integer(spawn->chance));
+        json_object_set_new(entry, "cap", json_integer(spawn->cap));
+        json_object_set_new(entry, "requirements", json_string_safe(spawn->requirements));
+        json_array_append_new(spawn_objs, entry);
+    }
+    iterator_stop(&it);
+
+    json_object_set_new(json, "spawn_mobs", spawn_mobs);
+    json_object_set_new(json, "spawn_objs", spawn_objs);
+
+    return json;
+}
+
+static WILDS_REGION *json_to_wilds_region(json_t *json, WILDS_DATA *pWilds)
+{
+    WILDS_REGION *region;
+    json_t *spawn_mobs;
+    json_t *spawn_objs;
+
+    if (!json || !pWilds)
+        return NULL;
+
+    region = new_region(pWilds);
+    if (!region)
+        return NULL;
+
+    region->uid = json_get_int_default(json, "uid", region->uid);
+
+    free_string(region->name);
+    region->name = str_dup(json_get_string_default(json, "name", ""));
+
+    region->startx = json_get_int_default(json, "startx", region->startx);
+    region->starty = json_get_int_default(json, "starty", region->starty);
+    region->endx = json_get_int_default(json, "endx", region->endx);
+    region->endy = json_get_int_default(json, "endy", region->endy);
+    region->region = json_get_int_default(json, "region", region->region);
+    region->area_place_flags = json_get_int_default(json, "area_place_flags", region->area_place_flags);
+
+    list_clear(region->spawn_mobs);
+    list_clear(region->spawn_objs);
+
+    spawn_mobs = json_object_get(json, "spawn_mobs");
+    if (json_is_array(spawn_mobs))
+    {
+        size_t i;
+        json_t *entry;
+
+        json_array_foreach(spawn_mobs, i, entry)
+        {
+            WILDS_REGION_SPAWN *spawn = alloc_mem(sizeof(*spawn));
+            memset(spawn, 0, sizeof(*spawn));
+            spawn->wnum = str_dup(json_get_string_default(entry, "wnum", ""));
+            spawn->chance = json_get_int_default(entry, "chance", 0);
+            spawn->cap = json_get_int_default(entry, "cap", 0);
+            spawn->requirements = str_dup(json_get_string_default(entry, "requirements", ""));
+            list_appendlink(region->spawn_mobs, spawn);
+        }
+    }
+
+    spawn_objs = json_object_get(json, "spawn_objs");
+    if (json_is_array(spawn_objs))
+    {
+        size_t i;
+        json_t *entry;
+
+        json_array_foreach(spawn_objs, i, entry)
+        {
+            WILDS_REGION_SPAWN *spawn = alloc_mem(sizeof(*spawn));
+            memset(spawn, 0, sizeof(*spawn));
+            spawn->wnum = str_dup(json_get_string_default(entry, "wnum", ""));
+            spawn->chance = json_get_int_default(entry, "chance", 0);
+            spawn->cap = json_get_int_default(entry, "cap", 0);
+            spawn->requirements = str_dup(json_get_string_default(entry, "requirements", ""));
+            list_appendlink(region->spawn_objs, spawn);
+        }
+    }
+
+    return region;
+}
+
 // --- WILDS_DATA JSON helpers ---
 static json_t *wilds_to_json(WILDS_DATA *wilds) {
     if (!wilds) return NULL;
     json_t *json = json_object();
+    json_t *regions = json_array();
+    WILDS_REGION *region;
     json_object_set_new(json, "uid", json_integer(wilds->uid));
     json_object_set_new(json, "name", json_string_safe(wilds->name));
     json_object_set_new(json, "wilds_format", json_integer(wilds->wilds_format));
@@ -284,6 +441,15 @@ static json_t *wilds_to_json(WILDS_DATA *wilds) {
     json_object_set_new(json, "legacy_embedded_terrains", json_false());
 
     json_object_set_new(json, "legacy_embedded_vlinks", json_false());
+
+    for (region = wilds->pRegion; region; region = region->next)
+    {
+        json_t *entry = wilds_region_to_json(region);
+        if (entry)
+            json_array_append_new(regions, entry);
+    }
+
+    json_object_set_new(json, "regions", regions);
     json_wilds_add_storage_ref(json, wilds);
     return json;
 }
@@ -399,6 +565,25 @@ static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
                 wilds->uid);
         }
     }
+
+    {
+        json_t *regions = json_object_get(json, "regions");
+        if (regions && json_is_array(regions))
+        {
+            size_t idx;
+            json_t *rj;
+
+            json_array_foreach(regions, idx, rj)
+            {
+                WILDS_REGION *region = json_to_wilds_region(rj, wilds);
+                if (region)
+                    add_region(wilds, region);
+            }
+        }
+    }
+
+    json_register_loaded_wilds(wilds);
+
     return wilds;
 }
 
@@ -448,6 +633,9 @@ static json_t *json_area_serialize_region_data(AREA_REGION *region)
     json_object_set_new(json, "area_who", json_integer(region->area_who));
     json_object_set_new(json, "flags", flags_to_json_array(region->flags, area_region_flags));
     json_object_set_new(json, "place_flags", json_integer(region->rs_place_flags));
+    json_object_set_new(json, "weather_density_percent", json_integer(region->weather_density_percent));
+    json_object_set_new(json, "weather_life_percent", json_integer(region->weather_life_percent));
+    json_object_set_new(json, "weather_severity_bias", json_integer(region->weather_severity_bias));
 
     if (region->rs_recall.wuid > 0) {
         json_object_set_new(recall, "wilds_uid", json_integer(region->rs_recall.wuid));
@@ -497,6 +685,12 @@ static void json_area_deserialize_region_data(json_t *json, AREA_REGION *region)
         region->flags = json_get_int_default(json, "flags", 0);
 
     region->rs_place_flags = json_get_int_default(json, "place_flags", PLACE_NOWHERE);
+    region->weather_density_percent = URANGE(25,
+        json_get_int_default(json, "weather_density_percent", 100), 300);
+    region->weather_life_percent = URANGE(25,
+        json_get_int_default(json, "weather_life_percent", 100), 300);
+    region->weather_severity_bias = URANGE(-100,
+        json_get_int_default(json, "weather_severity_bias", 0), 100);
 
     rs_location_clear(&region->rs_recall);
     json_t *recall = json_object_get(json, "recall");

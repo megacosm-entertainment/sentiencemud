@@ -14,7 +14,7 @@ Define a concrete, staged implementation plan for wilderness storage and runtime
 - `_state` for dynamic runtime actors/effects
 - `_mods` for explicit terrain overrides
 
-This plan is the foundation for weather, NPC ships, NPC spawns, and future elevation-aware dynamics.
+This plan is the foundation for weather, transport actors (sea ships, airships, land caravans/wagons), NPC spawns, and future elevation-aware dynamics.
 
 ---
 
@@ -212,11 +212,23 @@ Optimization layer: load/unload rooms in chunk groups instead of only one-by-one
 - Behavior profiles: patrol/trade/escort/pirate/faction response.
 - Weather and region traits influence route choice/risk.
 
+Land caravan/wagon extension:
+
+- Adapt legacy yoke/cart-mobile pattern from `src_20_dev` (`do_pull`, `do_yoke`, `do_unyoke`, `pulled_cart`) into coordinate-native transport actors.
+- Keep actor ownership in wilderness runtime state rather than room residency.
+
 ## 3) NPC Spawns / Features
 
 - Spawn controllers keyed to region + terrain eligibility.
 - Temporary and permanent wilderness features managed in `_state`.
 - Terrain-changing design edits tracked in `_mods`.
+
+Status update (2026-02-24):
+
+- Implemented: region-level ambient spawn options for wilderness groups (`spawnmob`, `spawnobj`, chance/cap) in `wedit region`.
+- Implemented: per-region spawn requirements wiring via requirements DSL (`spawnmobreq`, `spawnobjreq`).
+- Implemented: requirements engine wilderness predicates for `terrain`, `sector`, and `storm` to constrain ambient region spawns by map/weather context.
+- Implemented: periodic ambient wilderness spawn pulse (`wilds_ambient_spawn_pulse`) in update scheduler.
 
 ---
 
@@ -295,6 +307,9 @@ Status update (2026-02-24, corrective pass):
 - Implemented: sidecar processing order aligned to resolver precedence (`wmap -> wterr -> mods -> vlinks -> state`).
 - Implemented: automatic export migration pass that writes sidecar artifacts from existing in-zone wilderness payloads during storage init/save.
 - Implemented: area JSON save cutover to metadata+association only for wilderness payloads (legacy embedded map/terrain/vlinks are no longer emitted in new saves).
+- Implemented: wilderness JSON-load path now registers loaded wilds in global storage list (`loaded_wilds`) to keep sidecar load/save passes complete.
+- Implemented: sidecar vlink loader now replaces same-UID preloaded entries (instead of skipping), preventing first-boot stale merge behavior.
+- Implemented: boot load pass now persists vlinks after `fix_vlinks()` so canonicalized destination widevnums are written back on first boot.
 - Pending gate item: bootstrap fixture assets/tests for sidecar-authoritative wilderness loading.
 
 ## Phase 1 - Effective Tile Unification
@@ -345,6 +360,10 @@ Acceptance for rollout:
 - At least one integration test runs against bootstrap wilderness fixture data (not ad-hoc in-memory only).
 - Fixture data remains minimal and deterministic to keep CI runtime stable.
 
+Status (2026-02-24):
+
+- Completed: targeted `bootstrap_fixture_tests` run passes with wilderness fixture hosted in `bootstrap_data/area/tests.json` (2/2 passing, 0 failures).
+
 ## Phase 1.5 - Chunk Group Materialization
 
 - Add chunk index and chunk activity metadata to wilderness runtime.
@@ -362,7 +381,9 @@ Status (2026-02-24):
 - Implemented (slice 2): chunk telemetry logging for prefetch/unload activity.
 - Implemented (slice 3): actor-driven prewarm hook on player wilderness entry.
 - Implemented (slice 3): basic in-game chunk status visibility in `wlist` output.
-- Pending: richer telemetry surfaces (admin command/report).
+- Implemented (slice 3): `wlist status` admin telemetry view exposing chunk guard thresholds and per-wilds pressure/pinning status.
+- Implemented (slice 3): pulse-time prefetch backoff guard that defers non-critical prefetch after chunk-pulse overruns.
+- Pending: richer telemetry/report detail beyond status summary (historical counters/trends).
 
 ## Phase 2 - State + Mods Persistence (Contract-Ordered)
 
@@ -400,6 +421,11 @@ Revalidation requirement (new):
 - Add region profile tables for weather/ships/spawn weighting.
 - Add script hook points by region transition.
 
+Status (2026-02-24):
+
+- Implemented (slice 1): central room-region lookup now routes wilderness rooms through effective wilderness-region resolution (`get_wilds_effective_region`) with legacy fallback.
+- Pending: region profile weighting tables and explicit script transition hook events.
+
 ## Phase 4 - Weather + NPC Ship Activation
 
 - Reactivate weather actor loop on shared coordinate scheduler.
@@ -407,11 +433,63 @@ Revalidation requirement (new):
 - Couple weather + ships + region hazards.
 - Use chunk-prewarm hooks for player-visible interactions (without global room loading).
 
+Status (2026-02-24):
+
+- Implemented (baseline): active weather progression restored (`update_weather` now runs from tick scheduler and updates barometric pressure + sky state).
+- Implemented (baseline): overland travel impact restored with wilderness movement penalties tied to active weather severity, including stronger penalties over water sectors.
+- Implemented (baseline): legacy storm queries now gracefully map to active sky weather when no coordinate storm actors are present.
+- Implemented: coordinate storm actor lifecycle/drift and persistence in wilderness sidecar state.
+- Implemented: area-region weather weighting/profile controls (`density`, `life`, `severity`) with `aedit regions weather` + JSON persistence.
+- Implemented (baseline): weather-to-transport coupling via storm-severity speed penalties and drift events for sea ships and airships.
+- Pending: route-level weather avoidance and weather-band encounter-risk modulation for NPC ship AI.
+- Pending: land caravan/wagon actor track using backported yoke/cart mechanics.
+
+## Ship Architecture Alignment (Imported Constraints)
+
+This wilderness contract inherits ship-facing requirements from `PLAN_SHIP_SYSTEM_ARCHITECTURE.md` and treats them as runtime constraints:
+
+- **Single authoritative world ship actor:** wilderness simulation remains source-of-truth for position/travel/tactical state; interior views are projections.
+- **Persistent ship runtime state:** ship actor persistence must remain sidecar/state-driven and independent of loaded vroom lifetime.
+- **Composable group navigation target:** convoy/fleet mechanics (leader/follower spacing, drift/deconfliction under weather stress) build on chunk-safe coordinate simulation.
+- **Weather-native behavior contract:** weather outputs (storm band, severity, drift pressure) are consumed directly by ship movement/routing logic.
+
+Cross-phase mapping to ship architecture plan:
+
+- **Ship Phase 0 (runtime contract):** anchored by wilderness persistence/resolver contract and sidecar state lifecycle.
+- **Ship Phase 1 (interior/world sync):** depends on explicit transition guards and reconciliation points layered on wilderness actor ownership.
+- **Ship Phase 5 (convoy/fleet):** depends on chunk group materialization + weather-aware movement controls now active at baseline.
+- **Ship Phase 6 (NPC ecosystem):** depends on route/risk weighting over area-region profiles plus weather windows.
+
 ## Phase 5 - NPC Spawn/Feature Expansion
 
 - Add dynamic spawn controllers and feature lifecycle rules.
 - Separate temporary event state from permanent world-change state.
 - Add balancing/telemetry.
+
+### Current Interaction Workflow (Builders/Admin)
+
+- **Area weather profile defaults (area-region baseline):**
+   - `aedit regions weather default show`
+   - `aedit regions weather default density <25-300>`
+   - `aedit regions weather default life <25-300>`
+   - `aedit regions weather default severity <-100..100>`
+- **Area named-region weather overrides:**
+   - `aedit regions weather <#|name|default> <show|density|life|severity> [value]`
+- **Wilderness ambient spawn region-groups:**
+   - `wedit region add <name>`
+   - `wedit region <name|idx|uid> coords add <startx> <starty> <endx> <endy>`
+   - `wedit region <name|idx|uid> spawnmob <auid#vnum|none> [chance] [cap]`
+   - `wedit region <name|idx|uid> spawnmobreq <requirements|none>`
+   - `wedit region <name|idx|uid> spawnobj <auid#vnum|none> [chance] [cap]`
+   - `wedit region <name|idx|uid> spawnobjreq <requirements|none>`
+- **Spawn requirement predicates:** `terrain`, `sector`, `storm`.
+- **Runtime storm controls (imm/admin):** `weather storm help` (`list`, `spawn`, `move`, `set`, `delete`, `clear`).
+- **Operational visibility:** `wlist` for overview and `wlist status` for chunk guard pressure snapshot.
+- **Fully NPC-controlled ship workflow (imm/admin):**
+   - `ships load <auid#vnum> <ownerName|none> <ship name>` (load a hull template into current room)
+   - `ships owner <npcName|none>` (set current ship owner to an NPC; enables persistence UID binding)
+   - `ships ai <on|off>` (toggle persistent autonomous ship AI on current ship)
+   - configure route while onboard: `ship waypoints ...`, `ship routes ...`, then let pulse AI drive patrol/offpath goals
 
 ## Phase 6 - Elevation Enablement
 
@@ -457,3 +535,22 @@ Revalidation requirement (new):
 - `PLAN_SHIP_SYSTEM_ARCHITECTURE.md`
 - `PLAN_CORE_SYSTEMS_INTEGRATION.md`
 - `TODO_CORE_SYSTEMS_INTEGRATION.md`
+
+## Three-Doc Execution Contract
+
+This plan is the substrate contract for:
+
+- `PLAN_WEATHER_AND_NPC_SHIP_SYSTEMS.md`
+- `PLAN_SHIP_SYSTEM_ARCHITECTURE.md`
+
+Execution guardrails:
+
+- Behavior slices in weather/NPC and ship architecture tracks must operate through wilderness runtime/storage boundaries defined here.
+- No architecture or behavior feature should introduce alternate ownership for coordinate state outside this contract.
+- Any work touching persistence schema/order, actor authority, region-resolution semantics, or chunk lifecycle must be reflected in all three plans in the same update.
+
+Boundary summary:
+
+- **Wilderness plan:** storage/resolver/lifecycle authority.
+- **Ship architecture plan:** actor/interior/fleet architecture authority.
+- **Weather/NPC plan:** practical behavior rollout authority within the above constraints.

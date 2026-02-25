@@ -9,6 +9,8 @@
 #include "wilderness_storage.h"
 #include "wilderness_vlinks.h"
 
+extern void free_vlink(WILDS_VLINK *pVLink);
+
 static bool wilderness_vlinks_ready = false;
 
 static json_t *wilderness_vlinks_json_string_safe(const char *value)
@@ -52,6 +54,47 @@ static bool wilderness_vlinks_file_exists(const char *path)
         return false;
 
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+static WILDS_VLINK *wilderness_vlinks_find_uid(WILDS_DATA *pWilds, long uid)
+{
+    WILDS_VLINK *vlink;
+
+    if (!pWilds || uid <= 0)
+        return NULL;
+
+    for (vlink = pWilds->pVLink; vlink; vlink = vlink->next)
+        if (vlink->uid == uid)
+            return vlink;
+
+    return NULL;
+}
+
+static void wilderness_vlinks_remove_entry(WILDS_DATA *pWilds, WILDS_VLINK *target)
+{
+    WILDS_VLINK *prev = NULL;
+    WILDS_VLINK *iter;
+
+    if (!pWilds || !target)
+        return;
+
+    for (iter = pWilds->pVLink; iter; prev = iter, iter = iter->next)
+    {
+        if (iter != target)
+            continue;
+
+        if (iter->current_linkage != VLINK_UNLINKED)
+            unlink_vlink(iter);
+
+        if (prev)
+            prev->next = iter->next;
+        else
+            pWilds->pVLink = iter->next;
+
+        iter->next = NULL;
+        free_vlink(iter);
+        return;
+    }
 }
 
 static json_t *wilderness_vlink_to_json(WILDS_VLINK *vlink)
@@ -132,6 +175,18 @@ static WILDS_VLINK *wilderness_vlink_from_json(json_t *json, WILDS_DATA *pWilds)
         WNUM_LOAD wload;
         if (parse_widevnum_load(json_string_value(destvnum_val), &wload))
         {
+            /*
+             * Legacy recovery guard:
+             * Some migrated sidecars may encode destvnum as "<wilds_uid>#<vnum>"
+             * rather than "<area_uid>#<vnum>". If the parsed area UID does not map
+             * to a real area and matches the owning wilds UID, treat it as bare vnum.
+             */
+            if (wload.auid > 0 && !get_area_from_uid(wload.auid)
+                && pWilds && wload.auid == pWilds->uid)
+            {
+                wload.auid = 0;
+            }
+
             vlink->destvnum = wload.vnum;
             vlink->dest_load = wload;
             vlink->pDestRoom = NULL;
@@ -187,6 +242,7 @@ bool wilderness_vlinks_load(WILDS_DATA *pWilds)
     json_t *vlinks;
     size_t i;
     int loaded = 0;
+    int replaced = 0;
 
     if (!wilderness_vlinks_ready || !pWilds)
         return false;
@@ -218,18 +274,24 @@ bool wilderness_vlinks_load(WILDS_DATA *pWilds)
         {
             json_t *entry = json_array_get(vlinks, i);
             WILDS_VLINK *vlink;
+            WILDS_VLINK *existing;
             long uid;
 
             if (!json_is_object(entry))
                 continue;
 
             uid = (long)json_integer_value(json_object_get(entry, "uid"));
-            if (uid > 0 && get_vlink_from_uid(pWilds, uid))
-                continue;
+            existing = wilderness_vlinks_find_uid(pWilds, uid);
 
             vlink = wilderness_vlink_from_json(entry, pWilds);
             if (!vlink)
                 continue;
+
+            if (existing)
+            {
+                wilderness_vlinks_remove_entry(pWilds, existing);
+                replaced++;
+            }
 
             add_vlink(pWilds, vlink);
             loaded++;
@@ -238,11 +300,12 @@ bool wilderness_vlinks_load(WILDS_DATA *pWilds)
 
     json_decref(root);
 
-    if (loaded > 0)
+    if (loaded > 0 || replaced > 0)
     {
         plogf(LOG_INFO,
-            "wilderness_vlinks_load: loaded %d vlink(s) for wilds uid %ld",
+            "wilderness_vlinks_load: loaded %d vlink(s), replaced %d existing for wilds uid %ld",
             loaded,
+            replaced,
             pWilds->uid);
     }
 
@@ -261,6 +324,15 @@ bool wilderness_vlinks_save(WILDS_DATA *pWilds)
 
     if (!wilderness_storage_build_vlinks_path(pWilds, path, sizeof(path)))
         return false;
+
+    /*
+     * Safety: if a wilderness currently has no vlinks in memory and there is
+     * no persisted sidecar yet, do not create a brand-new empty vlinks file.
+     * This avoids clobbering recovery opportunities when legacy migration
+     * sources are still being restored.
+     */
+    if (!pWilds->pVLink && !wilderness_vlinks_file_exists(path))
+        return true;
 
     root = json_object();
     vlinks = json_array();

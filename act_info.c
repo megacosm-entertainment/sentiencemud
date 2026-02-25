@@ -836,6 +836,38 @@ void show_llist_to_char(LLIST *llist, CHAR_DATA *ch, bool fShort, bool fShowNoth
     }
 }
 
+static const char *show_room_display_name(ROOM_INDEX_DATA *room, char *out, size_t out_size)
+{
+    const char *base_name;
+
+    if (!room)
+    {
+        snprintf(out, out_size, "(unknown)");
+        return out;
+    }
+
+    base_name = IS_NULLSTR(room->name) ? "(unnamed)" : room->name;
+
+    if (IS_WILDERNESS(room) && room->wilds)
+    {
+        WILDS_TERRAIN *terrain = get_terrain_by_coors(room->wilds, room->x, room->y);
+        WILDS_REGION *region = get_region_by_coors(room->wilds, room->x, room->y);
+
+        if (terrain && !IS_NULLSTR(terrain->showname))
+            base_name = terrain->showname;
+
+        if (region && !IS_NULLSTR(region->name))
+            snprintf(out, out_size, "%s (%s)", base_name, region->name);
+        else
+            snprintf(out, out_size, "%s", base_name);
+
+        return out;
+    }
+
+    snprintf(out, out_size, "%s", base_name);
+    return out;
+}
+
 /**
  * show_char_to_char_0 - Display a character's room description to viewer
  *
@@ -2139,6 +2171,8 @@ void do_area(CHAR_DATA *ch, char *argument)
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic)
 {
     char buf[MAX_STRING_LENGTH];
+    char display_name[MAX_STRING_LENGTH];
+    const char *room_name;
     EXIT_DATA *pexit;
     int count;
     int linelength;
@@ -2186,15 +2220,17 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
         send_to_char(buf, ch);
     }
 */
-    linelength = strlen(room->name);
+    room_name = show_room_display_name(room, display_name, sizeof(display_name));
+
+    linelength = strlen(room_name);
     linelength = 50 - linelength;
 
     if (IS_SET(room->room_flag[0], ROOM_SAFE))
-        sprintf(buf, "\n\r {W%s", room->name);
+        sprintf(buf, "\n\r {W%s", room_name);
     else if (IS_SET(room->room_flag[0], ROOM_UNDERWATER))
-        sprintf(buf, "\n\r {C%s", room->name);
+        sprintf(buf, "\n\r {C%s", room_name);
     else
-        sprintf(buf, "\n\r {Y%s", room->name);
+        sprintf(buf, "\n\r {Y%s", room_name);
 
     send_to_char(buf, ch);
 
@@ -3460,13 +3496,19 @@ void do_exits(CHAR_DATA * ch, char *argument)
                 strcat(buf, " ");
                 strcat(buf, dir_name[door]);
             } else {
+                char to_room_display_name[MAX_STRING_LENGTH];
+                const char *to_room_name = show_room_display_name(to_room, to_room_display_name, sizeof(to_room_display_name));
+
                 sprintf(buf + strlen(buf), "%-5s - %s",
                     capitalize(dir_name[door]),
-                    room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room->name);
+                    room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room_name);
 
                 if (IS_IMMORTAL(ch)) {
                     if(to_room->wilds)
-                        sprintf(buf + strlen(buf), " ({Gwilds (%lu, %lu, %lu){x)\n\r", to_room->wilds->uid, to_room->x, to_room->y);
+                        sprintf(buf + strlen(buf), " ({Gwilds %s (%ld, %ld){x)\n\r",
+                            IS_NULLSTR(to_room->wilds->name) ? "(unnamed)" : to_room->wilds->name,
+                            to_room->x,
+                            to_room->y);
                     else
                         sprintf(buf + strlen(buf), " ({Groom %s{x)\n\r", widevnum_string_room(to_room, ch->in_room->area));
                 } else
@@ -3516,13 +3558,19 @@ void do_exits(CHAR_DATA * ch, char *argument)
                 strcat(buf, " ");
                 strcat(buf, dir_name[door]);
             } else {
+                char to_room_display_name[MAX_STRING_LENGTH];
+                const char *to_room_name = show_room_display_name(to_room, to_room_display_name, sizeof(to_room_display_name));
+
                 sprintf(buf + strlen(buf), "%-5s - %s",
                     capitalize(dir_name[door]),
-                    room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room->name);
+                    room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room_name);
 
                 if (IS_IMMORTAL(ch)) {
                     if(to_room->wilds)
-                        sprintf(buf + strlen(buf), " ({Gwilds (%lu, %lu, %lu){x)\n\r", to_room->wilds->uid, to_room->x, to_room->y);
+                        sprintf(buf + strlen(buf), " ({Gwilds %s (%ld, %ld){x)\n\r",
+                            IS_NULLSTR(to_room->wilds->name) ? "(unnamed)" : to_room->wilds->name,
+                            to_room->x,
+                            to_room->y);
                     else
                         sprintf(buf + strlen(buf), " ({Groom %s{x)\n\r", widevnum_string_room(to_room, ch->in_room->area));
                 } else
@@ -4919,6 +4967,7 @@ void do_time(CHAR_DATA * ch, char *argument)
  */
 void do_weather(CHAR_DATA *ch, char *argument)
 {
+    char arg[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
 
     static char *const sky_look[4] =
@@ -4928,6 +4977,23 @@ void do_weather(CHAR_DATA *ch, char *argument)
     "rainy",
     "lit by flashes of lightning"
     };
+
+    argument = one_argument(argument, arg);
+
+    if (!str_prefix(arg, "storm"))
+    {
+        weather_handle_storm_command(ch, argument);
+        return;
+    }
+
+    if (arg[0] != '\0' && (!str_prefix(arg, "forecast") || !str_prefix(arg, "map")))
+    {
+    if (weather_show_forecast(ch))
+        return;
+
+    send_to_char("You need to be in the wilderness to read storm fronts.\n\r", ch);
+    return;
+    }
 
     if (!IS_OUTSIDE(ch))
     {

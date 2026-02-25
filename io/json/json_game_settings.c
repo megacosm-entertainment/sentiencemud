@@ -517,6 +517,8 @@ static void init_game_settings_defaults(void)
     game_settings.alignment_system = false;
     game_settings.restrict_races_align = false;
     game_settings.restrict_classes_align = false;
+    game_settings.weather_storms_enabled = true;
+    game_settings.weather_ambience_enabled = true;
 
     /* Timers */
     game_settings.idle_time = 0;

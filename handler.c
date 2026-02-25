@@ -6003,11 +6003,25 @@ int get_region_area(AREA_DATA *area)
 // get region (roughly) in the wilds
 int get_region(ROOM_INDEX_DATA *room)
 {
+    int rel_x;
+    int rel_y;
+    int region;
+
     if( !room )
         return REGION_UNKNOWN;
 
     if( !IS_WILDERNESS(room) )
         return get_region_area(room->area);
+
+    if (!room->wilds)
+        return REGION_UNKNOWN;
+
+    rel_x = room->x - room->wilds->startx;
+    rel_y = room->y - room->wilds->starty;
+    region = get_wilds_effective_region(room->wilds, rel_x, rel_y);
+
+    if (region != REGION_UNKNOWN)
+        return region;
 
     return get_region_wyx(room->wilds->uid, room->x, room->y);
 }

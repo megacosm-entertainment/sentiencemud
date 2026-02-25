@@ -672,6 +672,8 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
         if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER)
             move -= move / 4;
 
+        move += weather_movement_modifier(in_room, to_room, move);
+
         if (!MOUNTED(ch)) {
             /* conditional effects */
             if (IS_AFFECTED(ch,AFF_FLYING) || IS_AFFECTED(ch,AFF_HASTE))

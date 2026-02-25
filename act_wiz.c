@@ -73,6 +73,89 @@ void pstat_variable_list(BUFFER *buffer, pVARIABLE vars);
 char *reboot_reason = NULL; // global
 void relic_update(void); // forward declaration
 
+static const char *wiz_room_display_name(ROOM_INDEX_DATA *room, char *buf, size_t buf_size)
+{
+    WILDS_TERRAIN *terrain;
+    int rel_x;
+    int rel_y;
+
+    if (!buf || buf_size < 2)
+        return "";
+
+    if (!room)
+    {
+        snprintf(buf, buf_size, "nowhere");
+        return buf;
+    }
+
+    if (!room->wilds)
+    {
+        snprintf(buf, buf_size, "%s", room->name ? room->name : "(unnamed room)");
+        return buf;
+    }
+
+    rel_x = room->x - room->wilds->startx;
+    rel_y = room->y - room->wilds->starty;
+    terrain = get_terrain_by_coors(room->wilds, rel_x, rel_y);
+
+    if (terrain && !IS_NULLSTR(terrain->showname))
+        snprintf(buf, buf_size, "%s", terrain->showname);
+    else
+        snprintf(buf, buf_size, "%s", room->name ? room->name : "(unnamed wilderness)");
+
+    return buf;
+}
+
+static void wiz_append_room_location_link(CHAR_DATA *ch, BUFFER *buffer, ROOM_INDEX_DATA *room)
+{
+    if (!buffer)
+        return;
+
+    if (!room)
+    {
+        add_buf(buffer, "nowhere");
+        return;
+    }
+
+    if (room->wilds)
+    {
+        char room_name[MIL];
+        char label[MIL];
+        char command[MIL];
+
+        wiz_room_display_name(room, room_name, sizeof(room_name));
+        snprintf(label, sizeof(label), "%.180s: %.220s (%ld,%ld)", room->wilds->name, room_name, room->x, room->y);
+        sprintf(command, "goxy %ld %ld %ld", room->x, room->y, room->wilds->uid);
+        mxp_command_link(ch->desc, buffer, command, "Goto wilderness coordinates", label);
+        return;
+    }
+
+    if (room->source)
+    {
+        char label[MIL];
+        char c1[MIL], c2[MIL], c3[MIL];
+        const char *source_wnum = widevnum_string_room(room->source, NULL);
+        mxp_cmd_hint_t items[3];
+
+        sprintf(label, "%s clone[%ld %ld]", source_wnum, room->id[0], room->id[1]);
+        sprintf(c1, "rshow %s", source_wnum);
+        sprintf(c2, "redit %s", source_wnum);
+        sprintf(c3, "goto %s %ld %ld", source_wnum, room->id[0], room->id[1]);
+
+        items[0].cmd = c1;
+        items[0].hint = "Show source room";
+        items[1].cmd = c2;
+        items[1].hint = "Edit source room";
+        items[2].cmd = c3;
+        items[2].hint = "Goto clone/instance room";
+
+        mxp_link_multi(ch->desc, buffer, label, items, 3);
+        return;
+    }
+
+    mxp_room_link(ch->desc, buffer, room, widevnum_string_room(room, NULL));
+}
+
 static const char *quest_runtime_status_name(int status)
 {
     switch (status)
@@ -5253,15 +5336,14 @@ void do_owhere(CHAR_DATA *ch, char *argument)
             bprintf(buffer, " is carried by ");
             mxp_mob_link(ch->desc, buffer, carrier, carrier->short_descr);
             bprintf(buffer, " [");
-            mxp_room_link(ch->desc, buffer, carrier->in_room,
-                formatf("Room %s", widevnum_string_room(carrier->in_room, NULL)));
+            wiz_append_room_location_link(ch, buffer, carrier->in_room);
             bprintf(buffer, "]");
         }
         else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room))
         {
-            bprintf(buffer, " is in %s [", in_obj->in_room->name);
-            mxp_room_link(ch->desc, buffer, in_obj->in_room,
-                formatf("Room %s", widevnum_string_room(in_obj->in_room, NULL)));
+            char room_name[MIL];
+            bprintf(buffer, " is in %s [", wiz_room_display_name(in_obj->in_room, room_name, sizeof(room_name)));
+            wiz_append_room_location_link(ch, buffer, in_obj->in_room);
             bprintf(buffer, "]");
         }
         else if (in_obj->in_mail != NULL)
@@ -5345,9 +5427,11 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                         mxp_mob_link(ch->desc, buffer, victim, victim->name);
                     }
 
-                    bprintf(buffer, "{x is in %s [", victim->in_room->name);
-                    mxp_room_link(ch->desc, buffer, victim->in_room,
-                        widevnum_string_room(victim->in_room, NULL));
+                    {
+                        char room_name[MIL];
+                        bprintf(buffer, "{x is in %s [", wiz_room_display_name(victim->in_room, room_name, sizeof(room_name)));
+                    }
+                    wiz_append_room_location_link(ch, buffer, victim->in_room);
                     bprintf(buffer, "]\n\r");
                 } else {
                     /* Victim is in a virtual room, so report the location and position.*/
@@ -5368,10 +5452,12 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                         mxp_mob_link(ch->desc, buffer, victim, victim->name);
                     }
 
-                    bprintf(buffer, "{x is in wilds '%s', %s (%ld, %ld)\n\r",
-                        victim->in_wilds->name,
-                        victim->in_room->name,
-                        victim->in_room->x, victim->in_room->y);
+                    {
+                        char room_name[MIL];
+                        bprintf(buffer, "{x is in %s [", wiz_room_display_name(victim->in_room, room_name, sizeof(room_name)));
+                    }
+                    wiz_append_room_location_link(ch, buffer, victim->in_room);
+                    bprintf(buffer, "]\n\r");
                 }
             }
         }
@@ -5438,9 +5524,11 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     ? (!IS_NULLSTR(victim->pIndexData->list_name) ? victim->pIndexData->list_name : victim->short_descr)
                     : victim->name);
             bprintf(buffer, "{x [");
-            mxp_room_link(ch->desc, buffer, victim->in_room,
-                widevnum_string_room(victim->in_room, NULL));
-            bprintf(buffer, "] %s\n\r", victim->in_room->name);
+            wiz_append_room_location_link(ch, buffer, victim->in_room);
+            {
+                char room_name[MIL];
+                bprintf(buffer, "] %s\n\r", wiz_room_display_name(victim->in_room, room_name, sizeof(room_name)));
+            }
         }
     }
     iterator_stop(&vit);

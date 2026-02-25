@@ -711,14 +711,19 @@ AEDIT(aedit_regions)
         add_buf(output, buf);
         sprintf(buf, "         topic={W%s{x\n\r", IS_NULLSTR(pArea->region.topic) ? "(default)" : pArea->region.topic);
         add_buf(output, buf);
+        sprintf(buf, "         weather: density={W%d%%{x life={W%d%%{x severity={W%d{x\n\r",
+            pArea->region.weather_density_percent,
+            pArea->region.weather_life_percent,
+            pArea->region.weather_severity_bias);
+        add_buf(output, buf);
         add_buf(output, "\n\r");
-        add_buf(output, " #   UID   Name                     Topic                Who              Place             Flags           Rooms\n\r");
-        add_buf(output, "--------------------------------------------------------------------------------------------------------------\n\r");
+        add_buf(output, " #   UID   Name                     Topic                Who              Place             Flags           Rooms Weather\n\r");
+        add_buf(output, "----------------------------------------------------------------------------------------------------------------------\n\r");
 
         iterator_start(&it, pArea->regions);
         while ((region = (AREA_REGION *)iterator_nextdata(&it)))
         {
-            sprintf(buf, "%2d  %4ld  %-24.24s %-20.20s %-16.16s %-16.16s %-14.14s %5d\n\r",
+            sprintf(buf, "%2d  %4ld  %-24.24s %-20.20s %-16.16s %-16.16s %-14.14s %5d %3d/%3d/%+4d\n\r",
                 ++idx,
                 region->uid,
                 region->name ? region->name : "",
@@ -726,7 +731,10 @@ AEDIT(aedit_regions)
                 flag_string(area_who_titles, region->area_who),
                 flag_string(place_flags, region->rs_place_flags),
                 flag_string(area_region_flags, region->flags),
-                region->rooms ? (int)list_size(region->rooms) : 0);
+                region->rooms ? (int)list_size(region->rooms) : 0,
+                region->weather_density_percent,
+                region->weather_life_percent,
+                region->weather_severity_bias);
             add_buf(output, buf);
         }
         iterator_stop(&it);
@@ -760,6 +768,9 @@ AEDIT(aedit_regions)
         region->rs_y = pArea->region.rs_y;
         region->rs_land_x = pArea->region.rs_land_x;
         region->rs_land_y = pArea->region.rs_land_y;
+        region->weather_density_percent = pArea->region.weather_density_percent;
+        region->weather_life_percent = pArea->region.weather_life_percent;
+        region->weather_severity_bias = pArea->region.weather_severity_bias;
 
         list_appendlink(pArea->regions, region);
         send_to_char("Region added.\n\r", ch);
@@ -925,6 +936,76 @@ AEDIT(aedit_regions)
         return true;
     }
 
+    if (!str_prefix(arg1, "weather"))
+    {
+        char arg3[MIL];
+        char arg4[MIL];
+        int value;
+
+        argument = one_argument(argument, arg3);
+        argument = one_argument(argument, arg4);
+
+        if (IS_NULLSTR(arg3) || !str_prefix(arg3, "show"))
+        {
+            sprintf(buf,
+                "Region weather for '%s': density=%d%% life=%d%% severity=%d\n\r",
+                IS_NULLSTR(region->name) ? "default" : region->name,
+                region->weather_density_percent,
+                region->weather_life_percent,
+                region->weather_severity_bias);
+            send_to_char(buf, ch);
+            return false;
+        }
+
+        if (!str_prefix(arg3, "density"))
+        {
+            if (!is_number(arg4))
+            {
+                send_to_char("Syntax: regions weather <#|name|default> density <25-300>\n\r", ch);
+                return false;
+            }
+
+            value = atoi(arg4);
+            region->weather_density_percent = URANGE(25, value, 300);
+            send_to_char("Region weather density set.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(arg3, "life"))
+        {
+            if (!is_number(arg4))
+            {
+                send_to_char("Syntax: regions weather <#|name|default> life <25-300>\n\r", ch);
+                return false;
+            }
+
+            value = atoi(arg4);
+            region->weather_life_percent = URANGE(25, value, 300);
+            send_to_char("Region weather life scale set.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(arg3, "severity"))
+        {
+            if (!is_number(arg4))
+            {
+                send_to_char("Syntax: regions weather <#|name|default> severity <-100..100>\n\r", ch);
+                return false;
+            }
+
+            value = atoi(arg4);
+            region->weather_severity_bias = URANGE(-100, value, 100);
+            send_to_char("Region weather severity bias set.\n\r", ch);
+            return true;
+        }
+
+        send_to_char("Syntax: regions weather <#|name|default> show\n\r", ch);
+        send_to_char("        regions weather <#|name|default> density <25-300>\n\r", ch);
+        send_to_char("        regions weather <#|name|default> life <25-300>\n\r", ch);
+        send_to_char("        regions weather <#|name|default> severity <-100..100>\n\r", ch);
+        return false;
+    }
+
     send_to_char("Syntax: regions list\n\r", ch);
     send_to_char("        regions add <name>\n\r", ch);
     send_to_char("        regions remove <#>\n\r", ch);
@@ -935,6 +1016,7 @@ AEDIT(aedit_regions)
     send_to_char("        regions flags <#|name|default> <flag>\n\r", ch);
     send_to_char("        regions who <#|name|default> <title|blank>\n\r", ch);
     send_to_char("        regions place <#|name|default> <placetype|none>\n\r", ch);
+    send_to_char("        regions weather <#|name|default> <show|density|life|severity> [value]\n\r", ch);
     return false;
 }
 

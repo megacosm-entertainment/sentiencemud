@@ -93,6 +93,7 @@ void update_handler(void)
     static int pulse_wildgen;
     static int pulse_wilderness_storage;
     static int pulse_wilds_chunks;
+    static int pulse_wilds_ambient_spawn;
     char buf[MSL];
     int i;
 
@@ -164,6 +165,12 @@ void update_handler(void)
     {
         pulse_wilds_chunks = PULSE_PER_SECOND;
         wilds_chunk_pulse();
+    }
+
+    if (--pulse_wilds_ambient_spawn <= 0)
+    {
+        pulse_wilds_ambient_spawn = 5 * PULSE_PER_SECOND;
+        wilds_ambient_spawn_pulse();
     }
 
     if (--pulse_auction <= 0)
@@ -246,7 +253,7 @@ void update_handler(void)
     if (top_wilderness_exit > MAX_WILDERNESS_EXITS)
         remove_wilderness_exits(); */
 
-    //update_weather();
+    update_weather();
 
     /* Legacy autowar timers are deprecated.
      * Runtime scheduling is handled by event_runtime_update(). */

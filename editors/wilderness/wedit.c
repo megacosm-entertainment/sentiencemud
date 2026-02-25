@@ -18,6 +18,7 @@
 #include "../../interp.h"
 #include "../../scripts.h"
 #include "../../wilds.h"
+#include "../../requirements.h"
 #include "../common.h"
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
@@ -31,6 +32,7 @@ extern void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain);
 
 static void wedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void wedit_show_map_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
+static void wedit_show_regions_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void wedit_show_terrain_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 static void wedit_show_vlinks_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
 
@@ -57,6 +59,233 @@ static bool wedit_parse_rgb_hex(const char *value, unsigned char *r, unsigned ch
     *g = (unsigned char)tg;
     *b = (unsigned char)tb;
     return true;
+}
+
+static int wedit_terrain_showname_col_width(WILDS_DATA *pWilds, int min_width, int max_width)
+{
+    WILDS_TERRAIN *pTerrain;
+    int width = min_width;
+
+    if (!pWilds)
+        return min_width;
+
+    for (pTerrain = pWilds->pTerrain; pTerrain; pTerrain = pTerrain->next)
+    {
+        const char *name = pTerrain->showname ? pTerrain->showname : "(Not Set)";
+        int len = (int)strlen(name);
+        if (len > width)
+            width = len;
+    }
+
+    return URANGE(min_width, width, max_width);
+}
+
+static bool wedit_region_set_requirements_json(char **target, const char *input, char *err_buf, size_t err_buf_size)
+{
+    char *json_str;
+
+    if (!target)
+        return false;
+
+    if (IS_NULLSTR(input) || !str_cmp(input, "none"))
+    {
+        free_string(*target);
+        *target = str_dup("");
+        return true;
+    }
+
+    json_str = requirements_text_to_json(input, err_buf, err_buf_size);
+    if (!json_str)
+        return false;
+
+    free_string(*target);
+    *target = str_dup(json_str);
+    free(json_str);
+    return true;
+}
+
+static bool wedit_region_set_spawn_wnum(WILDS_DATA *pWilds, bool is_mob, char **target, const char *input)
+{
+    WNUM_LOAD load = {0, 0};
+    WNUM resolved = {NULL, 0};
+    char canonical[MIL];
+
+    if (!pWilds || !target)
+        return false;
+
+    if (IS_NULLSTR(input) || !str_cmp(input, "none"))
+    {
+        free_string(*target);
+        *target = str_dup("");
+        return true;
+    }
+
+    if (!parse_widevnum_load(input, &load))
+        return false;
+
+    resolve_wnum_load(&load, &resolved, pWilds->pArea);
+    if (!resolved.pArea || resolved.vnum < 1)
+        return false;
+
+    if (is_mob && !get_mob_index(resolved.pArea, resolved.vnum))
+        return false;
+    if (!is_mob && !get_obj_index(resolved.pArea, resolved.vnum))
+        return false;
+
+    snprintf(canonical, sizeof(canonical), "%ld#%ld", resolved.pArea->uid, resolved.vnum);
+    free_string(*target);
+    *target = str_dup(canonical);
+    return true;
+}
+
+static WILDS_REGION_SPAWN *wedit_region_spawn_new(void)
+{
+    WILDS_REGION_SPAWN *spawn = alloc_mem(sizeof(*spawn));
+
+    if (!spawn)
+        return NULL;
+
+    memset(spawn, 0, sizeof(*spawn));
+    spawn->wnum = str_dup("");
+    spawn->requirements = str_dup("");
+    return spawn;
+}
+
+static WILDS_REGION_SPAWN *wedit_region_spawn_clone(const WILDS_REGION_SPAWN *src)
+{
+    WILDS_REGION_SPAWN *spawn;
+
+    if (!src)
+        return NULL;
+
+    spawn = wedit_region_spawn_new();
+    if (!spawn)
+        return NULL;
+
+    free_string(spawn->wnum);
+    spawn->wnum = str_dup(IS_NULLSTR(src->wnum) ? "" : src->wnum);
+    spawn->chance = src->chance;
+    spawn->cap = src->cap;
+    free_string(spawn->requirements);
+    spawn->requirements = str_dup(IS_NULLSTR(src->requirements) ? "" : src->requirements);
+    return spawn;
+}
+
+static WILDS_REGION_SPAWN *wedit_region_spawn_get(LLIST *list, int index)
+{
+    if (!list || index < 1 || index > list_size(list))
+        return NULL;
+
+    return (WILDS_REGION_SPAWN *)list_nthdata(list, index);
+}
+
+static const char *wedit_spawn_mob_display_name(MOB_INDEX_DATA *mob)
+{
+    if (!mob)
+        return "(none)";
+
+    if (!IS_NULLSTR(mob->list_name))
+        return mob->list_name;
+
+    if (!IS_NULLSTR(mob->short_descr))
+        return mob->short_descr;
+
+    if (!IS_NULLSTR(mob->player_name))
+        return mob->player_name;
+
+    return "(unnamed)";
+}
+
+static const char *wedit_spawn_obj_display_name(OBJ_INDEX_DATA *obj)
+{
+    if (!obj)
+        return "(none)";
+
+    if (!IS_NULLSTR(obj->list_name))
+        return obj->list_name;
+
+    if (!IS_NULLSTR(obj->short_descr))
+        return obj->short_descr;
+
+    if (!IS_NULLSTR(obj->name))
+        return obj->name;
+
+    return "(unnamed)";
+}
+
+static void wedit_region_spawn_format_wnum(WILDS_DATA *pWilds, bool is_mob,
+    const WILDS_REGION_SPAWN *spawn, char *out, size_t out_size)
+{
+    WNUM_LOAD load = {0, 0};
+    WNUM resolved = {NULL, 0};
+
+    if (!out || out_size < 1)
+        return;
+
+    out[0] = '\0';
+
+    if (!pWilds || !spawn || IS_NULLSTR(spawn->wnum))
+    {
+        snprintf(out, out_size, "(none)");
+        return;
+    }
+
+    if (!parse_widevnum_load(spawn->wnum, &load))
+    {
+        snprintf(out, out_size, "%s", spawn->wnum);
+        return;
+    }
+
+    resolve_wnum_load(&load, &resolved, pWilds->pArea);
+    if (!resolved.pArea || resolved.vnum < 1)
+    {
+        snprintf(out, out_size, "%s", spawn->wnum);
+        return;
+    }
+
+    if (is_mob)
+    {
+        MOB_INDEX_DATA *mob = get_mob_index(resolved.pArea, resolved.vnum);
+        if (!mob)
+        {
+            snprintf(out, out_size, "%s", spawn->wnum);
+            return;
+        }
+
+        snprintf(out, out_size, "%s (%s)", spawn->wnum, wedit_spawn_mob_display_name(mob));
+        return;
+    }
+
+    {
+        OBJ_INDEX_DATA *obj = get_obj_index(resolved.pArea, resolved.vnum);
+        if (!obj)
+        {
+            snprintf(out, out_size, "%s", spawn->wnum);
+            return;
+        }
+
+        snprintf(out, out_size, "%s (%s)", spawn->wnum, wedit_spawn_obj_display_name(obj));
+    }
+}
+
+static void wedit_region_spawn_list_copy(LLIST *dst, LLIST *src)
+{
+    ITERATOR it;
+    WILDS_REGION_SPAWN *spawn;
+
+    if (!dst || !src)
+        return;
+
+    list_clear(dst);
+
+    iterator_start(&it, src);
+    while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
+    {
+        WILDS_REGION_SPAWN *clone = wedit_region_spawn_clone(spawn);
+        if (clone)
+            list_appendlink(dst, clone);
+    }
+    iterator_stop(&it);
 }
 
 /***************************************************************************
@@ -89,10 +318,11 @@ static const OLC_EDITOR_DEF wedit_def = {
     .cmd_table      = wedit_table,
     .show_fn        = wedit_show,
     .tabs           = {
-        .count      = 4,
+        .count      = 5,
         .tabs       = {
             { "General",  "Gen",  wedit_show_general_tab },
             { "Map",      "Map",  wedit_show_map_tab     },
+            { "Regions",  "Reg",  wedit_show_regions_tab },
             { "Terrain",  "Ter",  wedit_show_terrain_tab },
             { "VLinks",   "VLnk", wedit_show_vlinks_tab  },
         },
@@ -432,6 +662,55 @@ static void wedit_show_map_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 }
 
 /**
+ * wedit_show_regions_tab - Wilderness region definitions
+ *
+ * Shows default region plus all explicit region bounds with region/place flags.
+ */
+static void wedit_show_regions_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
+{
+    WILDS_DATA *pWilds = (WILDS_DATA *)pEdit;
+    WILDS_REGION *pRegion;
+    const OLC_EDITOR_THEME *theme = &olc_theme_world;
+    char buf[MSL];
+    int count = 0;
+
+    for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+        count++;
+
+    olc_display_section(ctx, theme, "Defaults");
+    olc_display_string(ctx, theme, "Default region:", "region default",
+        flag_string(wilderness_regions, pWilds->defaultRegion));
+    olc_display_string(ctx, theme, "Default place:", "placetype",
+        flag_string(place_flags, pWilds->defaultPlaceFlags));
+
+    olc_display_section(ctx, theme, "Regions");
+    olc_display_infof(ctx, theme, "Count:", "%d", count);
+
+    if (count == 0)
+    {
+        add_buf(ctx->buffer, "  {DNo explicit regions defined. Use: region add <startx> <starty> <endx> <endy> <region> <placetype>{x\n\r");
+        return;
+    }
+
+    add_buf(ctx->buffer, "\n\r");
+    add_buf(ctx->buffer, "  {D[#]  [start x] [start y] [end x] [end y] [region]            [placetype]{x\n\r");
+
+    count = 0;
+    for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+    {
+        sprintf(buf, "  %-3d  %-9d %-9d %-7d %-7d %-19s %-19s\n\r",
+            ++count,
+            pRegion->startx,
+            pRegion->starty,
+            pRegion->endx,
+            pRegion->endy,
+            flag_string(wilderness_regions, pRegion->region),
+            flag_string(place_flags, pRegion->area_place_flags));
+        add_buf(ctx->buffer, buf);
+    }
+}
+
+/**
  * wedit_show_terrain_tab - Terrain mappings
  *
  * Shows all terrain tokens with their display characters, names,
@@ -443,6 +722,7 @@ static void wedit_show_terrain_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     WILDS_TERRAIN *pTerrain;
     const OLC_EDITOR_THEME *theme = &olc_theme_world;
     char buf[MSL];
+    int name_width = wedit_terrain_showname_col_width(pWilds, 12, 36);
     int col = 0;
 
     olc_display_section(ctx, theme, "Terrain Key");
@@ -453,12 +733,14 @@ static void wedit_show_terrain_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         if (pTerrain->mapchar == pWilds->cDefaultTerrain)
         {
             if (pTerrain->mapchar == '{')
-                sprintf(buf, "'{W{%c{x' '%s{x' {W%-12s{x",
+                sprintf(buf, "'{W{%c{x' '%s{x' {W%-*.*s{x",
                     pTerrain->mapchar, pTerrain->showchar,
+                    name_width, name_width,
                     pTerrain->showname ? pTerrain->showname : "(Not Set)");
             else
-                sprintf(buf, "'{W%c{x' '%s{x' {W%-12s{x",
+                sprintf(buf, "'{W%c{x' '%s{x' {W%-*.*s{x",
                     pTerrain->mapchar, pTerrain->showchar,
+                    name_width, name_width,
                     pTerrain->showname ? pTerrain->showname : "(Not Set)");
             olc_display_string(ctx, theme, "Default:", NULL, buf);
             break;
@@ -466,16 +748,23 @@ static void wedit_show_terrain_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     }
 
     add_buf(ctx->buffer, "\n\r");
-    add_buf(ctx->buffer, "  Tile Ansi Name        Tile Ansi Name        Tile Ansi Name\n\r");
+    sprintf(buf,
+        "  %-4s %-6s %-*s  %-4s %-6s %-*s  %-4s %-6s %-*s\n\r",
+        "Tile", "Ansi", name_width, "Name",
+        "Tile", "Ansi", name_width, "Name",
+        "Tile", "Ansi", name_width, "Name");
+    add_buf(ctx->buffer, buf);
     for (pTerrain = pWilds->pTerrain; pTerrain; pTerrain = pTerrain->next)
     {
         if (pTerrain->mapchar == '{')
-            sprintf(buf, " '{W{%c{x'  '%s{x' {W%-12s{x{x",
+            sprintf(buf, " '{W{%c{x'  '%s{x' {W%-*.*s{x{x",
                 pTerrain->mapchar, pTerrain->showchar,
+                name_width, name_width,
                 pTerrain->showname ? pTerrain->showname : "(Not Set)");
         else
-            sprintf(buf, " '{W%c{x'  '%s{x' {W%-12s{x{x",
+            sprintf(buf, " '{W%c{x'  '%s{x' {W%-*.*s{x{x",
                 pTerrain->mapchar, pTerrain->showchar,
+                name_width, name_width,
                 pTerrain->showname ? pTerrain->showname : "(Not Set)");
 
         add_buf(ctx->buffer, buf);
@@ -498,10 +787,12 @@ static void wedit_show_vlinks_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdi
 {
     WILDS_DATA *pWilds = (WILDS_DATA *)pEdit;
     WILDS_VLINK *pVLink;
+    WNUM room_wnum;
     const OLC_EDITOR_THEME *theme = &olc_theme_world;
     char buf[MSL];
     int vlnum = 0;
     int count = 0;
+    char dest_buf[MIL];
 
     /* Count vlinks */
     for (pVLink = pWilds->pVLink; pVLink; pVLink = pVLink->next)
@@ -517,17 +808,41 @@ static void wedit_show_vlinks_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdi
 
     add_buf(ctx->buffer, "\n\r");
     add_buf(ctx->buffer, "  {D[num] [uid]   [x coor] [y coor] [direction] "
-                         "[destvnum] [default] [current] [maptile]{x\n\r");
+                         "[destination]       [default] [current] [maptile]{x\n\r");
 
     for (pVLink = pWilds->pVLink; pVLink; pVLink = pVLink->next)
     {
-        sprintf(buf, "  %-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-8ld   %10s%10s%s{x\n\r",
+        if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
+        {
+            snprintf(dest_buf, sizeof(dest_buf), "dng %ld#%ld f%d",
+                pVLink->dest_load.auid,
+                pVLink->dest_load.vnum,
+                UMAX(1, pVLink->dungeon_floor));
+        }
+        else if (resolve_widevnum(pVLink->destvnum, NULL, &room_wnum) && room_wnum.pArea)
+        {
+            snprintf(dest_buf, sizeof(dest_buf), "%ld#%ld",
+                room_wnum.pArea->uid,
+                room_wnum.vnum);
+        }
+        else if (pVLink->dest_load.auid > 0 && pVLink->dest_load.vnum > 0)
+        {
+            snprintf(dest_buf, sizeof(dest_buf), "%ld#%ld",
+                pVLink->dest_load.auid,
+                pVLink->dest_load.vnum);
+        }
+        else
+        {
+            snprintf(dest_buf, sizeof(dest_buf), "%ld", pVLink->destvnum);
+        }
+
+        sprintf(buf, "  %-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-17s %10s%10s%s{x\n\r",
             vlnum++,
             pVLink->uid,
             pVLink->wildsorigin_x,
             pVLink->wildsorigin_y,
             dir_name[pVLink->door],
-            pVLink->destvnum,
+            dest_buf,
             vlinkage_bit_name(pVLink->default_linkage),
             vlinkage_bit_name(pVLink->current_linkage),
             pVLink->map_tile);
@@ -588,12 +903,201 @@ WEDIT (wedit_name)
                           &pWilds->name, OLC_STR_DEFAULT, NULL, NULL);
 }
 
+static bool wedit_region_same_group(WILDS_REGION *a, WILDS_REGION *b)
+{
+    if (!a || !b)
+        return false;
+
+    if (a->uid > 0 && b->uid > 0)
+        return a->uid == b->uid;
+
+    if (!IS_NULLSTR(a->name) && !IS_NULLSTR(b->name))
+        return !str_cmp(a->name, b->name);
+
+    return a == b;
+}
+
+static bool wedit_region_is_representative(WILDS_DATA *pWilds, WILDS_REGION *candidate)
+{
+    WILDS_REGION *iter;
+
+    if (!pWilds || !candidate)
+        return false;
+
+    for (iter = pWilds->pRegion; iter && iter != candidate; iter = iter->next)
+        if (wedit_region_same_group(iter, candidate))
+            return false;
+
+    return true;
+}
+
+static int wedit_region_group_count(WILDS_DATA *pWilds)
+{
+    WILDS_REGION *iter;
+    int count = 0;
+
+    if (!pWilds)
+        return 0;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+        if (wedit_region_is_representative(pWilds, iter))
+            count++;
+
+    return count;
+}
+
+static WILDS_REGION *wedit_region_get_group_by_index(WILDS_DATA *pWilds, int index)
+{
+    WILDS_REGION *iter;
+    int count = 0;
+
+    if (!pWilds || index < 1)
+        return NULL;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wedit_region_is_representative(pWilds, iter))
+            continue;
+
+        if (++count == index)
+            return iter;
+    }
+
+    return NULL;
+}
+
+static WILDS_REGION *wedit_region_find_group(WILDS_DATA *pWilds, const char *selector)
+{
+    WILDS_REGION *iter;
+    long value;
+
+    if (!pWilds || IS_NULLSTR(selector))
+        return NULL;
+
+    if (is_number((char *)selector))
+    {
+        value = atol(selector);
+
+        for (iter = pWilds->pRegion; iter; iter = iter->next)
+            if (iter->uid > 0 && iter->uid == value && wedit_region_is_representative(pWilds, iter))
+                return iter;
+
+        return wedit_region_get_group_by_index(pWilds, (int)value);
+    }
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wedit_region_is_representative(pWilds, iter))
+            continue;
+
+        if (!IS_NULLSTR(iter->name) && !str_cmp(iter->name, selector))
+            return iter;
+    }
+
+    return NULL;
+}
+
+static int wedit_region_box_count(WILDS_DATA *pWilds, WILDS_REGION *group)
+{
+    WILDS_REGION *iter;
+    int count = 0;
+
+    if (!pWilds || !group)
+        return 0;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wedit_region_same_group(iter, group))
+            continue;
+
+        if (iter->startx < 0 || iter->starty < 0 || iter->endx < iter->startx || iter->endy < iter->starty)
+            continue;
+
+        count++;
+    }
+
+    return count;
+}
+
+static WILDS_REGION *wedit_region_get_box_by_index(WILDS_DATA *pWilds, WILDS_REGION *group, int index)
+{
+    WILDS_REGION *iter;
+    int count = 0;
+
+    if (!pWilds || !group || index < 1)
+        return NULL;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wedit_region_same_group(iter, group))
+            continue;
+
+        if (iter->startx < 0 || iter->starty < 0 || iter->endx < iter->startx || iter->endy < iter->starty)
+            continue;
+
+        if (++count == index)
+            return iter;
+    }
+
+    return NULL;
+}
+
+static void wedit_region_apply_group_metadata(WILDS_DATA *pWilds, WILDS_REGION *group)
+{
+    WILDS_REGION *iter;
+
+    if (!pWilds || !group)
+        return;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wedit_region_same_group(iter, group) || iter == group)
+            continue;
+
+        iter->region = group->region;
+        iter->area_place_flags = group->area_place_flags;
+
+        free_string(iter->name);
+        iter->name = str_dup(IS_NULLSTR(group->name) ? "" : group->name);
+
+        wedit_region_spawn_list_copy(iter->spawn_mobs, group->spawn_mobs);
+        wedit_region_spawn_list_copy(iter->spawn_objs, group->spawn_objs);
+
+        iter->uid = group->uid;
+    }
+}
+
+static int wedit_region_delete_group(WILDS_DATA *pWilds, WILDS_REGION *group)
+{
+    WILDS_REGION *iter;
+    WILDS_REGION *next;
+    int removed = 0;
+
+    if (!pWilds || !group)
+        return 0;
+
+    for (iter = pWilds->pRegion; iter; iter = next)
+    {
+        next = iter->next;
+        if (!wedit_region_same_group(iter, group))
+            continue;
+
+        del_region(pWilds, iter);
+        removed++;
+    }
+
+    return removed;
+}
+
 WEDIT (wedit_region)
 {
     WILDS_DATA *pWilds;
     WILDS_REGION *pRegion;
     char buf[MSL];
     char arg[MIL];
+    char selector[MIL];
+    char subcmd[MIL];
+    char subarg[MIL];
 
     EDIT_WILDS(ch, pWilds);
 
@@ -607,18 +1111,26 @@ WEDIT (wedit_region)
 
             sprintf(buf, "Default Region:  %s\n\r\n\r", flag_string(wilderness_regions, pWilds->defaultRegion));
             add_buf(buffer, buf);
-            add_buf(buffer, "     [Start X] [Start Y] [ End X ] [ End Y ] [      Region      ] [     Place     ]\n\r");
-            add_buf(buffer, "====================================================================================\n\r");
+            add_buf(buffer, "     [#] [uid]   [name]                  [boxes] [region]            [place]\n\r");
+            add_buf(buffer, "================================================================================\n\r");
 
             for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
             {
-                sprintf(buf, "%4d  %7d   %7d   %7d   %7d   %-18s   %-15s\n\r", ++i,
-                    pRegion->startx, pRegion->starty,
-                    pRegion->endx, pRegion->endy,
+                if (!wedit_region_is_representative(pWilds, pRegion))
+                    continue;
+
+                sprintf(buf, "%6d %6ld %-24.24s %6d %-18s %-15s\n\r",
+                    ++i,
+                    pRegion->uid,
+                    IS_NULLSTR(pRegion->name) ? "(unnamed)" : pRegion->name,
+                    wedit_region_box_count(pWilds, pRegion),
                     flag_string(wilderness_regions, pRegion->region),
                     flag_string(place_flags, pRegion->area_place_flags));
                 add_buf(buffer, buf);
             }
+
+            if (i < 1)
+                add_buf(buffer, "{DNo region groups defined.{x\n\r");
 
             page_to_char(buf_string(buffer), ch);
             free_buf(buffer);
@@ -652,117 +1164,853 @@ WEDIT (wedit_region)
 
         if (!str_prefix(arg, "add"))
         {
-            char arg2[MIL];
-            char arg3[MIL];
-            char arg4[MIL];
-            char arg5[MIL];
-            char arg6[MIL];
-            int startx, starty, endx, endy;
-            int region;
-            int place;
-
-            argument = one_argument(argument, arg2);
-            argument = one_argument(argument, arg3);
-            argument = one_argument(argument, arg4);
-            argument = one_argument(argument, arg5);
-            argument = one_argument(argument, arg6);
-
-            if (!is_number(arg2) || (startx = atoi(arg2)) < 0 || startx >= pWilds->map_size_x)
+            if (IS_NULLSTR(argument))
             {
-                sprintf(buf, "Start X must be between 0 and %d.\n\r", pWilds->map_size_x - 1);
-                send_to_char(buf, ch);
-                return false;
-            }
-
-            if (!is_number(arg3) || (starty = atoi(arg3)) < 0 || starty >= pWilds->map_size_y)
-            {
-                sprintf(buf, "Start Y must be between 0 and %d.\n\r", pWilds->map_size_y - 1);
-                send_to_char(buf, ch);
-                return false;
-            }
-
-            if (!is_number(arg4) || (endx = atoi(arg4)) < 0 || endx >= pWilds->map_size_x)
-            {
-                sprintf(buf, "End X must be between 0 and %d.\n\r", pWilds->map_size_x - 1);
-                send_to_char(buf, ch);
-                return false;
-            }
-
-            if (!is_number(arg5) || (endy = atoi(arg5)) < 0 || endy >= pWilds->map_size_y)
-            {
-                sprintf(buf, "End Y must be between 0 and %d.\n\r", pWilds->map_size_y - 1);
-                send_to_char(buf, ch);
-                return false;
-            }
-
-            region = flag_value(wilderness_regions, arg6);
-            if (region == NO_FLAG)
-            {
-                send_to_char("Invalid region. Type '? wilderness_regions'.\n\r", ch);
-                return false;
-            }
-
-            place = flag_value(place_flags, argument);
-            if (place == NO_FLAG)
-            {
-                send_to_char("Invalid place type. Type '? placetype'.\n\r", ch);
+                send_to_char("Syntax: region add <name>\n\r", ch);
                 return false;
             }
 
             pRegion = new_region(pWilds);
-            pRegion->startx = UMIN(startx, endx);
-            pRegion->starty = UMIN(starty, endy);
-            pRegion->endx = UMAX(startx, endx);
-            pRegion->endy = UMAX(starty, endy);
-            pRegion->region = region;
-            pRegion->area_place_flags = place;
+            free_string(pRegion->name);
+            pRegion->name = str_dup(argument);
+            pRegion->region = pWilds->defaultRegion;
+            pRegion->area_place_flags = pWilds->defaultPlaceFlags;
             add_region(pWilds, pRegion);
 
-            send_to_char("Region added.\n\r", ch);
+            send_to_char("Region group added.\n\r", ch);
             return true;
         }
 
-        if (!str_prefix(arg, "remove"))
+        if (!str_prefix(arg, "remove") || !str_prefix(arg, "delete"))
         {
-            int count = 0;
-            int index;
-
-            for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
-                count++;
-
-            if (argument[0] == '\0' || !is_number(argument))
+            pRegion = wedit_region_find_group(pWilds, argument);
+            if (!pRegion)
             {
-                send_to_char("Syntax: region remove <#>\n\r", ch);
-                if (count > 0)
-                {
-                    sprintf(buf, "Please specify a number from 1 to %d.\n\r", count);
-                    send_to_char(buf, ch);
-                }
+                send_to_char("Syntax: region remove <name|idx|uid>\n\r", ch);
+                send_to_char("Use 'region list' to see valid selectors.\n\r", ch);
                 return false;
             }
 
-            index = atoi(argument);
-            if (index < 1 || index > count)
+            if (wedit_region_delete_group(pWilds, pRegion) < 1)
             {
-                sprintf(buf, "Please specify a number from 1 to %d.\n\r", count);
-                send_to_char(buf, ch);
+                send_to_char("No region group entries removed.\n\r", ch);
                 return false;
             }
 
-            for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
-                if (!--index)
-                    break;
-
-            del_region(pWilds, pRegion);
-            send_to_char("Region removed.\n\r", ch);
+            send_to_char("Region group removed.\n\r", ch);
             return true;
+        }
+
+        strncpy(selector, arg, sizeof(selector) - 1);
+        selector[sizeof(selector) - 1] = '\0';
+        argument = one_argument(argument, subcmd);
+
+        pRegion = wedit_region_find_group(pWilds, selector);
+        if (!pRegion)
+        {
+            send_to_char("Unknown region group selector. Use name, list index, or uid.\n\r", ch);
+            return false;
+        }
+
+        if (IS_NULLSTR(subcmd) || !str_prefix(subcmd, "show"))
+        {
+            BUFFER *buffer = new_buf();
+            WILDS_REGION *box;
+            ITERATOR sit;
+            WILDS_REGION_SPAWN *spawn;
+            int i = 0;
+            int sidx = 0;
+
+            sprintf(buf, "Region Group: %s  (uid %ld)\n\r", IS_NULLSTR(pRegion->name) ? "(unnamed)" : pRegion->name, pRegion->uid);
+            add_buf(buffer, buf);
+            sprintf(buf, "Region Type:  %s\n\r", flag_string(wilderness_regions, pRegion->region));
+            add_buf(buffer, buf);
+            sprintf(buf, "Place Type:   %s\n\r\n\r", flag_string(place_flags, pRegion->area_place_flags));
+            add_buf(buffer, buf);
+            add_buf(buffer, "Mob Spawns:\n\r");
+
+            iterator_start(&sit, pRegion->spawn_mobs);
+            while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&sit)) != NULL)
+            {
+                char *req_text = requirements_json_to_text(spawn->requirements);
+                sprintf(buf, "  [%2d] %s (chance %d%%, cap %d) req: %s\n\r",
+                    ++sidx,
+                    IS_NULLSTR(spawn->wnum) ? "(none)" : spawn->wnum,
+                    spawn->chance,
+                    spawn->cap,
+                    IS_NULLSTR(req_text) ? "(none)" : req_text);
+                add_buf(buffer, buf);
+                if (req_text)
+                    free(req_text);
+            }
+            iterator_stop(&sit);
+
+            if (sidx < 1)
+                add_buf(buffer, "  {D(none){x\n\r");
+
+            add_buf(buffer, "Object Spawns:\n\r");
+            sidx = 0;
+
+            iterator_start(&sit, pRegion->spawn_objs);
+            while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&sit)) != NULL)
+            {
+                char *req_text = requirements_json_to_text(spawn->requirements);
+                sprintf(buf, "  [%2d] %s (chance %d%%, cap %d) req: %s\n\r",
+                    ++sidx,
+                    IS_NULLSTR(spawn->wnum) ? "(none)" : spawn->wnum,
+                    spawn->chance,
+                    spawn->cap,
+                    IS_NULLSTR(req_text) ? "(none)" : req_text);
+                add_buf(buffer, buf);
+                if (req_text)
+                    free(req_text);
+            }
+            iterator_stop(&sit);
+
+            if (sidx < 1)
+                add_buf(buffer, "  {D(none){x\n\r");
+
+            add_buf(buffer, "\n\r");
+            add_buf(buffer, "     [box] [start x] [start y] [end x] [end y]\n\r");
+            add_buf(buffer, "===============================================\n\r");
+
+            for (box = pWilds->pRegion; box; box = box->next)
+            {
+                if (!wedit_region_same_group(box, pRegion))
+                    continue;
+
+                if (box->startx < 0 || box->starty < 0 || box->endx < box->startx || box->endy < box->starty)
+                    continue;
+
+                sprintf(buf, "%8d %9d %9d %7d %7d\n\r", ++i, box->startx, box->starty, box->endx, box->endy);
+                add_buf(buffer, buf);
+            }
+
+            if (i < 1)
+                add_buf(buffer, "{D(no coordinate boxes yet){x\n\r");
+
+            page_to_char(buf_string(buffer), ch);
+            free_buf(buffer);
+            return false;
+        }
+
+        if (!str_prefix(subcmd, "coords"))
+        {
+            char ccmd[MIL];
+            char c1[MIL], c2[MIL], c3[MIL], c4[MIL];
+            int startx, starty, endx, endy;
+            WILDS_REGION *box;
+
+            argument = one_argument(argument, ccmd);
+
+            if (!str_prefix(ccmd, "add"))
+            {
+                argument = one_argument(argument, c1);
+                argument = one_argument(argument, c2);
+                argument = one_argument(argument, c3);
+                argument = one_argument(argument, c4);
+
+                if (!is_number(c1) || !is_number(c2) || !is_number(c3) || !is_number(c4))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> coords add <startx> <starty> <endx> <endy>\n\r", ch);
+                    return false;
+                }
+
+                startx = atoi(c1);
+                starty = atoi(c2);
+                endx = atoi(c3);
+                endy = atoi(c4);
+
+                if (startx < 0 || startx >= pWilds->map_size_x || endx < 0 || endx >= pWilds->map_size_x)
+                {
+                    sprintf(buf, "X coordinates must be between 0 and %d.\n\r", pWilds->map_size_x - 1);
+                    send_to_char(buf, ch);
+                    return false;
+                }
+
+                if (starty < 0 || starty >= pWilds->map_size_y || endy < 0 || endy >= pWilds->map_size_y)
+                {
+                    sprintf(buf, "Y coordinates must be between 0 and %d.\n\r", pWilds->map_size_y - 1);
+                    send_to_char(buf, ch);
+                    return false;
+                }
+
+                box = new_region(pWilds);
+                box->uid = pRegion->uid;
+                box->region = pRegion->region;
+                box->area_place_flags = pRegion->area_place_flags;
+                free_string(box->name);
+                box->name = str_dup(IS_NULLSTR(pRegion->name) ? "" : pRegion->name);
+                box->startx = UMIN(startx, endx);
+                box->starty = UMIN(starty, endy);
+                box->endx = UMAX(startx, endx);
+                box->endy = UMAX(starty, endy);
+                add_region(pWilds, box);
+
+                send_to_char("Region coordinate box added.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(ccmd, "delete") || !str_prefix(ccmd, "remove"))
+            {
+                int idx;
+
+                argument = one_argument(argument, c1);
+                if (!is_number(c1))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> coords delete <box#>\n\r", ch);
+                    return false;
+                }
+
+                idx = atoi(c1);
+                box = wedit_region_get_box_by_index(pWilds, pRegion, idx);
+                if (!box)
+                {
+                    sprintf(buf, "Box index must be between 1 and %d.\n\r", wedit_region_box_count(pWilds, pRegion));
+                    send_to_char(buf, ch);
+                    return false;
+                }
+
+                del_region(pWilds, box);
+                send_to_char("Region coordinate box removed.\n\r", ch);
+                return true;
+            }
+
+            send_to_char("Syntax: region <name|idx|uid> coords add <startx> <starty> <endx> <endy>\n\r", ch);
+            send_to_char("        region <name|idx|uid> coords delete <box#>\n\r", ch);
+            return false;
+        }
+
+        if (!str_prefix(subcmd, "name"))
+        {
+            if (IS_NULLSTR(argument))
+            {
+                send_to_char("Syntax: region <name|idx|uid> name <new name>\n\r", ch);
+                return false;
+            }
+
+            free_string(pRegion->name);
+            pRegion->name = str_dup(argument);
+            wedit_region_apply_group_metadata(pWilds, pRegion);
+            send_to_char("Region group name updated.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(subcmd, "region"))
+        {
+            int value;
+
+            if (IS_NULLSTR(argument) || (value = flag_value(wilderness_regions, argument)) == NO_FLAG)
+            {
+                send_to_char("Syntax: region <name|idx|uid> region <region>\n\r", ch);
+                send_to_char("Type '? wilderness_regions' to list valid regions.\n\r", ch);
+                return false;
+            }
+
+            pRegion->region = value;
+            wedit_region_apply_group_metadata(pWilds, pRegion);
+            send_to_char("Region group type updated.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(subcmd, "placetype") || !str_prefix(subcmd, "place"))
+        {
+            int value;
+
+            if (IS_NULLSTR(argument))
+            {
+                send_to_char("Syntax: region <name|idx|uid> placetype <placetype|none>\n\r", ch);
+                return false;
+            }
+
+            if (!str_cmp(argument, "none"))
+                value = PLACE_NOWHERE;
+            else
+                value = flag_value(place_flags, argument);
+
+            if (value == NO_FLAG)
+            {
+                send_to_char("Syntax: region <name|idx|uid> placetype <placetype|none>\n\r", ch);
+                send_to_char("Type '? placetype' for valid values.\n\r", ch);
+                return false;
+            }
+
+            pRegion->area_place_flags = value;
+            wedit_region_apply_group_metadata(pWilds, pRegion);
+            send_to_char("Region group place type updated.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(subcmd, "spawnmob"))
+        {
+            char action[MIL];
+            char arg2[MIL];
+            char arg3[MIL];
+            int index;
+            WILDS_REGION_SPAWN *spawn;
+
+            argument = one_argument(argument, action);
+
+            if (IS_NULLSTR(action) || !str_prefix(action, "list"))
+            {
+                BUFFER *buffer = new_buf();
+                ITERATOR it;
+                int i = 0;
+
+                add_buf(buffer, "Mob spawn entries:\n\r");
+                iterator_start(&it, pRegion->spawn_mobs);
+                while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
+                {
+                    char *req_text = requirements_json_to_text(spawn->requirements);
+                    char spawn_name[MSL];
+
+                    wedit_region_spawn_format_wnum(pWilds, true, spawn, spawn_name, sizeof(spawn_name));
+                    snprintf(buf, sizeof(buf), "  [%2d] %.200s (chance %d%%, cap %d) req: %.3500s\n\r",
+                        ++i,
+                        spawn_name,
+                        spawn->chance,
+                        spawn->cap,
+                        IS_NULLSTR(req_text) ? "(none)" : req_text);
+                    add_buf(buffer, buf);
+                    if (req_text)
+                        free(req_text);
+                }
+                iterator_stop(&it);
+
+                if (i < 1)
+                    add_buf(buffer, "  {D(none){x\n\r");
+
+                page_to_char(buf_string(buffer), ch);
+                free_buf(buffer);
+                return false;
+            }
+
+            if (!str_prefix(action, "add"))
+            {
+                char chance_arg[MIL];
+                char cap_arg[MIL];
+                char err[256];
+
+                argument = one_argument(argument, arg2);
+                argument = one_argument(argument, chance_arg);
+                argument = one_argument(argument, cap_arg);
+
+                if (IS_NULLSTR(arg2))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnmob add <wnum> [chance] [cap] [req]\n\r", ch);
+                    return false;
+                }
+
+                spawn = wedit_region_spawn_new();
+                if (!spawn)
+                    return false;
+
+                spawn->chance = 25;
+                spawn->cap = 1;
+
+                if (!wedit_region_set_spawn_wnum(pWilds, true, &spawn->wnum, arg2))
+                {
+                    send_to_char("Invalid mob wnum.\n\r", ch);
+                    free_string(spawn->wnum);
+                    free_string(spawn->requirements);
+                    free_mem(spawn, sizeof(*spawn));
+                    return false;
+                }
+
+                if (!IS_NULLSTR(chance_arg))
+                {
+                    if (!is_number(chance_arg))
+                    {
+                        send_to_char("Spawn mob chance must be numeric (0-100).\n\r", ch);
+                        free_string(spawn->wnum);
+                        free_string(spawn->requirements);
+                        free_mem(spawn, sizeof(*spawn));
+                        return false;
+                    }
+                    spawn->chance = URANGE(0, atoi(chance_arg), 100);
+                }
+
+                if (!IS_NULLSTR(cap_arg))
+                {
+                    if (!is_number(cap_arg))
+                    {
+                        send_to_char("Spawn mob cap must be numeric (>= 0).\n\r", ch);
+                        free_string(spawn->wnum);
+                        free_string(spawn->requirements);
+                        free_mem(spawn, sizeof(*spawn));
+                        return false;
+                    }
+                    spawn->cap = UMAX(0, atoi(cap_arg));
+                }
+
+                if (!IS_NULLSTR(argument))
+                {
+                    if (!wedit_region_set_requirements_json(&spawn->requirements, argument, err, sizeof(err)))
+                    {
+                        printf_to_char(ch, "Mob requirement parse error: %s\n\r", err);
+                        free_string(spawn->wnum);
+                        free_string(spawn->requirements);
+                        free_mem(spawn, sizeof(*spawn));
+                        return false;
+                    }
+                }
+
+                list_appendlink(pRegion->spawn_mobs, spawn);
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Region group mob spawn entry added.\n\r", ch);
+                return true;
+            }
+
+            if (!is_number(action))
+            {
+                send_to_char("Syntax: region <name|idx|uid> spawnmob add <wnum> [chance] [cap] [req]\n\r", ch);
+                send_to_char("        region <name|idx|uid> spawnmob <idx> <show|remove|wnum|chance|cap|req> [value]\n\r", ch);
+                return false;
+            }
+
+            index = atoi(action);
+            spawn = wedit_region_spawn_get(pRegion->spawn_mobs, index);
+            if (!spawn)
+            {
+                printf_to_char(ch, "Spawn mob index must be between 1 and %d.\n\r", list_size(pRegion->spawn_mobs));
+                return false;
+            }
+
+            argument = one_argument(argument, arg2);
+
+            if (IS_NULLSTR(arg2) || !str_prefix(arg2, "show"))
+            {
+                char *req_text = requirements_json_to_text(spawn->requirements);
+                char spawn_name[MSL];
+
+                wedit_region_spawn_format_wnum(pWilds, true, spawn, spawn_name, sizeof(spawn_name));
+                printf_to_char(ch, "[%d] %s (chance %d%%, cap %d) req: %s\n\r",
+                    index,
+                    spawn_name,
+                    spawn->chance,
+                    spawn->cap,
+                    IS_NULLSTR(req_text) ? "(none)" : req_text);
+                if (req_text)
+                    free(req_text);
+                return false;
+            }
+
+            if (!str_prefix(arg2, "remove") || !str_prefix(arg2, "delete"))
+            {
+                list_remnthlink(pRegion->spawn_mobs, index, true);
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Region group mob spawn entry removed.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "wnum") || !str_prefix(arg2, "set"))
+            {
+                argument = one_argument(argument, arg3);
+                if (!wedit_region_set_spawn_wnum(pWilds, true, &spawn->wnum, arg3))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnmob <idx> wnum <wnum|none>\n\r", ch);
+                    return false;
+                }
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Mob spawn wnum updated.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "chance"))
+            {
+                argument = one_argument(argument, arg3);
+                if (!is_number(arg3))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnmob <idx> chance <0-100>\n\r", ch);
+                    return false;
+                }
+                spawn->chance = URANGE(0, atoi(arg3), 100);
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Mob spawn chance updated.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "cap"))
+            {
+                argument = one_argument(argument, arg3);
+                if (!is_number(arg3))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnmob <idx> cap <0+>\n\r", ch);
+                    return false;
+                }
+                spawn->cap = UMAX(0, atoi(arg3));
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Mob spawn cap updated.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "req") || !str_prefix(arg2, "requirements"))
+            {
+                char err[256];
+                if (!wedit_region_set_requirements_json(&spawn->requirements, argument, err, sizeof(err)))
+                {
+                    printf_to_char(ch, "Mob requirement parse error: %s\n\r", err);
+                    return false;
+                }
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Mob spawn requirements updated.\n\r", ch);
+                return true;
+            }
+
+            if (!wedit_region_set_spawn_wnum(pWilds, true, &spawn->wnum, arg2))
+            {
+                send_to_char("Syntax: region <name|idx|uid> spawnmob <idx> <wnum|none> [chance] [cap]\n\r", ch);
+                return false;
+            }
+
+            argument = one_argument(argument, arg3);
+            if (!IS_NULLSTR(arg3))
+            {
+                if (!is_number(arg3))
+                {
+                    send_to_char("Spawn mob chance must be numeric (0-100).\n\r", ch);
+                    return false;
+                }
+                spawn->chance = URANGE(0, atoi(arg3), 100);
+            }
+
+            argument = one_argument(argument, subarg);
+            if (!IS_NULLSTR(subarg))
+            {
+                if (!is_number(subarg))
+                {
+                    send_to_char("Spawn mob cap must be numeric (>= 0).\n\r", ch);
+                    return false;
+                }
+                spawn->cap = UMAX(0, atoi(subarg));
+            }
+
+            wedit_region_apply_group_metadata(pWilds, pRegion);
+            send_to_char("Mob spawn entry updated.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(subcmd, "spawnobj"))
+        {
+            char action[MIL];
+            char arg2[MIL];
+            char arg3[MIL];
+            int index;
+            WILDS_REGION_SPAWN *spawn;
+
+            argument = one_argument(argument, action);
+
+            if (IS_NULLSTR(action) || !str_prefix(action, "list"))
+            {
+                BUFFER *buffer = new_buf();
+                ITERATOR it;
+                int i = 0;
+
+                add_buf(buffer, "Object spawn entries:\n\r");
+                iterator_start(&it, pRegion->spawn_objs);
+                while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
+                {
+                    char *req_text = requirements_json_to_text(spawn->requirements);
+                    char spawn_name[MSL];
+
+                    wedit_region_spawn_format_wnum(pWilds, false, spawn, spawn_name, sizeof(spawn_name));
+                    snprintf(buf, sizeof(buf), "  [%2d] %.200s (chance %d%%, cap %d) req: %.3500s\n\r",
+                        ++i,
+                        spawn_name,
+                        spawn->chance,
+                        spawn->cap,
+                        IS_NULLSTR(req_text) ? "(none)" : req_text);
+                    add_buf(buffer, buf);
+                    if (req_text)
+                        free(req_text);
+                }
+                iterator_stop(&it);
+
+                if (i < 1)
+                    add_buf(buffer, "  {D(none){x\n\r");
+
+                page_to_char(buf_string(buffer), ch);
+                free_buf(buffer);
+                return false;
+            }
+
+            if (!str_prefix(action, "add"))
+            {
+                char chance_arg[MIL];
+                char cap_arg[MIL];
+                char err[256];
+
+                argument = one_argument(argument, arg2);
+                argument = one_argument(argument, chance_arg);
+                argument = one_argument(argument, cap_arg);
+
+                if (IS_NULLSTR(arg2))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnobj add <wnum> [chance] [cap] [req]\n\r", ch);
+                    return false;
+                }
+
+                spawn = wedit_region_spawn_new();
+                if (!spawn)
+                    return false;
+
+                spawn->chance = 25;
+                spawn->cap = 1;
+
+                if (!wedit_region_set_spawn_wnum(pWilds, false, &spawn->wnum, arg2))
+                {
+                    send_to_char("Invalid obj wnum.\n\r", ch);
+                    free_string(spawn->wnum);
+                    free_string(spawn->requirements);
+                    free_mem(spawn, sizeof(*spawn));
+                    return false;
+                }
+
+                if (!IS_NULLSTR(chance_arg))
+                {
+                    if (!is_number(chance_arg))
+                    {
+                        send_to_char("Spawn obj chance must be numeric (0-100).\n\r", ch);
+                        free_string(spawn->wnum);
+                        free_string(spawn->requirements);
+                        free_mem(spawn, sizeof(*spawn));
+                        return false;
+                    }
+                    spawn->chance = URANGE(0, atoi(chance_arg), 100);
+                }
+
+                if (!IS_NULLSTR(cap_arg))
+                {
+                    if (!is_number(cap_arg))
+                    {
+                        send_to_char("Spawn obj cap must be numeric (>= 0).\n\r", ch);
+                        free_string(spawn->wnum);
+                        free_string(spawn->requirements);
+                        free_mem(spawn, sizeof(*spawn));
+                        return false;
+                    }
+                    spawn->cap = UMAX(0, atoi(cap_arg));
+                }
+
+                if (!IS_NULLSTR(argument))
+                {
+                    if (!wedit_region_set_requirements_json(&spawn->requirements, argument, err, sizeof(err)))
+                    {
+                        printf_to_char(ch, "Obj requirement parse error: %s\n\r", err);
+                        free_string(spawn->wnum);
+                        free_string(spawn->requirements);
+                        free_mem(spawn, sizeof(*spawn));
+                        return false;
+                    }
+                }
+
+                list_appendlink(pRegion->spawn_objs, spawn);
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Region group object spawn entry added.\n\r", ch);
+                return true;
+            }
+
+            if (!is_number(action))
+            {
+                send_to_char("Syntax: region <name|idx|uid> spawnobj add <wnum> [chance] [cap] [req]\n\r", ch);
+                send_to_char("        region <name|idx|uid> spawnobj <idx> <show|remove|wnum|chance|cap|req> [value]\n\r", ch);
+                return false;
+            }
+
+            index = atoi(action);
+            spawn = wedit_region_spawn_get(pRegion->spawn_objs, index);
+            if (!spawn)
+            {
+                printf_to_char(ch, "Spawn obj index must be between 1 and %d.\n\r", list_size(pRegion->spawn_objs));
+                return false;
+            }
+
+            argument = one_argument(argument, arg2);
+
+            if (IS_NULLSTR(arg2) || !str_prefix(arg2, "show"))
+            {
+                char *req_text = requirements_json_to_text(spawn->requirements);
+                char spawn_name[MSL];
+
+                wedit_region_spawn_format_wnum(pWilds, false, spawn, spawn_name, sizeof(spawn_name));
+                printf_to_char(ch, "[%d] %s (chance %d%%, cap %d) req: %s\n\r",
+                    index,
+                    spawn_name,
+                    spawn->chance,
+                    spawn->cap,
+                    IS_NULLSTR(req_text) ? "(none)" : req_text);
+                if (req_text)
+                    free(req_text);
+                return false;
+            }
+
+            if (!str_prefix(arg2, "remove") || !str_prefix(arg2, "delete"))
+            {
+                list_remnthlink(pRegion->spawn_objs, index, true);
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Region group object spawn entry removed.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "wnum") || !str_prefix(arg2, "set"))
+            {
+                argument = one_argument(argument, arg3);
+                if (!wedit_region_set_spawn_wnum(pWilds, false, &spawn->wnum, arg3))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnobj <idx> wnum <wnum|none>\n\r", ch);
+                    return false;
+                }
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Object spawn wnum updated.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "chance"))
+            {
+                argument = one_argument(argument, arg3);
+                if (!is_number(arg3))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnobj <idx> chance <0-100>\n\r", ch);
+                    return false;
+                }
+                spawn->chance = URANGE(0, atoi(arg3), 100);
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Object spawn chance updated.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "cap"))
+            {
+                argument = one_argument(argument, arg3);
+                if (!is_number(arg3))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> spawnobj <idx> cap <0+>\n\r", ch);
+                    return false;
+                }
+                spawn->cap = UMAX(0, atoi(arg3));
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Object spawn cap updated.\n\r", ch);
+                return true;
+            }
+
+            if (!str_prefix(arg2, "req") || !str_prefix(arg2, "requirements"))
+            {
+                char err[256];
+                if (!wedit_region_set_requirements_json(&spawn->requirements, argument, err, sizeof(err)))
+                {
+                    printf_to_char(ch, "Object requirement parse error: %s\n\r", err);
+                    return false;
+                }
+                wedit_region_apply_group_metadata(pWilds, pRegion);
+                send_to_char("Object spawn requirements updated.\n\r", ch);
+                return true;
+            }
+
+            if (!wedit_region_set_spawn_wnum(pWilds, false, &spawn->wnum, arg2))
+            {
+                send_to_char("Syntax: region <name|idx|uid> spawnobj <idx> <wnum|none> [chance] [cap]\n\r", ch);
+                return false;
+            }
+
+            argument = one_argument(argument, arg3);
+            if (!IS_NULLSTR(arg3))
+            {
+                if (!is_number(arg3))
+                {
+                    send_to_char("Spawn obj chance must be numeric (0-100).\n\r", ch);
+                    return false;
+                }
+                spawn->chance = URANGE(0, atoi(arg3), 100);
+            }
+
+            argument = one_argument(argument, subarg);
+            if (!IS_NULLSTR(subarg))
+            {
+                if (!is_number(subarg))
+                {
+                    send_to_char("Spawn obj cap must be numeric (>= 0).\n\r", ch);
+                    return false;
+                }
+                spawn->cap = UMAX(0, atoi(subarg));
+            }
+
+            wedit_region_apply_group_metadata(pWilds, pRegion);
+            send_to_char("Object spawn entry updated.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(subcmd, "delete") || !str_prefix(subcmd, "remove"))
+        {
+            if (wedit_region_delete_group(pWilds, pRegion) < 1)
+            {
+                send_to_char("No region group entries removed.\n\r", ch);
+                return false;
+            }
+
+            send_to_char("Region group removed.\n\r", ch);
+            return true;
+        }
+
+        if (!str_prefix(subcmd, "add"))
+        {
+            argument = one_argument(argument, subarg);
+
+            if (!str_prefix(subarg, "show"))
+            {
+                do_function(ch, &do_wedit, "show");
+                return false;
+            }
+
+            if (!str_prefix(subarg, "delete") || !str_prefix(subarg, "remove"))
+            {
+                int idx;
+                WILDS_REGION *box;
+
+                argument = one_argument(argument, subarg);
+                if (!is_number(subarg))
+                {
+                    send_to_char("Syntax: region <name|idx|uid> add delete <box#>\n\r", ch);
+                    return false;
+                }
+
+                idx = atoi(subarg);
+                box = wedit_region_get_box_by_index(pWilds, pRegion, idx);
+                if (!box)
+                {
+                    sprintf(buf, "Box index must be between 1 and %d.\n\r", wedit_region_box_count(pWilds, pRegion));
+                    send_to_char(buf, ch);
+                    return false;
+                }
+
+                del_region(pWilds, box);
+                send_to_char("Region coordinate box removed.\n\r", ch);
+                return true;
+            }
+
+            send_to_char("Syntax: region <name|idx|uid> add show\n\r", ch);
+            send_to_char("        region <name|idx|uid> add delete <box#>\n\r", ch);
+            return false;
         }
     }
 
+    sprintf(buf, "Region groups: %d\n\r", wedit_region_group_count(pWilds));
+    send_to_char(buf, ch);
     send_to_char("Syntax: region list\n\r", ch);
     send_to_char("        region default <region|none>\n\r", ch);
-    send_to_char("        region add <startx> <starty> <endx> <endy> <region> <placetype>\n\r", ch);
-    send_to_char("        region remove <#>\n\r", ch);
+    send_to_char("        region add <name>\n\r", ch);
+    send_to_char("        region remove <name|idx|uid>\n\r", ch);
+    send_to_char("        region <name|idx|uid> show\n\r", ch);
+    send_to_char("        region <name|idx|uid> name <new name>\n\r", ch);
+    send_to_char("        region <name|idx|uid> region <region>\n\r", ch);
+    send_to_char("        region <name|idx|uid> placetype <placetype|none>\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmob <wnum|none> [chance] [cap]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmobreq <requirements|none>\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobj <wnum|none> [chance] [cap]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobjreq <requirements|none>\n\r", ch);
+    send_to_char("        region <name|idx|uid> coords add <startx> <starty> <endx> <endy>\n\r", ch);
+    send_to_char("        region <name|idx|uid> coords delete <box#>\n\r", ch);
+    send_to_char("        region <name|idx|uid> add show\n\r", ch);
+    send_to_char("        region <name|idx|uid> add delete <box#>\n\r", ch);
     return false;
 }
 
@@ -1158,15 +2406,19 @@ WEDIT ( wedit_terrain )
     {
         BUFFER *output;
         char buf[MSL];
+        int showname_width = wedit_terrain_showname_col_width(pWilds, 15, 48);
 
         output = new_buf();
         add_buf(output, "[{WWedit{x] Full Terrain List:\n\r\n\r");
-        add_buf(output, "Token  Ansi  Showname        Sector          Nonroom?  WildColor  Flags\n\r");
+        sprintf(buf, "%-6s %-6s %-*s  %-15s  %-8s  %-9s  %s\n\r",
+            "Token", "Ansi", showname_width, "Showname", "Sector", "Nonroom?", "WildColor", "Flags");
+        add_buf(output, buf);
 
         for(pTerrain=pWilds->pTerrain;pTerrain;pTerrain=pTerrain->next)
         {
-            sprintf(buf, " '{W%c{x'   '%s{x'   {W%-15s{x  {W%-15s{x  {W%s{x  %-9s  {W%s{x\n\r",
+            sprintf(buf, " '{W%c{x'   '%s{x'   {W%-*.*s{x  {W%-15s{x  {W%s{x  %-9s  {W%s{x\n\r",
                      pTerrain->mapchar, pTerrain->showchar,
+                     showname_width, showname_width,
                      pTerrain->showname ? pTerrain->showname : "(Not Set)",
                      sector_name(room_sector_type(pTerrain->template)),
                      pTerrain->nonroom ? "Yes" : "No",
@@ -1603,6 +2855,7 @@ WEDIT ( wedit_vlink )
 {
     WILDS_DATA *pWilds;
     WILDS_VLINK *pVLink;
+    WNUM room_wnum;
     char arg[MIL],
          arg2[MIL],
          arg3[MIL],
@@ -2017,9 +3270,14 @@ WEDIT ( wedit_vlink )
             if (pVLink->destination_mode == VLINK_DEST_DUNGEON) {
                 snprintf(dest_buf, sizeof(dest_buf), "dng %ld#%ld f%d",
                     pVLink->dest_load.auid, pVLink->dest_load.vnum, UMAX(1, pVLink->dungeon_floor));
-            } else {
+            } else if (resolve_widevnum(pVLink->destvnum, NULL, &room_wnum) && room_wnum.pArea) {
+                snprintf(dest_buf, sizeof(dest_buf), "%ld#%ld",
+                    room_wnum.pArea->uid, room_wnum.vnum);
+            } else if (pVLink->dest_load.auid > 0 && pVLink->dest_load.vnum > 0) {
                 snprintf(dest_buf, sizeof(dest_buf), "%ld#%ld",
                     pVLink->dest_load.auid, pVLink->dest_load.vnum);
+            } else {
+                snprintf(dest_buf, sizeof(dest_buf), "%ld", pVLink->destvnum);
             }
 
             printf_to_char(ch, "%-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-14s %10s%10s%s{x\n\r",

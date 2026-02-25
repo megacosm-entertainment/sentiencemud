@@ -35,6 +35,40 @@ static bool olc_match_search_field(const char *needle, const char *field);
 static bool olc_match_index_search(const char *needle, const char *primary_keywords,
     const char *list_keywords, const char *tags, const char *auto_tags);
 
+static const char *olc_mob_display_name(const MOB_INDEX_DATA *mob)
+{
+    if (!mob)
+        return "(none)";
+
+    if (!IS_NULLSTR(mob->list_name))
+        return mob->list_name;
+
+    if (!IS_NULLSTR(mob->short_descr))
+        return mob->short_descr;
+
+    if (!IS_NULLSTR(mob->player_name))
+        return mob->player_name;
+
+    return "(unnamed)";
+}
+
+static const char *olc_obj_display_name(const OBJ_INDEX_DATA *obj)
+{
+    if (!obj)
+        return "(none)";
+
+    if (!IS_NULLSTR(obj->list_name))
+        return obj->list_name;
+
+    if (!IS_NULLSTR(obj->short_descr))
+        return obj->short_descr;
+
+    if (!IS_NULLSTR(obj->name))
+        return obj->name;
+
+    return "(unnamed)";
+}
+
 static void olc_area_display_bounds(const AREA_DATA *area, long *out_min, long *out_max)
 {
     long min_vnum = 0;
@@ -778,8 +812,8 @@ void display_resets(CHAR_DATA *ch)
         }
 
         pMob = pMobIndex;
-        sprintf(buf, "M[%s] %-13.13s in room             R[%s] %2ld-%2ld %-15.15s\n\r",
-               widevnum_string_mobile(pMobIndex, pArea), pMob->short_descr, 
+         sprintf(buf, "M[%s] %-13.13s in room             R[%s] %2ld-%2ld %-15.15s\n\r",
+             widevnum_string_mobile(pMobIndex, pArea), olc_mob_display_name(pMob), 
                widevnum_string_room(pRoomIndex, pArea),
                pReset->arg2, pReset->arg4, pRoomIndex->name);
         strcat(final, buf);
@@ -821,9 +855,9 @@ void display_resets(CHAR_DATA *ch)
             continue;
         }
 
-        sprintf(buf, "O[%s] %-13.13s in room             "
+          sprintf(buf, "O[%s] %-13.13s in room             "
               "R[%s]       %-15.15s\n\r",
-              widevnum_string_object(pObjIndex, pArea), pObj->short_descr,
+              widevnum_string_object(pObjIndex, pArea), olc_obj_display_name(pObj),
               widevnum_string_room(pRoomIndex, pArea), pRoomIndex->name);
         strcat(final, buf);
         break;
@@ -853,11 +887,11 @@ void display_resets(CHAR_DATA *ch)
         sprintf(buf,
             "O[%s] %-13.13s inside              O[%s] %2ld-%2ld %-15.15s\n\r",
             widevnum_string_object(pObjIndex, pArea),
-            pObj->short_descr,
+            olc_obj_display_name(pObj),
             widevnum_string_object(pObjToIndex, pArea),
             pReset->arg2,
             pReset->arg4,
-            pObjToIndex->short_descr);
+            olc_obj_display_name(pObjToIndex));
         strcat(final, buf);
 
         break;
@@ -888,20 +922,20 @@ void display_resets(CHAR_DATA *ch)
         sprintf(buf,
             "O[%s] %-13.13s in the inventory of S[%s]       %-15.15s\n\r",
             widevnum_string_object(pObjIndex, pArea),
-            pObj->short_descr,
+                        olc_obj_display_name(pObj),
             widevnum_string_mobile(pMobIndex, pArea),
-            pMob->short_descr );
+                        olc_mob_display_name(pMob) );
         }
         else
         sprintf(buf,
             "O[%s] %-13.13s %-19.19s M[%ld]       %-15.15s\n\r",
             widevnum_string_object(pObjIndex, pArea),
-            pObj->short_descr,
+                        olc_obj_display_name(pObj),
             (pReset->command == 'G') ?
             flag_string(wear_loc_strings, WEAR_NONE)
               : flag_string(wear_loc_strings, pReset->arg3.value),
               pMob->vnum,
-              pMob->short_descr);
+                            olc_mob_display_name(pMob));
         strcat(final, buf);
 
         break;
@@ -2170,7 +2204,7 @@ void do_mlist(CHAR_DATA *ch, char *argument)
         {
         char *noc;
         found = true;
-        noc = nocolour(pMobIndex->short_descr);
+        noc = nocolour(olc_mob_display_name(pMobIndex));
         sprintf(buf, "{x[%s] %-17.16s{x", widevnum_string_mobile(pMobIndex, pArea), noc);
         add_buf(buf1, buf);
         free_string(noc);
@@ -2290,9 +2324,9 @@ void do_olist(CHAR_DATA *ch, char *argument)
         || flag_value(type_flags, arg) == pObjIndex->item_type)
         {
         found = true;
-        max = strlen_colours_limit(pObjIndex->short_descr,16) + 17;
+        max = strlen_colours_limit(olc_obj_display_name(pObjIndex),16) + 17;
         sprintf(buf, "{x[%5ld] %-*.*s{x",
-            pObjIndex->vnum, max, max - 1, pObjIndex->short_descr);
+            pObjIndex->vnum, max, max - 1, olc_obj_display_name(pObjIndex));
         add_buf(buf1, buf);
         if (++col % 3 == 0)
             add_buf(buf1, "\n\r");

@@ -27,6 +27,7 @@
 #include "tables.h"
 #include "wilderness_mods.h"
 #include "wilderness_state.h"
+#include "requirements.h"
 
 /* external global variables */
 extern bool fBootDb;
@@ -113,6 +114,19 @@ static int      wilds_prefetch_ring(WILDS_DATA *pWilds, int budget);
 static int      wilds_lru_pressure_unload(WILDS_DATA *pWilds, int max_rooms, int max_chunks);
 static int      wilds_prewarm_around(WILDS_DATA *pWilds, int center_x, int center_y, int radius, int budget);
 static void     wilds_collect_chunk_stats(WILDS_DATA *pWilds, int *active_chunks, int *pinned_chunks);
+static bool     wilds_region_same_group(const WILDS_REGION *a, const WILDS_REGION *b);
+static bool     wilds_region_is_representative(WILDS_DATA *pWilds, WILDS_REGION *candidate);
+static int      wilds_region_box_count(WILDS_DATA *pWilds, const WILDS_REGION *group);
+static WILDS_REGION *wilds_region_pick_box(WILDS_DATA *pWilds, WILDS_REGION *group);
+static bool     wilds_region_contains_point(WILDS_DATA *pWilds, WILDS_REGION *group, int x, int y);
+static int      wilds_region_count_room_mobs(WILDS_DATA *pWilds, WILDS_REGION *group, MOB_INDEX_DATA *mob_index);
+static int      wilds_region_count_room_objs(WILDS_DATA *pWilds, WILDS_REGION *group, OBJ_INDEX_DATA *obj_index);
+static bool     wilds_region_resolve_mob_index(WILDS_DATA *pWilds, const char *wnum_text, MOB_INDEX_DATA **mob_index_out);
+static bool     wilds_region_resolve_obj_index(WILDS_DATA *pWilds, const char *wnum_text, OBJ_INDEX_DATA **obj_index_out);
+static WILDS_REGION_SPAWN *wilds_region_spawn_new(void);
+static void     wilds_region_spawn_delete(void *ptr);
+static WILDS_REGION_SPAWN *fread_region_spawn(FILE *fp, const char *end_tag);
+static void     fwrite_region_spawn(FILE *fp, const char *tag, const char *end_tag, const WILDS_REGION_SPAWN *spawn);
 
 #define WILDS_CHUNK_UNLOAD_TTL_SECONDS 60
 #define WILDS_CHUNK_PREFETCH_RADIUS 1
@@ -120,6 +134,8 @@ static void     wilds_collect_chunk_stats(WILDS_DATA *pWilds, int *active_chunks
 #define WILDS_CHUNK_MAX_LOADED_ROOMS 2000
 #define WILDS_CHUNK_MAX_TRACKED_CHUNKS 512
 #define WILDS_CHUNK_TELEMETRY_INTERVAL 60
+#define WILDS_CHUNK_PREFETCH_BACKOFF_MS 25
+#define WILDS_CHUNK_PREFETCH_BACKOFF_PULSES 3
 
 static bool wilds_coords_valid(WILDS_DATA *pWilds, int x, int y)
 {
@@ -803,23 +819,46 @@ static bool resolve_vlink_dest_wnum(WILDS_VLINK *pVLink)
 {
     WNUM parsed = { NULL, 0 };
     DUNGEON_INDEX_DATA *dng = NULL;
+    ROOM_INDEX_DATA *global_room = NULL;
+    ROOM_INDEX_DATA *parsed_room = NULL;
+    ROOM_INDEX_DATA *dest_room = NULL;
 
     if (!pVLink)
         return false;
 
     if (pVLink->dest_wnum.pArea && pVLink->dest_wnum.vnum > 0)
-        return true;
+    {
+        if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
+            return true;
+
+        dest_room = get_room_index(pVLink->dest_wnum.pArea, pVLink->dest_wnum.vnum);
+        if (dest_room)
+            return true;
+
+        pVLink->dest_wnum.pArea = NULL;
+        pVLink->dest_wnum.vnum = 0;
+    }
 
     if (pVLink->dest_load.vnum > 0)
     {
         if (pVLink->dest_load.auid > 0)
+        {
             pVLink->dest_wnum.pArea = get_area_from_uid(pVLink->dest_load.auid);
+            if (pVLink->destination_mode != VLINK_DEST_DUNGEON
+                && pVLink->dest_wnum.pArea
+                && !get_room_index(pVLink->dest_wnum.pArea, pVLink->dest_load.vnum))
+            {
+                pVLink->dest_wnum.pArea = NULL;
+            }
+        }
         else if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
         {
             dng = get_dungeon_index(pVLink->dest_load.vnum);
             if (dng && dng->area)
                 pVLink->dest_wnum.pArea = dng->area;
         }
+        else if ((global_room = get_room_index_global(pVLink->dest_load.vnum)) != NULL)
+            pVLink->dest_wnum.pArea = global_room->area;
         else if (pVLink->pWilds)
             pVLink->dest_wnum.pArea = pVLink->pWilds->pArea;
 
@@ -828,8 +867,18 @@ static bool resolve_vlink_dest_wnum(WILDS_VLINK *pVLink)
 
     if ((!pVLink->dest_wnum.pArea || pVLink->dest_wnum.vnum < 1) && pVLink->destvnum > 0)
     {
-        if (resolve_widevnum(pVLink->destvnum, NULL, &parsed))
-            pVLink->dest_wnum = parsed;
+        if ((global_room = get_room_index_global(pVLink->destvnum)) != NULL)
+        {
+            pVLink->dest_wnum.pArea = global_room->area;
+            pVLink->dest_wnum.vnum = global_room->vnum;
+        }
+        else if (resolve_widevnum(pVLink->destvnum, NULL, &parsed)
+            && parsed.pArea
+            && (parsed_room = get_room_index(parsed.pArea, parsed.vnum)) != NULL)
+        {
+            pVLink->dest_wnum.pArea = parsed_room->area;
+            pVLink->dest_wnum.vnum = parsed_room->vnum;
+        }
         else if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
         {
             dng = get_dungeon_index(pVLink->destvnum);
@@ -1929,6 +1978,10 @@ WILDS_REGION *get_region_by_coors(WILDS_DATA *pWilds, int x, int y)
 
     for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
     {
+        if (pRegion->startx < 0 || pRegion->starty < 0 ||
+            pRegion->endx < pRegion->startx || pRegion->endy < pRegion->starty)
+            continue;
+
         if (x >= pRegion->startx && x <= pRegion->endx &&
             y >= pRegion->starty && y <= pRegion->endy)
             return pRegion;
@@ -1965,6 +2018,18 @@ WILDS_REGION *fread_region(FILE *fp, WILDS_DATA *pWilds)
             case '#':
                 if (!str_cmp(word, "#-REGION"))
                     return pRegion;
+                if (!str_cmp(word, "#SPAWNMOB"))
+                {
+                    WILDS_REGION_SPAWN *spawn = fread_region_spawn(fp, "#-SPAWNMOB");
+                    if (spawn)
+                        list_appendlink(pRegion->spawn_mobs, spawn);
+                }
+                if (!str_cmp(word, "#SPAWNOBJ"))
+                {
+                    WILDS_REGION_SPAWN *spawn = fread_region_spawn(fp, "#-SPAWNOBJ");
+                    if (spawn)
+                        list_appendlink(pRegion->spawn_objs, spawn);
+                }
                 break;
 
             case 'E':
@@ -1984,6 +2049,14 @@ WILDS_REGION *fread_region(FILE *fp, WILDS_DATA *pWilds)
                 }
                 break;
 
+            case 'N':
+                if (!str_cmp(word, "Name"))
+                {
+                    free_string(pRegion->name);
+                    pRegion->name = fread_string(fp);
+                }
+                break;
+
             case 'P':
                 if (!str_cmp(word, "Place"))
                 {
@@ -1999,6 +2072,11 @@ WILDS_REGION *fread_region(FILE *fp, WILDS_DATA *pWilds)
                     pRegion->startx = fread_number(fp);
                     pRegion->starty = fread_number(fp);
                 }
+                break;
+
+            case 'U':
+                if (!str_cmp(word, "Uid"))
+                    pRegion->uid = fread_number(fp);
                 break;
         }
     }
@@ -2021,9 +2099,127 @@ void fwrite_region(FILE *fp, WILDS_REGION *pRegion)
     fprintf(fp, "#REGION\n");
     fprintf(fp, "Start %d %d\n", pRegion->startx, pRegion->starty);
     fprintf(fp, "End %d %d\n", pRegion->endx, pRegion->endy);
+    if (pRegion->uid > 0)
+        fprintf(fp, "Uid %ld\n", pRegion->uid);
+    if (!IS_NULLSTR(pRegion->name))
+        fprintf(fp, "Name %s~\n", pRegion->name);
     fprintf(fp, "Label '%s'\n", flag_string(wilderness_regions, pRegion->region));
     fprintf(fp, "Place '%s'\n", flag_string(place_flags, pRegion->area_place_flags));
+    {
+        ITERATOR it;
+        WILDS_REGION_SPAWN *spawn;
+
+        iterator_start(&it, pRegion->spawn_mobs);
+        while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
+            fwrite_region_spawn(fp, "#SPAWNMOB", "#-SPAWNMOB", spawn);
+        iterator_stop(&it);
+
+        iterator_start(&it, pRegion->spawn_objs);
+        while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
+            fwrite_region_spawn(fp, "#SPAWNOBJ", "#-SPAWNOBJ", spawn);
+        iterator_stop(&it);
+    }
     fprintf(fp, "#-REGION\n\n");
+}
+
+static WILDS_REGION_SPAWN *wilds_region_spawn_new(void)
+{
+    WILDS_REGION_SPAWN *spawn = alloc_mem(sizeof(*spawn));
+
+    if (!spawn)
+        return NULL;
+
+    memset(spawn, 0, sizeof(*spawn));
+    spawn->wnum = str_dup("");
+    spawn->requirements = str_dup("");
+    return spawn;
+}
+
+static void wilds_region_spawn_delete(void *ptr)
+{
+    WILDS_REGION_SPAWN *spawn = (WILDS_REGION_SPAWN *)ptr;
+
+    if (!spawn)
+        return;
+
+    free_string(spawn->wnum);
+    free_string(spawn->requirements);
+    free_mem(spawn, sizeof(*spawn));
+}
+
+static WILDS_REGION_SPAWN *fread_region_spawn(FILE *fp, const char *end_tag)
+{
+    WILDS_REGION_SPAWN *spawn;
+    char *word;
+
+    if (!fp)
+        return NULL;
+
+    spawn = wilds_region_spawn_new();
+    if (!spawn)
+        return NULL;
+
+    for (;;)
+    {
+        word = feof(fp) ? "End" : fread_word(fp);
+
+        switch (UPPER(word[0]))
+        {
+        case '#':
+            if (!str_cmp(word, end_tag))
+                return spawn;
+            break;
+
+        case 'C':
+            if (!str_cmp(word, "Chance"))
+            {
+                spawn->chance = fread_number(fp);
+                break;
+            }
+            if (!str_cmp(word, "Cap"))
+            {
+                spawn->cap = fread_number(fp);
+                break;
+            }
+            break;
+
+        case 'E':
+            if (!str_cmp(word, "End"))
+                return spawn;
+            break;
+
+        case 'R':
+            if (!str_cmp(word, "Req"))
+            {
+                free_string(spawn->requirements);
+                spawn->requirements = fread_string(fp);
+                break;
+            }
+            break;
+
+        case 'W':
+            if (!str_cmp(word, "Wnum"))
+            {
+                free_string(spawn->wnum);
+                spawn->wnum = fread_string(fp);
+                break;
+            }
+            break;
+        }
+    }
+}
+
+static void fwrite_region_spawn(FILE *fp, const char *tag, const char *end_tag, const WILDS_REGION_SPAWN *spawn)
+{
+    if (!fp || !spawn || IS_NULLSTR(tag) || IS_NULLSTR(end_tag))
+        return;
+
+    fprintf(fp, "%s\n", tag);
+    fprintf(fp, "Wnum %s~\n", IS_NULLSTR(spawn->wnum) ? "" : spawn->wnum);
+    fprintf(fp, "Chance %d\n", spawn->chance);
+    fprintf(fp, "Cap %d\n", spawn->cap);
+    fprintf(fp, "Req %s~\n", IS_NULLSTR(spawn->requirements) ? "" : spawn->requirements);
+    fprintf(fp, "%s\n", end_tag);
 }
 
 void link_vroom(ROOM_INDEX_DATA *pWildsRoom)
@@ -2177,32 +2373,40 @@ bool link_vlink(WILDS_VLINK *pVLink)
             {
                 rev = rev_dir[pVLink->door];
 
-                if (pRevRoom->exit[rev]==NULL)
+                if (!(pExit = pRevRoom->exit[rev]))
                 {
-                    found = true;
-                    pExit = new_exit ();
-                    pExit->long_desc = str_dup(pVLink->rev_description);
-                    pExit->keyword = str_dup(pVLink->rev_keyword);
-                    pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
-                    pExit->exit_info = pExit->rs_flags;
-                    pExit->door.rs_lock.key_load.vnum = pVLink->rev_key;
-                    pExit->door.rs_lock.flags = pVLink->rev_lock;
-                    pExit->door.rs_lock.pick_chance = pVLink->rev_pick;
-                    pExit->door.lock = pExit->door.rs_lock;
-                    pExit->u1.vnum = 0;
-                    pExit->u1.to_room = NULL;
-                    pExit->wilds.x = pVLink->wildsorigin_x;
-                    pExit->wilds.y = pVLink->wildsorigin_y;
-                    pExit->wilds.area_uid = pVLink->pWilds->pArea->uid;
-                    pExit->wilds.wilds_uid = pVLink->pWilds->uid;
-                    pExit->orig_door = rev;    /* OLC */
-
-                    pRevRoom->exit[rev] = pExit;
-                    pExit->from_room = pRevRoom;
-                    SET_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
+                    pExit = new_exit();
+                }
+                else if (!IS_SET(pExit->exit_info, EX_VLINK))
+                {
+                    return (false);
                 }
                 else
-                    return (false);
+                {
+                    if (pExit->long_desc) { free_string(pExit->long_desc); pExit->long_desc = NULL; }
+                    if (pExit->keyword) { free_string(pExit->keyword); pExit->keyword = NULL; }
+                }
+
+                found = true;
+                pExit->long_desc = str_dup(pVLink->rev_description);
+                pExit->keyword = str_dup(pVLink->rev_keyword);
+                pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
+                pExit->exit_info = pExit->rs_flags;
+                pExit->door.rs_lock.key_load.vnum = pVLink->rev_key;
+                pExit->door.rs_lock.flags = pVLink->rev_lock;
+                pExit->door.rs_lock.pick_chance = pVLink->rev_pick;
+                pExit->door.lock = pExit->door.rs_lock;
+                pExit->u1.vnum = 0;
+                pExit->u1.to_room = NULL;
+                pExit->wilds.x = pVLink->wildsorigin_x;
+                pExit->wilds.y = pVLink->wildsorigin_y;
+                pExit->wilds.area_uid = pVLink->pWilds->pArea->uid;
+                pExit->wilds.wilds_uid = pVLink->pWilds->uid;
+                pExit->orig_door = rev;    /* OLC */
+
+                pRevRoom->exit[rev] = pExit;
+                pExit->from_room = pRevRoom;
+                SET_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
             }
         }
         else
@@ -2373,6 +2577,9 @@ void vroom_show_valid_door(CHAR_DATA *ch, WILDS_DATA *pWilds, int wx, int wy, in
 void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int wx, int wy, CHAR_DATA *to)
 {
     char buf[MAX_STRING_LENGTH];
+    char header_name[MIL];
+    const char *base_name;
+    WILDS_REGION *region;
     int linelength = 0;
     int count;
 
@@ -2385,15 +2592,25 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
         send_to_char(buf, to);
     }
 
-    linelength = strlen(pTerrain->template->name);
+    base_name = !IS_NULLSTR(pTerrain->showname)
+        ? pTerrain->showname
+        : pTerrain->template->name;
+
+    region = get_region_by_coors(pWilds, wx, wy);
+    if (region && !IS_NULLSTR(region->name))
+        snprintf(header_name, sizeof(header_name), "%s (%s)", base_name, region->name);
+    else
+        snprintf(header_name, sizeof(header_name), "%s", base_name);
+
+    linelength = strlen(header_name);
     linelength = 50 - linelength;
 
     if (IS_SET(pTerrain->template->room_flag[0], ROOM_SAFE))
-        sprintf(buf, "\n\r {W%s", pTerrain->template->name);
+        sprintf(buf, "\n\r {W%s", header_name);
     else if (IS_SET(pTerrain->template->room_flag[0], ROOM_UNDERWATER))
-        sprintf(buf, "\n\r {C%s", pTerrain->template->name);
+        sprintf(buf, "\n\r {C%s", header_name);
     else
-        sprintf(buf, "\n\r {Y%s", pTerrain->template->name);
+        sprintf(buf, "\n\r {Y%s", header_name);
 
     send_to_char(buf, to);
 
@@ -3638,6 +3855,7 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
 {
     WILDS_VLINK *pVLink;
     char buf[MSL];
+    char dest_buf[MIL];
 
     WILDS_DATA *pWilds = ch->in_wilds;
 
@@ -3664,15 +3882,39 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
         BUFFER *buffer;
 
         buffer=new_buf();
-        add_buf(buffer, "[   Uid] [x coor] [y coor] [direction] [destvnum] [default state] [current state]{x\n\r");
+        add_buf(buffer, "[   Uid] [x coor] [y coor] [direction] [destination]       [default state] [current state]{x\n\r");
         for(pVLink=pWilds->pVLink;pVLink!=NULL;pVLink = pVLink->next)
         {
-            sprintf(buf, "{x({W%6ld{x)  {W%6d   %6d   %9s    %7ld   %7s   %7s{x\n\r",
+            if (pVLink->destination_mode == VLINK_DEST_DUNGEON)
+            {
+                snprintf(dest_buf, sizeof(dest_buf), "dng %ld#%ld f%d",
+                    pVLink->dest_load.auid,
+                    pVLink->dest_load.vnum,
+                    UMAX(1, pVLink->dungeon_floor));
+            }
+            else if (resolve_vlink_dest_wnum(pVLink) && pVLink->dest_wnum.pArea)
+            {
+                snprintf(dest_buf, sizeof(dest_buf), "%ld#%ld",
+                    pVLink->dest_wnum.pArea->uid,
+                    pVLink->dest_wnum.vnum);
+            }
+            else if (pVLink->dest_load.auid > 0 && pVLink->dest_load.vnum > 0)
+            {
+                snprintf(dest_buf, sizeof(dest_buf), "%ld#%ld",
+                    pVLink->dest_load.auid,
+                    pVLink->dest_load.vnum);
+            }
+            else
+            {
+                snprintf(dest_buf, sizeof(dest_buf), "%ld", pVLink->destvnum);
+            }
+
+            sprintf(buf, "{x({W%6ld{x)  {W%6d   %6d   %9s    %-17s %7s   %7s{x\n\r",
                            pVLink->uid,
                            pVLink->wildsorigin_x,
                            pVLink->wildsorigin_y,
                            dir_name[pVLink->door],
-                           pVLink->destvnum,
+                           dest_buf,
                            (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS) &&
                 IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS)) ? "two-way" :
                     IS_SET(pVLink->default_linkage, VLINK_TO_WILDS) ? "to wilds" :
@@ -3996,6 +4238,18 @@ void wilds_chunk_pulse(void)
     ITERATOR witer;
     LLIST_WILDS_DATA *data;
     static time_t last_telemetry = 0;
+    static int prefetch_backoff_pulses = 0;
+    struct timespec pulse_start;
+    struct timespec pulse_end;
+    long pulse_ms = 0;
+    bool defer_prefetch;
+
+    clock_gettime(CLOCK_MONOTONIC, &pulse_start);
+
+    if (prefetch_backoff_pulses > 0)
+        prefetch_backoff_pulses--;
+
+    defer_prefetch = prefetch_backoff_pulses > 0;
 
     if (!loaded_wilds)
         return;
@@ -4014,7 +4268,7 @@ void wilds_chunk_pulse(void)
             continue;
 
         wilds_chunk_recount_usage(pWilds);
-        prefetched = wilds_prefetch_ring(pWilds, WILDS_CHUNK_PREFETCH_BUDGET);
+        prefetched = defer_prefetch ? 0 : wilds_prefetch_ring(pWilds, WILDS_CHUNK_PREFETCH_BUDGET);
         if (prefetched > 0)
             wilds_chunk_recount_usage(pWilds);
 
@@ -4049,14 +4303,331 @@ void wilds_chunk_pulse(void)
         && (last_telemetry == 0 || (current_time - last_telemetry) >= WILDS_CHUNK_TELEMETRY_INTERVAL))
         {
             plogf(LOG_INFO,
-                "Wilds chunk pulse uid=%ld prefetch=%d ttl_unload=%d lru_unload=%d loaded_rooms=%d tracked_chunks=%d",
+                "Wilds chunk pulse uid=%ld prefetch=%d ttl_unload=%d lru_unload=%d loaded_rooms=%d tracked_chunks=%d deferred=%s",
                 pWilds->uid,
                 prefetched,
                 ttl_unloaded,
                 lru_unloaded,
                 pWilds->loaded_rooms,
-                chunk_count);
+                chunk_count,
+                defer_prefetch ? "yes" : "no");
             last_telemetry = current_time;
+        }
+    }
+    iterator_stop(&witer);
+
+    clock_gettime(CLOCK_MONOTONIC, &pulse_end);
+    pulse_ms = (long)((pulse_end.tv_sec - pulse_start.tv_sec) * 1000L
+        + (pulse_end.tv_nsec - pulse_start.tv_nsec) / 1000000L);
+    if (pulse_ms > WILDS_CHUNK_PREFETCH_BACKOFF_MS)
+        prefetch_backoff_pulses = WILDS_CHUNK_PREFETCH_BACKOFF_PULSES;
+}
+
+static bool wilds_region_same_group(const WILDS_REGION *a, const WILDS_REGION *b)
+{
+    if (!a || !b)
+        return false;
+
+    if (a->uid > 0 && b->uid > 0)
+        return a->uid == b->uid;
+
+    return !str_cmp(a->name, b->name);
+}
+
+static bool wilds_region_is_representative(WILDS_DATA *pWilds, WILDS_REGION *candidate)
+{
+    WILDS_REGION *iter;
+
+    if (!pWilds || !candidate)
+        return false;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (iter == candidate)
+            break;
+        if (wilds_region_same_group(iter, candidate))
+            return false;
+    }
+
+    return true;
+}
+
+static int wilds_region_box_count(WILDS_DATA *pWilds, const WILDS_REGION *group)
+{
+    WILDS_REGION *iter;
+    int count = 0;
+
+    if (!pWilds || !group)
+        return 0;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wilds_region_same_group(iter, group))
+            continue;
+        if (iter->startx < 0 || iter->starty < 0 || iter->endx < iter->startx || iter->endy < iter->starty)
+            continue;
+        count++;
+    }
+
+    return count;
+}
+
+static WILDS_REGION *wilds_region_pick_box(WILDS_DATA *pWilds, WILDS_REGION *group)
+{
+    WILDS_REGION *iter;
+    int box_count;
+    int chosen;
+
+    if (!pWilds || !group)
+        return NULL;
+
+    box_count = wilds_region_box_count(pWilds, group);
+    if (box_count < 1)
+        return NULL;
+
+    chosen = number_range(1, box_count);
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wilds_region_same_group(iter, group))
+            continue;
+        if (iter->startx < 0 || iter->starty < 0 || iter->endx < iter->startx || iter->endy < iter->starty)
+            continue;
+        if (--chosen == 0)
+            return iter;
+    }
+
+    return NULL;
+}
+
+static bool wilds_region_contains_point(WILDS_DATA *pWilds, WILDS_REGION *group, int x, int y)
+{
+    WILDS_REGION *iter;
+
+    if (!pWilds || !group)
+        return false;
+
+    for (iter = pWilds->pRegion; iter; iter = iter->next)
+    {
+        if (!wilds_region_same_group(iter, group))
+            continue;
+
+        if (x >= iter->startx && x <= iter->endx && y >= iter->starty && y <= iter->endy)
+            return true;
+    }
+
+    return false;
+}
+
+static int wilds_region_count_room_mobs(WILDS_DATA *pWilds, WILDS_REGION *group, MOB_INDEX_DATA *mob_index)
+{
+    ITERATOR it;
+    ROOM_INDEX_DATA *room;
+    int count = 0;
+
+    if (!pWilds || !group || !mob_index || !pWilds->loaded_vrooms)
+        return 0;
+
+    iterator_start(&it, pWilds->loaded_vrooms);
+    while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+    {
+        CHAR_DATA *mob;
+        int rel_x;
+        int rel_y;
+
+        if (!room || !room->wilds || room->wilds != pWilds)
+            continue;
+
+        rel_x = room->x - pWilds->startx;
+        rel_y = room->y - pWilds->starty;
+        if (!wilds_region_contains_point(pWilds, group, rel_x, rel_y))
+            continue;
+
+        for (mob = room->people; mob; mob = mob->next_in_room)
+            if (IS_NPC(mob) && mob->pIndexData == mob_index)
+                count++;
+    }
+    iterator_stop(&it);
+
+    return count;
+}
+
+static int wilds_region_count_room_objs(WILDS_DATA *pWilds, WILDS_REGION *group, OBJ_INDEX_DATA *obj_index)
+{
+    ITERATOR it;
+    ROOM_INDEX_DATA *room;
+    int count = 0;
+
+    if (!pWilds || !group || !obj_index || !pWilds->loaded_vrooms)
+        return 0;
+
+    iterator_start(&it, pWilds->loaded_vrooms);
+    while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+    {
+        OBJ_DATA *obj;
+        int rel_x;
+        int rel_y;
+
+        if (!room || !room->wilds || room->wilds != pWilds)
+            continue;
+
+        rel_x = room->x - pWilds->startx;
+        rel_y = room->y - pWilds->starty;
+        if (!wilds_region_contains_point(pWilds, group, rel_x, rel_y))
+            continue;
+
+        for (obj = room->contents; obj; obj = obj->next_content)
+            if (obj->pIndexData == obj_index)
+                count++;
+    }
+    iterator_stop(&it);
+
+    return count;
+}
+
+static bool wilds_region_resolve_mob_index(WILDS_DATA *pWilds, const char *wnum_text, MOB_INDEX_DATA **mob_index_out)
+{
+    WNUM_LOAD load = {0, 0};
+    WNUM wnum = {NULL, 0};
+
+    if (!pWilds || IS_NULLSTR(wnum_text) || !mob_index_out)
+        return false;
+
+    if (!parse_widevnum_load(wnum_text, &load))
+        return false;
+
+    resolve_wnum_load(&load, &wnum, pWilds->pArea);
+    if (!wnum.pArea || wnum.vnum < 1)
+        return false;
+
+    *mob_index_out = get_mob_index(wnum.pArea, wnum.vnum);
+    return *mob_index_out != NULL;
+}
+
+static bool wilds_region_resolve_obj_index(WILDS_DATA *pWilds, const char *wnum_text, OBJ_INDEX_DATA **obj_index_out)
+{
+    WNUM_LOAD load = {0, 0};
+    WNUM wnum = {NULL, 0};
+
+    if (!pWilds || IS_NULLSTR(wnum_text) || !obj_index_out)
+        return false;
+
+    if (!parse_widevnum_load(wnum_text, &load))
+        return false;
+
+    resolve_wnum_load(&load, &wnum, pWilds->pArea);
+    if (!wnum.pArea || wnum.vnum < 1)
+        return false;
+
+    *obj_index_out = get_obj_index(wnum.pArea, wnum.vnum);
+    return *obj_index_out != NULL;
+}
+
+void wilds_ambient_spawn_pulse(void)
+{
+    ITERATOR witer;
+    LLIST_WILDS_DATA *data;
+
+    if (!loaded_wilds)
+        return;
+
+    iterator_start(&witer, loaded_wilds);
+    while ((data = (LLIST_WILDS_DATA *)iterator_nextdata(&witer)))
+    {
+        WILDS_DATA *pWilds = data ? data->wilds : NULL;
+        WILDS_REGION *region;
+
+        if (!pWilds || !pWilds->pRegion)
+            continue;
+
+        for (region = pWilds->pRegion; region; region = region->next)
+        {
+            WILDS_REGION *box;
+            ROOM_INDEX_DATA *room;
+            REQUIREMENT_CONTEXT req_context;
+            int x;
+            int y;
+
+            if (!wilds_region_is_representative(pWilds, region))
+                continue;
+
+            box = wilds_region_pick_box(pWilds, region);
+            if (!box)
+                continue;
+
+            x = number_range(box->startx, box->endx);
+            y = number_range(box->starty, box->endy);
+
+            if (!check_for_bad_room(pWilds, x, y))
+                continue;
+
+            room = get_wilds_vroom(pWilds, x, y);
+            if (!room)
+                room = create_wilds_vroom(pWilds, x, y);
+            if (!room)
+                continue;
+
+            memset(&req_context, 0, sizeof(req_context));
+            req_context.self_room = room;
+
+            {
+                ITERATOR sit;
+                WILDS_REGION_SPAWN *spawn;
+
+                iterator_start(&sit, region->spawn_mobs);
+                while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&sit)) != NULL)
+                {
+                    MOB_INDEX_DATA *mob_index = NULL;
+
+                    if (IS_NULLSTR(spawn->wnum)
+                    || spawn->chance < 1
+                    || spawn->cap < 1
+                    || number_percent() > URANGE(1, spawn->chance, 100))
+                        continue;
+
+                    if (wilds_region_resolve_mob_index(pWilds, spawn->wnum, &mob_index)
+                    && wilds_region_count_room_mobs(pWilds, region, mob_index) < spawn->cap
+                    && requirements_evaluate_text(spawn->requirements, &req_context, true))
+                    {
+                        CHAR_DATA *mob = create_mobile(mob_index, false);
+                        if (mob)
+                        {
+                            char_to_room(mob, room);
+                            break;
+                        }
+                    }
+                }
+                iterator_stop(&sit);
+            }
+
+            {
+                ITERATOR sit;
+                WILDS_REGION_SPAWN *spawn;
+
+                iterator_start(&sit, region->spawn_objs);
+                while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&sit)) != NULL)
+                {
+                    OBJ_INDEX_DATA *obj_index = NULL;
+
+                    if (IS_NULLSTR(spawn->wnum)
+                    || spawn->chance < 1
+                    || spawn->cap < 1
+                    || number_percent() > URANGE(1, spawn->chance, 100))
+                        continue;
+
+                    if (wilds_region_resolve_obj_index(pWilds, spawn->wnum, &obj_index)
+                    && wilds_region_count_room_objs(pWilds, region, obj_index) < spawn->cap
+                    && requirements_evaluate_text(spawn->requirements, &req_context, true))
+                    {
+                        OBJ_DATA *obj = create_object(obj_index, 0, true);
+                        if (obj)
+                        {
+                            obj_to_room(obj, room);
+                            break;
+                        }
+                    }
+                }
+                iterator_stop(&sit);
+            }
         }
     }
     iterator_stop(&witer);
@@ -4239,6 +4810,8 @@ WILDS_REGION *new_region(WILDS_DATA *pWilds)
 {
     static WILDS_REGION pregion_zero;
     WILDS_REGION *pRegion;
+    long max_uid = 0;
+    WILDS_REGION *iter;
 
     if (!wilds_region_free)
         pRegion = alloc_perm(sizeof(*pRegion));
@@ -4253,8 +4826,23 @@ WILDS_REGION *new_region(WILDS_DATA *pWilds)
     pRegion->prev = NULL;
     pRegion->next = NULL;
     pRegion->pWilds = pWilds;
+    pRegion->name = NULL;
+    pRegion->startx = -1;
+    pRegion->starty = -1;
+    pRegion->endx = -1;
+    pRegion->endy = -1;
+
+    if (pWilds)
+    {
+        for (iter = pWilds->pRegion; iter; iter = iter->next)
+            if (iter->uid > max_uid)
+                max_uid = iter->uid;
+    }
+    pRegion->uid = max_uid + 1;
     pRegion->region = REGION_UNKNOWN;
     pRegion->area_place_flags = PLACE_NOWHERE;
+    pRegion->spawn_mobs = list_createx(false, NULL, wilds_region_spawn_delete);
+    pRegion->spawn_objs = list_createx(false, NULL, wilds_region_spawn_delete);
     VALIDATE(pRegion);
 
     return pRegion;
@@ -4265,6 +4853,9 @@ void free_region(WILDS_REGION *pRegion)
     if (!IS_VALID(pRegion))
         return;
 
+    free_string(pRegion->name);
+    list_destroy(pRegion->spawn_mobs);
+    list_destroy(pRegion->spawn_objs);
     pRegion->pWilds = NULL;
     INVALIDATE(pRegion);
 
@@ -4613,6 +5204,7 @@ ROOM_INDEX_DATA *wilds_seek_down(register WILDS_DATA *wilds, register int x, reg
 
 void do_wlist(CHAR_DATA *ch, char *argument)
 {
+    char arg[MIL];
     char buf[MAX_STRING_LENGTH];
     ITERATOR iter;
     LLIST_WILDS_DATA *data;
@@ -4621,13 +5213,36 @@ void do_wlist(CHAR_DATA *ch, char *argument)
     int active_chunks;
     int pinned_chunks;
     int chunk_count;
+    bool status_mode;
     //int place_type = 0;
+
+    one_argument(argument, arg);
+    status_mode = !str_cmp(arg, "status") || !str_cmp(arg, "stats");
 
     buffer = new_buf();
 
-    sprintf(buf, "[%-7s] [%-22.22s] [%11s] [%6s] [%6s] [%6s] [%-10s]\n\r",
-        "UID", "Name", "Dimensions", "Chunks", "Active", "Loaded", "Area");
-    add_buf(buffer, buf);
+    if (!status_mode)
+    {
+        sprintf(buf, "[%-7s] [%-22.22s] [%11s] [%6s] [%6s] [%6s] [%-10s]\n\r",
+            "UID", "Name", "Dimensions", "Chunks", "Active", "Loaded", "Area");
+        add_buf(buffer, buf);
+    }
+    else
+    {
+        sprintf(buf,
+            "Chunk Guards: ttl=%ds prefetch_radius=%d prefetch_budget=%d max_loaded=%d max_chunks=%d telemetry=%ds backoff=%dms/%dp\n\r",
+            WILDS_CHUNK_UNLOAD_TTL_SECONDS,
+            WILDS_CHUNK_PREFETCH_RADIUS,
+            WILDS_CHUNK_PREFETCH_BUDGET,
+            WILDS_CHUNK_MAX_LOADED_ROOMS,
+            WILDS_CHUNK_MAX_TRACKED_CHUNKS,
+            WILDS_CHUNK_TELEMETRY_INTERVAL,
+            WILDS_CHUNK_PREFETCH_BACKOFF_MS,
+            WILDS_CHUNK_PREFETCH_BACKOFF_PULSES);
+        add_buf(buffer, buf);
+        add_buf(buffer,
+            "[UID    ] [Name                  ] [chunks] [active] [pinned] [loaded] [pressure] [ttl]\n\r");
+    }
 
 
     iterator_start(&iter, loaded_wilds);
@@ -4639,13 +5254,36 @@ void do_wlist(CHAR_DATA *ch, char *argument)
         chunk_count = wilds_count_chunks(pWilds);
         wilds_collect_chunk_stats(pWilds, &active_chunks, &pinned_chunks);
 
-        sprintf(buf,"[%7ld] [%-22.22s] [ %4d x %-4d ] [%6d] [%6d] [%6d] %s\n\r", pWilds->uid,
-            (IS_NULLSTR(pWilds->name) ? "no name" : pWilds->name),
-            pWilds->map_size_x, pWilds->map_size_y,
-            chunk_count,
-            active_chunks + pinned_chunks,
-            pWilds->loaded_rooms,
-            ((!IS_NULLSTR(pWilds->pArea->name)) ? pWilds->pArea->name : ""));
+        if (!status_mode)
+        {
+            sprintf(buf,"[%7ld] [%-22.22s] [ %4d x %-4d ] [%6d] [%6d] [%6d] %s\n\r", pWilds->uid,
+                (IS_NULLSTR(pWilds->name) ? "no name" : pWilds->name),
+                pWilds->map_size_x, pWilds->map_size_y,
+                chunk_count,
+                active_chunks + pinned_chunks,
+                pWilds->loaded_rooms,
+                ((!IS_NULLSTR(pWilds->pArea->name)) ? pWilds->pArea->name : ""));
+        }
+        else
+        {
+            const char *pressure = (pWilds->loaded_rooms > WILDS_CHUNK_MAX_LOADED_ROOMS
+                || chunk_count > WILDS_CHUNK_MAX_TRACKED_CHUNKS) ? "hot" : "ok";
+            const char *ttl = "idle";
+
+            if (active_chunks > 0 || pinned_chunks > 0)
+                ttl = "held";
+
+            sprintf(buf,
+                "[%7ld] [%-22.22s] [%6d] [%6d] [%6d] [%6d] [%-8s] [%-4s]\n\r",
+                pWilds->uid,
+                (IS_NULLSTR(pWilds->name) ? "no name" : pWilds->name),
+                chunk_count,
+                active_chunks,
+                pinned_chunks,
+                pWilds->loaded_rooms,
+                pressure,
+                ttl);
+        }
         add_buf(buffer, buf);
     }
     iterator_stop(&iter);

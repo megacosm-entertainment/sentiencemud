@@ -27,6 +27,7 @@ long next_wilds_uid;
 /* typedef struct    wilds_vlink      WILDS_VLINK; */
 typedef struct    wilds_overlay    WILDS_OVERLAY;
 typedef struct    wilds_chunk      WILDS_CHUNK;
+typedef struct    wilds_region_spawn WILDS_REGION_SPAWN;
 
 /* Exported local routines */
 char            *vlinkage_bit_name  args ((int vlinktype ));
@@ -52,6 +53,7 @@ bool            wilds_wildgen_enqueue_grid args ((WILDS_DATA *pWilds, const char
 void            wilds_wildgen_status args ((WILDS_DATA *pWilds, char *buf, size_t buf_size));
 void            wilds_wildgen_pulse args ((void));
 void            wilds_chunk_pulse args ((void));
+void            wilds_ambient_spawn_pulse args ((void));
 
 ROOM_INDEX_DATA *create_wilds_vroom args ((WILDS_DATA *pWilds, int x, int y));
 void            destroy_wilds_vroom args ((ROOM_INDEX_DATA *room));
@@ -236,6 +238,9 @@ struct wilds_region
     WILDS_REGION    *next;
     bool            valid;
 
+    long            uid;
+    char            *name;
+
     int             startx;
     int             starty;
     int             endx;
@@ -243,6 +248,17 @@ struct wilds_region
 
     int             region;
     long            area_place_flags;
+
+    LLIST           *spawn_mobs;
+    LLIST           *spawn_objs;
+};
+
+struct wilds_region_spawn
+{
+    char            *wnum;
+    int             chance;
+    int             cap;
+    char            *requirements;
 };
 
 #define WILDS_OVERLAY_CHUNK_SIZE   32

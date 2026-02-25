@@ -77,6 +77,7 @@ const struct flag_type *flag_stat_table[] =
     area_who_display,
     instrument_types,
     place_flags,
+    wilderness_regions,
     corpse_types,
     variable_types,
     blueprint_section_types,

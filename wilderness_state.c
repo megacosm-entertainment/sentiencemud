@@ -114,6 +114,23 @@ static void wilderness_state_clear_runtime_payload(WILDERNESS_STATE_RUNTIME *run
     runtime->loaded_actor_count = 0;
 }
 
+static void wilderness_state_clear_area_storms(AREA_DATA *pArea)
+{
+    STORM_DATA *storm;
+    STORM_DATA *storm_next;
+
+    if (!pArea)
+        return;
+
+    for (storm = pArea->storm; storm; storm = storm_next)
+    {
+        storm_next = storm->next;
+        free_storm_data(storm);
+    }
+
+    pArea->storm = NULL;
+}
+
 static WILDERNESS_STATE_RUNTIME *wilderness_state_get_runtime(WILDS_DATA *pWilds, bool create)
 {
     WILDERNESS_STATE_RUNTIME *runtime;
@@ -188,6 +205,7 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
     json_t *root;
     json_t *features;
     json_t *actors;
+    json_t *storms;
     const char *stored_checksum;
     char current_checksum[65];
     char path[MSL];
@@ -204,6 +222,9 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
         return false;
 
     wilderness_state_clear_runtime_payload(runtime);
+
+    if (pWilds->pArea)
+        wilderness_state_clear_area_storms(pWilds->pArea);
 
     if (!wilderness_state_file_exists(path))
         return true;
@@ -353,6 +374,36 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
         }
     }
 
+    storms = json_object_get(root, "storms");
+    if (json_is_array(storms) && pWilds->pArea)
+    {
+        for (i = 0; i < json_array_size(storms); i++)
+        {
+            json_t *entry = json_array_get(storms, i);
+            STORM_DATA *storm;
+
+            if (!json_is_object(entry))
+                continue;
+
+            storm = new_storm_data();
+            if (!storm)
+                continue;
+
+            storm->storm_type = (int)json_integer_value(json_object_get(entry, "storm_type"));
+            storm->x = (int)json_integer_value(json_object_get(entry, "x"));
+            storm->y = (int)json_integer_value(json_object_get(entry, "y"));
+            storm->radius = (int)json_integer_value(json_object_get(entry, "radius"));
+            storm->dx = (float)json_number_value(json_object_get(entry, "dx"));
+            storm->dy = (float)json_number_value(json_object_get(entry, "dy"));
+            storm->speed = (int)json_integer_value(json_object_get(entry, "speed"));
+            storm->life = (int)json_integer_value(json_object_get(entry, "life"));
+            storm->counter = (int)json_integer_value(json_object_get(entry, "counter"));
+
+            storm->next = pWilds->pArea->storm;
+            pWilds->pArea->storm = storm;
+        }
+    }
+
     runtime->suppress_dirty = false;
     runtime->dirty = false;
     runtime->dirty_since = 0;
@@ -374,10 +425,12 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
     json_t *root;
     json_t *features;
     json_t *actors;
+    json_t *storms;
     char checksum[65];
     char path[MSL];
     WILDERNESS_FEATURE_NODE *feature_node;
     WILDERNESS_ACTOR_NODE *actor_node;
+    STORM_DATA *storm_node;
     WILDS_CHUNK *chunk;
 
     if (!wilderness_state_ready || !pWilds)
@@ -393,8 +446,10 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
     root = json_object();
     features = json_array();
     actors = json_array();
-    if (!root || !features || !actors)
+    storms = json_array();
+    if (!root || !features || !actors || !storms)
     {
+        if (storms) json_decref(storms);
         if (actors) json_decref(actors);
         if (features) json_decref(features);
         if (root) json_decref(root);
@@ -482,8 +537,32 @@ bool wilderness_state_save(WILDS_DATA *pWilds)
         json_array_append_new(actors, entry);
     }
 
+    if (pWilds->pArea)
+    {
+        for (storm_node = pWilds->pArea->storm; storm_node; storm_node = storm_node->next)
+        {
+            json_t *entry = json_object();
+
+            if (!entry)
+                continue;
+
+            json_object_set_new(entry, "storm_type", json_integer(storm_node->storm_type));
+            json_object_set_new(entry, "x", json_integer(storm_node->x));
+            json_object_set_new(entry, "y", json_integer(storm_node->y));
+            json_object_set_new(entry, "radius", json_integer(storm_node->radius));
+            json_object_set_new(entry, "dx", json_real(storm_node->dx));
+            json_object_set_new(entry, "dy", json_real(storm_node->dy));
+            json_object_set_new(entry, "speed", json_integer(storm_node->speed));
+            json_object_set_new(entry, "life", json_integer(storm_node->life));
+            json_object_set_new(entry, "counter", json_integer(storm_node->counter));
+
+            json_array_append_new(storms, entry);
+        }
+    }
+
     json_object_set_new(root, "features", features);
     json_object_set_new(root, "actors", actors);
+    json_object_set_new(root, "storms", storms);
 
     if (!wilderness_storage_build_state_path(pWilds, path, sizeof(path)))
     {

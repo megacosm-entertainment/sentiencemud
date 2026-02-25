@@ -321,7 +321,12 @@ static bool wildgen_build_image_path(WILDS_DATA *pWilds, const char *file_name,
         return false;
     }
 
-    snprintf(wilds_dir, sizeof(wilds_dir), "%s/%ld", maps_root, pWilds->uid);
+    if (snprintf(wilds_dir, sizeof(wilds_dir), "%s/%ld", maps_root, pWilds->uid) >= (int)sizeof(wilds_dir))
+    {
+        if (err_buf && err_buf_size > 0)
+            snprintf(err_buf, err_buf_size, "Wildgen directory path is too long for wilderness %ld", pWilds->uid);
+        return false;
+    }
 
     if (strlen(wilds_dir) > sizeof(images_dir) - 16)
     {
@@ -330,7 +335,12 @@ static bool wildgen_build_image_path(WILDS_DATA *pWilds, const char *file_name,
         return false;
     }
 
-    snprintf(images_dir, sizeof(images_dir), "%s/images", wilds_dir);
+    if (snprintf(images_dir, sizeof(images_dir), "%s/images", wilds_dir) >= (int)sizeof(images_dir))
+    {
+        if (err_buf && err_buf_size > 0)
+            snprintf(err_buf, err_buf_size, "Wildgen images directory path is too long for wilderness %ld", pWilds->uid);
+        return false;
+    }
 
     if (!wildgen_ensure_directory(maps_root, err_buf, err_buf_size))
         return false;
@@ -339,7 +349,12 @@ static bool wildgen_build_image_path(WILDS_DATA *pWilds, const char *file_name,
     if (!wildgen_ensure_directory(images_dir, err_buf, err_buf_size))
         return false;
 
-    snprintf(resolved_path, resolved_size, "%s/%s", images_dir, file_name);
+    if (snprintf(resolved_path, resolved_size, "%s/%s", images_dir, file_name) >= (int)resolved_size)
+    {
+        if (err_buf && err_buf_size > 0)
+            snprintf(err_buf, err_buf_size, "Resolved wildgen image path is too long");
+        return false;
+    }
     return true;
 }
 
@@ -666,7 +681,7 @@ static void *wildgen_worker_func(void *arg)
                             pixels = stbi_load(part_path, &pw, &ph, &pch, 3);
                             if (!pixels)
                             {
-                                snprintf(message, sizeof(message), "Failed to load grid PNG '%s'", part_path);
+                                snprintf(message, sizeof(message), "Failed to load grid PNG '%.256s'", part_path);
                                 break;
                             }
 
@@ -730,7 +745,7 @@ static void *wildgen_worker_func(void *arg)
                             else
                             {
                                 snprintf(message, sizeof(message),
-                                    "Converted grid %dx%d (%d unmatched colors used default tile '%c'). %s",
+                                    "Converted grid %dx%d (%d unmatched colors used default tile '%c'). %.512s",
                                     job->grid_rows, job->grid_cols, validated_unknown, job->default_tile, elev_message);
                             }
                         }
