@@ -3140,6 +3140,8 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
                            sizeof(appended_report_id));
     channel_history_set_participants(msg->sender_id0, msg->sender_id1,
                                      msg->recipient_id0, msg->recipient_id1);
+    if (!IS_NULLSTR(msg->recipient_name))
+        channel_history_set_recipient_name(msg->recipient_name);
 
     if (local_origin)
         return;
@@ -3530,6 +3532,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.sender_id1 = sender->id[1];
     snprintf(recipient_uid, sizeof(recipient_uid), "%lu:%lu", recipient->id[0], recipient->id[1]);
     msg.recipient_uid = recipient_uid;
+    msg.recipient_name = recipient->name;
     msg.recipient_id0 = recipient->id[0];
     msg.recipient_id1 = recipient->id[1];
     if (!IS_NULLSTR(reports_json))

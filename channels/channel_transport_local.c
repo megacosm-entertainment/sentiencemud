@@ -17,6 +17,7 @@ typedef struct local_event {
     unsigned long sender_id0;
     unsigned long sender_id1;
     char recipient_uid[64];
+    char recipient_name[64];
     unsigned long recipient_id0;
     unsigned long recipient_id1;
     char message_text[MSL];
@@ -78,6 +79,7 @@ static bool local_publish(const char *topic, const CHANNEL_MESSAGE *msg)
     evt->sender_id0 = msg->sender_id0;
     evt->sender_id1 = msg->sender_id1;
     strlcpy(evt->recipient_uid, msg->recipient_uid ? msg->recipient_uid : "", sizeof(evt->recipient_uid));
+    strlcpy(evt->recipient_name, msg->recipient_name ? msg->recipient_name : "", sizeof(evt->recipient_name));
     evt->recipient_id0 = msg->recipient_id0;
     evt->recipient_id1 = msg->recipient_id1;
     strlcpy(evt->message_text, msg->message_text, sizeof(evt->message_text));
@@ -158,6 +160,7 @@ static int local_drain_inbound(int max_events)
         msg.sender_id0 = evt.sender_id0;
         msg.sender_id1 = evt.sender_id1;
         msg.recipient_uid = evt.recipient_uid[0] ? evt.recipient_uid : NULL;
+        msg.recipient_name = evt.recipient_name[0] ? evt.recipient_name : NULL;
         msg.recipient_id0 = evt.recipient_id0;
         msg.recipient_id1 = evt.recipient_id1;
         msg.message_text = evt.message_text;
