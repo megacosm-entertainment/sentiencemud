@@ -796,25 +796,37 @@ void do_history(CHAR_DATA *ch, char *argument)
                 reported_marker[0] = '\0';
             }
 
-            if (show_report_link)
-                snprintf(buf,
-                         sizeof(buf),
-                         "{Y#%2d{x [%s] {W%.48s{x {D[%s]{x%s: %.3000s\n\r",
-                         i + 1,
-                         when_buf,
-                         entries[i].sender_name,
-                         report_link,
-                         reported_marker,
-                         filtered_text);
-            else
-                snprintf(buf,
-                         sizeof(buf),
-                         "{Y#%2d{x [%s] {W%.48s{x%s: %.3000s\n\r",
-                         i + 1,
-                         when_buf,
-                         entries[i].sender_name,
-                         reported_marker,
-                         filtered_text);
+            {
+                char participant_buf[128];
+                if (def->scope == CHANNEL_SCOPE_DIRECT_ENTITY
+                    && !IS_NULLSTR(entries[i].recipient_name))
+                    snprintf(participant_buf, sizeof(participant_buf),
+                             "{W%.48s{x{D→{x{W%.48s{x",
+                             entries[i].sender_name, entries[i].recipient_name);
+                else
+                    snprintf(participant_buf, sizeof(participant_buf),
+                             "{W%.48s{x", entries[i].sender_name);
+
+                if (show_report_link)
+                    snprintf(buf,
+                             sizeof(buf),
+                             "{Y#%2d{x [%s] %s {D[%s]{x%s: %.3000s\n\r",
+                             i + 1,
+                             when_buf,
+                             participant_buf,
+                             report_link,
+                             reported_marker,
+                             filtered_text);
+                else
+                    snprintf(buf,
+                             sizeof(buf),
+                             "{Y#%2d{x [%s] %s%s: %.3000s\n\r",
+                             i + 1,
+                             when_buf,
+                             participant_buf,
+                             reported_marker,
+                             filtered_text);
+            }
             send_to_char(buf, ch);
             shown++;
         }

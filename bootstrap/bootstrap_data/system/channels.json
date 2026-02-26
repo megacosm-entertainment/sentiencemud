@@ -368,7 +368,7 @@
       "moderators": [],
       "review_enabled": false,
       "review_stream": "audit:filtered_messages",
-      "fmt_self": "{RYou:{x %2$s",
+      "fmt_self": "{RYou tell %1$s:{x %2$s",
       "fmt_receiver": "{R%1$s:{x %2$s",
       "history_max_len": 25,
       "history_max_age_seconds": 300,

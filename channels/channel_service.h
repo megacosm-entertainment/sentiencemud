@@ -19,6 +19,7 @@ typedef struct channel_history_entry {
     char reports_json[256];
     char channel_id[32];
     char sender_name[64];
+    char recipient_name[64];
     char message_text[1024];
     time_t timestamp;
 } CHANNEL_HISTORY_ENTRY;
