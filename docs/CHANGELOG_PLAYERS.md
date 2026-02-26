@@ -1,50 +1,81 @@
 # Player Changelog
 
-Changes since the account system update (ad9c53d).
+Scope: `df6c9d2c3c0c1e5c93172ce2da08868a2c9aa0e4` → `88602021f775e53d514521366df2948fdffb37ea` (current HEAD)
 
-## New Features
+This is the player-facing summary of the large migration window.
+It focuses on gameplay-visible behavior, quality of life, and removed player systems.
 
-### Pronoun System
-- Full custom pronoun support during character creation and in-game
-- Choose from preset options (he/him, she/her, they/them) or define your own
-- Set all five pronoun forms: subject, object, possessive adjective, possessive pronoun, and reflexive
-- Verb conjugation preference (singular/plural) for custom pronouns
-- Use `pronouns` command to view or change your pronouns at any time
-- Use `pronouns show <subj> <obj> <poss_adj> <poss_pron> <refl>` to preview how pronouns will appear
+Major context: this range introduced new account foundations, identity systems (pronouns/body type), large persistence/storage upgrades, the new event framework, and broad world/system modernization.
 
-### Body Type
-- Body type is now separate from pronouns
-- Choose your character's physical presentation independently of pronoun choice
+## Additions
 
-### Account Improvements
-- Set a default character to automatically select on login
-- Tracks your last logged-in character for quick access
+### Identity and Character Presentation
+- Pronouns are fully customizable and no longer tied to body type.
+- Pronoun grammar supports all five forms plus verb preference.
+- Character setup/login flows were expanded to support these identity options cleanly.
 
-### Chat Rooms
-- New `show` command for chat rooms to display room information
-- Room creators and authorized staff can view chat room passwords
+### Better Account and Session Experience
+- Account/session handling was reworked for more reliable login, reconnect, and character selection.
+- Account preferences and related account management systems were expanded.
+- Shared storage and account-linked system behavior were expanded as part of the account overhaul.
+
+### Event Participation Surface
+- Player/staff event visibility is improved through `event list`, `event info`, and `event status`.
+- Event runtime tracking now supports richer progress and bracketed participation models.
+
+### World and Progression Modernization
+- Quest, wilderness, and related progression systems were heavily reworked under the hood.
+- Widevnum migration work improves cross-area consistency and reduces entity-resolution edge cases.
+
+### Social/Communication Foundation Upgrades
+- Social and channel systems moved to data-driven backends, enabling cleaner behavior and easier iteration.
+- Chat/history/filter infrastructure was significantly expanded for more consistent communication behavior.
 
 ## Bug Fixes
 
-### Stability
-- Fixed SSL/TLS connectivity issues that could cause disconnections
-- Fixed SIGPIPE errors that could crash SSL connections
-- Fixed segfault in object update routines
-- Fixed multiple crashes related to caching
+### Connection and Stability
+- Fixed multiple TLS/SSL reliability issues, including SIGPIPE-related disconnect/crash paths.
+- Fixed several crash paths in runtime update and caching flows.
 
-### Reconnection
-- Fixed lag when reconnecting with characters that have large inventories
-- Fixed premature reconnection issues that could corrupt character data
-- Fixed bug where accounts could be loaded multiple times, potentially causing data loss
+### Reconnect and Persistence Safety
+- Fixed reconnect edge-cases around heavy inventories and state resumption.
+- Fixed account/character load duplication paths that could cause corruption/duplication symptoms.
 
-### Characters
-- Fixed issues with deleted characters not being handled properly
-- Fixed pronoun and body type changes not applying correctly to mobs
+### Character Data Correctness
+- Fixed pronoun/body-type persistence edge cases.
+- Fixed deleted-character/account handling issues during load/reconnect workflows.
 
-## Removed Features
+## Removals
 
-### Healer NPCs
-- The automated healer system has been removed (functionality being reworked)
+- IMC2 inter-mud communication was removed (`imc.c`, `imc.h`, `imccfg.h`).
+- Legacy healer NPC subsystem was removed (`healer.c`).
+- Legacy locker subsystem was removed (`locker.c`) in favor of newer account/storage direction.
 
-### Inter-MUD Communication
-- IMC2 inter-mud chat system has been removed
+## Player Examples
+
+### Pronouns
+```text
+pronouns
+pronouns show they them their theirs themselves
+```
+
+### Event visibility
+```text
+event list
+event info dragonhunt
+event status
+```
+
+### Channel history/reporting workflow (where enabled)
+```text
+history gossip
+history gossip info 3
+history gossip report <message-id> harassment language
+```
+
+## Further Reading
+
+- [Channel Player Guide](channels/CHANNELS_PLAYER_GUIDE.md)
+- [Event System Admin Guide](EVENT_SYSTEM_ADMIN_GUIDE.md) (contains shared `event` command examples)
+- [JSON Character Fixes](done/JSON_CHARACTER_FIXES.md)
+- [Object Duplication Master Fix](done/OBJECT_DUPLICATION_MASTER_FIX.md)

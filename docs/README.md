@@ -1,5 +1,22 @@
 # Sentience MUD Documentation
 
+## Changelogs by Audience
+
+### [Migration Overview](CHANGELOG_OVERVIEW.md)
+Big-picture summary of the major system migrations in this release window.
+
+### [Player Changelog](CHANGELOG_PLAYERS.md)
+Gameplay-visible additions, fixes, and removals.
+
+### [Builder Changelog](CHANGELOG_BUILDERS.md)
+OLC/content authoring changes with command/workflow examples.
+
+### [Administrator Changelog](CHANGELOG_ADMINISTRATORS.md)
+Operations, moderation, policy, and runtime system changes.
+
+### [Developer Changelog](CHANGELOG_DEVELOPERS.md)
+Architecture, codebase migration, technical bug-fix streams, and removals.
+
 ## Testing Documentation
 
 ### [Testing Framework](testing/TESTING_FRAMEWORK.md)
@@ -163,7 +180,7 @@ Recent test run results:
 3. **Update build systems** (CMakeLists.txt and Makefile)  
 4. **Build and test** with `./build tests && ./sent -test`
 
-See [TESTING_QUICK_REFERENCE.md](TESTING_QUICK_REFERENCE.md) for step-by-step examples.
+See [TESTING_QUICK_REFERENCE.md](testing/TESTING_QUICK_REFERENCE.md) for step-by-step examples.
 
 ## Build Integration
 
