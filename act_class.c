@@ -144,6 +144,7 @@ static void mark_reward_applied(CLASS_LEVEL *cl, int level, int type, const char
 static void skill_entry_add_source(SKILL_ENTRY *entry, CLASS_DATA *clazz, int scope)
 {
     SKILL_SOURCE *src;
+    bool found = false;
 
     if (!entry || !clazz)
         return;
@@ -154,18 +155,20 @@ static void skill_entry_add_source(SKILL_ENTRY *entry, CLASS_DATA *clazz, int sc
             /* Update scope if the new one is broader */
             if (scope > src->scope)
                 src->scope = scope;
-            goto refresh;
+            found = true;
+            break;
         }
     }
 
     /* Add a new source node */
-    src = new_skill_source();
-    src->clazz = clazz;
-    src->scope = scope;
-    src->next = entry->sources;
-    entry->sources = src;
+    if (!found) {
+        src = new_skill_source();
+        src->clazz = clazz;
+        src->scope = scope;
+        src->next = entry->sources;
+        entry->sources = src;
+    }
 
-refresh:
     /* Refresh cached fields — pick the broadest scope source */
     entry->cross_class_scope = 0;
     entry->source_class = NULL;

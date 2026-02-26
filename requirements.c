@@ -708,6 +708,248 @@ static ROOM_INDEX_DATA *requirements_context_room(const REQUIREMENT_CONTEXT *con
     return NULL;
 }
 
+static bool requirements_parse_long_text(const char *text, long *out)
+{
+    char *endptr = NULL;
+    long value;
+
+    if (IS_NULLSTR(text) || !out)
+        return false;
+
+    value = strtol(text, &endptr, 10);
+    if (!endptr || endptr == text || *endptr != '\0')
+        return false;
+
+    *out = value;
+    return true;
+}
+
+static void requirements_normalize_label(const char *src, char *dst, size_t dst_sz)
+{
+    size_t i = 0;
+
+    if (!dst || dst_sz == 0)
+        return;
+
+    dst[0] = '\0';
+    if (IS_NULLSTR(src))
+        return;
+
+    while (src[i] != '\0' && i + 1 < dst_sz) {
+        dst[i] = (src[i] == '_') ? ' ' : src[i];
+        i++;
+    }
+
+    dst[i] = '\0';
+}
+
+static bool requirements_area_region_name_matches(const AREA_REGION *region,
+                                                  const char *expected_name)
+{
+    char expected[MIL];
+    char actual[MIL];
+
+    if (!region || IS_NULLSTR(region->name) || IS_NULLSTR(expected_name))
+        return false;
+
+    requirements_normalize_label(expected_name, expected, sizeof(expected));
+    requirements_normalize_label(region->name, actual, sizeof(actual));
+
+    return !str_cmp(actual, expected);
+}
+
+static bool requirements_eval_area_region(const json_t *value,
+                                          const REQUIREMENT_CONTEXT *context)
+{
+    ROOM_INDEX_DATA *room;
+    AREA_REGION *region;
+    bool invert = false;
+
+    room = requirements_context_room(context);
+    region = get_room_region(room);
+    if (!room || !room->area || !region)
+        return false;
+
+    if (json_is_integer(value)) {
+        return region->uid == (long)json_integer_value(value);
+    }
+
+    if (json_is_string(value)) {
+        const char *text = json_string_value(value);
+        long uid = 0;
+
+        if (requirements_parse_long_text(text, &uid))
+            return region->uid == uid;
+
+        return requirements_area_region_name_matches(region, text);
+    }
+
+    if (json_is_object(value)) {
+        json_t *uidv = json_object_get(value, "uid");
+        json_t *namev = json_object_get(value, "name");
+        json_t *ov = json_object_get(value, "op");
+        json_t *vv = json_object_get(value, "value");
+        bool match = false;
+
+        if (json_is_string(ov))
+            invert = !str_cmp(json_string_value(ov), "!=") || !str_cmp(json_string_value(ov), "ne");
+
+        if (!uidv && !namev) {
+            if (json_is_integer(vv))
+                uidv = vv;
+            else if (json_is_string(vv))
+                namev = vv;
+        }
+
+        if (json_is_integer(uidv)) {
+            match = (region->uid == (long)json_integer_value(uidv));
+            return invert ? !match : match;
+        }
+
+        if (json_is_string(uidv)) {
+            long uid = 0;
+            if (requirements_parse_long_text(json_string_value(uidv), &uid)) {
+                match = (region->uid == uid);
+                return invert ? !match : match;
+            }
+        }
+
+        if (json_is_string(namev)) {
+            match = requirements_area_region_name_matches(region, json_string_value(namev));
+            return invert ? !match : match;
+        }
+
+        return false;
+    }
+
+    return false;
+}
+
+static int requirements_parse_wilds_region_value(const char *text)
+{
+    long numeric = 0;
+    char normalized[MIL];
+    int region;
+
+    if (IS_NULLSTR(text))
+        return REGION_UNKNOWN;
+
+    if (requirements_parse_long_text(text, &numeric))
+        return (int)numeric;
+
+    requirements_normalize_label(text, normalized, sizeof(normalized));
+    region = (int)flag_value(wilderness_regions, normalized);
+    if (region == NO_FLAG)
+        return REGION_UNKNOWN;
+
+    return region;
+}
+
+static bool requirements_wilds_box_name_matches(const WILDS_REGION *region,
+                                                const char *expected_name)
+{
+    char expected[MIL];
+    char actual[MIL];
+
+    if (!region || IS_NULLSTR(region->name) || IS_NULLSTR(expected_name))
+        return false;
+
+    requirements_normalize_label(expected_name, expected, sizeof(expected));
+    requirements_normalize_label(region->name, actual, sizeof(actual));
+
+    return !str_cmp(actual, expected);
+}
+
+static bool requirements_eval_wilds_region(const json_t *value,
+                                           const REQUIREMENT_CONTEXT *context)
+{
+    ROOM_INDEX_DATA *room;
+    WILDS_REGION *box_region;
+    int rel_x;
+    int rel_y;
+    bool invert = false;
+    bool match = false;
+
+    room = requirements_context_room(context);
+    if (!room || !room->wilds)
+        return false;
+
+    rel_x = room->x - room->wilds->startx;
+    rel_y = room->y - room->wilds->starty;
+    box_region = get_region_by_coors(room->wilds, rel_x, rel_y);
+    if (!box_region)
+        return false;
+
+    if (json_is_integer(value)) {
+        return box_region->uid == (long)json_integer_value(value);
+    }
+
+    if (json_is_string(value)) {
+        const char *text = json_string_value(value);
+        long uid = 0;
+        int region_value;
+
+        if (requirements_parse_long_text(text, &uid))
+            return box_region->uid == uid;
+
+        region_value = requirements_parse_wilds_region_value(text);
+        if (region_value != REGION_UNKNOWN || !str_cmp(text, "Unknown"))
+            return box_region->region == region_value;
+
+        return requirements_wilds_box_name_matches(box_region, text);
+    }
+
+    if (json_is_object(value)) {
+        json_t *ov = json_object_get(value, "op");
+        json_t *vv = json_object_get(value, "value");
+        json_t *uidv = json_object_get(value, "uid");
+        json_t *namev = json_object_get(value, "name");
+        json_t *regionv = json_object_get(value, "region");
+
+        if (json_is_string(ov))
+            invert = !str_cmp(json_string_value(ov), "!=") || !str_cmp(json_string_value(ov), "ne");
+
+        if (!uidv && !namev && !regionv)
+            uidv = vv;
+
+        if (json_is_integer(uidv)) {
+            match = (box_region->uid == (long)json_integer_value(uidv));
+            return invert ? !match : match;
+        }
+
+        if (json_is_string(uidv)) {
+            long uid = 0;
+            if (requirements_parse_long_text(json_string_value(uidv), &uid)) {
+                match = (box_region->uid == uid);
+                return invert ? !match : match;
+            }
+        }
+
+        if (json_is_string(namev)) {
+            match = requirements_wilds_box_name_matches(box_region, json_string_value(namev));
+            return invert ? !match : match;
+        }
+
+        if (json_is_integer(regionv)) {
+            match = (box_region->region == (int)json_integer_value(regionv));
+            return invert ? !match : match;
+        }
+
+        if (json_is_string(regionv)) {
+            int region_value = requirements_parse_wilds_region_value(json_string_value(regionv));
+            if (region_value == REGION_UNKNOWN && str_cmp(json_string_value(regionv), "Unknown"))
+                return false;
+
+            match = (box_region->region == region_value);
+            return invert ? !match : match;
+        }
+
+        return false;
+    }
+
+    return false;
+}
+
 static int requirements_storm_type_from_name(const char *name)
 {
     if (IS_NULLSTR(name))
@@ -1019,6 +1261,10 @@ static bool requirements_eval_leaf(const char *key,
         return requirements_eval_sector(value, context);
     if (!str_cmp(key, "storm"))
         return requirements_eval_storm(value, context);
+    if (!str_cmp(key, "area_region"))
+        return requirements_eval_area_region(value, context);
+    if (!str_cmp(key, "wilds_region"))
+        return requirements_eval_wilds_region(value, context);
     if (!str_cmp(key, "script"))
         return requirements_eval_script(value, context);
 
@@ -1074,6 +1320,8 @@ static bool requirements_eval_node(const json_t *node,
             !str_cmp(key, "terrain") ||
             !str_cmp(key, "sector") ||
             !str_cmp(key, "storm") ||
+            !str_cmp(key, "area_region") ||
+            !str_cmp(key, "wilds_region") ||
             !str_cmp(key, "script")) {
             has_known = true;
             result = result && requirements_eval_leaf(key, value, context);
@@ -1113,6 +1361,8 @@ static bool requirements_eval_node(const json_t *node,
  *     terrain TOKEN_OR_NAME
  *     sector [op] SECTOR
  *     storm [op] TYPE | storm any | storm none
+ *     area_region [op] UID_OR_NAME
+ *     wilds_region [op] REGION_NAME_OR_ID
  *     script [PHRASE]
  *
  *   combinators (AND binds tighter than OR):
@@ -1638,7 +1888,9 @@ static json_t *rp_parse_atom(RParser *rp)
         result = req_build_reputation(vt, nv, err, sizeof(err));
     else if (!str_cmp(key, "terrain")
              || !str_cmp(key, "sector")
-             || !str_cmp(key, "storm"))
+               || !str_cmp(key, "storm")
+               || !str_cmp(key, "area_region")
+               || !str_cmp(key, "wilds_region"))
         result = req_build_word_or_num_op_key(key, vt, nv, err, sizeof(err));
     else if (!str_cmp(key, "script"))
         result = req_build_script(vt, nv, err, sizeof(err));
@@ -2232,6 +2484,59 @@ static void req_decompile_node(const json_t *node, RBuf *b, bool wrap)
                 rbuf_cat(b, json_string_value(tv));
             else if (json_is_integer(tv))
                 rbuf_cat_long(b, json_integer_value(tv));
+        }
+        return;
+    }
+
+    /* area_region */
+    v = json_object_get(node, "area_region");
+    if (v) {
+        rbuf_cat(b, "area_region ");
+        if (json_is_string(v))
+            rbuf_cat(b, json_string_value(v));
+        else if (json_is_integer(v))
+            rbuf_cat_long(b, json_integer_value(v));
+        else if (json_is_object(v)) {
+            json_t *ov = json_object_get(v, "op");
+            json_t *vv = json_object_get(v, "value");
+            json_t *uv = json_object_get(v, "uid");
+            json_t *nv = json_object_get(v, "name");
+
+            if (ov && json_is_string(ov)) {
+                rbuf_cat(b, json_string_value(ov));
+                rbuf_cat(b, " ");
+            }
+
+            if (!vv)
+                vv = uv ? uv : nv;
+
+            if (json_is_string(vv))
+                rbuf_cat(b, json_string_value(vv));
+            else if (json_is_integer(vv))
+                rbuf_cat_long(b, json_integer_value(vv));
+        }
+        return;
+    }
+
+    /* wilds_region */
+    v = json_object_get(node, "wilds_region");
+    if (v) {
+        rbuf_cat(b, "wilds_region ");
+        if (json_is_string(v))
+            rbuf_cat(b, json_string_value(v));
+        else if (json_is_integer(v))
+            rbuf_cat_long(b, json_integer_value(v));
+        else if (json_is_object(v)) {
+            json_t *ov = json_object_get(v, "op");
+            json_t *vv = json_object_get(v, "value");
+            if (ov && json_is_string(ov)) {
+                rbuf_cat(b, json_string_value(ov));
+                rbuf_cat(b, " ");
+            }
+            if (json_is_string(vv))
+                rbuf_cat(b, json_string_value(vv));
+            else if (json_is_integer(vv))
+                rbuf_cat_long(b, json_integer_value(vv));
         }
         return;
     }

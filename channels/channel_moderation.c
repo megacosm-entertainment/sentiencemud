@@ -282,6 +282,7 @@ void do_chanban(CHAR_DATA *ch, char *argument)
     if (!IS_NULLSTR(arg_chan) && !chanmod_try_parse_duration(arg_chan, NULL)) {
         /* Not a duration token — treat as channel id */
         chanmod_channel_extra(arg_chan, channel_extra, sizeof(channel_extra));
+        strlcpy(reason_buf, IS_NULLSTR(argument) ? "(no reason given)" : argument, sizeof(reason_buf));
     } else {
         /* arg_chan was either empty or a duration-like token — treat as reason start */
         channel_extra[0] = '\0';
@@ -294,13 +295,11 @@ void do_chanban(CHAR_DATA *ch, char *argument)
                 strlcat(tmp, argument, sizeof(tmp));
             }
             strlcpy(reason_buf, tmp, sizeof(reason_buf));
-            goto apply;
+        } else {
+            strlcpy(reason_buf, IS_NULLSTR(argument) ? "(no reason given)" : argument, sizeof(reason_buf));
         }
     }
 
-    strlcpy(reason_buf, IS_NULLSTR(argument) ? "(no reason given)" : argument, sizeof(reason_buf));
-
-apply:
     add_penalty(victim->desc->account,
                 PENALTY_CHAN_MUTE,
                 PENALTY_SCOPE_CHARACTER,
@@ -358,6 +357,7 @@ void do_chanwarn(CHAR_DATA *ch, char *argument)
     if (!IS_NULLSTR(arg_chan) && str_cmp(arg_chan, "*") && str_cmp(arg_chan, "all")
         && !chanmod_try_parse_duration(arg_chan, NULL)) {
         chanmod_channel_extra(arg_chan, channel_extra, sizeof(channel_extra));
+        strlcpy(reason_buf, IS_NULLSTR(argument) ? "(no reason given)" : argument, sizeof(reason_buf));
     } else {
         channel_extra[0] = '\0';
         /* arg_chan (if any) becomes start of reason */
@@ -369,13 +369,11 @@ void do_chanwarn(CHAR_DATA *ch, char *argument)
                 strlcat(tmp, argument, sizeof(tmp));
             }
             strlcpy(reason_buf, tmp, sizeof(reason_buf));
-            goto apply_warn;
+        } else {
+            strlcpy(reason_buf, IS_NULLSTR(argument) ? "(no reason given)" : argument, sizeof(reason_buf));
         }
     }
 
-    strlcpy(reason_buf, IS_NULLSTR(argument) ? "(no reason given)" : argument, sizeof(reason_buf));
-
-apply_warn:
     add_penalty(victim->desc->account,
                 PENALTY_CHAN_WARN,
                 PENALTY_SCOPE_CHARACTER,

@@ -1652,12 +1652,8 @@ void do_penalty(CHAR_DATA *ch, char *argument)
             else
                 snprintf(combined, sizeof(combined), "%s", arg4);
             argument = combined;
-
-            /* Skip the one_argument below, use argument directly */
-            goto do_add;
         }
 
-do_add:
         /* For ban types, check if we need extra data */
         if (type == PENALTY_BAN_IP || type == PENALTY_BAN_EMAIL
             || type == PENALTY_BAN_HOST || type == PENALTY_NOCHAT) {

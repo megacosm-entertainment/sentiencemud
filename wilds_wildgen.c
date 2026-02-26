@@ -792,118 +792,122 @@ static bool wildgen_export_image_internal(WILDS_DATA *pWilds, const char *png_pa
     width = pWilds->map_size_x;
     height = pWilds->map_size_y;
     total = (size_t)width * (size_t)height;
-    pixels = malloc(total * 3);
-    if (!pixels)
-    {
-        if (out_buf && out_buf_size > 0)
-            snprintf(out_buf, out_buf_size, "Out of memory preparing exported PNG buffer");
-        goto cleanup;
-    }
 
-    for (y = 0; y < height; y++)
+    do
     {
-        for (x = 0; x < width; x++)
+        pixels = malloc(total * 3);
+        if (!pixels)
         {
-            size_t map_idx = (size_t)y * (size_t)width + (size_t)x;
-            size_t pix_idx = map_idx * 3;
-            unsigned char tile = (unsigned char)source_map[map_idx];
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "Out of memory preparing exported PNG buffer");
+            break;
+        }
 
-            if (tile_has_color[tile])
+        for (y = 0; y < height; y++)
+        {
+            for (x = 0; x < width; x++)
             {
-                pixels[pix_idx + 0] = tile_r[tile];
-                pixels[pix_idx + 1] = tile_g[tile];
-                pixels[pix_idx + 2] = tile_b[tile];
-            }
-            else if (default_has_color)
-            {
-                pixels[pix_idx + 0] = default_r;
-                pixels[pix_idx + 1] = default_g;
-                pixels[pix_idx + 2] = default_b;
-                unknown_tiles++;
-            }
-            else
-            {
-                pixels[pix_idx + 0] = 0;
-                pixels[pix_idx + 1] = 0;
-                pixels[pix_idx + 2] = 0;
-                unknown_tiles++;
+                size_t map_idx = (size_t)y * (size_t)width + (size_t)x;
+                size_t pix_idx = map_idx * 3;
+                unsigned char tile = (unsigned char)source_map[map_idx];
+
+                if (tile_has_color[tile])
+                {
+                    pixels[pix_idx + 0] = tile_r[tile];
+                    pixels[pix_idx + 1] = tile_g[tile];
+                    pixels[pix_idx + 2] = tile_b[tile];
+                }
+                else if (default_has_color)
+                {
+                    pixels[pix_idx + 0] = default_r;
+                    pixels[pix_idx + 1] = default_g;
+                    pixels[pix_idx + 2] = default_b;
+                    unknown_tiles++;
+                }
+                else
+                {
+                    pixels[pix_idx + 0] = 0;
+                    pixels[pix_idx + 1] = 0;
+                    pixels[pix_idx + 2] = 0;
+                    unknown_tiles++;
+                }
             }
         }
-    }
 
-    fp = fopen(resolved_path, "wb");
-    if (!fp)
-    {
+        fp = fopen(resolved_path, "wb");
+        if (!fp)
+        {
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "Failed to open export path '%s': %s", resolved_path, strerror(errno));
+            break;
+        }
+
+        png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+        if (!png_ptr)
+        {
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "Failed to initialize PNG writer");
+            break;
+        }
+
+        info_ptr = png_create_info_struct(png_ptr);
+        if (!info_ptr)
+        {
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "Failed to initialize PNG info struct");
+            break;
+        }
+
+        if (setjmp(png_jmpbuf(png_ptr)))
+        {
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "PNG export failed while writing '%s'", resolved_path);
+            break;
+        }
+
+        png_init_io(png_ptr, fp);
+        png_set_IHDR(png_ptr,
+            info_ptr,
+            (png_uint_32)width,
+            (png_uint_32)height,
+            8,
+            PNG_COLOR_TYPE_RGB,
+            PNG_INTERLACE_NONE,
+            PNG_COMPRESSION_TYPE_DEFAULT,
+            PNG_FILTER_TYPE_DEFAULT);
+        png_write_info(png_ptr, info_ptr);
+
+        rows = malloc(sizeof(png_bytep) * (size_t)height);
+        if (!rows)
+        {
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "Out of memory preparing PNG rows");
+            break;
+        }
+
+        for (y = 0; y < height; y++)
+            rows[y] = pixels + ((size_t)y * (size_t)width * 3);
+
+        png_write_image(png_ptr, rows);
+        png_write_end(png_ptr, NULL);
+
         if (out_buf && out_buf_size > 0)
-            snprintf(out_buf, out_buf_size, "Failed to open export path '%s': %s", resolved_path, strerror(errno));
-        goto cleanup;
+        {
+            double pct = total > 0 ? ((double)unknown_tiles * 100.0 / (double)total) : 0.0;
+            snprintf(out_buf, out_buf_size,
+                "Wildgen export (%s) wrote %dx%d PNG to %s (tiles without explicit color: %zu, %.2f%%)",
+                use_effective_map ? "effective map" : "static map",
+                width,
+                height,
+                png_path,
+                unknown_tiles,
+                pct);
+        }
+
+        success = true;
     }
+    while (false);
 
-    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png_ptr)
-    {
-        if (out_buf && out_buf_size > 0)
-            snprintf(out_buf, out_buf_size, "Failed to initialize PNG writer");
-        goto cleanup;
-    }
-
-    info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr)
-    {
-        if (out_buf && out_buf_size > 0)
-            snprintf(out_buf, out_buf_size, "Failed to initialize PNG info struct");
-        goto cleanup;
-    }
-
-    if (setjmp(png_jmpbuf(png_ptr)))
-    {
-        if (out_buf && out_buf_size > 0)
-            snprintf(out_buf, out_buf_size, "PNG export failed while writing '%s'", resolved_path);
-        goto cleanup;
-    }
-
-    png_init_io(png_ptr, fp);
-    png_set_IHDR(png_ptr,
-        info_ptr,
-        (png_uint_32)width,
-        (png_uint_32)height,
-        8,
-        PNG_COLOR_TYPE_RGB,
-        PNG_INTERLACE_NONE,
-        PNG_COMPRESSION_TYPE_DEFAULT,
-        PNG_FILTER_TYPE_DEFAULT);
-    png_write_info(png_ptr, info_ptr);
-
-    rows = malloc(sizeof(png_bytep) * (size_t)height);
-    if (!rows)
-    {
-        if (out_buf && out_buf_size > 0)
-            snprintf(out_buf, out_buf_size, "Out of memory preparing PNG rows");
-        goto cleanup;
-    }
-
-    for (y = 0; y < height; y++)
-        rows[y] = pixels + ((size_t)y * (size_t)width * 3);
-
-    png_write_image(png_ptr, rows);
-    png_write_end(png_ptr, NULL);
-
-    if (out_buf && out_buf_size > 0)
-    {
-        double pct = total > 0 ? ((double)unknown_tiles * 100.0 / (double)total) : 0.0;
-        snprintf(out_buf, out_buf_size,
-            "Wildgen export (%s) wrote %dx%d PNG to %s (tiles without explicit color: %zu, %.2f%%)",
-            use_effective_map ? "effective map" : "static map",
-            width,
-            height,
-            png_path,
-            unknown_tiles,
-            pct);
-    }
-
-    success = true;
-
-cleanup:
     if (rows)
         free(rows);
 
@@ -1145,120 +1149,118 @@ static void *wildgen_worker_func(void *arg)
                     snprintf(message, sizeof(message),
                         "Configured grid tile size %dx%d with grid %dx%d does not match wilderness %dx%d",
                         block_w, block_h, job->grid_rows, job->grid_cols, job->map_size_x, job->map_size_y);
-                    goto wildgen_grid_done;
-                }
-
-                total = (size_t)width * (size_t)height;
-                tiles = malloc(total);
-
-                if (!tiles)
-                {
-                    snprintf(message, sizeof(message), "Out of memory while preparing grid import tiles");
                 }
                 else
                 {
-                    memset(tiles, job->default_tile, total);
+                    total = (size_t)width * (size_t)height;
+                    tiles = malloc(total);
 
-                    for (row = 0; row < job->grid_rows && !success; row++)
+                    if (!tiles)
                     {
-                        for (col = 0; col < job->grid_cols; col++)
+                        snprintf(message, sizeof(message), "Out of memory while preparing grid import tiles");
+                    }
+                    else
+                    {
+                        memset(tiles, job->default_tile, total);
+
+                        for (row = 0; row < job->grid_rows && !success; row++)
                         {
-                            char part_path[MSL];
-                            int pw = 0;
-                            int ph = 0;
-                            int pch = 0;
-                            int part_unknown = 0;
-                            size_t y;
-
-                            if (!wildgen_build_grid_path(job_wilds, job->source_name,
-                                    row, col, job->grid_rows, job->grid_cols,
-                                    part_path, sizeof(part_path), message, sizeof(message)))
-                                break;
-
-                            if (!wildgen_verify_png_signature(part_path, message, sizeof(message)))
-                                break;
-
-                            pixels = stbi_load(part_path, &pw, &ph, &pch, 3);
-                            if (!pixels)
+                            for (col = 0; col < job->grid_cols; col++)
                             {
-                                snprintf(message, sizeof(message), "Failed to load grid PNG '%.256s'", part_path);
-                                break;
-                            }
+                                char part_path[MSL];
+                                int pw = 0;
+                                int ph = 0;
+                                int pch = 0;
+                                int part_unknown = 0;
+                                size_t y;
 
-                            if (pw != block_w || ph != block_h)
-                            {
+                                if (!wildgen_build_grid_path(job_wilds, job->source_name,
+                                        row, col, job->grid_rows, job->grid_cols,
+                                        part_path, sizeof(part_path), message, sizeof(message)))
+                                    break;
+
+                                if (!wildgen_verify_png_signature(part_path, message, sizeof(message)))
+                                    break;
+
+                                pixels = stbi_load(part_path, &pw, &ph, &pch, 3);
+                                if (!pixels)
+                                {
+                                    snprintf(message, sizeof(message), "Failed to load grid PNG '%.256s'", part_path);
+                                    break;
+                                }
+
+                                if (pw != block_w || ph != block_h)
+                                {
+                                    stbi_image_free(pixels);
+                                    pixels = NULL;
+                                    snprintf(message, sizeof(message),
+                                        "Grid image has %dx%d, expected %dx%d",
+                                        pw, ph, block_w, block_h);
+                                    break;
+                                }
+
+                                for (y = 0; y < (size_t)ph; y++)
+                                {
+                                    char *dest = tiles + ((size_t)(row * block_h + (int)y) * (size_t)width) + (size_t)(col * block_w);
+                                    const unsigned char *src = pixels + (y * (size_t)pw * 3);
+                                    int x;
+                                    for (x = 0; x < pw; x++)
+                                    {
+                                        int idx = x * 3;
+                                        char tile = wildgen_lookup_tile(job, src[idx], src[idx + 1], src[idx + 2]);
+                                        if (tile == job->default_tile)
+                                        {
+                                            int known = 0;
+                                            int c;
+                                            for (c = 0; c < job->color_count; c++)
+                                            {
+                                                if (job->colors[c].r == src[idx] && job->colors[c].g == src[idx + 1] && job->colors[c].b == src[idx + 2])
+                                                {
+                                                    known = 1;
+                                                    break;
+                                                }
+                                            }
+                                            if (!known)
+                                                part_unknown++;
+                                        }
+                                        dest[x] = tile;
+                                    }
+                                }
+
+                                validated_unknown += part_unknown;
                                 stbi_image_free(pixels);
                                 pixels = NULL;
-                                snprintf(message, sizeof(message),
-                                    "Grid image has %dx%d, expected %dx%d",
-                                    pw, ph, block_w, block_h);
-                                break;
                             }
 
-                            for (y = 0; y < (size_t)ph; y++)
-                            {
-                                char *dest = tiles + ((size_t)(row * block_h + (int)y) * (size_t)width) + (size_t)(col * block_w);
-                                const unsigned char *src = pixels + (y * (size_t)pw * 3);
-                                int x;
-                                for (x = 0; x < pw; x++)
-                                {
-                                    int idx = x * 3;
-                                    char tile = wildgen_lookup_tile(job, src[idx], src[idx + 1], src[idx + 2]);
-                                    if (tile == job->default_tile)
-                                    {
-                                        int known = 0;
-                                        int c;
-                                        for (c = 0; c < job->color_count; c++)
-                                        {
-                                            if (job->colors[c].r == src[idx] && job->colors[c].g == src[idx + 1] && job->colors[c].b == src[idx + 2])
-                                            {
-                                                known = 1;
-                                                break;
-                                            }
-                                        }
-                                        if (!known)
-                                            part_unknown++;
-                                    }
-                                    dest[x] = tile;
-                                }
-                            }
-
-                            validated_unknown += part_unknown;
-                            stbi_image_free(pixels);
-                            pixels = NULL;
+                            if (row == job->grid_rows - 1)
+                                success = true;
                         }
 
-                        if (row == job->grid_rows - 1)
-                            success = true;
-                    }
-
-                    if (success)
-                    {
-                        if (job->validate_elevation_grid)
+                        if (success)
                         {
-                            char elev_message[MSL];
-                            if (!wildgen_validate_elevation_grid(job_wilds, job, elev_message, sizeof(elev_message)))
+                            if (job->validate_elevation_grid)
                             {
-                                success = false;
-                                snprintf(message, sizeof(message), "%s", elev_message);
+                                char elev_message[MSL];
+                                if (!wildgen_validate_elevation_grid(job_wilds, job, elev_message, sizeof(elev_message)))
+                                {
+                                    success = false;
+                                    snprintf(message, sizeof(message), "%s", elev_message);
+                                }
+                                else
+                                {
+                                    snprintf(message, sizeof(message),
+                                        "Converted grid %dx%d (%d unmatched colors used default tile '%c'). %.512s",
+                                        job->grid_rows, job->grid_cols, validated_unknown, job->default_tile, elev_message);
+                                }
                             }
                             else
                             {
                                 snprintf(message, sizeof(message),
-                                    "Converted grid %dx%d (%d unmatched colors used default tile '%c'). %.512s",
-                                    job->grid_rows, job->grid_cols, validated_unknown, job->default_tile, elev_message);
+                                    "Converted grid %dx%d (%d unmatched colors used default tile '%c')",
+                                    job->grid_rows, job->grid_cols, validated_unknown, job->default_tile);
                             }
                         }
-                        else
-                        {
-                            snprintf(message, sizeof(message),
-                                "Converted grid %dx%d (%d unmatched colors used default tile '%c')",
-                                job->grid_rows, job->grid_cols, validated_unknown, job->default_tile);
-                        }
                     }
-
-wildgen_grid_done:
-                    ;
                 }
             }
         }

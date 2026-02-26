@@ -6442,6 +6442,7 @@ struct evt_roster_entry {
     int max_level;
     bool boss;
     int16_t stage;
+    char *requirements;
 };
 
 struct evt_phase_def {

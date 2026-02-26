@@ -514,6 +514,7 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
     int count = 0;
     int nth;
     OBJ_INDEX_DATA *oIndex;
+    OBJ_INDEX_DATA *selected = NULL;
     OBJ_DATA *obj = NULL;
 
     if (area == NULL)
@@ -537,7 +538,7 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
 
     nth = number_range(1, count);
 
-    for (hash = 0; hash < MAX_KEY_HASH; hash++)
+    for (hash = 0; hash < MAX_KEY_HASH && !selected; hash++)
     {
         for (oIndex = area->obj_index_hash[hash]; oIndex != NULL; oIndex = oIndex->next)
         {
@@ -547,16 +548,18 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
                 !IS_SET( oIndex->extra[0], ITEM_MELT_DROP ) &&
                 oIndex->item_type != ITEM_MONEY &&
                 --nth == 0 )
-                goto found_object;
+            {
+                selected = oIndex;
+                break;
+            }
         }
     }
 
-found_object:
-    if (oIndex == NULL)
+    if (selected == NULL)
         return NULL;
 
     if (room != NULL) {
-        obj = create_object(oIndex, oIndex->level, true);
+        obj = create_object(selected, selected->level, true);
         obj_to_room(obj, room);
     } else
         obj = NULL;

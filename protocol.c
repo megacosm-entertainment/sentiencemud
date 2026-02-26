@@ -3404,6 +3404,7 @@ static int jsmn_parse_primitive( jsmn_parser *parser, const char *js, const size
 {
    jsmntok_t *token;
    int start;
+   bool found_delimiter = false;
 
    start = parser->pos;
 
@@ -3418,10 +3419,14 @@ static int jsmn_parse_primitive( jsmn_parser *parser, const char *js, const size
          case ',':
          case ']':
          case '}':
-            goto found;
+            found_delimiter = true;
+            break;
 
          default: break; /* to quiet a warning from gcc */
       }
+
+      if ( found_delimiter )
+         break;
 
       if ( js[parser->pos] < 32 || js[parser->pos] >= 127 )
       {
@@ -3431,7 +3436,6 @@ static int jsmn_parse_primitive( jsmn_parser *parser, const char *js, const size
       }
    }
 
-   found:
    if ( tokens == NULL )
    {
       parser->pos--;

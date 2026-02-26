@@ -9,6 +9,7 @@
 #include "../../interp.h"
 #include "../../event_types.h"
 #include "../../scripts.h"
+#include "../../requirements.h"
 #include "../../recycle.h"
 #include "../../account/preferences.h"
 #include "../common.h"
@@ -64,6 +65,7 @@ EVTEDIT(evtedit_spawnbrackets);
 EVTEDIT(evtedit_collectionbrackets);
 EVTEDIT(evtedit_bracketmode);
 EVTEDIT(evtedit_progressagg);
+EVTEDIT(evtedit_stages);
 EVTEDIT(evtedit_phaseplan);
 EVTEDIT(evtedit_phases);
 EVTEDIT(evtedit_rewardphase);
@@ -208,6 +210,7 @@ static void evtedit_roster_free(EVT_ROSTER_ENTRY **head)
 
     for (entry = *head; entry; entry = next) {
         next = entry->next;
+        free_string(entry->requirements);
         free_mem(entry, sizeof(*entry));
     }
 
@@ -1606,6 +1609,23 @@ static int event_roster_entry_bracket(const EVTEDIT_DATA *evt, const EVT_ROSTER_
     return index + 1;
 }
 
+static bool event_roster_requirements_met(const EVT_ROSTER_ENTRY *entry,
+    ROOM_INDEX_DATA *room)
+{
+    REQUIREMENT_CONTEXT req_context;
+
+    if (!entry || IS_NULLSTR(entry->requirements))
+        return true;
+
+    if (!room)
+        return false;
+
+    memset(&req_context, 0, sizeof(req_context));
+    req_context.self_room = room;
+
+    return requirements_evaluate_text(entry->requirements, &req_context, true);
+}
+
 static int event_runtime_spawn_roster_for_phase(EVENT_INSTANCE *inst, int phase_index)
 {
     AREA_DATA *area;
@@ -1630,11 +1650,23 @@ static int event_runtime_spawn_roster_for_phase(EVENT_INSTANCE *inst, int phase_
 
         for (i = 0; i < UMAX(1, entry->count); i++) {
             ROOM_INDEX_DATA *room;
+            int attempt;
 
             if (entry->chance < 100 && number_percent() > entry->chance)
                 continue;
 
-            room = get_random_room_area(NULL, area);
+            room = NULL;
+            for (attempt = 0; attempt < 12; attempt++) {
+                room = get_random_room_area(NULL, area);
+                if (!room)
+                    break;
+
+                if (event_roster_requirements_met(entry, room))
+                    break;
+
+                room = NULL;
+            }
+
             if (!room)
                 continue;
 
@@ -4178,8 +4210,7 @@ static const struct olc_cmd_type evtedit_table[] = {
     { "collectionbrackets", evtedit_collectionbrackets },
     { "bracketmode", evtedit_bracketmode },
     { "progressagg", evtedit_progressagg },
-    { "phases",    evtedit_phases },
-    { "phaseplan", evtedit_phaseplan },
+    { "stages",    evtedit_stages },
     { "rewardphase", evtedit_rewardphase },
     { "rewardsuccess", evtedit_rewardsuccess },
     { "rewardfail", evtedit_rewardfail },
@@ -4252,8 +4283,8 @@ void do_evtedit(CHAR_DATA *ch, char *argument)
         send_to_char("scopefloating: [on|off]\n\r", ch);
         send_to_char("roster: list|addnpc|addobj|boss|stage|remove|clear\n\r", ch);
         send_to_char("progressagg: shared|total|per_bracket_any|per_bracket|per_bracket_all_required\n\r", ch);
-        send_to_char("phases: use subcommands (list/add/insert/set/name/minutes/script/remove/clear)\n\r", ch);
-        send_to_char("phaseplan: legacy alias for phases\n\r", ch);
+        send_to_char("stages: use subcommands (list/add/insert/set/name/minutes/script/remove/transition/tickscript/obj*)\n\r", ch);
+        send_to_char("stages mobadd/objaddspawn: stage-native roster helpers\n\r", ch);
         send_to_char("rewardphase/rewardsuccess/rewardfail: <scriptvnum|0>\n\r", ch);
         send_to_char("addeprog/deleprog: manage attached event progs\n\r", ch);
         send_to_char("varset/varclear: manage event index variables\n\r", ch);
@@ -5992,6 +6023,7 @@ EVTEDIT(evtedit_roster)
         send_to_char("        roster addobj <vnum> [count] [chance] [minlevel] [maxlevel] [stage=<n|any>]\n\r", ch);
         send_to_char("        roster boss <index> <on|off>\n\r", ch);
         send_to_char("        roster stage <index> <n|any>\n\r", ch);
+        send_to_char("        roster req <index> <requirements text|clear|show>\n\r", ch);
         send_to_char("        roster remove <index>\n\r", ch);
         send_to_char("        roster clear\n\r", ch);
         return false;
@@ -6006,11 +6038,11 @@ EVTEDIT(evtedit_roster)
             return false;
         }
 
-        send_to_char("#   Type     Vnum      Count Chance Level    Boss Stage\n\r", ch);
-        send_to_char("----------------------------------------------------------\n\r", ch);
+        send_to_char("#   Type     Vnum      Count Chance Level    Boss Stage Req\n\r", ch);
+        send_to_char("--------------------------------------------------------------\n\r", ch);
 
         for (entry = evt->roster; entry; entry = entry->next, index++) {
-            printf_to_char(ch, "%-3d %-8s %-9ld %-5d %-6d %-8s %-4s %-5s\n\r",
+            printf_to_char(ch, "%-3d %-8s %-9ld %-5d %-6d %-8s %-4s %-5s %-3s\n\r",
                 index,
                 event_enum_name(evt_roster_kind_flags, entry->kind),
                 entry->vnum,
@@ -6018,7 +6050,8 @@ EVTEDIT(evtedit_roster)
                 entry->chance,
                 evtedit_roster_level_window(entry),
                 entry->boss ? "yes" : "no",
-                evtedit_roster_stage_name(entry));
+                evtedit_roster_stage_name(entry),
+                IS_NULLSTR(entry->requirements) ? "no" : "yes");
         }
 
         return false;
@@ -6064,9 +6097,83 @@ EVTEDIT(evtedit_roster)
         else
             evt->roster = entry->next;
 
+        free_string(entry->requirements);
         free_mem(entry, sizeof(*entry));
         send_to_char("Roster entry removed.\n\r", ch);
         return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "req")) {
+        char index_arg[MIL];
+        char action_arg[MIL];
+        EVT_ROSTER_ENTRY *entry;
+
+        argument = one_argument(argument, index_arg);
+        if (!is_number(index_arg)) {
+            send_to_char("Syntax: roster req <index> <requirements text|clear|show>\n\r", ch);
+            return false;
+        }
+
+        entry = evtedit_roster_find(evt->roster, atoi(index_arg));
+        if (!entry) {
+            send_to_char("No roster entry at that index.\n\r", ch);
+            return false;
+        }
+
+        argument = one_argument(argument, action_arg);
+        if (IS_NULLSTR(action_arg)) {
+            send_to_char("Syntax: roster req <index> <requirements text|clear|show>\n\r", ch);
+            return false;
+        }
+
+        if (!str_cmp(action_arg, "show")) {
+            if (IS_NULLSTR(entry->requirements)) {
+                send_to_char("Roster requirements: <none>\n\r", ch);
+            } else {
+                char *dsl = requirements_json_to_text(entry->requirements);
+                if (dsl && dsl[0] != '\0') {
+                    printf_to_char(ch, "Roster requirements: %s\n\r", dsl);
+                } else {
+                    printf_to_char(ch, "Roster requirements (json): %s\n\r", entry->requirements);
+                }
+                if (dsl)
+                    free(dsl);
+            }
+            return false;
+        }
+
+        if (!str_cmp(action_arg, "clear")) {
+            free_string(entry->requirements);
+            entry->requirements = str_dup("");
+            send_to_char("Roster requirements cleared.\n\r", ch);
+            return evtedit_save_after_change(ch);
+        }
+
+        {
+            char err[MSL];
+            char req_input[MSL * 2];
+            char *json_str;
+
+            req_input[0] = '\0';
+            strncat(req_input, action_arg, sizeof(req_input) - 1);
+            if (!IS_NULLSTR(argument)) {
+                strncat(req_input, " ", sizeof(req_input) - strlen(req_input) - 1);
+                strncat(req_input, argument, sizeof(req_input) - strlen(req_input) - 1);
+            }
+
+            json_str = requirements_text_to_json(req_input, err, sizeof(err));
+            if (!json_str) {
+                printf_to_char(ch, "Invalid requirements: %s\n\r", err[0] ? err : "parse error");
+                return false;
+            }
+
+            free_string(entry->requirements);
+            entry->requirements = str_dup(json_str);
+            free(json_str);
+
+            send_to_char("Roster requirements updated.\n\r", ch);
+            return evtedit_save_after_change(ch);
+        }
     }
 
     if (!str_prefix(cmd, "boss")) {
@@ -6245,6 +6352,7 @@ EVTEDIT(evtedit_roster)
         entry->max_level = max_level;
         entry->boss = adding_npc ? boss : false;
         entry->stage = (int16_t)stage;
+        entry->requirements = str_dup("");
         evtedit_roster_append(evt, entry);
 
         printf_to_char(ch, "Added %s roster entry: vnum=%ld count=%d chance=%d level=%s boss=%s\n\r",
@@ -6258,7 +6366,7 @@ EVTEDIT(evtedit_roster)
         return evtedit_save_after_change(ch);
     }
 
-    send_to_char("Unknown roster subcommand. Use: list, addnpc, addobj, boss, stage, remove, clear.\n\r", ch);
+    send_to_char("Unknown roster subcommand. Use: list, addnpc, addobj, boss, stage, req, remove, clear.\n\r", ch);
     return false;
 }
 
@@ -6518,23 +6626,26 @@ EVTEDIT(evtedit_phaseplan)
     argument = one_argument(argument, cmd);
 
     if (IS_NULLSTR(cmd)) {
-        send_to_char("Syntax: phases list\n\r", ch);
-        send_to_char("        phases clear\n\r", ch);
-        send_to_char("        phases add <name> [minutes] [scriptvnum]\n\r", ch);
-        send_to_char("        phases insert <index> <name> [minutes] [scriptvnum]\n\r", ch);
-        send_to_char("        phases set <index> <name> [minutes] [scriptvnum]\n\r", ch);
-        send_to_char("        phases name <index> <name>\n\r", ch);
-        send_to_char("        phases minutes <index> <minutes>\n\r", ch);
-        send_to_char("        phases script <index> <scriptvnum|0>\n\r", ch);
-        send_to_char("        phases remove <index>\n\r", ch);
-        send_to_char("        phases transition <stage#> <complete|timer|script>\n\r", ch);
-        send_to_char("        phases tickscript <stage#> <scriptvnum|0>\n\r", ch);
-        send_to_char("        phases objmode <stage#> <all|any>\n\r", ch);
-        send_to_char("        phases objlist <stage#>\n\r", ch);
-        send_to_char("        phases objadd <stage#> <kill|collect|survive|custom> <target> [name]\n\r", ch);
-        send_to_char("        phases objset <stage#> <obj#> <kill|collect|survive|custom> <target>\n\r", ch);
-        send_to_char("        phases objname <stage#> <obj#> <name>\n\r", ch);
-        send_to_char("        phases objremove <stage#> <obj#>\n\r", ch);
+        send_to_char("Syntax: stages list\n\r", ch);
+        send_to_char("        stages clear\n\r", ch);
+        send_to_char("        stages add <name> [minutes] [scriptvnum]\n\r", ch);
+        send_to_char("        stages insert <index> <name> [minutes] [scriptvnum]\n\r", ch);
+        send_to_char("        stages set <index> <name> [minutes] [scriptvnum]\n\r", ch);
+        send_to_char("        stages name <index> <name>\n\r", ch);
+        send_to_char("        stages minutes <index> <minutes>\n\r", ch);
+        send_to_char("        stages script <index> <scriptvnum|0>\n\r", ch);
+        send_to_char("        stages remove <index>\n\r", ch);
+        send_to_char("        stages transition <stage#> <complete|timer|script>\n\r", ch);
+        send_to_char("        stages tickscript <stage#> <scriptvnum|0>\n\r", ch);
+        send_to_char("        stages objmode <stage#> <all|any>\n\r", ch);
+        send_to_char("        stages objlist <stage#>\n\r", ch);
+        send_to_char("        stages objadd <stage#> <kill|collect|survive|custom> <target> [name]\n\r", ch);
+        send_to_char("        stages objset <stage#> <obj#> <kill|collect|survive|custom> <target>\n\r", ch);
+        send_to_char("        stages objname <stage#> <obj#> <name>\n\r", ch);
+        send_to_char("        stages objremove <stage#> <obj#>\n\r", ch);
+        send_to_char("        stages spawns <stage#>\n\r", ch);
+        send_to_char("        stages mobadd <stage#> <vnum> [count] [chance] [minlevel] [maxlevel] [boss|on|off]\n\r", ch);
+        send_to_char("        stages objaddspawn <stage#> <vnum> [count] [chance] [minlevel] [maxlevel]\n\r", ch);
         return false;
     }
 
@@ -6542,11 +6653,11 @@ EVTEDIT(evtedit_phaseplan)
         int i;
 
         if (count <= 0) {
-            send_to_char("Phase plan is empty.\n\r", ch);
+            send_to_char("Stage plan is empty.\n\r", ch);
             return false;
         }
 
-        send_to_char("{WPhase Plan Steps:{x\n\r", ch);
+        send_to_char("{WStage Plan Steps:{x\n\r", ch);
         for (i = 0; i < count; i++) {
             EVT_STAGE_DEF *stage = event_stage_by_one_index(evt, i + 1);
             EVT_STAGE_OBJECTIVE_DEF *objective;
@@ -6588,8 +6699,70 @@ EVTEDIT(evtedit_phaseplan)
 
     if (!str_prefix(cmd, "clear")) {
         event_phase_steps_store(evt, steps, 0);
-        send_to_char("Phase plan cleared.\n\r", ch);
+        send_to_char("Stage plan cleared.\n\r", ch);
         return evtedit_save_after_change(ch);
+    }
+
+    if (!str_prefix(cmd, "spawns")) {
+        EVT_ROSTER_ENTRY *entry;
+        int stage_index;
+        int roster_index = 1;
+        bool printed = false;
+
+        argument = one_argument(argument, arg1);
+        if (!is_number(arg1) || atoi(arg1) <= 0) {
+            send_to_char("Syntax: stages spawns <stage#>\n\r", ch);
+            return false;
+        }
+
+        stage_index = atoi(arg1);
+        send_to_char("#   Type     Vnum      Count Chance Level    Boss Stage Req\n\r", ch);
+        send_to_char("--------------------------------------------------------------\n\r", ch);
+
+        for (entry = evt->roster; entry; entry = entry->next, roster_index++) {
+            if (entry->stage != 0 && entry->stage != stage_index)
+                continue;
+
+            printed = true;
+            printf_to_char(ch, "%-3d %-8s %-9ld %-5d %-6d %-8s %-4s %-5s %-3s\n\r",
+                roster_index,
+                event_enum_name(evt_roster_kind_flags, entry->kind),
+                entry->vnum,
+                entry->count,
+                entry->chance,
+                evtedit_roster_level_window(entry),
+                entry->boss ? "yes" : "no",
+                evtedit_roster_stage_name(entry),
+                IS_NULLSTR(entry->requirements) ? "no" : "yes");
+        }
+
+        if (!printed)
+            send_to_char("No roster entries are assigned to that stage.\n\r", ch);
+
+        return false;
+    }
+
+    if (!str_prefix(cmd, "mobadd") || !str_prefix(cmd, "objaddspawn")) {
+        bool add_npc = !str_prefix(cmd, "mobadd");
+        char roster_cmd[MSL];
+        int stage_index;
+
+        argument = one_argument(argument, arg1);
+        if (!is_number(arg1) || atoi(arg1) <= 0 || IS_NULLSTR(argument)) {
+            if (add_npc)
+                send_to_char("Syntax: stages mobadd <stage#> <vnum> [count] [chance] [minlevel] [maxlevel] [boss|on|off]\n\r", ch);
+            else
+                send_to_char("Syntax: stages objaddspawn <stage#> <vnum> [count] [chance] [minlevel] [maxlevel]\n\r", ch);
+            return false;
+        }
+
+        stage_index = atoi(arg1);
+        snprintf(roster_cmd, sizeof(roster_cmd), "%s %s stage=%d",
+            add_npc ? "addnpc" : "addobj",
+            argument,
+            stage_index);
+
+        return evtedit_roster(ch, roster_cmd);
     }
 
     if (!str_prefix(cmd, "objlist")) {
@@ -6600,7 +6773,7 @@ EVTEDIT(evtedit_phaseplan)
 
         argument = one_argument(argument, arg1);
         if (!is_number(arg1)) {
-            send_to_char("Syntax: phases objlist <stage#>\n\r", ch);
+            send_to_char("Syntax: stages objlist <stage#>\n\r", ch);
             return false;
         }
 
@@ -6649,7 +6822,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg3);
 
         if (!is_number(arg1) || IS_NULLSTR(arg2) || IS_NULLSTR(arg3) || !is_number(arg3)) {
-            send_to_char("Syntax: phases objadd <stage#> <kill|collect|survive|custom> <target> [name]\n\r", ch);
+            send_to_char("Syntax: stages objadd <stage#> <kill|collect|survive|custom> <target> [name]\n\r", ch);
             return false;
         }
 
@@ -6696,7 +6869,7 @@ EVTEDIT(evtedit_phaseplan)
 
         if (!is_number(arg1) || !is_number(arg2) || IS_NULLSTR(arg3)
             || IS_NULLSTR(error) || !is_number(error)) {
-            send_to_char("Syntax: phases objset <stage#> <obj#> <kill|collect|survive|custom> <target>\n\r", ch);
+            send_to_char("Syntax: stages objset <stage#> <obj#> <kill|collect|survive|custom> <target>\n\r", ch);
             return false;
         }
 
@@ -6737,7 +6910,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg3);
 
         if (!is_number(arg1) || !is_number(arg2) || IS_NULLSTR(arg3)) {
-            send_to_char("Syntax: phases objname <stage#> <obj#> <name>\n\r", ch);
+            send_to_char("Syntax: stages objname <stage#> <obj#> <name>\n\r", ch);
             return false;
         }
 
@@ -6773,7 +6946,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg2);
 
         if (!is_number(arg1) || !is_number(arg2)) {
-            send_to_char("Syntax: phases objremove <stage#> <obj#>\n\r", ch);
+            send_to_char("Syntax: stages objremove <stage#> <obj#>\n\r", ch);
             return false;
         }
 
@@ -6820,7 +6993,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg2);
 
         if (!is_number(arg1) || IS_NULLSTR(arg2)) {
-            send_to_char("Syntax: phases transition <stage#> <complete|timer|script>\n\r", ch);
+            send_to_char("Syntax: stages transition <stage#> <complete|timer|script>\n\r", ch);
             return false;
         }
 
@@ -6851,7 +7024,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg2);
 
         if (!is_number(arg1) || IS_NULLSTR(arg2) || !is_number(arg2) || atol(arg2) < 0) {
-            send_to_char("Syntax: phases tickscript <stage#> <scriptvnum|0>\n\r", ch);
+            send_to_char("Syntax: stages tickscript <stage#> <scriptvnum|0>\n\r", ch);
             return false;
         }
 
@@ -6877,7 +7050,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg2);
 
         if (!is_number(arg1) || IS_NULLSTR(arg2)) {
-            send_to_char("Syntax: phases objmode <stage#> <all|any>\n\r", ch);
+            send_to_char("Syntax: stages objmode <stage#> <all|any>\n\r", ch);
             return false;
         }
 
@@ -6908,7 +7081,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg3);
 
         if (IS_NULLSTR(arg1)) {
-            send_to_char("Syntax: phases add <name> [minutes] [scriptvnum]\n\r", ch);
+            send_to_char("Syntax: stages add <name> [minutes] [scriptvnum]\n\r", ch);
             return false;
         }
 
@@ -6943,7 +7116,7 @@ EVTEDIT(evtedit_phaseplan)
 
         steps[count++] = step;
         event_phase_steps_store(evt, steps, count);
-        send_to_char("Phase step added.\n\r", ch);
+        send_to_char("Stage step added.\n\r", ch);
         return evtedit_save_after_change(ch);
     }
 
@@ -6956,7 +7129,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg3);
 
         if (!is_number(arg1) || IS_NULLSTR(arg2)) {
-            send_to_char("Syntax: phases insert <index> <name> [minutes] [scriptvnum]\n\r", ch);
+            send_to_char("Syntax: stages insert <index> <name> [minutes] [scriptvnum]\n\r", ch);
             return false;
         }
 
@@ -7002,7 +7175,7 @@ EVTEDIT(evtedit_phaseplan)
         count++;
 
         event_phase_steps_store(evt, steps, count);
-        send_to_char("Phase step inserted.\n\r", ch);
+        send_to_char("Stage step inserted.\n\r", ch);
         return evtedit_save_after_change(ch);
     }
 
@@ -7012,7 +7185,7 @@ EVTEDIT(evtedit_phaseplan)
         argument = one_argument(argument, arg3);
 
         if (!is_number(arg1) || IS_NULLSTR(arg2)) {
-            send_to_char("Syntax: phases set <index> <name> [minutes] [scriptvnum]\n\r", ch);
+            send_to_char("Syntax: stages set <index> <name> [minutes] [scriptvnum]\n\r", ch);
             return false;
         }
 
@@ -7052,7 +7225,7 @@ EVTEDIT(evtedit_phaseplan)
         }
 
         event_phase_steps_store(evt, steps, count);
-        send_to_char("Phase step updated.\n\r", ch);
+        send_to_char("Stage step updated.\n\r", ch);
         return evtedit_save_after_change(ch);
     }
 
@@ -7060,7 +7233,7 @@ EVTEDIT(evtedit_phaseplan)
     argument = one_argument(argument, arg2);
 
     if (!is_number(arg1)) {
-        send_to_char("Phases command requires an index for this operation.\n\r", ch);
+        send_to_char("Stages command requires an index for this operation.\n\r", ch);
         return false;
     }
 
@@ -7075,13 +7248,13 @@ EVTEDIT(evtedit_phaseplan)
             (size_t)(count - index) * sizeof(steps[0]));
         count--;
         event_phase_steps_store(evt, steps, count);
-        send_to_char("Phase step removed.\n\r", ch);
+        send_to_char("Stage step removed.\n\r", ch);
         return evtedit_save_after_change(ch);
     }
 
     if (!str_prefix(cmd, "name")) {
         if (IS_NULLSTR(arg2)) {
-            send_to_char("Syntax: phases name <index> <name>\n\r", ch);
+            send_to_char("Syntax: stages name <index> <name>\n\r", ch);
             return false;
         }
 
@@ -7093,40 +7266,46 @@ EVTEDIT(evtedit_phaseplan)
 
         strlcpy(steps[index - 1].name, arg2, sizeof(steps[index - 1].name));
         event_phase_steps_store(evt, steps, count);
-        send_to_char("Phase name updated.\n\r", ch);
+        send_to_char("Stage name updated.\n\r", ch);
         return evtedit_save_after_change(ch);
     }
 
     if (!str_prefix(cmd, "minutes")) {
         if (IS_NULLSTR(arg2) || !is_number(arg2) || atoi(arg2) < 0) {
-            send_to_char("Syntax: phases minutes <index> <minutes>=0\n\r", ch);
+            send_to_char("Syntax: stages minutes <index> <minutes>=0\n\r", ch);
             return false;
         }
 
         steps[index - 1].minutes = atoi(arg2);
         event_phase_steps_store(evt, steps, count);
-        send_to_char("Phase minutes updated.\n\r", ch);
+        send_to_char("Stage minutes updated.\n\r", ch);
         return evtedit_save_after_change(ch);
     }
 
     if (!str_prefix(cmd, "script")) {
         if (IS_NULLSTR(arg2) || !is_number(arg2) || atol(arg2) < 0) {
-            send_to_char("Syntax: phases script <index> <scriptvnum|0>\n\r", ch);
+            send_to_char("Syntax: stages script <index> <scriptvnum|0>\n\r", ch);
             return false;
         }
 
         steps[index - 1].script_vnum = atol(arg2);
         event_phase_steps_store(evt, steps, count);
-        send_to_char("Phase script updated.\n\r", ch);
+        send_to_char("Stage script updated.\n\r", ch);
         return evtedit_save_after_change(ch);
     }
 
-    send_to_char("Unknown phases subcommand. Use: list, clear, add, insert, set, name, minutes, script, remove, transition, tickscript, objmode, objlist, objadd, objset, objname, objremove.\n\r", ch);
+    send_to_char("Unknown stages subcommand. Use: list, clear, add, insert, set, name, minutes, script, remove, transition, tickscript, objmode, objlist, objadd, objset, objname, objremove, spawns, mobadd, objaddspawn.\n\r", ch);
     return false;
+}
+
+EVTEDIT(evtedit_stages)
+{
+    return evtedit_phaseplan(ch, argument);
 }
 
 EVTEDIT(evtedit_phases)
 {
+    send_to_char("'phases' is deprecated; use 'stages'.\n\r", ch);
     return evtedit_phaseplan(ch, argument);
 }
 

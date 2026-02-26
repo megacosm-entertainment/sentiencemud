@@ -1934,6 +1934,7 @@ static json_t *json_area_serialize_event(EVENT_INDEX_DATA *event_index, AREA_DAT
         json_object_set_new(entry_json, "max_level", json_integer(entry->max_level));
         json_object_set_new(entry_json, "boss", json_integer(entry->boss ? 1 : 0));
         json_object_set_new(entry_json, "stage", json_integer(entry->stage));
+        json_object_set_new(entry_json, "requirements", json_string_safe(entry->requirements));
         json_array_append_new(roster, entry_json);
     }
 
@@ -2231,8 +2232,10 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
             entry->max_level = json_get_int_default(entry_json, "max_level", 0);
             entry->boss = json_get_bool_default(entry_json, "boss", false);
             entry->stage = UMAX(0, json_get_int_default(entry_json, "stage", 0));
+            entry->requirements = str_dup(json_get_string_default(entry_json, "requirements", ""));
 
             if (entry->vnum < 1) {
+                free_string(entry->requirements);
                 free_mem(entry, sizeof(*entry));
                 continue;
             }
@@ -2375,6 +2378,7 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
         variable_freelist(&event_index->index_vars);
         while (event_index->roster) {
             EVT_ROSTER_ENTRY *next = event_index->roster->next;
+            free_string(event_index->roster->requirements);
             free_mem(event_index->roster, sizeof(EVT_ROSTER_ENTRY));
             event_index->roster = next;
         }
