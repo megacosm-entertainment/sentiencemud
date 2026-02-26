@@ -512,6 +512,7 @@ bool load_commands()
 void do_cmdlist(CHAR_DATA *ch, char *argument)
 {
     BUFFER *buffer = new_buf();
+    bool append_ok = true;
     char buf[MSL];
     char cmd_colour[3];
     char line_colour[3];
@@ -520,9 +521,16 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
         CMD_DATA *command;
         int count = 0;
 
-        add_buf(buffer, "Commands:\n");
-        add_buf(buffer, "####  Name                Rank  Position    Log    Enabled  Function       Help  \n");
-        add_buf(buffer, "----  ----               -----  --------  ------   -------  --------     --------\n");
+        append_ok = add_buf(buffer, "Commands:\n");
+        append_ok = append_ok && add_buf(buffer, "####  Name                Rank  Position    Log    Enabled  Function       Help  \n");
+        append_ok = append_ok && add_buf(buffer, "----  ----               -----  --------  ------   -------  --------     --------\n");
+
+        if (!append_ok)
+        {
+            send_to_char("Command list output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return;
+        }
 
         ITERATOR it;
         iterator_start(&it, commands_list);
@@ -605,13 +613,29 @@ void do_cmdlist(CHAR_DATA *ch, char *argument)
                 command->enabled ? "Enabled" : "Disabled",
                 command->function ? do_func_name(command->function) : "None",
                 helpstatus);
-            add_buf(buffer, buf);
+            if (!add_buf(buffer, buf))
+            {
+                append_ok = false;
+                break;
+            }
             count++;
         }
         iterator_stop(&it);
 
+        if (!append_ok)
+        {
+            send_to_char("Command list output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return;
+        }
+
         sprintf(buf, "\n%d commands found.\n", count);
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf))
+        {
+            send_to_char("Command list output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return;
+        }
     
 
     if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )

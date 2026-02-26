@@ -27,6 +27,7 @@ SCRIPT_CMD(do_mpxcall);
 const struct script_cmd_type mob_cmd_table[] = {
     { "addaffect",			scriptcmd_addaffect,		true,	true	},
     { "addaffectname",		scriptcmd_addaffectname,	true,	true	},
+        { "addaura",             scriptcmd_addaura,          true,   true    },
     { "addspell",			scriptcmd_addspell,			true,	true	},
     { "addstache",          scriptcmd_addstache,      true,   true    },
     { "alteraffect",		scriptcmd_alteraffect,		true,	true	},
@@ -96,6 +97,7 @@ const struct script_cmd_type mob_cmd_table[] = {
     { "remove",             do_mpremove,            false,  true    },
     { "resetdice",          do_mpresetdice,         true,   true    },
     { "remstache",          scriptcmd_remstache,      true,   true    },
+        { "remaura",             scriptcmd_remaura,          true,   true    },
     { "revokeskill",        scriptcmd_revokeskill,  false,  true    },
     { "setclasslevel",      scriptcmd_setclasslevel,false,  true    },
     { "setposition",        scriptcmd_setposition,  true,   true    },

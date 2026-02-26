@@ -70,5 +70,5 @@ Recommended resume order:
 
 ## Documentation Added
 
-- `src/docs/EVENT_EDITOR_RUNTIME.md` (implementation reference)
+- `src/docs/guides/EVENT_EDITOR_RUNTIME.md` (implementation reference)
 - `src/docs/WORKLOG_EVENT_EDITOR_RUNTIME.md` (this log)

@@ -1,0 +1,36 @@
+{
+  "type": "test_suite",
+  "test_suite": "buffer_core_unit_tests",
+  "description": "Unit tests for BUFFER core behavior, boundaries, and expected failure handling",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "buffer_core_and_failure_paths",
+      "description": "Validates normal BUFFER operations and expected overflow/recovery behavior",
+      "test_type": "buffer_function_test",
+      "input": {
+        "function": "buffer_functions",
+        "test_cases": [
+          { "scenario": "new_buf_defaults" },
+          { "scenario": "new_buf_size_base_floor" },
+          { "scenario": "null_and_empty_noop" },
+          { "scenario": "append_and_format" },
+          { "scenario": "clear_resets_state" },
+          { "scenario": "new_buf_size_honors_request", "requested_size": 5000 },
+          { "scenario": "growth_ladder" },
+          { "scenario": "remaining_consistency" },
+          { "scenario": "null_argument_guards" },
+          { "scenario": "freed_buffer_guards" },
+          { "scenario": "exact_limit_fill_then_fail" },
+          { "scenario": "overflow_expected" },
+          { "scenario": "overflow_clear_recover" }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

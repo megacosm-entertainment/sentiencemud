@@ -1,5 +1,8 @@
 # Plan: Migrate Event System from Global UIDs to Area-Scoped Widevnums
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Context
 
 The event system (dynamic events / FATEs) currently stores all event definitions globally in `data/system/events.json` with auto-incremented UIDs. Other similar systems (dungeons, blueprints, ships, quests) have already been migrated to area-scoped storage using widevnums. This migration aligns events with the established pattern: each event definition lives inside an area, identified by `area + vnum` (WNUM), and is persisted as part of the area's JSON file. Global events are simply events stored in whichever area the builder chooses (e.g., a system area).

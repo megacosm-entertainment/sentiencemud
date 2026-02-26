@@ -1,6 +1,6 @@
 # Technical Debt Tracker
 
-**Last Updated:** February 21, 2026
+**Last Updated:** February 26, 2026
 
 This document tracks known technical debt in the Sentience codebase. Items are prioritized and linked to implementation plans where applicable.
 
@@ -10,74 +10,37 @@ This document tracks known technical debt in the Sentience codebase. Items are p
 
 ## Critical Priority
 
-### 1. String Safety Issues
+### 1. String Safety / C Hardening
 
-**Status:** Identified, Post-Widevnum  
-**Estimated Effort:** 4-6 weeks  
-**Risk:** Security vulnerabilities, buffer overflows
+**Status:** In Progress — audit complete, Phase 1 BUFFER hardening implemented (2026-02-26)
+**Estimated Effort:** 6-8 weeks (phased)
+**Risk:** Security vulnerabilities, buffer overflows, silent data corruption
+**Detailed docs:**
+- [PLAN_C_HARDENING.md](PLAN_C_HARDENING.md) — Full remediation roadmap (inspired by cURL/Stenberg practices)
+- [AUDIT_UNSAFE_FUNCTIONS.md](AUDIT_UNSAFE_FUNCTIONS.md) — Per-file audit with counts and risk assessment
 
-#### Problem
+#### Audit Results (2026-02-26)
 
-Legacy codebase uses unsafe string functions throughout:
+| Banned Function | Count | Safe Alternative | Adoption % |
+|----------------|------:|-----------------|----------:|
+| sprintf | 4,347 | snprintf (985) | 18.7% |
+| strcpy | 336 | strlcpy (250) | 31.1% |
+| strcat | 1,147 | strlcat (48) | 3.9% |
+| atoi/atol | 1,178 | strtol (8) | 1.0% |
 
-```c
-// Unsafe patterns (20+ years old):
-strcpy(buf, src);              // No bounds checking
-strcat(buf, append);           // No length verification  
-sprintf(buf, "fmt", args);     // Unbounded formatting
-```
+**Total: ~7,300 banned function calls across 114 files.**
 
-These were standard practice in the 1990s but are now security vulnerabilities. While the game was dormant for most of 20+ years, active development exposes these risks.
-
-#### Impact
-
-- **Security:** Buffer overflows exploitable by players
-- **Stability:** Crashes from oversized input
-- **Testing:** ASan will flag these during test runs
-- **Maintenance:** Hard to audit for safety
+Additionally, 56 functions exceed cyclomatic complexity 100 (cURL's threshold), worst being `script_varseton` at CC=693.
 
 #### Solution Plan
 
-**Phase A: During Widevnum Migration (Opportunistic)**
-- Replace `sprintf` → `snprintf` when touching files
-- Document each change with comment: `// String safety: sprintf → snprintf`
-- No dedicated time allocation, just good hygiene
+Five-phase approach modeled on cURL's practices. See [PLAN_C_HARDENING.md](PLAN_C_HARDENING.md) for full details:
 
-**Phase B: Post-Widevnum Dedicated Cleanup (4-6 weeks)**
-
-**Week 1-2: Create Safe String Library**
-```c
-// safe_string.h - New module
-size_t safe_strcpy(char *dst, const char *src, size_t size);
-size_t safe_strcat(char *dst, const char *src, size_t size);
-
-// Convenience macros
-#define SAFE_STRCPY(dst, src) safe_strcpy(dst, src, sizeof(dst))
-#define SAFE_STRCAT(dst, src) safe_strcat(dst, src, sizeof(dst))
-```
-
-**Week 3-4: Systematic Migration**
-```bash
-# Find all unsafe uses
-grep -rn "strcpy\|strcat\|sprintf" src/*.c | grep -v snprintf > unsafe_strings.txt
-
-# Prioritize by frequency:
-# 1. Command handlers (user input)
-# 2. OLC editors (builder input)  
-# 3. String formatting
-# 4. Internal utilities
-```
-
-**Week 5-6: Testing & Validation**
-- Run ASan on all tests
-- Manual testing of migrated code
-- Performance validation (no regression)
-
-#### Files Affected
-
-High-priority files (user input paths):
-- `src/act_*.c` - Command handlers (~50 instances)
-- `src/editors/*.c` - OLC editors (~30 instances)
+1. **Harden BUFFER system** — add length tracking, replace internal strcpy/strcat (1-2 days)
+2. **Create safe helpers** — `sent_strlcpy`, `sent_snprintf`, `sent_parse_int` (2-3 days)
+3. **Systematic migration** — file-by-file replacement of all banned functions (4-6 weeks)
+4. **Complexity reduction** — decompose CC>100 functions (ongoing)
+5. **CI enforcement** — banned function scanner, complexity gate, static analysis (1-2 days + ongoing)
 - `src/script_*.c` - Script parsing (~40 instances)
 - `src/string.c` - String utilities (~20 instances)
 
@@ -86,6 +49,59 @@ Medium-priority files (internal use):
 - `src/comm.c` - Network protocol
 - `src/fight*.c` - Combat system
 - Others (~60 instances)
+
+#### Phase 1 Progress (BUFFER System)
+
+Reference guide: [BUFFER System Guide](guides/BUFFER_SYSTEM_GUIDE.md)
+
+- ✅ BUFFER internals moved to dedicated module: `src/utils/buffer.c` + `src/utils/buffer.h`
+- ✅ `buf_type` now tracks length (`len`) for O(1) appends
+- ✅ Removed internal `strcpy`/`strcat` usage in BUFFER paths (`add_buf`, `bprintf`)
+- ✅ Added hard cap enforcement (`MAX_BUF_TOTAL`) and overflow-state behavior checks
+- ✅ Added accessors: `buf_len`, `buf_capacity`, `buf_remaining`
+- ✅ Added overflow arithmetic guards (`size_t` + `INT_MAX` boundaries)
+- ✅ Added null-argument/invalid-buffer guards on BUFFER public API entry points
+- ✅ Added modular unit coverage:
+    - `buffer_core_unit_tests`
+    - `buffer_permutation_unit_tests`
+
+#### BUFFER Refactor Trade-offs (Old vs New)
+
+- **Old (`mem.c` embedded):** lower short-term churn, but weaker safety guarantees and mixed concerns.
+- **New (`utils/buffer.c` module):** stronger safety contract and maintainability, at cost of stricter failure behavior and slightly more code/test surface.
+- **Net gain:** deterministic overflow/invalid-argument handling with targeted unit coverage.
+- **Net loss/change:** previously permissive misuse patterns now fail fast and can generate guard logs.
+
+#### Remaining BUFFER Hardening Work
+
+- [~] Audit and fix unchecked `add_buf` / `add_buf_char` / `bprintf` call sites in high-risk paths (editor output and network-adjacent formatting paths first).
+    - Completed first slice in:
+        - `src/editors/areas/aedit.c` (regions list rendering)
+        - `src/editors/blueprints/bpedit.c` (section list and channel list rendering)
+        - `src/editors/commands/cmdedit.c` (`do_cmdlist` rendering)
+        - `src/editors/dungeons/dngedit.c` (`dngedit_channel list`, `dngedit_floors list`)
+        - `src/editors/dungeons/dngedit.c` (buffer builder success propagation in floors/levels/special exits)
+        - `src/editors/dungeons/dngedit.c` (tab-level direct output paths: general/special/variables/notes)
+        - `src/editors/dungeons/dngedit.c` (local list paths: levels weight list, grouped weight list, special room list)
+        - `src/editors/dungeons/dngedit.c` (special exit list deduplicated to shared hardened builder)
+        - `src/editors/dungeons/dngedit.c` (readability consolidation: helper-based weighted exit/floor/room/channel renderers; removed remaining `append_ok` plumbing)
+        - `src/editors/blueprints/bsedit.c` (tab-level direct output paths: general/links/maze/notes)
+        - `src/editors/blueprints/bpedit.c` (tab-level direct output paths: general/sections/layout/variables/notes)
+- [ ] Standardize caller behavior on mutation failure (abort render, truncate with marker, or report to operator).
+- [ ] Re-assess guard log volume after caller-side failure handling is in place.
+
+    #### Caller-side hardening pattern (maintainability + readability)
+
+    See the companion guidance in [PLAN_C_HARDENING.md](PLAN_C_HARDENING.md#caller-side-hardening-style-rule-maintainability--readability).
+
+    Use this ordering for BUFFER call-site work:
+
+    1. **Harden first**: ensure mutation calls fail closed and report a clear user-facing overflow message.
+    2. **Consolidate second**: where list/table render logic repeats, extract local helpers and keep existing message text stable.
+    3. **Reduce scaffolding**: prefer helper-owned append/cleanup/paging flow over long inline `append_ok` chains.
+    4. **Constrain scope**: refactor one editor/file at a time to limit churn and review risk.
+
+    This keeps security behavior intact while improving readability and long-term maintainability.
 
 #### Success Criteria
 

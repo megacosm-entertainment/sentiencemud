@@ -1,5 +1,8 @@
 # Design: Data-Driven Loot Tables, Attack Patterns, and Requirements Integration
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Overview
 
 Three interrelated systems to replace script-heavy mob configuration with data-driven

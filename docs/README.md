@@ -1,21 +1,24 @@
 # Sentience MUD Documentation
 
-## Changelogs by Audience
+## Current Documentation Status
 
-### [Migration Overview](CHANGELOG_OVERVIEW.md)
-Big-picture summary of the major system migrations in this release window.
+### [Docs Portfolio Review (2026-02-26)](DOCS_REVIEW_2026-02-26.md)
+Comprehensive doc-by-doc status ledger for the full `src/docs/` tree, including active plans, open TODOs, worklogs, references, and archived completed docs.
 
-### [Player Changelog](CHANGELOG_PLAYERS.md)
-Gameplay-visible additions, fixes, and removals.
+### [Code-Backed Project Reality Audit (2026-02-26)](DOCS_CODE_REALITY_2026-02-26.md)
+Per-project active plan audit cross-checked against `src/` implementation artifacts (planned file references and code footprint evidence).
 
-### [Builder Changelog](CHANGELOG_BUILDERS.md)
-OLC/content authoring changes with command/workflow examples.
+### [Docs Portfolio Review (2026-02-18)](DOCS_REVIEW_2026-02-18.md)
+Previous portfolio snapshot retained for historical context.
 
-### [Administrator Changelog](CHANGELOG_ADMINISTRATORS.md)
-Operations, moderation, policy, and runtime system changes.
+## Changelog Status
 
-### [Developer Changelog](CHANGELOG_DEVELOPERS.md)
-Architecture, codebase migration, technical bug-fix streams, and removals.
+Audience changelog docs were retired from this tree during cleanup.
+
+For current implementation status and historical disposition, use:
+- [Docs Portfolio Review (2026-02-26)](DOCS_REVIEW_2026-02-26.md)
+- [Roadmap](ROADMAP.md)
+- archived completion records under `docs/done/`
 
 ## Testing Documentation
 
@@ -46,7 +49,7 @@ Strategic testing evolution plan:
 
 ## RSG Documentation
 
-### [RSGEdit Usage and Integration Guide](RSGEDIT_USAGE.md)
+### [RSGEdit Usage and Integration Guide](guides/RSGEDIT_USAGE.md)
 Complete guide for random string generators:
 - Step-by-step generator creation workflow
 - Pattern/class commands and escaping rules
@@ -55,7 +58,7 @@ Complete guide for random string generators:
 
 ## Event Runtime Documentation
 
-### [Event System Admin Guide](EVENT_SYSTEM_ADMIN_GUIDE.md)
+### [Event System Admin Guide](guides/EVENT_SYSTEM_ADMIN_GUIDE.md)
 Admin/operator guide for live event creation and control:
 - End-to-end `evtedit` and `event` workflows
 - Schedule setup (manual/recurring/calendar)
@@ -63,7 +66,7 @@ Admin/operator guide for live event creation and control:
 - Phase plan configuration and script-driven phase control
 - Troubleshooting for common operator issues
 
-### [Event Editor Runtime Reference](EVENT_EDITOR_RUNTIME.md)
+### [Event Editor Runtime Reference](guides/EVENT_EDITOR_RUNTIME.md)
 Current implementation reference for event editor/runtime behavior:
 - Supported schedule/runtime modes
 - Bracket validation and aggregation rules
@@ -83,15 +86,35 @@ Design stub for future definition-level event program hooks:
 - Scope-aware execution contract for area/zone-limited effects
 - Proposed `evtedit` command surface and phased implementation plan
 
+## Channel Documentation
+
+### [Channel System Docs Index](guides/channels/README.md)
+Landing page for player/admin channel guides.
+
+### [Channels Player Guide](guides/channels/CHANNELS_PLAYER_GUIDE.md)
+Player-facing usage reference for channels, history, and reporting behavior.
+
+### [Channels Admin Guide](guides/channels/CHANNELS_ADMIN_GUIDE.md)
+Admin/operator guide for cedit workflows, moderation controls, and runtime behavior.
+
 ## Developer How-To Guides
 
-### [Adding Skills, Spells, and Commands](SKILL_SPELL_COMMAND_GUIDE.md)
+### [Guides Directory Index](guides/README.md)
+Home for non-plan, non-worklog, non-analysis reference docs.
+
+### [BUFFER System Guide](guides/BUFFER_SYSTEM_GUIDE.md)
+General reference for BUFFER architecture, API contracts, failure semantics, and migration trade-offs.
+
+### [Adding Skills, Spells, and Commands](guides/SKILL_SPELL_COMMAND_GUIDE.md)
 Practical implementation checklist for gameplay additions:
 - New command function + registration + cmdedit wiring
 - New skill/spell JSON data workflow
 - Spell function registration in `skill_data` backend
 - Bootstrap seed updates for clean-environment parity
 - Build/run validation and common failure modes
+
+### [Wilds Systems Scripting Guide](guides/WILDS_SYSTEMS_SCRIPTING_GUIDE.md)
+Reference for wilderness-oriented scripting flows and operational usage.
 
 ## Test Framework Overview
 
@@ -133,6 +156,17 @@ cd /sentience
 │   ├── integration/               # Integration test handlers (wnum_tests.c)
 │   └── unit/                      # Unit test handlers
 ├── docs/                          # This documentation
+│   ├── guides/                    # Stable subsystem and API reference guides
+│   │   ├── BUFFER_SYSTEM_GUIDE.md
+│   │   ├── EVENT_EDITOR_RUNTIME.md
+│   │   ├── EVENT_SYSTEM_ADMIN_GUIDE.md
+│   │   ├── RSGEDIT_USAGE.md
+│   │   ├── SKILL_SPELL_COMMAND_GUIDE.md
+│   │   └── WILDS_SYSTEMS_SCRIPTING_GUIDE.md
+│   │   └── channels/
+│   │       ├── CHANNELS_ADMIN_GUIDE.md
+│   │       ├── CHANNELS_PLAYER_GUIDE.md
+│   │       └── README.md
 │   ├── testing/                   # Testing framework documentation
 │   └── README.md                  # This file
 ```

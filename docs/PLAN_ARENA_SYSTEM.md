@@ -1,5 +1,20 @@
 # Arena System Enhancement Plan
 
+**Status:** Planned / Not Started (new subsystem not yet landed; code-verified 2026-02-26)
+
+## Code Reality Check (2026-02-26)
+
+- Legacy arena/challenge flow is present (`fight.c` `do_challenge`, `ROOM_ARENA`, arena kill/death tally paths).
+- Planned new subsystem files are not present (`arena.c`, `arena.h`, `io/json/json_arena.c`, `io/json/json_arena.h`, `arena_tournament.c`, `arena_tournament.h`).
+- The documented multi-arena/tournament architecture in this plan has not been implemented yet.
+
+### Strict phase status
+
+- Phase 1 (Arena definitions + `arena` command + ruleset engine): **Not started**
+- Phase 2 (Tournament event type/orchestration): **Not started**
+- Phase 3 (Arena OLC/polish/script hooks): **Not started**
+
+
 ## Context
 
 The current arena system is a simple 1v1 challenge between two players: one player challenges another, both are teleported to a single hardcoded arena, they fight with instant respawn, and return when leaving. Several places hardcode the area name `"Arena"` and `"Plith"` for tally/message logic.

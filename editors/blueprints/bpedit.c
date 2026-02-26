@@ -60,6 +60,15 @@ static void bpedit_mark_changed(CHAR_DATA *ch, void *pEdit)
         SET_BIT(bp->area->area_flags, AREA_CHANGED);
 }
 
+static bool bpedit_add_or_fail(CHAR_DATA *ch, BUFFER *buffer, const char *text, const char *message)
+{
+    if (add_buf(buffer, text))
+        return true;
+
+    send_to_char(message, ch);
+    return false;
+}
+
 /***************************************************************************
  * Blueprint Editor Command Table (moved from blueprint.c)                 *
  ***************************************************************************/
@@ -267,7 +276,9 @@ static void bpedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
     }
 
     olc_display_section(ctx, theme, "Description");
-    add_buf(ctx->buffer, bp->description ? bp->description : "(none)\n\r");
+    if (!bpedit_add_or_fail(ch, ctx->buffer, bp->description ? bp->description : "(none)\n\r",
+            "Blueprint description output exceeded buffer limits.\n\r"))
+        return;
 }
 
 /***************************************************************************
@@ -287,8 +298,12 @@ static void bpedit_show_sections_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
         ITERATOR sit;
 
         olc_display_section(ctx, theme, "Sections");
-        add_buf(ctx->buffer, "     [  Vnum  ] [             Name             ]\n\r");
-        add_buf(ctx->buffer, "------------------------------------------------\n\r");
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "     [  Vnum  ] [             Name             ]\n\r",
+                "Blueprint sections output exceeded buffer limits.\n\r"))
+            return;
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "------------------------------------------------\n\r",
+                "Blueprint sections output exceeded buffer limits.\n\r"))
+            return;
 
         iterator_start(&sit, bp->sections);
         while ((section_ref = (BLUEPRINT_SECTION_REF *)iterator_nextdata(&sit)))
@@ -300,10 +315,14 @@ static void bpedit_show_sections_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
                 sprintf(buf, "{W%4d  {G%8ld#%ld{x   {R(section not found){x\n\r", ++line,
                     section_ref->section_ref.load.auid, section_ref->section_ref.load.vnum);
             }
-            add_buf(ctx->buffer, buf);
+            if (!bpedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint sections output exceeded buffer limits.\n\r"))
+                return;
         }
         iterator_stop(&sit);
-        add_buf(ctx->buffer, "------------------------------------------------\n\r");
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "------------------------------------------------\n\r",
+                "Blueprint sections output exceeded buffer limits.\n\r"))
+            return;
     }
     else
     {
@@ -329,8 +348,12 @@ static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         ITERATOR sit;
         int line = 0;
 
-        add_buf(ctx->buffer, "     [             Name             ] [             Room             ]\n\r");
-        add_buf(ctx->buffer, "---------------------------------------------------------------------------------\n\r");
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "     [             Name             ] [             Room             ]\n\r",
+                "Blueprint layout output exceeded buffer limits.\n\r"))
+            return;
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "---------------------------------------------------------------------------------\n\r",
+                "Blueprint layout output exceeded buffer limits.\n\r"))
+            return;
 
         iterator_start(&sit, bp->special_rooms);
         while ((special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)))
@@ -349,16 +372,24 @@ static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
             {
                 snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%s) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, widevnum_string_room(room, bp->area), room->name, section->vnum, section->name);
             }
-            add_buf(ctx->buffer, buf);
+            if (!bpedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint layout output exceeded buffer limits.\n\r"))
+                return;
         }
         iterator_stop(&sit);
-        add_buf(ctx->buffer, "---------------------------------------------------------------------------------\n\r");
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "---------------------------------------------------------------------------------\n\r",
+                "Blueprint layout output exceeded buffer limits.\n\r"))
+            return;
     }
     else
     {
-        add_buf(ctx->buffer, "   None\n\r");
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "   None\n\r",
+                "Blueprint layout output exceeded buffer limits.\n\r"))
+            return;
     }
-    add_buf(ctx->buffer, "\n\r");
+    if (!bpedit_add_or_fail(ch, ctx->buffer, "\n\r",
+            "Blueprint layout output exceeded buffer limits.\n\r"))
+        return;
 
     /* Static mode layout details */
     if (bp->mode != BLUEPRINT_MODE_STATIC)
@@ -372,17 +403,25 @@ static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     {
         int linkno = 0;
         olc_display_section(ctx, theme, "Links");
-        add_buf(ctx->buffer, "     [ Section 1 ] [ Link 1 ] [ Section 2 ] [ Link 2 ]\n\r");
-        add_buf(ctx->buffer, "-------------------------------------------------------\n\r");
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "     [ Section 1 ] [ Link 1 ] [ Section 2 ] [ Link 2 ]\n\r",
+                "Blueprint layout output exceeded buffer limits.\n\r"))
+            return;
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "-------------------------------------------------------\n\r",
+                "Blueprint layout output exceeded buffer limits.\n\r"))
+            return;
 
         STATIC_BLUEPRINT_LINK *sbl;
         for (sbl = bp->_static.layout; sbl; sbl = sbl->next)
         {
             sprintf(buf, "{W%4d   {G%9d     {Y%6d     {G%9d     {Y%6d{x\n\r",
                 ++linkno, sbl->section1, sbl->link1, sbl->section2, sbl->link2);
-            add_buf(ctx->buffer, buf);
+            if (!bpedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint layout output exceeded buffer limits.\n\r"))
+                return;
         }
-        add_buf(ctx->buffer, "-------------------------------------------------------\n\r\n\r");
+        if (!bpedit_add_or_fail(ch, ctx->buffer, "-------------------------------------------------------\n\r\n\r",
+                "Blueprint layout output exceeded buffer limits.\n\r"))
+            return;
     }
     else
     {
@@ -538,9 +577,13 @@ static void bpedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
             olc_display_section(ctx, theme, "Index Variables");
 
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-            add_buf(ctx->buffer, buf);
+            if (!bpedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint variable output exceeded buffer limits.\n\r"))
+                return;
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-            add_buf(ctx->buffer, buf);
+            if (!bpedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint variable output exceeded buffer limits.\n\r"))
+                return;
 
             for (var = bp->index_vars; var; var = var->next)
             {
@@ -561,7 +604,9 @@ static void bpedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
                 default:
                     continue;
                 }
-                add_buf(ctx->buffer, buf);
+                if (!bpedit_add_or_fail(ch, ctx->buffer, buf,
+                        "Blueprint variable output exceeded buffer limits.\n\r"))
+                    return;
             }
         }
         else
@@ -585,7 +630,9 @@ static void bpedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdi
     const OLC_EDITOR_THEME *theme = bpedit_def.theme;
 
     olc_display_section(ctx, theme, "Builders' Comments");
-    add_buf(ctx->buffer, bp->comments ? bp->comments : "(none)\n\r");
+    if (!bpedit_add_or_fail(ch, ctx->buffer, bp->comments ? bp->comments : "(none)\n\r",
+            "Blueprint comments output exceeded buffer limits.\n\r"))
+        return;
 }
 
 BPEDIT( bpedit_create )
@@ -952,14 +999,22 @@ BPEDIT( bpedit_section )
         if( list_size(bp->sections) > 0 )
         {
             BUFFER *buffer = new_buf();
+            bool append_ok = true;
 
             char buf[MSL];
             int line = 0;
 
             ITERATOR sit;
 
-            add_buf(buffer, "     [  Vnum  ] [             Name             ]\n\r");
-            add_buf(buffer, "------------------------------------------------\n\r");
+            append_ok = add_buf(buffer, "     [  Vnum  ] [             Name             ]\n\r");
+            append_ok = append_ok && add_buf(buffer, "------------------------------------------------\n\r");
+
+            if (!append_ok)
+            {
+                send_to_char("Section list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             BLUEPRINT_SECTION_REF *section_ref;
 
@@ -974,11 +1029,24 @@ BPEDIT( bpedit_section )
                     sprintf(buf, "{W%4d  {G%8ld#%ld{x   {R(section not found){x\n\r", ++line,
                         section_ref->section_ref.load.auid, section_ref->section_ref.load.vnum);
                 }
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf))
+                {
+                    append_ok = false;
+                    break;
+                }
             }
 
             iterator_stop(&sit);
-            add_buf(buffer, "------------------------------------------------\n\r");
+
+            if (append_ok)
+                append_ok = add_buf(buffer, "------------------------------------------------\n\r");
+
+            if (!append_ok)
+            {
+                send_to_char("Section list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
             {
@@ -1024,15 +1092,16 @@ BPEDIT( bpedit_channel )
     if (!str_prefix(arg, "list"))
     {
         BUFFER *buffer = new_buf();
+        bool append_ok = true;
         ITERATOR it;
         char *id;
         char buf[MSL];
         int index = 1;
 
-        add_buf(buffer, "{WBlueprint Channel Definitions:{x\n\r");
+        append_ok = add_buf(buffer, "{WBlueprint Channel Definitions:{x\n\r");
         if (!bp->channel_defs || list_size(bp->channel_defs) < 1)
         {
-            add_buf(buffer, "  None\n\r");
+            append_ok = append_ok && add_buf(buffer, "  None\n\r");
         }
         else
         {
@@ -1040,9 +1109,20 @@ BPEDIT( bpedit_channel )
             while ((id = (char *)iterator_nextdata(&it)))
             {
                 sprintf(buf, "  {W%2d{x) %s\n\r", index++, id);
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf))
+                {
+                    append_ok = false;
+                    break;
+                }
             }
             iterator_stop(&it);
+        }
+
+        if (!append_ok)
+        {
+            send_to_char("Channel list output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return false;
         }
 
         page_to_char(buffer->string, ch);

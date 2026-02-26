@@ -1,5 +1,8 @@
 # Effects System Redesign Plan
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Overview
 
 The current "affects" system is a mature DikuMUD-derived implementation that has served

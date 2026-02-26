@@ -359,6 +359,7 @@ struct json_t;
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
 typedef struct	catalyst_data		CATALYST_DATA;
+typedef struct	aura_data		AURA_DATA;
 typedef struct	area_data		AREA_DATA;
 typedef struct area_region_data AREA_REGION;
 typedef struct	auction_data		AUCTION_DATA;
@@ -1238,6 +1239,7 @@ struct buf_type
     bool        valid;
     int16_t      state;  /* error state of the buffer */
     int		size;   /* size in k */
+    size_t      len;    /* current string length */
     char *      string; /* buffer's string */
 };
 
@@ -2590,6 +2592,17 @@ struct catalyst_data
 /* reverie types */
 #define HIT_TO_MANA 	0
 #define MANA_TO_HIT 	1
+
+#define MAX_AURAS_SHOWN 5
+
+struct aura_data
+{
+    AURA_DATA *next;
+    bool valid;
+
+    char *name;
+    char *long_descr;
+};
 
 
 typedef struct affliction_data AFFLICTION_DATA;
@@ -5525,6 +5538,7 @@ struct	char_data
     LLIST *		lstache;	// Script item store
 
     LLIST *		lgroup;
+    LLIST *		auras;
     LLIST *		reputations;
     MOB_REPUTATION_DATA *mob_reputations;
     LLIST *		factions;
@@ -11575,6 +11589,11 @@ void resolve_special_key(OBJ_DATA *obj);
 char *get_article(char *text, bool upper);
 bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2);
 bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y);
+
+AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name);
+void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr);
+void remove_aura_from_char(CHAR_DATA *ch, char *name);
+
 SHIP_DATA *purchase_ship(CHAR_DATA *ch, WNUM wnum, SHOP_DATA *shop);
 int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);

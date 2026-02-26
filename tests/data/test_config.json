@@ -36,6 +36,8 @@
       "string_editor_state_unit_tests",
       "wilderness_resolver_unit_tests",
       "wnum_parsing_unit_tests",
+      "buffer_core_unit_tests",
+      "buffer_permutation_unit_tests",
       "skill_data",
       "class_data",
       "item_type_system",
@@ -61,7 +63,9 @@
       "string_edit_helpers_unit_tests",
       "string_editor_state_unit_tests",
       "wilderness_resolver_unit_tests",
-      "wnum_parsing_unit_tests"
+      "wnum_parsing_unit_tests",
+      "buffer_core_unit_tests",
+      "buffer_permutation_unit_tests"
     ],
     "integration_only_suites": [
       "area_loading",
@@ -105,12 +109,12 @@
     "test_profiles": {
       "development": {
         "description": "Fast tests for development workflow",
-        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests"],
+        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests"],
         "stop_on_first_failure": true
       },
       "ci": {
         "description": "Complete test suite for CI/CD",
-        "suites": ["area_loading", "database_integrity", "system_area", "wnum_parsing", "reserved_wnum", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "skill_data", "class_data", "item_type_system", "lookup_tables", "script_engine_tests", "song_data", "skill_group_data", "trait_system", "json_area_serialization", "chat_rooms_json", "church_json", "channel_pubsub", "blueprint_area_scope", "instance_persist", "shop_stock_cross_area_tests", "reset_cross_area_tests"],
+        "suites": ["area_loading", "database_integrity", "system_area", "wnum_parsing", "reserved_wnum", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "skill_data", "class_data", "item_type_system", "lookup_tables", "script_engine_tests", "song_data", "skill_group_data", "trait_system", "json_area_serialization", "chat_rooms_json", "church_json", "channel_pubsub", "blueprint_area_scope", "instance_persist", "shop_stock_cross_area_tests", "reset_cross_area_tests"],
         "stop_on_first_failure": false,
         "require_coverage": true
       },
@@ -131,6 +135,8 @@
           "string_editor_state_unit_tests",
           "wilderness_resolver_unit_tests",
           "wnum_parsing_unit_tests",
+          "buffer_core_unit_tests",
+          "buffer_permutation_unit_tests",
           "class_data",
           "item_type_system",
           "lookup_tables",
@@ -178,6 +184,8 @@
           "string_editor_state_unit_tests",
           "wilderness_resolver_unit_tests",
           "wnum_parsing_unit_tests",
+          "buffer_core_unit_tests",
+          "buffer_permutation_unit_tests",
           "skill_data",
           "class_data",
           "item_type_system",

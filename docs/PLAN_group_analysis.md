@@ -1,5 +1,8 @@
 # PLAN: Group and Party System Rework
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document updates the grouping analysis to match current `src` reality and defines the next-phase party UX: invite/request flows with non-intrusive prompt markers (ready-check style) instead of interruptive dialogs.
 
 ## 1. Current State (as of `feature/widevnum-migration`)

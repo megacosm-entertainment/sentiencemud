@@ -1,5 +1,8 @@
 # Consolidated Script Engine Audit & Execution Plan
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Status
 
 - **Date**: 2026-02-19

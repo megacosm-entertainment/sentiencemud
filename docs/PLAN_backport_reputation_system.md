@@ -1,5 +1,8 @@
 # Backport Analysis: Reputation System
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document provides an analysis of the Reputation system from the `src_20_dev` branch and outlines a plan for backporting it into the main `src` codebase.
 
 ---

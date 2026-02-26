@@ -1,5 +1,8 @@
 # Quest System Rework Plan
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Goals
 
 Replace the legacy single-active autoquest flow with a modern quest platform that supports:

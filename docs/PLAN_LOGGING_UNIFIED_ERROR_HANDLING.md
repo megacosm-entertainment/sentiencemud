@@ -1,5 +1,8 @@
 # Plan: Unified Error Handling & Multi-Sink Logging
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Why this plan exists
 
 Sentience currently has three overlapping logging styles:

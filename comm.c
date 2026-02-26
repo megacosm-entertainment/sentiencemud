@@ -946,6 +946,7 @@ int main(int argc, char **argv)
         log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Integration tests completed with result: %d", test_result);
         exit(test_result);
 #else
+    fprintf(stderr, "Test mode requested but MUD was not compiled with BUILD_TESTS\n");
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Test mode requested but MUD was not compiled with BUILD_TESTS");
         exit(1);
 #endif

@@ -89,6 +89,8 @@ test_result_t run_test_case(test_case_t *test)
     if (test->test_type) {
         if (strcmp(test->test_type, "pure_function_test") == 0) {
             result = run_pure_function_test_case(test);
+        } else if (strcmp(test->test_type, "buffer_function_test") == 0) {
+            result = run_buffer_function_test_case(test);
         } else if (strstr(test->test_type, "string_editor_") != NULL) {
             result = run_string_editor_test_case(test);
         } else if (strcmp(test->test_type, "reset_cross_area_creation") == 0 ||

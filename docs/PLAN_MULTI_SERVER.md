@@ -1,5 +1,8 @@
 # Multi‑Server Architecture & Migration Plan
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 Purpose
 - Provide a clear, actionable plan to support:
   - Global accounts (single login point)

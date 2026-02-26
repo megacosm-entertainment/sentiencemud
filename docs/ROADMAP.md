@@ -1,6 +1,6 @@
 # Sentience MUD Roadmap
 
-**Last Updated:** February 18, 2026
+**Last Updated:** February 26, 2026
 
 This document tracks the project's development trajectory: what's been completed, what's in progress, and what's planned. Each section links to detailed design documents where they exist.
 
@@ -55,18 +55,26 @@ PK legality and inventory-loss semantics are now separated in room behavior:
 - `chaotic` controls inventory-loss-on-death behavior,
 - legacy full-CPK behavior is represented by enabling both flags.
 
-Details: [DOCS_REVIEW_2026-02-18.md](DOCS_REVIEW_2026-02-18.md)
+Details: [DOCS_REVIEW_2026-02-26.md](DOCS_REVIEW_2026-02-26.md)
+
+### Crypto Modernization (Phase 2)
+Follow-on crypto hardening work has been documented and archived as completed in the migration record set.
+
+**Docs:** [done/PLAN_crypto_phase2.md](done/PLAN_crypto_phase2.md)
+
+### Script/Prog Grouping
+Grouped script/prog OLC presentation and associated rollout planning were completed for this tranche and archived.
+
+**Docs:** [done/PLAN_PROG_GROUPING.md](done/PLAN_PROG_GROUPING.md) | [done/TODO_PROG_GROUPING.md](done/TODO_PROG_GROUPING.md)
+
+### Region System Backport (Current Milestone)
+Region backport tranche is complete for the current milestone and archived.
+
+**Docs:** [done/PLAN_regions_backport.md](done/PLAN_regions_backport.md) | [done/WORKLOG_regions_backport.md](done/WORKLOG_regions_backport.md)
 
 ---
 
 ## In Progress
-
-### Crypto Modernization (Phase 2)
-
-**Status:** Planned, not started.
-**Docs:** [PLAN_crypto_phase2.md](PLAN_crypto_phase2.md)
-
-Second phase of crypto work, building on the Argon2id migration completed in Phase 1.
 
 ### Bootstrap System
 
@@ -80,14 +88,6 @@ Automated setup for fresh deployments. Directory creation is implemented in `boo
 ## Planned: Near-Term
 
 These have detailed design documents and are ready to implement once current work stabilizes.
-
-### Script/Prog Grouping
-
-**Docs:** [PLAN_PROG_GROUPING.md](PLAN_PROG_GROUPING.md) | [TODO_PROG_GROUPING.md](TODO_PROG_GROUPING.md)
-
-Improve OLC display and editing of script triggers on entities. Currently, triggers are shown as a flat list with repeated script names; this groups them under their parent script. Also adds duplicate detection, group-aware deletion, a new `deltrigger` command, and an updated JSON serialization format (backward compatible).
-
-Four phases: grouped display, updated OLC commands, JSON format change, reverse lookup (`uses` command). Each phase is independently deployable. No runtime or persistence changes -- the grouping is derived on demand from existing `PROG_LIST` data.
 
 ### Group System Refactor
 
@@ -135,9 +135,9 @@ Depends on group refactor (for `GROUP_DATA` foundation), skill refactor (for com
 
 ### Skill System Refactor
 
-**Docs:** [PLAN_SKILL_REFACTOR.md](PLAN_SKILL_REFACTOR.md)
+**Docs:** [done/PLAN_SKILL_REFACTOR.md](done/PLAN_SKILL_REFACTOR.md) | [PLAN_backport_skills_classes.md](PLAN_backport_skills_classes.md)
 
-Move from the hardcoded `skill_table[]` in `const.c` to a data-driven skill system. Enables runtime skill registration, per-class skill lists, and the skill subsets needed by the party/companion system.
+Base skill refactor tranche is archived as complete; active follow-on migration remains tracked in the skills/classes backport plan.
 
 ### Class/Job System Backport
 
@@ -147,7 +147,7 @@ Backport the class and job progression system from the `src_20_dev` reference co
 
 ### Traits System
 
-**Docs:** [PLAN_TRAITS.md](PLAN_TRAITS.md)
+**Docs:** [done/PLAN_TRAITS.md](done/PLAN_TRAITS.md)
 
 Character trait system for races and classes, using JSON definitions in `data/traits/`.
 

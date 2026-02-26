@@ -1,5 +1,8 @@
 # PLAN: Communication System Refactor to Publish/Subscribe Model
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document outlines the feasibility and a high-level plan for refactoring the MUD's communication channels (gossip, ooc, yell, etc.) from the current iterative model to a more scalable and flexible Publish/Subscribe (Pub/Sub) model.
 
 ## 1. Current Communication Model

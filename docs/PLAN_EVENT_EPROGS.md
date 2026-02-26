@@ -1,5 +1,27 @@
 # Plan: Event Progs (`eprogs`) and System Progs (`sprogs`)
 
+**Status:** In Progress (partial foundations present; code-verified 2026-02-26)
+
+## Code Reality Check (2026-02-26)
+
+Implemented now:
+- Event definitions already persist and reload `progs` via area JSON (`json_area_serialize_event` / `json_area_deserialize_event` + `json_area_deserialize_progs(..., PRG_EPROG)`).
+- `evtedit` already supports event-prog attachment/edit operations (`addeprog` / `deleprog`) and EPROG trigger validation.
+- EPROG script type/editor plumbing exists (`PRG_EPROG`, `epedit`/script index support).
+
+Still missing versus this plan:
+- No separate `sprog` registry implementation and no `spedit` command surface.
+- No dedicated `on_start`/`on_phase_change`/`on_tick`/`on_complete`/`on_fail`/`on_stop` eprog contract as specified here.
+- Current event lifecycle scripting primarily uses explicit phase/reward script fields in runtime, not the trigger-driven eprog model described below.
+
+### Strict phase status
+
+- Data model + persistence: **Partially complete** (eprog persistence exists; sprog model missing)
+- `evtedit eprog` CRUD surface: **Partially complete** (add/delete exists; full command model in this plan not fully present)
+- Runtime trigger dispatch contract: **Not started (per this design)**
+- `sprog` registry + system dispatch points: **Not started**
+
+
 ## Goal
 
 Add script surfaces for:

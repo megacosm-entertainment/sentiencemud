@@ -1,5 +1,8 @@
 # Script Engine Audit Plan
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 > Superseded by `docs/PLAN_SCRIPT_AUDIT_CONSOLIDATED.md` as the canonical
 > script audit and execution roadmap.
 

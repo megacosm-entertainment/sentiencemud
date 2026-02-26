@@ -1,5 +1,8 @@
 # Plan: Runtime Corpse Type Registry
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Goal
 
 Move corpse types out of compile-time `RAWKILL_*` space so builders can add new corpse types without code changes, while preserving compatibility with existing saves and scripts.

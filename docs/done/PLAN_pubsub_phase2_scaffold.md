@@ -1,5 +1,15 @@
 # PLAN: Pub/Sub Phase 2 Scaffold (Listener + Inbound Event Contract)
 
+**Status:** Completed (code-verified 2026-02-26)
+
+## Code Reality Check (2026-02-26)
+
+- `CHANNEL_MESSAGE` history metadata is wired through both local and redis transports (`history_stream`, `history_id`).
+- Redis hydration path is implemented (`XRANGE` lookup in `hydrate_event_from_history`).
+- Inbound worker subscription loop hardening is implemented (`subscribe_active` guard around `PSUBSCRIBE rt:*`).
+- Service layer and transport glue for inbound/outbound flow are present, and integration tests for the scaffolded path exist in `tests/integration/channel_pubsub_tests.c`.
+
+
 ## Scope
 
 This document captures the implemented Phase 2 scaffolding layer for listener worker delivery into the game loop.

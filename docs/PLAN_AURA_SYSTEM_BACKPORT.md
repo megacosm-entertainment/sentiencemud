@@ -1,5 +1,8 @@
 # Backport Plan: Character Aura System
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document defines how to backport the **generic character aura subsystem** from `src_20_dev` into `src`.
 
 > Scope clarification: this is **not** about existing spell/status effects that use the word “aura” (such as `healing_aura`, `spell_deflection`, or immortal `holyaura`).

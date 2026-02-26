@@ -3657,10 +3657,14 @@ void do_score(CHAR_DATA * ch, char *argument)
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
     int i;
     char tbuf[MAX_STRING_LENGTH];
+    char aura_buf[MAX_STRING_LENGTH];
     int pierce_s;
     int bash_s;
     int slash_s;
     int exotic_s;
+    int aura_count = 0;
+    ITERATOR aurait;
+    AURA_DATA *aura;
 
     if (IS_NPC(ch))
     return;
@@ -3889,6 +3893,32 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(buf, "{C| {BWars Won: {w%-62d {C|\n\r",
      ch->wars_won);/* , ch->pcdata->ship_quest_points[CONT_ATHEMIA]); */
     send_to_char(buf, ch);
+
+    if (ch->auras != NULL)
+    {
+        iterator_start(&aurait, ch->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            snprintf(aura_buf, sizeof(aura_buf), "%s",
+                string_replace_static(aura->long_descr, "%s", "You"));
+
+            if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+                snprintf(buf, sizeof(buf), "{C| {BAura:{x (%s) %s", aura->name, aura_buf);
+            else
+                snprintf(buf, sizeof(buf), "{C| {BAura:{x %s", aura_buf);
+
+            for (i = fstr_len(buf); i < 75; i++)
+                strcat(buf, " ");
+            strcat(buf, "{C|\n\r");
+            send_to_char(buf, ch);
+
+            aura_count++;
+        }
+        iterator_stop(&aurait);
+    }
 
     /* LINE 9 *** */
     pierce_s = GET_AC(ch, AC_PIERCE);

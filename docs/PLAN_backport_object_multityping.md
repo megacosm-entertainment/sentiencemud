@@ -1,5 +1,8 @@
 # Backport: Object Multityping & Type-Specific Data
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document tracks the backport of the Object Multityping system from the `src_20_dev` branch into the main `src` codebase, and the ongoing deprecation of the legacy `value[]` array.
 
 ---

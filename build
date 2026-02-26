@@ -60,6 +60,7 @@ build_cfg="--config Debug"
 config_name="Debug"
 force_reconfig=false
 build_tests=""
+desired_build_tests="OFF"
 enable_coverage=""
 do_coverage=false
 
@@ -84,10 +85,12 @@ do
         config_name="RelWithDebInfo"
     elif [[ ${arg,,} == "tests" ]]; then
         build_tests="-DBUILD_TESTS=ON"
+        desired_build_tests="ON"
     elif [[ ${arg,,} == "coverage" ]]; then
         do_coverage=true
         enable_coverage="-DENABLE_COVERAGE=ON"
         build_tests="-DBUILD_TESTS=ON"
+        desired_build_tests="ON"
         build_cfg="--config Debug"
         config_name="Debug"
     elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
@@ -114,6 +117,18 @@ fi
 if [[ -n "$enable_coverage" ]] && [[ -f ".build/build.ninja" ]]; then
     # Coverage specified but already configured - need to reconfigure
     needs_config=true
+fi
+
+# BUILD_TESTS toggles test framework compilation and must match cache state.
+if [[ -f ".build/CMakeCache.txt" ]]; then
+    cached_build_tests=$(grep -E '^BUILD_TESTS:' .build/CMakeCache.txt | head -n 1 | cut -d= -f2)
+    if [[ -z "$cached_build_tests" ]]; then
+        cached_build_tests="OFF"
+    fi
+
+    if [[ "$cached_build_tests" != "$desired_build_tests" ]]; then
+        needs_config=true
+    fi
 fi
 
 # Configure if needed

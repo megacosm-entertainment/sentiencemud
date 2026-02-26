@@ -3814,12 +3814,14 @@ SCRIPT_CMD(scriptcmd_questscroll);
 SCRIPT_CMD(scriptcmd_ed);
 
 SCRIPT_CMD(scriptcmd_call);
+SCRIPT_CMD(scriptcmd_addaura);
 SCRIPT_CMD(scriptcmd_addspell);
 SCRIPT_CMD(scriptcmd_addstache);
 SCRIPT_CMD(scriptcmd_condition);
 SCRIPT_CMD(scriptcmd_crier);
 SCRIPT_CMD(scriptcmd_purge);
 SCRIPT_CMD(scriptcmd_raisedead);
+SCRIPT_CMD(scriptcmd_remaura);
 SCRIPT_CMD(scriptcmd_remspell);
 SCRIPT_CMD(scriptcmd_remstache);
 SCRIPT_CMD(scriptcmd_resetdice);

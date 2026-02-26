@@ -1,5 +1,8 @@
 # PLAN: Dynamic Channels (Dungeon / Instance / Blueprint)
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This plan refines Stage 7 from TODO_PUBSUB_MVP into implementation-oriented steps.
 
 ## Objectives

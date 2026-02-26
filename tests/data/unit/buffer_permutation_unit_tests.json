@@ -1,0 +1,24 @@
+{
+  "type": "test_suite",
+  "test_suite": "buffer_permutation_unit_tests",
+  "description": "Permutation and invariant tests for BUFFER operation sequences",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "buffer_operation_permutations_depth4",
+      "description": "Validates BUFFER invariants across all operation permutations at depth 4",
+      "test_type": "buffer_function_test",
+      "input": {
+        "function": "buffer_functions",
+        "test_cases": [
+          { "scenario": "operation_permutations", "depth": 4 }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

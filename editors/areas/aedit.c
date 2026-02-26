@@ -700,6 +700,7 @@ AEDIT(aedit_regions)
     {
         BUFFER *output = new_buf();
         int idx = 0;
+        bool append_ok = true;
         AREA_REGION *region;
         ITERATOR it;
 
@@ -708,17 +709,24 @@ AEDIT(aedit_regions)
             flag_string(place_flags, pArea->region.rs_place_flags),
             flag_string(area_region_flags, pArea->region.flags),
             pArea->region.rooms ? (int)list_size(pArea->region.rooms) : 0);
-        add_buf(output, buf);
+        append_ok = add_buf(output, buf);
         sprintf(buf, "         topic={W%s{x\n\r", IS_NULLSTR(pArea->region.topic) ? "(default)" : pArea->region.topic);
-        add_buf(output, buf);
+        append_ok = append_ok && add_buf(output, buf);
         sprintf(buf, "         weather: density={W%d%%{x life={W%d%%{x severity={W%d{x\n\r",
             pArea->region.weather_density_percent,
             pArea->region.weather_life_percent,
             pArea->region.weather_severity_bias);
-        add_buf(output, buf);
-        add_buf(output, "\n\r");
-        add_buf(output, " #   UID   Name                     Topic                Who              Place             Flags           Rooms Weather\n\r");
-        add_buf(output, "----------------------------------------------------------------------------------------------------------------------\n\r");
+        append_ok = append_ok && add_buf(output, buf);
+        append_ok = append_ok && add_buf(output, "\n\r");
+        append_ok = append_ok && add_buf(output, " #   UID   Name                     Topic                Who              Place             Flags           Rooms Weather\n\r");
+        append_ok = append_ok && add_buf(output, "----------------------------------------------------------------------------------------------------------------------\n\r");
+
+        if (!append_ok)
+        {
+            send_to_char("Region output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
 
         iterator_start(&it, pArea->regions);
         while ((region = (AREA_REGION *)iterator_nextdata(&it)))
@@ -735,12 +743,30 @@ AEDIT(aedit_regions)
                 region->weather_density_percent,
                 region->weather_life_percent,
                 region->weather_severity_bias);
-            add_buf(output, buf);
+            if (!add_buf(output, buf))
+            {
+                append_ok = false;
+                break;
+            }
         }
         iterator_stop(&it);
 
+        if (!append_ok)
+        {
+            send_to_char("Region output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
+
         if (idx == 0)
-            add_buf(output, "(No custom regions)\n\r");
+        {
+            if (!add_buf(output, "(No custom regions)\n\r"))
+            {
+                send_to_char("Region output exceeded buffer limits.\n\r", ch);
+                free_buf(output);
+                return false;
+            }
+        }
 
         page_to_char(buf_string(output), ch);
         free_buf(output);

@@ -1,5 +1,8 @@
 # Bootstrap Mode Implementation Plan
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Context
 
 A fresh clone of the Sentience MUD repository lacks the runtime data files needed to start the game. Currently, a new developer must manually create or obtain account files, area files, race definitions, and system configuration before the server will boot. This creates a significant barrier to entry for new contributors and testing scenarios.

@@ -41,7 +41,6 @@ AREA_REGION *area_region_free;
 AUCTION_DATA *auction_free;
 AUTO_WAR *auto_war_free;
 BAN_DATA *ban_free;
-BUFFER *buf_free;
 CHAR_DATA *char_free;
 CHAT_BAN_DATA *chat_ban_free;
 CHAT_OP_DATA *chat_op_free;
@@ -92,6 +91,7 @@ QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
 MOB_REPUTATION_DATA *mob_reputation_free;
+AURA_DATA *aura_data_free;
 QUEST_PART_DATA *quest_part_free;
 RESET_DATA *reset_free;
 ROOM_INDEX_DATA *room_index_free;
@@ -666,6 +666,11 @@ void free_obj(OBJ_DATA *obj)
     obj_free    = obj;
 }
 
+static void delete_aura_data(void *ptr)
+{
+    free_aura_data((AURA_DATA *)ptr);
+}
+
 
 CHAR_DATA *new_char( void )
 {
@@ -809,6 +814,7 @@ CHAR_DATA *new_char( void )
     ch->ltokens			= list_create(false);
     ch->lclonerooms		= list_create(false);
     ch->lgroup			= list_create(false);
+    ch->auras                   = list_createx(false, NULL, delete_aura_data);
     ch->lstache			= list_create(false);
 
     ch->deathsight_vision = 0;
@@ -978,6 +984,8 @@ void free_char( CHAR_DATA *ch )
     ch->lclonerooms = NULL;
     list_destroy(ch->lgroup);
     ch->lgroup = NULL;
+    list_destroy(ch->auras);
+    ch->auras = NULL;
     list_destroy(ch->lstache);
     ch->lstache = NULL;
 
@@ -1335,218 +1343,6 @@ void get_ship_id(SHIP_DATA *ship)
     }
 }
 
-
-/* buffer sizes */
-const int buf_size[MAX_BUF_LIST] =
-{
-    16,32,64,128,256,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576
-};
-
-
-/* local procedure for finding the next acceptable size */
-/* -1 indicates out-of-boundary error */
-int get_size( int val , int target)
-{
-    int i;
-
-    for (i = 0; i < MAX_BUF_LIST; i++)
-    if (buf_size[i] >= val)
-    {
-        return buf_size[i];
-    }
-
-    return -1;
-}
-
-
-BUFFER *new_buf()
-{
-    BUFFER *buffer;
-
-    if (buf_free == NULL)
-    buffer = alloc_perm(sizeof(*buffer));
-    else
-    {
-    buffer = buf_free;
-    buf_free = buf_free->next;
-    }
-
-    buffer->next	= NULL;
-    buffer->state	= BUFFER_SAFE;
-    buffer->size	= get_size(BASE_BUF,0);
-
-    buffer->string	= malloc(buffer->size);
-    buffer->string[0]	= '\0';
-    VALIDATE(buffer);
-
-    return buffer;
-}
-
-
-BUFFER *new_buf_size(int size)
-{
-    BUFFER *buffer;
-
-    if (buf_free == NULL)
-        buffer = alloc_perm(sizeof(*buffer));
-    else
-    {
-        buffer = buf_free;
-        buf_free = buf_free->next;
-    }
-
-    buffer->next        = NULL;
-    buffer->state       = BUFFER_SAFE;
-    buffer->size        = get_size(size,0);
-    if (buffer->size == -1)
-    {
-        pbugf(LOG_ERROR, "new_buf: buffer size %d too large.",size);
-        exit(1);
-    }
-    buffer->string      = malloc(buffer->size);
-    buffer->string[0]   = '\0';
-    VALIDATE(buffer);
-
-    return buffer;
-}
-
-
-void free_buf(BUFFER *buffer)
-{
-    if (!IS_VALID(buffer))
-    return;
-
-    free(buffer->string);
-    buffer->string = NULL;
-    buffer->size   = 0;
-    buffer->state  = BUFFER_FREED;
-    INVALIDATE(buffer);
-
-    buffer->next  = buf_free;
-    buf_free      = buffer;
-}
-
-bool add_buf_char(BUFFER *buffer, char ch)
-{
-    char tmp[2];
-    tmp[0] = ch;
-    tmp[1] = '\0';
-    return add_buf(buffer, tmp);
-}
-
-
-bool add_buf(BUFFER *buffer, const char *string)
-{
-    int len;
-    char *oldstr;
-    int oldsize;
-
-    oldstr = buffer->string;
-    oldsize = buffer->size;
-
-    if (buffer->state == BUFFER_OVERFLOW) /* don't waste time on bad strings! */
-    return false;
-
-    len = strlen(buffer->string) + strlen(string) + 1;
-
-    while (len >= buffer->size) /* increase the buffer size */
-    {
-    buffer->size 	= get_size(buffer->size + 1, len);
-    {
-        if (buffer->size == -1) /* overflow */
-        {
-        buffer->size = oldsize;
-        buffer->state = BUFFER_OVERFLOW;
-        pbugf(LOG_ERROR, "buffer overflow past size %d",buffer->size);
-        return false;
-        }
-      }
-    }
-
-    if (buffer->size != oldsize)
-    {
-    buffer->string	= malloc(buffer->size);
-
-    strcpy(buffer->string,oldstr);
-    free(oldstr);
-    }
-
-    strcat(buffer->string,string);
-    return true;
-}
-
-
-void clear_buf(BUFFER *buffer)
-{
-    buffer->string[0] = '\0';
-    buffer->state     = BUFFER_SAFE;
-}
-
-
-char *buf_string(BUFFER *buffer)
-{
-    return buffer->string;
-}
-
-/**
- * bprintf - Format and append directly to a BUFFER
- *
- * Safer replacement for the sprintf(buf, ...); add_buf(buffer, buf) pattern.
- * Measures the needed size first, grows the buffer if necessary, then formats
- * directly into the buffer's string with no intermediate fixed-size copy.
- *
- * @param buffer  Target BUFFER to append to
- * @param fmt     printf-style format string
- * @param ...     Format arguments
- * @return        true on success, false on overflow or format error
- */
-bool bprintf(BUFFER *buffer, const char *fmt, ...)
-{
-    va_list args;
-    char *oldstr;
-    int oldsize;
-    int curlen, needed, total;
-
-    if (buffer->state == BUFFER_OVERFLOW)
-        return false;
-
-    va_start(args, fmt);
-    needed = vsnprintf(NULL, 0, fmt, args);
-    va_end(args);
-
-    if (needed < 0)
-        return false;
-
-    oldstr = buffer->string;
-    oldsize = buffer->size;
-    curlen = strlen(buffer->string);
-    total = curlen + needed + 1;
-
-    while (total >= buffer->size)
-    {
-        buffer->size = get_size(buffer->size + 1, total);
-        if (buffer->size == -1)
-        {
-            buffer->size = oldsize;
-            buffer->state = BUFFER_OVERFLOW;
-            pbugf(LOG_ERROR, "bprintf: buffer overflow past size %d", oldsize);
-            return false;
-        }
-    }
-
-    if (buffer->size != oldsize)
-    {
-        buffer->string = malloc(buffer->size);
-        strcpy(buffer->string, oldstr);
-        free(oldstr);
-    }
-
-    va_start(args, fmt);
-    vsnprintf(buffer->string + curlen, needed + 1, fmt, args);
-    va_end(args);
-
-    return true;
-}
 
 PROG_DATA *new_prog_data(void)
 {
@@ -6106,6 +5902,39 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew)
     crew->next = ship_crew_index_free;
     ship_crew_index_free = crew;
 
+}
+
+AURA_DATA *new_aura_data()
+{
+    AURA_DATA *aura;
+
+    if (aura_data_free)
+    {
+        aura = aura_data_free;
+        aura_data_free = aura_data_free->next;
+    }
+    else
+        aura = alloc_mem(sizeof(AURA_DATA));
+
+    aura->next = NULL;
+    aura->name = str_dup("");
+    aura->long_descr = str_dup("");
+
+    VALIDATE(aura);
+    return aura;
+}
+
+void free_aura_data(AURA_DATA *aura)
+{
+    if (!IS_VALID(aura))
+        return;
+
+    free_string(aura->name);
+    free_string(aura->long_descr);
+
+    aura->next = aura_data_free;
+    aura_data_free = aura;
+    INVALIDATE(aura);
 }
 
 

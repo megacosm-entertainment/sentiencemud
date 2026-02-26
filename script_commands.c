@@ -11905,6 +11905,70 @@ SCRIPT_CMD(scriptcmd_stripaffectname)
         affect_strip_name_obj(obj, name);
 }
 
+// ADDAURA $MOBILE $NAME $%DESCRIPTION...
+//
+// $%DESCRIPTION must use %s in place of the name, as it will get substituted
+SCRIPT_CMD(scriptcmd_addaura)
+{
+    char *rest = argument;
+    CHAR_DATA *ch;
+    BUFFER *name = NULL;
+    BUFFER *desc = NULL;
+
+    SETRETURN(0);
+
+    PARSE_ARGTYPE(MOBILE);
+    ch = arg->d.mob;
+
+    PARSE_ARGTYPE(STRING);
+    name = new_buf();
+    if (!name)
+        return;
+    if (!add_buf(name, arg->d.str))
+    {
+        free_buf(name);
+        return;
+    }
+
+    desc = new_buf();
+    if (!desc)
+    {
+        free_buf(name);
+        return;
+    }
+    if (!PARSE_STR(desc))
+    {
+        free_buf(name);
+        free_buf(desc);
+        return;
+    }
+
+    add_aura_to_char(ch, name->string, desc->string);
+
+    free_buf(name);
+    free_buf(desc);
+
+    SETRETURN(1);
+}
+
+// REMAURA $MOBILE $NAME
+SCRIPT_CMD(scriptcmd_remaura)
+{
+    char *rest = argument;
+    CHAR_DATA *ch;
+
+    SETRETURN(0);
+
+    PARSE_ARGTYPE(MOBILE);
+    ch = arg->d.mob;
+
+    PARSE_ARGTYPE(STRING);
+
+    remove_aura_from_char(ch, arg->d.str);
+
+    SETRETURN(1);
+}
+
 // addspell $OBJECT STRING[ NUMBER]
 SCRIPT_CMD(scriptcmd_addspell)
 {

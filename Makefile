@@ -272,6 +272,7 @@ C_FILES = \
     staff.c \
     stats.c \
     string.c \
+    utils/buffer.c \
     storage.c \
     tables.c \
     tls.c \
@@ -294,6 +295,9 @@ ifdef BUILD_TESTS
                tests/framework/test_loader.c \
                tests/framework/test_dispatcher.c \
                tests/framework/test_utils.c \
+               tests/unit/buffer_function_cases_core.c \
+               tests/unit/buffer_function_cases_permutations.c \
+               tests/unit/buffer_function_tests.c \
                tests/unit/pure_function_tests.c \
                tests/integration/wnum_tests.c \
                tests/integration/string_editor_tests.c \

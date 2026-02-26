@@ -26,6 +26,7 @@ static AREA_DATA *script_relative_widevnum_context(AREA_DATA *context_area, cons
 const struct script_cmd_type obj_cmd_table[] = {
     { "addaffect",                      scriptcmd_addaffect,    true,   true    },
     { "addaffectname",          scriptcmd_addaffectname,true,   true    },
+    { "addaura",                         scriptcmd_addaura,     true,   true    },
     { "addspell",                       scriptcmd_addspell,             true,   true    },
     { "addstache",                      scriptcmd_addstache,            true,   true    },
     { "alteraffect",            scriptcmd_alteraffect,          true,   true    },
@@ -127,6 +128,7 @@ const struct script_cmd_type obj_cmd_table[] = {
     { "remove",                         do_opremove,                    false,  true    },
     { "remspell",                       scriptcmd_remspell,             true,   true    },
     { "remstache",                      scriptcmd_remstache,            true,   true    },
+    { "remaura",                        scriptcmd_remaura,      true,   true    },
     { "resetdice",                      scriptcmd_resetdice,            true,   true    },
     { "resetroom",                      scriptcmd_resetroom,    true,   true    },
     { "restore",                        scriptcmd_restore,              true,   true    },

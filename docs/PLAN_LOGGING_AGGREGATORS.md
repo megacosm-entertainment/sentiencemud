@@ -1,5 +1,8 @@
 # Plan: Enhanced Logging for External Aggregators (v2)
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document outlines the plan to enhance the Sentience MUD's logging system to support JSON-formatted, asynchronous logging suitable for external log aggregation services. This revision incorporates feedback regarding the use of existing infrastructure (Redis, jansson, libcurl) and a desire for richer contextual data.
 
 This plan builds upon the existing `zlog` implementation as detailed in `docs/CLAUDE_LOGGING_REFACTOR.md`.

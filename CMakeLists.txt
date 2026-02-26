@@ -289,6 +289,7 @@ set(SOURCE_FILES
     staff.c
     stats.c
     string.c
+    utils/buffer.c
     storage.c
     tables.c
     tls.c
@@ -309,6 +310,9 @@ set(SOURCE_FILES
 if(BUILD_TESTS)
     list(APPEND SOURCE_FILES 
         test_integration.c
+        tests/unit/buffer_function_cases_core.c
+        tests/unit/buffer_function_cases_permutations.c
+        tests/unit/buffer_function_tests.c
         tests/framework/test_framework.c
         tests/framework/test_loader.c
         tests/framework/test_dispatcher.c

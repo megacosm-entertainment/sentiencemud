@@ -1,5 +1,8 @@
 # PLAN: `rview` Staff Review Queue Tool (Phase 1 Spec)
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Purpose
 
 `rview` is the immortal-facing moderation review command for channel filter events captured in the staff review stream.

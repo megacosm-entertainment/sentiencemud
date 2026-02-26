@@ -1,5 +1,21 @@
 # Achievements System - Implementation Plan
 
+**Status:** Planned / Not Started (code-verified 2026-02-26)
+
+## Code Reality Check (2026-02-26)
+
+- No achievements subsystem implementation files exist yet (`achievements.c`, `achievements.h`, achievement test files).
+- No runtime command/symbol evidence found for `do_achievements`, `achievement_*`, or `ACHIEVE_*` in active source.
+- Current state is design-only; implementation phases below remain pending.
+
+### Strict phase status
+
+- Phase 1 (Data structures/registration/memory): **Not started**
+- Phase 2 (JSON serialization): **Not started**
+- Phase 3 (Core logic/player command/score): **Not started**
+- Phase 4+ (Scripting, OLC/editor, tests): **Not started**
+
+
 ## Context
 
 The game needs an achievements system that supports both characters and accounts, is area-owned (identified by widevnum), integrates with the scripting engine, and provides full display features (points, announcements, titles). The design follows existing patterns from the quest v2 system, event system, and OLC framework.

@@ -1,5 +1,8 @@
 # PLAN: Command System Enhancements - Alias Commands and Argument Restrictions
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document analyzes the feasibility and proposes a high-level plan for enhancing the MUD's command system to support:
 1.  **Alias Commands:** Allowing one command to effectively execute another, potentially with argument transformations.
 2.  **Argument-Specific Restrictions:** Applying level or other checks based on the arguments provided to a command, rather than just the command itself.

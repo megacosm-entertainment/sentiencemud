@@ -58,6 +58,15 @@ static void bsedit_mark_changed(CHAR_DATA *ch, void *pEdit)
         SET_BIT(bs->area->area_flags, AREA_CHANGED);
 }
 
+static bool bsedit_add_or_fail(CHAR_DATA *ch, BUFFER *buffer, const char *text, const char *message)
+{
+    if (add_buf(buffer, text))
+        return true;
+
+    send_to_char(message, ch);
+    return false;
+}
+
 /***************************************************************************
  * Blueprint Section Editor Command Table (moved from blueprint.c)         *
  ***************************************************************************/
@@ -259,7 +268,9 @@ static void bsedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
     olc_display_string(ctx, theme, "Room Range:", "rooms", buf);
 
     olc_display_section(ctx, theme, "Description");
-    add_buf(ctx->buffer, bs->description ? bs->description : "(none)\n\r");
+    if (!bsedit_add_or_fail(ch, ctx->buffer, bs->description ? bs->description : "(none)\n\r",
+            "Blueprint section description output exceeded buffer limits.\n\r"))
+        return;
 }
 
 /***************************************************************************
@@ -287,7 +298,9 @@ static void bsedit_show_links_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdi
                 bli, bl->name, excolor, door,
                 bl->room ? bl->room->vnum : bl->room_ref.load.vnum,
                 room ? room->name : "nowhere");
-            add_buf(ctx->buffer, buf);
+            if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint section links output exceeded buffer limits.\n\r"))
+                return;
         }
     }
     else
@@ -335,39 +348,57 @@ static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
                 mwr->exit_count == 3 ? " 3 " : " 4 ",
                 mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
                 mwr->room ? mwr->room->name : "(unresolved)");
-            add_buf(ctx->buffer, buf);
+            if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint maze output exceeded buffer limits.\n\r"))
+                return;
             if (mwr->exit_template.flags & EX_ISDOOR)
             {
                 sprintf(buf, "         {cExit Template:{x flags={W%s{x keyword={W%s{x",
                     flag_string(exit_flags, mwr->exit_template.flags),
                     mwr->exit_template.keyword ? mwr->exit_template.keyword : "door");
-                add_buf(ctx->buffer, buf);
+                if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                        "Blueprint maze output exceeded buffer limits.\n\r"))
+                    return;
                 if (mwr->exit_template.strength > 0) {
                     sprintf(buf, " str={W%d{x", mwr->exit_template.strength);
-                    add_buf(ctx->buffer, buf);
+                    if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                            "Blueprint maze output exceeded buffer limits.\n\r"))
+                        return;
                 }
                 if (mwr->exit_template.material) {
                     sprintf(buf, " mat={W%s{x", mwr->exit_template.material);
-                    add_buf(ctx->buffer, buf);
+                    if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                            "Blueprint maze output exceeded buffer limits.\n\r"))
+                        return;
                 }
                 if (mwr->exit_template.lock.key_wnum.vnum > 0) {
                     sprintf(buf, " key={W%ld{x", mwr->exit_template.lock.key_wnum.vnum);
-                    add_buf(ctx->buffer, buf);
+                    if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                            "Blueprint maze output exceeded buffer limits.\n\r"))
+                        return;
                 }
                 if (mwr->exit_template.lock.pick_chance > 0) {
                     sprintf(buf, " pick={W%d%%{x", mwr->exit_template.lock.pick_chance);
-                    add_buf(ctx->buffer, buf);
+                    if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                            "Blueprint maze output exceeded buffer limits.\n\r"))
+                        return;
                 }
                 if (mwr->exit_template.lock.flags) {
                     sprintf(buf, " lock={W%s{x", flag_string(lock_flags, mwr->exit_template.lock.flags));
-                    add_buf(ctx->buffer, buf);
+                    if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                            "Blueprint maze output exceeded buffer limits.\n\r"))
+                        return;
                 }
-                add_buf(ctx->buffer, "\n\r");
+                if (!bsedit_add_or_fail(ch, ctx->buffer, "\n\r",
+                        "Blueprint maze output exceeded buffer limits.\n\r"))
+                    return;
             }
         }
         iterator_stop(&it);
         sprintf(buf, "  Total Weight: {W%d{x\n\r", bs->total_maze_weight);
-        add_buf(ctx->buffer, buf);
+        if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                "Blueprint maze output exceeded buffer limits.\n\r"))
+            return;
     }
     else
     {
@@ -390,7 +421,9 @@ static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
                 mfr->room ? mfr->room->vnum : mfr->room_ref.load.vnum,
                 mfr->room ? mfr->room->name : "(unresolved)",
                 mfr->connected ? "{GYes{x" : "{RNo{x");
-            add_buf(ctx->buffer, buf);
+            if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
+                    "Blueprint maze output exceeded buffer limits.\n\r"))
+                return;
         }
         iterator_stop(&it);
     }
@@ -441,7 +474,9 @@ static void bsedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdi
     const OLC_EDITOR_THEME *theme = bsedit_def.theme;
 
     olc_display_section(ctx, theme, "Builders' Comments");
-    add_buf(ctx->buffer, bs->comments ? bs->comments : "(none)\n\r");
+    if (!bsedit_add_or_fail(ch, ctx->buffer, bs->comments ? bs->comments : "(none)\n\r",
+            "Blueprint section comments output exceeded buffer limits.\n\r"))
+        return;
 }
 
 BSEDIT( bsedit_create )

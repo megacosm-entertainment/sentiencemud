@@ -36,16 +36,7 @@
 extern char str_empty[1];
 extern long mobile_count;
 
-/* stuff for providing a crash-proof buffer */
-
-#define MAX_BUF		16384
-#define MAX_BUF_LIST 	16
-#define BASE_BUF 	1024
-
-/* valid states */
-#define BUFFER_SAFE	0
-#define BUFFER_OVERFLOW	1
-#define BUFFER_FREED 	2
+#include "utils/buffer.h"
 
 SKILL_ENTRY *new_skill_entry();
 void free_skill_entry(SKILL_ENTRY *entry);
@@ -125,16 +116,6 @@ void get_obj_id(OBJ_DATA *obj);
 void get_vroom_id(ROOM_INDEX_DATA *vroom);
 void get_ship_id(SHIP_DATA *ship);
 #undef MD
-
-/* buffer procedures */
-BUFFER	*new_buf args( (void) );
-BUFFER  *new_buf_size args( (int size) );
-void	free_buf args( (BUFFER *buffer) );
-bool	add_buf_char args( (BUFFER *buffer, char ch) );
-bool	add_buf args( (BUFFER *buffer, const char *string) );
-bool	bprintf(BUFFER *buffer, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
-void	clear_buf args( (BUFFER *buffer) );
-char	*buf_string args( (BUFFER *buffer) );
 
 HELP_DATA *	new_help	args( ( void ) );
 
@@ -245,6 +226,9 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 MOB_REPUTATION_DATA *new_mob_reputation_data();
 MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src);
 void free_mob_reputation_data(MOB_REPUTATION_DATA *data);
+
+AURA_DATA *new_aura_data();
+void free_aura_data(AURA_DATA *aura);
 
 CMD_DATA *new_cmd();
 void free_cmd(CMD_DATA *cmd);

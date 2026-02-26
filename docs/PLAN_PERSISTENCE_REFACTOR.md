@@ -1,5 +1,8 @@
 # Plan: Persistence Layer Refactor
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document outlines the plan to refactor the MUD's system for handling **persistent live world state** (for rooms, mobiles, and objects). The goal is to replace the monolithic `data/world/persist.dat` file with a modern, scalable, and robust system using individual JSON files for storage and Redis for caching.
 
 **Note on Scope:** This plan specifically covers the saving and loading of *runtime state changes* to individual entities. It does **not** cover the saving of area files (`.are`), which are OLC-modified templates. Area files should be saved as a single, cohesive unit, though this operation can and should also be offloaded to a background worker to prevent blocking the main game loop.

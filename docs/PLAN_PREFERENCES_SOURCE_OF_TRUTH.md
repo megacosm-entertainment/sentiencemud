@@ -1,5 +1,8 @@
 # PLAN: Preferences as Source of Truth
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Why this note exists
 
 We currently represent player settings in **two places**:

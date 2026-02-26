@@ -1,5 +1,8 @@
 # Plan: Lengthen Game Day (15-Minute Ticks + Timestamp-Based Affects)
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Context
 
 Currently, 1 tick (~60 real seconds) = 1 game hour, giving a 24-minute game day. The goal is to slow the day-night cycle so 1 tick = 15 game minutes, giving a 96-minute game day (96 ticks). This makes the world feel less rushed and allows for more granular time-of-day effects.

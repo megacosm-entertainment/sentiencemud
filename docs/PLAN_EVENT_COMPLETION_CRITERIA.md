@@ -1,5 +1,8 @@
 # PLAN_event_completion_criteria
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Goal
 Define robust, event-runtime-owned completion criteria for three event families:
 - Invasion

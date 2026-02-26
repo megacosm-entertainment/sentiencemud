@@ -1,5 +1,8 @@
 # Plan: Script Commands & Ifchecks for New Systems
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 > Superseded by `docs/PLAN_SCRIPT_AUDIT_CONSOLIDATED.md` for consolidated
 > prioritization and sequencing.
 

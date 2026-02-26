@@ -210,7 +210,238 @@ DNGEDIT( dngedit_list )
     return false;
 }
 
-void dngedit_buffer_floors(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
+static bool dngedit_add_or_fail(CHAR_DATA *ch, BUFFER *buffer, const char *text, const char *message)
+{
+    if (add_buf(buffer, text))
+        return true;
+
+    send_to_char(message, ch);
+    return false;
+}
+
+static bool dngedit_render_weighted_exit_list(CHAR_DATA *ch, LLIST *weighted_exits, const char *overflow_message)
+{
+    BUFFER *buffer = new_buf();
+    ITERATOR it;
+    DUNGEON_INDEX_WEIGHTED_EXIT_DATA *entry;
+    char buf[MSL];
+    int index = 1;
+
+    if (!dngedit_add_or_fail(ch, buffer, "     [ Weight ] [ Level ] [ Exit ]\n\r", overflow_message)
+        || !dngedit_add_or_fail(ch, buffer, "===================================\n\r", overflow_message))
+    {
+        free_buf(buffer);
+        return false;
+    }
+
+    iterator_start(&it, weighted_exits);
+    while ((entry = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&it)))
+    {
+        sprintf(buf, "%4d [ %6d ] [ %5d ] [ %4d ]\n\r", index++, entry->weight, entry->level, entry->door);
+        if (!dngedit_add_or_fail(ch, buffer, buf, overflow_message))
+        {
+            iterator_stop(&it);
+            free_buf(buffer);
+            return false;
+        }
+    }
+    iterator_stop(&it);
+
+    if (!dngedit_add_or_fail(ch, buffer, "-----------------------------------\n\r", overflow_message))
+    {
+        free_buf(buffer);
+        return false;
+    }
+
+    if (!ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
+    {
+        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+    }
+    else
+    {
+        page_to_char(buffer->string, ch);
+    }
+
+    free_buf(buffer);
+    return true;
+}
+
+static bool dngedit_render_weighted_floor_list(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dng, LLIST *weighted_floors, const char *overflow_message)
+{
+    BUFFER *buffer = new_buf();
+    ITERATOR it;
+    DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted;
+    char buf[MSL];
+    int row = 0;
+
+    if (!dngedit_add_or_fail(ch, buffer, "     [ Weight ] [ Floor ] [   Vnum   ] [             Name             ]\n\r", overflow_message)
+        || !dngedit_add_or_fail(ch, buffer, "------------------------------------------------------------------------\n\r", overflow_message))
+    {
+        free_buf(buffer);
+        return false;
+    }
+
+    iterator_start(&it, weighted_floors);
+    while ((weighted = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)iterator_nextdata(&it)))
+    {
+        BLUEPRINT *bp = list_nthdata(dng->floors, weighted->floor);
+        snprintf(buf, MSL - 1, "%4d   %6d     %5d     %8ld    %30.30s\n\r", ++row, weighted->weight, weighted->floor, bp->vnum, bp->name);
+        buf[MSL - 1] = '\0';
+        if (!dngedit_add_or_fail(ch, buffer, buf, overflow_message))
+        {
+            iterator_stop(&it);
+            free_buf(buffer);
+            return false;
+        }
+    }
+    iterator_stop(&it);
+
+    if (!ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
+    {
+        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+    }
+    else
+    {
+        page_to_char(buffer->string, ch);
+    }
+
+    free_buf(buffer);
+    return true;
+}
+
+static bool dngedit_render_special_room_list(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dng, const char *overflow_message)
+{
+    BUFFER *buffer = new_buf();
+    DUNGEON_INDEX_SPECIAL_ROOM *special;
+    ITERATOR sit;
+    char buf[MSL];
+    int line = 0;
+
+    if (!dngedit_add_or_fail(ch, buffer, "     [             Name             ] [ Level ] [ Room ]\n\r", overflow_message)
+        || !dngedit_add_or_fail(ch, buffer, "---------------------------------------------------------\n\r", overflow_message))
+    {
+        free_buf(buffer);
+        return false;
+    }
+
+    iterator_start(&sit, dng->special_rooms);
+    while ((special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)))
+    {
+        snprintf(buf, MSL - 1, "%4d %30.30s{x    %5d     %4d\n\r", ++line, special->name, special->level, special->room);
+        buf[MSL - 1] = '\0';
+        if (!dngedit_add_or_fail(ch, buffer, buf, overflow_message))
+        {
+            iterator_stop(&sit);
+            free_buf(buffer);
+            return false;
+        }
+    }
+    iterator_stop(&sit);
+
+    if (!dngedit_add_or_fail(ch, buffer, "---------------------------------------------------------d\n\r", overflow_message))
+    {
+        free_buf(buffer);
+        return false;
+    }
+
+    if (!ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
+    {
+        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+    }
+    else
+    {
+        page_to_char(buffer->string, ch);
+    }
+
+    free_buf(buffer);
+    return true;
+}
+
+static bool dngedit_buffer_special_rooms_tab(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
+{
+    DUNGEON_INDEX_SPECIAL_ROOM *special;
+    ITERATOR sit;
+    char buf[MSL];
+    int line = 0;
+
+    if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
+    {
+        return add_buf(buffer, "   {WSCRIPTED{x\n\r");
+    }
+
+    if (list_size(dng->special_rooms) < 1)
+    {
+        return add_buf(buffer, "   None\n\r");
+    }
+
+    if (!add_buf(buffer, "     [             Name             ] [ Level ] [ Room ]\n\r")
+        || !add_buf(buffer, "---------------------------------------------------------\n\r"))
+    {
+        return false;
+    }
+
+    iterator_start(&sit, dng->special_rooms);
+    while ((special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)))
+    {
+        sprintf(buf, "{W%4d  %-30.30s   {G%7d{x     %4d\n\r", ++line, special->name, special->level, special->room);
+        if (!add_buf(buffer, buf))
+        {
+            iterator_stop(&sit);
+            return false;
+        }
+    }
+    iterator_stop(&sit);
+
+    return add_buf(buffer, "---------------------------------------------------------\n\r");
+}
+
+static bool dngedit_render_channel_list(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dng)
+{
+    BUFFER *buffer = new_buf();
+    ITERATOR it;
+    char *id;
+    char buf[MSL];
+    int index = 1;
+
+    if (!dngedit_add_or_fail(ch, buffer, "{WDungeon Channel Definitions:{x\n\r",
+        "Dungeon channel list output exceeded buffer limits.\n\r"))
+    {
+        free_buf(buffer);
+        return false;
+    }
+
+    if (!dng->channel_defs || list_size(dng->channel_defs) < 1)
+    {
+        if (!dngedit_add_or_fail(ch, buffer, "  None\n\r",
+            "Dungeon channel list output exceeded buffer limits.\n\r"))
+        {
+            free_buf(buffer);
+            return false;
+        }
+    }
+    else
+    {
+        iterator_start(&it, dng->channel_defs);
+        while ((id = (char *)iterator_nextdata(&it)))
+        {
+            sprintf(buf, "  {W%2d{x) %s\n\r", index++, id);
+            if (!dngedit_add_or_fail(ch, buffer, buf,
+                "Dungeon channel list output exceeded buffer limits.\n\r"))
+            {
+                iterator_stop(&it);
+                free_buf(buffer);
+                return false;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    page_to_char(buffer->string, ch);
+    free_buf(buffer);
+    return true;
+}
+
+bool dngedit_buffer_floors(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
 {
     char buf[MSL];
 
@@ -239,9 +470,10 @@ void dngedit_buffer_floors(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
         add_buf(buffer, "   None\n\r");
     }
 
+    return buffer->state != BUFFER_OVERFLOW;
 }
 
-void dngedit_buffer_levels(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
+bool dngedit_buffer_levels(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
 {
     char buf[MSL];
 
@@ -367,9 +599,10 @@ void dngedit_buffer_levels(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
         add_buf(buffer, "  None\n\r");
     }
 
+    return buffer->state != BUFFER_OVERFLOW;
 }
 
-void dngedit_buffer_special_exits(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
+bool dngedit_buffer_special_exits(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
 {
     char buf[MSL];
 
@@ -638,6 +871,7 @@ void dngedit_buffer_special_exits(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
     }
 
 
+    return buffer->state != BUFFER_OVERFLOW;
 }
 
 /***************************************************************************
@@ -716,7 +950,11 @@ static void dngedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
     olc_display_string(ctx, theme, "DeathRelease:", "deathrelease", flag_string(death_release_types, dng->death_release));
 
     olc_display_section(ctx, theme, "Description");
-    add_buf(ctx->buffer, dng->description);
+    if (!add_buf(ctx->buffer, dng->description))
+    {
+        send_to_char("Dungeon description output exceeded buffer limits.\n\r", ch);
+        return;
+    }
 }
 
 /***************************************************************************
@@ -762,7 +1000,8 @@ static void dngedit_show_entryexit_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void 
 static void dngedit_show_floors_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
     DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
-    dngedit_buffer_floors(ctx->buffer, dng);
+    if (!dngedit_buffer_floors(ctx->buffer, dng))
+        send_to_char("Dungeon floors output exceeded buffer limits.\n\r", ch);
 }
 
 /***************************************************************************
@@ -772,7 +1011,8 @@ static void dngedit_show_floors_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
 static void dngedit_show_levels_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit)
 {
     DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
-    dngedit_buffer_levels(ctx->buffer, dng);
+    if (!dngedit_buffer_levels(ctx->buffer, dng))
+        send_to_char("Dungeon levels output exceeded buffer limits.\n\r", ch);
 }
 
 /***************************************************************************
@@ -783,40 +1023,27 @@ static void dngedit_show_special_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
 {
     DUNGEON_INDEX_DATA *dng = (DUNGEON_INDEX_DATA *)pEdit;
     const OLC_EDITOR_THEME *theme = dngedit_def.theme;
-    char buf[MSL];
 
     /* Special Rooms */
     olc_display_section(ctx, theme, "Special Rooms");
-    if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
+    if (!dngedit_buffer_special_rooms_tab(ctx->buffer, dng))
     {
-        add_buf(ctx->buffer, "   {WSCRIPTED{x\n\r");
+        send_to_char("Dungeon special room output exceeded buffer limits.\n\r", ch);
+        return;
     }
-    else if (list_size(dng->special_rooms) > 0)
-    {
-        DUNGEON_INDEX_SPECIAL_ROOM *special;
-        ITERATOR sit;
-        int line = 0;
 
-        add_buf(ctx->buffer, "     [             Name             ] [ Level ] [ Room ]\n\r");
-        add_buf(ctx->buffer, "---------------------------------------------------------\n\r");
-
-        iterator_start(&sit, dng->special_rooms);
-        while ((special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)))
-        {
-            sprintf(buf, "{W%4d  %-30.30s   {G%7d{x     %4d\n\r", ++line, special->name, special->level, special->room);
-            add_buf(ctx->buffer, buf);
-        }
-        iterator_stop(&sit);
-        add_buf(ctx->buffer, "---------------------------------------------------------\n\r");
-    }
-    else
+    if (!add_buf(ctx->buffer, "\n\r"))
     {
-        add_buf(ctx->buffer, "   None\n\r");
+        send_to_char("Dungeon special output exceeded buffer limits.\n\r", ch);
+        return;
     }
-    add_buf(ctx->buffer, "\n\r");
 
     /* Special Exits */
-    dngedit_buffer_special_exits(ctx->buffer, dng);
+    if (!dngedit_buffer_special_exits(ctx->buffer, dng))
+    {
+        send_to_char("Dungeon special exits output exceeded buffer limits.\n\r", ch);
+        return;
+    }
 }
 
 /***************************************************************************
@@ -856,9 +1083,17 @@ static void dngedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void 
             olc_display_section(ctx, theme, "Index Variables");
 
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-            add_buf(ctx->buffer, buf);
+            if (!add_buf(ctx->buffer, buf))
+            {
+                send_to_char("Dungeon variable output exceeded buffer limits.\n\r", ch);
+                return;
+            }
             sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-            add_buf(ctx->buffer, buf);
+            if (!add_buf(ctx->buffer, buf))
+            {
+                send_to_char("Dungeon variable output exceeded buffer limits.\n\r", ch);
+                return;
+            }
 
             for (var = dng->index_vars; var; var = var->next)
             {
@@ -879,7 +1114,11 @@ static void dngedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void 
                 default:
                     continue;
                 }
-                add_buf(ctx->buffer, buf);
+                if (!add_buf(ctx->buffer, buf))
+                {
+                    send_to_char("Dungeon variable output exceeded buffer limits.\n\r", ch);
+                    return;
+                }
             }
         }
         else
@@ -903,7 +1142,8 @@ static void dngedit_show_notes_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
     const OLC_EDITOR_THEME *theme = dngedit_def.theme;
 
     olc_display_section(ctx, theme, "Builders' Comments");
-    add_buf(ctx->buffer, dng->comments ? dng->comments : "(none)\n\r");
+    if (!add_buf(ctx->buffer, dng->comments ? dng->comments : "(none)\n\r"))
+        send_to_char("Dungeon comments output exceeded buffer limits.\n\r", ch);
 }
 
 DNGEDIT( dngedit_create )
@@ -1077,7 +1317,12 @@ DNGEDIT( dngedit_floors )
     {
         BUFFER *buffer = new_buf();
 
-        dngedit_buffer_floors(buffer, dng);
+        if (!dngedit_buffer_floors(buffer, dng))
+        {
+            send_to_char("Floor list output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return false;
+        }
 
         page_to_char(buffer->string, ch);
         free_buf(buffer);
@@ -1189,30 +1434,9 @@ DNGEDIT( dngedit_channel )
 
     if (!str_prefix(arg, "list"))
     {
-        BUFFER *buffer = new_buf();
-        ITERATOR it;
-        char *id;
-        char buf[MSL];
-        int index = 1;
+        if (!dngedit_render_channel_list(ch, dng))
+            return false;
 
-        add_buf(buffer, "{WDungeon Channel Definitions:{x\n\r");
-        if (!dng->channel_defs || list_size(dng->channel_defs) < 1)
-        {
-            add_buf(buffer, "  None\n\r");
-        }
-        else
-        {
-            iterator_start(&it, dng->channel_defs);
-            while ((id = (char *)iterator_nextdata(&it)))
-            {
-                sprintf(buf, "  {W%2d{x) %s\n\r", index++, id);
-                add_buf(buffer, buf);
-            }
-            iterator_stop(&it);
-        }
-
-        page_to_char(buffer->string, ch);
-        free_buf(buffer);
         return false;
     }
 
@@ -1571,36 +1795,11 @@ DNGEDIT( dngedit_levels )
 
         if (!str_prefix(arg3, "list"))
         {
-            BUFFER *buffer = new_buf();
-
-            add_buf(buffer, "     [ Weight ] [ Floor ] [   Vnum   ] [             Name             ]\n\r");
-            add_buf(buffer, "------------------------------------------------------------------------\n\r");
-
-            DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted;
-            ITERATOR wit;
-            iterator_start(&wit, level->weighted_floors);
-
-            int row = 0;
-            while((weighted = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)iterator_nextdata(&wit)))
+            if (!dngedit_render_weighted_floor_list(ch, dng, level->weighted_floors,
+                "Weighted level output exceeded buffer limits.\n\r"))
             {
-                BLUEPRINT *bp = list_nthdata(dng->floors, weighted->floor);
-
-                snprintf(buf, MSL-1, "%4d   %6d     %5d     %8ld    %30.30s\n\r", ++row, weighted->weight, weighted->floor, bp->vnum, bp->name);
-                add_buf(buffer, buf);
+                return false;
             }
-
-            iterator_stop(&wit);
-
-            if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-            {
-                send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-            }
-            else
-            {
-                page_to_char(buffer->string, ch);
-            }
-            
-            free_buf(buffer);
         }
         else if (!str_prefix(arg3, "add"))
         {
@@ -2045,36 +2244,11 @@ DNGEDIT( dngedit_levels )
 
             if (!str_prefix(arg5, "list"))
             {
-                BUFFER *buffer = new_buf();
-
-                add_buf(buffer, "     [ Weight ] [ Floor ] [   Vnum   ] [             Name             ]\n\r");
-                add_buf(buffer, "------------------------------------------------------------------------\n\r");
-
-                DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted;
-                ITERATOR wit;
-                iterator_start(&wit, lvl->weighted_floors);
-
-                int row = 0;
-                while((weighted = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)iterator_nextdata(&wit)))
+                if (!dngedit_render_weighted_floor_list(ch, dng, lvl->weighted_floors,
+                    "Weighted group level output exceeded buffer limits.\n\r"))
                 {
-                    BLUEPRINT *bp = list_nthdata(dng->floors, weighted->floor);
-
-                    snprintf(buf, MSL-1, "%4d   %6d     %5d     %8ld    %30.30s\n\r", ++row, weighted->weight, weighted->floor, bp->vnum, bp->name);
-                    add_buf(buffer, buf);
+                    return false;
                 }
-
-                iterator_stop(&wit);
-
-                if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-                {
-                    send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-                }
-                else
-                {
-                    page_to_char(buffer->string, ch);
-                }
-                
-                free_buf(buffer);
             }
             else if (!str_prefix(arg5, "add"))
             {
@@ -2717,38 +2891,11 @@ DNGEDIT( dngedit_special )
         {
             if( list_size(dng->special_rooms) > 0 )
             {
-                BUFFER *buffer = new_buf();
-                DUNGEON_INDEX_SPECIAL_ROOM *special;
-
-                char buf[MSL];
-                int line = 0;
-
-                ITERATOR sit;
-
-                add_buf(buffer, "     [             Name             ] [ Level ] [ Room ]\n\r");
-                add_buf(buffer, "---------------------------------------------------------\n\r");
-
-                iterator_start(&sit, dng->special_rooms);
-                while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+                if (!dngedit_render_special_room_list(ch, dng,
+                    "Special room output exceeded buffer limits.\n\r"))
                 {
-                    snprintf(buf, MSL - 1, "%4d %30.30s{x    %5d     %4d\n\r", ++line, special->name, special->level, special->room);
-                    buf[MSL-1] = '\0';
-                    add_buf(buffer, buf);
+                    return false;
                 }
-
-                iterator_stop(&sit);
-                add_buf(buffer, "---------------------------------------------------------d\n\r");
-
-                if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
-                {
-                    send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-                }
-                else
-                {
-                    page_to_char(buffer->string, ch);
-                }
-
-                free_buf(buffer);
             }
             else
             {
@@ -2906,261 +3053,14 @@ DNGEDIT( dngedit_special )
         {
             if (list_size(dng->special_exits) > 0)
             {
-                char buf[MSL];
-                ITERATOR it;
-                DUNGEON_INDEX_SPECIAL_EXIT *dsex;
                 BUFFER *buffer = new_buf();
 
-                add_buf(buffer, "{x          [    Mode    ]{x\n\r");
-                add_buf(buffer, "{x========================================================{x\n\r");
-
-                int exitno = 1;
-                iterator_start(&it, dng->special_exits);
-                while ( (dsex = (DUNGEON_INDEX_SPECIAL_EXIT *)iterator_nextdata(&it)))
+                if (!dngedit_buffer_special_exits(buffer, dng))
                 {
-                    switch(dsex->mode)
-                    {
-                        case EXITMODE_STATIC:
-                        {
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->from, 1);
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->to, 1);
-                            sprintf(buf, "%4d          {YSTATIC{x\n\r", exitno++);
-                            add_buf(buffer, buf);
-                            sprintf(buf, "          Source:        %4d (%d)\n\r", from->level, from->door);
-                            add_buf(buffer, buf);
-                            sprintf(buf, "          Destination:   %4d (%d)\n\r", to->level, to->door);
-                            add_buf(buffer, buf);
-                            break;	
-                        }
-
-                        case EXITMODE_WEIGHTED_SOURCE:
-                        {
-                            ITERATOR wit;
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from;
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->to, 1);
-                            sprintf(buf, "%4d        {CWEIGHTED S{x\n\r", exitno++);
-                            add_buf(buffer, buf);
-
-                            int fromexitno = 1;
-                            add_buf(buffer, "          Source:\n\r");
-                            add_buf(buffer, "               [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                            add_buf(buffer, "          ===================================={x\n\r");
-                            iterator_start(&wit, dsex->from);
-                            while ( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                            {
-                                sprintf(buf, "          %4d   %6d    %5d     %5d\n\r", fromexitno++, from->weight, from->level, from->door);
-                                add_buf(buffer, buf);
-                            }
-                            iterator_stop(&wit);
-                            add_buf(buffer, "          ----------------------------------------------------{x\n\r");
-
-                            sprintf(buf,    "          Destination:   %4d (%d)\n\r", to->level, to->door);
-                            add_buf(buffer, buf);
-                            break;
-                        }
-
-                        case EXITMODE_WEIGHTED_DEST:
-                        {
-                            ITERATOR wit;
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(dsex->from, 1);
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to;
-                            sprintf(buf, "%4d        {CWEIGHTED D{x\n\r", exitno++);
-                            add_buf(buffer, buf);
-
-                            sprintf(buf,    "          Source:        %4d (%d)\n\r", from->level, from->door);
-                            add_buf(buffer, buf);
-
-                            int toexitno = 1;
-                            add_buf(buffer, "          Destination:\n\r");
-                            add_buf(buffer, "               [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                            add_buf(buffer, "          ===================================={x\n\r");
-                            iterator_start(&wit, dsex->to);
-                            while ( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                            {
-                                sprintf(buf, "          %4d   %6d    %5d     %5d\n\r", toexitno++, to->weight, to->level, to->door);
-                                add_buf(buffer, buf);
-                            }
-                            iterator_stop(&wit);
-                            add_buf(buffer, "          ----------------------------------------------------{x\n\r");
-                            break;
-                        }
-
-                        case EXITMODE_WEIGHTED:
-                        {
-                            ITERATOR wit;
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from;
-                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to;
-                            sprintf(buf, "%4d         {CWEIGHTED{x\n\r", exitno++);
-                            add_buf(buffer, buf);
-
-                            int fromexitno = 1;
-                            add_buf(buffer, "          Source:\n\r");
-                            add_buf(buffer, "               [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                            add_buf(buffer, "          ===================================={x\n\r");
-                            iterator_start(&wit, dsex->from);
-                            while ( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                            {
-                                sprintf(buf, "          %4d   %6d    %5d     %5d\n\r", fromexitno++, from->weight, from->level, from->door);
-                                add_buf(buffer, buf);
-                            }
-                            iterator_stop(&wit);
-                            add_buf(buffer, "          ----------------------------------------------------{x\n\r");
-
-                            int toexitno = 1;
-                            add_buf(buffer, "          Destination:\n\r");
-                            add_buf(buffer, "               [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                            add_buf(buffer, "          ===================================={x\n\r");
-                            iterator_start(&wit, dsex->to);
-                            while ( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                            {
-                                sprintf(buf, "          %4d   %6d    %5d     %5d\n\r", toexitno++, to->weight, to->level, to->door);
-                                add_buf(buffer, buf);
-                            }
-                            iterator_stop(&wit);
-                            add_buf(buffer, "          ----------------------------------------------------{x\n\r");
-                            break;
-                        }
-
-                        case EXITMODE_GROUP:
-                        {
-                            int count = list_size(dsex->group);
-                            if (count > 0)
-                            {
-                                ITERATOR git;
-                                DUNGEON_INDEX_SPECIAL_EXIT *gex;
-
-                                sprintf(buf, "%4d-%-4d      {GGROUP{x\n\r", exitno, exitno + count - 1);
-                                add_buf(buffer, buf);
-                                add_buf(buffer, "{x                    [    Mode    ]{x\n\r");
-                                add_buf(buffer, "{x          ========================================================{x\n\r");
-
-                                int gexitno = 1;
-                                iterator_start(&git, dsex->group);
-                                while ( (gex = (DUNGEON_INDEX_SPECIAL_EXIT *)iterator_nextdata(&git)) )
-                                {
-                                    switch(gex->mode)
-                                    {
-                                        case EXITMODE_STATIC:
-                                        {
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(gex->from, 1);
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(gex->to, 1);
-                                            sprintf(buf, "          %4d          {YSTATIC{x\n\r", gexitno++);
-                                            sprintf(buf, "                    Source:        %4d (%d)\n\r", from->level, from->door);
-                                            sprintf(buf, "                    Destination:   %4d (%d)\n\r", to->level, to->door);
-                                            add_buf(buffer, buf);
-                                            break;
-                                        }
-
-                                        case EXITMODE_WEIGHTED_SOURCE:
-                                        {
-                                            ITERATOR wit;
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from;
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(gex->to, 1);
-                                            sprintf(buf, "          %4d        {CWEIGHTED S{x\n\r", gexitno++);
-                                            add_buf(buffer, buf);
-
-                                            int fromexitno = 1;
-                                            add_buf(buffer, "                    Source:\n\r");
-                                            add_buf(buffer, "                         [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                                            add_buf(buffer, "                    ===================================={x\n\r");
-                                            iterator_start(&wit, gex->from);
-                                            while ( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                                            {
-                                                sprintf(buf, "                    %4d   %6d    %5d     %5d\n\r", fromexitno++, from->weight, from->level, from->door);
-                                                add_buf(buffer, buf);
-                                            }
-                                            iterator_stop(&wit);
-                                            add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
-
-                                            sprintf(buf,    "                    Destination:   %4d (%d)\n\r", to->level, to->door);
-                                            add_buf(buffer, buf);
-                                            break;
-                                        }
-
-                                        case EXITMODE_WEIGHTED_DEST:
-                                        {
-                                            ITERATOR wit;
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)list_nthdata(gex->from, 1);
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to;
-                                            sprintf(buf, "          %4d        {CWEIGHTED D{x\n\r", gexitno++);
-                                            add_buf(buffer, buf);
-
-                                            sprintf(buf,    "                    Source:        %4d (%d)\n\r", from->level, from->door);
-                                            add_buf(buffer, buf);
-
-                                            int toexitno = 1;
-                                            add_buf(buffer, "                    Destination:\n\r");
-                                            add_buf(buffer, "                         [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                                            add_buf(buffer, "                    ===================================={x\n\r");
-                                            iterator_start(&wit, gex->to);
-                                            while ( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                                            {
-                                                sprintf(buf, "                    %4d   %6d    %5d     %5d\n\r", toexitno++, to->weight, to->level, to->door);
-                                                add_buf(buffer, buf);
-                                            }
-                                            iterator_stop(&wit);
-                                            add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
-                                            break;
-                                        }
-
-                                        case EXITMODE_WEIGHTED:
-                                        {
-                                            ITERATOR wit;
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from;
-                                            DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to;
-                                            sprintf(buf, "          %4d         {CWEIGHTED{x\n\r", gexitno++);
-                                            add_buf(buffer, buf);
-
-                                            int fromexitno = 1;
-                                            add_buf(buffer, "                    Source:\n\r");
-                                            add_buf(buffer, "                         [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                                            add_buf(buffer, "                    ===================================={x\n\r");
-                                            iterator_start(&wit, gex->from);
-                                            while ( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                                            {
-                                                sprintf(buf, "                    %4d   %6d    %5d     %5d\n\r", fromexitno++, from->weight, from->level, from->door);
-                                                add_buf(buffer, buf);
-                                            }
-                                            iterator_stop(&wit);
-                                            add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
-
-                                            int toexitno = 1;
-                                            add_buf(buffer, "                    Destination:\n\r");
-                                            add_buf(buffer, "                         [ Weight ] [ Level ] [ Exit# ]{x\n\r");
-                                            add_buf(buffer, "                    ===================================={x\n\r");
-                                            iterator_start(&wit, gex->to);
-                                            while ( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&wit)) )
-                                            {
-                                                sprintf(buf, "                    %4d   %6d    %5d     %5d\n\r", toexitno++, to->weight, to->level, to->door);
-                                                add_buf(buffer, buf);
-                                            }
-                                            iterator_stop(&wit);
-                                            add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
-                                            break;
-                                        }
-                                    }
-
-                                }
-                                iterator_stop(&git);
-                                add_buf(buffer, "{x          --------------------------------------------------------{x\n\r");
-                                exitno += count;
-                            }
-                            else
-                            {
-                                sprintf(buf, "%4d-????      {GGROUP{x\n\r", exitno++);
-                                add_buf(buffer, buf);
-                                add_buf(buffer, "          None\n\r");
-                            }
-
-
-                            break;
-                        }
-                    }
-
+                    send_to_char("Special exit output exceeded buffer limits.\n\r", ch);
+                    free_buf(buffer);
+                    return false;
                 }
-
-                iterator_stop(&it);
-                add_buf(buffer, "{x----------------------------------------------------{x\n\r");
 
                 if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
                 {
@@ -4022,33 +3922,11 @@ DNGEDIT( dngedit_special )
                 {
                     if (list_size(ex->from) > 0)
                     {
-                        BUFFER *buffer = new_buf();
-                        ITERATOR fit;
-
-                        add_buf(buffer, "     [ Weight ] [ Level ] [ Exit ]\n\r");
-                        add_buf(buffer, "===================================\n\r");
-                        
-                        int findex = 1;
-                        DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from;
-                        iterator_start(&fit, ex->from);
-                        while( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&fit)) )
+                        if (!dngedit_render_weighted_exit_list(ch, ex->from,
+                            "Special exit from-list output exceeded buffer limits.\n\r"))
                         {
-                            sprintf(buf, "%4d [ %6d ] [ %5d ] [ %4d ]\n\r", findex++, from->weight, from->level, from->door);
-                            add_buf(buffer, buf);
+                            return false;
                         }
-                        iterator_stop(&fit);
-
-                        add_buf(buffer, "-----------------------------------\n\r");
-
-                        if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-                        {
-                            send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-                        }
-                        else
-                        {
-                            page_to_char(buffer->string, ch);
-                        }
-                        free_buf(buffer);
                     }
                     else
                     {
@@ -4477,33 +4355,11 @@ DNGEDIT( dngedit_special )
                 {
                     if (list_size(ex->to) > 0)
                     {
-                        BUFFER *buffer = new_buf();
-                        ITERATOR tit;
-
-                        add_buf(buffer, "     [ Weight ] [ Level ] [ Exit ]\n\r");
-                        add_buf(buffer, "===================================\n\r");
-                        
-                        int tindex = 1;
-                        DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to;
-                        iterator_start(&tit, ex->to);
-                        while( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&tit)) )
+                        if (!dngedit_render_weighted_exit_list(ch, ex->to,
+                            "Special exit to-list output exceeded buffer limits.\n\r"))
                         {
-                            sprintf(buf, "%4d [ %6d ] [ %5d ] [ %4d ]\n\r", tindex++, to->weight, to->level, to->door);
-                            add_buf(buffer, buf);
+                            return false;
                         }
-                        iterator_stop(&tit);
-
-                        add_buf(buffer, "-----------------------------------\n\r");
-
-                        if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-                        {
-                            send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-                        }
-                        else
-                        {
-                            page_to_char(buffer->string, ch);
-                        }
-                        free_buf(buffer);
                     }
                     else
                     {
@@ -4989,33 +4845,11 @@ DNGEDIT( dngedit_special )
             {
                 if (list_size(ex->from) > 0)
                 {
-                    BUFFER *buffer = new_buf();
-                    ITERATOR fit;
-
-                    add_buf(buffer, "     [ Weight ] [ Level ] [ Exit ]\n\r");
-                    add_buf(buffer, "===================================\n\r");
-                    
-                    int findex = 1;
-                    DUNGEON_INDEX_WEIGHTED_EXIT_DATA *from;
-                    iterator_start(&fit, ex->from);
-                    while( (from = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&fit)) )
+                    if (!dngedit_render_weighted_exit_list(ch, ex->from,
+                        "Special exit from-list output exceeded buffer limits.\n\r"))
                     {
-                        sprintf(buf, "%4d [ %6d ] [ %5d ] [ %4d ]\n\r", findex++, from->weight, from->level, from->door);
-                        add_buf(buffer, buf);
+                        return false;
                     }
-                    iterator_stop(&fit);
-
-                    add_buf(buffer, "-----------------------------------\n\r");
-
-                    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-                    {
-                        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-                    }
-                    else
-                    {
-                        page_to_char(buffer->string, ch);
-                    }
-                    free_buf(buffer);
                 }
                 else
                 {
@@ -5446,33 +5280,11 @@ DNGEDIT( dngedit_special )
             {
                 if (list_size(ex->to) > 0)
                 {
-                    BUFFER *buffer = new_buf();
-                    ITERATOR tit;
-
-                    add_buf(buffer, "     [ Weight ] [ Level ] [ Exit ]\n\r");
-                    add_buf(buffer, "===================================\n\r");
-                    
-                    int tindex = 1;
-                    DUNGEON_INDEX_WEIGHTED_EXIT_DATA *to;
-                    iterator_start(&tit, ex->to);
-                    while( (to = (DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)iterator_nextdata(&tit)) )
+                    if (!dngedit_render_weighted_exit_list(ch, ex->to,
+                        "Special exit to-list output exceeded buffer limits.\n\r"))
                     {
-                        sprintf(buf, "%4d [ %6d ] [ %5d ] [ %4d ]\n\r", tindex++, to->weight, to->level, to->door);
-                        add_buf(buffer, buf);
+                        return false;
                     }
-                    iterator_stop(&tit);
-
-                    add_buf(buffer, "-----------------------------------\n\r");
-
-                    if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
-                    {
-                        send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
-                    }
-                    else
-                    {
-                        page_to_char(buffer->string, ch);
-                    }
-                    free_buf(buffer);
                 }
                 else
                 {

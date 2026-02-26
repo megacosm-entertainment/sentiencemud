@@ -1,5 +1,8 @@
 # Plan: I/O Subsystem Refactoring
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document outlines the plan to refactor the Sentience MUD I/O subsystems. The primary goal is to centralize all data persistence and caching logic into a new `src/io` directory, improve code organization, reduce redundancy, and pave the way for migrating remaining legacy systems to JSON.
 
 ## 1. Audit Findings

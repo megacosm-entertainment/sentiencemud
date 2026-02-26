@@ -1,5 +1,8 @@
 # Plan: X-Macro Registry for Spell & Command Function Registration
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 ## Problem
 
 Adding a new spell or command function currently requires editing 2-3 files:

@@ -1,5 +1,8 @@
 # PLAN: CEdit Conventions (Match Existing OLC Editors)
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document defines non-negotiable implementation conventions for the channel editor (`cedit`).
 
 `cedit` must follow the same framework and UX patterns as existing editors, especially:

@@ -1,5 +1,15 @@
 # Plan: JSON I/O Consolidation
 
+**Status:** Completed for Phase 1 + Phase 2 (code-verified 2026-02-26)
+
+## Code Reality Check (2026-02-26)
+
+- Shared utility layer is present and built (`io/json/json_common.c`, `io/json/json_common.h`, plus build entries in `CMakeLists.txt` and `Makefile`).
+- Core shared APIs documented in this plan are present and used (`json_flags_serialize`, `json_file_save`, `json_file_load`, `json_string_safe`, `JSON_APPEND_LINK`).
+- Broad adoption across JSON modules is present in active source (`json_race.c`, `json_gq.c`, `json_mail.c`, `json_commands.c`, `json_note.c`, `json_persist.c`, `json_game_settings.c`, etc.).
+- Remaining items in this document are explicitly labeled as future opportunities (Phase 3), not incomplete work from Phase 1/2.
+
+
 ## Overview
 
 The `src/io/json/` directory contains 20+ `.c` files for serializing different game

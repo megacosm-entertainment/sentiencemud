@@ -1,5 +1,8 @@
 # PLAN: PubSub Stage 1 — Scope Routing & Subscription Core
 
+**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+
+
 This document defines the immediate implementation plan now that MVP channel migration is complete.
 
 ## Objectives
