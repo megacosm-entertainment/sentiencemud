@@ -2404,6 +2404,7 @@ static void channel_deliver_chtalk_legacy(CHAR_DATA *sender, const char *plain_t
 
 static void channel_deliver_tell_legacy(CHAR_DATA *sender,
                                         CHAR_DATA *recipient,
+                                        const char *channel_id,
                                         const char *plain_text)
 {
     char msg[2 * MSL];
@@ -2421,14 +2422,8 @@ static void channel_deliver_tell_legacy(CHAR_DATA *sender,
     if (!channel_policy_tell_delivery_allowed(sender, recipient, false, &tell_block))
         return;
 
-    if (!IS_NPC(sender) && sender->pcdata->flag && SHOW_CHANNEL_FLAG(recipient, FLAG_TELLS))
-        sprintf(msg, "{R%s tells you '%s {R%s{R'{x\n\r", sender->name, sender->pcdata->flag, display_text);
-    else if (IS_NPC(sender))
-        sprintf(msg, "{R%s tells you '%s'{x\n\r", pers(sender, recipient), display_text);
-    else
-        sprintf(msg, "{R%s tells you '%s'{x\n\r", sender->name, display_text);
-
-    msg[2] = UPPER(msg[2]);
+    channel_format_for_recipient(channel_id, sender, recipient, display_text,
+                                 msg, sizeof(msg));
 
     if (!IS_NPC(recipient) && recipient->desc == NULL && recipient->pcdata && recipient->pcdata->buffer) {
         add_buf(recipient->pcdata->buffer, msg);
@@ -3156,7 +3151,7 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
         /* Directed delivery: find specific recipient and deliver only to them. */
         CHAR_DATA *recipient = channel_find_sender(msg->recipient_id0, msg->recipient_id1, NULL);
         if (recipient)
-            channel_deliver_tell_legacy(sender, recipient, msg->message_text);
+            channel_deliver_tell_legacy(sender, recipient, msg->channel_id, msg->message_text);
         return;
     }
 
@@ -3513,7 +3508,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
         channel_history_set_participants(sender->id[0], sender->id[1],
                                          recipient->id[0], recipient->id[1]);
         channel_history_set_recipient_name(recipient->name);
-        channel_deliver_tell_legacy(sender, recipient, delivery_text);
+        channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
 
@@ -3541,7 +3536,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.timestamp = current_time;
 
     if (channel_transport_publish(topic, &msg)) {
-        channel_deliver_tell_legacy(sender, recipient, delivery_text);
+        channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
 
@@ -3558,7 +3553,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     channel_history_set_participants(sender->id[0], sender->id[1],
                                      recipient->id[0], recipient->id[1]);
     channel_history_set_recipient_name(recipient->name);
-    channel_deliver_tell_legacy(sender, recipient, delivery_text);
+    channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
     return true;
 }
 
