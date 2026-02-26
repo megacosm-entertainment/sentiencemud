@@ -314,7 +314,7 @@ static bool evtedit_parse_onoff_token(const char *token, bool *value)
 
 static void evtedit_show_identity_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
-static void evtedit_show_phases_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
+static void evtedit_show_stages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_show_messages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_show_meta_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
 static void evtedit_show_scripting_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit);
@@ -333,6 +333,9 @@ static void event_phase_defs_free(EVT_PHASE_DEF **head, int16_t *count);
 static void event_stage_defs_free(EVT_STAGE_DEF **head, int16_t *count);
 static void event_phase_steps_store(EVTEDIT_DATA *evt,
     const EVT_PHASE_STEP_DEF *steps, int count);
+static const char *event_stage_transition_name(int mode);
+static const char *event_stage_objective_mode_name(int mode);
+static const char *event_stage_objective_type_name(int type);
 
 static void event_phase_defs_free(EVT_PHASE_DEF **head, int16_t *count)
 {
@@ -4235,7 +4238,7 @@ static const OLC_EDITOR_DEF evtedit_def = {
         .tabs       = {
             { "Identity", "Id", evtedit_show_identity_tab },
             { "Schedule", "Sch", evtedit_show_schedule_tab },
-            { "Phases", "Ph", evtedit_show_phases_tab },
+            { "Stages", "Stg", evtedit_show_stages_tab },
             { "Messages", "Msg", evtedit_show_messages_tab },
             { "Meta", "Meta", evtedit_show_meta_tab },
             { "Scripting", "Script", evtedit_show_scripting_tab },
@@ -5284,7 +5287,7 @@ EVTEDIT(evtedit_show)
     if (tab < 0) {
         evtedit_show_identity_tab(ch, ctx, evt);
         evtedit_show_schedule_tab(ch, ctx, evt);
-        evtedit_show_phases_tab(ch, ctx, evt);
+        evtedit_show_stages_tab(ch, ctx, evt);
         evtedit_show_messages_tab(ch, ctx, evt);
         evtedit_show_meta_tab(ch, ctx, evt);
         evtedit_show_scripting_tab(ch, ctx, evt);
@@ -5294,7 +5297,7 @@ EVTEDIT(evtedit_show)
             evtedit_show_schedule_tab(ch, ctx, evt);
             break;
         case 2:
-            evtedit_show_phases_tab(ch, ctx, evt);
+            evtedit_show_stages_tab(ch, ctx, evt);
             break;
         case 3:
             evtedit_show_messages_tab(ch, ctx, evt);
@@ -5365,8 +5368,8 @@ static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
         IS_NULLSTR(evt->bracket_mode) ? "" : evt->bracket_mode);
     olc_display_string(ctx, theme, "Progress Aggregation:", "progressagg",
         IS_NULLSTR(evt->progress_aggregation) ? "" : evt->progress_aggregation);
-    olc_display_number(ctx, theme, "Phases:", "phases list",
-        evt->phase_count);
+    olc_display_number(ctx, theme, "Stages:", "stages list",
+        evt->stage_count);
     olc_display_number(ctx, theme, "Reward Phase Script:", "rewardphase",
         evt->reward_phase_script);
     olc_display_number(ctx, theme, "Reward Success Script:", "rewardsuccess",
@@ -5375,13 +5378,11 @@ static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
         evt->reward_failure_script);
 }
 
-static void evtedit_show_phases_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
+static void evtedit_show_stages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
 {
     EVTEDIT_DATA *evt = (EVTEDIT_DATA *)pEdit;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&evtedit_def);
-    EVT_PHASE_STEP_DEF steps[EVT_PHASEPLAN_MAX_STEPS];
-    char error[MSL];
-    int count;
+    EVT_STAGE_DEF *stage;
     int i;
 
     (void)ch;
@@ -5389,31 +5390,44 @@ static void evtedit_show_phases_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, v
     if (!evt)
         return;
 
-    count = event_phase_steps_load_event(evt,
-        steps, EVT_PHASEPLAN_MAX_STEPS,
-        error, sizeof(error));
-
-    if (count < 0) {
-        olc_display_infof(ctx, theme, "Phase data error: %s", error);
-        return;
-    }
-
-    olc_display_number(ctx, theme, "Phase Count:", "phases list", count);
+    olc_display_number(ctx, theme, "Stage Count:", "stages list", evt->stage_count);
     olc_display_infof(ctx, theme,
-        "Use 'phases' subcommands: list/add/insert/set/name/minutes/script/remove/clear");
+        "Use 'stages' subcommands: list/add/set/remove/clear/objlist/objadd/objdel/objset");
 
-    if (count <= 0) {
-        olc_display_infof(ctx, theme, "No phases configured.");
+    if (evt->stage_count <= 0 || !evt->stages) {
+        olc_display_infof(ctx, theme, "No stages configured.");
         return;
     }
 
-    for (i = 0; i < count; i++) {
+    i = 1;
+    for (stage = evt->stages; stage; stage = stage->next, i++) {
+        EVT_STAGE_OBJECTIVE_DEF *objective;
+        int oidx;
+
         olc_display_infof(ctx, theme,
-            "%2d) name=%s minutes=%d script=%ld",
-            i + 1,
-            steps[i].name,
-            steps[i].minutes,
-            steps[i].script_vnum);
+            "%2d) name={Y%s{x transition={G%s{x objmode={G%s{x dur={C%d{x",
+            i,
+            IS_NULLSTR(stage->name) ? "(unnamed)" : stage->name,
+            event_stage_transition_name(stage->transition_mode),
+            event_stage_objective_mode_name(stage->objective_mode),
+            stage->duration_minutes);
+        olc_display_infof(ctx, theme,
+            "    hooks: enter={M%ld{x tick={M%ld{x complete={M%ld{x objectives={C%d{x",
+            stage->on_enter_script,
+            stage->on_tick_script,
+            stage->on_complete_script,
+            stage->objective_count);
+
+        oidx = 1;
+        for (objective = stage->objectives; objective; objective = objective->next, oidx++) {
+            olc_display_infof(ctx, theme,
+                "      %d) type={Y%s{x target={C%d{x name={M%s{x script={G%ld{x",
+                oidx,
+                event_stage_objective_type_name(objective->objective_type),
+                objective->target_count,
+                IS_NULLSTR(objective->name) ? "" : objective->name,
+                objective->script_vnum);
+        }
     }
 }
 
