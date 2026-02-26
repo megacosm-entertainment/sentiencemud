@@ -1,0 +1,873 @@
+{
+  "type": "test_suite",
+  "test_suite": "script_engine_tests",
+  "description": "Script engine Phase 0 regression tests for lookup parity and compile bounds",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "script_entity_lookup_mobile_fields",
+      "description": "Verify hash-backed entity lookup returns expected mobile fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "mobile",
+        "test_cases": [
+          {"name": "name", "should_exist": true},
+          {"name": "level", "should_exist": true},
+          {"name": "on", "should_exist": true},
+          {"name": "fulldesc", "should_exist": true},
+          {"name": "no_such_mobile_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_variable_types_fields",
+      "description": "Verify variable type entity table exposes backported typed variable entries",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "types",
+        "test_cases": [
+          {"name": "num", "should_exist": true},
+          {"name": "str", "should_exist": true},
+          {"name": "mob", "should_exist": true},
+          {"name": "obj", "should_exist": true},
+          {"name": "var", "should_exist": true},
+          {"name": "bool", "should_exist": true},
+          {"name": "boolean", "should_exist": true},
+          {"name": "song", "should_exist": true},
+          {"name": "race", "should_exist": true},
+          {"name": "class", "should_exist": true},
+          {"name": "classlevel", "should_exist": true},
+          {"name": "class_level", "should_exist": true},
+          {"name": "mobindex", "should_exist": true},
+          {"name": "mob_index", "should_exist": true},
+          {"name": "objindex", "should_exist": true},
+          {"name": "obj_index", "should_exist": true},
+          {"name": "tokenindex", "should_exist": true},
+          {"name": "tokindex", "should_exist": true},
+          {"name": "token_index", "should_exist": true},
+          {"name": "wilds", "should_exist": true},
+          {"name": "aregion", "should_exist": true},
+          {"name": "sect", "should_exist": true},
+          {"name": "section", "should_exist": true},
+          {"name": "inst", "should_exist": true},
+          {"name": "instance", "should_exist": true},
+          {"name": "dung", "should_exist": true},
+          {"name": "dungeon", "should_exist": true},
+          {"name": "ship", "should_exist": true},
+          {"name": "no_such_variable_type_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_object_fields",
+      "description": "Verify object entity aliases remain available",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "object",
+        "test_cases": [
+          {"name": "items", "should_exist": true},
+          {"name": "long", "should_exist": true},
+          {"name": "level", "should_exist": true},
+          {"name": "name", "should_exist": true},
+          {"name": "next", "should_exist": true},
+          {"name": "on", "should_exist": true},
+          {"name": "no_such_object_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_event_fields",
+      "description": "Verify event entity fields and compatibility aliases are available",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "event",
+        "test_cases": [
+          {"name": "uid", "should_exist": true},
+          {"name": "source_uid", "should_exist": true},
+          {"name": "instance", "should_exist": true},
+          {"name": "active", "should_exist": true},
+          {"name": "phase", "should_exist": true},
+          {"name": "event_uid", "should_exist": true},
+          {"name": "event_source_instance", "should_exist": true},
+          {"name": "no_such_event_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_race_fields",
+      "description": "Verify race entity exposes new data-driven race fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "race",
+        "test_cases": [
+          {"name": "summary", "should_exist": true},
+          {"name": "path", "should_exist": true},
+          {"name": "remortinto", "should_exist": true},
+          {"name": "maxmana", "should_exist": true},
+          {"name": "no_such_race_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_class_fields",
+      "description": "Verify class entity exposes new data-driven class fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "class",
+        "test_cases": [
+          {"name": "weapon", "should_exist": true},
+          {"name": "groupcount", "should_exist": true},
+          {"name": "rewardcount", "should_exist": true},
+          {"name": "xptablesize", "should_exist": true},
+          {"name": "no_such_class_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_classlevel_fields",
+      "description": "Verify classlevel entity exposes expected fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "classlevel",
+        "test_cases": [
+          {"name": "class", "should_exist": true},
+          {"name": "level", "should_exist": true},
+          {"name": "xp", "should_exist": true},
+          {"name": "title", "should_exist": true},
+          {"name": "no_such_classlevel_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_area_fields",
+      "description": "Verify area entity exposes region field",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "area",
+        "test_cases": [
+          {"name": "name", "should_exist": true},
+          {"name": "region", "should_exist": true},
+          {"name": "rooms", "should_exist": true},
+          {"name": "no_such_area_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_lookup_aregion_fields",
+      "description": "Verify area-region entity exposes core fields",
+      "dependencies": [],
+      "test_type": "script_engine_entity_lookup_test",
+      "input": {
+        "table": "aregion",
+        "test_cases": [
+          {"name": "name", "should_exist": true},
+          {"name": "area", "should_exist": true},
+          {"name": "rooms", "should_exist": true},
+          {"name": "flags", "should_exist": true},
+          {"name": "no_such_aregion_field", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_lookup_type_masks",
+      "description": "Verify ifcheck lookup obeys type masks and remains case-insensitive",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_lookup_test",
+      "input": {
+        "test_cases": [
+          {"name": "abs", "ifc_type": "IFC_M", "should_exist": true},
+          {"name": "AbS", "ifc_type": "IFC_O", "should_exist": true},
+          {"name": "clones", "ifc_type": "IFC_M", "should_exist": true},
+          {"name": "clones", "ifc_type": "IFC_O", "should_exist": false},
+          {"name": "gc", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "number", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isvalid", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isbook", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "iscontainer", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isfluidcontainer", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isfood", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isfurniture", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "islight", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "ismoney", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "ispage", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isportal", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "objval8", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "objval9", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "objmaxrepairs", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "objrepairs", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "savage", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "hasfaction", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isexitvisible", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "tempstore5", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "valueportaltype", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "isvaliditem", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "iswnum", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "wnumvalid", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "classcombat", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "classcaster", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "racepath", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "raceremort", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availskill", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availspell", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availsong", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "availtrait", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "traitbool", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "missionpoint", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "onmission", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "totalmissions", "ifc_type": "IFC_ANY", "should_exist": true},
+          {"name": "definitely_not_ifcheck", "ifc_type": "IFC_ANY", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_type_mask_resolution",
+      "description": "Verify ifcheck type-mask parser resolves known tokens and safely defaults unknown/empty to IFC_ANY",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_type_mask_resolution_test",
+      "input": {
+        "test_cases": [
+          {"type_name": "IFC_M", "expected_name": "IFC_M"},
+          {"type_name": "IFC_O", "expected_name": "IFC_O"},
+          {"type_name": "IFC_ANY", "expected_name": "IFC_ANY"},
+          {"type_name": "", "expected_name": "IFC_ANY"},
+          {"type_name": "IFC_UNKNOWN", "expected_name": "IFC_ANY"}
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_string_bounds",
+      "description": "Verify compile string succeeds below cap and fails beyond cap",
+      "dependencies": [],
+      "test_type": "script_engine_compile_bounds_test",
+      "input": {
+        "safe_len": 4096,
+        "overflow_len": 70000
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_error_context_reset",
+      "description": "Verify compile_script restores compile error context so later compile_string failures are safe",
+      "dependencies": [],
+      "test_type": "script_engine_compile_error_context_reset_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_invalid_syntax",
+      "description": "Verify compile_script fails with diagnostics for invalid source and does not poison later compile_string calls",
+      "dependencies": [],
+      "test_type": "script_engine_compile_invalid_syntax_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_direct_entity_if",
+      "description": "Verify compile_script accepts direct entity and numeric if expressions without explicit ifcheck names",
+      "dependencies": [],
+      "test_type": "script_engine_compile_direct_entity_if_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_nested_level_limit",
+      "description": "Verify compile_script rejects scripts that exceed maximum nested block depth with diagnostics",
+      "dependencies": [],
+      "test_type": "script_engine_compile_nested_level_limit_test",
+      "input": {
+        "depth": 25
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_nested_loop_limit",
+      "description": "Verify compile_script rejects scripts that exceed maximum nested loop count with diagnostics",
+      "dependencies": [],
+      "test_type": "script_engine_compile_nested_loop_limit_test",
+      "input": {
+        "depth": 21
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_overlap_case_ranges",
+      "description": "Verify compile_script rejects duplicate or overlapping switch case ranges",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_overlap_case_ranges_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_unmatched_end",
+      "description": "Verify compile_script rejects unmatched endswitch statements with diagnostics",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_unmatched_end_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_case_outside_switch",
+      "description": "Verify compile_script rejects case statements outside switch blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_case_outside_switch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_default_outside_switch",
+      "description": "Verify compile_script rejects default statements outside switch blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_default_outside_switch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_or_without_if_while",
+      "description": "Verify compile_script rejects or clauses outside if/while blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_or_without_if_while_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_and_without_if_while",
+      "description": "Verify compile_script rejects and clauses outside if/while blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_and_without_if_while_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_else",
+      "description": "Verify compile_script rejects else without a matching if block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_else_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_elseif",
+      "description": "Verify compile_script rejects elseif without a matching if block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_elseif_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endif",
+      "description": "Verify compile_script rejects endif without a matching if block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endif_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endfor",
+      "description": "Verify compile_script rejects endfor without a matching for block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endfor_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endlist",
+      "description": "Verify compile_script rejects endlist without a matching list block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endlist_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_unmatched_endwhile",
+      "description": "Verify compile_script rejects endwhile without a matching while block",
+      "dependencies": [],
+      "test_type": "script_engine_compile_unmatched_endwhile_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_exitfor_outside_loop",
+      "description": "Verify compile_script rejects exitfor when no for loop is active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_exitfor_outside_loop_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_exitlist_outside_loop",
+      "description": "Verify compile_script rejects exitlist when no list loop is active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_exitlist_outside_loop_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_exitwhile_outside_loop",
+      "description": "Verify compile_script rejects exitwhile when no while loop is active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_exitwhile_outside_loop_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_endfor_undefined_label",
+      "description": "Verify compile_script rejects endfor references to undefined loop labels",
+      "dependencies": [],
+      "test_type": "script_engine_compile_endfor_undefined_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_endfor_cross_loop_mismatch",
+      "description": "Verify compile_script rejects ending an outer loop while an inner loop is still active",
+      "dependencies": [],
+      "test_type": "script_engine_compile_endfor_cross_loop_mismatch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_mob_prefix_wrong_prog_type",
+      "description": "Verify compile_script rejects mob-prefixed commands when compiling non-mprog types",
+      "dependencies": [],
+      "test_type": "script_engine_compile_mob_prefix_wrong_prog_type_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_obj_prefix_wrong_prog_type",
+      "description": "Verify compile_script rejects obj-prefixed commands when compiling non-oprog types",
+      "dependencies": [],
+      "test_type": "script_engine_compile_obj_prefix_wrong_prog_type_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_bare_command_non_mprog",
+      "description": "Verify compile_script rejects bare interpreter commands outside mprog contexts",
+      "dependencies": [],
+      "test_type": "script_engine_compile_bare_command_non_mprog_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_duplicate_for_label",
+      "description": "Verify compile_script rejects duplicate named labels on nested for blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_duplicate_for_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_duplicate_list_label",
+      "description": "Verify compile_script rejects duplicate named labels on nested list blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_duplicate_list_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_duplicate_while_label",
+      "description": "Verify compile_script rejects duplicate named labels on nested while blocks",
+      "dependencies": [],
+      "test_type": "script_engine_compile_duplicate_while_label_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_case_missing_first_number",
+      "description": "Verify compile_script rejects switch case entries with non-numeric first values",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_case_missing_first_number_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_case_missing_second_number",
+      "description": "Verify compile_script rejects switch case ranges with non-numeric second values",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_case_missing_second_number_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_nesting_depth_overflow",
+      "description": "Verify compile_script rejects switch nesting that exceeds block depth limits",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_nesting_depth_overflow_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_compile_switch_duplicate_default_behavior",
+      "description": "Cover current duplicate-default switch behavior to guard parser stability",
+      "dependencies": [],
+      "test_type": "script_engine_compile_switch_duplicate_default_behavior_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_table_validation",
+      "description": "Verify runtime entity table validator reports healthy registry",
+      "dependencies": [],
+      "test_type": "script_engine_entity_table_validation_test",
+      "input": {
+        "strict": true
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_field_metadata",
+      "description": "Verify additive entity field metadata and deprecation flags are available",
+      "dependencies": [],
+      "test_type": "script_engine_entity_field_metadata_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_field_pressure_report",
+      "description": "Verify entity field pressure reporting executes with thresholded output",
+      "dependencies": [],
+      "test_type": "script_engine_entity_field_pressure_report_test",
+      "input": {
+        "threshold_pct": 75
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_high_byte_expansion",
+      "description": "Verify compile+expand path handles mobile entity field codes in the high-byte range",
+      "dependencies": [],
+      "test_type": "script_engine_entity_high_byte_expansion_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_expression_entity_operand",
+      "description": "Verify arithmetic expressions evaluate embedded entity operands as numeric values",
+      "dependencies": [],
+      "test_type": "script_engine_expression_entity_operand_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_entity_bitvector_compare",
+      "description": "Verify direct comparisons accept entity bitvector values in inline ifchecks",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_entity_bitvector_compare_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_entity_reference_compare",
+      "description": "Verify direct comparisons support entity-reference equality in inline ifchecks",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_entity_reference_compare_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_entity_truthiness",
+      "description": "Verify direct ifchecks support truthiness for entity and numeric operands without explicit operators",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_entity_truthiness_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_entity_string_compare",
+      "description": "Verify direct comparisons support string equality and inequality on entity string fields",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_entity_string_compare_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_ifcheck_room_sector_entity",
+      "description": "Verify room sector entities support direct comparison, nested field access, and sector flag checks",
+      "dependencies": [],
+      "test_type": "script_engine_ifcheck_room_sector_entity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_event_entity_expansion",
+      "description": "Verify event is exposed as a first-class nested entity for direct field expansion",
+      "dependencies": [],
+      "test_type": "script_engine_event_entity_expansion_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_entity_mission_alias_fields",
+      "description": "Verify mission aliases are exposed as direct mobile entity fields for comparisons and truthiness",
+      "dependencies": [],
+      "test_type": "script_engine_entity_mission_alias_fields_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_mission_alias_semantics",
+      "description": "Verify mission ifchecks remain aliases of autoquest-backed quest values during migration",
+      "dependencies": [],
+      "test_type": "script_engine_mission_alias_semantics_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_chained_expansion",
+      "description": "Verify representative nested variable and expression expansion chains remain stable",
+      "dependencies": [],
+      "test_type": "script_engine_chained_expansion_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_vnumname_room_null_progs",
+      "description": "Verify vnumname trigger path safely handles rooms with no progs",
+      "dependencies": [],
+      "test_type": "script_engine_vnumname_room_null_progs_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_vnumname_match_helpers",
+      "description": "Verify vnumname primary and wildcard matching semantics for legacy and widevnum triggers",
+      "dependencies": [],
+      "test_type": "script_engine_vnumname_match_helpers_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_vnumname_owner_context_null_progs",
+      "description": "Verify vnumname trigger returns PRET_NOSCRIPT for mob/object/room owners with no progs",
+      "dependencies": [],
+      "test_type": "script_engine_vnumname_owner_context_null_progs_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_vnumname_owner_context_exec_parity",
+      "description": "Verify vnumname trigger executes matching scripts consistently for mob/object/room owners",
+      "dependencies": [],
+      "test_type": "script_engine_vnumname_owner_context_exec_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_room_resolution_null_hosts",
+      "description": "Verify script room-resolution helpers safely handle object/token contexts with no resolvable room",
+      "dependencies": [],
+      "test_type": "script_engine_room_resolution_null_hosts_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_string_trigger_guard_wildcard",
+      "description": "Verify string trigger wildcard fallback and mixed-owner guard behavior",
+      "dependencies": [],
+      "test_type": "script_engine_string_trigger_guard_wildcard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_number_trigger_guard_wildcard",
+      "description": "Verify number trigger wildcard fallback and mixed-owner guard behavior",
+      "dependencies": [],
+      "test_type": "script_engine_number_trigger_guard_wildcard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_number_sight_slot_guard",
+      "description": "Verify sight trigger path returns safely when trigger slots mismatch",
+      "dependencies": [],
+      "test_type": "script_engine_number_sight_slot_guard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_direction_trigger_exec",
+      "description": "Verify direction wrapper dispatch executes matching room mobile triggers",
+      "dependencies": [],
+      "test_type": "script_engine_direction_trigger_exec_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_greet_trigger_exec",
+      "description": "Verify greet wrapper dispatch executes matching room mobile wildcard triggers",
+      "dependencies": [],
+      "test_type": "script_engine_greet_trigger_exec_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "script_mpgoto_wilds_fallback_guard",
+      "description": "Verify invalid wilds destination movement resolves safely to room_default without crash",
+      "dependencies": [],
+      "test_type": "script_engine_mpgoto_wilds_fallback_guard_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

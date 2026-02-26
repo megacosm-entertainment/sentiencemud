@@ -1,0 +1,93 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "lich",
+  "uid": 14,
+  "name": "lich",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "path_race": true,
+  "remort": {
+    "prerequisite_race": null,
+    "remort_into": "wraith"
+  },
+  "display": {
+    "who_name": "{Y Lich "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "sentient",
+      "undead",
+      "biped"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "claws",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "pass_door"
+    ],
+    "offensive": [],
+    "immunities": [
+      "charm",
+      "cold",
+      "lightning",
+      "kill"
+    ],
+    "resistances": [
+      "pierce",
+      "slash",
+      "poison"
+    ],
+    "vulnerabilities": [
+      "bash",
+      "fire"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 18,
+      "int": 23,
+      "wis": 24,
+      "dex": 16,
+      "con": 23
+    },
+    "max_vitals": {
+      "hp": 2350,
+      "mana": 3850,
+      "move": 2500
+    }
+  },
+  "skills": [
+    "crippling touch",
+    "rending",
+    "scry",
+    "spirit rack"
+  ],
+  "starting_equipment": []
+}

@@ -1,0 +1,56 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 0,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 20
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 18
+        },
+        {
+            "class": "thief",
+            "level": 22,
+            "rating": 13
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 14
+        }
+    ],
+    "flags": [
+        "racial"
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "",
+    "name": "ambush",
+    "noun_damage": "",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 6
+}

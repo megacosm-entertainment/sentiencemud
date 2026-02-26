@@ -22,83 +22,83 @@ void do_mount(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
     if (IS_NPC(ch))
-	return;
+    return;
 
     if (IS_DEAD(ch)) {
-	send_to_char("You can't do that. You are dead.\n\r", ch);
-	return;
+    send_to_char("You can't do that. You are dead.\n\r", ch);
+    return;
     }
 
     if (arg[0] == '\0' && ch->mount && ch->mount->in_room == ch->in_room) {
-	mount = ch->mount;
+    mount = ch->mount;
     } else if (!(mount = get_char_room(ch, NULL, arg))) {
-	send_to_char("Mount what?\n\r", ch);
-	return;
+    send_to_char("Mount what?\n\r", ch);
+    return;
     }
 
     if (!IS_NPC(mount)) {
-	sprintf(buf, "I'm sure %s really wouldn't like you doing that.\n\r", mount->name);
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf, "I'm sure %s really wouldn't like you doing that.\n\r", mount->name);
+    send_to_char(buf, ch);
+    return;
     }
 
     if (!IS_SET(mount->act[0], ACT_MOUNT))
     {
-	sprintf(buf,"You can't ride that.\n\r");
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf,"You can't ride that.\n\r");
+    send_to_char(buf, ch);
+    return;
     }
 
     if (mount->level - 50 > ch->tot_level)
     {
-	send_to_char("That beast is too powerful for you to ride.", ch);
-	return;
+    send_to_char("That beast is too powerful for you to ride.", ch);
+    return;
     }
 
     if((mount->rider) && (!mount->riding) && (mount->rider != ch))
     {
-	sprintf(buf, "%s belongs to %s, not you.\n\r",
-	    mount->short_descr, mount->mount->name);
-	send_to_char(buf, ch);
-	return;
+    sprintf(buf, "%s belongs to %s, not you.\n\r",
+        mount->short_descr, mount->mount->name);
+    send_to_char(buf, ch);
+    return;
     }
 
     if (mount->position < POS_STANDING)
     {
-	send_to_char("Your mount must be standing.\n\r", ch);
-	return;
+    send_to_char("Your mount must be standing.\n\r", ch);
+    return;
     }
 
     if (RIDDEN(mount))
     {
-	send_to_char("This beast is already ridden.\n\r", ch);
-	return;
+    send_to_char("This beast is already ridden.\n\r", ch);
+    return;
     }
     else if (MOUNTED(ch))
     {
-	send_to_char("You are already riding.\n\r", ch);
-	return;
+    send_to_char("You are already riding.\n\r", ch);
+    return;
     }
 
     if (str_cmp(mount->owner, ch->name)
     && str_cmp(mount->owner, "(no owner)")
     && str_cmp(mount->owner, "(null)"))
     {
-	act("{ROUCH! You attempt to mount $N, but $E bucks and kicks you off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{R$n attempts to mount $N, but $E bucks and kicks $m off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	damage(mount, ch, ch->hit/5, gsn_kick, DAM_BASH, false);
-	stop_fighting(ch, true);
-	ch->position = POS_RESTING;
-	ch->bashed = 4;
-	return;
+    act("{ROUCH! You attempt to mount $N, but $E bucks and kicks you off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{R$n attempts to mount $N, but $E bucks and kicks $m off!{x", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    damage(mount, ch, ch->hit/5, skill_resolve_gsn("kick"), DAM_BASH, false);
+    stop_fighting(ch, true);
+    ch->position = POS_RESTING;
+    ch->bashed = 4;
+    return;
     }
 
     if(p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREMOUNT, NULL))
-    	return;
+        return;
 
-    act("You hop on $N's back.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act("$n hops on $N's back.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-    act("$n hops on your back!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+    act("You hop on $N's back.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n hops on $N's back.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+    act("$n hops on your back!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
     ch->mount = mount;
     ch->riding = true;
@@ -107,13 +107,13 @@ void do_mount(CHAR_DATA *ch, char *argument)
 
     p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOUNT, NULL);
 
-    affect_strip(ch, gsn_sneak);
+    affect_strip(ch, skill_resolve_gsn("sneak"));
     REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
-    affect_strip(ch, gsn_hide);
+    affect_strip(ch, skill_resolve_gsn("hide"));
     REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
 
-    if (get_skill(ch, gsn_riding) > 0)
-	add_grouped(mount, ch, true);
+    if (get_skill(ch, skill_resolve_gsn("riding")) > 0)
+    add_grouped(mount, ch, true);
 }
 
 
@@ -123,24 +123,24 @@ void do_dismount(CHAR_DATA *ch, char *argument)
 
     if(MOUNTED(ch))
     {
-	mount = MOUNTED(ch);
+    mount = MOUNTED(ch);
 
-	if(p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDISMOUNT, NULL))
-		return;
+    if(p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDISMOUNT, NULL))
+        return;
 
-	act("You dismount from $N.",  ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("$n dismounts from $N.",  ch, mount, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	act("$n dismounts from you.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+    act("You dismount from $N.",  ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n dismounts from $N.",  ch, mount, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+    act("$n dismounts from you.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
-	ch->riding = false;
-	mount->riding = false;
-	mount->rider = NULL;
-	ch->mount = NULL;
+    ch->riding = false;
+    mount->riding = false;
+    mount->rider = NULL;
+    ch->mount = NULL;
     }
     else
     {
-	send_to_char("You aren't mounted.\n\r", ch);
-	return;
+    send_to_char("You aren't mounted.\n\r", ch);
+    return;
     }
 
     stop_grouped(mount);
@@ -150,7 +150,7 @@ void do_dismount(CHAR_DATA *ch, char *argument)
     // nobody else can mount them except the owner
     if (IS_SOCIAL(mount) && str_cmp(ch->name, mount->owner))
     {
-	act("{WA ghostly spirit appears before $n and pulls $m back to the mortal world.{x", mount, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{WA ghostly spirit appears before $n and pulls $m back to the mortal world.{x", mount, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         do_function(mount, &do_chat, "exit");
     }
 }
@@ -161,24 +161,24 @@ CHAR_DATA *find_personal_mount(char *name)
     MOB_INDEX_DATA *mIndex;
     CHAR_DATA *mount;
     AREA_DATA *area;
-    int vnum;
+    int hash;
 
     if ((area = find_area("Housing")) == NULL)
     {
-        bug("find_personal_mount: no housing area", 0);
-	return NULL;
+        pbugf(LOG_ERROR, "find_personal_mount: no housing area");
+    return NULL;
     }
 
-    for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
+    for (hash = 0; hash < MAX_KEY_HASH; hash++)
     {
-    	if ((mIndex = get_mob_index(vnum)) != NULL)
-	{
-	    if (!str_cmp(mIndex->owner, name))
-	    {
-	    	if ((mount = get_char_world_index(NULL, mIndex)) != NULL)
-		    return mount;
-	    }
-	}
+        for (mIndex = area->mob_index_hash[hash]; mIndex != NULL; mIndex = mIndex->next)
+        {
+            if (!str_cmp(mIndex->owner, name))
+            {
+                if ((mount = get_char_world_index(NULL, mIndex)) != NULL)
+                    return mount;
+            }
+        }
     }
 
     return NULL;
@@ -194,7 +194,7 @@ void do_whistle(CHAR_DATA *ch, char *argument)
     if (ch->lcarrying) {
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if (obj->pIndexData->vnum == OBJ_VNUM_GOLD_WHISTLE)
+            if (obj->pIndexData == get_reserved_obj_index("OBJ_VNUM_GOLD_WHISTLE"))
                 break;
         }
         iterator_stop(&it);
@@ -203,13 +203,13 @@ void do_whistle(CHAR_DATA *ch, char *argument)
     if (obj == NULL || IS_NPC(ch))
     {
         send_to_char("You whistle a little tune to yourself.\n\r", ch);
-        act("$n whistles a little tune to $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act("$n whistles a little tune to $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         return;
     }
 
     if ((mount = find_personal_mount(ch->name)) == NULL)
     {
-        act("You whistle on $p loudly, but nothing happens.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act("You whistle on $p loudly, but nothing happens.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         return;
     }
 
@@ -222,8 +222,8 @@ void do_whistle(CHAR_DATA *ch, char *argument)
         }
         else
         {
-            act("You send $N home.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-            act("$N wanders home.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            act("You send $N home.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("$N wanders home.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             char_from_room(mount);
             char_to_room(mount, mount->home_room);
             mount->position = POS_STANDING;
@@ -231,8 +231,8 @@ void do_whistle(CHAR_DATA *ch, char *argument)
     }
     else
     {
-        act("You whistle on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-        act("$n whistles on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        act("You whistle on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n whistles on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         char_from_room(mount);
         char_to_room(mount, ch->in_room);
         mount->position = POS_STANDING;

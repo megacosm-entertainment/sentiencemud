@@ -1,0 +1,77 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "were_changed",
+  "uid": 27,
+  "name": "were_changed",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "were_changed"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "poison",
+      "magical",
+      "instant_decay",
+      "other",
+      "sentient",
+      "construct",
+      "mist",
+      "mammal"
+    ],
+    "parts": []
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared"
+    ],
+    "offensive": [],
+    "immunities": [
+      "bash",
+      "cold"
+    ],
+    "resistances": [
+      "fire",
+      "silver"
+    ],
+    "vulnerabilities": [
+      "summon",
+      "fire",
+      "cold"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

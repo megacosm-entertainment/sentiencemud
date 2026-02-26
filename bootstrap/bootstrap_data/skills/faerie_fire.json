@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 6,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 3,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 6,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "fighting",
+    "msg_disp": "$n's outline fades.",
+    "msg_obj": "",
+    "msg_off": "{MThe pink aura around you fades away.{x",
+    "name": "faerie fire",
+    "noun_damage": "faerie fire",
+    "race": null,
+    "spell_function": "spell_faerie_fire",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 105
+}

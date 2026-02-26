@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 9,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 23,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 60,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Recharge!",
+    "name": "recharge",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_recharge",
+    "target": "obj_inv",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 190
+}

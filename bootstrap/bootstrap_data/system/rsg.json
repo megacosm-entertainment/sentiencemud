@@ -1,0 +1,107 @@
+{
+  "_format": "rsg_data",
+  "version": 1,
+  "next_uid": 3,
+  "generators": [
+    {
+      "uid": 1,
+      "name": "test_gen",
+      "description": "",
+      "patterns": [
+        {
+          "weight": 10,
+          "template": "asdf"
+        }
+      ],
+      "classes": [
+        {
+          "uid": 1,
+          "name": "asdf",
+          "entries": []
+        }
+      ]
+    },
+    {
+      "uid": 2,
+      "name": "sith_names",
+      "description": "Sith snake-folk naming generator emphasizing domination, cunning, and harsh desert/swamp identity with ritual flame dread motifs.",
+      "patterns": [
+        {
+          "weight": 65,
+          "template": "{prefix}{core}{suffix}"
+        },
+        {
+          "weight": 25,
+          "template": "{prefix}{core}{suffix} {title}"
+        },
+        {
+          "weight": 10,
+          "template": "{prefix}{core}{suffix}-{core}{suffix}"
+        }
+      ],
+      "classes": [
+        {
+          "uid": 1,
+          "name": "prefix",
+          "entries": [
+            { "weight": 16, "text": "Ss" },
+            { "weight": 12, "text": "Ssz" },
+            { "weight": 12, "text": "Zh" },
+            { "weight": 10, "text": "Vr" },
+            { "weight": 10, "text": "Kh" },
+            { "weight": 8, "text": "Q" },
+            { "weight": 6, "text": "X" },
+            { "weight": 6, "text": "Tz" }
+          ]
+        },
+        {
+          "uid": 2,
+          "name": "core",
+          "entries": [
+            { "weight": 10, "text": "sar" },
+            { "weight": 10, "text": "vek" },
+            { "weight": 9, "text": "zath" },
+            { "weight": 9, "text": "niss" },
+            { "weight": 8, "text": "khal" },
+            { "weight": 8, "text": "dras" },
+            { "weight": 8, "text": "vyr" },
+            { "weight": 7, "text": "qesh" },
+            { "weight": 7, "text": "thar" },
+            { "weight": 7, "text": "mora" },
+            { "weight": 6, "text": "seth" },
+            { "weight": 5, "text": "ash" }
+          ]
+        },
+        {
+          "uid": 3,
+          "name": "suffix",
+          "entries": [
+            { "weight": 14, "text": "is" },
+            { "weight": 12, "text": "eth" },
+            { "weight": 11, "text": "ar" },
+            { "weight": 10, "text": "oth" },
+            { "weight": 9, "text": "ek" },
+            { "weight": 8, "text": "ra" },
+            { "weight": 8, "text": "ir" },
+            { "weight": 7, "text": "uun" },
+            { "weight": 5, "text": "ash" }
+          ]
+        },
+        {
+          "uid": 4,
+          "name": "title",
+          "entries": [
+            { "weight": 12, "text": "the Coil-Lord" },
+            { "weight": 10, "text": "the Fen-Shadow" },
+            { "weight": 10, "text": "the Dune-Fang" },
+            { "weight": 9, "text": "the Ash-Watcher" },
+            { "weight": 9, "text": "the Ember-Dread" },
+            { "weight": 8, "text": "the Pyre-Whisper" },
+            { "weight": 8, "text": "the Mire-Crowned" },
+            { "weight": 8, "text": "the Flame-Bound" }
+          ]
+        }
+      ]
+    }
+  ]
+}

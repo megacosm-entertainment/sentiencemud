@@ -116,6 +116,29 @@ https://wiki.mudlet.org/w/Standards:Discord_GMCP */
 #define UNICODE_FEMALE                 9792
 #define UNICODE_NEUTER                 9791
 
+/////////////////////////////////////////////////////////////////
+// MXP Defines
+//
+
+// MXP mode changing system
+#define MXP_OPEN_PREFIX             "\033[0z"
+#define MXP_OPEN_LINE               "\033[0z"
+#define MXP_SECURE_LINE             "\033[1z"
+//#define MXP_SECURE_PREFIX           "\033[1z"
+#define MXP_SECURE_PREFIX           ""
+#define MXP_RESET                   "\033[3z"
+#define MXP_OPEN_MODE               "\033[5z"
+#define MXP_SECURE_MODE             "\033[6z"
+#define MXP_LOCKED_MODE             "\033[7z"
+#define MXP_CLIENT_TO_SERVER_PREFIX "\033[1z"
+
+// MXP defines
+#define MXP_AMPERSAND	'\x11'
+#define MXP_BEGIN_TAG	'\x12'
+#define MXP_END_TAG		'\x13'
+
+/////////////////////////////////////////////////////////////////
+
 /******************************************************************************
  Types.
  ******************************************************************************/
@@ -140,10 +163,10 @@ typedef enum
    eNEGOTIATED_MXP2, 
    eNEGOTIATED_MCCP, 
 
-	/*************** START GMCP ***************/
-	eNEGOTIATED_GMCP,
-	eNEGOTIATED_SGA,
-	/*************** END GMCP ***************/
+   /*************** START GMCP ***************/
+   eNEGOTIATED_GMCP,
+   eNEGOTIATED_SGA,
+   /*************** END GMCP ***************/
 
    eNEGOTIATED_MAX             /* This must always be last */
 } negotiated_t;
@@ -240,171 +263,171 @@ typedef enum
 /*************** START GMCP ***************/
 typedef enum
 {
-	JSMN_UNDEFINED = 0,
-	JSMN_OBJECT = 1,
-	JSMN_ARRAY = 2,
-	JSMN_STRING = 3,
-	JSMN_PRIMITIVE = 4
+   JSMN_UNDEFINED = 0,
+   JSMN_OBJECT = 1,
+   JSMN_ARRAY = 2,
+   JSMN_STRING = 3,
+   JSMN_PRIMITIVE = 4
 } jsmntype_t;
 
 enum jsmnerr {
-	JSMN_ERROR_NOMEM = -1,	/* Not enough tokens were provided */
-	JSMN_ERROR_INVAL = -2,	/* Invalid character inside JSON string */
-	JSMN_ERROR_PART = -3	/* The string is not a full JSON packet, more bytes expected */
+   JSMN_ERROR_NOMEM = -1,	/* Not enough tokens were provided */
+   JSMN_ERROR_INVAL = -2,	/* Invalid character inside JSON string */
+   JSMN_ERROR_PART = -3	/* The string is not a full JSON packet, more bytes expected */
 };
 
 typedef struct
 {
-	jsmntype_t type;
-	int start;
-	int end;
-	int size;
+   jsmntype_t type;
+   int start;
+   int end;
+   int size;
 } jsmntok_t;
 
 typedef struct {
-	unsigned int pos;		/* offset in the JSON string */
-	unsigned int toknext;	/* next token to allocate */
-	int toksuper;			/* superior token node, e.g. parent object or array */
+   unsigned int pos;		/* offset in the JSON string */
+   unsigned int toknext;	/* next token to allocate */
+   int toksuper;			/* superior token node, e.g. parent object or array */
 } jsmn_parser;
 
 typedef enum
 {
-	GMCP_STRING,
-	GMCP_NUMBER,
-	GMCP_OBJECT,
-	GMCP_ARRAY
+   GMCP_STRING,
+   GMCP_NUMBER,
+   GMCP_OBJECT,
+   GMCP_ARRAY
 } GMCP_TYPE;
 
 typedef enum
 {
-	GMCP_CORE_NONE = -1,
-	
-	GMCP_CORE_HELLO,
-	GMCP_CORE_SUPPORTS_SET,
-	GMCP_CORE_SUPPORTS_ADD,
-	GMCP_CORE_SUPPORTS_REMOVE,
-	GMCP_EXTERNAL_DISCORD_HELLO,
-	GMCP_EXTERNAL_DISCORD_GET,
-	GMCP_RECEIVE_MAX
+   GMCP_CORE_NONE = -1,
+   
+   GMCP_CORE_HELLO,
+   GMCP_CORE_SUPPORTS_SET,
+   GMCP_CORE_SUPPORTS_ADD,
+   GMCP_CORE_SUPPORTS_REMOVE,
+   GMCP_EXTERNAL_DISCORD_HELLO,
+   GMCP_EXTERNAL_DISCORD_GET,
+   GMCP_RECEIVE_MAX
 } GMCP_RECEIVE;
 
 typedef enum
 {
-	GMCP_SUPPORT_NONE = -1,
-	
-	GMCP_SUPPORT_CHAR,
-	GMCP_SUPPORT_ROOM,
-	GMCP_SUPPORT_MAX
+   GMCP_SUPPORT_NONE = -1,
+   
+   GMCP_SUPPORT_CHAR,
+   GMCP_SUPPORT_ROOM,
+   GMCP_SUPPORT_MAX
 } GMCP_SUPPORT;
 
 typedef enum
 {
-	GMCP_NONE = -1,
-	
-	GMCP_BASE,
-	GMCP_VITALS,
-	GMCP_STATS,
-	GMCP_AC,
-	GMCP_WORTH,
-	GMCP_AFFECTED,
-	GMCP_ENEMIES,
-	GMCP_ROOM,
-	GMCP_PACKAGE_MAX
+   GMCP_NONE = -1,
+   
+   GMCP_BASE,
+   GMCP_VITALS,
+   GMCP_STATS,
+   GMCP_AC,
+   GMCP_WORTH,
+   GMCP_AFFECTED,
+   GMCP_ENEMIES,
+   GMCP_ROOM,
+   GMCP_PACKAGE_MAX
 } GMCP_PACKAGE;
 
 typedef enum
 {
-	GMCP_NULL	= -1,
-	
-	/* Hello */
-	GMCP_CLIENT,
-	GMCP_VERSION,
+   GMCP_NULL	= -1,
+   
+   /* Hello */
+   GMCP_CLIENT,
+   GMCP_VERSION,
 
-	/* Base */
-	GMCP_NAME,
-	GMCP_RACE,
-	GMCP_CLASS,
+   /* Base */
+   GMCP_NAME,
+   GMCP_RACE,
+   GMCP_CLASS,
 
-	/* Vitals */
-	GMCP_HP,
-	GMCP_MANA,
-	GMCP_MOVE,
-	GMCP_MAX_HP,
-	GMCP_MAX_MANA,
-	GMCP_MAX_MOVE,
+   /* Vitals */
+   GMCP_HP,
+   GMCP_MANA,
+   GMCP_MOVE,
+   GMCP_MAX_HP,
+   GMCP_MAX_MANA,
+   GMCP_MAX_MOVE,
 
-	/* Stats */
-	GMCP_STR,
-	GMCP_INT,
-	GMCP_WIS,
-	GMCP_DEX,
-	GMCP_CON,
-	GMCP_HITROLL,
-	GMCP_DAMROLL,
-	GMCP_STR_PERM,
-	GMCP_INT_PERM,
-	GMCP_WIS_PERM,
-	GMCP_DEX_PERM,
-	GMCP_CON_PERM,
-	GMCP_WIMPY,
+   /* Stats */
+   GMCP_STR,
+   GMCP_INT,
+   GMCP_WIS,
+   GMCP_DEX,
+   GMCP_CON,
+   GMCP_HITROLL,
+   GMCP_DAMROLL,
+   GMCP_STR_PERM,
+   GMCP_INT_PERM,
+   GMCP_WIS_PERM,
+   GMCP_DEX_PERM,
+   GMCP_CON_PERM,
+   GMCP_WIMPY,
 
-	/* AC */
-	GMCP_AC_PIERCE,
-	GMCP_AC_BASH,
-	GMCP_AC_SLASH,
-	GMCP_AC_EXOTIC,
-	
-	/* Worth */
-	GMCP_ALIGNMENT,
-	GMCP_XP,
-	GMCP_XP_MAX,
-	GMCP_XP_TNL,
-	GMCP_PRACTICE,
-	GMCP_MONEY,
+   /* AC */
+   GMCP_AC_PIERCE,
+   GMCP_AC_BASH,
+   GMCP_AC_SLASH,
+   GMCP_AC_EXOTIC,
+   
+   /* Worth */
+   GMCP_ALIGNMENT,
+   GMCP_XP,
+   GMCP_XP_MAX,
+   GMCP_XP_TNL,
+   GMCP_PRACTICE,
+   GMCP_MONEY,
 
-	/* Enemies */
-	GMCP_ENEMY,
+   /* Enemies */
+   GMCP_ENEMY,
 
-	/* Affected */
-	GMCP_AFFECT,
+   /* Affected */
+   GMCP_AFFECT,
 
-	/* Room */
-	GMCP_AREA,
-	GMCP_ROOM_NAME,
-	GMCP_ROOM_EXITS,
-	GMCP_ROOM_VNUM,
+   /* Room */
+   GMCP_AREA,
+   GMCP_ROOM_NAME,
+   GMCP_ROOM_EXITS,
+   GMCP_ROOM_VNUM,
 
-	GMCP_MAX
+   GMCP_MAX
 
 } GMCP_VARIABLE;
 
 struct gmcp_receive_struct
 {
-	GMCP_RECEIVE		module;
-	char				*string;
+   GMCP_RECEIVE		module;
+   char				*string;
 };
 
 struct gmcp_package_struct
 {
-	GMCP_PACKAGE		package;
-	GMCP_SUPPORT		support;
-	char				*module;
-	char				*message;
-	char				bSettable;
+   GMCP_PACKAGE		package;
+   GMCP_SUPPORT		support;
+   char				*module;
+   char				*message;
+   char				bSettable;
 };
 
 struct gmcp_support_struct
 {
-	GMCP_SUPPORT		module;
-	char				*name;
+   GMCP_SUPPORT		module;
+   char				*name;
 };
 
 struct gmcp_variable_struct
 {
-	GMCP_VARIABLE		variable;
-	GMCP_PACKAGE		package;
-	char				*name;
-	GMCP_TYPE			type;
+   GMCP_VARIABLE		variable;
+   GMCP_PACKAGE		package;
+   char				*name;
+   GMCP_TYPE			type;
 };
 /*************** END GMCP ***************/
 
@@ -463,13 +486,13 @@ typedef struct
    char     *pLastTTYPE;       /* Used for the cyclic TTYPE check */
    MSDP_t  **pVariables;       /* The MSDP variables */
 
-	/*************** START GMCP ***************/
-	bool	bGMCP; /* The client supports GMCP */
-	bool	bSGA; /* The client supports SGA */
-	bool	bGMCPSupport[GMCP_SUPPORT_MAX]; /* The client supports specific modules */
-	bool	bGMCPUpdatePackage[GMCP_PACKAGE_MAX]; /* Send these packages to the client. */
-	char	*GMCPVariable[GMCP_MAX]; /* The message for each variable */
-	/*************** END GMCP ***************/
+   /*************** START GMCP ***************/
+   bool	bGMCP; /* The client supports GMCP */
+   bool	bSGA; /* The client supports SGA */
+   bool	bGMCPSupport[GMCP_SUPPORT_MAX]; /* The client supports specific modules */
+   bool	bGMCPUpdatePackage[GMCP_PACKAGE_MAX]; /* Send these packages to the client. */
+   char	*GMCPVariable[GMCP_MAX]; /* The message for each variable */
+   /*************** END GMCP ***************/
 
 } protocol_t;
 
@@ -722,6 +745,8 @@ void MSSPSetPlayers( int aPlayers );
  MXP functions.
  ******************************************************************************/
 
+void MXPDefineElements(descriptor_t *apDescriptor);
+
 /* Function: MXPCreateTag
  *
  * Puts the specified tag into a secure line, if MXP is supported.  If the user 
@@ -739,7 +764,28 @@ const char *MXPCreateTag( descriptor_t *apDescriptor, const char *apTag );
  */
 void MXPSendTag( descriptor_t *apDescriptor, const char *apTag );
 
-/******************************************************************************
+const char *MXPCreateSend(descriptor_t *apDescriptor, const char *command, const char *text);
+
+const char *MXPCreateSend2(descriptor_t *apDescriptor, const char *command);
+
+bool isMXP(descriptor_t *apDescriptor);
+
+/*
+void mxp_define_elements_to_char(char_data *ch);
+char *mxp_tagify(const char *mxp_text_with_unencoded_tags);
+
+const char *mxp_create_tag(char_data *ch, const char *tagname, const char *txt);
+const char *mxp_create_tagf(char_data *ch, const char *tagname, const char *fmt, ...) __mftc_printf_2__;
+const char *mxp_create_tag_core(const char *tagname, const char *txt);
+const char *mxp_create_send(char_data *ch, const char *command, const char *text);
+const char *mxp_create_send(char_data *ch, const char *command_and_text);
+const char *mxp_create_send_prompt(char_data *ch, const char *command, const char *text);
+const char *mxp_create_send_prompt(char_data *ch, const char *command_and_text);
+char *mxp_convert_to_mnemonics(const char *text_with_raw_characters);
+char *mxp_tag_for_object(char_data * ch, OBJ_DATA *obj);
+char *mxp_tag_for_mob(char_data * ch, char_data *mob);
+
+******************************************************************************
  Sound functions.
  ******************************************************************************/
 

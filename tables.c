@@ -37,8 +37,10 @@
 #include <time.h>
 #include "merc.h"
 #include "interp.h"
+#include "olc.h"
 #include "tables.h"
 #include "scripts.h"
+#include "channel_moderation.h"
 
 const struct hint_type hintsTable[] =
 {
@@ -469,35 +471,35 @@ const struct church_church_rank_type church_church_rank_table[] =
 
 const struct talk_type vampire_talk_table[] =
 {
-	{"th", "z"},
-	{"wh", "v"}
+    {"th", "z"},
+    {"wh", "v"}
 };
 
 
 const struct court_rank_type court_rank_table[] =
 {
-	{ "Squire", 	"Maid" 		},
-	{ "Earl", 	"Dame"   	},
-	{ "Count", 	"Countess" 	},
-	{ "Baron", 	"Baroness" 	},
-	{ "Duke", 	"Duchess" 	},
-	{ "Lord", 	"Lady" 		},
-	{ "Prince", 	"Princess" 	}
+    { "Squire", 	"Maid" 		},
+    { "Earl", 	"Dame"   	},
+    { "Count", 	"Countess" 	},
+    { "Baron", 	"Baroness" 	},
+    { "Duke", 	"Duchess" 	},
+    { "Lord", 	"Lady" 		},
+    { "Prince", 	"Princess" 	}
 };
 
 
 const struct string_type object_damage_table[] =
 {
-	{ "" 				},
-	{ "(Used)" 			},
-	{ "{Y(Slightly Worn){x" 	},
-	{ "{Y(Worn){x" 			},
-	{ "{Y(Badly Worn){x" 		},
-	{ "{y(Slightly Damaged){x" 	},
-	{ "{y(Damaged){x" 		},
-	{ "{r(Badly Damaged){x" 	},
-	{ "{D(Falling Apart){x" 	},
-	{ "{D(Crumbling){x" 		}
+    { "" 				},
+    { "(Used)" 			},
+    { "{Y(Slightly Worn){x" 	},
+    { "{Y(Worn){x" 			},
+    { "{Y(Badly Worn){x" 		},
+    { "{y(Slightly Damaged){x" 	},
+    { "{y(Damaged){x" 		},
+    { "{r(Badly Damaged){x" 	},
+    { "{D(Falling Apart){x" 	},
+    { "{D(Crumbling){x" 		}
 };
 
 
@@ -608,7 +610,7 @@ const struct flag_type act2_flags[]=
     {   "no_xp",				ACT2_NO_XP,				true	},
     {   "hired",				ACT2_HIRED,				false	},
     {   "renewer",				ACT2_RENEWER,			true	},
-	{	"show_in_wilds",		ACT2_SHOW_IN_WILDS,		true	},
+    {	"show_in_wilds",		ACT2_SHOW_IN_WILDS,		true	},
     {   "instance_mob",			ACT2_INSTANCE_MOB,		false	},
     {   "advanced_trainer",     ACT2_ADVANCED_TRAINER,  true    },
     {   NULL,					0,						false	}
@@ -898,13 +900,19 @@ const struct flag_type comm_flags[] =
     {   "nowiz",		COMM_NOWIZ,		true	},
     {   "noclangossip",		COMM_NOAUCTION,		true	},
     {   "nogossip",		COMM_NOGOSSIP,		true	},
+    {   "noannounce",		COMM_NOANNOUNCE,	true	},
+    {   "nohelper",		COMM_NOHELPER,		true	},
     {   "nomusic",		COMM_NOMUSIC,		true	},
     {   "noclan",		COMM_NOCT,		true	},
+    {   "mxp",			COMM_MXP,		true	},
+    {   "notify",		COMM_NOTIFY,		true	},
     {   "compact",		COMM_COMPACT,		true	},
     {   "brief",		COMM_BRIEF,		true	},
     {   "prompt",		COMM_PROMPT,		true	},
+    {   "flags",		COMM_FLAGS,		true	},
     {   "telnet_ga",		COMM_TELNET_GA,		true	},
     {   "no_flaming",		COMM_NO_FLAMING,	true	},
+    {   "nogq",		COMM_NOGQ,		true	},
     {   "noyell",		COMM_NOYELL,		true    },
     {   "noautowar",		COMM_NOAUTOWAR,		false	},
     {   "notell",		COMM_NOTELL,		false	},
@@ -915,104 +923,105 @@ const struct flag_type comm_flags[] =
     {   "hints",		COMM_NOHINTS,		true	},
     {   "nobattlespam",		COMM_NOBATTLESPAM,	true	},
     {   "nomap",		COMM_NOMAP,		true	},
+    {   "formstate",		COMM_SHOW_FORM_STATE,	true	},
     {	"notells",		COMM_NOTELLS,		true	},
     {	NULL,			0,			0	}
 };
 
 const struct flag_type area_who_display[] = {
-	{	"      ",	AREA_BLANK,		true	},
-	{	"Abyss",	AREA_ABYSS,		true	},
-	{	"Arena",	AREA_ARENA,		true	},
-	{	"At Sea",	AREA_AT_SEA,		true	},
-	{	"Battle",	AREA_BATTLE,		true	},
-	{	"Castle",	AREA_CASTLE,		true	},
-	{	"Cavern",	AREA_CAVERN,		true	},
-	{	"Church",	AREA_CHURCH,		true	},
-	{	"Cosmos",	AREA_OFFICE,		true	},
-	{	"Cult",		AREA_CULT,		true	},
-	{	"Dungn",	AREA_DUNGEON,		true	},
-	{	"Eden",		AREA_EDEN,		true	},
-	{	"Forest",	AREA_FOREST,		true	},
-	{	"Fort",		AREA_FORT,		true	},
-	{	"Home",		AREA_HOME,		true	},
-	{	"Inn",		AREA_INN,		true	},
-	{	"Isle",		AREA_ISLE,		true	},
-	{	"Jungle",	AREA_JUNGLE,		true	},
-	{	"Keep",		AREA_KEEP,		true	},
-	{	"Limbo",	AREA_LIMBO,		true	},
-	{	"Mount",	AREA_MOUNTAIN,		true	},
-	{	"Nether",	AREA_NETHERWORLD,	true	},
-	{	"Outpst",	AREA_OUTPOST,		true	},
-	{	"Palace",	AREA_PALACE,		true	},
-	{	"Planar",	AREA_PLANAR,		true	},
-	{	"Pyramd",	AREA_PYRAMID,		true	},
-	{	"Rift",		AREA_CHAT,		true	},
-	{	"Ruins",	AREA_RUINS,		true	},
-	{	"Ship",		AREA_ON_SHIP,		true	},
-	{	"Sky",		AREA_AERIAL,		true	},
-	{	"Swamp",	AREA_SWAMP,		true	},
-	{	"Temple",	AREA_TEMPLE,		true	},
-	{	"Tomb",		AREA_TOMB,		true	},
-	{	"Tower",	AREA_TOWER,		true	},
-	{	"Towne",	AREA_TOWNE,		true	},
-	{	"Tundra",	AREA_TUNDRA,		true	},
-	{	"PoA",		AREA_PG,		true	},
-	{	"Ocean",	AREA_UNDERSEA,		true	},
-	{	"Villa",	AREA_VILLAGE,		true	},
-	{	"Vulcan",	AREA_VOLCANO,		true	},
-	{	"Wilder",	AREA_WILDER,		true	},
-	{	"Instce",	AREA_INSTANCE,		true	},
-	{	"Duty",		AREA_DUTY,			true	},
-	{	NULL,		0,		0	},
+    {	"      ",	AREA_BLANK,		true	},
+    {	"Abyss",	AREA_ABYSS,		true	},
+    {	"Arena",	AREA_ARENA,		true	},
+    {	"At Sea",	AREA_AT_SEA,		true	},
+    {	"Battle",	AREA_BATTLE,		true	},
+    {	"Castle",	AREA_CASTLE,		true	},
+    {	"Cavern",	AREA_CAVERN,		true	},
+    {	"Church",	AREA_CHURCH,		true	},
+    {	"Cosmos",	AREA_OFFICE,		true	},
+    {	"Cult",		AREA_CULT,		true	},
+    {	"Dungn",	AREA_DUNGEON,		true	},
+    {	"Eden",		AREA_EDEN,		true	},
+    {	"Forest",	AREA_FOREST,		true	},
+    {	"Fort",		AREA_FORT,		true	},
+    {	"Home",		AREA_HOME,		true	},
+    {	"Inn",		AREA_INN,		true	},
+    {	"Isle",		AREA_ISLE,		true	},
+    {	"Jungle",	AREA_JUNGLE,		true	},
+    {	"Keep",		AREA_KEEP,		true	},
+    {	"Limbo",	AREA_LIMBO,		true	},
+    {	"Mount",	AREA_MOUNTAIN,		true	},
+    {	"Nether",	AREA_NETHERWORLD,	true	},
+    {	"Outpst",	AREA_OUTPOST,		true	},
+    {	"Palace",	AREA_PALACE,		true	},
+    {	"Planar",	AREA_PLANAR,		true	},
+    {	"Pyramd",	AREA_PYRAMID,		true	},
+    {	"Rift",		AREA_CHAT,		true	},
+    {	"Ruins",	AREA_RUINS,		true	},
+    {	"Ship",		AREA_ON_SHIP,		true	},
+    {	"Sky",		AREA_AERIAL,		true	},
+    {	"Swamp",	AREA_SWAMP,		true	},
+    {	"Temple",	AREA_TEMPLE,		true	},
+    {	"Tomb",		AREA_TOMB,		true	},
+    {	"Tower",	AREA_TOWER,		true	},
+    {	"Towne",	AREA_TOWNE,		true	},
+    {	"Tundra",	AREA_TUNDRA,		true	},
+    {	"PoA",		AREA_PG,		true	},
+    {	"Ocean",	AREA_UNDERSEA,		true	},
+    {	"Villa",	AREA_VILLAGE,		true	},
+    {	"Vulcan",	AREA_VOLCANO,		true	},
+    {	"Wilder",	AREA_WILDER,		true	},
+    {	"Instce",	AREA_INSTANCE,		true	},
+    {	"Duty",		AREA_DUTY,			true	},
+    {	NULL,		0,		0	},
 };
 
 
 
 const struct flag_type area_who_titles[] = {
-	{	"blank",	AREA_BLANK,		true	},
-	{	"abyss",	AREA_ABYSS,		true	},
-	{	"aerial",	AREA_AERIAL,		true	},
-	{	"arena",	AREA_ARENA,		true	},
-	{	"at_sea",	AREA_AT_SEA,		true	},
-	{	"battle",	AREA_BATTLE,		true	},
-	{	"castle",	AREA_CASTLE,		true	},
-	{	"cavern",	AREA_CAVERN,		true	},
-	{	"chat",		AREA_CHAT,		true	},
-	{	"church",	AREA_CHURCH,		true	},
-	{	"cult",		AREA_CULT,		true	},
-	{	"dungeon",	AREA_DUNGEON,		true	},
-	{	"eden",		AREA_EDEN,		true	},
-	{	"forest",	AREA_FOREST,		true	},
-	{	"fort",		AREA_FORT,		true	},
-	{	"home",		AREA_HOME,		true	},
-	{	"immortal",	AREA_OFFICE,		true	},
-	{	"inn",		AREA_INN,		true	},
-	{	"isle",		AREA_ISLE,		true	},
-	{	"jungle",	AREA_JUNGLE,		true	},
-	{	"keep",		AREA_KEEP,		true	},
-	{	"limbo",	AREA_LIMBO,		true	},
-	{	"mountain",	AREA_MOUNTAIN,		true	},
-	{	"netherworld",	AREA_NETHERWORLD,	true	},
-	{	"on_ship",	AREA_ON_SHIP,		true	},
-	{	"outpost",	AREA_OUTPOST,		true	},
-	{	"palace",	AREA_PALACE,		true	},
-	{	"pg",		AREA_PG,		true	},
-	{	"planar",	AREA_PLANAR,		true	},
-	{	"pyramid",	AREA_PYRAMID,		true	},
-	{	"ruins",	AREA_RUINS,		true	},
-	{	"swamp",	AREA_SWAMP,		true	},
-	{	"temple",	AREA_TEMPLE,		true	},
-	{	"tomb",		AREA_TOMB,		true	},
-	{	"tower",	AREA_TOWER,		true	},
-	{	"towne",	AREA_TOWNE,		true	},
-	{	"tundra",	AREA_TUNDRA,		true	},
-	{	"undersea",	AREA_UNDERSEA,		true	},
-	{	"village",	AREA_VILLAGE,		true	},
-	{	"volcano",	AREA_VOLCANO,		true	},
-	{	"wilderness",	AREA_WILDER,		true	},
-	{	"instance",		AREA_INSTANCE,		true	},
-	{	"duty",	AREA_DUTY,			true	},
-	{	NULL,		0,		0	},
+    {	"blank",	AREA_BLANK,		true	},
+    {	"abyss",	AREA_ABYSS,		true	},
+    {	"aerial",	AREA_AERIAL,		true	},
+    {	"arena",	AREA_ARENA,		true	},
+    {	"at_sea",	AREA_AT_SEA,		true	},
+    {	"battle",	AREA_BATTLE,		true	},
+    {	"castle",	AREA_CASTLE,		true	},
+    {	"cavern",	AREA_CAVERN,		true	},
+    {	"chat",		AREA_CHAT,		true	},
+    {	"church",	AREA_CHURCH,		true	},
+    {	"cult",		AREA_CULT,		true	},
+    {	"dungeon",	AREA_DUNGEON,		true	},
+    {	"eden",		AREA_EDEN,		true	},
+    {	"forest",	AREA_FOREST,		true	},
+    {	"fort",		AREA_FORT,		true	},
+    {	"home",		AREA_HOME,		true	},
+    {	"immortal",	AREA_OFFICE,		true	},
+    {	"inn",		AREA_INN,		true	},
+    {	"isle",		AREA_ISLE,		true	},
+    {	"jungle",	AREA_JUNGLE,		true	},
+    {	"keep",		AREA_KEEP,		true	},
+    {	"limbo",	AREA_LIMBO,		true	},
+    {	"mountain",	AREA_MOUNTAIN,		true	},
+    {	"netherworld",	AREA_NETHERWORLD,	true	},
+    {	"on_ship",	AREA_ON_SHIP,		true	},
+    {	"outpost",	AREA_OUTPOST,		true	},
+    {	"palace",	AREA_PALACE,		true	},
+    {	"pg",		AREA_PG,		true	},
+    {	"planar",	AREA_PLANAR,		true	},
+    {	"pyramid",	AREA_PYRAMID,		true	},
+    {	"ruins",	AREA_RUINS,		true	},
+    {	"swamp",	AREA_SWAMP,		true	},
+    {	"temple",	AREA_TEMPLE,		true	},
+    {	"tomb",		AREA_TOMB,		true	},
+    {	"tower",	AREA_TOWER,		true	},
+    {	"towne",	AREA_TOWNE,		true	},
+    {	"tundra",	AREA_TUNDRA,		true	},
+    {	"undersea",	AREA_UNDERSEA,		true	},
+    {	"village",	AREA_VILLAGE,		true	},
+    {	"volcano",	AREA_VOLCANO,		true	},
+    {	"wilderness",	AREA_WILDER,		true	},
+    {	"instance",		AREA_INSTANCE,		true	},
+    {	"duty",	AREA_DUTY,			true	},
+    {	NULL,		0,		0	},
 };
 
 
@@ -1094,16 +1103,21 @@ const struct flag_type exit_flags[] =
 
 const struct flag_type lock_flags[] =
 {
-	{	"locked",		LOCK_LOCKED,		true	},
-	{	"magic",		LOCK_MAGIC,			true	},
-	{	"snap_key",		LOCK_SNAPKEY,		true	},
-	{	"script",		LOCK_SCRIPT,		true	},
-	{	"noremove",		LOCK_NOREMOVE,		true	},
-	{	"broken",		LOCK_BROKEN,		true	},
-	{	"jammed",		LOCK_JAMMED,		true	},
-	{	"nojam",		LOCK_NOJAM,			true	},
-	{	"created",		LOCK_CREATED,		false	},
-	{	NULL,			0,					0		}
+    {	"locked",		LOCK_LOCKED,		true	},
+    {	"magic",		LOCK_MAGIC,			true	},
+    {	"snap_key",		LOCK_SNAPKEY,		true	},
+    {	"script",		LOCK_SCRIPT,		true	},
+    {	"noremove",		LOCK_NOREMOVE,		true	},
+    {	"broken",		LOCK_BROKEN,		true	},
+    {	"jammed",		LOCK_JAMMED,		true	},
+    {	"nojam",		LOCK_NOJAM,			true	},
+    {	"free_keys",	LOCK_FREE_KEYS,		false	},
+    {	"check_both",	LOCK_CHECK_BOTH,	true	},
+    {	"final",		LOCK_FINAL,			false	},
+    {	"nomagic",		LOCK_NOMAGIC,		true	},
+    {	"noscript",		LOCK_NOSCRIPT,		true	},
+    {	"created",		LOCK_CREATED,		false	},
+    {	NULL,			0,					0		}
 };
 
 const struct flag_type portal_exit_flags[] =
@@ -1146,37 +1160,37 @@ const struct flag_type door_resets[] =
 
 const struct flag_type room_flags[] =
 {
-	{	"dark",				ROOM_DARK,				true	},
-	{	"gods_only",		ROOM_GODS_ONLY,			true	},
-	{	"imp_only",			ROOM_IMP_ONLY,			true	},
-	{	"indoors",			ROOM_INDOORS,			true	},
-	{	"newbies_only",		ROOM_NEWBIES_ONLY,		true	},
-	{	"no_map",			ROOM_NOMAP,				true	},
-	{	"no_mob",			ROOM_NO_MOB,			true	},
-	{	"no_recall",		ROOM_NO_RECALL,			true	},
-	{	"no_wander",		ROOM_NO_WANDER,			true	},
-	{	"noview",			ROOM_NOVIEW,			true	},
-	{	"pet_shop",			ROOM_PET_SHOP,			true	},
-	{	"private",			ROOM_PRIVATE,			true	},
-	{	"safe",				ROOM_SAFE,				true	},
-	{	"solitary",			ROOM_SOLITARY,			true	},
-	{	"arena",			ROOM_ARENA,				true	},
-	{	"bank",				ROOM_BANK,				true	},
-	{	"cpk",				ROOM_CPK,				true	},
-	{	"dark_attack",		ROOM_ATTACK_IF_DARK,	true	},
-	{	"death_trap",		ROOM_DEATH_TRAP,		true	},
-	{	"helm",				ROOM_SHIP_HELM,			true	},
-	{	"locker",			ROOM_LOCKER,			true	},
-	{	"nocomm",			ROOM_NOCOMM,			true	},
-	{	"nomagic",			ROOM_NOMAGIC,			true	},
-	{	"nowhere",			ROOM_NOWHERE,			true	},
-	{	"pk",				ROOM_PK,				true	},
-	{	"real_estate",		ROOM_HOUSE_UNSOLD,		true	},
-	{	"rocks",			ROOM_ROCKS,				true	},
-	{	"ship_shop",		ROOM_SHIP_SHOP,			true	},
-	{	"underwater",		ROOM_UNDERWATER,		true	},
-	{	"view_wilds",		ROOM_VIEWWILDS,			true	},
-	{	NULL,	0,	0	}
+    {	"dark",				ROOM_DARK,				true	},
+    {	"gods_only",		ROOM_GODS_ONLY,			true	},
+    {	"imp_only",			ROOM_IMP_ONLY,			true	},
+    {	"indoors",			ROOM_INDOORS,			true	},
+    {	"newbies_only",		ROOM_NEWBIES_ONLY,		true	},
+    {	"no_map",			ROOM_NOMAP,				true	},
+    {	"no_mob",			ROOM_NO_MOB,			true	},
+    {	"no_recall",		ROOM_NO_RECALL,			true	},
+    {	"no_wander",		ROOM_NO_WANDER,			true	},
+    {	"noview",			ROOM_NOVIEW,			true	},
+    {	"pet_shop",			ROOM_PET_SHOP,			true	},
+    {	"private",			ROOM_PRIVATE,			true	},
+    {	"safe",				ROOM_SAFE,				true	},
+    {	"solitary",			ROOM_SOLITARY,			true	},
+    {	"arena",			ROOM_ARENA,				true	},
+    {	"bank",				ROOM_BANK,				true	},
+    {	"chaotic",			ROOM_CHAOTIC,			true	},
+    {	"dark_attack",		ROOM_ATTACK_IF_DARK,	true	},
+    {	"death_trap",		ROOM_DEATH_TRAP,		true	},
+    {	"helm",				ROOM_SHIP_HELM,			true	},
+    {	"locker",			ROOM_LOCKER,			true	},
+    {	"nocomm",			ROOM_NOCOMM,			true	},
+    {	"nomagic",			ROOM_NOMAGIC,			true	},
+    {	"nowhere",			ROOM_NOWHERE,			true	},
+    {	"pk",				ROOM_PK,				true	},
+    {	"real_estate",		ROOM_HOUSE_UNSOLD,		true	},
+    {	"rocks",			ROOM_ROCKS,				true	},
+    {	"ship_shop",		ROOM_SHIP_SHOP,			true	},
+    {	"underwater",		ROOM_UNDERWATER,		true	},
+    {	"view_wilds",		ROOM_VIEWWILDS,			true	},
+    {	NULL,	0,	0	}
 };
 
 
@@ -1324,15 +1338,15 @@ const struct flag_type type_flags[] =
     {   "tattoo",		ITEM_TATTOO,		true	},
     {   "ink",			ITEM_INK,			true	},
     {   "part",			ITEM_PART,			true	},
-	{	"telescope",	ITEM_TELESCOPE,		true	},
-	{	"compass",		ITEM_COMPASS,		true	},
-	{	"whetstone",	ITEM_WHETSTONE,		true	},
-	{	"chisel",		ITEM_CHISEL,		true	},
-	{	"pick",			ITEM_PICK,			true	},
-	{	"tinderbox",	ITEM_TINDERBOX,		true	},
-	{	"drying_cloth",	ITEM_DRYING_CLOTH,	true	},
-	{	"needle",		ITEM_NEEDLE,		true	},
-	{	"body_part",	ITEM_BODY_PART,		true	},
+    {	"telescope",	ITEM_TELESCOPE,		true	},
+    {	"compass",		ITEM_COMPASS,		true	},
+    {	"whetstone",	ITEM_WHETSTONE,		true	},
+    {	"chisel",		ITEM_CHISEL,		true	},
+    {	"pick",			ITEM_PICK,			true	},
+    {	"tinderbox",	ITEM_TINDERBOX,		true	},
+    {	"drying_cloth",	ITEM_DRYING_CLOTH,	true	},
+    {	"needle",		ITEM_NEEDLE,		true	},
+    {	"body_part",	ITEM_BODY_PART,		true	},
     {	NULL,			0,			0	}
 };
 
@@ -1401,6 +1415,8 @@ const struct flag_type extra2_flags[] =
     {   "no_locker",		ITEM_NOLOCKER,		true	},
     {	"no_auction",		ITEM_NOAUCTION,		true	},
     {	"keep_value",		ITEM_KEEP_VALUE,	true	},
+    {   "key_item",		ITEM_KEY_ITEM,		true	},
+    {   "keyitem",		ITEM_KEY_ITEM,		true	},
     {   NULL,			0,			0	}
 };
 
@@ -1514,50 +1530,50 @@ const struct flag_type apply_flags_full[] =
 
 const struct flag_type wear_loc_names[] =
 {
-	{ "NONE",			WEAR_NONE,	true },
-	{ "LIGHT",			WEAR_LIGHT,	true },
-	{ "FINGER_L",		WEAR_FINGER_L,	true },
-	{ "FINGER_R",		WEAR_FINGER_R,	true },
-	{ "NECK_1",		WEAR_NECK_1,	true },
-	{ "NECK_2",		WEAR_NECK_2,	true },
-	{ "BODY",			WEAR_BODY,	true },
-	{ "HEAD",			WEAR_HEAD,	true },
-	{ "LEGS",			WEAR_LEGS,	true },
-	{ "FEET",			WEAR_FEET,	true },
-	{ "HANDS",			WEAR_HANDS,	true },
-	{ "ARMS",			WEAR_ARMS,	true },
-	{ "SHIELD",		WEAR_SHIELD,	true },
-	{ "ABOUT",			WEAR_ABOUT,	true },
-	{ "WAIST",			WEAR_WAIST,	true },
-	{ "WRIST_L",		WEAR_WRIST_L,	true },
-	{ "WRIST_R",		WEAR_WRIST_R,	true },
-	{ "WIELD",			WEAR_WIELD,	true },
-	{ "HOLD",			WEAR_HOLD,	true },
-	{ "SECONDARY",		WEAR_SECONDARY,	true },
-	{ "RING_FINGER",	WEAR_RING_FINGER,	true },
-	{ "BACK",			WEAR_BACK,	true },
-	{ "SHOULDER",		WEAR_SHOULDER,	true },
-	{ "ANKLE_L",		WEAR_ANKLE_L,	true },
-	{ "ANKLE_R",		WEAR_ANKLE_R,	true },
-	{ "EAR_L",			WEAR_EAR_L,	true },
-	{ "EAR_R",			WEAR_EAR_R,	true },
-	{ "EYES",			WEAR_EYES,	true },
-	{ "FACE",			WEAR_FACE,	true },
-	{ "TATTOO_HEAD",	WEAR_TATTOO_HEAD,	true },
-	{ "TATTOO_TORSO",	WEAR_TATTOO_TORSO,	true },
-	{ "TATTOO_UPPER_ARM_L",	WEAR_TATTOO_UPPER_ARM_L,	true },
-	{ "TATTOO_UPPER_ARM_R",	WEAR_TATTOO_UPPER_ARM_R,	true },
-	{ "TATTOO_UPPER_LEG_L",	WEAR_TATTOO_UPPER_LEG_L,	true },
-	{ "TATTOO_UPPER_LEG_R",	WEAR_TATTOO_UPPER_LEG_R,	true },
-	{ "LODGED_HEAD",	WEAR_LODGED_HEAD,	true },
-	{ "LODGED_TORSO",	WEAR_LODGED_TORSO,	true },
-	{ "LODGED_ARM_L",	WEAR_LODGED_ARM_L,	true },
-	{ "LODGED_ARM_R",	WEAR_LODGED_ARM_R,	true },
-	{ "LODGED_LEG_L",	WEAR_LODGED_LEG_L,	true },
-	{ "LODGED_LEG_R",	WEAR_LODGED_LEG_R,	true },
-	{ "ENTANGLED",		WEAR_ENTANGLED,	true },
-	{ "CONCEALED",		WEAR_CONCEALED,	true },
-	{ "FLOATING",		WEAR_FLOATING,	true },
+    { "NONE",			WEAR_NONE,	true },
+    { "LIGHT",			WEAR_LIGHT,	true },
+    { "FINGER_L",		WEAR_FINGER_L,	true },
+    { "FINGER_R",		WEAR_FINGER_R,	true },
+    { "NECK_1",		WEAR_NECK_1,	true },
+    { "NECK_2",		WEAR_NECK_2,	true },
+    { "BODY",			WEAR_BODY,	true },
+    { "HEAD",			WEAR_HEAD,	true },
+    { "LEGS",			WEAR_LEGS,	true },
+    { "FEET",			WEAR_FEET,	true },
+    { "HANDS",			WEAR_HANDS,	true },
+    { "ARMS",			WEAR_ARMS,	true },
+    { "SHIELD",		WEAR_SHIELD,	true },
+    { "ABOUT",			WEAR_ABOUT,	true },
+    { "WAIST",			WEAR_WAIST,	true },
+    { "WRIST_L",		WEAR_WRIST_L,	true },
+    { "WRIST_R",		WEAR_WRIST_R,	true },
+    { "WIELD",			WEAR_WIELD,	true },
+    { "HOLD",			WEAR_HOLD,	true },
+    { "SECONDARY",		WEAR_SECONDARY,	true },
+    { "RING_FINGER",	WEAR_RING_FINGER,	true },
+    { "BACK",			WEAR_BACK,	true },
+    { "SHOULDER",		WEAR_SHOULDER,	true },
+    { "ANKLE_L",		WEAR_ANKLE_L,	true },
+    { "ANKLE_R",		WEAR_ANKLE_R,	true },
+    { "EAR_L",			WEAR_EAR_L,	true },
+    { "EAR_R",			WEAR_EAR_R,	true },
+    { "EYES",			WEAR_EYES,	true },
+    { "FACE",			WEAR_FACE,	true },
+    { "TATTOO_HEAD",	WEAR_TATTOO_HEAD,	true },
+    { "TATTOO_TORSO",	WEAR_TATTOO_TORSO,	true },
+    { "TATTOO_UPPER_ARM_L",	WEAR_TATTOO_UPPER_ARM_L,	true },
+    { "TATTOO_UPPER_ARM_R",	WEAR_TATTOO_UPPER_ARM_R,	true },
+    { "TATTOO_UPPER_LEG_L",	WEAR_TATTOO_UPPER_LEG_L,	true },
+    { "TATTOO_UPPER_LEG_R",	WEAR_TATTOO_UPPER_LEG_R,	true },
+    { "LODGED_HEAD",	WEAR_LODGED_HEAD,	true },
+    { "LODGED_TORSO",	WEAR_LODGED_TORSO,	true },
+    { "LODGED_ARM_L",	WEAR_LODGED_ARM_L,	true },
+    { "LODGED_ARM_R",	WEAR_LODGED_ARM_R,	true },
+    { "LODGED_LEG_L",	WEAR_LODGED_LEG_L,	true },
+    { "LODGED_LEG_R",	WEAR_LODGED_LEG_R,	true },
+    { "ENTANGLED",		WEAR_ENTANGLED,	true },
+    { "CONCEALED",		WEAR_CONCEALED,	true },
+    { "FLOATING",		WEAR_FLOATING,	true },
         { "TATTOO_LOWER_ARM_L",        WEAR_TATTOO_LOWER_ARM_L,       true },
         { "TATTOO_LOWER_ARM_R",       WEAR_TATTOO_LOWER_ARM_R,      true },
         { "TATTOO_LOWER_LEG_L",       WEAR_TATTOO_LOWER_LEG_L,      true },
@@ -1947,6 +1963,9 @@ const	struct	bit_type	bitvector_type	[]	=
 };
 
 
+/* DEPRECATED: Use class_exp_per_level() from class_data.h instead.
+ * This table is retained only for legacy code that indexes by tot_level.
+ * New code should use CLASS_DATA.xp_table or the default curve in class_data.c. */
 const struct exp_table exp_per_level_table[] =
 {
     {250}, // 1
@@ -2109,6 +2128,36 @@ const struct flag_type      place_flags[]           =
 };
 
 
+const struct flag_type wilderness_regions[] =
+{
+    { "Arena Island",        REGION_ARENA_ISLAND, true },
+    { "Central Ocean",       REGION_CENTRAL_OCEAN, true },
+    { "Dragon Island",       REGION_DRAGON_ISLAND, true },
+    { "Eastern Ocean",       REGION_EASTERN_OCEAN, true },
+    { "First Continent",     REGION_FIRST_CONTINENT, true },
+    { "Fourth Continent",    REGION_FOURTH_CONTINENT, true },
+    { "Mordrake Island",     REGION_MORDRAKE_ISLAND, true },
+    { "North Pole",          REGION_NORTH_POLE, true },
+    { "Northern Ocean",      REGION_NORTHERN_OCEAN, true },
+    { "Second Continent",    REGION_SECOND_CONTINENT, true },
+    { "South Pole",          REGION_SOUTH_POLE, true },
+    { "Southern Ocean",      REGION_SOUTHERN_OCEAN, true },
+    { "Temple Island",       REGION_TEMPLE_ISLAND, true },
+    { "Third Continent",     REGION_THIRD_CONTINENT, true },
+    { "Undersea",            REGION_UNDERSEA, true },
+    { "Western Ocean",       REGION_WESTERN_OCEAN, true },
+    { "Unknown",             REGION_UNKNOWN, false },
+    { NULL,                    REGION_UNKNOWN, false }
+};
+
+const struct flag_type area_region_flags[] =
+{
+    { "keep_live",      AREA_REGION_KEEP_LIVE,      true },
+    { "no_recall",      AREA_REGION_NO_RECALL,      true },
+    { NULL,              0,                           false }
+};
+
+
 const struct flag_type	token_flags[] =
 {
     {	"purge_death",		TOKEN_PURGE_DEATH,		true	},
@@ -2176,508 +2225,487 @@ const struct flag_type immortal_flags[] =
 // Used by damage_class_lookup()
 // Gets the DAM_* code for the given damage class
 const struct flag_type damage_classes[] = {
-	{"acid", DAM_ACID, true},
-	{"air", DAM_AIR, true},
-	{"bash", DAM_BASH, true},
-	{"charm", DAM_CHARM, true},
-	{"cold", DAM_COLD, true},
-	{"disease", DAM_DISEASE, true},
-	{"drowning", DAM_DROWNING, true},
-	{"earth", DAM_EARTH, true},
-	{"energy", DAM_ENERGY, true},
-	{"fire", DAM_FIRE, true},
-	{"holy", DAM_HOLY, true},
-	{"light", DAM_LIGHT, true},
-	{"lightning", DAM_LIGHTNING, true},
-	{"magic", DAM_MAGIC, true},
-	{"mental", DAM_MENTAL, true},
-	{"negative", DAM_NEGATIVE, true},
-	{"pierce", DAM_PIERCE, true},
-	{"plant", DAM_PLANT, true},
-	{"poison", DAM_POISON, true},
-	{"slash", DAM_SLASH, true},
-	{"sound", DAM_SOUND, true},
-	{"water", DAM_WATER, true},
-	{NULL, 0, 0}
+    {"acid", DAM_ACID, true},
+    {"air", DAM_AIR, true},
+    {"bash", DAM_BASH, true},
+    {"charm", DAM_CHARM, true},
+    {"cold", DAM_COLD, true},
+    {"disease", DAM_DISEASE, true},
+    {"drowning", DAM_DROWNING, true},
+    {"earth", DAM_EARTH, true},
+    {"energy", DAM_ENERGY, true},
+    {"fire", DAM_FIRE, true},
+    {"holy", DAM_HOLY, true},
+    {"light", DAM_LIGHT, true},
+    {"lightning", DAM_LIGHTNING, true},
+    {"magic", DAM_MAGIC, true},
+    {"mental", DAM_MENTAL, true},
+    {"negative", DAM_NEGATIVE, true},
+    {"pierce", DAM_PIERCE, true},
+    {"plant", DAM_PLANT, true},
+    {"poison", DAM_POISON, true},
+    {"slash", DAM_SLASH, true},
+    {"sound", DAM_SOUND, true},
+    {"water", DAM_WATER, true},
+    {NULL, 0, 0}
 };
 
-
-// @@@NIB : 20070120 : Added for relic ifchecks
-// Labels the reserved vnum of each relic to their function
-// This includes both the boost name and relic name for interchangability
-//	within scripts, since scripters dealing with relics ought to be able
-//	to use whichever name they wish for identifying the relic.
-const struct flag_type relic_types[] = {
-	// Boost name
-	{"damage",OBJ_VNUM_RELIC_EXTRA_DAMAGE,true},
-	{"xp",OBJ_VNUM_RELIC_EXTRA_XP,true},
-	{"pneuma",OBJ_VNUM_RELIC_EXTRA_PNEUMA,true},
-	{"hp",OBJ_VNUM_RELIC_HP_REGEN,true},
-	{"mana",OBJ_VNUM_RELIC_MANA_REGEN,true},
-	// Relic name
-	{"power",OBJ_VNUM_RELIC_EXTRA_DAMAGE,true},
-	{"knowledge",OBJ_VNUM_RELIC_EXTRA_XP,true},
-	{"soul",OBJ_VNUM_RELIC_EXTRA_PNEUMA,true},
-	{"health",OBJ_VNUM_RELIC_HP_REGEN,true},
-	{"magic",OBJ_VNUM_RELIC_MANA_REGEN,true},
-	{NULL, 0, 0},
-};
 
 const struct flag_type corpse_types[] = {
-	{"charred",RAWKILL_CHARRED,true},
-	{"dissolve",RAWKILL_DISSOLVE,true},
-	{"explode",RAWKILL_EXPLODE,true},
-	{"flay",RAWKILL_FLAY,true},
-	{"frozen",RAWKILL_FROZEN,true},
-	{"iceblock",RAWKILL_ICEBLOCK,true},
-	{"incinerate",RAWKILL_INCINERATE,true},
-	{"melted",RAWKILL_MELTED,true},
-	{"nocorpse",RAWKILL_NOCORPSE,true},
-	{"normal",RAWKILL_NORMAL,true},
-	{"shatter",RAWKILL_SHATTER,true},
-	{"skeletal",RAWKILL_SKELETAL,true},
-	{"stone",RAWKILL_STONE,true},
-	{"withered",RAWKILL_WITHERED,true},
-	{NULL, 0, 0},
+    {"charred",RAWKILL_CHARRED,true},
+    {"dissolve",RAWKILL_DISSOLVE,true},
+    {"explode",RAWKILL_EXPLODE,true},
+    {"flay",RAWKILL_FLAY,true},
+    {"frozen",RAWKILL_FROZEN,true},
+    {"iceblock",RAWKILL_ICEBLOCK,true},
+    {"incinerate",RAWKILL_INCINERATE,true},
+    {"melted",RAWKILL_MELTED,true},
+    {"nocorpse",RAWKILL_NOCORPSE,true},
+    {"normal",RAWKILL_NORMAL,true},
+    {"shatter",RAWKILL_SHATTER,true},
+    {"skeletal",RAWKILL_SKELETAL,true},
+    {"stone",RAWKILL_STONE,true},
+    {"withered",RAWKILL_WITHERED,true},
+    {NULL, 0, 0},
 };
 
-const struct corpse_info corpse_info_table[] = {
-	{	// RAWKILL_NORMAL
-		"corpse %s",
-		"the corpse of %s",
-		"{yThe corpse of %s is lying here.{x",
-		"The corpse of %s is lying here.",
-		"the headless corpse of %s",
-		"{yThe headless corpse of %s is lying here.{x",
-		"The headless corpse of %s is lying here.",
-		"animated corpse %s",
-		"The animated corpse of %s staggers around here.\n\r",
-		"It is decaying and quite smelly.\n\r",
-		NULL,
-		NULL,
-		"$p dries into a withered husk.",
-		"{RYou reach down and rip out the skull of %s.{x",
-		"{RWith the sound of ripping flesh, $n rips out the skull of %s!{x",
-		"{RYou try to remove the skull from $p, but mutilate it in the process.{x",
-		"{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
-		false,false,true,100,100,100,RAWKILL_WITHERED,0,3,6,1,3,100,
-		0
-	}, {	// RAWKILL_CHARRED
-		"corpse %s",
-		"the charred corpse of %s",
-		"{DThe charred corpse of %s is lying here.{x",
-		"The charred corpse of %s is lying here.",
-		"the headless charred corpse of %s",
-		"{DThe headless charred corpse of %s is lying here.{x",
-		"The headless charred corpse of %s is lying here.",
-		"animated charred corpse %s",
-		"The charred corpse of %s hobbles about.\n\r",
-		"The smell of charred flesh fills the air.\n\r",
-		"{YThe last thing you feel is your flesh charring...{x",
-		"{DThe flesh on $n chars to blackened crisp.{x",
-		"$p decays into dust.",
-		"{DYou reach down and rip out the skull of %s, snapping burned flesh away.{x",
-		"{DWith burned flesh snapping away, $n rips out the skull of %s!{x",
-		"{DYou try to remove the skull from $p, but cause it to crumble into ashes!{x",
-		"{D$n tries to remove the skull from $p, but causes it to crumble into ashes!{x",
-		false,false,true,45,100,90,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		0
-	}, {	// RAWKILL_FROZEN
-		"corpse %s",
-		"the frozen corpse of %s",
-		"{cThe frozen corpse of %s is lying here.{x",
-		"The frozen corpse of %s is lying here.",
-		"the headless frozen corpse of %s",
-		"{cThe headless frozen corpse of %s is lying here.{x",
-		"The headless frozen corpse of %s is lying here.",
-		"animated frozen corpse %s",
-		"The frozen corpse of %s lurches around here.\n\r",
-		"Frost covers its skin, chilling the air as it lurches about.\n\r",
-		NULL,
-		"{C$n's body freezes over.{x",
-		"$p decays into dust.",
-		"{CYou reach down and rip out the skull of %s.{x",
-		"{CWith the sound of ice breaking, $n rips out the skull of %s!{x",
-		"{CYou try to remove the skull from $p, but it shatters from being disturbed.{x",
-		"{C$n tries to remove the skull from $p, but it shatters from being disturbed.{x",
-		false,false,true,80,100,70,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		0
-	}, {	// RAWKILL_MELTED
-		"corpse %s",
-		"the corpse of %s",
-		"{gThe corpse of %s is lying here, partially melted.{x",
-		"The corpse of %s is lying here, partially melted.",
-		"the headless corpse of %s",
-		"{gThe headless corpse of %s is lying here, partially melted.{x",
-		"The corpse of %s is lying here, partially melted.",
-		"animated corpse %s",
-		"The corpse of %s staggers around here with flesh oozing off.\n\r",
-		"Melted by a mighty blast of acid, the flesh on this corpse slowly oozes off\n\r"
-		"in disgusting rivulets.\n\r",
-		"{GThe last thing you feel is your flesh melting...{x",
-		"{GThe flesh on $n oozes off as it melts!{x",
-		"$p decays into dust.",
-		"{RYou reach down and rip out the skull of %s.{x",
-		"{RWith the sound of ripping flesh, $n rips out the skull of %s!{x",
-		"{RYou try to remove the skull from $p, but mutilate it in the process.{x",
-		"{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
-		false,false,true,50,100,90,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		PART_HIDE
-	}, {	// RAWKILL_WITHERED
-		"corpse %s",
-		"the corpse of %s",
-		"{xThe withered corpse of %s is lying here.{x",
-		"The corpse of %s is lying here, completely withered.",
-		"the headless corpse of %s",
-		"{xThe headless withered corpse of %s is lying here.{x",
-		"The corpse of %s is lying here, completely withered.",
-		"animated withered corpse %s",
-		"The withered husk of %s staggers about with skin flaking off.\n\r",
-		"Dried to a husk, this corpse looks as if it will disintegrate within moments.\n\r"
-		"Skin flakes off with each step made.\n\r",
-		NULL,
-		"{W$n withers into a dried husk!{x",
-		"The flesh on $p crumbles into a pile of dust, leaving behind a skeleton.",
-		"{yYou reach down and rip out the skull of %s, with dust and dried skin falling away.{x",
-		"{yWith dust and dried skin falling away, $n rips out the skull of %s!{x",
-		"{yYou try to remove the skull from $p, but cause it to crumble into dust!{x",
-		"{y$n tries to remove the skull from $p, but causes it to crumble into dust!{x",
-		false,false,true,50,100,30,RAWKILL_SKELETAL,0,3,6,1,3,100,
-		0
-	}, {	// RAWKILL_ICEBLOCK
-		"iceblock %s",
-		"%s encased in ice",
-		"{WThe body of %s is trapped in a block of ice.{x",
-		"Entombed in a block of ice, the body of %s remains trapped in a frozen stasis.",
-		"%s encased in ice",
-		"{WThe headless body of %s is trapped in a block of ice.{x",
-		"Entombed in a block of ice, the headless body of %s remains trapped in a frozen stasis.",
-		NULL,
-		NULL,
-		NULL,
-		"{WEverything goes white as a wall of ice surrounds you!{x",
-		"{W$n turns into a block of ice!{x",
-		"$p crumbles away.",
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		true,false,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		0
-	}, {	// RAWKILL_INCINERATE
-		"ashes %s",
-		"the ashes of %s",
-		"{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
-		"{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
-		"the ashes of %s",
-		"{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
-		"{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
-		NULL,
-		NULL,
-		NULL,
-		"{YThe last thing you feel is your flesh charring...{x",
-		"{RFlames consume $n!{x",
-		"$p blow away...",
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		-1
-	}, {	// RAWKILL_STONE
-		"statue %s",
-		"the statue of %s",
-		"{xThe body of %s stands here stoned.",
-		"The body of %s remains trapped as a petrified statue.",
-		"the headless statue of %s",
-		"{xThe headless body of %s stands here stoned.",
-		"The headless body of %s remains trapped as a petrified statue.",
-		"animated statue %s",
-		"The petrified visage of %s lurches about slowly.",
-		"Prefectly preserved, the flesh of stone holds static everything that mars\n\r"
-		"its stoney surface.\n\r",
-		"{DEverything goes black suddenly...{x",
-		"{x$n turns into a stone statue!",
-		"$p crumbles into dust.",
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		true,false,true,0,10,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		0
-	}, {	// RAWKILL_SHATTER
-		"remains %s",
-		"the shattered remains of %s",
-		"The shattered remains of %s lay scattered about.",
-		"The shattered remains of %s lay scattered about.",
-		"the shattered remains of %s",
-		"The shattered remains of %s lay scattered about.",
-		"The shattered remains of %s lay scattered about.",
-		NULL,
-		NULL,
-		NULL,
-		"{WYou feel your body exploding...{x",
-		"{W$n shatters!{x",
-		"$p decays into dust.",
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		-1
-	}, {	// RAWKILL_EXPLODE
-		"remains %s",
-		"the remains of %s",
-		"{rThe bloody remains of %s lie in a pile.{x",
-		"{DThe bloody remains of %s lie in a pile.{x",
-		"the remains of %s",
-		"{rThe bloody remains of %s lie in a pile.{x",
-		"{DThe bloody remains of %s lie in a pile.{x",
-		NULL,
-		NULL,
-		NULL,
-		"{RYou feel your body exploding...{x",
-		"{R$n's body explodes into a bloody mess!{x",
-		"$p decays into dust.",
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		-1
-	}, {	// RAWKILL_DISSOLVE
-		"gooey mess %s",
-		"the gooey mess of %s",
-		"{gThe gooey mess of %s puddles here.{x",
-		"What used to be the body of %s now exists as a gooey puddle.",
-		"the gooey mess of %s",
-		"{gThe gooey mess of %s puddles here.{x",
-		"What used to be the body of %s now exists as a gooey puddle.",
-		NULL,
-		NULL,
-		NULL,
-		"{GYou feel your body dissolving...{x",
-		"{G$n's body dissolves into a gooey mess!{x",
-		"$p dries up, leaving a stain.",
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		-1
-	}, {	// RAWKILL_SKELETAL
-		"skeleton %s",
-		"the skeleton of %s",
-		"{xThe skeleton of %s is lying here.{x",
-		"{xThe skeleton of %s is lying here.{x",
-		"the skeleton of %s",
-		"{xThe skeleton of %s is lying here.{x",
-		"{xThe skeleton of %s is lying here.{x",
-		"animated skeleton %s",
-		"The animated skeleton of %s lurches around here.\n\r",
-		"Dark recesses in the skull penetrate back, carrying with their stare their\n\r"
-		"soulless presence.\n\r",
-		NULL,
-		"{WThe flesh of $n disintegrates immediately, leaving behind a skeleton!{x",
-		"$p collapses into a pile of bones.",
-		"{RYou reach down and rip off the skull of %s.{x",
-		"{RWith the sound of bones snapping, $n rips off the skull of %s!{x",
-		"{RYou try to remove the skull from $p, but mutilate it in the process.{x",
-		"{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
-		false,false,true,0,100,100,RAWKILL_NOCORPSE,0,3,6,25,40,100,
-		PART_HIDE|PART_GUTS|PART_EYE|PART_EAR|PART_BRAINS|PART_HEART|PART_LONG_TONGUE|PART_EYESTALKS|PART_TENTACLES|PART_SCALES
-	}, {	// RAWKILL_FLAY
-		"corpse %s",
-		"the corpse of %s",
-		"{rThe corpse of %s is lying here, missing all traces of skin.{x",
-		"All the skin has been flayed from the corpse of %s.",
-		"the headless corpse of %s",
-		"{rThe headless corpse of %s is lying here, missing all traces of skin.{x",
-		"All the skin has been flayed from the headless corpse of %s.",
-		"animated corpse %s",
-		"The animated corpse of %s staggers around here, missing all manner of skin.\n\r",
-		"It is decaying and quite smelly.\n\r",
-		NULL,
-		"{RAll the skin peels away from $n!{x",
-		"The flesh on $p rots away, leaving behind a skeleton.",
-		"{RYou reach down and rip out the skull of %s.{x",
-		"{RWith the sound of ripping flesh, $n rips out the skull of %s!{x",
-		"{RYou try to remove the skull from $p, but mutilate it in the process.{x",
-		"{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
-		false,false,false,80,100,95,RAWKILL_SKELETAL,0,3,6,1,5,100,
-		PART_HIDE|PART_SCALES
-	},
+struct corpse_info corpse_info_table[] = {
+    {	// RAWKILL_NORMAL
+        "corpse %s",
+        "the corpse of %s",
+        "{yThe corpse of %s is lying here.{x",
+        "The corpse of %s is lying here.",
+        "the headless corpse of %s",
+        "{yThe headless corpse of %s is lying here.{x",
+        "The headless corpse of %s is lying here.",
+        "animated corpse %s",
+        "The animated corpse of %s staggers around here.\n\r",
+        "It is decaying and quite smelly.\n\r",
+        NULL,
+        NULL,
+        "$p dries into a withered husk.",
+        "{RYou reach down and rip out the skull of %s.{x",
+        "{RWith the sound of ripping flesh, $n rips out the skull of %s!{x",
+        "{RYou try to remove the skull from $p, but mutilate it in the process.{x",
+        "{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
+        false,false,true,100,100,100,RAWKILL_WITHERED,0,3,6,1,3,100,
+        0
+    }, {	// RAWKILL_CHARRED
+        "corpse %s",
+        "the charred corpse of %s",
+        "{DThe charred corpse of %s is lying here.{x",
+        "The charred corpse of %s is lying here.",
+        "the headless charred corpse of %s",
+        "{DThe headless charred corpse of %s is lying here.{x",
+        "The headless charred corpse of %s is lying here.",
+        "animated charred corpse %s",
+        "The charred corpse of %s hobbles about.\n\r",
+        "The smell of charred flesh fills the air.\n\r",
+        "{YThe last thing you feel is your flesh charring...{x",
+        "{DThe flesh on $n chars to blackened crisp.{x",
+        "$p decays into dust.",
+        "{DYou reach down and rip out the skull of %s, snapping burned flesh away.{x",
+        "{DWith burned flesh snapping away, $n rips out the skull of %s!{x",
+        "{DYou try to remove the skull from $p, but cause it to crumble into ashes!{x",
+        "{D$n tries to remove the skull from $p, but causes it to crumble into ashes!{x",
+        false,false,true,45,100,90,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        0
+    }, {	// RAWKILL_FROZEN
+        "corpse %s",
+        "the frozen corpse of %s",
+        "{cThe frozen corpse of %s is lying here.{x",
+        "The frozen corpse of %s is lying here.",
+        "the headless frozen corpse of %s",
+        "{cThe headless frozen corpse of %s is lying here.{x",
+        "The headless frozen corpse of %s is lying here.",
+        "animated frozen corpse %s",
+        "The frozen corpse of %s lurches around here.\n\r",
+        "Frost covers its skin, chilling the air as it lurches about.\n\r",
+        NULL,
+        "{C$n's body freezes over.{x",
+        "$p decays into dust.",
+        "{CYou reach down and rip out the skull of %s.{x",
+        "{CWith the sound of ice breaking, $n rips out the skull of %s!{x",
+        "{CYou try to remove the skull from $p, but it shatters from being disturbed.{x",
+        "{C$n tries to remove the skull from $p, but it shatters from being disturbed.{x",
+        false,false,true,80,100,70,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        0
+    }, {	// RAWKILL_MELTED
+        "corpse %s",
+        "the corpse of %s",
+        "{gThe corpse of %s is lying here, partially melted.{x",
+        "The corpse of %s is lying here, partially melted.",
+        "the headless corpse of %s",
+        "{gThe headless corpse of %s is lying here, partially melted.{x",
+        "The corpse of %s is lying here, partially melted.",
+        "animated corpse %s",
+        "The corpse of %s staggers around here with flesh oozing off.\n\r",
+        "Melted by a mighty blast of acid, the flesh on this corpse slowly oozes off\n\r"
+        "in disgusting rivulets.\n\r",
+        "{GThe last thing you feel is your flesh melting...{x",
+        "{GThe flesh on $n oozes off as it melts!{x",
+        "$p decays into dust.",
+        "{RYou reach down and rip out the skull of %s.{x",
+        "{RWith the sound of ripping flesh, $n rips out the skull of %s!{x",
+        "{RYou try to remove the skull from $p, but mutilate it in the process.{x",
+        "{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
+        false,false,true,50,100,90,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        PART_HIDE
+    }, {	// RAWKILL_WITHERED
+        "corpse %s",
+        "the corpse of %s",
+        "{xThe withered corpse of %s is lying here.{x",
+        "The corpse of %s is lying here, completely withered.",
+        "the headless corpse of %s",
+        "{xThe headless withered corpse of %s is lying here.{x",
+        "The corpse of %s is lying here, completely withered.",
+        "animated withered corpse %s",
+        "The withered husk of %s staggers about with skin flaking off.\n\r",
+        "Dried to a husk, this corpse looks as if it will disintegrate within moments.\n\r"
+        "Skin flakes off with each step made.\n\r",
+        NULL,
+        "{W$n withers into a dried husk!{x",
+        "The flesh on $p crumbles into a pile of dust, leaving behind a skeleton.",
+        "{yYou reach down and rip out the skull of %s, with dust and dried skin falling away.{x",
+        "{yWith dust and dried skin falling away, $n rips out the skull of %s!{x",
+        "{yYou try to remove the skull from $p, but cause it to crumble into dust!{x",
+        "{y$n tries to remove the skull from $p, but causes it to crumble into dust!{x",
+        false,false,true,50,100,30,RAWKILL_SKELETAL,0,3,6,1,3,100,
+        0
+    }, {	// RAWKILL_ICEBLOCK
+        "iceblock %s",
+        "%s encased in ice",
+        "{WThe body of %s is trapped in a block of ice.{x",
+        "Entombed in a block of ice, the body of %s remains trapped in a frozen stasis.",
+        "%s encased in ice",
+        "{WThe headless body of %s is trapped in a block of ice.{x",
+        "Entombed in a block of ice, the headless body of %s remains trapped in a frozen stasis.",
+        NULL,
+        NULL,
+        NULL,
+        "{WEverything goes white as a wall of ice surrounds you!{x",
+        "{W$n turns into a block of ice!{x",
+        "$p crumbles away.",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        true,false,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        0
+    }, {	// RAWKILL_INCINERATE
+        "ashes %s",
+        "the ashes of %s",
+        "{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
+        "{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
+        "the ashes of %s",
+        "{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
+        "{DThe burning ashes of %s lie in a pile, ready to blow away.{x",
+        NULL,
+        NULL,
+        NULL,
+        "{YThe last thing you feel is your flesh charring...{x",
+        "{RFlames consume $n!{x",
+        "$p blow away...",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        -1
+    }, {	// RAWKILL_STONE
+        "statue %s",
+        "the statue of %s",
+        "{xThe body of %s stands here stoned.",
+        "The body of %s remains trapped as a petrified statue.",
+        "the headless statue of %s",
+        "{xThe headless body of %s stands here stoned.",
+        "The headless body of %s remains trapped as a petrified statue.",
+        "animated statue %s",
+        "The petrified visage of %s lurches about slowly.",
+        "Prefectly preserved, the flesh of stone holds static everything that mars\n\r"
+        "its stoney surface.\n\r",
+        "{DEverything goes black suddenly...{x",
+        "{x$n turns into a stone statue!",
+        "$p crumbles into dust.",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        true,false,true,0,10,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        0
+    }, {	// RAWKILL_SHATTER
+        "remains %s",
+        "the shattered remains of %s",
+        "The shattered remains of %s lay scattered about.",
+        "The shattered remains of %s lay scattered about.",
+        "the shattered remains of %s",
+        "The shattered remains of %s lay scattered about.",
+        "The shattered remains of %s lay scattered about.",
+        NULL,
+        NULL,
+        NULL,
+        "{WYou feel your body exploding...{x",
+        "{W$n shatters!{x",
+        "$p decays into dust.",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        -1
+    }, {	// RAWKILL_EXPLODE
+        "remains %s",
+        "the remains of %s",
+        "{rThe bloody remains of %s lie in a pile.{x",
+        "{DThe bloody remains of %s lie in a pile.{x",
+        "the remains of %s",
+        "{rThe bloody remains of %s lie in a pile.{x",
+        "{DThe bloody remains of %s lie in a pile.{x",
+        NULL,
+        NULL,
+        NULL,
+        "{RYou feel your body exploding...{x",
+        "{R$n's body explodes into a bloody mess!{x",
+        "$p decays into dust.",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        -1
+    }, {	// RAWKILL_DISSOLVE
+        "gooey mess %s",
+        "the gooey mess of %s",
+        "{gThe gooey mess of %s puddles here.{x",
+        "What used to be the body of %s now exists as a gooey puddle.",
+        "the gooey mess of %s",
+        "{gThe gooey mess of %s puddles here.{x",
+        "What used to be the body of %s now exists as a gooey puddle.",
+        NULL,
+        NULL,
+        NULL,
+        "{GYou feel your body dissolving...{x",
+        "{G$n's body dissolves into a gooey mess!{x",
+        "$p dries up, leaving a stain.",
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        false,true,false,0,0,-1,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        -1
+    }, {	// RAWKILL_SKELETAL
+        "skeleton %s",
+        "the skeleton of %s",
+        "{xThe skeleton of %s is lying here.{x",
+        "{xThe skeleton of %s is lying here.{x",
+        "the skeleton of %s",
+        "{xThe skeleton of %s is lying here.{x",
+        "{xThe skeleton of %s is lying here.{x",
+        "animated skeleton %s",
+        "The animated skeleton of %s lurches around here.\n\r",
+        "Dark recesses in the skull penetrate back, carrying with their stare their\n\r"
+        "soulless presence.\n\r",
+        NULL,
+        "{WThe flesh of $n disintegrates immediately, leaving behind a skeleton!{x",
+        "$p collapses into a pile of bones.",
+        "{RYou reach down and rip off the skull of %s.{x",
+        "{RWith the sound of bones snapping, $n rips off the skull of %s!{x",
+        "{RYou try to remove the skull from $p, but mutilate it in the process.{x",
+        "{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
+        false,false,true,0,100,100,RAWKILL_NOCORPSE,0,3,6,25,40,100,
+        PART_HIDE|PART_GUTS|PART_EYE|PART_EAR|PART_BRAINS|PART_HEART|PART_LONG_TONGUE|PART_EYESTALKS|PART_TENTACLES|PART_SCALES
+    }, {	// RAWKILL_FLAY
+        "corpse %s",
+        "the corpse of %s",
+        "{rThe corpse of %s is lying here, missing all traces of skin.{x",
+        "All the skin has been flayed from the corpse of %s.",
+        "the headless corpse of %s",
+        "{rThe headless corpse of %s is lying here, missing all traces of skin.{x",
+        "All the skin has been flayed from the headless corpse of %s.",
+        "animated corpse %s",
+        "The animated corpse of %s staggers around here, missing all manner of skin.\n\r",
+        "It is decaying and quite smelly.\n\r",
+        NULL,
+        "{RAll the skin peels away from $n!{x",
+        "The flesh on $p rots away, leaving behind a skeleton.",
+        "{RYou reach down and rip out the skull of %s.{x",
+        "{RWith the sound of ripping flesh, $n rips out the skull of %s!{x",
+        "{RYou try to remove the skull from $p, but mutilate it in the process.{x",
+        "{R$n tries to remove the skull from $p, but mutilates it in the process.{x",
+        false,false,false,80,100,95,RAWKILL_SKELETAL,0,3,6,1,5,100,
+        PART_HIDE|PART_SCALES
+    },
 };
 
 const struct flag_type time_of_day_flags[] = {
-	{ "aftermidnight",	TOD_AFTERMIDNIGHT, true},
-	{ "afternoon",		TOD_AFTERNOON, true},
-	{ "dawn",		TOD_DAWN, true},
-	{ "day",		TOD_DAY, true},
-	{ "dusk",		TOD_DUSK, true},
-	{ "evening",		TOD_EVENING, true},
-	{ "midnight",		TOD_MIDNIGHT, true},
-	{ "morning",		TOD_MORNING, true},
-	{ "night",		TOD_NIGHT, true},
-	{ "noon",		TOD_NOON, true},
-	{ NULL,			0, false},
+    { "aftermidnight",	TOD_AFTERMIDNIGHT, true},
+    { "afternoon",		TOD_AFTERNOON, true},
+    { "dawn",		TOD_DAWN, true},
+    { "day",		TOD_DAY, true},
+    { "dusk",		TOD_DUSK, true},
+    { "evening",		TOD_EVENING, true},
+    { "midnight",		TOD_MIDNIGHT, true},
+    { "morning",		TOD_MORNING, true},
+    { "night",		TOD_NIGHT, true},
+    { "noon",		TOD_NOON, true},
+    { NULL,			0, false},
 };
 
 const struct flag_type death_types[] = {
-	 { "alive",	DEATHTYPE_ALIVE, true},
-	 { "attack",	DEATHTYPE_ATTACK, true},
-	 { "behead",	DEATHTYPE_BEHEAD, true},
-	 { "breath",	DEATHTYPE_BREATH, true},
-	 { "damage",	DEATHTYPE_DAMAGE, true},
-	 { "killspell",	DEATHTYPE_KILLSPELL, true},
-	 { "magic",	DEATHTYPE_MAGIC, true},
-	 { "rawkill",	DEATHTYPE_RAWKILL, true},
-	 { "rocks",	DEATHTYPE_ROCKS, true},
-	 { "slit",	DEATHTYPE_SLIT, true},
-	 { "smite",	DEATHTYPE_SMITE, true},
-	 { "stake",	DEATHTYPE_STAKE, true},
-	 { "toxin",	DEATHTYPE_TOXIN, true},
+     { "alive",	DEATHTYPE_ALIVE, true},
+     { "attack",	DEATHTYPE_ATTACK, true},
+     { "behead",	DEATHTYPE_BEHEAD, true},
+     { "breath",	DEATHTYPE_BREATH, true},
+     { "damage",	DEATHTYPE_DAMAGE, true},
+     { "killspell",	DEATHTYPE_KILLSPELL, true},
+     { "magic",	DEATHTYPE_MAGIC, true},
+     { "rawkill",	DEATHTYPE_RAWKILL, true},
+     { "rocks",	DEATHTYPE_ROCKS, true},
+     { "slit",	DEATHTYPE_SLIT, true},
+     { "smite",	DEATHTYPE_SMITE, true},
+     { "stake",	DEATHTYPE_STAKE, true},
+     { "toxin",	DEATHTYPE_TOXIN, true},
 //	 { "trap",	DEATHTYPE_TRAP, true},
-	{ NULL,			0, false},
+    { NULL,			0, false},
 };
 
 const struct flag_type tool_types[] = {
-	{ "none",		TOOL_NONE, true },
-	{ "whetstone",		TOOL_WHETSTONE, true },
-	{ "chisel",		TOOL_CHISEL, true },
-	{ "pick",		TOOL_PICK, true },
-	{ "shovel",		TOOL_SHOVEL, true },
-	{ "tinderbox",		TOOL_TINDERBOX, true },
-	{ "drying_cloth",	TOOL_DRYING_CLOTH, true },
-	{ "small_needle",	TOOL_SMALL_NEEDLE, true },
-	{ "large_needle",	TOOL_LARGE_NEEDLE, true },
-	{ NULL,			0, false },
+    { "none",		TOOL_NONE, true },
+    { "whetstone",		TOOL_WHETSTONE, true },
+    { "chisel",		TOOL_CHISEL, true },
+    { "pick",		TOOL_PICK, true },
+    { "shovel",		TOOL_SHOVEL, true },
+    { "tinderbox",		TOOL_TINDERBOX, true },
+    { "drying_cloth",	TOOL_DRYING_CLOTH, true },
+    { "small_needle",	TOOL_SMALL_NEEDLE, true },
+    { "large_needle",	TOOL_LARGE_NEEDLE, true },
+    { NULL,			0, false },
 };
 
 const struct flag_type catalyst_types[] = {
-	{ "none",	CATALYST_NONE, true},
-	{ "acid",	CATALYST_ACID, true},
-	{ "air",	CATALYST_AIR, true},
-	{ "astral",	CATALYST_ASTRAL, true},
-	{ "blood",	CATALYST_BLOOD, true},
-	{ "body",	CATALYST_BODY, true},
-	{ "chaos",	CATALYST_CHAOS, true},
-	{ "cosmic",	CATALYST_COSMIC, true},
-	{ "darkness",	CATALYST_DARKNESS, true},
-	{ "death",	CATALYST_DEATH, true},
-	{ "earth",	CATALYST_EARTH, true},
-	{ "energy",	CATALYST_ENERGY, true},
-	{ "fire",	CATALYST_FIRE, true},
-	{ "holy",	CATALYST_HOLY, true},
-	{ "ice",	CATALYST_ICE, true},
-	{ "law",	CATALYST_LAW, true},
-	{ "light",	CATALYST_LIGHT, true},
-	{ "mana",	CATALYST_MANA, true},
-	{ "metallic",	CATALYST_METALLIC, true},
-	{ "mind",	CATALYST_MIND, true},
-	{ "nature",	CATALYST_NATURE, true},
-	{ "shock",	CATALYST_SHOCK, true},
-	{ "soul",	CATALYST_SOUL, true},
-	{ "sound",	CATALYST_SOUND, true},
-	{ "toxin",	CATALYST_TOXIN, true},
-	{ "water",	CATALYST_WATER, true},
-	{ NULL,		0, false },
+    { "none",	CATALYST_NONE, true},
+    { "acid",	CATALYST_ACID, true},
+    { "air",	CATALYST_AIR, true},
+    { "astral",	CATALYST_ASTRAL, true},
+    { "blood",	CATALYST_BLOOD, true},
+    { "body",	CATALYST_BODY, true},
+    { "chaos",	CATALYST_CHAOS, true},
+    { "cosmic",	CATALYST_COSMIC, true},
+    { "darkness",	CATALYST_DARKNESS, true},
+    { "death",	CATALYST_DEATH, true},
+    { "earth",	CATALYST_EARTH, true},
+    { "energy",	CATALYST_ENERGY, true},
+    { "fire",	CATALYST_FIRE, true},
+    { "holy",	CATALYST_HOLY, true},
+    { "ice",	CATALYST_ICE, true},
+    { "law",	CATALYST_LAW, true},
+    { "light",	CATALYST_LIGHT, true},
+    { "mana",	CATALYST_MANA, true},
+    { "metallic",	CATALYST_METALLIC, true},
+    { "mind",	CATALYST_MIND, true},
+    { "nature",	CATALYST_NATURE, true},
+    { "shock",	CATALYST_SHOCK, true},
+    { "soul",	CATALYST_SOUL, true},
+    { "sound",	CATALYST_SOUND, true},
+    { "toxin",	CATALYST_TOXIN, true},
+    { "water",	CATALYST_WATER, true},
+    { NULL,		0, false },
 };
 
 const char *catalyst_descs[] = {
-	"unknown",
-	"acidic",
-	"windy",
-	"astral",
-	"bloody",
-	"physical",
-	"chaotic",
-	"cosmic",
-	"deathly",
-	"earthly",
-	"energetic",
-	"firey",
-	"holy",
-	"icy",
-	"lawful",
-	"solar",
-	"mental",
-	"natural",
-	"sonic",
-	"toxic",
-	"watery"
+    "unknown",
+    "acidic",
+    "windy",
+    "astral",
+    "bloody",
+    "physical",
+    "chaotic",
+    "cosmic",
+    "deathly",
+    "earthly",
+    "energetic",
+    "firey",
+    "holy",
+    "icy",
+    "lawful",
+    "solar",
+    "mental",
+    "natural",
+    "sonic",
+    "toxic",
+    "watery"
 };
 
 const struct flag_type catalyst_method_types[] = {
-	{ "carry",	CATALYST_CARRY, true},
-	{ "room",	CATALYST_ROOM, true},
-	{ "hold",	CATALYST_HOLD, true},
-	{ "containers",	CATALYST_CONTAINERS, true},
-	{ "worn",	CATALYST_WORN, true},
-	{ "active",	CATALYST_ACTIVE, true},
-	{ NULL,		0, false },
+    { "carry",	CATALYST_CARRY, true},
+    { "room",	CATALYST_ROOM, true},
+    { "hold",	CATALYST_HOLD, true},
+    { "containers",	CATALYST_CONTAINERS, true},
+    { "worn",	CATALYST_WORN, true},
+    { "active",	CATALYST_ACTIVE, true},
+    { NULL,		0, false },
 };
 
 const struct flag_type boolean_types[] = {
-	{ "true",	true, true},
-	{ "false",	false, true},
-	{ "yes",	true, true},
-	{ "no",		false, true},
-	{ NULL,		0, false },
+    { "true",	true, true},
+    { "false",	false, true},
+    { "yes",	true, true},
+    { "no",		false, true},
+    { NULL,		0, false },
 };
 
 const int dam_to_corpse[DAM_MAX][11] = {
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_NONE
-	{ 8, 1, RAWKILL_EXPLODE, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_BASH
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_PIERCE
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_SLASH
-	{ 8, 3, RAWKILL_CHARRED, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_FIRE
-	{ 8, 3, RAWKILL_FROZEN, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_COLD
-	{ 16, 1, RAWKILL_INCINERATE, 5, RAWKILL_CHARRED, 0, 0, 0, 0, 0, 0 }, // DAM_LIGHTNING
-	{ 16, 1, RAWKILL_DISSOLVE, 5, RAWKILL_MELTED, 0, 0, 0, 0, 0, 0 }, // DAM_ACID
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_POISON
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_NEGATIVE
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_HOLY
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_ENERGY
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_MENTAL
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_DISEASE
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_DROWNING
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_LIGHT
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_OTHER
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_HARM
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_CHARM
-	{ 100, 2, RAWKILL_SHATTER, 5, RAWKILL_EXPLODE, 0, 0, 0, 0, 0, 0 }, // DAM_SOUND
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_BITE
-	{ 100, 100, RAWKILL_EXPLODE, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_VORPAL
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_BACKSTAB
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_MAGIC
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_WATER
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_EARTH
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_PLANT
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_AIR
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_NONE
+    { 8, 1, RAWKILL_EXPLODE, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_BASH
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_PIERCE
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_SLASH
+    { 8, 3, RAWKILL_CHARRED, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_FIRE
+    { 8, 3, RAWKILL_FROZEN, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_COLD
+    { 16, 1, RAWKILL_INCINERATE, 5, RAWKILL_CHARRED, 0, 0, 0, 0, 0, 0 }, // DAM_LIGHTNING
+    { 16, 1, RAWKILL_DISSOLVE, 5, RAWKILL_MELTED, 0, 0, 0, 0, 0, 0 }, // DAM_ACID
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_POISON
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_NEGATIVE
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_HOLY
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_ENERGY
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_MENTAL
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_DISEASE
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_DROWNING
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_LIGHT
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_OTHER
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_HARM
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_CHARM
+    { 100, 2, RAWKILL_SHATTER, 5, RAWKILL_EXPLODE, 0, 0, 0, 0, 0, 0 }, // DAM_SOUND
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_BITE
+    { 100, 100, RAWKILL_EXPLODE, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_VORPAL
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_BACKSTAB
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_MAGIC
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_WATER
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_EARTH
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_PLANT
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_AIR
 };
 
 // When this becomes a linked list..... yeah
 #define BLEND(a,b,c)	{ RAWKILL_##a, RAWKILL_##b, RAWKILL_##c, false }
 #define BLENDD(a,b,c)	{ RAWKILL_##a, RAWKILL_##b, RAWKILL_##c, true }
 const struct corpse_blend_type corpse_blending[] = {
-	BLENDD(FLAY,WITHERED,WITHERED),
-	BLENDD(ICEBLOCK,FROZEN,ICEBLOCK),
-	BLENDD(ICEBLOCK,CHARRED,NORMAL),
-	BLENDD(ICEBLOCK,INCINERATE,CHARRED),
-	BLENDD(EXPLODE,SHATTER,NOCORPSE),
-	BLENDD(EXPLODE,INCINERATE,NOCORPSE),
-	BLENDD(EXPLODE,DISSOLVE,NOCORPSE),
-	BLENDD(EXPLODE,ANY,EXPLODE),
-	BLENDD(SHATTER,INCINERATE,NOCORPSE),
-	BLENDD(SHATTER,DISSOLVE,NOCORPSE),
-	BLENDD(SHATTER,ANY,SHATTER),
-	BLENDD(INCINERATE,DISSOLVE,NOCORPSE),
-	BLENDD(INCINERATE,ANY,INCINERATE),
-	BLENDD(DISSOLVE,ANY,DISSOLVE),
-	BLENDD(NORMAL,ANY,TYPE2),
-	BLENDD(NOCORPSE,ANY,NOCORPSE),
-	BLEND(ANY,ANY,TYPE1)
+    BLENDD(FLAY,WITHERED,WITHERED),
+    BLENDD(ICEBLOCK,FROZEN,ICEBLOCK),
+    BLENDD(ICEBLOCK,CHARRED,NORMAL),
+    BLENDD(ICEBLOCK,INCINERATE,CHARRED),
+    BLENDD(EXPLODE,SHATTER,NOCORPSE),
+    BLENDD(EXPLODE,INCINERATE,NOCORPSE),
+    BLENDD(EXPLODE,DISSOLVE,NOCORPSE),
+    BLENDD(EXPLODE,ANY,EXPLODE),
+    BLENDD(SHATTER,INCINERATE,NOCORPSE),
+    BLENDD(SHATTER,DISSOLVE,NOCORPSE),
+    BLENDD(SHATTER,ANY,SHATTER),
+    BLENDD(INCINERATE,DISSOLVE,NOCORPSE),
+    BLENDD(INCINERATE,ANY,INCINERATE),
+    BLENDD(DISSOLVE,ANY,DISSOLVE),
+    BLENDD(NORMAL,ANY,TYPE2),
+    BLENDD(NOCORPSE,ANY,NOCORPSE),
+    BLEND(ANY,ANY,TYPE1)
 };
 
 
@@ -2704,223 +2732,251 @@ const struct flag_type tattoo_loc_flags[] =
 
 const struct flag_type affgroup_mobile_flags[] =
 {
-	{ "racial",	AFFGROUP_RACIAL,	true	},
-	{ "metaracial",	AFFGROUP_METARACIAL,	true	},
-	{ "biological",	AFFGROUP_BIOLOGICAL,	true	},
-	{ "mental",	AFFGROUP_MENTAL,	true	},
-	{ "divine",	AFFGROUP_DIVINE,	true	},
-	{ "magical",	AFFGROUP_MAGICAL,	true	},
-	{ "physical",	AFFGROUP_PHYSICAL,	true	},
-	{ NULL,		0,			false	}
+    { "racial",	AFFGROUP_RACIAL,	true	},
+    { "metaracial",	AFFGROUP_METARACIAL,	true	},
+    { "biological",	AFFGROUP_BIOLOGICAL,	true	},
+    { "mental",	AFFGROUP_MENTAL,	true	},
+    { "divine",	AFFGROUP_DIVINE,	true	},
+    { "magical",	AFFGROUP_MAGICAL,	true	},
+    { "physical",	AFFGROUP_PHYSICAL,	true	},
+    { NULL,		0,			false	}
 };
 
 const struct flag_type affgroup_object_flags[] =
 {
-	{ "inherent",	AFFGROUP_INHERENT,	true	},
-	{ "enchant",	AFFGROUP_ENCHANT,	true	},
-	{ "weapon",	AFFGROUP_WEAPON,	true	},
-	{ "portal",	AFFGROUP_PORTAL,	true	},
-	{ "container",	AFFGROUP_CONTAINER,	true	},
-	{ NULL,		0,			false	}
+    { "inherent",	AFFGROUP_INHERENT,	true	},
+    { "enchant",	AFFGROUP_ENCHANT,	true	},
+    { "weapon",	AFFGROUP_WEAPON,	true	},
+    { "portal",	AFFGROUP_PORTAL,	true	},
+    { "container",	AFFGROUP_CONTAINER,	true	},
+    { NULL,		0,			false	}
 };
 
 const struct flag_type spell_target_types[] = {
-	{ "defensive",		TAR_CHAR_DEFENSIVE,	true	},
-	{ "formation",		TAR_CHAR_FORMATION,	true	},
-	{ "ignore",		TAR_IGNORE,		true	},
-	{ "inventory",		TAR_OBJ_INV,		true	},
-	{ "char_world",		TAR_IGNORE_CHAR_DEF,	true	},
-	{ "obj_char_off",	TAR_OBJ_CHAR_OFF,	true	},
-	{ "obj_defensive",	TAR_OBJ_CHAR_DEF,	true	},
-	{ "obj_ground",		TAR_OBJ_GROUND,		true	},
-	{ "offensive",		TAR_CHAR_OFFENSIVE,	true	},
-	{ "self",		TAR_CHAR_SELF,		true	},
-	{ NULL,			0,			false	}
+    { "defensive",		TAR_CHAR_DEFENSIVE,	true	},
+    { "formation",		TAR_CHAR_FORMATION,	true	},
+    { "ignore",		TAR_IGNORE,		true	},
+    { "inventory",		TAR_OBJ_INV,		true	},
+    { "char_world",		TAR_IGNORE_CHAR_DEF,	true	},
+    { "obj_char_off",	TAR_OBJ_CHAR_OFF,	true	},
+    { "obj_defensive",	TAR_OBJ_CHAR_DEF,	true	},
+    { "obj_ground",		TAR_OBJ_GROUND,		true	},
+    { "offensive",		TAR_CHAR_OFFENSIVE,	true	},
+    { "self",		TAR_CHAR_SELF,		true	},
+    { NULL,			0,			false	}
 };
 
 const struct flag_type song_target_types[] = {
-	{ "defensive",		TAR_CHAR_DEFENSIVE,	true	},
-	{ "formation",		TAR_CHAR_FORMATION,	true	},
-	{ "ignore",			TAR_IGNORE,		true	},
-	{ "obj_char_off",	TAR_OBJ_CHAR_OFF,	true	},
-	{ "obj_defensive",	TAR_OBJ_CHAR_DEF,	true	},
-	{ "offensive",		TAR_CHAR_OFFENSIVE,	true	},
-	{ "self",		TAR_CHAR_SELF,		true	},
-	{ NULL,			0,			false	}
+    { "defensive",		TAR_CHAR_DEFENSIVE,	true	},
+    { "formation",		TAR_CHAR_FORMATION,	true	},
+    { "ignore",			TAR_IGNORE,		true	},
+    { "obj_char_off",	TAR_OBJ_CHAR_OFF,	true	},
+    { "obj_defensive",	TAR_OBJ_CHAR_DEF,	true	},
+    { "offensive",		TAR_CHAR_OFFENSIVE,	true	},
+    { "self",		TAR_CHAR_SELF,		true	},
+    { NULL,			0,			false	}
 };
 
 const struct flag_type moon_phases[] = {
-	{ "new",		MOON_NEW,		true	},
-	{ "waxing_crescent",	MOON_WAXING_CRESCENT,	true	},
-	{ "first_quarter",	MOON_FIRST_QUARTER,	true	},
-	{ "waxing_gibbous",	MOON_WAXING_GIBBOUS,	true	},
-	{ "full",		MOON_FULL,		true	},
-	{ "waning_gibbous",	MOON_WANING_GIBBOUS,	true	},
-	{ "last_quarter",	MOON_LAST_QUARTER,	true	},
-	{ "waning_crescent",	MOON_WANING_CRESCENT,	true	},
-	{ NULL,			0,			false	}
+    { "new",		MOON_NEW,		true	},
+    { "waxing_crescent",	MOON_WAXING_CRESCENT,	true	},
+    { "first_quarter",	MOON_FIRST_QUARTER,	true	},
+    { "waxing_gibbous",	MOON_WAXING_GIBBOUS,	true	},
+    { "full",		MOON_FULL,		true	},
+    { "waning_gibbous",	MOON_WANING_GIBBOUS,	true	},
+    { "last_quarter",	MOON_LAST_QUARTER,	true	},
+    { "waning_crescent",	MOON_WANING_CRESCENT,	true	},
+    { NULL,			0,			false	}
 };
 
 const struct flag_type player_conditions[] = {
-	{ "drunk",	COND_DRUNK,		true },
-	{ "full",	COND_FULL,		true },
-	{ "thirst",	COND_THIRST,	true },
-	{ "hunger",	COND_HUNGER,	true },
-	{ "stoned",	COND_STONED,	true },
-	{ NULL,		-1,				false }
+    { "drunk",	COND_DRUNK,		true },
+    { "full",	COND_FULL,		true },
+    { "thirst",	COND_THIRST,	true },
+    { "hunger",	COND_HUNGER,	true },
+    { "stoned",	COND_STONED,	true },
+    { NULL,		-1,				false }
 };
 
 const struct flag_type instrument_types[] = {
-	{ "vocal",		INSTRUMENT_VOCAL,		false },
-	{ "any",		INSTRUMENT_ANY,			true },
-	{ "none",		INSTRUMENT_NONE,		false },
-	{ "reed",		INSTRUMENT_WIND_REED,	true },
-	{ "flute",		INSTRUMENT_WIND_FLUTE,	true },
-	{ "brass",		INSTRUMENT_WIND_BRASS,	true },
-	{ "drum",		INSTRUMENT_DRUM,		true },
-	{ "percussion",	INSTRUMENT_PERCUSSION,	true },
-	{ "chorded",	INSTRUMENT_CHORDED,		true },
-	{ "string",		INSTRUMENT_STRING,		true },
-	{ NULL,			0,						false }
+    { "vocal",		INSTRUMENT_VOCAL,		false },
+    { "any",		INSTRUMENT_ANY,			true },
+    { "none",		INSTRUMENT_NONE,		false },
+    { "reed",		INSTRUMENT_WIND_REED,	true },
+    { "flute",		INSTRUMENT_WIND_FLUTE,	true },
+    { "brass",		INSTRUMENT_WIND_BRASS,	true },
+    { "drum",		INSTRUMENT_DRUM,		true },
+    { "percussion",	INSTRUMENT_PERCUSSION,	true },
+    { "chorded",	INSTRUMENT_CHORDED,		true },
+    { "string",		INSTRUMENT_STRING,		true },
+    { NULL,			0,						false }
 };
 
 const struct flag_type instrument_flags[] = {
-	{ "onehand",	INSTRUMENT_ONEHANDED,	true	},
-	{ NULL,			0,						false }
+    { "onehand",	INSTRUMENT_ONEHANDED,	true	},
+    { NULL,			0,						false }
 };
 
 const struct flag_type corpse_object_flags[] = {
-	{ "cpk",		CORPSE_CPKDEATH,		true },
-	{ "owner_loot",	CORPSE_OWNERLOOT,		true },
-	{ "charred",	CORPSE_CHARRED,			true },
-	{ "frozen",		CORPSE_FROZEN,			true },
-	{ "melted",		CORPSE_MELTED,			true },
-	{ "withered",	CORPSE_WITHERED,		true },
-	{ "pk",			CORPSE_PKDEATH,			true },
-	{ "arena",		CORPSE_ARENADEATH,		true },
-	{ "immortal",	CORPSE_IMMORTAL,		true },
-	{ NULL,			0,						false }
+    { "cpk",		CORPSE_CPKDEATH,		true },
+    { "owner_loot",	CORPSE_OWNERLOOT,		true },
+    { "charred",	CORPSE_CHARRED,			true },
+    { "frozen",		CORPSE_FROZEN,			true },
+    { "melted",		CORPSE_MELTED,			true },
+    { "withered",	CORPSE_WITHERED,		true },
+    { "pk",			CORPSE_PKDEATH,			true },
+    { "arena",		CORPSE_ARENADEATH,		true },
+    { "immortal",	CORPSE_IMMORTAL,		true },
+    { NULL,			0,						false }
 
 };
 
 const struct flag_type variable_types[] = {
-	{"bool",			VAR_BOOLEAN,			true},
-	{"integer",			VAR_INTEGER,			true},
-	{"string",			VAR_STRING,				true},
-	{"string_s",		VAR_STRING_S,			true},
-	{"room",			VAR_ROOM,				true},
-	{"exit",			VAR_EXIT,				true},
-	{"mobile",			VAR_MOBILE,				true},
-	{"object",			VAR_OBJECT,				true},
-	{"token",			VAR_TOKEN,				true},
-	{"area",			VAR_AREA,				true},
-	{"skill",			VAR_SKILL,				true},
-	{"skillinfo",		VAR_SKILLINFO,			true},
-	{"connection",		VAR_CONNECTION,			true},
-	{"affect",			VAR_AFFECT,				true},
-	{"wilds",			VAR_WILDS,				true},
-	{"church",			VAR_CHURCH,				true},
-	{"clone_room",		VAR_CLONE_ROOM,			true},
-	{"wilds_room",		VAR_WILDS_ROOM,			true},
-	{"door",			VAR_DOOR,				true},
-	{"clone_door",		VAR_CLONE_DOOR,			true},
-	{"wilds_door",		VAR_WILDS_DOOR,			true},
-	{"mobile_id",		VAR_MOBILE_ID,			true},
-	{"object_id",		VAR_OBJECT_ID,			true},
-	{"token_id",		VAR_TOKEN_ID,			true},
-	{"skillinfo_id",	VAR_SKILLINFO_ID,		true},
-	{"area_id",			VAR_AREA_ID,			true},
-	{"wilds_id",		VAR_WILDS_ID,			true},
-	{"church_id",		VAR_CHURCH_ID,			true},
-	{"variable",		VAR_VARIABLE,			true},
-	{"bllist_room",		VAR_BLLIST_ROOM,		true},
-	{"bllist_mob",		VAR_BLLIST_MOB,			true},
-	{"bllist_obj",		VAR_BLLIST_OBJ,			true},
-	{"bllist_tok",		VAR_BLLIST_TOK,			true},
-	{"bllist_exit",		VAR_BLLIST_EXIT,		true},
-	{"bllist_skill",	VAR_BLLIST_SKILL,		true},
-	{"bllist_area",		VAR_BLLIST_AREA,		true},
-	{"bllist_wilds",	VAR_BLLIST_WILDS,		true},
-	{"pllist_str",		VAR_PLLIST_STR,			true},
-	{"pllist_conn",		VAR_PLLIST_CONN,		true},
-	{"pllist_room",		VAR_PLLIST_ROOM,		true},
-	{"pllist_mob",		VAR_PLLIST_MOB,			true},
-	{"pllist_obj",		VAR_PLLIST_OBJ,			true},
-	{"pllist_tok",		VAR_PLLIST_TOK,			true},
-	{"pllist_church",	VAR_PLLIST_CHURCH,		true},
-	{"pllist_variable",	VAR_PLLIST_VARIABLE,	true},
-	{ NULL,				VAR_UNKNOWN,			false }
+    {"bool",			VAR_BOOLEAN,			true},
+    {"integer",			VAR_INTEGER,			true},
+    {"string",			VAR_STRING,				true},
+    {"string_s",		VAR_STRING_S,			true},
+    {"room",			VAR_ROOM,				true},
+    {"exit",			VAR_EXIT,				true},
+    {"mobile",			VAR_MOBILE,				true},
+    {"object",			VAR_OBJECT,				true},
+    {"token",			VAR_TOKEN,				true},
+    {"area",			VAR_AREA,				true},
+    {"skill",			VAR_SKILL,				true},
+    {"skillgroup",		VAR_SKILLGROUP,			true},
+    {"skillinfo",		VAR_SKILLINFO,			true},
+    {"connection",		VAR_CONNECTION,			true},
+    {"affect",			VAR_AFFECT,				true},
+    {"wilds",			VAR_WILDS,				true},
+    {"church",			VAR_CHURCH,				true},
+    {"clone_room",		VAR_CLONE_ROOM,			true},
+    {"wilds_room",		VAR_WILDS_ROOM,			true},
+    {"door",			VAR_DOOR,				true},
+    {"clone_door",		VAR_CLONE_DOOR,			true},
+    {"wilds_door",		VAR_WILDS_DOOR,			true},
+    {"mobile_id",		VAR_MOBILE_ID,			true},
+    {"object_id",		VAR_OBJECT_ID,			true},
+    {"token_id",		VAR_TOKEN_ID,			true},
+    {"skillinfo_id",	VAR_SKILLINFO_ID,		true},
+    {"area_id",			VAR_AREA_ID,			true},
+    {"wilds_id",		VAR_WILDS_ID,			true},
+    {"church_id",		VAR_CHURCH_ID,			true},
+    {"variable",		VAR_VARIABLE,			true},
+    {"reputation",		VAR_REPUTATION,			true},
+    {"reputation_index", VAR_REPUTATION_INDEX,	true},
+    {"reputation_rank", VAR_REPUTATION_RANK,	true},
+    {"bllist_room",		VAR_BLLIST_ROOM,		true},
+    {"bllist_mob",		VAR_BLLIST_MOB,			true},
+    {"bllist_obj",		VAR_BLLIST_OBJ,			true},
+    {"bllist_tok",		VAR_BLLIST_TOK,			true},
+    {"bllist_exit",		VAR_BLLIST_EXIT,		true},
+    {"bllist_skill",	VAR_BLLIST_SKILL,		true},
+    {"bllist_area",		VAR_BLLIST_AREA,		true},
+    {"bllist_aregion",	VAR_BLLIST_AREA_REGION,	true},
+    {"bllist_wilds",	VAR_BLLIST_WILDS,		true},
+    {"pllist_str",		VAR_PLLIST_STR,			true},
+    {"pllist_conn",		VAR_PLLIST_CONN,		true},
+    {"pllist_room",		VAR_PLLIST_ROOM,		true},
+    {"pllist_mob",		VAR_PLLIST_MOB,			true},
+    {"pllist_obj",		VAR_PLLIST_OBJ,			true},
+    {"pllist_tok",		VAR_PLLIST_TOK,			true},
+    {"pllist_area",	VAR_PLLIST_AREA,		true},
+    {"pllist_aregion",	VAR_PLLIST_AREA_REGION,	true},
+    {"pllist_church",	VAR_PLLIST_CHURCH,		true},
+    {"pllist_variable",	VAR_PLLIST_VARIABLE,	true},
+    { NULL,				VAR_UNKNOWN,			false }
 
 };
 
 
 const struct flag_type skill_flags[] = {
-	{"practice",		SKILL_PRACTICE,			true},
-	{"improve",			SKILL_IMPROVE,			true},
-	{"favourite",		SKILL_FAVOURITE,			false},	// This is set manually
-	{ NULL,				0,			false }
+    {"practice",		SKILL_PRACTICE,			true},
+    {"improve",			SKILL_IMPROVE,			true},
+    {"favourite",		SKILL_FAVOURITE,			false},	// This is set manually
+    { NULL,				0,			false }
 };
 
 
 const struct flag_type shop_flags[] =
 {
-	{ "stock_only",		SHOPFLAG_STOCK_ONLY,	true	},
-	{ "hide_shop",		SHOPFLAG_HIDE_SHOP,		true	},
-	{ "no_haggle",		SHOPFLAG_NO_HAGGLE,		true	},
-	{ NULL,				0,						false	}
+    { "stock_only",		SHOPFLAG_STOCK_ONLY,	true	},
+    { "hide_shop",		SHOPFLAG_HIDE_SHOP,		true	},
+    { "no_haggle",		SHOPFLAG_NO_HAGGLE,		true	},
+    { NULL,				0,						false	}
 };
 
 const struct flag_type blueprint_section_flags[] =
 {
-	{ "no_rotate",		BSFLAG_NO_ROTATE,		true	},
-	{ NULL,				0,						false	}
+    { "no_rotate",		BSFLAG_NO_ROTATE,		true	},
+    { NULL,				0,						false	}
 };
 
 const struct flag_type blueprint_section_types[] =
 {
-	{ "static",			BSTYPE_STATIC,			true	},
-	{ NULL,				0,						false	}
+    { "static",			BSTYPE_STATIC,			true	},
+    { "maze",			BSTYPE_MAZE,			true	},
+    { NULL,				0,						false	}
 };
 
 const struct flag_type instance_flags[] =
 {
-	{ "completed",			INSTANCE_COMPLETED,			false	},
-	{ "destroy",			INSTANCE_DESTROY,			false	},
-	{ "idle_on_complete",	INSTANCE_IDLE_ON_COMPLETE,	true	},
-	{ "no_idle",			INSTANCE_NO_IDLE,			true	},
-	{ "no_save",			INSTANCE_NO_SAVE,			true	},
-	{ NULL,					0,							false	}
+    { "completed",			INSTANCE_COMPLETED,			false	},
+    { "destroy",			INSTANCE_DESTROY,			false	},
+    { "failed",				INSTANCE_FAILED,			false	},
+    { "idle_on_complete",	INSTANCE_IDLE_ON_COMPLETE,	true	},
+    { "isolated",		INSTANCE_ISOLATED,	true	},
+    { "no_save",			INSTANCE_NO_SAVE,			true	},
+    { NULL,					0,							false	}
 };
 
 const struct flag_type dungeon_flags[] =
 {
-	{ "completed",			DUNGEON_COMPLETED,			false	},
-	{ "destroy",			DUNGEON_DESTROY,			false	},
-	{ "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	true	},
-	{ "no_idle",			DUNGEON_NO_IDLE,			true	},
-	{ "no_save",			DUNGEON_NO_SAVE,			true	},
-	{ NULL,					0,							false	}
+    { "commenced",			DUNGEON_COMMENCED,			false	},
+    { "completed",			DUNGEON_COMPLETED,			false	},
+    { "destroy",			DUNGEON_DESTROY,			false	},
+    { "failed",				DUNGEON_FAILED,				false	},
+    { "failure_on_empty",	DUNGEON_FAILURE_ON_EMPTY,	true	},
+    { "failure_on_wipe",	DUNGEON_FAILURE_ON_WIPE,	true	},
+    { "group_commence",		DUNGEON_GROUP_COMMENCE,		true	},
+    { "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	true	},
+    { "locked",			DUNGEON_LOCKED,			true	},
+    { "no_idle",			DUNGEON_NO_IDLE,			true	},
+    { "no_save",			DUNGEON_NO_SAVE,			true	},
+    { "scripted_levels",    DUNGEON_SCRIPTED_LEVELS,    false   },
+    { "shared",				DUNGEON_SHARED,				true	},
+    { "solo_instance",		DUNGEON_SOLO_INSTANCE,		true	},
+    { NULL,					0,							false	}
+};
+
+const struct flag_type death_release_types[] =
+{
+    { "normal",			DEATH_RELEASE_NORMAL,		true	},
+    { "isolated",		DUNGEON_ISOLATED,	true	},
+    { "to_floor",		DEATH_RELEASE_TO_FLOOR,		true	},
+    { "to_checkpoint",	DEATH_RELEASE_TO_CHECKPOINT,true	},
+    { "failure",		DEATH_RELEASE_FAILURE,		true	},
+    { NULL,				0,							false	}
 };
 
 const struct flag_type transfer_modes[] =
 {
-	{ "silent",			TRANSFER_MODE_SILENT,	true	},
-	{ "portal",			TRANSFER_MODE_PORTAL,	true	},
-	{ "movement",		TRANSFER_MODE_MOVEMENT,	true	},
-	{ NULL,				0,						false	}
+    { "silent",			TRANSFER_MODE_SILENT,	true	},
+    { "portal",			TRANSFER_MODE_PORTAL,	true	},
+    { "movement",		TRANSFER_MODE_MOVEMENT,	true	},
+    { NULL,				0,						false	}
 };
 
 const struct flag_type ship_class_types[] =
 {
-	{ "sailboat",		SHIP_SAILING_BOAT,		true	},
-	{ "airship",		SHIP_AIR_SHIP,			true	},
-	{ NULL,				0,						false	}
+    { "sailboat",		SHIP_SAILING_BOAT,		true	},
+    { "airship",		SHIP_AIR_SHIP,			true	},
+    { NULL,				0,						false	}
 };
 
 const struct flag_type ship_flags[] =
 {
-	{ "protected",		SHIP_PROTECTED,			true	},
-	{ NULL,				0,						false	}
+    { "protected",		SHIP_PROTECTED,			true	},
+    { NULL,				0,						false	}
 };
 
 const struct flag_type stock_types[] =
@@ -2947,17 +3003,17 @@ const struct flag_type prog_entity_flags[] =
 
 const struct flag_type command_types[] =
 {
-	{ "unsorted",		CMDTYPE_NONE,	    true },
-	{ "movement",		CMDTYPE_MOVE,	    true },
-	{ "combat",		CMDTYPE_COMBAT,	    true },
-	{ "object",		CMDTYPE_OBJECT,	    true },
-	{ "information",		CMDTYPE_INFO,	    true },
-	{ "communication",		CMDTYPE_COMM,	    true },
-	{ "racial",		CMDTYPE_RACIAL,	    true },
-	{ "configuration",		CMDTYPE_OOC,	    true },
-	{ "immortal",	CMDTYPE_IMMORTAL,	true },
-	{ "olc",		CMDTYPE_OLC,	    true },
-	{ "admin",		CMDTYPE_ADMIN,	    true },
+    { "unsorted",		CMDTYPE_NONE,	    true },
+    { "movement",		CMDTYPE_MOVE,	    true },
+    { "combat",		CMDTYPE_COMBAT,	    true },
+    { "object",		CMDTYPE_OBJECT,	    true },
+    { "information",		CMDTYPE_INFO,	    true },
+    { "communication",		CMDTYPE_COMM,	    true },
+    { "racial",		CMDTYPE_RACIAL,	    true },
+    { "configuration",		CMDTYPE_OOC,	    true },
+    { "immortal",	CMDTYPE_IMMORTAL,	true },
+    { "olc",		CMDTYPE_OLC,	    true },
+    { "admin",		CMDTYPE_ADMIN,	    true },
     { "newbie",		CMDTYPE_NEWBIE,	    true },
     {NULL,          0,                  false}
 
@@ -2965,17 +3021,17 @@ const struct flag_type command_types[] =
 
 const struct flag_type command_addl_types[] =
 {
-	{ "unsorted",		CMD_TYPE_NONE,	    true },
-	{ "movement",		CMD_TYPE_MOVE,	    true },
-	{ "combat",		CMD_TYPE_COMBAT,	    true },
-	{ "object",		CMD_TYPE_OBJECT,	    true },
-	{ "information",		CMD_TYPE_INFO,	    true },
-	{ "communication",		CMD_TYPE_COMM,	    true },
-	{ "racial",		CMD_TYPE_RACIAL,	    true },
-	{ "configuration",		CMD_TYPE_OOC,	    true },
-	{ "immortal",	CMD_TYPE_IMMORTAL,	true },
-	{ "olc",		CMD_TYPE_OLC,	    true },
-	{ "admin",		CMD_TYPE_ADMIN,	    true },
+    { "unsorted",		CMD_TYPE_NONE,	    true },
+    { "movement",		CMD_TYPE_MOVE,	    true },
+    { "combat",		CMD_TYPE_COMBAT,	    true },
+    { "object",		CMD_TYPE_OBJECT,	    true },
+    { "information",		CMD_TYPE_INFO,	    true },
+    { "communication",		CMD_TYPE_COMM,	    true },
+    { "racial",		CMD_TYPE_RACIAL,	    true },
+    { "configuration",		CMD_TYPE_OOC,	    true },
+    { "immortal",	CMD_TYPE_IMMORTAL,	true },
+    { "olc",		CMD_TYPE_OLC,	    true },
+    { "admin",		CMD_TYPE_ADMIN,	    true },
     { "newbie",		CMD_TYPE_NEWBIE,	    true },
     {NULL,          0,                  false}
 
@@ -3023,6 +3079,7 @@ const struct do_func_type do_func_table[] =
         { "do_goto",                    do_goto },
         { "do_goxy",                    do_goxy },
         { "do_group",                   do_group },
+        { "do_readycheck",              do_readycheck },
         { "do_kill",                    do_kill },
         { "do_wear",                    do_wear },
         { "do_inventory",                       do_inventory },
@@ -3034,12 +3091,14 @@ const struct do_func_type do_func_table[] =
         { "do_practice",                        do_practice },
         { "do_pull",                    do_pull },
         { "do_push",                    do_push },
+        { "do_qedit",                   do_qedit },
         { "do_quest",                   do_quest },
         { "do_rehearse",                        do_rehearse },
         { "do_renew",                   do_renew },
         { "do_reply",                   do_reply },
         { "do_rest",                    do_rest },
         { "do_resurrect",                       do_resurrect },
+        { "do_summon",                  do_summon },
         { "do_sit",                     do_sit },
         { "do_stand",                   do_stand },
         { "do_stat",                    do_stat },
@@ -3076,6 +3135,7 @@ const struct do_func_type do_func_table[] =
         { "do_score",                   do_score },
         { "do_scry",                    do_scry },
         { "do_skills",                  do_skills },
+        { "do_skillinfo",               do_skillinfo },
         { "do_socials",                 do_socials },
         { "do_spells",                  do_spells },
         { "do_stats",                   do_stats },
@@ -3087,20 +3147,20 @@ const struct do_func_type do_func_table[] =
         { "do_whois",                   do_whois },
         { "do_wizlist",                 do_wizlist },
         { "do_alias",                   do_alias },
-        { "do_toggle",                  do_toggle },
+        { "do_prefs",                   do_prefs },
         { "do_colour",                  do_colour },
         { "do_colour",                  do_colour },
-        { "do_toggle",                  do_toggle },
+        { "do_prefs",                   do_prefs },
         { "do_description",                     do_description },
         { "do_delet",                   do_delet },
         { "do_delete",                  do_delete },
-        { "do_email",                   do_email },
-        { "do_password",                        do_password },
+        { "do_prefs",                   do_prefs },
+        { "do_prefs",                   do_prefs },
         { "do_prompt",                  do_prompt },
         { "do_showdamage",                      do_showdamage },
         { "do_scroll",                  do_scroll },
         { "do_title",                   do_title },
-        { "do_toggle",                  do_toggle },
+        { "do_prefs",                   do_prefs },
         { "do_unalias",                 do_unalias },
         { "do_wimpy",                   do_wimpy },
         { "do_afk",                     do_afk },
@@ -3119,6 +3179,7 @@ const struct do_func_type do_func_table[] =
         { "do_gossip",                  do_gossip },
         { "do_gtell",                   do_gtell },
         { "do_helper",                  do_helper },
+        { "do_history",                 do_history },
         { "do_hints",                   do_hints },
         { "do_ignore",                  do_ignore },
         { "do_intone",                  do_intone },
@@ -3150,7 +3211,7 @@ const struct do_func_type do_func_table[] =
         { "do_fill",                    do_fill },
         { "do_give",                    do_give },
         { "do_hands",                   do_hands },
-        { "do_heal",                    do_heal },
+//        { "do_heal",                    do_heal },
         { "do_wear",                    do_wear },
         { "do_infuse",                  do_infuse },
         { "do_inspect",                 do_inspect },
@@ -3338,6 +3399,7 @@ const struct do_func_type do_func_table[] =
         { "do_string",                  do_string },
         { "do_switch",                  do_switch },
         { "do_testport",                do_testport },
+        { "do_test",                    do_test },
         { "do_tlist",                   do_tlist },
         { "do_token",                   do_token },
         { "do_tshow",                   do_tshow },
@@ -3351,6 +3413,7 @@ const struct do_func_type do_func_table[] =
         { "do_wizhelp",                 do_wizhelp },
         { "do_invis",                   do_invis },
         { "do_wizlock",                 do_wizlock },
+{ "do_migratefiles",            do_migratefiles },
         { "do_wiznet",                  do_wiznet },
         { "do_zecho",                   do_zecho },
         { "do_zot",                     do_zot },
@@ -3388,7 +3451,10 @@ const struct do_func_type do_func_table[] =
         { "do_pshow",                   do_pshow },
         { "do_rcopy",                   do_rcopy },
         { "do_redit",                   do_redit },
+        { "do_repedit",                 do_repedit },
         { "do_resets",                  do_resets },
+        { "do_repset",                  do_repset },
+        { "do_reputations",             do_reputations },
         { "do_rjunk",                   do_rjunk },
         { "do_rlist",                   do_rlist },
         { "do_rpcopy",                  do_rpcopy },
@@ -3404,7 +3470,6 @@ const struct do_func_type do_func_table[] =
         { "do_tplist",                  do_tplist },
         { "do_tpstat",                  do_tpstat },
         { "do_wedit",                   do_wedit },
-        { "do_vledit",                  do_vledit },
         { "do_wlist",                   do_wlist },
         { "do_slist",                   do_slist },
         { "do_sadd",                    do_sadd },
@@ -3431,29 +3496,81 @@ const struct do_func_type do_func_table[] =
         { "do_dpdump",                  do_dpdump },
         { "do_dpedit",                  do_dpedit },
         { "do_dplist",                  do_dplist },
+        { "do_qpdump",                  do_qpdump },
+        { "do_qpedit",                  do_qpedit },
+        { "do_qplist",                  do_qplist },
+        { "do_epdump",                  do_epdump },
+        { "do_epstat",                  do_epstat },
+        { "do_epedit",                  do_epedit },
+        { "do_eplist",                  do_eplist },
         { "do_shedit",                  do_shedit },
         { "do_shlist",                  do_shlist },
         { "do_shshow",                  do_shshow },
         { "do_ships",                   do_ships },
         { "do_spawntreasuremap",                        do_spawntreasuremap },
         { "do_reloadstats",                     do_reloadstats },
+        { "do_classreload",                     do_classreload },
+        { "do_racereload",                      do_racereload },
         { "do_cmdlist",                 do_cmdlist },
         { "do_cmdedit",                 do_cmdedit },
         { "do_cmdshow",                 do_cmdshow },
         { "do_testemail",                do_testemail },
         { "do_pwreset",                 do_pwreset  },
+        { "do_pwmigrate",               do_pwmigrate },
+        { "do_migrate",                 do_migrate },
         { "do_lvlaudit",                do_lvlaudit },
-        { "do_keygen",                     do_keygen },
         { "do_mfareset",                do_mfareset },
         { "do_logout",                do_logout },
         { "do_gameedit",                 do_gameedit },
         { "do_accnote", do_accnote },
+        { "do_charnote", do_charnote },
         { "do_vault", do_vault },
         { "do_coffer", do_coffer },
         { "do_acctlink", do_acctlink },
         { "do_acctunlink", do_acctunlink },
         { "do_socialedit", do_socialedit },
         { "do_reserved", do_reserved },
+        { "do_pronouns", do_pronouns },
+        { "do_gcstats", do_gcstats },
+        { "do_cachestats", do_cachestats },
+        { "do_cacheinfo", do_cacheinfo },
+        { "do_cachedump", do_cachedump },
+        { "do_cacheload", do_cacheload },
+        { "do_cachejobs", do_cachejobs },
+        { "do_cachestop", do_cachestop },
+        { "do_leaderboard", do_leaderboard },
+        { "do_penalty", do_penalty },
+        { "do_bonus", do_bonus },
+        { "do_chanmute", do_chanmute },
+        { "do_chanban", do_chanban },
+        { "do_chanwarn", do_chanwarn },
+        { "do_chanunmute", do_chanunmute },
+        { "do_chanpenalties", do_chanpenalties },
+        { "do_prefadmin", do_prefadmin },
+        { "do_raceunlock", do_raceunlock },
+        { "do_raceinfo", do_raceinfo },
+        { "do_racedit", do_racedit },
+        { "do_traitedit", do_traitedit },
+        { "do_skedit", do_skedit },
+        { "do_gredit", do_gredit },
+        { "do_soedit", do_soedit },
+        { "do_clsedit", do_clsedit },
+        { "do_setclass", do_setclass },
+        { "do_clslist", do_clslist },
+        { "do_classes", do_classes },
+        { "do_classinfo", do_classinfo },
+        { "do_freelevel", do_freelevel },
+        { "do_rsgedit", do_rsgedit },
+        { "do_liqedit", do_liqedit },
+        { "do_matedit", do_matedit },
+        { "do_corpsedit", do_corpsedit },
+        { "do_sectoredit", do_sectoredit },
+        { "do_evtedit", do_evtedit },
+        { "do_event", do_event },
+        { "do_events", do_events },
+        { "do_cedit", do_cedit },
+        { "do_rview", do_rview },
+        { NULL, NULL }
 };
 
 /* Table mapping connection states to display strings */
@@ -3467,6 +3584,7 @@ const struct con_state_info con_states[] = {
     { CON_CONFIRM_NEW_PASSWORD,           "Confirm new password" },
     { CON_GET_NEW_RACE,                   "Get new race" },
     { CON_GET_NEW_SEX,                    "Get new sex" },
+    { CON_GET_NEW_BODY_TYPE,              "Get body type" },
     { CON_GET_NEW_CLASS,                  "Get new class" },
     { CON_GET_ALIGNMENT,                  "Get alignment" },
     /* 10: CON_DEFAULT_CHOICE (unused) */
@@ -3535,15 +3653,24 @@ const struct con_state_info con_states[] = {
     { CON_SET_UNLINK_PASSWORD,            "Set unlink password" },
     { CON_VERIFY_CHARACTER_DELETE,        "Verify character delete" },
     { CON_CHARACTER_DELETE,               "Character delete" },
+    { CON_CONFIRM_DEFAULT_PRONOUNS,       "Confirm default pronouns" },
+    { CON_SET_CUSTOM_PRONOUN_SUBJ,        "Set subject pronoun" },
+    { CON_SET_CUSTOM_PRONOUN_OBJ,         "Set object pronoun" },
+    { CON_SET_CUSTOM_PRONOUN_POSS_ADJ,    "Set possessive adjective" },
+    { CON_SET_CUSTOM_PRONOUN_POSS_PRON,   "Set possessive pronoun" },
+    { CON_SET_CUSTOM_PRONOUN_REFL,        "Set reflexive pronoun" },
+    { CON_SET_CUSTOM_VERB_PREF,           "Set verb preference" },
+    { CON_SET_CUSTOM_PRONOUNS_CONFIRM,    "Confirm custom pronouns" },
+    { CON_CONFIRM_RESET_PREFS,            "Confirm reset preferences" },
     { 0, NULL }  /* Terminator */
 };
 
 const struct flag_type acct_flags[] =
 {
-	{	"create_staff",			ACCT_CAN_CREATE_STAFF,				true	},
+    {	"create_staff",			ACCT_CAN_CREATE_STAFF,				true	},
     {   "link_chars",           ACCT_CAN_LINK,  true },
     {   "unlink_chars",         ACCT_CAN_UNLINK, true },
-	{	NULL,	0,	0	}
+    {	NULL,	0,	0	}
 };
 
 // ...existing code...
@@ -3553,6 +3680,10 @@ const struct flag_type acct_flags[] =
 
 
 const struct game_setting_type game_settings_table[] = {
+    /* Core Settings - NOT overridable by environment variables */
+    { "env_var_prefix",      &game_settings.env_var_prefix,       SETTING_TYPE_STRING, SETTING_CAT_CORE,     "Prefix for environment variable overrides",                  false, false, false },
+    { "secrets_mount",       &game_settings.secrets_mount,        SETTING_TYPE_STRING, SETTING_CAT_CORE,     "Path to Doppler/secrets mount (JSON format)",                 false, false, false },
+
     /* Email Settings */
     { "email_enable",        &game_settings.enable_email,         SETTING_TYPE_BOOL,   SETTING_CAT_EMAIL,    "Enable email functionality",                                 true,  false, false },
     { "email_username",      &game_settings.email_username,       SETTING_TYPE_STRING, SETTING_CAT_EMAIL,    "Username for the email account",                             true,  false, true },
@@ -3566,6 +3697,7 @@ const struct game_setting_type game_settings_table[] = {
     { "org_max_ranks",        &game_settings.org_max_ranks,        SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "How many ranks can an organization have",                    true,  false, false },
     { "max_orgs",            &game_settings.max_orgs,             SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum organizations that can exist",                       true,  false, false },
     { "org_pk_cost",        &game_settings.org_disable_pk_pneuma_cost,           SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Cost to disable PK for your church",               true,  false, false },
+    { "system_area",        &game_settings.system_area,           SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Default/system area name or UID for reserved and widevnum fallback", true, false, false },
 
 
 
@@ -3574,6 +3706,7 @@ const struct game_setting_type game_settings_table[] = {
     { "max_mission_allowance", &game_settings.max_mission_allowance, SETTING_TYPE_INT, SETTING_CAT_MISSION,  "Maximum mission allowances a player can have",               true,  false, false },
     { "inc_missions",        &game_settings.inc_missions,         SETTING_TYPE_INT,    SETTING_CAT_MISSION,  "Number of missions a player accrues on allowance tick",      true,  false, false },
     { "max_missions",        &game_settings.max_missions,         SETTING_TYPE_INT,    SETTING_CAT_MISSION,  "Maximum missions a player can run simultaneously",           true,  false, false },
+    { "mission_history_limit", &game_settings.mission_history_limit, SETTING_TYPE_INT, SETTING_CAT_MISSION,  "Mission history entries to retain per player (0 = unlimited)", true, false, false },
 
     /* Locker Settings */
     { "lockers_enabled",     &game_settings.lockers_enabled,      SETTING_TYPE_BOOL,   SETTING_CAT_LOCKER,   "Are lockers enabled",                                        true,  false, false },
@@ -3639,9 +3772,12 @@ const struct game_setting_type game_settings_table[] = {
     { "alignment_system",    &game_settings.alignment_system,     SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Use alignment system",                                       true,  false, false },
     { "restrict_races_align", &game_settings.restrict_races_align, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Restrict races by alignment",                         true, false, false },
     { "restrict_classes_align", &game_settings.restrict_classes_align, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Restrict classes by alignment",                   true, false, false },
+    { "weather_storms_enabled", &game_settings.weather_storms_enabled, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Enable wilderness storm simulation updates",        true, false, false },
+    { "weather_ambience_enabled", &game_settings.weather_ambience_enabled, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Enable weather ambience/effects on characters", true, false, false },
     { "max_login_attempts",  &game_settings.max_login_attempts,   SETTING_TYPE_INT,    SETTING_CAT_SECURITY, "Maximum login attempts before disconnecting",                true,  false, false },
     { "idle_time",           &game_settings.idle_time,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Ticks until a user is considered idle",                      true,  false, false },
     { "idle_disconnect_time", &game_settings.idle_disconnect_time, SETTING_TYPE_INT,   SETTING_CAT_GLOBAL,   "Ticks until an idle user is disconnected",                   true,  false, false },
+    { "save_cooldown_seconds",      &game_settings.save_cooldown_seconds,         SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Minimum seconds between character saves",                 true,  false, false },
     { "max_alias",           &game_settings.max_alias,            SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum aliases a player can have",                          true,  false, false },
     { "max_characters",      &game_settings.max_characters,       SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Maximum characters a player can have",                       true,  false, false },
     { "enable_telnet",       &game_settings.enable_telnet,        SETTING_TYPE_BOOL,   SETTING_CAT_GLOBAL,   "Allow plaintext connections",                                true,  true, false  },
@@ -3656,6 +3792,8 @@ const struct game_setting_type game_settings_table[] = {
     { "enable_insecure_warning", &game_settings.enable_insecure_warning, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Show warning for insecure connections",                   true,  false, false },
     { "insecure_warning_msg", &game_settings.insecure_warning_msg, SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,  "Message for insecure connections",                           true,  false, false },
     { "max_logfile_size",    &game_settings.max_logfile_size,     SETTING_TYPE_INT,    SETTING_CAT_GLOBAL,   "Size to start rotating logs (in MB)",                        true,  false, false },
+    { "channel_backend",     &game_settings.channel_backend,      SETTING_TYPE_STRING, SETTING_CAT_GLOBAL,   "Channel transport backend (legacy_iterative|local|auto|redis)", true, false, false },
+    { "channel_publish_compact", &game_settings.channel_publish_compact, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Publish compact channel events that hydrate from history stream", true, false, false },
     { "note_boot_errors",   &game_settings.note_boot_errors, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Sends notes with boot errors to 'coder' and 'head coder'", true, true, false },
     { "character_delete",    &game_settings.character_delete_delay_days, SETTING_TYPE_INT, SETTING_CAT_GLOBAL, "Number of days before a character is purged when flagged for deletion.", true, false, false },
 
@@ -3725,20 +3863,41 @@ const struct game_setting_type game_settings_table[] = {
     { "mssp_roleplaying",     &game_settings.mssp_roleplaying,     SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Roleplaying enforced",                                       true,  false, false },
     { "mssp_training_system", &game_settings.mssp_training_system, SETTING_TYPE_BOOL,   SETTING_CAT_MSSP,    "Training system",                                            true,  false, false },
     { "mssp_world_originality", &game_settings.mssp_world_originality, SETTING_TYPE_BOOL, SETTING_CAT_MSSP,  "Based on established setting",                               true,  false, false },
-    
+
+    /* Redis Settings */
+    { "redis_enable",         &game_settings.enable_redis,         SETTING_TYPE_BOOL,   SETTING_CAT_REDIS,    "Enable Redis caching",                                       true,  false, false },
+    { "redis_host",           &game_settings.redis_host,           SETTING_TYPE_STRING, SETTING_CAT_REDIS,    "Redis server hostname",                                      true,  false, false },
+    { "redis_port",           &game_settings.redis_port,           SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis server port",                                          true,  false, false },
+    { "redis_password",       &game_settings.redis_password,       SETTING_TYPE_STRING, SETTING_CAT_REDIS,    "Redis authentication password",                              true,  false, true },
+    { "redis_timeout_sec",    &game_settings.redis_timeout_sec,    SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (seconds)",                         true,  false, false },
+    { "redis_timeout_usec",   &game_settings.redis_timeout_usec,   SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (microseconds)",                    true,  false, false },
+
+    /* Debug/Logging Settings */
+    { "crash_dump_dir",       &game_settings.crash_dump_dir,       SETTING_TYPE_STRING, SETTING_CAT_DEBUG,    "Directory for crash dumps and core files",                   true,  false, false },
+    { "crypto_key_passphrase", &game_settings.crypto_key_passphrase, SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "Passphrase for generating encryption key (if not using file-based key)", true, false, true },
+    { "crypto_key_passphrase_previous", &game_settings.crypto_key_passphrase_previous, SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "Previous passphrase for key rotation (if not using file-based key)", true, false, true },
+    { "crypto_salt_file",     &game_settings.crypto_salt_file,     SETTING_TYPE_STRING, SETTING_CAT_SECURITY, "File containing salt for key generation (if using file-based key)", true, false, false },
+    { "crypto_use_passphrase", &game_settings.crypto_use_passphrase, SETTING_TYPE_BOOL, SETTING_CAT_SECURITY, "Whether to use passphrase-based key generation instead of file-based key", true, false, false },
+    { "crypto_key_version",     &game_settings.crypto_key_version,     SETTING_TYPE_INT,    SETTING_CAT_SECURITY, "Version number for the current encryption key, used for key rotation", true, false, false },
+
     { NULL, NULL, 0, 0, NULL, false, false }  /* Terminator */
 };
 
 /* Setting category names for display purposes */
+/* NOTE: SETTING_CAT_* values start at 1, not 0, so index 0 is unused */
 const char *setting_category_names[] = {
-    "Email",
-    "Missions",
-    "Lockers",
-    "Vault",
-    "Coffers",
-    "Global",
-    "Security",
-    "MSSP"
+    NULL,        // index 0 - unused (SETTING_CAT values start at 1)
+    "Core",      // SETTING_CAT_CORE = 1
+    "Email",     // SETTING_CAT_EMAIL = 2
+    "Missions",  // SETTING_CAT_MISSION = 3
+    "Lockers",   // SETTING_CAT_LOCKER = 4
+    "Vault",     // SETTING_CAT_VAULT = 5
+    "Coffers",   // SETTING_CAT_COFFER = 6
+    "Global",    // SETTING_CAT_GLOBAL = 7
+    "Security",  // SETTING_CAT_SECURITY = 8
+    "MSSP",      // SETTING_CAT_MSSP = 9
+    "Redis",     // SETTING_CAT_REDIS = 10
+    "Debug"      // SETTING_CAT_DEBUG = 11
 };
 
 /* Setting type names for display purposes */
@@ -3776,7 +3935,14 @@ const struct flag_type church_permission_flags[] =
     { "add",            CHURCH_PERM_ADD, true, "Member can add people to the church." },
     { "members",       CHURCH_PERM_MEMBERS, true, "Member can manage members' ranks."},
     { "editlog",        CHURCH_PERM_EDITLOG, true, "Member can add entries to the church log, and edit their own." },
+    { "accept_quests",  CHURCH_PERM_ACCEPT_QUESTS, true, "Member can accept church-scoped quests." },
     { NULL,              0,                           false }
+};
+
+const struct flag_type quest_v2_flags[] =
+{
+    { "group_snapshot", QUESTV2_FLAG_GROUP_SCOPE_SNAPSHOT, true, "When group scope is lost, snapshot run to character instead of purging." },
+    { NULL, 0, false }
 };
 
 const struct flag_type rank_type_flags[] =
@@ -3829,4 +3995,46 @@ const struct flag_type staff_ranks[] =
     {"creator",     STAFF_CREATOR,          true},
     {"implementor", STAFF_IMPLEMENTOR,      true},
     {NULL,          0,                      false}
+};
+
+const struct flag_type body_types[] =
+{
+    {"neutral", BODY_TYPE_NEUTRAL, true},
+    {"masculine", BODY_TYPE_MALE, true},
+    {"feminine", BODY_TYPE_FEMALE, true},
+    {"other", BODY_TYPE_OTHER, true},
+    {"random", BODY_TYPE_RANDOM, true},
+    {NULL, 0, false}
+
+};
+
+const struct flag_type armor_types[] =
+{
+    {"none",      ARMOR_TYPE_NONE,    true},
+    {"cloth",     ARMOR_TYPE_CLOTH,   true},
+    {"leather",   ARMOR_TYPE_LEATHER, true},
+    {"mail",      ARMOR_TYPE_MAIL,    true},
+    {"plate",     ARMOR_TYPE_PLATE,   true},
+    {NULL,        0,                  false}
+};
+
+const struct flag_type cart_flags[] =
+{
+    {"mount_only",       CART_MOUNT_ONLY,       true},
+    {"team_animal_only", CART_TEAM_ANIMAL_ONLY,  true},
+    {NULL,               0,                     false}
+};
+
+const struct flag_type light_flags[] =
+{
+    {"is_active",            LIGHT_IS_ACTIVE,            true},
+    {"remove_on_extinguish", LIGHT_REMOVE_ON_EXTINGUISH, true},
+    {"no_extinguish",        LIGHT_NO_EXTINGUISH,        true},
+    {NULL,                   0,                          false}
+};
+
+const struct flag_type scroll_flags[] =
+{
+    {"destroy_on_recite",  SCROLL_DESTROY_ON_RECITE,  true},
+    {NULL,                 0,                         false}
 };

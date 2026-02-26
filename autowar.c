@@ -14,14 +14,42 @@
 #include "recycle.h"
 #include "db.h"
 #include "tables.h"
+#include "event_types.h"
 
 AUTO_WAR	*auto_war;
 int 		auto_war_timer;
 int 		auto_war_battle_timer;
 
 
+/**
+ * do_war - Player command for war participation and information
+ *
+ * Handles all player interaction with the automated war system.
+ *
+ * Subcommands:
+ * - (no args)     : Toggle war channel (COMM_NOAUTOWAR)
+ * - join          : Join the currently active war (during staging period)
+ * - statistics    : Show current war details and participant list
+ *
+ * War types (via auto_war_table):
+ * - AUTO_WAR_FREE_FOR_ALL: Last player standing wins
+ * - AUTO_WAR_GENOCIDE: Race vs race, last race standing wins
+ * - AUTO_WAR_JIHAD: Good vs evil alignment battle
+ *
+ * Join restrictions:
+ * - Must be within war level range
+ * - Cannot join after staging period ends
+ * - Cannot join if dead
+ * - Jihad: Neutral alignment cannot participate
+ *
+ * @param ch        Character running the command
+ * @param argument  Subcommand (join/statistics)
+ */
 void do_war(CHAR_DATA *ch, char *argument)
 {
+    event_legacy_war_command(ch, argument);
+    return;
+
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
 
@@ -29,165 +57,190 @@ void do_war(CHAR_DATA *ch, char *argument)
 
     if ( arg[0] == '\0' )
     {
-	if ( !IS_SET( ch->comm, COMM_NOAUTOWAR ) )
-	{
-	    SET_BIT( ch->comm, COMM_NOAUTOWAR );
-	    send_to_char("WAR channel off.\n\r", ch );
-	}
-	else
-	{
-	    REMOVE_BIT( ch->comm, COMM_NOAUTOWAR );
-	    send_to_char("WAR channel on.\n\r", ch );
-	}
+    if ( !IS_SET( ch->comm, COMM_NOAUTOWAR ) )
+    {
+        SET_BIT( ch->comm, COMM_NOAUTOWAR );
+        send_to_char("WAR channel off.\n\r", ch );
+    }
+    else
+    {
+        REMOVE_BIT( ch->comm, COMM_NOAUTOWAR );
+        send_to_char("WAR channel on.\n\r", ch );
+    }
 
-	return;
+    return;
     }
 
     if (!str_prefix(arg, "join"))
     {
-	if ( auto_war == NULL )
-	{
-	    send_to_char( "There is no war currently active.\n\r", ch );
-	    return;
-	}
+    send_to_char("The legacy war system is deprecated; joining via event system.\n\r", ch);
+    do_function(ch, &do_event, "join");
+    return;
+    }
 
-	if ( ch->in_war )
-	{
-	    send_to_char( "You have already joined the battle.\n\r", ch );
-	    return;
-	}
+    if (!str_prefix(arg, "statistics") || !str_prefix(arg, "status"))
+    {
+    do_function(ch, &do_event, "status");
+    return;
+    }
 
-	if ( IS_DEAD( ch ) )
-	{
-	    send_to_char( "You can't, you are DEAD.\n\r", ch );
-	    return;
-	}
+    send_to_char( "Syntax:  war <join|statistics>\n\r", ch );
+    send_to_char( "        event <status|join|leave>\n\r", ch );
+    return;
 
-	if ( auto_war_timer == 0 )
-	{
-	    send_to_char( "The war has already started.\n\r", ch );
-	    return;
-	}
+    if (!str_prefix(arg, "join"))
+    {
+    if ( auto_war == NULL )
+    {
+        do_function(ch, &do_event, "join");
+        return;
+    }
 
-	if ( ch->tot_level < auto_war->min ||
-		ch->tot_level > auto_war->max )
-	{
-	    send_to_char( "You are outside the level range for this war.\n\r", ch );
-	    return;
-	}
+    if ( ch->in_war )
+    {
+        send_to_char( "You have already joined the battle.\n\r", ch );
+        return;
+    }
 
-	if ( auto_war->war_type == AUTO_WAR_JIHAD && ( ch->alignment == 0 && IS_CHURCH_NEUTRAL(ch)))
-	{
-	    send_to_char( "As you have no religion and neutral alignment, you are unable to take part in this war.\n\r", ch );
-	    return;
-	}
+    if ( IS_DEAD( ch ) )
+    {
+        send_to_char( "You can't, you are DEAD.\n\r", ch );
+        return;
+    }
 
-	/* Add player to war */
-	/* Check how many players are in each team */
-	char_to_team( ch );
+    if ( auto_war_timer == 0 )
+    {
+        send_to_char( "The war has already started.\n\r", ch );
+        return;
+    }
 
-	act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+    if ( ch->tot_level < auto_war->min ||
+        ch->tot_level > auto_war->max )
+    {
+        send_to_char( "You are outside the level range for this war.\n\r", ch );
+        return;
+    }
 
-	char_from_room( ch );
-	char_to_room( ch, get_room_index( get_reserved_vnum("room_war_staging") ) );
+    if ( auto_war->war_type == AUTO_WAR_JIHAD && ( ch->alignment == 0 && IS_CHURCH_NEUTRAL(ch)))
+    {
+        send_to_char( "As you have no religion and neutral alignment, you are unable to take part in this war.\n\r", ch );
+        return;
+    }
 
-	send_to_char( "{YYou have joined the battle!{x\n\r", ch );
-	act( "{Y$n has joined the battle!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	act( "{D$n appears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+    /* Add player to war */
+    /* Check how many players are in each team */
+    char_to_team( ch );
 
-	do_function(ch, &do_look, "auto");
-	return;
+    act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+
+    char_from_room( ch );
+    char_to_room( ch, get_reserved_room_index("room_war_staging") );
+
+    send_to_char( "{YYou have joined the battle!{x\n\r", ch );
+    act( "{Y$n has joined the battle!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    act( "{D$n appears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+
+    do_function(ch, &do_look, "auto");
+    return;
     }
 
     if (!str_prefix(arg, "statistics"))
     {
-	if ( auto_war == NULL )
-	{
-	    send_to_char( "There is no war currently active.\n\r", ch );
-	    return;
-	}
+    if ( auto_war == NULL )
+    {
+        do_function(ch, &do_event, "status");
+        return;
+    }
 
-	if ( auto_war_timer > 0 )
-	{
-	    CHAR_DATA *wch;
+    if ( auto_war_timer > 0 )
+    {
+        CHAR_DATA *wch;
 
-	    sprintf( buf, "{R,.-'``^``'-.,'- {YWar Statistics {R-',.-'``^``'-.,{x\n\r"
-		    "\n\rThis is a {Y%s{x war for levels {Y%d{x - {Y%d{x.\n\r"
-		    "\n\rThe minimum number of players required is {G%d{x.\n\r"
-		    "\n\rThere is still approximately {Y%d{x minutes remaining before the start.\n\r"
-		    "\n\rThe following players have entered the war:\n\r",
-		    auto_war_table[ auto_war->war_type ].name,
-		    auto_war->min,
-		    auto_war->max,
-		    auto_war->min_players,
-		    auto_war_timer );
-	    send_to_char( buf, ch );
+        sprintf( buf, "{R,.-'``^``'-.,'- {YWar Statistics {R-',.-'``^``'-.,{x\n\r"
+            "\n\rThis is a {Y%s{x war for levels {Y%d{x - {Y%d{x.\n\r"
+            "\n\rThe minimum number of players required is {G%d{x.\n\r"
+            "\n\rThere is still approximately {Y%d{x minutes remaining before the start.\n\r"
+            "\n\rThe following players have entered the war:\n\r",
+            auto_war_table[ auto_war->war_type ].name,
+            auto_war->min,
+            auto_war->max,
+            auto_war->min_players,
+            auto_war_timer );
+        send_to_char( buf, ch );
 
-	    if ( auto_war->team_players == NULL )
-	    {
-		send_to_char( "No players have currently entered.\n\r", ch );
-		return;
-	    }
+        if ( auto_war->team_players == NULL )
+        {
+        send_to_char( "No players have currently entered.\n\r", ch );
+        return;
+        }
 
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    {
-		sprintf( buf, "{B[%s%-3ld%%{B] {B[{G%-3d{B:{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
-			wch->hit < wch->max_hit * 2 / 3 ?
-			( wch->hit < wch->max_hit / 2  ?
-			  (wch->hit < wch->max_hit / 3 ? "{r" : "{R" ) : "{Y" )
-			: "{G",
-			((100 * wch->hit) / wch->max_hit),
-			wch->level,
-			wch->tot_level,
-			capitalize( race_table[ wch->race ].name ),
-			wch->name);
-		send_to_char( buf, ch );
-	    }
-	}
-	else
-	{
-	    CHAR_DATA *wch;
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+        sprintf( buf, "{B[%s%-3ld%%{B] {B[{G%-3d{B:{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
+            wch->hit < wch->max_hit * 2 / 3 ?
+            ( wch->hit < wch->max_hit / 2  ?
+              (wch->hit < wch->max_hit / 3 ? "{r" : "{R" ) : "{Y" )
+            : "{G",
+            ((100 * wch->hit) / wch->max_hit),
+            wch->level,
+            wch->tot_level,
+            capitalize( wch->race ? wch->race->name : "unknown" ),
+            wch->name);
+        send_to_char( buf, ch );
+        }
+    }
+    else
+    {
+        CHAR_DATA *wch;
 
-	    sprintf( buf, "{R,.-'`^`'-.,'- {YWar Statistics {R-',.-'`^`'-.,{x\n\r"
-		    "\n\rThis is a {Y%s{x war for levels {Y%d{x - {Y%d{x.\n\r"
-		    "\n\rThe war has started. There is {Y%d{x minutes remaining till the end.\n\r"
-		    "\n\rThe following players have entered the war:\n\r",
-		    auto_war_table[ auto_war->war_type ].name,
-		    auto_war->min,
-		    auto_war->max,
-		    auto_war_battle_timer );
-	    send_to_char( buf, ch );
+        sprintf( buf, "{R,.-'`^`'-.,'- {YWar Statistics {R-',.-'`^`'-.,{x\n\r"
+            "\n\rThis is a {Y%s{x war for levels {Y%d{x - {Y%d{x.\n\r"
+            "\n\rThe war has started. There is {Y%d{x minutes remaining till the end.\n\r"
+            "\n\rThe following players have entered the war:\n\r",
+            auto_war_table[ auto_war->war_type ].name,
+            auto_war->min,
+            auto_war->max,
+            auto_war_battle_timer );
+        send_to_char( buf, ch );
 
-	    if ( auto_war->team_players == NULL )
-	    {
-		send_to_char( "No players are currently in the war.\n\r", ch );
-		return;
-	    }
+        if ( auto_war->team_players == NULL )
+        {
+        send_to_char( "No players are currently in the war.\n\r", ch );
+        return;
+        }
 
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    {
-		sprintf( buf, "{B[%s%-3d%%{B] {B[{G%-3d{B:{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
-			wch->hit < wch->max_hit * 2 / 3 ?
-			( wch->hit < wch->max_hit / 2  ?
-			  (wch->hit < wch->max_hit / 3 ? "{r" : "{R" ) : "{Y" )
-			: "{G",
-			(int)(wch->hit / wch->max_hit * 100),
-			wch->level,
-			wch->tot_level,
-			capitalize( race_table[ wch->race ].name ),
-			wch->name
-		       );
-		send_to_char( buf, ch );
-	    }
-	}
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+        sprintf( buf, "{B[%s%-3d%%{B] {B[{G%-3d{B:{G%3d{B] {B[ {R%-10s {B] {G%-36s{x\n\r",
+            wch->hit < wch->max_hit * 2 / 3 ?
+            ( wch->hit < wch->max_hit / 2  ?
+              (wch->hit < wch->max_hit / 3 ? "{r" : "{R" ) : "{Y" )
+            : "{G",
+            (int)(wch->hit / wch->max_hit * 100),
+            wch->level,
+            wch->tot_level,
+            capitalize( wch->race ? wch->race->name : "unknown" ),
+            wch->name
+               );
+        send_to_char( buf, ch );
+        }
+    }
 
-	return;
+    return;
     }
 
     send_to_char( "Syntax:  war <join|statistics>\n\r", ch );
+    send_to_char( "        event <status|join|leave>\n\r", ch );
 }
 
 
+/**
+ * scatter_players - Teleport all war participants to random battlefield locations
+ *
+ * Called when the war officially starts (staging period ends). Moves each
+ * player from the staging room to a random room within the "Autowar Battlefield"
+ * area (excluding the staging room itself).
+ */
 void scatter_players()
 {
     ROOM_INDEX_DATA *pRoom = NULL;
@@ -195,42 +248,64 @@ void scatter_players()
     AREA_DATA *pArea = find_area( "Autowar Battlefield" );
 
     if (auto_war == NULL)
-	return;
+    return;
 
     for (ch = auto_war->team_players; ch != NULL; ch = ch->next_in_auto_war)
     {
-	do
-	    pRoom = get_random_room_area(ch, pArea);
-	while (pRoom == NULL || pRoom->vnum == get_reserved_vnum("room_war_staging"));
+    do
+        pRoom = get_random_room_area(ch, pArea);
+    while (pRoom == NULL || pRoom == get_reserved_room_index("room_war_staging"));
 
-	act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	act( "{YYou have been transferred to the battlefield!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+    act( "{D$n disappears in a puff of smoke.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    act( "{YYou have been transferred to the battlefield!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
 
-	char_from_room(ch);
-	char_to_room(ch, pRoom);
+    char_from_room(ch);
+    char_to_room(ch, pRoom);
 
-	do_function(ch, &do_look, "auto");
+    do_function(ch, &do_look, "auto");
     }
 }
 
 
+/**
+ * auto_war_echo - Send a message to all players in the current war
+ *
+ * Sends a message only to participants currently in the war, not to
+ * the global war channel. Used for in-war announcements.
+ *
+ * @param message  Message to send to war participants
+ */
 void auto_war_echo( char *message)
 {
     CHAR_DATA *ch = NULL;
 
     if ( auto_war == NULL )
-	return;
+    return;
 
     for (ch = auto_war->team_players; ch != NULL; ch = ch->next_in_auto_war)
-	send_to_char(message, ch);
+    send_to_char(message, ch);
 }
 
 
+/**
+ * start_war - Begin the war after staging period ends
+ *
+ * Called when auto_war_timer reaches 0. Validates that enough
+ * players joined based on war type requirements:
+ *
+ * - FREE_FOR_ALL: Need at least min_players
+ * - GENOCIDE: Need at least 2 different races
+ * - JIHAD: Need at least 1 good and 1 evil player
+ *
+ * If requirements not met, cancels war and returns items/players.
+ * Otherwise, scatters players to battlefield and starts 10-minute
+ * battle timer.
+ */
 void start_war()
 {
     CHAR_DATA *wch;
     int counter;
-    int race;
+    RACE_DATA *race;
     int evil;
     int good;
     char buf[ MAX_STRING_LENGTH ];
@@ -238,68 +313,68 @@ void start_war()
     /* Check if we have enough players */
     if ( auto_war->team_players == NULL )
     {
-	sprintf( buf, "{RDue to insufficient players, the war has been cancelled.{x\n\r" );
-	war_channel( buf );
-	free_auto_war( auto_war );
-	return;
+    sprintf( buf, "{RDue to insufficient players, the war has been cancelled.{x\n\r" );
+    war_channel( buf );
+    free_auto_war( auto_war );
+    return;
     }
 
     switch (auto_war->war_type)
     {
-	case AUTO_WAR_FREE_FOR_ALL:
-	    counter = 0;
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-		counter++;
+    case AUTO_WAR_FREE_FOR_ALL:
+        counter = 0;
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        counter++;
 
-	    if ( counter < auto_war->min_players )
-	    {
-		sprintf( buf, "{RDue to a lack of players, the war has been cancelled.{x\n\r" );
-		war_channel( buf );
-		free_auto_war( auto_war );
-		return;
-	    }
+        if ( counter < auto_war->min_players )
+        {
+        sprintf( buf, "{RDue to a lack of players, the war has been cancelled.{x\n\r" );
+        war_channel( buf );
+        free_auto_war( auto_war );
+        return;
+        }
 
-	    break;
+        break;
 
-	case AUTO_WAR_GENOCIDE:
-	    race = auto_war->team_players->race;
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    {
-		if ( wch->race != race )
-		    break;
-	    }
+    case AUTO_WAR_GENOCIDE:
+        race = auto_war->team_players->race;
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+        if ( wch->race != race )
+            break;
+        }
 
-	    if ( wch == NULL )
-	    {
-		sprintf( buf, "{RDue to a lack of players, the war has been cancelled.{x\n\r" );
-		war_channel( buf );
-		free_auto_war( auto_war );
-		return;
-	    }
+        if ( wch == NULL )
+        {
+        sprintf( buf, "{RDue to a lack of players, the war has been cancelled.{x\n\r" );
+        war_channel( buf );
+        free_auto_war( auto_war );
+        return;
+        }
 
-	    break;
+        break;
 
-	case AUTO_WAR_JIHAD:
-	    evil = 0;
-	    good = 0;
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    {
-		if ( wch->alignment < 0 || IS_CHURCH_EVIL(wch))
-		    evil++;
-		else
-		if ( wch->alignment > 0 || IS_CHURCH_GOOD(wch))
-		    good++;
-	    }
+    case AUTO_WAR_JIHAD:
+        evil = 0;
+        good = 0;
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+        if ( wch->alignment < 0 || IS_CHURCH_EVIL(wch))
+            evil++;
+        else
+        if ( wch->alignment > 0 || IS_CHURCH_GOOD(wch))
+            good++;
+        }
 
-	    if (evil == 0 || good == 0)
-	    {
-		sprintf( buf, "{RDue to a lack of players, the war has been cancelled.{x\n\r" );
-		war_channel( buf );
-		free_auto_war( auto_war );
-		return;
-	    }
+        if (evil == 0 || good == 0)
+        {
+        sprintf( buf, "{RDue to a lack of players, the war has been cancelled.{x\n\r" );
+        war_channel( buf );
+        free_auto_war( auto_war );
+        return;
+        }
 
-	    break;
+        break;
     }
 
     sprintf( buf, "{RLet the {Y%s{R begin!{x\n\r", auto_war_table[ auto_war->war_type ].name );
@@ -310,352 +385,387 @@ void start_war()
 }
 
 
+/**
+ * auto_war_time_finish - Handle battle timer expiration
+ *
+ * Called when auto_war_battle_timer reaches 0 (10 minutes elapsed).
+ * Determines winner based on war type:
+ *
+ * - FREE_FOR_ALL: No clear winner, war ends
+ * - GENOCIDE: Most numerous race wins, rewards 50 quest points
+ * - JIHAD: Most numerous alignment wins, rewards 50 quest points
+ *
+ * Increments wars_won counter for winning players and cleans up
+ * the war structure.
+ */
 void auto_war_time_finish()
 {
     char buf[MAX_STRING_LENGTH];
 
     if ( auto_war == NULL )
-	return;
+    return;
 
     if ( auto_war_timer > 0 )
-	return;
+    return;
 
     sprintf( buf, "{RThe {Y10{R minute time limit is up.{x\n\r" );
     auto_war_echo( buf );
 
     if (auto_war->war_type == AUTO_WAR_FREE_FOR_ALL)
     {
-	/* If the timer ends then the war is over. If a player had won the war would already
-	 * be over. */
-	free_auto_war( auto_war );
+    /* If the timer ends then the war is over. If a player had won the war would already
+     * be over. */
+    free_auto_war( auto_war );
     }
     else
     if ( auto_war->war_type == AUTO_WAR_GENOCIDE )
     {
-	CHAR_DATA *wch;
-	int races[26];
-	int i = 0;
-	int max = 0;
-	int min = 0;
-	int quest_points = 0;
+    CHAR_DATA *wch;
+    int races[256];  /* Use UID as index, assuming UIDs < 256 */
+    int i = 0;
+    int max_uid = 0;
+    int min_uid = 0;
+    int quest_points = 0;
+    RACE_DATA *winning_race = NULL;
 
-	/* Initialise races array */
-	for ( i = 0; i < 26; i++ )
-	    races[i] = 0;
+    /* Initialise races array */
+    for ( i = 0; i < 256; i++ )
+        races[i] = 0;
 
-	/* Find which race was most dominant */
-	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    races[wch->race]++;
+    /* Find which race was most dominant */
+    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+    {
+        if (wch->race && wch->race->uid >= 0 && wch->race->uid < 256)
+        races[wch->race->uid]++;
+    }
 
-	/* Find greatest value in array */
-	for ( i = 0; i < 26; i++ )
-	{
-	    if ( races[ i ] > races[ max ] )
-		max = i;
-	}
+    /* Find greatest value in array */
+    for ( i = 0; i < 256; i++ )
+    {
+        if ( races[ i ] > races[ max_uid ] )
+        max_uid = i;
+    }
 
-	min = max;
-	for ( i = 0; i < 26; i++ )
-	{
-	    if ( races[ i ] < races[ min ] )
-		min = i;
-	}
+    min_uid = max_uid;
+    for ( i = 0; i < 256; i++ )
+    {
+        if ( races[ i ] < races[ min_uid ] && races[i] > 0 )
+        min_uid = i;
+    }
 
-	    /*
-	if ( min == max )
-	{
-	    sprintf( buf, "{RThe war was a draw.{x\n\r" );
-	    war_channel( buf );
-	    free_auto_war( auto_war );
-	    return;
-	}
-	    */
+    winning_race = race_lookup_uid(max_uid);
 
-	sprintf( buf, "{RThe winners of the {Y%s{R war were the {W%ss{R!{x\n\r",
-	    auto_war_table[ auto_war->war_type ].name,
-	    capitalize( race_table[ max ].name ) );
-	war_channel( buf );
+    sprintf( buf, "{RThe winners of the {Y%s{R war were the {W%ss{R!{x\n\r",
+        auto_war_table[ auto_war->war_type ].name,
+        winning_race ? capitalize( winning_race->name ) : "unknowns" );
+    war_channel( buf );
 
-	/* Reward winners*/
-	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	{
-	    if ( wch->race == max )
-	    {
-		quest_points = 50;
-		sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		wch->questpoints += quest_points;
-		wch->wars_won++;
-	    }
-	}
+    /* Reward winners*/
+    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+    {
+        if ( wch->race && wch->race->uid == max_uid )
+        {
+        quest_points = 50;
+        sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+        act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+        wch->questpoints += quest_points;
+        wch->wars_won++;
+        }
+    }
 
-	free_auto_war( auto_war );
+    free_auto_war( auto_war );
     }
     else
     if ( auto_war->war_type == AUTO_WAR_JIHAD )
     {
-	CHAR_DATA *wch = NULL;
-	int good = 0;
-	int evil = 0;
-	int quest_points = 0;
+    CHAR_DATA *wch = NULL;
+    int good = 0;
+    int evil = 0;
+    int quest_points = 0;
 
-	/* Find which alignment was most dominant */
-	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	{
-	    if ( wch->alignment < 0 || IS_CHURCH_EVIL(wch))
-		evil++;
-	    else
-	    if ( wch->alignment > 0 || IS_CHURCH_GOOD(wch))
-		good++;
-	}
+    /* Find which alignment was most dominant */
+    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+    {
+        if ( wch->alignment < 0 || IS_CHURCH_EVIL(wch))
+        evil++;
+        else
+        if ( wch->alignment > 0 || IS_CHURCH_GOOD(wch))
+        good++;
+    }
 
-	if (good == 0 && evil == 0)
-	{
-	    sprintf( buf, "{RBoth evil and good were completely decimated.{x\n\r" );
-	    war_channel( buf );
-	}
-	else
-	if ( good > evil )
-	{
-	    sprintf( buf, "{RThe legions of light prevail victorious as winners of the {Y%s{R war!{x\n\r",
-		    auto_war_table[ auto_war->war_type ].name );
-	    war_channel( buf );
+    if (good == 0 && evil == 0)
+    {
+        sprintf( buf, "{RBoth evil and good were completely decimated.{x\n\r" );
+        war_channel( buf );
+    }
+    else
+    if ( good > evil )
+    {
+        sprintf( buf, "{RThe legions of light prevail victorious as winners of the {Y%s{R war!{x\n\r",
+            auto_war_table[ auto_war->war_type ].name );
+        war_channel( buf );
 
-	    if (auto_war->team_players == NULL )
-		gecho(" NULL " );
+        if (auto_war->team_players == NULL )
+        gecho(" NULL " );
 
-	    /* Reward winners*/
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    {
-		if ( wch->alignment > 0 )
-		{
-		    quest_points = 50;
-		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		    wch->questpoints += quest_points;
-		    wch->wars_won++;
-		}
-	    }
-	}
-	else
-	if ( good < evil )
-	{
-	    sprintf( buf, "{RThe armies of darkness prevail victorious as winners of the {Y%s{R war!{x\n\r",
-		    auto_war_table[ auto_war->war_type ].name );
-	    war_channel( buf );
+        /* Reward winners*/
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+        if ( wch->alignment > 0 )
+        {
+            quest_points = 50;
+            sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+            act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+            wch->questpoints += quest_points;
+            wch->wars_won++;
+        }
+        }
+    }
+    else
+    if ( good < evil )
+    {
+        sprintf( buf, "{RThe armies of darkness prevail victorious as winners of the {Y%s{R war!{x\n\r",
+            auto_war_table[ auto_war->war_type ].name );
+        war_channel( buf );
 
-	    /* Reward winners*/
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    {
-		if ( wch->alignment < 0 )
-		{
-		    quest_points = 50;
-		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		    wch->questpoints += quest_points;
-		    wch->wars_won++;
-		}
-	    }
-	}
-	else
-	if ( good == evil )
-	{
-	    sprintf( buf, "{RThe battle has ended in a draw.{x\n\r" );
-	    war_channel( buf );
-	}
+        /* Reward winners*/
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+        if ( wch->alignment < 0 )
+        {
+            quest_points = 50;
+            sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+            act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+            wch->questpoints += quest_points;
+            wch->wars_won++;
+        }
+        }
+    }
+    else
+    if ( good == evil )
+    {
+        sprintf( buf, "{RThe battle has ended in a draw.{x\n\r" );
+        war_channel( buf );
+    }
 
-	free_auto_war( auto_war );
+    free_auto_war( auto_war );
     }
 }
 
 
+/**
+ * test_for_end_of_war - Check if victory conditions have been met
+ *
+ * Called periodically and after combat deaths. Checks if the war
+ * should end based on victory conditions:
+ *
+ * - FREE_FOR_ALL: Only 1 player remains = that player wins
+ * - GENOCIDE: Only 1 race remains = that race wins
+ * - JIHAD: Only 1 alignment remains = that alignment wins
+ *
+ * Winners receive 50 quest points and wars_won increment.
+ * Announces winner via war_channel and calls free_auto_war().
+ */
 void test_for_end_of_war()
 {
     char buf[MAX_STRING_LENGTH];
 
     if (auto_war == NULL || auto_war_timer > 0)
-	return;
+    return;
 
     /* Test for Free For All */
     if ( auto_war->war_type == AUTO_WAR_FREE_FOR_ALL )
     {
-	int quest_points = 0;
-	CHAR_DATA *wch;
+    int quest_points = 0;
+    CHAR_DATA *wch;
 
-	/* End of war is when only one race is left */
-	if ( auto_war->team_players == NULL )
-	{
-	    sprintf( buf, "{RThe winners have forfeited the war.{x\n\r" );
-	    war_channel( buf );
-	}
+    /* End of war is when only one race is left */
+    if ( auto_war->team_players == NULL )
+    {
+        sprintf( buf, "{RThe winners have forfeited the war.{x\n\r" );
+        war_channel( buf );
+        free_auto_war( auto_war );
+        return;
+    }
 
-	wch = auto_war->team_players;
+    wch = auto_war->team_players;
 
-	/* Is there only one player left */
-	if ( wch->next_in_auto_war != NULL )
-	    return;
+    /* Is there only one player left */
+    if ( wch->next_in_auto_war != NULL )
+        return;
 
-	sprintf( buf, "{RThe almighty champion of the {Y%s{R was {W%s{R!{x\n\r",
-	    auto_war_table[ auto_war->war_type ].name,
-	    wch->name);
-	war_channel( buf );
+    sprintf( buf, "{RThe almighty champion of the {Y%s{R was {W%s{R!{x\n\r",
+        auto_war_table[ auto_war->war_type ].name,
+        wch->name);
+    war_channel( buf );
 
-	/* Reward winners*/
-	quest_points = 50;
-	sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-	act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	wch->questpoints += quest_points;
-	wch->wars_won++;
+    /* Reward winners*/
+    quest_points = 50;
+    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+    wch->questpoints += quest_points;
+    wch->wars_won++;
 
-	free_auto_war( auto_war );
+    free_auto_war( auto_war );
     }
     else
     if ( auto_war->war_type == AUTO_WAR_GENOCIDE )
     {
-	CHAR_DATA *wch;
-	int race;
-	bool ended = true;
+    CHAR_DATA *wch;
+    RACE_DATA *winning_race;
+    bool ended = true;
 
-	/* End of war is when only one race is left */
-	if ( auto_war->team_players == NULL )
-	{
-	    sprintf( buf, "{RThe winners have forfeited the war.{x\n\r" );
-	    war_channel( buf );
-	    return;
-	}
+    /* End of war is when only one race is left */
+    if ( auto_war->team_players == NULL )
+    {
+        sprintf( buf, "{RThe winners have forfeited the war.{x\n\r" );
+        war_channel( buf );
+        return;
+    }
 
-	race = auto_war->team_players->race;
+    winning_race = auto_war->team_players->race;
 
-	/* Is there another player of a different race */
-	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	{
-	    if ( wch->race != race )
-		ended = false;
-	}
+    /* Is there another player of a different race */
+    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+    {
+        if ( wch->race != winning_race )
+        ended = false;
+    }
 
-	if ( ended )
-	{
-	    int quest_points = 0;
+    if ( ended )
+    {
+        int quest_points = 0;
 
-	    sprintf( buf, "{RThe winners of the {Y%s{R war were the {W%ss{R!{x\n\r",
-		    auto_war_table[ auto_war->war_type ].name,
-		    capitalize( race_table[ race ].name ) );
-	    war_channel( buf );
+        sprintf( buf, "{RThe winners of the {Y%s{R war were the {W%ss{R!{x\n\r",
+            auto_war_table[ auto_war->war_type ].name,
+            winning_race ? capitalize( winning_race->name ) : "unknowns" );
+        war_channel( buf );
 
-	    /* Reward winners*/
-	    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	    {
-		if ( wch->race == race )
-		{
-		    quest_points = 50;
-		    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-		    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		    wch->questpoints += quest_points;
-		    wch->wars_won++;
-		}
-	    }
+        /* Reward winners*/
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+        if ( wch->race == winning_race )
+        {
+            quest_points = 50;
+            sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+            act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+            wch->questpoints += quest_points;
+            wch->wars_won++;
+        }
+        }
 
-	    free_auto_war( auto_war );
-	}
+        free_auto_war( auto_war );
+    }
     }
     else
     if ( auto_war->war_type == AUTO_WAR_JIHAD )
     {
-	CHAR_DATA *wch;
-	bool ended = true;
-	bool good = false;
-	bool evil = false;
+    CHAR_DATA *wch;
+    bool ended = true;
+    bool good = false;
+    bool evil = false;
 
-	if ( auto_war->team_players == NULL )
-	{
-	    sprintf( buf, "{RThe war has been forfeited.{x\n\r" );
-	    war_channel( buf );
-	}
+    if ( auto_war->team_players == NULL )
+    {
+        sprintf( buf, "{RThe war has been forfeited.{x\n\r" );
+        war_channel( buf );
+        free_auto_war( auto_war );
+        return;
+    }
 
-	if ( auto_war->team_players->alignment < 0 )
-	    evil = true;
-	else
-	    good = true;
+    if ( auto_war->team_players->alignment < 0 )
+        evil = true;
+    else
+        good = true;
 
-	/* Is there another player of a different alignment */
-	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-	{
-	    if ( ( evil == true &&
-			( wch->alignment > 0 ||
-			  IS_CHURCH_GOOD( wch ) ) ) ||
-		    ( good == true &&
-		      ( wch->alignment < 0 ||
-			IS_CHURCH_EVIL( wch ) ) ) )
-	    {
-		ended = false;
-	    }
-	}
+    /* Is there another player of a different alignment */
+    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+    {
+        if ( ( evil == true &&
+            ( wch->alignment > 0 ||
+              IS_CHURCH_GOOD( wch ) ) ) ||
+            ( good == true &&
+              ( wch->alignment < 0 ||
+            IS_CHURCH_EVIL( wch ) ) ) )
+        {
+        ended = false;
+        }
+    }
 
-	if ( ended )
-	{
-	    int quest_points = 0;
+    if ( ended )
+    {
+        int quest_points = 0;
 
-	    if ( good )
-	    {
-		sprintf( buf, "{RThe legions of light prevail victorious as winners of the {Y%s{R war!{x\n\r",
-			auto_war_table[ auto_war->war_type ].name );
-		war_channel( buf );
+        if ( good )
+        {
+        sprintf( buf, "{RThe legions of light prevail victorious as winners of the {Y%s{R war!{x\n\r",
+            auto_war_table[ auto_war->war_type ].name );
+        war_channel( buf );
 
-		/* Reward winners*/
-		for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-		{
-		    if ( wch->alignment > 0 )
-		    {
-			quest_points = 50;
-			sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-			act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-			wch->questpoints += quest_points;
-			wch->wars_won++;
-		    }
-		}
+        /* Reward winners*/
+        for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+        {
+            if ( wch->alignment > 0 )
+            {
+            quest_points = 50;
+            sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+            act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+            wch->questpoints += quest_points;
+            wch->wars_won++;
+            }
+        }
 
-	    }
-	    else
-		if ( evil )
-		{
-		    sprintf( buf, "{RThe armies of darkness prevail victorious as winners of the {Y%s{R war!{x\n\r",
-			    auto_war_table[ auto_war->war_type ].name );
-		    war_channel( buf );
+        }
+        else
+        if ( evil )
+        {
+            sprintf( buf, "{RThe armies of darkness prevail victorious as winners of the {Y%s{R war!{x\n\r",
+                auto_war_table[ auto_war->war_type ].name );
+            war_channel( buf );
 
-		    /* Reward winners*/
-		    for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
-		    {
-			if ( wch->alignment < 0 )
-			{
-			    quest_points = 50;
-			    sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
-			    act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-			    wch->questpoints += quest_points;
-			    wch->wars_won++;
-			}
-		    }
-		}
-	    free_auto_war( auto_war );
-	}
+            /* Reward winners*/
+            for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
+            {
+            if ( wch->alignment < 0 )
+            {
+                quest_points = 50;
+                sprintf( buf, "{WYou have been awarded {Y%d{W quest points!{x", quest_points );
+                act( buf, wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+                wch->questpoints += quest_points;
+                wch->wars_won++;
+            }
+            }
+        }
+        free_auto_war( auto_war );
+    }
     }
 }
 
 
+/**
+ * war_channel - Broadcast a message to the global war channel
+ *
+ * Sends a message to all connected players who have the war channel
+ * enabled (not COMM_NOAUTOWAR) and are not in QUIET mode. Used for
+ * global war announcements (start, end, winners).
+ *
+ * @param msg  Message to broadcast
+ */
 void war_channel( char *msg )
 {
     DESCRIPTOR_DATA *d;
 
     for ( d = descriptor_list; d != NULL; d = d->next )
     {
-	CHAR_DATA *victim;
+    CHAR_DATA *victim;
 
-	victim = d->original ? d->original : d->character;
+    victim = d->original ? d->original : d->character;
 
-	if ( d->connected == CON_PLAYING &&
-		!IS_SET(victim->comm,COMM_NOAUTOWAR) &&
-		!IS_SET(victim->comm,COMM_QUIET) )
-	{
-	    send_to_char( msg, victim );
-	}
+    if ( d->connected == CON_PLAYING &&
+        !IS_SET(victim->comm,COMM_NOAUTOWAR) &&
+        !IS_SET(victim->comm,COMM_QUIET) )
+    {
+        send_to_char( msg, victim );
+    }
     }
 }

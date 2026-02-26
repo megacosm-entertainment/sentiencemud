@@ -1,0 +1,118 @@
+{
+  "type": "test_suite",
+  "test_suite": "wnum_extraction_helpers_unit_tests",
+  "description": "Pure-function unit tests for get_*_wnum helper extraction semantics",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "get_room_wnum_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_room_wnum",
+        "test_cases": [
+          {
+            "room_area": "Limbo",
+            "room_vnum": 1,
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "use_null_room": true,
+            "expected_vnum": 0
+          },
+          {
+            "use_null_room": true,
+            "use_null_out": true,
+            "expected_vnum": 0
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "get_mob_wnum_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_mob_wnum",
+        "test_cases": [
+          {
+            "mob_area": "Limbo",
+            "mob_vnum": 1,
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "use_null_mob": true,
+            "expected_vnum": 0
+          },
+          {
+            "use_null_mob": true,
+            "use_null_out": true,
+            "expected_vnum": 0
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "get_obj_wnum_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_obj_wnum",
+        "test_cases": [
+          {
+            "obj_area": "Limbo",
+            "obj_vnum": 1,
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "use_null_obj": true,
+            "expected_vnum": 0
+          },
+          {
+            "use_null_obj": true,
+            "use_null_out": true,
+            "expected_vnum": 0
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "get_token_wnum_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_token_wnum",
+        "test_cases": [
+          {
+            "token_area": "Limbo",
+            "token_vnum": 1,
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "use_null_token": true,
+            "expected_vnum": 0
+          },
+          {
+            "use_null_token": true,
+            "use_null_out": true,
+            "expected_vnum": 0
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

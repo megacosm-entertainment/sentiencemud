@@ -7,6 +7,7 @@
 
 #include <sys/types.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,9 @@
 #include "recycle.h"
 #include "interp.h"
 #include "scripts.h"
+#include "skill_data.h"
+#include "class_data.h"
+#include "traits.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -29,13 +33,14 @@ long last_token_id;
 long last_obj_id;
 
 AFFECT_DATA *affect_free;
+CATALYST_DATA *catalyst_free;
 AFFLICTION_DATA *affliction_free;
 AMBUSH_DATA *ambush_free;
 AREA_DATA *area_free;
+AREA_REGION *area_region_free;
 AUCTION_DATA *auction_free;
 AUTO_WAR *auto_war_free;
 BAN_DATA *ban_free;
-BUFFER *buf_free;
 CHAR_DATA *char_free;
 CHAT_BAN_DATA *chat_ban_free;
 CHAT_OP_DATA *chat_op_free;
@@ -74,9 +79,19 @@ PROG_LIST *mprog_free;
 PROG_LIST *oprog_free;
 PROG_LIST *rprog_free;
 QUEST_DATA *quest_free;
+QUEST_INDEX_V2_DATA *quest_index_v2_free;
+QUEST_STAGE_INDEX_V2_DATA *quest_stage_index_v2_free;
+QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective_index_v2_free;
+QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *quest_objective_pool_entry_v2_free;
+QUEST_REWARD_INDEX_V2_DATA *quest_reward_index_v2_free;
+QUEST_OBJECTIVE_STATE_V2_DATA *quest_objective_state_v2_free;
+QUEST_TARGET_BINDING_V2_DATA *quest_target_binding_v2_free;
+QUEST_HISTORY_DATA *quest_history_free;
 QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
+MOB_REPUTATION_DATA *mob_reputation_free;
+AURA_DATA *aura_data_free;
 QUEST_PART_DATA *quest_part_free;
 RESET_DATA *reset_free;
 ROOM_INDEX_DATA *room_index_free;
@@ -102,89 +117,141 @@ CHURCH_LOG_ENTRY *church_log_entry_free;
 
 LLIST_UID_DATA *new_list_uid_data()
 {
-	return alloc_mem(sizeof(LLIST_UID_DATA));
+    return alloc_mem(sizeof(LLIST_UID_DATA));
 }
 
 // NOT DOUBLE FREE SAFE
 void free_list_uid_data(LLIST_UID_DATA *luid)
 {
-	free_mem(luid,sizeof(LLIST_UID_DATA));
+    free_mem(luid,sizeof(LLIST_UID_DATA));
 }
 
 static void delete_list_uid_data(void *ptr)
 {
-	free_list_uid_data((LLIST_UID_DATA *)ptr);
+    free_list_uid_data((LLIST_UID_DATA *)ptr);
 }
 
 static void *copy_waypoint(void *ptr)
 {
-	return clone_waypoint((WAYPOINT_DATA *)ptr);
+    return clone_waypoint((WAYPOINT_DATA *)ptr);
 }
 
 static void delete_waypoint(void *ptr)
 {
-	free_waypoint((WAYPOINT_DATA *)ptr);
+    free_waypoint((WAYPOINT_DATA *)ptr);
 }
 
 LLIST *new_waypoints_list()
 {
-	return list_createx(false,copy_waypoint,delete_waypoint);
+    return list_createx(false,copy_waypoint,delete_waypoint);
 }
 
 static void delete_ship_route(void *ptr)
 {
-	free_ship_route((SHIP_ROUTE *)ptr);
+    free_ship_route((SHIP_ROUTE *)ptr);
 }
 
 
 OLC_POINT_BOOST *new_olc_point_boost()
 {
-	OLC_POINT_BOOST *boost;
+    OLC_POINT_BOOST *boost;
 
-	if( olc_point_boost_free == NULL )
-		boost = alloc_perm(sizeof(OLC_POINT_BOOST));
-	else {
-		boost = olc_point_boost_free;
-		olc_point_boost_free = olc_point_boost_free->next;
-	}
+    if( olc_point_boost_free == NULL )
+        boost = alloc_perm(sizeof(OLC_POINT_BOOST));
+    else {
+        boost = olc_point_boost_free;
+        olc_point_boost_free = olc_point_boost_free->next;
+    }
 
-	memset(boost, 0, sizeof(OLC_POINT_BOOST));
+    memset(boost, 0, sizeof(OLC_POINT_BOOST));
 
-	return boost;
+    return boost;
 }
 
 void free_olc_point_boost(OLC_POINT_BOOST *boost)
 {
-	boost->next = olc_point_boost_free;
-	olc_point_boost_free = boost;
+    boost->next = olc_point_boost_free;
+    olc_point_boost_free = boost;
 }
 
 
 
 SKILL_ENTRY *new_skill_entry()
 {
-	SKILL_ENTRY *entry;
+    SKILL_ENTRY *entry;
 
-	if( skill_entry_free == NULL )
-		entry = alloc_perm(sizeof(SKILL_ENTRY));
-	else {
-		entry = skill_entry_free;
-		skill_entry_free = skill_entry_free->next;
-	}
+    if( skill_entry_free == NULL )
+        entry = alloc_perm(sizeof(SKILL_ENTRY));
+    else {
+        entry = skill_entry_free;
+        skill_entry_free = skill_entry_free->next;
+    }
 
-	entry->source = SKILLSRC_NORMAL;
-	entry->isspell = false;
-	entry->song = -1;
-	entry->practice = true;
-	entry->improve = true;
+    entry->source = SKILLSRC_NORMAL;
+    entry->isspell = false;
+    entry->song = NULL;
+    entry->practice = true;
+    entry->improve = true;
+    entry->skill_data = NULL;
+    entry->sn = 0;
+    entry->token = NULL;
+    entry->rating = 0;
+    entry->mod_rating = 0;
+    entry->cross_class_scope = 0;   /* REWARD_SCOPE_CLASS */
+    entry->source_class = NULL;
+    entry->sources = NULL;
 
-	return entry;
+    return entry;
 }
 
 void free_skill_entry(SKILL_ENTRY *entry)
 {
-	entry->next = skill_entry_free;
-	skill_entry_free = entry;
+    /* Free any attached sources */
+    free_skill_sources(entry->sources);
+    entry->sources = NULL;
+    entry->source_class = NULL;
+
+    entry->next = skill_entry_free;
+    skill_entry_free = entry;
+}
+
+static SKILL_SOURCE *skill_source_free;
+
+SKILL_SOURCE *new_skill_source()
+{
+    SKILL_SOURCE *src;
+
+    if (skill_source_free == NULL)
+        src = alloc_perm(sizeof(SKILL_SOURCE));
+    else {
+        src = skill_source_free;
+        skill_source_free = skill_source_free->next;
+    }
+
+    src->next = NULL;
+    src->clazz = NULL;
+    src->scope = 0;  /* REWARD_SCOPE_CLASS */
+
+    return src;
+}
+
+void free_skill_source(SKILL_SOURCE *source)
+{
+    source->next = skill_source_free;
+    skill_source_free = source;
+}
+
+/**
+ * free_skill_sources - Free an entire linked list of SKILL_SOURCE nodes
+ */
+void free_skill_sources(SKILL_SOURCE *list)
+{
+    SKILL_SOURCE *next;
+    while (list) {
+        next = list->next;
+        free_skill_source(list);
+        list = next;
+    }
 }
 
 NOTE_DATA *new_note()
@@ -192,11 +259,11 @@ NOTE_DATA *new_note()
     NOTE_DATA *note;
 
     if (note_free == NULL)
-	note = alloc_perm(sizeof(*note));
+    note = alloc_perm(sizeof(*note));
     else
     {
-	note = note_free;
-	note_free = note_free->next;
+    note = note_free;
+    note_free = note_free->next;
     }
     VALIDATE(note);
     return note;
@@ -206,7 +273,7 @@ NOTE_DATA *new_note()
 void free_note(NOTE_DATA *note)
 {
     if (!IS_VALID(note))
-	return;
+    return;
 
     free_string( note->text    );
     free_string( note->subject );
@@ -231,11 +298,11 @@ BAN_DATA *new_ban(void)
     BAN_DATA *ban;
 
     if (ban_free == NULL)
-	ban = alloc_perm(sizeof(*ban));
+    ban = alloc_perm(sizeof(*ban));
     else
     {
-	ban = ban_free;
-	ban_free = ban_free->next;
+    ban = ban_free;
+    ban_free = ban_free->next;
     }
 
     *ban = ban_zero;
@@ -248,7 +315,7 @@ BAN_DATA *new_ban(void)
 void free_ban(BAN_DATA *ban)
 {
     if (!IS_VALID(ban))
-	return;
+    return;
 
     free_string(ban->name);
     INVALIDATE(ban);
@@ -264,11 +331,11 @@ DESCRIPTOR_DATA *new_descriptor(void)
     DESCRIPTOR_DATA *d;
 
     if (descriptor_free == NULL)
-	d = alloc_perm(sizeof(*d));
+    d = alloc_perm(sizeof(*d));
     else
     {
-	d = descriptor_free;
-	descriptor_free = descriptor_free->next;
+    d = descriptor_free;
+    descriptor_free = descriptor_free->next;
     }
 
     *d = d_zero;
@@ -287,7 +354,7 @@ DESCRIPTOR_DATA *new_descriptor(void)
 void free_descriptor(DESCRIPTOR_DATA *d)
 {
     if (!IS_VALID(d))
-	return;
+    return;
 
     free_string( d->host );
     free_mem( d->outbuf, d->outsize );
@@ -306,11 +373,11 @@ EXTRA_DESCR_DATA *new_extra_descr(void)
     EXTRA_DESCR_DATA *ed;
 
     if (extra_descr_free == NULL)
-	ed = alloc_perm(sizeof(*ed));
+    ed = alloc_perm(sizeof(*ed));
     else
     {
-	ed = extra_descr_free;
-	extra_descr_free = extra_descr_free->next;
+    ed = extra_descr_free;
+    extra_descr_free = extra_descr_free->next;
     }
 
     ed->keyword = &str_empty[0];
@@ -325,11 +392,11 @@ EXTRA_DESCR_DATA *new_extra_descr(void)
 void free_extra_descr(EXTRA_DESCR_DATA *ed)
 {
     if (!IS_VALID(ed))
-	return;
+    return;
 
     free_string(ed->keyword);
     if( ed->description )
-    	free_string(ed->description);
+        free_string(ed->description);
     INVALIDATE(ed);
 
     ed->next = extra_descr_free;
@@ -344,11 +411,11 @@ CONDITIONAL_DESCR_DATA *new_conditional_descr(void)
     CONDITIONAL_DESCR_DATA *cd;
 
     if (conditional_descr_free == NULL)
-	cd = alloc_perm(sizeof(*cd));
+    cd = alloc_perm(sizeof(*cd));
     else
     {
-	cd = conditional_descr_free;
-	conditional_descr_free = conditional_descr_free->next;
+    cd = conditional_descr_free;
+    conditional_descr_free = conditional_descr_free->next;
     }
 
     cd->condition = -1;
@@ -374,16 +441,18 @@ AFFECT_DATA *new_affect(void)
     AFFECT_DATA *af;
 
     if (affect_free == NULL)
-	af = alloc_perm(sizeof(*af));
+    af = alloc_perm(sizeof(*af));
     else
     {
-	af = affect_free;
-	affect_free = affect_free->next;
+    af = affect_free;
+    affect_free = affect_free->next;
     }
 
     *af = af_zero;
     af->custom_name = NULL;
     af->slot = WEAR_NONE;
+    af->token = NULL;
+    af->skill = NULL;
 
     top_affect++;
 
@@ -395,13 +464,14 @@ AFFECT_DATA *new_affect(void)
 void free_affect(AFFECT_DATA *af)
 {
     if (!IS_VALID(af))
-	return;
+    return;
 
     INVALIDATE(af);
     af->next = affect_free;
     affect_free = af;
 
     af->custom_name = NULL;
+    af->skill = NULL;
 
     variable_clearfield(VAR_AFFECT, af);
     script_clear_affect(af);
@@ -411,28 +481,64 @@ void free_affect(AFFECT_DATA *af)
 }
 
 
+CATALYST_DATA *new_catalyst(void)
+{
+    static CATALYST_DATA cat_zero;
+    CATALYST_DATA *cat;
+
+    if (catalyst_free == NULL)
+        cat = alloc_perm(sizeof(*cat));
+    else
+    {
+        cat = catalyst_free;
+        catalyst_free = catalyst_free->next;
+    }
+
+    *cat = cat_zero;
+    cat->custom_name = NULL;
+
+    VALIDATE(cat);
+    return cat;
+}
+
+
+void free_catalyst(CATALYST_DATA *cat)
+{
+    if (!IS_VALID(cat))
+        return;
+
+    INVALIDATE(cat);
+    cat->next = catalyst_free;
+    catalyst_free = cat;
+
+    free_string(cat->custom_name);
+    cat->custom_name = NULL;
+}
+
+
 OBJ_DATA *new_obj(void)
 {
     static OBJ_DATA obj_zero;
     OBJ_DATA *obj;
 
-	if (obj_free == NULL)
-		obj = alloc_perm(sizeof(*obj));
-	else
-	{
-		obj = obj_free;
-		obj_free = obj_free->next;
-	}
+    if (obj_free == NULL)
+        obj = alloc_perm(sizeof(*obj));
+    else
+    {
+        obj = obj_free;
+        obj_free = obj_free->next;
+    }
 
     *obj = obj_zero;
 
     SET_MEMTYPE(obj,MEMTYPE_OBJ);
     obj->in_mail = NULL;
-	obj->ltokens = list_create(false);
-	obj->lcontains = list_create(false);
-	obj->lclonerooms = list_create(false);
-	obj->lock = NULL;
-	obj->waypoints = NULL;
+    obj->ltokens = list_create(false);
+    obj->lcontains = list_create(false);
+    obj->lclonerooms = list_create(false);
+    obj->lstache = list_create(false);
+    obj->lock = NULL;
+    obj->waypoints = NULL;
 
 
     VALIDATE(obj);
@@ -442,31 +548,35 @@ OBJ_DATA *new_obj(void)
 
 void free_obj(OBJ_DATA *obj)
 {
+    ITERATOR it;
+    OBJ_DATA *item;
     AFFECT_DATA *paf, *paf_next;
+    CATALYST_DATA *cat, *cat_next;
     EXTRA_DESCR_DATA *ed, *ed_next;
     EVENT_DATA *ev, *ev_next;
+    TOKEN_DATA *token, *token_next;
 
     if (!IS_VALID(obj))
-	return;
+    return;
 
     for (paf = obj->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	free_affect(paf);
+    paf_next = paf->next;
+    free_affect(paf);
     }
     obj->affected = NULL;
 
-    for (paf = obj->catalyst; paf != NULL; paf = paf_next)
+    for (cat = obj->catalyst; cat != NULL; cat = cat_next)
     {
-	paf_next = paf->next;
-	free_affect(paf);
+    cat_next = cat->next;
+    free_catalyst(cat);
     }
-    obj->affected = NULL;
+    obj->catalyst = NULL;
 
     for (ed = obj->extra_descr; ed != NULL; ed = ed_next )
     {
-	ed_next = ed->next;
-	free_extra_descr(ed);
+    ed_next = ed->next;
+    free_extra_descr(ed);
      }
      obj->extra_descr = NULL;
 
@@ -477,19 +587,19 @@ void free_obj(OBJ_DATA *obj)
     free_string( obj->material );
 
     if ( obj->old_name != NULL )
-	free_string( obj->old_name );
+    free_string( obj->old_name );
 
     if ( obj->old_short_descr != NULL )
-	free_string( obj->old_short_descr );
+    free_string( obj->old_short_descr );
 
     if ( obj->old_description != NULL )
-	free_string( obj->old_description );
+    free_string( obj->old_description );
 
     if ( obj->old_full_description != NULL )
-	free_string( obj->old_full_description );
+    free_string( obj->old_full_description );
 
     if ( obj->loaded_by != NULL )
-	free_string( obj->loaded_by );
+    free_string( obj->loaded_by );
 
     variable_clearfield(VAR_OBJECT, obj);
     script_clear_object(obj);
@@ -500,40 +610,65 @@ void free_obj(OBJ_DATA *obj)
     /* be sure to free any events hooked up to this char so that they arn't called
        on the freed memory space */
     for (ev = obj->events; ev != NULL; ev = ev_next) {
-	ev_next = ev->next_event;
+    ev_next = ev->next_event;
 
-	if(ev->delay > 0) extract_event(ev);
+    if(ev->delay > 0) extract_event(ev);
     }
 
     obj->events = NULL;
     obj->events_tail = NULL;
     obj->id[0] = obj->id[1] = 0;
 
-	if( obj->persist ) persist_removeobject(obj);
+    if( obj->persist ) persist_removeobject(obj);
 
-	list_destroy(obj->ltokens);
-	list_destroy(obj->lcontains);
-	list_destroy(obj->lclonerooms);
+    /* Free all tokens attached to this object */
+    for (token = obj->tokens; token != NULL; token = token_next) {
+        token_next = token->next;
+        free_token(token);
+    }
+    obj->tokens = NULL;
 
-	if(obj->owner_name != NULL)		free_string(obj->owner_name);
-	if(obj->owner_short != NULL)	free_string(obj->owner_short);
+    list_destroy(obj->ltokens);
+    obj->ltokens = NULL;
+    list_destroy(obj->lcontains);
+    obj->lcontains = NULL;
+    list_destroy(obj->lclonerooms);
+    obj->lclonerooms = NULL;
 
-	if(obj->lock)
-	{
-		free_lock_state(obj->lock);
-		obj->lock = NULL;
-	}
+    if (obj->lstache) {
+        iterator_start(&it, obj->lstache);
+        while ((item = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(item);
+        }
+        iterator_stop(&it);
+        list_destroy(obj->lstache);
+        obj->lstache = NULL;
+    }
 
-	if(obj->waypoints)
-	{
-		list_destroy(obj->waypoints);
-		obj->waypoints = NULL;
-	}
+    if(obj->owner_name != NULL)		free_string(obj->owner_name);
+    if(obj->owner_short != NULL)	free_string(obj->owner_short);
+
+    if(obj->lock)
+    {
+        free_lock_state(obj->lock);
+        obj->lock = NULL;
+    }
+
+    if(obj->waypoints)
+    {
+        list_destroy(obj->waypoints);
+        obj->waypoints = NULL;
+    }
 
     INVALIDATE(obj);
 
     obj->next   = obj_free;
     obj_free    = obj;
+}
+
+static void delete_aura_data(void *ptr)
+{
+    free_aura_data((AURA_DATA *)ptr);
 }
 
 
@@ -544,11 +679,11 @@ CHAR_DATA *new_char( void )
     int i;
 
     if (char_free == NULL)
-	ch = alloc_perm(sizeof(*ch));
+    ch = alloc_perm(sizeof(*ch));
     else
     {
-	ch = char_free;
-	char_free = char_free->next;
+    ch = char_free;
+    char_free = char_free->next;
     }
 
     *ch = char_zero;
@@ -574,6 +709,13 @@ CHAR_DATA *new_char( void )
     ch->max_mana                = 100;
     ch->move                    = 100;
     ch->max_move                = 100;
+    ch->body_type               = BODY_TYPE_NEUTRAL;
+    ch->verb_preference         = VERB_FORM_DEFAULT;
+    ch->pronoun_he_she          = str_dup("");
+    ch->pronoun_him_her         = str_dup("");
+    ch->pronoun_his_her         = str_dup("");
+    ch->pronoun_his_hers        = str_dup("");
+    ch->pronoun_himself_herself = str_dup("");
     ch->manastore		= 0;
     ch->affected_by[0] 		= 0;
     ch->affected_by[1]		= 0;
@@ -637,6 +779,8 @@ CHAR_DATA *new_char( void )
 
     ch->challenger = NULL;
     ch->temp_log_entry = NULL;
+    ch->temp_report_channel = NULL;
+    ch->temp_report_message_id = NULL;
         ch->lcarrying_temp = list_create(false);
     ch->temp_log_category = 0;
 
@@ -648,6 +792,15 @@ CHAR_DATA *new_char( void )
     }
 
     ch->quest			= NULL;
+    ch->quest_runtime.points_bank = 0;
+    ch->quest_runtime.mission_allowance = 1;
+    ch->quest_runtime.allowance_last_update = 0;
+    ch->quest_runtime.next_run_id = 1;
+    ch->quest_runtime.focused_run_id = 0;
+    ch->quest_runtime.expiry_modes = QUEST_EXPIRY_NONE;
+    ch->quest_runtime.expires_at = 0;
+    ch->quest_runtime.expiry_countdown_minutes = 0;
+    ch->quest_runtime.manual_trigger_area_uid = 0;
 
     ch->hit_damage		= 0;
     ch->hit_type		= TYPE_UNDEFINED;
@@ -661,6 +814,8 @@ CHAR_DATA *new_char( void )
     ch->ltokens			= list_create(false);
     ch->lclonerooms		= list_create(false);
     ch->lgroup			= list_create(false);
+    ch->auras                   = list_createx(false, NULL, delete_aura_data);
+    ch->lstache			= list_create(false);
 
     ch->deathsight_vision = 0;
     ch->in_damage_function = false;
@@ -682,9 +837,23 @@ void free_char( CHAR_DATA *ch )
     EVENT_DATA *ev, *ev_next;
     SKILL_ENTRY *se, *se_next;
     ITERATOR it;
+    struct timeval start_time, end_time;
+    long total_ms;
+    int total_objects = 0;
+    char name_copy[256];  // Save name for logging after freeing
 
     if (!IS_VALID(ch))
         return;
+
+    // Save name before we free it
+    if (ch->name) {
+        strncpy(name_copy, ch->name, sizeof(name_copy) - 1);
+        name_copy[sizeof(name_copy) - 1] = '\0';
+    } else {
+        strcpy(name_copy, "(unknown)");
+    }
+
+    gettimeofday(&start_time, NULL);
 
     if (IS_NPC(ch))
         mobile_count--;
@@ -701,30 +870,68 @@ void free_char( CHAR_DATA *ch )
     }
 
     // Free items in inventory using lcarrying
+    // OPTIMIZATION: Detach list before extraction to avoid O(n²) list_remlink calls
     if (ch->lcarrying) {
-        iterator_start(&it, ch->lcarrying);
+        LLIST *temp_carrying = ch->lcarrying;
+        int item_count = list_size(temp_carrying);
+        total_objects += item_count;
+        ch->lcarrying = NULL;  // Detach to skip list_remlink during extraction
+
+        iterator_start(&it, temp_carrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            extract_obj(obj);
+            extract_obj(obj);  // obj_from_char will safely handle NULL ch->lcarrying
         }
         iterator_stop(&it);
+
+        list_destroy(temp_carrying);
     }
 
     // Free worn items using lworn
     if (ch->lworn) {
-        iterator_start(&it, ch->lworn);
+        LLIST *temp_worn = ch->lworn;
+        int worn_count = list_size(temp_worn);
+        total_objects += worn_count;
+        ch->lworn = NULL;
+
+        iterator_start(&it, temp_worn);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             extract_obj(obj);
         }
         iterator_stop(&it);
+
+        list_destroy(temp_worn);
     }
 
     // Free locker items using llocker
     if (ch->llocker) {
-        iterator_start(&it, ch->llocker);
+        LLIST *temp_locker = ch->llocker;
+        int locker_count = list_size(temp_locker);
+        total_objects += locker_count;
+        ch->llocker = NULL;
+
+        iterator_start(&it, temp_locker);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
             extract_obj(obj);
         }
         iterator_stop(&it);
+
+        list_destroy(temp_locker);
+    }
+
+    // Free stached items using lstache
+    if (ch->lstache) {
+        LLIST *temp_stache = ch->lstache;
+        int stache_count = list_size(temp_stache);
+        total_objects += stache_count;
+        ch->lstache = NULL;
+
+        iterator_start(&it, temp_stache);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            extract_obj(obj);
+        }
+        iterator_stop(&it);
+
+        list_destroy(temp_stache);
     }
 
     // affects
@@ -735,9 +942,10 @@ void free_char( CHAR_DATA *ch )
     }
 
     for (token = ch->tokens; token; token = tnext) {
-	tnext = token->next;
-	free_token(token);
+    tnext = token->next;
+    free_token(token);
     }
+    ch->tokens = NULL;
 
     if (ch->church != NULL)
     {
@@ -763,19 +971,23 @@ void free_char( CHAR_DATA *ch )
 
     // Destroy linked lists
     list_destroy(ch->llocker);
+    ch->llocker = NULL;
     list_destroy(ch->lcarrying);
+    ch->lcarrying = NULL;
     list_destroy(ch->lcarrying_temp);
+    ch->lcarrying_temp = NULL;
     list_destroy(ch->lworn);
+    ch->lworn = NULL;
     list_destroy(ch->ltokens);
+    ch->ltokens = NULL;
     list_destroy(ch->lclonerooms);
+    ch->lclonerooms = NULL;
     list_destroy(ch->lgroup);
-
-    if (!IS_NPC(ch))
-    {
-#ifdef IMC
-        imc_freechardata(ch);
-#endif
-    }
+    ch->lgroup = NULL;
+    list_destroy(ch->auras);
+    ch->auras = NULL;
+    list_destroy(ch->lstache);
+    ch->lstache = NULL;
 
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);
@@ -783,6 +995,8 @@ void free_char( CHAR_DATA *ch )
     wipe_clearinfo_mobile(ch);
     free_prog_data(ch->progs);
     free_string(ch->temp_log_entry);
+    free_string(ch->temp_report_channel);
+    free_string(ch->temp_report_message_id);
 
     /* be sure to free any events hooked up to this char so that they aren't called
        on the freed memory space */
@@ -805,6 +1019,16 @@ void free_char( CHAR_DATA *ch )
 
     ch->next = char_free;
     char_free = ch;
+
+    // Performance logging
+    if (total_objects > 10) {
+        gettimeofday(&end_time, NULL);
+        total_ms = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+                  (end_time.tv_usec - start_time.tv_usec) / 1000;
+        log_stringf("PERFORMANCE free_char: %s with %d top-level objects - total: %ldms [loaded_objects: %d]",
+                   name_copy, total_objects, total_ms,
+                   loaded_objects ? list_size(loaded_objects) : 0);
+    }
 }
 
 
@@ -816,22 +1040,22 @@ PC_DATA *new_pcdata(void)
     PC_DATA *pcdata;
 
     if (pcdata_free == NULL)
-	pcdata = alloc_perm(sizeof(*pcdata));
+    pcdata = alloc_perm(sizeof(*pcdata));
     else
     {
-	pcdata = pcdata_free;
-	pcdata_free = pcdata_free->next;
+    pcdata = pcdata_free;
+    pcdata_free = pcdata_free->next;
     }
 
     *pcdata = pcdata_zero;
 
     for (alias = 0; alias < MAX_ALIAS; alias++)
     {
-	pcdata->alias[alias] = NULL;
-	pcdata->alias_sub[alias] = NULL;
+    pcdata->alias[alias] = NULL;
+    pcdata->alias_sub[alias] = NULL;
     }
 
-	pcdata->quit_on_input = false;
+    pcdata->quit_on_input = false;
     pcdata->email = NULL;
     pcdata->afk_message = NULL;
     //pcdata->imm_title = NULL;
@@ -839,12 +1063,31 @@ PC_DATA *new_pcdata(void)
     pcdata->vis_to_people = NULL;
     pcdata->quiet_people = NULL;
     pcdata->commands = NULL;
+    pcdata->extra_commands = NULL;
     pcdata->quests_completed = 0;
+    pcdata->missions_completed = 0;
+    pcdata->quest_history = NULL;
     location_clear(&pcdata->room_before_arena);
     //pcdata->quests = NULL;
     pcdata->buffer = new_buf();
     pcdata->convert_church = -1;
     pcdata->need_change_pw = true;
+    pcdata->pending_group_invite_expires = 0;
+    pcdata->pending_group_inviter_id[0] = 0;
+    pcdata->pending_group_inviter_id[1] = 0;
+    pcdata->pending_group_id[0] = 0;
+    pcdata->pending_group_id[1] = 0;
+    pcdata->pending_group_request_expires = 0;
+    pcdata->pending_group_request_group_id[0] = 0;
+    pcdata->pending_group_request_group_id[1] = 0;
+    pcdata->pending_resurrect_offer_expires = 0;
+    pcdata->pending_resurrect_offer_from_id[0] = 0;
+    pcdata->pending_resurrect_offer_from_id[1] = 0;
+    pcdata->pending_summon_offer_expires = 0;
+    pcdata->pending_summon_offer_from_id[0] = 0;
+    pcdata->pending_summon_offer_from_id[1] = 0;
+    pcdata->last_ready_check = 0;
+    pcdata->readycheck_answer = TRISTATE_UNDEF;
         pcdata->account_name = str_dup("");
     pcdata->account_id[0] = 0;
     pcdata->account_id[1] = 0;
@@ -871,7 +1114,13 @@ PC_DATA *new_pcdata(void)
     pcdata->second_sub_class_warrior = -1;
 
     pcdata->unlocked_areas = list_create(false);
+    pcdata->unlocked_dungeons = list_create(false);
     pcdata->ships = list_create(false);
+    pcdata->classes = list_create(false);
+    pcdata->current_class = NULL;
+    pcdata->known_groups = list_create(false);
+    pcdata->pending_free_levels = 0;
+    pcdata->trait_values = NULL;
     pcdata->spam_block_navigation = false;
 
     
@@ -887,9 +1136,11 @@ void free_pcdata(PC_DATA *pcdata)
     IGNORE_DATA *ignore_next;
     STRING_DATA *string;
     STRING_DATA *string_next;
+    QUEST_HISTORY_DATA *history;
+    QUEST_HISTORY_DATA *next_history;
 
     if (!IS_VALID(pcdata))
-	return;
+    return;
 
     free_string(pcdata->email);
     free_string(pcdata->pwd);
@@ -905,32 +1156,72 @@ void free_pcdata(PC_DATA *pcdata)
 
     for (alias = 0; alias < MAX_ALIAS; alias++)
     {
-	free_string(pcdata->alias[alias]);
-	free_string(pcdata->alias_sub[alias]);
+    free_string(pcdata->alias[alias]);
+    free_string(pcdata->alias_sub[alias]);
     }
 
     for ( ignore = pcdata->ignoring; ignore != NULL; ignore = ignore_next )
     {
-	ignore_next = ignore->next;
-	free_ignore( ignore );
+    ignore_next = ignore->next;
+    free_ignore( ignore );
     }
 
     for ( string = pcdata->vis_to_people; string != NULL; string = string_next )
     {
-	string_next = string->next;
-	free_string_data( string );
+    string_next = string->next;
+    free_string_data( string );
     }
 
     for ( string = pcdata->quiet_people; string != NULL; string = string_next )
     {
-	string_next = string->next;
-	free_string_data( string );
+    string_next = string->next;
+    free_string_data( string );
     }
+
+    for (history = pcdata->quest_history; history != NULL; history = next_history)
+    {
+        next_history = history->next;
+        free_quest_history(history);
+    }
+    pcdata->quest_history = NULL;
 
     string_vector_freeall(pcdata->script_prompts);
     pcdata->script_prompts = NULL;
 
+    if (pcdata->extra_commands) {
+        list_destroy(pcdata->extra_commands);
+        pcdata->extra_commands = NULL;
+    }
+
+    /* Free class level entries before destroying the list */
+    if (pcdata->classes) {
+        ITERATOR cl_it;
+        CLASS_LEVEL *cl_entry;
+        iterator_start(&cl_it, pcdata->classes);
+        while ((cl_entry = (CLASS_LEVEL *)iterator_nextdata(&cl_it))) {
+            free_class_level(cl_entry);
+        }
+        iterator_stop(&cl_it);
+        list_destroy(pcdata->classes);
+    }
+    pcdata->current_class = NULL;
+
+    /* Free personal trait values */
+    if (pcdata->trait_values) {
+        /* Free any allocated string trait values */
+        for (int i = 0; i < trait_def_count; i++) {
+            if (pcdata->trait_values[i].string_val)
+                free_string(pcdata->trait_values[i].string_val);
+        }
+        free(pcdata->trait_values);
+        pcdata->trait_values = NULL;
+    }
+
+    /* known_groups stores borrowed pointers (SKILL_GROUP is global), no per-entry free */
+    list_destroy(pcdata->known_groups);
+
     list_destroy(pcdata->unlocked_areas);
+    list_destroy(pcdata->unlocked_dungeons);
     list_destroy(pcdata->ships);
 
     INVALIDATE(pcdata);
@@ -953,20 +1244,20 @@ long get_pc_id(void)
 
 void get_mob_id(CHAR_DATA *ch)
 {
-	if(!ch->id[0] && !ch->id[1]) {
-		ch->id[0] = gconfig.next_mob_uid[0];
-		ch->id[1] = gconfig.next_mob_uid[1];
-		if(!++gconfig.next_mob_uid[0])
-			++gconfig.next_mob_uid[1];
+    if(!ch->id[0] && !ch->id[1]) {
+        ch->id[0] = gconfig.next_mob_uid[0];
+        ch->id[1] = gconfig.next_mob_uid[1];
+        if(!++gconfig.next_mob_uid[0])
+            ++gconfig.next_mob_uid[1];
 
-		if(gconfig.next_mob_uid[0] == gconfig.next_mob_uid[2] &&
-			gconfig.next_mob_uid[1] == gconfig.next_mob_uid[3]) {
-			gconfig.next_mob_uid[2] += UID_INC;
-			if(!gconfig.next_mob_uid[2])
-				++gconfig.next_mob_uid[3];
-			gconfig_write();
-		}
-	}
+        if(gconfig.next_mob_uid[0] == gconfig.next_mob_uid[2] &&
+            gconfig.next_mob_uid[1] == gconfig.next_mob_uid[3]) {
+            gconfig.next_mob_uid[2] += UID_INC;
+            if(!gconfig.next_mob_uid[2])
+                ++gconfig.next_mob_uid[3];
+            gconfig_write();
+        }
+    }
 }
 
 void get_token_id(TOKEN_DATA *token)
@@ -1007,214 +1298,62 @@ void get_vroom_id(ROOM_INDEX_DATA *vroom)
 
 void get_obj_id(OBJ_DATA *obj)
 {
-	if(!obj->id[0] && !obj->id[1]) {
-		obj->id[0] = gconfig.next_obj_uid[0];
-		obj->id[1] = gconfig.next_obj_uid[1];
-		if(!++gconfig.next_obj_uid[0])
-			++gconfig.next_obj_uid[1];
+    if(!obj->id[0] && !obj->id[1]) {
+        obj->id[0] = gconfig.next_obj_uid[0];
+        obj->id[1] = gconfig.next_obj_uid[1];
+        if(!++gconfig.next_obj_uid[0])
+            ++gconfig.next_obj_uid[1];
 
-		if(gconfig.next_obj_uid[0] == gconfig.next_obj_uid[2] &&
-			gconfig.next_obj_uid[1] == gconfig.next_obj_uid[3]) {
-			gconfig.next_obj_uid[2] += UID_INC;
-			if(!gconfig.next_obj_uid[2])
-				++gconfig.next_obj_uid[3];
-			gconfig_write();
-		}
-	}
+        if(gconfig.next_obj_uid[0] == gconfig.next_obj_uid[2] &&
+            gconfig.next_obj_uid[1] == gconfig.next_obj_uid[3]) {
+            gconfig.next_obj_uid[2] += UID_INC;
+            if(!gconfig.next_obj_uid[2])
+                ++gconfig.next_obj_uid[3];
+            gconfig_write();
+        }
+    }
 }
 
 
 void get_church_id(CHURCH_DATA *church)
 {
-	if(!church->uid) {
-		church->uid = gconfig.next_church_uid++;
-		gconfig_write();
-	}
+    if(!church->uid) {
+        church->uid = gconfig.next_church_uid++;
+        gconfig_write();
+    }
 }
 
 
 
 void get_ship_id(SHIP_DATA *ship)
 {
-	if(!ship->id[0] && !ship->id[1]) {
-		ship->id[0] = gconfig.next_ship_uid[0];
-		ship->id[1] = gconfig.next_ship_uid[1];
-		if(!++gconfig.next_ship_uid[0])
-			++gconfig.next_ship_uid[1];
+    if(!ship->id[0] && !ship->id[1]) {
+        ship->id[0] = gconfig.next_ship_uid[0];
+        ship->id[1] = gconfig.next_ship_uid[1];
+        if(!++gconfig.next_ship_uid[0])
+            ++gconfig.next_ship_uid[1];
 
-		if(gconfig.next_ship_uid[0] == gconfig.next_ship_uid[2] &&
-			gconfig.next_ship_uid[1] == gconfig.next_ship_uid[3]) {
-			gconfig.next_ship_uid[2] += UID_INC;
-			if(!gconfig.next_ship_uid[2])
-				++gconfig.next_ship_uid[3];
-			gconfig_write();
-		}
-	}
-}
-
-
-/* buffer sizes */
-const int buf_size[MAX_BUF_LIST] =
-{
-    16,32,64,128,256,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576
-};
-
-
-/* local procedure for finding the next acceptable size */
-/* -1 indicates out-of-boundary error */
-int get_size( int val , int target)
-{
-    int i;
-
-    for (i = 0; i < MAX_BUF_LIST; i++)
-	if (buf_size[i] >= val)
-	{
-	    return buf_size[i];
-	}
-
-    return -1;
-}
-
-
-BUFFER *new_buf()
-{
-    BUFFER *buffer;
-
-    if (buf_free == NULL)
-	buffer = alloc_perm(sizeof(*buffer));
-    else
-    {
-	buffer = buf_free;
-	buf_free = buf_free->next;
+        if(gconfig.next_ship_uid[0] == gconfig.next_ship_uid[2] &&
+            gconfig.next_ship_uid[1] == gconfig.next_ship_uid[3]) {
+            gconfig.next_ship_uid[2] += UID_INC;
+            if(!gconfig.next_ship_uid[2])
+                ++gconfig.next_ship_uid[3];
+            gconfig_write();
+        }
     }
-
-    buffer->next	= NULL;
-    buffer->state	= BUFFER_SAFE;
-    buffer->size	= get_size(BASE_BUF,0);
-
-    buffer->string	= malloc(buffer->size);
-    buffer->string[0]	= '\0';
-    VALIDATE(buffer);
-
-    return buffer;
 }
 
-
-BUFFER *new_buf_size(int size)
-{
-    BUFFER *buffer;
-
-    if (buf_free == NULL)
-        buffer = alloc_perm(sizeof(*buffer));
-    else
-    {
-        buffer = buf_free;
-        buf_free = buf_free->next;
-    }
-
-    buffer->next        = NULL;
-    buffer->state       = BUFFER_SAFE;
-    buffer->size        = get_size(size,0);
-    if (buffer->size == -1)
-    {
-        bug("new_buf: buffer size %d too large.",size);
-        exit(1);
-    }
-    buffer->string      = malloc(buffer->size);
-    buffer->string[0]   = '\0';
-    VALIDATE(buffer);
-
-    return buffer;
-}
-
-
-void free_buf(BUFFER *buffer)
-{
-    if (!IS_VALID(buffer))
-	return;
-
-    free(buffer->string);
-    buffer->string = NULL;
-    buffer->size   = 0;
-    buffer->state  = BUFFER_FREED;
-    INVALIDATE(buffer);
-
-    buffer->next  = buf_free;
-    buf_free      = buffer;
-}
-
-bool add_buf_char(BUFFER *buffer, char ch)
-{
-    char tmp[2];
-    tmp[0] = ch;
-    tmp[1] = '\0';
-    return add_buf(buffer, tmp);
-}
-
-
-bool add_buf(BUFFER *buffer, char *string)
-{
-    int len;
-    char *oldstr;
-    int oldsize;
-
-    oldstr = buffer->string;
-    oldsize = buffer->size;
-
-    if (buffer->state == BUFFER_OVERFLOW) /* don't waste time on bad strings! */
-	return false;
-
-    len = strlen(buffer->string) + strlen(string) + 1;
-
-    while (len >= buffer->size) /* increase the buffer size */
-    {
-	buffer->size 	= get_size(buffer->size + 1, len);
-	{
-	    if (buffer->size == -1) /* overflow */
-	    {
-		buffer->size = oldsize;
-		buffer->state = BUFFER_OVERFLOW;
-		bug("buffer overflow past size %d",buffer->size);
-		return false;
-	    }
-  	}
-    }
-
-    if (buffer->size != oldsize)
-    {
-	buffer->string	= malloc(buffer->size);
-
-	strcpy(buffer->string,oldstr);
-	free(oldstr);
-    }
-
-    strcat(buffer->string,string);
-    return true;
-}
-
-
-void clear_buf(BUFFER *buffer)
-{
-    buffer->string[0] = '\0';
-    buffer->state     = BUFFER_SAFE;
-}
-
-
-char *buf_string(BUFFER *buffer)
-{
-    return buffer->string;
-}
 
 PROG_DATA *new_prog_data(void)
 {
     PROG_DATA *pr_dat;
 
     if (prog_data_free == NULL)
-	pr_dat = alloc_perm(sizeof(*pr_dat));
+    pr_dat = alloc_perm(sizeof(*pr_dat));
     else
     {
-	pr_dat = prog_data_free;
-	prog_data_free = prog_data_free->next;
+    pr_dat = prog_data_free;
+    prog_data_free = prog_data_free->next;
     }
 
     memset(pr_dat,0,sizeof(*pr_dat));
@@ -1229,74 +1368,87 @@ PROG_DATA *new_prog_data(void)
 
 LLIST **new_prog_bank(void)
 {
-	int i;
-	LLIST **data = alloc_mem(TRIGSLOT_MAX *sizeof(LLIST *));
-	for(i = 0; i < TRIGSLOT_MAX; i++)
-		data[i] = list_create(false);
+    int i;
+    LLIST **data = alloc_mem(TRIGSLOT_MAX *sizeof(LLIST *));
+    for(i = 0; i < TRIGSLOT_MAX; i++)
+        data[i] = list_create(false);
 
-	return data;
+    return data;
 }
 
 void free_prog_data(PROG_DATA *pr_dat)
 {
-	if(!pr_dat) return;
+    if(!pr_dat) return;
 
-	variable_freelist(&pr_dat->vars);
+    variable_freelist(&pr_dat->vars);
 
-	pr_dat->next = prog_data_free;
-	prog_data_free = pr_dat;
+    pr_dat->next = prog_data_free;
+    prog_data_free = pr_dat;
 }
 
 PROG_LIST *trigger_free = NULL;
 
 void free_trigger(PROG_LIST *trigger)
 {
-	if (!IS_VALID(trigger)) return;
-	free_string(trigger->trig_phrase);
-	INVALIDATE(trigger);
-	trigger->next = trigger_free;
-	trigger_free = trigger;
+    if (!IS_VALID(trigger)) return;
+    free_string(trigger->trig_phrase);
+    INVALIDATE(trigger);
+    trigger->next = trigger_free;
+    trigger_free = trigger;
 }
 
 void free_prog_list(LLIST **pr_list)
 {
-	PROG_LIST *trigger;
-	ITERATOR it;
-	int i;
+    PROG_LIST *trigger;
+    ITERATOR it;
+    int i;
 
-	if(pr_list) {
-		for(i=0;i<TRIGSLOT_MAX;i++) if( pr_list[i] ) {
-			iterator_start(&it, pr_list[i]);
-			while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
-				free_trigger(trigger);
-			iterator_stop(&it);
-			list_destroy(pr_list[i]);
-		}
-		free_mem(pr_list,TRIGSLOT_MAX *sizeof(LLIST *));
-	}
+    if(pr_list) {
+        for(i=0;i<TRIGSLOT_MAX;i++) if( pr_list[i] ) {
+            iterator_start(&it, pr_list[i]);
+            while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
+                free_trigger(trigger);
+            iterator_stop(&it);
+            list_destroy(pr_list[i]);
+        }
+        free_mem(pr_list,TRIGSLOT_MAX *sizeof(LLIST *));
+    }
 }
 
 PROG_LIST *new_trigger(void)
 {
-	static PROG_LIST trig_zero;
-	PROG_LIST *trigger;
+    static PROG_LIST trig_zero;
+    PROG_LIST *trigger;
 
-	if (!trigger_free)
-		trigger = alloc_perm(sizeof(PROG_LIST));
-	else {
-		trigger = trigger_free;
-		trigger_free=trigger_free->next;
-	}
+    if (!trigger_free)
+        trigger = alloc_perm(sizeof(PROG_LIST));
+    else {
+        trigger = trigger_free;
+        trigger_free=trigger_free->next;
+    }
 
-	*trigger = trig_zero;
-	trigger->vnum = 0;
-	trigger->trig_type = -1;
-	trigger->script = NULL;
-	VALIDATE(trigger);
-	return trigger;
+    *trigger = trig_zero;
+    trigger->vnum = 0;
+    trigger->trig_type = -1;
+    trigger->script = NULL;
+    VALIDATE(trigger);
+    return trigger;
 }
 
 
+/**
+ * new_reset_data - Allocate and initialize a new RESET_DATA structure
+ *
+ * Retrieves a reset structure from the free list or allocates a new
+ * one if the free list is empty. Initializes all fields to safe defaults.
+ *
+ * Default initialization:
+ * - command = 'X' (invalid/placeholder)
+ * - All arg unions cleared to zero
+ * - next pointer set to NULL
+ *
+ * @return  Initialized RESET_DATA structure
+ */
 RESET_DATA *new_reset_data( void )
 {
     RESET_DATA *pReset;
@@ -1314,15 +1466,24 @@ RESET_DATA *new_reset_data( void )
 
     pReset->next        =   NULL;
     pReset->command     =   'X';
-    pReset->arg1        =   0;
+    pReset->arg1.wnum.pArea = NULL;
+    pReset->arg1.wnum.vnum  = 0;
     pReset->arg2        =   0;
-    pReset->arg3        =   0;
-    pReset->arg4	=   0;
+    pReset->arg3.wnum.pArea = NULL;
+    pReset->arg3.wnum.vnum  = 0;
+    pReset->arg4        =   0;
 
     return pReset;
 }
 
-
+/**
+ * free_reset_data - Return a RESET_DATA structure to the free list
+ *
+ * Adds the reset structure to the free list for reuse. Does not
+ * clear fields (they will be overwritten by new_reset_data).
+ *
+ * @param pReset  Reset structure to free
+ */
 void free_reset_data( RESET_DATA *pReset )
 {
     pReset->next            = reset_free;
@@ -1331,6 +1492,7 @@ void free_reset_data( RESET_DATA *pReset )
 }
 
 static void delete_church_treasure_room(void *data) { free_mem(data, sizeof(CHURCH_TREASURE_ROOM)); }
+static void delete_area_region(void *data) { free_area_region((AREA_REGION *)data); }
 
 CHURCH_DATA *new_church( void )
 {
@@ -1338,15 +1500,15 @@ CHURCH_DATA *new_church( void )
 
     if ( !church_free )
     {
-	pChurch = alloc_perm( sizeof(*pChurch) );
+    pChurch = alloc_perm( sizeof(*pChurch) );
     }
     else
     {
-	pChurch = church_free;
-	church_free = church_free->next;
+    pChurch = church_free;
+    church_free = church_free->next;
     }
 
-	pChurch->uid = 0;
+    pChurch->uid = 0;
     pChurch->next = NULL;
     pChurch->name = NULL;
     pChurch->flag = NULL;
@@ -1390,6 +1552,9 @@ CHURCH_DATA *new_church( void )
     pChurch->default_rank = 0;
     pChurch->max_rank_uid = 0;
     pChurch->deleted = false;
+    pChurch->quest_data.mission_allowance_bonus = 0;
+    pChurch->quest_data.board_last_refresh = 0;
+    pChurch->quest_data.available_missions = 0;
 
     top_church++;
 
@@ -1413,9 +1578,9 @@ void free_church( CHURCH_DATA *pChurch )
     people = pChurch->people;
 
     while( people != NULL) {
-	next_person = people->next;
+    next_person = people->next;
         free_church_player( people );
-	people = next_person;
+    people = next_person;
     }
 
     // Free log entries
@@ -1431,7 +1596,7 @@ void free_church( CHURCH_DATA *pChurch )
     return;
 
 
-	variable_clearfield(VAR_CHURCH, pChurch);
+    variable_clearfield(VAR_CHURCH, pChurch);
 
     list_destroy(pChurch->online_players);
     list_destroy(pChurch->roster);
@@ -1448,12 +1613,12 @@ CHURCH_PLAYER_DATA *new_church_player( void )
 
     if ( !church_player_free )
     {
-	pMember = alloc_perm( sizeof(*pMember) );
+    pMember = alloc_perm( sizeof(*pMember) );
     }
     else
     {
-	pMember = church_player_free;
-	church_player_free = church_player_free->next;
+    pMember = church_player_free;
+    church_player_free = church_player_free->next;
     }
 
     pMember->next = NULL;
@@ -1490,8 +1655,8 @@ void free_church_player( CHURCH_PLAYER_DATA *pMember )
     free_string( pMember->name );
     for ( string = pMember->commands; string != NULL; string = string_next )
     {
-	string_next = string->next;
-	free_string_data( string );
+    string_next = string->next;
+    free_string_data( string );
     }
 
     pMember->name = NULL;
@@ -1626,6 +1791,9 @@ AREA_DATA *new_area( void )
     SET_MEMTYPE(pArea,MEMTYPE_AREA);
     pArea->next             =   NULL;
     pArea->name             =   str_dup( "New area" );
+    pArea->tags             =   str_dup( "" );
+    pArea->auto_tags        =   str_dup( "" );
+    pArea->area_topic       =   str_dup( "" );
     pArea->area_flags       =   AREA_ADDED;
     pArea->security         =   1;
     pArea->builders         =   str_dup( "None" );
@@ -1638,7 +1806,7 @@ AREA_DATA *new_area( void )
     pArea->nplayer          =   0;
     //pArea->flags	    =   0;
     pArea->empty            =   true;              /* ROM patch */
-    sprintf( buf, "area%ld.are", pArea->anum );
+    sprintf( buf, "area%ld.json", pArea->anum );
     pArea->file_name        =   str_dup( buf );
     pArea->anum             =   top_area-1;
     pArea->uid              =   0;  /* Vizz - uid 0 is invalid */
@@ -1659,6 +1827,28 @@ AREA_DATA *new_area( void )
     pArea->progs->vars      =	NULL;
     pArea->index_vars       =	NULL;
 
+    memset(&pArea->region, 0, sizeof(pArea->region));
+    pArea->regions = list_createx(false, NULL, delete_area_region);
+    pArea->region.area = pArea;
+    pArea->region.uid = 0;
+    pArea->region.name = str_dup("default region");
+    pArea->region.topic = str_dup("");
+    pArea->region.description = str_dup("");
+    pArea->region.comments = str_dup("");
+    pArea->region.weather_density_percent = 100;
+    pArea->region.weather_life_percent = 100;
+    pArea->region.weather_severity_bias = 0;
+    pArea->region.x = -1;
+    pArea->region.y = -1;
+    pArea->region.land_x = -1;
+    pArea->region.land_y = -1;
+    rs_location_clear(&pArea->region.rs_recall);
+    location_clear(&pArea->region.recall);
+    pArea->region.rooms = list_create(false);
+    pArea->region.players = list_create(false);
+    pArea->region.valid = true;
+    pArea->top_region_uid = 0;
+
 
     return pArea;
 }
@@ -1666,22 +1856,34 @@ AREA_DATA *new_area( void )
 
 void free_area( AREA_DATA *pArea )
 {
-	OLC_POINT_BOOST *boost, *boost_next;
+    OLC_POINT_BOOST *boost, *boost_next;
 
     free_string( pArea->name );
+    free_string( pArea->tags );
+    free_string( pArea->auto_tags );
+    free_string( pArea->area_topic );
     free_string( pArea->file_name );
     free_string( pArea->builders );
     free_string( pArea->credits );
     free_string( pArea->map);
     free_string( pArea->comments);
     free_string( pArea->description);
-	list_destroy(pArea->room_list);
+    list_destroy(pArea->room_list);
+    list_destroy(pArea->regions);
 
-	for(boost = pArea->points; boost; boost = boost_next) {
-		boost_next = boost->next;
+    free_string(pArea->region.name);
+    free_string(pArea->region.topic);
+    free_string(pArea->region.description);
+    free_string(pArea->region.comments);
+    list_destroy(pArea->region.players);
+    list_destroy(pArea->region.rooms);
+    pArea->region.valid = false;
 
-		free_olc_point_boost(boost);
-	}
+    for(boost = pArea->points; boost; boost = boost_next) {
+        boost_next = boost->next;
+
+        free_olc_point_boost(boost);
+    }
 
     if(pArea->progs && pArea->progs->progs) free_prog_list(pArea->progs->progs);
     free_prog_data(pArea->progs);
@@ -1691,6 +1893,58 @@ void free_area( AREA_DATA *pArea )
 
     pArea->next         =   area_free->next;
     area_free           =   pArea;
+}
+
+
+AREA_REGION *new_area_region( void )
+{
+    AREA_REGION *region;
+
+    if (area_region_free)
+    {
+        region = area_region_free;
+        area_region_free = area_region_free->next;
+    }
+    else
+        region = alloc_mem(sizeof(AREA_REGION));
+
+    memset(region, 0, sizeof(AREA_REGION));
+
+    region->name = str_dup("");
+    region->topic = str_dup("");
+    region->description = str_dup("");
+    region->comments = str_dup("");
+    region->weather_density_percent = 100;
+    region->weather_life_percent = 100;
+    region->weather_severity_bias = 0;
+    region->x = -1;
+    region->y = -1;
+    region->land_x = -1;
+    region->land_y = -1;
+    rs_location_clear(&region->rs_recall);
+    location_clear(&region->recall);
+    region->players = list_create(false);
+    region->rooms = list_create(false);
+
+    VALIDATE(region);
+    return region;
+}
+
+
+void free_area_region( AREA_REGION *region )
+{
+    if (!IS_VALID(region)) return;
+
+    free_string(region->name);
+    free_string(region->topic);
+    free_string(region->description);
+    free_string(region->comments);
+    list_destroy(region->players);
+    list_destroy(region->rooms);
+
+    INVALIDATE(region);
+    region->next = area_region_free;
+    area_region_free = region;
 }
 
 
@@ -1713,12 +1967,10 @@ EXIT_DATA *new_exit( void )
     pExit->u1.to_room   =   NULL;
     pExit->next         =   NULL;
     pExit->exit_info    =   0;
-    pExit->door.lock.key_vnum=   0;
-    pExit->door.lock.flags	= 0;
-    pExit->door.lock.pick_chance	= 100;
-    pExit->door.rs_lock.key_vnum=   0;
-    pExit->door.rs_lock.flags	= 0;
-    pExit->door.rs_lock.pick_chance	= 100;
+    memset(&pExit->door.lock, 0, sizeof(LOCK_STATE));
+    pExit->door.lock.pick_chance = 100;
+    memset(&pExit->door.rs_lock, 0, sizeof(LOCK_STATE));
+    pExit->door.rs_lock.pick_chance = 100;
     pExit->keyword      =   &str_empty[0];
     pExit->short_desc   =   &str_empty[0];
     pExit->long_desc	=	&str_empty[0];
@@ -1769,8 +2021,8 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->area             =   NULL;
     pRoom->source           =   NULL;
 
-	pRoom->environ_type	= ENVIRON_NONE;
-	memset(&pRoom->environ,0,sizeof(pRoom->environ));
+    pRoom->environ_type	= ENVIRON_NONE;
+    memset(&pRoom->environ,0,sizeof(pRoom->environ));
 
     // VIZZWILDS
     pRoom->wilds            =   NULL;
@@ -1791,12 +2043,20 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->room_flag[0]       =   0;
     pRoom->room_flag[1]      =   0;
     pRoom->light            =   0;
-    pRoom->sector_type      =   0;
+    room_set_sector_type(pRoom, 0);
     pRoom->heal_rate	    =   100;
     pRoom->mana_rate	    =   100;
     pRoom->visited = 0;
     pRoom->id[0] = pRoom->id[1] = 0;	// Explicitly make this 0,0 until set, or left for static rooms
     pRoom->comments         =   &str_empty[0];
+    pRoom->tags             =   str_dup( "" );
+    pRoom->auto_tags        =   str_dup( "" );
+    pRoom->parent_load.auid = 0;
+    pRoom->parent_load.vnum = 0;
+    pRoom->parent_wnum.pArea = NULL;
+    pRoom->parent_wnum.vnum = 0;
+    pRoom->parent = NULL;
+    pRoom->parent_inherited = false;
 
     pRoom->reset_first = NULL;
     pRoom->reset_last = NULL;
@@ -1821,12 +2081,15 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
     RESET_DATA *pReset;
     EVENT_DATA *ev, *ev_next;
     ROOM_INDEX_DATA *clone, *clone_next;
+    TOKEN_DATA *token, *token_next;
 
     free_string( pRoom->name );
     free_string( pRoom->description );
     free_string( pRoom->owner );
     free_string( pRoom->home_owner );
     free_string( pRoom->comments );
+    free_string( pRoom->tags );
+    free_string( pRoom->auto_tags );
     if(pRoom->progs && pRoom->progs->progs) free_prog_list(pRoom->progs->progs);
     free_prog_data(pRoom->progs);
 
@@ -1843,15 +2106,15 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
 
     for ( pCd = pRoom->conditional_descr; pCd != NULL; pCd = pCd_next )
     {
-	pCd_next = pCd->next;
+    pCd_next = pCd->next;
 
-	free_conditional_descr( pCd );
+    free_conditional_descr( pCd );
     }
 
-	RESET_DATA *pNextReset;
+    RESET_DATA *pNextReset;
     for ( pReset = pRoom->reset_first; pReset; pReset = pNextReset )
     {
-		pNextReset = pReset->next;
+        pNextReset = pReset->next;
         free_reset_data( pReset );
     }
 
@@ -1863,9 +2126,9 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
     /* be sure to free any events hooked up to this room so that they arn't called
        on the freed memory space */
     for (ev = pRoom->events; ev != NULL; ev = ev_next) {
-	ev_next = ev->next_event;
+    ev_next = ev->next_event;
 
-	extract_event(ev);
+    extract_event(ev);
     }
 
     pRoom->events = NULL;
@@ -1874,19 +2137,32 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
 
     // Handle any outstanding cloned rooms
     // Do not worry about anything in the rooms, since everything else had to have been freed already
-	for(clone = pRoom->clones; clone; clone = clone_next) {
-		clone_next = clone->next;
-		free_room_index(clone);
-	}
+    for(clone = pRoom->clones; clone; clone = clone_next) {
+        clone_next = clone->next;
+        free_room_index(clone);
+    }
+
+    /* Free all tokens attached to this room */
+    for (token = pRoom->tokens; token != NULL; token = token_next) {
+        token_next = token->next;
+        free_token(token);
+    }
+    pRoom->tokens = NULL;
 
     list_destroy(pRoom->lentity);
+    pRoom->lentity = NULL;
     list_destroy(pRoom->lpeople);
+    pRoom->lpeople = NULL;
     list_destroy(pRoom->lcontents);
+    pRoom->lcontents = NULL;
     list_destroy(pRoom->levents);
+    pRoom->levents = NULL;
     list_destroy(pRoom->ltokens);
+    pRoom->ltokens = NULL;
     list_destroy(pRoom->lclonerooms);
+    pRoom->lclonerooms = NULL;
 
-	if( pRoom->persist ) persist_removeroom(pRoom);
+    if( pRoom->persist ) persist_removeroom(pRoom);
 
     pRoom->next     =   room_index_free;
     room_index_free =   pRoom;
@@ -1895,49 +2171,58 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
 
 SHOP_STOCK_DATA *new_shop_stock()
 {
-	SHOP_STOCK_DATA *pStock;
+    SHOP_STOCK_DATA *pStock;
 
-	if( !shop_stock_free )
-		pStock = alloc_perm( sizeof(*pStock) );
-	else
-	{
-		pStock = shop_stock_free;
-		shop_stock_free = shop_stock_free->next;
-	}
+    if( !shop_stock_free )
+        pStock = alloc_perm( sizeof(*pStock) );
+    else
+    {
+        pStock = shop_stock_free;
+        shop_stock_free = shop_stock_free->next;
+    }
 
-	pStock->next = NULL;
-	pStock->silver = 0;
-	pStock->qp = 0;
-	pStock->dp = 0;
-	pStock->pneuma = 0;
-	pStock->custom_price = &str_empty[0];
+    pStock->next = NULL;
+    pStock->silver = 0;
+    pStock->qp = 0;
+    pStock->dp = 0;
+    pStock->pneuma = 0;
+    pStock->custom_price = &str_empty[0];
 
-	pStock->vnum = 0;
-	pStock->obj = NULL;
+    pStock->entity.wnum.pArea = NULL;
+    pStock->entity.wnum.vnum = 0;
+    pStock->obj = NULL;
 
-	pStock->quantity = 0;
-	pStock->max_quantity = 0;
-	pStock->restock_rate = 0;
+    pStock->quantity = 0;
+    pStock->max_quantity = 0;
+    pStock->restock_rate = 0;
 
-	pStock->duration = -1;
-	pStock->singular = false;
+    pStock->duration = -1;
+    pStock->singular = false;
 
-	pStock->custom_keyword = &str_empty[0];
-	pStock->custom_descr = &str_empty[0];
+    pStock->custom_keyword = &str_empty[0];
+    pStock->custom_descr = &str_empty[0];
 
-	return pStock;
+    pStock->reputation = NULL;
+    pStock->reputation_load.auid = 0;
+    pStock->reputation_load.vnum = 0;
+    pStock->min_reputation_rank = 0;
+    pStock->max_reputation_rank = 0;
+    pStock->min_show_rank = 0;
+    pStock->max_show_rank = 0;
+
+    return pStock;
 }
 
 void free_shop_stock(SHOP_STOCK_DATA *pStock)
 {
-	if(!pStock) return;
+    if(!pStock) return;
 
-	free_string(pStock->custom_price);
-	free_string(pStock->custom_keyword);
-	free_string(pStock->custom_descr);
+    free_string(pStock->custom_price);
+    free_string(pStock->custom_keyword);
+    free_string(pStock->custom_descr);
 
-	pStock->next = shop_stock_free;
-	shop_stock_free = pStock;
+    pStock->next = shop_stock_free;
+    shop_stock_free = pStock;
 }
 
 SHOP_DATA *new_shop( void )
@@ -1972,6 +2257,10 @@ SHOP_DATA *new_shop( void )
     pShop->next_restock = 0;
     pShop->discount		= 50;
     pShop->shipyard_description = &str_empty[0];
+    pShop->reputation = NULL;
+    pShop->reputation_load.auid = 0;
+    pShop->reputation_load.vnum = 0;
+    pShop->min_reputation_rank = 0;
 
     pShop->stock = NULL;
 
@@ -1981,16 +2270,16 @@ SHOP_DATA *new_shop( void )
 
 void free_shop( SHOP_DATA *pShop )
 {
-	SHOP_STOCK_DATA *stock, *next_stock;
+    SHOP_STOCK_DATA *stock, *next_stock;
 
-	for(stock = pShop->stock; stock; stock = next_stock)
-	{
-		next_stock = stock->next;
-		free_shop_stock(stock);
-	}
+    for(stock = pShop->stock; stock; stock = next_stock)
+    {
+        next_stock = stock->next;
+        free_shop_stock(stock);
+    }
 
-	free_string(pShop->shipyard_description);
-	pShop->shipyard_description = NULL;
+    free_string(pShop->shipyard_description);
+    pShop->shipyard_description = NULL;
 
     pShop->next = shop_free;
     shop_free   = pShop;
@@ -2016,6 +2305,7 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->next          =   NULL;
     pObj->extra_descr   =   NULL;
     pObj->affected      =   NULL;
+    pObj->catalyst      =   NULL;
     pObj->area          =   NULL;
     pObj->name          =   str_dup( "no name" );
     pObj->short_descr   =   str_dup( "(no short description)" );
@@ -2038,9 +2328,21 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->condition     =   100;                        /* ROM */
     pObj->timer		=   0;
     pObj->skeywds		=	str_dup( "none" );
+    pObj->list_name      =   str_dup( "" );
+    pObj->list_keywords  =   str_dup( "" );
+    pObj->tags           =   str_dup( "" );
+    pObj->auto_tags      =   str_dup( "" );
+    pObj->parent_load.auid = 0;
+    pObj->parent_load.vnum = 0;
+    pObj->parent_wnum.pArea = NULL;
+    pObj->parent_wnum.vnum = 0;
+    pObj->parent = NULL;
+    pObj->parent_inherited = false;
     for ( value = 0; value < 8; value++ )               /* 5 - ROM */
         pObj->value[value]  =   0;
     pObj->comments      = &str_empty[0];
+    pObj->prerequisites  = str_dup("");
+    pObj->quests_v2     = NULL;
     pObj->lock			= NULL;
     pObj->waypoints		= NULL;
 
@@ -2052,6 +2354,8 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
 {
     EXTRA_DESCR_DATA *pExtra;
     AFFECT_DATA *pAf;
+    CATALYST_DATA *cat, *cat_next;
+    QUEST_V2_LIST *q2, *q2_next;
 
     free_string( pObj->name );
     free_string( pObj->short_descr );
@@ -2059,13 +2363,30 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
     free_string( pObj->imp_sig );
     free_string( pObj->creator_sig );
     free_string( pObj->skeywds );
+    free_string( pObj->list_name );
+    free_string( pObj->list_keywords );
+    free_string( pObj->tags );
+    free_string( pObj->auto_tags );
     free_string( pObj->comments );
+    free_string( pObj->prerequisites );
+
+    for (q2 = pObj->quests_v2; q2 != NULL; q2 = q2_next)
+    {
+        q2_next = q2->next;
+        free_quest_v2_list(q2);
+    }
 
     free_prog_list(pObj->progs);
     variable_freelist(&pObj->index_vars);
 
     for ( pAf = pObj->affected; pAf; pAf = pAf->next )
         free_affect( pAf );
+
+    for (cat = pObj->catalyst; cat; cat = cat_next)
+    {
+        cat_next = cat->next;
+        free_catalyst(cat);
+    }
 
     for ( pExtra = pObj->extra_descr; pExtra; pExtra = pExtra->next )
         free_extra_descr( pExtra );
@@ -2074,9 +2395,9 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
 
     if( pObj->waypoints )
     {
-		list_destroy(pObj->waypoints);
-		pObj->waypoints = NULL;
-	}
+        list_destroy(pObj->waypoints);
+        pObj->waypoints = NULL;
+    }
 
     pObj->next              = obj_index_free;
     obj_index_free          = pObj;
@@ -2114,6 +2435,13 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->count         =   0;
     pMob->killed        =   0;
     pMob->sex           =   0;
+    pMob->body_type    =   BODY_TYPE_NEUTRAL;
+    pMob->pronoun_he_she = str_dup("");
+    pMob->pronoun_him_her = str_dup("");
+    pMob->pronoun_his_her = str_dup("");
+    pMob->pronoun_his_hers = str_dup("");
+    pMob->pronoun_himself_herself = str_dup("");
+    pMob->verb_preference = VERB_FORM_DEFAULT;
     pMob->level         =   0;
     pMob->act[0]          =   ACT_IS_NPC;
     pMob->act[1]		=   0;
@@ -2147,8 +2475,20 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->default_pos           =   POS_STANDING;
     pMob->wealth                =   0;
     pMob->skeywds		=	str_dup( "none" );
+    pMob->list_name             =   str_dup( "" );
+    pMob->list_keywords         =   str_dup( "" );
+    pMob->tags                  =   str_dup( "" );
+    pMob->auto_tags             =   str_dup( "" );
+    pMob->parent_load.auid = 0;
+    pMob->parent_load.vnum = 0;
+    pMob->parent_wnum.pArea = NULL;
+    pMob->parent_wnum.vnum = 0;
+    pMob->parent = NULL;
+    pMob->parent_inherited = false;
     pMob->attacks	=   0;
     pMob->quests =  NULL;
+    pMob->quests_v2 = NULL;
+    pMob->mob_reputations = NULL;
 
     return pMob;
 }
@@ -2158,6 +2498,9 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 {
     QUEST_LIST *quest_list;
     QUEST_LIST *quest_list_next;
+    QUEST_V2_LIST *q2, *q2_next;
+    MOB_REPUTATION_DATA *rep;
+    MOB_REPUTATION_DATA *rep_next;
 
     free_string( pMob->player_name );
     free_string( pMob->short_descr );
@@ -2167,18 +2510,36 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     free_string( pMob->material );
     free_string( pMob->sig );
     free_string( pMob->skeywds );
+    free_string( pMob->list_name );
+    free_string( pMob->list_keywords );
+    free_string( pMob->tags );
+    free_string( pMob->auto_tags );
 
     free_prog_list(pMob->progs);
     variable_freelist(&pMob->index_vars);
 
     for ( quest_list = pMob->quests; quest_list != NULL; quest_list = quest_list_next )
     {
-	quest_list_next = quest_list->next;
+    quest_list_next = quest_list->next;
 
-	free_quest_list( quest_list );
+    free_quest_list( quest_list );
     }
 
-	free_questor_data( pMob->pQuestor );
+    for (q2 = pMob->quests_v2; q2 != NULL; q2 = q2_next)
+    {
+        q2_next = q2->next;
+        free_quest_v2_list(q2);
+    }
+
+    for (rep = pMob->mob_reputations; rep != NULL; rep = rep_next)
+    {
+    rep_next = rep->next;
+    free_mob_reputation_data(rep);
+    }
+    pMob->mob_reputations = NULL;
+
+    free_questor_data( pMob->pQuestor );
+    free_trainer_data( pMob->pTrainer );
     if(pMob->pShop != NULL) free_shop( pMob->pShop );
 
     pMob->next              = mob_index_free;
@@ -2216,7 +2577,7 @@ void new_trade_item( AREA_DATA *area, int16_t type, long replenish_time, long re
     item->max_qty = max_qty;
     item->min_price = min_price;
     item->max_price = max_price;
-    item->obj_vnum = obj_vnum;
+    item->obj_load.vnum = obj_vnum;
     item->area   = area->anum;
 
     item->next = area->trade_list;
@@ -2252,9 +2613,9 @@ void free_help( HELP_DATA *pHelp )
 
     for (topic = pHelp->related_topics; topic != NULL; topic = topic_next)
     {
-	topic_next = topic->next;
+    topic_next = topic->next;
 
-	free_string_data(topic);
+    free_string_data(topic);
     }
 
     free_string(pHelp->creator);
@@ -2268,30 +2629,469 @@ void free_help( HELP_DATA *pHelp )
 }
 
 
+QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2(void)
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+    if (!quest_objective_index_v2_free)
+        objective = alloc_perm(sizeof(*objective));
+    else
+    {
+        objective = quest_objective_index_v2_free;
+        quest_objective_index_v2_free = quest_objective_index_v2_free->next;
+    }
+
+    objective->next = NULL;
+    objective->id = 0;
+    objective->objective_type = QUEST_OBJECTIVE_CUSTOM_SCRIPT;
+    objective->quantity = 1;
+    objective->required_count = 1;
+    objective->target_load.auid = 0;
+    objective->target_load.vnum = 0;
+    objective->target_wnum = wnum_zero;
+    objective->target_ref_stage_id = 0;
+    objective->target_ref_objective_id = 0;
+    objective->target_ref_name = str_dup("");
+    objective->target_variable_name = str_dup("");
+    objective->target_token_load.auid = 0;
+    objective->target_token_load.vnum = 0;
+    objective->target_token_wnum = wnum_zero;
+    objective->target_token_ref_name = str_dup("");
+    objective->target_token_variable_name = str_dup("");
+    objective->target_mode = QUEST_OBJECTIVE_TARGET_EXACT;
+    objective->pool_entries = NULL;
+    objective->destination_load.auid = 0;
+    objective->destination_load.vnum = 0;
+    objective->destination_wnum = wnum_zero;
+    objective->destination_ref_name = str_dup("");
+    objective->destination_variable_name = str_dup("");
+    objective->destination_token_load.auid = 0;
+    objective->destination_token_load.vnum = 0;
+    objective->destination_token_wnum = wnum_zero;
+    objective->destination_token_ref_name = str_dup("");
+    objective->destination_token_variable_name = str_dup("");
+    objective->target_tag = str_dup("");
+    objective->talk_phrase = str_dup("");
+    objective->description = str_dup("");
+    objective->complete_message = str_dup("");
+    objective->fail_message = str_dup("");
+    objective->optional = false;
+    objective->strict_target = false;
+    objective->silent_complete = false;
+    objective->silent_fail = false;
+
+    return objective;
+}
+
+
+void free_quest_objective_index_v2(QUEST_OBJECTIVE_INDEX_V2_DATA *objective)
+{
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *entry;
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *entry_next;
+
+    if (!objective)
+        return;
+
+    for (entry = objective->pool_entries; entry != NULL; entry = entry_next)
+    {
+        entry_next = entry->next;
+        free_quest_objective_pool_entry_v2(entry);
+    }
+    objective->pool_entries = NULL;
+
+    free_string(objective->target_ref_name);
+    free_string(objective->target_variable_name);
+    free_string(objective->target_token_ref_name);
+    free_string(objective->target_token_variable_name);
+    free_string(objective->destination_ref_name);
+    free_string(objective->destination_variable_name);
+    free_string(objective->destination_token_ref_name);
+    free_string(objective->destination_token_variable_name);
+    free_string(objective->target_tag);
+    free_string(objective->talk_phrase);
+    free_string(objective->description);
+    free_string(objective->complete_message);
+    free_string(objective->fail_message);
+
+    objective->next = quest_objective_index_v2_free;
+    quest_objective_index_v2_free = objective;
+}
+
+
+QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *new_quest_objective_pool_entry_v2(void)
+{
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *entry;
+
+    if (!quest_objective_pool_entry_v2_free)
+        entry = alloc_perm(sizeof(*entry));
+    else
+    {
+        entry = quest_objective_pool_entry_v2_free;
+        quest_objective_pool_entry_v2_free = quest_objective_pool_entry_v2_free->next;
+    }
+
+    entry->next = NULL;
+    entry->id = 0;
+    entry->weight = 1;
+    entry->target_load.auid = 0;
+    entry->target_load.vnum = 0;
+    entry->target_wnum = wnum_zero;
+
+    return entry;
+}
+
+
+void free_quest_objective_pool_entry_v2(QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry_v2)
+{
+    if (!pool_entry_v2)
+        return;
+
+    pool_entry_v2->next = quest_objective_pool_entry_v2_free;
+    quest_objective_pool_entry_v2_free = pool_entry_v2;
+}
+
+
+QUEST_STAGE_INDEX_V2_DATA *new_quest_stage_index_v2(void)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+
+    if (!quest_stage_index_v2_free)
+        stage = alloc_perm(sizeof(*stage));
+    else
+    {
+        stage = quest_stage_index_v2_free;
+        quest_stage_index_v2_free = quest_stage_index_v2_free->next;
+    }
+
+    stage->next = NULL;
+    stage->id = 0;
+    stage->name = str_dup("");
+    stage->description = str_dup("");
+    stage->completion_mode = QUEST_STAGE_COMPLETE_ALL;
+    stage->stage_source = QUEST_STAGE_SOURCE_STATIC;
+    stage->auto_commence = false;
+    stage->next_stage_id = 0;
+    stage->complete_message = str_dup("");
+    stage->fail_message = str_dup("");
+    stage->silent_complete = false;
+    stage->silent_fail = false;
+    stage->objectives = NULL;
+    stage->generator_profile = str_dup("");
+    stage->generator_salt = 0;
+    stage->on_enter_script = str_dup("");
+    stage->on_exit_script = str_dup("");
+
+    return stage;
+}
+
+
+void free_quest_stage_index_v2(QUEST_STAGE_INDEX_V2_DATA *stage)
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective_next;
+
+    if (!stage)
+        return;
+
+    for (objective = stage->objectives; objective != NULL; objective = objective_next)
+    {
+        objective_next = objective->next;
+        free_quest_objective_index_v2(objective);
+    }
+
+    free_string(stage->name);
+    free_string(stage->description);
+    free_string(stage->complete_message);
+    free_string(stage->fail_message);
+    free_string(stage->generator_profile);
+    free_string(stage->on_enter_script);
+    free_string(stage->on_exit_script);
+
+    stage->next = quest_stage_index_v2_free;
+    quest_stage_index_v2_free = stage;
+}
+
+
+QUEST_REWARD_INDEX_V2_DATA *new_quest_reward_index_v2(void)
+{
+    QUEST_REWARD_INDEX_V2_DATA *reward;
+
+    if (!quest_reward_index_v2_free)
+        reward = alloc_perm(sizeof(*reward));
+    else
+    {
+        reward = quest_reward_index_v2_free;
+        quest_reward_index_v2_free = quest_reward_index_v2_free->next;
+    }
+
+    reward->next = NULL;
+    reward->reward_type = QUEST_REWARD_POINTS;
+    reward->amount = 0;
+    reward->target_load.auid = 0;
+    reward->target_load.vnum = 0;
+    reward->target_wnum = wnum_zero;
+    reward->currency = str_dup("");
+    reward->script = str_dup("");
+    reward->display_string = str_dup("");
+
+    return reward;
+}
+
+
+void free_quest_reward_index_v2(QUEST_REWARD_INDEX_V2_DATA *reward)
+{
+    if (!reward)
+        return;
+
+    free_string(reward->currency);
+    free_string(reward->script);
+    free_string(reward->display_string);
+
+    reward->next = quest_reward_index_v2_free;
+    quest_reward_index_v2_free = reward;
+}
+
+
+QUEST_INDEX_V2_DATA *new_quest_index_v2(void)
+{
+    QUEST_INDEX_V2_DATA *quest_index_v2;
+
+    if (!quest_index_v2_free)
+        quest_index_v2 = alloc_perm(sizeof(*quest_index_v2));
+    else
+    {
+        quest_index_v2 = quest_index_v2_free;
+        quest_index_v2_free = quest_index_v2_free->next;
+    }
+
+    quest_index_v2->next = NULL;
+    quest_index_v2->area = NULL;
+    quest_index_v2->vnum = 0;
+    quest_index_v2->name = str_dup("unnamed quest");
+    quest_index_v2->description = str_dup("");
+    quest_index_v2->quest_class = QUEST_CLASS_NARRATIVE;
+    quest_index_v2->quest_type = QUEST_TYPE_SIDE_QUEST;
+    quest_index_v2->category = QUEST_LOG_CATEGORY_NONE;
+    quest_index_v2->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+    quest_index_v2->flags = QUESTV2_FLAG_GROUP_SCOPE_SNAPSHOT;
+    quest_index_v2->repeat_policy = QUEST_REPEAT_ONCE;
+    quest_index_v2->allowance_cost = 1;
+    quest_index_v2->entry_stage_id = 1;
+    quest_index_v2->seed_policy = QUEST_SEED_POLICY_AUTO;
+    quest_index_v2->fixed_seed = 0;
+    quest_index_v2->stages = NULL;
+    quest_index_v2->rewards = NULL;
+    quest_index_v2->progs = NULL;
+    quest_index_v2->index_vars = NULL;
+    quest_index_v2->enabled = true;
+    quest_index_v2->prerequisites = str_dup("");
+
+    return quest_index_v2;
+}
+
+
+void free_quest_index_v2(QUEST_INDEX_V2_DATA *quest_index_v2)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage;
+    QUEST_STAGE_INDEX_V2_DATA *stage_next;
+    QUEST_REWARD_INDEX_V2_DATA *reward;
+    QUEST_REWARD_INDEX_V2_DATA *reward_next;
+
+    if (!quest_index_v2)
+        return;
+
+    quest_index_v2_unregister(quest_index_v2);
+
+    for (stage = quest_index_v2->stages; stage != NULL; stage = stage_next)
+    {
+        stage_next = stage->next;
+        free_quest_stage_index_v2(stage);
+    }
+
+    for (reward = quest_index_v2->rewards; reward != NULL; reward = reward_next)
+    {
+        reward_next = reward->next;
+        free_quest_reward_index_v2(reward);
+    }
+
+    free_prog_list(quest_index_v2->progs);
+    quest_index_v2->progs = NULL;
+
+    free_string(quest_index_v2->name);
+    free_string(quest_index_v2->description);
+    free_string(quest_index_v2->prerequisites);
+    variable_freelist(&quest_index_v2->index_vars);
+
+    quest_index_v2->next = quest_index_v2_free;
+    quest_index_v2_free = quest_index_v2;
+}
+
+
+QUEST_OBJECTIVE_STATE_V2_DATA *new_quest_objective_state_v2(void)
+{
+    QUEST_OBJECTIVE_STATE_V2_DATA *state;
+
+    if (!quest_objective_state_v2_free)
+        state = alloc_perm(sizeof(*state));
+    else
+    {
+        state = quest_objective_state_v2_free;
+        quest_objective_state_v2_free = quest_objective_state_v2_free->next;
+    }
+
+    state->next = NULL;
+    state->objective_id = 0;
+    state->progress = 0;
+    state->complete = false;
+    state->selected_pool_entry_id = 0;
+    state->selected_target_load.auid = 0;
+    state->selected_target_load.vnum = 0;
+    state->selected_target_wnum = wnum_zero;
+    state->selected_target_uid[0] = 0;
+    state->selected_target_uid[1] = 0;
+    state->selected_destination_load.auid = 0;
+    state->selected_destination_load.vnum = 0;
+    state->selected_destination_wnum = wnum_zero;
+
+    return state;
+}
+
+
+void free_quest_objective_state_v2(QUEST_OBJECTIVE_STATE_V2_DATA *state)
+{
+    if (!state)
+        return;
+
+    state->next = quest_objective_state_v2_free;
+    quest_objective_state_v2_free = state;
+}
+
+
+QUEST_TARGET_BINDING_V2_DATA *new_quest_target_binding_v2(void)
+{
+    QUEST_TARGET_BINDING_V2_DATA *binding;
+
+    if (!quest_target_binding_v2_free)
+        binding = alloc_perm(sizeof(*binding));
+    else
+    {
+        binding = quest_target_binding_v2_free;
+        quest_target_binding_v2_free = quest_target_binding_v2_free->next;
+    }
+
+    binding->next = NULL;
+    binding->name = str_dup("");
+    binding->target_load.auid = 0;
+    binding->target_load.vnum = 0;
+    binding->target_wnum = wnum_zero;
+
+    return binding;
+}
+
+
+void free_quest_target_binding_v2(QUEST_TARGET_BINDING_V2_DATA *binding)
+{
+    if (!binding)
+        return;
+
+    free_string(binding->name);
+    binding->next = quest_target_binding_v2_free;
+    quest_target_binding_v2_free = binding;
+}
+
+
+QUEST_HISTORY_DATA *new_quest_history(void)
+{
+    QUEST_HISTORY_DATA *history;
+
+    if (!quest_history_free)
+        history = alloc_perm(sizeof(*history));
+    else
+    {
+        history = quest_history_free;
+        quest_history_free = quest_history_free->next;
+    }
+
+    history->next = NULL;
+    history->run_id = 0;
+    history->quest_index_v2_auid = 0;
+    history->quest_index_v2_vnum = 0;
+    history->quest_class = QUEST_CLASS_NARRATIVE;
+    history->quest_type = QUEST_TYPE_OTHER;
+    history->category = QUEST_LOG_CATEGORY_NONE;
+    history->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+    history->run_status = QUEST_RUN_STATUS_COMPLETED;
+    history->started_at = 0;
+    history->completed_at = 0;
+    history->failed_at = 0;
+    history->abandoned_at = 0;
+    history->name = str_dup("");
+
+    return history;
+}
+
+
+void free_quest_history(QUEST_HISTORY_DATA *history)
+{
+    if (!history)
+        return;
+
+    free_string(history->name);
+    history->next = quest_history_free;
+    quest_history_free = history;
+}
+
+
 QUEST_DATA *new_quest( void )
 {
     QUEST_DATA *pQuest;
 
     if ( !quest_free )
     {
-	pQuest = alloc_perm( sizeof(*pQuest) );
+    pQuest = alloc_perm( sizeof(*pQuest) );
     }
     else
     {
-	pQuest = quest_free;
-	quest_free = quest_free->next;
+    pQuest = quest_free;
+    quest_free = quest_free->next;
     }
 
     pQuest->next = NULL;
     pQuest->parts = NULL;
+    pQuest->quest_index_auid = 0;
+    pQuest->quest_index_vnum = 0;
+    pQuest->quest_index_v2_auid = 0;
+    pQuest->quest_index_v2_vnum = 0;
+    pQuest->run_id = 0;
+    pQuest->started_at = 0;
+    pQuest->completed_at = 0;
+    pQuest->failed_at = 0;
+    pQuest->abandoned_at = 0;
+    pQuest->run_status = QUEST_RUN_STATUS_ACTIVE;
+    pQuest->current_stage_id = 0;
+    pQuest->generation_seed = 0;
+    pQuest->current_stage_seed = 0;
+    pQuest->current_stage_generation = 0;
+    pQuest->current_stage_commenced = 0;
+    pQuest->objective_states = NULL;
+    pQuest->target_bindings = NULL;
+    pQuest->vars = NULL;
+    pQuest->target_scope = QUEST_TARGET_SCOPE_CHARACTER;
+    pQuest->scope_owner_id[0] = 0;
+    pQuest->scope_owner_id[1] = 0;
+    pQuest->scope_owner_uid = 0;
     pQuest->msg_complete = false;
     pQuest->generating = false;
     pQuest->scripted = false;
 
     pQuest->questgiver_type = -1;
-    pQuest->questgiver = -1;
+    pQuest->questgiver_load.auid = 0;
+    pQuest->questgiver_load.vnum = -1;
+    pQuest->questgiver_wnum = wnum_zero;
     pQuest->questreceiver_type = -1;
-    pQuest->questreceiver = -1;
+    pQuest->questreceiver_load.auid = 0;
+    pQuest->questreceiver_load.vnum = -1;
+    pQuest->questreceiver_wnum = wnum_zero;
 
     top_quest++;
 
@@ -2303,14 +3103,40 @@ void free_quest( QUEST_DATA *pQuest )
 {
     QUEST_PART_DATA *part;
     QUEST_PART_DATA *next_part;
+    QUEST_OBJECTIVE_STATE_V2_DATA *objective_state;
+    QUEST_OBJECTIVE_STATE_V2_DATA *next_objective_state;
+    QUEST_TARGET_BINDING_V2_DATA *target_binding;
+    QUEST_TARGET_BINDING_V2_DATA *next_target_binding;
 
     part = pQuest->parts;
 
     while( part != NULL) {
-	next_part = part->next;
+    next_part = part->next;
         free_quest_part( part );
-	part = next_part;
+    part = next_part;
     }
+
+    objective_state = pQuest->objective_states;
+    while (objective_state != NULL)
+    {
+        next_objective_state = objective_state->next;
+        free_quest_objective_state_v2(objective_state);
+        objective_state = next_objective_state;
+    }
+    pQuest->objective_states = NULL;
+
+    target_binding = pQuest->target_bindings;
+    while (target_binding != NULL)
+    {
+        next_target_binding = target_binding->next;
+        free_quest_target_binding_v2(target_binding);
+        target_binding = next_target_binding;
+    }
+    pQuest->target_bindings = NULL;
+
+    variable_clearfield(VAR_QUEST, pQuest);
+
+    variable_freelist(&pQuest->vars);
 
     pQuest->next         =   quest_free;
     quest_free             =   pQuest;
@@ -2324,21 +3150,31 @@ QUEST_PART_DATA *new_quest_part( void )
 
     if ( !quest_part_free )
     {
-	pPart = alloc_perm( sizeof(*pPart) );
+    pPart = alloc_perm( sizeof(*pPart) );
     }
     else
     {
-	pPart = quest_part_free;
-	quest_part_free = quest_part_free->next;
+    pPart = quest_part_free;
+    quest_part_free = quest_part_free->next;
     }
 
     pPart->pObj = NULL;
     pPart->next = NULL;
-    pPart->obj = -1;
-    pPart->mob = -1;
-    pPart->obj_sac = -1;
-    pPart->mob_rescue = -1;
-    pPart->room = -1;
+    pPart->obj_load.auid = 0;
+    pPart->obj_load.vnum = -1;
+    pPart->obj_wnum = wnum_zero;
+    pPart->mob_load.auid = 0;
+    pPart->mob_load.vnum = -1;
+    pPart->mob_wnum = wnum_zero;
+    pPart->obj_sac_load.auid = 0;
+    pPart->obj_sac_load.vnum = -1;
+    pPart->obj_sac_wnum = wnum_zero;
+    pPart->mob_rescue_load.auid = 0;
+    pPart->mob_rescue_load.vnum = -1;
+    pPart->mob_rescue_wnum = wnum_zero;
+    pPart->room_load.auid = 0;
+    pPart->room_load.vnum = -1;
+    pPart->room_wnum = wnum_zero;
     pPart->description = &str_empty[0];
     pPart->custom_task = false;
     pPart->complete = false;
@@ -2362,97 +3198,97 @@ void free_quest_part( QUEST_PART_DATA *pPart )
 
 SHIP_INDEX_DATA *new_ship_index()
 {
-	SHIP_INDEX_DATA *ship;
+    SHIP_INDEX_DATA *ship;
 
-	if( ship_index_free )
-	{
-		ship = ship_index_free;
-		ship_index_free = ship_index_free->next;
-	}
-	else
-	{
-		ship = alloc_perm(sizeof(SHIP_INDEX_DATA));
-	}
+    if( ship_index_free )
+    {
+        ship = ship_index_free;
+        ship_index_free = ship_index_free->next;
+    }
+    else
+    {
+        ship = alloc_perm(sizeof(SHIP_INDEX_DATA));
+    }
 
-	memset(ship, 0, sizeof(SHIP_INDEX_DATA));
+    memset(ship, 0, sizeof(SHIP_INDEX_DATA));
 
-	ship->name = &str_empty[0];
-	ship->description = &str_empty[0];
-	ship->hit = 1;
-	ship->turning = 1;
-	ship->min_crew = -1;
-	ship->max_crew = -1;
+    ship->name = &str_empty[0];
+    ship->description = &str_empty[0];
+    ship->hit = 1;
+    ship->turning = 1;
+    ship->min_crew = -1;
+    ship->max_crew = -1;
 
-	ship->special_keys = list_create(false);
+    ship->special_keys = list_create(false);
 
-	return ship;
+    return ship;
 }
 
 void free_ship_index(SHIP_INDEX_DATA *ship)
 {
-	free_string(ship->name);
-	free_string(ship->description);
+    free_string(ship->name);
+    free_string(ship->description);
 
-	list_destroy(ship->special_keys);
+    list_destroy(ship->special_keys);
 
-	ship->next = ship_index_free;
-	ship_index_free = ship;
+    ship->next = ship_index_free;
+    ship_index_free = ship;
 }
 
 SHIP_DATA *new_ship()
 {
-	SHIP_DATA *ship;
+    SHIP_DATA *ship;
 
-	if( ship_free )
-	{
-		ship = ship_free;
-		ship_free = ship_free->next;
-	}
-	else
-	{
-		ship = alloc_mem(sizeof(SHIP_DATA));
-	}
+    if( ship_free )
+    {
+        ship = ship_free;
+        ship_free = ship_free->next;
+    }
+    else
+    {
+        ship = alloc_mem(sizeof(SHIP_DATA));
+    }
 
-	memset(ship, 0, sizeof(SHIP_DATA));
+    memset(ship, 0, sizeof(SHIP_DATA));
 
-	ship->flag = &str_empty[0];
-	ship->ship_name = &str_empty[0];
-	ship->ship_name_plain = &str_empty[0];
-	ship->steering.heading = -1;
-	ship->sextant_x = -1;
-	ship->sextant_y = -1;
+    ship->flag = &str_empty[0];
+    ship->ship_name = &str_empty[0];
+    ship->ship_name_plain = &str_empty[0];
+    ship->steering.heading = -1;
+    ship->sextant_x = -1;
+    ship->sextant_y = -1;
 
-	ship->crew = list_create(false);
-	ship->oarsmen = list_create(false);
+    ship->crew = list_create(false);
+    ship->oarsmen = list_create(false);
 
-	ship->waypoints = new_waypoints_list();
-	ship->route_waypoints = list_createx(false, NULL, delete_waypoint);
-	ship->routes = list_createx(false, NULL, delete_ship_route);
+    ship->waypoints = new_waypoints_list();
+    ship->route_waypoints = list_createx(false, NULL, delete_waypoint);
+    ship->routes = list_createx(false, NULL, delete_ship_route);
 
-	VALIDATE(ship);
-	return ship;
+    VALIDATE(ship);
+    return ship;
 }
 
 void free_ship(SHIP_DATA *ship)
 {
-	if( !IS_VALID(ship) ) return;
+    if( !IS_VALID(ship) ) return;
 
-	free_string(ship->flag);
-	free_string(ship->ship_name);
+    free_string(ship->flag);
+    free_string(ship->ship_name);
 
-	list_destroy(ship->crew);
-	list_destroy(ship->oarsmen);
+    list_destroy(ship->crew);
+    list_destroy(ship->oarsmen);
 
-	list_destroy(ship->waypoints);
-	iterator_stop(&ship->route_it);
-	list_destroy(ship->route_waypoints);
-	list_destroy(ship->routes);
+    list_destroy(ship->waypoints);
+    iterator_stop(&ship->route_it);
+    list_destroy(ship->route_waypoints);
+    list_destroy(ship->routes);
 
     variable_clearfield(VAR_SHIP, ship);
 
-	INVALIDATE(ship);
-	ship->next = ship_free;
-	ship_free = ship;
+    INVALIDATE(ship);
+    ship->next = ship_free;
+    ship_free = ship;
 }
 
 NPC_SHIP_INDEX_DATA *new_npc_ship_index( void )
@@ -2512,7 +3348,7 @@ WAYPOINT_DATA *new_waypoint( void )
 
     memset(waypoint, 0, sizeof(*waypoint));
 
-	waypoint->name = &str_empty[0];
+    waypoint->name = &str_empty[0];
     waypoint->x = 0;
     waypoint->y = 0;
     waypoint->next = NULL;
@@ -2526,11 +3362,11 @@ WAYPOINT_DATA *new_waypoint( void )
 
 void free_waypoint( WAYPOINT_DATA *waypoint )
 {
-	if( !IS_VALID(waypoint) ) return;
+    if( !IS_VALID(waypoint) ) return;
 
-	free_string(waypoint->name);
+    free_string(waypoint->name);
 
-	INVALIDATE(waypoint);
+    INVALIDATE(waypoint);
     waypoint->next     =   waypoint_free;
     waypoint_free =   waypoint;
     top_waypoint--;
@@ -2539,18 +3375,18 @@ void free_waypoint( WAYPOINT_DATA *waypoint )
 
 WAYPOINT_DATA *clone_waypoint(WAYPOINT_DATA *waypoint)
 {
-	if( !IS_VALID(waypoint) ) return NULL;
+    if( !IS_VALID(waypoint) ) return NULL;
 
-	WAYPOINT_DATA *wn = new_waypoint();
+    WAYPOINT_DATA *wn = new_waypoint();
 
-	free_string(wn->name);
-	wn->name = str_dup(waypoint->name);
+    free_string(wn->name);
+    wn->name = str_dup(waypoint->name);
 
-	wn->w = waypoint->w;
-	wn->x = waypoint->x;
-	wn->y = waypoint->y;
+    wn->w = waypoint->w;
+    wn->x = waypoint->x;
+    wn->y = waypoint->y;
 
-	return wn;
+    return wn;
 }
 
 
@@ -2572,20 +3408,20 @@ SHIP_CREW_DATA *new_ship_crew( void )
 
 
 
-	VALIDATE(crew);
+    VALIDATE(crew);
     return crew;
 }
 
 
 void free_ship_crew( SHIP_CREW_DATA *crew )
 {
-	if(!IS_VALID(crew)) return;
+    if(!IS_VALID(crew)) return;
 
 
-	INVALIDATE(crew);
-	crew->next = ship_crew_free;
-	ship_crew_free = crew;
-	return;
+    INVALIDATE(crew);
+    crew->next = ship_crew_free;
+    ship_crew_free = crew;
+    return;
 }
 
 
@@ -2595,12 +3431,12 @@ CHAT_ROOM_DATA *new_chat_room( void )
 
     if ( !chat_room_free )
     {
-	pChat = alloc_perm( sizeof(*pChat) );
+    pChat = alloc_perm( sizeof(*pChat) );
     }
     else
     {
-	pChat = chat_room_free;
-	chat_room_free = chat_room_free->next;
+    pChat = chat_room_free;
+    chat_room_free = chat_room_free->next;
     }
 
     pChat->next	= NULL;
@@ -2631,9 +3467,9 @@ void free_chat_room( CHAT_ROOM_DATA *pChat )
 
     for ( op = pChat->ops; op != NULL; op = op_next )
     {
-	op_next = op->next;
+    op_next = op->next;
 
-	free_chat_op( op );
+    free_chat_op( op );
     }
 
     pChat->name = NULL;
@@ -2657,12 +3493,12 @@ CHAT_OP_DATA *new_chat_op( void )
 
     if ( !chat_op_free )
     {
-	pOp = alloc_perm( sizeof(*pOp) );
+    pOp = alloc_perm( sizeof(*pOp) );
     }
     else
     {
-	pOp = chat_op_free;
-	chat_op_free = chat_op_free->next;
+    pOp = chat_op_free;
+    chat_op_free = chat_op_free->next;
     }
 
     pOp->chat_room = NULL;
@@ -2692,12 +3528,12 @@ CHAT_BAN_DATA *new_chat_ban( void )
 
     if ( !chat_ban_free )
     {
-	pBan = alloc_perm( sizeof(*pBan ) );
+    pBan = alloc_perm( sizeof(*pBan ) );
     }
     else
     {
-	pBan = chat_ban_free;
-	chat_ban_free = chat_ban_free->next;
+    pBan = chat_ban_free;
+    chat_ban_free = chat_ban_free->next;
     }
 
     pBan->chat_room = NULL;
@@ -2729,12 +3565,12 @@ IGNORE_DATA *new_ignore( void )
 
     if ( !ignore_free )
     {
-	ignore = alloc_perm( sizeof(*ignore ) );
+    ignore = alloc_perm( sizeof(*ignore ) );
     }
     else
     {
-	ignore = ignore_free;
-	ignore_free = ignore_free->next;
+    ignore = ignore_free;
+    ignore_free = ignore_free->next;
     }
 
     ignore->name = NULL;
@@ -2758,12 +3594,12 @@ STRING_DATA *new_string_data( void )
     STRING_DATA *string;
     if ( !string_data_free )
     {
-	string = alloc_perm( sizeof( *string ) );
+    string = alloc_perm( sizeof( *string ) );
     }
     else
     {
-	string = string_data_free;
-	string_data_free = string_data_free->next;
+    string = string_data_free;
+    string_data_free = string_data_free->next;
     }
 
     string->string = NULL;
@@ -2787,12 +3623,12 @@ AUCTION_DATA *new_auction( void )
 
     if ( !auction_free )
     {
-	auction = alloc_perm( sizeof(*auction ) );
+    auction = alloc_perm( sizeof(*auction ) );
     }
     else
     {
-	auction = auction_free;
-	auction_free = auction_free->next;
+    auction = auction_free;
+    auction_free = auction_free->next;
     }
 
     auction->item = NULL;
@@ -2821,12 +3657,12 @@ AUTO_WAR *new_auto_war( int war_type, int min_players, int min_level, int max_le
 
     if (!auto_war_free)
     {
-	auto_war = alloc_perm(sizeof(*auto_war) );
+    auto_war = alloc_perm(sizeof(*auto_war) );
     }
     else
     {
-	auto_war     = auto_war_free;
-	auto_war_free = auto_war_free->next;
+    auto_war     = auto_war_free;
+    auto_war_free = auto_war_free->next;
     }
 
     auto_war->war_type = war_type;
@@ -2843,13 +3679,13 @@ void free_auto_war( AUTO_WAR *m_auto_war )
 {
     while( m_auto_war->team_players != NULL )
     {
-	stop_fighting( m_auto_war->team_players, false);
-	act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	char_from_room( m_auto_war->team_players );
-	char_to_room( m_auto_war->team_players, get_room_index( get_reserved_vnum("room_default_recall") ) );
-	do_function( m_auto_war->team_players, &do_look, "auto");
-	char_from_team( m_auto_war->team_players );
+    stop_fighting( m_auto_war->team_players, false);
+    act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL );
+    act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL );
+    char_from_room( m_auto_war->team_players );
+    char_to_room( m_auto_war->team_players, get_reserved_room_index("room_default_recall") );
+    do_function( m_auto_war->team_players, &do_look, "auto");
+    char_from_team( m_auto_war->team_players );
     }
 
     m_auto_war->next = auto_war_free;
@@ -2868,19 +3704,24 @@ GQ_MOB_DATA *new_gq_mob( void )
 
     if (!gq_mob_free )
     {
-	gq_mob = alloc_perm(sizeof(*gq_mob));
+    gq_mob = alloc_perm(sizeof(*gq_mob));
     }
     else
     {
-	gq_mob = gq_mob_free;
-	gq_mob_free = gq_mob_free->next;
+    gq_mob = gq_mob_free;
+    gq_mob_free = gq_mob_free->next;
     }
 
-    gq_mob->vnum = 0;
+    gq_mob->vnum_load.auid = 0;
+    gq_mob->vnum_load.vnum = 0;
+    gq_mob->vnum_wnum = wnum_zero;
     gq_mob->class = 0;
     gq_mob->group = false;
-    gq_mob->obj = 0;
+    gq_mob->obj_load.auid = 0;
+    gq_mob->obj_load.vnum = 0;
+    gq_mob->obj_wnum = wnum_zero;
     gq_mob->count = 0;
+    gq_mob->max = 0;
 
     return gq_mob;
 }
@@ -2899,19 +3740,25 @@ GQ_OBJ_DATA *new_gq_obj( void )
 
     if (!gq_obj_free )
     {
-	gq_obj = alloc_perm(sizeof(*gq_obj));
+    gq_obj = alloc_perm(sizeof(*gq_obj));
     }
     else
     {
-	gq_obj = gq_obj_free;
-	gq_obj_free = gq_obj_free->next;
+    gq_obj = gq_obj_free;
+    gq_obj_free = gq_obj_free->next;
     }
 
+    gq_obj->vnum_load.auid = 0;
+    gq_obj->vnum_load.vnum = 0;
+    gq_obj->vnum_wnum = wnum_zero;
     gq_obj->qp_reward = 0;
     gq_obj->prac_reward = 0;
     gq_obj->exp_reward = 0;
     gq_obj->silver_reward = 0;
     gq_obj->gold_reward = 0;
+    gq_obj->repop = 0;
+    gq_obj->max = 0;
+    gq_obj->count = 0;
 
     return gq_obj;
 }
@@ -2930,12 +3777,12 @@ AMBUSH_DATA *new_ambush( void )
 
     if (!ambush_free)
     {
-	ambush = alloc_perm(sizeof(*ambush) );
+    ambush = alloc_perm(sizeof(*ambush) );
     }
     else
     {
-	ambush     = ambush_free;
-	ambush_free = ambush_free->next;
+    ambush     = ambush_free;
+    ambush_free = ambush_free->next;
     }
 
     ambush->type = 0;
@@ -2950,7 +3797,7 @@ AMBUSH_DATA *new_ambush( void )
 void free_ambush( AMBUSH_DATA *ambush )
 {
     if ( ambush == NULL )
-	return;
+    return;
 
     free_string( ambush->command );
 
@@ -2965,12 +3812,12 @@ QUEST_INDEX_DATA *new_quest_index( void )
 
     if (!quest_index_free)
     {
-	quest_index = alloc_perm(sizeof(*quest_index) );
+    quest_index = alloc_perm(sizeof(*quest_index) );
     }
     else
     {
-	quest_index      = quest_index_free;
-	quest_index_free = quest_index_free->next;
+    quest_index      = quest_index_free;
+    quest_index_free = quest_index_free->next;
     }
 
     quest_index->vnum = 0;
@@ -2996,12 +3843,12 @@ QUEST_LIST *new_quest_list( void )
 
     if (!quest_list_free)
     {
-	quest_list = alloc_perm(sizeof(*quest_list) );
+    quest_list = alloc_perm(sizeof(*quest_list) );
     }
     else
     {
-	quest_list      = quest_list_free;
-	quest_list_free = quest_list_free->next;
+    quest_list      = quest_list_free;
+    quest_list_free = quest_list_free->next;
     }
 
     quest_list->vnum = 0;
@@ -3017,18 +3864,86 @@ void free_quest_list( QUEST_LIST *quest_list )
 }
 
 
+QUEST_V2_LIST *new_quest_v2_list( void )
+{
+    QUEST_V2_LIST *entry = alloc_perm(sizeof(*entry));
+    memset(entry, 0, sizeof(*entry));
+    return entry;
+}
+
+
+void free_quest_v2_list( QUEST_V2_LIST *entry )
+{
+    /* QUEST_V2_LIST contains no heap strings; just return to system pool. */
+    (void)entry;
+}
+
+
+MOB_REPUTATION_DATA *new_mob_reputation_data()
+{
+    MOB_REPUTATION_DATA *data;
+
+    if (!mob_reputation_free)
+    {
+    data = alloc_perm(sizeof(*data));
+    }
+    else
+    {
+    data = mob_reputation_free;
+    mob_reputation_free = mob_reputation_free->next;
+    }
+
+    memset(data, 0, sizeof(*data));
+    VALIDATE(data);
+    return data;
+}
+
+
+MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src)
+{
+    MOB_REPUTATION_DATA *data;
+
+    if (!IS_VALID(src))
+    return NULL;
+
+    data = new_mob_reputation_data();
+    if (!data)
+    return NULL;
+
+    data->reputation = src->reputation;
+    data->reputation_load = src->reputation_load;
+    data->minimum_rank = src->minimum_rank;
+    data->maximum_rank = src->maximum_rank;
+    data->points = src->points;
+    data->next = NULL;
+
+    return data;
+}
+
+
+void free_mob_reputation_data(MOB_REPUTATION_DATA *data)
+{
+    if (!IS_VALID(data))
+    return;
+
+    INVALIDATE(data);
+    data->next = mob_reputation_free;
+    mob_reputation_free = data;
+}
+
+
 MAIL_DATA *new_mail( void )
 {
     MAIL_DATA *mail;
 
     if ( !mail_free )
     {
-	mail = alloc_perm( sizeof( *mail ) );
+    mail = alloc_perm( sizeof( *mail ) );
     }
     else
     {
-	mail = mail_free;
-	mail_free = mail_free->next;
+    mail = mail_free;
+    mail_free = mail_free->next;
     }
 
     mail->objects = NULL;
@@ -3066,12 +3981,12 @@ HELP_CATEGORY *new_help_category()
 
     if (!help_category_free)
     {
-    	hcat = alloc_perm(sizeof(*hcat));
+        hcat = alloc_perm(sizeof(*hcat));
     }
     else
     {
-	hcat = help_category_free;
-    	help_category_free = help_category_free->next;
+    hcat = help_category_free;
+        help_category_free = help_category_free->next;
     }
 
     hcat->next = NULL;
@@ -3094,16 +4009,16 @@ void free_help_category( HELP_CATEGORY *hcat )
 
     // Free up nested cats
     for (hCatNest = hcat->inside_cats; hCatNest != NULL; hCatNest = hCatNestNext ) {
-	hCatNestNext = hCatNest->next;
+    hCatNestNext = hCatNest->next;
 
-	free_help_category(hCatNest);
+    free_help_category(hCatNest);
     }
 
     // Free up helps
     for (help = hcat->inside_helps; help != NULL; help = helpNext) {
-	helpNext = help->next;
+    helpNext = help->next;
 
-    	free_help( help );
+        free_help( help );
     }
 
     free_string(hcat->name);
@@ -3122,12 +4037,12 @@ INVASION_QUEST *new_invasion_quest(void)
 
     if (!invasion_quest_free)
     {
-	invasion_quest = alloc_perm(sizeof(*invasion_quest) );
+    invasion_quest = alloc_perm(sizeof(*invasion_quest) );
     }
     else
     {
-	invasion_quest      = invasion_quest_free;
-	invasion_quest_free = invasion_quest_free->next;
+    invasion_quest      = invasion_quest_free;
+    invasion_quest_free = invasion_quest_free->next;
     }
     return invasion_quest;
 }
@@ -3146,12 +4061,12 @@ STORM_DATA *new_storm_data(void)
 
     if (!storm_data_free)
     {
-	storm_data = alloc_perm(sizeof(*storm_data) );
+    storm_data = alloc_perm(sizeof(*storm_data) );
     }
     else
     {
-	storm_data      = storm_data_free;
-	storm_data_free = storm_data_free->next;
+    storm_data      = storm_data_free;
+    storm_data_free = storm_data_free->next;
     }
     return storm_data;
 }
@@ -3168,10 +4083,10 @@ SPELL_DATA *new_spell(void)
 {
     SPELL_DATA *spell;
     if (!spell_free)
-	spell = alloc_perm(sizeof(*spell));
+    spell = alloc_perm(sizeof(*spell));
     else {
-	spell = spell_free;
-	spell_free = spell_free->next;
+    spell = spell_free;
+    spell_free = spell_free->next;
     }
 
     return spell;
@@ -3192,8 +4107,8 @@ COMMAND_DATA *new_command()
     if (!command_free)
         cmd = alloc_perm(sizeof(*cmd));
     else {
-	cmd = command_free;
-	command_free = command_free->next;
+    cmd = command_free;
+    command_free = command_free->next;
     }
 
     return cmd;
@@ -3215,11 +4130,11 @@ TOKEN_INDEX_DATA *new_token_index()
     int i;
 
     if (!token_index_free)
-	token_index = alloc_perm(sizeof(*token_index));
+    token_index = alloc_perm(sizeof(*token_index));
     else
     {
-	token_index = token_index_free;
-	token_index_free = token_index_free->next;
+    token_index = token_index_free;
+    token_index_free = token_index_free->next;
     }
 
     token_index->name = str_dup("(no name)");
@@ -3227,7 +4142,7 @@ TOKEN_INDEX_DATA *new_token_index()
     token_index->comments   = &str_empty[0];
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++)
-	token_index->value_name[i] = str_dup("Unused");
+    token_index->value_name[i] = str_dup("Unused");
 
     token_index->progs = NULL;
     token_index->index_vars = NULL;
@@ -3245,8 +4160,8 @@ void free_token_index(TOKEN_INDEX_DATA *token_index)
     free_string(token_index->comments);
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++) {
-	if (token_index->value_name[i] != NULL)
-	    free_string(token_index->value_name[i]);
+    if (token_index->value_name[i] != NULL)
+        free_string(token_index->value_name[i]);
     }
 
     free_prog_list(token_index->progs);
@@ -3262,15 +4177,16 @@ TOKEN_DATA *new_token()
     TOKEN_DATA *token;
 
     if (!token_free)
-	token = alloc_perm(sizeof(*token));
+    token = alloc_perm(sizeof(*token));
     else
     {
-	token = token_free;
-	token_free = token_free->next;
+    token = token_free;
+    token_free = token_free->next;
     }
     memset(token, 0, sizeof(TOKEN_DATA));
 
     token->progs = NULL;
+    token->affects = NULL;		/* Initialize affects list */
     SET_MEMTYPE(token,MEMTYPE_TOKEN);
     VALIDATE(token);
 
@@ -3280,21 +4196,25 @@ TOKEN_DATA *new_token()
 
 void free_token(TOKEN_DATA *token)
 {
-	TOKEN_DATA *prev, *cur;
-	EVENT_DATA *ev, *ev_next;
+    TOKEN_DATA *prev, *cur;
+    EVENT_DATA *ev, *ev_next;
 
     free_string(token->name);
     if(token->pIndexData)	// @@@NIB : 20070127 : for "tokenexists" ifcheck
-	token->pIndexData->loaded--;
+    token->pIndexData->loaded--;
 
     for (ev = token->events; ev != NULL; ev = ev_next) {
-		ev_next = ev->next_event;
+        ev_next = ev->next_event;
 
-		extract_event(ev);
+        extract_event(ev);
     }
 
     token->events = NULL;
     token->events_tail = NULL;
+
+    /* Destroy the affects list */
+    if (token->affects)
+    list_destroy(token->affects);
 
     variable_clearfield(VAR_TOKEN, token);
     script_clear_token(token);
@@ -3303,17 +4223,17 @@ void free_token(TOKEN_DATA *token)
 
     token->id[0] = token->id[1] = 0;
 
-	for( prev = NULL, cur = global_tokens; cur; prev = cur, cur = cur->global_next)
-		if( cur == token )
-			break;
+    for( prev = NULL, cur = global_tokens; cur; prev = cur, cur = cur->global_next)
+        if( cur == token )
+            break;
 
-	if( cur ) {
-		if( prev )
-			prev->global_next = cur->global_next;
-		else
-			global_tokens = cur->global_next;
-		cur->global_next = NULL;
-	}
+    if( cur ) {
+        if( prev )
+            prev->global_next = cur->global_next;
+        else
+            global_tokens = cur->global_next;
+        cur->global_next = NULL;
+    }
 
     INVALIDATE(token);
     token->next = token_free;
@@ -3327,11 +4247,11 @@ EVENT_DATA *new_event(void)
     EVENT_DATA *ev;
 
     if (ev_free == NULL)
-	ev = alloc_perm(sizeof(*ev));
+    ev = alloc_perm(sizeof(*ev));
     else
     {
-	ev = ev_free;
-	ev_free = ev_free->next;
+    ev = ev_free;
+    ev_free = ev_free->next;
     }
 
     *ev = ev_zero;
@@ -3343,7 +4263,7 @@ EVENT_DATA *new_event(void)
 void free_event(EVENT_DATA *ev)
 {
     if (!IS_VALID(ev))
-	return;
+    return;
 
     free_string(ev->args);
     if(ev->info) free(ev->info);
@@ -3360,11 +4280,11 @@ PROJECT_DATA *new_project(void)
     PROJECT_DATA *proj;
 
     if (!project_free)
-	proj = alloc_perm(sizeof(*proj));
+    proj = alloc_perm(sizeof(*proj));
     else
     {
-	proj = project_free;
-	project_free = project_free->next;
+    proj = project_free;
+    project_free = project_free->next;
     }
 
     *proj = proj_zero;
@@ -3393,21 +4313,21 @@ void free_project(PROJECT_DATA *proj)
     free_string(proj->leader);
 
     for (string = proj->areas; string != NULL; string = string_next) {
-	string_next = string->next;
+    string_next = string->next;
 
-	free_string_data(string);
+    free_string_data(string);
     }
 
     for (pinq = proj->inquiries; pinq != NULL; pinq = pinq_next) {
-	pinq_next = pinq->next;
+    pinq_next = pinq->next;
 
-	free_project_inquiry(pinq);
+    free_project_inquiry(pinq);
     }
 
     for (pb = proj->builders; pb != NULL; pb = pb_next) {
-	pb_next = pb->next;
+    pb_next = pb->next;
 
-	free_project_builder(pb);
+    free_project_builder(pb);
     }
 
     INVALIDATE(proj);
@@ -3424,8 +4344,8 @@ PROJECT_BUILDER_DATA *new_project_builder(void)
         pb = alloc_perm(sizeof(*pb));
     else
     {
-	pb = project_builder_free;
-	project_builder_free = project_builder_free->next;
+    pb = project_builder_free;
+    project_builder_free = project_builder_free->next;
     }
 
     pb->next = NULL;
@@ -3439,9 +4359,9 @@ void free_project_builder(PROJECT_BUILDER_DATA *pb)
     STRING_DATA *string, *string_next;
 
     for (string = pb->commands; string != NULL; string = string_next) {
-	string_next = string->next;
+    string_next = string->next;
 
-	free_string_data(string);
+    free_string_data(string);
     }
 
     free_string(pb->name);
@@ -3456,11 +4376,11 @@ PROJECT_INQUIRY_DATA *new_project_inquiry(void)
     PROJECT_INQUIRY_DATA *pinq;
 
     if (!project_inquiry_free)
-	pinq = alloc_perm(sizeof(*pinq));
+    pinq = alloc_perm(sizeof(*pinq));
     else
     {
-	pinq = project_inquiry_free;
-	project_inquiry_free = project_inquiry_free->next;
+    pinq = project_inquiry_free;
+    project_inquiry_free = project_inquiry_free->next;
     }
 
     pinq->next = NULL;
@@ -3492,11 +4412,11 @@ IMMORTAL_DATA *new_immortal(void)
     IMMORTAL_DATA *immortal;
 
     if (!immortal_free)
-	immortal = alloc_perm(sizeof(*immortal));
+    immortal = alloc_perm(sizeof(*immortal));
     else
     {
-	immortal = immortal_free;
-	immortal_free = immortal_free->next;
+    immortal = immortal_free;
+    immortal_free = immortal_free->next;
     }
 
     immortal->next = NULL;
@@ -3531,11 +4451,11 @@ LOG_ENTRY_DATA *new_log_entry(void)
     LOG_ENTRY_DATA *log;
 
     if (!log_entry_free)
-	log = alloc_perm(sizeof(*log));
+    log = alloc_perm(sizeof(*log));
     else
     {
-	log = log_entry_free;
-	log_entry_free = log_entry_free->next;
+    log = log_entry_free;
+    log_entry_free = log_entry_free->next;
     }
 
     log->next = NULL;
@@ -3595,327 +4515,587 @@ SCRIPT_DATA *script_freechain = NULL;
 
 SCRIPT_DATA *new_script(void)
 {
-	static SCRIPT_DATA s_zero;
-	SCRIPT_DATA *s;
+    static SCRIPT_DATA s_zero;
+    SCRIPT_DATA *s;
 
-	if (!script_freechain)
-		s = alloc_perm(sizeof(*s));
-	else {
-		s = script_freechain;
-		script_freechain = script_freechain->next;
-	}
+    if (!script_freechain)
+        s = alloc_perm(sizeof(*s));
+    else {
+        s = script_freechain;
+        script_freechain = script_freechain->next;
+    }
 
-	*s = s_zero;
-	s->edit_src = s->src = str_dup("");
-	s->name = str_dup("");
-	s->flags = 0;
+    *s = s_zero;
+    s->edit_src = s->src = str_dup("");
+    s->name = str_dup("");
+    s->flags = 0;
     s->comments = &str_empty[0];
-	s->area = NULL;
+    s->last_compile_log = NULL;
+    s->last_compile_time = 0;
+    s->last_compile_success = false;
+    s->last_runtime_log = NULL;
+    s->last_runtime_time = 0;
+    s->area = NULL;
     s->n_switch_table = 0;
     s->switch_table = NULL;
 
-	return s;
+    return s;
 }
 
 void free_script_code(SCRIPT_CODE *code, int lines)
 {
-	int i;
-	DBG2ENTRY2(PTR,code,NUM,lines);
-	if(!code) return;
+    int i;
+    DBG2ENTRY2(PTR,code,NUM,lines);
+    if(!code) return;
 
-	for(i=0;i<lines;i++) {
-		if(code[i].rest) {
-			if(code[i].opcode == OP_IF || code[i].opcode == OP_WHILE || code[i].opcode == OP_ELSEIF)
-				free_boolexp((BOOLEXP *)code[i].rest);
-			else
-				free_string(code[i].rest);
-		}
-	}
+    for(i=0;i<lines;i++) {
+        if(code[i].rest) {
+            if(code[i].opcode == OP_IF || code[i].opcode == OP_WHILE || code[i].opcode == OP_ELSEIF)
+                free_boolexp((BOOLEXP *)code[i].rest);
+            else
+                free_string(code[i].rest);
+        }
+    }
 
-	free_mem(code,i *sizeof(SCRIPT_CODE));
+    free_mem(code,i *sizeof(SCRIPT_CODE));
 }
 
 void free_script(SCRIPT_DATA *s)
 {
-	if (!s) return;
+    if (!s) return;
 
-	if(s->code) {
-		free_script_code(s->code, s->lines);
-		s->code = NULL;
-	}
-	if(s->src != s->edit_src) free_string(s->edit_src);
-	free_string(s->src);
-	free_string(s->name);
+    if(s->code) {
+        free_script_code(s->code, s->lines);
+        s->code = NULL;
+    }
+    if(s->src != s->edit_src) free_string(s->edit_src);
+    free_string(s->src);
+    free_string(s->name);
     free_string(s->comments);
+    if (s->last_compile_log)
+        free_string(s->last_compile_log);
+    if (s->last_runtime_log)
+        free_string(s->last_runtime_log);
 
     free_script_switch(s->switch_table, s->n_switch_table);
     s->switch_table = NULL;
 
-	s->next = script_freechain;
-	script_freechain = s;
+    s->next = script_freechain;
+    script_freechain = s;
 }
 // @@@NIB : 20070123 ----------
 
 
 struct affect_name_type {
-	struct affect_name_type *next;
-	char *name;
+    struct affect_name_type *next;
+    char *name;
 };
 
 struct affect_name_type *affect_names = NULL;
 
 char *create_affect_cname(char *name)
 {
-	struct affect_name_type *cur;
+    struct affect_name_type *cur;
 
-	// Search the list for existing names...
-	for(cur = affect_names;cur;cur = cur->next)
-		if(!str_cmp(cur->name,name))
-			return cur->name;
+    // Search the list for existing names...
+    for(cur = affect_names;cur;cur = cur->next)
+        if(!str_cmp(cur->name,name))
+            return cur->name;
 
-	cur = malloc(sizeof(struct affect_name_type));
-	if(!cur) return NULL;
+    cur = malloc(sizeof(struct affect_name_type));
+    if(!cur) return NULL;
 
-	cur->name = str_dup(name);
-	cur->next = affect_names;
-	affect_names = cur;
+    cur->name = str_dup(name);
+    cur->next = affect_names;
+    affect_names = cur;
 
-	return cur->name;
+    return cur->name;
 }
 
 char *get_affect_cname(char *name)
 {
-	struct affect_name_type *cur;
+    struct affect_name_type *cur;
 
-	// Search the list for existing names...
-	for(cur = affect_names;cur;cur = cur->next)
-		if(!str_cmp(cur->name,name))
-			return cur->name;
+    // Search the list for existing names...
+    for(cur = affect_names;cur;cur = cur->next)
+        if(!str_cmp(cur->name,name))
+            return cur->name;
 
-	return NULL;
+    return NULL;
 }
 
 
 AFFLICTION_DATA *new_affliction(void)
 {
-	static AFFLICTION_DATA aff_zero;
-	AFFLICTION_DATA *aff;
+    static AFFLICTION_DATA aff_zero;
+    AFFLICTION_DATA *aff;
 
-	if (affliction_free == NULL)
-		aff = alloc_perm(sizeof(*aff));
-	else {
-		aff = affliction_free;
-		affliction_free = affliction_free->next;
-	}
+    if (affliction_free == NULL)
+        aff = alloc_perm(sizeof(*aff));
+    else {
+        aff = affliction_free;
+        affliction_free = affliction_free->next;
+    }
 
-	*aff = aff_zero;
+    *aff = aff_zero;
 
-	top_affliction++;
+    top_affliction++;
 
-	VALIDATE(aff);
-	return aff;
+    VALIDATE(aff);
+    return aff;
 }
 
 
 void free_affliction(AFFLICTION_DATA *aff)
 {
-	if (!IS_VALID(aff))
-		return;
+    if (!IS_VALID(aff))
+        return;
 
-	INVALIDATE(aff);
-	aff->next = affliction_free;
-	affliction_free = aff;
+    INVALIDATE(aff);
+    aff->next = affliction_free;
+    affliction_free = aff;
 
-	top_affliction--;
+    top_affliction--;
 }
 
 BOOLEXP *boolexp_free = NULL;
 BOOLEXP *new_boolexp()
 {
-	BOOLEXP *boolexp;
-	if(boolexp_free == NULL)
-		boolexp = alloc_perm(sizeof(*boolexp));
-	else {
-		boolexp = boolexp_free;
-		boolexp_free = boolexp_free->left;
-	}
+    BOOLEXP *boolexp;
+    if(boolexp_free == NULL)
+        boolexp = alloc_perm(sizeof(*boolexp));
+    else {
+        boolexp = boolexp_free;
+        boolexp_free = boolexp_free->left;
+    }
 
-	boolexp->type = BOOLEXP_TRUE;
-	boolexp->left = NULL;
-	boolexp->right = NULL;
-	boolexp->parent = NULL;
-	boolexp->rest = NULL;
+    boolexp->type = BOOLEXP_TRUE;
+    boolexp->left = NULL;
+    boolexp->right = NULL;
+    boolexp->parent = NULL;
+    boolexp->rest = NULL;
 
-	return boolexp;
+    return boolexp;
 }
 
 void free_boolexp(BOOLEXP *boolexp)
 {
 
-	if( boolexp->left )
-		free_boolexp(boolexp->left);
+    if( boolexp->left )
+        free_boolexp(boolexp->left);
 
-	if( boolexp->right )
-		free_boolexp(boolexp->right);
+    if( boolexp->right )
+        free_boolexp(boolexp->right);
 
-	if( boolexp->rest )
-		free_string(boolexp->rest);
+    if( boolexp->rest )
+        free_string(boolexp->rest);
 
-	boolexp->left = boolexp_free;
-	boolexp_free = boolexp;
+    boolexp->left = boolexp_free;
+    boolexp_free = boolexp;
 }
 
 QUESTOR_DATA *questor_free = NULL;
 
 QUESTOR_DATA *new_questor_data()
 {
-	QUESTOR_DATA *q;
-	if(!questor_free)
-		q = alloc_perm(sizeof(QUESTOR_DATA));
-	else
-	{
-		q = questor_free;
-		questor_free = questor_free->next;
-	}
+    QUESTOR_DATA *q;
+    if(!questor_free)
+        q = alloc_perm(sizeof(QUESTOR_DATA));
+    else
+    {
+        q = questor_free;
+        questor_free = questor_free->next;
+    }
 
-	VALIDATE(q);
-	q->keywords = &str_empty[0];
-	q->short_descr = &str_empty[0];
-	q->long_descr = &str_empty[0];
-	q->header = &str_empty[0];
-	q->footer = &str_empty[0];
-	q->prefix = &str_empty[0];
-	q->suffix = &str_empty[0];
-	q->line_width = 70;
-	q->scroll = get_reserved_vnum("obj_quest_scroll");;
+    VALIDATE(q);
+    q->keywords = &str_empty[0];
+    q->short_descr = &str_empty[0];
+    q->long_descr = &str_empty[0];
+    q->header = &str_empty[0];
+    q->footer = &str_empty[0];
+    q->prefix = &str_empty[0];
+    q->suffix = &str_empty[0];
+    q->line_width = 70;
+    q->scroll = get_reserved_vnum("obj_quest_scroll");;
 
-	return q;
+    return q;
 }
 
 void free_questor_data(QUESTOR_DATA *q)
 {
-	if(!IS_VALID(q)) return;
+    if(!IS_VALID(q)) return;
 
-	free_string(q->keywords);
-	free_string(q->short_descr);
-	free_string(q->long_descr);
-	free_string(q->header);
-	free_string(q->footer);
-	free_string(q->prefix);
-	free_string(q->footer);
+    free_string(q->keywords);
+    free_string(q->short_descr);
+    free_string(q->long_descr);
+    free_string(q->header);
+    free_string(q->footer);
+    free_string(q->prefix);
+    free_string(q->footer);
 
-	INVALIDATE(q);
-	q->next = questor_free;
-	questor_free = q;
+    INVALIDATE(q);
+    q->next = questor_free;
+    questor_free = q;
 
 }
 
+/*
+ * Trainer data memory management
+ */
+
+TRAINER_ENTRY *trainer_entry_free = NULL;
+
+TRAINER_ENTRY *new_trainer_entry()
+{
+    TRAINER_ENTRY *entry;
+    if (!trainer_entry_free)
+        entry = alloc_perm(sizeof(TRAINER_ENTRY));
+    else {
+        entry = trainer_entry_free;
+        trainer_entry_free = trainer_entry_free->next;
+    }
+
+    VALIDATE(entry);
+    entry->next = NULL;
+    entry->skill_name = &str_empty[0];
+    entry->reputation = NULL;
+    entry->reputation_load.auid = 0;
+    entry->reputation_load.vnum = 0;
+    entry->min_reputation_rank = 0;
+    entry->max_reputation_rank = 0;
+    entry->max_rating = 0;
+    entry->cost_gold = 0;
+    entry->cost_trains = 0;
+    entry->check_script = NULL;
+    return entry;
+}
+
+void free_trainer_entry(TRAINER_ENTRY *entry)
+{
+    if (!IS_VALID(entry)) return;
+
+    free_string(entry->skill_name);
+    if (entry->check_script)
+        free_string(entry->check_script);
+
+    INVALIDATE(entry);
+    entry->next = trainer_entry_free;
+    trainer_entry_free = entry;
+}
+
+TRAINER_DATA *trainer_free = NULL;
+
+TRAINER_DATA *new_trainer_data()
+{
+    TRAINER_DATA *t;
+    if (!trainer_free)
+        t = alloc_perm(sizeof(TRAINER_DATA));
+    else {
+        t = trainer_free;
+        trainer_free = trainer_free->next;
+    }
+
+    VALIDATE(t);
+    t->entries = NULL;
+    t->flags = 0;
+    t->greeting = NULL;
+    return t;
+}
+
+void free_trainer_data(TRAINER_DATA *t)
+{
+    TRAINER_ENTRY *entry, *entry_next;
+
+    if (!t) return;
+    if (!IS_VALID(t)) return;
+
+    for (entry = t->entries; entry; entry = entry_next) {
+        entry_next = entry->next;
+        free_trainer_entry(entry);
+    }
+
+    if (t->greeting)
+        free_string(t->greeting);
+
+    INVALIDATE(t);
+    t->next = trainer_free;
+    trainer_free = t;
+}
+
+
+static SCRIPT_PARAM *param_free = NULL;
 
 SCRIPT_PARAM *new_script_param()
 {
-	SCRIPT_PARAM *arg = alloc_mem(sizeof(SCRIPT_PARAM));
+    SCRIPT_PARAM *arg;
 
-	if( arg )
-	{
-		arg->buffer = new_buf();
-	}
+    if( param_free != NULL )
+    {
+        arg = param_free;
+        param_free = param_free->next;
+        arg->next = NULL;
+        arg->type = 0;
+        memset(&arg->d, 0, sizeof(arg->d));
+        clear_buf(arg->buffer);
+    }
+    else
+    {
+        arg = alloc_mem(sizeof(SCRIPT_PARAM));
+        if( arg )
+        {
+            arg->buffer = new_buf();
+        }
+    }
 
-	return arg;
+    return arg;
 }
 
 void free_script_param(SCRIPT_PARAM *arg)
 {
-	if( arg != NULL )
-	{
-		free_buf(arg->buffer);
-		free_mem(arg, sizeof(SCRIPT_PARAM));
-	}
+    if( arg != NULL )
+    {
+        arg->next = param_free;
+        param_free = arg;
+    }
 }
 
 BLUEPRINT_LINK *blueprint_link_free;
 
 BLUEPRINT_LINK *new_blueprint_link()
 {
-	BLUEPRINT_LINK *bl;
-	if(blueprint_link_free == NULL)
-		bl = alloc_perm(sizeof(BLUEPRINT_LINK));
-	else {
-		bl = blueprint_link_free;
-		blueprint_link_free = blueprint_link_free->next;
-	}
+    BLUEPRINT_LINK *bl;
+    if(blueprint_link_free == NULL)
+        bl = alloc_perm(sizeof(BLUEPRINT_LINK));
+    else {
+        bl = blueprint_link_free;
+        blueprint_link_free = blueprint_link_free->next;
+    }
 
-	bl->name = &str_empty[0];
+    bl->name = &str_empty[0];
 
-	bl->vnum = 0;
-	bl->door = -1;
+    bl->room_ref.load.vnum = 0;
+    bl->room_ref.load.auid = 0;
+    bl->door = -1;
 
-	bl->room = NULL;
-	bl->ex = NULL;
+    bl->room = NULL;
+    bl->ex = NULL;
 
-	bl->used = false;
+    bl->used = false;
 
-	VALIDATE(bl);
-	return bl;
+    VALIDATE(bl);
+    return bl;
 }
 
 void free_blueprint_link(BLUEPRINT_LINK *bl)
 {
-	if(!IS_VALID(bl)) return;
+    if(!IS_VALID(bl)) return;
 
-	free_string(bl->name);
+    free_string(bl->name);
 
-	INVALIDATE(bl);
-	bl->next = blueprint_link_free;
-	blueprint_link_free = bl;
+    INVALIDATE(bl);
+    bl->next = blueprint_link_free;
+    blueprint_link_free = bl;
+}
+
+MAZE_WEIGHTED_ROOM *maze_weighted_room_free;
+
+MAZE_WEIGHTED_ROOM *new_maze_weighted_room()
+{
+    MAZE_WEIGHTED_ROOM *mwr;
+    if(maze_weighted_room_free == NULL)
+        mwr = alloc_perm(sizeof(MAZE_WEIGHTED_ROOM));
+    else {
+        mwr = maze_weighted_room_free;
+        maze_weighted_room_free = maze_weighted_room_free->next;
+    }
+
+    mwr->weight = 0;
+    mwr->exit_count = 0;
+    mwr->room_ref.load.auid = 0;
+    mwr->room_ref.load.vnum = 0;
+    mwr->room = NULL;
+
+    // Exit template defaults
+    mwr->exit_template.flags = 0;
+    mwr->exit_template.keyword = NULL;
+    mwr->exit_template.strength = 0;
+    mwr->exit_template.material = NULL;
+    mwr->exit_template.lock.key_load.auid = 0;
+    mwr->exit_template.lock.key_load.vnum = 0;
+    mwr->exit_template.lock.key_wnum.pArea = NULL;
+    mwr->exit_template.lock.key_wnum.vnum = 0;
+    mwr->exit_template.lock.pick_chance = 0;
+    mwr->exit_template.lock.flags = 0;
+    mwr->exit_template.lock.special_keys = NULL;
+
+    VALIDATE(mwr);
+    return mwr;
+}
+
+void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *mwr)
+{
+    if(!IS_VALID(mwr)) return;
+
+    if (mwr->exit_template.keyword) {
+        free_string(mwr->exit_template.keyword);
+        mwr->exit_template.keyword = NULL;
+    }
+    if (mwr->exit_template.material) {
+        free_string(mwr->exit_template.material);
+        mwr->exit_template.material = NULL;
+    }
+
+    INVALIDATE(mwr);
+    mwr->next = maze_weighted_room_free;
+    maze_weighted_room_free = mwr;
+}
+
+MAZE_FIXED_ROOM *maze_fixed_room_free;
+
+MAZE_FIXED_ROOM *new_maze_fixed_room()
+{
+    MAZE_FIXED_ROOM *mfr;
+    if(maze_fixed_room_free == NULL)
+        mfr = alloc_perm(sizeof(MAZE_FIXED_ROOM));
+    else {
+        mfr = maze_fixed_room_free;
+        maze_fixed_room_free = maze_fixed_room_free->next;
+    }
+
+    mfr->x = 0;
+    mfr->y = 0;
+    mfr->room_ref.load.auid = 0;
+    mfr->room_ref.load.vnum = 0;
+    mfr->room = NULL;
+    mfr->connected = true;
+
+    VALIDATE(mfr);
+    return mfr;
+}
+
+void free_maze_fixed_room(MAZE_FIXED_ROOM *mfr)
+{
+    if(!IS_VALID(mfr)) return;
+
+    INVALIDATE(mfr);
+    mfr->next = maze_fixed_room_free;
+    maze_fixed_room_free = mfr;
+}
+
+MAZE_MAP_DATA *maze_map_data_free;
+
+MAZE_MAP_DATA *new_maze_map_data()
+{
+    MAZE_MAP_DATA *mmd;
+    if(maze_map_data_free == NULL)
+        mmd = alloc_perm(sizeof(MAZE_MAP_DATA));
+    else {
+        mmd = maze_map_data_free;
+        maze_map_data_free = maze_map_data_free->next;
+    }
+
+    mmd->obj_ref.load.auid = 0;
+    mmd->obj_ref.load.vnum = 0;
+    mmd->obj = NULL;
+    mmd->mob_ref.load.auid = 0;
+    mmd->mob_ref.load.vnum = 0;
+    mmd->mob = NULL;
+    mmd->solve = false;
+
+    VALIDATE(mmd);
+    return mmd;
+}
+
+void free_maze_map_data(MAZE_MAP_DATA *mmd)
+{
+    if(!IS_VALID(mmd)) return;
+
+    INVALIDATE(mmd);
+    mmd->next = maze_map_data_free;
+    maze_map_data_free = mmd;
 }
 
 BLUEPRINT_SECTION *blueprint_section_free;
 
 BLUEPRINT_SECTION *new_blueprint_section()
 {
-	BLUEPRINT_SECTION *bs;
-	if(blueprint_section_free == NULL)
-		bs = alloc_perm(sizeof(BLUEPRINT_SECTION));
-	else {
-		bs = blueprint_section_free;
-		blueprint_section_free = blueprint_section_free->next;
-	}
+    BLUEPRINT_SECTION *bs;
+    if(blueprint_section_free == NULL)
+        bs = alloc_perm(sizeof(BLUEPRINT_SECTION));
+    else {
+        bs = blueprint_section_free;
+        blueprint_section_free = blueprint_section_free->next;
+    }
 
-	bs->vnum = 0;
+    bs->vnum = 0;
 
-	bs->name = &str_empty[0];
-	bs->description = &str_empty[0];
-	bs->comments = &str_empty[0];
+    bs->name = &str_empty[0];
+    bs->description = &str_empty[0];
+    bs->comments = &str_empty[0];
 
-	bs->type = BSTYPE_STATIC;
-	bs->flags = 0;
+    bs->type = BSTYPE_STATIC;
+    bs->flags = 0;
 
-	bs->recall = 0;
-	bs->lower_vnum = 0;
-	bs->upper_vnum = 0;
+    bs->recall_ref.load.vnum = 0;
+    bs->recall_ref.load.auid = 0;
+    bs->recall_room = NULL;
+    bs->lower_vnum = 0;
+    bs->upper_vnum = 0;
 
-	bs->links = NULL;
+    bs->maze_x = 0;
+    bs->maze_y = 0;
+    bs->maze_templates = list_create(false);
+    bs->total_maze_weight = 0;
+    bs->maze_fixed_rooms = list_create(false);
+    bs->map_data = NULL;
 
-	VALIDATE(bs);
-	return bs;
+    bs->links = NULL;
+
+    VALIDATE(bs);
+    return bs;
 }
 
 void free_blueprint_section(BLUEPRINT_SECTION *bs)
 {
-	if(!IS_VALID(bs)) return;
+    if(!IS_VALID(bs)) return;
 
-	free_string(bs->name);
+    free_string(bs->name);
 
-	BLUEPRINT_LINK *blc, *bln;
-	for(blc = bs->links; blc; blc = bln)
-	{
-		bln = blc->next;
-		free_blueprint_link(blc);
-	}
+    BLUEPRINT_LINK *blc, *bln;
+    for(blc = bs->links; blc; blc = bln)
+    {
+        bln = blc->next;
+        free_blueprint_link(blc);
+    }
 
-	INVALIDATE(bs);
-	bs->next = blueprint_section_free;
-	blueprint_section_free = bs;
+    if (bs->maze_templates) {
+        ITERATOR it;
+        MAZE_WEIGHTED_ROOM *mwr;
+        iterator_start(&it, bs->maze_templates);
+        while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+            free_maze_weighted_room(mwr);
+        iterator_stop(&it);
+        list_destroy(bs->maze_templates);
+    }
+
+    if (bs->maze_fixed_rooms) {
+        ITERATOR it;
+        MAZE_FIXED_ROOM *mfr;
+        iterator_start(&it, bs->maze_fixed_rooms);
+        while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+            free_maze_fixed_room(mfr);
+        iterator_stop(&it);
+        list_destroy(bs->maze_fixed_rooms);
+    }
+
+    if (bs->map_data) {
+        free_maze_map_data(bs->map_data);
+        bs->map_data = NULL;
+    }
+
+    INVALIDATE(bs);
+    bs->next = blueprint_section_free;
+    blueprint_section_free = bs;
 }
 
 
@@ -3923,33 +5103,33 @@ STATIC_BLUEPRINT_LINK *static_blueprint_link_free;
 
 STATIC_BLUEPRINT_LINK *new_static_blueprint_link()
 {
-	STATIC_BLUEPRINT_LINK *bl;
-	if(static_blueprint_link_free == NULL)
-		bl = alloc_perm(sizeof(STATIC_BLUEPRINT_LINK));
-	else {
-		bl = static_blueprint_link_free;
-		static_blueprint_link_free = static_blueprint_link_free->next;
-	}
+    STATIC_BLUEPRINT_LINK *bl;
+    if(static_blueprint_link_free == NULL)
+        bl = alloc_perm(sizeof(STATIC_BLUEPRINT_LINK));
+    else {
+        bl = static_blueprint_link_free;
+        static_blueprint_link_free = static_blueprint_link_free->next;
+    }
 
-	bl->blueprint = NULL;
+    bl->blueprint = NULL;
 
-	bl->section1 = -1;
-	bl->link1 = -1;
+    bl->section1 = -1;
+    bl->link1 = -1;
 
-	bl->section2 = -1;
-	bl->link2 = -1;
+    bl->section2 = -1;
+    bl->link2 = -1;
 
-	VALIDATE(bl);
-	return bl;
+    VALIDATE(bl);
+    return bl;
 }
 
 void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl)
 {
-	if(!IS_VALID(bl)) return;
+    if(!IS_VALID(bl)) return;
 
-	INVALIDATE(bl);
-	bl->next = static_blueprint_link_free;
-	static_blueprint_link_free = bl;
+    INVALIDATE(bl);
+    bl->next = static_blueprint_link_free;
+    static_blueprint_link_free = bl;
 }
 
 
@@ -3957,38 +5137,60 @@ BLUEPRINT_SPECIAL_ROOM *blueprint_special_room_free;
 
 BLUEPRINT_SPECIAL_ROOM *new_blueprint_special_room()
 {
-	BLUEPRINT_SPECIAL_ROOM *special;
+    BLUEPRINT_SPECIAL_ROOM *special;
 
-	if( blueprint_special_room_free )
-	{
-		special = blueprint_special_room_free;
-		blueprint_special_room_free = blueprint_special_room_free->next;
-	}
-	else
-	{
-		special = alloc_perm(sizeof(BLUEPRINT_SPECIAL_ROOM));
-	}
-	memset(special, 0, sizeof(BLUEPRINT_SPECIAL_ROOM));
+    if( blueprint_special_room_free )
+    {
+        special = blueprint_special_room_free;
+        blueprint_special_room_free = blueprint_special_room_free->next;
+    }
+    else
+    {
+        special = alloc_perm(sizeof(BLUEPRINT_SPECIAL_ROOM));
+    }
+    memset(special, 0, sizeof(BLUEPRINT_SPECIAL_ROOM));
 
-	special->name = &str_empty[0];
+    special->name = &str_empty[0];
 
-	VALIDATE(special);
-	return special;
+    VALIDATE(special);
+    return special;
 }
 
 void free_blueprint_special_room(BLUEPRINT_SPECIAL_ROOM *special)
 {
-	if( !IS_VALID(special) ) return;
+    if( !IS_VALID(special) ) return;
 
-	free_string(special->name);
+    free_string(special->name);
 
-	INVALIDATE(special);
-	special->next = blueprint_special_room_free;
-	blueprint_special_room_free = special;
+    INVALIDATE(special);
+    special->next = blueprint_special_room_free;
+    blueprint_special_room_free = special;
 }
 
 static void delete_blueprint_special_room(void *data) {
-	free_blueprint_special_room((BLUEPRINT_SPECIAL_ROOM *)data);
+    free_blueprint_special_room((BLUEPRINT_SPECIAL_ROOM *)data);
+}
+
+BLUEPRINT_EXIT_DATA *new_blueprint_exit_data()
+{
+    BLUEPRINT_EXIT_DATA *ex = alloc_mem(sizeof(BLUEPRINT_EXIT_DATA));
+
+    ex->name = &str_empty[0];
+    ex->section = -1;
+    ex->link = -1;
+
+    return ex;
+}
+
+void free_blueprint_exit_data(BLUEPRINT_EXIT_DATA *ex)
+{
+    free_string(ex->name);
+    free_mem(ex, sizeof(BLUEPRINT_EXIT_DATA));
+}
+
+static void delete_blueprint_exit_data(void *data)
+{
+    free_blueprint_exit_data((BLUEPRINT_EXIT_DATA *)data);
 }
 
 
@@ -3996,323 +5198,521 @@ BLUEPRINT *blueprint_free;
 
 BLUEPRINT *new_blueprint()
 {
-	BLUEPRINT *bp;
-	if(blueprint_free == NULL)
-		bp = alloc_perm(sizeof(BLUEPRINT));
-	else {
-		bp = blueprint_free;
-		blueprint_free = blueprint_free->next;
-	}
+    BLUEPRINT *bp;
+    if(blueprint_free == NULL)
+        bp = alloc_perm(sizeof(BLUEPRINT));
+    else {
+        bp = blueprint_free;
+        blueprint_free = blueprint_free->next;
+    }
 
-	bp->vnum = 0;
+    bp->vnum = 0;
 
-	bp->name = &str_empty[0];
-	bp->description = &str_empty[0];
-	bp->comments = &str_empty[0];
+    bp->name = &str_empty[0];
+    bp->description = &str_empty[0];
+    bp->comments = &str_empty[0];
 
-	bp->area_who = AREA_INSTANCE;
-	bp->mode = BLUEPRINT_MODE_STATIC;
+    bp->area_who = AREA_INSTANCE;
+    bp->mode = BLUEPRINT_MODE_STATIC;
+    bp->channel_defs = list_create(false);
 
-	bp->sections = list_create(false);
-	bp->special_rooms = list_createx(false, NULL, delete_blueprint_special_room);
+    bp->sections = list_create(false);
+    bp->special_rooms = list_createx(false, NULL, delete_blueprint_special_room);
 
-	bp->static_layout = NULL;
-	bp->static_recall = -1;
+    bp->_static.layout = NULL;
+    bp->_static.recall = -1;
+    bp->_static.entries = list_createx(false, NULL, delete_blueprint_exit_data);
+    bp->_static.exits = list_createx(false, NULL, delete_blueprint_exit_data);
 
-	bp->static_entry_section = -1;
-	bp->static_entry_link = -1;
-	bp->static_exit_section = -1;
-	bp->static_exit_link = -1;
-
-	VALIDATE(bp);
-	return bp;
+    VALIDATE(bp);
+    return bp;
 }
 
 void free_static_blueprint_data(BLUEPRINT *bp)
 {
-	STATIC_BLUEPRINT_LINK *cur, *next;
+    STATIC_BLUEPRINT_LINK *cur, *next;
 
-	for(cur = bp->static_layout; cur; cur = next)
-	{
-		next = cur->next;
-		free_static_blueprint_link(cur);
-	}
+    for(cur = bp->_static.layout; cur; cur = next)
+    {
+        next = cur->next;
+        free_static_blueprint_link(cur);
+    }
 
-	bp->static_layout = NULL;
+    bp->_static.layout = NULL;
 }
 
 void free_blueprint(BLUEPRINT *bp)
 {
-	if(!IS_VALID(bp)) return;
+    if(!IS_VALID(bp)) return;
 
-	free_string(bp->name);
-	free_string(bp->description);
+    free_string(bp->name);
+    free_string(bp->description);
 
-	list_destroy(bp->sections);
-	list_destroy(bp->special_rooms);
+    if (bp->channel_defs) {
+        ITERATOR chan_it;
+        char *channel_id;
 
-	if( bp->mode == BLUEPRINT_MODE_STATIC )
-		free_static_blueprint_data(bp);
+        iterator_start(&chan_it, bp->channel_defs);
+        while ((channel_id = (char *)iterator_nextdata(&chan_it)))
+            free_string(channel_id);
+        iterator_stop(&chan_it);
+        list_destroy(bp->channel_defs);
+    }
+
+    list_destroy(bp->sections);
+    list_destroy(bp->special_rooms);
+
+    if( bp->mode == BLUEPRINT_MODE_STATIC )
+        free_static_blueprint_data(bp);
 
     free_prog_list(bp->progs);
     variable_freelist(&bp->index_vars);
 
-	INVALIDATE(bp);
-	bp->next = blueprint_free;
-	blueprint_free = bp;
+    INVALIDATE(bp);
+    bp->next = blueprint_free;
+    blueprint_free = bp;
 }
 
 INSTANCE_SECTION *instance_section_free;
 
 INSTANCE_SECTION *new_instance_section()
 {
-	INSTANCE_SECTION *section;
+    INSTANCE_SECTION *section;
 
-	if( instance_section_free )
-	{
-		section = instance_section_free;
-		instance_section_free = instance_section_free->next;
-	}
-	else
-		section = alloc_perm(sizeof(INSTANCE_SECTION));
+    if( instance_section_free )
+    {
+        section = instance_section_free;
+        instance_section_free = instance_section_free->next;
+    }
+    else
+        section = alloc_perm(sizeof(INSTANCE_SECTION));
 
-	section->rooms = list_create(false);
+    section->rooms = list_create(false);
+    section->map_text = NULL;
 
-	VALIDATE(section);
-	return section;
+    VALIDATE(section);
+    return section;
 }
 
 void free_instance_section(INSTANCE_SECTION *section)
 {
-	if(!IS_VALID(section)) return;
+    if(!IS_VALID(section)) return;
 
-	ITERATOR rit;
-	ROOM_INDEX_DATA *room;
-	iterator_start(&rit,section->rooms);
-	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
-	{
-		extract_clone_room(room->source,room->id[0],room->id[1],true);
-	}
-	iterator_stop(&rit);
+    ITERATOR rit;
+    ROOM_INDEX_DATA *room;
+    iterator_start(&rit,section->rooms);
+    while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+    {
+        queue_clone_room_extract(room->source, room->id[0], room->id[1], true);
+    }
+    iterator_stop(&rit);
 
-	list_destroy(section->rooms);
+    list_destroy(section->rooms);
+
+    if (section->map_text) {
+        free_string(section->map_text);
+        section->map_text = NULL;
+    }
 
     variable_clearfield(VAR_SECTION, section);
 
-	INVALIDATE(section);
-	section->next = instance_section_free;
-	instance_section_free = section;
+    INVALIDATE(section);
+    section->next = instance_section_free;
+    instance_section_free = section;
 }
 
 NAMED_SPECIAL_ROOM *named_special_room_free;
 
 NAMED_SPECIAL_ROOM *new_named_special_room()
 {
-	NAMED_SPECIAL_ROOM *special;
+    NAMED_SPECIAL_ROOM *special;
 
-	if( named_special_room_free )
-	{
-		special = named_special_room_free;
-		named_special_room_free = named_special_room_free->next;
-	}
-	else
-	{
-		special = alloc_perm(sizeof(NAMED_SPECIAL_ROOM));
-	}
-	memset(special, 0, sizeof(NAMED_SPECIAL_ROOM));
+    if( named_special_room_free )
+    {
+        special = named_special_room_free;
+        named_special_room_free = named_special_room_free->next;
+    }
+    else
+    {
+        special = alloc_perm(sizeof(NAMED_SPECIAL_ROOM));
+    }
+    memset(special, 0, sizeof(NAMED_SPECIAL_ROOM));
 
-	special->name = &str_empty[0];
+    special->name = &str_empty[0];
 
-	VALIDATE(special);
-	return special;
+    VALIDATE(special);
+    return special;
 }
 
 void free_named_special_room(NAMED_SPECIAL_ROOM *special)
 {
-	if( !IS_VALID(special) ) return;
+    if( !IS_VALID(special) ) return;
 
-	free_string(special->name);
+    free_string(special->name);
 
-	INVALIDATE(special);
-	special->next = named_special_room_free;
-	named_special_room_free = special;
+    INVALIDATE(special);
+    special->next = named_special_room_free;
+    named_special_room_free = special;
 }
 
 static void delete_named_special_room(void *data) {
-	free_named_special_room((NAMED_SPECIAL_ROOM *)data);
+    free_named_special_room((NAMED_SPECIAL_ROOM *)data);
 }
 
+NAMED_SPECIAL_EXIT *named_special_exit_free;
+
+NAMED_SPECIAL_EXIT *new_named_special_exit()
+{
+    NAMED_SPECIAL_EXIT *special;
+
+    if( named_special_exit_free )
+    {
+        special = named_special_exit_free;
+        named_special_exit_free = named_special_exit_free->next;
+    }
+    else
+    {
+        special = alloc_perm(sizeof(NAMED_SPECIAL_EXIT));
+    }
+    memset(special, 0, sizeof(NAMED_SPECIAL_EXIT));
+
+    special->name = &str_empty[0];
+
+    VALIDATE(special);
+    return special;
+}
+
+void free_named_special_exit(NAMED_SPECIAL_EXIT *special)
+{
+    if( !IS_VALID(special) ) return;
+
+    free_string(special->name);
+
+    INVALIDATE(special);
+    special->next = named_special_exit_free;
+    named_special_exit_free = special;
+}
+
+static void delete_named_special_exit(void *data) {
+    free_named_special_exit((NAMED_SPECIAL_EXIT *)data);
+}
 
 INSTANCE *instance_free;
 
 INSTANCE *new_instance()
 {
-	INSTANCE *instance;
+    INSTANCE *instance;
 
-	if( instance_free )
-	{
-		instance = instance_free;
-		instance_free = instance_free->next;
-	}
-	else
-		instance = alloc_perm(sizeof(INSTANCE));
+    if( instance_free )
+    {
+        instance = instance_free;
+        instance_free = instance_free->next;
+    }
+    else
+        instance = alloc_perm(sizeof(INSTANCE));
 
-	memset(instance, 0, sizeof(INSTANCE));
+    memset(instance, 0, sizeof(INSTANCE));
 
-	instance->blueprint = NULL;
+    instance->blueprint = NULL;
 
-	instance->recall = NULL;
+    instance->recall = NULL;
 
-	instance->dungeon = NULL;
+    instance->dungeon = NULL;
 
-	instance->object = NULL;
-	instance->object_uid[0] = 0;
-	instance->object_uid[1] = 0;
+    instance->object = NULL;
+    instance->object_uid[0] = 0;
+    instance->object_uid[1] = 0;
 
-	instance->sections = list_create(false);
-	instance->players = list_create(false);
-	instance->mobiles = list_create(false);
-	instance->objects = list_create(false);
-	instance->rooms = list_create(false);
-	instance->bosses = list_create(false);
-	instance->special_rooms = list_createx(false, NULL, delete_named_special_room);
-	instance->player_owners = list_createx(false, NULL, delete_list_uid_data);
+    instance->sections = list_create(false);
+    instance->players = list_create(false);
+    instance->mobiles = list_create(false);
+    instance->objects = list_create(false);
+    instance->rooms = list_create(false);
+    instance->bosses = list_create(false);
+    instance->special_rooms = list_createx(false, NULL, delete_named_special_room);
+    instance->special_exits = list_createx(false, NULL, delete_named_special_exit);
+    instance->player_owners = list_createx(false, NULL, delete_list_uid_data);
 
-	VALIDATE(instance);
-	return instance;
+    VALIDATE(instance);
+    return instance;
 }
 
 void free_instance(INSTANCE *instance)
 {
-	if(!IS_VALID(instance)) return;
+    if(!IS_VALID(instance)) return;
 
-	ITERATOR it;
-	INSTANCE_SECTION *section;
-	iterator_start(&it, instance->sections);
-	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
-	{
-		free_instance_section(section);
-	}
-	iterator_stop(&it);
+    ITERATOR it;
+    INSTANCE_SECTION *section;
+    iterator_start(&it, instance->sections);
+    while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
+    {
+        free_instance_section(section);
+    }
+    iterator_stop(&it);
 
-	list_destroy(instance->sections);
-	list_destroy(instance->players);
-	list_destroy(instance->mobiles);
-	list_destroy(instance->objects);
-	list_destroy(instance->rooms);
-	list_destroy(instance->bosses);
-	list_destroy(instance->special_rooms);
-	list_destroy(instance->player_owners);
+    list_destroy(instance->sections);
+    list_destroy(instance->players);
+    list_destroy(instance->mobiles);
+    list_destroy(instance->objects);
+    list_destroy(instance->rooms);
+    list_destroy(instance->bosses);
+    list_destroy(instance->special_rooms);
+    list_destroy(instance->player_owners);
 
     variable_clearfield(VAR_INSTANCE, instance);
     script_clear_instance(instance);
     free_prog_data(instance->progs);
 
-	INVALIDATE(instance);
-	instance->next = instance_free;
-	instance_free = instance;
+    INVALIDATE(instance);
+    instance->next = instance_free;
+    instance_free = instance;
 }
 
 DUNGEON_INDEX_SPECIAL_ROOM *dungeon_index_special_room_free;
 
 DUNGEON_INDEX_SPECIAL_ROOM *new_dungeon_index_special_room()
 {
-	DUNGEON_INDEX_SPECIAL_ROOM *special;
+    DUNGEON_INDEX_SPECIAL_ROOM *special;
 
-	if( dungeon_index_special_room_free )
-	{
-		special = dungeon_index_special_room_free;
-		dungeon_index_special_room_free = dungeon_index_special_room_free->next;
-	}
-	else
-	{
-		special = alloc_perm(sizeof(DUNGEON_INDEX_SPECIAL_ROOM));
-	}
+    if( dungeon_index_special_room_free )
+    {
+        special = dungeon_index_special_room_free;
+        dungeon_index_special_room_free = dungeon_index_special_room_free->next;
+    }
+    else
+    {
+        special = alloc_perm(sizeof(DUNGEON_INDEX_SPECIAL_ROOM));
+    }
 
-	memset(special, 0, sizeof(DUNGEON_INDEX_SPECIAL_ROOM));
-	special->name = &str_empty[0];
+    memset(special, 0, sizeof(DUNGEON_INDEX_SPECIAL_ROOM));
+    special->name = &str_empty[0];
 
-	VALIDATE(special);
-	return special;
+    VALIDATE(special);
+    return special;
 }
 
 void free_dungeon_index_special_room(DUNGEON_INDEX_SPECIAL_ROOM *special)
 {
-	if( !IS_VALID(special) ) return;
+    if( !IS_VALID(special) ) return;
 
-	free_string(special->name);
+    free_string(special->name);
 
-	INVALIDATE(special);
-	special->next = dungeon_index_special_room_free;
-	dungeon_index_special_room_free = special;
+    INVALIDATE(special);
+    special->next = dungeon_index_special_room_free;
+    dungeon_index_special_room_free = special;
+}
+
+static void delete_weighted_random_exit_data(void *data)
+{
+    free_weighted_random_exit((DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)data);
 }
 
 static void delete_dungeon_index_special_room(void *data) {
-	free_dungeon_index_special_room((DUNGEON_INDEX_SPECIAL_ROOM *)data);
+    free_dungeon_index_special_room((DUNGEON_INDEX_SPECIAL_ROOM *)data);
+}
+
+static void delete_dungeon_index_special_exit(void *data)
+{
+    free_dungeon_index_special_exit((DUNGEON_INDEX_SPECIAL_EXIT *)data);
+}
+
+DUNGEON_INDEX_SPECIAL_EXIT *dungeon_index_special_exit_free;
+DUNGEON_INDEX_SPECIAL_EXIT *new_dungeon_index_special_exit()
+{
+    DUNGEON_INDEX_SPECIAL_EXIT *special;
+
+    if( dungeon_index_special_exit_free )
+    {
+        special = dungeon_index_special_exit_free;
+        dungeon_index_special_exit_free = dungeon_index_special_exit_free->next;
+    }
+    else
+    {
+        special = alloc_perm(sizeof(DUNGEON_INDEX_SPECIAL_EXIT));
+    }
+
+    memset(special, 0, sizeof(DUNGEON_INDEX_SPECIAL_EXIT));
+    special->name = &str_empty[0];
+    special->from = list_createx(false, NULL, delete_weighted_random_exit_data);
+    special->to = list_createx(false, NULL, delete_weighted_random_exit_data);
+    special->group = list_createx(false, NULL, delete_dungeon_index_special_exit);
+
+    VALIDATE(special);
+    return special;
+}
+
+void free_dungeon_index_special_exit(DUNGEON_INDEX_SPECIAL_EXIT *special)
+{
+    if( !IS_VALID(special) ) return;
+
+    free_string(special->name);
+
+    INVALIDATE(special);
+    special->next = dungeon_index_special_exit_free;
+    dungeon_index_special_exit_free = special;
+}
+
+
+DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *new_weighted_random_floor()
+{
+    DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = alloc_mem(sizeof(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA));
+
+    if (weighted)
+    {
+        weighted->weight = 0;
+        weighted->floor = 0;
+    }
+
+    return weighted;
+}
+
+void free_weighted_random_floor(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted)
+{
+    free_mem(weighted, sizeof(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA));
+}
+
+static void delete_weighted_random_floor_data(void *data)
+{
+    free_weighted_random_floor((DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)data);
+}
+
+DUNGEON_INDEX_WEIGHTED_EXIT_DATA *new_weighted_random_exit()
+{
+    DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted = alloc_mem(sizeof(DUNGEON_INDEX_WEIGHTED_EXIT_DATA));
+
+    if (weighted)
+    {
+        weighted->weight = 0;
+        weighted->door = 0;         // Not to be confused with the exit[door] on ROOM_INDEX_DATA, this is 1-based.
+    }
+
+    return weighted;
+}
+
+void free_weighted_random_exit(DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted)
+{
+    free_mem(weighted, sizeof(DUNGEON_INDEX_WEIGHTED_EXIT_DATA));
+}
+
+
+static void delete_dungeon_index_level(void *data) {
+    free_dungeon_index_level((DUNGEON_INDEX_LEVEL_DATA *)data);    
+}
+
+DUNGEON_INDEX_LEVEL_DATA *dungeon_index_level_free;
+DUNGEON_INDEX_LEVEL_DATA *new_dungeon_index_level()
+{
+    DUNGEON_INDEX_LEVEL_DATA *dungeon_level;
+
+    if (dungeon_index_level_free)
+    {
+        dungeon_level = dungeon_index_level_free;
+        dungeon_index_level_free = dungeon_index_level_free->next;
+    }
+    else
+        dungeon_level = alloc_perm(sizeof(DUNGEON_INDEX_LEVEL_DATA));
+
+    memset(dungeon_level, 0, sizeof(DUNGEON_INDEX_LEVEL_DATA));
+
+    dungeon_level->mode = LEVELMODE_STATIC;
+    dungeon_level->floor = 0;
+    dungeon_level->weighted_floors = list_createx(false, NULL, delete_weighted_random_floor_data);
+    dungeon_level->total_weight = 0;
+    dungeon_level->group = list_createx(false, NULL, delete_dungeon_index_level);
+
+    VALIDATE(dungeon_level);
+
+    return dungeon_level;
+}
+
+void free_dungeon_index_level(DUNGEON_INDEX_LEVEL_DATA *dungeon_level)
+{
+    if (!IS_VALID(dungeon_level)) return;
+
+    dungeon_level->next = dungeon_index_level_free;
+    dungeon_index_level_free = dungeon_level;
+
+    list_destroy(dungeon_level->weighted_floors);
+
+    INVALIDATE(dungeon_level);
 }
 
 DUNGEON_INDEX_DATA *dungeon_index_free;
 
 DUNGEON_INDEX_DATA *new_dungeon_index()
 {
-	DUNGEON_INDEX_DATA *dungeon_index;
+    DUNGEON_INDEX_DATA *dungeon_index;
 
-	if( dungeon_index_free )
-	{
-		dungeon_index = dungeon_index_free;
-		dungeon_index_free = dungeon_index_free->next;
-	}
-	else
-		dungeon_index = alloc_perm(sizeof(DUNGEON_INDEX_DATA));
+    if( dungeon_index_free )
+    {
+        dungeon_index = dungeon_index_free;
+        dungeon_index_free = dungeon_index_free->next;
+    }
+    else
+        dungeon_index = alloc_perm(sizeof(DUNGEON_INDEX_DATA));
 
-	memset(dungeon_index, 0, sizeof(DUNGEON_INDEX_DATA));
+    memset(dungeon_index, 0, sizeof(DUNGEON_INDEX_DATA));
 
-	dungeon_index->vnum = 0;
+    dungeon_index->vnum = 0;
 
-	dungeon_index->name = &str_empty[0];
-	dungeon_index->description = &str_empty[0];
-	dungeon_index->comments = &str_empty[0];
+    dungeon_index->name = &str_empty[0];
+    dungeon_index->description = &str_empty[0];
+    dungeon_index->comments = &str_empty[0];
 
-	dungeon_index->area_who = AREA_BLANK;
+    dungeon_index->area_who = AREA_BLANK;
+    dungeon_index->channel_defs = list_create(false);
 
-	dungeon_index->floors = list_create(false);
-	dungeon_index->special_rooms = list_createx(false, NULL, delete_dungeon_index_special_room);
-	dungeon_index->entry_room = 0;
-	dungeon_index->exit_room = 0;
+    dungeon_index->floors = list_create(false);
+    dungeon_index->levels = list_createx(false, NULL, delete_dungeon_index_level);
+    dungeon_index->special_rooms = list_createx(false, NULL, delete_dungeon_index_special_room);
+    dungeon_index->special_exits = list_createx(false, NULL, delete_dungeon_index_special_exit);
+    dungeon_index->entry_room = 0;
+    dungeon_index->exit_room = 0;
 
-	dungeon_index->flags = 0;
+    dungeon_index->flags = 0;
 
-	dungeon_index->zone_out = &str_empty[0];
-	dungeon_index->zone_out_portal = &str_empty[0];
-	dungeon_index->zone_out_mount = &str_empty[0];
+    dungeon_index->zone_out = &str_empty[0];
+    dungeon_index->zone_out_portal = &str_empty[0];
+    dungeon_index->zone_out_mount = &str_empty[0];
 
 
-	VALIDATE(dungeon_index);
-	return dungeon_index;
+    VALIDATE(dungeon_index);
+    return dungeon_index;
 }
 
 void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
 {
-	if( !IS_VALID(dungeon_index) )
-		return;
+    if( !IS_VALID(dungeon_index) )
+        return;
 
-	free_string(dungeon_index->name);
-	free_string(dungeon_index->description);
-	free_string(dungeon_index->comments);
+    free_string(dungeon_index->name);
+    free_string(dungeon_index->description);
+    free_string(dungeon_index->comments);
 
-	list_destroy(dungeon_index->floors);
-	list_destroy(dungeon_index->special_rooms);
+    if (dungeon_index->channel_defs) {
+        ITERATOR chan_it;
+        char *channel_id;
 
-	free_string(dungeon_index->zone_out);
-	free_string(dungeon_index->zone_out_portal);
-	free_string(dungeon_index->zone_out_mount);
+        iterator_start(&chan_it, dungeon_index->channel_defs);
+        while ((channel_id = (char *)iterator_nextdata(&chan_it)))
+            free_string(channel_id);
+        iterator_stop(&chan_it);
+        list_destroy(dungeon_index->channel_defs);
+    }
+
+    list_destroy(dungeon_index->floors);
+    list_destroy(dungeon_index->special_rooms);
+
+    free_string(dungeon_index->zone_out);
+    free_string(dungeon_index->zone_out_portal);
+    free_string(dungeon_index->zone_out_mount);
 
     free_prog_list(dungeon_index->progs);
     variable_freelist(&dungeon_index->index_vars);
 
-	INVALIDATE(dungeon_index);
-	dungeon_index->next = dungeon_index_free;
-	dungeon_index_free = dungeon_index;
+    INVALIDATE(dungeon_index);
+    dungeon_index->next = dungeon_index_free;
+    dungeon_index_free = dungeon_index;
 }
 
 
@@ -4320,185 +5720,221 @@ DUNGEON *dungeon_free;
 
 DUNGEON *new_dungeon()
 {
-	DUNGEON *dng;
+    DUNGEON *dng;
 
-	if( dungeon_free )
-	{
-		dng = dungeon_free;
-		dungeon_free = dungeon_free->next;
-	}
-	else
-		dng = alloc_perm(sizeof(DUNGEON));
+    if( dungeon_free )
+    {
+        dng = dungeon_free;
+        dungeon_free = dungeon_free->next;
+    }
+    else
+        dng = alloc_perm(sizeof(DUNGEON));
 
-	memset(dng, 0, sizeof(DUNGEON));
+    memset(dng, 0, sizeof(DUNGEON));
 
-	dng->empty = false;
-	dng->floors = list_create(false);
-	dng->players = list_create(false);
-	dng->mobiles = list_create(false);
-	dng->objects = list_create(false);
-	dng->rooms = list_create(false);
-	dng->bosses = list_create(false);
-	dng->special_rooms = list_createx(false, NULL, delete_named_special_room);
-	dng->player_owners = list_createx(false, NULL, delete_list_uid_data);
+    dng->empty = false;
+    dng->floors = list_create(false);
+    dng->players = list_create(false);
+    dng->mobiles = list_create(false);
+    dng->objects = list_create(false);
+    dng->rooms = list_create(false);
+    dng->bosses = list_create(false);
+    dng->special_rooms = list_createx(false, NULL, delete_named_special_room);
+    dng->special_exits = list_createx(false, NULL, delete_named_special_exit);
+    dng->player_owners = list_createx(false, NULL, delete_list_uid_data);
 
-	VALIDATE(dng);
-	return dng;
+    VALIDATE(dng);
+    return dng;
 }
 
 void free_dungeon(DUNGEON *dng)
 {
-	if( !IS_VALID(dng) ) return;
+    if( !IS_VALID(dng) ) return;
 
-	ITERATOR fit;
-	INSTANCE *floor;
-	iterator_start(&fit, dng->floors);
-	while( (floor = (INSTANCE *)iterator_nextdata(&fit)) )
-	{
-		free_instance(floor);
-	}
-	iterator_stop(&fit);
+    ITERATOR fit;
+    INSTANCE *floor;
+    iterator_start(&fit, dng->floors);
+    while( (floor = (INSTANCE *)iterator_nextdata(&fit)) )
+    {
+        free_instance(floor);
+    }
+    iterator_stop(&fit);
 
-	list_destroy(dng->floors);
-	list_destroy(dng->players);
-	list_destroy(dng->mobiles);
-	list_destroy(dng->objects);
-	list_destroy(dng->rooms);
-	list_destroy(dng->bosses);
-	list_destroy(dng->special_rooms);
-	list_destroy(dng->player_owners);
+    list_destroy(dng->floors);
+    list_destroy(dng->players);
+    list_destroy(dng->mobiles);
+    list_destroy(dng->objects);
+    list_destroy(dng->rooms);
+    list_destroy(dng->bosses);
+    list_destroy(dng->special_rooms);
+    list_destroy(dng->special_exits);
+    list_destroy(dng->player_owners);
 
     variable_clearfield(VAR_DUNGEON, dng);
     script_clear_dungeon(dng);
     free_prog_data(dng->progs);
 
-	INVALIDATE(dng);
-	dng->next = dungeon_free;
-	dungeon_free = dng;
+    INVALIDATE(dng);
+    dng->next = dungeon_free;
+    dungeon_free = dng;
 }
 
 
 SPECIAL_KEY_DATA *special_key_free;
 SPECIAL_KEY_DATA *new_special_key()
 {
-	SPECIAL_KEY_DATA *sk;
+    SPECIAL_KEY_DATA *sk;
 
-	if( special_key_free )
-	{
-		sk = special_key_free;
-		special_key_free = special_key_free->next;
-	}
-	else
-	{
-		sk = alloc_mem(sizeof(SPECIAL_KEY_DATA));
-	}
+    if( special_key_free )
+    {
+        sk = special_key_free;
+        special_key_free = special_key_free->next;
+    }
+    else
+    {
+        sk = alloc_mem(sizeof(SPECIAL_KEY_DATA));
+    }
 
-	memset(sk, 0, sizeof(SPECIAL_KEY_DATA));
+    memset(sk, 0, sizeof(SPECIAL_KEY_DATA));
 
-	sk->list = list_createx(false, NULL, delete_list_uid_data);
+    sk->list = list_createx(false, NULL, delete_list_uid_data);
 
-	VALIDATE(sk);
+    VALIDATE(sk);
 
-	list_appendlink(loaded_special_keys, sk);
-	return sk;
+    list_appendlink(loaded_special_keys, sk);
+    return sk;
 }
 
 void free_special_key(SPECIAL_KEY_DATA *sk)
 {
-	if( !IS_VALID(sk) ) return;
+    if( !IS_VALID(sk) ) return;
 
-	list_remlink(loaded_special_keys, sk, false);
+    list_remlink(loaded_special_keys, sk, false);
 
-	list_destroy(sk->list);
+    list_destroy(sk->list);
 
-	INVALIDATE(sk);
-	sk->next = special_key_free;
-	special_key_free = sk;
+    INVALIDATE(sk);
+    sk->next = special_key_free;
+    special_key_free = sk;
 }
 
 LOCK_STATE *new_lock_state()
 {
-	LOCK_STATE *state = alloc_mem(sizeof(LOCK_STATE));
+    LOCK_STATE *state = alloc_mem(sizeof(LOCK_STATE));
 
-	state->key_vnum		= 0;
-	state->pick_chance	= 100;
-	state->flags		= 0;
-	state->keys			= NULL;
+    memset(state, 0, sizeof(LOCK_STATE));
 
-	return state;
+    state->pick_chance	= 100;
+    state->flags		= 0;
+    state->special_keys	= NULL;
+
+    return state;
 }
 
 void free_lock_state(LOCK_STATE *state)
 {
-	if( state )
-	{
-		free_mem(state, sizeof(LOCK_STATE));
-	}
+    if( state )
+    {
+        free_mem(state, sizeof(LOCK_STATE));
+    }
 }
 
 SHIP_ROUTE *ship_route_free;
 
 SHIP_ROUTE *new_ship_route()
 {
-	SHIP_ROUTE *route;
+    SHIP_ROUTE *route;
 
-	if( ship_route_free )
-	{
-		route = ship_route_free;
-		ship_route_free = ship_route_free->next;
-	}
-	else
-		route = alloc_mem(sizeof(SHIP_ROUTE));
+    if( ship_route_free )
+    {
+        route = ship_route_free;
+        ship_route_free = ship_route_free->next;
+    }
+    else
+        route = alloc_mem(sizeof(SHIP_ROUTE));
 
-	memset(route, 0, sizeof(SHIP_ROUTE));
+    memset(route, 0, sizeof(SHIP_ROUTE));
 
-	route->name = &str_empty[0];
-	route->waypoints = list_create(false);
+    route->name = &str_empty[0];
+    route->waypoints = list_create(false);
 
-	VALIDATE(route);
-	return route;
+    VALIDATE(route);
+    return route;
 }
 
 void free_ship_route(SHIP_ROUTE *route)
 {
-	if( !IS_VALID(route) ) return;
+    if( !IS_VALID(route) ) return;
 
-	free_string(route->name);
-	list_destroy(route->waypoints);
+    free_string(route->name);
+    list_destroy(route->waypoints);
 
-	INVALIDATE(route);
-	route->next = ship_route_free;
-	ship_route_free = route;
+    INVALIDATE(route);
+    route->next = ship_route_free;
+    ship_route_free = route;
 }
 
 SHIP_CREW_INDEX_DATA *ship_crew_index_free;
 
 SHIP_CREW_INDEX_DATA *new_ship_crew_index()
 {
-	SHIP_CREW_INDEX_DATA *crew;
+    SHIP_CREW_INDEX_DATA *crew;
 
-	if( ship_crew_index_free )
-	{
-		crew = ship_crew_index_free;
-		ship_crew_index_free = ship_crew_index_free->next;
-	}
-	else
-		crew = alloc_mem(sizeof(*crew));
+    if( ship_crew_index_free )
+    {
+        crew = ship_crew_index_free;
+        ship_crew_index_free = ship_crew_index_free->next;
+    }
+    else
+        crew = alloc_mem(sizeof(*crew));
 
-	memset(crew, 0, sizeof(*crew));
+    memset(crew, 0, sizeof(*crew));
 
-	VALIDATE(crew);
-	return crew;
+    VALIDATE(crew);
+    return crew;
 }
 
 void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew)
 {
-	if( !IS_VALID(crew) ) return;
+    if( !IS_VALID(crew) ) return;
 
-	INVALIDATE(crew);
-	crew->next = ship_crew_index_free;
-	ship_crew_index_free = crew;
+    INVALIDATE(crew);
+    crew->next = ship_crew_index_free;
+    ship_crew_index_free = crew;
 
+}
+
+AURA_DATA *new_aura_data()
+{
+    AURA_DATA *aura;
+
+    if (aura_data_free)
+    {
+        aura = aura_data_free;
+        aura_data_free = aura_data_free->next;
+    }
+    else
+        aura = alloc_mem(sizeof(AURA_DATA));
+
+    aura->next = NULL;
+    aura->name = str_dup("");
+    aura->long_descr = str_dup("");
+
+    VALIDATE(aura);
+    return aura;
+}
+
+void free_aura_data(AURA_DATA *aura)
+{
+    if (!IS_VALID(aura))
+        return;
+
+    free_string(aura->name);
+    free_string(aura->long_descr);
+
+    aura->next = aura_data_free;
+    aura_data_free = aura;
+    INVALIDATE(aura);
 }
 
 
@@ -4607,6 +6043,9 @@ ACCOUNT_CHARACTER *new_account_character()
     acct_char->email_verification_time = 0;
     acct_char->email_verification_last_sent = 0;
 
+    // Staff notes
+    acct_char->staff_notes = NULL;
+
     return acct_char;
 }
 
@@ -4641,6 +6080,15 @@ void free_account_character(ACCOUNT_CHARACTER *acct_char)
     if (acct_char->email)       free_string(acct_char->email);
     if (acct_char->pending_email) free_string(acct_char->pending_email);
     if (acct_char->email_verification_code) free_string(acct_char->email_verification_code);
+
+    // Free staff notes
+    {
+        ACCOUNT_NOTE_DATA *note, *note_next;
+        for (note = acct_char->staff_notes; note; note = note_next) {
+            note_next = note->next;
+            free_account_note(note);
+        }
+    }
 
     free(acct_char);
 }
@@ -4678,6 +6126,8 @@ ACCOUNT_DATA *new_account(void)
     account->mfa_key = str_dup("");
     account->mfa_enabled = false;
     account->characters = list_create(false);
+    account->avail_races = list_create(false);
+    account->default_character = str_dup("");
     
     VALIDATE(account);
     return account;
@@ -4718,6 +6168,7 @@ void free_account(ACCOUNT_DATA *account)
     free_string(account->mfa_key);
     
     list_destroy(account->characters);
+    list_destroy(account->avail_races);
     if (list_haslink(loaded_accounts, account))
         list_remlink(loaded_accounts, account, NULL);
     

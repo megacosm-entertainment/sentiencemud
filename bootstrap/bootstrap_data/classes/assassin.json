@@ -1,0 +1,54 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "assassin",
+        "male": "assassin",
+        "neutral": "assassin",
+        "other": "assassin"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "thief skills",
+        "assassin skills"
+    ],
+    "hp_max": 13,
+    "hp_min": 8,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "assassin",
+    "primary_stat": "dexterity",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "thief skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "assassin skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "assassin",
+            "keyword": "default",
+            "who_name": "  Assassin  "
+        }
+    ],
+    "type": "thief",
+    "uid": 10,
+    "weapon": 0,
+    "who": {
+        "female": "  Assassin  ",
+        "male": "  Assassin  ",
+        "neutral": "  Assassin  ",
+        "other": "  Assassin  "
+    }
+}

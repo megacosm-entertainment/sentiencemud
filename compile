@@ -1,27 +1,89 @@
 #!/bin/bash
+#
+# compile - Build Sentience MUD using CMake
+#
+# Usage: ./compile [debug|release|reldeb] [clean] [--help]
+#
+# Requires ./config to have been run first.
+#
+
+show_help() {
+    cat << 'EOF'
+Usage: ./compile [OPTIONS]
+
+Build Sentience MUD using CMake/Ninja.
+
+Options:
+    debug, deb              Build Debug configuration (default)
+    release, rel            Build Release configuration
+    relwithdebinfo, reldeb  Build Release with debug info
+    clean                   Clean before building
+    --help, -h              Show this help message
+
+Examples:
+    ./compile               # Build Debug
+    ./compile release       # Build Release
+    ./compile clean debug   # Clean rebuild Debug
+    ./compile rel clean     # Clean rebuild Release
+
+Prerequisites:
+    Run ./config first to set up the build system.
+
+Output locations:
+    Debug:          .build/Debug/sent
+    Release:        .build/Release/sent
+    RelWithDebInfo: .build/RelWithDebInfo/sent
+
+To install the binary to /sentience, use:
+    ./install [debug|release|reldeb]
+EOF
+    exit 0
+}
+
+# Check if build directory exists
+if [[ ! -d ".build" ]] || [[ ! -f ".build/build.ninja" ]]; then
+    echo "Error: Build not configured. Run ./config first."
+    echo "Use --help for usage information."
+    exit 1
+fi
 
 clean_opt=""
 build_cfg="--config Debug"
+config_name="Debug"
 
-for ARG in "$@" 
+for arg in "$@"
 do
-    if [[ ${ARG,,} == "clean" ]]
-    then
+    if [[ ${arg,,} == "clean" ]]; then
         clean_opt="--clean-first"
-    elif [[ ${ARG,,} == "release" ]] || [[ ${ARG,,} == "rel" ]]
-    then
+    elif [[ ${arg,,} == "release" ]] || [[ ${arg,,} == "rel" ]]; then
         build_cfg="--config Release"
-    elif [[ ${ARG,,} == "debug" ]] || [[ ${ARG,,} == "deb" ]]
-    then
+        config_name="Release"
+    elif [[ ${arg,,} == "debug" ]] || [[ ${arg,,} == "deb" ]]; then
         build_cfg="--config Debug"
-    elif [[ ${ARG,,} == "relwithdebinfo" ]] || [[ ${ARG,,} == "relwithdeb" ]] || [[ ${ARG,,} == "reldeb" ]]
-    then
+        config_name="Debug"
+    elif [[ ${arg,,} == "relwithdebinfo" ]] || [[ ${arg,,} == "relwithdeb" ]] || [[ ${arg,,} == "reldeb" ]]; then
         build_cfg="--config RelWithDebInfo"
+        config_name="RelWithDebInfo"
+    elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
+        show_help
     else
-        echo "Unknown argument '${ARG,,}'."
-        exit
+        echo "Unknown argument '${arg}'."
+        echo "Use --help for usage information."
+        exit 1
     fi
-
 done
 
+echo "Building ${config_name}..."
 cmake --build .build $clean_opt $build_cfg
+
+if [[ $? -eq 0 ]]; then
+    echo ""
+    echo "Build complete: .build/${config_name}/sent"
+    echo ""
+    echo "To install to /sentience:"
+    echo "  ./install ${config_name,,}"
+else
+    echo ""
+    echo "Build failed."
+    exit 1
+fi

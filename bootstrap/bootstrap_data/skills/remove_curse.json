@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 18,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 18,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            17,
+            1
+        ],
+        [
+            14,
+            2
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Remove Curse!",
+    "name": "remove curse",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_remove_curse",
+    "target": "obj_char_def",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 193
+}

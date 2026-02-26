@@ -1,0 +1,29 @@
+{
+    "name": "mage skills",
+    "skills": [
+        "dagger",
+        "quarterstaff",
+        "lightning bolt",
+        "dispel magic",
+        "shield",
+        "stone skin",
+        "fireball",
+        "magic missile",
+        "shocking grasp",
+        "burning hands",
+        "chain lightning",
+        "invis",
+        "armour",
+        "control weather",
+        "haste",
+        "giant strength",
+        "infravision",
+        "colour spray",
+        "earthquake",
+        "charm person",
+        "pass door",
+        "fly",
+        "invisibility",
+        "inferno"
+    ]
+}

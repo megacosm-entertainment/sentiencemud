@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 12,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 12,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 12,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 12,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            14,
+            5
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "resting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Word of Recall!",
+    "name": "word of recall",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_word_of_recall",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 267
+}

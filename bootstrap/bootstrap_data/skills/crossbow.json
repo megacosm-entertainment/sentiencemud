@@ -1,0 +1,53 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 0,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 1,
+            "rating": 10
+        },
+        {
+            "class": "cleric",
+            "level": 1,
+            "rating": 10
+        },
+        {
+            "class": "thief",
+            "level": 1,
+            "rating": 9
+        },
+        {
+            "class": "warrior",
+            "level": 1,
+            "rating": 10
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Crossbow!",
+    "name": "crossbow",
+    "noun_damage": "bolt",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 57
+}

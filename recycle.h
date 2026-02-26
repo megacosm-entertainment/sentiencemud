@@ -36,19 +36,14 @@
 extern char str_empty[1];
 extern long mobile_count;
 
-/* stuff for providing a crash-proof buffer */
-
-#define MAX_BUF		16384
-#define MAX_BUF_LIST 	16
-#define BASE_BUF 	1024
-
-/* valid states */
-#define BUFFER_SAFE	0
-#define BUFFER_OVERFLOW	1
-#define BUFFER_FREED 	2
+#include "utils/buffer.h"
 
 SKILL_ENTRY *new_skill_entry();
 void free_skill_entry(SKILL_ENTRY *entry);
+
+SKILL_SOURCE *new_skill_source();
+void free_skill_source(SKILL_SOURCE *source);
+void free_skill_sources(SKILL_SOURCE *list);
 
 /* note recycling */
 #define ND NOTE_DATA
@@ -79,6 +74,12 @@ void	free_extra_descr args( (EXTRA_DESCR_DATA *ed) );
 AD	*new_affect args( (void) );
 void	free_affect args( (AFFECT_DATA *af) );
 #undef AD
+
+/* catalyst recycling */
+#define CATD CATALYST_DATA
+CATD	*new_catalyst args( (void) );
+void	free_catalyst args( (CATALYST_DATA *cat) );
+#undef CATD
 
 /* object recycling */
 #define OD OBJ_DATA
@@ -116,15 +117,6 @@ void get_vroom_id(ROOM_INDEX_DATA *vroom);
 void get_ship_id(SHIP_DATA *ship);
 #undef MD
 
-/* buffer procedures */
-BUFFER	*new_buf args( (void) );
-BUFFER  *new_buf_size args( (int size) );
-void	free_buf args( (BUFFER *buffer) );
-bool	add_buf_char args( (BUFFER *buffer, char ch) );
-bool	add_buf args( (BUFFER *buffer, char *string) );
-void	clear_buf args( (BUFFER *buffer) );
-char	*buf_string args( (BUFFER *buffer) );
-
 HELP_DATA *	new_help	args( ( void ) );
 
 LLIST_UID_DATA *new_list_uid_data();
@@ -132,6 +124,11 @@ void free_list_uid_data(LLIST_UID_DATA *luid);
 
 QUESTOR_DATA *new_questor_data();
 void free_questor_data(QUESTOR_DATA *q);
+
+TRAINER_ENTRY *new_trainer_entry();
+void free_trainer_entry(TRAINER_ENTRY *entry);
+TRAINER_DATA *new_trainer_data();
+void free_trainer_data(TRAINER_DATA *t);
 
 OLC_POINT_BOOST *new_olc_point_boost();
 void free_olc_point_boost(OLC_POINT_BOOST *boost);
@@ -145,6 +142,15 @@ void free_script_param(SCRIPT_PARAM *arg);
 BLUEPRINT_LINK *new_blueprint_link();
 void free_blueprint_link(BLUEPRINT_LINK *bl);
 
+MAZE_WEIGHTED_ROOM *new_maze_weighted_room();
+void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *mwr);
+
+MAZE_FIXED_ROOM *new_maze_fixed_room();
+void free_maze_fixed_room(MAZE_FIXED_ROOM *mfr);
+
+MAZE_MAP_DATA *new_maze_map_data();
+void free_maze_map_data(MAZE_MAP_DATA *mmd);
+
 BLUEPRINT_SECTION *new_blueprint_section();
 void free_blueprint_section(BLUEPRINT_SECTION *bs);
 
@@ -154,8 +160,14 @@ void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl);
 BLUEPRINT_SPECIAL_ROOM *new_blueprint_special_room();
 void free_blueprint_special_room(BLUEPRINT_SPECIAL_ROOM *special);
 
+BLUEPRINT_EXIT_DATA *new_blueprint_exit_data();
+void free_blueprint_exit_data(BLUEPRINT_EXIT_DATA *ex);
+
 BLUEPRINT *new_blueprint();
 void free_blueprint(BLUEPRINT *bp);
+
+NAMED_SPECIAL_EXIT *new_named_special_exit();
+void free_named_special_exit(NAMED_SPECIAL_EXIT *special);
 
 INSTANCE_SECTION *new_instance_section();
 void free_instance_section(INSTANCE_SECTION *section);
@@ -163,11 +175,26 @@ void free_instance_section(INSTANCE_SECTION *section);
 NAMED_SPECIAL_ROOM *new_named_special_room();
 void free_named_special_room(NAMED_SPECIAL_ROOM *special);
 
+NAMED_SPECIAL_EXIT *new_named_special_exit();
+void free_named_special_exit(NAMED_SPECIAL_EXIT *special);
+
 INSTANCE *new_instance();
 void free_instance(INSTANCE *instance);
 
+DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *new_weighted_random_floor();
+void free_weighted_random_floor(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted);
+
+DUNGEON_INDEX_WEIGHTED_EXIT_DATA *new_weighted_random_exit();
+void free_weighted_random_exit(DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted);
+
+DUNGEON_INDEX_LEVEL_DATA *new_dungeon_index_level();
+void free_dungeon_index_level(DUNGEON_INDEX_LEVEL_DATA *dungeon_level);
+
 DUNGEON_INDEX_SPECIAL_ROOM *new_dungeon_index_special_room();
 void free_dungeon_index_special_room(DUNGEON_INDEX_SPECIAL_ROOM *special);
+
+DUNGEON_INDEX_SPECIAL_EXIT *new_dungeon_index_special_exit();
+void free_dungeon_index_special_exit(DUNGEON_INDEX_SPECIAL_EXIT *special);
 
 DUNGEON_INDEX_DATA *new_dungeon_index();
 void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);
@@ -195,6 +222,13 @@ void free_ship_route(SHIP_ROUTE *route);
 
 SHIP_CREW_INDEX_DATA *new_ship_crew_index();
 void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
+
+MOB_REPUTATION_DATA *new_mob_reputation_data();
+MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src);
+void free_mob_reputation_data(MOB_REPUTATION_DATA *data);
+
+AURA_DATA *new_aura_data();
+void free_aura_data(AURA_DATA *aura);
 
 CMD_DATA *new_cmd();
 void free_cmd(CMD_DATA *cmd);

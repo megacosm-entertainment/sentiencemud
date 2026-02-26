@@ -1,0 +1,56 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "illusionist",
+        "male": "illusionist",
+        "neutral": "illusionist",
+        "other": "illusionist"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster",
+        "remort_only"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "mage skills",
+        "illusionist skills"
+    ],
+    "hp_max": 8,
+    "hp_min": 6,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "illusionist",
+    "primary_stat": "intelligence",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "mage skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "illusionist skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "illusionist",
+            "keyword": "default",
+            "who_name": "Illusionist "
+        }
+    ],
+    "type": "mage",
+    "uid": 18,
+    "weapon": 0,
+    "who": {
+        "female": "Illusionist ",
+        "male": "Illusionist ",
+        "neutral": "Illusionist ",
+        "other": "Illusionist "
+    }
+}

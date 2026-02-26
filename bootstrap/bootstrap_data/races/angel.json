@@ -1,0 +1,89 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "angel",
+  "uid": 11,
+  "name": "angel",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": true,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "{WAngel "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 1,
+    "form": [
+      "magical",
+      "sentient",
+      "biped"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "claws",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "horns",
+      "legs",
+      "scales",
+      "tail"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [],
+    "vulnerabilities": [
+      "negative"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 25,
+      "int": 25,
+      "wis": 25,
+      "dex": 25,
+      "con": 25
+    },
+    "max_vitals": {
+      "hp": 3500,
+      "mana": 3500,
+      "move": 3500
+    }
+  },
+  "skills": [
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "death_plane_vnum_min": 300050,
+    "death_plane_vnum_max": 307050,
+    "cosmic_projection": true,
+    "classless_skills": true
+  }
+}

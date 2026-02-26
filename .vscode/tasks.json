@@ -1,0 +1,125 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Dependencies",
+            "type": "shell",
+            "command": "./build_deps.sh",
+            "options": { "cwd": "/sentience/src/.deps" },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Debug",
+            "type": "shell",
+            "command": "./build",
+            "options": { "cwd": "/sentience/src" },
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "./build release",
+            "options": { "cwd": "/sentience/src" },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build Tests",
+            "type": "shell",
+            "command": "./build tests",
+            "options": { "cwd": "/sentience/src" },
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Run Tests",
+            "type": "shell",
+            "command": "cd /sentience/src && ./build tests && cd /sentience && ./sent -test",
+            "options": { "cwd": "/sentience" },
+            "group": { "kind": "test", "isDefault": true },
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Tests (Fast)",
+            "type": "shell",
+            "command": "./sent -test",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Unit Tests",
+            "type": "shell",
+            "command": "cd /sentience/src && ./build tests && cd /sentience && ./sent -test:unit",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Unit Tests (Fast)",
+            "type": "shell",
+            "command": "./sent -test:unit",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Integration Tests",
+            "type": "shell",
+            "command": "cd /sentience/src && ./build tests && cd /sentience && ./sent -test:integration",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Integration Tests (Fast)",
+            "type": "shell",
+            "command": "./sent -test:integration",
+            "options": { "cwd": "/sentience" },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean Build",
+            "type": "shell",
+            "command": "./build clean",
+            "options": { "cwd": "/sentience/src" },
+            "problemMatcher": []
+        },
+        {
+            "label": "Install Debug",
+            "type": "shell",
+            "command": "./install",
+            "options": { "cwd": "/sentience/src" },
+            "dependsOn": "Build Debug",
+            "problemMatcher": []
+        },
+        {
+            "label": "Install Release",
+            "type": "shell",
+            "command": "./install release",
+            "options": { "cwd": "/sentience/src" },
+            "dependsOn": "Build Release",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Game",
+            "type": "shell",
+            "command": "pkill -f '/sentience/sent' 2>/dev/null && sleep 1 || true; rm -f /sentience/data/system/.setting_override; doppler run --mount-format json --mount /sentience/data/system/.setting_override -- /sentience/sent",
+            "options": { "cwd": "/sentience" },
+            "isBackground": true,
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "focus": true }
+        },
+        {
+            "label": "Run Game (GDB)",
+            "type": "shell",
+            "command": "pkill -f '/sentience/sent' 2>/dev/null && sleep 1 || true; rm -f /sentience/data/system/.setting_override; doppler run --mount-format json --mount /sentience/data/system/.setting_override -- gdb /sentience/sent",
+            "options": { "cwd": "/sentience" },
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "focus": true }
+        }
+    ]
+}

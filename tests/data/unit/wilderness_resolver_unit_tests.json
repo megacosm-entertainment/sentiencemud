@@ -1,0 +1,32 @@
+{
+  "type": "test_suite",
+  "test_suite": "wilderness_resolver_unit_tests",
+  "description": "Pure-function unit tests for wilderness effective/base/runtime tile resolver consistency",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "wilds_effective_base_runtime_consistency",
+      "description": "Validates runtime tile updates, overlay precedence, and bounds behavior for wilderness tile resolvers",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "wilds_resolver_consistency",
+        "test_cases": [
+          {
+            "width": 8,
+            "height": 8,
+            "runtime_x": 3,
+            "runtime_y": 4,
+            "base_tile": ".",
+            "runtime_tile": "^",
+            "overlay_tile": "~"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

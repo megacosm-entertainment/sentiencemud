@@ -1,0 +1,48 @@
+{
+  "type": "test_suite",
+  "test_suite": "wnum_parsing_unit_tests",
+  "description": "Scenario coverage for WNUM parsing behavior",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "parse_required_wnum_scenarios",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "parse_widevnum",
+        "test_cases": [
+          {
+            "input_area_uid_from": "Limbo",
+            "input_vnum": 1,
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input": "Limbo#1",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input": "#1",
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input": "1",
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          },
+          {
+            "input": "#1",
+            "expected_vnum": 0
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

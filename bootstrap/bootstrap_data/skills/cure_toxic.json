@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 31
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 31
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 31
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 31
+        }
+    ],
+    "inks": [
+        [
+            5,
+            5
+        ],
+        [
+            19,
+            2
+        ],
+        [
+            8,
+            2
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Cure Toxic!",
+    "name": "cure toxic",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_cure_toxic",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 64
+}

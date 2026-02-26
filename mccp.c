@@ -74,9 +74,9 @@ bool compressStart(DESCRIPTOR_DATA *desc)
 
     if ( !s )
     {
-	log_string( "PANIC!  Couldn't find an s to which to compress!" );
-	close_socket( desc );
-	return false;
+    log_string( "PANIC!  Couldn't find an s to which to compress!" );
+    close_socket( desc );
+    return false;
     }
 
     s->next_in = NULL;
@@ -93,7 +93,7 @@ bool compressStart(DESCRIPTOR_DATA *desc)
         /* problems with zlib, try to clean up */
         free_mem(desc->out_compress_buf, COMPRESS_BUF_SIZE);
         free_mem(s, sizeof(z_stream));
-	return false;
+    return false;
     }
 
     write_to_descriptor(desc, compress_start, strlen(compress_start));

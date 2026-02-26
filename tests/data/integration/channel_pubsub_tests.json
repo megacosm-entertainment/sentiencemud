@@ -1,0 +1,356 @@
+{
+  "test_suite": "channel_pubsub",
+  "description": "Channel transport backend and local inbound dispatch tests",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "channel_backend_legacy_mode",
+      "description": "Backend selection parses legacy_iterative mode",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "legacy_iterative",
+        "expected_backend": "legacy_iterative",
+        "expected_mode": 0
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_backend_local_mode",
+      "description": "Backend selection parses local mode",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "local",
+        "expected_backend": "local",
+        "expected_mode": 1
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_backend_auto_mode",
+      "description": "Backend selection parses auto mode (currently local backend)",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "auto",
+        "expected_backends": ["redis", "local"],
+        "expected_mode": 2
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_backend_redis_fallback",
+      "description": "Redis mode uses redis backend when available, otherwise falls back safely",
+      "dependencies": [],
+      "test_type": "channel_backend_mode_test",
+      "input": {
+        "mode": "redis",
+        "expected_backends": ["redis", "local"],
+        "expected_mode": 3
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_local_inbound_dispatch",
+      "description": "Local transport queues published message and dispatches via inbound callback on pulse",
+      "dependencies": [],
+      "test_type": "channel_local_inbound_dispatch_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_area_uid",
+      "description": "Effective subscriptions include global and area UID topic when no area override is set",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_area_uid_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_area_override",
+      "description": "Effective subscriptions prefer area topic override instead of area UID topic",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_area_override_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_movement_delta",
+      "description": "Effective subscriptions switch area topic when actor moves between areas",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_movement_delta_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_room_regular",
+      "description": "Effective subscriptions include static room topic for ROOM_WV channels in regular rooms",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_room_regular_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_room_wilds",
+      "description": "Effective subscriptions include wilderness room topic for ROOM_WV channels in wilds rooms",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_room_wilds_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_instance_scope",
+      "description": "Effective subscriptions include instance-scoped topic when actor is inside an instance",
+      "dependencies": [],
+      "test_type": "channel_scope_inst_subscriptions_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_dungeon_scope",
+      "description": "Effective subscriptions include dungeon-scoped topic when actor is inside a dungeon instance",
+      "dependencies": [],
+      "test_type": "channel_scope_dng_subscriptions_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_area_isolated",
+      "description": "Area-scoped topic is suppressed when actor is in an isolated instance or dungeon context",
+      "dependencies": [],
+      "test_type": "channel_area_isolated_subscriptions_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_auto_backend_subscription_continuity",
+      "description": "Effective subscriptions remain stable across auto backend init/pulse cycles",
+      "dependencies": [],
+      "test_type": "channel_auto_backend_subscription_continuity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_no_duplicates",
+      "description": "Effective subscriptions contain unique topics only",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_no_duplicates_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_effective_subscriptions_group_scope",
+      "description": "Effective subscriptions include GROUP_ID topic for grouped actors",
+      "dependencies": [],
+      "test_type": "channel_effective_subscriptions_group_scope_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_chtalk_delivery_muted_filter",
+      "description": "Church talk delivery reaches church members and suppresses COMM_NOCT recipients",
+      "dependencies": [],
+      "test_type": "channel_chtalk_delivery_muted_filter_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_chtalk_delivery_ignore_filter",
+      "description": "Church talk delivery suppresses recipients who are ignoring the sender",
+      "dependencies": [],
+      "test_type": "channel_chtalk_delivery_ignore_filter_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_quote_delivery_filtering",
+      "description": "Quote delivery honors COMM_NOQUOTE, COMM_QUIET, and ignore filters",
+      "dependencies": [],
+      "test_type": "channel_quote_delivery_filtering_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_send_without_init_fallback",
+      "description": "ChannelService send falls back to local legacy delivery when service is not initialized",
+      "dependencies": [],
+      "test_type": "channel_send_without_init_fallback_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_compact_publish_hydrated_delivery",
+      "description": "Compact Redis publish payloads are hydrated from stream history and still delivered",
+      "dependencies": [],
+      "test_type": "channel_compact_publish_hydrated_delivery_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_local_end_to_end_delivery",
+      "description": "Local backend delivers gossip from sender to receiver via transport queue round-trip",
+      "dependencies": [],
+      "test_type": "channel_local_end_to_end_delivery_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_modifier_order_behavior",
+      "description": "Channel modifier_order changes transform sequence outcomes for the same modifier set",
+      "dependencies": [],
+      "test_type": "channel_modifier_order_behavior_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_directed_delivery",
+      "description": "channel_service_send_directed delivers tell only to the specific recipient via local transport",
+      "dependencies": [],
+      "test_type": "channel_tell_directed_delivery_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_ignore_filter",
+      "description": "Tell delivery is blocked at receive time when recipient is ignoring sender",
+      "dependencies": [],
+      "test_type": "channel_tell_ignore_filter_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_afk_replay_parity",
+      "description": "Directed tell to AFK recipient is buffered and replay prints then clears it",
+      "dependencies": [],
+      "test_type": "channel_tell_afk_replay_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_linkdead_replay_parity",
+      "description": "Directed tell to linkdead recipient is buffered and replay prints then clears it after reconnect",
+      "dependencies": [],
+      "test_type": "channel_tell_linkdead_replay_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_tell_linkdead_quiet_buffer_parity",
+      "description": "Directed tell to linkdead recipient buffers even when recipient has quiet set, matching legacy ordering",
+      "dependencies": [],
+      "test_type": "channel_tell_linkdead_quiet_buffer_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_object_targeted_parity",
+      "description": "Object-targeted intone routes through channel service and preserves sender/room visible output",
+      "dependencies": [],
+      "test_type": "channel_intone_object_targeted_parity_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_block",
+      "description": "Object-targeted intone applies channel filtering and blocks marker-matched blocked text",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_block_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_redact",
+      "description": "Object-targeted intone applies channel filtering redaction and delivers redacted text",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_redact_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_review",
+      "description": "Object-targeted intone applies review marker behavior and enqueues a staff report",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_review_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "channel_intone_filter_def_block",
+      "description": "Object-targeted intone honors channel-definition simple filter block rules",
+      "dependencies": [],
+      "test_type": "channel_intone_filter_def_block_test",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

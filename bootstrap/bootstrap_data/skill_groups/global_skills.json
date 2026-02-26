@@ -1,0 +1,11 @@
+{
+    "name": "global skills",
+    "skills": [
+        "scrolls",
+        "staves",
+        "wands",
+        "hand to hand",
+        "single weapon style",
+        "lore"
+    ]
+}

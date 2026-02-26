@@ -1,0 +1,124 @@
+{
+  "type": "test_suite",
+  "test_suite": "core_string_unit_tests",
+  "description": "Comprehensive unit tests for core string and argument utility functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "is_number_core_cases",
+      "description": "Validates numeric parser behavior for signs, empty strings, and mixed content",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "is_number",
+        "test_cases": [
+          { "arg": "0", "expected": true },
+          { "arg": "12345", "expected": true },
+          { "arg": "+42", "expected": true },
+          { "arg": "-17", "expected": true },
+          { "arg": "", "expected": false },
+          { "arg": "+", "expected": true },
+          { "arg": "12a", "expected": false },
+          { "arg": " 12", "expected": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "str_prefix_core_cases",
+      "description": "Validates historical not-prefix semantics",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "str_prefix",
+        "test_cases": [
+          { "astr": "he", "bstr": "hello", "expected_not_prefix": false },
+          { "astr": "hello", "bstr": "hello", "expected_not_prefix": false },
+          { "astr": "Hello", "bstr": "hello", "expected_not_prefix": false },
+          { "astr": "hex", "bstr": "hello", "expected_not_prefix": true },
+          { "astr": "hello world", "bstr": "hello", "expected_not_prefix": true }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "number_argument_core_cases",
+      "description": "Validates numbered argument parsing with and without dot notation",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "number_argument",
+        "test_cases": [
+          { "argument": "2.sword", "expected_number": 2, "expected_arg": "sword" },
+          { "argument": "10.container", "expected_number": 10, "expected_arg": "container" },
+          { "argument": "sword", "expected_number": 1, "expected_arg": "sword" },
+          { "argument": "0.ring", "expected_number": 0, "expected_arg": "ring" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "one_argument_core_cases",
+      "description": "Validates token extraction, quoting, whitespace trim, and lowercase conversion",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "one_argument",
+        "test_cases": [
+          { "argument": "look north", "expected_first": "look", "expected_rest": "north" },
+          { "argument": "   cast   'Magic Missile'  target", "expected_first": "cast", "expected_rest": "'Magic Missile'  target" },
+          { "argument": "'Two Words' remainder text", "expected_first": "two words", "expected_rest": "remainder text" },
+          { "argument": "\"Quoted Value\" after", "expected_first": "quoted value", "expected_rest": "after" },
+          { "argument": "SAY", "expected_first": "say", "expected_rest": "" },
+          { "argument": "   ", "expected_first": "", "expected_rest": "" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "smash_tilde_core_cases",
+      "description": "Validates disk-safe tilde replacement",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "smash_tilde",
+        "test_cases": [
+          { "input": "no tildes", "expected_output": "no tildes" },
+          { "input": "a~b", "expected_output": "a-b" },
+          { "input": "~~~", "expected_output": "---" },
+          { "input": "prefix~ suffix~", "expected_output": "prefix- suffix-" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "is_name_core_cases",
+      "description": "Validates namelist token matching semantics",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "is_name",
+        "test_cases": [
+          { "str": "sword", "namelist": "short sword longsword", "expected": true },
+          { "str": "short", "namelist": "short sword longsword", "expected": true },
+          { "str": "long", "namelist": "short sword longsword", "expected": true },
+          { "str": "axe", "namelist": "short sword longsword", "expected": false },
+          { "str": "", "namelist": "short sword", "expected": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "is_exact_name_core_cases",
+      "description": "Validates exact token match behavior",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "is_exact_name",
+        "test_cases": [
+          { "str": "sword", "namelist": "short sword longsword", "expected": true },
+          { "str": "long", "namelist": "short sword longsword", "expected": false },
+          { "str": "longsword", "namelist": "short sword longsword", "expected": true },
+          { "str": "SWORD", "namelist": "short sword longsword", "expected": true },
+          { "str": "axe", "namelist": "short sword longsword", "expected": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    }
+  ]
+}

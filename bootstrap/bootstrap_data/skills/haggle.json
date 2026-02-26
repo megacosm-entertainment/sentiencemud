@@ -1,0 +1,53 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 0,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 5
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 5,
+            "rating": 3
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 6
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "resting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Haggle!",
+    "name": "haggle",
+    "noun_damage": "",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 130
+}

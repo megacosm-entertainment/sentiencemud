@@ -1,0 +1,19 @@
+{
+  "default_tile": "S",
+  "schema": "wilderness_wterr",
+  "terrains": [
+    {
+      "briefdesc": "A bootstrap wilderness test tile.",
+      "nonroom": false,
+      "showchar": "{G.{x",
+      "showname": "bootstrap field",
+      "tile": "S",
+      "wildgen_b": 88,
+      "wildgen_g": 160,
+      "wildgen_has_color": true,
+      "wildgen_r": 88
+    }
+  ],
+  "version": 1,
+  "wilds_uid": 1
+}

@@ -73,6 +73,7 @@
  #include "tables.h"
  #include "wilds.h"
  #include "protocol.h"
+ #include "secret.h"
  
  /*
   * Socket and TCP/IP stuff.
@@ -130,26 +131,116 @@ bool configure_context(SSL_CTX *context)
     
     // Set up ECDH parameters
     SSL_CTX_set_ecdh_auto(context, 1);
-    
-    // Load certificate and private key files
-    if (SSL_CTX_use_certificate_file(context, game_settings.ssl_cert_path, SSL_FILETYPE_PEM) <= 0) {
-        log_string("SSL error: Failed to load certificate");
-        return false;
+
+    // Load certificate - try secrets (mount or env var) first, then file
+    const char *ssl_cert_data = secret_get("SENTIENCE_SSL_CERT_DATA");
+    const char *ssl_key_data = secret_get("SENTIENCE_SSL_KEY_DATA");
+
+    if (ssl_cert_data && ssl_cert_data[0] != '\0') {
+        // Load certificate chain from secrets (PEM format)
+        // This handles full chains: server cert + intermediates + root
+        const char *source = secret_using_mount() ? "secrets mount" : "environment variable";
+        log_stringf("Override applied: SSL_CERT_DATA from %s", source);
+        BIO *bio = BIO_new_mem_buf(ssl_cert_data, -1);
+        if (!bio) {
+            log_string("SSL error: Failed to create BIO for certificate data");
+            return false;
+        }
+
+        // Read the first certificate (server certificate)
+        X509 *cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+        if (!cert) {
+            BIO_free(bio);
+            log_string("SSL error: Failed to parse server certificate from secrets");
+            return false;
+        }
+
+        if (SSL_CTX_use_certificate(context, cert) <= 0) {
+            X509_free(cert);
+            BIO_free(bio);
+            log_string("SSL error: Failed to use server certificate from secrets");
+            return false;
+        }
+        X509_free(cert);
+
+        // Read any additional certificates (intermediate/root CA certs) and add to chain
+        int chain_count = 0;
+        while ((cert = PEM_read_bio_X509(bio, NULL, NULL, NULL)) != NULL) {
+            // SSL_CTX_add_extra_chain_cert takes ownership of cert on success
+            if (SSL_CTX_add_extra_chain_cert(context, cert) <= 0) {
+                X509_free(cert);
+                BIO_free(bio);
+                log_string("SSL error: Failed to add chain certificate from secrets");
+                return false;
+            }
+            chain_count++;
+        }
+
+        // Clear any "no more certificates" error from the loop
+        ERR_clear_error();
+        BIO_free(bio);
+
+        if (chain_count > 0) {
+            log_stringf("SSL: Loaded certificate chain with %d intermediate/CA cert(s) from secrets", chain_count);
+        }
+    } else {
+        // Load certificate from file (original behavior)
+        if (SSL_CTX_use_certificate_chain_file(context, game_settings.ssl_cert_path) <= 0) {
+            log_string("SSL error: Failed to load certificate chain");
+            return false;
+        }
     }
-    
-    if (SSL_CTX_use_PrivateKey_file(context, game_settings.ssl_key_path, SSL_FILETYPE_PEM) <= 0) {
-        log_string("SSL error: Failed to load private key");
-        return false;
+
+    if (ssl_key_data && ssl_key_data[0] != '\0') {
+        // Load private key from secrets (PEM format)
+        const char *source = secret_using_mount() ? "secrets mount" : "environment variable";
+        log_stringf("Override applied: SSL_KEY_DATA from %s", source);
+        BIO *bio = BIO_new_mem_buf(ssl_key_data, -1);
+        if (!bio) {
+            log_string("SSL error: Failed to create BIO for private key data");
+            return false;
+        }
+
+        EVP_PKEY *pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+        BIO_free(bio);
+
+        if (!pkey) {
+            log_string("SSL error: Failed to parse private key from secrets");
+            return false;
+        }
+
+        if (SSL_CTX_use_PrivateKey(context, pkey) <= 0) {
+            EVP_PKEY_free(pkey);
+            log_string("SSL error: Failed to use private key from secrets");
+            return false;
+        }
+        EVP_PKEY_free(pkey);
+    } else {
+        // Load private key from file (original behavior)
+        if (SSL_CTX_use_PrivateKey_file(context, game_settings.ssl_key_path, SSL_FILETYPE_PEM) <= 0) {
+            log_string("SSL error: Failed to load private key");
+            return false;
+        }
     }
-    
+
     // Verify the private key matches the certificate
     if (!SSL_CTX_check_private_key(context)) {
         log_string("SSL error: Private key does not match certificate");
         return false;
     }
     
-    // Set cipher list - use secure modern ciphers
-    SSL_CTX_set_cipher_list(context, "HIGH:!aNULL:!MD5:!RC4");
+    // Set cipher list - enforce Perfect Forward Secrecy with modern AEAD ciphers
+    // Prioritize TLS 1.3 ciphers, fall back to strong TLS 1.2 ciphersuites with PFS
+    SSL_CTX_set_cipher_list(context,
+        "TLS_AES_256_GCM_SHA384:"           // TLS 1.3
+        "TLS_CHACHA20_POLY1305_SHA256:"     // TLS 1.3
+        "TLS_AES_128_GCM_SHA256:"           // TLS 1.3
+        "ECDHE-RSA-AES256-GCM-SHA384:"      // TLS 1.2 with PFS
+        "ECDHE-RSA-AES128-GCM-SHA256:"      // TLS 1.2 with PFS
+        "ECDHE-RSA-CHACHA20-POLY1305:"      // TLS 1.2 with PFS
+        "DHE-RSA-AES256-GCM-SHA384:"        // TLS 1.2 with PFS
+        "DHE-RSA-AES128-GCM-SHA256"         // TLS 1.2 with PFS
+    );
     
     return true;
 }
@@ -159,15 +250,17 @@ bool configure_context(SSL_CTX *context)
  */
 SSL_CTX *create_context(void)
 {
-    SSL_CTX *new_ctx = SSL_CTX_new(SSLv23_server_method());
-    
+    // Use TLS_server_method() for modern OpenSSL (1.1.0+)
+    // This supports all TLS versions, controlled by min/max version settings
+    SSL_CTX *new_ctx = SSL_CTX_new(TLS_server_method());
+
     if (!new_ctx) {
         log_string("SSL error: Failed to create SSL context");
         return NULL;
     }
-    
-    // Disable old, insecure protocols
-    SSL_CTX_set_options(new_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
+
+    // Disable old, insecure protocols (redundant with min version, but explicit)
+    SSL_CTX_set_options(new_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
     
     // Configure the context
     if (!configure_context(new_ctx)) {

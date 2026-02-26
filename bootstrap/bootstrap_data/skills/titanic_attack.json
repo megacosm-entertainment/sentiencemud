@@ -1,0 +1,56 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 0,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 1,
+            "rating": 8
+        },
+        {
+            "class": "cleric",
+            "level": 1,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 1,
+            "rating": 8
+        },
+        {
+            "class": "warrior",
+            "level": 1,
+            "rating": 8
+        }
+    ],
+    "flags": [
+        "racial"
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Titanic Attack!",
+    "name": "titanic attack",
+    "noun_damage": "",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 248
+}

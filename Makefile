@@ -1,306 +1,355 @@
 CC      = gcc
 PROF    = -Wall -O -g -pg -ggdb
 OBJDIR	= obj
-VPATH   = .:obj
-LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail  -lcotp -lqrencode -lpng
-C_FLAGS = $(PROF) -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DBUILD_NUMBER=\"$(CUR_BUILD_NUMBER)\" -DCOMMIT=\"$(GIT_URL)\"
-L_FLAGS =  $(PROF) $(LIBS)
-EXE	= sent
-BUILD_NUMBER_FILE = build.txt
-GIT_VERSION := "$(shell git describe --dirty --always --tags)"
-CUR_BUILD_DATE := "$(shell sh date.sh)"
-CUR_BUILD_NUMBER := "$(shell cat $(BUILD_NUMBER_FILE))"
-GIT_URL := "$(shell sh giturl.sh)"
 
-VERSION1 = 20061008
-PATH1 = ../20061008
-VERSION2 = vizzwild
-PATH2 = ../vizzwild
+# Parallel build: use half of available cores by default
+# Override with: make JOBS=N or make -jN
+NPROC := $(shell nproc 2>/dev/null || echo 4)
+JOBS ?= $(shell echo $$(($(NPROC) / 2)))
+MAKEFLAGS += -j$(JOBS)
 
-DIFF_TXT = diff_$(VERSION1)_$(VERSION2).txt
-DIFF_C = $(patsubst $(PATH1)/%.c,%_c.diff,$(wildcard $(PATH1)/*.c)) $(patsubst $(PATH1)/%.h,%_h.diff,$(wildcard $(PATH1)/*.h))
+# Dependency directories (submodules in .deps/, others are system packages)
+DEPS_DIR = .deps
+LIBCOTP_DIR = $(DEPS_DIR)/libcotp
+LIBBACKTRACE_DIR = $(DEPS_DIR)/libbacktrace
 
-C_FILES = \
-	account/otp.c \
-	account/account_notes.c \
-	act_comm.c \
-	act_enter.c \
-	act_info.c \
-	act_info2.c \
-	act_move.c \
-	act_obj.c \
-	act_obj2.c \
-	act_wiz.c \
-	alias.c \
-	auction.c \
-	autowar.c \
-	ban.c \
-	bit.c \
-	blueprint.c \
-	boat.c \
-	chat_rooms.c \
-	church.c \
-	comm.c \
-	const.c \
-	db.c \
-	db2.c \
-	drunk.c \
-	dungeon.c \
-	editors/cmdedit.c \
-	editors/gameedit.c \
-	editors/socialedit.c \
-	effects.c \
-	events.c \
-	fight.c \
-	fight2.c \
-	gq.c \
-	handler.c \
-	healer.c \
-	help.c \
-	house.c \
-	html.c \
-	hunt.c \
-	interp.c \
-	invasion.c \
-	lookup.c \
-	magic.c \
-	magic2.c \
-	magic_acid.c \
-	magic_air.c \
-	magic_astral.c \
-	magic_blood.c \
-	magic_body.c \
-	magic_chaos.c \
-	magic_cold.c \
-	magic_cosmic.c \
-	magic_dark.c \
-	magic_death.c \
-	magic_earth.c \
-	magic_energy.c \
-	magic_fire.c \
-	magic_holy.c \
-	magic_law.c \
-	magic_light.c \
-	magic_mana.c \
-	magic_metal.c \
-	magic_mind.c \
-	magic_nature.c \
-	magic_shock.c \
-	magic_soul.c \
-	magic_sound.c \
-	magic_toxin.c \
-	magic_water.c \
-	mail.c \
-	mccp.c \
-	mem.c \
-	mount.c \
-	music.c \
-	nanny.c \
-	note.c \
-	olc.c \
-	olc_act.c \
-	olc_act2.c \
-	olc_mpcode.c \
-	olc_save.c \
-	project.c \
-	protocol.c \
-	quest.c \
-	reserved.c \
-	save.c \
-	scan.c \
-	script_commands.c \
-	script_comp.c \
-	script_const.c \
-	script_expand.c \
-	script_ifc.c \
-	script_mpcmds.c \
-	script_opcmds.c \
-	script_rpcmds.c \
-	script_tpcmds.c \
-	script_vars.c \
-	scripts.c \
-	shoot.c \
-	skills.c \
-	special.c \
-	staff.c \
-	stats.c \
-	string.c \
-	storage.c \
-	tables.c \
-	tls.c \
-	treasuremap.c \
-	update.c \
-	weather.c \
-	wilds.c \
+# Include paths for local dependencies
+INCLUDES = -I. -I$(LIBCOTP_DIR)/src -I$(LIBBACKTRACE_DIR) -Ichannels
 
-O_FILES = \
-	$(OBJDIR)/account/otp.o \
-	$(OBJDIR)/account/account_notes.o \
-	$(OBJDIR)/act_comm.o \
-	$(OBJDIR)/act_enter.o \
-	$(OBJDIR)/act_info.o \
-	$(OBJDIR)/act_info2.o \
-	$(OBJDIR)/act_move.o \
-	$(OBJDIR)/act_obj.o \
-	$(OBJDIR)/act_obj2.o \
-	$(OBJDIR)/act_wiz.o \
-	$(OBJDIR)/alias.o \
-	$(OBJDIR)/auction.o \
-	$(OBJDIR)/autowar.o \
-	$(OBJDIR)/ban.o \
-	$(OBJDIR)/bit.o \
-	$(OBJDIR)/blueprint.o \
-	$(OBJDIR)/boat.o \
-	$(OBJDIR)/chat_rooms.o \
-	$(OBJDIR)/church.o \
-	$(OBJDIR)/comm.o \
-	$(OBJDIR)/const.o \
-	$(OBJDIR)/db.o \
-	$(OBJDIR)/db2.o \
-	$(OBJDIR)/drunk.o \
-	$(OBJDIR)/dungeon.o \
-	$(OBJDIR)/editors/cmdedit.o \
-	$(OBJDIR)/editors/gameedit.o \
-	$(OBJDIR)/editors/reserved.o \
-	$(OBJDIR)/editors/socialedit.o \
-	$(OBJDIR)/effects.o \
-	$(OBJDIR)/events.o \
-	$(OBJDIR)/fight.o \
-	$(OBJDIR)/fight2.o \
-	$(OBJDIR)/gq.o \
-	$(OBJDIR)/handler.o \
-	$(OBJDIR)/healer.o \
-	$(OBJDIR)/help.o \
-	$(OBJDIR)/house.o \
-	$(OBJDIR)/html.o \
-	$(OBJDIR)/hunt.o \
-	$(OBJDIR)/interp.o \
-	$(OBJDIR)/invasion.o \
-	$(OBJDIR)/lookup.o \
-	$(OBJDIR)/magic.o \
-	$(OBJDIR)/magic2.o \
-	$(OBJDIR)/magic_acid.o \
-	$(OBJDIR)/magic_air.o \
-	$(OBJDIR)/magic_astral.o \
-	$(OBJDIR)/magic_blood.o \
-	$(OBJDIR)/magic_body.o \
-	$(OBJDIR)/magic_chaos.o \
-	$(OBJDIR)/magic_cold.o \
-	$(OBJDIR)/magic_cosmic.o \
-	$(OBJDIR)/magic_dark.o \
-	$(OBJDIR)/magic_death.o \
-	$(OBJDIR)/magic_earth.o \
-	$(OBJDIR)/magic_energy.o \
-	$(OBJDIR)/magic_fire.o \
-	$(OBJDIR)/magic_holy.o \
-	$(OBJDIR)/magic_law.o \
-	$(OBJDIR)/magic_light.o \
-	$(OBJDIR)/magic_mana.o \
-	$(OBJDIR)/magic_metal.o \
-	$(OBJDIR)/magic_mind.o \
-	$(OBJDIR)/magic_nature.o \
-	$(OBJDIR)/magic_shock.o \
-	$(OBJDIR)/magic_soul.o \
-	$(OBJDIR)/magic_sound.o \
-	$(OBJDIR)/magic_toxin.o \
-	$(OBJDIR)/magic_water.o \
-	$(OBJDIR)/mail.o \
-	$(OBJDIR)/mccp.o \
-	$(OBJDIR)/mem.o \
-	$(OBJDIR)/mount.o \
-	$(OBJDIR)/music.o \
-	$(OBJDIR)/nanny.o \
-	$(OBJDIR)/note.o \
-	$(OBJDIR)/olc.o \
-	$(OBJDIR)/olc_act.o \
-	$(OBJDIR)/olc_act2.o \
-	$(OBJDIR)/olc_mpcode.o \
-	$(OBJDIR)/olc_save.o \
-	$(OBJDIR)/project.o \
-	$(OBJDIR)/protocol.o \
-	$(OBJDIR)/quest.o \
-	$(OBJDIR)/save.o \
-	$(OBJDIR)/scan.o \
-	$(OBJDIR)/script_commands.o \
-	$(OBJDIR)/script_comp.o \
-	$(OBJDIR)/script_const.o \
-	$(OBJDIR)/script_expand.o \
-	$(OBJDIR)/script_ifc.o \
-	$(OBJDIR)/script_mpcmds.o \
-	$(OBJDIR)/script_opcmds.o \
-	$(OBJDIR)/script_rpcmds.o \
-	$(OBJDIR)/script_tpcmds.o \
-	$(OBJDIR)/script_vars.o \
-	$(OBJDIR)/scripts.o \
-	$(OBJDIR)/shoot.o \
-	$(OBJDIR)/skills.o \
-	$(OBJDIR)/special.o \
-	$(OBJDIR)/staff.o \
-	$(OBJDIR)/stats.o \
-	$(OBJDIR)/string.o \
-	$(OBJDIR)/storage.o \
-	$(OBJDIR)/tables.o \
-	$(OBJDIR)/tls.o \
-	$(OBJDIR)/treasuremap.o \
-	$(OBJDIR)/update.o \
-	$(OBJDIR)/weather.o \
-	$(OBJDIR)/wilds.o \
+# Required PCRE2 support for channel filtering
+PCRE2_CFLAGS := $(shell pkg-config --cflags libpcre2-8 2>/dev/null)
+PCRE2_LIBS := $(shell pkg-config --libs libpcre2-8 2>/dev/null)
 
-
-ifdef IMC
-
-O_FILES := $(OBJDIR)/imc.o $(OBJDIR)/sha256.o $(O_FILES)
-
-C_FLAGS := $(C_FLAGS) -DIMC -DIMCROM
-
+ifeq ($(strip $(PCRE2_LIBS)),)
+$(error libpcre2-8 is required but was not found via pkg-config)
 endif
 
+# Library paths for local dependencies
+LIB_PATHS = -L$(LIBCOTP_DIR) -L$(LIBBACKTRACE_DIR)/.libs
 
-	  
-all: objdir $(O_FILES) $(EXE)
+# Libraries (system: zlog, jansson, quickmail; local: cotp, backtrace)
+LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt -lquickmail -lcotp -lqrencode -lpng -lhiredis -ljansson -lzlog -lbacktrace -lsodium
+INCLUDES += $(PCRE2_CFLAGS)
+LIBS += $(PCRE2_LIBS)
+
+GIT_VERSION := "$(shell git describe --dirty --always --tags)"
+CUR_BUILD_DATE := "$(shell sh date.sh)"
+GIT_URL := "$(shell sh giturl.sh)"
+
+# Legacy reader toggles (default ON). Override for removal testing, e.g.:
+#   make ENABLE_LEGACY_AREA_READ=0 ENABLE_LEGACY_PFILE_READ=0
+ENABLE_LEGACY_AREA_READ ?= 1
+ENABLE_LEGACY_PFILE_READ ?= 1
+
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DENABLE_LEGACY_AREA_READ=$(ENABLE_LEGACY_AREA_READ) -DENABLE_LEGACY_PFILE_READ=$(ENABLE_LEGACY_PFILE_READ) -DMUD_DEBUG -DCHANNEL_FILTER_USE_PCRE2 -MMD -MP $(INCLUDES)
+# -rdynamic exports symbols for stack trace support (backtrace_symbols)
+L_FLAGS = $(PROF) -rdynamic $(LIB_PATHS) $(LIBS)
+
+# Build with tests: make BUILD_TESTS=1
+ifdef BUILD_TESTS
+    C_FLAGS += -DBUILD_TESTS
+endif
+
+# Build with coverage: make BUILD_COVERAGE=1
+ifdef BUILD_COVERAGE
+    C_FLAGS += --coverage -O0
+    L_FLAGS += --coverage
+    BUILD_TESTS = 1
+    C_FLAGS += -DBUILD_TESTS
+endif
+
+EXE	= sent
+
+C_FILES = \
+    account/auth.c \
+    account/auth_migrate.c \
+    account/auth_sodium.c \
+    account/otp.c \
+    account/account_notes.c \
+    account/penalty.c \
+    account/preferences.c \
+    account/unlock.c \
+    act_class.c \
+    act_comm.c \
+    act_enter.c \
+    act_info.c \
+    act_info2.c \
+    act_move.c \
+    act_obj.c \
+    act_obj2.c \
+    act_wiz.c \
+    alias.c \
+    auction.c \
+    autowar.c \
+    ban.c \
+    bit.c \
+    blueprint.c \
+    boat.c \
+    bootstrap/bootstrap.c \
+    bootstrap/bootstrap_account.c \
+    bootstrap/bootstrap_commands.c \
+    bootstrap/bootstrap_files.c \
+    bootstrap/bootstrap_prompts.c \
+    bootstrap/bootstrap_reserved.c \
+    channels/channels_common.c \
+    channels/channel_policy.c \
+    channels/channel_registry.c \
+    channels/channel_service.c \
+    channels/channel_filter.c \
+    channels/channel_moderation.c \
+    channels/channel_review.c \
+    channels/channel_transport.c \
+    channels/channel_transport_local.c \
+    channels/channel_transport_redis.c \
+    chat_rooms.c \
+    church.c \
+    class_data.c \
+    comm.c \
+    connection.c \
+    connection_tcp.c \
+    connection_tls.c \
+    connection_websocket.c \
+    const.c \
+    protocol_layer.c \
+    protocol_telnet.c \
+    protocol_websocket.c \
+    db.c \
+    db2.c \
+    drunk.c \
+    dungeon.c \
+    editors/areas/aedit.c \
+    editors/blueprints/bpedit.c \
+    editors/blueprints/bsedit.c \
+    editors/channels/cedit.c \
+    editors/commands/cmdedit.c \
+    editors/corpses/corpsedit.c \
+    editors/dungeons/dngedit.c \
+    editors/events/evtedit.c \
+    editors/game_settings/gameedit.c \
+    editors/help/hedit.c \
+    editors/liquids/liqedit.c \
+    editors/materials/matedit.c \
+    editors/mobiles/medit.c \
+    editors/objects/oedit.c \
+    editors/objects/oedit_types.c \
+    editors/projects/pedit.c \
+    editors/quests/qedit.c \
+    editors/reputation/repedit.c \
+    editors/random_strings/rsgedit.c \
+    editors/reserved_vnums/reserved.c \
+    editors/rooms/redit.c \
+    editors/sectors/sectoredit.c \
+    editors/scripting/olc_mpcode.c \
+    editors/ships/shedit.c \
+    editors/socials/socialedit.c \
+    editors/tokens/tedit.c \
+    editors/wilderness/wedit.c \
+    editors/races/racedit.c \
+    editors/traits/traitedit.c \
+    editors/skills/skedit.c \
+    editors/skills/gredit.c \
+    editors/skills/soedit.c \
+    editors/classes/clsedit.c \
+    editors/common.c \
+    editors/common/olc_editor.c \
+    editors/common/olc_commands.c \
+    editors/common/olc_display.c \
+    effects.c \
+    event_types.c \
+    events.c \
+    fight.c \
+    fight2.c \
+    gq.c \
+    handler.c \
+    help.c \
+    house.c \
+    hunt.c \
+    interp.c \
+    invasion.c \
+    item_types.c \
+    item_type_mem.c \
+    io/common.c \
+    log.c \
+    lookup.c \
+    magic.c \
+    magic2.c \
+    magic_acid.c \
+    magic_air.c \
+    magic_astral.c \
+    magic_blood.c \
+    magic_body.c \
+    magic_chaos.c \
+    magic_cold.c \
+    magic_cosmic.c \
+    magic_dark.c \
+    magic_death.c \
+    magic_earth.c \
+    magic_energy.c \
+    magic_fire.c \
+    magic_holy.c \
+    magic_law.c \
+    magic_light.c \
+    magic_mana.c \
+    magic_metal.c \
+    magic_mind.c \
+    magic_nature.c \
+    magic_shock.c \
+    magic_soul.c \
+    magic_sound.c \
+    magic_toxin.c \
+    magic_water.c \
+    mail.c \
+    mccp.c \
+    mem.c \
+    mount.c \
+    music.c \
+    nanny.c \
+    nanny/nanny_auth.c \
+    nanny/nanny_menus.c \
+    nanny/nanny_utils.c \
+    note.c \
+    olc.c \
+    olc_act.c \
+    olc_act2.c \
+    olc_save.c \
+    project.c \
+    protocol.c \
+    mxp_links.c \
+    quest.c \
+    reputation.c \
+    requirements.c \
+    rview.c \
+    io/cache/redis_cache.c \
+    io/cache/async_cache.c \
+    io/json/json_common.c \
+    io/json/json_char.c \
+    io/json/json_account.c \
+    io/json/json_area.c \
+    io/json/json_chat.c \
+    io/json/json_church.c \
+    io/json/json_game_settings.c \
+    io/json/json_gq.c \
+    io/json/json_instance.c \
+    io/json/json_mail.c \
+    io/json/json_note.c \
+    io/json/json_obj_types.c \
+    io/json/json_persist.c \
+    io/json/json_race.c \
+    io/json/json_reserved.c \
+    io/json/json_sectors.c \
+    traits.c \
+    io/json/json_ban.c \
+    io/json/json_changesets.c \
+    io/json/json_corpse.c \
+    io/json/json_olc.c \
+    io/json/json_rsg.c \
+    io/json/json_commands.c \
+    io/json/json_projects.c \
+    io/json/json_socials.c \
+    io/json/json_staff.c \
+    save.c \
+    pfile_migrate.c \
+    scan.c \
+    script_commands.c \
+    script_comp.c \
+    script_const.c \
+    script_expand.c \
+    script_ifc.c \
+    script_mpcmds.c \
+    script_opcmds.c \
+    script_rpcmds.c \
+    script_tpcmds.c \
+    script_vars.c \
+    scripts.c \
+    sectors_runtime.c \
+    secret.c \
+    shoot.c \
+    skill_data.c \
+    skill_group.c \
+    skills.c \
+    song_data.c \
+    special.c \
+    staff.c \
+    stats.c \
+    string.c \
+    utils/buffer.c \
+    storage.c \
+    tables.c \
+    tls.c \
+    treasuremap.c \
+    update.c \
+    weather.c \
+    wilderness_mods.c \
+    wilderness_state.c \
+    wilderness_storage.c \
+    wilderness_vlinks.c \
+    wilderness_wmap.c \
+    wilderness_wterr.c \
+    wilds.c \
+    wilds_wildgen.c
+
+# Add test integration source file only when BUILD_TESTS is enabled
+ifdef BUILD_TESTS
+    C_FILES += test_integration.c \
+               tests/framework/test_framework.c \
+               tests/framework/test_loader.c \
+               tests/framework/test_dispatcher.c \
+               tests/framework/test_utils.c \
+               tests/unit/buffer_function_cases_core.c \
+               tests/unit/buffer_function_cases_permutations.c \
+               tests/unit/buffer_function_tests.c \
+               tests/unit/pure_function_tests.c \
+               tests/integration/wnum_tests.c \
+               tests/integration/string_editor_tests.c \
+               tests/integration/reset_tests.c \
+               tests/integration/shop_stock_tests.c \
+               tests/integration/church_tests.c \
+               tests/integration/instance_tests.c \
+               tests/integration/chat_rooms_tests.c \
+               tests/integration/skill_data_tests.c \
+               tests/integration/class_data_tests.c \
+               tests/integration/item_type_tests.c \
+               tests/integration/lookup_table_tests.c \
+               tests/integration/script_engine_tests.c \
+               tests/integration/channel_pubsub_tests.c \
+               tests/integration/song_data_tests.c \
+               tests/integration/skill_group_tests.c \
+               tests/integration/trait_system_tests.c
+endif
+
+O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))
+
+DEP_FILES = $(O_FILES:.o=.d)
+all: $(EXE)
+
+OBJ_DIRS_NEEDED := $(sort $(OBJDIR) $(patsubst %/,%,$(dir $(O_FILES))))
+objdir:
+	@echo "Creating object directories..."
+	@mkdir -p $(OBJ_DIRS_NEEDED)
+	@-chmod 775 $(OBJ_DIRS_NEEDED)
+
+$(EXE): objdir $(O_FILES)
+	@echo "Linking $(EXE)..."
+	@rm -f $(EXE)
+	@$(CC) -o $(EXE) $(O_FILES) $(L_FLAGS)
+	@-chmod 775 $(EXE)
+	@echo "Build complete!"
+
+$(OBJDIR)/%.o: %.c
+	@echo "Building $<..."
+	@mkdir -p $(dir $@)
+	@$(CC) -c $(C_FLAGS) $< -o $@
+
+-include $(DEP_FILES)
 
 install: all
-	-cp -f *.c ~/alpha/src/
-	-cp -f *.h ~/alpha/src/
-	-cp -f $(EXE) ~/alpha/src/
-
-
-objdir:
-	-mkdir obj obj/account obj/editors
-	-chmod 775 obj obj/account obj/editors
-
-$(EXE): $(O_FILES) $(BUILD_NUMBER_FILE)
-	rm -f $(EXE)
-	$(CC) $(BUILD_NUMBER_LFLAGS) -o $(EXE) $(O_FILES) $(L_FLAGS)
-	-chmod 775 $(EXE)
-
-$(OBJDIR)/%.o:	%.c
-	@echo Building $<...
-	@$(CC) -c $(C_FLAGS) $< -o $(OBJDIR)/$(basename $<).o
-
-%_c.diff:	$(PATH1)/%.c
-	-diff -wbBdp $< $(patsubst $(PATH1)/%,$(PATH2)/%,$<) >> $(DIFF_TXT)
-
-%_h.diff:	$(PATH1)/%.h
-	-diff -wbBdp $< $(patsubst $(PATH1)/%,$(PATH2)/%,$<) >> $(DIFF_TXT)
-
--include .depend
+	@echo "Installing $(EXE) to ../"
+	-cp -f $(EXE) ../
+	@echo "Installation complete."
 
 clean:
-	rm -f $(OBJDIR)/*.o
-	rm -rf $(OBJDIR)
-	rm -f sent
+	@echo "Cleaning up..."
+	@-rm -f $(O_FILES) $(DEP_FILES) $(EXE)
+	@-rm -rf $(OBJDIR)
 
-depend:
-	$(CC) -E -MM $(C_FILES) $(C_FLAGS) -I. > .depend
-	sed -e "/.*:/s//obj\/&/g" <.depend > .depend2
-	sed -e "/#.*/s///g" <.depend2 > .depend
-	rm -f .depend2
-
-clear_diff:
-	-rm -f $(DIFF_TXT)
-
-diff:	clear_diff $(DIFF_C)
-
--include .depend
-include buildnumber.mak
+.PHONY: all install objdir clean

@@ -1,0 +1,86 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "dwarf",
+  "uid": 3,
+  "name": "dwarf",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": true,
+  "remort": {
+    "prerequisite_race": null,
+    "remort_into": "berserker"
+  },
+  "display": {
+    "who_name": "{YDwarf "
+  },
+  "physical": {
+    "min_size": 1,
+    "max_size": 1,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared",
+      "regeneration"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "fire",
+      "cold",
+      "lightning",
+      "acid"
+    ],
+    "vulnerabilities": [
+      "drowning"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 21,
+      "int": 18,
+      "wis": 18,
+      "dex": 18,
+      "con": 21
+    },
+    "max_vitals": {
+      "hp": 3350,
+      "mana": 2750,
+      "move": 3500
+    }
+  },
+  "skills": [
+    "berserk",
+    "repair"
+  ],
+  "starting_equipment": []
+}

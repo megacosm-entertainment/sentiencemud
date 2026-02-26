@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 4,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 6,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 21,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            9,
+            3
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 12,
+    "minimum_position": "standing",
+    "msg_disp": "$n's skin regains its normal texture.",
+    "msg_obj": "",
+    "msg_off": "Your skin feels soft again.",
+    "name": "stone skin",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_stone_skin",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 233
+}

@@ -52,6 +52,9 @@
 /* VIZZWILDS - Include wilds.h header */
 #include "wilds.h"
 #include "scripts.h"
+#include "traits.h"
+#include "skill_data.h"
+#include "class_data.h"
 
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
@@ -60,7 +63,15 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass);
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant);
 void look_map(CHAR_DATA *ch, OBJ_DATA *map);
 
-/* MOVED: equip.c */
+/**
+ * where_name - Display strings for equipment wear locations
+ *
+ * Array of formatted strings showing where equipment is worn/used.
+ * Indexed by WEAR_* constants. Each string is color-coded and padded
+ * for aligned display in equipment listings.
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 char *const where_name[] = {
     "{Y<used as light>       {x",
     "{B<worn on finger>      {x",
@@ -116,175 +127,206 @@ char *const where_name[] = {
 
 };
 
-/* MOVED: equip.c */
+/**
+ * wear_params - Configuration matrix for wear location behaviors
+ *
+ * 2D array controlling how each wear location behaves. Indexed by WEAR_*.
+ * Columns:
+ *   [0] seen         - Item visible to others viewing your equipment
+ *   [1] show_empty   - Show "nothing" for empty slot when PLR_AUTOEQ enabled
+ *   [2] remove       - Can be manually removed by player
+ *   [3] shifted      - Slot available in shifted form (werewolf/slayer)
+ *   [4] affects      - Item's affects apply to character
+ *   [5] uneq_death   - Unequipped on character death
+ *   [6] always_remove - Always removed regardless of other conditions
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 int wear_params[MAX_WEAR][7] = {
 /*	seen,		autoeq		remove		shifted		affects		uneq_death	always_remove */
-	{ true,		true,		true,		false,		true,		true,		true },  // Light
-	{ true,		true,		true,		false,		true,		true,		false }, // Finger
-	{ true,		true,		true,		false,		true,		true,		false }, // Finger
-	{ true,		true,		true,		false,		true,		true,		false }, // Neck
-	{ true,		true,		true,		false,		true,		true,		false }, // Neck
-	{ true,		true,		true,		false,		true,		true,		false }, // Torso
-	{ true,		true,		true,		false,		true,		true,		false }, // Head
-	{ true,		true,		true,		false,		true,		true,		false }, // Legs
-	{ true,		true,		true,		false,		true,		true,		false }, // Feet
-	{ true,		true,		true,		false,		true,		true,		false }, // Hands
-	{ true,		true,		true,		false,		true,		true,		false }, // Arms
-	{ true,		true,		true,		false,		true,		true,		false }, // Shield
-	{ true,		true,		true,		false,		true,		true,		false }, // Body
-	{ true,		true,		true,		false,		true,		true,		false }, // Waist
-	{ true,		true,		true,		false,		true,		true,		false }, // Wrist
-	{ true,		true,		true,		false,		true,		true,		false }, // Wrist
-	{ true,		true,		true,		false,		true,		true,		false }, // Wield
-	{ true,		true,		true,		false,		true,		true,		false }, // Held
-	{ true,		true,		true,		false,		true,		true,		false }, // Secondary
-	{ true,		true,		true,		false,		true,		true,		false }, // Ring Finger
-	{ true,		true,		true,		false,		true,		true,		false }, // Back
-	{ true,		true,		true,		false,		true,		true,		false }, // Shoulders
-	{ true,		true,		true,		false,		true,		true,		false }, // Ankle
-	{ true,		true,		true,		false,		true,		true,		false }, // Ankle
-	{ true,		true,		true,		false,		true,		true,		false }, // Ear
-	{ true,		true,		true,		false,		true,		true,		false }, // Ear
-	{ true,		true,		true,		false,		true,		true,		false }, // Eyes
-	{ true,		true,		true,		false,		true,		true,		false }, // Face
-	{ true,		false,		false,		false,		true,		false,		false }, // Head Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Body Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
-	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Head
-	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Body
-	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Arm
-	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Arm
-	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Leg
-	{ true,		false,		false,		true,		false,		true,		false }, // Lodged in Leg
-	{ true,		false,		false,		true,		false,		true,		false }, // Entangled
-	{ false,	false,		true,		false,		false,		true,		true },  // Concealed
-	{ true,		false,		true,		true,		false,		false,		true },  // Floating
-	{ true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Shoulder Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // Shoulder Tattoo
-	{ true,		false,		false,		false,		true,		false,		false }, // BACK Tattoo
-	{ false,		false,		false,		false,		false,		false,		false }, // Tabard
+    { true,		true,		true,		false,		true,		true,		true },  // Light
+    { true,		true,		true,		false,		true,		true,		false }, // Finger
+    { true,		true,		true,		false,		true,		true,		false }, // Finger
+    { true,		true,		true,		false,		true,		true,		false }, // Neck
+    { true,		true,		true,		false,		true,		true,		false }, // Neck
+    { true,		true,		true,		false,		true,		true,		false }, // Torso
+    { true,		true,		true,		false,		true,		true,		false }, // Head
+    { true,		true,		true,		false,		true,		true,		false }, // Legs
+    { true,		true,		true,		false,		true,		true,		false }, // Feet
+    { true,		true,		true,		false,		true,		true,		false }, // Hands
+    { true,		true,		true,		false,		true,		true,		false }, // Arms
+    { true,		true,		true,		false,		true,		true,		false }, // Shield
+    { true,		true,		true,		false,		true,		true,		false }, // Body
+    { true,		true,		true,		false,		true,		true,		false }, // Waist
+    { true,		true,		true,		false,		true,		true,		false }, // Wrist
+    { true,		true,		true,		false,		true,		true,		false }, // Wrist
+    { true,		true,		true,		false,		true,		true,		false }, // Wield
+    { true,		true,		true,		false,		true,		true,		false }, // Held
+    { true,		true,		true,		false,		true,		true,		false }, // Secondary
+    { true,		true,		true,		false,		true,		true,		false }, // Ring Finger
+    { true,		true,		true,		false,		true,		true,		false }, // Back
+    { true,		true,		true,		false,		true,		true,		false }, // Shoulders
+    { true,		true,		true,		false,		true,		true,		false }, // Ankle
+    { true,		true,		true,		false,		true,		true,		false }, // Ankle
+    { true,		true,		true,		false,		true,		true,		false }, // Ear
+    { true,		true,		true,		false,		true,		true,		false }, // Ear
+    { true,		true,		true,		false,		true,		true,		false }, // Eyes
+    { true,		true,		true,		false,		true,		true,		false }, // Face
+    { true,		false,		false,		false,		true,		false,		false }, // Head Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Body Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
+    { true,		false,		false,		true,		false,		true,		false }, // Lodged in Head
+    { true,		false,		false,		true,		false,		true,		false }, // Lodged in Body
+    { true,		false,		false,		true,		false,		true,		false }, // Lodged in Arm
+    { true,		false,		false,		true,		false,		true,		false }, // Lodged in Arm
+    { true,		false,		false,		true,		false,		true,		false }, // Lodged in Leg
+    { true,		false,		false,		true,		false,		true,		false }, // Lodged in Leg
+    { true,		false,		false,		true,		false,		true,		false }, // Entangled
+    { false,	false,		true,		false,		false,		true,		true },  // Concealed
+    { true,		false,		true,		true,		false,		false,		true },  // Floating
+    { true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Arm Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Leg Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Shoulder Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // Shoulder Tattoo
+    { true,		false,		false,		false,		true,		false,		false }, // BACK Tattoo
+    { false,		false,		false,		false,		false,		false,		false }, // Tabard
 
 
 };
 
-/* MOVED: equip.c */
+/**
+ * wear_concealed - Mapping of wear locations to concealing locations
+ *
+ * Array indexed by WEAR_* that indicates which equipment slot can conceal
+ * items in that location. WEAR_NONE means the location cannot be concealed.
+ * Used for the concealed item system where items can be hidden under other
+ * equipment (e.g., WEAR_HANDS can conceal finger rings, WEAR_ABOUT can
+ * conceal neck/torso items).
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 int wear_concealed[] = {
-	WEAR_NONE,
-	WEAR_HANDS,
-	WEAR_HANDS,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_HANDS,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_FEET,
-	WEAR_FEET,
-	WEAR_HEAD,
-	WEAR_HEAD,
-	WEAR_FACE,
-	WEAR_HEAD,
-	WEAR_FACE,
-	WEAR_BODY,
-	WEAR_ARMS,
-	WEAR_ARMS,
-	WEAR_LEGS,
-	WEAR_LEGS,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_ABOUT,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_ARMS,
-	WEAR_ARMS,
-	WEAR_LEGS,
-	WEAR_LEGS,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_NONE,
-	WEAR_NONE,
+    WEAR_NONE,
+    WEAR_HANDS,
+    WEAR_HANDS,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_HANDS,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_FEET,
+    WEAR_FEET,
+    WEAR_HEAD,
+    WEAR_HEAD,
+    WEAR_FACE,
+    WEAR_HEAD,
+    WEAR_FACE,
+    WEAR_BODY,
+    WEAR_ARMS,
+    WEAR_ARMS,
+    WEAR_LEGS,
+    WEAR_LEGS,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_ABOUT,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_ARMS,
+    WEAR_ARMS,
+    WEAR_LEGS,
+    WEAR_LEGS,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_NONE,
+    WEAR_NONE,
 
 };
 
-/* MOVED: equip.c
-   Determines the VIEWED order of the wear locations */
+/**
+ * wear_view_order - Display order for equipment listing
+ *
+ * Determines the sequence in which wear locations are displayed when
+ * viewing equipment. Arranged logically from head to toe, with tattoos
+ * shown near their body part and lodged items at the end.
+ *
+ * Planned refactor: equip.c (never executed)
+ */
 int wear_view_order[] = {
-	WEAR_LIGHT,
-	WEAR_FINGER_L,
-	WEAR_RING_FINGER,
-	WEAR_FINGER_R,
-	WEAR_NECK_1,
-	WEAR_NECK_2,
-	WEAR_BODY,
-	WEAR_TATTOO_TORSO,
-	WEAR_BACK,
-	WEAR_TATTOO_BACK,
-	WEAR_SHOULDER,
-	WEAR_TATTOO_SHOULDER_L,
-	WEAR_TATTOO_SHOULDER_R,
-	WEAR_HEAD,
-	WEAR_TATTOO_HEAD,
-	WEAR_FACE,
-	WEAR_EYES,
-	WEAR_EAR_L,
-	WEAR_EAR_R,
-	WEAR_ARMS,
-	WEAR_TATTOO_UPPER_ARM_L,
-	WEAR_TATTOO_LOWER_ARM_L,
-	WEAR_TATTOO_UPPER_ARM_R,
-	WEAR_TATTOO_LOWER_ARM_R,
-	WEAR_WRIST_L,
-	WEAR_WRIST_R,
-	WEAR_HANDS,
-	WEAR_LEGS,
-	WEAR_TATTOO_UPPER_LEG_L,
-	WEAR_TATTOO_LOWER_LEG_L,
-	WEAR_TATTOO_UPPER_LEG_R,
-	WEAR_TATTOO_LOWER_LEG_R,
-	WEAR_ANKLE_L,
-	WEAR_ANKLE_R,
-	WEAR_FEET,
-	WEAR_ABOUT,
-	WEAR_TABARD,
-	WEAR_WAIST,
-	WEAR_SHIELD,
-	WEAR_WIELD,
-	WEAR_SECONDARY,
-	WEAR_HOLD,
-	WEAR_LODGED_HEAD,
-	WEAR_LODGED_TORSO,
-	WEAR_LODGED_ARM_L,
-	WEAR_LODGED_ARM_R,
-	WEAR_LODGED_LEG_L,
-	WEAR_LODGED_LEG_R,
-	WEAR_ENTANGLED,
-	WEAR_CONCEALED,
-	WEAR_FLOATING,
-	WEAR_NONE
+    WEAR_LIGHT,
+    WEAR_FINGER_L,
+    WEAR_RING_FINGER,
+    WEAR_FINGER_R,
+    WEAR_NECK_1,
+    WEAR_NECK_2,
+    WEAR_BODY,
+    WEAR_TATTOO_TORSO,
+    WEAR_BACK,
+    WEAR_TATTOO_BACK,
+    WEAR_SHOULDER,
+    WEAR_TATTOO_SHOULDER_L,
+    WEAR_TATTOO_SHOULDER_R,
+    WEAR_HEAD,
+    WEAR_TATTOO_HEAD,
+    WEAR_FACE,
+    WEAR_EYES,
+    WEAR_EAR_L,
+    WEAR_EAR_R,
+    WEAR_ARMS,
+    WEAR_TATTOO_UPPER_ARM_L,
+    WEAR_TATTOO_LOWER_ARM_L,
+    WEAR_TATTOO_UPPER_ARM_R,
+    WEAR_TATTOO_LOWER_ARM_R,
+    WEAR_WRIST_L,
+    WEAR_WRIST_R,
+    WEAR_HANDS,
+    WEAR_LEGS,
+    WEAR_TATTOO_UPPER_LEG_L,
+    WEAR_TATTOO_LOWER_LEG_L,
+    WEAR_TATTOO_UPPER_LEG_R,
+    WEAR_TATTOO_LOWER_LEG_R,
+    WEAR_ANKLE_L,
+    WEAR_ANKLE_R,
+    WEAR_FEET,
+    WEAR_ABOUT,
+    WEAR_TABARD,
+    WEAR_WAIST,
+    WEAR_SHIELD,
+    WEAR_WIELD,
+    WEAR_SECONDARY,
+    WEAR_HOLD,
+    WEAR_LODGED_HEAD,
+    WEAR_LODGED_TORSO,
+    WEAR_LODGED_ARM_L,
+    WEAR_LODGED_ARM_R,
+    WEAR_LODGED_LEG_L,
+    WEAR_LODGED_LEG_R,
+    WEAR_ENTANGLED,
+    WEAR_CONCEALED,
+    WEAR_FLOATING,
+    WEAR_NONE
 };
 
 /* For the player count */
@@ -318,7 +360,27 @@ void convert_map_char(char *buf, char ch);
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim);
 
 
-/* MOVED: senses/vision.c */
+/**
+ * format_obj_to_char - Format an object's display string for a viewer
+ *
+ * Creates a formatted string describing an object as seen by a character.
+ * Includes status flags (invis, magical, glowing, humming, blessed, evil,
+ * kept, activated, planted, buried) and condition indicators.
+ *
+ * Special handling for:
+ * - Weapons: Shows (Broken) at condition 0
+ * - Commodities (ITEM_TRADE_TYPE): Shows trade class
+ * - Ships: Shows detailed state including movement, flags, and scuttle status
+ * - Carts: Shows who is pulling them
+ *
+ * @param obj     The object to format
+ * @param ch      The character viewing the object
+ * @param fShort  If true, use short_descr; if false, use long description
+ *
+ * @return Static buffer containing the formatted string
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 {
     static char buf[MAX_STRING_LENGTH];
@@ -326,252 +388,263 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
     buf[0] = '\0';
 
     if ((fShort
-	 && (obj->short_descr == NULL || obj->short_descr[0] == '\0'))
-	|| (obj->description == NULL || obj->description[0] == '\0'))
-	return buf;
+     && (obj->short_descr == NULL || obj->short_descr[0] == '\0'))
+    || (obj->description == NULL || obj->description[0] == '\0'))
+    return buf;
 
     if (IS_OBJ_STAT(obj, ITEM_INVIS))
-		strcat(buf, "{B(Invis){w ");
+        strcat(buf, "{B(Invis){w ");
     if (IS_AFFECTED(ch, AFF_DETECT_MAGIC) && IS_OBJ_STAT(obj, ITEM_MAGIC))
-		strcat(buf, "{M(Magical){w ");
+        strcat(buf, "{M(Magical){w ");
     if (IS_OBJ_STAT(obj, ITEM_GLOW))
-		strcat(buf, "{W(Glowing){w ");
+        strcat(buf, "{W(Glowing){w ");
     if (IS_OBJ_STAT(obj, ITEM_HUM))
-		strcat(buf, "{C(Humming){w ");
+        strcat(buf, "{C(Humming){w ");
     if ((IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_BLESS))
-		strcat(buf, "{y(Gold Aura){w ");
+        strcat(buf, "{y(Gold Aura){w ");
     if ((IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_EVIL))
-		strcat(buf, "{R(Red Aura){w ");
+        strcat(buf, "{R(Red Aura){w ");
     if (IS_SET(obj->extra[1], ITEM_KEPT))
-		strcat(buf, "{b({BK{b){x ");
-	if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
-		strcat(buf, "{b({WA{b){x ");
+        strcat(buf, "{b({BK{b){x ");
+    if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
+        strcat(buf, "{b({WA{b){x ");
     if (IS_OBJ_STAT(obj, ITEM_PLANTED))
-		strcat(buf, "{R(Planted){w ");
+        strcat(buf, "{R(Planted){w ");
     if (IS_SET(obj->extra[1], ITEM_BURIED))
-		strcat(buf, "{y(Buried){w ");
+        strcat(buf, "{y(Buried){w ");
     if (fShort)
     {
-	if (obj->short_descr != NULL)
-	    strcat(buf, obj->short_descr);
-	strcat(buf, " ");
+    if (obj->short_descr != NULL)
+        strcat(buf, obj->short_descr);
+    strcat(buf, " ");
 
-	if (obj->item_type == ITEM_WEAPON)
-	{
-	    if (obj->condition == 0)
-		strcat(buf, "{y(Broken){x");
-	}
-	else
-	{
-	    strcat(buf, object_damage_table[URANGE
-		    (0, 9 - (int) (((float) obj->condition)/10),9)].name);
-	}
-
-	/* Show trade class if a commodity */
-	if (obj->item_type == ITEM_TRADE_TYPE && obj->value[0] != -1)
-	{
-	    strcat(buf, "{Y(");
-	    strcat(buf, trade_table[ obj->value[0] ].name);
-	    strcat(buf, "){x");
-	}
+    if (obj->item_type == ITEM_WEAPON)
+    {
+        if (obj->condition == 0)
+        strcat(buf, "{y(Broken){x");
     }
     else
     {
-	if (obj->description != NULL)
-	{
-	    if (obj->item_type == ITEM_CART
-	    && get_cart_pulled(obj) != NULL)
-	    {
-		sprintf(buf, "{B%s is here, pulled by %s.{x",
-			 capitalize(obj->short_descr),
-		 	 get_cart_pulled(obj) == ch ? "you" :
-			     pers(get_cart_pulled(obj), ch));
-	    }
-	    else
-	    {
-		strcat(buf, "{B");
+        strcat(buf, object_damage_table[URANGE
+            (0, 9 - (int) (((float) obj->condition)/10),9)].name);
+    }
 
-	        /* If its a ship then describe here that it is moving */
-		if (obj != NULL && obj->item_type == ITEM_SHIP)
-		{
-		    SHIP_DATA *ship;
-		    char buf2[MAX_STRING_LENGTH];
+    /* Show trade class if a commodity */
+    if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
+    {
+        strcat(buf, "{Y(");
+        strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
+        strcat(buf, "){x");
+    }
+    }
+    else
+    {
+    if (obj->description != NULL)
+    {
+        if (obj->item_type == ITEM_CART
+        && get_cart_pulled(obj) != NULL)
+        {
+        sprintf(buf, "{B%s is here, pulled by %s.{x",
+             capitalize(obj->short_descr),
+              get_cart_pulled(obj) == ch ? "you" :
+                 pers(get_cart_pulled(obj), ch));
+        }
+        else
+        {
+        strcat(buf, "{B");
 
-		    ship = obj->ship;
+            /* If its a ship then describe here that it is moving */
+        if (obj != NULL && obj->item_type == ITEM_SHIP)
+        {
+            SHIP_DATA *ship;
+            char buf2[MAX_STRING_LENGTH];
 
-		    if( IS_NULLSTR(ship->ship_name) )
-		    {
-				if (obj->ship->speed > SHIP_SPEED_STOPPED)
-				{
-					if (obj->ship->ship_type == SHIP_AIR_SHIP)
-					{
-						sprintf(buf2, "{M%s %s flies high above heading %s.{x",
-							get_article(ship->index->name, true), ship->index->name, dir_name[ship->steering.compass]);
-					}
-					else
-					{
-						sprintf(buf2, "{M%s %s powers through the water sailing %s.{x",
-							get_article(ship->index->name, true), ship->index->name, dir_name[ship->steering.compass]);
-					}
-				}
-				else if( ship->scuttle_time > 0 )
-				{
-					if (IS_NULLSTR(ship->flag))
-					{
-						sprintf(buf2,
-							"{R%s %s burns brightly as flames engulf the vessel!{x",
-							get_article(ship->index->name, true), ship->index->name);
-					}
-					else
-					{
-						sprintf(buf2,
-							"{R%s %s flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
-							get_article(ship->index->name, true), ship->index->name, ship->flag);
-					}
-				}
-				else
-				{
-					if (obj->ship->ship_type == SHIP_AIR_SHIP)
-					{
-						if( ship->speed == SHIP_SPEED_LANDED )
-						{
-							if( IS_NULLSTR(ship->flag) )
-							{
-								sprintf(buf2, "{M%s %s floats gently just above the ground.{x",
-									get_article(ship->index->name, true), ship->index->name);
-							}
-							else
-							{
-								sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently just above the ground.{x",
-									get_article(ship->index->name, true), ship->index->name, ship->flag);
-							}
-						}
-						else
-						{
-							if( IS_NULLSTR(ship->flag) )
-							{
-								sprintf(buf2, "{M%s %s floats gently high in the air.{x",
-									get_article(ship->index->name, true), ship->index->name);
-							}
-							else
-							{
-								sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently high in the air.{x",
-									get_article(ship->index->name, true), ship->index->name, ship->flag);
-							}
-						}
-					}
-					else
-					{
-						if (IS_NULLSTR(ship->flag))
-						{
-							sprintf(buf2,
-								"{M%s %s gracefully floats here.{x",
-								get_article(ship->index->name, true), ship->index->name);
-						}
-						else
-						{
-							sprintf(buf2,
-								"{M%s %s, flying the flag '{x%s{M', floats here.{x",
-								get_article(ship->index->name, true), ship->index->name, ship->flag);
-						}
-					}
-				}
-			}
-			else
-			{
-				if (obj->ship->speed > SHIP_SPEED_STOPPED)
-				{
-					if (obj->ship->ship_type == SHIP_AIR_SHIP)
-					{
-						sprintf(buf2, "{MThe %s '{x%s{M' flies high above heading %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
-					}
-					else
-					{
-						sprintf(buf2, "{MThe %s '{x%s{M', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
-					}
-				}
-				else if( ship->scuttle_time > 0 )
-				{
-					if (IS_NULLSTR(ship->flag))
-					{
-						sprintf(buf2,
-							"{RThe %s named '{x%s{R', burns brightly as flames engulf the vessel!{x",
-							ship->index->name, ship->ship_name);
-					}
-					else
-					{
-						sprintf(buf2,
-							"{RThe %s named '{x%s{R', flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
-							ship->index->name, ship->ship_name, ship->flag);
-					}
-				}
-				else
-				{
-					if (obj->ship->ship_type == SHIP_AIR_SHIP)
-					{
-						if( ship->speed == SHIP_SPEED_LANDED )
-						{
-							if( IS_NULLSTR(ship->flag) )
-							{
-								sprintf(buf2, "{MThe %s {x%s{M floats gently just above the ground.{x", ship->index->name, ship->ship_name);
-							}
-							else
-							{
-								sprintf(buf2, "{MThe %s {x%s{M, flying the flag '{x%s{M', floats gently just above the ground.{x", ship->index->name, ship->ship_name, ship->flag);
-							}
-						}
-						else
-						{
-							if( IS_NULLSTR(ship->flag) )
-							{
-								sprintf(buf2, "{MThe %s {x%s{M floats gently high in the air.{x", ship->index->name, ship->ship_name);
-							}
-							else
-							{
-								sprintf(buf2, "{MThe %s {x%s{M, flying the flag '{x%s{M', floats gently high in the air.{x", ship->index->name, ship->ship_name, ship->flag);
-							}
-						}
-					}
-					else
-					{
-						if (IS_NULLSTR(ship->flag))
-						{
-							sprintf(buf2,
-								"{MThe %s named '{x%s{M' gracefully floats here.{x",
-								ship->index->name, ship->ship_name);
-						}
-						else
-						{
-							sprintf(buf2,
-								"{MThe %s named '{x%s{M', flying the flag '{x%s{M', floats here.{x",
-								ship->index->name, ship->ship_name, ship->flag);
-						}
-					}
-				}
-			}
+            ship = obj->ship;
 
-			strcat(buf, buf2);
-		}
-		else
-		{
-		    strcat(buf, obj->description);
-		}
-	    }
-	}
+            if( IS_NULLSTR(ship->ship_name) )
+            {
+                if (obj->ship->speed > SHIP_SPEED_STOPPED)
+                {
+                    if (obj->ship->ship_type == SHIP_AIR_SHIP)
+                    {
+                        sprintf(buf2, "{M%s %s flies high above heading %s.{x",
+                            get_article(ship->index->name, true), ship->index->name, dir_name[ship->steering.compass]);
+                    }
+                    else
+                    {
+                        sprintf(buf2, "{M%s %s powers through the water sailing %s.{x",
+                            get_article(ship->index->name, true), ship->index->name, dir_name[ship->steering.compass]);
+                    }
+                }
+                else if( ship->scuttle_time > 0 )
+                {
+                    if (IS_NULLSTR(ship->flag))
+                    {
+                        sprintf(buf2,
+                            "{R%s %s burns brightly as flames engulf the vessel!{x",
+                            get_article(ship->index->name, true), ship->index->name);
+                    }
+                    else
+                    {
+                        sprintf(buf2,
+                            "{R%s %s flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
+                            get_article(ship->index->name, true), ship->index->name, ship->flag);
+                    }
+                }
+                else
+                {
+                    if (obj->ship->ship_type == SHIP_AIR_SHIP)
+                    {
+                        if( ship->speed == SHIP_SPEED_LANDED )
+                        {
+                            if( IS_NULLSTR(ship->flag) )
+                            {
+                                sprintf(buf2, "{M%s %s floats gently just above the ground.{x",
+                                    get_article(ship->index->name, true), ship->index->name);
+                            }
+                            else
+                            {
+                                sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently just above the ground.{x",
+                                    get_article(ship->index->name, true), ship->index->name, ship->flag);
+                            }
+                        }
+                        else
+                        {
+                            if( IS_NULLSTR(ship->flag) )
+                            {
+                                sprintf(buf2, "{M%s %s floats gently high in the air.{x",
+                                    get_article(ship->index->name, true), ship->index->name);
+                            }
+                            else
+                            {
+                                sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently high in the air.{x",
+                                    get_article(ship->index->name, true), ship->index->name, ship->flag);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (IS_NULLSTR(ship->flag))
+                        {
+                            sprintf(buf2,
+                                "{M%s %s gracefully floats here.{x",
+                                get_article(ship->index->name, true), ship->index->name);
+                        }
+                        else
+                        {
+                            sprintf(buf2,
+                                "{M%s %s, flying the flag '{x%s{M', floats here.{x",
+                                get_article(ship->index->name, true), ship->index->name, ship->flag);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (obj->ship->speed > SHIP_SPEED_STOPPED)
+                {
+                    if (obj->ship->ship_type == SHIP_AIR_SHIP)
+                    {
+                        sprintf(buf2, "{MThe %s '{x%s{M' flies high above heading %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
+                    }
+                    else
+                    {
+                        sprintf(buf2, "{MThe %s '{x%s{M', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
+                    }
+                }
+                else if( ship->scuttle_time > 0 )
+                {
+                    if (IS_NULLSTR(ship->flag))
+                    {
+                        sprintf(buf2,
+                            "{RThe %s named '{x%s{R', burns brightly as flames engulf the vessel!{x",
+                            ship->index->name, ship->ship_name);
+                    }
+                    else
+                    {
+                        sprintf(buf2,
+                            "{RThe %s named '{x%s{R', flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
+                            ship->index->name, ship->ship_name, ship->flag);
+                    }
+                }
+                else
+                {
+                    if (obj->ship->ship_type == SHIP_AIR_SHIP)
+                    {
+                        if( ship->speed == SHIP_SPEED_LANDED )
+                        {
+                            if( IS_NULLSTR(ship->flag) )
+                            {
+                                sprintf(buf2, "{MThe %s {x%s{M floats gently just above the ground.{x", ship->index->name, ship->ship_name);
+                            }
+                            else
+                            {
+                                sprintf(buf2, "{MThe %s {x%s{M, flying the flag '{x%s{M', floats gently just above the ground.{x", ship->index->name, ship->ship_name, ship->flag);
+                            }
+                        }
+                        else
+                        {
+                            if( IS_NULLSTR(ship->flag) )
+                            {
+                                sprintf(buf2, "{MThe %s {x%s{M floats gently high in the air.{x", ship->index->name, ship->ship_name);
+                            }
+                            else
+                            {
+                                sprintf(buf2, "{MThe %s {x%s{M, flying the flag '{x%s{M', floats gently high in the air.{x", ship->index->name, ship->ship_name, ship->flag);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (IS_NULLSTR(ship->flag))
+                        {
+                            sprintf(buf2,
+                                "{MThe %s named '{x%s{M' gracefully floats here.{x",
+                                ship->index->name, ship->ship_name);
+                        }
+                        else
+                        {
+                            sprintf(buf2,
+                                "{MThe %s named '{x%s{M', flying the flag '{x%s{M', floats here.{x",
+                                ship->index->name, ship->ship_name, ship->flag);
+                        }
+                    }
+                }
+            }
+
+            strcat(buf, buf2);
+        }
+        else
+        {
+            strcat(buf, obj->description);
+        }
+        }
+    }
     }
 
     return buf;
 }
 
 
-/* MOVED: senses/vision.c */
-/*
- * ROOM VERSION
- * Show a list to a character.
- * Can coalesce duplicated items.
+/**
+ * show_list_to_char - Display a list of objects to a character
+ *
+ * Formats and displays a linked list of objects, coalescing duplicates
+ * with a count indicator (e.g., "(3) sword"). Handles special cases:
+ * - Hidden objects (ITEM_HIDDEN) are not shown
+ * - Mist items (ITEM_MIST) can obscure other objects based on
+ *   MIST(mist)->obscure_objs percentage
+ * - Characters in POS_FEIGN are shown as corpses
+ *
+ * @param list          Head of the object linked list (via next_content)
+ * @param ch            The character viewing the list
+ * @param fShort        If true, use short descriptions
+ * @param fShowNothing  If true and list is empty, display "Nothing."
+ *
+ * Planned refactor: senses/vision.c (never executed)
  */
 void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
-		bool fShowNothing)
+        bool fShowNothing)
 {
     char buf[MAX_STRING_LENGTH];
     CHAR_DATA *victim;
@@ -587,12 +660,12 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     OBJ_DATA *mist = NULL, *mobj = NULL;
 
     if (ch->desc == NULL)
-	return;
+    return;
 
     if (ch == NULL)
     {
-	bug("show_list_to_char: ch was null!", 0);
-	return;
+    pbugf(LOG_ERROR, "ch was null!");
+    return;
     }
 
     /*
@@ -602,7 +675,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 
     count = 0;
     for (obj = list; obj != NULL; obj = obj->next_content)
-	count++;
+    count++;
     prgpstrShow = alloc_mem(count * sizeof(char *));
     prgnShow = alloc_mem(count * sizeof(int));
     nShow = 0;
@@ -611,10 +684,10 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 
     /* Figure out if there is a mist-type item in the room, which blocks objects from view. */
     if (list != NULL && list->carried_by == NULL && list->in_room != NULL) {
-	for (mobj = list->in_room->contents; mobj != NULL; mobj = mobj->next_content) {
-	    if (mobj->item_type == ITEM_MIST && mobj->value[0] > max)
-	    	mist = mobj;
-	}
+    for (mobj = list->in_room->contents; mobj != NULL; mobj = mobj->next_content) {
+        if (mobj->item_type == ITEM_MIST && MIST(mobj)->obscure_objs > max)
+            mist = mobj;
+    }
     }
 
     /*
@@ -622,60 +695,60 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
      */
     for (obj = list; obj != NULL; obj = obj->next_content)
     {
-	/* You dont see hidden objects in a list.
-	   Makes sense since hidden objects can*only* be on the ground. */
-	if (IS_SET(obj->extra[0], ITEM_HIDDEN))
-	    continue;
+    /* You dont see hidden objects in a list.
+       Makes sense since hidden objects can*only* be on the ground. */
+    if (IS_SET(obj->extra[0], ITEM_HIDDEN))
+        continue;
 
-	/* Mist type blocks random objs from view. */
-	if (mist != NULL && number_percent() < mist->value[0] && obj->item_type != ITEM_MIST)
-	    continue;
+    /* Mist type blocks random objs from view. */
+    if (mist != NULL && number_percent() < MIST(mist)->obscure_objs && obj->item_type != ITEM_MIST)
+        continue;
 
-	if (obj->wear_loc == WEAR_NONE && can_see_obj(ch, obj)) {
-	    pstrShow = format_obj_to_char(obj, ch, fShort);
+    if (obj->wear_loc == WEAR_NONE && can_see_obj(ch, obj)) {
+        pstrShow = format_obj_to_char(obj, ch, fShort);
 
-	    fCombine = false;
+        fCombine = false;
 
-	    /*
-	     * Look for duplicates, case sensitive.
-	     * Matches tend to be near end so run loop backwards.
-	     */
-	    for (iShow = nShow - 1; iShow >= 0; iShow--) {
-		if (!str_cmp(prgpstrShow[iShow], pstrShow)) {
-		    prgnShow[iShow]++;
-		    fCombine = true;
-		    break;
-		}
-	    }
+        /*
+         * Look for duplicates, case sensitive.
+         * Matches tend to be near end so run loop backwards.
+         */
+        for (iShow = nShow - 1; iShow >= 0; iShow--) {
+        if (!str_cmp(prgpstrShow[iShow], pstrShow)) {
+            prgnShow[iShow]++;
+            fCombine = true;
+            break;
+        }
+        }
 
-	    /*
-	     * Couldn't combine, or didn't want to.
-	     */
-	    if (!fCombine)
-	    {
-		prgpstrShow[nShow] = str_dup(pstrShow);
-		prgnShow[nShow] = 1;
-		nShow++;
-	    }
-	}
+        /*
+         * Couldn't combine, or didn't want to.
+         */
+        if (!fCombine)
+        {
+        prgpstrShow[nShow] = str_dup(pstrShow);
+        prgnShow[nShow] = 1;
+        nShow++;
+        }
+    }
     }
 
     /* Do feign. */
     for (victim = ch->in_room->people; victim != NULL; victim = victim->next_in_room)
     {
-	if (mist && number_percent() < mist->value[0])
-	    continue;
+    if (mist && number_percent() < MIST(mist)->obscure_objs)
+        continue;
 
-	if ((victim->position == POS_FEIGN) && (victim != ch) && !fShort)
-	{
-	    sprintf(buf, "     {yThe corpse of %s is lying here.{x\n\r",
-		pers(victim, ch));
-	    if (!add_buf(output, buf))
-	    {
-		log_string("act_info, corpse addbuf failed.");
-		return;
-	    }
-	}
+    if ((victim->position == POS_FEIGN) && (victim != ch) && !fShort)
+    {
+        sprintf(buf, "     {yThe corpse of %s is lying here.{x\n\r",
+        pers(victim, ch));
+        if (!add_buf(output, buf))
+        {
+        perrf(LOG_ERROR, "Corpse addbuf failed.");
+        return;
+        }
+    }
     }
 
     /*
@@ -683,37 +756,37 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
      */
     for (iShow = 0; iShow < nShow; iShow++)
     {
-	if (prgpstrShow[iShow][0] == '\0') {
-	    free_string(prgpstrShow[iShow]);
-	    continue;
-	}
+    if (prgpstrShow[iShow][0] == '\0') {
+        free_string(prgpstrShow[iShow]);
+        continue;
+    }
 
-	if (prgnShow[iShow] != 1) {
-	    sprintf(buf, "{Y({G%2d{Y) {x", prgnShow[iShow]);
-	    if (!add_buf(output, buf))
-	    {
-		log_string("act_info, addbuf, combine failed");
-		return;
-	    }
-	} else {
-	    if (!add_buf(output, "     "))
-	    {
-		log_string("act_info, addbuf, combine failed");
-		return;
-	    }
-	}
+    if (prgnShow[iShow] != 1) {
+        sprintf(buf, "{Y({G%2d{Y) {x", prgnShow[iShow]);
+        if (!add_buf(output, buf))
+        {
+        perrf(LOG_ERROR, "Addbuf, combine failed");
+        return;
+        }
+    } else {
+        if (!add_buf(output, "     "))
+        {
+        perrf(LOG_ERROR, "Addbuf, combine failed");
+        return;
+        }
+    }
 
-	add_buf(output, "{x");
-	add_buf(output, prgpstrShow[iShow]);
-	add_buf(output, "\n\r{x");
-	free_string(prgpstrShow[iShow]);
+    add_buf(output, "{x");
+    add_buf(output, prgpstrShow[iShow]);
+    add_buf(output, "\n\r{x");
+    free_string(prgpstrShow[iShow]);
     }
 
     if (fShowNothing && nShow == 0)
     {
-	/* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
-	send_to_char("     ", ch);
-	send_to_char("Nothing.\n\r", ch);
+    /* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
+    send_to_char("     ", ch);
+    send_to_char("Nothing.\n\r", ch);
     }
     page_to_char(buf_string(output), ch);
 
@@ -725,6 +798,18 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     free_mem(prgnShow, count * sizeof(int));
 }
 
+/**
+ * show_llist_to_char - Display an LLIST of objects to a character
+ *
+ * Wrapper for show_list_to_char that accepts an LLIST instead of a
+ * traditional linked list. Temporarily rebuilds next_content links
+ * to create a compatible list, then calls show_list_to_char.
+ *
+ * @param llist         The LLIST containing objects
+ * @param ch            The character viewing the list
+ * @param fShort        If true, use short descriptions
+ * @param fShowNothing  If true and list is empty, display "Nothing."
+ */
 void show_llist_to_char(LLIST *llist, CHAR_DATA *ch, bool fShort, bool fShowNothing)
 {
     OBJ_DATA *head = NULL, *last = NULL, *obj;
@@ -742,12 +827,69 @@ void show_llist_to_char(LLIST *llist, CHAR_DATA *ch, bool fShort, bool fShowNoth
 
     show_list_to_char(head, ch, fShort, fShowNothing);
 
-    // Optionally, restore next_content pointers to NULL
-    for (obj = head; obj; obj = obj->next_content)
+    // Restore next_content pointers to NULL
+    // Must save next pointer BEFORE clearing, or we lose our way through the list
+    OBJ_DATA *next_obj;
+    for (obj = head; obj; obj = next_obj) {
+        next_obj = obj->next_content;
         obj->next_content = NULL;
+    }
 }
 
-/* MOVED: senses/vision.c */
+static const char *show_room_display_name(ROOM_INDEX_DATA *room, char *out, size_t out_size)
+{
+    const char *base_name;
+
+    if (!room)
+    {
+        snprintf(out, out_size, "(unknown)");
+        return out;
+    }
+
+    base_name = IS_NULLSTR(room->name) ? "(unnamed)" : room->name;
+
+    if (IS_WILDERNESS(room) && room->wilds)
+    {
+        WILDS_TERRAIN *terrain = get_terrain_by_coors(room->wilds, room->x, room->y);
+        WILDS_REGION *region = get_region_by_coors(room->wilds, room->x, room->y);
+
+        if (terrain && !IS_NULLSTR(terrain->showname))
+            base_name = terrain->showname;
+
+        if (region && !IS_NULLSTR(region->name))
+            snprintf(out, out_size, "%s (%s)", base_name, region->name);
+        else
+            snprintf(out, out_size, "%s", base_name);
+
+        return out;
+    }
+
+    snprintf(out, out_size, "%s", base_name);
+    return out;
+}
+
+/**
+ * show_char_to_char_0 - Display a character's room description to viewer
+ *
+ * Formats a single character's appearance as seen in a room listing.
+ * Shows status indicators (invisible, AFK, lost link, charmed, etc.),
+ * auras (evil/good/dark shroud/blood), quest markers, and position.
+ *
+ * Handles:
+ * - Skip if feigning death or being ridden by someone else
+ * - Invisibility/improved invis markers
+ * - Wizi (immortal/mob) indicators
+ * - Morphed/shifted characters shown by appearance if viewer can't see through
+ * - Position-based messages (dead, incap, sleeping, sitting, fighting, etc.)
+ * - Furniture interactions (on/at furniture)
+ * - Mounted characters
+ * - Cocoon/entangled states
+ *
+ * @param victim  The character being viewed
+ * @param ch      The character doing the viewing
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 {
     char buf[MAX_STRING_LENGTH];
@@ -756,58 +898,102 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     buf[0] = '\0';
 
     if (victim->position == POS_FEIGN)
-	return;
+    return;
 
     if (RIDDEN(victim) && ch != RIDDEN(victim))
-	return;
+    return;
 
     if (RIDDEN(victim))
-	return;
+    return;
 
     if (IS_AFFECTED(victim, AFF_INVISIBLE) || IS_AFFECTED2(victim, AFF2_IMPROVED_INVIS))
-		strcat(buf, "{B*{G");
+        strcat(buf, "{B*{G");
     if (!IS_NPC(victim) && victim->desc == NULL)
-		strcat(buf, "{Y[Lost Link]{G ");
+        strcat(buf, "{Y[Lost Link]{G ");
     if (IS_SET(victim->comm, COMM_AFK))
-		strcat(buf, "{Y[AFK] {G");
+        strcat(buf, "{Y[AFK] {G");
     if (victim->invis_level >= LEVEL_HERO)
-		strcat(buf, "{B({WW{Ri{Yz{Gi{B) {G");
+        strcat(buf, "{B({WW{Ri{Yz{Gi{B) {G");
     if (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB))
- 		strcat(buf, "{B({WW{Ri{Yz{Gi{GMOB{B) {G");
+         strcat(buf, "{B({WW{Ri{Yz{Gi{GMOB{B) {G");
     if (IS_AFFECTED(victim, AFF_CHARM))
-		strcat(buf, "{Y(Charmed) {G");
+        strcat(buf, "{Y(Charmed) {G");
     if (IS_AFFECTED(victim, AFF_PASS_DOOR))
-		strcat(buf, "{C(Translucent) {G");
+        strcat(buf, "{C(Translucent) {G");
     if (IS_AFFECTED(victim, AFF_FAERIE_FIRE))
-		strcat(buf, "{M(Pink Aura) {G");
+        strcat(buf, "{M(Pink Aura) {G");
     if (IS_EVIL(victim) && (IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))))
-		strcat(buf, "{R(Red Aura) {G");
+        strcat(buf, "{R(Red Aura) {G");
     if (IS_GOOD(victim) && (IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))))
-		strcat(buf, "{y(Gold Aura) {G");
+        strcat(buf, "{y(Gold Aura) {G");
     if (IS_AFFECTED2(victim,AFF2_DARK_SHROUD))
-    	strcat(buf, "{D(Dark Shroud) {G");
+        strcat(buf, "{D(Dark Shroud) {G");
     if (victim->pk_timer > 0)
-    	strcat(buf, "{r(Blood Aura) {G");
+        strcat(buf, "{r(Blood Aura) {G");
 
     if (IS_DEAD(victim))
-		strcat(buf, "{DThe shadow of ");
+        strcat(buf, "{DThe shadow of ");
     else
-		strcat(buf, "{G");
+        strcat(buf, "{G");
 
     if (IS_QUESTING(ch) && IS_NPC(victim))
     {
         QUEST_PART_DATA *part;
+        bool marked = false;
 
-        for (part = ch->quest->parts; part != NULL; part = part->next)
+        /* v1 quest kill indicator */
+        for (part = ch->quest->parts; part != NULL && !marked; part = part->next)
         {
-	    if (part->mob != -1 && !part->complete)
-	    {
-                if (part->mob == victim->pIndexData->vnum)
+        if (part->mob_load.vnum != -1 && !part->complete)
+        {
+                if (!part->mob_wnum.pArea && part->mob_load.vnum > 0) {
+                    WNUM wnum;
+                    if (resolve_widevnum(part->mob_load.vnum, NULL, &wnum))
+                        part->mob_wnum = wnum;
+                    else {
+                        AREA_DATA *fallback = get_system_area_fallback();
+                        resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
+                    }
+                }
+                if (wnum_match_mob(part->mob_wnum, victim))
                 {
-   	 	    strcat(buf, "{R[X] {G");
-		    break;
-		}
-	    }
+                strcat(buf, "{R[X] {G");
+                marked = true;
+            break;
+        }
+        }
+        }
+
+        /* v2 quest kill/escort/rescue objective indicator */
+        if (!marked)
+        {
+            QUEST_DATA *run;
+            for (run = ch->quest; run != NULL && !marked; run = run->next)
+            {
+                QUEST_STAGE_INDEX_V2_DATA *stage;
+                QUEST_OBJECTIVE_INDEX_V2_DATA *obj;
+                if (run->run_status != QUEST_RUN_STATUS_ACTIVE) continue;
+                stage = quest_runtime_get_current_stage(run);
+                if (!stage) continue;
+                for (obj = stage->objectives; obj != NULL && !marked; obj = obj->next)
+                {
+                    if (obj->objective_type != QUEST_OBJECTIVE_KILL
+                    &&  obj->objective_type != QUEST_OBJECTIVE_ESCORT
+                    &&  obj->objective_type != QUEST_OBJECTIVE_RESCUE)
+                        continue;
+
+                    if (!obj->target_wnum.pArea && obj->target_load.vnum > 0) {
+                        AREA_DATA *fallback = get_system_area_fallback();
+                        resolve_wnum_load(&obj->target_load, &obj->target_wnum, fallback);
+                    }
+
+                    if (obj->target_wnum.pArea && wnum_match_mob(obj->target_wnum, victim))
+                    {
+                        strcat(buf, "{R[!] {G");
+                        marked = true;
+                    }
+                }
+            }
         }
     }
 
@@ -816,265 +1002,265 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     || ((IS_MORPHED(victim) || IS_SHIFTED(victim)) && !can_see_shift(ch, victim)))
     {
         if (victim->position == POS_STANDING
-	&& victim->on == NULL
-	&& !MOUNTED(victim))
-	{
+    && victim->on == NULL
+    && !MOUNTED(victim))
+    {
             sprintf(buf2, "%s", victim->long_descr);
-	    buf2[0] = UPPER(buf2[0]);
-	    strcat(buf, buf2);
-	}
+        buf2[0] = UPPER(buf2[0]);
+        strcat(buf, buf2);
+    }
         else
-	{
-	    sprintf(buf2, "%s", victim->short_descr);
-	    buf2[0] = UPPER(buf2[0]);
-	    strcat(buf, buf2);
-	}
+    {
+        sprintf(buf2, "%s", victim->short_descr);
+        buf2[0] = UPPER(buf2[0]);
+        strcat(buf, buf2);
+    }
     }
     else if (!IS_NPC(victim))
     {
-	sprintf(buf2, "%s", victim->name);
-	buf2[0] = UPPER(buf2[0]);
+    sprintf(buf2, "%s", victim->name);
+    buf2[0] = UPPER(buf2[0]);
         strcat(buf, buf2);
         if (victim->position == POS_STANDING && victim->on == NULL)
-  	    strcat(buf, victim->pcdata->title);
+          strcat(buf, victim->pcdata->title);
     }
 
     switch (victim->position)
     {
-	case POS_DEAD:
-	    strcat(buf, " is {RDEAD!!{x");
-	    break;
-	case POS_MORTAL:
-	    strcat(buf, " is mortally wounded.{x");
-	    break;
-	case POS_INCAP:
-	    strcat(buf, " is incapacitated.{x");
-	    break;
-	case POS_STUNNED:
-	    strcat(buf, " is lying here stunned.{x");
-	    break;
-	case POS_SLEEPING:
-	    if (victim->on != NULL)
-	    {
-		if (IS_SET(victim->on->value[2], SLEEP_AT))
-		{
-		    sprintf(message, " is sleeping at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], SLEEP_ON))
-		{
-		    sprintf(message, " is sleeping on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else
-		{
-		    sprintf(message, " is sleeping in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-	    }
-	    else
-		strcat(buf, " is sleeping here.");
+    case POS_DEAD:
+        strcat(buf, " is {RDEAD!!{x");
+        break;
+    case POS_MORTAL:
+        strcat(buf, " is mortally wounded.{x");
+        break;
+    case POS_INCAP:
+        strcat(buf, " is incapacitated.{x");
+        break;
+    case POS_STUNNED:
+        strcat(buf, " is lying here stunned.{x");
+        break;
+    case POS_SLEEPING:
+        if (victim->on != NULL)
+        {
+        if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_AT))
+        {
+            sprintf(message, " is sleeping at %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_ON))
+        {
+            sprintf(message, " is sleeping on %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else
+        {
+            sprintf(message, " is sleeping in %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        }
+        else
+        strcat(buf, " is sleeping here.");
 
-	    if (IS_NPC(victim))
-		strcat(buf, "\n\r");
+        if (IS_NPC(victim))
+        strcat(buf, "\n\r");
 
-	    break;
-	case POS_RESTING:
-	    if (victim->on != NULL)
-	    {
-		if (IS_SET(victim->on->value[2], REST_AT))
-		{
-		    sprintf(message, " is resting at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], REST_ON))
-		{
-		    sprintf(message, " is resting on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else
-		{
-		    sprintf(message, " is resting in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-	    }
-	    else
-	    {
-		strcat(buf, " is resting here.");
-	    }
+        break;
+    case POS_RESTING:
+        if (victim->on != NULL)
+        {
+        if (IS_SET(FURNITURE(victim->on)->flags, REST_AT))
+        {
+            sprintf(message, " is resting at %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, REST_ON))
+        {
+            sprintf(message, " is resting on %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else
+        {
+            sprintf(message, " is resting in %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        }
+        else
+        {
+        strcat(buf, " is resting here.");
+        }
 
-	    if (IS_NPC(victim))
-	    {
-		strcat(buf , "\n\r");
-	    }
-	    break;
-	case POS_SITTING:
-	    if (victim->on != NULL)
-	    {
-		if (IS_SET(victim->on->value[2], SIT_AT))
-		{
-		    sprintf(message, " is sitting at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], SIT_ON))
-		{
-		    sprintf(message, " is sitting on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else
-		{
-		    sprintf(message, " is sitting in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-	    }
-	    else
-	    {
-		strcat(buf, " is sitting here.");
-	    }
+        if (IS_NPC(victim))
+        {
+        strcat(buf , "\n\r");
+        }
+        break;
+    case POS_SITTING:
+        if (victim->on != NULL)
+        {
+        if (IS_SET(FURNITURE(victim->on)->flags, SIT_AT))
+        {
+            sprintf(message, " is sitting at %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, SIT_ON))
+        {
+            sprintf(message, " is sitting on %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else
+        {
+            sprintf(message, " is sitting in %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        }
+        else
+        {
+        strcat(buf, " is sitting here.");
+        }
 
-	    if (IS_NPC(victim))
-	    {
-		strcat(buf, "\n\r");
-	    }
-	    break;
-	case POS_STANDING:
-	    if (victim->on != NULL)
-	    {
-		if (IS_SET(victim->on->value[2], STAND_AT))
-		{
-		    sprintf(message, " is standing at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], STAND_ON))
-		{
-		    sprintf(message, " is standing on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else
-		{
-		    sprintf(message, " is standing in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-	    }
-	    else if (MOUNTED(victim))
-	    {
-		strcat(buf, " {Gis here, riding ");
-		strcat(buf, MOUNTED(victim)->short_descr);
-		strcat(buf, ".");
-	    }
-	    else if (PULLING_CART(victim))
-	    {
-		strcat(buf, " {Gis here, pulling ");
-		strcat(buf, PULLING_CART(victim)->short_descr);
-		strcat(buf, ".");
-	    }
-	    else if (!IS_NPC(victim)
-		   && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim))
-			   || can_see_shift(ch, victim)))
-	    {
-		strcat(buf, (IS_DEAD(victim)) ? " {Dis here.{x" : " {Gis here.{x");
-	    }
-	    break;
-	case POS_FIGHTING:
-	    strcat(buf, " {Gis here, fighting ");
-	    if (victim->fighting == NULL)
-	    {
-		strcat(buf, "thin air??");
-	    }
-	    else if (victim->fighting == ch)
-	    {
-		strcat(buf, "YOU!");
-	    }
-	    else if (victim->in_room == victim->fighting->in_room)
-	    {
-		strcat(buf, pers(victim->fighting, ch));
-		strcat(buf, ".");
-	    }
-	    else
-	    {
-		strcat(buf, "someone who left??");
-	    }
-	    if (IS_NPC(victim))
-	    {
-		strcat(buf, "\n\r");
-	    }
-	    break;
+        if (IS_NPC(victim))
+        {
+        strcat(buf, "\n\r");
+        }
+        break;
+    case POS_STANDING:
+        if (victim->on != NULL)
+        {
+        if (IS_SET(FURNITURE(victim->on)->flags, STAND_AT))
+        {
+            sprintf(message, " is standing at %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, STAND_ON))
+        {
+            sprintf(message, " is standing on %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        else
+        {
+            sprintf(message, " is standing in %s.",
+                victim->on->short_descr);
+            strcat(buf, message);
+        }
+        }
+        else if (MOUNTED(victim))
+        {
+        strcat(buf, " {Gis here, riding ");
+        strcat(buf, MOUNTED(victim)->short_descr);
+        strcat(buf, ".");
+        }
+        else if (PULLING_CART(victim))
+        {
+        strcat(buf, " {Gis here, pulling ");
+        strcat(buf, PULLING_CART(victim)->short_descr);
+        strcat(buf, ".");
+        }
+        else if (!IS_NPC(victim)
+           && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim))
+               || can_see_shift(ch, victim)))
+        {
+        strcat(buf, (IS_DEAD(victim)) ? " {Dis here.{x" : " {Gis here.{x");
+        }
+        break;
+    case POS_FIGHTING:
+        strcat(buf, " {Gis here, fighting ");
+        if (victim->fighting == NULL)
+        {
+        strcat(buf, "thin air??");
+        }
+        else if (victim->fighting == ch)
+        {
+        strcat(buf, "YOU!");
+        }
+        else if (victim->in_room == victim->fighting->in_room)
+        {
+        strcat(buf, pers(victim->fighting, ch));
+        strcat(buf, ".");
+        }
+        else
+        {
+        strcat(buf, "someone who left??");
+        }
+        if (IS_NPC(victim))
+        {
+        strcat(buf, "\n\r");
+        }
+        break;
     }
 
     if (!IS_NPC(victim)
     && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
-	(victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
+    (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
     {
         if (victim->alignment == 1000)
         {
-     	    sprintf(buf2, "\n\r{W%s is bathed in a holy white aura.{x",
-		pers(victim, ch));
-	    buf2[4] = UPPER(buf2[4]);
-	    strcat(buf, buf2);
-	}
+             sprintf(buf2, "\n\r{W%s is bathed in a holy white aura.{x",
+        pers(victim, ch));
+        buf2[4] = UPPER(buf2[4]);
+        strcat(buf, buf2);
+    }
 
-	if (victim->alignment == -1000)
-	{
-	    sprintf(buf2,
-		"\n\r{R%s is surrounded with the burning fires of hell.{x",
-		pers(victim, ch));
-	    buf2[4] = UPPER(buf2[4]);
-	    strcat(buf, buf2);
-	}
+    if (victim->alignment == -1000)
+    {
+        sprintf(buf2,
+        "\n\r{R%s is surrounded with the burning fires of hell.{x",
+        pers(victim, ch));
+        buf2[4] = UPPER(buf2[4]);
+        strcat(buf, buf2);
+    }
 
-	if (IS_AFFECTED(victim, AFF_SANCTUARY))
-	{
- 	    sprintf(buf2,
-	    "\n\r{W%s is surrounded with an aura of sanctuary.{x",
-	   	    pers(victim, ch));
-	    buf2[4] = UPPER(buf2[4]);
-  	    strcat(buf, buf2);
-	}
+    if (IS_AFFECTED(victim, AFF_SANCTUARY))
+    {
+         sprintf(buf2,
+        "\n\r{W%s is surrounded with an aura of sanctuary.{x",
+               pers(victim, ch));
+        buf2[4] = UPPER(buf2[4]);
+          strcat(buf, buf2);
+    }
     }
     else
     {
         if (victim->alignment == 1000)
-	{
-	    sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r",
-		pers(victim, ch));
-	    buf2[2] = UPPER(buf2[2]);
-	    strcat(buf, buf2);
-	}
+    {
+        sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r",
+        pers(victim, ch));
+        buf2[2] = UPPER(buf2[2]);
+        strcat(buf, buf2);
+    }
 
-	if (victim->alignment == -1000)
-	{
-	    sprintf(buf2,
-		"{R%s is surrounded with the burning fires of hell.{x\n\r",
-		pers(victim, ch));
-	    buf2[2] = UPPER(buf2[2]);
-	    strcat(buf, buf2);
-	}
+    if (victim->alignment == -1000)
+    {
+        sprintf(buf2,
+        "{R%s is surrounded with the burning fires of hell.{x\n\r",
+        pers(victim, ch));
+        buf2[2] = UPPER(buf2[2]);
+        strcat(buf, buf2);
+    }
 
-	if (IS_AFFECTED(victim, AFF_SANCTUARY))
-	{
-	    sprintf(buf2,
-		"{W%s is surrounded with an aura of sanctuary.{x\n\r",
-		pers(victim, ch));
-	    buf2[2] = UPPER(buf2[2]);
-	    strcat(buf, buf2);
-	}
+    if (IS_AFFECTED(victim, AFF_SANCTUARY))
+    {
+        sprintf(buf2,
+        "{W%s is surrounded with an aura of sanctuary.{x\n\r",
+        pers(victim, ch));
+        buf2[2] = UPPER(buf2[2]);
+        strcat(buf, buf2);
+    }
     }
 
     if (!IS_NPC(victim)
     && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
-	 (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
+     (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
     strcat(buf, "\n\r");
 
     buf[0] = UPPER(buf[0]);
@@ -1082,7 +1268,28 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * show_char_to_char_1 - Display detailed information when looking at a character
+ *
+ * Shows a character's full description, health condition, mount/rider status,
+ * hire contract info (for hired NPCs), and equipment. Used when a player
+ * explicitly looks at or examines another character.
+ *
+ * Displays:
+ * - Notifies victim they're being looked at (if visible)
+ * - Character's description or "nothing special"
+ * - Mount/rider information
+ * - Hired NPC contract expiration
+ * - Health condition (percentage-based messages)
+ * - Equipment list (if examining)
+ * - Kept/Unkept items (if examining self)
+ *
+ * @param victim   The character being looked at
+ * @param ch       The character doing the looking
+ * @param examine  If true, show equipment details
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1093,89 +1300,89 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 
     if (can_see(victim, ch) && ch->invis_level < 150)
     {
-	if (ch == victim)
-	    act("$n looks at $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	else
-	{
-	    act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	    act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	}
+    if (ch == victim)
+        act("$n looks at $mself.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    else
+    {
+        act("$n looks at you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+        act("$n looks at $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+    }
     }
 
     if (victim->description[0] != '\0')
     {
-	send_to_char(victim->description, ch);
+    send_to_char(victim->description, ch);
     }
     else
     {
-	act("You see nothing special about $M.", ch, victim, NULL, NULL, NULL, NULL, NULL,
-	    TO_CHAR);
+    act("You see nothing special about $M.", ch, victim, NULL, NULL, NULL, NULL, NULL,
+        TO_CHAR, NULL, NULL);
     }
 
     sprintf(name, "%s", victim->name);
     name[0] = UPPER(name[0]);
     if (MOUNTED(victim))
     {
-	sprintf(buf, "%s is riding %s.\n\r",
-	    name,
-	    MOUNTED(victim)->short_descr);
-	send_to_char(buf, ch);
+    sprintf(buf, "%s is riding %s.\n\r",
+        name,
+        MOUNTED(victim)->short_descr);
+    send_to_char(buf, ch);
     }
 
     if (RIDDEN(victim))
     {
-	sprintf(buf, "%s is being ridden by %s.\n\r", victim->short_descr,
-		RIDDEN(victim)->name);
-	send_to_char(buf, ch);
+    sprintf(buf, "%s is being ridden by %s.\n\r", victim->short_descr,
+        RIDDEN(victim)->name);
+    send_to_char(buf, ch);
     }
 
-	if (IS_SET(victim->act[1], ACT2_HIRED) && victim->leader == ch)
-	{
-		char hired_time[100];
-		strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&victim->hired_to));
-		//char *hired_time = strtok((ctime(time_t *)&victim->hired_to), "\n");
-		sprintf(buf, "{A%s is under contract until %s.\n\r", victim->short_descr, hired_time);
-		buf[2] = UPPER(buf[2]);
-		send_to_char(buf, ch);
-	}
+    if (IS_SET(victim->act[1], ACT2_HIRED) && victim->leader == ch)
+    {
+        char hired_time[100];
+        strftime(hired_time, 100, "%a %b %d %X %Z %Y", localtime(&victim->hired_to));
+        //char *hired_time = strtok((ctime(time_t *)&victim->hired_to), "\n");
+        sprintf(buf, "{A%s is under contract until %s.\n\r", victim->short_descr, hired_time);
+        buf[2] = UPPER(buf[2]);
+        send_to_char(buf, ch);
+    }
 
     if (victim->max_hit > 0)
-	percent = (100 * victim->hit) / victim->max_hit;
+    percent = (100 * victim->hit) / victim->max_hit;
     else
-	percent = -1;
+    percent = -1;
 
     if (!IS_DEAD(victim))
-	strcpy(buf, "{M");
+    strcpy(buf, "{M");
     else
-	strcpy(buf, "{D");
+    strcpy(buf, "{D");
     sprintf(buf2, pers(victim, ch));
     buf2[0] = UPPER(buf2[0]);
     strcat(buf, buf2);
 
     if (IS_DEAD(victim))
-	strcat(buf, " is dead.\n\r");
+    strcat(buf, " is dead.\n\r");
     else if (percent >= 100)
-	strcat(buf, " is in excellent condition.\n\r");
+    strcat(buf, " is in excellent condition.\n\r");
     else if (percent >= 90)
-	strcat(buf, " has a few scratches.\n\r");
+    strcat(buf, " has a few scratches.\n\r");
     else if (percent >= 80)
-	    strcat(buf, " has a few scratches and bruises.\n\r");
+        strcat(buf, " has a few scratches and bruises.\n\r");
     else if (percent >= 70)
-	strcat(buf, " has some small wounds.\n\r");
+    strcat(buf, " has some small wounds.\n\r");
     else if (percent >= 60)
-	strcat(buf, " has some small wounds and bruises.\n\r");
+    strcat(buf, " has some small wounds and bruises.\n\r");
     else if (percent >= 50)
-	strcat(buf, " has some nasty wounds and scratches.\n\r");
+    strcat(buf, " has some nasty wounds and scratches.\n\r");
     else if (percent >= 40)
-	strcat(buf, " looks pretty hurt.\n\r");
+    strcat(buf, " looks pretty hurt.\n\r");
     else if (percent >= 30)
-	    strcat(buf, " looks very hurt.\n\r");
+        strcat(buf, " looks very hurt.\n\r");
     else if (percent >= 20)
-	strcat(buf, " is in awful condition.\n\r");
+    strcat(buf, " is in awful condition.\n\r");
     else if (percent >= 10)
-	    strcat(buf, " is barely clinging to life.\n\r");
+        strcat(buf, " is barely clinging to life.\n\r");
     else
-	strcat(buf, " is on the verge of death.\n\r");
+    strcat(buf, " is on the verge of death.\n\r");
     strcat(buf, "{x");
 
     buf[0] = UPPER(buf[0]);
@@ -1186,36 +1393,59 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 
 if (victim != ch
 && !IS_NPC(ch)
-&& number_percent() < get_skill(ch, gsn_peek))
+&& number_percent() < get_skill(ch, skill_resolve_gsn("peek")))
 {
     send_to_char("\n\rYou peek at the inventory:\n\r", ch);
-    check_improve(ch, gsn_peek, true, 4);
+    check_improve(ch, skill_resolve_gsn("peek"), true, 4);
 
 show_llist_to_char(victim->lcarrying, ch, true, true);
 }
 
-	if( IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE) || examine )
-	{
-    if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
+    if( IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE) || examine )
+    {
+    if (IS_NPC(victim) && number_percent() < get_skill(ch, skill_resolve_gsn("mob lore")))
     {
         if (IS_SET(victim->act[0], ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
-	    act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	else
-	{
-	    send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
-	    show_basic_mob_lore(ch, victim);
-	    check_improve(ch, gsn_mob_lore, true, 7);
-	}
-	}
+        act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    else
+    {
+        send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
+        show_basic_mob_lore(ch, victim);
+        check_improve(ch, skill_resolve_gsn("mob lore"), true, 7);
+    }
+    }
     }
 
     if (IS_NPC(victim) && (!IS_SET(victim->act[0], ACT_NO_LORE) || ch->tot_level > victim->tot_level))
-	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+    p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 
     return;
 }
 
-/* MOVED: senses/vision.c */
+/**
+ * show_char_to_char - Display all visible characters in a room to viewer
+ *
+ * Iterates through a list of characters and shows each one using
+ * show_char_to_char_0. Handles visibility checks, mist obscurement,
+ * hidden characters, and special cases for third eye spell viewing.
+ *
+ * When victim is non-NULL, shows characters as seen by victim (third eye).
+ * Otherwise shows characters as seen by ch directly.
+ *
+ * Handles:
+ * - Mist items that obscure characters via MIST(mist)->obscure_mobs
+ * - Hidden characters (AFF_HIDE vs AFF_DETECT_HIDDEN)
+ * - Invisible immortals (wizi check)
+ * - Wizi mobs (ACT2_WIZI_MOB)
+ * - Infrared vision in dark rooms
+ * - Mounted characters shown with their mount
+ *
+ * @param list    Head of character list (room->people)
+ * @param ch      The character who receives the output
+ * @param victim  If non-NULL, view room through this character's perspective
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 {
     CHAR_DATA *rch;
@@ -1223,100 +1453,124 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 
     for (mist = ch->in_room->contents; mist != NULL; mist = mist->next_content)
     {
-	if (mist->item_type == ITEM_MIST)
-	    break;
+    if (mist->item_type == ITEM_MIST)
+        break;
     }
 
     for (rch = list; rch != NULL; rch = rch->next_in_room)
     {
-	/* For the third eye spell, so victim doesn't come up in list */
-	if (victim != NULL)
-	{
-	    if (rch == victim
-		|| (RIDDEN(rch) && rch->in_room == RIDDEN(rch)->in_room
-		    && RIDDEN(rch) != victim))
-		continue;
+    /* For the third eye spell, so victim doesn't come up in list */
+    if (victim != NULL)
+    {
+        if (rch == victim
+        || (RIDDEN(rch) && rch->in_room == RIDDEN(rch)->in_room
+            && RIDDEN(rch) != victim))
+        continue;
 
-	    if (!can_see(rch, victim))
-		continue;
+        if (!can_see(rch, victim))
+        continue;
 
-	    if (mist && number_percent() < mist->value[1])
-		continue;
+        if (mist && number_percent() < MIST(mist)->obscure_mobs)
+        continue;
 
- 	    if (!IS_IMMORTAL(ch)
-	    && IS_NPC(victim)
-	    && IS_SET(victim->act[1], ACT2_WIZI_MOB))
- 	        continue;
-
-            if (IS_AFFECTED(rch, AFF_HIDE)
-	    &&  !IS_AFFECTED(ch, AFF_DETECT_HIDDEN))
-		continue;
-
-	    if (can_see(victim, rch) || (IS_IMMORTAL(rch) && can_see_imm(ch,rch)))
-	    {
-		show_char_to_char_0(rch, ch);
-		if (MOUNTED(rch)
-		    && (rch->in_room == MOUNTED(rch)->in_room))
-		    show_char_to_char_0(MOUNTED(rch), ch);
-	    }
-	    else
-   	    if (room_is_dark(ch->in_room)
-	    &&  IS_AFFECTED(rch, AFF_INFRARED))
-	    {
-		send_to_char
-		    ("{RYou see glowing red eyes watching YOU!\n\r{x", ch);
-	    }
-	}
-	else
-	{
-	    if (rch == ch
-		|| (RIDDEN(rch) && rch->in_room == RIDDEN(rch)->in_room
-		    && RIDDEN(rch) != ch))
-		continue;
-
-	    if (get_staff_rank(ch) < rch->invis_level && !can_see_imm(ch,rch))
-		continue;
-
-	    if (mist && number_percent() < mist->value[1])
-		continue;
+         if (!IS_IMMORTAL(ch)
+        && IS_NPC(victim)
+        && IS_SET(victim->act[1], ACT2_WIZI_MOB))
+             continue;
 
             if (IS_AFFECTED(rch, AFF_HIDE)
-	    &&  !IS_AFFECTED(ch, AFF_DETECT_HIDDEN))
-		continue;
+        &&  !IS_AFFECTED(ch, AFF_DETECT_HIDDEN))
+        continue;
 
-	    if (can_see(ch, rch) || (IS_IMMORTAL(rch) && can_see_imm(ch,rch)))
-	    {
-		show_char_to_char_0(rch, ch);
-		if (MOUNTED(rch)
-		    && (rch->in_room == MOUNTED(rch)->in_room))
-		    show_char_to_char_0(MOUNTED(rch), ch);
+        if (can_see(victim, rch) || (IS_IMMORTAL(rch) && can_see_imm(ch,rch)))
+        {
+        show_char_to_char_0(rch, ch);
+        if (MOUNTED(rch)
+            && (rch->in_room == MOUNTED(rch)->in_room))
+            show_char_to_char_0(MOUNTED(rch), ch);
+        }
+        else
+           if (room_is_dark(ch->in_room)
+        &&  IS_AFFECTED(rch, AFF_INFRARED))
+        {
+        send_to_char
+            ("{RYou see glowing red eyes watching YOU!\n\r{x", ch);
+        }
+    }
+    else
+    {
+        if (rch == ch
+        || (RIDDEN(rch) && rch->in_room == RIDDEN(rch)->in_room
+            && RIDDEN(rch) != ch))
+        continue;
 
-	    }
-	    else if (room_is_dark(ch->in_room)
+        if (get_staff_rank(ch) < rch->invis_level && !can_see_imm(ch,rch))
+        continue;
+
+        if (mist && number_percent() < MIST(mist)->obscure_mobs)
+        continue;
+
+            if (IS_AFFECTED(rch, AFF_HIDE)
+        &&  !IS_AFFECTED(ch, AFF_DETECT_HIDDEN))
+        continue;
+
+        if (can_see(ch, rch) || (IS_IMMORTAL(rch) && can_see_imm(ch,rch)))
+        {
+        show_char_to_char_0(rch, ch);
+        if (MOUNTED(rch)
+            && (rch->in_room == MOUNTED(rch)->in_room))
+            show_char_to_char_0(MOUNTED(rch), ch);
+
+        }
+        else if (room_is_dark(ch->in_room)
             && IS_AFFECTED(rch, AFF_INFRARED))
-	    {
-		send_to_char
-		    ("{RYou see glowing red eyes watching YOU!\n\r{x", ch);
-	    }
-	}
+        {
+        send_to_char
+            ("{RYou see glowing red eyes watching YOU!\n\r{x", ch);
+        }
+    }
     }
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * check_blind - Check if a character can see (not blinded)
+ *
+ * Determines if a character's vision is functional. Returns true if
+ * the character can see, false if they are blinded.
+ *
+ * @param ch  The character to check
+ *
+ * @return true if character can see (has holylight or not blinded),
+ *         false if character is blinded
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 bool check_blind(CHAR_DATA * ch)
 {
     if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
-	return true;
+    return true;
 
     if (IS_AFFECTED(ch, AFF_BLIND))
-	return false;
+    return false;
 
     return true;
 }
 
 
-/* MOVED: */
+/**
+ * do_scroll - Set the number of lines per page for output paging
+ *
+ * Allows players to configure how many lines of text are displayed
+ * before pausing for input. Used for managing long output.
+ *
+ * @param ch        The character setting scroll lines
+ * @param argument  Number of lines (10-100), or empty to display current setting
+ *
+ * Special values:
+ * - 0: Disables paging entirely
+ * - Empty: Shows current setting
+ */
 void do_scroll(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1326,32 +1580,32 @@ void do_scroll(CHAR_DATA * ch, char *argument)
     one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-	if (ch->lines == 0)
-	    send_to_char("You do not page long messages.\n\r", ch);
-	else {
-	    sprintf(buf, "You currently display %d lines per page.\n\r",
-		    ch->lines + 2);
-	    send_to_char(buf, ch);
-	}
-	return;
+    if (ch->lines == 0)
+        send_to_char("You do not page long messages.\n\r", ch);
+    else {
+        sprintf(buf, "You currently display %d lines per page.\n\r",
+            ch->lines + 2);
+        send_to_char(buf, ch);
+    }
+    return;
     }
 
     if (!is_number(arg)) {
-	send_to_char("You must provide a number.\n\r", ch);
-	return;
+    send_to_char("You must provide a number.\n\r", ch);
+    return;
     }
 
     lines = atoi(arg);
 
     if (lines == 0) {
-	send_to_char("Paging disabled.\n\r", ch);
-	ch->lines = 0;
-	return;
+    send_to_char("Paging disabled.\n\r", ch);
+    ch->lines = 0;
+    return;
     }
 
     if (lines < 10 || lines > 100) {
-	send_to_char("You must provide a reasonable number.\n\r", ch);
-	return;
+    send_to_char("You must provide a reasonable number.\n\r", ch);
+    return;
     }
 
     sprintf(buf, "Scroll set to %d lines.\n\r", lines);
@@ -1360,7 +1614,14 @@ void do_scroll(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: */
+/**
+ * do_socials - Display a list of all available social commands
+ *
+ * Shows all social commands in the social_table, formatted in columns.
+ *
+ * @param ch        The character viewing socials
+ * @param argument  Unused
+ */
 void do_socials(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1370,104 +1631,151 @@ void do_socials(CHAR_DATA * ch, char *argument)
     col = 0;
     for (iSocial = 0; social_table[iSocial].name[0] != '\0'; iSocial++)
     {
-	sprintf(buf, "%-12.12s", social_table[iSocial].name);
-	send_to_char(buf, ch);
-	if (++col % 6 == 0)
-	    send_to_char("\n\r", ch);
+    sprintf(buf, "%-12.12s", social_table[iSocial].name);
+    send_to_char(buf, ch);
+    if (++col % 6 == 0)
+        send_to_char("\n\r", ch);
     }
 
     if (col % 6 != 0)
-	send_to_char("\n\r", ch);
+    send_to_char("\n\r", ch);
 }
 
 
-/* MOVED: bulletin.c */
+/**
+ * do_motd - Display the Message of the Day
+ *
+ * Shows the current MOTD help entry to the character.
+ *
+ * @param ch        The character viewing the MOTD
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_motd(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
 
     if ((help = lookup_help_index(motd, ch->tot_level, topHelpCat)) != NULL)
-	send_to_char(help->text, ch);
+    send_to_char(help->text, ch);
 }
 
 
-/* MOVED: bulletin.c */
+/**
+ * do_imotd - Display the Immortal Message of the Day
+ *
+ * Shows the immortal-specific MOTD help entry.
+ *
+ * @param ch        The immortal viewing the IMOTD
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_imotd(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
 
     if ((help = lookup_help_index(imotd, ch->tot_level, topHelpCat)) != NULL)
-	send_to_char(help->text, ch);
+    send_to_char(help->text, ch);
 }
 
 
-/* MOVED: bulletin.c */
+/**
+ * do_rules - Display the game rules
+ *
+ * Shows the rules help entry to the character.
+ *
+ * @param ch        The character viewing the rules
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_rules(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
 
     if ((help = lookup_help_index(rules, ch->tot_level, topHelpCat)) != NULL)
-	send_to_char(help->text, ch);
+    send_to_char(help->text, ch);
 }
 
 
-/* MOVED: */
+/**
+ * do_wizlist - Display the list of immortals
+ *
+ * Shows all immortals from immortal_list with their names, duties,
+ * and years of service.
+ *
+ * @param ch        The character viewing the wizlist
+ * @param argument  Unused
+ */
 void do_wizlist(CHAR_DATA *ch, char *argument)
 {
-	IMMORTAL_DATA *immortal;
-	char buf[MSL], duties[MSL/10];
-	int years;
+    IMMORTAL_DATA *immortal;
+    char buf[MSL], duties[MSL/10];
+    int years;
 
-	send_to_char("\n\r{b.,-{B-^--,._.,{C[ {WThe Immortals of Sentience {C]{B-.._.,--^-{b-,.{x\n\r", ch);
-	send_to_char("{B``{x\n\r", ch);
-	for (immortal = immortal_list; immortal != NULL; immortal = immortal->next) {
-		years = ((long)current_time - immortal->created)/31556926;
+    send_to_char("\n\r{b.,-{B-^--,._.,{C[ {WThe Immortals of Sentience {C]{B-.._.,--^-{b-,.{x\n\r", ch);
+    send_to_char("{B``{x\n\r", ch);
+    for (immortal = immortal_list; immortal != NULL; immortal = immortal->next) {
+        years = ((long)current_time - immortal->created)/31556926;
 
-		/* Hack to fix strange bug with duty commas */
+        /* Hack to fix strange bug with duty commas */
 /*		if (duties != 0)*/
-			snprintf(duties, MSL / 10 - 1, "%s", flag_string_commas(immortal_flags, immortal->duties));
-			duties[MSL / 10 - 1] = '\0';
+            snprintf(duties, MSL / 10 - 1, "%s", flag_string_commas(immortal_flags, immortal->duties));
+            duties[MSL / 10 - 1] = '\0';
 
-		sprintf(buf, "{B`` {W%11s {B-{x %s{B({Y%d{B){x\n\r",
-		immortal->name, immortal->duties == 0 ? "None" : duties + 1, years );
+        sprintf(buf, "{B`` {W%11s {B-{x %s{B({Y%d{B){x\n\r",
+        immortal->name, immortal->duties == 0 ? "None" : duties + 1, years );
 
-		send_to_char(buf, ch);
-	}
-	send_to_char("{b``\n\r", ch);
-	send_to_char("{b``--{B-^--,._.,-.._.,--^-------------^--,._.,-.._.,--^-{b-,.{x\n\r", ch);
+        send_to_char(buf, ch);
+    }
+    send_to_char("{b``\n\r", ch);
+    send_to_char("{b``--{B-^--,._.,-.._.,--^-------------^--,._.,-.._.,--^-{b-,.{x\n\r", ch);
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * do_prompt - Configure the command prompt display
+ *
+ * Sets a custom prompt string or toggles prompt visibility.
+ * Supports various substitution codes for dynamic information.
+ *
+ * @param ch        The character configuring their prompt
+ * @param argument  "all" for default prompt, empty to toggle, or custom string
+ *
+ * Max length: 100 visible characters (color codes don't count)
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_prompt(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
 
     if (argument[0] == '\0') {
-	if (IS_SET(ch->comm, COMM_PROMPT)) {
-	    send_to_char("You will no longer see prompts.\n\r", ch);
-	    REMOVE_BIT(ch->comm, COMM_PROMPT);
-	} else {
-	    send_to_char("You will now see prompts.\n\r", ch);
-	    SET_BIT(ch->comm, COMM_PROMPT);
-	}
-	return;
+    if (IS_SET(ch->comm, COMM_PROMPT)) {
+        send_to_char("You will no longer see prompts.\n\r", ch);
+        REMOVE_BIT(ch->comm, COMM_PROMPT);
+    } else {
+        send_to_char("You will now see prompts.\n\r", ch);
+        SET_BIT(ch->comm, COMM_PROMPT);
+    }
+    return;
     }
 
     if (!strcmp(argument, "all"))
-	strcpy(buf, "{B<%h{Bhp %m{Bm %v{Bmv>{x ");
+    strcpy(buf, "{B<%h{Bhp %m{Bm %v{Bmv>{x ");
     else {
-	//if (strlen(argument) > 50)
-	//    argument[50] = '\0';
-	if (strlen_no_colours(argument) > 100)
-	{
-		send_to_char("That prompt is too long. Must be no more than 100 characters, not counting colour codes.\n\r",ch);
-		return;
-	}
-	strcpy(buf, argument);
-	smash_tilde(buf);
-	if (str_suffix("%c", buf))
-	    strcat(buf, " ");
+    //if (strlen(argument) > 50)
+    //    argument[50] = '\0';
+    if (strlen_no_colours(argument) > 100)
+    {
+        send_to_char("That prompt is too long. Must be no more than 100 characters, not counting colour codes.\n\r",ch);
+        return;
+    }
+    strcpy(buf, argument);
+    smash_tilde(buf);
+    if (str_suffix("%c", buf))
+        strcat(buf, " ");
 
     }
 
@@ -1478,9 +1786,19 @@ void do_prompt(CHAR_DATA * ch, char *argument)
     return;
 }
 
+/**
+ * do_survey - View the surrounding area from a ship or high vantage point
+ *
+ * When on a ship, displays the terrain, features, and points of interest
+ * visible from the vessel's location. Shows different information based
+ * on whether it's a water ship or airship.
+ *
+ * @param ch        The character surveying
+ * @param argument  "auto" for silent operation, or empty for normal
+ */
 void do_survey(CHAR_DATA *ch, char *argument)
 {
-	SHIP_DATA *ship;
+    SHIP_DATA *ship;
     char arg[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
 
@@ -1489,151 +1807,151 @@ void do_survey(CHAR_DATA *ch, char *argument)
     ship = get_room_ship(ch->in_room);
     if( IS_VALID(ship) )
     {
-		if( str_cmp(arg, "auto") )
-		{
-			if (ship->ship_type != SHIP_AIR_SHIP)
-				act("You survey the area around the boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			else
-				act("You survey the area around the airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		}
+        if( str_cmp(arg, "auto") )
+        {
+            if (ship->ship_type != SHIP_AIR_SHIP)
+                act("You survey the area around the boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            else
+                act("You survey the area around the airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        }
 
-		long bonus_view;
-		if( IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) )
-			bonus_view = 8;
-		else
-			bonus_view = 2;
+        long bonus_view;
+        if( IS_SET(ch->in_room->room_flag[0], ROOM_VIEWWILDS) )
+            bonus_view = 8;
+        else
+            bonus_view = 2;
 
-		long x = get_squares_to_show_x(bonus_view * 3) + ch->wildview_bonus_x;
-		long y = get_squares_to_show_y(2 * bonus_view / 3) + ch->wildview_bonus_y;
+        long x = get_squares_to_show_x(bonus_view * 3) + ch->wildview_bonus_x;
+        long y = get_squares_to_show_y(2 * bonus_view / 3) + ch->wildview_bonus_y;
 
-		if( !IS_WILDERNESS(ship->ship->in_room) )
-		{
-			AREA_DATA *area = ship->ship->in_room->area;
-		    act("$p has landed in $T.", ch, NULL, NULL, ship->ship, NULL, NULL, area->name, TO_CHAR);
-		    return;
-		}
+        if( !IS_WILDERNESS(ship->ship->in_room) )
+        {
+            AREA_DATA *area = ship->ship->in_room->area;
+            act("$p has landed in $T.", ch, NULL, NULL, ship->ship, NULL, NULL, area->name, TO_CHAR, NULL, NULL);
+            return;
+        }
 
-		show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y, x, y, false);
+        show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y, x, y, false);
 
-		// Display sailing vessels in the same room as the ship
-		return;
-	}
+        // Display sailing vessels in the same room as the ship
+        return;
+    }
 
 #if 0
 /*
     if (ON_SHIP(ch))
     {
-	if (str_cmp(arg, "auto"))
-	{
-	    if (ch->in_room->ship->ship_type != SHIP_AIR_SHIP)
-		act("You survey the area around the boat.", ch, NULL, NULL, TO_CHAR);
-	    else
-		act("You survey the area around the airship.", ch, NULL, NULL, TO_CHAR);
-	}
-	if (IN_SHIP_NEST(ch))
-	    bonus_view = 8;
-	else
-	    bonus_view = 2;
+    if (str_cmp(arg, "auto"))
+    {
+        if (ch->in_room->ship->ship_type != SHIP_AIR_SHIP)
+        act("You survey the area around the boat.", ch, NULL, NULL, TO_CHAR);
+        else
+        act("You survey the area around the airship.", ch, NULL, NULL, TO_CHAR);
+    }
+    if (IN_SHIP_NEST(ch))
+        bonus_view = 8;
+    else
+        bonus_view = 2;
 
-	x = get_squares_to_show_x(bonus_view);
-	y = get_squares_to_show_y(bonus_view);
+    x = get_squares_to_show_x(bonus_view);
+    y = get_squares_to_show_y(bonus_view);
 
-	orig_ship = ch->in_room->ship;
+    orig_ship = ch->in_room->ship;
 
-	 For the airship
-	area = orig_ship->ship->in_room->area;
-	if (str_cmp(area->name, "Wilderness"))
-	{
-	    act("$p has landed in $T.", ch, orig_ship->ship, area->name, TO_CHAR);
-	    return;
-	}
+     For the airship
+    area = orig_ship->ship->in_room->area;
+    if (str_cmp(area->name, "Wilderness"))
+    {
+        act("$p has landed in $T.", ch, orig_ship->ship, area->name, TO_CHAR);
+        return;
+    }
 
-	orig = ch->in_room;
-	char_from_room(ch);
-	char_to_room(ch, orig->ship->ship->in_room);
+    orig = ch->in_room;
+    char_from_room(ch);
+    char_to_room(ch, orig->ship->ship->in_room);
 
-	show_map_to_char(ch, ch, bonus_view * 3+ch->wildview_bonus_x, bonus_view * 2/3+ch->wildview_bonus_y, false);
+    show_map_to_char(ch, ch, bonus_view * 3+ch->wildview_bonus_x, bonus_view * 2/3+ch->wildview_bonus_y, false);
 
-	 Check for sailing ships
-	for (ship = ((AREA_DATA *) get_sailing_boat_area())->ship_list;
-	     ship != NULL; ship = ship->next)
-	{
-	    if (orig_ship != ship
-		&& (ship->ship->in_room->x < ch->in_room->x + x &&
-		    ship->ship->in_room->x > ch->in_room->x - x)
-		&& (ship->ship->in_room->y < ch->in_room->y + y &&
-		    ship->ship->in_room->y > ch->in_room->y - y)) {
+     Check for sailing ships
+    for (ship = ((AREA_DATA *) get_sailing_boat_area())->ship_list;
+         ship != NULL; ship = ship->next)
+    {
+        if (orig_ship != ship
+        && (ship->ship->in_room->x < ch->in_room->x + x &&
+            ship->ship->in_room->x > ch->in_room->x - x)
+        && (ship->ship->in_room->y < ch->in_room->y + y &&
+            ship->ship->in_room->y > ch->in_room->y - y)) {
 
-		if (ship->ship->in_room->y == ch->in_room->y &&
-		    ship->ship->in_room->x == ch->in_room->x)
-		{
-			if (ship->scuttle_time <= 0)
-			{
-				sprintf(buf,
-					"{MWe are right next to a '%s' named '%s' flying the flag,'%s'.{x\n\r",
-					boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
-			}
-			else
-			{
-				sprintf(buf,
-					"{RA %s named '%s', flying the flag, '%s', burns brightly as flames engulf the vessel!{x\n\r", plashes about as it bops up and down with the waves.{x\n\r",
-					boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
-			}
-			send_to_char(buf, ch);
-			continue;
-		}
+        if (ship->ship->in_room->y == ch->in_room->y &&
+            ship->ship->in_room->x == ch->in_room->x)
+        {
+            if (ship->scuttle_time <= 0)
+            {
+                sprintf(buf,
+                    "{MWe are right next to a '%s' named '%s' flying the flag,'%s'.{x\n\r",
+                    boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
+            }
+            else
+            {
+                sprintf(buf,
+                    "{RA %s named '%s', flying the flag, '%s', burns brightly as flames engulf the vessel!{x\n\r", plashes about as it bops up and down with the waves.{x\n\r",
+                    boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
+            }
+            send_to_char(buf, ch);
+            continue;
+        }
 
-		if (ship->scuttle_time <= 0)
-		{
-			sprintf(buf, "{MThe %s '%s', flying the flag '%s' is %s to the ", boat_table[ship->ship_type].name, ship->ship_name, ship->flag, ship->speed != SHIP_SPEED_STOPPED ? "sailing" : "anchored");
-			send_to_char(buf, ch);
+        if (ship->scuttle_time <= 0)
+        {
+            sprintf(buf, "{MThe %s '%s', flying the flag '%s' is %s to the ", boat_table[ship->ship_type].name, ship->ship_name, ship->flag, ship->speed != SHIP_SPEED_STOPPED ? "sailing" : "anchored");
+            send_to_char(buf, ch);
 
-			if (ship->ship->in_room->y < ch->in_room->y)
-				send_to_char("North", ch);
-			else if (ship->ship->in_room->y > ch->in_room->y)
-				send_to_char("South", ch);
+            if (ship->ship->in_room->y < ch->in_room->y)
+                send_to_char("North", ch);
+            else if (ship->ship->in_room->y > ch->in_room->y)
+                send_to_char("South", ch);
 
-			if (ship->ship->in_room->x > ch->in_room->x)
-				send_to_char("East", ch);
-			else if (ship->ship->in_room->x < ch->in_room->x)
-				send_to_char("West", ch);
+            if (ship->ship->in_room->x > ch->in_room->x)
+                send_to_char("East", ch);
+            else if (ship->ship->in_room->x < ch->in_room->x)
+                send_to_char("West", ch);
 
-			send_to_char(".{x\n\r", ch);
-		}
-		else
-		{
-			sprintf(buf, "{RThe %s '%s', flying the flag '%s' burns brightly to the ", boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
-			send_to_char(buf, ch);
-			if (ship->ship->in_room->y < ch->in_room->y)
-				send_to_char("North", ch);
-			else if (ship->ship->in_room->y > ch->in_room->y)
-				send_to_char("South", ch);
+            send_to_char(".{x\n\r", ch);
+        }
+        else
+        {
+            sprintf(buf, "{RThe %s '%s', flying the flag '%s' burns brightly to the ", boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
+            send_to_char(buf, ch);
+            if (ship->ship->in_room->y < ch->in_room->y)
+                send_to_char("North", ch);
+            else if (ship->ship->in_room->y > ch->in_room->y)
+                send_to_char("South", ch);
 
-			if (ship->ship->in_room->x > ch->in_room->x)
-				send_to_char("East", ch);
-			else if (ship->ship->in_room->x < ch->in_room->x)
-				send_to_char("West", ch);
+            if (ship->ship->in_room->x > ch->in_room->x)
+                send_to_char("East", ch);
+            else if (ship->ship->in_room->x < ch->in_room->x)
+                send_to_char("West", ch);
 
-			send_to_char(".{x\n\r", ch);
-		}
-	    }
-	}
+            send_to_char(".{x\n\r", ch);
+        }
+        }
+    }
 
-	char_from_room(ch);
-	char_to_room(ch, orig);
-	return;
+    char_from_room(ch);
+    char_to_room(ch, orig);
+    return;
     }
 */
 #endif
 
     if (IN_WILDERNESS(ch))
     {
-	int chance;
-	chance = get_skill(ch, gsn_survey);
+    int chance;
+    chance = get_skill(ch, skill_resolve_gsn("survey"));
         if (chance == 0)
         {
-	    send_to_char("You are unsure of your exact coordinates.\n\r", ch);
-	    return;
+        send_to_char("You are unsure of your exact coordinates.\n\r", ch);
+        return;
         }
 
                 if (number_percent() < chance)
@@ -1651,9 +1969,20 @@ void do_survey(CHAR_DATA *ch, char *argument)
 
     }
 
-    act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
+/**
+ * do_areas - Display a list of available areas
+ *
+ * Shows all open areas with their level ranges and lock status.
+ * Can be filtered by location (continent/island).
+ *
+ * @param ch        The character viewing areas
+ * @param argument  Optional filter: first/second/third/fourth/island/other/abyss/eden
+ *
+ * Output columns: Area Name, Level Range, Lock Status
+ */
 void do_areas(CHAR_DATA *ch, char *argument)
 {
 {
@@ -1661,7 +1990,7 @@ void do_areas(CHAR_DATA *ch, char *argument)
     AREA_DATA *pArea;
     BUFFER *buffer;
     int place_type = 0;
-	int areas_found = 0;
+    int areas_found = 0;
 
     buffer = new_buf();
 
@@ -1672,605 +2001,668 @@ void do_areas(CHAR_DATA *ch, char *argument)
     if (argument[0] != '\0'
     && (place_type = flag_value(place_flags, argument)) == NO_FLAG)
     {
-	send_to_char("Syntax: areas\n\r"
-	             "        areas [first|second|third|fourth|island|other|abyss|eden]\n\r", ch);
-	return;
+    send_to_char("Syntax: areas\n\r"
+                 "        areas [first|second|third|fourth|island|other|abyss|eden]\n\r", ch);
+    return;
     }
 
     for (pArea = area_first; pArea; pArea = pArea->next)
     {
-	if (place_type == 0 || (pArea->place_flags == place_type))
-	{
-		if (pArea->open && pArea->place_flags != PLACE_NOWHERE)
-		{
-			sprintf(buf, "{X%-26.26s%s  {D ({x%-5d{D-{x%5d{D){X %s{x \n\r",
-	     	pArea->name,
-	     	"{x",
-	     	pArea->min_level,
-	     	pArea->max_level,
-			is_area_unlocked(ch, pArea) ? "{G Unlocked": "{R LOCKED");
-			add_buf(buffer, buf);
-			areas_found++;
-		}
-	}
+    if (place_type == 0 || (pArea->place_flags == place_type))
+    {
+        if (pArea->open && pArea->place_flags != PLACE_NOWHERE)
+        {
+            sprintf(buf, "{X%-26.26s%s  {D ({x%-5d{D-{x%5d{D){X %s{x \n\r",
+             pArea->name,
+             "{x",
+             pArea->min_level,
+             pArea->max_level,
+            is_area_unlocked(ch, pArea) ? "{G Unlocked": "{R LOCKED");
+            add_buf(buffer, buf);
+            areas_found++;
+        }
+    }
     }
 
-	if (areas_found > 0)
-	{
-		sprintf(buf, "%d areas found for this location.\n\r", areas_found);
-		add_buf(buffer, buf);
-	}
-	else
-	{
-		sprintf(buf, "No open areas found for this location.\n\r");
-		add_buf(buffer, buf);
-	}
+    if (areas_found > 0)
+    {
+        sprintf(buf, "%d areas found for this location.\n\r", areas_found);
+        add_buf(buffer, buf);
+    }
+    else
+    {
+        sprintf(buf, "No open areas found for this location.\n\r");
+        add_buf(buffer, buf);
+    }
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
 }
 }
 
+/**
+ * do_area - Display detailed information about a specific area
+ *
+ * Shows comprehensive information about an area including credits,
+ * level range, repop time, location, recall point, post office,
+ * description, and special notes.
+ *
+ * @param ch        The character viewing area info
+ * @param argument  The name/keyword of the area to look up
+ *
+ * Blocked by: Area not open or has PLACE_NOWHERE
+ */
 void do_area(CHAR_DATA *ch, char *argument)
 {
-	AREA_DATA *pArea;
+    AREA_DATA *pArea;
     char arg[MAX_STRING_LENGTH];
-	char buf[MAX_STRING_LENGTH];
-	ROOM_INDEX_DATA *recall;
+    char buf[MAX_STRING_LENGTH];
+    ROOM_INDEX_DATA *recall;
 
-	pArea = ch->in_room->area;
+    pArea = ch->in_room->area;
 
-	argument	= one_argument(argument,arg);
+    argument	= one_argument(argument,arg);
     if (!str_cmp(arg, ""))
     {
         send_to_char("Syntax: area <area name>\n\r", ch);
-		return;
+        return;
     }
-	if (arg[0] != '\0' && (pArea = find_area_kwd(arg)) == NULL)
+    if (arg[0] != '\0' && (pArea = find_area_kwd(arg)) == NULL)
     {
-	send_to_char("Area not found.\n\r", ch);
-	return;
+    send_to_char("Area not found.\n\r", ch);
+    return;
     }
-	if (!pArea->open || pArea->place_flags == PLACE_NOWHERE)
-	{
-		send_to_char("Area data not accessible.\n\r", ch);
-		return;
-	}
-	else
-	{
-		sprintf(buf, "===== %s =====\n\r\n\r", pArea->name);
-		send_to_char(buf, ch);
+    if (!pArea->open || pArea->place_flags == PLACE_NOWHERE)
+    {
+        send_to_char("Area data not accessible.\n\r", ch);
+        return;
+    }
+    else
+    {
+        sprintf(buf, "===== %s =====\n\r\n\r", pArea->name);
+        send_to_char(buf, ch);
 
-		sprintf(buf, "{WImm Credits:{X             %s\n\r", pArea->credits);
-		send_to_char(buf, ch);
+        sprintf(buf, "{WImm Credits:{X             %s\n\r", pArea->credits);
+        send_to_char(buf, ch);
 
-		sprintf(buf, "{WRecommended Level Range: {X%d {W-{X %d\n\r", pArea->min_level, pArea->max_level);
-		send_to_char(buf, ch);
+        sprintf(buf, "{WRecommended Level Range: {X%d {W-{X %d\n\r", pArea->min_level, pArea->max_level);
+        send_to_char(buf, ch);
 
-		sprintf(buf, "{WRepops every %d minutes.{X\n\r", pArea->repop);
-		send_to_char(buf,ch);
+        sprintf(buf, "{WRepops every %d minutes.{X\n\r", pArea->repop);
+        send_to_char(buf,ch);
 
 
 
-		sprintf(buf, "\n\r{WLocation Info:{X\n\r");
-		send_to_char(buf, ch);
+        sprintf(buf, "\n\r{WLocation Info:{X\n\r");
+        send_to_char(buf, ch);
 
-		sprintf(buf, "{WArea Location:{X           %s\n\r", flag_string(place_flags, pArea->place_flags));
-		send_to_char(buf, ch);
-	
-		if( pArea->wilds_uid > 0 )
-    	{
-			WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
-    		sprintf(buf, "{WMap:     {X                %s\n\r", pWilds?pWilds->name:"(null)");
-	   	 	send_to_char(buf, ch);
+        sprintf(buf, "{WArea Location:{X           %s\n\r", flag_string(place_flags, pArea->place_flags));
+        send_to_char(buf, ch);
+    
+        if( pArea->wilds_uid > 0 )
+        {
+            WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+            sprintf(buf, "{WMap:     {X                %s\n\r", pWilds?pWilds->name:"(null)");
+                send_to_char(buf, ch);
 
-			sprintf(buf, "{WCoordinates (X,Y):       [{X%d, %d{W]{X\n\r", pArea->x, pArea->y);
-    		send_to_char(buf, ch);
-		}
+            sprintf(buf, "{WCoordinates (X,Y):       [{X%d, %d{W]{X\n\r", pArea->x, pArea->y);
+            send_to_char(buf, ch);
+        }
 
-		if(pArea->recall.wuid) 
-		{
-			WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
-			if(wilds)
-				sprintf(buf, "{WRecall:                  Wilds {X%s at <%lu,%lu,%lu>{X\n\r", wilds->name,
-				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
-			else
-				sprintf(buf, "{WRecall:                  Wilds {X%lu at ???{X\n\r", pArea->recall.wuid);
-		} 
-		else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea->recall.id[0]))) 
-		{
-			sprintf(buf, "{WRecall:                  {X%s\n\r", recall->name);
-		} 
-		else
-			sprintf(buf, "{WRecall:                  {Xnone\n\r");
-	
-		send_to_char(buf, ch);
+        if(pArea->recall.wuid) 
+        {
+            WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
+            if(wilds)
+                sprintf(buf, "{WRecall:                  Wilds {X%s at <%lu,%lu,%lu>{X\n\r", wilds->name,
+                pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
+            else
+                sprintf(buf, "{WRecall:                  Wilds {X%lu at ???{X\n\r", pArea->recall.wuid);
+        } 
+        else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) 
+        {
+            sprintf(buf, "{WRecall:                  {X%s\n\r", recall->name);
+        } 
+        else
+            sprintf(buf, "{WRecall:                  {Xnone\n\r");
+    
+        send_to_char(buf, ch);
 
     // One post office per area
-    	sprintf(buf, "{WPost Office              {X%s\n\r",
-        	get_room_index(pArea->post_office) == NULL ? "None" :
-	    	get_room_index(pArea->post_office)->name);
-    		send_to_char(buf, ch);
+            sprintf(buf, "{WPost Office              {X%s\n\r",
+                get_room_index(pArea, pArea->post_office_wnum.vnum) == NULL ? "None" :
+                get_room_index(pArea, pArea->post_office_wnum.vnum)->name);
+            send_to_char(buf, ch);
 
 
 
 
-		sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
-		send_to_char(buf,ch);
+        sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
+        send_to_char(buf,ch);
 
-		if(pArea->notes)
-		{
-			sprintf(buf, "\n\r{WSpecial Notes:{X\n\r%s\n\r", pArea->notes);
-			send_to_char(buf,ch);
-		}
+        if(pArea->notes)
+        {
+            sprintf(buf, "\n\r{WSpecial Notes:{X\n\r%s\n\r", pArea->notes);
+            send_to_char(buf,ch);
+        }
 
-	}
+    }
 }
 
+/**
+ * show_room - Display a room's contents to a character
+ *
+ * Comprehensive room display function showing room name, description,
+ * exits, objects, and characters. Handles multiple view modes and
+ * special room features like wilderness, brief mode, dark rooms, etc.
+ *
+ * @param ch         The character viewing the room
+ * @param room       The room to display
+ * @param remote     If true, viewing from another location (e.g., third eye)
+ * @param silent     If true, suppress some messages
+ * @param automatic  If true, called from movement (for auto-look)
+ *
+ * Features:
+ * - Respects COMM_BRIEF for shorter descriptions
+ * - Shows wilderness maps when appropriate
+ * - Handles dark rooms with light sources
+ * - Shows immortal-only room info when PLR_HOLYLIGHT
+ * - Triggers TRIG_LOOK room programs
+ */
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic)
 {
-	char buf[MAX_STRING_LENGTH];
-	EXIT_DATA *pexit;
-	int count;
-	int linelength;
+    char buf[MAX_STRING_LENGTH];
+    char display_name[MAX_STRING_LENGTH];
+    const char *room_name;
+    EXIT_DATA *pexit;
+    int count;
+    int linelength;
 
-	if(ch->desc == NULL) return;
+    if(ch->desc == NULL) return;
 
-	linelength = 0;
+    linelength = 0;
 
-	if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act[0], PLR_HOLYLIGHT))) {
-		if (IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) {
-			if(room->wilds) {
-				sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
-					room->area->anum, room->area->name,
-					room->wilds->uid, room->wilds->name,
-					room->x, room->y);
-			} else if(room->source) {
-				sprintf (buf, "\n\r{C [ Area: %ld '%s', Clone (%ld, %ld, %ld) ]{x",
-					room->area->anum, room->area->name,
-					room->source->vnum,room->id[0],room->id[1]);
-			} else {
-				sprintf(buf, "{g[Room %ld]", room->vnum);
-			}
-		} else {
-			sprintf(buf, "{G[Room %ld]", room->vnum);
-		}
+    if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act[0], PLR_HOLYLIGHT))) {
+        if (IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) {
+            if(room->wilds) {
+                sprintf (buf, "\n\r{C [ Area uid: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
+                    room->area->uid, room->area->name,
+                    room->wilds->uid, room->wilds->name,
+                    room->x, room->y);
+            } else if(room->source) {
+                sprintf (buf, "\n\r{C [ Area uid: %ld '%s', Clone (%ld, %ld, %ld) ]{x",
+                    room->area->uid, room->area->name,
+                    room->source->vnum,room->id[0],room->id[1]);
+            } else {
+                sprintf(buf, "{g[Room %s]", widevnum_string_room(room, ch->in_room->area));
+            }
+        } else {
+            sprintf(buf, "{G[Room %s]", widevnum_string_room(room, ch->in_room->area));
+        }
 
-		if( room->persist )
-			strcat(buf, " {WPERSIST{x");
+        if( room->persist )
+            strcat(buf, " {WPERSIST{x");
 
-		send_to_char(buf, ch);
-
-/*
-		if (ON_SHIP(ch)) {
-			sprintf(buf, "{G[Owner of Ship: %s, Ship Type: %s ]", room->ship->owner_name,
-				boat_table[ room->ship->ship_type ].name);
-			send_to_char(buf, ch);
-		}
-*/
-	}
+        send_to_char(buf, ch);
 
 /*
-	if (IN_SHIP_NEST(ch)) {
-		sprintf(buf, "{G[X: %ld, Y: %ld]", room->ship != NULL ? room->ship->ship->in_room->x : 0,
-			room->ship != NULL ? room->ship->ship->in_room->y : 0);
-		send_to_char(buf, ch);
-	}
+        if (ON_SHIP(ch)) {
+            sprintf(buf, "{G[Owner of Ship: %s, Ship Type: %s ]", room->ship->owner_name,
+                boat_table[ room->ship->ship_type ].name);
+            send_to_char(buf, ch);
+        }
 */
-	linelength = strlen(room->name);
-	linelength = 50 - linelength;
+    }
 
-	if (IS_SET(room->room_flag[0], ROOM_SAFE))
-		sprintf(buf, "\n\r {W%s", room->name);
-	else if (IS_SET(room->room_flag[0], ROOM_UNDERWATER))
-		sprintf(buf, "\n\r {C%s", room->name);
-	else
-		sprintf(buf, "\n\r {Y%s", room->name);
+/*
+    if (IN_SHIP_NEST(ch)) {
+        sprintf(buf, "{G[X: %ld, Y: %ld]", room->ship != NULL ? room->ship->ship->in_room->x : 0,
+            room->ship != NULL ? room->ship->ship->in_room->y : 0);
+        send_to_char(buf, ch);
+    }
+*/
+    room_name = show_room_display_name(room, display_name, sizeof(display_name));
 
-	send_to_char(buf, ch);
+    linelength = strlen(room_name);
+    linelength = 50 - linelength;
 
-	if (IS_SET(room->room_flag[0], ROOM_PK) && IS_SET(room->room_flag[0], ROOM_CPK)) {
-		sprintf(buf, "  {M[CNPK ROOM]");
-		send_to_char(buf, ch);
-		linelength -= 13;
-	} else if (IS_SET(room->room_flag[0], ROOM_CPK)) {
-		sprintf(buf, "  {M[CPK ROOM]");
-		send_to_char(buf, ch);
-		linelength -= 12;
-	} else if (IS_SET(room->room_flag[0], ROOM_PK)) {
-		sprintf(buf, "  {R[NPK ROOM]");
-		send_to_char(buf, ch);
-		linelength -= 12;
-	}
+    if (IS_SET(room->room_flag[0], ROOM_SAFE))
+        sprintf(buf, "\n\r {W%s", room_name);
+    else if (IS_SET(room->room_flag[0], ROOM_UNDERWATER))
+        sprintf(buf, "\n\r {C%s", room_name);
+    else
+        sprintf(buf, "\n\r {Y%s", room_name);
 
-	if (IS_SET(room->room_flag[1], ROOM_MULTIPLAY)) {
-		sprintf(buf, "  {W[FREE FOR ALL]");
-		send_to_char(buf, ch);
-		linelength -= 16;
-	}
+    send_to_char(buf, ch);
 
-	if (room->ship != NULL) {
-		if (room->ship->scuttle_time > 0) {
-			sprintf(buf, "  {R[SCUTTLED]");
-			send_to_char(buf, ch);
-			linelength -= 12;
-		}
-	}
+    if (is_room_full_cpk(room)) {
+        sprintf(buf, "  {M[CNPK ROOM]");
+        send_to_char(buf, ch);
+        linelength -= 13;
+    } else if (IS_SET(room->room_flag[0], ROOM_CHAOTIC)) {
+        sprintf(buf, "  {M[CHAOTIC]");
+        send_to_char(buf, ch);
+        linelength -= 12;
+    } else if (IS_SET(room->room_flag[0], ROOM_PK)) {
+        sprintf(buf, "  {R[NPK ROOM]");
+        send_to_char(buf, ch);
+        linelength -= 12;
+    }
 
-	if (IS_SET(room->room_flag[0], ROOM_HOUSE_UNSOLD)) {
-		sprintf(buf, "  {R[PRIME REAL ESTATE]");
-		send_to_char(buf, ch);
-		linelength -= 21;
-	}
-	if (IS_SET(ch->act[1], PLR_COMPASS))
-	{
-		for (count = 0; count < linelength; count++)
-		send_to_char(" ", ch);
+    if (IS_SET(room->room_flag[1], ROOM_MULTIPLAY)) {
+        sprintf(buf, "  {W[FREE FOR ALL]");
+        send_to_char(buf, ch);
+        linelength -= 16;
+    }
 
-		pexit = room->exit[7];
-		if (pexit != NULL && (!IS_SET(pexit->exit_info, EX_HIDDEN) ||
-			IS_SET(pexit->exit_info, EX_FOUND)) && !IS_SET(pexit->exit_info, EX_WALKTHROUGH)) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{b     ", ch);
-			else
-				send_to_char("{YNW{b    ", ch);
-		} else
-			send_to_char("{b-     ", ch);
+    if (room->ship != NULL) {
+        if (room->ship->scuttle_time > 0) {
+            sprintf(buf, "  {R[SCUTTLED]");
+            send_to_char(buf, ch);
+            linelength -= 12;
+        }
+    }
+
+    if (IS_SET(room->room_flag[0], ROOM_HOUSE_UNSOLD)) {
+        sprintf(buf, "  {R[PRIME REAL ESTATE]");
+        send_to_char(buf, ch);
+        linelength -= 21;
+    }
+    if (IS_SET(ch->act[1], PLR_COMPASS))
+    {
+        for (count = 0; count < linelength; count++)
+        send_to_char(" ", ch);
+
+        pexit = room->exit[7];
+        if (pexit != NULL && (!IS_SET(pexit->exit_info, EX_HIDDEN) ||
+            IS_SET(pexit->exit_info, EX_FOUND)) && !IS_SET(pexit->exit_info, EX_WALKTHROUGH)) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{b     ", ch);
+            else
+                send_to_char("{YNW{b    ", ch);
+        } else
+            send_to_char("{b-     ", ch);
 
 
-		pexit = room->exit[0];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{b", ch);
-			else
-				send_to_char("{YN{b", ch);
-		} else
-			send_to_char("{b-", ch);
+        pexit = room->exit[0];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{b", ch);
+            else
+                send_to_char("{YN{b", ch);
+        } else
+            send_to_char("{b-", ch);
 
-		pexit = room->exit[6];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("     {M#{x", ch);
-			else
-				send_to_char("    {YNE{x", ch);
-		} else
-			send_to_char("     {b-{x", ch);
-	}
-	send_to_char("{x\n\r", ch);
-	if(IS_SET(ch->act[1], PLR_COMPASS))
-	{
-		send_to_char ("{B({b-----------------------------------------------{B){b  ", ch);
-	}
-	else
-	{
-		send_to_char("{B({b--------------------------------------------------------------{B)", ch);
-	}
-	if(IS_SET(ch->act[1], PLR_COMPASS))
-	{
-		pexit = room->exit[3];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{B<{b-", ch);
-			else
-				send_to_char("{YW{B<{b-", ch);
-		} else
-			send_to_char("{b-{B<{b-", ch);	
+        pexit = room->exit[6];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("     {M#{x", ch);
+            else
+                send_to_char("    {YNE{x", ch);
+        } else
+            send_to_char("     {b-{x", ch);
+    }
+    send_to_char("{x\n\r", ch);
+    if(IS_SET(ch->act[1], PLR_COMPASS))
+    {
+        send_to_char ("{B({b-----------------------------------------------{B){b  ", ch);
+    }
+    else
+    {
+        send_to_char("{B({b--------------------------------------------------------------{B)", ch);
+    }
+    if(IS_SET(ch->act[1], PLR_COMPASS))
+    {
+        pexit = room->exit[3];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{B<{b-", ch);
+            else
+                send_to_char("{YW{B<{b-", ch);
+        } else
+            send_to_char("{b-{B<{b-", ch);	
 
-		pexit = room->exit[4];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{b-{B({WA{B){b-", ch);
-			else
-				send_to_char("{YU{b-{B({WA{B){b-", ch);
-		} else
-			send_to_char("{b--{B({WA{B){b-", ch);
+        pexit = room->exit[4];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{b-{B({WA{B){b-", ch);
+            else
+                send_to_char("{YU{b-{B({WA{B){b-", ch);
+        } else
+            send_to_char("{b--{B({WA{B){b-", ch);
 
-		pexit = room->exit[5];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{b-{B>{b", ch);
-			else
-				send_to_char("{YD{b-{B>{b", ch);
-		} else
-			send_to_char("{b--{B>{b", ch);
+        pexit = room->exit[5];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{b-{B>{b", ch);
+            else
+                send_to_char("{YD{b-{B>{b", ch);
+        } else
+            send_to_char("{b--{B>{b", ch);
 
-		pexit = room->exit[1];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{b", ch);
-			else
-				send_to_char("{YE{b", ch);
-		} else
-			send_to_char("{b-", ch);
-	}
-	send_to_char("{x\n\r", ch);
-	if(IS_SET(ch->act[1], PLR_COMPASS))
-	{
+        pexit = room->exit[1];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{b", ch);
+            else
+                send_to_char("{YE{b", ch);
+        } else
+            send_to_char("{b-", ch);
+    }
+    send_to_char("{x\n\r", ch);
+    if(IS_SET(ch->act[1], PLR_COMPASS))
+    {
 
-		for (count = 0; count < 51; count++)
-			send_to_char(" ", ch);
+        for (count = 0; count < 51; count++)
+            send_to_char(" ", ch);
 
-		pexit = room->exit[9];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{b     ", ch);
-			else
-				send_to_char("{YSW{b    ", ch);
-		} else
-			send_to_char("{b-     ", ch);
+        pexit = room->exit[9];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{b     ", ch);
+            else
+                send_to_char("{YSW{b    ", ch);
+        } else
+            send_to_char("{b-     ", ch);
 
-		pexit = room->exit[2];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("{M#{b", ch);
-			else
-				send_to_char("{YS{b", ch);
-		} else
-			send_to_char("{b-{b", ch);
+        pexit = room->exit[2];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("{M#{b", ch);
+            else
+                send_to_char("{YS{b", ch);
+        } else
+            send_to_char("{b-{b", ch);
 
-		pexit = room->exit[8];
-		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-			if (IS_SET(pexit->exit_info, EX_CLOSED))
-				send_to_char("     {M#{x", ch);
-			else
-				send_to_char("    {YSE{x", ch);
-		} else
-			send_to_char("{b     -{x", ch);
-	}
-	send_to_char("{x\n\r", ch);
+        pexit = room->exit[8];
+        if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+            if (IS_SET(pexit->exit_info, EX_CLOSED))
+                send_to_char("     {M#{x", ch);
+            else
+                send_to_char("    {YSE{x", ch);
+        } else
+            send_to_char("{b     -{x", ch);
+    }
+    send_to_char("{x\n\r", ch);
 
-	if (!automatic || ((!IS_NPC(ch) || IS_SWITCHED(ch)) && !IS_SET(ch->comm, COMM_BRIEF))) {
-		if (IS_WILDERNESS(room) || IS_SET(room->room_flag[0], ROOM_VIEWWILDS)) {
-			send_to_char("\n\r", ch);
-		} else {
-			if (room->chat_room != NULL) {
-				send_to_char("  {YTopic:{x ", ch);
+    if (!automatic || ((!IS_NPC(ch) || IS_SWITCHED(ch)) && !IS_SET(ch->comm, COMM_BRIEF))) {
+        if (IS_WILDERNESS(room) || IS_SET(room->room_flag[0], ROOM_VIEWWILDS)) {
+            send_to_char("\n\r", ch);
+        } else {
+            if (room->chat_room != NULL) {
+                send_to_char("  {YTopic:{x ", ch);
 
-				sprintf(buf, "%s{x", room->chat_room->topic);
-				send_to_char(buf, ch);
+                sprintf(buf, "%s{x", room->chat_room->topic);
+                send_to_char(buf, ch);
 
-				send_to_char("\n\r\n\r", ch);
-			}
+                send_to_char("\n\r\n\r", ch);
+            }
 
-			if (!remote && get_skill(ch, gsn_sense_danger) > 0 &&
-				(!IS_NPC(ch) && ch->pcdata->danger_range > 0)) {
-				int dir;
-				char buf2[MSL];
-				ROOM_INDEX_DATA *to_room;
+            if (!remote && get_skill(ch, skill_resolve_gsn("sense danger")) > 0 &&
+                (!IS_NPC(ch) && ch->pcdata->danger_range > 0)) {
+                int dir;
+                char buf2[MSL];
+                ROOM_INDEX_DATA *to_room;
 
-				buf[0] = '\0';
+                buf[0] = '\0';
 
-				for (dir = 0; dir < MAX_DIR; dir++) {
-					if (room->exit[dir] != NULL &&
-						(to_room = room->exit[dir]->u1.to_room) != NULL) {
-						if (IS_SET(to_room->room_flag[0], ROOM_PK) ||
-							IS_SET(to_room->room_flag[0], ROOM_CPK) ||
-							is_pk_safe_range(to_room, ch->pcdata->danger_range - 1, rev_dir[dir]) > -1) {
-							if (buf[0] == '\0')
-								sprintf(buf, "{RYou sense danger to the: %s", dir_name[dir]);
-							else {
-								sprintf(buf2,", %s", dir_name[dir]);
-								strcat(buf, buf2);
-							}
-						}
-					}
-				}
+                for (dir = 0; dir < MAX_DIR; dir++) {
+                    if (room->exit[dir] != NULL &&
+                        (to_room = room->exit[dir]->u1.to_room) != NULL) {
+                        if (IS_SET(to_room->room_flag[0], ROOM_PK) ||
+                            is_pk_safe_range(to_room, ch->pcdata->danger_range - 1, rev_dir[dir]) > -1) {
+                            if (buf[0] == '\0')
+                                sprintf(buf, "{RYou sense danger to the: %s", dir_name[dir]);
+                            else {
+                                sprintf(buf2,", %s", dir_name[dir]);
+                                strcat(buf, buf2);
+                            }
+                        }
+                    }
+                }
 
-				strcat(buf, "{x\n\r\n\r");
-				send_to_char(buf,ch);
+                strcat(buf, "{x\n\r\n\r");
+                send_to_char(buf,ch);
 
-				if (number_percent() == 1)
-					check_improve(ch, gsn_sense_danger, true, 1);
-			}
+                if (number_percent() == 1)
+                    check_improve(ch, skill_resolve_gsn("sense danger"), true, 1);
+            }
 
 #if 1
-			if (!IS_SET(ch->comm, COMM_NOMAP) && /*!ON_SHIP(ch) &&*/
-				!IS_SET(room->room_flag[0], ROOM_NOMAP) &&
-				!IS_SET(room->area->area_flags, AREA_NOMAP))
-				show_map_and_description(ch, room);
-			else {
+            if (!IS_SET(ch->comm, COMM_NOMAP) && /*!ON_SHIP(ch) &&*/
+                !IS_SET(room->room_flag[0], ROOM_NOMAP) &&
+                !IS_SET(room->area->area_flags, AREA_NOMAP))
+                show_map_and_description(ch, room);
+            else {
 #endif
-				send_to_char("  ", ch);
-				show_room_description(ch, room);
+                send_to_char("  ", ch);
+                show_room_description(ch, room);
 #if 1
-			}
+            }
 #endif
-		}
-	}
+        }
+    }
 
-	if (!remote && (!IS_NPC(ch) || IS_SWITCHED(ch)) && IS_SET(ch->act[0], PLR_AUTOEXIT)) {
-		send_to_char("\n\r", ch);
-		do_exits(ch, "auto");
-	}
+    if (!remote && (!IS_NPC(ch) || IS_SWITCHED(ch)) && IS_SET(ch->act[0], PLR_AUTOEXIT)) {
+        send_to_char("\n\r", ch);
+        do_exits(ch, "auto");
+    }
 
-	/* VIZZWILDS - Check if char is in a wilderness room, and if so display wilds map */
-	if (room->wilds && ((automatic && ((!IS_NPC(ch) &&
-		IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM) &&
-		!IS_SET(ch->comm, COMM_BRIEF)))) ||
-		(!automatic && !IS_NPC(ch) &&
-		IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)))) {
-		int vp_x, vp_y;
+    /* VIZZWILDS - Check if char is in a wilderness room, and if so display wilds map */
+    if (room->wilds && ((automatic && ((!IS_NPC(ch) &&
+        IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM) &&
+        !IS_SET(ch->comm, COMM_BRIEF)))) ||
+        (!automatic && !IS_NPC(ch) &&
+        IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)))) {
+        int vp_x, vp_y;
 
-		vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
-		vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
-		show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, false);
-	}
+        vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+        vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+        show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, false);
+    }
 
-	if(!IS_NPC(ch) /*&& !IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)*/ &&
-		IS_SET(room->room_flag[0], ROOM_VIEWWILDS) &&
-		(!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
-		int vp_x, vp_y;
-		int x, y;
-		WILDS_DATA *viewwilds = NULL;
+    if(!IS_NPC(ch) /*&& !IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)*/ &&
+        IS_SET(room->room_flag[0], ROOM_VIEWWILDS) &&
+        (!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
+        int vp_x, vp_y;
+        int x, y;
+        WILDS_DATA *viewwilds = NULL;
 
-		if( room->viewwilds )
-		{
-			viewwilds = room->viewwilds;
-			x = room->x;
-			y = room->y;
-		}
-		else if( IS_VALID(room->instance_section) &&
-			IS_VALID(room->instance_section->instance) &&
-			IS_VALID(room->instance_section->instance->ship) &&
-			IS_VALID(room->instance_section->instance->ship->ship) &&
-			room->instance_section->instance->ship->ship->in_room )
-		{
-			ROOM_INDEX_DATA *ship_room = room->instance_section->instance->ship->ship->in_room;
-			viewwilds = ship_room->wilds;
-			x = ship_room->x;
-			y = ship_room->y;
-		}
+        if( room->viewwilds )
+        {
+            viewwilds = room->viewwilds;
+            x = room->x;
+            y = room->y;
+        }
+        else if( IS_VALID(room->instance_section) &&
+            IS_VALID(room->instance_section->instance) &&
+            IS_VALID(room->instance_section->instance->ship) &&
+            IS_VALID(room->instance_section->instance->ship->ship) &&
+            room->instance_section->instance->ship->ship->in_room )
+        {
+            ROOM_INDEX_DATA *ship_room = room->instance_section->instance->ship->ship->in_room;
+            viewwilds = ship_room->wilds;
+            x = ship_room->x;
+            y = ship_room->y;
+        }
 
-		if( viewwilds )
-		{
-			vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
-			vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
-			show_map_to_char_wyx(viewwilds, x, y, ch, x, y, vp_x, vp_y, false);
-		}
-	}
+        if( viewwilds )
+        {
+            vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+            vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+            show_map_to_char_wyx(viewwilds, x, y, ch, x, y, vp_x, vp_y, false);
+        }
+    }
 
 
-	/* Check for the reckoning */
-	if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch)) {
-		if(remote)
-			sprintf(buf, "     {MA heavy thick purple mist obscures the view.{x\n\r");
-		else
-			sprintf(buf, "     {MA heavy thick purple mist obscures what lies beneath you.{x\n\r");
-		send_to_char(buf, ch);
-	} else
-		show_list_to_char(room->contents, ch, false, false);
+    /* Check for the reckoning */
+    if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch)) {
+        if(remote)
+            sprintf(buf, "     {MA heavy thick purple mist obscures the view.{x\n\r");
+        else
+            sprintf(buf, "     {MA heavy thick purple mist obscures what lies beneath you.{x\n\r");
+        send_to_char(buf, ch);
+    } else
+        show_list_to_char(room->contents, ch, false, false);
 
-	show_char_to_char(room->people, ch, NULL);
-	return;
+    show_char_to_char(room->people, ch, NULL);
+    return;
 }
 
+/**
+ * do_look - Primary command for viewing surroundings and objects
+ *
+ * Handles all look-related operations: viewing rooms, examining objects,
+ * looking at characters, looking in containers, and looking in directions.
+ *
+ * Subcommands:
+ * - (no args) or "auto": Show current room
+ * - <direction>: Look through an exit
+ * - "in <container>": Look inside a container
+ * - <object>: Look at/examine an object
+ * - <character>: Look at a character
+ * - Extra description keywords from room/objects
+ *
+ * Special items handled:
+ * - Telescopes (look_through_telescope)
+ * - Compasses (look_compass)
+ * - Sextants (look_sextant)
+ * - Maps (look_map)
+ * - Corpses (shows inventory)
+ *
+ * @param ch        The character looking
+ * @param argument  What to look at (empty for room)
+ *
+ * Blocked by: Position < sleeping, sleeping, blind (without holylight)
+ *
+ * Triggers: TRIG_LOOK on objects and characters, TRIG_LORE_EX on NPCs
+ */
 void do_look(CHAR_DATA * ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH];
-	char arg1[MAX_INPUT_LENGTH];
-	char arg3[MAX_INPUT_LENGTH];
-	EXIT_DATA *pexit;
-	ROOM_INDEX_DATA *char_room;
-	ROOM_INDEX_DATA *look_room = NULL;
-	CHAR_DATA *victim;
-	OBJ_DATA *obj;
-	EXTRA_DESCR_DATA *pdesc;
-	int door;
-	int number, count;
-	int i;
-	bool perform_lore = false;
+    char buf[MAX_STRING_LENGTH];
+    char arg1[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    EXIT_DATA *pexit;
+    ROOM_INDEX_DATA *char_room;
+    ROOM_INDEX_DATA *look_room = NULL;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj;
+    EXTRA_DESCR_DATA *pdesc;
+    int door;
+    int number, count;
+    int i;
+    bool perform_lore = false;
 
-	if (ch->desc == NULL)
-		return;
+    if (ch->desc == NULL)
+        return;
 
-	if (ch->position < POS_SLEEPING)
-	{
-		send_to_char("You can't see anything but stars!\n\r", ch);
-		return;
-	}
+    if (ch->position < POS_SLEEPING)
+    {
+        send_to_char("You can't see anything but stars!\n\r", ch);
+        return;
+    }
 
-	if (ch->position == POS_SLEEPING)
-	{
-		send_to_char("You can't see anything, you're sleeping!\n\r", ch);
-		return;
-	}
+    if (ch->position == POS_SLEEPING)
+    {
+        send_to_char("You can't see anything, you're sleeping!\n\r", ch);
+        return;
+    }
 
-	if(!check_vision(ch,ch->in_room,true,true))
-		return;
+    if(!check_vision(ch,ch->in_room,true,true))
+        return;
 
-	argument = one_argument(argument, arg1);
-	number = number_argument(arg1, arg3);
-	count = 0;
+    argument = one_argument(argument, arg1);
+    number = number_argument(arg1, arg3);
+    count = 0;
 
-	// 'look' or 'look auto'
-	if (arg1[0] == '\0')
-	{
-		show_room(ch,ch->in_room,false,false,false);
-		return;
-	}
+    // 'look' or 'look auto'
+    if (arg1[0] == '\0')
+    {
+        show_room(ch,ch->in_room,false,false,false);
+        return;
+    }
 
-	if (!str_cmp(arg1, "auto")) {
-		show_room(ch,ch->in_room,false,false,true);
-		return;
-	}
+    if (!str_cmp(arg1, "auto")) {
+        show_room(ch,ch->in_room,false,false,true);
+        return;
+    }
 
-	if(arg1[0] == '.' || arg3[0] == '.')
-	{
-		send_to_char("You do not see that here.\n\r", ch);
-		return;
-	}
+    if(arg1[0] == '.' || arg3[0] == '.')
+    {
+        send_to_char("You do not see that here.\n\r", ch);
+        return;
+    }
 
-	// 'look in'
-	if (!str_cmp(arg1, "i") || !str_cmp(arg1, "in") || !str_cmp(arg1, "on"))
-	{
-		if (argument[0] == '\0')
-		{
-			send_to_char("Look in what?\n\r", ch);
-			return;
-		}
+    // 'look in'
+    if (!str_cmp(arg1, "i") || !str_cmp(arg1, "in") || !str_cmp(arg1, "on"))
+    {
+        if (argument[0] == '\0')
+        {
+            send_to_char("Look in what?\n\r", ch);
+            return;
+        }
 
-		if ((obj = get_obj_here(ch, NULL, argument)) == NULL)
-		{
-			send_to_char("You do not see that here.\n\r", ch);
-			return;
-		}
+        if ((obj = get_obj_here(ch, NULL, argument)) == NULL)
+        {
+            send_to_char("You do not see that here.\n\r", ch);
+            return;
+        }
 
-		switch (obj->item_type)
-		{
-		default:
-			send_to_char("That is not a container.\n\r", ch);
-			break;
+        switch (obj->item_type)
+        {
+        default:
+            send_to_char("That is not a container.\n\r", ch);
+            break;
 
-		case ITEM_DRINK_CON:
-			if (obj->value[1] <= 0)
-			{
-				send_to_char("It is empty.\n\r", ch);
-				break;
-			}
+        case ITEM_DRINK_CON:
+            if (FLUID_CON(obj)->amount <= 0)
+            {
+                send_to_char("It is empty.\n\r", ch);
+                break;
+            }
 
-			sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
-				obj->value[1] < obj->value[0] / 4 ? "less than half-" :
-					obj->value[1] < 3 * obj->value[0] / 4 ? "about half-" : "more than half-",
-				liq_table[obj->value[2]].liq_colour);
-			send_to_char(buf, ch);
-			break;
+            sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
+                FLUID_CON(obj)->amount < FLUID_CON(obj)->capacity / 4 ? "less than half-" :
+                    FLUID_CON(obj)->amount < 3 * FLUID_CON(obj)->capacity / 4 ? "about half-" : "more than half-",
+                liquid_color(FLUID_CON(obj)->liquid));
+            send_to_char(buf, ch);
+            break;
 
-		case ITEM_CONTAINER:
-		case ITEM_CART:
-		case ITEM_CORPSE_NPC:
-		case ITEM_WEAPON_CONTAINER:
-		case ITEM_CORPSE_PC:
-			if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED))
-			{
-				act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				break;
-			}
+        case ITEM_CONTAINER:
+        case ITEM_CART:
+        case ITEM_CORPSE_NPC:
+        case ITEM_WEAPON_CONTAINER:
+        case ITEM_CORPSE_PC:
+            if (obj->item_type == ITEM_CONTAINER && IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
+            {
+                act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                break;
+            }
 
-			act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			show_list_to_char(obj->contains, ch, true, true);
-			break;
-		}
-		return;
-	}
+            act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            show_list_to_char(obj->contains, ch, true, true);
+            break;
+        }
+        return;
+    }
 
-	// look <person>[ <worn item>]
-	if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
-	{
+    // look <person>[ <worn item>]
+    if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
+    {
 
-		if(argument[0])
-		{
-			number = number_argument(argument, arg3);
-			count = 0;
-			// look at an object in the inventory
+        if(argument[0])
+        {
+            number = number_argument(argument, arg3);
+            count = 0;
+            // look at an object in the inventory
         ITERATOR it;
         OBJ_DATA *worn_obj;
         iterator_start(&it, victim->lworn);
@@ -2282,10 +2674,10 @@ void do_look(CHAR_DATA * ch, char *argument)
                 {
                     if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
                     {
-                        act("$n looks at $p on you.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_VICT);
-                        act("$n looks at $p on $N.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_NOTVICT);
+                        act("$n looks at $p on you.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                        act("$n looks at $p on $N.", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
                     }
-                    act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_CHAR);
+                    act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, worn_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 }
                 send_to_char(worn_obj->full_description, ch);
                 send_to_char("\n\r", ch);
@@ -2295,560 +2687,556 @@ void do_look(CHAR_DATA * ch, char *argument)
         }
         iterator_stop(&it);
 
-			if (count > 0 && count != number)
-			{
-				if (count == 1)
-					sprintf(buf, "You only see one %s here.\n\r", arg3);
-				else
-					sprintf(buf, "You only see %d of those here.\n\r", count);
+            if (count > 0 && count != number)
+            {
+                if (count == 1)
+                    sprintf(buf, "You only see one %s here.\n\r", arg3);
+                else
+                    sprintf(buf, "You only see %d of those here.\n\r", count);
 
-				send_to_char(buf, ch);
-				return;
-			}
+                send_to_char(buf, ch);
+                return;
+            }
 
-			act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		} else
-			show_char_to_char_1(victim, ch, false);
-		return;
-	}
+            act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        } else
+            show_char_to_char_1(victim, ch, false);
+        return;
+    }
 
-	// hack for the crystal ball in Mordrakes tower
-	if (!str_cmp(arg1, "at"))
-	{
-		for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-		{
-			if (obj->pIndexData->vnum == 152533)
-			{
-				CHAR_DATA *victim;
+    // hack for the crystal ball in Mordrakes tower
+    if (!str_cmp(arg1, "at"))
+    {
+        OBJ_INDEX_DATA *crystal_index = get_reserved_obj_index("obj_mordrake_crystal_ball");
+        if (crystal_index) {
+            for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+            {
+                if (obj->pIndexData == crystal_index)
+                {
+                CHAR_DATA *victim;
 
-				send_to_char("{MThe crystal ball sparks and splutters as an image appears.{x\n\r", ch);
-				if ((victim = get_char_world(ch, argument)) == NULL ||
-					(victim->in_room != NULL && IS_SET(victim->in_room->room_flag[0], ROOM_SAFE)))
-				{
-					send_to_char("{MThe image blurs and fades into nothing.{x\n\r", ch);
-					return;
-				}
+                send_to_char("{MThe crystal ball sparks and splutters as an image appears.{x\n\r", ch);
+                if ((victim = get_char_world(ch, argument)) == NULL ||
+                    (victim->in_room != NULL && IS_SET(victim->in_room->room_flag[0], ROOM_SAFE)))
+                {
+                    send_to_char("{MThe image blurs and fades into nothing.{x\n\r", ch);
+                    return;
+                }
 
-				act("For a moment in time you see through the eyes of $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("You feel a momentary shiver up your spine as if you were being watched.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("$n peers into the crystal ball.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+                act("For a moment in time you see through the eyes of $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("You feel a momentary shiver up your spine as if you were being watched.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$n peers into the crystal ball.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-				//Updated from show_room_to_char to show_room. -- Tieryo 08/18/2010
-				show_room(ch,victim->in_room,true,false,false);
-				return;
-			}
-		}
-	}
+                //Updated from show_room_to_char to show_room. -- Tieryo 08/18/2010
+                show_room(ch,victim->in_room,true,false,false);
+                    return;
+                }
+            }
+        }
+    }
 
-	/* look at an object in the inventory */
-ITERATOR it;
-iterator_start(&it, ch->lcarrying);
-while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-    perform_lore = false;
-    if (can_see_obj(ch, obj)) {
-		perform_lore = false;
-		if (can_see_obj(ch, obj))
-		{
-			/* Can person lore object */
-			perform_lore = false;
-			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
-				/* get_skill(ch, gsn_lore) > 0 &&
-				number_percent() <= get_skill(ch, skill_lookup("lore")) &&*/
-				((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-				!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
-				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-				perform_lore = true;
+    /* look at an object in inventory or worn */
+    if ((obj = get_obj_inv_only(ch, arg3, false)) != NULL)
+    {
+        /* Can person lore object */
+        perform_lore = false;
+        if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
+            ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||
+            !IS_SET(obj->extra[1], ITEM_NO_LORE) ||
+            (IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||
+            (IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||
+            (!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))
+            perform_lore = true;
 
-			pdesc = get_extra_descr(arg3, obj->extra_descr);
-			if (pdesc != NULL && pdesc->description != NULL)
-			{
-				if (++count == number)
-				{
-					send_to_char(pdesc->description, ch);
+        /* Check extra desc first */
+        pdesc = get_extra_descr(arg3, obj->extra_descr);
+        if (pdesc != NULL && pdesc->description != NULL)
+        {
+            send_to_char(pdesc->description, ch);
+            if (perform_lore)
+            {
+                send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+                spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+            }
+            else
+                send_to_char("\n\r", ch);
 
-					if (perform_lore)
-					{
-						send_to_char ("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+            p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+            return;
+        }
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					//check_improve(ch, gsn_lore, true, 10);
-					return;
-				}
-				else
-					continue;
-			}
+        pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
+        if (pdesc != NULL && pdesc->description != NULL)
+        {
+            send_to_char(pdesc->description, ch);
+            if (perform_lore)
+            {
+                send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+                spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+            }
+            else
+                send_to_char("\n\r", ch);
 
-			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
-			if (pdesc != NULL && pdesc->description != NULL)
-			{
-				if (++count == number)
-				{
-					send_to_char(pdesc->description, ch);
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+            p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+            check_improve(ch, skill_resolve_gsn("lore"), true, 10);
+            return;
+        }
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, true, 10);
-					return;
-				}
-				else
-					continue;
-			}
+        /* Show object description */
+        send_to_char(obj->full_description, ch);
+        if (perform_lore)
+        {
+            send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+            spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+        }
+        else
+            send_to_char("\n\r", ch);
 
-			if (is_name(arg3, obj->name))
-			{
-				if (++count == number)
-				{
-					send_to_char(obj->full_description, ch);
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+        p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+        check_improve(ch, skill_resolve_gsn("lore"), true, 10);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, true, 10);
+        /* Handle special object types */
+        if (obj->item_type == ITEM_SEXTANT)
+        {
+            look_sextant(ch, obj);
+        }
+        else if (obj->item_type == ITEM_MAP)
+        {
+            look_map(ch, obj);
+        }
+        else if (obj->item_type == ITEM_TELESCOPE)
+        {
+            look_through_telescope(ch, obj, argument);
+        }
+        else if (obj->item_type == ITEM_COMPASS)
+        {
+            look_compass(ch, obj);
+        }
+        else if ((obj->pIndexData == get_reserved_obj_index("obj_skull_normal") ||
+                  obj->pIndexData == get_reserved_obj_index("obj_skull_golden")) &&
+                 affect_find(obj->affected, skill_lookup("third eye")) != NULL)
+        {
+            if ((victim = get_char_world(NULL, obj->owner)) != NULL)
+            {
+                if (victim == ch)
+                {
+                    send_to_char("{RYou can just as easily use your own eyes.{x\n\r", ch);
+                    return;
+                }
 
-					if( obj->item_type == ITEM_SEXTANT )
-					{
-						look_sextant(ch, obj);
-					}
-					else if(obj->item_type == ITEM_MAP)
-					{
-						look_map(ch, obj);
-					}
-					else if(obj->item_type == ITEM_TELESCOPE)
-					{
-						look_through_telescope(ch, obj, argument);
-					}
-					else if(obj->item_type == ITEM_COMPASS)
-					{
-						look_compass(ch, obj);
-					}
-					else if((obj->pIndexData->vnum == get_reserved_vnum("obj_skull_normal") || obj->pIndexData->vnum == get_reserved_vnum("obj_skull_golden")) &&
-						affect_find(obj->affected, skill_lookup("third eye")) != NULL)
-					{
-						if ((victim = get_char_world(NULL, obj->owner)) != NULL)
-						{
-							if (victim == ch)
-							{
-								send_to_char("{RYou can just as easily use your own eyes.{x\n\r", ch);
-								return;
-							}
+                if (!can_see_room(ch, victim->in_room) ||
+                    IS_SET(victim->in_room->room_flag[0], ROOM_NOVIEW) ||
+                    IS_SET(victim->in_room->room_flag[0], ROOM_PRIVATE) ||
+                    IS_SET(victim->in_room->room_flag[0], ROOM_SOLITARY))
+                {
+                    send_to_char("{DAll you see is darkness.{x\n\r", ch);
+                    return;
+                }
 
-							if (!can_see_room(ch,victim->in_room) ||
-								IS_SET(victim->in_room->room_flag[0], ROOM_NOVIEW) ||
-								IS_SET(victim->in_room->room_flag[0], ROOM_PRIVATE) ||
-								IS_SET(victim->in_room->room_flag[0], ROOM_SOLITARY))
-							{
-								send_to_char("{DAll you see is darkness.{x\n\r", ch);
-								return;
-							}
+                act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                show_room(ch, victim->in_room, true, false, false);
+            }
+            else
+                act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR, NULL, NULL);
+        }
 
-							act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        return;
+    }
 
-							//Updated show_room_to_char to show_room. -- Tieryo 08/18/2010
-							show_room(ch,victim->in_room,true,false,false);
-						}
-						else
-							act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR);
-					}
+    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+    {
+        if (can_see_obj(ch, obj))
+        {
+            /* Can person lore object */
+            perform_lore = false;
+            if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
+                /* get_skill(ch, skill_resolve_gsn("lore")) > 0 &&
+                number_percent() <= get_skill(ch, skill_lookup("lore")) && */
+                ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+                !IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+                (IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+                (IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+                (!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+                                perform_lore = true;
 
-					return;
-				}
-			}
-		}
-	}
-	iterator_stop(&it);
-}
+            /* Check extra desc first */
+            pdesc = get_extra_descr(arg3, obj->extra_descr);
+            if (pdesc != NULL)
+            {
+                if (++count == number)
+                {
+                    if( pdesc->description )
+                    {
+                        send_to_char(pdesc->description, ch);
+                    }
+                    else
+                    {
+                        ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
 
-	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-	{
-		if (can_see_obj(ch, obj))
-		{
-			/* Can person lore object */
-			perform_lore = false;
-			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
-				/* get_skill(ch, gsn_lore) > 0 &&
-				number_percent() <= get_skill(ch, skill_lookup("lore")) && */
-				((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-				!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
-				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-								perform_lore = true;
+                        if( environ )
+                        {
+                            if( IS_WILDERNESS(environ) )
+                            {
+                                WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
-			/* Check extra desc first */
-			pdesc = get_extra_descr(arg3, obj->extra_descr);
-			if (pdesc != NULL)
-			{
-				if (++count == number)
-				{
-					if( pdesc->description )
-					{
-						send_to_char(pdesc->description, ch);
-					}
-					else
-					{
-						ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+                                if (pTerrain != NULL)
+                                {
+                                    int vp_x, vp_y;
 
-						if( environ )
-						{
-							if( IS_WILDERNESS(environ) )
-							{
-								WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+                                    vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+                                    vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-								if (pTerrain != NULL)
-								{
-									int vp_x, vp_y;
+                                    if( !pTerrain->nonroom )
+                                        show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+                                    show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
 
-									vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
-									vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+                                    if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
+                                        send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
 
-									if( !pTerrain->nonroom )
-										show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
-									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
+                                }
+                                else
+                                {
+                                    send_to_char("Nothing special there.\n\r", ch);
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                char_room = ch->in_room;
+                                ch->in_room = environ;
+                                do_function(ch, &do_look, "auto");
+                                ch->in_room = char_room;
+                            }
+                        }
+                        else
+                        {
+                            send_to_char("Nothing special there.\n\r", ch);
+                            return;
+                        }
+                    }
 
-									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
-										send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
+                    if (perform_lore)
+                    {
+                        send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+                        spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                    }
+                    else
+                        send_to_char("\n\r", ch);
 
-								}
-								else
-								{
-									send_to_char("Nothing special there.\n\r", ch);
-									return;
-								}
-							}
-							else
-							{
-								char_room = ch->in_room;
-								ch->in_room = environ;
-								do_function(ch, &do_look, "auto");
-								ch->in_room = char_room;
-							}
-						}
-						else
-						{
-							send_to_char("Nothing special there.\n\r", ch);
-							return;
-						}
-					}
+                    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+                    //check_improve(ch, skill_resolve_gsn("lore"), true, 10);
+                    return;
+                }
+            }
 
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+            pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
+            if (pdesc != NULL)
+            {
+                if (++count == number)
+                {
+                    if( pdesc->description )
+                    {
+                        send_to_char(pdesc->description, ch);
+                    }
+                    else
+                    {
+                        ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					//check_improve(ch, gsn_lore, true, 10);
-					return;
-				}
-			}
+                        if( environ )
+                        {
+                            if( IS_WILDERNESS(environ) )
+                            {
+                                WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
-			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
-			if (pdesc != NULL)
-			{
-				if (++count == number)
-				{
-					if( pdesc->description )
-					{
-						send_to_char(pdesc->description, ch);
-					}
-					else
-					{
-						ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+                                if (pTerrain != NULL)
+                                {
+                                    int vp_x, vp_y;
 
-						if( environ )
-						{
-							if( IS_WILDERNESS(environ) )
-							{
-								WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+                                    vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+                                    vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-								if (pTerrain != NULL)
-								{
-									int vp_x, vp_y;
+                                    if( !pTerrain->nonroom )
+                                        show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+                                    show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
 
-									vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
-									vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+                                    if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
+                                        send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
 
-									if( !pTerrain->nonroom )
-										show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
-									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
+                                }
+                                else
+                                {
+                                    send_to_char("Nothing special there.\n\r", ch);
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                char_room = ch->in_room;
+                                ch->in_room = environ;
+                                do_function(ch, &do_look, "auto");
+                                ch->in_room = char_room;
+                            }
+                        }
+                        else
+                        {
+                            send_to_char("Nothing special there.\n\r", ch);
+                            return;
+                        }
+                    }
 
-									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
-										send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
+                    if (perform_lore)
+                    {
+                        send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+                        spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                    }
+                    else
+                        send_to_char("\n\r", ch);
 
-								}
-								else
-								{
-									send_to_char("Nothing special there.\n\r", ch);
-									return;
-								}
-							}
-							else
-							{
-								char_room = ch->in_room;
-								ch->in_room = environ;
-								do_function(ch, &do_look, "auto");
-								ch->in_room = char_room;
-							}
-						}
-						else
-						{
-							send_to_char("Nothing special there.\n\r", ch);
-							return;
-						}
-					}
+                    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+                    check_improve(ch, skill_resolve_gsn("lore"), true, 10);
+                    return;
+                }
+            }
 
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+            if (is_name(arg3, obj->name))
+                if (++count == number)
+                {
+                    send_to_char(obj->full_description, ch);
+                    if (perform_lore)
+                    {
+                        send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+                        spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+                    }
+                    else
+                        send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, true, 10);
-					return;
-				}
-			}
+                    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+                    check_improve(ch, skill_resolve_gsn("lore"), true, 10);
 
-			if (is_name(arg3, obj->name))
-				if (++count == number)
-				{
-					send_to_char(obj->full_description, ch);
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+                    if( obj->item_type == ITEM_TELESCOPE )
+                    {
+                        look_through_telescope(ch, obj, argument);
+                    }
+                    else if(obj->item_type == ITEM_COMPASS)
+                    {
+                        look_compass(ch, obj);
+                    }
+                    else if(obj->item_type == ITEM_MAP)
+                    {
+                        look_map(ch, obj);
+                    }
+                    return;
+                }
+        }
+    }
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, true, 10);
+    pdesc = get_extra_descr(arg3, ch->in_room->extra_descr);
+    if (pdesc != NULL)
+    {
+        if (++count == number)
+        {
+            if( pdesc->description )
+            {
+                send_to_char(pdesc->description, ch);
+            }
+            else
+            {
+                ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
 
-					if( obj->item_type == ITEM_TELESCOPE )
-					{
-						look_through_telescope(ch, obj, argument);
-					}
-					else if(obj->item_type == ITEM_COMPASS)
-					{
-						look_compass(ch, obj);
-					}
-					else if(obj->item_type == ITEM_MAP)
-					{
-						look_map(ch, obj);
-					}
-					return;
-				}
-		}
-	}
+                if( environ )
+                {
+                    if( IS_WILDERNESS(environ) )
+                    {
+                        WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
-	pdesc = get_extra_descr(arg3, ch->in_room->extra_descr);
-	if (pdesc != NULL)
-	{
-		if (++count == number)
-		{
-			if( pdesc->description )
-			{
-				send_to_char(pdesc->description, ch);
-			}
-			else
-			{
-				ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+                        if (pTerrain != NULL)
+                        {
+                            int vp_x, vp_y;
 
-				if( environ )
-				{
-					if( IS_WILDERNESS(environ) )
-					{
-						WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+                            vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+                            vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-						if (pTerrain != NULL)
-						{
-							int vp_x, vp_y;
+                            if( !pTerrain->nonroom )
+                                show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+                            show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
 
-							vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
-							vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+                            if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
+                                send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
 
-							if( !pTerrain->nonroom )
-								show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
-							show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, false);
+                        }
+                        else
+                        {
+                            send_to_char("Nothing special there.\n\r", ch);
+                        }
+                    }
+                    else
+                    {
+                        char_room = ch->in_room;
+                        ch->in_room = environ;
+                        do_function(ch, &do_look, "auto");
+                        ch->in_room = char_room;
+                    }
+                }
+                else
+                {
+                    send_to_char("Nothing special there.\n\r", ch);
+                }
+            }
+            return;
+        }
+    }
 
-							if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
-								send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
+    if (count > 0 && count != number)
+    {
+        if (count == 1)
+            sprintf(buf, "You only see one %s here.\n\r", arg3);
+        else
+            sprintf(buf, "You only see %d of those here.\n\r", count);
 
-						}
-						else
-						{
-							send_to_char("Nothing special there.\n\r", ch);
-						}
-					}
-					else
-					{
-						char_room = ch->in_room;
-						ch->in_room = environ;
-						do_function(ch, &do_look, "auto");
-						ch->in_room = char_room;
-					}
-				}
-				else
-				{
-					send_to_char("Nothing special there.\n\r", ch);
-				}
-			}
-			return;
-		}
-	}
+        send_to_char(buf, ch);
+        return;
+    }
 
-	if (count > 0 && count != number)
-	{
-		if (count == 1)
-			sprintf(buf, "You only see one %s here.\n\r", arg3);
-		else
-			sprintf(buf, "You only see %d of those here.\n\r", count);
+    /* look <exit keyword> */
+    for (i = 0; i < MAX_DIR; i++)
+    {
+        pexit = ch->in_room->exit[i];
+        if (pexit != NULL &&
+            pexit->u1.to_room != NULL &&
+            (!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND)) &&		// Hidden exists should not be included in this search
+            pexit->keyword != NULL &&
+            pexit->keyword[0] != '\0' &&
+            pexit->keyword[0] != ' ' &&
+            pexit->keyword[0] != '.' &&
+            !str_cmp(pexit->keyword, arg1) &&
+            pexit->short_desc != NULL &&
+            pexit->short_desc[0] != '\0')
+        {
+            send_to_char(pexit->short_desc, ch);
+            return;
+        }
+    }
 
-		send_to_char(buf, ch);
-		return;
-	}
+    /* look <direction> */
+    if (!str_cmp(arg1, "n") || !str_cmp(arg1, "north"))
+        door = DIR_NORTH;
+    else if (!str_cmp(arg1, "e") || !str_cmp(arg1, "east"))
+        door = DIR_EAST;
+    else if (!str_cmp(arg1, "s") || !str_cmp(arg1, "south"))
+        door = DIR_SOUTH;
+    else if (!str_cmp(arg1, "w") || !str_cmp(arg1, "west"))
+        door = DIR_WEST;
+    else if (!str_cmp(arg1, "u") || !str_cmp(arg1, "up"))
+        door = DIR_UP;
+    else if (!str_cmp(arg1, "d") || !str_cmp(arg1, "down"))
+        door = DIR_DOWN;
+    else if (!str_cmp(arg1, "ne") || !str_cmp(arg1, "northeast"))
+        door = DIR_NORTHEAST;
+    else if (!str_cmp(arg1, "nw") || !str_cmp(arg1, "northwest"))
+        door = DIR_NORTHWEST;
+    else if (!str_cmp(arg1, "se") || !str_cmp(arg1, "southeast"))
+        door = DIR_SOUTHEAST;
+    else if (!str_cmp(arg1, "sw") || !str_cmp(arg1, "southwest"))
+        door = DIR_SOUTHWEST;
+    else {
+        send_to_char("You do not see that here.\n\r", ch);
+        return;
+    }
 
-	/* look <exit keyword> */
-	for (i = 0; i < MAX_DIR; i++)
-	{
-		pexit = ch->in_room->exit[i];
-		if (pexit != NULL &&
-			pexit->u1.to_room != NULL &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND)) &&		// Hidden exists should not be included in this search
-			pexit->keyword != NULL &&
-			pexit->keyword[0] != '\0' &&
-			pexit->keyword[0] != ' ' &&
-			pexit->keyword[0] != '.' &&
-			!str_cmp(pexit->keyword, arg1) &&
-			pexit->short_desc != NULL &&
-			pexit->short_desc[0] != '\0')
-		{
-			send_to_char(pexit->short_desc, ch);
-			return;
-		}
-	}
+    // 'look direction'
+    if ((pexit = ch->in_room->exit[door]) == NULL || pexit->u1.to_room == NULL)
+    {
+        // Check if this is a wilds room
+        //  skip up and down directions
+        if(ch->in_room->wilds && door != DIR_UP && door != DIR_DOWN)
+        {
+            WILDS_TERRAIN *pTerrain;
+            int to_x = get_wilds_vroom_x_by_dir(ch->in_room->wilds, ch->in_room->x, ch->in_room->y, door);
+            int to_y = get_wilds_vroom_y_by_dir(ch->in_room->wilds, ch->in_room->x, ch->in_room->y, door);
 
-	/* look <direction> */
-	if (!str_cmp(arg1, "n") || !str_cmp(arg1, "north"))
-		door = DIR_NORTH;
-	else if (!str_cmp(arg1, "e") || !str_cmp(arg1, "east"))
-		door = DIR_EAST;
-	else if (!str_cmp(arg1, "s") || !str_cmp(arg1, "south"))
-		door = DIR_SOUTH;
-	else if (!str_cmp(arg1, "w") || !str_cmp(arg1, "west"))
-		door = DIR_WEST;
-	else if (!str_cmp(arg1, "u") || !str_cmp(arg1, "up"))
-		door = DIR_UP;
-	else if (!str_cmp(arg1, "d") || !str_cmp(arg1, "down"))
-		door = DIR_DOWN;
-	else if (!str_cmp(arg1, "ne") || !str_cmp(arg1, "northeast"))
-		door = DIR_NORTHEAST;
-	else if (!str_cmp(arg1, "nw") || !str_cmp(arg1, "northwest"))
-		door = DIR_NORTHWEST;
-	else if (!str_cmp(arg1, "se") || !str_cmp(arg1, "southeast"))
-		door = DIR_SOUTHEAST;
-	else if (!str_cmp(arg1, "sw") || !str_cmp(arg1, "southwest"))
-		door = DIR_SOUTHWEST;
-	else {
-		send_to_char("You do not see that here.\n\r", ch);
-		return;
-	}
+            look_room = get_wilds_vroom(ch->in_room->wilds, to_x, to_y);
+            if( look_room == NULL )
+            {
+                pTerrain = get_terrain_by_coors(ch->in_room->wilds, to_x, to_y);
 
-	// 'look direction'
-	if ((pexit = ch->in_room->exit[door]) == NULL || pexit->u1.to_room == NULL)
-	{
-		// Check if this is a wilds room
-		//  skip up and down directions
-		if(ch->in_room->wilds && door != DIR_UP && door != DIR_DOWN)
-		{
-			WILDS_TERRAIN *pTerrain;
-			int to_x = get_wilds_vroom_x_by_dir(ch->in_room->wilds, ch->in_room->x, ch->in_room->y, door);
-			int to_y = get_wilds_vroom_y_by_dir(ch->in_room->wilds, ch->in_room->x, ch->in_room->y, door);
+                if (pTerrain != NULL)
+                {
+                    int vp_x, vp_y;
 
-			look_room = get_wilds_vroom(ch->in_room->wilds, to_x, to_y);
-			if( look_room == NULL )
-			{
-				pTerrain = get_terrain_by_coors(ch->in_room->wilds, to_x, to_y);
+                    vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+                    vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-				if (pTerrain != NULL)
-				{
-					int vp_x, vp_y;
+                    if( !pTerrain->nonroom )
+                        show_vroom_header_to_char(pTerrain, ch->in_room->wilds, to_x, to_y, ch);
+                    show_map_to_char_wyx(ch->in_room->wilds, to_x, to_y, ch, ch->in_room->x, ch->in_room->y, vp_x, vp_y, false);
 
-					vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
-					vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+                    if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
+                        send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
 
-					if( !pTerrain->nonroom )
-						show_vroom_header_to_char(pTerrain, ch->in_room->wilds, to_x, to_y, ch);
-					show_map_to_char_wyx(ch->in_room->wilds, to_x, to_y, ch, ch->in_room->x, ch->in_room->y, vp_x, vp_y, false);
+                    return;
+                }
+            }
+        }
 
-					if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
-						send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
+        if( look_room == NULL )
+        {
+            send_to_char("Nothing special there.\n\r", ch);
+            return;
+        }
+    }
+    else
+    {
+        if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
+        {
+            send_to_char("Nothing special there.\n\r", ch);
+            return;
+        }
 
-					return;
-				}
-			}
-		}
+        if (IS_SET(pexit->exit_info, EX_CLOSED))
+        {
+            if (pexit->keyword != NULL && pexit->keyword[0] != '\0' && pexit->keyword[0] != ' ')
+            {
+                act("You can't see past the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR, NULL, NULL);
+                return;
+            }
+            else
+            {
+                send_to_char("You fail to see further in that direction.\n\r", ch);
+                return;
+            }
+        }
 
-		if( look_room == NULL )
-		{
-			send_to_char("Nothing special there.\n\r", ch);
-			return;
-		}
-	}
-	else
-	{
-		if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
-		{
-			send_to_char("Nothing special there.\n\r", ch);
-			return;
-		}
+        look_room = pexit->u1.to_room;
+    }
 
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-		{
-			if (pexit->keyword != NULL && pexit->keyword[0] != '\0' && pexit->keyword[0] != ' ')
-			{
-				act("You can't see past the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
-				return;
-			}
-			else
-			{
-				send_to_char("You fail to see further in that direction.\n\r", ch);
-				return;
-			}
-		}
-
-		look_room = pexit->u1.to_room;
-	}
-
-	char_room = ch->in_room;
-	ch->in_room = look_room;
-	do_function(ch, &do_look, "auto");
-	ch->in_room = char_room;
+    char_room = ch->in_room;
+    ch->in_room = look_room;
+    do_function(ch, &do_look, "auto");
+    ch->in_room = char_room;
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * do_examine - Examine an object or character in detail
+ *
+ * More thorough than look - shows full description and triggers lore
+ * skill for item identification. Can examine items worn by or carried
+ * by other characters, items in the room, or containers.
+ *
+ * Special handling:
+ * - Worn items on characters (visible slots only)
+ * - Inventory items (if peeking)
+ * - Container contents (if examining a container)
+ * - Automatic lore identification based on level/remort status
+ *
+ * @param ch        The character examining
+ * @param argument  Target to examine, optionally "character item"
+ *
+ * Blocked by: Blind (without holylight)
+ * Triggers: TRIG_EXAMINE, TRIG_LORE_EX
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void do_examine(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2857,20 +3245,20 @@ void do_examine(CHAR_DATA * ch, char *argument)
     int number, count;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
-	bool perform_lore = false;
+    bool perform_lore = false;
 
     argument = one_argument(argument, arg1);
 
     if (arg1[0] == '\0')
     {
-		send_to_char("Examine what?\n\r", ch);
-		return;
+        send_to_char("Examine what?\n\r", ch);
+        return;
     }
 
-	if(!check_vision(ch,ch->in_room,true,true))
-		return;
+    if(!check_vision(ch,ch->in_room,true,true))
+        return;
 
-	// look <person>[ <worn item>]
+    // look <person>[ <worn item>]
 if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 {
     if(argument[0])
@@ -2899,15 +3287,15 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 
                 if (ch != victim) {
                     if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL) {
-                        act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-                        act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+                        act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                        act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
                     }
-                    act("{MYou examine {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                    act("{MYou examine {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 }
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
                     send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                    spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                    spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                 } else
                     send_to_char("\n\r", ch);
 
@@ -2939,15 +3327,15 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 
                 if (ch != victim) {
                     if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL) {
-                        act("$n examines $p in your inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-                        act("$n examines $p in $N's inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+                        act("$n examines $p in your inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                        act("$n examines $p in $N's inventory.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
                     }
-                    act("{MYou examine {W$p{M in {W$N's{M inventory.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+                    act("{MYou examine {W$p{M in {W$N's{M inventory.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
                 }
                 send_to_char(obj->full_description, ch);
                 if (perform_lore) {
                     send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-                    spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+                    spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
                 } else
                     send_to_char("\n\r", ch);
 
@@ -2968,7 +3356,7 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
             return;
         }
 
-        act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
     else
     {
@@ -2980,268 +3368,338 @@ if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 
     if ((obj = get_obj_here(ch, NULL, arg1)) != NULL)
     {
-		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,argument)) return;
+        if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,argument)) return;
 
-		if (get_skill(ch, gsn_lore) > 0 &&
-			number_percent() <= get_skill(ch, gsn_lore) &&
-			((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-			!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
-			(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-			(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-			(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
-			perform_lore = true;
+        if (get_skill(ch, skill_resolve_gsn("lore")) > 0 &&
+            number_percent() <= get_skill(ch, skill_resolve_gsn("lore")) &&
+            ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+            !IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+            (IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+            (IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+            (!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+            perform_lore = true;
 
-		send_to_char(obj->full_description, ch);
-		if (perform_lore)
-		{
-			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-			spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		}
-		else
-			send_to_char("\n\r", ch);
+        send_to_char(obj->full_description, ch);
+        if (perform_lore)
+        {
+            send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+            spell_identify(skill_find("lore"), ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE, INVOC_INTERNAL);
+        }
+        else
+            send_to_char("\n\r", ch);
 
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		check_improve(ch, gsn_lore, true, 10);
+        p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+        check_improve(ch, skill_resolve_gsn("lore"), true, 10);
     }
 
     return;
 }
 
 
-/* MOVED: senses/vision.c */
+/**
+ * do_exits - Display visible exits from the current room
+ *
+ * Shows all exits the character can see, including doors, wilderness
+ * links, and environment exits. In "auto" mode, displays a compact
+ * single-line format for the prompt.
+ *
+ * Handles:
+ * - Wilderness virtual room exits
+ * - Vlinks to other wilderness locations
+ * - Static room exits
+ * - Hidden exits (only shown if found)
+ * - Closed doors (shown as closed)
+ * - Dark rooms (shown as "Too dark to tell")
+ *
+ * @param ch        The character viewing exits
+ * @param argument  "auto" for compact mode, or empty for detailed
+ *
+ * Blocked by: Blind (without holylight)
+ *
+ * Planned refactor: senses/vision.c (never executed)
+ */
 void do_exits(CHAR_DATA * ch, char *argument)
 {
-	extern char *const dir_name[];
-	char buf[MAX_STRING_LENGTH];
-	ROOM_INDEX_DATA *to_room;
-	WILDS_DATA *in_wilds = NULL;
-	WILDS_DATA *to_wilds = NULL;
-	WILDS_TERRAIN *pTerrain;
-	EXIT_DATA *pexit;
-	bool found;
-	bool fAuto;
-	int door;
-	int to_vroom_x = 0;
-	int to_vroom_y = 0;
+    extern char *const dir_name[];
+    char buf[MAX_STRING_LENGTH];
+    ROOM_INDEX_DATA *to_room;
+    WILDS_DATA *in_wilds = NULL;
+    WILDS_DATA *to_wilds = NULL;
+    WILDS_TERRAIN *pTerrain;
+    EXIT_DATA *pexit;
+    bool found;
+    bool fAuto;
+    int door;
+    int to_vroom_x = 0;
+    int to_vroom_y = 0;
 
-	fAuto = !str_cmp(argument, "auto");
+    fAuto = !str_cmp(argument, "auto");
 
-	if (!check_blind(ch)) {
-		send_to_char("{DYou can't see a thing!\n\r{x", ch);
-		return;
-	}
+    if (!check_blind(ch)) {
+        send_to_char("{DYou can't see a thing!\n\r{x", ch);
+        return;
+    }
 
 
-	if (fAuto)
-		sprintf(buf, "[{WExits{x:");
-	else if (IS_IMMORTAL(ch)) {
-		if (ch->in_wilds)
-			sprintf(buf, "{YObvious exits from room at (%ld, %ld):{x\n\r", ch->in_room->x, ch->in_room->y);
-		else
-			sprintf(buf, "{YObvious exits from room %ld:{x\n\r", ch->in_room->vnum);
-	} else
-		sprintf(buf, "{YObvious exits:{x\n\r");
+    if (fAuto)
+        sprintf(buf, "[{WExits{x:");
+    else if (IS_IMMORTAL(ch)) {
+        if (ch->in_wilds)
+            sprintf(buf, "{YObvious exits from room at (%ld, %ld):{x\n\r", ch->in_room->x, ch->in_room->y);
+        else
+            sprintf(buf, "{YObvious exits from room %s:{x\n\r", widevnum_string_room(ch->in_room, ch->in_room->area));
+    } else
+        sprintf(buf, "{YObvious exits:{x\n\r");
 
-	found = false;
+    found = false;
 
-	if (ch->in_room->wilds) {
-		for(door = 0; door < MAX_DIR; door++) if((pexit = ch->in_room->exit[door])) {
-			if (IS_SET(pexit->exit_info, EX_VLINK)) {
-				/* This is a vlink to different wilderness location, be it on the same map or not */
-				if (pexit->wilds.wilds_uid > 0) {
-					to_wilds = get_wilds_from_uid(NULL, pexit->wilds.wilds_uid);
-					to_vroom_x = pexit->wilds.x;
-					to_vroom_y = pexit->wilds.y;
+    if (ch->in_room->wilds) {
+        for(door = 0; door < MAX_DIR; door++) if((pexit = ch->in_room->exit[door])) {
+            if (IS_SET(pexit->exit_info, EX_VLINK)) {
+                /* This is a vlink to different wilderness location, be it on the same map or not */
+                if (pexit->wilds.wilds_uid > 0) {
+                    to_wilds = get_wilds_from_uid(NULL, pexit->wilds.wilds_uid);
+                    to_vroom_x = pexit->wilds.x;
+                    to_vroom_y = pexit->wilds.y;
 
-					if (!(pTerrain = get_terrain_by_coors(to_wilds, to_vroom_x, to_vroom_y)))
-						continue;
+                    if (!(pTerrain = get_terrain_by_coors(to_wilds, to_vroom_x, to_vroom_y)))
+                        continue;
 
-					to_room = get_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y);
-					if(!to_room && !(to_room = create_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y)))
-						continue;
+                    to_room = get_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y);
+                    if(!to_room && !(to_room = create_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y)))
+                        continue;
 
-				/* Otherwise, Exit leads to a static room. */
-				} else if (!(to_room = pexit->u1.to_room))
-					continue;
+                /* Otherwise, Exit leads to a static room. */
+                } else if (!(to_room = pexit->u1.to_room))
+                    continue;
 
-			} else {
-				/* In wilds and exit leads to another vroom. */
-				to_wilds = ch->in_room->wilds;
-				to_vroom_x = get_wilds_vroom_x_by_dir(in_wilds, ch->in_room->x, ch->in_room->y, door);
-				to_vroom_y = get_wilds_vroom_y_by_dir(in_wilds, ch->in_room->x, ch->in_room->y, door);
+            } else {
+                /* In wilds and exit leads to another vroom. */
+                to_wilds = ch->in_room->wilds;
+                to_vroom_x = get_wilds_vroom_x_by_dir(in_wilds, ch->in_room->x, ch->in_room->y, door);
+                to_vroom_y = get_wilds_vroom_y_by_dir(in_wilds, ch->in_room->x, ch->in_room->y, door);
 
-				if (!(pTerrain = get_terrain_by_coors(to_wilds, to_vroom_x, to_vroom_y)))
-					continue;
+                if (!(pTerrain = get_terrain_by_coors(to_wilds, to_vroom_x, to_vroom_y)))
+                    continue;
 
-				to_room = get_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y);
-				if(!to_room && !(to_room = create_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y)))
-					continue;
-			}
+                to_room = get_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y);
+                if(!to_room && !(to_room = create_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y)))
+                    continue;
+            }
 
-			if(!can_see_room (ch, to_room))
-				continue;
+            if(!can_see_room (ch, to_room))
+                continue;
 
-			found = true;
+            found = true;
 
-			if (fAuto) {
-				strcat(buf, " ");
-				strcat(buf, dir_name[door]);
-			} else {
-				sprintf(buf + strlen(buf), "%-5s - %s",
-					capitalize(dir_name[door]),
-					room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room->name);
+            if (fAuto) {
+                strcat(buf, " ");
+                strcat(buf, dir_name[door]);
+            } else {
+                char to_room_display_name[MAX_STRING_LENGTH];
+                const char *to_room_name = show_room_display_name(to_room, to_room_display_name, sizeof(to_room_display_name));
 
-				if (IS_IMMORTAL(ch)) {
-					if(to_room->wilds)
-						sprintf(buf + strlen(buf), " ({Gwilds (%lu, %lu, %lu){x)\n\r", to_room->wilds->uid, to_room->x, to_room->y);
-					else
-						sprintf(buf + strlen(buf), " ({Groom %ld{x)\n\r", to_room->vnum);
-				} else
-					sprintf(buf + strlen(buf), "\n\r");
-			}
-		}
-	} else {
-		for(door = 0; door < MAX_DIR; door++) if((pexit = ch->in_room->exit[door])) {
-			if (IS_SET(pexit->exit_info, EX_VLINK)) {
-				/* This is a vlink to different wilderness location, be it on the same map or not */
-				if (pexit->wilds.wilds_uid > 0) {
-					to_wilds = get_wilds_from_uid(NULL, pexit->wilds.wilds_uid);
-					to_vroom_x = pexit->wilds.x;
-					to_vroom_y = pexit->wilds.y;
+                sprintf(buf + strlen(buf), "%-5s - %s",
+                    capitalize(dir_name[door]),
+                    room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room_name);
 
-					if (!(pTerrain = get_terrain_by_coors(to_wilds, to_vroom_x, to_vroom_y)))
-						continue;
+                if (IS_IMMORTAL(ch)) {
+                    if(to_room->wilds)
+                        sprintf(buf + strlen(buf), " ({Gwilds %s (%ld, %ld){x)\n\r",
+                            IS_NULLSTR(to_room->wilds->name) ? "(unnamed)" : to_room->wilds->name,
+                            to_room->x,
+                            to_room->y);
+                    else
+                        sprintf(buf + strlen(buf), " ({Groom %s{x)\n\r", widevnum_string_room(to_room, ch->in_room->area));
+                } else
+                    sprintf(buf + strlen(buf), "\n\r");
+            }
+        }
+    } else {
+        for(door = 0; door < MAX_DIR; door++) if((pexit = ch->in_room->exit[door])) {
+            if (IS_SET(pexit->exit_info, EX_VLINK)) {
+                /* This is a vlink to different wilderness location, be it on the same map or not */
+                if (pexit->wilds.wilds_uid > 0) {
+                    to_wilds = get_wilds_from_uid(NULL, pexit->wilds.wilds_uid);
+                    to_vroom_x = pexit->wilds.x;
+                    to_vroom_y = pexit->wilds.y;
 
-					to_room = get_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y);
-					if(!to_room && !(to_room = create_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y)))
-						continue;
+                    if (!(pTerrain = get_terrain_by_coors(to_wilds, to_vroom_x, to_vroom_y)))
+                        continue;
 
-				/* Otherwise, Exit leads to a static room. */
-				} else if (!(to_room = pexit->u1.to_room))
-					continue;
-			} else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
-				if(!IS_SET(ch->in_room->room_flag[1],ROOM_VIRTUAL_ROOM))
-					continue;
+                    to_room = get_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y);
+                    if(!to_room && !(to_room = create_wilds_vroom(to_wilds, to_vroom_x, to_vroom_y)))
+                        continue;
 
-				found = true;
+                /* Otherwise, Exit leads to a static room. */
+                } else if (!(to_room = pexit->u1.to_room))
+                    continue;
+            } else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
+                if(!IS_SET(ch->in_room->room_flag[1],ROOM_VIRTUAL_ROOM))
+                    continue;
 
-				if (fAuto) {
-					strcat(buf, " ");
-					strcat(buf, dir_name[door]);
-				} else
-					sprintf(buf + strlen(buf), "%-5s - Environment\n\r", capitalize(dir_name[door]));
+                found = true;
 
-				continue;
-			} else if (!(to_room = pexit->u1.to_room)) continue;
+                if (fAuto) {
+                    strcat(buf, " ");
+                    strcat(buf, dir_name[door]);
+                } else
+                    sprintf(buf + strlen(buf), "%-5s - Environment\n\r", capitalize(dir_name[door]));
 
-			if(!can_see_room (ch, to_room))
-				continue;
+                continue;
+            } else if (!(to_room = pexit->u1.to_room)) continue;
 
-			found = true;
+            if(!can_see_room (ch, to_room))
+                continue;
 
-			if (fAuto) {
-				strcat(buf, " ");
-				strcat(buf, dir_name[door]);
-			} else {
-				sprintf(buf + strlen(buf), "%-5s - %s",
-					capitalize(dir_name[door]),
-					room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room->name);
+            found = true;
 
-				if (IS_IMMORTAL(ch)) {
-					if(to_room->wilds)
-						sprintf(buf + strlen(buf), " ({Gwilds (%lu, %lu, %lu){x)\n\r", to_room->wilds->uid, to_room->x, to_room->y);
-					else
-						sprintf(buf + strlen(buf), " ({Groom %ld{x)\n\r", to_room->vnum);
-				} else
-					sprintf(buf + strlen(buf), "\n\r");
-			}
-		}
-	}
+            if (fAuto) {
+                strcat(buf, " ");
+                strcat(buf, dir_name[door]);
+            } else {
+                char to_room_display_name[MAX_STRING_LENGTH];
+                const char *to_room_name = show_room_display_name(to_room, to_room_display_name, sizeof(to_room_display_name));
 
-	if (!found)
-		strcat(buf, fAuto ? " none" : "None.\n\r");
+                sprintf(buf + strlen(buf), "%-5s - %s",
+                    capitalize(dir_name[door]),
+                    room_is_dark(to_room) ? "{DToo dark to tell{x" : to_room_name);
 
-	if (fAuto)
-		strcat(buf, "]\n\r");
+                if (IS_IMMORTAL(ch)) {
+                    if(to_room->wilds)
+                        sprintf(buf + strlen(buf), " ({Gwilds %s (%ld, %ld){x)\n\r",
+                            IS_NULLSTR(to_room->wilds->name) ? "(unnamed)" : to_room->wilds->name,
+                            to_room->x,
+                            to_room->y);
+                    else
+                        sprintf(buf + strlen(buf), " ({Groom %s{x)\n\r", widevnum_string_room(to_room, ch->in_room->area));
+                } else
+                    sprintf(buf + strlen(buf), "\n\r");
+            }
+        }
+    }
 
-	send_to_char(buf, ch);
-	return;
+    if (!found)
+        strcat(buf, fAuto ? " none" : "None.\n\r");
+
+    if (fAuto)
+        strcat(buf, "]\n\r");
+
+    send_to_char(buf, ch);
+    return;
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_worth - Display character's wealth
+ *
+ * Shows gold and silver carried, plus bank balance.
+ *
+ * @param ch        The character checking their worth
+ * @param argument  Unused
+ *
+ * Blocked by: IS_SWITCHED (morphed characters)
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_worth(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
 
     if (IS_SWITCHED(ch)) {
-	send_to_char("You cannot do this while morphed.\n\r", ch);
+    send_to_char("You cannot do this while morphed.\n\r", ch);
     }
 
     if (IS_NPC(ch)) {
-	sprintf(buf, "You have {Y%ld {xgold and {Y%ld {xsilver.\n\r",
-		ch->gold, ch->silver);
-	send_to_char(buf, ch);
-	sprintf(buf, "You have {Y%ld {xgold in your bank account.\n\r",
-		ch->pcdata->bankbalance);
-	return;
+    sprintf(buf, "You have {Y%ld {xgold and {Y%ld {xsilver.\n\r",
+        ch->gold, ch->silver);
+    send_to_char(buf, ch);
+    sprintf(buf, "You have {Y%ld {xgold in your bank account.\n\r",
+        ch->pcdata->bankbalance);
+    return;
     }
 
     sprintf(buf,
-	    "You have {Y%ld {xgold and {Y%ld {xsilver.\n\r",
-	    ch->gold, ch->silver);
+        "You have {Y%ld {xgold and {Y%ld {xsilver.\n\r",
+        ch->gold, ch->silver);
 
     send_to_char(buf, ch);
 
     sprintf(buf, "You have {Y%ld{X gold in your bank account.\n\r",
-	    ch->pcdata->bankbalance);
+        ch->pcdata->bankbalance);
     send_to_char(buf, ch);
 
     return;
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_score - Display comprehensive character statistics
+ *
+ * Shows detailed character information in a formatted display including:
+ * - Name, title, race, class
+ * - HP, mana, move, experience
+ * - All attributes (str, int, wis, dex, con)
+ * - Armor class values (pierce, bash, slash, exotic)
+ * - Combat stats (hitroll, damroll)
+ * - Saves, alignment, carrying capacity
+ * - Quest points, gold, practices, trains
+ * - Church membership, PK timer
+ * - Play time and age
+ *
+ * @param ch        The character viewing their score
+ * @param argument  Unused
+ *
+ * Blocked by: IS_NPC, IS_SWITCHED (morphed characters)
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_score(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
-    char subclass[MSL];
     int i;
     char tbuf[MAX_STRING_LENGTH];
+    char aura_buf[MAX_STRING_LENGTH];
     int pierce_s;
     int bash_s;
     int slash_s;
     int exotic_s;
+    int aura_count = 0;
+    ITERATOR aurait;
+    AURA_DATA *aura;
 
     if (IS_NPC(ch))
-	return;
+    return;
 
     if (IS_SWITCHED(ch))
     {
-	send_to_char(
+    send_to_char(
         "You can't see your stats while not in your normal form.\n\r", ch);
-	return;
+    return;
     }
 
     /* LINE 1 *** */
     sprintf(buf, "\n\r{C|");
     for (i = 0; i < 37; i++)
-	strcat(buf, "-+");
+    strcat(buf, "-+");
 
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
 
-    sprintf(subclass, "%s", sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
-    subclass[0] = LOWER(subclass[0]);
     /* LINE 2 *** */
-    sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
-	    ch->name,
-	    IS_NPC(ch) ? "" : ch->pcdata->title,
-	    ch->sex == 0 ? "sexless" : ch->sex == 1 ? "male" : "female",
-	    race_table[ch->race].name,
-	    IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name,
-	    IS_NPC(ch) ? "mobile" : subclass);
+    {
+        /* Use new class system display */
+        const char *class_disp;
+        CLASS_DATA *cur_class = get_current_class(ch);
+        class_disp = cur_class ? class_display_ch(cur_class, ch) : "Adventurer";
+        sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B]{x",
+            ch->name,
+            IS_NPC(ch) ? "" : ch->pcdata->title,
+            body_type_info[ch->body_type].name,
+            ch->race ? ch->race->name : "unknown",
+            class_disp);
+    }
 
     for (i = fstr_len(buf); i < 75; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
 
     strcat(buf, "{C|\n\r");
     send_to_char(buf, ch);
@@ -3252,7 +3710,7 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(buf, "{C|");
     for (i = 0; i < 37; i++)
     {
-	strcat(buf, "-+");
+    strcat(buf, "-+");
     }
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
@@ -3262,18 +3720,18 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(buf, "| {BHP:   {x%ld{B/{x%ld", ch->hit, ch->max_hit);
 
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BStr: {x%d{B/{x%d",
-	    get_curr_stat(ch, STAT_STR), ch->perm_stat[STAT_STR]);
+        get_curr_stat(ch, STAT_STR), ch->perm_stat[STAT_STR]);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BPracs: {x%d", ch->practice);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     send_to_char("{C|\n\r", ch);
@@ -3282,18 +3740,18 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(buf, "| {BMana: {x%ld{B/{x%ld", ch->mana, ch->max_mana);
 
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BInt: {x%d{B/{x%d",
-	    get_curr_stat(ch, STAT_INT), ch->perm_stat[STAT_INT]);
+        get_curr_stat(ch, STAT_INT), ch->perm_stat[STAT_INT]);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BTrains: {x%d", ch->train);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     send_to_char("{C|\n\r", ch);
@@ -3302,18 +3760,18 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(buf, "| {BMove: {x%ld{B/{x%ld", ch->move, ch->max_move);
 
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BWis: {x%d{B/{x%d",
-	    get_curr_stat(ch, STAT_WIS), ch->perm_stat[STAT_WIS]);
+        get_curr_stat(ch, STAT_WIS), ch->perm_stat[STAT_WIS]);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BLevel: {x%d (%d)", ch->level, ch->tot_level);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
 
@@ -3321,77 +3779,77 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     /* LINE 7 *** */
     if(IS_IMMORTAL(ch))
-    	sprintf(buf, "| {BAge: {XAgeless{X");
+        sprintf(buf, "| {BAge: {XAgeless{X");
     else
-	    sprintf(buf, "| {BAge: {x%d", get_age(ch));
+        sprintf(buf, "| {BAge: {x%d", get_age(ch));
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BDex: {x%d{B/{x%d",
-	    get_curr_stat(ch, STAT_DEX), ch->perm_stat[STAT_DEX]);
+        get_curr_stat(ch, STAT_DEX), ch->perm_stat[STAT_DEX]);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     if (!IS_NPC(ch) && ch->level < LEVEL_HERO)
     {
-	sprintf(buf, "{BExp to Level: {x%ld",
-		(exp_per_level(ch, ch->pcdata->points) - ch->exp));
-	for (i = fstr_len(buf); i < 25; i++)
-	    strcat(buf, " ");
-	send_to_char(buf, ch);
+    sprintf(buf, "{BExp to Level: {x%ld",
+        (exp_per_level(ch, NULL, ch->pcdata->points) - ch->exp));
+    for (i = fstr_len(buf); i < 25; i++)
+        strcat(buf, " ");
+    send_to_char(buf, ch);
     }
     else
     {
-	for (i = 0; i < 25; i++)
-	    send_to_char(" ", ch);
+    for (i = 0; i < 25; i++)
+        send_to_char(" ", ch);
     }
     send_to_char("{C|\n\r", ch);
 
     /* LINE 8 *** */
 
     if(IS_IMMORTAL(ch))
-	sprintf(buf, "| {BHrs: {XForever");
+    sprintf(buf, "| {BHrs: {XForever");
     else
-	sprintf(buf, "| {BHrs: {x%d",
-	    ((ch->played + (int) (current_time - ch->logon)) / 3600));
+    sprintf(buf, "| {BHrs: {x%d",
+        ((ch->played + (int) (current_time - ch->logon)) / 3600));
 
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
 
     sprintf(buf, "{BCon: {x%d{B/{x%d",
-	    get_curr_stat(ch, STAT_CON), ch->perm_stat[STAT_CON]);
+        get_curr_stat(ch, STAT_CON), ch->perm_stat[STAT_CON]);
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
 
     sprintf(buf, "{BAlign: {x%d", ch->alignment);
     strcat(buf, "{C(");
     if (ch->alignment > 900)
-	strcat(buf, "{Wangelic");
+    strcat(buf, "{Wangelic");
     else if (ch->alignment > 700)
-	strcat(buf, "{Csaintly");
+    strcat(buf, "{Csaintly");
     else if (ch->alignment > 350)
-	strcat(buf, "{Bgood");
+    strcat(buf, "{Bgood");
     else if (ch->alignment > 100)
-	strcat(buf, "{bkind");
+    strcat(buf, "{bkind");
     else if (ch->alignment > -100)
-	strcat(buf, "{Dneutral");
+    strcat(buf, "{Dneutral");
     else if (ch->alignment > -350)
-	strcat(buf, "{ymean");
+    strcat(buf, "{ymean");
     else if (ch->alignment > -700)
-	strcat(buf, "{Yevil");
+    strcat(buf, "{Yevil");
     else if (ch->alignment > -900)
-	strcat(buf, "{rdemonic");
+    strcat(buf, "{rdemonic");
     else
-	strcat(buf, "{Rsatanic{X");
+    strcat(buf, "{Rsatanic{X");
 
     strcat(buf, "{C)");
     for (i = fstr_len(buf); i < 25; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BQuest Points: {w%-9d", ch->questpoints);
@@ -3408,33 +3866,59 @@ void do_score(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
 
     sprintf(buf, "{C| {BMonsters Killed: {w%-30ld ",
-	    ch->monster_kills);
+        ch->monster_kills);
     send_to_char(buf, ch);
     sprintf(buf, "{BBank Balance: {w%-10ld {C|\n\r", ch->pcdata->bankbalance);
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BDeaths: {w%-39d {BQuests Completed:{x %-7ld{C|\n\r",
-		    ch->deaths, ch->pcdata->quests_completed);
+            ch->deaths, ch->pcdata->quests_completed);
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BPK Wins       : {w%-31d {BCPK Wins:{x %-14d {C|\n\r",
-	    ch->player_kills,
-	    ch->cpk_kills);
+        ch->player_kills,
+        ch->cpk_kills);
 
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BPK Losses     : {w%-31d {BCPK Losses:{x %-12d {C|\n\r",
-	    ch->player_deaths,
-	    ch->cpk_deaths);
+        ch->player_deaths,
+        ch->cpk_deaths);
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BArena Battles Won : {w%-53d{C|\n\r",
-	    ch->arena_kills);
+        ch->arena_kills);
     send_to_char(buf, ch);
     sprintf(buf, "{C| {BArena Battles Lost: {w%-53d{C|\n\r",
-	    ch->arena_deaths);
+        ch->arena_deaths);
       /* ch->pcdata->ship_quest_points[CONT_SERALIA]); */
     send_to_char(buf, ch);
 
     sprintf(buf, "{C| {BWars Won: {w%-62d {C|\n\r",
      ch->wars_won);/* , ch->pcdata->ship_quest_points[CONT_ATHEMIA]); */
     send_to_char(buf, ch);
+
+    if (ch->auras != NULL)
+    {
+        iterator_start(&aurait, ch->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            snprintf(aura_buf, sizeof(aura_buf), "%s",
+                string_replace_static(aura->long_descr, "%s", "You"));
+
+            if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+                snprintf(buf, sizeof(buf), "{C| {BAura:{x (%s) %s", aura->name, aura_buf);
+            else
+                snprintf(buf, sizeof(buf), "{C| {BAura:{x %s", aura_buf);
+
+            for (i = fstr_len(buf); i < 75; i++)
+                strcat(buf, " ");
+            strcat(buf, "{C|\n\r");
+            send_to_char(buf, ch);
+
+            aura_count++;
+        }
+        iterator_stop(&aurait);
+    }
 
     /* LINE 9 *** */
     pierce_s = GET_AC(ch, AC_PIERCE);
@@ -3445,28 +3929,28 @@ void do_score(CHAR_DATA * ch, char *argument)
     /* PIERCE */
     sprintf(tbuf, "{x");
     if (pierce_s < -100)
-	pierce_s = -100;
+    pierce_s = -100;
 
     while (pierce_s <= 100)
     {
-	if (pierce_s > 80)
-	    strcat(tbuf, "{b");
-	else if (pierce_s > 50)
-	    strcat(tbuf, "{B");
-	else if (pierce_s > 10)
-	    strcat(tbuf, "{Y");
-	else if (pierce_s > -60)
-	    strcat(tbuf, "{R");
-	else
-	    strcat(tbuf, "{W");
+    if (pierce_s > 80)
+        strcat(tbuf, "{b");
+    else if (pierce_s > 50)
+        strcat(tbuf, "{B");
+    else if (pierce_s > 10)
+        strcat(tbuf, "{Y");
+    else if (pierce_s > -60)
+        strcat(tbuf, "{R");
+    else
+        strcat(tbuf, "{W");
 
-	strcat(tbuf, "*{x");
-	pierce_s += 10;
+    strcat(tbuf, "*{x");
+    pierce_s += 10;
     }
     sprintf(buf, "| {BPiercing {C%3d{B: {Y%-39s{x", GET_AC(ch, AC_PIERCE),
-	    tbuf);
+        tbuf);
     for (i = fstr_len(buf); i < 75; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
 
@@ -3474,83 +3958,83 @@ void do_score(CHAR_DATA * ch, char *argument)
     /* BASH */
     sprintf(tbuf,"{x");
     if (bash_s < -100)
-	bash_s = -100;
+    bash_s = -100;
     while (bash_s <= 100)
     {
-	if (bash_s > 80)
-	    strcat(tbuf, "{b");
-	else if (bash_s > 50)
-	    strcat(tbuf, "{B");
-	else if (bash_s > 10)
-	    strcat(tbuf, "{Y");
-	else if (bash_s > -60)
-	    strcat(tbuf, "{R");
-	else
-	    strcat(tbuf, "{W");
+    if (bash_s > 80)
+        strcat(tbuf, "{b");
+    else if (bash_s > 50)
+        strcat(tbuf, "{B");
+    else if (bash_s > 10)
+        strcat(tbuf, "{Y");
+    else if (bash_s > -60)
+        strcat(tbuf, "{R");
+    else
+        strcat(tbuf, "{W");
 
-	strcat(tbuf, "*{x");
-	bash_s += 10;
+    strcat(tbuf, "*{x");
+    bash_s += 10;
     }
     sprintf(buf, "| {BBashing  {C%3d{B: {Y%s{x", GET_AC(ch, AC_BASH),
-	    tbuf);
+        tbuf);
     for (i = fstr_len(buf); i < 75; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
 
     /* SLASH */
     sprintf(tbuf,"{x");
     if (slash_s < -100)
-	slash_s = -100;
+    slash_s = -100;
     while (slash_s <= 100)
     {
-	if (slash_s > 80)
-	    strcat(tbuf, "{b");
-	else if (slash_s > 50)
-	    strcat(tbuf, "{B");
-	else if (slash_s > 10)
-	    strcat(tbuf, "{Y");
-	else if (slash_s > -60)
-	    strcat(tbuf, "{R");
-	else
-	    strcat(tbuf, "{W");
+    if (slash_s > 80)
+        strcat(tbuf, "{b");
+    else if (slash_s > 50)
+        strcat(tbuf, "{B");
+    else if (slash_s > 10)
+        strcat(tbuf, "{Y");
+    else if (slash_s > -60)
+        strcat(tbuf, "{R");
+    else
+        strcat(tbuf, "{W");
 
-	strcat(tbuf, "*{x");
-	slash_s += 10;
+    strcat(tbuf, "*{x");
+    slash_s += 10;
     }
     sprintf(buf, "| {BSlashing {C%3d{B: {Y%s{x", GET_AC(ch, AC_SLASH),
-	    tbuf);
+        tbuf);
     for (i = fstr_len(buf); i < 75; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
 
     /* EXOTIC */
     sprintf(tbuf,"{x");
     if (exotic_s < -100)
-	exotic_s = -100;
+    exotic_s = -100;
     while (exotic_s <= 100)
     {
-	if (exotic_s > 80)
-	    strcat(tbuf, "{b");
-	else if (exotic_s > 50)
-	    strcat(tbuf, "{B");
-	else if (exotic_s > 10)
-	    strcat(tbuf, "{Y");
-	else if (exotic_s > -60)
-	    strcat(tbuf, "{R");
-	else
-	    strcat(tbuf, "{W");
+    if (exotic_s > 80)
+        strcat(tbuf, "{b");
+    else if (exotic_s > 50)
+        strcat(tbuf, "{B");
+    else if (exotic_s > 10)
+        strcat(tbuf, "{Y");
+    else if (exotic_s > -60)
+        strcat(tbuf, "{R");
+    else
+        strcat(tbuf, "{W");
 
-	strcat(tbuf, "*{x");
-	exotic_s += 10;
+    strcat(tbuf, "*{x");
+    exotic_s += 10;
 
     }
 
     sprintf(buf, "| {BExotic   {C%3d{B: {Y%s{x", GET_AC(ch, AC_EXOTIC),
-	    tbuf);
+        tbuf);
     for (i = fstr_len(buf); i < 75; i++)
-	strcat(buf, " ");
+    strcat(buf, " ");
     send_to_char(buf, ch);
     send_to_char("{C|\n\r", ch);
 
@@ -3558,153 +4042,93 @@ void do_score(CHAR_DATA * ch, char *argument)
     sprintf(buf, "{C|");
     for (i = 0; i < 37; i++)
     {
-	strcat(buf, "-+");
+    strcat(buf, "-+");
     }
     strcat(buf, "|\n\r");
     send_to_char(buf, ch);
 
-    /* Show Subclasses */
-    if (!IS_IMMORTAL(ch))
-    {
-	send_to_char("{xYou are proficient in the following subclasses:\n\r", ch);
-	if (get_profession(ch, SUBCLASS_MAGE) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_MAGE)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SUBCLASS_CLERIC) != -1)
-	{
-	    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_WITCH && ch->sex == SEX_MALE)
-		sprintf(buf, "{B[{x%s{B]{x", "warlock");
-
-	    else
-		sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_CLERIC)].name[ch->sex]);
-
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SUBCLASS_THIEF) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_THIEF)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SUBCLASS_WARRIOR) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SUBCLASS_WARRIOR)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_MAGE)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_CLERIC)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_THIEF)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
-	{
-	    sprintf(buf, "{B[{x%s{B]{x", sub_class_table[get_profession(ch, SECOND_SUBCLASS_WARRIOR)].name[ch->sex]);
-	    send_to_char(buf, ch);
-	}
-
-	send_to_char("\n\r", ch);
-    }
-
     /* if (!IS_NPC(ch) && ch->tot_level >= LEVEL_IMMORTAL && ch->pcdata->immortal)
     {
-	if (ch->pcdata->immortal->imm_title != NULL)
-	    sprintf(buf, "{BYou hold the Immortal title(s) of {x%s{B.{x\n\r", ch->pcdata->imm_title);
-	else
-	    sprintf(buf, "{BYou have not been assigned an immortal title{x.\n\r");
+    if (ch->pcdata->immortal->imm_title != NULL)
+        sprintf(buf, "{BYou hold the Immortal title(s) of {x%s{B.{x\n\r", ch->pcdata->imm_title);
+    else
+        sprintf(buf, "{BYou have not been assigned an immortal title{x.\n\r");
 
-	send_to_char(buf, ch);
+    send_to_char(buf, ch);
     }*/
 
     if (ch->church != NULL && ch->church_member != NULL)
     {
-	sprintf(buf, "{YYou hold the position of %s in",
-			get_chrank(ch->church_member));
-	send_to_char(buf, ch);
+    sprintf(buf, "{YYou hold the position of %s in",
+            get_chrank(ch->church_member));
+    send_to_char(buf, ch);
 
 /*	switch (ch->church->size)
-	{
-	case CHURCH_SIZE_BAND:
-	    send_to_char("Band", ch);
-	    break;
-	case CHURCH_SIZE_CULT:
-	    send_to_char("Cult", ch);
-	    break;
-	case CHURCH_SIZE_ORDER:
-	    send_to_char("Order", ch);
-	    break;
-	case CHURCH_SIZE_CHURCH:
-	    send_to_char("Church", ch);
-	    break;
-	}
+    {
+    case CHURCH_SIZE_BAND:
+        send_to_char("Band", ch);
+        break;
+    case CHURCH_SIZE_CULT:
+        send_to_char("Cult", ch);
+        break;
+    case CHURCH_SIZE_ORDER:
+        send_to_char("Order", ch);
+        break;
+    case CHURCH_SIZE_CHURCH:
+        send_to_char("Church", ch);
+        break;
+    }
 */
 
-	sprintf(buf, " %s, which is ", ch->church->name);
-	send_to_char(buf, ch);
+    sprintf(buf, " %s, which is ", ch->church->name);
+    send_to_char(buf, ch);
 
-		switch (ch->church->size)
-		{
-		case CHURCH_SIZE_BAND:
-		    send_to_char("a Band.{x\n\r", ch);
-		    break;
-		case CHURCH_SIZE_CULT:
-		    send_to_char("a Cult.{x\n\r", ch);
-		    break;
-		case CHURCH_SIZE_ORDER:
-		    send_to_char("an Order.{x\n\r", ch);
-		    break;
-		case CHURCH_SIZE_CHURCH:
-		    send_to_char("a Church.{x\n\r", ch);
-		    break;
-	}
+        switch (ch->church->size)
+        {
+        case CHURCH_SIZE_BAND:
+            send_to_char("a Band.{x\n\r", ch);
+            break;
+        case CHURCH_SIZE_CULT:
+            send_to_char("a Cult.{x\n\r", ch);
+            break;
+        case CHURCH_SIZE_ORDER:
+            send_to_char("an Order.{x\n\r", ch);
+            break;
+        case CHURCH_SIZE_CHURCH:
+            send_to_char("a Church.{x\n\r", ch);
+            break;
+    }
 
     }
 
     if (IS_SET(ch->act[0], PLR_HELPER))
-	send_to_char("You are a helper.\n\r", ch);
+    send_to_char("You are a helper.\n\r", ch);
 
     /*
      * Ship ranks
     if (ch->pcdata->rank[ CONT_SERALIA ] > NPC_SHIP_RANK_NONE)
     {
-	    sprintf(buf, "{xIn {WSeralia{x you are {Y%s{x holding the rank of {Y%s{x.\n\r",
-			    rating_table[ ch->pcdata->reputation[ CONT_SERALIA ] ].name,
+        sprintf(buf, "{xIn {WSeralia{x you are {Y%s{x holding the rank of {Y%s{x.\n\r",
+                rating_table[ ch->pcdata->reputation[ CONT_SERALIA ] ].name,
           rating_table[get_player_reputation(ch->pcdata->reputation[CONT_SERALIA])].name,
-			    rank_table[ ch->pcdata->rank[ CONT_SERALIA ] ].name);
-	    send_to_char(buf, ch);
+                rank_table[ ch->pcdata->rank[ CONT_SERALIA ] ].name);
+        send_to_char(buf, ch);
     }
     if (ch->pcdata->rank[ CONT_ATHEMIA ] > NPC_SHIP_RANK_NONE)
     {
-	    sprintf(buf, "{xIn {WAthemia{x you are {Y%s{x holding the rank of {Y%s{x.\n\r",
-			    rating_table[ ch->pcdata->reputation[ CONT_ATHEMIA ] ].name,
+        sprintf(buf, "{xIn {WAthemia{x you are {Y%s{x holding the rank of {Y%s{x.\n\r",
+                rating_table[ ch->pcdata->reputation[ CONT_ATHEMIA ] ].name,
           rating_table[get_player_reputation(ch->pcdata->reputation[CONT_ATHEMIA])].name,
-			    rank_table[ ch->pcdata->rank[ CONT_ATHEMIA ] ].name);
-	    send_to_char(buf, ch);
+                rank_table[ ch->pcdata->rank[ CONT_ATHEMIA ] ].name);
+        send_to_char(buf, ch);
     }
     if (ch->pcdata->rank[ CONT_PIRATE ] > NPC_SHIP_RANK_NONE)
     {
-	    sprintf(buf, "{xAs a {RPirate{x you are {Y%s{x holding the rank of {Y%s{x.\n\r",
+        sprintf(buf, "{xAs a {RPirate{x you are {Y%s{x holding the rank of {Y%s{x.\n\r",
           rating_table[get_player_reputation(ch->pcdata->reputation[CONT_PIRATE])].name,
-			    rating_table[ ch->pcdata->reputation[ CONT_PIRATE ] ].name,
-			    rank_table[ ch->pcdata->rank[ CONT_PIRATE ] ].name);
-	    send_to_char(buf, ch);
+                rating_table[ ch->pcdata->reputation[ CONT_PIRATE ] ].name,
+                rank_table[ ch->pcdata->rank[ CONT_PIRATE ] ].name);
+        send_to_char(buf, ch);
     }
      */
 
@@ -3718,195 +4142,213 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     if (IS_DEAD(ch))
     {
-	int hrs;
+    int hrs;
         int mins;
 
-	hrs = ch->time_left_death/60;
-	mins = ch->time_left_death - 60 * hrs;
-	/*
+    hrs = ch->time_left_death/60;
+    mins = ch->time_left_death - 60 * hrs;
+    /*
         if (IS_DEMON(ch))
         {
-	    sprintf(buf, "{BYou will have restored enough energy to project again in {Y%d {Bminutes{x\n\r", ch->time_left / 2 + 1);
+        sprintf(buf, "{BYou will have restored enough energy to project again in {Y%d {Bminutes{x\n\r", ch->time_left / 2 + 1);
         }
         else
         if (IS_ANGEL(ch))
         {
-	    sprintf(buf, "{BYou will have restored enough energy to project again in {Y%d {Bminutes{x\n\r", ch->time_left / 2 + 1);
-	}
-	*/
-	send_to_char("{RYou are dead.{x\n\r", ch);
+        sprintf(buf, "{BYou will have restored enough energy to project again in {Y%d {Bminutes{x\n\r", ch->time_left / 2 + 1);
+    }
+    */
+    send_to_char("{RYou are dead.{x\n\r", ch);
 
-	if (hrs > 1)
-	{
-	    sprintf(buf,
-	    "{BYou will be restored by the gods in {Y%d{B hours and {Y%d{B minute%s{x\n\r",
-		hrs,
-		mins,
-		mins == 1 ? "{x" : "s");
-	}
-	else if (hrs == 1)
-	{
-	    sprintf(buf,
-	    "{BYou will be restored by the gods in {Y1{B hour {Y%d{B minute%s{x\n\r",
-		mins,
-		mins == 1 ? "{x" : "s");
-	}
-	else
-	{
-	    sprintf(buf,
-	    "{BYou will be restored by the gods in {Y%d{B minute%s{x\n\r",
-		mins,
-		mins == 1 ? "{x" : "s");
-	}
-	send_to_char(buf, ch);
+    if (hrs > 1)
+    {
+        sprintf(buf,
+        "{BYou will be restored by the gods in {Y%d{B hours and {Y%d{B minute%s{x\n\r",
+        hrs,
+        mins,
+        mins == 1 ? "{x" : "s");
+    }
+    else if (hrs == 1)
+    {
+        sprintf(buf,
+        "{BYou will be restored by the gods in {Y1{B hour {Y%d{B minute%s{x\n\r",
+        mins,
+        mins == 1 ? "{x" : "s");
+    }
+    else
+    {
+        sprintf(buf,
+        "{BYou will be restored by the gods in {Y%d{B minute%s{x\n\r",
+        mins,
+        mins == 1 ? "{x" : "s");
+    }
+    send_to_char(buf, ch);
     }
 
     if (ch->maze_time_left > 0)
     {
         send_to_char("{DYou are banished.{x\n\r", ch);
-	sprintf(buf,
-	"{BYou will be restored to the mortal realm in {Y%d {Bminutes{x.\n\r",
-	    ch->maze_time_left / 2 + 1);
-	send_to_char(buf, ch);
+    sprintf(buf,
+    "{BYou will be restored to the mortal realm in {Y%d {Bminutes{x.\n\r",
+        ch->maze_time_left / 2 + 1);
+    send_to_char(buf, ch);
     }
 
     sprintf(buf,
-  	    "{xYou are carrying %d/%d items with weight %ld/%d kg."
-	    " (%ld kg in coins){x\n\r",
-	    ch->carry_number, can_carry_n(ch),
-	    get_carry_weight(ch), can_carry_w(ch), COIN_WEIGHT(ch));
+          "{xYou are carrying %d/%d items with weight %ld/%d kg."
+        " (%ld kg in coins){x\n\r",
+        ch->carry_number, can_carry_n(ch),
+        get_carry_weight(ch), can_carry_w(ch), COIN_WEIGHT(ch));
     send_to_char(buf, ch);
 
     sprintf(buf, "Wimpy set to %d hit points.\n\r", ch->wimpy);
     send_to_char(buf, ch);
 
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-	send_to_char("You are drunk.\n\r", ch);
-	/*
+    send_to_char("You are drunk.\n\r", ch);
+    /*
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_THIRST] == 0)
-	send_to_char("You are thirsty.\n\r", ch);
+    send_to_char("You are thirsty.\n\r", ch);
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_HUNGER] == 0)
-	send_to_char("You are hungry.\n\r", ch);
-	*/
+    send_to_char("You are hungry.\n\r", ch);
+    */
     switch (ch->position)
     {
     case POS_DEAD:
-	send_to_char("You are DEAD!!\n\r", ch);
-	break;
+    send_to_char("You are DEAD!!\n\r", ch);
+    break;
     case POS_MORTAL:
-	send_to_char("You are mortally wounded.\n\r", ch);
-	break;
+    send_to_char("You are mortally wounded.\n\r", ch);
+    break;
     case POS_INCAP:
-	send_to_char("You are incapacitated.\n\r", ch);
-	break;
+    send_to_char("You are incapacitated.\n\r", ch);
+    break;
     case POS_STUNNED:
-	send_to_char("You are stunned.\n\r", ch);
-	break;
+    send_to_char("You are stunned.\n\r", ch);
+    break;
     case POS_SLEEPING:
-	send_to_char("You are sleeping.\n\r", ch);
-	break;
+    send_to_char("You are sleeping.\n\r", ch);
+    break;
     case POS_RESTING:
-	send_to_char("You are resting.\n\r", ch);
-	break;
+    send_to_char("You are resting.\n\r", ch);
+    break;
     case POS_SITTING:
-	send_to_char("You are sitting.\n\r", ch);
-	break;
+    send_to_char("You are sitting.\n\r", ch);
+    break;
     case POS_STANDING:
-	if (MOUNTED(ch))
-	{
-	    sprintf(buf, "You are riding on %s.\n\r",
-		    MOUNTED(ch)->short_descr);
-	    send_to_char(buf, ch);
-	}
-	else
-	{
-	    send_to_char("You are standing.\n\r", ch);
-	}
-	break;
+    if (MOUNTED(ch))
+    {
+        sprintf(buf, "You are riding on %s.\n\r",
+            MOUNTED(ch)->short_descr);
+        send_to_char(buf, ch);
+    }
+    else
+    {
+        send_to_char("You are standing.\n\r", ch);
+    }
+    break;
     case POS_FIGHTING:
-	send_to_char("You are fighting.\n\r", ch);
-	break;
+    send_to_char("You are fighting.\n\r", ch);
+    break;
     }
 
     if (RIDDEN(ch))
     {
-	sprintf(buf, "You are ridden by %s.\n\r",
-		IS_NPC(RIDDEN(ch)) ? RIDDEN(ch)->short_descr : RIDDEN(ch)->
-		name);
-	send_to_char(buf, ch);
+    sprintf(buf, "You are ridden by %s.\n\r",
+        IS_NPC(RIDDEN(ch)) ? RIDDEN(ch)->short_descr : RIDDEN(ch)->
+        name);
+    send_to_char(buf, ch);
     }
 
     if (ch->pcdata->commands != NULL) {
-	COMMAND_DATA *cmd;
-	int i;
-	char buf2[MSL];
-	CMD_DATA *command;
+    COMMAND_DATA *cmd;
+    int i;
+    char buf2[MSL];
+    CMD_DATA *command;
 
-	send_to_char("{YYou have been granted the following commands:{x\n\r", ch);
+    send_to_char("{YYou have been granted the following commands:{x\n\r", ch);
 
-	i = 0;
-	for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next) {
-	    i++;
+    i = 0;
+    for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next) {
+        i++;
 /* -- Replacing with mxp version
-		sprintf(buf2, "%-15s", cmd->name);
+        sprintf(buf2, "%-15s", cmd->name);
 */
-		command = get_cmd_data(cmd->name);
+        command = get_cmd_data(cmd->name);
 
-			if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
-				sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
-			else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
-				sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
-			else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
-				sprintf(buf2, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 15, NULL, NULL));
-			else
-				sprintf(buf2, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));		
-	    if (i % 4 == 0)
-		strcat(buf2, "\n\r");
+            if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+                sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"%s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->summary, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
+            else if ((command->help_keywords != NULL && str_cmp(command->help_keywords->string, "(null)")) && IS_NULLSTR(command->summary))
+                sprintf(buf2, "\t<send href=\"%s|help %s\" hint=\"Execute %s|View '%s' helpfile\">{X%s\t</send>%s", command->name, command->help_keywords->string, command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));
+            else if ((command->help_keywords == NULL || !str_cmp(command->help_keywords->string, "(null)")) && !IS_NULLSTR(command->summary))
+                sprintf(buf2, "\t<send href=\"%s\" hint=\"%s\">{X%s\t</send>%s", command->name, command->summary, command->name, pad_string(command->name, 15, NULL, NULL));
+            else
+                sprintf(buf2, "\t<send href=\"%s\" hint=\"Execute %s\">{X%s\t</send>%s", command->name, command->name, command->name, pad_string(command->name, 15, NULL, NULL));		
+        if (i % 4 == 0)
+        strcat(buf2, "\n\r");
 
-	    send_to_char(buf2, ch);
-	}
+        send_to_char(buf2, ch);
+    }
 
-	if (i % 4 != 0)
-	    send_to_char("\n\r", ch);
+    if (i % 4 != 0)
+        send_to_char("\n\r", ch);
     }
 
     if (IS_IMMORTAL(ch))
     {
-				send_to_char(formatf("Rank: {+%s\n\r", flag_string(staff_ranks, ch->pcdata->staff_rank)), ch);
+                send_to_char(formatf("Rank: {+%s\n\r", flag_string(staff_ranks, ch->pcdata->staff_rank)), ch);
 
-	send_to_char("Holy: ", ch);
-	if (IS_SET(ch->act[0], PLR_HOLYLIGHT))
-	    send_to_char("{WLIGHT{x", ch);
-	else
-	    send_to_char("{DLIGHT{x", ch);
+    send_to_char("Holy: ", ch);
+    if (IS_SET(ch->act[0], PLR_HOLYLIGHT))
+        send_to_char("{WLIGHT{x", ch);
+    else
+        send_to_char("{DLIGHT{x", ch);
 
-	if (IS_SET(ch->act[1], PLR_HOLYAURA))
-	    send_to_char(" {WAURA{x", ch);
-	else
-	    send_to_char(" {DAURA{x", ch);
+    if (IS_SET(ch->act[1], PLR_HOLYAURA))
+        send_to_char(" {WAURA{x", ch);
+    else
+        send_to_char(" {DAURA{x", ch);
 
-	if (IS_SET(ch->act[1], PLR_HOLYWARP))
-	    send_to_char(" {WWARP{x", ch);
-	else
-	    send_to_char(" {DWARP{x", ch);
+    if (IS_SET(ch->act[1], PLR_HOLYWARP))
+        send_to_char(" {WWARP{x", ch);
+    else
+        send_to_char(" {DWARP{x", ch);
 
-	if (ch->invis_level)
-	{
-	    sprintf(buf, "  Invisible: level %d", ch->invis_level);
-	    send_to_char(buf, ch);
-	}
+    if (ch->invis_level)
+    {
+        sprintf(buf, "  Invisible: level %d", ch->invis_level);
+        send_to_char(buf, ch);
+    }
 
-	if (ch->incog_level)
-	{
-	    sprintf(buf, "  Incognito: level %d", ch->incog_level);
-	    send_to_char(buf, ch);
-	}
+    if (ch->incog_level)
+    {
+        sprintf(buf, "  Incognito: level %d", ch->incog_level);
+        send_to_char(buf, ch);
+    }
 
-	send_to_char("\n\r", ch);
+    send_to_char("\n\r", ch);
     }
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_affects - Display all active affects on the character
+ *
+ * Shows a comprehensive list of all magical and status effects currently
+ * affecting the character, including:
+ * - Hidden/sneak status
+ * - Immunities, resistances, vulnerabilities
+ * - Class-based affects (e.g., sage detect hidden)
+ * - Racial affects
+ * - All spell/skill affects with durations and modifiers
+ *
+ * Groups affects by category (physical, magical, etc.) and shows
+ * remaining duration for each effect.
+ *
+ * @param ch        The character viewing their affects
+ * @param argument  Unused
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_affects(CHAR_DATA * ch, char *argument)
 {
     AFFECT_DATA *paf, *paf_last = NULL;
@@ -3925,20 +4367,20 @@ void do_affects(CHAR_DATA * ch, char *argument)
 
     if (ch->imm_flags != 0)
     {
-		sprintf(buf, "{BImmune: {G%s\n\r{x", imm_bit_name(ch->imm_flags));
-		send_to_char(buf, ch);
+        sprintf(buf, "{BImmune: {G%s\n\r{x", imm_bit_name(ch->imm_flags));
+        send_to_char(buf, ch);
     }
 
     if (ch->res_flags != 0)
     {
-		sprintf(buf, "{BResist: {G%s\n\r{x", imm_bit_name(ch->res_flags));
-		send_to_char(buf, ch);
+        sprintf(buf, "{BResist: {G%s\n\r{x", imm_bit_name(ch->res_flags));
+        send_to_char(buf, ch);
     }
 
     if (ch->vuln_flags != 0)
     {
-		sprintf(buf, "{BVulnerable: {G%s\n\r{x", imm_bit_name(ch->vuln_flags));
-		send_to_char(buf, ch);
+        sprintf(buf, "{BVulnerable: {G%s\n\r{x", imm_bit_name(ch->vuln_flags));
+        send_to_char(buf, ch);
     }
 
     if (IS_SAGE(ch))
@@ -3947,89 +4389,97 @@ void do_affects(CHAR_DATA * ch, char *argument)
         send_to_char(buf,ch);
     }
 
-    if (race_table[ch->race].aff != 0)
+    if (ch->race && ch->race->aff[0] != 0)
     {
         sprintf(buf, "{BRacial Affects: {G%s{x\n\r",
-			affect_bit_name(race_table[ch->race].aff));
+            affect_bit_name(ch->race->aff[0]));
         send_to_char(buf,ch);
     }
 
     if (ch->affected != NULL)
     {
-	    bool found;
-	send_to_char("{BYou are affected by the following:\n\r{x", ch);
+        bool found;
+    send_to_char("{BYou are affected by the following:\n\r{x", ch);
 
-	for(i=0;affgroup_mobile_flags[i].name;i++) {
-		found = false;
-		paf_last = NULL;
-		for (paf = ch->affected; paf != NULL; paf = paf->next) if(paf->group == affgroup_mobile_flags[i].bit && paf->custom_name) {
-			if(!found) {
-				found = true;
-				sprintf(buf, "{YGroup: {W%s{x\n\r", affgroup_mobile_flags[i].name);
-				send_to_char(buf, ch);
-			}
+    for(i=0;affgroup_mobile_flags[i].name;i++) {
+        found = false;
+        paf_last = NULL;
+        for (paf = ch->affected; paf != NULL; paf = paf->next) if(paf->group == affgroup_mobile_flags[i].bit && paf->custom_name) {
+            if(!found) {
+                found = true;
+                sprintf(buf, "{YGroup: {W%s{x\n\r", affgroup_mobile_flags[i].name);
+                send_to_char(buf, ch);
+            }
 
-			if (paf_last != NULL && paf->custom_name == paf_last->custom_name)
-				sprintf(buf, "                           ");
-			else
-				sprintf(buf, "{BSpell: {G%-20s{x", paf->custom_name);
-			send_to_char(buf, ch);
+            if (paf_last != NULL && paf->custom_name == paf_last->custom_name)
+                sprintf(buf, "                           ");
+            else
+                sprintf(buf, "{BSpell: {G%-20s{x", paf->custom_name);
+            send_to_char(buf, ch);
 
-			sprintf(buf, "{G: {Blevel {W%3d{B, modifies {W%s {Bby {W%d {x", paf->level, affect_loc_name(paf->location), paf->modifier);
-			send_to_char(buf, ch);
-			if (paf->duration < 0)	/* @@@NIB : 20070126 : Allows for any negative durations */
-				sprintf(buf, "{Rpermanently{x");
-			else
-				sprintf(buf, "{Bfor {W%d {Bhours{x", paf->duration);
-			send_to_char(buf, ch);
+            sprintf(buf, "{G: {Blevel {W%3d{B, modifies {W%s {Bby {W%d {x", paf->level, affect_loc_name(paf->location), paf->modifier);
+            send_to_char(buf, ch);
+            if (paf->duration < 0)	/* @@@NIB : 20070126 : Allows for any negative durations */
+                sprintf(buf, "{Rpermanently{x");
+            else
+                sprintf(buf, "{Bfor {W%d {Bhours{x", paf->duration);
+            send_to_char(buf, ch);
 
-			send_to_char("\n\r", ch);
-			paf_last = paf;
-		}
+            send_to_char("\n\r", ch);
+            paf_last = paf;
+        }
 
-		paf_last = NULL;
-		for (paf = ch->affected; paf != NULL; paf = paf->next) if(paf->group == affgroup_mobile_flags[i].bit && !paf->custom_name) {
-			if(!found) {
-				found = true;
-				sprintf(buf, "{YGroup: {W%s{x\n\r", affgroup_mobile_flags[i].name);
-				send_to_char(buf, ch);
-			}
-			if (paf_last != NULL && paf->type == paf_last->type)
-				sprintf(buf, "                           ");
-			else
-				sprintf(buf, "{BSpell: {G%-20s{x",
-			paf->type == gsn_improved_invisibility ? "improved invis" : skill_table[paf->type].name);
+        paf_last = NULL;
+        for (paf = ch->affected; paf != NULL; paf = paf->next) if(paf->group == affgroup_mobile_flags[i].bit && !paf->custom_name) {
+            if(!found) {
+                found = true;
+                sprintf(buf, "{YGroup: {W%s{x\n\r", affgroup_mobile_flags[i].name);
+                send_to_char(buf, ch);
+            }
+            if (paf_last != NULL && paf->type == paf_last->type)
+                sprintf(buf, "                           ");
+            else
+                sprintf(buf, "{BSpell: {G%-20s{x",
+            paf->type == skill_resolve_gsn("improved invisibility") ? "improved invis" : skill_table[paf->type].name);
 
-			send_to_char(buf, ch);
+            send_to_char(buf, ch);
 
-			sprintf(buf, "{G: {Blevel {W%3d{B, modifies {W%s {Bby {W%d {x", paf->level, affect_loc_name(paf->location), paf->modifier);
-			send_to_char(buf, ch);
-			if (paf->duration < 0)	/* @@@NIB : 20070126 : Allows for any negative durations */
-				sprintf(buf, "{Rpermanently{x");
-			else
-				sprintf(buf, "{Bfor {W%d {Bhours{x", paf->duration);
-			send_to_char(buf, ch);
+            sprintf(buf, "{G: {Blevel {W%3d{B, modifies {W%s {Bby {W%d {x", paf->level, affect_loc_name(paf->location), paf->modifier);
+            send_to_char(buf, ch);
+            if (paf->duration < 0)	/* @@@NIB : 20070126 : Allows for any negative durations */
+                sprintf(buf, "{Rpermanently{x");
+            else
+                sprintf(buf, "{Bfor {W%d {Bhours{x", paf->duration);
+            send_to_char(buf, ch);
 
-			send_to_char("\n\r", ch);
-			paf_last = paf;
-		}
-	}
+            send_to_char("\n\r", ch);
+            paf_last = paf;
+        }
+    }
     }
     else
-	send_to_char("You are not affected by any spells.\n\r", ch);
+    send_to_char("You are not affected by any spells.\n\r", ch);
 
     return;
 }
 
 
-/* MOVED: weather/time.c */
+/**
+ * day_name - Names for days of the week
+ *
+ * Planned refactor: weather/time.c (never executed)
+ */
 char *const day_name[] =
 {
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
     "Saturday", "Sunday"
 };
 
-/* MOVED: weather/time.c */
+/**
+ * month_name - Names for months of the year
+ *
+ * Planned refactor: weather/time.c (never executed)
+ */
 char *const month_name[] =
 {
     "January", "February", "March", "April", "May", "June",
@@ -4038,162 +4488,168 @@ char *const month_name[] =
 
 /* MOVED: weather/moon.c */
 const char *moon_phase_desc[][3] = {
-	/* 0:daytime, 1:nighttime, 2:phasename */
-	{
-		NULL,
-		"{BThere is no moon in the sky.{x\n\r",
-		"New Moon"
-	},
-	{
-		"{BA faint sliver of the moon grows larger with every passing day.{x\n\r",
-		"{BA glowing sliver of the moon grows larger with every passing day.{x\n\r",
-		"Waxing Crescent"
-	},
-	{
-		"{BThe right half of the moon looms in the sky faintly.{x\n\r",
-		"{BThe right half of the moon looms in the sky brightly.{x\n\r",
-		"First Quarter"
-	},
-	{
-		"{BA nearly full moon looms in the sky faintly.{x\n\r",
-		"{BA nearly full moon glows brightly in the sky.{x\n\r",
-		"Waxing Gibbous"
-	},
-	{
-		"{BA round orb, the ghostly moon looms in all its glory.{x\n\r",
-		"{BThe bright, shining moon glows with all its glory.{x\n\r",
-		"Full Moon"
-	},
-	{
-		"{BThe once full moon looms in the sky faintly.{x\n\r",
-		"{BThe once full moon glows brightly in the sky.{x\n\r",
-		"Waning Gibbous"
-	},
-	{
-		"{BThe left half of the moon looms in the sky faintly.{x\n\r",
-		"{BThe left half of the moon looms in the sky brightly.{x\n\r",
-		"Last Quarter"
-	},
-	{
-		"{BA faint sliver of the moon slips away into the lit sky.{x\n\r",
-		"{BA glowing sliver of the moon slips away into the dark night.{x\n\r",
-		"Waning Crescent"
-	}
+    /* 0:daytime, 1:nighttime, 2:phasename */
+    {
+        NULL,
+        "{BThere is no moon in the sky.{x\n\r",
+        "New Moon"
+    },
+    {
+        "{BA faint sliver of the moon grows larger with every passing day.{x\n\r",
+        "{BA glowing sliver of the moon grows larger with every passing day.{x\n\r",
+        "Waxing Crescent"
+    },
+    {
+        "{BThe right half of the moon looms in the sky faintly.{x\n\r",
+        "{BThe right half of the moon looms in the sky brightly.{x\n\r",
+        "First Quarter"
+    },
+    {
+        "{BA nearly full moon looms in the sky faintly.{x\n\r",
+        "{BA nearly full moon glows brightly in the sky.{x\n\r",
+        "Waxing Gibbous"
+    },
+    {
+        "{BA round orb, the ghostly moon looms in all its glory.{x\n\r",
+        "{BThe bright, shining moon glows with all its glory.{x\n\r",
+        "Full Moon"
+    },
+    {
+        "{BThe once full moon looms in the sky faintly.{x\n\r",
+        "{BThe once full moon glows brightly in the sky.{x\n\r",
+        "Waning Gibbous"
+    },
+    {
+        "{BThe left half of the moon looms in the sky faintly.{x\n\r",
+        "{BThe left half of the moon looms in the sky brightly.{x\n\r",
+        "Last Quarter"
+    },
+    {
+        "{BA faint sliver of the moon slips away into the lit sky.{x\n\r",
+        "{BA glowing sliver of the moon slips away into the dark night.{x\n\r",
+        "Waning Crescent"
+    }
 };
 
 
-/* MOVED: weather/moon.c */
+/**
+ * moon_face - ASCII art pattern for moon phases
+ *
+ * 19-line ASCII representation of the moon surface used by draw_moon.
+ *
+ * Planned refactor: weather/moon.c (never executed)
+ */
 char *moon_face[19] = {
-	".----------.",
-	".--':;:o;;::.;;:`--.",
-	".-'@;:@@@@@@:O:::.:;:.:`-.",
-	".'.@@@:@@@@@@@@:::@@@@:::.::`.",
-	"/:::':.'@@@@@@@@,;@@@@:@:;;::.:\\",
-	"/@@::o::::@@@:@,.::;@@@@::;;O;:;@\\",
-	"/@@@@;;::::::;;;:;;::@@@@@@;;:::@@@\\",
-	".:@@@@@\\;:`.-./:'.;.:@@@@@@@@;;.::@@ .",
-	"|:@@@@);;--`-'::.;-;;;:@@@@@@@::;;;::|",
-	"|@:@@@::;;;:;`;;;::;o::@@@@@@:@@@@:::|",
-	"|:;);;;@@:::;;::(o);::::@@;;:@@@@@@;:|",
-	"`;.::@::():::@@;;::;();;;@@@;:@@@@;;:'",
-	"\\;;;::@@::;@@@@;:;;::::.;@@:::.:'o;/",
-	"\\;;:@@@@:;@@\\;;.;@:::;::;:;o;::::/",
-	"\\:.;@@:;::;_\\:/:@@;.:::;;;.-.';/",
-	"`.:::;.:;::()---;;;::;;;`-' .'",
-	"`-.:::;./@|;:.|;;o;;::;.-'",
-	"`--./:::.;;;::;;.--'",
-	"`----------'"
+    ".----------.",
+    ".--':;:o;;::.;;:`--.",
+    ".-'@;:@@@@@@:O:::.:;:.:`-.",
+    ".'.@@@:@@@@@@@@:::@@@@:::.::`.",
+    "/:::':.'@@@@@@@@,;@@@@:@:;;::.:\\",
+    "/@@::o::::@@@:@,.::;@@@@::;;O;:;@\\",
+    "/@@@@;;::::::;;;:;;::@@@@@@;;:::@@@\\",
+    ".:@@@@@\\;:`.-./:'.;.:@@@@@@@@;;.::@@ .",
+    "|:@@@@);;--`-'::.;-;;;:@@@@@@@::;;;::|",
+    "|@:@@@::;;;:;`;;;::;o::@@@@@@:@@@@:::|",
+    "|:;);;;@@:::;;::(o);::::@@;;:@@@@@@;:|",
+    "`;.::@::():::@@;;::;();;;@@@;:@@@@;;:'",
+    "\\;;;::@@::;@@@@;:;;::::.;@@:::.:'o;/",
+    "\\;;:@@@@:;@@\\;;.;@:::;::;:;o;::::/",
+    "\\:.;@@:;::;_\\:/:@@;.:::;;;.-.';/",
+    "`.:::;.:;::()---;;;::;;;`-' .'",
+    "`-.:::;./@|;:.|;;o;;::;.-'",
+    "`--./:::.;;;::;;.--'",
+    "`----------'"
 };
 
 /* MOVED: weather/moon.c */
 char *moon_colours[][19] = {
-	{
-		"xxxxxxxxxxxx",
-		"xxxxWWxDxxxxDxxxxxxx",
-		"xWxDxxDDDDDDxDxxxDxxxDxxxx",
-		"WxxDDxxDDDDDDDDxxxDDDDxxxDxxWW",
-		"xxWWxxDxDDDDDDDDxxDDDDDDxxxxxDxx",
-		"xDDxxDxxxxDDDDDDDxxxDDDDxxxxDxxxDx",
-		"xDDDDxxxxxxxxxxxxxxxxDDDDDDxxxxxDDDx",
-		"xxDDDDDxxxDDDDDxxxxDxDDDDDDDDxxDxxDDxx",
-		"xxDDDDxxxDDDDDxxDxxxxxxDDDDDDDxxxxxxxx",
-		"xDxDDxxxxxxxxDxxxxxxDxxDDDDDDxDDDDxxxx",
-		"xxxxxxxDDxxxxxxxxDxxxxxxDDxxxDDDDDDxxx",
-		"xxDxxDxxxxxxxDDxxxxxDDxxxDDDxxDDDDxxxx",
-		"xxxxxxDDxxxDDDDxxxxxxxxDxDDxxxDxxDxx",
-		"xxxxDDDDxxDDDxxDxxxxxxxxxxxDxxxxxx",
-		"xxDxDDxxxxxDDxDxxxxDxxxxxxDDDxxx",
-		"xxxxxxDxxxxDDDDDxxxxxxxxDDDxxx",
-		"xxxxxxxDDxDxxDxxxDxxxxxDDD",
-		"xxxxDxxxDxxxxxxxxxxx",
-		"xxxxxxxxxxxx"
-	},
-	{
-		"RRRRRRRRRRRR",
-		"RRRRRRRrRRRRrRRRRRRR",
-		"RRRrRRrrrrrrRrRRRrRRRrRRRR",
-		"RRRrrRRrrrrrrrrRRRrrrrRRRrRRRR",
-		"RRRRRRrRrrrrrrrrRRrrrrrrRRRRRrRR",
-		"RrrRRrRRRRrrrrrrrRRRrrrrRRRRrRRRrR",
-		"RrrrrRRRRRRRRRRRRRRRRrrrrrrRRRRRrrrR",
-		"RRrrrrrRRRrrrrrRRRRrRrrrrrrrrRRrRRrrRR",
-		"RRrrrrRRRrrrrrRRrRRRRRRrrrrrrrRRRRRRRR",
-		"RrRrrRRRRRRRRrRRRRRRrRRrrrrrrRrrrrRRRR",
-		"RRRRRRRrrRRRRRRRRrRRRRRRrrRRRrrrrrrRRR",
-		"RRrRRrRRRRRRRrrRRRRRrrRRRrrrRRrrrrRRRR",
-		"RRRRRRrrRRRrrrrRRRRRRRRrRrrRRRrRRrRR",
-		"RRRRrrrrRRrrrRRrRRRRRRRRRRRrRRRRRR",
-		"RRrRrrRRRRRrrRrRRRRrRRRRRRrrrRRR",
-		"RRRRRRrRRRRrrrrrRRRRRRRRrrrRRR",
-		"RRRRRRRrrRrRRrRRRrRRRRRrrr",
-		"RRRRrRRRrRRRRRRRRRRR",
-		"RRRRRRRRRRRR"
-	}
+    {
+        "xxxxxxxxxxxx",
+        "xxxxWWxDxxxxDxxxxxxx",
+        "xWxDxxDDDDDDxDxxxDxxxDxxxx",
+        "WxxDDxxDDDDDDDDxxxDDDDxxxDxxWW",
+        "xxWWxxDxDDDDDDDDxxDDDDDDxxxxxDxx",
+        "xDDxxDxxxxDDDDDDDxxxDDDDxxxxDxxxDx",
+        "xDDDDxxxxxxxxxxxxxxxxDDDDDDxxxxxDDDx",
+        "xxDDDDDxxxDDDDDxxxxDxDDDDDDDDxxDxxDDxx",
+        "xxDDDDxxxDDDDDxxDxxxxxxDDDDDDDxxxxxxxx",
+        "xDxDDxxxxxxxxDxxxxxxDxxDDDDDDxDDDDxxxx",
+        "xxxxxxxDDxxxxxxxxDxxxxxxDDxxxDDDDDDxxx",
+        "xxDxxDxxxxxxxDDxxxxxDDxxxDDDxxDDDDxxxx",
+        "xxxxxxDDxxxDDDDxxxxxxxxDxDDxxxDxxDxx",
+        "xxxxDDDDxxDDDxxDxxxxxxxxxxxDxxxxxx",
+        "xxDxDDxxxxxDDxDxxxxDxxxxxxDDDxxx",
+        "xxxxxxDxxxxDDDDDxxxxxxxxDDDxxx",
+        "xxxxxxxDDxDxxDxxxDxxxxxDDD",
+        "xxxxDxxxDxxxxxxxxxxx",
+        "xxxxxxxxxxxx"
+    },
+    {
+        "RRRRRRRRRRRR",
+        "RRRRRRRrRRRRrRRRRRRR",
+        "RRRrRRrrrrrrRrRRRrRRRrRRRR",
+        "RRRrrRRrrrrrrrrRRRrrrrRRRrRRRR",
+        "RRRRRRrRrrrrrrrrRRrrrrrrRRRRRrRR",
+        "RrrRRrRRRRrrrrrrrRRRrrrrRRRRrRRRrR",
+        "RrrrrRRRRRRRRRRRRRRRRrrrrrrRRRRRrrrR",
+        "RRrrrrrRRRrrrrrRRRRrRrrrrrrrrRRrRRrrRR",
+        "RRrrrrRRRrrrrrRRrRRRRRRrrrrrrrRRRRRRRR",
+        "RrRrrRRRRRRRRrRRRRRRrRRrrrrrrRrrrrRRRR",
+        "RRRRRRRrrRRRRRRRRrRRRRRRrrRRRrrrrrrRRR",
+        "RRrRRrRRRRRRRrrRRRRRrrRRRrrrRRrrrrRRRR",
+        "RRRRRRrrRRRrrrrRRRRRRRRrRrrRRRrRRrRR",
+        "RRRRrrrrRRrrrRRrRRRRRRRRRRRrRRRRRR",
+        "RRrRrrRRRRRrrRrRRRRrRRRRRRrrrRRR",
+        "RRRRRRrRRRRrrrrrRRRRRRRRrrrRRR",
+        "RRRRRRRrrRrRRrRRRrRRRRRrrr",
+        "RRRRrRRRrRRRRRRRRRRR",
+        "RRRRRRRRRRRR"
+    }
 };
 
 char *moon_colours_mxp[19] = {
-				 "333333333333",
-			 "33335532333323333333",
-		  "35323322222232333233323333",
-		"533223322222222333222233323355",
-	   "33553323222222223322222233333233",
-	  "3223323333222222233322223333233323",
-	 "322223333333333333333222222333332223",
-	"33222223332222233332322222222332332233",
-	"33222233322222332333333222222233333333",
-	"32322333333332333333233222222322223333",
-	"33333332233333333233333322333222222333",
-	"33233233333332233333223332223322223333",
-	 "333333223332222333333332322333233233",
-	  "3333222233222332333333333332333333",
-	   "33232233333223233332333333222333",
-		"333333233332222233333333222333",
-		  "33333332232332333233333222",
-			 "33332333233333333333",
-				 "333333333333"
+                 "333333333333",
+             "33335532333323333333",
+          "35323322222232333233323333",
+        "533223322222222333222233323355",
+       "33553323222222223322222233333233",
+      "3223323333222222233322223333233323",
+     "322223333333333333333222222333332223",
+    "33222223332222233332322222222332332233",
+    "33222233322222332333333222222233333333",
+    "32322333333332333333233222222322223333",
+    "33333332233333333233333322333222222333",
+    "33233233333332233333223332223322223333",
+     "333333223332222333333332322333233233",
+      "3333222233222332333333333332333333",
+       "33232233333223233332333333222333",
+        "333333233332222233333333222333",
+          "33333332232332333233333222",
+             "33332333233333333333",
+                 "333333333333"
 };
 
 /* MOVED: weather/moon.c */
 char *moon_shadow[19] = {
-	".----------.",
-	".--'            `--.",
-	".-'                    `-.",
-	".'                          `.",
-	"/                              \\",
-	"/                                \\",
-	"/                                  \\",
-	".                                    .",
-	"|                                    |",
-	"|                                    |",
-	"|                                    |",
-	"`                                    '",
-	"\\                                  /",
-	"\\                                /",
-	"\\                              /",
-	"`.                          .'",
-	"`-.                    .-'",
-	"`--.            .--'",
-	"`----------'"
+    ".----------.",
+    ".--'            `--.",
+    ".-'                    `-.",
+    ".'                          `.",
+    "/                              \\",
+    "/                                \\",
+    "/                                  \\",
+    ".                                    .",
+    "|                                    |",
+    "|                                    |",
+    "|                                    |",
+    "`                                    '",
+    "\\                                  /",
+    "\\                                /",
+    "\\                              /",
+    "`.                          .'",
+    "`-.                    .-'",
+    "`--.            .--'",
+    "`----------'"
 };
 
 char moon_shadow_colours[] = "Dr";
@@ -4201,207 +4657,235 @@ char moon_shadow_colour_mxp = '1';
 
 char *moon_spacing = "                                        ";
 
-/* MOVED: weather/moon.c */
+/**
+ * draw_moon - Render an ASCII art moon with current phase
+ *
+ * Draws a visual representation of the moon based on the current
+ * game time. The phase is calculated from the lunar cycle and
+ * displayed using ASCII art with color codes. Supports MXP for
+ * enhanced coloring.
+ *
+ * @param ch      The character to display the moon to
+ * @param colour  Color scheme index for the moon display
+ *
+ * Planned refactor: weather/moon.c (never executed)
+ */
 void draw_moon(CHAR_DATA *ch,int colour)
 {
-	int i,j,k,l,ll,ld;
-	int hours;
-	double h, c;
-	char buf[MIL],lastc;
-	bool mxp = false;
+    int i,j,k,l,ll,ld;
+    int hours;
+    double h, c;
+    char buf[MIL],lastc;
+    bool mxp = false;
 
-	// Check if they can get better coloring of the moon!
-	if( ch || ch->desc || ch->desc->pProtocol )
-		mxp = ch->desc->pProtocol->bMXP;
+    // Check if they can get better coloring of the moon!
+    if( ch || ch->desc || ch->desc->pProtocol )
+        mxp = ch->desc->pProtocol->bMXP;
 
-	hours = ((((time_info.year*12)+time_info.month)*35+time_info.day)*24+time_info.hour+MOON_OFFSET) % MOON_PERIOD;
-	hours = (hours + MOON_PERIOD) % MOON_PERIOD;
+    hours = ((((time_info.year*12)+time_info.month)*35+time_info.day)*24+time_info.hour+MOON_OFFSET) % MOON_PERIOD;
+    hours = (hours + MOON_PERIOD) % MOON_PERIOD;
 
-	h = (double)hours / MOON_PERIOD;
+    h = (double)hours / MOON_PERIOD;
 
 /*	sprintf(buf,"hours = %d/%d (%.2lf%%)\n\r", hours, MOON_PERIOD,100.0*h);
-	send_to_char(buf,ch); */
+    send_to_char(buf,ch); */
 
-	c = (1 - cos(6.2831853 * h)) / 2;
+    c = (1 - cos(6.2831853 * h)) / 2;
 
-	for(i=0;i<19;i++) {
-		l = strlen(moon_shadow[i]);
-		ll = (int)(l * c + 0.5);	/* Amount of lit moon */
-		if(ll > l) ll = l; else if(ll < 0) ll = 0;
-		ld = l - ll;
+    for(i=0;i<19;i++) {
+        l = strlen(moon_shadow[i]);
+        ll = (int)(l * c + 0.5);	/* Amount of lit moon */
+        if(ll > l) ll = l; else if(ll < 0) ll = 0;
+        ld = l - ll;
 
-		if(h < 0.5) {
-			/* New Moon to Full Moon
-			   Left: Shadow/Nothing, Right: Face */
+        if(h < 0.5) {
+            /* New Moon to Full Moon
+               Left: Shadow/Nothing, Right: Face */
 
-			send_to_char("{x", ch);
-			lastc = 'x';
-			if(time_info.hour < 6 || time_info.hour > 19) {
-				send_to_char(moon_spacing+20+l/2, ch);
-				if( mxp )
-				{
-					lastc = moon_shadow_colour_mxp;
-					if( colour )
-					{
-						j = sprintf(buf,"%c[F%c00]",COLOUR_CHAR,lastc);
-					}
-					else
-					{
-						j = sprintf(buf,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
-					}
-				}
-				else
-				{
-					lastc = moon_shadow_colours[colour];
-					j = sprintf(buf,"{%c",lastc);
-				}
+            send_to_char("{x", ch);
+            lastc = 'x';
+            if(time_info.hour < 6 || time_info.hour > 19) {
+                send_to_char(moon_spacing+20+l/2, ch);
+                if( mxp )
+                {
+                    lastc = moon_shadow_colour_mxp;
+                    if( colour )
+                    {
+                        j = sprintf(buf,"%c[F%c00]",COLOUR_CHAR,lastc);
+                    }
+                    else
+                    {
+                        j = sprintf(buf,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+                    }
+                }
+                else
+                {
+                    lastc = moon_shadow_colours[colour];
+                    j = sprintf(buf,"{%c",lastc);
+                }
 
-				for(k = 0; k < ld && moon_shadow[i][k] != 0; k++)
-				{
-					char ms = moon_shadow[i][k];
+                for(k = 0; k < ld && moon_shadow[i][k] != 0; k++)
+                {
+                    char ms = moon_shadow[i][k];
 
-					if( ms == COLOUR_CHAR)
-						buf[j++] = ms;
+                    if( ms == COLOUR_CHAR)
+                        buf[j++] = ms;
 
-					buf[j++] = ms;
-				}
-				buf[j] = 0;
-				send_to_char(buf, ch);
-			} else
-				send_to_char(moon_spacing+20+ll-l/2, ch);
+                    buf[j++] = ms;
+                }
+                buf[j] = 0;
+                send_to_char(buf, ch);
+            } else
+                send_to_char(moon_spacing+20+ll-l/2, ch);
 
 
-			for(k=j=0;k<ll;k++) {
-				if( mxp )
-				{
-					if(lastc != moon_colours_mxp[i][k+ld])
-					{
-						lastc = moon_colours_mxp[i][k+ld];
+            for(k=j=0;k<ll;k++) {
+                if( mxp )
+                {
+                    if(lastc != moon_colours_mxp[i][k+ld])
+                    {
+                        lastc = moon_colours_mxp[i][k+ld];
 
-						if( colour )
-						{
-							j += sprintf(buf+j,"%c[F%c00]",COLOUR_CHAR,lastc);
-						}
-						else
-						{
-							j += sprintf(buf+j,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
-						}
-					}
-				}
-				else
-				{
-					if(lastc != moon_colours[colour][i][k+ld]) {
-						buf[j++] = '{';
-						buf[j++] = lastc = moon_colours[colour][i][k+ld];
-					}
-				}
+                        if( colour )
+                        {
+                            j += sprintf(buf+j,"%c[F%c00]",COLOUR_CHAR,lastc);
+                        }
+                        else
+                        {
+                            j += sprintf(buf+j,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+                        }
+                    }
+                }
+                else
+                {
+                    if(lastc != moon_colours[colour][i][k+ld]) {
+                        buf[j++] = '{';
+                        buf[j++] = lastc = moon_colours[colour][i][k+ld];
+                    }
+                }
 
-				char mf = moon_face[i][k+ld];
+                char mf = moon_face[i][k+ld];
 
-				if( mf == COLOUR_CHAR )
-				{
-					// Double up escaping codes
-					buf[j++] = mf;
-				}
+                if( mf == COLOUR_CHAR )
+                {
+                    // Double up escaping codes
+                    buf[j++] = mf;
+                }
 
-				buf[j++] = mf;
-			}
-			buf[j] = 0;
-			send_to_char(buf, ch);
+                buf[j++] = mf;
+            }
+            buf[j] = 0;
+            send_to_char(buf, ch);
 
-			if(lastc != 'x') send_to_char("{x", ch);
-			send_to_char(moon_spacing+20+l/2, ch);
+            if(lastc != 'x') send_to_char("{x", ch);
+            send_to_char(moon_spacing+20+l/2, ch);
 
-		} else {
-			/* Full Moon to New Moon
-			   Left: Face, Right: Shadow/Nothing */
+        } else {
+            /* Full Moon to New Moon
+               Left: Face, Right: Shadow/Nothing */
 
-			send_to_char("{x", ch);
-			lastc = 'x';
-			send_to_char(moon_spacing+20+l/2, ch);
-			for(k=j=0;k<ll;k++) {
-				if( mxp )
-				{
-					if(lastc != moon_colours_mxp[i][k+ld])
-					{
-						lastc = moon_colours_mxp[i][k+ld];
+            send_to_char("{x", ch);
+            lastc = 'x';
+            send_to_char(moon_spacing+20+l/2, ch);
+            for(k=j=0;k<ll;k++) {
+                if( mxp )
+                {
+                    if(lastc != moon_colours_mxp[i][k+ld])
+                    {
+                        lastc = moon_colours_mxp[i][k+ld];
 
-						if( colour )
-						{
-							j += sprintf(buf+j,"%c[F%c00]",COLOUR_CHAR,lastc);
-						}
-						else
-						{
-							j += sprintf(buf+j,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
-						}
-					}
-				}
-				else
-				{
-					if(lastc != moon_colours[colour][i][k+ld]) {
-						buf[j++] = '{';
-						buf[j++] = lastc = moon_colours[colour][i][k+ld];
-					}
-				}
+                        if( colour )
+                        {
+                            j += sprintf(buf+j,"%c[F%c00]",COLOUR_CHAR,lastc);
+                        }
+                        else
+                        {
+                            j += sprintf(buf+j,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+                        }
+                    }
+                }
+                else
+                {
+                    if(lastc != moon_colours[colour][i][k+ld]) {
+                        buf[j++] = '{';
+                        buf[j++] = lastc = moon_colours[colour][i][k+ld];
+                    }
+                }
 
-				char mf = moon_face[i][k];
+                char mf = moon_face[i][k];
 
-				if( mf == COLOUR_CHAR )
-				{
-					// Double up escaping codes
-					buf[j++] = mf;
-				}
+                if( mf == COLOUR_CHAR )
+                {
+                    // Double up escaping codes
+                    buf[j++] = mf;
+                }
 
-				buf[j++] = mf;
-			}
-			buf[j] = 0;
-			send_to_char(buf, ch);
+                buf[j++] = mf;
+            }
+            buf[j] = 0;
+            send_to_char(buf, ch);
 
-			if(time_info.hour < 6 || time_info.hour > 19) {
-				if( mxp )
-				{
-					lastc = moon_shadow_colour_mxp;
-					if( colour )
-					{
-						j = sprintf(buf,"%c[F%c00]",COLOUR_CHAR,lastc);
-					}
-					else
-					{
-						j = sprintf(buf,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
-					}
-				}
-				else
-				{
-					lastc = moon_shadow_colours[colour];
-					j = sprintf(buf,"{%c",lastc);
-				}
+            if(time_info.hour < 6 || time_info.hour > 19) {
+                if( mxp )
+                {
+                    lastc = moon_shadow_colour_mxp;
+                    if( colour )
+                    {
+                        j = sprintf(buf,"%c[F%c00]",COLOUR_CHAR,lastc);
+                    }
+                    else
+                    {
+                        j = sprintf(buf,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+                    }
+                }
+                else
+                {
+                    lastc = moon_shadow_colours[colour];
+                    j = sprintf(buf,"{%c",lastc);
+                }
 
-				for(k = 0; k < ld && moon_shadow[i][k] != 0; k++)
-				{
-					char ms = moon_shadow[i][k+ll];
+                for(k = 0; k < ld && moon_shadow[i][k] != 0; k++)
+                {
+                    char ms = moon_shadow[i][k+ll];
 
-					if( ms == '{' || ms == COLOUR_CHAR)
-						buf[j++] = ms;
+                    if( ms == '{' || ms == COLOUR_CHAR)
+                        buf[j++] = ms;
 
-					buf[j++] = ms;
-				}
-				buf[j] = 0;
-				send_to_char(buf, ch);
-				send_to_char("{x", ch);
-				//send_to_char(moon_spacing+20+l/2, ch);		// This isn't necessary
-			} else {
-				send_to_char("{x", ch);
-				//send_to_char(moon_spacing+20+ll-l/2, ch);		// This isn't necessary
-			}
-		}
+                    buf[j++] = ms;
+                }
+                buf[j] = 0;
+                send_to_char(buf, ch);
+                send_to_char("{x", ch);
+                //send_to_char(moon_spacing+20+l/2, ch);		// This isn't necessary
+            } else {
+                send_to_char("{x", ch);
+                //send_to_char(moon_spacing+20+ll-l/2, ch);		// This isn't necessary
+            }
+        }
 
-		send_to_char("\n\r", ch);
-	}
+        send_to_char("\n\r", ch);
+    }
 
 }
 
 
-/* MOVED: weather/time.c */
+/**
+ * do_time - Display current game time and server information
+ *
+ * Shows the current in-game time (hour, day, month), system time,
+ * last reboot time, moon phase (when outside), and active boost timers.
+ *
+ * @param ch        The character checking the time
+ * @param argument  "moon" to display ASCII art moon phase
+ *
+ * Features:
+ * - Moon phase description when outside
+ * - ASCII moon art with "moon" argument
+ * - Active XP/quest/gold boost timers
+ * - Reckoning event timer
+ *
+ * Planned refactor: weather/time.c (never executed)
+ */
 void do_time(CHAR_DATA * ch, char *argument)
 {
     extern char str_boot_time[];
@@ -4414,149 +4898,183 @@ void do_time(CHAR_DATA * ch, char *argument)
 
     buf[0] = '\0';
 
-	if (IS_OUTSIDE(ch)) {
-		if(!str_cmp(argument,"moon")) {
-			draw_moon(ch,(reckoning_timer > 0));
-			lunar = true;
-		}
-		suf = (char *)moon_phase_desc[time_info.moon][(time_info.hour < 6 || time_info.hour > 19)];
-		if(suf) strcpy(buf,suf);
-	}
+    if (IS_OUTSIDE(ch)) {
+        if(!str_cmp(argument,"moon")) {
+            draw_moon(ch,(reckoning_timer > 0));
+            lunar = true;
+        }
+        suf = (char *)moon_phase_desc[time_info.moon][(time_info.hour < 6 || time_info.hour > 19)];
+        if(suf) strcpy(buf,suf);
+    }
 
-	if (buf[0] != '\0') send_to_char(buf, ch);
+    if (buf[0] != '\0') send_to_char(buf, ch);
 
-	/* Add a skill for this? */
-	if (0) {
-		sprintf(buf,"{BLunar Phase: {W%s{x\n\r", moon_phase_desc[time_info.moon][2]);
-		send_to_char(buf, ch);
-	}
+    /* Add a skill for this? */
+    if (0) {
+        sprintf(buf,"{BLunar Phase: {W%s{x\n\r", moon_phase_desc[time_info.moon][2]);
+        send_to_char(buf, ch);
+    }
 
     if (day > 4 && day < 20)
-	suf = "th";
+    suf = "th";
     else if (day % 10 == 1)
-	suf = "st";
+    suf = "st";
     else if (day % 10 == 2)
-	suf = "nd";
+    suf = "nd";
     else if (day % 10 == 3)
-	suf = "rd";
+    suf = "rd";
     else
-	suf = "th";
+    suf = "th";
 
     sprintf(buf,
-	    "{BIt is currently {X%d{B o'clock {X%s{B.{x\n\r"
-	    "{BDay of {X%s{B, {X%d%s{B of the Month of {X%s{B.{X\n\r",
-	    (time_info.hour % 12 == 0) ? 12 : time_info.hour % 12,
-	    time_info.hour >= 12 ? "pm" : "am",
-	    day_name[day % 7],
-	    day,
-	    suf,
-	    month_name[time_info.month]);
+        "{BIt is currently {X%d{B o'clock {X%s{B.{x\n\r"
+        "{BDay of {X%s{B, {X%d%s{B of the Month of {X%s{B.{X\n\r",
+        (time_info.hour % 12 == 0) ? 12 : time_info.hour % 12,
+        time_info.hour >= 12 ? "pm" : "am",
+        day_name[day % 7],
+        day,
+        suf,
+        month_name[time_info.month]);
     send_to_char(buf, ch);
 
     sprintf(buf,
-	    "{BThe last reboot was at {X%s{B{X{BThe system time is {X%s{X",
-	    str_boot_time, (char *) ctime(&current_time));
+        "{BThe last reboot was at {X%s{B{X{BThe system time is {X%s{X",
+        str_boot_time, (char *) ctime(&current_time));
     send_to_char(buf, ch);
 
     /* Show people how must time is left on various boosts. */
     for (i = 0; boost_table[i].name != NULL && !strcmp(boost_table[i].name, "reckoning") == 0; i++) {
-	if (boost_table[i].boost != 100) {
-	    mins = (boost_table[i].timer - current_time)/60;
+    if (boost_table[i].boost != 100) {
+        mins = (boost_table[i].timer - current_time)/60;
 
-	    if (mins == 0)
-		sprintf(buf, "{BThere is {xless than a minute{B of {x%s{B boost ({x%+d%%{B) remaining.{x\n\r",
-			boost_table[i].name, (boost_table[i].boost - 100));
-	    else
-		sprintf(buf, "{BThere %s {x%d minute%s{B of {x%s{B boost ({x%+d%%{B) remaining.{x\n\r",
-			mins > 1 ? "are" : "is",
-			mins,
-			mins > 1 ? "s" : "",
-			boost_table[i].name, (boost_table[i].boost - 100));
-	send_to_char(buf,ch);
-	}
-	}
-	/* Add special timer for showing remaining reckoning info to immortals. -- Areo */
-	//if(IS_IMMORTAL(ch))
-	//{
-		if (boost_table[BOOST_RECKONING].boost != 100){
-		mins = (boost_table[BOOST_RECKONING].timer - current_time)/60;
+        if (mins == 0)
+        sprintf(buf, "{BThere is {xless than a minute{B of {x%s{B boost ({x%+d%%{B) remaining.{x\n\r",
+            boost_table[i].name, (boost_table[i].boost - 100));
+        else
+        sprintf(buf, "{BThere %s {x%d minute%s{B of {x%s{B boost ({x%+d%%{B) remaining.{x\n\r",
+            mins > 1 ? "are" : "is",
+            mins,
+            mins > 1 ? "s" : "",
+            boost_table[i].name, (boost_table[i].boost - 100));
+    send_to_char(buf,ch);
+    }
+    }
+    /* Add special timer for showing remaining reckoning info to immortals. -- Areo */
+    //if(IS_IMMORTAL(ch))
+    //{
+        if (boost_table[BOOST_RECKONING].boost != 100){
+        mins = (boost_table[BOOST_RECKONING].timer - current_time)/60;
 
-		if (mins == 0)
-		sprintf(buf, "{RThere is {xless than a minute{R left in The Reckoning{x\n\r");
-		else
-		sprintf (buf, "{RThere %s {x%d minute%s{R of The Reckoning remaining.{x\n\r",
-			mins > 1 ? "are" : "is",
-			mins,
-			mins > 1 ? "s" : "");
-	send_to_char(buf,ch);
-	//}
-	}
+        if (mins == 0)
+        sprintf(buf, "{RThere is {xless than a minute{R left in The Reckoning{x\n\r");
+        else
+        sprintf (buf, "{RThere %s {x%d minute%s{R of The Reckoning remaining.{x\n\r",
+            mins > 1 ? "are" : "is",
+            mins,
+            mins > 1 ? "s" : "");
+    send_to_char(buf,ch);
+    //}
+    }
 
-	if(!IS_NPC(ch) && lunar)
-		p_percent_trigger(ch,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_MOON, NULL);
+    if (!IS_NPC(ch) && lunar) {
+        p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOON, NULL);
+
+        if (ch->in_room && ch->in_room->area)
+            p_percent2_trigger(ch->in_room->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOON, NULL);
+    }
 }
 
 
-/* MOVED: weather/weather.c
-   Uncommenting this function, as Whisp's weather system isn't yet functional -- Areo */
+/**
+ * do_weather - Display current weather conditions
+ *
+ * Shows the sky condition (cloudless, cloudy, rainy, lightning) and
+ * wind direction. Has special messages for Netherworld and during
+ * the Reckoning event.
+ *
+ * @param ch        The character checking the weather
+ * @param argument  Unused
+ *
+ * Blocked by: Not being outside
+ *
+ * Planned refactor: weather/weather.c (never executed)
+ */
 void do_weather(CHAR_DATA *ch, char *argument)
 {
+    char arg[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
 
     static char *const sky_look[4] =
     {
-	"cloudless",
-	"cloudy",
-	"rainy",
-	"lit by flashes of lightning"
+    "cloudless",
+    "cloudy",
+    "rainy",
+    "lit by flashes of lightning"
     };
+
+    argument = one_argument(argument, arg);
+
+    if (arg[0] != '\0' && !str_prefix(arg, "storm"))
+    {
+        weather_handle_storm_command(ch, argument);
+        return;
+    }
+
+    if (arg[0] != '\0' && (!str_prefix(arg, "forecast") || !str_prefix(arg, "map")))
+    {
+    if (weather_show_forecast(ch))
+        return;
+
+    send_to_char("You need to be in the wilderness to read storm fronts.\n\r", ch);
+    return;
+    }
 
     if (!IS_OUTSIDE(ch))
     {
-	send_to_char("You can't see the weather here.\n\r", ch);
-	return;
+    send_to_char("You can't see the weather here.\n\r", ch);
+    return;
     }
 
     if (IN_NETHERWORLD(ch)) {
-	send_to_char("Thick rolling clouds tumble and turn. Lightning crashes to the ground all around you.\n\r", ch);
-	return;
+    send_to_char("Thick rolling clouds tumble and turn. Lightning crashes to the ground all around you.\n\r", ch);
+    return;
     }
 
     if (pre_reckoning > 0) {
-	switch (pre_reckoning) {
-	case 2:
-	    send_to_char
-		("The sky is calm but the clouds appear a dull purple.\n\r",
-		 ch);
-	    break;
-	case 3:
-	    send_to_char
-		("Thick rolling clouds tumble and turn, dimming the light around you.\n\r",
-		 ch);
-	    break;
-	case 4:
-	    send_to_char
-		("A very strong wind blows from all around you.\n\r", ch);
-	    break;
-	case 5:
-	    send_to_char
-		("Sheets of cold blue lightning light the sky as the demonic terror grips the world.\n\r",
-		 ch);
-	    break;
-	}
-	return;
+    switch (pre_reckoning) {
+    case 2:
+        send_to_char
+        ("The sky is calm but the clouds appear a dull purple.\n\r",
+         ch);
+        break;
+    case 3:
+        send_to_char
+        ("Thick rolling clouds tumble and turn, dimming the light around you.\n\r",
+         ch);
+        break;
+    case 4:
+        send_to_char
+        ("A very strong wind blows from all around you.\n\r", ch);
+        break;
+    case 5:
+        send_to_char
+        ("Sheets of cold blue lightning light the sky as the demonic terror grips the world.\n\r",
+         ch);
+        break;
+    }
+    return;
     } else if (reckoning_timer > 0) {
-	send_to_char
-	    ("Sheets of cold blue lightning light the sky as a demonic terror grips the world.\n\r",
-	     ch);
-	return;
+    send_to_char
+        ("Sheets of cold blue lightning light the sky as a demonic terror grips the world.\n\r",
+         ch);
+    return;
     }
 
     sprintf(buf, "The sky is %s and %s.\n\r",
-	    sky_look[weather_info.sky],
-	    weather_info.change >= 0
-	    ? "a warm southerly breeze blows" :
-	    "a cold northern gust blows");
+        sky_look[weather_info.sky],
+        weather_info.change >= 0
+        ? "a warm southerly breeze blows" :
+        "a cold northern gust blows");
 
     send_to_char(buf, ch);
     return;
@@ -4565,8 +5083,20 @@ void do_weather(CHAR_DATA *ch, char *argument)
 
 
 
-/* MOVED: game.c
-   Inclusive who-command */
+/**
+ * do_who_new - Display list of online players
+ *
+ * Shows all visible online players with their level, race, class,
+ * church membership, and current area/activity. Supports filtering
+ * by level range, class, race, and church.
+ *
+ * @param ch        The character viewing who list
+ * @param argument  Optional filters (level range, class, race, church)
+ *
+ * Format: [Level] Race Class Name Title (Church) - Area
+ *
+ * Planned refactor: game.c (never executed)
+ */
 void do_who_new(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -4598,11 +5128,11 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     argument = one_argument(argument, arg2);
     if (arg[0] != '\0')
     {
-	if (is_number(arg) && is_number(arg2))
-	{
-	    iLevelLower = atoi(arg);
-	    iLevelUpper = atoi(arg2);
-	}
+    if (is_number(arg) && is_number(arg2))
+    {
+        iLevelLower = atoi(arg);
+        iLevelUpper = atoi(arg2);
+    }
 
 ITERATOR it;
 church = NULL;
@@ -4617,139 +5147,155 @@ iterator_stop(&it);
 
     send_to_char(
     "\n\r{b.,-~^~{B-,._.,{C[ {WPlayers in Sentience {C]{B-.._.,-{b~^~-,.{x\n\r",
-    	ch);
+        ch);
 
     nMatch = 0;
     nMatch2 = 0;
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-	CHAR_DATA *wch;
+    CHAR_DATA *wch;
 
-	if (d->connected != CON_PLAYING)
-	    continue;
+    if (d->connected != CON_PLAYING)
+        continue;
 
-	wch = (d->original != NULL) ? d->original : d->character;
+    wch = (d->original != NULL) ? d->original : d->character;
 
-	if (wch)
-	{
-	    if (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))
-			continue;
-	    else
-			nMatch2++;
-	}
+    if (wch)
+    {
+        if (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))
+            continue;
+        else
+            nMatch2++;
+    }
     }
 
     buf[0] = '\0';
     output = new_buf();
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-		wch = (d->original != NULL) ? d->original : d->character;
+        wch = (d->original != NULL) ? d->original : d->character;
 
-		if (d->connected != CON_PLAYING || (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))) {
-		    continue;
-		}
+        if (d->connected != CON_PLAYING || (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))) {
+            continue;
+        }
 
 
 //	if (!can_see(ch, wch)) {
 //	    continue;
 //	}
 
-	if ((iLevelLower != 0
-	     &&  wch->tot_level >= iLevelLower && wch->tot_level <= iLevelUpper)
-	||   !str_prefix(arg, wch->name)
-	||   ((!str_cmp(arg, "immortal")
-	       || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm"))
-	      && wch->tot_level >= LEVEL_IMMORTAL)
-	||   (church != NULL && wch->church == church)
-	||   !str_prefix(arg, race_table[wch->race].name)
-	||   !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex]))
-	    ;
-	else
-	    continue;
+    if ((iLevelLower != 0
+         &&  wch->tot_level >= iLevelLower && wch->tot_level <= iLevelUpper)
+    ||   !str_prefix(arg, wch->name)
+    ||   ((!str_cmp(arg, "immortal")
+           || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm"))
+          && IS_IMMORTAL(wch))
+    ||   (church != NULL && wch->church == church)
+    ||   (wch->race && !str_prefix(arg, wch->race->name))
+    ||   (get_current_class(wch) && !str_prefix(arg, class_display_ch(get_current_class(wch), wch))))
+        ;
+    else
+        continue;
 
-        if (wch->tot_level >= LEVEL_IMMORTAL)
-	    strcpy(classstr,wch->pcdata->immortal->imm_flag);
-	else
-	    strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
-	classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
+    if (IS_IMMORTAL(wch))
+        strcpy(classstr,wch->pcdata->immortal->imm_flag);
+    else {
+        CLASS_DATA *who_class = get_current_class(wch);
+        strcpy(classstr, who_class ? class_who_ch(who_class, wch) : "Adventurer");
+    }
+    classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
 
-	if(wch->race >= MAX_PC_RACE)
-		strcpy(racestr, "       ");
-	else
-		strcpy(racestr, pc_race_table[wch->race].who_name);
-	racelen = 7 + strlen(racestr) - strlen_no_colours(racestr);
+    if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
+        strcpy(racestr, "       ");
+    else
+        strcpy(racestr, wch->race->who_name);
+    racelen = 7 + strlen(racestr) - strlen_no_colours(racestr);
 
-	nMatch++;
+    nMatch++;
 
-	area_type = get_char_where(wch);
+    area_type = get_char_where(wch);
 
-	/* @SYN070509 Get rid of imm level. */
-	if (IS_IMMORTAL(wch))
-	    sprintf(level, "{WIMM{x");
-	else
-	    sprintf(level, "{G%-3d", wch->tot_level);
-
-	sprintf(buf,
-        "{B[{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] "
-	"%s%s%s%s{G%-12s{x",
-	level,
-		racelen,racelen,racestr,
-		classlen,classlen,classstr,
-		area_type,
-		(IS_DEAD(wch)) ?
-			"{D(Dead) {x" : "",
-		wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
-		wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
-		IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
-		wch->name);
-
-	free_string(area_type);
-	add_buf(output, buf);
-
-	if (wch->church != NULL)
-	{
-	    buf_size = 50 - fstr_len(&buf[0]);
-
-	    for (line_counter = 0; line_counter < buf_size; line_counter++)
-		add_buf(output, " ");
-
-	    add_buf(output, "{Y[{x");
-	    add_buf(output, wch->church->flag);
-	    add_buf(output, "{Y]{x");
-	}
-	else
-	    add_buf(output, "");
-
-	if (IS_SET(wch->act[0],PLR_HELPER))
-	    add_buf(output, " {W[H]{X");
-
-	if (IS_SET(wch->comm, COMM_AFK))
-	    add_buf(output, " {M[AFK]{x");
-
-	if (IS_SET(wch->comm, COMM_QUIET))
-	    add_buf(output, " {R[Q]{x");
-
-	if (IS_SET(wch->act[0], PLR_PK)
-	||  (wch->church != NULL && wch->church->pk == true))
-	    add_buf(output, " {R[PK]{x");
-
-	if (IS_SET(wch->act[0], PLR_BUILDING))
-	    add_buf(output, " {r[Building]{x");
-
-	add_buf(output, "\n\r");
+    /* @SYN070509 Get rid of imm level. */
+    if (IS_IMMORTAL(wch))
+        sprintf(level, "{WIMM{x");
+    else {
+        int who_level = (wch->pcdata && wch->pcdata->current_class)
+                        ? wch->pcdata->current_class->level
+                        : wch->tot_level;
+        sprintf(level, "{G%-3d", who_level);
     }
 
-	if( nMatch != nMatch2 ) {
-		sprintf(buf2, "\n\rPlayers found: %d\n\r", nMatch);
-		add_buf(output, buf2);
-	}
+    sprintf(buf,
+        "{B[{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] "
+    "%s%s%s%s{G%-12s{x",
+    level,
+        racelen,racelen,racestr,
+        classlen,classlen,classstr,
+        area_type,
+        (IS_DEAD(wch)) ?
+            "{D(Dead) {x" : "",
+        wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
+        wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
+        IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
+        wch->name);
+
+    free_string(area_type);
+    add_buf(output, buf);
+
+    if (wch->church != NULL)
+    {
+        buf_size = 50 - fstr_len(&buf[0]);
+
+        for (line_counter = 0; line_counter < buf_size; line_counter++)
+        add_buf(output, " ");
+
+        add_buf(output, "{Y[{x");
+        add_buf(output, wch->church->flag);
+        add_buf(output, "{Y]{x");
+    }
+    else
+        add_buf(output, "");
+
+    if (IS_SET(wch->act[0],PLR_HELPER))
+        add_buf(output, " {W[H]{X");
+
+    if (IS_SET(wch->comm, COMM_AFK))
+        add_buf(output, " {M[AFK]{x");
+
+    if (IS_SET(wch->comm, COMM_QUIET))
+        add_buf(output, " {R[Q]{x");
+
+    if (IS_SET(wch->act[0], PLR_PK)
+    ||  (wch->church != NULL && wch->church->pk == true))
+        add_buf(output, " {R[PK]{x");
+
+    if (IS_SET(wch->act[0], PLR_BUILDING))
+        add_buf(output, " {r[Building]{x");
+
+    add_buf(output, "\n\r");
+    }
+
+    if( nMatch != nMatch2 ) {
+        sprintf(buf2, "\n\rPlayers found: %d\n\r", nMatch);
+        add_buf(output, buf2);
+    }
     sprintf(buf2, "Players online: %d\n\r", nMatch2);
     add_buf(output, buf2);
     page_to_char(buf_string(output), ch);
     free_buf(output);
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_whois - Display detailed information about an online player
+ *
+ * Shows comprehensive information about a specific online player including
+ * name, title, race, class, church, idle time, area, and description.
+ *
+ * @param ch        The character viewing whois info
+ * @param argument  The name of the player to look up
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_whois(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4764,113 +5310,112 @@ void do_whois(CHAR_DATA * ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("You must provide a name.\n\r", ch);
-	return;
+    send_to_char("You must provide a name.\n\r", ch);
+    return;
     }
 
     output = new_buf();
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-	CHAR_DATA *wch;
-	char const *class;
-	char racestr[MAX_STRING_LENGTH];
+    CHAR_DATA *wch;
+    char const *class;
+    char racestr[MAX_STRING_LENGTH];
 
-	if (d->connected != CON_PLAYING || !can_see(ch, d->character))
-	    continue;
+    if (d->connected != CON_PLAYING || !can_see(ch, d->character))
+        continue;
 
-	wch = (d->original != NULL) ? d->original : d->character;
+    wch = (d->original != NULL) ? d->original : d->character;
 
-	if (!can_see(ch, wch))
-	    continue;
+    if (!can_see(ch, wch))
+        continue;
 
-	if (!str_prefix(arg, wch->name))
-	{
-	    found = true;
+    if (!str_prefix(arg, wch->name))
+    {
+        found = true;
 
-	    class = sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex];
+        {
+            CLASS_DATA *whois_class = get_current_class(wch);
+            class = whois_class ? class_who_ch(whois_class, wch) : "Adventurer";
+        }
 
-        if (wch->tot_level >= LEVEL_IMMORTAL)
-	    class = wch->pcdata->immortal->imm_flag;
+        if (IS_IMMORTAL(wch))
+        class = wch->pcdata->immortal->imm_flag;
 
-	if(!IS_IMMORTAL(wch)) {
-	        while (*class == '{')
-		    class += 2;
-	}
+    if(!IS_IMMORTAL(wch)) {
+            while (*class == '{')
+            class += 2;
+    }
 
-	while (ISSPACE(*class))
-	{
-	   class++;
-	}
+    while (ISSPACE(*class))
+    {
+       class++;
+    }
 
-	/* If they are a player or a shaper, then use the PLAYER RACE name... */
-	if(!IS_IMMORTAL(wch) || wch->race == grn_shaper)
-		strcpy(racestr, pc_race_table[wch->race].name);
-	else if (wch->sex == SEX_FEMALE)
-		strcpy(racestr, "Goddess");
-	else
-		strcpy(racestr, "God");
+    /* If they are a player or a shaper, then use the PLAYER RACE name... */
+    if(!IS_IMMORTAL(wch) || (wch->race && !str_cmp(wch->race->id, "shaper")))
+        strcpy(racestr, wch->race ? wch->race->name : "unknown");
+    else
+        strcpy(racestr, "Immortal");
 
-	buf[0] = '\0';
-	for (i = 0; i < 32; i++)
-  	    strcat(buf, "{Y-{y+");
+    buf[0] = '\0';
+    for (i = 0; i < 32; i++)
+          strcat(buf, "{Y-{y+");
         add_buf(output, buf);
 
-	if (wch->timer > 0)
-	{
-	    sprintf(idle_time, "%d minutes", wch->timer);
-	}
-	else
-	{
-	    sprintf(idle_time, "Active");
-	}
+    if (wch->timer > 0)
+    {
+        sprintf(idle_time, "%d minutes", wch->timer);
+    }
+    else
+    {
+        sprintf(idle_time, "Active");
+    }
 
         sprintf(buf, "\n\r{x"
-	             "Name         : %s%s\n\r{x"
-		     "Sex          : %s\n\r{x"
-		     "Church       : %s\n\r{x"
-		     "Rank         : %s\n\r{x"
-               	     "Race         : %s\n\r{x"
-		     "Subclass     : %s\n\r{x"
-		     "Level        : %d\n\r\n\r"
-		     "Player Kills : {R%d{x\n\r"
-		     "Arena Kills  : {x%d{x\n\r"
-		     "CPK Kills    : {r%d{x\n\r"
-	             "Idle         : %s\n\r"
-		     "\n\rDescription:\n\r",
-		     wch->name,
-		     (wch->pcdata->title != NULL) ? wch->pcdata->title : "",
-		     wch->sex == 0 ? "None" : (wch->sex == 1 ? "Male" : "Female"),
-		     (wch->church != NULL) ? wch->church_name : "None",
-		     (wch->church != NULL && wch->church_member != NULL) ? get_chrank(wch->church_member) : "None",
+                 "Name         : %s%s\n\r{x"
+             "Church       : %s\n\r{x"
+             "Rank         : %s\n\r{x"
+                        "Race         : %s\n\r{x"
+             "Class        : %s\n\r{x"
+             "Level        : %d\n\r\n\r"
+             "Player Kills : {R%d{x\n\r"
+             "Arena Kills  : {x%d{x\n\r"
+             "CPK Kills    : {r%d{x\n\r"
+                 "Idle         : %s\n\r"
+             "\n\rDescription:\n\r",
+             wch->name,
+             (wch->pcdata->title != NULL) ? wch->pcdata->title : "",
+             (wch->church != NULL) ? wch->church_name : "None",
+             (wch->church != NULL && wch->church_member != NULL) ? get_chrank(wch->church_member) : "None",
                      racestr,
-		     class,
-		     wch->tot_level,
-		     wch->player_kills,
-		     wch->arena_kills,
-		     wch->cpk_kills,
-		     idle_time
-		    );
+             class,
+             wch->tot_level,
+             wch->player_kills,
+             wch->arena_kills,
+             wch->cpk_kills,
+             idle_time
+            );
 
-	add_buf(output, buf);
+    add_buf(output, buf);
 
-	if (wch->description != NULL)
-	  add_buf(output, wch->description);
+    if (wch->description != NULL)
+      add_buf(output, wch->description);
 
-	sprintf(buf, "\n\r");
-	for (i = 0; i < 32; i++)
-  	    strcat(buf, "{Y-{y+");
-	strcat(buf, "{x\n\r");
+    sprintf(buf, "\n\r");
+    for (i = 0; i < 32; i++)
+          strcat(buf, "{Y-{y+");
+    strcat(buf, "{x\n\r");
         add_buf(output, buf);
 
-	break;
-	}
+    break;
+    }
     }
 
     if (!found)
     {
-	send_to_char("No one of that name is playing.\n\r", ch);
-	return;
+    send_to_char("No one of that name is playing.\n\r", ch);
+    return;
     }
 
     page_to_char(buf_string(output), ch);
@@ -4884,30 +5429,48 @@ void format_page(int16_t n, char *a, CHAR_DATA * ch)
     int16_t counter;
 
     if (n - fstr_len(a) <= 0)
-	return;
+    return;
 
     for (counter = 0; counter < n - fstr_len(a); counter++)
-	send_to_char(" ", ch);
+    send_to_char(" ", ch);
 
 }
 
 
-/* MOVED: unsorted */
+/**
+ * fstr_len - Calculate visible string length excluding color codes
+ *
+ * Returns the length of a string not counting color code characters
+ * (sequences starting with '{').
+ *
+ * @param a  The string to measure
+ *
+ * @return Number of visible characters
+ */
 int fstr_len(char *a)
 {
     int counter = 0;
     int char_number = 0;
     for (counter = 0; counter < strlen(a); counter++) {
-	if (a[counter] == '{') {
-	    counter++;
-	} else
-	    char_number++;
+    if (a[counter] == '{') {
+        counter++;
+    } else
+        char_number++;
     }
     return char_number;
 }
 
 
-/* MOVED: game.c */
+/**
+ * do_count - Display the number of online players
+ *
+ * Shows current player count and the peak count for the day.
+ *
+ * @param ch        The character viewing the count
+ * @param argument  Unused
+ *
+ * Planned refactor: game.c (never executed)
+ */
 void do_count(CHAR_DATA * ch, char *argument)
 {
     int count;
@@ -4917,54 +5480,122 @@ void do_count(CHAR_DATA * ch, char *argument)
     count = 0;
 
     for (d = descriptor_list; d != NULL; d = d->next)
-	if (/*d->connected == CON_PLAYING &&*/ can_see(ch, d->character))
-	    count++;
+    if (/*d->connected == CON_PLAYING &&*/ can_see(ch, d->character))
+        count++;
 
     max_on = UMAX(count, max_on);
 
     if (max_on == count)
-	sprintf(buf,
-		"There are {Y%d{x characters on, the most so far today.\n\r",
-		count);
+    sprintf(buf,
+        "There are {Y%d{x characters on, the most so far today.\n\r",
+        count);
     else
-	sprintf(buf,
-		"There are {Y%d{x characters on, the most on today was {Y%d{x.\n\r",
-		count, max_on);
+    sprintf(buf,
+        "There are {Y%d{x characters on, the most on today was {Y%d{x.\n\r",
+        count, max_on);
 
     send_to_char(buf, ch);
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * do_inventory - Display character's carried items
+ *
+ * Shows all items in the character's inventory (not worn), along with
+ * carrying capacity statistics (items and weight).
+ *
+ * @param ch        The character viewing inventory
+ * @param argument  Unused
+ *
+ * Planned refactor: player/inv.c (never executed)
+ */
 void do_inventory(CHAR_DATA * ch, char *argument)
 {
+    char arg[MIL];
     char buf[MAX_STRING_LENGTH];
+    int key_items = 0;
+    OBJ_DATA *obj;
+    ITERATOR it;
+
+    one_argument(argument, arg);
+
+    if (!str_cmp(arg, "key"))
+    {
+        send_to_char("You are carrying key items:\n\r", ch);
+        show_llist_to_char(ch->lstache, ch, true, true);
+
+        iterator_start(&it, ch->lstache);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+            if (IS_SET(obj->extra[1], ITEM_KEY_ITEM))
+                key_items++;
+        iterator_stop(&it);
+
+        sprintf(buf, "A total of %d key items.\n\r", key_items);
+        send_to_char(buf, ch);
+        return;
+    }
 
     send_to_char("You are carrying:\n\r", ch);
     show_llist_to_char(ch->lcarrying, ch, true, true);
+
+    iterator_start(&it, ch->lstache);
+    while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+        if (IS_SET(obj->extra[1], ITEM_KEY_ITEM))
+            key_items++;
+    iterator_stop(&it);
+
     if (!IS_DEAD(ch))
     {
-	sprintf(buf,
-  	    "A total of %d/%d items with weight %ld/%d kg.{x "
-	    "(%ld kg in coins)\n\r",
-	    ch->carry_number,
-	    can_carry_n(ch),
-	    get_carry_weight(ch),
-	    can_carry_w(ch), COIN_WEIGHT(ch));
-	send_to_char(buf, ch);
+    sprintf(buf,
+          "A total of %d/%d items with weight %ld/%d kg.{x "
+        "(%ld kg in coins)\n\r"
+        "Key items: %d\n\r",
+        ch->carry_number,
+        can_carry_n(ch),
+        get_carry_weight(ch),
+        can_carry_w(ch),
+        COIN_WEIGHT(ch),
+        key_items);
+    send_to_char(buf, ch);
     }
 }
 
 
-/* MOVED: player/inv.c */
+/**
+ * do_equipment - Display character's worn equipment
+ *
+ * Shows all items currently equipped in wear locations.
+ * Wrapper for show_equipment with self as both viewer and target.
+ *
+ * @param ch        The character viewing their equipment
+ * @param argument  Unused
+ *
+ * Planned refactor: player/inv.c (never executed)
+ */
 void do_equipment(CHAR_DATA * ch, char *argument)
 {
     show_equipment(ch, ch);
 }
 
 
-/* MOVED: player/inv.c
-   Show victim's worn equipment to ch. */
+/**
+ * show_equipment - Display a character's worn equipment to a viewer
+ *
+ * Renders equipment in the order defined by wear_view_order, respecting
+ * visibility rules (concealed items, shifted forms, etc.). Shows empty
+ * slots when PLR_AUTOEQ is enabled for the viewer.
+ *
+ * @param ch      The character viewing the equipment
+ * @param victim  The character whose equipment is being viewed
+ *
+ * Features:
+ * - Respects wear_params for visibility and availability
+ * - Handles concealed items (checks wear_concealed)
+ * - Skips unavailable slots in shifted forms
+ * - Shows "nothing" for empty slots when PLR_AUTOEQ enabled
+ *
+ * Planned refactor: player/inv.c (never executed)
+ */
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 {
     BUFFER *buffer;
@@ -5034,13 +5665,34 @@ void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
     free_buf(buffer);
 }
 
-/* MOVED: bulletin.c */
+/**
+ * do_credits - Display game credits
+ *
+ * Shows the Diku MUD credits help entry.
+ *
+ * @param ch        The character viewing credits
+ * @param argument  Unused
+ *
+ * Planned refactor: bulletin.c (never executed)
+ */
 void do_credits(CHAR_DATA * ch, char *argument)
 {
     do_function(ch, &do_help, "diku");
 }
 
-/* MOVED: combat/assess.c */
+/**
+ * do_consider - Assess combat difficulty against a target
+ *
+ * Compares character's level to target's level and provides a
+ * descriptive assessment of the combat difficulty.
+ *
+ * @param ch        The character considering combat
+ * @param argument  Name of the target to consider
+ *
+ * Blocked by: Target not in room, target is safe (can't be attacked)
+ *
+ * Planned refactor: combat/assess.c (never executed)
+ */
 void do_consider(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -5051,77 +5703,98 @@ void do_consider(CHAR_DATA * ch, char *argument)
     one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-	send_to_char("Consider killing whom?\n\r", ch);
-	return;
+    send_to_char("Consider killing whom?\n\r", ch);
+    return;
     }
 
     if ((victim = get_char_room(ch, NULL, arg)) == NULL) {
-	send_to_char("They're not here.\n\r", ch);
-	return;
+    send_to_char("They're not here.\n\r", ch);
+    return;
     }
 
     if (is_safe(ch, victim, false))
     {
-	send_to_char("Don't even think about it.\n\r", ch);
-	return;
+    send_to_char("Don't even think about it.\n\r", ch);
+    return;
     }
 
     diff = victim->tot_level - ch->tot_level;
 
     if (diff <= -20)
-	msg = "You can kill $N naked and weaponless.";
+    msg = "You can kill $N naked and weaponless.";
     else if (diff <= -15)
-	msg = "$N is no match for you.";
+    msg = "$N is no match for you.";
     else if (diff <= -10)
-	msg = "$N looks like an easy kill.";
+    msg = "$N looks like an easy kill.";
     else if (diff <= -5)
-	msg = "The perfect match!";
+    msg = "The perfect match!";
     else if (diff <= 1)
-	msg = "$N says 'Do you feel lucky, punk?'.";
+    msg = "$N says 'Do you feel lucky, punk?'.";
     else if (diff <= 5)
-	msg = "$N laughs at you mercilessly.";
+    msg = "$N laughs at you mercilessly.";
     else
-	msg = "Death will thank you for your gift.";
+    msg = "Death will thank you for your gift.";
 
-    act(msg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act(msg, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     return;
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * set_title - Set a character's title
+ *
+ * Updates the character's title string, ensuring proper spacing
+ * and punctuation handling.
+ *
+ * @param ch     The character whose title is being set
+ * @param title  The new title string
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void set_title(CHAR_DATA * ch, char *title)
 {
     char buf[MAX_STRING_LENGTH];
 
     if (IS_NPC(ch)) {
-	bug("Set_title: NPC.", 0);
-	return;
+    pbugf(LOG_ERROR, "Set_title: NPC.");
+    return;
     }
 
     if (title[0] != '\0' && title[0] != '.' && title[0] != ',' && title[0] != '!' && title[0] != '?')
     {
-		buf[0] = ' ';
-		strcpy(buf + 1, title);
+        buf[0] = ' ';
+        strcpy(buf + 1, title);
     } else
-		strcpy(buf, title);
+        strcpy(buf, title);
 
     free_string(ch->pcdata->title);
     ch->pcdata->title = str_dup(buf);
 }
 
-/* MOVED: player/info.c */
+/**
+ * do_title - Set character's displayed title
+ *
+ * Allows players to set a custom title that appears after their name.
+ *
+ * @param ch        The character setting their title
+ * @param argument  The new title (max 45 chars)
+ *
+ * Blocked by: IS_NPC
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_title(CHAR_DATA * ch, char *argument)
 {
     if (IS_NPC(ch))
-	return;
+    return;
 
     if (argument[0] == '\0') {
-	send_to_char("Change your title to what?\n\r", ch);
-	return;
+    send_to_char("Change your title to what?\n\r", ch);
+    return;
     }
 
     if (strlen(argument) > 45)
-	argument[45] = '\0';
+    argument[45] = '\0';
 
     smash_tilde(argument);
     set_title(ch, argument);
@@ -5129,35 +5802,67 @@ void do_title(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * do_description - Edit character's description
+ *
+ * Opens the string editor to modify the character's description
+ * (what others see when they look at you).
+ *
+ * @param ch        The character editing their description
+ * @param argument  Unused
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_description(CHAR_DATA * ch, char *argument)
 {
     string_append(ch, &ch->description);
 }
 
 
-/* MOVED: player/info.c */
+/**
+ * do_report - Announce current stats to the room
+ *
+ * Speaks the character's current HP, mana, move, and XP to
+ * everyone in the room.
+ *
+ * @param ch        The character reporting
+ * @param argument  Unused
+ *
+ * Planned refactor: player/info.c (never executed)
+ */
 void do_report(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_INPUT_LENGTH];
 
     sprintf(buf,
-	    "{CYou say 'I have %ld/%ld hp %ld/%ld mana %ld/%ld mv %ld xp.'\n\r{x",
-	    ch->hit, ch->max_hit,
-	    ch->mana, ch->max_mana, ch->move, ch->max_move, ch->exp);
+        "{CYou say 'I have %ld/%ld hp %ld/%ld mana %ld/%ld mv %ld xp.'\n\r{x",
+        ch->hit, ch->max_hit,
+        ch->mana, ch->max_mana, ch->move, ch->max_move, ch->exp);
 
     send_to_char(buf, ch);
 
     sprintf(buf,
-	    "{C$n says 'I have %ld/%ld hp %ld/%ld mana %ld/%ld mv %ld xp.'{x",
-	    ch->hit, ch->max_hit, ch->mana, ch->max_mana, ch->move,
-	    ch->max_move, ch->exp);
+        "{C$n says 'I have %ld/%ld hp %ld/%ld mana %ld/%ld mv %ld xp.'{x",
+        ch->hit, ch->max_hit, ch->mana, ch->max_mana, ch->move,
+        ch->max_move, ch->exp);
 
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
 
-/* MOVED: combat/melee.c */
+/**
+ * do_wimpy - Set automatic flee threshold
+ *
+ * Sets the HP value at which the character will automatically
+ * attempt to flee from combat.
+ *
+ * @param ch        The character setting wimpy
+ * @param argument  HP threshold (empty = 20% of max HP)
+ *
+ * Range: 0 to max_hit/2
+ *
+ * Planned refactor: combat/melee.c (never executed)
+ */
 void do_wimpy(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -5167,18 +5872,18 @@ void do_wimpy(CHAR_DATA * ch, char *argument)
     one_argument(argument, arg);
 
     if (arg[0] == '\0')
-	wimpy = ch->max_hit / 5;
+    wimpy = ch->max_hit / 5;
     else
-	wimpy = atoi(arg);
+    wimpy = atoi(arg);
 
     if (wimpy < 0) {
-	send_to_char("Your courage exceeds your wisdom.\n\r", ch);
-	return;
+    send_to_char("Your courage exceeds your wisdom.\n\r", ch);
+    return;
     }
 
     if (wimpy > ch->max_hit / 2) {
-	send_to_char("Such cowardice ill becomes you.\n\r", ch);
-	return;
+    send_to_char("Such cowardice ill becomes you.\n\r", ch);
+    return;
     }
 
     ch->wimpy = wimpy;
@@ -5186,109 +5891,26 @@ void do_wimpy(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
 }
 
-/* MOVED: player/pfile.c */
-void do_password(CHAR_DATA *ch, char *argument)
-{
-    char arg1[MAX_INPUT_LENGTH];
-    char arg2[MAX_INPUT_LENGTH];
-    char *pArg;
-    char *pwdnew;
-    char *p;
-    char cEnd;
-
-    if (IS_NPC(ch))
-	return;
-
-    /*
-     * Can't use one_argument here because it smashes case.
-     * So we just steal all its code.  Bleagh.
-     */
-    pArg = arg1;
-    while (ISSPACE(*argument))
-	argument++;
-
-    cEnd = ' ';
-    if (*argument == '\'' || *argument == '"')
-	cEnd = *argument++;
-
-    while (*argument != '\0') {
-	if (*argument == cEnd) {
-	    argument++;
-	    break;
-	}
-	*pArg++ = *argument++;
-    }
-    *pArg = '\0';
-
-    pArg = arg2;
-    while (ISSPACE(*argument))
-	argument++;
-
-    cEnd = ' ';
-    if (*argument == '\'' || *argument == '"')
-	cEnd = *argument++;
-
-    while (*argument != '\0') {
-	if (*argument == cEnd) {
-	    argument++;
-	    break;
-	}
-	*pArg++ = *argument++;
-    }
-    *pArg = '\0';
-
-    if (arg1[0] == '\0' || arg2[0] == '\0') {
-	send_to_char("Syntax: password <old> <new>.\n\r", ch);
-	return;
-    }
-
-	if (ch->pcdata->pwd_vers < 1) {
-    if (strcmp(crypt(arg1, ch->pcdata->pwd), ch->pcdata->pwd)) {
-	if (strcmp(arg1, ch->pcdata->pwd)){
-	WAIT_STATE(ch, 40);
-	send_to_char("Wrong password.  Wait 10 seconds.\n\r", ch);
-	return;
-	}
-    }
-	} else
-	{
-		if (strcmp(sha256_crypt(arg1), ch->pcdata->pwd)) {
-			WAIT_STATE(ch, 40);
-			send_to_char("Wrong password. Wait 10 seconds.\n\r", ch);
-			return;
-		}
-	}
-
-
-    if (strlen(arg2) < 5) {
-	send_to_char
-	    ("New password must be at least five characters long.\n\r",
-	     ch);
-	return;
-    }
-
-    /*
-     * No tilde allowed because of player file format.
-     */
-    pwdnew = sha256_crypt(arg2);
-    for (p = pwdnew; *p != '\0'; p++) {
-	if (*p == '~') {
-	    send_to_char("New password not acceptable, try again.\n\r",
-			 ch);
-	    return;
-	}
-    }
-
-    free_string(ch->pcdata->pwd);
-    ch->pcdata->pwd = str_dup(pwdnew);
-	if (ch->pcdata->pwd_vers < 1) {
-		ch->pcdata->pwd_vers = 1;
-	}
-    save_char_obj(ch);
-    send_to_char("Password changed.\n\r", ch);
-}
-
-/* MOVED: player/wealth.c */
+/**
+ * do_bank - Banking transactions for gold storage
+ *
+ * Handles all banking operations: deposit, withdraw, balance check,
+ * and wire transfer to other players.
+ *
+ * Subcommands:
+ * - balance: Show current bank balance
+ * - deposit <amount>: Deposit gold into bank
+ * - withdraw <amount>: Withdraw gold from bank
+ * - wire <amount> <player>: Transfer gold to another player's account
+ *
+ * @param ch        The character using the bank
+ * @param argument  Subcommand and arguments
+ *
+ * Requires: Being in a ROOM_BANK or carrying an ITEM_BANK object
+ * Blocked by: IS_NPC, IS_DEAD
+ *
+ * Planned refactor: player/wealth.c (never executed)
+ */
 void do_bank(CHAR_DATA * ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -5322,13 +5944,13 @@ iterator_stop(&it);
     && !IS_SET(room->room_flag[0], ROOM_BANK)
     && !item)
     {
-	send_to_char("You can't do that here.\n\r", ch);
-	return;
+    send_to_char("You can't do that here.\n\r", ch);
+    return;
     }
 
     if (IS_DEAD(ch)) {
-	send_to_char("You can't bank while dead.\n\r", ch);
-	return;
+    send_to_char("You can't bank while dead.\n\r", ch);
+    return;
     }
 
     argument = one_argument(argument, arg1);
@@ -5337,184 +5959,188 @@ iterator_stop(&it);
 
     if (arg1[0] == '\0')
     {
-	send_to_char("Usage: \n\r", ch);
-	send_to_char("Bank deposit <amount> \n\r", ch);
-	send_to_char("Bank withdraw <amount> \n\r", ch);
-	send_to_char("Bank balance \n\r", ch);
-	send_to_char("Bank wire <amount> <person>\n\r", ch);
-	return;
+    send_to_char("Usage: \n\r", ch);
+    send_to_char("Bank deposit <amount> \n\r", ch);
+    send_to_char("Bank withdraw <amount> \n\r", ch);
+    send_to_char("Bank balance \n\r", ch);
+    send_to_char("Bank wire <amount> <person>\n\r", ch);
+    return;
     }
 
     if (str_cmp(arg1, "BALANCE") == 0)
     {
-	if ((arg2[0] != '\0') && (IS_IMMORTAL(ch)))
-	{
-	    if ((target = get_char_world(ch, arg3)) == NULL || IS_NPC(target = get_char_world(ch, arg3)))
-	    {
-		send_to_char("They aren't playing.\n\r", ch);
-		return;
-	    }
-	    else
-	    {
-		    sprintf(temp, "They have {Y%ld{X gold coins in the bank.\n\r",
-		    target->pcdata->bankbalance);
-		    send_to_char(temp, ch);
-		    return;
-	    }
-	}
+    if ((arg2[0] != '\0') && (IS_IMMORTAL(ch)))
+    {
+        if ((target = get_char_world(ch, arg3)) == NULL || IS_NPC(target = get_char_world(ch, arg3)))
+        {
+        send_to_char("They aren't playing.\n\r", ch);
+        return;
+        }
+        else
+        {
+            sprintf(temp, "They have {Y%ld{X gold coins in the bank.\n\r",
+            target->pcdata->bankbalance);
+            send_to_char(temp, ch);
+            return;
+        }
+    }
 
-	sprintf(temp, "You have {Y%ld{X gold coins in your bank.\n\r",
-	ch->pcdata->bankbalance);
-	send_to_char(temp, ch);
-	return;
+    sprintf(temp, "You have {Y%ld{X gold coins in your bank.\n\r",
+    ch->pcdata->bankbalance);
+    send_to_char(temp, ch);
+    return;
     }
 
     if (str_cmp(arg1, "DEPOSIT") == 0)
     {
-	bool fAll = false;
+    bool fAll = false;
 
-	if (arg2[0] == '\0')
-	{
-	    send_to_char
-		("You need to deposit an amount or 'all'.\n\r", ch);
-	    return;
-	}
+    if (arg2[0] == '\0')
+    {
+        send_to_char
+        ("You need to deposit an amount or 'all'.\n\r", ch);
+        return;
+    }
 
-	if (!str_cmp(arg2, "all"))
-	{
-	    if (ch->gold == 0)
-	    {
-		send_to_char("You don't have any gold to deposit.\n\r", ch);
-		return;
-	    }
+    if (!str_cmp(arg2, "all"))
+    {
+        if (ch->gold == 0)
+        {
+        send_to_char("You don't have any gold to deposit.\n\r", ch);
+        return;
+        }
 
-	    fAll = true;
-	}
+        fAll = true;
+    }
 
-	if (fAll)
-	    amount = ch->gold;
-	else
-	    amount = atol(arg2);
+    if (fAll)
+        amount = ch->gold;
+    else
+        amount = atol(arg2);
 
-	if (!fAll)
-	{
-	    if (amount <= 0)
-	    {
-		send_to_char("Invalid amount.\n\r", ch);
-		return;
-	    }
+    if (!fAll)
+    {
+        if (amount <= 0)
+        {
+        send_to_char("Invalid amount.\n\r", ch);
+        return;
+        }
 
-	    if (amount > ch->gold)
-	    {
-		send_to_char("You don't have that much gold!\n\r", ch);
-		return;
-	    }
-	}
+        if (amount > ch->gold)
+        {
+        send_to_char("You don't have that much gold!\n\r", ch);
+        return;
+        }
+    }
 
-	ch->gold -= amount;
-	ch->pcdata->bankbalance += amount;
-	sprintf(temp,
-		"You transfer {Y%ld{X gold coins to your bank account.\n\r",
-		amount);
-	send_to_char(temp, ch);
-	sprintf(temp, "Your new balance is {Y%ld{X gold coins.\n\r",
-		ch->pcdata->bankbalance);
-	send_to_char(temp, ch);
-	return;
+    ch->gold -= amount;
+    ch->pcdata->bankbalance += amount;
+    leaderboard_update_wealth(ch);
+    sprintf(temp,
+        "You transfer {Y%ld{X gold coins to your bank account.\n\r",
+        amount);
+    send_to_char(temp, ch);
+    sprintf(temp, "Your new balance is {Y%ld{X gold coins.\n\r",
+        ch->pcdata->bankbalance);
+    send_to_char(temp, ch);
+    return;
     }
 
     if (str_cmp(arg1, "WITHDRAW") == 0)
     {
-	if (arg2[0] == '\0' || (!is_number(arg2) && str_cmp(arg2, "all")))
-	{
-	    send_to_char("You need to withdraw an amount or 'all'.\n\r",ch);
-	    return;
-	}
+    if (arg2[0] == '\0' || (!is_number(arg2) && str_cmp(arg2, "all")))
+    {
+        send_to_char("You need to withdraw an amount or 'all'.\n\r",ch);
+        return;
+    }
 
-	if (str_cmp(arg2, "all"))
-	    amount = atol(arg2);
-	else
-	    amount = ch->pcdata->bankbalance;
+    if (str_cmp(arg2, "all"))
+        amount = atol(arg2);
+    else
+        amount = ch->pcdata->bankbalance;
 
-	if (amount == 0)
-	{
-	    send_to_char("Invalid amount.\n\r", ch);
-	    return;
-	}
+    if (amount == 0)
+    {
+        send_to_char("Invalid amount.\n\r", ch);
+        return;
+    }
 
-	if (amount > ch->pcdata->bankbalance)
-	{
-	    send_to_char("You don't have that much in the bank.\n\r", ch);
-	    return;
-	}
+    if (amount > ch->pcdata->bankbalance)
+    {
+        send_to_char("You don't have that much in the bank.\n\r", ch);
+        return;
+    }
 
-	if (amount < 0)
-	{
-	    send_to_char("You can't withdraw a negative amount.\n\r", ch);
-	    return;
-	}
-	ch->pcdata->bankbalance -= amount;
-	ch->gold += amount;
-	sprintf(temp, "You just withdrew {Y%ld{X gold coins from your account.\n\r", amount);
-	send_to_char(temp, ch);
-	sprintf(temp, "Your new balance is {Y%ld{X gold coins.\n\r", ch->pcdata->bankbalance);
-	send_to_char(temp, ch);
-	return;
+    if (amount < 0)
+    {
+        send_to_char("You can't withdraw a negative amount.\n\r", ch);
+        return;
+    }
+    ch->pcdata->bankbalance -= amount;
+    ch->gold += amount;
+    leaderboard_update_wealth(ch);
+    sprintf(temp, "You just withdrew {Y%ld{X gold coins from your account.\n\r", amount);
+    send_to_char(temp, ch);
+    sprintf(temp, "Your new balance is {Y%ld{X gold coins.\n\r", ch->pcdata->bankbalance);
+    send_to_char(temp, ch);
+    return;
     }
 
     if (str_cmp(arg1, "WIRE") == 0)
     {
-	if(arg2[0] == '\0')
-	{
-	    send_to_char("Wire how much?\n\r", ch);
-	    return;
-	}
-	if(arg3[0] == '\0')
-	{
-	    send_to_char("Wire to whom?\n\r", ch);
-	    return;
-	}
+    if(arg2[0] == '\0')
+    {
+        send_to_char("Wire how much?\n\r", ch);
+        return;
+    }
+    if(arg3[0] == '\0')
+    {
+        send_to_char("Wire to whom?\n\r", ch);
+        return;
+    }
 
-	if ((target = get_char_world(ch, arg3)) == NULL || IS_NPC(target = get_char_world(ch, arg3)))
-	{
-	    send_to_char("They aren't playing.\n\r", ch);
-	    return;
-	}
+    if ((target = get_char_world(ch, arg3)) == NULL || IS_NPC(target = get_char_world(ch, arg3)))
+    {
+        send_to_char("They aren't playing.\n\r", ch);
+        return;
+    }
 
-	if(target == ch)
-	{
-	    send_to_char("What would be the point?\n\r", ch);
-	    return;
-	}
+    if(target == ch)
+    {
+        send_to_char("What would be the point?\n\r", ch);
+        return;
+    }
 
-	amount = atol(arg2);
+    amount = atol(arg2);
 
-	if (amount == 0)
-	{
-	    send_to_char("Invalid amount.\n\r", ch);
-	    return;
-	}
+    if (amount == 0)
+    {
+        send_to_char("Invalid amount.\n\r", ch);
+        return;
+    }
 
 
-	if (amount > ch->pcdata->bankbalance)
-	{
-	    send_to_char("You don't have that much in the bank.\n\r", ch);
-	    return;
-	}
+    if (amount > ch->pcdata->bankbalance)
+    {
+        send_to_char("You don't have that much in the bank.\n\r", ch);
+        return;
+    }
 
-	if (amount < 0)
-	{
-	    send_to_char("You can't transfer a negative amount.\n\r", ch);
-	    return;
-	}
+    if (amount < 0)
+    {
+        send_to_char("You can't transfer a negative amount.\n\r", ch);
+        return;
+    }
 
-	ch->pcdata->bankbalance -= amount;
-	target->pcdata->bankbalance += amount;
-	sprintf(temp, "You have transferred {Y%ld{X gold coins to %s's bank account.\n\r", amount, target->name);
-	send_to_char(temp, ch);
-	sprintf(temp, "%s has transferred {Y%ld{X gold coins to your bank account.\n\r", ch->name, amount);
-	send_to_char(temp, target);
-	return;
+    ch->pcdata->bankbalance -= amount;
+    target->pcdata->bankbalance += amount;
+    leaderboard_update_wealth(ch);
+    leaderboard_update_wealth(target);
+    sprintf(temp, "You have transferred {Y%ld{X gold coins to %s's bank account.\n\r", amount, target->name);
+    send_to_char(temp, ch);
+    sprintf(temp, "%s has transferred {Y%ld{X gold coins to your bank account.\n\r", ch->name, amount);
+    send_to_char(temp, target);
+    return;
     }
 
     send_to_char("Usage: \n\r", ch);
@@ -5524,7 +6150,19 @@ iterator_stop(&it);
     send_to_char("Bank wire <amount> <person>\n\r", ch);
 }
 
-/* MOVED: player/punish.c */
+/**
+ * do_botter - Toggle botter flag on a player (immortal only)
+ *
+ * Marks or unmarks a player as a suspected bot/script user.
+ *
+ * @param ch        The immortal executing the command
+ * @param argument  Name of the player to flag
+ *
+ * Requires: MAX_LEVEL (highest immortal level)
+ * Blocked by: Target is NPC
+ *
+ * Planned refactor: player/punish.c (never executed)
+ */
 void do_botter(CHAR_DATA* ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -5534,86 +6172,94 @@ void do_botter(CHAR_DATA* ch, char *argument)
 
     if (ch->tot_level < MAX_LEVEL)
     {
-	send_to_char("Huh?\n\r", ch);
-	return;
+    send_to_char("Huh?\n\r", ch);
+    return;
     }
 
     if (arg[0] == '\0')
     {
-	send_to_char
-	    ("Who do you want to mark as a botter?\n\r", ch);
-	return;
+    send_to_char
+        ("Who do you want to mark as a botter?\n\r", ch);
+    return;
     }
 
     victim = get_char_world(ch, arg);
     if (victim == NULL)
     {
-	send_to_char
-	    ("That player doesn't exist.\n\r", ch);
-	return;
+    send_to_char
+        ("That player doesn't exist.\n\r", ch);
+    return;
     }
 
     if (IS_NPC(victim))
     {
-	send_to_char("That isn't a player!\n\r", ch);
-	return;
+    send_to_char("That isn't a player!\n\r", ch);
+    return;
     }
 
     if (IS_SET(victim->act[0], PLR_BOTTER))
-	REMOVE_BIT(victim->act[0], PLR_BOTTER);
+    REMOVE_BIT(victim->act[0], PLR_BOTTER);
     else
-	SET_BIT(victim->act[0], PLR_BOTTER);
+    SET_BIT(victim->act[0], PLR_BOTTER);
 
     send_to_char("Flag toggled.\n\r", ch);
 }
 
 
-/* MOVED:
- @@@NIB : 20070126 : Added types */
+/**
+ * get_char_where - Get the display string for a character's location
+ *
+ * Returns a short string indicating where the character is for the
+ * who list display. Handles instances, dungeons, ships, and regular areas.
+ *
+ * @param ch  The character to get location for
+ *
+ * @return Newly allocated string with location indicator (caller must free)
+ */
 char *get_char_where(CHAR_DATA *ch)
 {
-	if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
-	{
-		INSTANCE *instance = ch->in_room->instance_section->instance;
+    if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
+    {
+        INSTANCE *instance = ch->in_room->instance_section->instance;
 
-		if( IS_VALID(instance->dungeon) )
-		{
-			// Prioritize the blueprint
-			int area_who = instance->blueprint->area_who;
+        if( IS_VALID(instance->dungeon) )
+        {
+            // Prioritize the blueprint
+            int area_who = instance->blueprint->area_who;
 
-			// If blank, fall back to the dungeon index
-			if( area_who == AREA_BLANK )
-				area_who = instance->dungeon->index->area_who;
+            // If blank, fall back to the dungeon index
+            if( area_who == AREA_BLANK )
+                area_who = instance->dungeon->index->area_who;
 
-			// If blank, fall back to default
-			if( area_who == AREA_BLANK )
-				area_who = AREA_DUNGEON;
+            // If blank, fall back to default
+            if( area_who == AREA_BLANK )
+                area_who = AREA_DUNGEON;
 
-			return str_dup(flag_string(area_who_display,area_who));
-		}
-		else if( IS_VALID(instance->object) )
-		{
-			if( instance->object->item_type == ITEM_SHIP )
-			{
-				// When the object is a ship, it doesn't matter what the instance is labeled as
-				return str_dup(flag_string(area_who_display,AREA_ON_SHIP));
-			}
-			else
-			{
-				return str_dup(flag_string(area_who_display,instance->blueprint->area_who));
-			}
-		}
-		else
-		{
-			return str_dup(flag_string(area_who_display,instance->blueprint->area_who));
-		}
+            return str_dup(flag_string(area_who_display,area_who));
+        }
+        else if( IS_VALID(instance->object) )
+        {
+            if( instance->object->item_type == ITEM_SHIP )
+            {
+                // When the object is a ship, it doesn't matter what the instance is labeled as
+                return str_dup(flag_string(area_who_display,AREA_ON_SHIP));
+            }
+            else
+            {
+                return str_dup(flag_string(area_who_display,instance->blueprint->area_who));
+            }
+        }
+        else
+        {
+            return str_dup(flag_string(area_who_display,instance->blueprint->area_who));
+        }
 
-	}
+    }
 
-	if(ch->in_room->area->area_who <= AREA_BLANK || ch->in_room->area->area_who >= AREA_WHO_MAX)
-		return str_dup("      ");
+    if(ch->in_room->area->area_who <= AREA_BLANK || ch->in_room->area->area_who >= AREA_WHO_MAX)
+        return str_dup("      ");
 
-	return str_dup(flag_string(area_who_display,ch->in_room->area->area_who));
+    return str_dup(flag_string(area_who_display,ch->in_room->area->area_who));
 }
 
 #if 0
@@ -5630,56 +6276,56 @@ int get_squares_to_show_x(ROOM_INDEX_DATA *pRoom, int bonus_view)
        case WEATHER_NONE:
             squares_to_show_x = 16 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_x -= 3;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_x -= 3;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_x -= 6;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_x -= 6;
         case WEATHER_RAIN_STORM:
             squares_to_show_x = 14 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_x -= 3;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_x -= 3;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_x -= 8;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_x -= 8;
+                        break;
         case WEATHER_LIGHTNING_STORM:
             squares_to_show_x = 12 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_x -= 3;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_x -= 3;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_x -= 6;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_x -= 6;
+                        break;
         case WEATHER_SNOW_STORM:
             squares_to_show_x = 8 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_x -= 2;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_x -= 2;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_x -= 4;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_x -= 4;
+                        break;
         case WEATHER_HURRICANE:
             squares_to_show_x = 6 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_x -= 1;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_x -= 1;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_x -= 2;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_x -= 2;
+                        break;
         case WEATHER_TORNADO:
             squares_to_show_x = 6 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_x -= 1;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_x -= 1;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_x -= 2;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_x -= 2;
+                        break;
     }
 
     return squares_to_show_x;
@@ -5699,57 +6345,57 @@ int get_squares_to_show_y(ROOM_INDEX_DATA *pRoom, int bonus_view)
         case WEATHER_NONE:*/
             squares_to_show_y = 12 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_y -= 2;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_y -= 2;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_y -= 4;
-			/*			break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_y -= 4;
+            /*			break;
         case WEATHER_RAIN_STORM:
             squares_to_show_y = 10 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_y -= 2;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_y -= 2;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_y -= 5;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_y -= 5;
+                        break;
         case WEATHER_LIGHTNING_STORM:
             squares_to_show_y = 8 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_y -= 1;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_y -= 1;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_y -= 3;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_y -= 3;
+                        break;
         case WEATHER_SNOW_STORM:
             squares_to_show_y = 6 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_y -= 1;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_y -= 1;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_y -= 2;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_y -= 2;
+                        break;
         case WEATHER_HURRICANE:
             squares_to_show_y = 4 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_y -= 1;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_y -= 1;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_y -= 2;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_y -= 2;
+                        break;
         case WEATHER_TORNADO:
             squares_to_show_y = 4 + bonus_view;
 
-						if (weather_info.sky == SUN_SET)
-								squares_to_show_y -= 1;
+                        if (weather_info.sky == SUN_SET)
+                                squares_to_show_y -= 1;
 
-						if (weather_info.sky == SUN_DARK)
-								squares_to_show_y -= 2;
-						break;
+                        if (weather_info.sky == SUN_DARK)
+                                squares_to_show_y -= 2;
+                        break;
     }
 */
     return squares_to_show_y;
@@ -5788,7 +6434,7 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
     last_char = ' ';
     last_colour_char = ' ';
 
-	  add_buf(output,"\n\r");
+      add_buf(output,"\n\r");
 
     for (y=ly - squares_to_show_y;
         y < ly + squares_to_show_y; y++) {
@@ -5813,382 +6459,382 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
                     sprintf(temp, "{YX{x");}
                     else
                     {
-			if (!found) {
+            if (!found) {
 
-				sprintf(j, "%c",pArea->map[index]);
+                sprintf(j, "%c",pArea->map[index]);
 
-				/* sprintf(j, "%d ", lx); */
-				if ((time_info.hour >= 7
-							&& time_info.hour < 9 && x == 443
-							&& y == 201)
-						|| (time_info.hour >= 1
-							&& time_info.hour < 3 && x == 498
-							&& y == 129)
-						|| (time_info.hour >= 16
-							&& time_info.hour < 18 && x == 1101
-							&& y == 231))
-				{
-					sprintf(temp, "{y@");
-					found = true;
-				}
+                /* sprintf(j, "%d ", lx); */
+                if ((time_info.hour >= 7
+                            && time_info.hour < 9 && x == 443
+                            && y == 201)
+                        || (time_info.hour >= 1
+                            && time_info.hour < 3 && x == 498
+                            && y == 129)
+                        || (time_info.hour >= 16
+                            && time_info.hour < 18 && x == 1101
+                            && y == 231))
+                {
+                    sprintf(temp, "{y@");
+                    found = true;
+                }
 
-				/*                       if ((time_info.hour >= 9
-							 && time_info.hour < 11 && x == 279
-							 && y == 105)
-							 || (time_info.hour >= 14
-							 && time_info.hour < 16 && x == 340
-							 && y == 23)
-							 || (time_info.hour >= 21
-							 && time_info.hour < 23 && x == 106
-							 && y == 97))
-							 sprintf(temp, "{CB"); */
-				else
-			     if (!str_cmp(pArea->name, "Netherworld")) {
+                /*                       if ((time_info.hour >= 9
+                             && time_info.hour < 11 && x == 279
+                             && y == 105)
+                             || (time_info.hour >= 14
+                             && time_info.hour < 16 && x == 340
+                             && y == 23)
+                             || (time_info.hour >= 21
+                             && time_info.hour < 23 && x == 106
+                             && y == 97))
+                             sprintf(temp, "{CB"); */
+                else
+                 if (!str_cmp(pArea->name, "Netherworld")) {
            if (j[0] == 'S') {
              if (x == 68 && y == 164) {
-			         sprintf(temp, "{WX");}
+                     sprintf(temp, "{WX");}
              else {
-			         sprintf(temp, "{R~");}
+                     sprintf(temp, "{R~");}
            }
 /* (7-20-06) Replaced mappings with Nib's - Areo */
-			     else
-			     if (j[0] == 'X') {
-			       sprintf(temp, "{D^");}
-			     else
-			     if (j[0] == 'C') {
-			     sprintf(temp, "{r.");}
-			     else
-			     if (j[0] == 'E') {
-			     sprintf(temp, "{g~");}
-			     else
-						if (!str_cmp(j, "*")) {
-							sprintf(temp, "{w^");}
-						else
-							if (!str_cmp(j, "P")) {
-								sprintf(temp, "{y.");}
-							else
-								if (!str_cmp(j, "T")) {
-									sprintf(temp, "{r#");}
-								else
-										if (!str_cmp(j, "&")) {
-											sprintf(temp, "{D.");}
-										else
-			     if (!str_cmp(j, "1")) {
-			     sprintf(temp, "{YO");}
-			     else
-			     if (!str_cmp(j, "F")) {
-			     sprintf(temp, "{D.");}
-			     else
-			     if (!str_cmp(j, "H")) {
-			     sprintf(temp, "{R(");}
-			     else
-			     if (!str_cmp(j, "A")) {
-			     sprintf(temp, "{WI");}
-			     if (!str_cmp(j, "M")) {
-			     sprintf(temp, "{MI");}
-			     else
-			     if (!str_cmp(j, "V")) {
-			     sprintf(temp, "{M=");}
-			     }
-			     else
-				 if (!strcmp(j, " ")) {
-				 sprintf(temp, "{Y.");}
- 				 else
-				 if (!strcmp(j, "!")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "#")) {
-				 sprintf(temp, "{D:");}
-				 else
-				 if (!strcmp(j, "$")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "&")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "'")) {
-				 sprintf(temp, "{G~");}
-				 else
-				 if (!strcmp(j, "(")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, ")")) {
-				 sprintf(temp, "{g~");}
-				 else
-				 if (!strcmp(j, "*")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "+")) {
-				 sprintf(temp, "{y.");}
-				 else
-				 if (!strcmp(j, ",")) {
-				 sprintf(temp, "{g.");}
-				 else
-				 if (!strcmp(j, ".")) {
-				 sprintf(temp, "{r.");}
-				 else
-				 if (!strcmp(j, "/")) {
-				 sprintf(temp, "{D.");}
-				 else
-				 if (!strcmp(j, "0")) {
-				 sprintf(temp, "{DO");}
-				 else
-				 if (!strcmp(j, "1")) {
-				 sprintf(temp, "{YO");}
-				 else
-				 if (!strcmp(j, "2")) {
-				 sprintf(temp, "{GO");}
-				 else
-				 if (!strcmp(j, "3")) {
-				 sprintf(temp, "{BO");}
-				 else
-				 if (!strcmp(j, "4")) {
-				 sprintf(temp, "{RO");}
-				 else
-				 if (!strcmp(j, "5")) {
-				 sprintf(temp, "{WO");}
-				 else
-				 if (!strcmp(j, "6")) {
-				 sprintf(temp, "{xO");}
-				 else
-				 if (!strcmp(j, "7")) {
-				 sprintf(temp, "{CO");}
-				 else
-				 if (!strcmp(j, "8")) {
-				 sprintf(temp, "{YO");}
-				 else
-				 if (!strcmp(j, "9")) {
-				 sprintf(temp, "{YO");}
-				 else
-				 if (!strcmp(j, ":")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, ">")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "@")) {
-				 sprintf(temp, "{W#");}
-				 else
-				 if (!strcmp(j, "A")) {
-				 sprintf(temp, "{Y.");}
-				 else
-				 if (!strcmp(j, "B")) {
-				 sprintf(temp, "{W*");}
-				 else
-				 if (!strcmp(j, "C")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "D")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "E")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "F")) {
-				 sprintf(temp, "{R#");}
-				 else
-				 if (!strcmp(j, "G")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "H")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "I")) {
-					if (!str_cmp(pArea->name, "Eden")) {
-						sprintf(temp, "{WI");
-				 }
-				 else	 {
-						 sprintf(temp, "{C~");
-					 }
-				 }
-				 else
-				 if (!strcmp(j, "J")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "K")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "L")) {
-				 sprintf(temp, "{b~");}
-				 else
-				 if (!strcmp(j, "M")) {
-				 if (!str_cmp(pArea->name, "Eden"))
-					 sprintf(temp, "{WI");
-				 else
-				 	 sprintf(temp, "{MI");}
-				 else
-				 if (!strcmp(j, "N")) {
-				 sprintf(temp, "{b~");}
-				 else
-				 if (!strcmp(j, "O")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "P")) {
-				 sprintf(temp, "{y^");}
-				 else
-				 if (!strcmp(j, "Q")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "R")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "S")) {
-				 sprintf(temp, "{b~");}
-				 else
-				 if (!strcmp(j, "T")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "V")) {
-				 if (!str_cmp(pArea->name, "Eden"))
-        			 sprintf(temp, "{W=");
-				 else
-					 sprintf(temp, "{M=");}
-				 else
-				 if (!strcmp(j, "W")) {
-        		 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "X")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "Y")) {
-				 sprintf(temp, "{G^");}
-				 else
-				 if (!strcmp(j, "Z")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "[")) {
-				 sprintf(temp, "{x.");}
-				 else
-				 if (!strcmp(j, "^")) {
-				 sprintf(temp, "{g^");}
-				 else
-				 if (!strcmp(j, "_")) {
-				 sprintf(temp, "{Y^");}
-				 else
-				 if (!strcmp(j, "`")) {
-				 sprintf(temp, "{W~");}
-				 else
-				 if (!strcmp(j, "a")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "b")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "c")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "d")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "e")) {
-				 sprintf(temp, "{C.");}
-				 else
-				 if (!strcmp(j, "f")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "g")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "h")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "i")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "j")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "k")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "l")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "m")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "n")) {
-				 sprintf(temp, "{g^");}
-				 else
-				 if (!strcmp(j, "o")) {
-				 sprintf(temp, "{D*");}
-				 else
-				 if (!strcmp(j, "p")) {
-				 sprintf(temp, "{y#");}
-				 else
-				 if (!strcmp(j, "q")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "r")) {
-				 sprintf(temp, "{D.");}
-				 else
-				 if (!strcmp(j, "s")) {
-				 sprintf(temp, "{W.");}
-				 else
-				 if (!strcmp(j, "t")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "u")) {
-				 sprintf(temp, "{M^");}
-				 else
-				 if (!strcmp(j, "v")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "w")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "x")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "y")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "z")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "{")) {
-				 sprintf(temp, "{R~");}
-				 else
-				 if (!strcmp(j, "|")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "}")) {
-				 sprintf(temp, "{Wo");}
-			     else
-			     sprintf(temp, j);}
-			     }
-			     if (last_char_same
-				 && (temp[2] != last_char
-				     || temp[1] != last_colour_char)) {
-			     last_char_same = false;}
+                 else
+                 if (j[0] == 'X') {
+                   sprintf(temp, "{D^");}
+                 else
+                 if (j[0] == 'C') {
+                 sprintf(temp, "{r.");}
+                 else
+                 if (j[0] == 'E') {
+                 sprintf(temp, "{g~");}
+                 else
+                        if (!str_cmp(j, "*")) {
+                            sprintf(temp, "{w^");}
+                        else
+                            if (!str_cmp(j, "P")) {
+                                sprintf(temp, "{y.");}
+                            else
+                                if (!str_cmp(j, "T")) {
+                                    sprintf(temp, "{r#");}
+                                else
+                                        if (!str_cmp(j, "&")) {
+                                            sprintf(temp, "{D.");}
+                                        else
+                 if (!str_cmp(j, "1")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!str_cmp(j, "F")) {
+                 sprintf(temp, "{D.");}
+                 else
+                 if (!str_cmp(j, "H")) {
+                 sprintf(temp, "{R(");}
+                 else
+                 if (!str_cmp(j, "A")) {
+                 sprintf(temp, "{WI");}
+                 if (!str_cmp(j, "M")) {
+                 sprintf(temp, "{MI");}
+                 else
+                 if (!str_cmp(j, "V")) {
+                 sprintf(temp, "{M=");}
+                 }
+                 else
+                 if (!strcmp(j, " ")) {
+                 sprintf(temp, "{Y.");}
+                  else
+                 if (!strcmp(j, "!")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "#")) {
+                 sprintf(temp, "{D:");}
+                 else
+                 if (!strcmp(j, "$")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "&")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "'")) {
+                 sprintf(temp, "{G~");}
+                 else
+                 if (!strcmp(j, "(")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, ")")) {
+                 sprintf(temp, "{g~");}
+                 else
+                 if (!strcmp(j, "*")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "+")) {
+                 sprintf(temp, "{y.");}
+                 else
+                 if (!strcmp(j, ",")) {
+                 sprintf(temp, "{g.");}
+                 else
+                 if (!strcmp(j, ".")) {
+                 sprintf(temp, "{r.");}
+                 else
+                 if (!strcmp(j, "/")) {
+                 sprintf(temp, "{D.");}
+                 else
+                 if (!strcmp(j, "0")) {
+                 sprintf(temp, "{DO");}
+                 else
+                 if (!strcmp(j, "1")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!strcmp(j, "2")) {
+                 sprintf(temp, "{GO");}
+                 else
+                 if (!strcmp(j, "3")) {
+                 sprintf(temp, "{BO");}
+                 else
+                 if (!strcmp(j, "4")) {
+                 sprintf(temp, "{RO");}
+                 else
+                 if (!strcmp(j, "5")) {
+                 sprintf(temp, "{WO");}
+                 else
+                 if (!strcmp(j, "6")) {
+                 sprintf(temp, "{xO");}
+                 else
+                 if (!strcmp(j, "7")) {
+                 sprintf(temp, "{CO");}
+                 else
+                 if (!strcmp(j, "8")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!strcmp(j, "9")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!strcmp(j, ":")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, ">")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "@")) {
+                 sprintf(temp, "{W#");}
+                 else
+                 if (!strcmp(j, "A")) {
+                 sprintf(temp, "{Y.");}
+                 else
+                 if (!strcmp(j, "B")) {
+                 sprintf(temp, "{W*");}
+                 else
+                 if (!strcmp(j, "C")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "D")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "E")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "F")) {
+                 sprintf(temp, "{R#");}
+                 else
+                 if (!strcmp(j, "G")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "H")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "I")) {
+                    if (!str_cmp(pArea->name, "Eden")) {
+                        sprintf(temp, "{WI");
+                 }
+                 else	 {
+                         sprintf(temp, "{C~");
+                     }
+                 }
+                 else
+                 if (!strcmp(j, "J")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "K")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "L")) {
+                 sprintf(temp, "{b~");}
+                 else
+                 if (!strcmp(j, "M")) {
+                 if (!str_cmp(pArea->name, "Eden"))
+                     sprintf(temp, "{WI");
+                 else
+                      sprintf(temp, "{MI");}
+                 else
+                 if (!strcmp(j, "N")) {
+                 sprintf(temp, "{b~");}
+                 else
+                 if (!strcmp(j, "O")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "P")) {
+                 sprintf(temp, "{y^");}
+                 else
+                 if (!strcmp(j, "Q")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "R")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "S")) {
+                 sprintf(temp, "{b~");}
+                 else
+                 if (!strcmp(j, "T")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "V")) {
+                 if (!str_cmp(pArea->name, "Eden"))
+                     sprintf(temp, "{W=");
+                 else
+                     sprintf(temp, "{M=");}
+                 else
+                 if (!strcmp(j, "W")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "X")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "Y")) {
+                 sprintf(temp, "{G^");}
+                 else
+                 if (!strcmp(j, "Z")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "[")) {
+                 sprintf(temp, "{x.");}
+                 else
+                 if (!strcmp(j, "^")) {
+                 sprintf(temp, "{g^");}
+                 else
+                 if (!strcmp(j, "_")) {
+                 sprintf(temp, "{Y^");}
+                 else
+                 if (!strcmp(j, "`")) {
+                 sprintf(temp, "{W~");}
+                 else
+                 if (!strcmp(j, "a")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "b")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "c")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "d")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "e")) {
+                 sprintf(temp, "{C.");}
+                 else
+                 if (!strcmp(j, "f")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "g")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "h")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "i")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "j")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "k")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "l")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "m")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "n")) {
+                 sprintf(temp, "{g^");}
+                 else
+                 if (!strcmp(j, "o")) {
+                 sprintf(temp, "{D*");}
+                 else
+                 if (!strcmp(j, "p")) {
+                 sprintf(temp, "{y#");}
+                 else
+                 if (!strcmp(j, "q")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "r")) {
+                 sprintf(temp, "{D.");}
+                 else
+                 if (!strcmp(j, "s")) {
+                 sprintf(temp, "{W.");}
+                 else
+                 if (!strcmp(j, "t")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "u")) {
+                 sprintf(temp, "{M^");}
+                 else
+                 if (!strcmp(j, "v")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "w")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "x")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "y")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "z")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "{")) {
+                 sprintf(temp, "{R~");}
+                 else
+                 if (!strcmp(j, "|")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "}")) {
+                 sprintf(temp, "{Wo");}
+                 else
+                 sprintf(temp, j);}
+                 }
+                 if (last_char_same
+                 && (temp[2] != last_char
+                     || temp[1] != last_colour_char)) {
+                 last_char_same = false;}
 
-			     if (temp[2] == last_char
-				 && temp[1] ==
-				 last_colour_char) last_char_same =
-			     true; if (last_char_same) {
-			     /* send_to_char("{x.", to); */
-			     sprintf(temp, "%c", temp[2]);}
+                 if (temp[2] == last_char
+                 && temp[1] ==
+                 last_colour_char) last_char_same =
+                 true; if (last_char_same) {
+                 /* send_to_char("{x.", to); */
+                 sprintf(temp, "%c", temp[2]);}
 
-	         add_buf(output,temp);
+             add_buf(output,temp);
 if (last_char_same) {
-			     last_char = temp[0];}
-			     else
-			     {
-			     last_char = temp[2];
-			     last_colour_char = temp[1];}
-			     }
-			     else
-			     {
-			     if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0) {
-			     last_char = '.'; last_colour_char = 'x';
-	         add_buf(output,"{x.");
+                 last_char = temp[0];}
+                 else
+                 {
+                 last_char = temp[2];
+                 last_colour_char = temp[1];}
+                 }
+                 else
+                 {
+                 if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0) {
+                 last_char = '.'; last_colour_char = 'x';
+             add_buf(output,"{x.");
            }
-			     else
-	         add_buf(output," ");
+                 else
+             add_buf(output," ");
            }
-			     }
-	         add_buf(output,"\n\r"); }
-	         add_buf(output,"{x");
+                 }
+             add_buf(output,"\n\r"); }
+             add_buf(output,"{x");
 
            output_string = buf_string(output);
            free_buf(output);
@@ -6243,415 +6889,415 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
                     {
                         SHIP_DATA * ship; found = false;
                         /* Check for sailing ships */
-			for (ship = ((AREA_DATA *)
-						get_sailing_boat_area())->
-					ship_list; ship != NULL;
-					ship = ship->next)
-			{
-				if (ch->in_room->ship != ship
-						&& can_see_obj(ch, ship->ship)
-						&& ship->ship->in_room->x == x
-						&& ship->ship->in_room->y == y)
-				{
-					if (!str_cmp(ship->owner_name, ch->name))
-						sprintf(temp, "{Y@");
-					else
-						sprintf(temp, "{y@"); found = true;
-				}
-				else
-					if (can_see_obj(ch, ship->ship) &&
-							((ship->last_room_flag[0] != NULL && ship->last_room_flag[0]->x == x && ship->last_room_flag[0]->y == y) ||
-							 (ship->last_room[1] != NULL && ship->last_room[1]->x == x && ship->last_room[1]->y == y) ||
-							 (ship->last_room[2] != NULL && ship->last_room[2]->x == x && ship->last_room[2]->y == y)))
+            for (ship = ((AREA_DATA *)
+                        get_sailing_boat_area())->
+                    ship_list; ship != NULL;
+                    ship = ship->next)
+            {
+                if (ch->in_room->ship != ship
+                        && can_see_obj(ch, ship->ship)
+                        && ship->ship->in_room->x == x
+                        && ship->ship->in_room->y == y)
+                {
+                    if (!str_cmp(ship->owner_name, ch->name))
+                        sprintf(temp, "{Y@");
+                    else
+                        sprintf(temp, "{y@"); found = true;
+                }
+                else
+                    if (can_see_obj(ch, ship->ship) &&
+                            ((ship->last_room_flag[0] != NULL && ship->last_room_flag[0]->x == x && ship->last_room_flag[0]->y == y) ||
+                             (ship->last_room[1] != NULL && ship->last_room[1]->x == x && ship->last_room[1]->y == y) ||
+                             (ship->last_room[2] != NULL && ship->last_room[2]->x == x && ship->last_room[2]->y == y)))
 
-					{
-						sprintf(temp, "{C~"); found = true;
-					}
-			}
-			for (d = descriptor_list; d != NULL;d = d->next)
-			{
-				if (d->connected == CON_PLAYING
-						&& d->character != ch
-						&& can_see(ch, d->character)
-						&& IN_WILDERNESS(d->character)
-						&& d->character->in_room->x == x
-						&& d->character->in_room->y == y)
-				{
-					/*   sprintf(temp, "%s %ld\n\r", d->character->name, d->character->in_room->vnum);
-					  gecho(temp); */
-					sprintf(temp, "{W@"); found = true;
-				}
-			}
-			if (!found) {
-				AREA_DATA *pArea;
+                    {
+                        sprintf(temp, "{C~"); found = true;
+                    }
+            }
+            for (d = descriptor_list; d != NULL;d = d->next)
+            {
+                if (d->connected == CON_PLAYING
+                        && d->character != ch
+                        && can_see(ch, d->character)
+                        && IN_WILDERNESS(d->character)
+                        && d->character->in_room->x == x
+                        && d->character->in_room->y == y)
+                {
+                    /*   sprintf(temp, "%s %ld\n\r", d->character->name, d->character->in_room->vnum);
+                      gecho(temp); */
+                    sprintf(temp, "{W@"); found = true;
+                }
+            }
+            if (!found) {
+                AREA_DATA *pArea;
 
-				pArea = ch->in_room->area;
+                pArea = ch->in_room->area;
 
-				sprintf(j, "%c",pArea->map[index]);
-				/* sprintf(j, "%d ", ch->in_room->x); */
-				if ((time_info.hour >= 7
-							&& time_info.hour < 9 && x == 443
-							&& y == 201)
-						|| (time_info.hour >= 1
-							&& time_info.hour < 3 && x == 498
-							&& y == 129)
-						|| (time_info.hour >= 16
-							&& time_info.hour < 18 && x == 1101
-							&& y == 231))
-				{
-					sprintf(temp, "{y@");
-					found = true;
-				}
+                sprintf(j, "%c",pArea->map[index]);
+                /* sprintf(j, "%d ", ch->in_room->x); */
+                if ((time_info.hour >= 7
+                            && time_info.hour < 9 && x == 443
+                            && y == 201)
+                        || (time_info.hour >= 1
+                            && time_info.hour < 3 && x == 498
+                            && y == 129)
+                        || (time_info.hour >= 16
+                            && time_info.hour < 18 && x == 1101
+                            && y == 231))
+                {
+                    sprintf(temp, "{y@");
+                    found = true;
+                }
 
-				/*                       if ((time_info.hour >= 9
-							 && time_info.hour < 11 && x == 279
-							 && y == 105)
-							 || (time_info.hour >= 14
-							 && time_info.hour < 16 && x == 340
-							 && y == 23)
-							 || (time_info.hour >= 21
-							 && time_info.hour < 23 && x == 106
-							 && y == 97))
-							 sprintf(temp, "{CB"); */
-				else
-					if (IN_NETHERWORLD(ch)) {
+                /*                       if ((time_info.hour >= 9
+                             && time_info.hour < 11 && x == 279
+                             && y == 105)
+                             || (time_info.hour >= 14
+                             && time_info.hour < 16 && x == 340
+                             && y == 23)
+                             || (time_info.hour >= 21
+                             && time_info.hour < 23 && x == 106
+                             && y == 97))
+                             sprintf(temp, "{CB"); */
+                else
+                    if (IN_NETHERWORLD(ch)) {
            if (j[0] == 'S') {
              if (x == 68 && y == 164) {
-			         sprintf(temp, "{WX");}
+                     sprintf(temp, "{WX");}
              else {
-			         sprintf(temp, "{R~");}
+                     sprintf(temp, "{R~");}
            }
 /* (7-20-06) Replaced mappings with Nib's (Areo) */
-			     else
-			     if (j[0] == 'X') {
-			       sprintf(temp, "{D^");}
-			     else
-			     if (j[0] == 'C') {
-			     sprintf(temp, "{r.");}
-			     else
-			     if (j[0] == 'E') {
-			     sprintf(temp, "{g~");}
-			     else
-						if (!str_cmp(j, "*")) {
-							sprintf(temp, "{w^");}
-						else
-							if (!str_cmp(j, "P")) {
-								sprintf(temp, "{y.");}
-							else
-								if (!str_cmp(j, "T")) {
-									sprintf(temp, "{r#");}
-								else
-										if (!str_cmp(j, "&")) {
-											sprintf(temp, "{D.");}
-										else
-			     if (!str_cmp(j, "1")) {
-			     sprintf(temp, "{YO");}
-			     else
-			     if (!str_cmp(j, "F")) {
-			     sprintf(temp, "{D.");}
-			     else
-			     if (!str_cmp(j, "H")) {
-			     sprintf(temp, "{R(");}
-			     else
-			     if (!str_cmp(j, "A")) {
-			     sprintf(temp, "{WI");}
-			     if (!str_cmp(j, "M")) {
-			     sprintf(temp, "{MI");}
-			     else
-			     if (!str_cmp(j, "V")) {
-			     sprintf(temp, "{M=");}
-			     }
-			     else
-				 if (!strcmp(j, " ")) {
-				 sprintf(temp, "{Y.");}
- 				 else
-				 if (!strcmp(j, "!")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "#")) {
-				 sprintf(temp, "{D:");}
-				 else
-				 if (!strcmp(j, "$")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "&")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "'")) {
-				 sprintf(temp, "{G~");}
-				 else
-				 if (!strcmp(j, "(")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, ")")) {
-				 sprintf(temp, "{g~");}
-				 else
-				 if (!strcmp(j, "*")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "+")) {
-				 sprintf(temp, "{y.");}
-				 else
-				 if (!strcmp(j, ",")) {
-				 sprintf(temp, "{g.");}
-				 else
-				 if (!strcmp(j, ".")) {
-				 sprintf(temp, "{r.");}
-				 else
-				 if (!strcmp(j, "/")) {
-				 sprintf(temp, "{D.");}
-				 else
-				 if (!strcmp(j, "0")) {
-				 sprintf(temp, "{DO");}
-				 else
-				 if (!strcmp(j, "1")) {
-				 sprintf(temp, "{YO");}
-				 else
-				 if (!strcmp(j, "2")) {
-				 sprintf(temp, "{GO");}
-				 else
-				 if (!strcmp(j, "3")) {
-				 sprintf(temp, "{BO");}
-				 else
-				 if (!strcmp(j, "4")) {
-				 sprintf(temp, "{RO");}
-				 else
-				 if (!strcmp(j, "5")) {
-				 sprintf(temp, "{WO");}
-				 else
-				 if (!strcmp(j, "6")) {
-				 sprintf(temp, "{xO");}
-				 else
-				 if (!strcmp(j, "7")) {
-				 sprintf(temp, "{CO");}
-				 else
-				 if (!strcmp(j, "8")) {
-				 sprintf(temp, "{YO");}
-				 else
-				 if (!strcmp(j, "9")) {
-				 sprintf(temp, "{YO");}
-				 else
-				 if (!strcmp(j, ":")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, ">")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "@")) {
-				 sprintf(temp, "{W#");}
-				 else
-				 if (!strcmp(j, "A")) {
-				 sprintf(temp, "{Y.");}
-				 else
-				 if (!strcmp(j, "B")) {
-				 sprintf(temp, "{W*");}
-				 else
-				 if (!strcmp(j, "C")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "D")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "E")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "F")) {
-				 sprintf(temp, "{R#");}
-				 else
-				 if (!strcmp(j, "G")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "H")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "I")) {
-					if (!str_cmp(pArea->name, "Eden")) {
-						sprintf(temp, "{WI");
-				 }
-				 else	 {
-						 sprintf(temp, "{C~");
-					 }
-				 }
-				 else
-				 if (!strcmp(j, "J")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "K")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "L")) {
-				 sprintf(temp, "{b~");}
-				 else
-				 if (!strcmp(j, "M")) {
-				 if (!str_cmp(pArea->name, "Eden"))
-					 sprintf(temp, "{WI");
-				 else
-				 	 sprintf(temp, "{MI");}
-				 else
-				 if (!strcmp(j, "N")) {
-				 sprintf(temp, "{b~");}
-				 else
-				 if (!strcmp(j, "O")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "P")) {
-				 sprintf(temp, "{y^");}
-				 else
-				 if (!strcmp(j, "Q")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "R")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "S")) {
-				 sprintf(temp, "{b~");}
-				 else
-				 if (!strcmp(j, "T")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "V")) {
-				 if (!str_cmp(pArea->name, "Eden"))
-        			 sprintf(temp, "{W=");
-				 else
-					 sprintf(temp, "{M=");}
-				 else
-				 if (!strcmp(j, "W")) {
-        		 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "X")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "Y")) {
-				 sprintf(temp, "{G^");}
-				 else
-				 if (!strcmp(j, "Z")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "[")) {
-				 sprintf(temp, "{x.");}
-				 else
-				 if (!strcmp(j, "^")) {
-				 sprintf(temp, "{g^");}
-				 else
-				 if (!strcmp(j, "_")) {
-				 sprintf(temp, "{Y^");}
-				 else
-				 if (!strcmp(j, "`")) {
-				 sprintf(temp, "{W~");}
-				 else
-				 if (!strcmp(j, "a")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "b")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "c")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "d")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "e")) {
-				 sprintf(temp, "{C.");}
-				 else
-				 if (!strcmp(j, "f")) {
-				 sprintf(temp, "{g*");}
-				 else
-				 if (!strcmp(j, "g")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "h")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "i")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "j")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "k")) {
-				 sprintf(temp, "{C~");}
-				 else
-				 if (!strcmp(j, "l")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "m")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "n")) {
-				 sprintf(temp, "{g^");}
-				 else
-				 if (!strcmp(j, "o")) {
-				 sprintf(temp, "{D*");}
-				 else
-				 if (!strcmp(j, "p")) {
-				 sprintf(temp, "{y#");}
-				 else
-				 if (!strcmp(j, "q")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "r")) {
-				 sprintf(temp, "{D.");}
-				 else
-				 if (!strcmp(j, "s")) {
-				 sprintf(temp, "{W.");}
-				 else
-				 if (!strcmp(j, "t")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "u")) {
-				 sprintf(temp, "{M^");}
-				 else
-				 if (!strcmp(j, "v")) {
-				 sprintf(temp, "{B~");}
-				 else
-				 if (!strcmp(j, "w")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "x")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "y")) {
-				 sprintf(temp, "{x^");}
-				 else
-				 if (!strcmp(j, "z")) {
-				 sprintf(temp, "{D^");}
-				 else
-				 if (!strcmp(j, "{")) {
-				 sprintf(temp, "{R~");}
-				 else
-				 if (!strcmp(j, "|")) {
-				 sprintf(temp, "{G*");}
-				 else
-				 if (!strcmp(j, "}")) {
-				 sprintf(temp, "{Wo");}
-			     else
-			     sprintf(temp, j);}
-			     }
+                 else
+                 if (j[0] == 'X') {
+                   sprintf(temp, "{D^");}
+                 else
+                 if (j[0] == 'C') {
+                 sprintf(temp, "{r.");}
+                 else
+                 if (j[0] == 'E') {
+                 sprintf(temp, "{g~");}
+                 else
+                        if (!str_cmp(j, "*")) {
+                            sprintf(temp, "{w^");}
+                        else
+                            if (!str_cmp(j, "P")) {
+                                sprintf(temp, "{y.");}
+                            else
+                                if (!str_cmp(j, "T")) {
+                                    sprintf(temp, "{r#");}
+                                else
+                                        if (!str_cmp(j, "&")) {
+                                            sprintf(temp, "{D.");}
+                                        else
+                 if (!str_cmp(j, "1")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!str_cmp(j, "F")) {
+                 sprintf(temp, "{D.");}
+                 else
+                 if (!str_cmp(j, "H")) {
+                 sprintf(temp, "{R(");}
+                 else
+                 if (!str_cmp(j, "A")) {
+                 sprintf(temp, "{WI");}
+                 if (!str_cmp(j, "M")) {
+                 sprintf(temp, "{MI");}
+                 else
+                 if (!str_cmp(j, "V")) {
+                 sprintf(temp, "{M=");}
+                 }
+                 else
+                 if (!strcmp(j, " ")) {
+                 sprintf(temp, "{Y.");}
+                  else
+                 if (!strcmp(j, "!")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "#")) {
+                 sprintf(temp, "{D:");}
+                 else
+                 if (!strcmp(j, "$")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "&")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "'")) {
+                 sprintf(temp, "{G~");}
+                 else
+                 if (!strcmp(j, "(")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, ")")) {
+                 sprintf(temp, "{g~");}
+                 else
+                 if (!strcmp(j, "*")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "+")) {
+                 sprintf(temp, "{y.");}
+                 else
+                 if (!strcmp(j, ",")) {
+                 sprintf(temp, "{g.");}
+                 else
+                 if (!strcmp(j, ".")) {
+                 sprintf(temp, "{r.");}
+                 else
+                 if (!strcmp(j, "/")) {
+                 sprintf(temp, "{D.");}
+                 else
+                 if (!strcmp(j, "0")) {
+                 sprintf(temp, "{DO");}
+                 else
+                 if (!strcmp(j, "1")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!strcmp(j, "2")) {
+                 sprintf(temp, "{GO");}
+                 else
+                 if (!strcmp(j, "3")) {
+                 sprintf(temp, "{BO");}
+                 else
+                 if (!strcmp(j, "4")) {
+                 sprintf(temp, "{RO");}
+                 else
+                 if (!strcmp(j, "5")) {
+                 sprintf(temp, "{WO");}
+                 else
+                 if (!strcmp(j, "6")) {
+                 sprintf(temp, "{xO");}
+                 else
+                 if (!strcmp(j, "7")) {
+                 sprintf(temp, "{CO");}
+                 else
+                 if (!strcmp(j, "8")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!strcmp(j, "9")) {
+                 sprintf(temp, "{YO");}
+                 else
+                 if (!strcmp(j, ":")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, ">")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "@")) {
+                 sprintf(temp, "{W#");}
+                 else
+                 if (!strcmp(j, "A")) {
+                 sprintf(temp, "{Y.");}
+                 else
+                 if (!strcmp(j, "B")) {
+                 sprintf(temp, "{W*");}
+                 else
+                 if (!strcmp(j, "C")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "D")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "E")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "F")) {
+                 sprintf(temp, "{R#");}
+                 else
+                 if (!strcmp(j, "G")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "H")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "I")) {
+                    if (!str_cmp(pArea->name, "Eden")) {
+                        sprintf(temp, "{WI");
+                 }
+                 else	 {
+                         sprintf(temp, "{C~");
+                     }
+                 }
+                 else
+                 if (!strcmp(j, "J")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "K")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "L")) {
+                 sprintf(temp, "{b~");}
+                 else
+                 if (!strcmp(j, "M")) {
+                 if (!str_cmp(pArea->name, "Eden"))
+                     sprintf(temp, "{WI");
+                 else
+                      sprintf(temp, "{MI");}
+                 else
+                 if (!strcmp(j, "N")) {
+                 sprintf(temp, "{b~");}
+                 else
+                 if (!strcmp(j, "O")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "P")) {
+                 sprintf(temp, "{y^");}
+                 else
+                 if (!strcmp(j, "Q")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "R")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "S")) {
+                 sprintf(temp, "{b~");}
+                 else
+                 if (!strcmp(j, "T")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "V")) {
+                 if (!str_cmp(pArea->name, "Eden"))
+                     sprintf(temp, "{W=");
+                 else
+                     sprintf(temp, "{M=");}
+                 else
+                 if (!strcmp(j, "W")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "X")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "Y")) {
+                 sprintf(temp, "{G^");}
+                 else
+                 if (!strcmp(j, "Z")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "[")) {
+                 sprintf(temp, "{x.");}
+                 else
+                 if (!strcmp(j, "^")) {
+                 sprintf(temp, "{g^");}
+                 else
+                 if (!strcmp(j, "_")) {
+                 sprintf(temp, "{Y^");}
+                 else
+                 if (!strcmp(j, "`")) {
+                 sprintf(temp, "{W~");}
+                 else
+                 if (!strcmp(j, "a")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "b")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "c")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "d")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "e")) {
+                 sprintf(temp, "{C.");}
+                 else
+                 if (!strcmp(j, "f")) {
+                 sprintf(temp, "{g*");}
+                 else
+                 if (!strcmp(j, "g")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "h")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "i")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "j")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "k")) {
+                 sprintf(temp, "{C~");}
+                 else
+                 if (!strcmp(j, "l")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "m")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "n")) {
+                 sprintf(temp, "{g^");}
+                 else
+                 if (!strcmp(j, "o")) {
+                 sprintf(temp, "{D*");}
+                 else
+                 if (!strcmp(j, "p")) {
+                 sprintf(temp, "{y#");}
+                 else
+                 if (!strcmp(j, "q")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "r")) {
+                 sprintf(temp, "{D.");}
+                 else
+                 if (!strcmp(j, "s")) {
+                 sprintf(temp, "{W.");}
+                 else
+                 if (!strcmp(j, "t")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "u")) {
+                 sprintf(temp, "{M^");}
+                 else
+                 if (!strcmp(j, "v")) {
+                 sprintf(temp, "{B~");}
+                 else
+                 if (!strcmp(j, "w")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "x")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "y")) {
+                 sprintf(temp, "{x^");}
+                 else
+                 if (!strcmp(j, "z")) {
+                 sprintf(temp, "{D^");}
+                 else
+                 if (!strcmp(j, "{")) {
+                 sprintf(temp, "{R~");}
+                 else
+                 if (!strcmp(j, "|")) {
+                 sprintf(temp, "{G*");}
+                 else
+                 if (!strcmp(j, "}")) {
+                 sprintf(temp, "{Wo");}
+                 else
+                 sprintf(temp, j);}
+                 }
 
           /* Check light */
 
           if ((weather_info.sunlight == SUN_DARK ||
                weather_info.sunlight == SUN_SET) &&
             !IS_IMMORTAL(ch) &&
-	          (obj = get_eq_char(ch, WEAR_LIGHT)) != NULL &&
+              (obj = get_eq_char(ch, WEAR_LIGHT)) != NULL &&
             obj->item_type == ITEM_LIGHT) {
-					  int distance = 0;
+                      int distance = 0;
             int visible_radius = 0;
-            int light = (obj->value[2] == -1) ? 100 : obj->value[2];
+            int light = (LIGHT(obj)->duration == -1) ? 100 : LIGHT(obj)->duration;
 
             if (weather_info.sunlight == SUN_SET) {
-	            visible_radius = URANGE(6, light, 10);
+                visible_radius = URANGE(6, light, 10);
             }
             else {
-	            visible_radius = URANGE(1, light, 8);
-						}
+                visible_radius = URANGE(1, light, 8);
+                        }
 
-					  distance = (int) sqrt( 					\
-									( x - ch->in_room->x ) *	\
-									( x - ch->in_room->x ) +	\
-									( y - ch->in_room->y ) *	\
-									( y - ch->in_room->y ) );
+                      distance = (int) sqrt( 					\
+                                    ( x - ch->in_room->x ) *	\
+                                    ( x - ch->in_room->x ) +	\
+                                    ( y - ch->in_room->y ) *	\
+                                    ( y - ch->in_room->y ) );
 
            if (distance == visible_radius) {
              /* Dark grey edge */
@@ -6662,115 +7308,125 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
              temp[2] = ' ';
            }
           }
-			     if (last_char_same
-				 && (temp[2] != last_char
-				     || temp[1] != last_colour_char)) {
-			     last_char_same = false;}
+                 if (last_char_same
+                 && (temp[2] != last_char
+                     || temp[1] != last_colour_char)) {
+                 last_char_same = false;}
 
-			     if (temp[2] == last_char
-				 && temp[1] ==
-				 last_colour_char) last_char_same =
-			     true; if (last_char_same) {
-			     /* send_to_char("{x.", to); */
-			     sprintf(temp, "%c", temp[2]);}
+                 if (temp[2] == last_char
+                 && temp[1] ==
+                 last_colour_char) last_char_same =
+                 true; if (last_char_same) {
+                 /* send_to_char("{x.", to); */
+                 sprintf(temp, "%c", temp[2]);}
 
-			     send_to_char(temp, to); if (last_char_same) {
-			     last_char = temp[0];}
-			     else
-			     {
-			     last_char = temp[2];
-			     last_colour_char = temp[1];}
-			     }
-			     else
-			     {
-			     if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0) {
-			     last_char = '.'; last_colour_char = 'x';
-			     send_to_char("{x.", to);}
-			     else
-			     send_to_char(" ", to);}
-			     }
-			     send_to_char("\n\r", to);}
-			     send_to_char("{x", to);
+                 send_to_char(temp, to); if (last_char_same) {
+                 last_char = temp[0];}
+                 else
+                 {
+                 last_char = temp[2];
+                 last_colour_char = temp[1];}
+                 }
+                 else
+                 {
+                 if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0) {
+                 last_char = '.'; last_colour_char = 'x';
+                 send_to_char("{x.", to);}
+                 else
+                 send_to_char(" ", to);}
+                 }
+                 send_to_char("\n\r", to);}
+                 send_to_char("{x", to);
 }
 #endif
 
 /* MOVED: player/mental.c */
 void do_scry(CHAR_DATA *ch, char *argument)
 {
-	char arg[MAX_INPUT_LENGTH];
-	char buf[MSL];
-	CHAR_DATA *victim;
-	BUFFER *buffer;
-	bool found = false, local;
-	int count;
-	ITERATOR vit;
+    char arg[MAX_INPUT_LENGTH];
+    char buf[MSL];
+    CHAR_DATA *victim;
+    BUFFER *buffer;
+    bool found = false, local;
+    int count;
+    ITERATOR vit;
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if (!get_skill(ch, gsn_scry)) {
-		send_to_char("You know nothing of this skill.\n\r", ch);
-		return;
-	}
+    if (!get_skill(ch, skill_resolve_gsn("scry"))) {
+        send_to_char("You know nothing of this skill.\n\r", ch);
+        return;
+    }
 
-	if(!arg[0]) {
-		send_to_char("Scry whom?\n\r", ch);
-		return;
-	}
+    if(!arg[0]) {
+        send_to_char("Scry whom?\n\r", ch);
+        return;
+    }
 
-	if (!get_char_world(ch, arg)) {
-		act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
-		return;
-	}
+    if (!get_char_world(ch, arg)) {
+        act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR, NULL, NULL);
+        return;
+    }
 
-	local = !str_cmp("local",argument);
+    local = !str_cmp("local",argument);
 
-	if (ch->mana < 50) {
-		send_to_char("You can't gather enough energy.\n\r", ch);
-		return;
-	}
+    if (ch->mana < 50) {
+        send_to_char("You can't gather enough energy.\n\r", ch);
+        return;
+    }
 
-	ch->mana -= 50;
+    ch->mana -= 50;
 
-	send_to_char("{MYou concentrate, extending your aura to the rest of the world...{x\n\r", ch);
+    send_to_char("{MYou concentrate, extending your aura to the rest of the world...{x\n\r", ch);
 
-	check_improve(ch,gsn_scry,true,5);
-	buffer = new_buf();
-	count = 0;
-	iterator_start(&vit, loaded_chars);
-	while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
-	{
-		if (victim->in_room && victim->in_room->area->open && is_name(arg, victim->name) && can_see(ch, victim) &&
-			IS_NPC(victim) && number_percent() < get_skill(ch, gsn_scry) &&
-			(!local || ch->in_room->area == victim->in_room->area) &&
-			(	(victim->in_room->area->place_flags == PLACE_FIRST_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_SECOND_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_THIRD_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_FOURTH_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_ISLAND) ||
-				(victim->in_room->area->place_flags == PLACE_WILDERNESS) ||
-				!str_cmp(victim->in_room->area->name, "Wilderness"))) {
-			found = true;
-			count++;
-			sprintf(buf, "One is in %s (%s)\n\r", victim->in_room->name, victim->in_room->area->name);
-			if(!add_buf(buffer,buf)) {
-				send_to_char("There are too many souls in the world to focus on what you are looking for.\n\r", ch);
-				send_to_char("Try narrowing your search.\n\r", ch);
-				free_buf(buffer);
-				return;
-			}
-		}
-	}
-	iterator_stop(&vit);
+    check_improve(ch,skill_resolve_gsn("scry"),true,5);
+    buffer = new_buf();
+    count = 0;
+    iterator_start(&vit, loaded_chars);
+    while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
+    {
+        if (victim->in_room && victim->in_room->area->open && is_name(arg, victim->name) && can_see(ch, victim) &&
+            IS_NPC(victim) && number_percent() < get_skill(ch, skill_resolve_gsn("scry")) &&
+            (!local || ch->in_room->area == victim->in_room->area) &&
+            (	(victim->in_room->area->place_flags == PLACE_FIRST_CONTINENT) ||
+                (victim->in_room->area->place_flags == PLACE_SECOND_CONTINENT) ||
+                (victim->in_room->area->place_flags == PLACE_THIRD_CONTINENT) ||
+                (victim->in_room->area->place_flags == PLACE_FOURTH_CONTINENT) ||
+                (victim->in_room->area->place_flags == PLACE_ISLAND) ||
+                (victim->in_room->area->place_flags == PLACE_WILDERNESS) ||
+                !str_cmp(victim->in_room->area->name, "Wilderness"))) {
+            found = true;
+            count++;
+            sprintf(buf, "One is in %s (%s)\n\r", victim->in_room->name, victim->in_room->area->name);
+            if(!add_buf(buffer,buf)) {
+                send_to_char("There are too many souls in the world to focus on what you are looking for.\n\r", ch);
+                send_to_char("Try narrowing your search.\n\r", ch);
+                free_buf(buffer);
+                return;
+            }
+        }
+    }
+    iterator_stop(&vit);
 
-	if (!found)
-		act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
-	else
-		page_to_char(buf_string(buffer),ch);
+    if (!found)
+        act("You sense no $T in the world.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR, NULL, NULL);
+    else
+        page_to_char(buf_string(buffer),ch);
 
-	free_buf(buffer);
+    free_buf(buffer);
 }
 
-/* MOVED: room/minimap.c */
+/**
+ * show_map_and_description - Display room minimap alongside description
+ *
+ * Creates a side-by-side display of the ASCII minimap and the room's
+ * description text for a more immersive room display.
+ *
+ * @param ch    The character viewing the room
+ * @param room  The room to display
+ *
+ * Planned refactor: room/minimap.c (never executed)
+ */
 void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
     char *tmp;
@@ -6794,46 +7450,46 @@ void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
     tmp = find_desc_for_room(room,ch);/* ch->in_room->description; */
     while(*tmp != '\0')
     {
-	if (*tmp != '\r' && *tmp != '\n')
+    if (*tmp != '\r' && *tmp != '\n')
         {
-	    buf[counter++] = *tmp;
-	    linelength++;
-	    if (linelength > 50 && *tmp == ' ')
+        buf[counter++] = *tmp;
+        linelength++;
+        if (linelength > 50 && *tmp == ' ')
             {
-		buf[counter++] = '\n';
+        buf[counter++] = '\n';
                 buf[counter++] = '\r';
 
                 while(*(tmp+1) == ' ')
-		    tmp++;
+            tmp++;
 
                 if (line <= 7)
                 {
-	            counter = show_map(ch, &buf[0], &map[0], counter, line++);
+                counter = show_map(ch, &buf[0], &map[0], counter, line++);
                 }
-		else {
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-			buf[counter++] = ' ';
-		}
+        else {
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+            buf[counter++] = ' ';
+        }
 
-		linelength = 0;
-	    }
+        linelength = 0;
         }
-	else
+        }
+    else
         {
-	    buf[counter++] = ' ';
+        buf[counter++] = ' ';
         }
-	tmp++;
+    tmp++;
     }
 
     buf[counter++] = '\n';
@@ -6841,13 +7497,13 @@ void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 
     while (line <= 7)
     {
-	counter = show_map(ch, &buf[0], &map[0], counter, line);
+    counter = show_map(ch, &buf[0], &map[0], counter, line);
 
-	if (line <= 7) {
-	    buf[counter++] = '\n';
+    if (line <= 7) {
+        buf[counter++] = '\n';
             buf[counter++] = '\r';
-	}
-	line++;
+    }
+    line++;
     }
 
     buf[counter++] = '\0';
@@ -6858,497 +7514,265 @@ void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 /* MOVED: room/minimap.c */
 int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line)
 {
-	char buf2[4];
+    char buf2[4];
 
-	if (line == 1 || line == 7) {
-		memcpy(buf+counter,"{B+{b----------{B+{x ",21);
-		counter += 21;
-	} else {
-		int count;
-		memcpy(buf+counter,"{b|",3);
-		counter += 3;
-		for (count = ((line-1) * 10); count < (((line)) * 10); count++) {
-			convert_map_char(buf2, map[count]);
+    if (line == 1 || line == 7) {
+        memcpy(buf+counter,"{B+{b----------{B+{x ",21);
+        counter += 21;
+    } else {
+        int count;
+        memcpy(buf+counter,"{b|",3);
+        counter += 3;
+        for (count = ((line-1) * 10); count < (((line)) * 10); count++) {
+            convert_map_char(buf2, map[count]);
 
-			memcpy(buf+counter,buf2,3);
-			counter += 3;
-		}
-		memcpy(buf+counter,"{b|{x ",6);
-		counter += 6;
-	}
+            memcpy(buf+counter,buf2,3);
+            counter += 3;
+        }
+        memcpy(buf+counter,"{b|{x ",6);
+        counter += 6;
+    }
 
-	return counter;
+    return counter;
 }
 
 
 /* MOVED: room/minimap.c */
+/* Helper: Check if an exit can be traversed for mapping purposes */
+static bool is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door)
+{
+    EXIT_DATA *pexit;
+    ROOM_INDEX_DATA *to_room;
+
+    if (!room || door < 0 || door >= MAX_DIR)
+        return false;
+
+    pexit = room->exit[door];
+    if (!pexit)
+        return false;
+
+    /* Walkthrough exits aren't shown on map */
+    if (IS_SET(pexit->exit_info, EX_WALKTHROUGH))
+        return false;
+
+    /* Hidden exits that haven't been found */
+    if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
+        return false;
+
+    /* Closed doors are visible as exits but handled specially in draw_exit */
+    /* Hidden closed doors that haven't been found are still hidden */
+    /* (already handled by EX_HIDDEN check above) */
+
+    /* Check if destination room exists and is visible */
+    to_room = pexit->u1.to_room;
+    if (!to_room)
+        return false;
+
+    /* Can't see into dark rooms without proper vision */
+    if (!can_see_room(ch, to_room))
+        return false;
+
+    return true;
+}
+
+/* Helper: Draw a character on the map grid */
+static void draw_map_char(char *map, int x, int y, char ch)
+{
+    if (x >= 0 && x < 10 && y >= 0 && y < 7)
+        *(map + 10 * y + x) = ch;
+}
+
+/* Helper: Get the connector character for a direction */
+static char get_connector_char(int dir)
+{
+    switch(dir) {
+        case DIR_NORTH:
+        case DIR_SOUTH:
+            return '|';
+        case DIR_EAST:
+        case DIR_WEST:
+            return '-';
+        case DIR_NORTHEAST:
+        case DIR_SOUTHWEST:
+            return '/';
+        case DIR_NORTHWEST:
+        case DIR_SOUTHEAST:
+            return '\\';
+        default:
+            return ' ';
+    }
+}
+
+/* Direction offset vectors: {dx, dy, connector_dx, connector_dy} */
+static const struct {
+    int dx;          /* Room X offset */
+    int dy;          /* Room Y offset */
+    int conn_dx;     /* Connector X offset */
+    int conn_dy;     /* Connector Y offset */
+} dir_offsets[] = {
+    {  0, -2,  0, -1 },  /* DIR_NORTH */
+    {  2,  0,  1,  0 },  /* DIR_EAST */
+    {  0,  2,  0,  1 },  /* DIR_SOUTH */
+    { -2,  0, -1,  0 },  /* DIR_WEST */
+    {  0,  0,  0,  0 },  /* DIR_UP (not used in 2D map) */
+    {  0,  0,  0,  0 },  /* DIR_DOWN (not used in 2D map) */
+    {  2, -2,  1, -1 },  /* DIR_NORTHEAST */
+    { -2, -2, -1, -1 },  /* DIR_NORTHWEST */
+    {  2,  2,  1,  1 },  /* DIR_SOUTHEAST */
+    { -2,  2, -1,  1 }   /* DIR_SOUTHWEST */
+};
+
+/* Helper: Draw a single exit from a position, returns destination room if drawn */
+static ROOM_INDEX_DATA *draw_exit(CHAR_DATA *ch, ROOM_INDEX_DATA *from_room, 
+                                   char *map, int x, int y, int dir)
+{
+    EXIT_DATA *pexit;
+    ROOM_INDEX_DATA *to_room;
+
+    if (!is_exit_visible(ch, from_room, dir))
+        return NULL;
+
+    pexit = from_room->exit[dir];
+
+    /* Check for up/down floor indicators */
+    if (IS_SET(pexit->exit_info, EX_PREVFLOOR)) {
+        draw_map_char(map, x + dir_offsets[dir].dx, y + dir_offsets[dir].dy, '<');
+        return NULL;
+    }
+
+    if (IS_SET(pexit->exit_info, EX_NEXTFLOOR)) {
+        draw_map_char(map, x + dir_offsets[dir].dx, y + dir_offsets[dir].dy, '>');
+        return NULL;
+    }
+
+    to_room = pexit->u1.to_room;
+    if (!to_room)
+        return NULL;
+
+    /* Closed doors: show link exists but not the room beyond */
+    if (IS_SET(pexit->exit_info, EX_CLOSED)) {
+        draw_map_char(map, x + dir_offsets[dir].conn_dx, y + dir_offsets[dir].conn_dy, '#');
+        return NULL;
+    }
+
+    /* Draw connector */
+    draw_map_char(map, x + dir_offsets[dir].conn_dx, y + dir_offsets[dir].conn_dy,
+                  get_connector_char(dir));
+
+    /* Draw destination room */
+    draw_map_char(map, x + dir_offsets[dir].dx, y + dir_offsets[dir].dy,
+                  determine_room_type(to_room));
+
+    return to_room;
+}
+
+/* Helper: Follow a cardinal direction and draw branching exits */
+static void follow_cardinal_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room,
+                                      char *map, int dir, int *x, int *y)
+{
+    ROOM_INDEX_DATA *room = start_room;
+    ROOM_INDEX_DATA *temp;
+    int perpendicular1, perpendicular2;
+    int max_steps;
+
+    /* Determine perpendicular directions */
+    if (dir == DIR_NORTH || dir == DIR_SOUTH) {
+        perpendicular1 = DIR_EAST;
+        perpendicular2 = DIR_WEST;
+        max_steps = (dir == DIR_NORTH) ? 2 : 2;  /* Can go 2 steps from center */
+    } else {
+        perpendicular1 = DIR_NORTH;
+        perpendicular2 = DIR_SOUTH;
+        max_steps = (dir == DIR_EAST) ? 2 : 2;
+    }
+
+    /* Follow the main direction */
+    for (int step = 0; step < max_steps; step++) {
+        room = draw_exit(ch, room, map, *x, *y, dir);
+        if (!room)
+            break;
+
+        /* Update position */
+        *x += dir_offsets[dir].dx;
+        *y += dir_offsets[dir].dy;
+
+        /* Check perpendicular exits from this position */
+        int perp_x = *x;
+        int perp_y = *y;
+
+        /* Follow perpendicular direction 1 */
+        temp = room;
+        for (int i = 0; i < 2 && temp; i++) {
+            temp = draw_exit(ch, temp, map, perp_x, perp_y, perpendicular1);
+            if (temp) {
+                perp_x += dir_offsets[perpendicular1].dx;
+                perp_y += dir_offsets[perpendicular1].dy;
+
+                /* Check perpendiculars from perpendicular rooms */
+                if (perpendicular1 == DIR_EAST || perpendicular1 == DIR_WEST) {
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_NORTH);
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_SOUTH);
+                }
+            }
+        }
+
+        /* Follow perpendicular direction 2 */
+        perp_x = *x;
+        perp_y = *y;
+        temp = room;
+        for (int i = 0; i < 2 && temp; i++) {
+            temp = draw_exit(ch, temp, map, perp_x, perp_y, perpendicular2);
+            if (temp) {
+                perp_x += dir_offsets[perpendicular2].dx;
+                perp_y += dir_offsets[perpendicular2].dy;
+
+                /* Check perpendiculars from perpendicular rooms */
+                if (perpendicular2 == DIR_EAST || perpendicular2 == DIR_WEST) {
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_NORTH);
+                    draw_exit(ch, temp, map, perp_x, perp_y, DIR_SOUTH);
+                }
+            }
+        }
+    }
+}
+
 void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 {
-    ROOM_INDEX_DATA *room;
-    ROOM_INDEX_DATA *last_room;
-    ROOM_INDEX_DATA *temp;
-    ROOM_INDEX_DATA *temp2;
-    int x, y;
-    int counter;
-    int x2;
-    int y2;
+    int x = 5;  /* Center X position */
+    int y = 3;  /* Center Y position */
 
-    x = 5;
-    y = 3;
+    /* Clear map and place player at center */
+    memset(map, ' ', 100);
+    map[100] = '\0';
+    draw_map_char(map, x, y, '@');
 
-/* ok - looks like we're clearing the string. Using a memcpy would be way faster. */
-    for (counter = 0; counter < 100; counter++)
-    {
-        *(map + counter) = ' ';
+    /* Draw diagonal exits from center */
+    for (int dir = DIR_NORTHEAST; dir <= DIR_SOUTHWEST; dir++) {
+        draw_exit(ch, start_room, map, x, y, dir);
     }
 
-/* Terminating the string with a null char. */
-    *(map + 101) = '\0';
-/* Hmm - placing the char in the centre? */
-    *(map + 10 * y + x) = '@';
-
-/* Before we check the adjacent rooms, keep track of where we came from */
-    last_room = start_room;
-
- /* Check north */
-    while(last_room->exit[ DIR_NORTH ] != NULL
-          && y > 1
-          && !IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-    {
-        y--;
-
-        *(map + 10 * y + x) = '|';
-
-        if( IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * (y-1) + x) = '<';
-        	break;
-		}
-
-        if( IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * (y-1) + x) = '>';
-        	break;
-		}
-
-	if ((room = last_room->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-            break;
-
-      	last_room = room;
-        y--;
-        *(map + 10 * y + x) = determine_room_type(room);
-
-        /* Look east */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_EAST ] != NULL && x2 < 8
-              && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 + 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '>';
-				break;
-			}
-
-            if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * y2 + x2 + 2) = determine_room_type(temp);
-            x2++;
-            x2++;
-
-            if (temp->exit[ DIR_SOUTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-            {
-
-                *(map + 10 * (y2+1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '<';
-					break;
-				}
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '>';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-            }
-        }
-
-        /* Look west */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_WEST ] != NULL
-              && x2 > 1
-              && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 - 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '>';
-				break;
-			}
-
-
-            if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * y2 + x2 - 2) = determine_room_type(temp);
-            x2--;
-            x2--;
-
-            if (temp->exit[ DIR_SOUTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-            {
-                *(map + 10 * (y2+1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '<';
-					break;
-				}
-
-				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2+2) + x2) = '>';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-            }
-        }
-    }
-
-    x = 5;
-    y = 3;
-
-    /* work out south */
-    last_room = start_room;
-
-    while(last_room->exit[ DIR_SOUTH ] != NULL
-          && y < 5
-          && !IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-    {
-        y++;
-
-        /* Intermediate char */
-        *(map + 10 * y + x) = '|';
-
-        if( IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * (y+1) + x) = '<';
-        	break;
-		}
-
-        if( IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * (y+1) + x) = '>';
-        	break;
-		}
-
-        if ((room = last_room->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-            break;
-
-        last_room = room;
-        y++;
-        *(map + 10 * y + x) = determine_room_type(room);
-
-        /* Look east */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_EAST ] != NULL
-              && x2 < 8
-              && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 + 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 + 2) = '>';
-				break;
-			}
-
-            if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * y2 + x2 + 2) = determine_room_type(temp);
-            x2++;
-            x2++;
-
-            if (temp->exit[ DIR_NORTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-            {
-                *(map + 10 * (y2-1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '>';
-					break;
-				}
-				if( IS_SET(temp->exit[ DIR_NORTH]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '<';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-            }
-        }
-
-        /* Look west */
-        temp = room;
-        x2 = x;
-        y2 = y;
-
-        while(temp->exit[ DIR_WEST ] != NULL
-              && x2 > 1
-              && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * y2 + x2 - 1) = '-';
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * y2 + x2 - 2) = '>';
-				break;
-			}
-
-            if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)== NULL)
-                break;
-
-            *(map + 10 * y2 + x2 - 2) = determine_room_type(temp);
-            x2--;
-            x2--;
-
-            if (temp->exit[ DIR_NORTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-            {
-                *(map + 10 * (y2-1) + x2) = '|';
-
-				if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '>';
-					break;
-				}
-				if( IS_SET(temp->exit[ DIR_NORTH]->exit_info, EX_PREVFLOOR) )
-				{
-					*(map + 10 * (y2-2) + x2) = '<';
-					break;
-				}
-
-                if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                    break;
-
-                *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-            }
-        }
-    }
-
-    x = 5;
-    y = 3;
-
-    /* Look east */
-    temp = start_room;
-    x2 = x;
-    y2 = y;
-
-    while(temp->exit[ DIR_EAST ] != NULL
-          && x2 < 8
-          && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
-    {
-        *(map + 10 * y2 + x2 + 1) = '-';
-
-        if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 + 2) = '<';
-        	break;
-		}
-
-        if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 + 2) = '>';
-        	break;
-		}
-
-        if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
-            break;
-
-        *(map + 10 * y2 + x2 + 2) = determine_room_type(temp);
-        x2++;
-        x2++;
-
-        if (temp->exit[ DIR_SOUTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2+1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-        }
-
-        if (temp->exit[ DIR_NORTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2-1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-        }
-    }
-
-    x = 5;
-    y = 3;
-
-    /* Look west */
-    temp = start_room;
-    x2 = x;
-    y2 = y;
-
-    while(temp->exit[ DIR_WEST ] != NULL
-          && x2 > 1
-          && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
-    {
-        *(map + 10 * y2 + x2 - 1) = '-';
-
-        if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 - 2) = '<';
-        	break;
-		}
-
-        if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
-        {
-        	*(map + 10 * y2 + x2 - 2) = '>';
-        	break;
-		}
-
-
-        if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)==NULL)
-            break;
-
-        *(map + 10 * y2 + x2 - 2) = determine_room_type(temp);
-        x2--;
-        x2--;
-
-        if (temp->exit[ DIR_SOUTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2+1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2+2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2+2) + x2) = determine_room_type(temp2);
-        }
-
-        if (temp->exit[ DIR_NORTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
-        {
-            *(map + 10 * (y2-1) + x2) = '|';
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '<';
-				break;
-			}
-
-			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
-			{
-				*(map + 10 * (y2-2) + x2) = '>';
-				break;
-			}
-
-            if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
-                break;
-
-            *(map + 10 * (y2-2) + x2) = determine_room_type(temp2);
-        }
-    }
+    /* Draw cardinal directions with branching (north, south, east, west) */
+    int pos_x, pos_y;
+
+    /* North */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_NORTH, &pos_x, &pos_y);
+
+    /* South */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_SOUTH, &pos_x, &pos_y);
+
+    /* East */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_EAST, &pos_x, &pos_y);
+
+    /* West */
+    pos_x = x;
+    pos_y = y;
+    follow_cardinal_direction(ch, start_room, map, DIR_WEST, &pos_x, &pos_y);
 }
 
 /* MOVED: room/minimap.c */
@@ -7358,38 +7782,38 @@ char determine_room_type(ROOM_INDEX_DATA *room)
     MOB_INDEX_DATA *pMob;
 
     if (room == NULL)
-	return '@';
+    return '@';
 
-    if (IS_SET(room->room_flag[0], ROOM_CPK))
-	return 'K';
+    if (IS_SET(room->room_flag[0], ROOM_CHAOTIC))
+    return 'K';
     if (room_is_dark(room))
-	return 'D';
+    return 'D';
     if (IS_SET(room->room_flag[0], ROOM_MOUNT_SHOP))
-	return 'M';
+    return 'M';
     if (IS_SET(room->room_flag[0], ROOM_BANK))
-	return 'B';
+    return 'B';
     if (IS_SET(room->room_flag[0], ROOM_PK))
-	return 'V';
+    return 'V';
     if (IS_SET(room->room_flag[0], ROOM_DEATH_TRAP))
-	return 'A';
+    return 'A';
     if (IS_SET(room->room_flag[0], ROOM_LOCKER))
-	return 'L';
+    return 'L';
     if (IS_SET(room->room_flag[1], ROOM_POST_OFFICE))
-	return 'P';
+    return 'P';
 
     for (ch = room->people; ch != NULL; ch = ch->next_in_room) {
-	pMob = ch->pIndexData;
-	if (pMob == NULL) {
-	    continue;
-	}
+    pMob = ch->pIndexData;
+    if (pMob == NULL) {
+        continue;
+    }
 
-	if (ch->shop != NULL && !IS_SET(ch->shop->flags,SHOPFLAG_HIDE_SHOP)) {
-	    return 'N';
-	}
+    if (ch->shop != NULL && !IS_SET(ch->shop->flags,SHOPFLAG_HIDE_SHOP)) {
+        return 'N';
+    }
     }
 
     if (IS_SET(room->room_flag[0], ROOM_SAFE))
-	return 'S';
+    return 'S';
 
     return 'R';
 }
@@ -7399,148 +7823,187 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 void convert_map_char(char *buf, char ch)
 {
     switch(ch) {
-	default:
-	    *(buf++) = '{';
-	    *(buf++) = 'W';
-	    *(buf++) = ch;
-	    break;
-	case 'N':
-	    *(buf++) = '{';
-	    *(buf++) = 'G';
-	    *(buf++) = 'O';
-	    break;
-	case 'M':
-	    *(buf++) = '{';
-	    *(buf++) = 'G';
-	    *(buf++) = 'O';
-	    break;
-	case 'O':
-	    *(buf++) = '{';
-	    *(buf++) = 'G';
-	    *(buf++) = 'P';
-	    break;
-	case 'L':
-	    *(buf++) = '{';
-	    *(buf++) = 'G';
-	    *(buf++) = 'L';
-	    break;
-	case 'A':
-	    *(buf++) = '{';
-	    *(buf++) = 'M';
-	    *(buf++) = 'O';
-	    break;
-	case 'K':
-	    *(buf++) = '{';
-	    *(buf++) = 'r';
-	    *(buf++) = 'O';
-	    break;
-	case 'V':
-	    *(buf++) = '{';
-	    *(buf++) = 'R';
-	    *(buf++) = 'O';
-	    break;
-	case 'B':
-	    *(buf++) = '{';
-	    *(buf++) = 'G';
-	    *(buf++) = 'B';
-	    break;
-	case 'P':
-	    *(buf++) = '{';
-	    *(buf++) = 'G';
-	    *(buf++) = 'O';
-	    break;
-	case 'D':
-	    *(buf++) = '{';
-	    *(buf++) = 'D';
-	    *(buf++) = 'O';
-	    break;
-	case 'S':
-	    *(buf++) = '{';
-	    *(buf++) = 'W';
-	    *(buf++) = 'S';
-	    break;
-	case '-':
-	    *(buf++) = '{';
-	    *(buf++) = 'B';
-	    *(buf++) = '-';
-	    break;
-	case '|':
-	    *(buf++) = '{';
-	    *(buf++) = 'B';
-	    *(buf++) = '|';
-	    break;
-	case 'R':
-	    *(buf++) = '{';
-	    *(buf++) = 'Y';
-	    *(buf++) = 'O';
-	    break;
-	case '@':
-	    *(buf++) = '{';
-	    *(buf++) = 'M';
-	    *(buf++) = '@';
-	    break;
-	case '>':
-	    *(buf++) = '{';
-	    *(buf++) = 'Y';
-	    *(buf++) = '>';
-	    break;
-	case '<':
-	    *(buf++) = '{';
-	    *(buf++) = 'Y';
-	    *(buf++) = '<';
-	    break;
-	case '/':
-		*(buf++) = '{';
-		*(buf++) = 'B';
-		*(buf++) = '/';
-		break;
-	case '\\':
-		*(buf++) = '{';
-		*(buf++) = 'B';
-		*(buf++) = '\\';
-		break;
-	case 'X':
-		*(buf++) = '{';
-		*(buf++) = 'B';
-		*(buf++) = 'X';
-		break;
+    default:
+        *(buf++) = '{';
+        *(buf++) = 'W';
+        *(buf++) = ch;
+        break;
+    case 'N':
+        *(buf++) = '{';
+        *(buf++) = 'G';
+        *(buf++) = 'O';
+        break;
+    case 'M':
+        *(buf++) = '{';
+        *(buf++) = 'G';
+        *(buf++) = 'O';
+        break;
+    case 'O':
+        *(buf++) = '{';
+        *(buf++) = 'G';
+        *(buf++) = 'P';
+        break;
+    case 'L':
+        *(buf++) = '{';
+        *(buf++) = 'G';
+        *(buf++) = 'L';
+        break;
+    case 'A':
+        *(buf++) = '{';
+        *(buf++) = 'M';
+        *(buf++) = 'O';
+        break;
+    case 'K':
+        *(buf++) = '{';
+        *(buf++) = 'r';
+        *(buf++) = 'O';
+        break;
+    case 'V':
+        *(buf++) = '{';
+        *(buf++) = 'R';
+        *(buf++) = 'O';
+        break;
+    case 'B':
+        *(buf++) = '{';
+        *(buf++) = 'G';
+        *(buf++) = 'B';
+        break;
+    case 'P':
+        *(buf++) = '{';
+        *(buf++) = 'G';
+        *(buf++) = 'O';
+        break;
+    case 'D':
+        *(buf++) = '{';
+        *(buf++) = 'D';
+        *(buf++) = 'O';
+        break;
+    case 'S':
+        *(buf++) = '{';
+        *(buf++) = 'W';
+        *(buf++) = 'S';
+        break;
+    case '-':
+        *(buf++) = '{';
+        *(buf++) = 'B';
+        *(buf++) = '-';
+        break;
+    case '|':
+        *(buf++) = '{';
+        *(buf++) = 'B';
+        *(buf++) = '|';
+        break;
+    case 'R':
+        *(buf++) = '{';
+        *(buf++) = 'Y';
+        *(buf++) = 'O';
+        break;
+    case '@':
+        *(buf++) = '{';
+        *(buf++) = 'M';
+        *(buf++) = '@';
+        break;
+    case '>':
+        *(buf++) = '{';
+        *(buf++) = 'Y';
+        *(buf++) = '>';
+        break;
+    case '<':
+        *(buf++) = '{';
+        *(buf++) = 'Y';
+        *(buf++) = '<';
+        break;
+    case '/':
+        *(buf++) = '{';
+        *(buf++) = 'B';
+        *(buf++) = '/';
+        break;
+    case '\\':
+        *(buf++) = '{';
+        *(buf++) = 'B';
+        *(buf++) = '\\';
+        break;
+    case '^':   /* Up exit indicator */
+        *(buf++) = '{';
+        *(buf++) = 'C';  /* Cyan */
+        *(buf++) = '^';
+        break;
+    case 'v':   /* Down exit indicator */
+        *(buf++) = '{';
+        *(buf++) = 'C';  /* Cyan */
+        *(buf++) = 'v';
+        break;
+    case 'X':
+        *(buf++) = '{';
+        *(buf++) = 'B';
+        *(buf++) = 'X';
+        break;
+    case '#':   /* Closed door indicator */
+        *(buf++) = '{';
+        *(buf++) = 'y';  /* Dark yellow (brown) */
+        *(buf++) = '#';
+        break;
     }
 }
 
-/* MOVED: body/sith.c */
+/**
+ * do_toxins - Display current toxin levels (Sith class only)
+ *
+ * Shows all toxin types and their current percentage levels for
+ * the Sith race/class. Visual bar display changes color with level.
+ *
+ * @param ch        The character viewing toxins
+ * @param argument  Unused
+ *
+ * Requires: toxin_system trait
+ *
+ * Planned refactor: body/sith.c (never executed)
+ */
 void do_toxins(CHAR_DATA *ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
     int i, n;
 
-    if (!IS_SITH(ch)) {
-	send_to_char("Huh?\n\r", ch);
-	return;
+    if (!race_has_trait(ch->race, "toxin_system")) {
+    send_to_char("Huh?\n\r", ch);
+    return;
     }
 
     for (i = 0; i < MAX_TOXIN; i++)
     {
-	sprintf(buf2, "{x");
-	for (n = 0; n < ch->toxin[i]; n += 10)
-	{
-	         if (n < 20) strcat(buf2, "{b<");
-	    else if (n < 40) strcat(buf2, "{B<");
-	    else if (n < 60) strcat(buf2, "{r<");
-	    else if (n < 80) strcat(buf2, "{R<");
-	    else             strcat(buf2, "{W<");
-	}
+    sprintf(buf2, "{x");
+    for (n = 0; n < ch->toxin[i]; n += 10)
+    {
+             if (n < 20) strcat(buf2, "{b<");
+        else if (n < 40) strcat(buf2, "{B<");
+        else if (n < 60) strcat(buf2, "{r<");
+        else if (n < 80) strcat(buf2, "{R<");
+        else             strcat(buf2, "{W<");
+    }
 
-	sprintf(buf, "%-12s {Y(%3d%%){x: %s{x\n\r",
-	    toxin_table[i].name,
-	    ch->toxin[i],
-	    buf2);
-	buf[0] = UPPER(buf[0]);
-	send_to_char(buf, ch);
+    sprintf(buf, "%-12s {Y(%3d%%){x: %s{x\n\r",
+        toxin_table[i].name,
+        ch->toxin[i],
+        buf2);
+    buf[0] = UPPER(buf[0]);
+    send_to_char(buf, ch);
     }
 }
 
 
+/**
+ * do_where - Locate players in the current area
+ *
+ * Shows a list of all visible players in the same area as the character,
+ * along with their current room names.
+ *
+ * @param ch        The character using where
+ * @param argument  Unused (immortals may have additional options)
+ *
+ * Filters: Hides morphed/shifted characters (unless viewer can see through),
+ *          feigning characters, characters in ROOM_NOWHERE
+ */
 void do_where(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -7548,52 +8011,68 @@ void do_where(CHAR_DATA * ch, char *argument)
     CHAR_DATA *victim;
     DESCRIPTOR_DATA *d;
     bool found;
+    INSTANCE *ch_instance = get_room_instance(ch->in_room);
 
     one_argument(argument, arg);
 
     if (arg[0] == '\0')
     {
-	sprintf(buf, "{YYou check for players in %s:\n\r{x", ch->in_room->area->name);
-	send_to_char(buf, ch);
-	found = false;
-	for (d = descriptor_list; d; d = d->next)
-	{
-	    if (d->connected == CON_PLAYING
-		&& (victim = d->character) != NULL && !IS_NPC(victim)
-		&& !IS_SWITCHED(ch)
-		&& victim->in_room != NULL
-		&& !IS_SET(victim->in_room->room_flag[0], ROOM_NOWHERE)
-		&& victim->in_room->area == ch->in_room->area
-		&& (!IS_MORPHED(victim) || (IS_MORPHED(victim) && can_see_shift(ch, victim)))
-		&& (!IS_SHIFTED(victim) || (IS_SHIFTED(victim) && can_see_shift(ch, victim)))
-		&& victim->position != POS_FEIGN
-		&& can_see(ch, victim))
-		{
-		found = true;
+    sprintf(buf, "{YYou check for players in %s:\n\r{x", ch->in_room->area->name);
+    send_to_char(buf, ch);
+    found = false;
+    for (d = descriptor_list; d; d = d->next)
+    {
+        if (d->connected == CON_PLAYING
+        && (victim = d->character) != NULL && !IS_NPC(victim)
+        && !IS_SWITCHED(ch)
+        && victim->in_room != NULL
+        && !IS_SET(victim->in_room->room_flag[0], ROOM_NOWHERE)
+        && victim->in_room->area == ch->in_room->area
+        && (!IS_MORPHED(victim) || (IS_MORPHED(victim) && can_see_shift(ch, victim)))
+        && (!IS_SHIFTED(victim) || (IS_SHIFTED(victim) && can_see_shift(ch, victim)))
+        && victim->position != POS_FEIGN
+        && can_see(ch, victim))
+        {
+        INSTANCE *victim_instance = get_room_instance(victim->in_room);
+
+        if (ch_instance != victim_instance)
+            continue;
+
+        found = true;
 /*
-		if (victim->in_room->parent != -1)
-		{
-		    sprintf(buf, "%-28s %s\n\r",
-			    pers(victim, ch),
-			    get_room_index(victim->in_room->parent)->name);
-		}
-		else
-		{
+        if (victim->in_room->parent != -1)
+        {
+            sprintf(buf, "%-28s %s\n\r",
+                pers(victim, ch),
+                get_room_index(victim->in_room->parent)->name);
+        }
+        else
+        {
 */
-		    sprintf(buf, "%-28s %s\n\r",
-			    pers(victim, ch), victim->in_room->name);
+            sprintf(buf, "%-28s %s\n\r",
+                pers(victim, ch), victim->in_room->name);
 /*
-		}
+        }
 */
-		send_to_char(buf, ch);
-	    }
-	}
-	if (!found)
-	    send_to_char("None\n\r", ch);
+        send_to_char(buf, ch);
+        }
+    }
+    if (!found)
+        send_to_char("None\n\r", ch);
     }
 }
 
-/* MOVED: unsorted */
+/**
+ * do_dice - Roll dice and announce the result
+ *
+ * Simulates rolling dice and displays the result to the room.
+ * Used for roleplay and games.
+ *
+ * @param ch        The character rolling dice
+ * @param argument  Format: "<number of dice> <sides per die>"
+ *
+ * Limits: 1-50 dice, 2-100 sides per die
+ */
 void do_dice(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -7607,28 +8086,28 @@ void do_dice(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-	send_to_char("Syntax: dice <#dice> <#sides>\n\r", ch);
-	return;
+    send_to_char("Syntax: dice <#dice> <#sides>\n\r", ch);
+    return;
     }
 
     if (!is_number(arg) || !is_number(arg2))
     {
-	send_to_char("You must specify numerical arguments.\n\r", ch);
-	return;
+    send_to_char("You must specify numerical arguments.\n\r", ch);
+    return;
     }
 
     num = atoi(arg);
     type = atoi(arg2);
     if (num < 1 || num > 50)
     {
-	send_to_char("You can only throw 1-50 dice.\n\r", ch);
-	return;
+    send_to_char("You can only throw 1-50 dice.\n\r", ch);
+    return;
     }
 
     if (type < 2 || type > 100)
     {
-	send_to_char("The dice can only be 2-100 sided.\n\r", ch);
-	return;
+    send_to_char("The dice can only be 2-100 sided.\n\r", ch);
+    return;
     }
 
     result = dice(num, type);
@@ -7636,686 +8115,784 @@ void do_dice(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
 
     sprintf(buf, "$n rolled a %d.", result);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 }
 
-/* MOVED: weather/seasons.c */
+/**
+ * calc_season - Calculate the current season based on game month
+ *
+ * @return SEASON_WINTER, SEASON_SPRING, SEASON_SUMMER, or SEASON_FALL
+ *
+ * Planned refactor: weather/seasons.c (never executed)
+ */
 int calc_season(void)
 {
     int season = 0;
 
     if (time_info.month <= 1 || time_info.month >= 11)
-	season = SEASON_WINTER;
+    season = SEASON_WINTER;
     else if (time_info.month >= 2 && time_info.month <= 4)
-	season = SEASON_SPRING;
+    season = SEASON_SPRING;
     else if (time_info.month >= 5 && time_info.month <= 6)
-	season = SEASON_SUMMER;
+    season = SEASON_SUMMER;
     else if (time_info.month >= 7 && time_info.month <= 10)
-	season = SEASON_FALL;
+    season = SEASON_FALL;
 
     return season;
 }
 
-/* MOVED: room/room.c
-   Figure out which desc to use for a room. */
+/**
+ * find_desc_for_room - Get the appropriate room description
+ *
+ * Selects the best room description based on conditional descriptions.
+ * Conditions checked: season, sky/weather, hour of day, script.
+ *
+ * @param room    The room to get description for
+ * @param viewer  The character viewing (for script conditions)
+ *
+ * @return The matching conditional description or default room description
+ *
+ * Planned refactor: room/room.c (never executed)
+ */
 char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 {
-	CONDITIONAL_DESCR_DATA *best_cd = NULL;
-	CONDITIONAL_DESCR_DATA *cd;
-	SCRIPT_DATA *script;
+    CONDITIONAL_DESCR_DATA *best_cd = NULL;
+    CONDITIONAL_DESCR_DATA *cd;
+    SCRIPT_DATA *script;
+    (void)script;
 
-	if ((cd = room->conditional_descr) != NULL) {
-		for (cd = room->conditional_descr; cd != NULL; cd = cd->next) {
-			switch (cd->condition) {
-			case CONDITION_SEASON:
-				if (calc_season() == cd->phrase)
-					best_cd = cd;
-				break;
+    if ((cd = room->conditional_descr) != NULL) {
+        for (cd = room->conditional_descr; cd != NULL; cd = cd->next) {
+            switch (cd->condition) {
+            case CONDITION_SEASON:
+                if (calc_season() == cd->phrase)
+                    best_cd = cd;
+                break;
 
-			case CONDITION_SKY:
-				if (weather_info.sky == cd->phrase)
-					best_cd = cd;
-				break;
+            case CONDITION_SKY:
+                if (weather_info.sky == cd->phrase)
+                    best_cd = cd;
+                break;
 
-			case CONDITION_HOUR:
-				if (time_info.hour == cd->phrase)
-					best_cd = cd;
-				break;
+            case CONDITION_HOUR:
+                if (time_info.hour == cd->phrase)
+                    best_cd = cd;
+                break;
 
-			case CONDITION_SCRIPT:
-				script = get_script_index(cd->phrase,PRG_RPROG);
-
-				if (script && execute_script(cd->phrase,script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,0,0,0) > 0)
-					best_cd = cd;
-				break;
-			}
-		}
-	}
+            case CONDITION_SCRIPT:
+            script = get_script_index_global(cd->phrase,PRG_RPROG);
+                break;
+            }
+        }
+    }
 
 
-	if (best_cd != NULL)
-		return best_cd->description;
-	else
-		return room->description;
+    if (best_cd != NULL)
+        return best_cd->description;
+    else
+        return room->description;
 }
 
-/* MOVED: room/room.c
-   Show a room's description to a char. */
+/**
+ * show_room_description - Display a room's description to a character
+ *
+ * Wrapper that finds the appropriate description and sends it.
+ *
+ * @param ch    The character viewing
+ * @param room  The room to show
+ *
+ * Planned refactor: room/room.c (never executed)
+ */
 void show_room_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
-	send_to_char(find_desc_for_room(room,ch),ch);
+    send_to_char(find_desc_for_room(room,ch),ch);
 }
 
+/**
+ * show_basic_mob_lore - Display basic information about an NPC
+ *
+ * Shows immune/resist/vulnerable flags, health percentage, and
+ * average damage for an NPC when using mob lore skill.
+ *
+ * @param ch      The character viewing
+ * @param victim  The NPC being examined
+ *
+ * Triggers: TRIG_LORE on the victim
+ */
 void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 {
-	char buf[2*MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
 
-	long avg;
-	sprintf(buf, "{MImmune to: {x%s\n\r"
-			"{MResistant to: {x%s\n\r"
-			"{MVulnerable to: {x%s\n\r",
-			imm_bit_name(victim->imm_flags),
-			res_bit_name(victim->res_flags),
-			vuln_bit_name(victim->vuln_flags));
-	send_to_char(buf, ch);
+    long avg;
+    sprintf(buf, "{MImmune to: {x%s\n\r"
+            "{MResistant to: {x%s\n\r"
+            "{MVulnerable to: {x%s\n\r",
+            imm_bit_name(victim->imm_flags),
+            res_bit_name(victim->res_flags),
+            vuln_bit_name(victim->vuln_flags));
+    send_to_char(buf, ch);
 
-	avg = (victim->damage.number * victim->damage.size)
-		+ (victim->damage.number);
-	avg /= 2;
+    avg = (victim->damage.number * victim->damage.size)
+        + (victim->damage.number);
+    avg /= 2;
 
-	avg += victim->damage.bonus;
+    avg += victim->damage.bonus;
 
-	sprintf(buf, "{MHealth:{x %s%.0f%%{x {MAverage Damage:{x %ld\n\r",
-			victim->hit < victim->max_hit / 2 ? "{R" :
-			victim->hit < victim->max_hit/1.5 ? "{G" : "{x",
-			(float) victim->hit/victim->max_hit*100,
-			/* victim->mana < victim->max_mana / 2 ? "{R" :
-				victim->mana < victim->max_mana/1.5 ? "{G" : "{x",
-				(float) victim->mana/victim->max_mana*100, */
-			avg);
-	send_to_char(buf, ch);
+    sprintf(buf, "{MHealth:{x %s%.0f%%{x {MAverage Damage:{x %ld\n\r",
+            victim->hit < victim->max_hit / 2 ? "{R" :
+            victim->hit < victim->max_hit/1.5 ? "{G" : "{x",
+            (float) victim->hit/victim->max_hit*100,
+            /* victim->mana < victim->max_mana / 2 ? "{R" :
+                victim->mana < victim->max_mana/1.5 ? "{G" : "{x",
+                (float) victim->mana/victim->max_mana*100, */
+            avg);
+    send_to_char(buf, ch);
 
-	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
+    p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
 }
 
 
+/**
+ * do_expand - Extend a telescope to a specific magnification
+ *
+ * Adjusts a telescope's current zoom level within its min/max range.
+ *
+ * @param ch        The character using the telescope
+ * @param argument  Format: "<telescope> [distance]"
+ */
 void do_expand(CHAR_DATA *ch, char *argument)
 {
-	char arg[MIL];
-	OBJ_DATA *telescope;
+    char arg[MIL];
+    OBJ_DATA *telescope;
 
-	if( IS_NULLSTR(argument) )
-	{
-		send_to_char("Expand what?\n\r", ch);
-		return;
-	}
+    if( IS_NULLSTR(argument) )
+    {
+        send_to_char("Expand what?\n\r", ch);
+        return;
+    }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
-	{
-		send_to_char("You don't see that.\n\r", ch);
-		return;
-	}
+    if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
+    {
+        send_to_char("You don't see that.\n\r", ch);
+        return;
+    }
 
-	int distance;
-	if( is_number(argument) )
-	{
-		distance = atoi(argument);
-		if( distance < telescope->value[1] ||
-			distance > telescope->value[2] )
-		{
-			char buf[MSL];
-			sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %ld to %ld.",
-				telescope->value[1], telescope->value[2]);
+    int distance;
+    if( is_number(argument) )
+    {
+        distance = atoi(argument);
+        if( distance < TELESCOPE(telescope)->min_distance ||
+            distance > TELESCOPE(telescope)->max_distance )
+        {
+            char buf[MSL];
+            sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %d to %d.",
+                TELESCOPE(telescope)->min_distance, TELESCOPE(telescope)->max_distance);
 
-			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-			return;
-		}
+            act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
 
-	}
-	else
-		distance = telescope->value[2];
+    }
+    else
+        distance = TELESCOPE(telescope)->max_distance;
 
-	if( distance > telescope->value[0] )
-	{
-		telescope->value[0] = distance;
-    	act("{xYou expand $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-    	act("{x$n expands $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
-	}
-	else if( distance < telescope->value[0] )
-	{
-		act("{x$p{x is already expanded further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-	}
-	else
-	{
-		act("{x$p{x is already expanded that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-	}
+    if( distance > TELESCOPE(telescope)->distance )
+    {
+        TELESCOPE(telescope)->distance = distance;
+        act("{xYou expand $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("{x$n expands $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else if( distance < TELESCOPE(telescope)->distance )
+    {
+        act("{x$p{x is already expanded further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    }
+    else
+    {
+        act("{x$p{x is already expanded that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    }
 }
 
+/**
+ * do_collapse - Retract a telescope to a lower magnification
+ *
+ * Reduces a telescope's current zoom level within its min/max range.
+ *
+ * @param ch        The character using the telescope
+ * @param argument  Format: "<telescope> [distance]"
+ */
 void do_collapse(CHAR_DATA *ch, char *argument)
 {
-	char arg[MIL];
-	OBJ_DATA *telescope;
+    char arg[MIL];
+    OBJ_DATA *telescope;
 
-	if( IS_NULLSTR(argument) )
-	{
-		send_to_char("Expand what?\n\r", ch);
-		return;
-	}
+    if( IS_NULLSTR(argument) )
+    {
+        send_to_char("Expand what?\n\r", ch);
+        return;
+    }
 
-	argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
-	if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
-	{
-		send_to_char("You don't see that.\n\r", ch);
-		return;
-	}
+    if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
+    {
+        send_to_char("You don't see that.\n\r", ch);
+        return;
+    }
 
-	int distance;
-	if( is_number(argument) )
-	{
-		distance = atoi(argument);
-		if( distance < telescope->value[1] ||
-			distance > telescope->value[2] )
-		{
-			char buf[MSL];
-			sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %ld to %ld.",
-				telescope->value[1], telescope->value[2]);
+    int distance;
+    if( is_number(argument) )
+    {
+        distance = atoi(argument);
+        if( distance < TELESCOPE(telescope)->min_distance ||
+            distance > TELESCOPE(telescope)->max_distance )
+        {
+            char buf[MSL];
+            sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %d to %d.",
+                TELESCOPE(telescope)->min_distance, TELESCOPE(telescope)->max_distance);
 
-			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-			return;
-		}
+            act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
 
-	}
-	else
-		distance = 0;
+    }
+    else
+        distance = 0;
 
-	if( distance > telescope->value[0] )
-	{
-		if( telescope->value[0] > 0 )
-			act("{x$p{x is already collapsed further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-		else
-			act("{xYou cannot collapse $p{x any further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-	}
-	else if( distance < telescope->value[0] )
-	{
-		telescope->value[0] = distance;
-    	act("{xYou collapse $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-    	act("{x$n collapses $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
-	}
-	else
-	{
-		act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-	}
+    if( distance > TELESCOPE(telescope)->distance )
+    {
+        if( TELESCOPE(telescope)->distance > 0 )
+            act("{x$p{x is already collapsed further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        else
+            act("{xYou cannot collapse $p{x any further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    }
+    else if( distance < TELESCOPE(telescope)->distance )
+    {
+        TELESCOPE(telescope)->distance = distance;
+        act("{xYou collapse $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("{x$n collapses $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else
+    {
+        act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    }
 }
 
+/**
+ * look_sextant - Use a sextant to determine coordinates
+ *
+ * Calculates the character's position in the wilderness using
+ * navigation or survey skill. Accuracy depends on skill level
+ * and sextant quality.
+ *
+ * @param ch       The character using the sextant
+ * @param sextant  The ITEM_SEXTANT object being used
+ *
+ * Requires: Being in wilderness or on a ship
+ * Skills: skill_resolve_gsn("navigation") or skill_resolve_gsn("survey")
+ */
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 {
-	if( IS_VALID(sextant) && sextant->item_type == ITEM_SEXTANT &&
-		(IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
-	{
-		long x, y;
-		SHIP_DATA *ship = get_room_ship(ch->in_room);
-		long dist = -1;
+    if( IS_VALID(sextant) && sextant->item_type == ITEM_SEXTANT &&
+        (IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
+    {
+        long x, y;
+        SHIP_DATA *ship = get_room_ship(ch->in_room);
+        long dist = -1;
 
-		int skill;
-		int gsn;
-		bool success = true;
+        int skill;
+        int gsn;
+        bool success = true;
 
-		if (IS_VALID(ship))
-		{
-			if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
-			{
-				// Doesn't do anything
-				return;
-			}
+        if (IS_VALID(ship))
+        {
+            if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
+            {
+                // Doesn't do anything
+                return;
+            }
 
-			x = ship->ship->in_room->x;
-			y = ship->ship->in_room->y;
+            x = ship->ship->in_room->x;
+            y = ship->ship->in_room->y;
 
-			skill = get_skill(ch, gsn_navigation);
-			if( skill > 0 )
-				gsn = gsn_navigation;
-			else
-			{
-				skill = get_skill(ch, gsn_survey);
-				if( skill < 1 ) return;
+            skill = get_skill(ch, skill_resolve_gsn("navigation"));
+            if( skill > 0 )
+                gsn = skill_resolve_gsn("navigation");
+            else
+            {
+                skill = get_skill(ch, skill_resolve_gsn("survey"));
+                if( skill < 1 ) return;
 
-				gsn = gsn_survey;
-			}
+                gsn = skill_resolve_gsn("survey");
+            }
 
-			success = (number_percent() < skill);
-			if (!success || number_percent() >= sextant->value[0])
-			{
-				x = x + number_range(-30, 30);
-				y = y + number_range(-30, 30);
+            success = (number_percent() < skill);
+            if (!success || number_percent() >= SEXTANT(sextant)->accuracy)
+            {
+                x = x + number_range(-30, 30);
+                y = y + number_range(-30, 30);
 
-				x = URANGE(0, x, ship->ship->in_room->wilds->map_size_x - 1);
-				y = URANGE(0, y, ship->ship->in_room->wilds->map_size_y - 1);
-			}
+                x = URANGE(0, x, ship->ship->in_room->wilds->map_size_x - 1);
+                y = URANGE(0, y, ship->ship->in_room->wilds->map_size_y - 1);
+            }
 
-			if( ship->speed <= SHIP_SPEED_STOPPED && ship_isowner_player(ship, ch) )
-			{
-				ship->sextant_x = x;
-				ship->sextant_y = y;
-			}
+            if( ship->speed <= SHIP_SPEED_STOPPED && ship_isowner_player(ship, ch) )
+            {
+                ship->sextant_x = x;
+                ship->sextant_y = y;
+            }
 
-			if( ship->seek_point.wilds != NULL )
-			{
-				long dx = (x - ship->seek_point.x);
-				long dy = (y - ship->seek_point.y);
+            if( ship->seek_point.wilds != NULL )
+            {
+                long dx = (x - ship->seek_point.x);
+                long dy = (y - ship->seek_point.y);
 
-				dist = (long)(sqrt(dx * dx + dy * dy) + 0.5);
-			}
+                dist = (long)(sqrt(dx * dx + dy * dy) + 0.5);
+            }
 
-		}
-		else
-		{
-			// ch->in_room->wilds is defined
-			x = ch->in_room->x;
-			y = ch->in_room->y;
+        }
+        else
+        {
+            // ch->in_room->wilds is defined
+            x = ch->in_room->x;
+            y = ch->in_room->y;
 
-			skill = get_skill(ch, gsn_survey);
-			if( skill > 0 )
-				gsn = gsn_survey;
-			else
-			{
-				skill = get_skill(ch, gsn_navigation);
-				if( skill < 1 ) return;
+            skill = get_skill(ch, skill_resolve_gsn("survey"));
+            if( skill > 0 )
+                gsn = skill_resolve_gsn("survey");
+            else
+            {
+                skill = get_skill(ch, skill_resolve_gsn("navigation"));
+                if( skill < 1 ) return;
 
-				gsn = gsn_navigation;
-			}
+                gsn = skill_resolve_gsn("navigation");
+            }
 
-			success = (number_percent() < skill);
-			if (!success || number_percent() >= sextant->value[0])
-			{
-				x = x + number_range(-30, 30);
-				y = y + number_range(-30, 30);
+            success = (number_percent() < skill);
+            if (!success || number_percent() >= SEXTANT(sextant)->accuracy)
+            {
+                x = x + number_range(-30, 30);
+                y = y + number_range(-30, 30);
 
-				x = URANGE(0, x, ch->in_room->wilds->map_size_x - 1);
-				y = URANGE(0, y, ch->in_room->wilds->map_size_y - 1);
-			}
-		}
+                x = URANGE(0, x, ch->in_room->wilds->map_size_x - 1);
+                y = URANGE(0, y, ch->in_room->wilds->map_size_y - 1);
+            }
+        }
 
-		char buf[MSL];
-		sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r", y, x);
-		send_to_char(buf, ch);
+        char buf[MSL];
+        sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r", y, x);
+        send_to_char(buf, ch);
 
-		if( dist >= 0 )
-		{
-			sprintf(buf, "{YYour vessel about %ld miles away.{x\n\r", dist);
-			send_to_char(buf, ch);
-		}
+        if( dist >= 0 )
+        {
+            sprintf(buf, "{YYour vessel about %ld miles away.{x\n\r", dist);
+            send_to_char(buf, ch);
+        }
 
-		if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
-		{
-			check_improve(ch, gsn, success, 10);
-			ch->pcdata->spam_block_navigation = true;
-		}
-	}
+        if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+        {
+            check_improve(ch, gsn, success, 10);
+            ch->pcdata->spam_block_navigation = true;
+        }
+    }
 
 }
 
+/**
+ * look_through_telescope - View distant wilderness locations
+ *
+ * Uses a telescope to view areas at a distance in the wilderness.
+ * Requires the telescope to be expanded. Direction can be specified
+ * as a cardinal direction or degree heading.
+ *
+ * @param ch         The character looking through the telescope
+ * @param telescope  The ITEM_TELESCOPE object being used
+ * @param argument   Direction to look (direction name or degrees 0-359)
+ *
+ * Requires: Being in wilderness or on a ship, telescope expanded
+ * Skills: skill_resolve_gsn("survey") or skill_resolve_gsn("navigation") affect accuracy
+ */
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 {
-	if( !IS_VALID(telescope) || telescope->item_type != ITEM_TELESCOPE )
-	{
-		return;
-	}
+    if( !IS_VALID(telescope) || telescope->item_type != ITEM_TELESCOPE )
+    {
+        return;
+    }
 
-	if( telescope->value[0] <= 0 )
-	{
-		send_to_char("{DThe telescope is fully collapsed.\n\r", ch);
-		return;
-	}
+    if( TELESCOPE(telescope)->distance <= 0 )
+    {
+        send_to_char("{DThe telescope is fully collapsed.\n\r", ch);
+        return;
+    }
 
-	int heading;
-	bool can_fudge = true;
-	if( argument[0] == '\0' )
-	{
-		if( CAN_WEAR(telescope, ITEM_TAKE) || telescope->value[4] < 0 )
-		{
-			send_to_char("{RThe telescope is pointing nowhere.\n\r", ch);
-			return;
-		}
+    int heading;
+    bool can_fudge = true;
+    if( argument[0] == '\0' )
+    {
+        if( CAN_WEAR(telescope, ITEM_TAKE) || TELESCOPE(telescope)->heading < 0 )
+        {
+            send_to_char("{RThe telescope is pointing nowhere.\n\r", ch);
+            return;
+        }
 
-		heading = telescope->value[4];
-		can_fudge = false;
-	}
-	else if( is_number(argument) )
-	{
-		heading = atoi(argument);
+        heading = TELESCOPE(telescope)->heading;
+        can_fudge = false;
+    }
+    else if( is_number(argument) )
+    {
+        heading = atoi(argument);
 
-		if( heading < 0 || heading >= 360 )
-		{
-			return;
-		}
-	}
-	else
-	{
-		heading = parse_direction(argument);
+        if( heading < 0 || heading >= 360 )
+        {
+            return;
+        }
+    }
+    else
+    {
+        heading = parse_direction(argument);
 
-		switch(heading)
-		{
-		case DIR_NORTH:				heading = 0; break;
-		case DIR_NORTHEAST:			heading = 45; break;
-		case DIR_EAST:				heading = 90; break;
-		case DIR_SOUTHEAST:			heading = 135; break;
-		case DIR_SOUTH:				heading = 180; break;
-		case DIR_SOUTHWEST:			heading = 225; break;
-		case DIR_WEST:				heading = 270; break;
-		case DIR_NORTHWEST:			heading = 315; break;
-		default:
-			return;
-		}
-	}
+        switch(heading)
+        {
+        case DIR_NORTH:				heading = 0; break;
+        case DIR_NORTHEAST:			heading = 45; break;
+        case DIR_EAST:				heading = 90; break;
+        case DIR_SOUTHEAST:			heading = 135; break;
+        case DIR_SOUTH:				heading = 180; break;
+        case DIR_SOUTHWEST:			heading = 225; break;
+        case DIR_WEST:				heading = 270; break;
+        case DIR_NORTHWEST:			heading = 315; break;
+        default:
+            return;
+        }
+    }
 
-	if( (IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
-	{
-		long x, y;
-		SHIP_DATA *ship = get_room_ship(ch->in_room);
-		WILDS_DATA *wilds = NULL;
+    if( (IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
+    {
+        long x, y;
+        SHIP_DATA *ship = get_room_ship(ch->in_room);
+        WILDS_DATA *wilds = NULL;
 
-		int skill;
-		int gsn = 0;
-		bool success;
+        int skill;
+        int gsn = 0;
+        bool success;
 
-		if (IS_VALID(ship))
-		{
-			if( ship->ship->in_room && IS_WILDERNESS(ship->ship->in_room) && IS_OUTSIDE(ch) )
-			{
-				wilds = ship->ship->in_room->wilds;
-				x = ship->ship->in_room->x;
-				y = ship->ship->in_room->y;
-			}
-		}
-		else
-		{
-			wilds = ch->in_room->wilds;
-			x = ch->in_room->x;
-			y = ch->in_room->y;
-		}
+        if (IS_VALID(ship))
+        {
+            if( ship->ship->in_room && IS_WILDERNESS(ship->ship->in_room) && IS_OUTSIDE(ch) )
+            {
+                wilds = ship->ship->in_room->wilds;
+                x = ship->ship->in_room->x;
+                y = ship->ship->in_room->y;
+            }
+        }
+        else
+        {
+            wilds = ch->in_room->wilds;
+            x = ch->in_room->x;
+            y = ch->in_room->y;
+        }
 
-		if( can_fudge )
-		{
-			int skill1 = get_skill(ch, gsn_survey);
-			int skill2 = get_skill(ch, gsn_navigation);
+        if( can_fudge )
+        {
+            int skill1 = get_skill(ch, skill_resolve_gsn("survey"));
+            int skill2 = get_skill(ch, skill_resolve_gsn("navigation"));
 
-			if( skill1 >= skill2 )
-			{
-				skill = skill1;
-				gsn = gsn_survey;
-			}
-			else
-			{
-				skill = skill2;
-				gsn = gsn_navigation;
-			}
+            if( skill1 >= skill2 )
+            {
+                skill = skill1;
+                gsn = skill_resolve_gsn("survey");
+            }
+            else
+            {
+                skill = skill2;
+                gsn = skill_resolve_gsn("navigation");
+            }
 
-			int delta = number_percent() - skill;
+            int delta = number_percent() - skill;
 
-			if( delta >= 0 )
-			{
-				success = false;
+            if( delta >= 0 )
+            {
+                success = false;
 
-				++delta;
+                ++delta;
 
-				heading += number_range(-delta, delta);
-				if( heading < 0 ) heading += 360;
-				else if( heading >= 360 ) heading -= 360;
-			}
-		}
+                heading += number_range(-delta, delta);
+                if( heading < 0 ) heading += 360;
+                else if( heading >= 360 ) heading -= 360;
+            }
+        }
 
-		if( wilds )
-		{
-			// Telescope position
-			int tx = x + (int)(telescope->value[0] * sin(3.14159 * heading / 180));
-			int ty = y - (int)(telescope->value[0] * cos(3.14159 * heading / 180));
+        if( wilds )
+        {
+            // Telescope position
+            int tx = x + (int)(TELESCOPE(telescope)->distance * sin(3.14159 * heading / 180));
+            int ty = y - (int)(TELESCOPE(telescope)->distance * cos(3.14159 * heading / 180));
 
-			// Bonusview size
-			int bvx = telescope->value[3];
-			int bvy = 2 * bvx / 3;
+            // Bonusview size
+            int bvx = TELESCOPE(telescope)->bonus_view;
+            int bvy = 2 * bvx / 3;
 
-			act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
-			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
-		}
+            act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
+        }
 
-		if( can_fudge && gsn > 0 && !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
-		{
-			check_improve(ch, gsn, success, 10);
-			ch->pcdata->spam_block_navigation = true;
-		}
-	}
+        if( can_fudge && gsn > 0 && !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+        {
+            check_improve(ch, gsn, success, 10);
+            ch->pcdata->spam_block_navigation = true;
+        }
+    }
 
-	// Stationary telescopes can save their heading
-	if( !CAN_WEAR(telescope, ITEM_TAKE) )
-		telescope->value[4] = heading;
+    // Stationary telescopes can save their heading
+    if( !CAN_WEAR(telescope, ITEM_TAKE) )
+        TELESCOPE(telescope)->heading = heading;
 }
 
+/**
+ * look_compass - Read a compass to determine direction
+ *
+ * Shows cardinal direction and bearing to various waypoints
+ * (church headquarters, quest targets, etc.) based on compass type
+ * and current position.
+ *
+ * @param ch       The character reading the compass
+ * @param compass  The ITEM_COMPASS object being used
+ */
 void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 {
-	char buf[MSL], arg[MIL];
-	ROOM_INDEX_DATA *here = ch->in_room;
-	SHIP_DATA *ship = get_room_ship(here);
-	int heading = -1;
-	int gsn;
-	int skill;
+    char buf[MSL], arg[MIL];
+    ROOM_INDEX_DATA *here = ch->in_room;
+    SHIP_DATA *ship = get_room_ship(here);
+    int heading = -1;
+    int gsn;
+    int skill;
 
-	if( IS_VALID(ship) )
-	{
-		// When on a ship, favor navigation over survey
-		skill = get_skill(ch, gsn_navigation);
+    if( IS_VALID(ship) )
+    {
+        // When on a ship, favor navigation over survey
+        skill = get_skill(ch, skill_resolve_gsn("navigation"));
 
-		if( skill > 0 )
-			gsn = gsn_navigation;
-		else
-		{
-			skill = get_skill(ch, gsn_survey);
+        if( skill > 0 )
+            gsn = skill_resolve_gsn("navigation");
+        else
+        {
+            skill = get_skill(ch, skill_resolve_gsn("survey"));
 
-			if( skill < 1 )
-				return;
+            if( skill < 1 )
+                return;
 
-			gsn = gsn_survey;
-		}
-	}
-	else
-	{
-		// When not on a ship, favor survey over navigation
-		skill = get_skill(ch, gsn_survey);
+            gsn = skill_resolve_gsn("survey");
+        }
+    }
+    else
+    {
+        // When not on a ship, favor survey over navigation
+        skill = get_skill(ch, skill_resolve_gsn("survey"));
 
-		if( skill > 0 )
-			gsn = gsn_survey;
-		else
-		{
-			skill = get_skill(ch, gsn_navigation);
+        if( skill > 0 )
+            gsn = skill_resolve_gsn("survey");
+        else
+        {
+            skill = get_skill(ch, skill_resolve_gsn("navigation"));
 
-			if( skill < 1 )
-				return;
+            if( skill < 1 )
+                return;
 
-			gsn = gsn_navigation;
-		}
-	}
+            gsn = skill_resolve_gsn("navigation");
+        }
+    }
 
-	if( skill < 1 )
-		return;
+    if( skill < 1 )
+        return;
 
-	if( compass->value[1] > 0 )
-	{
-		if( IS_VALID(ship) )
-		{
-			here = obj_room(ship->ship);
-		}
+    if( COMPASS(compass)->wuid > 0 )
+    {
+        if( IS_VALID(ship) )
+        {
+            here = obj_room(ship->ship);
+        }
 
-		if( !here || !IS_WILDERNESS(here) )
-		{
-			return;
-		}
+        if( !here || !IS_WILDERNESS(here) )
+        {
+            return;
+        }
 
-		if( here->wilds->uid == compass->value[1] )
-		{
-			int dx = compass->value[2] - here->x;
-			int dy = here->y - compass->value[3];
+        if( here->wilds->uid == COMPASS(compass)->wuid )
+        {
+            int dx = COMPASS(compass)->x - here->x;
+            int dy = here->y - COMPASS(compass)->y;
 
-			if( dx != 0 || dy != 0 )
-			{
-				heading = (int)(180 * atan2(dx, dy) / 3.14159);
-				if( heading < 0 ) heading += 360;
-			}
-		}
-	}
-	else if( IS_VALID(ship) )
-	{
-		// get the heading
-		heading = ship->steering.heading;
-	}
-	else
-		return;
+            if( dx != 0 || dy != 0 )
+            {
+                heading = (int)(180 * atan2(dx, dy) / 3.14159);
+                if( heading < 0 ) heading += 360;
+            }
+        }
+    }
+    else if( IS_VALID(ship) )
+    {
+        // get the heading
+        heading = ship->steering.heading;
+    }
+    else
+        return;
 
-	if( heading < 0 )
-	{
-		act("{xThe needle on $p{x is spinning.{x", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
+    if( heading < 0 )
+    {
+        act("{xThe needle on $p{x is spinning.{x", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
+    }
 
-	if( number_percent() >= compass->value[0] )
-	{
-		heading += number_range(-30, 30);
-		if( heading < 0 ) heading += 360;
-		else if(heading >= 360) heading -= 360;
-	}
+    if( number_percent() >= COMPASS(compass)->accuracy )
+    {
+        heading += number_range(-30, 30);
+        if( heading < 0 ) heading += 360;
+        else if(heading >= 360) heading -= 360;
+    }
 
-	bool success;
-	if( number_percent() < skill )
-	{
-		if( IS_IMMORTAL(ch) /* || TODO: add skill */ )
-		{
-			switch(heading)
-			{
-			case 0:		strcpy(arg, "to the north"); break;
-			case 45:	strcpy(arg, "to the northeast"); break;
-			case 90:	strcpy(arg, "to the east"); break;
-			case 135:	strcpy(arg, "to the southeast"); break;
-			case 180:	strcpy(arg, "to the south"); break;
-			case 225:	strcpy(arg, "to the southwest"); break;
-			case 270:	strcpy(arg, "to the west"); break;
-			case 315:	strcpy(arg, "to the northwest"); break;
-			default:
-				sprintf(arg, "to {W%d{x degrees", heading);
-				break;
-			}
-		}
-		else
-		{
-			heading += 23;
-			if( heading >= 360 || heading < 45 )
-			{
-				strcpy(arg, "northward");
-			}
-			else if( heading < 90 )
-			{
-				strcpy(arg, "northeastward");
-			}
-			else if( heading < 135 )
-			{
-				strcpy(arg, "eastward");
-			}
-			else if( heading < 180 )
-			{
-				strcpy(arg, "southeastward");
-			}
-			else if( heading < 225 )
-			{
-				strcpy(arg, "southward");
-			}
-			else if( heading < 270 )
-			{
-				strcpy(arg, "southwestward");
-			}
-			else if( heading < 315 )
-			{
-				strcpy(arg, "westward");
-			}
-			else if( heading < 360 )
-			{
-				strcpy(arg, "northwestward");
-			}
-		}
+    bool success;
+    if( number_percent() < skill )
+    {
+        if( IS_IMMORTAL(ch) /* || TODO: add skill */ )
+        {
+            switch(heading)
+            {
+            case 0:		strcpy(arg, "to the north"); break;
+            case 45:	strcpy(arg, "to the northeast"); break;
+            case 90:	strcpy(arg, "to the east"); break;
+            case 135:	strcpy(arg, "to the southeast"); break;
+            case 180:	strcpy(arg, "to the south"); break;
+            case 225:	strcpy(arg, "to the southwest"); break;
+            case 270:	strcpy(arg, "to the west"); break;
+            case 315:	strcpy(arg, "to the northwest"); break;
+            default:
+                sprintf(arg, "to {W%d{x degrees", heading);
+                break;
+            }
+        }
+        else
+        {
+            heading += 23;
+            if( heading >= 360 || heading < 45 )
+            {
+                strcpy(arg, "northward");
+            }
+            else if( heading < 90 )
+            {
+                strcpy(arg, "northeastward");
+            }
+            else if( heading < 135 )
+            {
+                strcpy(arg, "eastward");
+            }
+            else if( heading < 180 )
+            {
+                strcpy(arg, "southeastward");
+            }
+            else if( heading < 225 )
+            {
+                strcpy(arg, "southward");
+            }
+            else if( heading < 270 )
+            {
+                strcpy(arg, "southwestward");
+            }
+            else if( heading < 315 )
+            {
+                strcpy(arg, "westward");
+            }
+            else if( heading < 360 )
+            {
+                strcpy(arg, "northwestward");
+            }
+        }
 
-		sprintf(buf, "{xThe needle on $p{x points %s.", arg);
-		act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
-		success = true;
-	}
-	else
-	{
-		act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
-		success = false;
-	}
+        sprintf(buf, "{xThe needle on $p{x points %s.", arg);
+        act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        success = true;
+    }
+    else
+    {
+        act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        success = false;
+    }
 
-	if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
-	{
-		check_improve(ch, gsn, success, 10);
-		ch->pcdata->spam_block_navigation = true;
-	}
+    if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+    {
+        check_improve(ch, gsn, success, 10);
+        ch->pcdata->spam_block_navigation = true;
+    }
 }
 
+/**
+ * look_map - Read a cartographer's map to view waypoints
+ *
+ * Displays the list of waypoints recorded on the map along with
+ * their coordinates (wilderness, south, east values).
+ *
+ * @param ch   The character reading the map
+ * @param map  The ITEM_MAP object being read
+ *
+ * Skills: skill_resolve_gsn("navigation") affects ability to read coordinates
+ */
 void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 {
-	bool success;
-	int skill = get_skill(ch, gsn_navigation);
+    bool success;
+    int skill = get_skill(ch, skill_resolve_gsn("navigation"));
 
-	if( list_size(map->waypoints) > 0 )
-	{
-		if( number_percent() < skill )
-		{
-			int cnt = 0;
-			char buf[MSL];
-			ITERATOR wit;
-			WAYPOINT_DATA *wp;
+    if( list_size(map->waypoints) > 0 )
+    {
+        if( number_percent() < skill )
+        {
+            int cnt = 0;
+            char buf[MSL];
+            ITERATOR wit;
+            WAYPOINT_DATA *wp;
 
-			iterator_start(&wit, map->waypoints);
-			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-			{
-				send_to_char("{WCartographer Waypoints:{x\n\r\n\r", ch);
-				send_to_char("{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r", ch);
-				send_to_char("{M======================================================================={x\n\r", ch);
+            iterator_start(&wit, map->waypoints);
+            while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+            {
+                send_to_char("{WCartographer Waypoints:{x\n\r\n\r", ch);
+                send_to_char("{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r", ch);
+                send_to_char("{M======================================================================={x\n\r", ch);
 
-				iterator_start(&wit, map->waypoints);
-				while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-				{
-					WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
+                iterator_start(&wit, map->waypoints);
+                while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+                {
+                    WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
 
-					char *wname = wilds ? wilds->name : "{D(null){x";
+                    char *wname = wilds ? wilds->name : "{D(null){x";
 
-					int wwidth = get_colour_width(wname) + 20;
+                    int wwidth = get_colour_width(wname) + 20;
 
-					sprintf(buf, "{W%3d{Y)  {x%-*.*s    {W%5d     %5d    {Y%s{x\n\r",
-						++cnt,
-						wwidth, wwidth, wname,
-						wp->y, wp->x, wp->name);
+                    sprintf(buf, "{W%3d{Y)  {x%-*.*s    {W%5d     %5d    {Y%s{x\n\r",
+                        ++cnt,
+                        wwidth, wwidth, wname,
+                        wp->y, wp->x, wp->name);
 
-					send_to_char(buf, ch);
-				}
+                    send_to_char(buf, ch);
+                }
 
-				iterator_stop(&wit);
+                iterator_stop(&wit);
 
-				send_to_char("\n\r", ch);
-			}
-			iterator_stop(&wit);
+                send_to_char("\n\r", ch);
+            }
+            iterator_stop(&wit);
 
-			success = true;
-		}
-		else
-		{
-			act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+            success = true;
+        }
+        else
+        {
+            act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-			success = false;
-		}
+            success = false;
+        }
 
-		if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
-		{
-			check_improve(ch, gsn_navigation, success, 10);
-			ch->pcdata->spam_block_navigation = true;
-		}
-	}
+        if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+        {
+            check_improve(ch, skill_resolve_gsn("navigation"), success, 10);
+            ch->pcdata->spam_block_navigation = true;
+        }
+    }
 }

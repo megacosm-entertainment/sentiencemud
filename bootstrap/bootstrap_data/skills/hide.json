@@ -1,0 +1,53 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 13,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 13,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 1,
+            "rating": 6
+        },
+        {
+            "class": "warrior",
+            "level": 13,
+            "rating": 6
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "resting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Hide!",
+    "name": "hide",
+    "noun_damage": "",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 138
+}

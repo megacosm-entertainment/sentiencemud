@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 12,
+            "rating": 10
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 10
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 0
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 0
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            1
+        ],
+        [
+            11,
+            2
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "standing",
+    "msg_disp": "The fire shield surrounding $n vanishes.",
+    "msg_obj": "",
+    "msg_off": "{RThe flames protecting you vanish.{x",
+    "name": "fire barrier",
+    "noun_damage": "fire wave",
+    "race": null,
+    "spell_function": "spell_fire_barrier",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 110
+}

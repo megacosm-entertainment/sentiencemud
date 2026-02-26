@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 21,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 21,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 23,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            5
+        ],
+        [
+            19,
+            2
+        ],
+        [
+            8,
+            1
+        ]
+    ],
+    "min_mana": 20,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "Your sores vanish.",
+    "name": "plague",
+    "noun_damage": "sickness",
+    "race": null,
+    "spell_function": "spell_plague",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 183
+}

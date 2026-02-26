@@ -1,0 +1,93 @@
+{
+  "type": "test_suite",
+  "test_suite": "area_loading",
+  "description": "Basic area loading and validation - foundational tests",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "essential_areas_loaded",
+      "description": "Verify that essential game areas are loaded",
+      "dependencies": [],
+      "test_type": "area_existence_check",
+      "input": {
+        "required_areas": [
+          {
+            "name": "Limbo",
+            "vnum_range": [
+              1,
+              10
+            ]
+          },
+          {
+            "name": "Bootstrap Reserved",
+            "required": false,
+            "vnum_range": [
+              1,
+              100
+            ]
+          },
+          {
+            "name": "Bootstrap Tests",
+            "required": false,
+            "vnum_range": [
+              1,
+              200
+            ]
+          }
+        ]
+      },
+      "expected_output": {
+        "all_areas_found": true,
+        "valid_uids": true,
+        "success": true
+      }
+    },
+    {
+      "name": "area_integrity_validation",
+      "description": "Validate area data integrity",
+      "dependencies": [
+        "essential_areas_loaded"
+      ],
+      "test_type": "area_integrity_check",
+      "input": {
+        "checks": [
+          "area_exists",
+          "valid_uid",
+          "vnum_range_valid",
+          "area_name_not_empty",
+          "no_duplicate_uids"
+        ]
+      },
+      "expected_output": {
+        "integrity_check_passed": true,
+        "errors": [],
+        "success": true
+      }
+    },
+    {
+      "name": "area_uid_uniqueness",
+      "description": "Verify loaded areas do not contain duplicate positive UIDs",
+      "dependencies": [
+        "essential_areas_loaded"
+      ],
+      "test_type": "uid_uniqueness_check",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "area_global_config_valid",
+      "description": "Verify global area configuration values are sane",
+      "dependencies": [],
+      "test_type": "config_validator",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

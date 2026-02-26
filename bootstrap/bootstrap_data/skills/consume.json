@@ -1,0 +1,56 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 1,
+            "rating": 1
+        },
+        {
+            "class": "cleric",
+            "level": 1,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 1,
+            "rating": 1
+        },
+        {
+            "class": "warrior",
+            "level": 1,
+            "rating": 1
+        }
+    ],
+    "flags": [
+        "racial"
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Consume!",
+    "name": "consume",
+    "noun_damage": "",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 47
+}

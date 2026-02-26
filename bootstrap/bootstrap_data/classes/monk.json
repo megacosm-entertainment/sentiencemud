@@ -1,0 +1,58 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "monk",
+        "male": "monk",
+        "neutral": "monk",
+        "other": "monk"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "cleric skills",
+        "monk skills"
+    ],
+    "hp_max": 10,
+    "hp_min": 7,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "monk",
+    "primary_stat": "wisdom",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "cleric skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "monk skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "monk",
+            "keyword": "default",
+            "who_name": "   Monk     "
+        }
+    ],
+    "type": "cleric",
+    "traits": {
+        "divine_healer": true
+    },
+    "uid": 9,
+    "weapon": 0,
+    "who": {
+        "female": "   Monk     ",
+        "male": "   Monk     ",
+        "neutral": "   Monk     ",
+        "other": "   Monk     "
+    }
+}

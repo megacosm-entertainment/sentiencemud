@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0.0",
+  "area": {
+    "uid": 2,
+    "name": "Limbo",
+    "filename": "limbo.json",
+    "vnums": {
+      "min": 1,
+      "max": 10
+    },
+    "metadata": {
+      "builders": "Bootstrap",
+      "credits": "Bootstrap",
+      "security": 9,
+      "area_who": 0,
+      "levels": {
+        "min": 0,
+        "max": 0
+      }
+    },
+    "flags": [],
+    "coordinates": {
+      "x": 0,
+      "y": 0,
+      "x_land": 0,
+      "y_land": 0
+    },
+    "recall": {},
+    "wilds_uid": 0,
+    "repop": 100,
+    "post_office": 0,
+    "airship_land": 0,
+    "description": "",
+    "comments": "Minimal bootstrap limbo area.",
+    "notes": "",
+    "versions": {
+      "area": 16777218,
+      "mobile": 16777217,
+      "object": 16777219,
+      "room": 16777218,
+      "token": 16777216,
+      "script": 33554432,
+      "wilds": 16777216
+    }
+  },
+  "rooms": [
+    {
+      "vnum": 1,
+      "name": "The Void",
+      "description": "You are floating in nothing.\\n\\r",
+      "flags": [
+        "indoors",
+        "no_mob",
+        "no_recall",
+        "safe"
+      ],
+      "flags2": [],
+      "sector": "city",
+      "heal_rate": 0,
+      "mana_rate": 0,
+      "move_rate": 0
+    }
+  ]
+}

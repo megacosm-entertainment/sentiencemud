@@ -4,9 +4,11 @@
 // 2014-05-21 NIB - comment this to return SHOWDAMAGE functionality to immortals and testport only
 #define DEBUG_ALLOW_SHOW_DAMAGE
 
+#include "log.h"
+
 #define DEBUG_LINES
 #ifdef DEBUG_LINES
-#define __D__ log_stringf("%s:%s:%d",__FILE__, __func__,__LINE__);
+#define __D__ log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "%s:%s:%d",__FILE__, __func__,__LINE__);
 #else
 #define __D__
 #endif
@@ -62,8 +64,28 @@
 #include <openssl/err.h>
 #include <libpng/png.h>
 #include <qrencode.h>
+#include "sectors_runtime.h"
 #include "protocol.h"
-#include "editors/reserved.h"
+#include "connection.h"
+#include "protocol_layer.h"
+
+/* Forward declarations needed by reserved.h */
+struct area_data;
+typedef struct area_data AREA_DATA;
+
+// Wide vnum runtime representation
+typedef struct wnum_data {
+    AREA_DATA *pArea;    // Pointer to area (runtime only)
+    long vnum;           // Local vnum within area
+} WNUM;
+
+// Wide vnum persistent representation (for save files)
+typedef struct wnum_load_data {
+    long auid;           // Area UID (persistent identifier)
+    long vnum;           // Local vnum
+} WNUM_LOAD;
+
+#include "editors/reserved_vnums/reserved.h"
 
 
 #define STR_HELPER(x) #x
@@ -75,7 +97,7 @@
 #define DECLARE_SPELL_FUN( fun )	SPELL_FUN fun
 #define DECLARE_OBJ_FUN( fun )		OBJ_FUN	  fun
 #define DECLARE_ROOM_FUN( fun )		ROOM_FUN  fun
-#define SPELL_FUNC(s)	bool s (int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
+#define SPELL_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc, int invocation)
 #define IS_EMAIL_VERIFIED(obj) \
     (!game_settings.require_email_verif || (obj)->email_verified)
 typedef unsigned long flag_t;
@@ -110,17 +132,7 @@ typedef unsigned char			bool;
 //enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
 */
 
-#if !defined(false)
-#define false false
-#else
-#define FALSE false
-#endif
-
-#if !defined(true)
-#define true true
-#else
-#define TRUE true
-#endif
+/* true/false come from stdbool.h */
 typedef unsigned char sent_bool;
 #define TRISTATE_FALSE 0
 #define TRISTATE_TRUE 1
@@ -198,7 +210,7 @@ struct script_type {
 #define MIL MAX_INPUT_LENGTH
 
 /* Purge version - anything that is below this version should be considered invalid and to be wiped
-	Useful for players that are too different */
+    Useful for players that are too different */
 #define VERSION_DB_PURGE	0x00000000
 #define VERSION_AREA_PURGE	0x00000000
 #define VERSION_MOBILE_PURGE	0x00000000
@@ -257,6 +269,18 @@ struct script_type {
 // Change #1: Turns PLR_COMPASS and PLR_AUTOCAT on.
 #define VERSION_PLAYER_008 0x01000007
 // Break inventory into LOCKER, EQUIPMENT, and INVENTORY sections.
+#define VERSION_PLAYER_009 0x01000008
+// Switch from sex to body types, etc.
+#define VERSION_PLAYER_010 0x01000009
+// Migrate legacy bitfield/flag state into the preferences system.
+
+#define VERSION_PLAYER_011 0x0100000A
+// Migrate learned[]/mod_learned[] into SKILL_ENTRY.rating/mod_rating.
+
+#define VERSION_PLAYER_012 0x0100000B
+// Migrate legacy class fields to CLASS_LEVEL entries.
+
+#define VERSION_MOBILE_001    0x01000001
 
 #define VERSION_OBJECT_001	0x01000000
 
@@ -269,6 +293,9 @@ struct script_type {
 #define VERSION_OBJECT_004	0x01000003
 //	Change #1: lock states
 
+#define VERSION_OBJECT_005	0x01000004
+//	Change #1: populate type-specific data structs from value[]
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -276,19 +303,26 @@ struct script_type {
 //	Change #2: forgot persistent exits
 
 #define VERSION_CHURCH_001 0x01000001
+#define VERSION_WILDS_001  0x01000001
+//  Change #1: Wildgen definition defaults and migration gate for externalized wilderness architecture
 
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
-#define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_004
+#define VERSION_MOBILE		VERSION_MOBILE_001
+#define VERSION_OBJECT		VERSION_OBJECT_005
 #define VERSION_ROOM		VERSION_ROOM_002
-#define VERSION_PLAYER		VERSION_PLAYER_008
+#define VERSION_PLAYER		VERSION_PLAYER_012
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
-#define VERSION_WILDS		0x01000000
+#define VERSION_WILDS		VERSION_WILDS_001
 #define VERSION_DATABASE	0x01000000
 #define VERSION_CHURCH      VERSION_CHURCH_001
+
+/* Account data version - for JSON account file migrations */
+#define VERSION_ACCOUNT_000 0           /* No version field saved (pre-versioning) */
+#define VERSION_ACCOUNT_001 1           /* Initial versioned format */
+#define VERSION_ACCOUNT     VERSION_ACCOUNT_001
 
 /* Setting type constants */
 #define SETTING_TYPE_BOOL 0
@@ -298,34 +332,59 @@ struct script_type {
 #define SETTING_TYPE_FLOAT 4
 
 /* Setting category constants */
-#define SETTING_CAT_EMAIL 0
-#define SETTING_CAT_MISSION 1
-#define SETTING_CAT_LOCKER 2
-#define SETTING_CAT_VAULT 3
-#define SETTING_CAT_COFFER 4
-#define SETTING_CAT_GLOBAL 5
-#define SETTING_CAT_SECURITY 6
-#define SETTING_CAT_MSSP 7
+#define SETTING_CAT_CORE 1
+#define SETTING_CAT_EMAIL 2
+#define SETTING_CAT_MISSION 3
+#define SETTING_CAT_LOCKER 4
+#define SETTING_CAT_VAULT 5
+#define SETTING_CAT_COFFER 6
+#define SETTING_CAT_GLOBAL 7
+#define SETTING_CAT_SECURITY 8
+#define SETTING_CAT_MSSP 9
+#define SETTING_CAT_REDIS 10
+#define SETTING_CAT_DEBUG 11
 
 #define MIN_SECURITY_GAMEEDIT 9
 
 #define GAMEEDIT(fun) bool fun(CHAR_DATA *ch, char *argument)
-#define SETTING_CAT_MAX 8 /* Number of setting categories */
+#define SETTING_CAT_MAX 12 /* Number of setting categories */
 
 #define AES_KEY_SIZE 32  // 256 bits
 #define AES_IV_SIZE 16   // 128 bits
 #define CRYPTO_SALT_SIZE 16
 
+/* Forward declaration for Jansson JSON type (used by CLASS_LEVEL.custom_data) */
+struct json_t;
+
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
+typedef struct	catalyst_data		CATALYST_DATA;
+typedef struct	aura_data		AURA_DATA;
 typedef struct	area_data		AREA_DATA;
+typedef struct area_region_data AREA_REGION;
 typedef struct	auction_data		AUCTION_DATA;
 typedef struct	auto_war		AUTO_WAR;
 typedef struct	ban_data		BAN_DATA;
 typedef struct	bounty_data		BOUNTY_DATA;
 typedef struct	char_data		CHAR_DATA;
 typedef struct  event_data		EVENT_DATA;
+typedef struct  event_index_data EVENT_INDEX_DATA;
+typedef struct  event_instance EVENT_INSTANCE;
+typedef struct  event_part EVENT_PART;
+typedef struct  event_runtime_ref EVENT_RUNTIME_REF;
+typedef struct  evt_roster_entry EVT_ROSTER_ENTRY;
+typedef struct  evt_phase_def EVT_PHASE_DEF;
+typedef struct  evt_stage_def EVT_STAGE_DEF;
+typedef struct  evt_stage_objective_def EVT_STAGE_OBJECTIVE_DEF;
+typedef struct	race_data		RACE_DATA;
 typedef struct	invasion_quest		INVASION_QUEST;
+typedef struct	skill_data		SKILL_DATA;
+typedef struct	class_data		CLASS_DATA;
+typedef struct	class_level		CLASS_LEVEL;
+typedef struct	class_reward		CLASS_REWARD;
+typedef struct	class_title		CLASS_TITLE;
+typedef struct	skill_group_data	SKILL_GROUP;
+typedef struct	song_data		SONG_DATA;
 typedef struct	chat_room_data		CHAT_ROOM_DATA;
 typedef struct	descriptor_data		DESCRIPTOR_DATA;
 typedef struct	exit_data		EXIT_DATA;
@@ -346,9 +405,23 @@ typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
 typedef struct	pc_data			PC_DATA;
 typedef struct  account_data    ACCOUNT_DATA;
+typedef struct  penalty_data    PENALTY_DATA;
+typedef struct  bonus_data      BONUS_DATA;
+typedef struct  pref_entry      PREF_ENTRY;
 typedef struct	questor_data	QUESTOR_DATA;
+typedef struct	trainer_data	TRAINER_DATA;
+typedef struct	trainer_entry	TRAINER_ENTRY;
+typedef struct  quest_index_v2_data          QUEST_INDEX_V2_DATA;
+typedef struct  quest_stage_index_v2_data    QUEST_STAGE_INDEX_V2_DATA;
+typedef struct  quest_objective_index_v2_data QUEST_OBJECTIVE_INDEX_V2_DATA;
+typedef struct  quest_objective_pool_entry_v2_data QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA;
+typedef struct  quest_reward_index_v2_data   QUEST_REWARD_INDEX_V2_DATA;
+typedef struct  quest_objective_state_v2_data QUEST_OBJECTIVE_STATE_V2_DATA;
+typedef struct  quest_target_binding_v2_data QUEST_TARGET_BINDING_V2_DATA;
+typedef struct  quest_history_data  QUEST_HISTORY_DATA;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
+typedef struct	quest_runtime_data	QUEST_RUNTIME_DATA;
 typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
 typedef struct	ship_crew_index_data	SHIP_CREW_INDEX_DATA;
@@ -370,6 +443,7 @@ typedef struct  ambush_data             AMBUSH_DATA;
 typedef struct  chat_ban_data		CHAT_BAN_DATA;
 typedef struct  chat_op_data		CHAT_OP_DATA;
 typedef struct  church_data             CHURCH_DATA;
+typedef struct  church_quest_data       CHURCH_QUEST_DATA;
 typedef struct  church_player_data      CHURCH_PLAYER_DATA;
 typedef struct	church_treasure_room	CHURCH_TREASURE_ROOM;
 typedef struct  conditional_descr_data  CONDITIONAL_DESCR_DATA;
@@ -384,7 +458,7 @@ typedef struct  prog_list              	PROG_LIST;
 typedef struct  quest_index_data        QUEST_INDEX_DATA;
 typedef struct  quest_index_part_data   QUEST_INDEX_PART_DATA;
 typedef struct  quest_list		QUEST_LIST;
-typedef struct  stat_data		STAT_DATA;
+typedef struct  quest_v2_list		QUEST_V2_LIST;
 typedef struct  string_data		STRING_DATA; /* for lists of strings */
 typedef struct	weather_data		WEATHER_DATA;
 typedef struct  token_index_data	TOKEN_INDEX_DATA;
@@ -398,9 +472,15 @@ typedef struct	log_entry_data		LOG_ENTRY_DATA;
 typedef struct  string_vector_data	STRING_VECTOR;
 typedef struct mob_index_skill_data MOB_INDEX_SKILL_DATA;
 typedef struct mob_skill_data MOB_SKILL_DATA;
+typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
+typedef struct reputation_index_data REPUTATION_INDEX_DATA;
+typedef struct reputation_data REPUTATION_DATA;
+typedef struct mob_reputation_data MOB_REPUTATION_DATA;
+typedef struct group_data GROUP_DATA;
 typedef struct list_type LLIST;
 typedef struct list_link_type LLIST_LINK;
 typedef struct list_link_area_data LLIST_AREA_DATA;
+typedef struct list_link_area_region_data LLIST_AREA_REGION_DATA;
 typedef struct list_link_wilds_data LLIST_WILDS_DATA;
 typedef struct list_link_uid_data LLIST_UID_DATA;
 typedef struct list_link_room_data LLIST_ROOM_DATA;
@@ -421,11 +501,12 @@ typedef struct cmd_data CMD_DATA;
 typedef struct    wilds_vlink      WILDS_VLINK;
 typedef struct    wilds_data       WILDS_DATA;
 typedef struct    wilds_terrain    WILDS_TERRAIN;
+typedef struct    wilds_region     WILDS_REGION;
 typedef struct wilds_coord {
-	WILDS_DATA *wilds;
-	int w;
-	int x;
-	int y;
+    WILDS_DATA *wilds;
+    int w;
+    int x;
+    int y;
 } WILDS_COORD;
 
 typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
@@ -434,12 +515,17 @@ typedef struct special_key_data SPECIAL_KEY_DATA;
 // Blueprints
 typedef struct blueprint_link_data BLUEPRINT_LINK;
 typedef struct blueprint_section_data BLUEPRINT_SECTION;
+typedef struct blueprint_maze_weighted_room MAZE_WEIGHTED_ROOM;
+typedef struct blueprint_maze_fixed_room MAZE_FIXED_ROOM;
+typedef struct blueprint_maze_map_data MAZE_MAP_DATA;
 typedef struct static_blueprint_link STATIC_BLUEPRINT_LINK;
 typedef struct blueprint_data BLUEPRINT;
 typedef struct instance_section_data INSTANCE_SECTION;
 typedef struct instance_data INSTANCE;
 
 // Dungeons
+typedef struct dungeon_index_weighted_floor_data DUNGEON_INDEX_WEIGHTED_FLOOR_DATA;
+typedef struct dungeon_index_level_data DUNGEON_INDEX_LEVEL_DATA;
 typedef struct dungeon_index_special_room_data DUNGEON_INDEX_SPECIAL_ROOM;
 typedef struct dungeon_floor_data DUNGEON_FLOOR_DATA;
 typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
@@ -449,11 +535,11 @@ typedef struct church_log_entry CHURCH_LOG_ENTRY;
 
 struct special_key_data
 {
-	SPECIAL_KEY_DATA *next;
-	bool valid;
+    SPECIAL_KEY_DATA *next;
+    bool valid;
 
-	long key_vnum;		// Base key vnum
-	LLIST *list;		// Actual list of keys
+    WNUM key_wnum;		// Base key widevnum
+    LLIST *list;		// Actual list of keys
 };
 
 #define MEMTYPE_MOB		'M'
@@ -473,7 +559,9 @@ struct special_key_data
 typedef	void DO_FUN	(CHAR_DATA *ch, char *argument);
 typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 typedef bool SPEC_FUN	(CHAR_DATA *ch);
-typedef bool SPELL_FUN	(int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc);
+typedef bool SPELL_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc, int invocation);
+typedef void CLASS_ENTER_FUN(CHAR_DATA *ch);
+typedef void CLASS_LEAVE_FUN(CHAR_DATA *ch);
 typedef void OBJ_FUN	(OBJ_DATA *obj, char *argument);
 typedef void ROOM_FUN	(ROOM_INDEX_DATA *room, char *argument);
 typedef bool CHAR_TEST	(CHAR_DATA *ch, CHAR_DATA *ach, CHAR_DATA *bch);	/* NIB : 20070122 : For act_new( ) */
@@ -496,18 +584,19 @@ typedef struct script_boolexp BOOLEXP;
 
 typedef struct rs_location_type {
     long auid;
-	unsigned long wuid;
-	unsigned long id[3];
+    unsigned long wuid;
+    long vnum;
+    unsigned long id[3];
 } RS_LOCATION;
 
 typedef struct location_type {
     AREA_DATA *area;
-	unsigned long wuid;
-	unsigned long id[3];
+    unsigned long wuid;
+    unsigned long id[3];
 
-	/* if wuid!=0, wilds reference
-	 if wuid==0 and id[0] == 0, no recall
-	 if wuid==0 and id[0] != 0 and id[1:2] == 0, static room */
+    /* if wuid!=0, wilds reference
+     if wuid==0 and id[0] == 0, no recall
+     if wuid==0 and id[0] != 0 and id[1:2] == 0, static room */
 } LOCATION;
 
 #define SKILLSRC_NORMAL			0	// Gained through normal acquisition (Impossible for tokens)
@@ -522,16 +611,34 @@ typedef struct location_type {
 
 #define SKILL_AUTOMATIC			(SKILL_PRACTICE|SKILL_IMPROVE)
 
+/*
+ * SKILL_SOURCE - Tracks which class (and at what scope) granted a skill.
+ * A SKILL_ENTRY may have multiple sources if multiple classes grant the same
+ * skill. This enables correct revocation (only remove if no sources remain)
+ * and accurate availability checking (available if ANY source matches).
+ */
+typedef struct skill_source_type {
+    struct skill_source_type *next;
+    CLASS_DATA *clazz;          // The class that granted this skill
+    int16_t scope;              // REWARD_SCOPE_* — how broadly it's shared
+} SKILL_SOURCE;
+
 typedef struct skill_entry_type {
-	struct skill_entry_type *next;
-	char source;		// Source of the skill
-	long flags;
-	bool practice;		// Can this be practiced/trained?
-	bool improve;		// Can this improve through use?
-	bool isspell;		// Whether this is a spell;
-	int16_t sn;			// Skill Number
-	int16_t song;		// Song Number
-	TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
+    struct skill_entry_type *next;
+    char source;		// Source of the skill
+    long flags;
+    bool practice;		// Can this be practiced/trained?
+    bool improve;		// Can this improve through use?
+    bool isspell;		// Whether this is a spell;
+    SKILL_DATA *skill_data;	// Pointer to master skill definition (NULL during migration)
+    int16_t sn;			// Skill Number (legacy, remove in Phase 9)
+    SONG_DATA *song;		// Song data pointer (NULL if not a song entry)
+    TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
+    int rating;			// Skill percentage (0-100+), replaces learned[sn]
+    int mod_rating;		// Rating modifier, replaces mod_learned[sn]
+    int16_t cross_class_scope;  // REWARD_SCOPE_* — effective broadest scope (cached)
+    CLASS_DATA *source_class;   // Primary granting class (cached, first or broadest)
+    SKILL_SOURCE *sources;      // Linked list of all class sources
 } SKILL_ENTRY;
 
 typedef struct script_switch_case_data SCRIPT_SWITCH_CASE;
@@ -548,92 +655,99 @@ struct script_switch_table_data {
 };
 
 struct script_data {
-	SCRIPT_DATA *next;
-	AREA_DATA *area;
-	char *name;
-	int type;
-	int vnum;
-	char *src;
-	char *edit_src;
-	SCRIPT_CODE *code;
-	int lines;
-	long flags;
-	int depth;	/* Maximum call depth allowed by script */
-	int security;	/* IMP only control over runtime aspects */
-	int run_security;	// Minimum security needed to RUN this script
+    SCRIPT_DATA *next;
+    AREA_DATA *area;
+    char *name;
+    int type;
+    int vnum;
+    char *src;
+    char *edit_src;
+    SCRIPT_CODE *code;
+    int lines;
+    long flags;
+    int depth;	/* Maximum call depth allowed by script */
+    int security;	/* IMP only control over runtime aspects */
+    int run_security;	// Minimum security needed to RUN this script
     char *comments;
+    char *last_compile_log;
+    time_t last_compile_time;
+    bool last_compile_success;
+    char *last_runtime_log;
+    time_t last_runtime_time;
     int n_switch_table;
     SCRIPT_SWITCH *switch_table;
 };
 
 struct script_varinfo {
-	SCRIPT_CB *block;
-	CHAR_DATA *mob;
-	OBJ_DATA *obj;
-	ROOM_INDEX_DATA *room;
-	TOKEN_DATA *token;
-	AREA_DATA *area;
-	INSTANCE *instance;
-	DUNGEON *dungeon;
-	VARIABLE **var;
-	CHAR_DATA *ch;
-	OBJ_DATA *obj1;
-	OBJ_DATA *obj2;
-	CHAR_DATA *vch;
-	CHAR_DATA *vch2;
-	CHAR_DATA *rch;
-	CHAR_DATA **targ;
-	TOKEN_DATA *tok;
-	PROG_DATA *progs;
-	ROOM_INDEX_DATA *location;
-	int registers[5];
-	char phrase[MSL];
-	char trigger[MSL];
+    SCRIPT_CB *block;
+    CHAR_DATA *mob;
+    OBJ_DATA *obj;
+    ROOM_INDEX_DATA *room;
+    TOKEN_DATA *token;
+    AREA_DATA *area;
+    INSTANCE *instance;
+    DUNGEON *dungeon;
+    QUEST_DATA *quest;
+    VARIABLE **var;
+    CHAR_DATA *ch;
+    OBJ_DATA *obj1;
+    OBJ_DATA *obj2;
+    CHAR_DATA *vch;
+    CHAR_DATA *vch2;
+    CHAR_DATA *rch;
+    CHAR_DATA **targ;
+    TOKEN_DATA *tok;
+    PROG_DATA *progs;
+    ROOM_INDEX_DATA *location;
+    int registers[5];
+    char phrase[MSL];
+    char trigger[MSL];
+    int trigger_type;
 };
 
 struct corpse_info {
-	char *name;
-	char *short_descr;
-	char *long_descr;
-	char *full_descr;
-	char *short_headless;
-	char *long_headless;
-	char *full_headless;
-	char *animate_name;
-	char *animate_long;
-	char *animate_descr;
-	char *victim_message;
-	char *room_message;
-	char *decay_message;
-	char *skull_success;
-	char *skull_success_other;
-	char *skull_fail;
-	char *skull_fail_other;
-	bool owner_loot;	/* Only the other of this corpse can loot it */
-	bool headless;		/* Corpse is inherently headless */
-	bool animate_headless;	/* Allow animation if headless */
-	int resurrect_chance;
-	int animation_chance;	/* Ability to animate the corpse */
-	int skulling_chance;	/* Ability to skull the corpse */
-	int decay_type;		/* Type corpse it switches into upon decay (or none) */
-	int decay_rate;		/* Chance of the corpse deteriorating some each tick
-				 	For each 100 rate, the condition will decrease
-					1%.  Any leftover chance will fall onto a
-					random percent roll. */
-	int decay_npctimer_min;
-	int decay_npctimer_max;
-	int decay_pctimer_min;
-	int decay_pctimer_max;
-	int decay_spill_chance;	/* Chance an object will drop from the corpse on decay */
-	int lost_bodyparts;
+    char *name;
+    char *short_descr;
+    char *long_descr;
+    char *full_descr;
+    char *short_headless;
+    char *long_headless;
+    char *full_headless;
+    char *animate_name;
+    char *animate_long;
+    char *animate_descr;
+    char *victim_message;
+    char *room_message;
+    char *decay_message;
+    char *skull_success;
+    char *skull_success_other;
+    char *skull_fail;
+    char *skull_fail_other;
+    bool owner_loot;	/* Only the other of this corpse can loot it */
+    bool headless;		/* Corpse is inherently headless */
+    bool animate_headless;	/* Allow animation if headless */
+    int resurrect_chance;
+    int animation_chance;	/* Ability to animate the corpse */
+    int skulling_chance;	/* Ability to skull the corpse */
+    int decay_type;		/* Type corpse it switches into upon decay (or none) */
+    int decay_rate;		/* Chance of the corpse deteriorating some each tick
+                     For each 100 rate, the condition will decrease
+                    1%.  Any leftover chance will fall onto a
+                    random percent roll. */
+    int decay_npctimer_min;
+    int decay_npctimer_max;
+    int decay_pctimer_min;
+    int decay_pctimer_max;
+    int decay_spill_chance;	/* Chance an object will drop from the corpse on decay */
+    int lost_bodyparts;
 };
 
 struct corpse_blend_type {
 /*	struct corpse_blend_type *next; */
-	int type1;	/* Type on the mobile */
-	int type2;	/* Type at death */
-	int result;	/* Resulting type */
-	bool dual;	/* Whether type1/type2 are interchangeable; if so, both ways are checked */
+    int type1;	/* Type on the mobile */
+    int type2;	/* Type at death */
+    int result;	/* Resulting type */
+    bool dual;	/* Whether type1/type2 are interchangeable; if so, both ways are checked */
 };
 
 typedef struct random_string_pattern RANDOM_PATTERN;
@@ -641,113 +755,160 @@ typedef struct random_string_class RANDOM_CLASS;
 typedef struct random_string_entry RANDOM_STRING_ENTRY;
 typedef struct random_string_data RANDOM_STRING;
 
+typedef enum
+{
+    BODY_TYPE_NEUTRAL,
+    BODY_TYPE_MALE,
+    BODY_TYPE_FEMALE,
+    BODY_TYPE_OTHER, // For custom/non-binary, pronouns will be essential
+    BODY_TYPE_RANDOM,
+    BODY_TYPE_MAX
+} body_type_t;
+
+typedef enum {
+    VERB_FORM_DEFAULT,  // Default behavior (e.g., based on pronouns like "they")
+    VERB_FORM_SINGULAR, // Force singular verbs (e.g., "he walks", "ze walks")
+    VERB_FORM_PLURAL    // Force plural verbs (e.g., "they walk", or if a singular entity wants plural verbs)
+} verb_form_preference_t;
+
+
+
+struct body_type_info_type
+{
+    const char *name;           // e.g., "neutral", "male", "female", "other"
+    const char *default_he_she;
+    const char *default_him_her;
+    const char *default_his_her;      // Possessive adjective
+    const char *default_his_hers;     // Possessive pronoun
+    const char *default_himself_herself;
+    verb_form_preference_t verb_preference; // Verb (and other) preference for this body type
+};
+
+const struct body_type_info_type body_type_info[BODY_TYPE_MAX];
+
+int corpse_type_count(void);
+int corpse_type_lookup(const char *name);
+const char *corpse_type_name(int corpse_type);
+
 struct random_string_pattern {
-	RANDOM_PATTERN	*next;
+    RANDOM_PATTERN	*next;
 
-	int		weight;
-	char		*name;
+    int		weight;
+    char		*name;		/* Stable pattern name/key */
+    char		*template;	/* Expansion template */
 
-	int		classes;
-	RANDOM_CLASS	**c_list;
+    int		classes;
+    RANDOM_CLASS	**c_list;
 };
 
 struct random_string_class {
-	RANDOM_CLASS	*next;
+    RANDOM_CLASS	*next;
 
-	long		uid;	/* ID of the class in the RSG */
-	char *		name;	/* Display name of generator */
+    long		uid;	/* ID of the class in the RSG */
+    char *		name;	/* Display name of generator */
+    long        entries;
+    RANDOM_STRING_ENTRY *e_head;
+    RANDOM_STRING_ENTRY *e_tail;
 
 };
 
 struct random_string_entry {
-	RANDOM_STRING_ENTRY *next;
-	int		weight;
-	char *		str;
+    RANDOM_STRING_ENTRY *next;
+    int		weight;
+    char *		str;
 };
 
 struct random_string_data {
-	RANDOM_STRING *next;
+    RANDOM_STRING *next;
 
-	long		uid;	/* ID of string generator */
-	char *		name;	/* Display name of generator */
-	char *		descr;	/* Description of generator */
+    long		uid;	/* ID of string generator */
+    char *		name;	/* Display name of generator */
+    char *		descr;	/* Description of generator */
 
-	long		patterns;
-	RANDOM_PATTERN	*p_head;
-	RANDOM_PATTERN	*p_tail;
+    long		patterns;
+    RANDOM_PATTERN	*p_head;
+    RANDOM_PATTERN	*p_tail;
 
-	long		classes;
-	RANDOM_CLASS	*c_head;
-	RANDOM_CLASS	*c_tail;
+    long		classes;
+    RANDOM_CLASS	*c_head;
+    RANDOM_CLASS	*c_tail;
+
+    void        *olc_history;
 };
 
 struct list_link_type {
-	LLIST_LINK *next;
+    LLIST_LINK *next;
     LLIST_LINK *prev;
-	void *data;
+    void *data;
 };
 
 #define LLIST_IDENT 0x4C4C5354
 
 struct list_type {
-	LLIST *next;
-	LLIST_LINK *head;
-	LLIST_LINK *tail;
-	unsigned long ref;
-	unsigned long size;
-	LISTCOPY_FUNC *copier;
-	LISTDESTROY_FUNC *deleter;
-	bool valid;
-	bool purge;
+    LLIST *next;
+    LLIST_LINK *head;
+    LLIST_LINK *tail;
+    unsigned long ref;
+    unsigned long size;
+    LISTCOPY_FUNC *copier;
+    LISTDESTROY_FUNC *deleter;
+    bool valid;
+    bool purge;
     unsigned int identifier;
 
 };
 
 struct iterator_type {
-	LLIST *list;
-	LLIST_LINK *current;
-	bool moved;
+    LLIST *list;
+    LLIST_LINK *current;
+    bool moved;
 };
 
 struct list_link_area_data {
-	AREA_DATA *area;
-	long uid;
+    AREA_DATA *area;
+    long uid;
+};
+
+struct list_link_area_region_data {
+    AREA_REGION *aregion;
+    long aid;
+    long rid;
 };
 
 struct list_link_wilds_data {
-	WILDS_DATA *wilds;
-	long uid;
+    WILDS_DATA *wilds;
+    long uid;
 };
 
 struct list_link_uid_data {
-	void *ptr;
-	unsigned long id[2];
+    void *ptr;
+    unsigned long id[2];
 };
 
 struct list_link_room_data {
-	ROOM_INDEX_DATA *room;
-	unsigned long id[4];
+    ROOM_INDEX_DATA *room;
+    unsigned long id[4];
 };
 
 struct list_link_exit_data {
-	ROOM_INDEX_DATA *room;
-	unsigned long id[4];
-	int door;
+    ROOM_INDEX_DATA *room;
+    unsigned long id[4];
+    int door;
 };
 
 struct list_link_skill_data {
-	CHAR_DATA *mob;
-	int sn;
-	TOKEN_DATA *tok;
-	unsigned long mid[2];
-	unsigned long tid[2];
+    CHAR_DATA *mob;
+    int sn;
+    TOKEN_DATA *tok;
+    unsigned long mid[2];
+    unsigned long tid[2];
 };
 
 struct dice_data {
-	int number;
-	int size;
-	int bonus;
-	long last_roll;
+    int number;
+    int size;
+    int bonus;
+    long last_roll;
 };
 
 #define OLC_PNT_MOBILE		'M'
@@ -757,46 +918,46 @@ struct dice_data {
 
 /*
 Object:
-	obj_cost
-	obj_weight
-	obj_repairs
-	obj_fragility
-	obj_spells
-	obj_spells_def
-	obj_spells_off
-	obj_spells_obj
-	obj_aff_str
-	obj_aff_dex
-	obj_aff_int
-	obj_aff_wis
-	obj_aff_con
-	obj_aff_mana
-	obj_aff_hit
-	obj_aff_move
-	obj_aff_other
-	obj_catalyst		Dormant only.  Active requires special permission
-	obj_extra_low		Low tier extra flags (1 point per flag)
-	obj_extra_mid		Mid tier extra flags (1 point per flag)
-	obj_extra_high		High tier extra flags (1 point per flag)
+    obj_cost
+    obj_weight
+    obj_repairs
+    obj_fragility
+    obj_spells
+    obj_spells_def
+    obj_spells_off
+    obj_spells_obj
+    obj_aff_str
+    obj_aff_dex
+    obj_aff_int
+    obj_aff_wis
+    obj_aff_con
+    obj_aff_mana
+    obj_aff_hit
+    obj_aff_move
+    obj_aff_other
+    obj_catalyst		Dormant only.  Active requires special permission
+    obj_extra_low		Low tier extra flags (1 point per flag)
+    obj_extra_mid		Mid tier extra flags (1 point per flag)
+    obj_extra_high		High tier extra flags (1 point per flag)
 
-	obj_armour_pierce	Deviation from calculated armour (% based)
-	obj_armour_bash		Deviation from calculated armour (% based)
-	obj_armour_slash		Deviation from calculated armour (% based)
-	obj_armour_exotic	Deviation from calculated armour (% based)
-	obj_armour_strength	Stronger armour requires more points
+    obj_armour_pierce	Deviation from calculated armour (% based)
+    obj_armour_bash		Deviation from calculated armour (% based)
+    obj_armour_slash		Deviation from calculated armour (% based)
+    obj_armour_exotic	Deviation from calculated armour (% based)
+    obj_armour_strength	Stronger armour requires more points
 
-	obj_weapon_damage	Deviation from calculated damage
-	obj_weapon_flags	Special weapon flags that we'd like to require points (1 point per flag)
+    obj_weapon_damage	Deviation from calculated damage
+    obj_weapon_flags	Special weapon flags that we'd like to require points (1 point per flag)
 
-	obj_ranged_damage	Deviation from calculated damage
-	obj_ranged_range	Projectile distance (further distance requires more points)
+    obj_ranged_damage	Deviation from calculated damage
+    obj_ranged_range	Projectile distance (further distance requires more points)
 
-	obj_furn_heal
-	obj_furn_mana
-	obj_furn_move
+    obj_furn_heal
+    obj_furn_mana
+    obj_furn_move
 
-	obj_wandstaff_level
-	obj_wandstaff_charge
+    obj_wandstaff_level
+    obj_wandstaff_charge
 
 
 Mobile:
@@ -848,39 +1009,39 @@ Mobile:
 #define OLC_PNTCAT_MAX					0
 
 struct olc_point_category_type {
-	char *name;
-	char *description;
-	int category;
-	int type;
-	int subtypes[5];
+    char *name;
+    char *description;
+    int category;
+    int type;
+    int subtypes[5];
 };
 
 struct olc_point_boost_data {
-	OLC_POINT_BOOST *next;
-	int category;
-	int usage;
-	int imp;		// Boosted points granted by an IMP or by claiming an area boost
-	int area;		// Boosted points pulled from the area's boosted allotment
+    OLC_POINT_BOOST *next;
+    int category;
+    int usage;
+    int imp;		// Boosted points granted by an IMP or by claiming an area boost
+    int area;		// Boosted points pulled from the area's boosted allotment
 };
 
 struct olc_point_usage_data {
-	OLC_POINT_USAGE *next;
-	int category;
-	int usage;
+    OLC_POINT_USAGE *next;
+    int category;
+    int usage;
 };
 
 struct olc_point_data {
-	OLC_POINT_BOOST *boosts;
-	OLC_POINT_USAGE *usage;
-	int budget;
-	int total;
+    OLC_POINT_BOOST *boosts;
+    OLC_POINT_USAGE *usage;
+    int budget;
+    int total;
 };
 
 struct olc_point_area_data {
-	OLC_POINT_AREA *next;
-	int category;
-	int claimed;
-	int boost;
+    OLC_POINT_AREA *next;
+    int category;
+    int claimed;
+    int boost;
 };
 
 
@@ -898,8 +1059,14 @@ struct olc_point_area_data {
  * Game parameters. We should look at moving most of this into game settings.
  */
 #define AUCTION_LENGTH          5
+
+/* LEVEL_HERO and LEVEL_IMMORTAL: legacy constants.
+ * Do NOT use for player authority checks — use IS_IMMORTAL() or IS_STAFF().
+ * These remain only for NPC level comparisons and object level caps.
+ * In a multi-class world, player tot_level can exceed these values. */
 #define LEVEL_HERO		120
 #define LEVEL_IMMORTAL		150
+
 #define LEVEL_NEWBIE		10
 #define MAX_TREASURES           1
 #define MAX_IMMORTAL_GROUPS     6
@@ -919,7 +1086,6 @@ struct olc_point_area_data {
 #define MAX_LEVEL		155
 #define MAX_MOB_SKILL_LEVEL	1000
 #define MAX_NPC_SHIP_MOBS	10
-#define MAX_PC_RACE		27
 #define MAX_POA_LEVELS		5
 #define MAX_POSTAL_ITEMS        50
 #define MAX_POSTAL_WEIGHT	150
@@ -973,11 +1139,6 @@ struct olc_point_area_data {
 #define RECKONING_INTENSITY_MAX		200
 #define RECKONING_INTENSITY(in)		URANGE(RECKONING_INTENSITY_MIN, (in), RECKONING_INTENSITY_MAX)
 
-
-
-#ifdef IMC
-	#include "imc.h"
-#endif
 
 #define WILDERNESS_CHAR_EXIT_SIGHT 1
 #define WILDERNESS_OBJ_EXIT_SIGHT  2
@@ -1078,6 +1239,7 @@ struct buf_type
     bool        valid;
     int16_t      state;  /* error state of the buffer */
     int		size;   /* size in k */
+    size_t      len;    /* current string length */
     char *      string; /* buffer's string */
 };
 
@@ -1160,6 +1322,10 @@ struct global_data
 
 struct game_settings_data
 {
+    /* Core Settings (not overridable by environment variables) */
+    char *env_var_prefix;   // Prefix for environment variable overrides (default: "SENTIENCE_")
+    char *secrets_mount;    // Path to Doppler/secrets mount (JSON format, empty if not using)
+
     /* Email Settings */
     bool enable_email;
     char *email_username;  // Username for the email account.
@@ -1173,6 +1339,7 @@ struct game_settings_data
     int max_mission_allowance; // How many mission allowances can a player have?
     int inc_missions;          // How many missions will a player accrue when their mission allowance ticks over?
     int max_missions;          // How many missions can a player have running at the same time?
+    int mission_history_limit; // How many mission-class history entries to retain per character.
 
     /* Locker Settings */
     bool lockers_enabled;                  // Are lockers enabled?
@@ -1215,6 +1382,7 @@ struct game_settings_data
     char *game_name;              // Name of the game, used in MSSP.
     char *login_string;           // Login string to present on connection.
     char *server_description;     // Description of server, eg. "2.0 Public Test Server"
+    char *system_area;            // Default/system area name or UID for widevnum/reserved lookups.
     bool testport;                // Is this a testport?
     bool dev_server;              // Is this a dev/alpha server?
     bool enable_passwd;           // Enable passwords?
@@ -1239,9 +1407,12 @@ struct game_settings_data
     bool alignment_system;        // Do we use the alignment system?
     bool restrict_races_align;    // Restrict races by alignment (Legacy style)
     bool restrict_classes_align;  // Restrict classes by alignment? (Legacy style)
+    bool weather_storms_enabled;  // Enable wilderness storm simulation updates?
+    bool weather_ambience_enabled; // Enable background weather ambience/effects for characters?
     int max_login_attempts;       // How many login attempts are allowed before disconnecting?
     int idle_time;                // How many ticks until a user is considered idle?
     int idle_disconnect_time;     // How many ticks until an idle user is disconnected?
+    int save_cooldown_seconds;       // How many seconds must pass before a player can save again?
     int max_alias;                // How many aliases can a player have?
     int max_characters;           // How many characters can a player have (can be overridden by account data);
     int max_orgs;                 // How many organizations can exist?
@@ -1258,6 +1429,19 @@ struct game_settings_data
     bool enable_insecure_warning; // Show a warning for insecure connections?
     char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
     int max_logfile_size;         // What size do we start rotating logs at (in MB)?
+
+    /* Channel Transport Settings */
+    char *channel_backend;        // Channel backend mode: legacy_iterative|local|auto|redis
+    bool channel_publish_compact; // Publish compact realtime payloads (history refs), hydrate via stream lookup on receive
+
+    /* Redis Settings */
+    bool enable_redis;            // Enable Redis caching?
+    char *redis_host;             // Redis server hostname
+    int redis_port;               // Redis server port
+    char *redis_password;         // Redis authentication password (optional)
+    int redis_timeout_sec;        // Redis connection timeout in seconds
+    int redis_timeout_usec;       // Redis connection timeout microseconds
+
     bool note_boot_errors;
     int character_delete_delay_days; // How long until a character is deleted after being marked for deletion?
     int org_disable_pk_pneuma_cost; // How much does it cost to disable PK in an org?
@@ -1331,6 +1515,19 @@ struct game_settings_data
     bool mssp_roleplaying;       // Roleplaying enforced?
     bool mssp_training_system;   // Training system?
     bool mssp_world_originality; // Based on an established setting?
+
+    /* Debug/Logging Settings */
+    char *crash_dump_dir;        // Directory for crash dumps and core files (NULL = current directory)
+
+    /* Cryptography Settings */
+    char *crypto_key_passphrase;          // Passphrase for deriving encryption key (sensitive, supports SENTIENCE_CRYPTO_KEY_PASSPHRASE env var)
+    char *crypto_key_passphrase_previous; // Previous passphrase for rotation (sensitive, supports SENTIENCE_CRYPTO_KEY_PASSPHRASE_PREVIOUS env var)
+    char *crypto_salt_file;               // Path to salt file for key derivation (default: data/system/.crypto_salt_v{version})
+    bool crypto_use_passphrase;           // Use passphrase-based key derivation instead of file-based key
+    int crypto_key_version;               // Current encryption key version (for rotation support)
+
+    /* Preference Defaults */
+    PREF_ENTRY *pref_defaults;            // Server-wide preference defaults (overrides pc_set_table hardcoded defaults)
 };
 
 /* Changeset structures */
@@ -1485,6 +1682,7 @@ struct church_command_type
 #define CHURCH_PERM_MEMBERS (V)         // Can manage members
 #define CHURCH_PERM_ADD (W)             // Can add members
 #define CHURCH_PERM_EDITLOG (X)         // Can edit log
+#define CHURCH_PERM_ACCEPT_QUESTS (Y)   // Can accept church-scoped quests
 
 // Church log category flags
 #define CHLOG_MEMBERS      (A)
@@ -1505,13 +1703,20 @@ struct church_command_type
 #define CHLOG_TREASURE     (P)
 #define CHLOG_MEMBERSHIP_SETTINGS (Q)
 
+struct church_quest_data
+{
+    int mission_allowance_bonus;
+    time_t board_last_refresh;
+    int available_missions;
+};
+
 struct church_data
 {
     CHURCH_DATA 	*next;
     CHURCH_PLAYER_DATA 	*people;
     long version;
 
-	long		uid;
+    long		uid;
 
     char 		*name;
     char 		*flag;
@@ -1569,6 +1774,7 @@ char *colour2;
     CHURCH_RANK_DATA *default_rank; // Default rank for new members
     long max_rank_uid;
     bool deleted;
+    CHURCH_QUEST_DATA quest_data;
 };
 
 // New structure for church log entries
@@ -1675,51 +1881,63 @@ struct church_treasure_room
 #define CON_SET_UNLINK_PASSWORD 73
 #define CON_VERIFY_CHARACTER_DELETE 74
 #define CON_CHARACTER_DELETE 75
-#define CON_MAX 76
+#define CON_GET_NEW_BODY_TYPE           76
+#define CON_CONFIRM_DEFAULT_PRONOUNS    77
+#define CON_SET_CUSTOM_PRONOUN_SUBJ     78
+#define CON_SET_CUSTOM_PRONOUN_OBJ      79
+#define CON_SET_CUSTOM_PRONOUN_POSS_ADJ 80
+#define CON_SET_CUSTOM_PRONOUN_POSS_PRON 81
+#define CON_SET_CUSTOM_PRONOUN_REFL     82
+#define CON_SET_CUSTOM_VERB_PREF        83
+#define CON_SET_CUSTOM_PRONOUNS_CONFIRM 84
+#define CON_CONFIRM_RESET_PREFS        85
+#define CON_ACCOUNT_PREFS              86
+#define CON_GET_ORIGIN_RACE		87
+#define CON_MAX 88
 
 #define MFA_RECOVERY_CODES 5
 
 
 /* Places */
 enum {
-	PLACE_NOWHERE = 0,
-	PLACE_FIRST_CONTINENT,
-	PLACE_SECOND_CONTINENT,
-	PLACE_ISLAND,
-	PLACE_OTHER_PLANE,
-	PLACE_ABYSS,
-	PLACE_EDEN,
-	PLACE_NETHERWORLD,
-	PLACE_WILDERNESS,
-	PLACE_THIRD_CONTINENT,
-	PLACE_FOURTH_CONTINENT,
+    PLACE_NOWHERE = 0,
+    PLACE_FIRST_CONTINENT,
+    PLACE_SECOND_CONTINENT,
+    PLACE_ISLAND,
+    PLACE_OTHER_PLANE,
+    PLACE_ABYSS,
+    PLACE_EDEN,
+    PLACE_NETHERWORLD,
+    PLACE_WILDERNESS,
+    PLACE_THIRD_CONTINENT,
+    PLACE_FOURTH_CONTINENT,
 };
 
 /* Regions for wilderness */
 enum {
-	REGION_UNKNOWN = 0,
+    REGION_UNKNOWN = 0,
 
-	// Overworld regions
-	REGION_FIRST_CONTINENT,
-	REGION_SECOND_CONTINENT,
-	REGION_THIRD_CONTINENT,
-	REGION_FOURTH_CONTINENT,
-	REGION_MORDRAKE_ISLAND,
-	REGION_TEMPLE_ISLAND,
-	REGION_ARENA_ISLAND,
-	REGION_DRAGON_ISLAND,
-	REGION_UNDERSEA,
-	REGION_NORTH_POLE,
-	REGION_SOUTH_POLE,
-	REGION_NORTHERN_OCEAN,
-	REGION_WESTERN_OCEAN,
-	REGION_CENTRAL_OCEAN,
-	REGION_EASTERN_OCEAN,
-	REGION_SOUTHERN_OCEAN,
+    // Overworld regions
+    REGION_FIRST_CONTINENT,
+    REGION_SECOND_CONTINENT,
+    REGION_THIRD_CONTINENT,
+    REGION_FOURTH_CONTINENT,
+    REGION_MORDRAKE_ISLAND,
+    REGION_TEMPLE_ISLAND,
+    REGION_ARENA_ISLAND,
+    REGION_DRAGON_ISLAND,
+    REGION_UNDERSEA,
+    REGION_NORTH_POLE,
+    REGION_SOUTH_POLE,
+    REGION_NORTHERN_OCEAN,
+    REGION_WESTERN_OCEAN,
+    REGION_CENTRAL_OCEAN,
+    REGION_EASTERN_OCEAN,
+    REGION_SOUTHERN_OCEAN,
 
-	// Abyss regions
+    // Abyss regions
 
-	// Other regions
+    // Other regions
 };
 
 /* For random functions - getting random mobs, objs etc */
@@ -1741,6 +1959,9 @@ enum {
 #define ALIGN_GOOD		1
 #define ALIGN_NONE		0
 #define ALIGN_EVIL	       -1
+
+/* Forward declarations for structs used in descriptor_data */
+typedef struct account_character_data ACCOUNT_CHARACTER;
 
 /*
  * Descriptor (channel) structure.
@@ -1777,6 +1998,7 @@ struct	descriptor_data
     void *              pEdit;		/* OLC */
     int                 nEditTab;
     int                 nMaxEditTabs;
+    bool                olc_show_all_tabs;
     HELP_CATEGORY	*hCat;		/* hedit */
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
@@ -1795,6 +2017,12 @@ struct	descriptor_data
     TOKEN_DATA *	input_tok;
 
     unsigned int		muted;			// All text heading to the output will be blocked
+
+    /* Connection abstraction (new system) */
+    struct connection *conn;		// Connection object (TCP, TLS, WebSocket, etc.)
+    struct protocol_layer *proto;	// Protocol layer (telnet, websocket, etc.)
+
+    /* Legacy TLS fields (will be removed after migration) */
     bool    tls_handshake_in_progress;
     SSL *ssl;
         time_t last_activity;
@@ -1803,7 +2031,16 @@ struct	descriptor_data
     bool reconnecting;
     bool healthcheck;
     char * new_password_buffer;
+    CHAR_DATA *reconnect_ch; /* Character being reconnected to */
+    ACCOUNT_CHARACTER *selected_char; /* Character selected from account menu (lightweight) */
 
+    /* Nanny state machine context flags (for state consolidation) */
+    bool is_account_context;    /* Account vs character operation */
+    bool is_verify_context;     /* Verify vs set operation */
+    bool is_settings_context;   /* Settings menu vs login flow */
+    int pronoun_step;           /* Custom pronoun entry step (0-6) */
+    int delete_confirm_step;    /* Deletion confirmation substep */
+    int mfa_setup_step;         /* MFA setup substep */
 
 };
 
@@ -1939,9 +2176,13 @@ struct	shop_data
     int		flags;
     int		discount;			// Possible percent discount you can get from haggling (0-100)
 
-	long	shipyard;				// Wilderness location for shipyard
+    long	shipyard;				// Wilderness location for shipyard
     int		shipyard_region[2][2];
     char	*shipyard_description;	// Used when purchasing a ship to tell the buyer where the ship is located.
+
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    int min_reputation_rank;
 
     SHOP_STOCK_DATA *stock;
 };
@@ -1956,43 +2197,55 @@ struct	shop_data
 
 struct shop_stock_data
 {
-	SHOP_STOCK_DATA *next;
+    SHOP_STOCK_DATA *next;
 
-	int level;					// Minimum level required to buy it
-								// If level is less than 1..
-								//   - if vnum > 0 => object level
-								//   - else => clamped 1
+    int level;					// Minimum level required to buy it
+                                // If level is less than 1..
+                                //   - if vnum > 0 => object level
+                                //   - else => clamped 1
 
-	long silver;
-	long qp;
-	long dp;
-	long pneuma;
-	char *custom_price;			// Custom pricing (supercedes other pricing values)
+    long silver;
+    long qp;
+    long dp;
+    long pneuma;
+    char *custom_price;			// Custom pricing (supercedes other pricing values)
 
-	int discount;				// How much of a discount is the shopkeeper willing to haggle (0-100%)
+    int discount;				// How much of a discount is the shopkeeper willing to haggle (0-100%)
 
-	int quantity;				// Number of units available
-	int max_quantity;			// Total number of units available
-	int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
+    int quantity;				// Number of units available
+    int max_quantity;			// Total number of units available
+    int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
 
-	MOB_INDEX_DATA *mob;
-	OBJ_INDEX_DATA *obj;
-	SHIP_INDEX_DATA *ship;
-	int type;
-	long vnum;
+    union {
+        WNUM      wnum;			// Runtime: area pointer + vnum
+        WNUM_LOAD load;			// Loading: area UID + vnum
+        long      vnum;			// Legacy/non-entity values
+    } entity;
+    
+    MOB_INDEX_DATA *mob;
+    OBJ_INDEX_DATA *obj;
+    SHIP_INDEX_DATA *ship;
+    int type;
 
-	int duration;				// How long will the stock item last (in-game hours)
+    int duration;				// How long will the stock item last (in-game hours)
 
-	char *custom_keyword;		// Concept / Special object
-	char *custom_descr;
+    char *custom_keyword;		// Concept / Special object
+    char *custom_descr;
 
-	bool singular;				// Can only buy one unit at a time
+    bool singular;				// Can only buy one unit at a time
+
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    int min_reputation_rank;
+    int max_reputation_rank;
+    int min_show_rank;
+    int max_show_rank;
 };
 
 struct shop_request_data
 {
-	SHOP_STOCK_DATA *stock;
-	OBJ_DATA *obj;
+    SHOP_STOCK_DATA *stock;
+    OBJ_DATA *obj;
 };
 
 /*
@@ -2066,7 +2319,6 @@ struct weapon_type
     char *	name;
     long	vnum;
     int16_t	type;
-    int16_t	*gsn;
 };
 
 struct wiznet_type
@@ -2084,39 +2336,98 @@ struct attack_type
 };
 
 
-struct race_type
+/*
+ * New unified race data structure
+ * Replaces both race_type and pc_race_type
+ * Loaded from JSON files in data/races/
+ */
+#define MAX_RACE_SKILLS		12
+#define MAX_RACE_STARTING_EQ	5
+#define RACE_HASH_SIZE		256
+
+struct race_data
 {
-    char *	name;			/* call name of the race */
-    bool	pc_race;		/* can be chosen by pcs */
-    int16_t	*pgrn;
-    int16_t	*pgprn;			/* PC race pointer */
-    long	act;			/* act bits for the race */
-    long	act2;			/* Vizz - act2 bits for the race */
-    long	aff;			/* aff bits for the race */
-    long	aff2;			/* aff2 bits for the race */
-    long	off;			/* off bits for the race */
-    long	imm;			/* imm bits for the race */
-    long        res;			/* res bits for the race */
-    long	vuln;			/* vuln bits for the race */
-    long	form;			/* default form flag for the race */
-    long	parts;			/* default parts for the race */
+    RACE_DATA *	next;			/* Linked list */
+    bool	valid;
+
+    /* Identity */
+    char *	id;			/* Unique string identifier (e.g., "vampire") */
+    int16_t	uid;			/* Numeric UID for serialization */
+    char *	name;			/* Display name */
+    char *	summary;		/* One-line summary for char creation */
+    char *	description;		/* Long description */
+    char *	comments;		/* Builder notes */
+
+    /* Flags */
+    bool	playable;		/* Can players choose this? */
+    bool	starting;		/* Available at character creation (not remort)? */
+    bool	path_race;		/* Transformation/path race (lich, vampire, slayer, etc.) */
+
+    /* Combat/Inherent Properties */
+    long	act[2];			/* ACT flags */
+    long	aff[2];			/* Permanent affects */
+    long	off;			/* Offensive flags */
+    long	imm;			/* Immunities */
+    long	res;			/* Resistances */
+    long	vuln;			/* Vulnerabilities */
+    long	form;			/* Body form */
+    long	parts;			/* Body parts */
+
+    /* Player Character Data */
+    char *	who_name;		/* Who list display */
+    LLIST *	skills;			/* Racial skill list (skill name strings) */
+    int		stats[MAX_STATS];	/* Starting stats */
+    int		max_stats[MAX_STATS];	/* Maximum stats */
+    int		max_vitals[3];		/* Max HP/Mana/Move */
+    int		min_size;		/* Minimum size */
+    int		max_size;		/* Maximum size (usually same as min) */
+    int		default_alignment;	/* -1000 to 1000 alignment scale */
+
+    /* Remort System */
+    char *	remort_race_id;		/* ID of prerequisite race (NULL if none) */
+    char *	remort_into_id;		/* ID of race this remorts into (NULL if none) */
+
+    /* Starting Equipment (VNUMs) */
+    long	starting_eq[MAX_RACE_STARTING_EQ];
+
+    /* Trait values (indexed array, allocated by race_init_traits) */
+    struct trait_value *	trait_values;
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *			olc_history;	/* OLC_CHANGE_HISTORY * — lazy-allocated by racedit */
 };
 
-struct pc_race_type  /* additional data for pc races */
+/* Race hash table entry for O(1) lookup */
+struct race_hash_entry
 {
-    char * name;			/* MUST be in race_type */
-    char * who_name;
-    char * skills[9];		  	/* bonus skills for the race */
-    int    stats[MAX_STATS];		/* starting stats */
-    int	   max_stats[MAX_STATS];	/* maximum stats */
-    int    max_vital_stats[3];		/* max hit points, mana, and move */
-    int	   size;
-    int    alignment;			/* good, neutral or evil */
-    int16_t	*pgrn;
-    int16_t	*prgrn;		/* Pointer to the REMORT race */
-    bool   remort;			/* is it a remort race? */
-    long   objects[5];			/* starting objects */
+    char *		key;		/* Race ID */
+    RACE_DATA *		value;		/* Race data */
+    struct race_hash_entry *next;	/* Collision chain */
 };
+
+typedef struct race_hash_entry RACE_HASH_ENTRY;
+
+/* Race system globals */
+extern RACE_DATA *		race_list;
+extern int			race_count;
+extern RACE_HASH_ENTRY *	race_hash_table[RACE_HASH_SIZE];
+
+/* Race lookup functions */
+RACE_DATA *	race_lookup(const char *id);		/* By string ID - primary */
+RACE_DATA *	race_lookup_uid(int16_t uid);		/* By numeric UID */
+RACE_DATA *	race_lookup_name(const char *name);	/* By display name (fuzzy) */
+bool		race_is_remort(RACE_DATA *race);	/* Is this a remort race? */
+bool		race_is_path(RACE_DATA *race);	/* Is this a path/transformation race? */
+bool		race_has_skill(RACE_DATA *race, const char *skill_name);	/* Has racial skill? */
+RACE_DATA *	race_get_remort_into(RACE_DATA *race);	/* Get remort destination */
+RACE_DATA *	race_get_prerequisite(RACE_DATA *race);	/* Get prerequisite race */
+
+/* Race loading */
+void		load_races(void);
+void		free_races(void);
+RACE_DATA *	new_race_data(void);
+void		free_race_data(RACE_DATA *race);
+RACE_DATA *	race_reload(const char *id);
 
 #define MAX_HIT 	0
 #define MAX_MANA 	1
@@ -2229,7 +2540,8 @@ struct	affect_data
     bool		valid;
     int16_t		group;
     int16_t		where;
-    int16_t		type;
+    SKILL_DATA *	skill;		/* Pointer to skill (NULL for custom-named/catalyst) */
+    int16_t		type;		/* Legacy: skill number for compat; remove in Phase 9 */
     int16_t		level;
     int16_t		duration;
     int16_t		location;
@@ -2239,6 +2551,20 @@ struct	affect_data
     int16_t 		random;
     char 		*custom_name;
     int16_t		slot;
+    TOKEN_DATA *	token;		/* Source token for this affect (if from TOKEN_AFFECT) */
+};
+
+struct catalyst_data
+{
+    CATALYST_DATA *	next;
+    bool		valid;
+    int16_t		where;
+    int16_t		type;
+    int16_t		level;
+    int16_t		duration;
+    int16_t		modifier;
+    int16_t 		random;
+    char 		*custom_name;
 };
 
 /* where definitions */
@@ -2267,24 +2593,35 @@ struct	affect_data
 #define HIT_TO_MANA 	0
 #define MANA_TO_HIT 	1
 
+#define MAX_AURAS_SHOWN 5
+
+struct aura_data
+{
+    AURA_DATA *next;
+    bool valid;
+
+    char *name;
+    char *long_descr;
+};
+
 
 typedef struct affliction_data AFFLICTION_DATA;
 struct affliction_data {
-	AFFLICTION_DATA *next;
-	int type;
-	int state;
-	int timer;
-	int level;
-	int values[4];
-	bool valid;
+    AFFLICTION_DATA *next;
+    int type;
+    int state;
+    int timer;
+    int level;
+    int values[4];
+    bool valid;
 };
 
 typedef struct affliction_type AFFLICTION_TYPE;
 struct affliction_type {
-	char *name;
-	int *index;
-	bool (*state)(CHAR_DATA *ch,AFFLICTION_DATA *aff);
-	void (*info)(CHAR_DATA *ch,AFFLICTION_DATA *aff, char *buf);
+    char *name;
+    int *index;
+    bool (*state)(CHAR_DATA *ch,AFFLICTION_DATA *aff);
+    void (*info)(CHAR_DATA *ch,AFFLICTION_DATA *aff, char *buf);
 };
 
 /*
@@ -2720,10 +3057,10 @@ struct affliction_type {
 #define AFF2_PROTECTED		(Y)
 #define AFF2_DARK_SHROUD	(Z)
 /*				(aa)
-				(bb)
-				(cc)
-				(dd)
-				(ee) */
+                (bb)
+                (cc)
+                (dd)
+                (ee) */
 
 #define AFFFLAG_NODISPEL		(A)		// Affect cannot be removed by dispel
 #define AFFFLAG_NOCANCEL		(B)		// Affect cannot be removed by cancellation
@@ -3041,6 +3378,7 @@ struct affliction_type {
 #define ITEM_NOLOCKER		(bb)
 #define ITEM_NOAUCTION		(cc)	/* Can't be auctioned */
 #define ITEM_KEEP_VALUE		(dd)	/* Keep value when donated */
+#define ITEM_KEY_ITEM		(ee)	/* Auto-stashes on player pickup */
 
 /* Extra3 */
 
@@ -3281,15 +3619,15 @@ struct affliction_type {
 
 /* Types of tools */
 enum {
-	TOOL_NONE = 0,
-	TOOL_WHETSTONE,		/* Sharpening weapons */
-	TOOL_CHISEL,		/* Carving gems */
-	TOOL_PICK,		/* Picking locks */
-	TOOL_SHOVEL,		/* Why is there an ITEM_SHOVEL?! */
-	TOOL_TINDERBOX,		/* Light fires or pipes */
-	TOOL_DRYING_CLOTH,	/* Used to dry plants for smoking! */
-	TOOL_SMALL_NEEDLE,	/* Used to sew things */
-	TOOL_LARGE_NEEDLE	/* Used to sew things */
+    TOOL_NONE = 0,
+    TOOL_WHETSTONE,		/* Sharpening weapons */
+    TOOL_CHISEL,		/* Carving gems */
+    TOOL_PICK,		/* Picking locks */
+    TOOL_SHOVEL,		/* Why is there an ITEM_SHOVEL?! */
+    TOOL_TINDERBOX,		/* Light fires or pipes */
+    TOOL_DRYING_CLOTH,	/* Used to dry plants for smoking! */
+    TOOL_SMALL_NEEDLE,	/* Used to sew things */
+    TOOL_LARGE_NEEDLE	/* Used to sew things */
 };
 
 
@@ -3366,6 +3704,7 @@ enum {
 #define ROOM_NOWHERE		(T)
 #define ROOM_PK		        (U)
 #define ROOM_CPK		(V)
+#define ROOM_CHAOTIC          ROOM_CPK
 #define ROOM_ARENA		(W)
 #define ROOM_UNDERWATER		(X)
 #define ROOM_ROCKS	        (Y)
@@ -3463,51 +3802,51 @@ enum {
  * Area Who Flags
  */
 enum {
-	AREA_BLANK = 0,
-	AREA_ABYSS,
-	AREA_AERIAL,
-	AREA_ARENA,
-	AREA_AT_SEA,
-	AREA_BATTLE,
-	AREA_CASTLE,
-	AREA_CAVERN,
-	AREA_CHAT,
-	AREA_CHURCH,
-	AREA_CULT,
-	AREA_DUNGEON,
-	AREA_EDEN,
-	AREA_FOREST,
-	AREA_FORT,
-	AREA_HOME,
-	AREA_INN,
-	AREA_ISLE,
-	AREA_JUNGLE,
-	AREA_KEEP,
-	AREA_LIMBO,
-	AREA_MOUNTAIN,
-	AREA_NETHERWORLD,
-	AREA_OFFICE,
-	AREA_ON_SHIP,
-	AREA_OUTPOST,
-	AREA_PALACE,
-	AREA_PG,
-	AREA_PLANAR,
-	AREA_PYRAMID,
-	AREA_RUINS,
-	AREA_SOCIAL,
-	AREA_SWAMP,
-	AREA_TEMPLE,
-	AREA_TOMB,
-	AREA_TOWER,
-	AREA_TOWNE,
-	AREA_TUNDRA,
-	AREA_UNDERSEA,
-	AREA_VILLAGE,
-	AREA_VOLCANO,
-	AREA_WILDER,
-	AREA_INSTANCE,
-	AREA_DUTY,
-	AREA_WHO_MAX
+    AREA_BLANK = 0,
+    AREA_ABYSS,
+    AREA_AERIAL,
+    AREA_ARENA,
+    AREA_AT_SEA,
+    AREA_BATTLE,
+    AREA_CASTLE,
+    AREA_CAVERN,
+    AREA_CHAT,
+    AREA_CHURCH,
+    AREA_CULT,
+    AREA_DUNGEON,
+    AREA_EDEN,
+    AREA_FOREST,
+    AREA_FORT,
+    AREA_HOME,
+    AREA_INN,
+    AREA_ISLE,
+    AREA_JUNGLE,
+    AREA_KEEP,
+    AREA_LIMBO,
+    AREA_MOUNTAIN,
+    AREA_NETHERWORLD,
+    AREA_OFFICE,
+    AREA_ON_SHIP,
+    AREA_OUTPOST,
+    AREA_PALACE,
+    AREA_PG,
+    AREA_PLANAR,
+    AREA_PYRAMID,
+    AREA_RUINS,
+    AREA_SOCIAL,
+    AREA_SWAMP,
+    AREA_TEMPLE,
+    AREA_TOMB,
+    AREA_TOWER,
+    AREA_TOWNE,
+    AREA_TUNDRA,
+    AREA_UNDERSEA,
+    AREA_VILLAGE,
+    AREA_VOLCANO,
+    AREA_WILDER,
+    AREA_INSTANCE,
+    AREA_DUTY,
+    AREA_WHO_MAX
 };
 
 /*
@@ -3873,10 +4212,10 @@ enum {
 #define MAGIC_SCRIPT_SPELL	18000
 
 struct tattoo_design_data {
-	char *name;		/* Name of design */
-	int size;
-	int difficulty;
-	int essence[3][2];
+    char *name;		/* Name of design */
+    int size;
+    int difficulty;
+    int essence[3][2];
 };
 
 /*
@@ -3888,9 +4227,12 @@ struct	mob_index_data
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
     QUESTOR_DATA *	pQuestor;
+    TRAINER_DATA *	pTrainer;
     SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
+    QUEST_V2_LIST *	quests_v2;
+    MOB_REPUTATION_DATA *mob_reputations;
     bool	persist;
 
     AREA_DATA *		area;
@@ -3918,12 +4260,12 @@ struct	mob_index_data
     long		off_flags;
     long		imm_flags;
     long		res_flags;
-    int 		vuln_flags;
+    long 		vuln_flags;
     int16_t		start_pos;
     int16_t		default_pos;
 
     int16_t		sex;
-    int16_t		race;
+    RACE_DATA *		race;
     long		wealth;
     long		form;
     long		parts;
@@ -3935,15 +4277,32 @@ struct	mob_index_data
 
     char *		owner; /* mainly for personal mounts */
     char *		skeywds; /* script keywords */
+    char *              list_name; /* display name for list/vnum outputs */
+    char *              list_keywords; /* extra lookup keywords for list/vnum */
+    char *              tags; /* manual builder tags (comma-separated) */
+    char *              auto_tags; /* generated tags from keywords/name */
+    WNUM_LOAD           parent_load;
+    WNUM                parent_wnum;
+    MOB_INDEX_DATA *    parent;
+    bool                parent_inherited;
     pVARIABLE		index_vars;
-    long		corpse;
-    long		zombie;	/* Animated corpse */
+    WNUM_LOAD	corpse_load;
+    WNUM		corpse_wnum;
+    WNUM_LOAD	zombie_load;
+    WNUM		zombie_wnum;
     int			corpse_type;
     char *      comments;
 
-	MOB_INDEX_SKILL_DATA *skills;
+    MOB_INDEX_SKILL_DATA *skills;
 
-	bool		boss;
+    bool		boss;
+    body_type_t         body_type;
+    char *              pronoun_he_she;
+    char *              pronoun_him_her;
+    char *              pronoun_his_her;        // Possessive adjective
+    char *              pronoun_his_hers;       // Possessive pronoun
+    char *              pronoun_himself_herself;
+    verb_form_preference_t verb_preference;
 };
 
 
@@ -3966,8 +4325,10 @@ struct mail_data
     long    expire_script; // Script to run when the mail expires
     long    originating_script; // Script that sent the mail, if any.
     int     orig_script_type; // Type of script that sent the mail, if any.
-    long    from_location; // Origination point for the mail, vnum
-    long    to_location; // Destination point for the mail, vnum
+    WNUM_LOAD from_location_load;
+    WNUM      from_location_wnum;
+    WNUM_LOAD to_location_load;
+    WNUM      to_location_wnum;
     int		status;		/* for keeping track of the mail is */
 };
 
@@ -3999,41 +4360,309 @@ struct gq_data
 
 struct questor_data
 {
-	QUESTOR_DATA *next;
-	bool valid;
+    QUESTOR_DATA *next;
+    bool valid;
 
-	long scroll;
+    long scroll;
 
-	// Appearance data
-	char *keywords;
-	char *short_descr;
-	char *long_descr;
-	char *header;
-	char *prefix;
-	char *suffix;
-	char *footer;
+    // Appearance data
+    char *keywords;
+    char *short_descr;
+    char *long_descr;
+    char *header;
+    char *prefix;
+    char *suffix;
+    char *footer;
 
-	int line_width;
+    int line_width;
 };
 
 #define QUESTOR_MOB		0
 #define QUESTOR_OBJ		1
 #define QUESTOR_ROOM	2
 
+/*
+ * Trainer data — per-mob customizable skill/spell/song training
+ *
+ * Each entry specifies a skill the mob can train, with optional
+ * max rating cap and script-based access gating.
+ */
+struct trainer_entry
+{
+    TRAINER_ENTRY *next;
+    bool valid;
+    char *skill_name;           /* Name of skill/spell/song */
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+    int min_reputation_rank;
+    int max_reputation_rank;
+    int max_rating;             /* Maximum rating this trainer can train to (0 = default cap) */
+    int cost_gold;              /* Gold cost per session (0 = default) */
+    int cost_trains;            /* Train point cost per session (0 = default) */
+    char *check_script;         /* Script to check eligibility (NULL = always available) */
+};
+
+struct trainer_data
+{
+    TRAINER_DATA *next;
+    bool valid;
+    TRAINER_ENTRY *entries;     /* Linked list of trainable skills */
+    int flags;                  /* Reserved for future use */
+    char *greeting;             /* Custom greeting message (NULL = default) */
+};
+
+/* Quest v2 foundational definition model */
+#define QUEST_CLASS_NARRATIVE           0
+#define QUEST_CLASS_MISSION             1
+
+#define QUEST_LOG_CATEGORY_NONE         0
+#define QUEST_LOG_CATEGORY_REGIONAL     1
+#define QUEST_LOG_CATEGORY_CLASS        2
+#define QUEST_LOG_CATEGORY_STORY        3
+#define QUEST_LOG_CATEGORY_CHURCH       4
+#define QUEST_LOG_CATEGORY_DUNGEON      5
+#define QUEST_LOG_CATEGORY_CRAFTING     6
+#define QUEST_LOG_CATEGORY_EVENT        7
+#define QUEST_LOG_CATEGORY_OTHER        8
+
+#define QUEST_TYPE_MAIN_STORY           0
+#define QUEST_TYPE_SIDE_QUEST           1
+#define QUEST_TYPE_UNLOCK               2
+#define QUEST_TYPE_CLASS_QUEST          3
+#define QUEST_TYPE_EVENT                4
+#define QUEST_TYPE_OTHER                5
+
+#define QUEST_SEED_POLICY_AUTO          0
+#define QUEST_SEED_POLICY_FIXED         1
+
+#define QUEST_REPEAT_ONCE               0
+#define QUEST_REPEAT_REPEATABLE         1
+
+#define QUEST_OBJECTIVE_KILL            0
+#define QUEST_OBJECTIVE_COLLECT         1
+#define QUEST_OBJECTIVE_TALK            2
+#define QUEST_OBJECTIVE_TRAVEL          3
+#define QUEST_OBJECTIVE_LOCATE          4
+#define QUEST_OBJECTIVE_RESCUE          5
+#define QUEST_OBJECTIVE_ESCORT          6
+#define QUEST_OBJECTIVE_CUSTOM_SCRIPT   7
+
+#define QUEST_OBJECTIVE_TARGET_EXACT    0
+#define QUEST_OBJECTIVE_TARGET_POOL     1
+
+#define QUEST_STAGE_COMPLETE_ALL        0
+#define QUEST_STAGE_COMPLETE_ANY        1
+#define QUEST_STAGE_COMPLETE_CUSTOM     2
+
+#define QUEST_STAGE_SOURCE_STATIC       0
+#define QUEST_STAGE_SOURCE_GENERATED    1
+
+#define QUEST_REWARD_POINTS             0
+#define QUEST_REWARD_CURRENCY           1
+#define QUEST_REWARD_REPUTATION         2
+#define QUEST_REWARD_TOKEN              3
+#define QUEST_REWARD_ITEM               4
+#define QUEST_REWARD_SCRIPT             5
+
+struct quest_objective_index_v2_data
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *next;
+
+    int id;
+    int objective_type;
+    int quantity;
+    int required_count;
+
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+    int target_ref_stage_id;
+    int target_ref_objective_id;
+    char *target_ref_name;
+    char *target_variable_name;
+    WNUM_LOAD target_token_load;
+    WNUM target_token_wnum;
+    char *target_token_ref_name;
+    char *target_token_variable_name;
+    int target_mode;
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entries;
+    WNUM_LOAD destination_load;
+    WNUM destination_wnum;
+    char *destination_ref_name;
+    char *destination_variable_name;
+    WNUM_LOAD destination_token_load;
+    WNUM destination_token_wnum;
+    char *destination_token_ref_name;
+    char *destination_token_variable_name;
+    char *target_tag;
+    char *talk_phrase;
+    char *description;
+    char *complete_message;
+    char *fail_message;
+
+    bool optional;
+    bool strict_target;
+    bool silent_complete;
+    bool silent_fail;
+};
+
+
+struct quest_objective_pool_entry_v2_data
+{
+    QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *next;
+
+    int id;
+    int weight;
+
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+};
+
+
+struct quest_stage_index_v2_data
+{
+    QUEST_STAGE_INDEX_V2_DATA *next;
+
+    int id;
+    char *name;
+    char *description;
+    int completion_mode;
+    int stage_source;
+    bool auto_commence;
+    int next_stage_id;
+    char *complete_message;
+    char *fail_message;
+    bool silent_complete;
+    bool silent_fail;
+
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objectives;
+
+    char *generator_profile;
+    unsigned long long generator_salt;
+
+    char *on_enter_script;
+    char *on_exit_script;
+};
+
+
+struct quest_reward_index_v2_data
+{
+    QUEST_REWARD_INDEX_V2_DATA *next;
+
+    int reward_type;
+    long amount;
+
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+
+    char *currency;       /* QUEST_REWARD_CURRENCY: "silver" or "gold" */
+    char *script;         /* QUEST_REWARD_SCRIPT: prog name to fire */
+    char *display_string; /* Override default reward message shown to player */
+};
+
+
+struct quest_index_v2_data
+{
+    QUEST_INDEX_V2_DATA *next;
+    AREA_DATA *area;
+
+    long vnum;
+    char *name;
+    char *description;
+
+    int quest_class;
+    int quest_type;
+    int category;
+    int target_scope;
+    long flags;
+    int repeat_policy;
+    int allowance_cost;
+    int entry_stage_id;
+    int seed_policy;
+    unsigned long long fixed_seed;
+
+    QUEST_STAGE_INDEX_V2_DATA *stages;
+    QUEST_REWARD_INDEX_V2_DATA *rewards;
+    LLIST **progs;
+    pVARIABLE index_vars;
+
+    bool enabled;
+    char *prerequisites;  /* JSON requirements spec; NULL/empty = no check */
+};
+
+
+struct quest_objective_state_v2_data
+{
+    QUEST_OBJECTIVE_STATE_V2_DATA *next;
+
+    int objective_id;
+    int progress;
+    bool complete;
+    int selected_pool_entry_id;
+    WNUM_LOAD selected_target_load;
+    WNUM selected_target_wnum;
+    unsigned long selected_target_uid[2];
+    WNUM_LOAD selected_destination_load;
+    WNUM selected_destination_wnum;
+};
+
+
+struct quest_target_binding_v2_data
+{
+    QUEST_TARGET_BINDING_V2_DATA *next;
+
+    char *name;
+    WNUM_LOAD target_load;
+    WNUM target_wnum;
+};
+
 /* For randomly generated quests */
 struct quest_data
 {
     QUEST_DATA *        next;
     QUEST_PART_DATA *   parts;
+    long                quest_index_auid;
+    long                quest_index_vnum;
+    long                quest_index_v2_auid;
+    long                quest_index_v2_vnum;
+    long                run_id;
+    time_t              started_at;
+    time_t              completed_at;
+    time_t              failed_at;
+    time_t              abandoned_at;
+    int                 run_status;
+    int                 current_stage_id;
+    unsigned long long  generation_seed;
+    unsigned long long  current_stage_seed;
+    int                 current_stage_generation;
+    int                 current_stage_commenced;
+    QUEST_OBJECTIVE_STATE_V2_DATA *objective_states;
+    QUEST_TARGET_BINDING_V2_DATA *target_bindings;
+    pVARIABLE           vars;
+    int                 target_scope;
+    unsigned long       scope_owner_id[2];
+    long                scope_owner_uid;
     int					questgiver_type;
-    long                questgiver;
+    WNUM_LOAD           questgiver_load;
+    WNUM                questgiver_wnum;
     int					questreceiver_type;
-    long				questreceiver;
+    WNUM_LOAD           questreceiver_load;
+    WNUM                questreceiver_wnum;
 
     bool		msg_complete;
     bool		generating;
     bool		scripted;
 };
+
+#define QUEST_TARGET_SCOPE_CHARACTER  0
+#define QUEST_TARGET_SCOPE_GROUP      1
+#define QUEST_TARGET_SCOPE_CHURCH     2
+
+#define QUESTV2_FLAG_GROUP_SCOPE_SNAPSHOT   (A)
+
+#define QUEST_RUN_STATUS_ACTIVE        0
+#define QUEST_RUN_STATUS_COMPLETED     1
+#define QUEST_RUN_STATUS_FAILED        2
+#define QUEST_RUN_STATUS_ABANDONED     3
 
 
 struct quest_part_data
@@ -4047,14 +4676,60 @@ struct quest_part_data
 
     long		minutes;	// How many minutes is expected to complete this task?
 
-    long 		obj;
-    long		mob;
-    long		room;
-    long		obj_sac;
-    long		mob_rescue;
+    WNUM_LOAD		obj_load;
+    WNUM			obj_wnum;
+    WNUM_LOAD		mob_load;
+    WNUM			mob_wnum;
+    WNUM_LOAD		room_load;
+    WNUM			room_wnum;
+    WNUM_LOAD		obj_sac_load;
+    WNUM			obj_sac_wnum;
+    WNUM_LOAD		mob_rescue_load;
+    WNUM			mob_rescue_wnum;
     bool		custom_task;
     bool		complete;
 };
+
+struct quest_runtime_data
+{
+    long points_bank;
+    int mission_allowance;
+    time_t allowance_last_update;
+    long next_run_id;
+    long focused_run_id;
+    int expiry_modes;
+    time_t expires_at;
+    int expiry_countdown_minutes;
+    long manual_trigger_area_uid;
+};
+
+
+struct quest_history_data
+{
+    QUEST_HISTORY_DATA *next;
+
+    long run_id;
+    long quest_index_v2_auid;
+    long quest_index_v2_vnum;
+
+    int quest_class;
+    int quest_type;
+    int category;
+    int target_scope;
+    int run_status;
+
+    time_t started_at;
+    time_t completed_at;
+    time_t failed_at;
+    time_t abandoned_at;
+
+    char *name;
+};
+
+#define QUEST_EXPIRY_NONE          0
+#define QUEST_EXPIRY_MANUAL_AREA   (1 << 0)
+#define QUEST_EXPIRY_WALL_TIME     (1 << 1)
+#define QUEST_EXPIRY_COUNTDOWN     (1 << 2)
 
 
 /* For immortal/builder-made quests (can only be done once per char) */
@@ -4072,6 +4747,8 @@ struct quest_index_data
     int train_reward;
     int gold_reward;
     int silver_reward;
+    // Pneuma reward?
+    // Reputation reward?
 };
 
 
@@ -4102,6 +4779,13 @@ struct quest_list
     QUEST_LIST *next;
 
     long vnum;
+};
+
+struct quest_v2_list
+{
+    QUEST_V2_LIST  *next;
+    WNUM_LOAD       load;
+    WNUM            wnum;
 };
 
 #define MAX_TOKEN_VALUES 	8
@@ -4148,7 +4832,7 @@ struct token_index_data
 #define TOKEN_SEE_ALL		(J)	// Allows the token to ignore SIGHT rules
 #define TOKEN_SPELLBEATS	(K)	// Allows the spell token to fire TRIG_SPELLBEATs while casting (as this can be spammy)
 #define TOKEN_PERMANENT		(Z)	/* May not be removed unless the source is extracted.
-									For players, this will be make them removable only by editting pfiles or through specific calls in the code */
+                                    For players, this will be make them removable only by editting pfiles or through specific calls in the code */
 
 /* Token Spell Values  */
 #define TOKVAL_SPELL_RATING	0
@@ -4160,33 +4844,35 @@ struct token_index_data
 
 struct token_data
 {
-	char __type;
-	TOKEN_INDEX_DATA	*pIndexData;
-	TOKEN_DATA		*global_next;
-	TOKEN_DATA 		*next;
-	TOKEN_DATA		*mate;
-	CHAR_DATA		*player;
-	OBJ_DATA		*object;
-	ROOM_INDEX_DATA		*room;
-	PROG_DATA		*progs;
-	EVENT_DATA		*events;
-	EVENT_DATA		*events_tail;
-	ROOM_INDEX_DATA	*clone_rooms;
+    char __type;
+    bool    gc;
+    TOKEN_INDEX_DATA	*pIndexData;
+    TOKEN_DATA		*global_next;
+    TOKEN_DATA 		*next;
+    TOKEN_DATA		*mate;
+    CHAR_DATA		*player;
+    OBJ_DATA		*object;
+    ROOM_INDEX_DATA		*room;
+    PROG_DATA		*progs;
+    EVENT_DATA		*events;
+    EVENT_DATA		*events_tail;
+    ROOM_INDEX_DATA	*clone_rooms;
     LLIST	*lclonerooms;
 
-	bool		valid;
+    bool		valid;
 
-	char 		*name;
-	char		*description;
-	int			type;
-	long 		flags;
-	int			timer;
-	unsigned long	id[2];
-	long		value[MAX_TOKEN_VALUES];
+    char 		*name;
+    char		*description;
+    int			type;
+    long 		flags;
+    int			timer;
+    unsigned long	id[2];
+    long		value[MAX_TOKEN_VALUES];
 
-	EXTRA_DESCR_DATA	*ed;
+    EXTRA_DESCR_DATA	*ed;
 
-	SKILL_ENTRY *skill;		// Is the token used in a skill entry?
+    SKILL_ENTRY *skill;		// Is the token used in a skill entry?
+    LLIST *affects;			// List of affects created by this token (bidirectional with AFFECT_DATA->token)
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
@@ -4217,8 +4903,8 @@ struct cmd_data
 
     long     type;           // Command type
     long        addl_types;     // Additional command types, for use as arguments to the 'commands' command.
-    int16_t     level;          // Minimum level to use command. (Deprecated)
-    int16_t     rank;           // Minimum position to use command.
+    int16_t     level;          // (Deprecated) Was minimum level; use 'rank' instead. Retained for struct compat only.
+    int16_t     rank;           // Minimum staff rank to use command (STAFF_PLAYER..STAFF_IMPLEMENTOR).
     int16_t     position;       // Minimum position to use command.
     int16_t     log;            // Command log level.
     bool        enabled;        // Is the command enabled?
@@ -4298,6 +4984,14 @@ struct cmd_data
 #define CLASS_THIEF_NINJA      	22
 #define CLASS_THIEF_SAGE       	23
 
+/* Race change flags — used with char_set_race() */
+#define RACE_CHANGE_SAVE_ORIGINAL   (A)  /* Store current race as orace before changing */
+#define RACE_CHANGE_OVERLAY         (B)  /* Merge new race properties with original race */
+#define RACE_CHANGE_KEEP_SKILLS     (C)  /* Don't remove old racial skills */
+#define RACE_CHANGE_KEEP_STATS      (D)  /* Don't clamp stats to new race caps */
+#define RACE_CHANGE_SILENT          (E)  /* Don't echo messages to the character */
+#define RACE_CHANGE_REVERT          (F)  /* Restore orace as current race, clear orace */
+
 #define SHIFTED_NONE   		0
 #define SHIFTED_WEREWOLF   	1
 #define SHIFTED_SLAYER 		2
@@ -4318,6 +5012,7 @@ struct cmd_data
 #define PWD_VER_PLAINTEXT 0
 #define PWD_VER_SHA256_CUSTOM 1
 #define PWD_VER_CRYPT_SYSTEM 2
+#define PWD_VER_ARGON2ID 3
 
 struct event_data
 {
@@ -4341,11 +5036,11 @@ struct event_data
 #define OBJ_LAYER_OUTER		(OBJ_LAYERS-1)
 
 struct limb_data {
-	int hit;
-	int max_hit;
-	int flags;
-	AFFECT_DATA *affects;
-	OBJ_DATA *obj[OBJ_LAYERS];
+    int hit;
+    int max_hit;
+    int flags;
+    AFFECT_DATA *affects;
+    OBJ_DATA *obj[OBJ_LAYERS];
 };
 
 #define MAGICCAST_SUCCESS		0
@@ -4353,12 +5048,106 @@ struct limb_data {
 #define MAGICCAST_ROOMBLOCK		2
 #define MAGICCAST_SCRIPT		3	// Failure caused by scripting -
 
+#define REPUTATION_RANK_NORANKUP (A)
+#define REPUTATION_RANK_PARAGON (B)
+#define REPUTATION_RANK_RESET_PARAGON (C)
+#define REPUTATION_RANK_PEACEFUL (D)
+#define REPUTATION_RANK_HOSTILE (E)
+
+struct reputation_index_rank_data
+{
+    REPUTATION_INDEX_RANK_DATA *next;
+    bool valid;
+
+    int16_t uid;
+    int16_t ordinal;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    long capacity;
+    long flags;
+
+    long set;
+
+    char color;
+};
+
+#define REPUTATION_HIDDEN (A)
+#define REPUTATION_PEACEFUL (B)
+#define REPUTATION_ON_UPDATE (C)
+#define REPUTATION_ON_ENCOUNTER (D)
+
+#define REPUTATION_IGNORED (dd)
+#define REPUTATION_AT_WAR (ee)
+
+struct reputation_index_data
+{
+    REPUTATION_INDEX_DATA *next;
+    bool valid;
+
+    AREA_DATA *area;
+    long vnum;
+
+    int16_t top_rank_uid;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    char *created_by;
+
+    long flags;
+
+    WNUM_LOAD token_load;
+    TOKEN_INDEX_DATA *token;
+
+    LLIST *ranks;
+
+    int16_t initial_rank;
+    long initial_reputation;
+};
+
+struct reputation_data
+{
+    REPUTATION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *pIndexData;
+
+    long flags;
+
+    int16_t current_rank;
+    long reputation;
+
+    int16_t maximum_rank;
+    int paragon_level;
+
+    TOKEN_DATA *token;
+};
+
+struct mob_reputation_data
+{
+    MOB_REPUTATION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *reputation;
+    WNUM_LOAD reputation_load;
+
+    int16_t minimum_rank;
+    int16_t maximum_rank;
+
+    long points;
+};
+
 /*
  * One character (PC or NPC).
  */
 struct	char_data
 {
-	char __type;
+    char __type;
+    bool gc;
     CHAR_DATA *		next;
     CHAR_DATA *		next_persist;
     CHAR_DATA *		next_in_room;
@@ -4368,6 +5157,8 @@ struct	char_data
     CHAR_DATA *   	next_in_invasion;
     CHAR_DATA *		master;
     CHAR_DATA *		leader;
+    GROUP_DATA *	group;
+    int                 group_slot;
     CHAR_DATA *		pet;
     CHAR_DATA *		fighting;
     CHAR_DATA *		heldup;
@@ -4391,9 +5182,9 @@ struct	char_data
     ROOM_INDEX_DATA *	in_room;
     ROOM_INDEX_DATA *	was_in_room;
     WILDS_DATA *was_in_wilds;
-	ROOM_INDEX_DATA *	checkpoint;
-	SHOP_DATA		* shop;
-	SHIP_CREW_DATA  * crew;
+    ROOM_INDEX_DATA *	checkpoint;
+    SHOP_DATA		* shop;
+    SHIP_CREW_DATA  * crew;
 
     /* VIZZWILDS */
     CHAR_DATA *        prev_in_wilds;
@@ -4408,7 +5199,7 @@ struct	char_data
     PC_DATA *		pcdata;
     AMBUSH_DATA *	ambush;
     EVENT_DATA *	events;
-	EVENT_DATA		*events_tail;
+    EVENT_DATA		*events_tail;
     bool		valid;
     bool		persist;
 
@@ -4425,9 +5216,16 @@ struct	char_data
 
     /*int			group; Syn - unused and unnecessary */
     int			sex;
+    body_type_t    body_type;	/* Body type of the character */
+    char *      pronoun_he_she;         // e.g., "they", "ze", "he"
+    char *      pronoun_him_her;        // e.g., "them", "zir", "him"
+    char *      pronoun_his_her;        // e.g., "their", "zis", "his" (possessive adjective)
+    char *      pronoun_his_hers;       // e.g., "theirs", "zirs", "his" (possessive pronoun)
+    char *      pronoun_himself_herself; // e.g., "themself", "zirself", "himself"
+    verb_form_preference_t verb_preference;
 
-    int			race;
-    int			orace;
+    RACE_DATA *		race;
+    RACE_DATA *		orace;		/* Original race (before polymorph etc) */
     int			level;
     int			tot_level;
     int			trust;
@@ -4463,9 +5261,8 @@ struct	char_data
     OBJ_DATA		*recite_scroll;
     OBJ_DATA 		*resurrect_target;
     char			*music_target;
-    int				song_num;
+    SONG_DATA		*song;
     SCRIPT_DATA		*song_script;		/* The scripted spell to be done */
-    TOKEN_DATA		*sont_token;		/* The token from which the script call is made */
     int				song_mana;
     OBJ_DATA		*song_instrument;
 
@@ -4475,10 +5272,10 @@ struct	char_data
     SCRIPT_DATA		*script_wait_pulse;
     unsigned long	script_wait_id[2];
 
-	CHAR_DATA		*script_wait_mob;
-	OBJ_DATA		*script_wait_obj;
-	ROOM_INDEX_DATA	*script_wait_room;
-	TOKEN_DATA		*script_wait_token;
+    CHAR_DATA		*script_wait_mob;
+    OBJ_DATA		*script_wait_obj;
+    ROOM_INDEX_DATA	*script_wait_room;
+    TOKEN_DATA		*script_wait_token;
 
     int			fade;
     int			fade_dir;
@@ -4531,6 +5328,9 @@ struct	char_data
 
     /* invasion - invasion the leader belongs to */
     INVASION_QUEST *invasion_quest;
+    WNUM                event_source;               /* Event definition WNUM that spawned this entity */
+    uint32_t            event_source_instance_id;   /* Event instance ID that spawned this entity (0 = none) */
+    int16_t             event_source_bracket;       /* Event bracket this entity belongs to (0 = none) */
 
     long		hit;
     long		max_hit;
@@ -4634,6 +5434,7 @@ struct	char_data
 
     /* Quest */
     QUEST_DATA *	quest;
+    QUEST_RUNTIME_DATA quest_runtime;
     unsigned int     	questpoints;
     int              	nextquest;
     int              	countdown;
@@ -4675,6 +5476,7 @@ struct	char_data
     bool 		cross_zone_question;
     bool 		personal_pk_question;
     bool		remort_question;
+    bool		orace_question;		/* Needs to select original race (migration) */
 
     bool 		in_war;
 
@@ -4690,7 +5492,8 @@ struct	char_data
     int			set_death_type;
 
     int			corpse_type;
-    long		corpse_vnum;
+    WNUM_LOAD	corpse_load;
+    WNUM		corpse_wnum;
 
     /* @@@NIB */
     int			wildview_bonus_x;
@@ -4704,8 +5507,8 @@ struct	char_data
     CHAR_DATA		*ink_target;
 
     /* @@@NIB -  Set and used with HIT triggers only.  Any other time, these will be cleared
-    		These allow for the mob to CONTROL what injures it, as well as allow for tokens
-    		to create simulated damage reduction/amplication */
+            These allow for the mob to CONTROL what injures it, as well as allow for tokens
+            to create simulated damage reduction/amplication */
     int			hit_damage;		/* Amount of damage inflicted by the hit */
     int			hit_type;		/* Type of damage given */
     int			hit_class;		/* Class of damage given */
@@ -4713,15 +5516,16 @@ struct	char_data
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
     char *		tempstring;
     int			manastore;		/* A storage for "mana" other than the character's mana */
+    REPUTATION_DATA *tempreputation;
 
-	MOB_SKILL_DATA *mob_skills;
+    MOB_SKILL_DATA *mob_skills;
 
-	// Sorted skills and spells (merging skills and tokens)
-	SKILL_ENTRY *sorted_skills;
+    // Sorted skills and spells (merging skills and tokens)
+    SKILL_ENTRY *sorted_skills;
 //	SKILL_ENTRY *sorted_spells;
-	SKILL_ENTRY *sorted_songs;
+    SKILL_ENTRY *sorted_songs;
 
-	LOCATION		recall;
+    LOCATION		recall;
 
     LLIST *		llocker;
     LLIST *		lcarrying;
@@ -4731,61 +5535,85 @@ struct	char_data
     LLIST *		lquests;	// Eventually, we will have a quest log of sorts
     LLIST *		lclonerooms;
     LLIST *		laffected;
+    LLIST *		lstache;	// Script item store
 
     LLIST *		lgroup;
+    LLIST *		auras;
+    LLIST *		reputations;
+    MOB_REPUTATION_DATA *mob_reputations;
+    LLIST *		factions;
 
 flag_t temp_log_category;
 int temp_log_entry_id;
 
     int			deathsight_vision;
     int			cast_successful;	// Flag set when the casting is started indicating whether the result is successful
-    								// - This will allow channeling spell tokens to know if the spell would be successful.
-    								// - This will be modifiable by spell tokesn to force it to be a failure,
-    								// -   or, if not already performed, attempt to switch the failure to a success.
+                                    // - This will allow channeling spell tokens to know if the spell would be successful.
+                                    // - This will be modifiable by spell tokesn to force it to be a failure,
+                                    // -   or, if not already performed, attempt to switch the failure to a success.
 
-    								// 0 = SUCCESS
-    								// 1 = SKILL FAILURE
-    								// 2 = ROOM FAILURE
-    								// 3 = SCRIPTED
-	bool		casting_recovered;	// Flag set if a spell recovery was attempted, regardless if it was successful.
-	char		*casting_failure_message;
+                                    // 0 = SUCCESS
+                                    // 1 = SKILL FAILURE
+                                    // 2 = ROOM FAILURE
+                                    // 3 = SCRIPTED
+    bool		casting_recovered;	// Flag set if a spell recovery was attempted, regardless if it was successful.
+    char		*casting_failure_message;
 
-	bool		in_damage_function;	// If set, it will prevent damage_new from working on the character
+    bool		in_damage_function;	// If set, it will prevent damage_new from working on the character
     OBJ_DATA *carrying_temp; // Used to track the object that is being migrated
     LLIST *lcarrying_temp;   // Used to track the list of objects that are being migrated
     bool deleted;
     time_t delete_time;
     char *temp_log_entry;  /* Temporary log entry being edited */
+    char *temp_report_channel; /* Channel id targeted by history report editor */
+    char *temp_report_message_id; /* Stable message/report id targeted by report editor */
 
 /*
-	struct char_data_stats {
+    struct char_data_stats {
 
-	} stats;
-	*/
-	struct char_data_vitals {
-		int mana;		/* Currently held mana */
-		int mana_limit;		/* The maximum held mana one can have before bad things start to happen */
-		int mana_sustained;	/* The minimum mana one must hold to sustain active spells. */
-		int mana_charge;	/* The amount of mana charged */
-		int mana_charge_eff;	/* The effective charged mana (mana_charge after diminishing returns) */
-	} vitals;
-	struct char_data_combat {
-		int damage;		/* Amount of damage inflicted by the hit */
-		int type;		/* Type of damage given */
-		int wclass;		/* Class of damage given */
-	} combat;
-	struct char_data_healing {
-		int healing;		/* Amount of healing done */
-		int type;		/* Type of healing given */
-	} healing;
-	struct char_data_skills {
-		int chance;		/* Used to modify skill chances */
-		int stage;
-	} skills;
-	struct char_data_actions {
-		int beats;
-	} actions;
+    } stats;
+    */
+    struct char_data_vitals {
+        int mana;		/* Currently held mana */
+        int mana_limit;		/* The maximum held mana one can have before bad things start to happen */
+        int mana_sustained;	/* The minimum mana one must hold to sustain active spells. */
+        int mana_charge;	/* The amount of mana charged */
+        int mana_charge_eff;	/* The effective charged mana (mana_charge after diminishing returns) */
+    } vitals;
+    struct char_data_combat {
+        int damage;		/* Amount of damage inflicted by the hit */
+        int type;		/* Type of damage given */
+        int wclass;		/* Class of damage given */
+    } combat;
+    struct char_data_healing {
+        int healing;		/* Amount of healing done */
+        int type;		/* Type of healing given */
+    } healing;
+    struct char_data_skills {
+        int chance;		/* Used to modify skill chances */
+        int stage;
+    } skills;
+    struct char_data_actions {
+        int beats;
+    } actions;
 };
+
+    struct group_data
+    {
+        GROUP_DATA *next;
+        bool valid;
+        unsigned long id[2];
+        CHAR_DATA *leader;
+        LLIST *members;
+        LLIST *pending_requests;
+        int player_count;
+        bool allow_npc_only;
+    };
+
+#define GROUP_SLOT_FRONT 0
+#define GROUP_SLOT_MID   1
+#define GROUP_SLOT_BACK  2
+#define GROUP_SLOT_MAX   3
 
 
 /* These values are used in a bitfield to store what type of channels will
@@ -4802,6 +5630,13 @@ int temp_log_entry_id;
 
 #define SHOW_CHANNEL_FLAG(ch, flag)  (!IS_NPC(ch) && IS_SET((ch)->pcdata->channel_flags, (flag)))
 
+/* Note categories for account/character notes */
+#define NOTE_CAT_INFO       0  /* General information */
+#define NOTE_CAT_WARNING    1  /* Warning to player */
+#define NOTE_CAT_PUNISHMENT 2  /* Record of punishment */
+#define NOTE_CAT_REWARD     3  /* Record of reward */
+#define NOTE_CAT_MAX        4
+
 typedef struct account_note_data ACCOUNT_NOTE_DATA;
 
 struct account_note_data
@@ -4811,6 +5646,8 @@ struct account_note_data
     char *subject;           /* Note subject/title */
     char *text;              /* Note content */
     time_t timestamp;        /* When note was created */
+    int category;            /* NOTE_CAT_* category */
+    char *penalty_ref;       /* Optional penalty ID link */
 };
 
 struct account_data
@@ -4825,6 +5662,7 @@ struct account_data
     char *username;             // Account name
     int failed_attempts;        // Number of failed login attempts
     time_t last_failed_attempt; // Time of last failed login attempt
+    char *default_character;
 
     // Passwords
     char *passwd;       // Account Password (encrypted)
@@ -4862,9 +5700,9 @@ struct account_data
     int character_limit; // Maximum number of characters allowed on the account
     int staff_limit;     // Maximum number of staff characters allowed on the account
     bool staff_account;  // Is this account a staff account?
-    BAN_DATA *bans;
-    //    PENALTY_DATA * penalties;
-    //    BONUS_DATA * bonuses;
+    PENALTY_DATA *penalties;       // Unified penalty records
+    BONUS_DATA *bonuses;            // Unified bonus records
+    PREF_ENTRY *preferences;        // Account-level preferences
     long acct_flags;                // Account flags
     LLIST *characters;              // List of characters on the account
     LLIST *notes;                   // List of notes on the account
@@ -4922,9 +5760,11 @@ struct account_character_data
     time_t email_verification_time; // Time of email verification
     time_t email_verification_last_sent; // Time of last email verification code sent
 
+    // Staff notes (character-level)
+    ACCOUNT_NOTE_DATA *staff_notes;  // Staff notes for this character
 };
 
-typedef struct account_character_data ACCOUNT_CHARACTER;
+/* ACCOUNT_CHARACTER typedef moved to forward declarations before descriptor_data */
 
 /* Function prototypes for account character handling */
 ACCOUNT_CHARACTER *new_account_character(void);
@@ -4965,18 +5805,31 @@ struct	pc_data
     time_t              last_changes;
     time_t		last_logoff;
     time_t		last_login;
+    time_t              last_ready_check;
     time_t		last_project_inquiry;
+    time_t		last_manual_save;
     char *      mfa_key;
     time_t      qr_code_expiration;
     bool        mfa_enabled;
-    bool mfa_question;
     char *account_name;          /* Account this character belongs to */
     unsigned long account_id[2]; /* Account this character belongs to (by ID) */
     bool account_pwd_override;
+    bool fully_loaded;           /* Has inventory/equipment/skills been loaded? */
     char *last_area;
 
     int staff_rank;
+    char *      pronoun_he_she;         // e.g., "they", "ze", "he"
+    char *      pronoun_him_her;        // e.g., "them", "zir", "him"
+    char *      pronoun_his_her;        // e.g., "their", "zis", "his" (possessive adjective)
+    char *      pronoun_his_hers;       // e.g., "theirs", "zirs", "his" (possessive pronoun)
+    char *      pronoun_himself_herself; // e.g., "themself", "zirself", "himself"
+    verb_form_preference_t verb_preference;
 
+    /* New class system — data-driven multi-classing */
+    LLIST *             classes;            /* LLIST of CLASS_LEVEL */
+    CLASS_LEVEL *       current_class;      /* Active class (points into classes list) */
+
+    /* Legacy class fields — kept during migration, removed in Phase 9 */
     int			class_current;
     int			sub_class_current;
     int			class_mage;
@@ -5002,10 +5855,14 @@ struct	pc_data
     int			true_sex;
     int			last_level;
     int			condition	[5];
+    sent_bool           readycheck_answer;
     bool		songs_learned[MAX_SONGS];
+    bool		songs_unlocked[MAX_SONGS];    /* Transient: songs unlocked for rehearsal by class rewards */
     int			learned		[MAX_SKILL];
     int			mod_learned	[MAX_SKILL];
-    bool		group_known	[MAX_GROUP];
+    bool		group_known	[MAX_GROUP];  /* Legacy — kept during migration (Phase 9 removal) */
+    LLIST *		known_groups;		      /* LLIST of SKILL_GROUP * — replaces group_known[] */
+    int			pending_free_levels;          /* Overflow levels awaiting account transfer */
     long		points;
     bool              	confirm_delete;
     char *		alias[MAX_ALIAS];
@@ -5019,6 +5876,8 @@ struct	pc_data
     long		move_before;
 
     long		quests_completed;
+    long                missions_completed;
+    QUEST_HISTORY_DATA *quest_history;
     LOCATION		room_before_arena;
     STRING_DATA		*vis_to_people; /* vis to this list of names */
     STRING_DATA		*quiet_people; /* these people can tell w/ quiet */
@@ -5026,7 +5885,8 @@ struct	pc_data
     /*QUEST_INDEX_DATA    *quests; / keep track of indexed quests and their parts
 
     char *  	    	owner_of_boat_before_logoff;
-  long  	 	vnum_of_boat_before_logoff;
+  WNUM_LOAD	boat_logoff_load;
+  WNUM		boat_logoff_wnum;
 
 
     int 		rank[3];
@@ -5041,27 +5901,48 @@ struct	pc_data
 
     bool		quit_on_input;
 
+    time_t      pending_group_invite_expires;
+    unsigned long pending_group_inviter_id[2];
+    unsigned long pending_group_id[2];
+    time_t      pending_group_request_expires;
+    unsigned long pending_group_request_group_id[2];
+    time_t      pending_resurrect_offer_expires;
+    unsigned long pending_resurrect_offer_from_id[2];
+    time_t      pending_summon_offer_expires;
+    unsigned long pending_summon_offer_from_id[2];
+
     LOCATION		recall;
     PROJECT_INQUIRY_DATA *inquiry_subject; /* Prompts for subject upon addition to a project inquiry */
     STRING_VECTOR	*script_prompts;
 
     int         pwd_vers; /* Password version, added for sha256 */
 
-    #ifdef IMC
-        IMC_CHARDATA *imcchardata;
-    #endif
-
     LLIST *unlocked_areas;
+    LLIST *unlocked_dungeons;
 
     LLIST *ships;
+
+    LLIST *extra_commands;
 
     bool spam_block_navigation;			// Used to prevent spam looking at compasses, sextants and telescopes to get skill improvements.
         char *mfa_pending_key;                    // For unconfirmed MFA setup
     bool mfa_pending;                         // True if setup in progress
     char *recovery_codes[MFA_RECOVERY_CODES]; // Array of 5 recovery codes
     bool recovery_used[MFA_RECOVERY_CODES];   // Used flags
+    PREF_ENTRY *preferences;                  // Character preference overrides
+
+    /* Personal trait overrides (indexed array, allocated by char_init_traits) */
+    struct trait_value * trait_values;
 };
 
+
+const char *get_he_she(CHAR_DATA *ch);
+const char *get_him_her(CHAR_DATA *ch);
+const char *get_his_her(CHAR_DATA *ch);
+const char *get_his_hers(CHAR_DATA *ch);
+const char *get_himself_herself(CHAR_DATA *ch);
+const char *get_body_type_name(CHAR_DATA *ch);
+const char *get_verb_form(CHAR_DATA *ch, const char *singular, const char *plural);
 
 /*
  * Liquids.
@@ -5117,14 +5998,22 @@ struct  conditional_descr_data
 #define LOCK_JAMMED			(G)		// Locking mechanism has been jammed
 #define LOCK_NOJAM			(H)		// Lock does not allow being jammed
 
+#define LOCK_FREE_KEYS		(U)		// Used by exits only to indicate that they need to be freed (internal only)
+#define LOCK_CHECK_BOTH		(V)		// Checks both the widevnum list and the special keys
+#define LOCK_FINAL			(W)		// Created Lock has been finalized for a purposes of scripting manipulation
+#define LOCK_NOMAGIC		(X)		// Magical based trigger script calls cannot edit the lock
+#define LOCK_NOSCRIPT		(Y)		// Non-magical based trigger script calls cannot edit the lock
 #define LOCK_CREATED		(Z)		// Lock was created by a script, so allows full alter exit manipulation
 
 typedef struct lock_state_data {
-	long key_vnum;
-	int pick_chance;		// 0 = impossible (normally), 100 trivial
-	int flags;
-	LLIST *keys;			// Handled by other entities, not owned by lock state
+    WNUM_LOAD key_load;
+    WNUM key_wnum;
+    int pick_chance;		// 0 = impossible (normally), 100 trivial
+    int flags;
+    LLIST *special_keys;	// Handled by other entities, not owned by lock state
 } LOCK_STATE;
+
+#include "item_types.h"
 
 
 /*
@@ -5135,7 +6024,7 @@ struct	obj_index_data
     OBJ_INDEX_DATA *	next;
     EXTRA_DESCR_DATA *	extra_descr;
     AFFECT_DATA *	affected;
-    AFFECT_DATA *	catalyst;
+    CATALYST_DATA *	catalyst;
     AREA_DATA *		area;
     bool	persist;
 
@@ -5168,23 +6057,67 @@ struct	obj_index_data
     bool 		update;
     int			timer;
     char *		skeywds; /* Script keywords */
+    char *              list_name; /* display name for list/vnum outputs */
+    char *              list_keywords; /* extra lookup keywords for list/vnum */
+    char *              tags; /* manual builder tags (comma-separated) */
+    char *              auto_tags; /* generated tags from keywords/name */
+    WNUM_LOAD           parent_load;
+    WNUM                parent_wnum;
+    OBJ_INDEX_DATA *    parent;
+    bool                parent_inherited;
     char *      comments;
+    char *      prerequisites;  /* JSON requirements spec; NULL/empty = no check */
+    QUEST_V2_LIST * quests_v2;
     pVARIABLE		index_vars;
 
-	int light;		/* Inherent light [-1000 to 1000] */
-	int alpha;		/* Transparency of object [0,1000] (0.0% to 100.0%) */
-	int heat;		/* How much heat is in it [0,100000] */
-	int moisture;		/* How much moisture is in it [0,1000] */
+    int light;		/* Inherent light [-1000 to 1000] */
+    int alpha;		/* Transparency of object [0,1000] (0.0% to 100.0%) */
+    int heat;		/* How much heat is in it [0,100000] */
+    int moisture;		/* How much moisture is in it [0,1000] */
 
-	long inrooms;
-	long inmail;
-	long carried;
-	long lockered;
-	long incontainer;
+    long inrooms;
+    long inmail;
+    long carried;
+    long lockered;
+    long incontainer;
 
-	LOCK_STATE *lock;
+    LOCK_STATE *lock;
 
-	LLIST *waypoints;
+    LLIST *waypoints;
+
+    /* Type-specific data (multi-typing system) */
+    TYPE_BITSET      type_flags;
+    ARMOR_DATA *     _armor;
+    BODY_PART_DATA * _body_part;
+    BOOK_DATA *      _book;
+    CART_DATA *      _cart;
+    COMPASS_DATA *   _compass;
+    CONTAINER_DATA * _container;
+    CORPSE_DATA *    _corpse;
+    FLUID_CONTAINER_DATA * _fluid_container;
+    FOOD_DATA *      _food;
+    FURNITURE_DATA * _furniture;
+    HERB_DATA *      _herb;
+    INK_DATA *       _ink;
+    INSTRUMENT_DATA *_instrument;
+    ITEM_SHIP_DATA * _item_ship;
+    JEWELRY_DATA *   _jewelry;
+    LIGHT_DATA *     _light;
+    MAP_DATA *       _map;
+    MIST_DATA *      _mist;
+    MONEY_DATA *     _money;
+    PAGE_DATA *      _page;
+    PORTAL_DATA *    _portal;
+    SCROLL_DATA *    _scroll;
+    SEED_DATA *      _seed;
+    SEXTANT_DATA *   _sextant;
+    TATTOO_DATA *    _tattoo;
+    TELESCOPE_DATA * _telescope;
+    TOOL_DATA *      _tool;
+    TRADE_DATA *     _trade;
+    WAND_DATA *      _wand;
+    WEAPON_CONTAINER_DATA * _weapon_container;
+    WEAPON_DATA *    _weapon;
 };
 
 
@@ -5209,7 +6142,8 @@ struct spell_data
  */
 struct	obj_data
 {
-	char __type;
+    char __type;
+    bool gc;
     OBJ_DATA *		next;		/* for the world list */
     OBJ_DATA *		next_persist;	// Next object in the persistance list
     OBJ_DATA *		next_content;
@@ -5226,12 +6160,12 @@ struct	obj_data
     CHAR_DATA *		pulled_by;
     EXTRA_DESCR_DATA *	extra_descr;
     AFFECT_DATA *	affected;
-    AFFECT_DATA *	catalyst;
+    CATALYST_DATA *	catalyst;
     OBJ_INDEX_DATA *	pIndexData;
     ROOM_INDEX_DATA *	in_room;
     ROOM_INDEX_DATA *	clone_rooms;
     EVENT_DATA *	events;
-	EVENT_DATA		*events_tail;
+    EVENT_DATA		*events_tail;
     WILDS_DATA *        in_wilds;
     TOKEN_DATA *	tokens;
     int                 x;
@@ -5251,10 +6185,14 @@ struct	obj_data
     char *		old_description;
     char *		old_full_description;
     char *		loaded_by;
-	bool        script_created;
-	long        created_script_vnum;
-	int         created_script_type;
+    bool        script_created;
+    WNUM_LOAD   created_script_load;
+    WNUM        created_script_wnum;
+    int         created_script_type;
     time_t      creation_time;
+    WNUM        event_source;               /* Event definition WNUM that spawned this object */
+    uint32_t    event_source_instance_id;   /* Event instance ID that spawned this object (0 = none) */
+    int16_t     event_source_bracket;       /* Event bracket this object belongs to (0 = none) */
     int			item_type;
     long        extra[4];
     //long		extra_flags;
@@ -5274,7 +6212,7 @@ struct	obj_data
     int			times_fixed;
     long 		value	[8];
     SPELL_DATA		*spells;
-    long		orig_vnum;
+    WNUM		orig_wnum;
 
     LOCK_STATE		*lock;
 
@@ -5284,6 +6222,7 @@ struct	obj_data
     int			trap_dam;
     int 		last_wear_loc;
     bool		locker;
+    bool		stached;
     int			nest_clones;
     int storage_type; // Storage type (STORAGE_NONE, STORAGE_LOCKER, STORAGE_ACCOUNT, STORAGE_CHURCH)
 
@@ -5292,16 +6231,17 @@ struct	obj_data
     int     pirate_reputation;
     int			queued;
 
-	int light;		/* Inherent light [-1000 to 1000] */
-	int alpha;		/* Transparency of object [0,1000] (0.0% to 100.0%) */
-	int heat;		/* How much heat is in it [0,100000] */
-	int moisture;		/* How much moisture is in it [0,1000] */
+    int light;		/* Inherent light [-1000 to 1000] */
+    int alpha;		/* Transparency of object [0,1000] (0.0% to 100.0%) */
+    int heat;		/* How much heat is in it [0,100000] */
+    int moisture;		/* How much moisture is in it [0,1000] */
 
-	LLIST *lcontains;
-	LLIST *ltokens;
-	LLIST *lclonerooms;
+    LLIST *lcontains;
+    LLIST *ltokens;
+    LLIST *lclonerooms;
+    LLIST *lstache;
 
-	/* 20140508 NIB - Used by corpses (at first) */
+    /* 20140508 NIB - Used by corpses (at first) */
     char *owner_name;	/* Used to indicate the original mob's name for use decaying the corpse. */
     char *owner_short;	/* Used to indicate the original mob's short for use decaying the corpse. */
 
@@ -5313,6 +6253,40 @@ struct	obj_data
     long weapon_flags_perm;	// Used by weapon objects for use with TO_WEAPON
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
+
+    /* Type-specific data (multi-typing system) */
+    TYPE_BITSET      type_flags;
+    ARMOR_DATA *     _armor;
+    BODY_PART_DATA * _body_part;
+    BOOK_DATA *      _book;
+    CART_DATA *      _cart;
+    COMPASS_DATA *   _compass;
+    CONTAINER_DATA * _container;
+    CORPSE_DATA *    _corpse;
+    FLUID_CONTAINER_DATA * _fluid_container;
+    FOOD_DATA *      _food;
+    FURNITURE_DATA * _furniture;
+    HERB_DATA *      _herb;
+    INK_DATA *       _ink;
+    INSTRUMENT_DATA *_instrument;
+    ITEM_SHIP_DATA * _item_ship;
+    JEWELRY_DATA *   _jewelry;
+    LIGHT_DATA *     _light;
+    MAP_DATA *       _map;
+    MIST_DATA *      _mist;
+    MONEY_DATA *     _money;
+    PAGE_DATA *      _page;
+    PORTAL_DATA *    _portal;
+    SCROLL_DATA *    _scroll;
+    SEED_DATA *      _seed;
+    SEXTANT_DATA *   _sextant;
+    TATTOO_DATA *    _tattoo;
+    TELESCOPE_DATA * _telescope;
+    TOOL_DATA *      _tool;
+    TRADE_DATA *     _trade;
+    WAND_DATA *      _wand;
+    WEAPON_CONTAINER_DATA * _weapon_container;
+    WEAPON_DATA *    _weapon;
 
 };
 
@@ -5331,10 +6305,10 @@ struct	obj_data
 #define OBJ_XPGAIN_GROUP	1		// XP gained from the group_gain function, which is only received when a kill is made
 
 struct destination_data {
-	ROOM_INDEX_DATA *room;	// For an existing room
-	int wx;
-	int wy;
-	WILDS_DATA *wilds;
+    ROOM_INDEX_DATA *room;	// For an existing room
+    int wx;
+    int wy;
+    WILDS_DATA *wilds;
 };
 
 /*
@@ -5342,42 +6316,42 @@ struct destination_data {
  */
 struct	exit_data
 {
-	ROOM_INDEX_DATA *from_room;
-	EXIT_DATA *next;
-	bool valid;
+    ROOM_INDEX_DATA *from_room;
+    EXIT_DATA *next;
+    bool valid;
 
-	union {
-		ROOM_INDEX_DATA *to_room;
-		long vnum;
-	} u1;
-	int exit_info;
-	char *keyword;
-	char *short_desc;  /* short description for displaying only */
-	char *long_desc;   /* long desc for closer scrutiny */
-	int rs_flags;
-	int orig_door;
+    union {
+        ROOM_INDEX_DATA *to_room;
+        long vnum;
+    } u1;
+    int exit_info;
+    char *keyword;
+    char *short_desc;  /* short description for displaying only */
+    char *long_desc;   /* long desc for closer scrutiny */
+    int rs_flags;
+    int orig_door;
 
-	struct door_data {
-		int16_t strength;
-		char *material;
-		LOCK_STATE lock;
-		LOCK_STATE rs_lock;
+    struct door_data {
+        int16_t strength;
+        char *material;
+        LOCK_STATE lock;
+        LOCK_STATE rs_lock;
 //		int rs_lock_flags;
 //		int rs_pick_chance;
-	} door;
+    } door;
 
-	struct {
-		ROOM_INDEX_DATA *source;
-		int id[2];
-	} croom;
+    struct {
+        ROOM_INDEX_DATA *source;
+        int id[2];
+    } croom;
 
-	/* VIZZWILDS */
-	struct wilds_loc_data {
-		int x;
-		int y;
-		long area_uid;
-		long wilds_uid;
-	} wilds;
+    /* VIZZWILDS */
+    struct wilds_loc_data {
+        int x;
+        int y;
+        long area_uid;
+        long wilds_uid;
+    } wilds;
 };
 
 struct flag_stat_type
@@ -5386,149 +6360,477 @@ struct flag_stat_type
     bool stat;
 };
 
-/*
+/**
+ * RESET_DATA - Area reset command structure
+ *
+ * Defines how entities (mobs, objects) are spawned or placed within
+ * an area during reset. Commands are executed sequentially on boot
+ * and during area resets.
+ *
  * Reset commands:
- *   '*': comment
- *   'M': read a mobile
- *   'O': read an object
- *   'P': put object in object
- *   'G': give object to mobile
- *   'E': equip object to mobile
- *   'D': set state of door
- *   'R': randomize room exits
- *   'S': stop (end of list)
+ * - '*': Comment (ignored)
+ * - 'M': Spawn mobile (arg1=mob_wnum, arg2=limit, arg3=room_vnum)
+ * - 'O': Place object (arg1=obj_wnum, arg2=limit, arg3=room_vnum)
+ * - 'P': Put in container (arg1=obj_wnum, arg2=limit, arg3=container_wnum, arg4=count)
+ * - 'G': Give to mobile (arg1=obj_wnum, arg2=limit)
+ * - 'E': Equip to mobile (arg1=obj_wnum, arg2=limit, arg3=wear_slot)
+ * - 'D': Set door state (arg1=room_vnum, arg2=door, arg3=state)
+ * - 'R': Randomize exits (arg1=room_vnum, arg2=num_exits)
+ * - 'S': Stop (end of list)
+ *
+ * Cross-area support:
+ * arg1 and arg3 (when used for entity vnums) are WNUM structures that
+ * store both area_uid and vnum. This enables cross-area references,
+ * allowing areas to spawn mobs/objects from shared libraries or other
+ * areas. For commands that don't reference entities (D, R), these
+ * fields are treated as simple longs via union access.
+ *
+ * Backward compatibility:
+ * Legacy code that treats arg1/arg3 as longs will need updating to
+ * use arg1.vnum/arg3.vnum. The parse_widevnum() function provides
+ * automatic area lookup for bare vnums.
  */
-
-/*
- * Area-reset definition.
- */
-struct	reset_data
+struct reset_data
 {
-    RESET_DATA *	next;
-    char		command;
-    long		arg1;
-    long 		arg2;
-    long		arg3;
-    long		arg4;
+    RESET_DATA *next;
+    char        command;
+    
+    union {
+        WNUM      wnum;    // For entity references (M, O, P, G, E commands) - runtime
+        WNUM_LOAD load;    // For entity references during loading - before areas resolved
+        long      value;   // For non-entity values (D, R commands)
+    } arg1;
+    
+    long        arg2;      // Limit/count
+    
+    union {
+        WNUM      wnum;    // For container references (P command) - runtime
+        WNUM_LOAD load;    // For container references during loading
+        long      value;   // For room vnums, wear slots, door numbers
+    } arg3;
+    
+    long        arg4;      // Count (P command) or other values
+};
+
+struct area_region_data
+{
+    AREA_REGION *next;
+    bool valid;
+
+    AREA_DATA *area;
+
+    long uid;
+
+    char *name;
+    char *topic;
+    char *description;
+    char *comments;
+
+    int area_who;
+
+    long post_office;
+
+    long flags;
+
+    int weather_density_percent;
+    int weather_life_percent;
+    int weather_severity_bias;
+
+    LLIST *players;
+    LLIST *rooms;
+
+    int rs_place_flags;
+    int rs_savage_level;
+
+    RS_LOCATION rs_recall;
+
+    int rs_x;
+    int rs_y;
+    int rs_land_x;
+    int rs_land_y;
+    long rs_airship_land_spot;
+
+    int place_flags;
+    int savage_level;
+
+    LOCATION recall;
+
+    int x;
+    int y;
+    int land_x;
+    int land_y;
+    long airship_land_spot;
+};
+
+#define AREA_REGION_NO_RECALL (A)
+#define AREA_REGION_KEEP_LIVE (B)
+
+struct evt_roster_entry {
+    EVT_ROSTER_ENTRY *next;
+    int kind;
+    long vnum;
+    int count;
+    int chance;
+    int min_level;
+    int max_level;
+    bool boss;
+    int16_t stage;
+    char *requirements;
+};
+
+struct evt_phase_def {
+    EVT_PHASE_DEF *next;
+    char *name;
+    int16_t minutes;
+    long script_vnum;
+};
+
+struct evt_stage_objective_def {
+    EVT_STAGE_OBJECTIVE_DEF *next;
+    char *name;
+    int16_t objective_type;
+    int16_t target_count;
+    long script_vnum;
+    char *data;
+};
+
+struct evt_stage_def {
+    EVT_STAGE_DEF *next;
+    char *name;
+    int16_t transition_mode;
+    int16_t objective_mode;
+    int16_t duration_minutes;
+    long on_enter_script;
+    long on_tick_script;
+    long on_complete_script;
+    EVT_STAGE_OBJECTIVE_DEF *objectives;
+    int16_t objective_count;
+};
+
+struct event_index_data {
+    AREA_DATA *area;
+    long vnum;
+    long uid;
+    char *name;
+    char *description;
+    char *announce_msg;
+    char *end_msg;
+    char *join_msg;
+    int16_t event_type;
+    int16_t scope_type;
+    long scope_area_uid;
+    bool scope_floating;
+    int16_t sched_type;
+    int16_t sched_interval;
+    int16_t sched_variance;
+    int16_t sched_duration;
+    int16_t sched_cooldown;
+    int16_t min_level;
+    int16_t max_level;
+    int16_t min_players;
+    int16_t max_players;
+    int16_t completion_goal;
+    bool leader_required;
+    char *display_title;
+    char *short_summary;
+    char *news_slug;
+    char *news_announcement;
+    char *news_body;
+    char *theme_tags;
+    char *spawn_brackets;
+    char *collection_brackets;
+    char *bracket_mode;
+    char *progress_aggregation;
+    char *phase_plan;
+    EVT_PHASE_DEF *phases;
+    int16_t phase_count;
+    EVT_STAGE_DEF *stages;
+    int16_t stage_count;
+    long reward_phase_script;
+    long reward_success_script;
+    long reward_failure_script;
+    bool enabled;
+    long flags;
+    LLIST **progs;
+    pVARIABLE index_vars;
+    char *comments;
+    EVT_ROSTER_ENTRY *roster;
+    time_t scheduled_time;
+    time_t cooldown_until;
+    time_t next_auto_time;
+    EVENT_INDEX_DATA *next;
+    EVENT_INDEX_DATA *next_hash;
+};
+
+struct event_part {
+    EVENT_PART *next;
+    EVENT_INSTANCE *inst;
+    CHAR_DATA *ch;
+    int kills;
+    int items_turned;
+    int team;
+    int phases_completed;
+    bool event_completed;
+};
+
+struct event_instance {
+    uint32_t instance_id;
+    EVENT_INDEX_DATA *def;
+    int state;
+    time_t started_at;
+    time_t end_time;
+    EVENT_PART *participants;
+    int participant_count;
+    int progress_kills;
+    int progress_items;
+    int progress_goal;
+    long scope_area_uid;
+    bool scope_floating;
+    bool leader_phase;
+    int phase_index;
+    time_t phase_due;
+    char phase_name[MIL];
+    pVARIABLE runtime_vars;
+    bool dirty;
+    EVENT_INSTANCE *next;
+};
+
+struct event_runtime_ref {
+    long uid;
+    uint32_t instance_id;
+};
+
+enum {
+    EVT_TYPE_COLLECTION = 0,
+    EVT_TYPE_INVASION,
+    EVT_TYPE_BOSS,
+    EVT_TYPE_WAR_FFA,
+    EVT_TYPE_WAR_GENOCIDE,
+    EVT_TYPE_WAR_JIHAD,
+    EVT_TYPE_WORLDSTATE,
+    EVT_TYPE_CUSTOM,
+};
+
+enum {
+    EVT_SCOPE_GLOBAL = 0,
+    EVT_SCOPE_AREA,
+    EVT_SCOPE_REGION,
+    EVT_SCOPE_ZONES,
+    EVT_SCOPE_BATTLEFIELD,
+};
+
+enum {
+    EVT_SCHED_MANUAL = 0,
+    EVT_SCHED_RECURRING,
+    EVT_SCHED_CALENDAR,
+    EVT_SCHED_WORLDCONDITION,
+    EVT_SCHED_TRIGGERED,
+};
+
+enum {
+    EVT_FLAG_WINNER_ONLY      = (A),
+    EVT_FLAG_ALL_PARTS        = (B),
+    EVT_FLAG_TOP3             = (C),
+    EVT_FLAG_NOANNOUNCE       = (D),
+    EVT_FLAG_JOINLATE         = (E),
+    EVT_FLAG_EXCLUSIVE_PLAYER = (F),
+    EVT_FLAG_UNIQUE_GLOBAL    = (G),
+    EVT_FLAG_SCALING          = (H),
+    EVT_FLAG_REPEATABLE       = (I),
+    EVT_FLAG_PASSIVE          = (J),
+    EVT_FLAG_INSTANCE_EXCLUSIVE = (K),
+    EVT_FLAG_AUTO_ADD         = (L),
+};
+
+enum {
+    EVTS_PENDING = 0,
+    EVTS_ACTIVE,
+    EVTS_COMPLETE,
+    EVTS_CANCELLED,
+};
+
+enum {
+    EVT_ROSTER_NPC = 0,
+    EVT_ROSTER_OBJECT,
+};
+
+enum {
+    EVT_STAGE_TRANSITION_ON_COMPLETE = 0,
+    EVT_STAGE_TRANSITION_ON_TIMER,
+    EVT_STAGE_TRANSITION_SCRIPT,
+};
+
+enum {
+    EVT_STAGE_OBJECTIVE_ALL = 0,
+    EVT_STAGE_OBJECTIVE_ANY,
+};
+
+enum {
+    EVT_STAGE_OBJECTIVE_KILL = 0,
+    EVT_STAGE_OBJECTIVE_COLLECT,
+    EVT_STAGE_OBJECTIVE_SURVIVE,
+    EVT_STAGE_OBJECTIVE_CUSTOM,
 };
 
 /*
  * Area definition.
  */
-struct	area_data {
+struct	area_data 
+{
 
-	char __type;
-	AREA_DATA *next;
-	RESET_DATA *reset_first;
-	RESET_DATA *reset_last;
-	ROOM_INDEX_DATA *vrooms;
+    char __type;
+    AREA_DATA *next;
+    RESET_DATA *reset_first;
+    RESET_DATA *reset_last;
+    ROOM_INDEX_DATA *vrooms;
 /* VIZZWILDS */
-	WILDS_DATA *wilds;
-	long uid;
+    WILDS_DATA *wilds;
+    long uid;
 
-	char *file_name;
-	char *name;
-	char *credits;
+    // Per-area hash tables (replace global ones)
+    MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
+    OBJ_INDEX_DATA *obj_index_hash[MAX_KEY_HASH];
+    ROOM_INDEX_DATA *room_index_hash[MAX_KEY_HASH];
+    TOKEN_INDEX_DATA *token_index_hash[MAX_KEY_HASH];
+    BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
+    BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
+    DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
+    SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+    REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
+    QUEST_INDEX_V2_DATA *quest_index_v2_hash[MAX_KEY_HASH];
+    EVENT_INDEX_DATA *event_index_hash[MAX_KEY_HASH];
+
+    // Per-area script indexes
+    SCRIPT_DATA *mprog_list;
+    SCRIPT_DATA *oprog_list;
+    SCRIPT_DATA *rprog_list;
+    SCRIPT_DATA *tprog_list;
+    SCRIPT_DATA *aprog_list;
+    SCRIPT_DATA *iprog_list;
+    SCRIPT_DATA *dprog_list;
+    SCRIPT_DATA *qprog_list;
+    SCRIPT_DATA *eprog_list;
+
+    // Per-area instances (runtime)
+    LLIST *instances;
+
+    // Per-area vnum tracking
+    long bottom_mob_vnum, top_mob_vnum;
+    long bottom_obj_vnum, top_obj_vnum;
+    long bottom_room_vnum, top_room_vnum;
+
+    char *file_name;
+    char *name;
+    char *tags;
+    char *auto_tags;
+    char *area_topic;
+    char *credits;
     char *  description;
     char *  comments;
     char *  notes;
-	int16_t age;
-	int16_t nplayer;
-	int16_t low_range;
-	int16_t high_range;
+    int16_t age;
+    int16_t nplayer;
+    int16_t low_range;
+    int16_t high_range;
     int16_t min_level;
     int16_t max_level;
-	long min_vnum;
-	long max_vnum;
-	bool empty;
-	char *builders;
-	long anum;
-	long area_flags;
-	int security;
-	bool open;
+    long min_vnum;
+    long max_vnum;
+    bool empty;
+    char *builders;
+    long anum;
+    long area_flags;
+    int security;
+    bool open;
 
-	long wilds_uid;	// What wilderness are the coordinates even in?
+    long wilds_uid;	// What wilderness are the coordinates even in?
 
-	int x;
-	int y;
+    int x;
+    int y;
 
-	/* Areas have a landing coord in the wilds. This will be useful if we want flying
-	 creatures that travel around. */
-	int land_x;
-	int land_y;
-	long airship_land_spot;
+    /* Areas have a landing coord in the wilds. This will be useful if we want flying
+     creatures that travel around. */
+    int land_x;
+    int land_y;
+    WNUM_LOAD airship_land_load;
+    WNUM      airship_land_wnum;
 
-	char *map;
-	int map_size_x;
-	int map_size_y;
-	int startx;
-	int starty;
-	int endx;
-	int endy;
-	LOCATION recall;
-	bool reset_once;
-	int area_who;
+    char *map;
+    int map_size_x;
+    int map_size_y;
+    int startx;
+    int starty;
+    int endx;
+    int endy;
+    LOCATION recall;
+    bool reset_once;
+    int area_who;
 /*	long area_who_flags;
-	long area_who2_flags; */
-	long place_flags;
-	int repop; /* repop time in minutes */
-	int version_area;
-	int version_mobile;
-	int version_object;
-	int version_room;
-	int version_token;
-	int version_script;
-	int version_wilds;
+    long area_who2_flags; */
+    long place_flags;
+    int repop; /* repop time in minutes */
+    int version_area;
+    int version_mobile;
+    int version_object;
+    int version_room;
+    int version_token;
+    int version_script;
+    int version_wilds;
 
-	SHIP_DATA *ship_list;
-	TRADE_ITEM *trade_list;
+    SHIP_DATA *ship_list;
+    TRADE_ITEM *trade_list;
 
-	long post_office;
+    AREA_REGION region;
+    LLIST *regions;
+    long top_region_uid;
 
-	INVASION_QUEST *invasion_quest;
+    WNUM_LOAD post_office_load;
+    WNUM      post_office_wnum;
 
-	/* For weather - list of all storms (wilderness only) */
-	STORM_DATA *storm;
+    INVASION_QUEST *invasion_quest;
 
-	/* The storm the area is affected by */
-	STORM_DATA *affected_by_storm;
+    /* For weather - list of all storms (wilderness only) */
+    STORM_DATA *storm;
 
-	/* If storm is close, warn that its coming */
-	STORM_DATA *storm_close;
+    /* The storm the area is affected by */
+    STORM_DATA *affected_by_storm;
+
+    /* If storm is close, warn that its coming */
+    STORM_DATA *storm_close;
 
 #if 0
-	MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
-	OBJ_INDEX_DATA *obj_index_hash[MAX_KEY_HASH];
-	ROOM_INDEX_DATA *room_index_hash[MAX_KEY_HASH];
-	TOKEN_INDEX_DATA *token_index_hash[MAX_KEY_HASH];
-	SCRIPT_DATA *mprog_list;
-	SCRIPT_DATA *oprog_list;
-	SCRIPT_DATA *rprog_list;
-	SCRIPT_DATA *tprog_list;
+    MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
+    OBJ_INDEX_DATA *obj_index_hash[MAX_KEY_HASH];
+    ROOM_INDEX_DATA *room_index_hash[MAX_KEY_HASH];
+    TOKEN_INDEX_DATA *token_index_hash[MAX_KEY_HASH];
+    SCRIPT_DATA *mprog_list;
+    SCRIPT_DATA *oprog_list;
+    SCRIPT_DATA *rprog_list;
+    SCRIPT_DATA *tprog_list;
 
-	long top_mob_index;
-	long top_obj_index;
-	long top_room;
+    long top_mob_index;
+    long top_obj_index;
+    long top_room;
 
-	long top_mprog_index;
-	long top_oprog_index;
-	long top_rprog_index;
-	long top_tprog_index;
-	long top_vnum_mob;
-	long top_vnum_npc_ship;
-	long top_vnum_obj;
-	long top_vnum_room;
-	long top_vroom;
+    long top_mprog_index;
+    long top_oprog_index;
+    long top_rprog_index;
+    long top_tprog_index;
+    long top_vnum_mob;
+    long top_vnum_npc_ship;
+    long top_vnum_obj;
+    long top_vnum_room;
+    long top_vroom;
 #endif
 
-	LLIST *room_list;
+    LLIST *room_list;
 
 
-	OLC_POINT_BOOST *points;	// Boosted point allotments for the entire area
-								// Can be used with "<editor> boostclaim <type> <points>"
-								// Can be returned with "<editor> boostrefund <type> <points>"
-								//		Can only be returned if resulting point reduction on the bucket doesn't cause the used number to exceed the total.
-								//		Only the imp-boost can do this.
+    OLC_POINT_BOOST *points;	// Boosted point allotments for the entire area
+                                // Can be used with "<editor> boostclaim <type> <points>"
+                                // Can be returned with "<editor> boostrefund <type> <points>"
+                                //		Can only be returned if resulting point reduction on the bucket doesn't cause the used number to exceed the total.
+                                //		Only the imp-boost can do this.
 
     PROG_DATA *		progs;
     pVARIABLE		index_vars;
@@ -5587,7 +6889,8 @@ struct trade_item
     long 	replenish_amount;
     long 	replenish_time;
     int  	replenish_current_time;
-    long 	obj_vnum;
+    WNUM_LOAD obj_load;
+    WNUM      obj_wnum;
     long 	buy_price;
     long 	sell_price;
     long 	qty;
@@ -5687,8 +6990,9 @@ struct rep_type
 #define NPC_SHIP_STATE_CHASING         5
 
 #define SHIP_PROTECTED				(A)		// Ship cannot be attacked
+#define SHIP_AUTONOMOUS_NPC      (B)     // Ambient NPC-controlled roaming ship
 
-/* Reports */
+/* Reports / Leaderboards */
 #define REPORT_TOP_PLAYER_KILLERS      0
 #define REPORT_TOP_CPLAYER_KILLERS     1
 #define REPORT_TOP_WEALTHIEST          2
@@ -5696,6 +7000,11 @@ struct rep_type
 #define REPORT_TOP_MONSTER_KILLERS     4
 #define REPORT_TOP_QUESTS              5
 #define REPORT_TOP_BEST_RATIO          6
+#define REPORT_TOP_DEATHS              7
+
+#define MAX_LEADERBOARD_ENTRIES        10
+#define MAX_LEADERBOARDS               8
+#define LEADERBOARD_MIN_RATIO_FIGHTS   50
 
 /* navigation waypoints */
 struct waypoint_data
@@ -5703,63 +7012,63 @@ struct waypoint_data
     WAYPOINT_DATA *next;
     bool valid;
 
-	char *name;				// Display name (if it has one)
+    char *name;				// Display name (if it has one)
 
-	long w;
+    long w;
     int x;
     int y;
 };
 
 struct ship_route_data
 {
-	SHIP_ROUTE *next;
-	bool valid;
+    SHIP_ROUTE *next;
+    bool valid;
 
-	char *name;
+    char *name;
 
-	LLIST *waypoints;
+    LLIST *waypoints;
 };
 
 struct ship_crew_index_data
 {
-	SHIP_CREW_INDEX_DATA *next;
-	bool valid;
+    SHIP_CREW_INDEX_DATA *next;
+    bool valid;
 
-	int min_rank;			// Minimum rank required to purchase this crew member
+    int min_rank;			// Minimum rank required to purchase this crew member
 
-	// Initial Skill Values
-	int16_t scouting;		// Needed to function as a Scout properly
-							//  - Higher ratings mean better chance at spotting things.
+    // Initial Skill Values
+    int16_t scouting;		// Needed to function as a Scout properly
+                            //  - Higher ratings mean better chance at spotting things.
 
-	int16_t gunning;			// Needed to operate the ship weaponery
-							//  - Higher ratings mean faster operational speeds (thus able to attack faster)
+    int16_t gunning;			// Needed to operate the ship weaponery
+                            //  - Higher ratings mean faster operational speeds (thus able to attack faster)
 
-	int16_t oarring;			// Needed to operate the sailboat's oars.
-							//  - Higher ratings allow for greater stamina and ability to last at higher speeds.
+    int16_t oarring;			// Needed to operate the sailboat's oars.
+                            //  - Higher ratings allow for greater stamina and ability to last at higher speeds.
 
-	int16_t mechanics;		// Needed to function as a Mechanic properly
-							//  - Higher ratings means faster repair times
+    int16_t mechanics;		// Needed to function as a Mechanic properly
+                            //  - Higher ratings means faster repair times
 
-	int16_t navigation;		// Needed to function as a Navigator properly
-							//  - Higher ratings means more accurate navigation
+    int16_t navigation;		// Needed to function as a Navigator properly
+                            //  - Higher ratings means more accurate navigation
 
-	int16_t leadership;		// Needed to function as a First Mate properly
-							//  - Higher ratings means quicker response times between issuing a command and its execution.
-							//  - Is also needed when having a ship manned by an NPC captain owned that is part of a player's armada
+    int16_t leadership;		// Needed to function as a First Mate properly
+                            //  - Higher ratings means quicker response times between issuing a command and its execution.
+                            //  - Is also needed when having a ship manned by an NPC captain owned that is part of a player's armada
 
 };
 
 struct ship_crew_data
 {
     SHIP_CREW_DATA *next;
-	bool valid;
+    bool valid;
 
-	int16_t scouting;
-	int16_t gunning;
-	int16_t oarring;
-	int16_t mechanics;
-	int16_t navigation;
-	int16_t leadership;
+    int16_t scouting;
+    int16_t gunning;
+    int16_t oarring;
+    int16_t mechanics;
+    int16_t navigation;
+    int16_t leadership;
 };
 
 
@@ -5775,7 +7084,7 @@ struct npc_ship_index_data
     NPC_SHIP_INDEX_DATA *	 next;
     SHIP_CREW_DATA *crew;
     MOB_INDEX_DATA *captain;
-		OBJ_DATA *cargo;
+        OBJ_DATA *cargo;
 
     long vnum;
 
@@ -5800,15 +7109,26 @@ struct npc_ship_index_data
     int      initial_ships_destroyed;
 };
 
-struct stat_data
-{
-    char 	*report_name;
-    char 	*description;
-    int 	columns;
-    char	 *column[2];
-    char 	*name[10];
-    char 	*value[10];
-};
+/* Leaderboard system */
+typedef struct leaderboard_entry {
+    char    name[MAX_INPUT_LENGTH];
+    double  score;
+    char    display_value[64];
+} LEADERBOARD_ENTRY;
+
+typedef struct leaderboard_data {
+    int                 type;
+    const char         *redis_key;
+    const char         *report_name;
+    const char         *description;
+    const char         *col_name;
+    const char         *col_value;
+    bool                descending;
+    bool                is_derived;
+    LEADERBOARD_ENTRY   entries[MAX_LEADERBOARD_ENTRIES];
+    int                 count;
+    time_t              last_refresh;
+} LEADERBOARD_DATA;
 
 #define SHIP_MAX_HIT		100000
 #define SHIP_MAX_GUNS		20
@@ -5841,139 +7161,153 @@ struct ship_type
 
 struct ship_index_data
 {
-	SHIP_INDEX_DATA *next;
+    SHIP_INDEX_DATA *next;
+    AREA_DATA *area;
 
-	long vnum;
+    long vnum;
 
-	char *name;
-	char *description;
-	int ship_class;
+    char *name;
+    char *description;
+    int ship_class;
 
-	int flags;
+    int flags;
 
-	long ship_object;
+    union {
+        WNUM_LOAD load;     // During load: area_uid + vnum
+        long vnum;          // Legacy: bare vnum
+    } ship_object_ref;
+    OBJ_INDEX_DATA *ship_object;  // Resolved pointer
 
-	int hit;			// Maximum hit points for the ship
-	int guns;			// How many guns can the ship have?
-	int min_crew;		// How many crew is required to OPERATE the ship?
-	int max_crew;		// How many crew can the ship have?
-	int move_delay;		// Minimum move delay
-	int move_steps;		// Number of steps the ship will attempt per movement
-	int turning;		// Base turning speed, number of degrees the ship will turn per step
-	int weight;			// Weight limit before ship sinks (ignores non-takable objects)
-	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
-	int armor;			// Base protective armor
-	int oars;			// Number of oar positions
+    int hit;			// Maximum hit points for the ship
+    int guns;			// How many guns can the ship have?
+    int min_crew;		// How many crew is required to OPERATE the ship?
+    int max_crew;		// How many crew can the ship have?
+    int move_delay;		// Minimum move delay
+    int move_steps;		// Number of steps the ship will attempt per movement
+    int turning;		// Base turning speed, number of degrees the ship will turn per step
+    int weight;			// Weight limit before ship sinks (ignores non-takable objects)
+    int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
+    int armor;			// Base protective armor
+    int oars;			// Number of oar positions
 
-	LLIST *special_keys;		// Various key object indexes used by the ship
+    LLIST *special_keys;		// Various key object indexes used by the ship
 
-	BLUEPRINT *blueprint;
+    union {
+        WNUM_LOAD load;     // During load: area_uid + vnum
+        long vnum;          // Legacy: bare vnum
+    } blueprint_ref;
+    BLUEPRINT *blueprint;       // Resolved pointer
 };
 
 typedef struct steering_data {
-	int heading;			// Current heading
-	int heading_target;		// Target heading
-	char turning_dir;		// Direction of turning: -1 = port, 1 = starboard(+), 0 = no turning
+    int heading;			// Current heading
+    int heading_target;		// Target heading
+    char turning_dir;		// Direction of turning: -1 = port, 1 = starboard(+), 0 = no turning
 
-	int compass;			// One of eight compass directions that approximates current heading
+    int compass;			// One of eight compass directions that approximates current heading
 
-	int dx;					// Delta X for current heading
-	int dy;					// Delta Y for current heading
-	int ax;					// Magnitude of DX
-	int ay;					// Magnitude of DY
-	char sx;				// Sign of DX
-	char sy;				// Sign of DY
-	int move;				// Counter used in moving along the heading
+    int dx;					// Delta X for current heading
+    int dy;					// Delta Y for current heading
+    int ax;					// Magnitude of DX
+    int ay;					// Magnitude of DY
+    char sx;				// Sign of DX
+    char sy;				// Sign of DY
+    int move;				// Counter used in moving along the heading
 } STEERING;
 
 struct ship_data
 {
-	SHIP_DATA			*next;
-	SHIP_INDEX_DATA		*index;
-	OBJ_DATA			*ship;
-	NPC_SHIP_DATA		*npc_ship;
-	bool				valid;
+    SHIP_DATA			*next;
+    SHIP_INDEX_DATA		*index;
+    OBJ_DATA			*ship;
+    NPC_SHIP_DATA		*npc_ship;
+    bool				valid;
 
-	unsigned long		id[2];
+    unsigned long		id[2];
 
-	CHAR_DATA			*owner;
-	unsigned long		owner_uid[2];
+    CHAR_DATA			*owner;
+    unsigned long		owner_uid[2];
 
-	WILDS_COORD			last_coords[3];
-	time_t				last_times[3];
+    WILDS_COORD			last_coords[3];
+    time_t				last_times[3];
 
-	LLIST *crew;
-	CHAR_DATA *first_mate;		// Crew member assigned to First Mate
-	CHAR_DATA *navigator;		// Crew member assigned to Navigator
-	CHAR_DATA *scout;			// Crew member assigned to Scout
-	LLIST *oarsmen;				// Crew members assigned to Oar duty
+    LLIST *crew;
+    CHAR_DATA *first_mate;		// Crew member assigned to First Mate
+    CHAR_DATA *navigator;		// Crew member assigned to Navigator
+    CHAR_DATA *scout;			// Crew member assigned to Scout
+    LLIST *oarsmen;				// Crew members assigned to Oar duty
 
-	char				*flag;
+    char				*flag;
 
-	STEERING			steering;
+    STEERING			steering;
 
-	int					move_steps;
+    int					move_steps;
 
-	int					ship_power;		// How much power is given by the ship (sails, engines, etc)
-	int					oar_power;		// How much power is given by manned oars?
-	int				speed;
+    int					ship_power;		// How much power is given by the ship (sails, engines, etc)
+    int					oar_power;		// How much power is given by manned oars?
+    int				speed;
 
-	long				hit;
-	long				armor;
+    long				hit;
+    long				armor;
 
-	int					ship_flags;
+    int					ship_flags;
 
-	int16_t				ship_type;
-	INSTANCE			*instance;
+    int16_t				ship_type;
+    INSTANCE			*instance;
 
-	int					cannons;
-	int					oars;
+    int					cannons;
+    int					oars;
 
 
-	char				*ship_name_plain;
-	char				*ship_name;
+    char				*ship_name_plain;
+    char				*ship_name;
 
-	int16_t				max_crew;
-	int16_t				min_crew;
+    int16_t				max_crew;
+    int16_t				min_crew;
 
-	int16_t				attack_position;
-	SHIP_DATA			*ship_attacked;
-	unsigned long		ship_attacked_uid[2];
+    int16_t				attack_position;
+    SHIP_DATA			*ship_attacked;
+    unsigned long		ship_attacked_uid[2];
 
-	CHAR_DATA			*char_attacked;
-	unsigned long		char_attacked_uid[2];
+    CHAR_DATA			*char_attacked;
+    unsigned long		char_attacked_uid[2];
 
-	SHIP_DATA			*ship_chased;
-	unsigned long		ship_chased_uid[2];
+    SHIP_DATA			*ship_chased;
+    unsigned long		ship_chased_uid[2];
 
-	ROOM_INDEX_DATA		*destination;
-	SHIP_DATA			*boarded_by;
-	unsigned long		boarded_by_uid[2];
+    ROOM_INDEX_DATA		*destination;
+    SHIP_DATA			*boarded_by;
+    unsigned long		boarded_by_uid[2];
 
-	LLIST *waypoints;
+    LLIST *waypoints;
 
-	ITERATOR route_it;
-	LLIST *route_waypoints;				// Will be a simple list of waypoints
-	WAYPOINT_DATA *current_waypoint;
+    ITERATOR route_it;
+    LLIST *route_waypoints;				// Will be a simple list of waypoints
+    WAYPOINT_DATA *current_waypoint;
 
-	LLIST *routes;
-	SHIP_ROUTE *current_route;
+    LLIST *routes;
+    SHIP_ROUTE *current_route;
 
-	bool				seek_navigator;		// Is the seeking the navigator or the owner
-	WILDS_COORD			seek_point;
+    bool				seek_navigator;		// Is the seeking the navigator or the owner
+    WILDS_COORD			seek_point;
 
-	int					sextant_x;
-	int					sextant_y;
+    bool                npc_autonomous;
+    bool                npc_offpath_active;
+    int                 npc_goal_cooldown;
+    WILDS_COORD         npc_resume_point;
 
-	/* When scuttled show different steps of scuttling */
-	int16_t				scuttle_time;
-	OBJ_DATA			*cannons_obj;
+    int					sextant_x;
+    int					sextant_y;
 
-	LLIST				*special_keys;
+    /* When scuttled show different steps of scuttling */
+    int16_t				scuttle_time;
+    OBJ_DATA			*cannons_obj;
 
-	bool				pk;
+    LLIST				*special_keys;
 
-	int					ship_move;
+    bool				pk;
+
+    int					ship_move;
 };
 
 /*
@@ -5991,7 +7325,8 @@ struct struckdrunk
  */
 struct	room_index_data
 {
-	char __type;
+    char __type;
+    bool gc;
     ROOM_INDEX_DATA *	next;
     ROOM_INDEX_DATA *	next_persist;
     ROOM_INDEX_DATA *	next_clone;	/* next clone in the chain for its environment */
@@ -6006,6 +7341,7 @@ struct	room_index_data
     CONDITIONAL_DESCR_DATA *conditional_descr;
     AREA_DATA *		area;
     ROOM_INDEX_DATA *	source;
+    AREA_REGION *       region;
     INSTANCE_SECTION		*instance_section;
     bool		persist;
     int version;
@@ -6016,27 +7352,33 @@ struct	room_index_data
     RESET_DATA *	reset_first;
     RESET_DATA *	reset_last;
     EVENT_DATA *	events;
-	EVENT_DATA		*events_tail;
+    EVENT_DATA		*events_tail;
     char *		name;
     char *		description;
     char *		owner;
     char *      comments;
+    char *              tags; /* manual builder tags (comma-separated) */
+    char *              auto_tags; /* generated tags from name */
+    WNUM_LOAD           parent_load;
+    WNUM                parent_wnum;
+    ROOM_INDEX_DATA *   parent;
+    bool                parent_inherited;
     long		vnum;
 
     // OLC Reset data
     long        rs_room_flag[2];
-    int         rs_sector_type;
+    SECTOR_RUNTIME_DATA *rs_sector;
     int			rs_heal_rate;
     int 		rs_mana_rate;
     int			rs_move_rate;
     int         rs_savage_level;
-	RS_LOCATION rs_recall;
+    RS_LOCATION rs_recall;
 
     // Live data
     long		room_flag[2];
     //long		room2_flags;
     int			light;
-    int			sector_type;
+    SECTOR_RUNTIME_DATA *sector;
     int			heal_rate;
     int 		mana_rate;
     int			move_rate;
@@ -6060,25 +7402,25 @@ struct	room_index_data
     long		locale;	/* Used to group adjacent rooms to the same locale */
     unsigned long	id[2];	/* Used for cloned rooms only.  If the room is not virtual, aka static, this will be { 0,0 } */
 
-	LLIST *		lentity;
-	LLIST *		lpeople;
-	LLIST *		lcontents;
-	LLIST *		levents;
-	LLIST *		ltokens;
-	LLIST *		lclonerooms;
+    LLIST *		lentity;
+    LLIST *		lpeople;
+    LLIST *		lcontents;
+    LLIST *		levents;
+    LLIST *		ltokens;
+    LLIST *		lclonerooms;
 
-	int environ_type;
-	union {
-		ROOM_INDEX_DATA *room;
-		CHAR_DATA *mob;
-		OBJ_DATA *obj;
-		TOKEN_DATA *token;
-		struct {
-			ROOM_INDEX_DATA *source;
-			unsigned long id[2];		// Used for mobs, objs and other clone rooms for delayed loading/dynamic links
-		} clone;
-	} environ;
-	bool force_destruct;
+    int environ_type;
+    union {
+        ROOM_INDEX_DATA *room;
+        CHAR_DATA *mob;
+        OBJ_DATA *obj;
+        TOKEN_DATA *token;
+        struct {
+            ROOM_INDEX_DATA *source;
+            unsigned long id[2];		// Used for mobs, objs and other clone rooms for delayed loading/dynamic links
+        } clone;
+    } environ;
+    bool force_destruct;
 
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
@@ -6089,58 +7431,146 @@ struct	room_index_data
 #define BSFLAG_NO_ROTATE	(A)		// Blueprint Section cannot be rotated
 
 #define BSTYPE_STATIC		1		// Only allowed section type in static blueprints
+#define BSTYPE_MAZE			2		// Procedurally generated maze grid
 
 
+// Maze weighted room template - for random room selection during maze generation
+struct blueprint_maze_weighted_room {
+    MAZE_WEIGHTED_ROOM *next;
+    bool valid;
+
+    int weight;                 // Probability weight for selection
+    int exit_count;             // 0 = any exit count, 1-4 = specific (dead end, tunnel, fork, crossroads)
+    union {
+        WNUM_LOAD load;         // During load: area_uid + vnum
+        long vnum;              // Legacy: bare vnum
+    } room_ref;
+    ROOM_INDEX_DATA *room;      // Resolved room pointer
+
+    // Exit template - properties applied to DFS-carved exits connecting to this room
+    struct {
+        int flags;              // EX_ISDOOR | EX_CLOSED | EX_LOCKED etc.
+        char *keyword;          // Door keyword ("door", "gate", etc.)
+        int16_t strength;       // Door strength
+        char *material;         // Door material
+        LOCK_STATE lock;        // Lock properties (key, pick_chance, lock_flags)
+    } exit_template;
+};
+
+// Maze map data - configuration for generating a map object during maze creation
+struct blueprint_maze_map_data {
+    MAZE_MAP_DATA *next;
+    bool valid;
+
+    union {
+        WNUM_LOAD load;         // During load: area_uid + vnum
+        long vnum;              // Legacy: bare vnum
+    } obj_ref;
+    OBJ_INDEX_DATA *obj;        // Resolved map object template (ITEM_MAP)
+
+    union {
+        WNUM_LOAD load;         // During load: area_uid + vnum
+        long vnum;              // Legacy: bare vnum
+    } mob_ref;
+    MOB_INDEX_DATA *mob;        // Resolved mob that carries the map
+
+    bool solve;                 // true = mark solution path on map
+};
+
+// Maze fixed room - anchored at specific grid coordinates
+struct blueprint_maze_fixed_room {
+    MAZE_FIXED_ROOM *next;
+    bool valid;
+
+    int x, y;                   // Grid coordinates (1-based)
+    union {
+        WNUM_LOAD load;         // During load: area_uid + vnum
+        long vnum;              // Legacy: bare vnum
+    } room_ref;
+    ROOM_INDEX_DATA *room;      // Resolved room pointer
+    bool connected;             // true = participates in maze carving; false = isolated pocket
+};
 
 
 struct blueprint_link_data {
-	BLUEPRINT_LINK *next;
-	bool valid;
+    BLUEPRINT_LINK *next;
+    bool valid;
 
-	char *name;					// Display name of section link
+    char *name;					// Display name of section link
 
-	long vnum;					// Vnum of ROOM
-	int door;					// Exit in ROOM
+    union {
+        WNUM_LOAD load;			// During load (area_uid + vnum)
+        long vnum;				// Legacy: bare vnum
+    } room_ref;
+    int door;					// Exit in ROOM
+    
+    // TODO: Add exit definitions, such as flags (for doors and whatnot)
 
-	ROOM_INDEX_DATA *room;		// Resolved room
-	EXIT_DATA *ex;				// Resolved exit
+    ROOM_INDEX_DATA *room;		// Resolved room
+    EXIT_DATA *ex;				// Resolved exit
 
-	bool used;					// Used in generating layouts, indicating whether the link has already been used
+    bool used;					// Used in generating layouts, indicating whether the link has already been used
 };
 
 
 struct blueprint_section_data {
-	BLUEPRINT_SECTION *next;
-	bool valid;
+    BLUEPRINT_SECTION *next;
+    bool valid;
 
-	long vnum;
+    long vnum;
 
-	char *name;
-	char *description;
-	char *comments;
+    char *name;
+    char *description;
+    char *comments;
 
-	int type;
-	int flags;
+    int type;
+    int flags;
+    AREA_DATA *area;    // Area where all content (rooms, mobs, etc) reside.
 
-	long recall;		// The recall of the blueprint, must be within range
-	long lower_vnum;
-	long upper_vnum;
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } recall_ref;
+    ROOM_INDEX_DATA *recall_room;	// Resolved recall room
+    
+    // Room range for cloning
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } lower_vnum_ref;
+    
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } upper_vnum_ref;
+    
+    long lower_vnum;  // Cached vnum values
+    long upper_vnum;
+    AREA_DATA *rooms_area;  // Resolved area where rooms reside
 
-	BLUEPRINT_LINK *links;
+    // Maze generation parameters (BSTYPE_MAZE only)
+    long maze_x;                // Grid width
+    long maze_y;                // Grid height
+    LLIST *maze_templates;      // MAZE_WEIGHTED_ROOM * - weighted room pool
+    int total_maze_weight;      // Sum of all template weights
+    LLIST *maze_fixed_rooms;    // MAZE_FIXED_ROOM * - anchored rooms
+    MAZE_MAP_DATA *map_data;    // Optional map object generation config
+
+    BLUEPRINT_LINK *links;
 };
 
 
 struct static_blueprint_link {
-	STATIC_BLUEPRINT_LINK *next;
-	bool valid;
+    STATIC_BLUEPRINT_LINK *next;
+    bool valid;
 
-	BLUEPRINT *blueprint;
+    BLUEPRINT *blueprint;
 
-	int section1;	// Index of the section in the list of sections
-	int link1;		// Index of the link in the section
+    int section1;	// Index of the section in the list of sections
+    int link1;		// Index of the link in the section
 
-	int section2;
-	int link2;
+    int section2;
+    int link2;
 };
 
 #define BLUEPRINT_MODE_STATIC		0	// Fixed layout, Fixed sections
@@ -6149,45 +7579,67 @@ struct static_blueprint_link {
 
 typedef struct blueprint_special_room_data BLUEPRINT_SPECIAL_ROOM;
 struct blueprint_special_room_data {
-	BLUEPRINT_SPECIAL_ROOM *next;
-	bool valid;
+    BLUEPRINT_SPECIAL_ROOM *next;
+    bool valid;
 
-	char *name;
+    char *name;                 // Must be unique within blueprint
 
-	int section;
-	long vnum;					// Vnum of ROOM
+    int section;
+    union {
+        WNUM_LOAD load;		// During load (area_uid + vnum)
+        long vnum;			// Legacy: bare vnum
+    } room_ref;
+    ROOM_INDEX_DATA *room;	// Resolved room
 };
 
+typedef struct blueprint_exit_data BLUEPRINT_EXIT_DATA;
+struct blueprint_exit_data {
+    char *name;
+    int section;
+    int link;
+};
+
+typedef struct blueprint_section_ref BLUEPRINT_SECTION_REF;
+struct blueprint_section_ref {
+    union {
+        WNUM_LOAD load;              // During load (area_uid + vnum)
+        long vnum;                   // Legacy: bare vnum
+    } section_ref;
+    BLUEPRINT_SECTION *section;      // Resolved pointer
+};
 
 struct blueprint_data {
-	BLUEPRINT *next;
-	bool valid;
+    BLUEPRINT *next;
+    bool valid;
+    AREA_DATA *area;
 
-	long vnum;
+    long vnum;
 
-	char *name;
-	char *description;
-	char *comments;
+    char *name;
+    char *description;
+    char *comments;
 
-	int area_who;
+    int area_who;
 
-	int repop;
+    int repop;
 
-	int flags;
+    int flags;
 
-	int mode;
+    int mode;
 
-	LLIST *sections;						// BLUEPRINT_SECTION
-	LLIST *special_rooms;
+    LLIST *channel_defs;                 // char* channel definition ids for instance-scoped comms
 
-	// BLUEPRINT_MODE_STATIC
-	STATIC_BLUEPRINT_LINK *static_layout;
-	int static_recall;						// Which section has the recall?
+    LLIST *sections;						// BLUEPRINT_SECTION_REF
+    LLIST *special_rooms;
 
-	int static_entry_section;
-	int static_entry_link;
-	int static_exit_section;
-	int static_exit_link;
+    // BLUEPRINT_MODE_STATIC
+    struct {
+        STATIC_BLUEPRINT_LINK *layout;
+        int recall;						// Which section has the recall?
+
+        LLIST *entries;
+        LLIST *exits;
+    } _static;
 
     LLIST **        progs;
     pVARIABLE		index_vars;
@@ -6197,6 +7649,8 @@ struct blueprint_data {
 #define INSTANCE_COMPLETED			(B)
 #define INSTANCE_IDLE_ON_COMPLETE	(C)
 #define INSTANCE_NO_IDLE			(D)
+#define INSTANCE_FAILED				(E)
+#define INSTANCE_ISOLATED			(F)
 #define INSTANCE_DESTROY			(Z)
 
 #define INSTANCE_DESTROY_TIMEOUT	5
@@ -6204,69 +7658,84 @@ struct blueprint_data {
 
 
 struct instance_section_data {
-	INSTANCE_SECTION *next;
-	bool valid;
+    INSTANCE_SECTION *next;
+    bool valid;
 
-	BLUEPRINT_SECTION *section;
-	BLUEPRINT *blueprint;
-	INSTANCE *instance;
+    BLUEPRINT_SECTION *section;
+    BLUEPRINT *blueprint;
+    INSTANCE *instance;
 
-	LLIST *rooms;
+    LLIST *rooms;
+
+    char *map_text;                 // Rendered ASCII map for maze sections (NULL if no map)
 };
 
 struct named_special_room_data {
-	NAMED_SPECIAL_ROOM *next;
-	bool valid;
+    NAMED_SPECIAL_ROOM *next;
+    bool valid;
 
-	char *name;
-	ROOM_INDEX_DATA *room;
+    char *name;
+    ROOM_INDEX_DATA *room;
 };
 
+typedef struct named_special_exit_data NAMED_SPECIAL_EXIT;
+struct named_special_exit_data
+{
+    NAMED_SPECIAL_EXIT *next;
+    bool valid;
+
+    char *name;                     // Script name
+    ROOM_INDEX_DATA *room;
+    EXIT_DATA *ex;
+};
 struct instance_data {
-	INSTANCE *next;
-	bool valid;
+    INSTANCE *next;
+    bool valid;
 
-	BLUEPRINT *blueprint;		// Source blueprint
-	LLIST *sections;			// Sections created
+    BLUEPRINT *blueprint;		// Source blueprint
+    LLIST *sections;			// Sections created
 
-	int floor;					// Floor identifier, used in traversing multi-level dungeons
-								// Defaults to 0 when not used
+    int floor;					// Floor identifier, used in traversing multi-level dungeons
+                                // Defaults to 0 when not used
 
-	int flags;
+    int flags;
 
-	ROOM_INDEX_DATA *recall;	// Location in the instance that is considered the recall point
-								//   Leave NULL to have no recall
-								// Instance rooms will override normal recall checks
+    ROOM_INDEX_DATA *recall;	// Location in the instance that is considered the recall point
+                                //   Leave NULL to have no recall
+                                // Instance rooms will override normal recall checks
 
-	ROOM_INDEX_DATA *entrance;	// Entry room to the instance as defined by the blueprint
+    ROOM_INDEX_DATA *entrance;	// Entry room to the instance as defined by the blueprint
 
-	ROOM_INDEX_DATA *exit;		// Exit room from the instance as defined by the blueprint
+    ROOM_INDEX_DATA *exit;		// Exit room from the instance as defined by the blueprint
 
-	DUNGEON *dungeon;			// Dungeon owner of the instance
+    DUNGEON *dungeon;			// Dungeon owner of the instance
 
-	OBJ_DATA *object;				// Object owner of the instance
-	unsigned long object_uid[2];	//   If the object owner is extracted, all players inside will be
-									//   dropped to the room of the object.
+    OBJ_DATA *object;				// Object owner of the instance
+    unsigned long object_uid[2];	//   If the object owner is extracted, all players inside will be
+                                    //   dropped to the room of the object.
 
-	SHIP_DATA *ship;
+    SHIP_DATA *ship;
 
-	LLIST *player_owners;
+    LLIST *player_owners;
 
-	ROOM_INDEX_DATA *environ;	// Explicit environment for instance
-								//   If NULL, will use the current room of the object
-								//   Must be a static room
+    ROOM_INDEX_DATA *environ;	// Explicit environment for instance
+                                //   If NULL, will use the current room of the object
+                                //   Must be a static room
 
-	LLIST *players;
-	LLIST *mobiles;					// List of mobiles (include players) not part of the instance
-	LLIST *objects;
-	LLIST *bosses;					// List of INSTANCE MOB BOSSES
+    LLIST *players;
+    LLIST *mobiles;					// List of mobiles (include players) not part of the instance
+    LLIST *objects;
+    LLIST *bosses;					// List of INSTANCE MOB BOSSES
 
-	LLIST *rooms;
-	LLIST *special_rooms;
+    LLIST *rooms;
+    LLIST *entries;
+    LLIST *exits;
+    LLIST *special_rooms;
+    LLIST *special_exits;
 
-	int age;
-	int idle_timer;
-	bool empty;
+    int age;
+    int idle_timer;
+    bool empty;
 
     PROG_DATA *		progs;		// Script data
 };
@@ -6274,50 +7743,160 @@ struct instance_data {
 #define DUNGEON_NO_SAVE				(A)		// Dungeon will not save to disk.
 #define DUNGEON_COMPLETED			(B)		// Dungeon has completed
 #define DUNGEON_IDLE_ON_COMPLETE	(C)		// Only update the idle_timer when DUNGEON_COMPLETED has been set
-#define DUNGEON_NO_IDLE				(D)		//
+#define DUNGEON_NO_IDLE				(D)		// Never idle
+#define DUNGEON_SCRIPTED_LEVELS     (E)     // Levels list in dungeon index is generated by a DUNGEON_SCHEMATIC trigger
+#define DUNGEON_FAILED				(F)		// Dungeon has failed
+#define DUNGEON_COMMENCED			(G)		// Dungeon has officially started
+#define DUNGEON_GROUP_COMMENCE		(H)		// Auto-commence when min_group is satisfied
+#define DUNGEON_FAILURE_ON_WIPE		(I)		// Failure when all players die in boss encounter
+#define DUNGEON_FAILURE_ON_EMPTY	(J)		// Failure if commenced and everyone leaves
+#define DUNGEON_ISOLATED		(K)		// Excludes participants from area-scoped channels
+#define DUNGEON_LOCKED			(W)		// Requires per-player unlock to enter
+#define DUNGEON_SOLO_INSTANCE		(X)		// On-demand, player-owned instance with idle timeout
+#define DUNGEON_SHARED				(Y)		// One instance for all players
 #define DUNGEON_DESTROY				(Z)		// Flagged for destruction.
-											//   Will handle the idle timer regardless if dungeon is empty
+                                            //   Will handle the idle timer regardless if dungeon is empty
 #define DUNGEON_DESTROY_TIMEOUT	5
 #define DUNGEON_IDLE_TIMEOUT	15		// Minutes before a dungeon is purged from not having players in it.
 
+// Death release modes for dungeons
+#define DEATH_RELEASE_NORMAL		0		// Normal: go to death plane
+#define DEATH_RELEASE_TO_START		1		// Stay with corpse, release to dungeon start
+#define DEATH_RELEASE_TO_FLOOR		2		// Stay with corpse, release to current floor start
+#define DEATH_RELEASE_TO_CHECKPOINT	3		// Stay with corpse, release to last checkpoint
+#define DEATH_RELEASE_FAILURE		4		// Respawn at death location, dungeon fails
 
-struct dungeon_index_special_room_data
+
+// Weighted floor entry
+struct dungeon_index_weighted_floor_data {
+    int weight;     // How likely this floor will be chosen
+    int floor;      // Static floor reference
+};
+
+#define LEVELMODE_STATIC        0
+#define LEVELMODE_WEIGHTED      1
+#define LEVELMODE_GROUP         2
+
+// Used to define which floor to assign to the given level.
+//  In the case it is a weighted random, it will select a random floor from the selected list to instantiate for the level
+
+struct dungeon_index_level_data {
+    DUNGEON_INDEX_LEVEL_DATA *next;
+    bool valid;
+
+    char mode;                  // 0 = static floor
+                                // 1 = weighted random selection
+                                // 2 = group level definition
+
+    int floor;                  // Static floor reference
+
+    LLIST *weighted_floors;     // List of weighted floor data (see above)
+    int total_weight;
+
+    // Need to add info about number of entrances and exits
+
+    LLIST *group;               // A list of level definitions to use as a set of levels.
+                                //  Will only allow one nesting
+};
+
+
+// Used to reference a special room from within the various instances
+// Allows for renaming the special room in cases of name conflicts and whatnot.
+struct dungeon_index_special_room_data {
+    DUNGEON_INDEX_SPECIAL_ROOM *next;
+    bool valid;
+
+    char *name;         // Name of special room that is used at the dungeon level, like "FinalBossRoom"
+
+    int level;          // Level special room is located in.
+    int room;           // Which special room on the level?
+};
+
+typedef struct dungeon_index_weighted_exit_data DUNGEON_INDEX_WEIGHTED_EXIT_DATA;
+struct dungeon_index_weighted_exit_data {
+    int weight;
+    int level;
+    int door;
+};
+
+#define EXITMODE_STATIC             0       // Static exit
+#define EXITMODE_WEIGHTED_SOURCE    1       // Weighted random exit (randomly selected source, fixed destination)
+#define EXITMODE_WEIGHTED_DEST      2       // Weighted random exit (fixed source, randomly selected destination)
+#define EXITMODE_WEIGHTED           3       // Weighted random exit (randomly selected source and destination)
+#define EXITMODE_GROUP              4
+
+typedef struct dungeon_index_special_exit_data DUNGEON_INDEX_SPECIAL_EXIT;
+struct dungeon_index_special_exit_data
 {
-	DUNGEON_INDEX_SPECIAL_ROOM *next;
-	bool valid;
+    DUNGEON_INDEX_SPECIAL_EXIT *next;
+    bool valid;
 
-	char *name;
+    char *name;                 // Name of special exit, accessible in dungeon scripts
 
-	int floor;
-	int section;
-	long vnum;
+    int mode;                   // See EXITMODE_*
+                                // Static exits will just have one in each
+
+    LLIST *from;                // List of source exits
+                                //  Must not be the default exit (exit #1)
+    int total_from;
+
+    LLIST *to;                  // List of destination entrances
+                                //  May be the default entrance (entrance #1)
+    int total_to;
+
+    LLIST *group;
+
+    bool create_if_exists;     // Only create FROM exit if destination exists (if the exit already exists, ignore flag)
+    bool connect_if_twoway;    // Only connect FROM to destination if the return exit can be established (either by connecting an unlinked exit or creating the exit)
 };
 
 struct dungeon_index_data
 {
-	DUNGEON_INDEX_DATA *next;
-	bool valid;
+    DUNGEON_INDEX_DATA *next;
+    bool valid;
+    AREA_DATA *area;
 
-	long vnum;
+    long vnum;
 
-	char *name;
-	char *description;
-	char *comments;
+    char *name;
+    char *description;
+    char *comments;
 
-	int area_who;
+    int area_who;
 
-	LLIST *floors;
-	LLIST *special_rooms;
-	long entry_room;
-	long exit_room;
+    LLIST *channel_defs;                 // char* channel definition ids for dungeon-scoped comms
 
-	int repop;
+    LLIST *floors;                  // Master list of floors
+    LLIST *levels;                  // Levels to be instanced in the generated dungeon, references the FLOORS variable.
+    LLIST *special_rooms;           // 
+    LLIST *special_exits;           // Exits that might span multiple floors (as opposed to the standard PREVFLOOR and NEXTFLOOR exits)
+    
+    union {
+        WNUM_LOAD     load;         // During load: area_uid + vnum
+        long          vnum;         // Legacy: bare vnum
+    } entry_ref;
+    ROOM_INDEX_DATA *entry_room;    // Resolved entry room pointer
+    
+    union {
+        WNUM_LOAD     load;         // During load: area_uid + vnum
+        long          vnum;         // Legacy: bare vnum
+    } exit_ref;
+    ROOM_INDEX_DATA *exit_room;     // Resolved exit room pointer
 
-	int flags;						// Potential flags
+    int repop;
 
-	char *zone_out;
-	char *zone_out_portal;			// Zoneout if there is a dungeon portal defined
-	char *zone_out_mount;			// Zoneout when riding a mount
+    int flags;						// Potential flags
+
+    char *zone_out;
+    char *zone_out_portal;			// Zoneout if there is a dungeon portal defined
+    char *zone_out_mount;			// Zoneout when riding a mount
+
+    int idle_timeout;				// Custom idle timeout in minutes, 0 = use DUNGEON_IDLE_TIMEOUT default
+
+    int min_group;					// Minimum group size (excl. pets/mounts), 0 = no minimum
+    int max_group;					// Maximum group size (excl. pets/mounts), 0 = unlimited
+    int max_players;				// Maximum total players in dungeon, 0 = unlimited
+    int death_release;				// How deaths are handled (DEATH_RELEASE_* constants)
 
     LLIST **        progs;
     pVARIABLE		index_vars;
@@ -6325,36 +7904,37 @@ struct dungeon_index_data
 
 struct dungeon_data
 {
-	DUNGEON *next;
-	bool valid;
-	bool empty;
+    DUNGEON *next;
+    bool valid;
+    bool empty;
 
-	DUNGEON_INDEX_DATA *index;		// Dungeon definition
+    DUNGEON_INDEX_DATA *index;		// Dungeon definition
 
-	long uid[2];					// UID of the dungeon instance
+    unsigned long uid[2];			// UID of the dungeon instance
 
-	LLIST *floors;
-	LLIST *special_rooms;
-	ROOM_INDEX_DATA *entry_room;
-	ROOM_INDEX_DATA *exit_room;
+    LLIST *floors;
+    LLIST *special_rooms;
+    LLIST *special_exits;
+    ROOM_INDEX_DATA *entry_room;
+    ROOM_INDEX_DATA *exit_room;
 
-	int flags;						// Potential instanced flags
+    int flags;						// Potential instanced flags
 
-	LLIST *player_owners;			// Player owners of the dungeon
-									//  Must be a SUPERSET of the players list inside the dungeon
+    LLIST *player_owners;			// Player owners of the dungeon
+                                    //  Must be a SUPERSET of the players list inside the dungeon
 
-	LLIST *players;					// List of players inside the dungeon
-	LLIST *mobiles;					// List of mobiles (include players) inside the dungeon not part of the instance
-	LLIST *objects;					// List of objects not part of the dungeon
-	LLIST *bosses;					// List of INSTANCE MOB BOSSES
+    LLIST *players;					// List of players inside the dungeon
+    LLIST *mobiles;					// List of mobiles (include players) inside the dungeon not part of the instance
+    LLIST *objects;					// List of objects not part of the dungeon
+    LLIST *bosses;					// List of INSTANCE MOB BOSSES
 
-	LLIST *rooms;
+    LLIST *rooms;
 
-	int age;
+    int age;
 
-	int idle_timer;					// Timer before it is purged automatically
-									// If normally zero, the dungeon will never purge without
-									//   explicitly being forced by the code
+    int idle_timer;					// Timer before it is purged automatically
+                                    // If normally zero, the dungeon will never purge without
+                                    //   explicitly being forced by the code
 
     PROG_DATA *		progs;
 };
@@ -6436,6 +8016,10 @@ extern          int			reckoning_duration;
 extern          int			reckoning_intensity;
 extern          int			reckoning_cooldown;
 
+extern long gc_total_processed;
+extern long gc_calls;
+extern long gc_max_time;
+
 /*
  * Types of attacks.
  * Must be non-overlapping with spell/skill types,
@@ -6469,6 +8053,8 @@ extern          int			reckoning_cooldown;
 /*
  * Skills include spells as a particular case.
  */
+typedef struct skill_type skill_t;
+
 struct	skill_type
 {
     char *	name;			/* Name of skill		*/
@@ -6477,10 +8063,9 @@ struct	skill_type
     SPELL_FUN *	spell_fun;		/* Spell pointer (for spells)	*/
     int16_t	target;			/* Legal targets		*/
     int16_t	minimum_position;	/* Position for caster / user	*/
-    int16_t *	pgsn;			/* Pointer to associated gsn	*/
     /* int16_t	slot;		 	Syn- reusing this as a racial skill toggle. */
     int 	race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
-					   This doesn't apply for skills that can be gotten from classes, like archery. */
+                       This doesn't apply for skills that can be gotten from classes, like archery. */
 
     int16_t	min_mana;		/* Minimum mana used		*/
     int16_t	beats;			/* Waiting time after use	*/
@@ -6491,17 +8076,238 @@ struct	skill_type
     int		inks[3][2];
 };
 
+/*
+ * SKILL_DATA — New data-driven skill definition.
+ *
+ * Replaces entries in the legacy skill_table[] array. Skills are loaded
+ * from individual JSON files in data/skills/ and accessed via hash table
+ * lookups (skill_find/skill_search) instead of gsn_* global indices.
+ *
+ * During the migration period, SKILL_DATA coexists with skill_table[].
+ * The bootstrap process assigns uid values matching the original skill_table
+ * array indices, so existing saved data (which uses sn) continues to work.
+ */
+#define MAX_SKILL_VALUES        8
+
+struct skill_data
+{
+    SKILL_DATA *        next;               /* Hash chain / global list link */
+    bool                valid;
+
+    /* Identity */
+    int16_t             uid;                /* Stable unique ID (matches legacy sn after bootstrap) */
+    bool                isspell;            /* true = spell, false = skill */
+    char *              name;               /* Canonical name (primary lookup key) */
+    char *              display;            /* Display name (if different from internal name) */
+    char *              help_keyword;       /* Help system keyword */
+    char *              summary;            /* One-line summary for hints/MXP */
+    char *              description;        /* Longer description for skillinfo */
+    char *              comments;           /* Admin-only notes (not shown to players) */
+
+    long                flags;              /* SKILLFLAG_* bitfield */
+
+    int16_t             difficulty;          /* Base difficulty rating */
+
+    /* Legacy class availability (for migration, kept until Phase 9) */
+    int16_t             skill_level[MAX_CLASS]; /* Level needed by class (4 classes) */
+    int16_t             rating[MAX_CLASS];      /* How hard it is to learn (4 classes) */
+
+    /* Invocation */
+    SPELL_FUN *         spell_fun;          /* Spell function (NULL for non-spell skills) */
+    char *              spell_fun_name;     /* Function name string (for serialization) */
+    int16_t             target;             /* TAR_* target type */
+    int16_t             minimum_position;   /* Minimum position to use */
+    int16_t             min_mana;           /* Mana cost */
+    int16_t             beats;              /* Lag after use (in pulses) */
+
+    /* Racial restriction */
+    RACE_DATA *         race;               /* NULL = any race; otherwise racial-only */
+    char *              race_name;          /* Race name string (for serialization) */
+
+    /* Messages */
+    char *              noun_damage;        /* Damage noun ("acid blast") */
+    char *              msg_off;            /* Wear-off message */
+    char *              msg_obj;            /* Object wear-off message */
+    char *              msg_disp;           /* Display message */
+
+    /* Crafting / ink */
+    int                 inks[3][2];
+
+    /* Token coupling (for token-driven spells) */
+    TOKEN_INDEX_DATA *  token_index;        /* Associated token template */
+    WNUM_LOAD           token_wnum;         /* Widevnum for deferred token resolution */
+
+    /* Generic values for extensibility */
+    int                 values[MAX_SKILL_VALUES];
+    char *              value_names[MAX_SKILL_VALUES];
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *              olc_history;        /* OLC_CHANGE_HISTORY * — lazy-allocated by skedit */
+};
+
+/*
+ * CLASS_REWARD — Level-based reward/unlock for a class.
+ *
+ * Defines what a class grants at each level: skills, skill groups, titles,
+ * stat bonuses, tokens, scripts, or custom data. Stored as an LLIST on
+ * CLASS_DATA, sorted by level. The reward type determines how the name,
+ * value, and data fields are interpreted.
+ *
+ * During boot, REWARD_SKILL and REWARD_GROUP rewards are used to determine
+ * which skills each class grants at what level.
+ */
+/*
+ * CLASS_TITLE — A selectable title for a class.
+ *
+ * Each class has a list of titles. One title is the default (available to
+ * all characters in the class). Other titles are unlocked via REWARD_TITLE
+ * rewards at specific levels.
+ */
+struct class_title
+{
+    CLASS_TITLE *       next;
+    bool                valid;
+
+    char *              keyword;            /* Internal name for lookups ("default", "master") */
+    char *              display;            /* Full display name ("Archmage", "Sorceress") */
+    char *              who_name;           /* Short 'who' list name ("  Archmage  ") */
+    bool                is_default;         /* If true, available without unlocking */
+};
+
+struct class_reward
+{
+    CLASS_REWARD *      next;
+    bool                valid;
+
+    int16_t             level;              /* Level at which this reward is granted */
+    int16_t             type;               /* REWARD_* constant */
+    int16_t             scope;              /* REWARD_SCOPE_* cross-class availability */
+    char *              name;               /* Type-dependent: skill/group/script name, stat, etc. */
+    int                 value;              /* Type-dependent: skill rating, bonus amount, etc. */
+    long                flags;              /* REWARD_* flag bitfield */
+
+    /* Extended data for complex reward types (titles, token wnums, script args) */
+    struct json_t *     data;               /* Optional JSON object, NULL if unused */
+};
+
+/*
+ * CLASS_DATA — New data-driven class definition.
+ *
+ * Replaces entries in the legacy class_table[] and sub_class_table[] arrays.
+ * Classes are loaded from individual JSON files in data/classes/ and accessed
+ * via hash table lookups (class_find/class_find_exact) instead of array indices.
+ *
+ * During the migration period, CLASS_DATA coexists with class_table[] and
+ * sub_class_table[]. The bootstrap process creates CLASS_DATA entries from
+ * sub_class_table on first run.
+ */
+struct class_data
+{
+    CLASS_DATA *        next;               /* Hash chain / global list link */
+    bool                valid;
+
+    /* Identity */
+    int16_t             uid;                /* Stable unique ID */
+    char *              name;               /* Canonical name (primary lookup key) */
+    char *              description;        /* Long description */
+    char *              comments;           /* Admin-only notes (not shown to players) */
+
+    /* (Deprecated) Body-type-aware display names — use titles list instead */
+    char *              display[BODY_TYPE_MAX]; /* Legacy: full display name per body type */
+    char *              who[BODY_TYPE_MAX];     /* Legacy: short name for 'who' list per body type */
+
+    /* Selectable titles for this class */
+    LLIST *             titles;             /* LLIST of CLASS_TITLE (one must be is_default) */
+
+    /* Classification */
+    int16_t             type;               /* CLASS_TYPE_* category */
+    long                flags;              /* CLASS_* bitfield (COMBATIVE, NO_LEVEL, etc.) */
+
+    /* Skills/Groups */
+    LLIST *             groups;             /* Skill groups granted by this class */
+
+    /* Reward/unlock progression */
+    LLIST *             rewards;            /* LLIST of CLASS_REWARD, sorted by level */
+
+    /* Progression */
+    int16_t             primary_stat;       /* Primary attribute (STAT_STR, etc.) */
+    int16_t             max_level;          /* Maximum level achievable in this class */
+    int                 hp_min;             /* Min HP gain per level */
+    int                 hp_max;             /* Max HP gain per level */
+    bool                gains_mana;         /* Whether class gains mana on level */
+    long                weapon;             /* Starting weapon vnum */
+
+    /* Per-class XP curve (NULL = use global default curve) */
+    long *              xp_table;           /* Array of XP-per-level, indexed 0..max_level-1 */
+    int                 xp_table_size;      /* Number of entries in xp_table */
+
+    /* Lifecycle callbacks */
+    CLASS_ENTER_FUN *   enter;              /* Called when player switches TO this class */
+    CLASS_LEAVE_FUN *   leave;              /* Called when player switches FROM this class */
+    char *              enter_fun_name;     /* Function name string (for serialization) */
+    char *              leave_fun_name;     /* Function name string (for serialization) */
+
+    /* Trait values (indexed array, allocated by class_init_traits) */
+    struct trait_value * trait_values;
+
+    /* Global cached pointer (replaces gcl_* globals from src_20_dev) */
+    CLASS_DATA **       gcl;                /* Pointer-to-pointer for fast lookup caching */
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *              olc_history;        /* OLC_CHANGE_HISTORY * — lazy-allocated by clsedit */
+};
+
+/*
+ * CLASS_LEVEL — Per-character class level entry.
+ *
+ * Each PC has an LLIST of these on pcdata->classes, tracking their
+ * level and XP in each class they have joined. The current_class
+ * pointer on pcdata points to one of these entries.
+ */
+struct class_level
+{
+    CLASS_LEVEL *       next;
+    bool                valid;
+
+    CLASS_DATA *        clazz;              /* Which class */
+    int                 level;              /* Current level in this class */
+    long                xp;                 /* Current XP in this class */
+
+    /* Title selection */
+    char *              active_title;       /* Keyword of chosen title, NULL = default */
+
+    /* Class-specific custom data (ranger pets, crafting mastery, etc.) */
+    struct json_t *     custom_data;        /* Free-form JSON object, NULL if unused */
+};
+
+/*
+ * Function prototypes for skills and spells.
+ */
+int	get_skill			( CHAR_DATA *ch, int sn );
+int	get_weapon_skill	( CHAR_DATA *ch, int sn );
+int	get_adept_level		( CHAR_DATA *ch, int sn );
+int	mana_cost		( CHAR_DATA *ch, int min_mana, int level );
+int	skill_lookup		( const char *name );
+const skill_t *skill_type_lookup( const char *name );
+SKILL_DATA *skill_find		( const char *name );
+int16_t	skill_resolve_gsn	( const char *name );
+int16_t	skill_sn		( SKILL_DATA *skill );
+int	slot_lookup		( int slot );
+bool	saves_spell		( int level, CHAR_DATA *victim, int16_t dam_type );
+bool	saves_dispel		( CHAR_DATA *ch, CHAR_DATA *victim, int spell_level);
+void 	check_improve		( CHAR_DATA *ch, int sn, bool success, int multiplier );
+
 struct mob_index_skill_data {
-	MOB_INDEX_SKILL_DATA *next;
-	int16_t sn;		/* Which skill */
-	int16_t ratings[6];	/* multi-point %rating mapping, -1 terminated */
-	int16_t chance;		/* Chance of being added at all */
+    MOB_INDEX_SKILL_DATA *next;
+    int16_t sn;		/* Which skill */
+    int16_t ratings[6];	/* multi-point %rating mapping, -1 terminated */
+    int16_t chance;		/* Chance of being added at all */
 };
 
 struct mob_skill_data {
-	MOB_SKILL_DATA *next;
-	int16_t sn;		/* Which skill */
-	int16_t rating;
+    MOB_SKILL_DATA *next;
+    int16_t sn;		/* Which skill */
+    int16_t rating;
 };
 
 
@@ -6524,11 +8330,57 @@ struct music_type
     int16_t	target;			/* Legal targets		*/
 };
 
+/*
+ * Data-driven song definition — replaces music_table[] usage.
+ * Loaded from JSON at boot via load_songs() in song_data.c.
+ *
+ * TODO (future expansion):
+ * - Add TOKEN_INDEX_DATA *token for script-based song effects.
+ * - Add presong_fun / song_fun for C-level callbacks.
+ * - Add instrument type requirements.
+ */
+struct song_data
+{
+    char *	name;			/* Song display name		*/
+    int		uid;			/* Unique identifier		*/
+    int		level;			/* Level to learn the song	*/
+    int16_t	mana;			/* Mana cost			*/
+    int16_t	target;			/* Legal targets (TAR_*)	*/
+    int16_t	beats;			/* Play duration (ticks)	*/
+    char *	spell1;			/* First spell cast		*/
+    char *	spell2;			/* Second spell cast		*/
+    char *	spell3;			/* Third spell cast		*/
+    long	flags;			/* Song flags (reserved)	*/
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *	olc_history;		/* OLC_CHANGE_HISTORY * — lazy-allocated by soedit */
+};
+
 struct  group_type
 {
     char *	name;
     int16_t	rating[MAX_CLASS];
     char *	spells[MAX_IN_GROUP];
+};
+
+/*
+ * SKILL_GROUP — Named collection of skills.
+ *
+ * A lightweight grouping mechanism used by REWARD_GROUP to grant batches
+ * of skills at once. Each group is a named list of skill name strings.
+ * Groups are loaded from data/skill_groups/ or bootstrapped from the
+ * legacy group_table[] on first run.
+ */
+struct skill_group_data
+{
+    SKILL_GROUP *       next;
+    bool                valid;
+
+    char *              name;               /* Group name ("warrior basics", etc.) */
+    LLIST *             contents;           /* LLIST of char * — skill name strings */
+
+    /* OLC change history (void* to avoid olc_editor.h dependency) */
+    void *              olc_history;        /* OLC_CHANGE_HISTORY * — lazy-allocated by gredit */
 };
 
 #define RPROG_VNUM_PLAYER_INIT 1	// Called when a player/immortal logs in, to give them various tokens and whatnot that are needed from the start
@@ -6537,216 +8389,235 @@ struct  group_type
  * Program triggers
  */
 enum trigger_index_enum {
-	TRIG_NONE = -1,
-	TRIG_ACT,
-	TRIG_AFTERDEATH,	/* Fired just after you die */
-	TRIG_AFTERKILL,		/* Called after someome kills a target.  TODO: Damage will become forbidden in this trigger. */
-	TRIG_ANIMATE,
-	TRIG_ASSIST,
+    TRIG_NONE = -1,
+    TRIG_ACT,
+    TRIG_AFTERDEATH,	/* Fired just after you die */
+    TRIG_AFTERKILL,		/* Called after someome kills a target.  TODO: Damage will become forbidden in this trigger. */
+    TRIG_ANIMATE,
+    TRIG_ASSIST,
     TRIG_ATTACK,
-	TRIG_ATTACK_BACKSTAB,
-	TRIG_ATTACK_BASH,
-	TRIG_ATTACK_BEHEAD,
-	TRIG_ATTACK_BITE,
-	TRIG_ATTACK_BLACKJACK,
-	TRIG_ATTACK_CIRCLE,
-	TRIG_ATTACK_COUNTER,
-	TRIG_ATTACK_CRIPPLE,
-	TRIG_ATTACK_DIRTKICK,
-	TRIG_ATTACK_DISARM,
-	TRIG_ATTACK_INTIMIDATE,
-	TRIG_ATTACK_KICK,
-	TRIG_ATTACK_REND,
-	TRIG_ATTACK_SLIT,
-	TRIG_ATTACK_SMITE,
-	TRIG_ATTACK_TAILKICK,
-	TRIG_ATTACK_TRAMPLE,
-	TRIG_ATTACK_TURN,
-	TRIG_BARRIER,
-	TRIG_BLOW,
-	TRIG_BOARD,
-	TRIG_BRANDISH,
-	TRIG_BRIBE,
-	TRIG_BURY,
-	TRIG_BUY,
-	TRIG_CANINTERRUPT,
-	TRIG_CATALYST,
-	TRIG_CATALYST_FULL,
-	TRIG_CATALYST_SOURCE,
-	TRIG_CHECK_BUYER,		// Called when a stock item is not an object, used to check whether the buyer can GET the item
-	TRIG_CHECK_DAMAGE,
-	TRIG_CLONE_EXTRACT,
-	TRIG_CLOSE,
-	TRIG_COMBAT_STYLE,
-	TRIG_COMPLETED,
-	TRIG_CONTRACT_COMPLETE,
-	TRIG_CUSTOM_PRICE,		// Called when a stock item has custom pricing
-	TRIG_DAMAGE,
-	TRIG_DEATH,
-	TRIG_DEATH_PROTECTION,
-	TRIG_DEATH_TIMER,
-	TRIG_DEFENSE,
-	TRIG_DELAY,
-	TRIG_DRINK,
-	TRIG_DROP,
-	TRIG_EAT,
-	TRIG_EMOTE,			// NIB : 20140508 : untargeted emote
-	TRIG_EMOTEAT,		// NIB : 20140508 : targeted emote
-	TRIG_EMOTESELF,		// NIB : 20140508 : self-targeted emote
-	TRIG_ENTRY,
-	TRIG_EXALL,
-	TRIG_EXAMINE,
-	TRIG_EXIT,
-	TRIG_EXPIRE,		/* NIB : 20070124 : token expiration */
-	TRIG_EXTRACT,
-	TRIG_FIGHT,
-	TRIG_FLEE,
-	TRIG_FORCEDISMOUNT,
-	TRIG_GET,
-	TRIG_GIVE,
-	TRIG_GRALL,
-	TRIG_GREET,
-	TRIG_GROUPED,
-	TRIG_GROW,			// NIB 20140513 - trigger for seeds to have custom growth results besides sprouting a plant.
-	TRIG_HIDDEN,		// After the mob has hidden (mob and token only)
-	TRIG_HIDE,			// Act of hiding (mob, object and token)
-	TRIG_HIT,
-	TRIG_HITGAIN,
-	TRIG_HPCNT,
-	TRIG_IDENTIFY,
-	TRIG_INSPECT,		
+    TRIG_ATTACK_BACKSTAB,
+    TRIG_ATTACK_BASH,
+    TRIG_ATTACK_BEHEAD,
+    TRIG_ATTACK_BITE,
+    TRIG_ATTACK_BLACKJACK,
+    TRIG_ATTACK_CIRCLE,
+    TRIG_ATTACK_COUNTER,
+    TRIG_ATTACK_CRIPPLE,
+    TRIG_ATTACK_DIRTKICK,
+    TRIG_ATTACK_DISARM,
+    TRIG_ATTACK_INTIMIDATE,
+    TRIG_ATTACK_KICK,
+    TRIG_ATTACK_REND,
+    TRIG_ATTACK_SLIT,
+    TRIG_ATTACK_SMITE,
+    TRIG_ATTACK_TAILKICK,
+    TRIG_ATTACK_TRAMPLE,
+    TRIG_ATTACK_TURN,
+    TRIG_BARRIER,
+    TRIG_BLOW,
+    TRIG_BOARD,
+    TRIG_BRANDISH,
+    TRIG_BRIBE,
+    TRIG_BURY,
+    TRIG_BUY,
+    TRIG_CANINTERRUPT,
+    TRIG_CATALYST,
+    TRIG_CATALYST_FULL,
+    TRIG_CATALYST_SOURCE,
+    TRIG_CHECK_BUYER,		// Called when a stock item is not an object, used to check whether the buyer can GET the item
+    TRIG_CHECK_DAMAGE,
+    TRIG_CLONE_EXTRACT,
+    TRIG_CLOSE,
+    TRIG_COMBAT_STYLE,
+    TRIG_COMPLETED,
+    TRIG_CONTRACT_COMPLETE,
+    TRIG_CUSTOM_PRICE,		// Called when a stock item has custom pricing
+    TRIG_DAMAGE,
+    TRIG_DEATH,
+    TRIG_DEATH_PROTECTION,
+    TRIG_DEATH_TIMER,
+    TRIG_DEFENSE,
+    TRIG_DELAY,
+    TRIG_DRINK,
+    TRIG_DROP,
+    TRIG_DUNGEON_COMMENCED,
+    TRIG_DUNGEON_SCHEMATIC,
+    TRIG_EAT,
+    TRIG_EMOTE,			// NIB : 20140508 : untargeted emote
+    TRIG_EMOTEAT,		// NIB : 20140508 : targeted emote
+    TRIG_EMOTESELF,		// NIB : 20140508 : self-targeted emote
+    TRIG_ENTRY,
+    TRIG_EXALL,
+    TRIG_EXAMINE,
+    TRIG_EXIT,
+    TRIG_EXPIRE,		/* NIB : 20070124 : token expiration */
+    TRIG_EXTRACT,
+    TRIG_FAILED,
+    TRIG_FIGHT,
+    TRIG_FLEE,
+    TRIG_FORCEDISMOUNT,
+    TRIG_GET,
+    TRIG_GIVE,
+    TRIG_GRALL,
+    TRIG_GREET,
+    TRIG_GROUPED,
+    TRIG_GROW,			// NIB 20140513 - trigger for seeds to have custom growth results besides sprouting a plant.
+    TRIG_HIDDEN,		// After the mob has hidden (mob and token only)
+    TRIG_HIDE,			// Act of hiding (mob, object and token)
+    TRIG_HIT,
+    TRIG_HITGAIN,
+    TRIG_HPCNT,
+    TRIG_IDENTIFY,
+    TRIG_INSPECT,		
     TRIG_INSPECT_CUSTOM, // Called when asking a shopkeeper to inspect a custom stock item
-	TRIG_INTERRUPT,
-	TRIG_KILL,
-	TRIG_KNOCK,
-	TRIG_KNOCKING,
-	TRIG_LAND,
-	TRIG_LEVEL,
-	TRIG_LOGIN,
-	TRIG_LORE,
-	TRIG_LORE_EX,
-	TRIG_MANAGAIN,
-	TRIG_MOON,
-	TRIG_MOUNT,
-	TRIG_MOVE_CHAR,
-	TRIG_MOVEGAIN,
-	TRIG_MULTICLASS,	// Called when a player multiclasses
-	TRIG_OPEN,
-	TRIG_POSTQUEST,			// Called after all quest rewards and messages are given
-	TRIG_PRACTICE,
-	TRIG_PRACTICETOKEN,
-	TRIG_PREANIMATE,
-	TRIG_PREASSIST,
-	TRIG_PREBITE,
-	TRIG_PREBUY,
-	TRIG_PREBUY_OBJ,
-	TRIG_PRECAST,
-	TRIG_PREDEATH,
-	TRIG_PREDISMOUNT,
-	TRIG_PREDRINK,
-	TRIG_PREDROP,
-	TRIG_PREEAT,
-	TRIG_PREENTER,
-	TRIG_PREFLEE,
-	TRIG_PREGET,
-	TRIG_PREHIDE,			// NIB 20140522 - trigger for testing if you can hide yourself or the object in question
-	TRIG_PREHIDE_IN,		// NIB 20140522 - trigger for testing if the container or mob you are trying to hide an object in will allow it
-	TRIG_PREKILL,
-	TRIG_PREMOUNT,
-	TRIG_PREPRACTICE,
-	TRIG_PREPRACTICEOTHER,
-	TRIG_PREPRACTICETHAT,
-	TRIG_PREPRACTICETOKEN,
-	TRIG_PREPUT,
-	TRIG_PREQUEST,			// Allows custom checking for questing, also allows setting the number of quest parts.
-	TRIG_PRERECALL,
-	TRIG_PRERECITE,
-	TRIG_PRERECKONING,
-	TRIG_PREREHEARSE,
-	TRIG_PREREMOVE,
-	TRIG_PRERENEW,			// Used by "RENEW" to get QP cost and whether the item can be renewed
-	TRIG_PREREST,
-	TRIG_PRERESURRECT,
-	TRIG_PREROUND,
-	TRIG_PRESELL,
-	TRIG_PRESIT,
-	TRIG_PRESLEEP,
-	TRIG_PRESPELL,
-	TRIG_PRESTAND,
-	TRIG_PRETRAIN,
-	TRIG_PRETRAINTOKEN,
-	TRIG_PREWAKE,
-	TRIG_PREWEAR,
-	TRIG_PREWIMPY,
-	TRIG_PULL,
-	TRIG_PULL_ON,		/* NIB : 20070121 */
-	TRIG_PUSH,
-	TRIG_PUSH_ON,		/* NIB : 20070121 */
-	TRIG_PUT,
-	TRIG_QUEST_CANCEL,
-	TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
-	TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
-	TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
-	TRIG_QUIT,
-	TRIG_RANDOM,
-	TRIG_RECALL,
-	TRIG_RECITE,
-	TRIG_RECKONING,
-	TRIG_REGEN,		/*  Custom regenerations */
-	TRIG_REGEN_HP,		/* Modification on ALL hp regens */
-	TRIG_REGEN_MANA,	/* Modification on ALL mana regens */
-	TRIG_REGEN_MOVE,	/* Modification on ALL move regens */
-	TRIG_REMORT,		// Called when a player remorts
-	TRIG_REMOVE,		/* NIB : 20070120 */
-	TRIG_RENEW,			// Used by "RENEW"
-	TRIG_RENEW_LIST,	// Used by "RENEW LIST"
-	TRIG_REPOP,
-	TRIG_RESET,
-	TRIG_REST,
-	TRIG_RESTOCKED,
-	TRIG_RESTORE,
-	TRIG_RESURRECT,
-	TRIG_SAVE,
-	TRIG_SAYTO,		/* NIB : 20070121 */
-	TRIG_SIT,
-	TRIG_SKILL_BERSERK,
-	TRIG_SKILL_SNEAK,
-	TRIG_SKILL_WARCRY,
-	TRIG_SLEEP,
-	TRIG_SPEECH,
-	TRIG_SPELL,
-	TRIG_SPELLBEAT,
-	TRIG_SPELLCAST,
-	TRIG_SPELLINTER,
-	TRIG_SPELLPENETRATE,
-	TRIG_SPELLREFLECT,
-	TRIG_SPELL_CURE,
-	TRIG_SPELL_DISPEL,
-	TRIG_STAND,
-	TRIG_START_COMBAT,
-	TRIG_STRIPAFFECT,
-	TRIG_TAKEOFF,
-	TRIG_THROW,
-	TRIG_TOKEN_GIVEN,
-	TRIG_TOKEN_REMOVED,
-	TRIG_TOUCH,
-	TRIG_TOXINGAIN,
-	TRIG_TURN,
-	TRIG_TURN_ON,		/* NIB : 20070121 */
-	TRIG_UNGROUPED,
-	TRIG_USE,
-	TRIG_USEWITH,
-	TRIG_VERB,
-	TRIG_VERBSELF,
-	TRIG_WAKE,
-	TRIG_WEAPON_BLOCKED,
-	TRIG_WEAPON_CAUGHT,
-	TRIG_WEAPON_PARRIED,
-	TRIG_WEAR,
-	TRIG_WHISPER,
-	TRIG_WIMPY,
-	TRIG_XPGAIN,
-	TRIG_ZAP
+    TRIG_INTERRUPT,
+    TRIG_KILL,
+    TRIG_KNOCK,
+    TRIG_KNOCKING,
+    TRIG_LAND,
+    TRIG_LEVEL,
+    TRIG_LOGIN,
+    TRIG_LORE,
+    TRIG_LORE_EX,
+    TRIG_MANAGAIN,
+    TRIG_MOON,
+    TRIG_MOUNT,
+    TRIG_MOVE_CHAR,
+    TRIG_MOVEGAIN,
+    TRIG_MULTICLASS,	// Called when a player multiclasses
+    TRIG_OPEN,
+    TRIG_POSTQUEST,			// Called after all quest rewards and messages are given
+    TRIG_PRACTICE,
+    TRIG_PRACTICETOKEN,
+    TRIG_PREANIMATE,
+    TRIG_PREASSIST,
+    TRIG_PREBITE,
+    TRIG_PREBUY,
+    TRIG_PREBUY_OBJ,
+    TRIG_PRECAST,
+    TRIG_PREDEATH,
+    TRIG_PREDISMOUNT,
+    TRIG_PREDRINK,
+    TRIG_PREDROP,
+    TRIG_PREEAT,
+    TRIG_PREENTER,
+    TRIG_PREFLEE,
+    TRIG_PREGET,
+    TRIG_PREHIDE,			// NIB 20140522 - trigger for testing if you can hide yourself or the object in question
+    TRIG_PREHIDE_IN,		// NIB 20140522 - trigger for testing if the container or mob you are trying to hide an object in will allow it
+    TRIG_PREKILL,
+    TRIG_PREMOUNT,
+    TRIG_PREPRACTICE,
+    TRIG_PREPRACTICEOTHER,
+    TRIG_PREPRACTICETHAT,
+    TRIG_PREPRACTICETOKEN,
+    TRIG_PREPUT,
+    TRIG_PREQUEST,			// Allows custom checking for questing, also allows setting the number of quest parts.
+    TRIG_PRERECALL,
+    TRIG_PRERECITE,
+    TRIG_PRERECKONING,
+    TRIG_PREREHEARSE,
+    TRIG_PREREMOVE,
+    TRIG_PRERENEW,			// Used by "RENEW" to get QP cost and whether the item can be renewed
+    TRIG_PREREST,
+    TRIG_PRERESURRECT,
+    TRIG_PREROUND,
+    TRIG_PRESELL,
+    TRIG_PRESIT,
+    TRIG_PRESLEEP,
+    TRIG_PRESPELL,
+    TRIG_PRESTAND,
+    TRIG_PRETRAIN,
+    TRIG_PRETRAINTOKEN,
+    TRIG_PREWAKE,
+    TRIG_PREWEAR,
+    TRIG_PREWIMPY,
+    TRIG_PULL,
+    TRIG_PULL_ON,		/* NIB : 20070121 */
+    TRIG_PULSE,
+    TRIG_PUSH,
+    TRIG_PUSH_ON,		/* NIB : 20070121 */
+    TRIG_PUT,
+    TRIG_QUEST_CANCEL,
+    TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
+    TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
+    TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
+    TRIG_QUEST_ACCEPTED,
+    TRIG_QUEST_COMPLETED,
+    TRIG_QUEST_FAILED,
+    TRIG_QUEST_FOCUSED,
+    TRIG_STAGE_COMMENCED,
+    TRIG_STAGE_COMPLETED,
+    TRIG_STAGE_FAILED,
+    TRIG_STAGE_TARGET_RESOLVED,
+    TRIG_STAGE_DEST_RESOLVED,
+    TRIG_OBJECTIVE_COMPLETED,
+    TRIG_OBJECTIVE_FAILED,
+    TRIG_OBJECTIVE_TARGET_RESOLVED,
+    TRIG_OBJECTIVE_DEST_RESOLVED,
+    TRIG_QUIT,
+    TRIG_RANDOM,        // DEPRECATE
+    TRIG_RECALL,
+    TRIG_RECITE,
+    TRIG_RECKONING,
+    TRIG_REGEN,		/*  Custom regenerations */
+    TRIG_REGEN_HP,		/* Modification on ALL hp regens */
+    TRIG_REGEN_MANA,	/* Modification on ALL mana regens */
+    TRIG_REGEN_MOVE,	/* Modification on ALL move regens */
+    TRIG_REMORT,		// Called when a player remorts
+    TRIG_REMOVE,		/* NIB : 20070120 */
+    TRIG_RENEW,			// Used by "RENEW"
+    TRIG_RENEW_LIST,	// Used by "RENEW LIST"
+    TRIG_REPOP,
+    TRIG_RESET,
+    TRIG_REST,
+    TRIG_RESTOCKED,
+    TRIG_RESTORE,
+    TRIG_RESURRECT,
+    TRIG_SAVE,
+    TRIG_SAYTO,		/* NIB : 20070121 */
+    TRIG_SHOWCOMMANDS,
+    TRIG_SIT,
+    TRIG_SKILL_BERSERK,
+    TRIG_SKILL_SNEAK,
+    TRIG_SKILL_WARCRY,
+    TRIG_SLEEP,
+    TRIG_SPEECH,
+    TRIG_SPELL,
+    TRIG_SPELLBEAT,
+    TRIG_SPELLCAST,
+    TRIG_SPELLINTER,
+    TRIG_SPELLPENETRATE,
+    TRIG_SPELLREFLECT,
+    TRIG_SPELL_CURE,
+    TRIG_SPELL_DISPEL,
+    TRIG_STAND,
+    TRIG_START_COMBAT,
+    TRIG_STRIPAFFECT,
+    TRIG_TAKEOFF,
+    TRIG_THROW,
+    TRIG_TICK,
+    TRIG_TOKEN_GIVEN,
+    TRIG_TOKEN_REMOVED,
+    TRIG_TOUCH,
+    TRIG_TOXINGAIN,
+    TRIG_TURN,
+    TRIG_TURN_ON,		/* NIB : 20070121 */
+    TRIG_UNGROUPED,
+    TRIG_USE,
+    TRIG_USEWITH,
+    TRIG_VERB,
+    TRIG_VERBSELF,
+    TRIG_WAKE,
+    TRIG_WEAPON_BLOCKED,
+    TRIG_WEAPON_CAUGHT,
+    TRIG_WEAPON_PARRIED,
+    TRIG_WEAR,
+    TRIG_WHISPER,
+    TRIG_WIMPY,
+    TRIG_XPGAIN,
+    TRIG_ZAP
 };
 
 /* NIB : 20070124 : Trigger slot types */
@@ -6775,21 +8646,25 @@ enum trigger_index_enum {
 #define PRG_APROG	4	// Area
 #define PRG_IPROG	5	// Instances
 #define PRG_DPROG	6	// Dungeons
+#define PRG_QPROG	7	// Quests
+#define PRG_EPROG	8	// Events
 
 #define NEWEST_OBJ_VERSION 1
 
 struct trigger_type {
-	char *name;		// Cannonical name
-	char *alias;	// Aliases for the trigger
-	int type;		// Trigger type
-	int slot;		// Trigger slot for grouping similar triggers together
-	bool mob;
-	bool obj;
-	bool room;
-	bool token;
-	bool area;
-	bool instance;
-	bool dungeon;
+    char *name;		// Cannonical name
+    char *alias;	// Aliases for the trigger
+    int type;		// Trigger type
+    int slot;		// Trigger slot for grouping similar triggers together
+    bool mob;
+    bool obj;
+    bool room;
+    bool token;
+    bool area;      // APROG applicability
+    bool instance;
+    bool dungeon;
+    bool quest;     // QPROG applicability
+    bool event;     // EPROG applicability
 };
 
 #define PROG_NODESTRUCT		(A)		/* Used to indicate the item is already destructing and should not fire any destructions */
@@ -6811,7 +8686,7 @@ struct prog_data
     int			lastreturn;	/* @@@NIB : 20070123 */
     long		entity_flags;
     int			script_ref;	// Counts the number of scripts referencing this entity in a trigger function
-    						//  If > 0 it will prevent the entity from being destroyed, flagging it for later consumption
+                            //  If > 0 it will prevent the entity from being destroyed, flagging it for later consumption
     bool 		extract_when_done;		// Flag set to extract the parent entity when the script_ref reaches zero
     bool		extract_fPull;
     pVARIABLE		vars;
@@ -6819,14 +8694,19 @@ struct prog_data
 
 struct prog_list
 {
-	int		trig_type;
-	char *		trig_phrase;
-	int			trig_number;	// atoi(trig_phrase)
-	bool		numeric;
-	long		vnum;
-	SCRIPT_DATA *	script;		/* @@@NIB : 20070123  */
-	PROG_LIST *	next;
-	bool		valid;
+    int		trig_type;
+    char *		trig_phrase;
+    int			trig_number;	// atoi(trig_phrase) - bare vnum for legacy matching
+    bool		numeric;
+    bool		trig_is_widevnum;	// true if phrase was widevnum format (auid#vnum)
+    WNUM_LOAD	trig_load;		// Persistent: area UID + vnum (widevnum triggers only)
+    WNUM		trig_wnum;		// Runtime: area pointer + vnum (resolved at boot)
+    long		vnum;			// Script vnum (bare, legacy fallback)
+    bool		script_is_widevnum;	// true if loaded from widevnum format
+    WNUM_LOAD	script_load;		// Persistent: area UID + vnum for script
+    SCRIPT_DATA *	script;		/* @@@NIB : 20070123  */
+    PROG_LIST *	next;
+    bool		valid;
 };
 
 struct prog_code
@@ -6848,6 +8728,7 @@ struct  chat_room_data
     int max_people;	/* limit of people allowed */
     int curr_people;	/* current amt. of people */
     bool permanent;	/* does it save after reboots, etc? */
+    long area_uid;	/* area UID for widevnum support */
     long vnum;		/* room vnum */
 };
 
@@ -6900,10 +8781,12 @@ struct gq_mob_data
 {
     GQ_MOB_DATA *next;
 
-    long vnum;
+    WNUM_LOAD vnum_load;
+    WNUM vnum_wnum;
     int class; /* 1, 2, 3, 4 */
     bool group; /* group mob? */
-    long obj; /* what obj vnum to repop with? */
+    WNUM_LOAD obj_load; /* what obj to repop with? */
+    WNUM obj_wnum;
     int count; /* how many in the game? */
     int max; /* max to repop */
 };
@@ -6912,7 +8795,8 @@ struct gq_obj_data
 {
     GQ_OBJ_DATA *next;
 
-    long vnum;
+    WNUM_LOAD vnum_load;
+    WNUM vnum_wnum;
 
     int qp_reward;
     int prac_reward;
@@ -7051,394 +8935,6 @@ struct log_entry_data
     char			*text;		/* The log message */
 };
 
-
-/*
- * These are skill_lookup return values for common skills and spells.
- */
-
-extern int16_t   gsn__auction;
-extern int16_t   gsn__inspect;
-
-extern int16_t	gsn_acid_blast;
-extern int16_t	gsn_acid_breath;
-extern int16_t	gsn_acro;
-extern int16_t	gsn_afterburn;
-extern int16_t	gsn_air_spells;
-extern int16_t	gsn_ambush;
-extern int16_t	gsn_animate_dead;
-extern int16_t	gsn_archery;
-extern int16_t	gsn_armour;
-extern int16_t	gsn_athletics;
-extern int16_t	gsn_avatar_shield;
-extern int16_t	gsn_axe;
-extern int16_t	gsn_backstab;
-extern int16_t	gsn_bar;
-extern int16_t	gsn_bash;
-extern int16_t	gsn_behead;
-extern int16_t	gsn_berserk;
-extern int16_t	gsn_bind;
-extern int16_t	gsn_bite;
-extern int16_t	gsn_blackjack;
-extern int16_t	gsn_bless;
-extern int16_t	gsn_blindness;
-extern int16_t	gsn_blowgun;
-extern int16_t	gsn_bomb;
-extern int16_t	gsn_bow;
-extern int16_t	gsn_breath;
-extern int16_t	gsn_brew;
-extern int16_t	gsn_burgle;
-extern int16_t	gsn_burning_hands;
-extern int16_t	gsn_call_familiar;
-extern int16_t	gsn_call_lightning;
-extern int16_t	gsn_calm;
-extern int16_t	gsn_cancellation;
-extern int16_t	gsn_catch;
-extern int16_t	gsn_cause_critical;
-extern int16_t	gsn_cause_light;
-extern int16_t	gsn_cause_serious;
-extern int16_t	gsn_chain_lightning;
-extern int16_t	gsn_channel;
-extern int16_t	gsn_charge;
-extern int16_t	gsn_charm_person;
-extern int16_t	gsn_chill_touch;
-extern int16_t	gsn_circle;
-extern int16_t	gsn_cloak_of_guile;
-extern int16_t	gsn_colour_spray;
-extern int16_t	gsn_combine;
-extern int16_t	gsn_consume;
-extern int16_t	gsn_continual_light;
-extern int16_t	gsn_control_weather;
-extern int16_t	gsn_cosmic_blast;
-extern int16_t	gsn_counterspell;
-extern int16_t	gsn_create_food;
-extern int16_t	gsn_create_rose;
-extern int16_t	gsn_create_spring;
-extern int16_t	gsn_create_water;
-extern int16_t	gsn_crippling_touch;
-extern int16_t	gsn_crossbow;
-extern int16_t	gsn_cure_blindness;
-extern int16_t	gsn_cure_critical;
-extern int16_t	gsn_cure_disease;
-extern int16_t	gsn_cure_light;
-extern int16_t	gsn_cure_poison;
-extern int16_t	gsn_cure_serious;
-extern int16_t	gsn_cure_toxic;
-extern int16_t	gsn_curse;
-extern int16_t	gsn_dagger;
-extern int16_t	gsn_death_grip;
-extern int16_t	gsn_deathbarbs;
-extern int16_t	gsn_deathsight;
-extern int16_t	gsn_deception;
-extern int16_t	gsn_deep_trance;
-extern int16_t	gsn_demonfire;
-extern int16_t	gsn_destruction;
-extern int16_t	gsn_detect_hidden;
-extern int16_t	gsn_detect_invis;
-extern int16_t	gsn_detect_magic;
-extern int16_t	gsn_detect_traps;
-extern int16_t	gsn_dirt;
-extern int16_t	gsn_dirt_kicking;
-extern int16_t	gsn_disarm;
-extern int16_t	gsn_discharge;
-extern int16_t	gsn_dispel_evil;
-extern int16_t	gsn_dispel_good;
-extern int16_t	gsn_dispel_magic;
-extern int16_t	gsn_dispel_room;
-extern int16_t	gsn_dodge;
-extern int16_t	gsn_dual;
-extern int16_t	gsn_eagle_eye;
-extern int16_t	gsn_earth_spells;
-extern int16_t	gsn_earthquake;
-extern int16_t	gsn_electrical_barrier;
-extern int16_t	gsn_enchant_armour;
-extern int16_t	gsn_enchant_weapon;
-extern int16_t	gsn_energy_drain;
-extern int16_t	gsn_energy_field;
-extern int16_t	gsn_enhanced_damage;
-extern int16_t	gsn_ensnare;
-extern int16_t	gsn_entrap;
-extern int16_t	gsn_envenom;
-extern int16_t	gsn_evasion;
-extern int16_t	gsn_exorcism;
-extern int16_t	gsn_exotic;
-extern int16_t	gsn_fade;
-extern int16_t	gsn_faerie_fire;
-extern int16_t	gsn_faerie_fog;
-extern int16_t	gsn_fast_healing;
-extern int16_t	gsn_fatigue;
-extern int16_t	gsn_feign;
-extern int16_t	gsn_fire_barrier;
-extern int16_t	gsn_fire_breath;
-extern int16_t	gsn_fire_cloud;
-extern int16_t	gsn_fire_spells;
-extern int16_t	gsn_fireball;
-extern int16_t	gsn_fireproof;
-extern int16_t	gsn_flail;
-extern int16_t	gsn_flamestrike;
-extern int16_t	gsn_flight;
-extern int16_t	gsn_fly;
-extern int16_t	gsn_fourth_attack;
-extern int16_t	gsn_frenzy;
-extern int16_t	gsn_frost_barrier;
-extern int16_t	gsn_frost_breath;
-extern int16_t	gsn_gas_breath;
-extern int16_t	gsn_gate;
-extern int16_t	gsn_giant_strength;
-extern int16_t	gsn_glorious_bolt;
-extern int16_t	gsn_haggle;
-extern int16_t	gsn_hand_to_hand;
-extern int16_t	gsn_harm;
-extern int16_t	gsn_harpooning;
-extern int16_t	gsn_haste;
-extern int16_t	gsn_heal;
-extern int16_t	gsn_healing_aura;
-extern int16_t	gsn_healing_hands;
-extern int16_t	gsn_hide;
-extern int16_t	gsn_holdup;
-extern int16_t	gsn_holy_shield;
-extern int16_t	gsn_holy_sword;
-extern int16_t	gsn_holy_word;
-extern int16_t	gsn_holy_wrath;
-extern int16_t	gsn_hunt;
-extern int16_t	gsn_ice_storm;
-extern int16_t	gsn_identify;
-extern int16_t	gsn_improved_invisibility;
-extern int16_t	gsn_inferno;
-extern int16_t	gsn_infravision;
-extern int16_t	gsn_infuse;
-extern int16_t	gsn_intimidate;
-extern int16_t	gsn_invis;
-extern int16_t	gsn_judge;
-extern int16_t	gsn_kick;
-extern int16_t	gsn_kill;
-extern int16_t	gsn_leadership;
-extern int16_t	gsn_light_shroud;
-extern int16_t	gsn_lightning_bolt;
-extern int16_t	gsn_lightning_breath;
-extern int16_t	gsn_locate_object;
-extern int16_t	gsn_lore;
-extern int16_t	gsn_mace;
-extern int16_t	gsn_magic_missile;
-extern int16_t	gsn_martial_arts;
-extern int16_t	gsn_mass_healing;
-extern int16_t	gsn_mass_invis;
-extern int16_t	gsn_master_weather;
-extern int16_t	gsn_maze;
-extern int16_t	gsn_meditation;
-extern int16_t	gsn_mob_lore;
-extern int16_t	gsn_momentary_darkness;
-extern int16_t	gsn_morphlock;
-extern int16_t	gsn_mount_and_weapon_style;
-extern int16_t	gsn_music;
-extern int16_t	gsn_navigation;
-extern int16_t	gsn_neurotoxin;
-extern int16_t	gsn_nexus;
-extern int16_t	gsn_parry;
-extern int16_t	gsn_pass_door;
-extern int16_t	gsn_peek;
-extern int16_t	gsn_pick_lock;
-extern int16_t	gsn_plague;
-extern int16_t	gsn_poison;
-extern int16_t	gsn_polearm;
-extern int16_t	gsn_possess;
-extern int16_t	gsn_pursuit;
-extern int16_t	gsn_quarterstaff;
-extern int16_t	gsn_raise_dead;
-extern int16_t	gsn_recall;
-extern int16_t	gsn_recharge;
-extern int16_t	gsn_refresh;
-extern int16_t	gsn_regeneration;
-extern int16_t	gsn_remove_curse;
-extern int16_t	gsn_rending;
-extern int16_t	gsn_repair;
-extern int16_t	gsn_rescue;
-extern int16_t	gsn_resurrect;
-extern int16_t	gsn_reverie;
-extern int16_t	gsn_riding;
-extern int16_t	gsn_room_shield;
-extern int16_t	gsn_sanctuary;
-extern int16_t	gsn_scan;
-extern int16_t	gsn_scribe;
-extern int16_t	gsn_scrolls;
-extern int16_t	gsn_scry;
-extern int16_t	gsn_second_attack;
-extern int16_t	gsn_sense_danger;
-extern int16_t	gsn_shape;
-extern int16_t	gsn_shield;
-extern int16_t	gsn_shield_block;
-extern int16_t	gsn_shield_weapon_style;
-extern int16_t	gsn_shift;
-extern int16_t	gsn_shocking_grasp;
-extern int16_t	gsn_silence;
-extern int16_t	gsn_single_style;
-extern int16_t	gsn_skull;
-extern int16_t	gsn_sleep;
-extern int16_t	gsn_slit_throat;
-extern int16_t	gsn_slow;
-extern int16_t	gsn_smite;
-extern int16_t	gsn_sneak;
-extern int16_t	gsn_spear;
-extern int16_t	gsn_spell_deflection;
-extern int16_t	gsn_spell_shield;
-extern int16_t	gsn_spell_trap;
-extern int16_t	gsn_spirit_rack;
-extern int16_t	gsn_stake;
-extern int16_t	gsn_starflare;
-extern int16_t	gsn_staves;
-extern int16_t	gsn_steal;
-extern int16_t	gsn_stone_skin;
-extern int16_t	gsn_stone_spikes;
-extern int16_t	gsn_subvert;
-extern int16_t	gsn_summon;
-extern int16_t	gsn_survey;
-extern int16_t	gsn_swerve;
-extern int16_t	gsn_sword;
-extern int16_t	gsn_sword_and_dagger_style;
-extern int16_t	gsn_tail_kick;
-extern int16_t	gsn_tattoo;
-extern int16_t	gsn_temperance;
-extern int16_t	gsn_third_attack;
-extern int16_t	gsn_third_eye;
-extern int16_t	gsn_throw;
-extern int16_t	gsn_titanic_attack;
-extern int16_t	gsn_toxic_fumes;
-extern int16_t	gsn_toxins;
-extern int16_t	gsn_trackless_step;
-extern int16_t	gsn_trample;
-extern int16_t	gsn_trip;
-extern int16_t	gsn_turn_undead;
-extern int16_t	gsn_two_handed_style;
-extern int16_t	gsn_underwater_breathing;
-extern int16_t	gsn_vision;
-extern int16_t	gsn_wands;
-extern int16_t	gsn_warcry;
-extern int16_t	gsn_water_spells;
-extern int16_t	gsn_weaken;
-extern int16_t	gsn_weaving;
-extern int16_t	gsn_web;
-extern int16_t	gsn_whip;
-extern int16_t	gsn_wilderness_spear_style;
-extern int16_t	gsn_wind_of_confusion;
-extern int16_t	gsn_withering_cloud;
-extern int16_t	gsn_word_of_recall;
-
-extern int16_t	gsn_ice_shards;
-extern int16_t	gsn_stone_touch;
-extern int16_t	gsn_glacial_wave;
-extern int16_t	gsn_earth_walk;
-extern int16_t	gsn_flash;
-extern int16_t	gsn_shriek;
-extern int16_t	gsn_dark_shroud;
-extern int16_t	gsn_soul_essence;
-
-
-
-
-
-
-extern int16_t gprn_human;
-extern int16_t gprn_elf;
-extern int16_t gprn_dwarf;
-extern int16_t gprn_titan;
-extern int16_t gprn_vampire;
-extern int16_t gprn_drow;
-extern int16_t gprn_sith;
-extern int16_t gprn_draconian;
-extern int16_t gprn_slayer;
-extern int16_t gprn_minotaur;
-extern int16_t gprn_angel;
-extern int16_t gprn_mystic;
-extern int16_t gprn_demon;
-extern int16_t gprn_lich;
-extern int16_t gprn_avatar;
-extern int16_t gprn_seraph;
-extern int16_t gprn_berserker;
-extern int16_t gprn_colossus;
-extern int16_t gprn_fiend;
-extern int16_t gprn_specter;
-extern int16_t gprn_naga;
-extern int16_t gprn_dragon;
-extern int16_t gprn_changeling;
-extern int16_t gprn_hell_baron;
-extern int16_t gprn_wraith;
-extern int16_t gprn_shaper;
-
-
-extern int16_t grn_human;
-extern int16_t grn_elf;
-extern int16_t grn_dwarf;
-extern int16_t grn_titan;
-extern int16_t grn_vampire;
-extern int16_t grn_drow;
-extern int16_t grn_sith;
-extern int16_t grn_draconian;
-extern int16_t grn_slayer;
-extern int16_t grn_minotaur;
-extern int16_t grn_angel;
-extern int16_t grn_mystic;
-extern int16_t grn_demon;
-extern int16_t grn_lich;
-extern int16_t grn_avatar;
-extern int16_t grn_seraph;
-extern int16_t grn_berserker;
-extern int16_t grn_colossus;
-extern int16_t grn_fiend;
-extern int16_t grn_specter;
-extern int16_t grn_naga;
-extern int16_t grn_dragon;
-extern int16_t grn_changeling;
-extern int16_t grn_hell_baron;
-extern int16_t grn_wraith;
-extern int16_t grn_shaper;
-extern int16_t grn_were_changed;
-extern int16_t grn_mob_vampire;
-extern int16_t grn_bat;
-extern int16_t grn_werewolf;
-extern int16_t grn_bear;
-extern int16_t grn_bugbear;
-extern int16_t grn_cat;
-extern int16_t grn_centipede;
-extern int16_t grn_dog;
-extern int16_t grn_doll;
-extern int16_t grn_fido;
-extern int16_t grn_fox;
-extern int16_t grn_goblin;
-extern int16_t grn_hobgoblin;
-extern int16_t grn_kobold;
-extern int16_t grn_lizard;
-extern int16_t grn_doxian;
-extern int16_t grn_orc;
-extern int16_t grn_pig;
-extern int16_t grn_rabbit;
-extern int16_t grn_school_monster;
-extern int16_t grn_snake;
-extern int16_t grn_song_bird;
-extern int16_t grn_golem;
-extern int16_t grn_unicorn;
-extern int16_t grn_griffon;
-extern int16_t grn_troll;
-extern int16_t grn_water_fowl;
-extern int16_t grn_giant;
-extern int16_t grn_wolf;
-extern int16_t grn_wyvern;
-extern int16_t grn_nileshian;
-extern int16_t grn_skeleton;
-extern int16_t grn_zombie;
-extern int16_t grn_wisp;
-extern int16_t grn_insect;
-extern int16_t grn_gnome;
-extern int16_t grn_angel_mob;
-extern int16_t grn_demon_mob;
-extern int16_t grn_rodent;
-extern int16_t grn_treant;
-extern int16_t grn_horse;
-extern int16_t grn_bird;
-extern int16_t grn_fungus;
-extern int16_t grn_unique;
-
-
-
-
 /*
  * Utility macros.
  */
@@ -7461,26 +8957,26 @@ extern int16_t grn_unique;
 #define IS_NULLSTR(str)		((str) == NULL || (str)[0] == '\0')
 #define ENTRE(min,num,max)	( ((min) < (num)) && ((num) < (max)) )
 #define CHECK_POS(a, b, c)	{							\
-					(a) = (b);					\
-					if ( (a) < 0 )					\
-					bug( "CHECK_POS : " c " == %d < 0", a );	\
-				}
+                    (a) = (b);					\
+                    if ( (a) < 0 )					\
+                    pbugf( "CHECK_POS : " c " == %d < 0", a );	\
+                }
 
 #define MSG(function)		{ if (!silent) 		\
-				     (function); 	\
-				                	\
-				return false; }
+                     (function); 	\
+                                    \
+                return false; }
 /*
  * Character macros.
  */
 /*
 #define SAME_PLACE_AREA(from, to) ( find_area("Wilderness") == from ? ( from->x < (from->map_size_x/2) ? \
- 			to->place_flags == PLACE_FIRST_CONTINENT : to->place_flags == PLACE_SECOND_CONTINENT \
- 			) : from->place_flags == to->place_flags && from->place_flags != PLACE_NOWHERE )
+             to->place_flags == PLACE_FIRST_CONTINENT : to->place_flags == PLACE_SECOND_CONTINENT \
+             ) : from->place_flags == to->place_flags && from->place_flags != PLACE_NOWHERE )
 
 #define SAME_PLACE(from, to) ( find_area("Wilderness") == from->area ? ( from->x < (from->area->map_size_x/2) ? \
-			to->area->place_flags == PLACE_FIRST_CONTINENT : to->area->place_flags == PLACE_SECOND_CONTINENT \
-			) : from->area->place_flags == to->area->place_flags && from->area->place_flags != PLACE_NOWHERE )
+            to->area->place_flags == PLACE_FIRST_CONTINENT : to->area->place_flags == PLACE_SECOND_CONTINENT \
+            ) : from->area->place_flags == to->area->place_flags && from->area->place_flags != PLACE_NOWHERE )
 
 */
 
@@ -7488,15 +8984,17 @@ extern int16_t grn_unique;
 #define SAME_PLACE(from, to) (is_same_place((from),(to)))
 
 #define IS_OUTSIDE(ch)	( (ch)->in_room->wilds || \
-		(!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
-			(ch)->in_room->sector_type != SECT_INSIDE && (ch)->in_room->sector_type != SECT_NETHERWORLD ) )
+        (!IS_SET((ch)->in_room->room_flag[0],ROOM_INDOORS) && \
+            !room_in_sector((ch)->in_room, SECT_INSIDE) && \
+            !room_in_sector((ch)->in_room, SECT_NETHERWORLD) && \
+            !room_sector_has_flag((ch)->in_room, SECTOR_INDOORS) ) )
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->in_room->area->area_flags, AREA_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
-			   (ch)->church->pk == true ) || IS_SET((ch)->act[0],PLR_PK))
+               (ch)->church->pk == true ) || IS_SET((ch)->act[0],PLR_PK))
 #define IS_QUESTING(ch)	        ( ch->quest != NULL )
 #define IS_UNDEAD(ch)		(IS_SET((ch)->act[0], ACT_UNDEAD) || \
-				 IS_SET((ch)->form, FORM_UNDEAD))
+                 IS_SET((ch)->form, FORM_UNDEAD))
 #define IS_MSP(ch)              (ch->desc ? IS_MSP_DESC( ch->desc ) : false)
 #define IS_MSP_DESC(d)          (IS_SET( d->bits, DESCRIPTOR_MSP ))
 #define sqr(a) 			( a * a )
@@ -7504,16 +9002,15 @@ extern int16_t grn_unique;
 #define IS_NPC(ch)		(IS_SET((ch)->act[0], ACT_IS_NPC))
 #define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss))
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
-#define IS_IMMORTAL(ch)		(get_staff_rank(ch) >= STAFF_IMMORTAL && !IS_NPC(ch) && ch->pcdata->immortal != NULL)
-#define IS_IMPLEMENTOR(ch)  (IS_IMMORTAL(ch) && ((ch)->level == MAX_LEVEL))
-#define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)
-#define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
+#define IS_IMMORTAL(ch)		(!IS_NPC(ch) && (ch)->pcdata->immortal != NULL)
+#define IS_IMPLEMENTOR(ch)	(IS_IMMORTAL(ch) && (get_staff_rank(ch) >= STAFF_IMPLEMENTOR))
+
 #define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by[0], (sn)))
 #define IS_AFFECTED2(ch, sn)	(IS_SET((ch)->affected_by[1], (sn)))
 #define IN_NATURAL_FORM(ch)	(ch->natural_form)
 
 #define GET_AGE(ch)		((int) (17 + ((ch)->played \
-				    + current_time - (ch)->logon )/72000))
+                    + current_time - (ch)->logon )/72000))
 
 #define IS_GOOD(ch)		(ch->alignment >= 350)
 #define IS_EVIL(ch)		(ch->alignment <= -350)
@@ -7522,36 +9019,36 @@ extern int16_t grn_unique;
 #define IS_AWAKE(ch)		(ch->position > POS_SLEEPING)
 #define GET_AC(ch,type)		((ch)->armour[type])
 #define GET_HITROLL(ch)	\
-		((ch)->hitroll+str_app[get_curr_stat(ch,STAT_STR)].tohit)
+        ((ch)->hitroll+str_app[get_curr_stat(ch,STAT_STR)].tohit)
 
 /* 40 logeX - kind of maxes around 100 */
 #define GET_DAMROLL(ch) \
-		((ch)->damroll+str_app[get_curr_stat(ch,STAT_STR)].todam)
+        ((ch)->damroll+str_app[get_curr_stat(ch,STAT_STR)].todam)
 
 #define IS_OBJCASTER(ch)        (IS_SET((ch)->act[0], ACT_IS_NPC) \
-		                 && (ch)->pIndexData->vnum == get_reserved_vnum("mob_objcaster"))
+                         && (ch)->pIndexData == get_reserved_mob_index("mob_objcaster"))
 
 /* Wilderness macros. */
-#define ROOM(room)		((room)->parent == -1 ? (room) : ((get_room_index((room)->parent))))
+#define ROOM(room)		((room)->parent == -1 ? (room) : (get_room_index((room)->area, (room)->parent)))
 
-/* Race checks! */
-#define IS_DROW(ch)		(ch->race == grn_drow || ch->race == grn_specter)
-#define IS_MINOTAUR(ch)		(ch->race == grn_minotaur || ch->race == grn_hell_baron)
-#define IS_SITH(ch)		(ch->race == grn_sith || ch->race == grn_naga)
-#define IS_LICH(ch)		(ch->race == grn_lich || ch->race == grn_wraith)
-#define IS_HUMAN(ch)		(ch->race == grn_human || ch->race == grn_avatar)
-#define IS_DWARF(ch)		(ch->race == grn_dwarf || ch->race == grn_berserker)
-#define IS_TITAN(ch)		(ch->race == grn_titan || ch->race == grn_colossus)
+/* Race check macros - use string ID comparison */
+#define IS_DROW(ch)		((ch)->race && (!str_cmp((ch)->race->id, "drow") || !str_cmp((ch)->race->id, "specter")))
+#define IS_MINOTAUR(ch)		((ch)->race && (!str_cmp((ch)->race->id, "minotaur") || !str_cmp((ch)->race->id, "hell baron")))
+#define IS_SITH(ch)		((ch)->race && (!str_cmp((ch)->race->id, "sith") || !str_cmp((ch)->race->id, "naga")))
+#define IS_LICH(ch)		((ch)->race && (!str_cmp((ch)->race->id, "lich") || !str_cmp((ch)->race->id, "wraith")))
+#define IS_HUMAN(ch)		((ch)->race && (!str_cmp((ch)->race->id, "human") || !str_cmp((ch)->race->id, "avatar")))
+#define IS_DWARF(ch)		((ch)->race && (!str_cmp((ch)->race->id, "dwarf") || !str_cmp((ch)->race->id, "berserker")))
+#define IS_TITAN(ch)		((ch)->race && (!str_cmp((ch)->race->id, "titan") || !str_cmp((ch)->race->id, "colossus")))
 #define IS_SAGE(ch)		(get_profession((ch), SECOND_SUBCLASS_THIEF) == CLASS_THIEF_SAGE)
-#define IS_ANGEL(ch)		(ch->race == grn_angel)
-#define IS_MYSTIC(ch)		(ch->race == grn_mystic)
-#define IS_DEMON(ch)		(ch->race == grn_demon)
-#define IS_REMORT(ch)		(race_table[ch->race].pgprn && pc_race_table[*race_table[ch->race].pgprn].remort)
-#define IS_VAMPIRE(ch)		(ch->race == grn_vampire || ch->race == grn_fiend)
-#define IS_SLAYER(ch)		(ch->race == grn_slayer || ch->race == grn_changeling)
-#define IS_DRACONIAN(ch)	(ch->race == grn_draconian || ch->race == grn_dragon)
-#define IS_DRAGON(ch)		(ch->race == grn_dragon)
-#define IS_ELF(ch)		(ch->race == grn_elf || ch->race == grn_seraph)
+#define IS_ANGEL(ch)		((ch)->race && !str_cmp((ch)->race->id, "angel"))
+#define IS_MYSTIC(ch)		((ch)->race && !str_cmp((ch)->race->id, "mystic"))
+#define IS_DEMON(ch)		((ch)->race && !str_cmp((ch)->race->id, "demon"))
+#define IS_REMORT(ch)		((ch)->race && race_is_remort((ch)->race))
+#define IS_VAMPIRE(ch)		((ch)->race && (!str_cmp((ch)->race->id, "vampire") || !str_cmp((ch)->race->id, "fiend")))
+#define IS_SLAYER(ch)		((ch)->race && (!str_cmp((ch)->race->id, "slayer") || !str_cmp((ch)->race->id, "changeling")))
+#define IS_DRACONIAN(ch)	((ch)->race && (!str_cmp((ch)->race->id, "draconian") || !str_cmp((ch)->race->id, "dragon")))
+#define IS_DRAGON(ch)		((ch)->race && !str_cmp((ch)->race->id, "dragon"))
+#define IS_ELF(ch)		((ch)->race && (!str_cmp((ch)->race->id, "elf") || !str_cmp((ch)->race->id, "seraph")))
 
 
 #define WAIT_STATE(ch, npulse)	((ch)->wait = UMAX((ch)->wait, (npulse)))
@@ -7577,11 +9074,11 @@ extern int16_t grn_unique;
 #define COIN_WEIGHT(ch) 	((ch)->gold/300 + (ch)->silver/800)
 #define get_carry_weight(ch)	((ch)->carry_weight + COIN_WEIGHT(ch))
 #define PULLING_CART(ch) \
-		((!IS_NPC(ch) && ch->pulled_cart) ? ch->pulled_cart : NULL)
+        ((!IS_NPC(ch) && ch->pulled_cart) ? ch->pulled_cart : NULL)
 #define MOUNTED(ch) \
-		((!IS_NPC(ch) && ch->mount && ch->riding) ? ch->mount : NULL)
+        ((!IS_NPC(ch) && ch->mount && ch->riding) ? ch->mount : NULL)
 #define RIDDEN(ch) \
-		((IS_NPC(ch) && ch->rider && ch->riding) ? ch->rider : NULL)
+        ((IS_NPC(ch) && ch->rider && ch->riding) ? ch->rider : NULL)
 #define IS_DRUNK(ch)		((ch->pcdata->condition[COND_DRUNK] > 10))
 
 
@@ -7594,9 +9091,9 @@ extern int16_t grn_unique;
 
 #define IS_SWITCHED( ch )       ( ch->desc && ch->desc->original )
 #define IS_BUILDER(ch, Area)	( !IS_NPC(ch) && !IS_SWITCHED( ch ) &&	  \
-				( ch->pcdata->security >= Area->security  \
-				|| strstr( Area->builders, ch->name )	  \
-				|| strstr( Area->builders, "All" ) ) )
+                ( ch->pcdata->security >= Area->security  \
+                || strstr( Area->builders, ch->name )	  \
+                || strstr( Area->builders, "All" ) ) )
 #define IS_MORPHED(ch)          (ch->morphed == true)
 #define IN_CHURCH(ch)           (ch->church != NULL)
 #define IS_CHURCH_EVIL(ch)      (ch->church != NULL && ch->church->alignment == CHURCH_EVIL)
@@ -7614,15 +9111,15 @@ extern int16_t grn_unique;
 #define IN_ATHEMIA(area) ( (area->place_flags == PLACE_SECOND_CONTINENT) )
 
 #define IS_PIRATE_IN_AREA(ch)		( !IS_NPC(ch) && (((ch->in_room->area->place_flags == PLACE_FIRST_CONTINENT) && \
-			ch->pcdata->rank[CONT_SERALIA] == NPC_SHIP_RANK_PIRATE) || \
-					((ch->in_room->area->place_flags == PLACE_SECOND_CONTINENT) && \
-			ch->pcdata->rank[CONT_ATHEMIA] == NPC_SHIP_RANK_PIRATE)))
+            ch->pcdata->rank[CONT_SERALIA] == NPC_SHIP_RANK_PIRATE) || \
+                    ((ch->in_room->area->place_flags == PLACE_SECOND_CONTINENT) && \
+            ch->pcdata->rank[CONT_ATHEMIA] == NPC_SHIP_RANK_PIRATE)))
 #define ON_SHIP(ch)             (get_room_ship((ch)->in_room) != NULL)
 #define IN_SHIP_NEST(ch)        (ch->in_room->vnum == get_reserved_room("room_sailing_boat_nest"))
 
-#define IS_SHIP_IN_HARBOUR(ship) (ship->ship->in_room->vnum == get_reserved_vnum("room_plith_harbour") || \
-		ship->ship->in_room->vnum == get_reserved_vnum("room_southern_harbour") || \
-		ship->ship->in_room->vnum == get_reserved_vnum("room_northern_harbour") )
+#define IS_SHIP_IN_HARBOUR(ship) (ship->ship->in_room == get_reserved_room_index("room_plith_harbour") || \
+        ship->ship->in_room == get_reserved_room_index("room_southern_harbour") || \
+        ship->ship->in_room == get_reserved_room_index("room_northern_harbour") )
 /* VIZZWILDS */
 #define IN_WILDERNESS(ch)  (ch->in_wilds)
 #define IS_WILDERNESS(in_room)	(in_room->wilds)
@@ -7631,8 +9128,8 @@ extern int16_t grn_unique;
 #define IN_CHAT(ch)  (!str_cmp(ch->in_room->area->name, "Elysium"))
 #define IN_EDEN(ch)	(ch->in_room->area == eden_area)
 /* NIB : 20070122 : Added the NULL parameter at the end */
-#define act(format,ch,v1,v2,o1,o2,a1,a2,type)\
-	act_new((format),(ch),(v1),(v2),(o1),(o2),(a1),(a2),(type),POS_RESTING,NULL)
+#define act(format,ch,v1,v2,o1,o2,a1,a2,type,ch_verb, vch_verb)\
+    act_new((format),(ch),(v1),(v2),(ch_verb),(vch_verb),(o1),(o2),(a1),(a2),(type),POS_RESTING,NULL)
 
 #define damage(a,b,c,d,e,f) damage_new(( a ),( b ),NULL,( c ),( d ),( e ),( f ))
 #define IS_STAFF(ch, rank) (get_staff_rank((ch)) >= (rank))
@@ -7647,20 +9144,21 @@ extern int16_t grn_unique;
 #define IS_OBJ2_STAT(obj,stat)  (IS_SET((obj)->extra[1],(stat)))
 #define IS_WEAPON_STAT(obj,stat)(IS_SET((obj)->value[4],(stat)))
 #define WEIGHT_MULT(obj)	((obj)->item_type == ITEM_CONTAINER ? \
-	(obj)->value[4] : 100)
+    (obj)->value[4] : 100)
 #define CORPSE_TYPE(obj)	((obj)->value[0])
 #define CORPSE_RESURRECT(obj)	((obj)->value[1])
 #define CORPSE_ANIMATE(obj)	((obj)->value[2])
 #define CORPSE_PARTS(obj)	((obj)->value[3])
 #define CORPSE_FLAGS(obj)	((obj)->value[4])
 #define CORPSE_MOBILE(obj)	((obj)->value[5])
+#define CORPSE_MOBILE_AUID(obj)	((obj)->value[6])
 
 /*
  * Description macros.
  */
 #define HANDLE(ch)  ( (IS_NPC((ch)) \
                       || IS_SWITCHED(ch) \
-		      || IS_MORPHED(ch)) ? (ch)->short_descr : (ch)->name )
+              || IS_MORPHED(ch)) ? (ch)->short_descr : (ch)->name )
 #define VNUM(ch)  ((ch)->pIndexData ? (ch)->pIndexData->vnum : 0)
 
 /* For loading and writing objects */
@@ -7674,12 +9172,12 @@ extern		OBJ_DATA	*	rgObjNest[MAX_NEST];
 #endif
 
 #define KEY( literal, field, value )					\
-				if ( !str_cmp( word, literal ) )	\
-				{					\
-				    field  = value;			\
-				    fMatch = true;			\
-				    break;				\
-				}
+                if ( !str_cmp( word, literal ) )	\
+                {					\
+                    field  = value;			\
+                    fMatch = true;			\
+                    break;				\
+                }
 
 #define elementsof(x)	(sizeof(x) / sizeof(x[0]))
 
@@ -7689,13 +9187,13 @@ extern		OBJ_DATA	*	rgObjNest[MAX_NEST];
 #endif
 
 #define KEYS( literal, field, value )					\
-				if ( !str_cmp( word, literal ) )	\
-				{					\
-				    free_string(field);			\
-				    field  = value;			\
-				    fMatch = true;			\
-				    break;				\
-				}
+                if ( !str_cmp( word, literal ) )	\
+                {					\
+                    free_string(field);			\
+                    field  = value;			\
+                    fMatch = true;			\
+                    break;				\
+                }
 
 /*
  * Structure for a social in the socials table.
@@ -7739,8 +9237,6 @@ extern  const           long            food_table[];
 extern  const   struct  rep_type	rating_table    [];
 extern  const   struct  map_exit_type map_exit_table    [];
 extern  const   struct  rank_type	rank_table      [];
-extern	const	struct	class_type	class_table	[MAX_CLASS];
-extern	const	struct	sub_class_type	sub_class_table [];
 extern	const	struct	weapon_type	weapon_table	[];
 extern	const	struct	weapon_type	ranged_weapon_table	[];
 //extern	const	struct	crew_type	crew_table	[];
@@ -7751,17 +9247,13 @@ extern	const	struct	item_type	npc_boat_table	[];
 extern  const  	struct	item_type	npc_sub_type_boat_table [];
 extern  const struct  item_type ship_state_table  [];
 extern	const	struct	music_type	music_table	[];
-extern  const   struct  material_type 	material_table  [];
 extern  const   struct  item_type	item_table	[];
 extern  const   struct  item_type       token_table     [];
 extern	const	struct	player_setting_type	pc_set_table	[];
 extern	const	struct	wiznet_type	wiznet_table	[];
 extern	const	struct	attack_type	attack_table	[];
 //extern  const   struct  cmd_type    cmd_table   [];
-extern  const	struct  race_type	race_table	[];
-extern	const	struct	pc_race_type	pc_race_table	[];
 extern  const	struct	spec_type	spec_table	[];
-extern	const	struct	liq_type	liq_table	[];
 extern	const	struct	skill_type	skill_table	[MAX_SKILL];
 extern          int                     mob_skill_table [MAX_MOB_SKILL_LEVEL];
 extern  const   struct  church_command_type church_command_table [];
@@ -7769,12 +9261,14 @@ extern  const   struct  group_type      group_table	[MAX_GROUP];
 extern          struct social_type      social_table	[MAX_SOCIALS];
 extern	const	struct	rep_type	rating_table	[];
 extern	const	struct	sound_type	sound_table	[];
-extern  const   struct  newbie_eq_type  newbie_eq_table [];
+extern  struct  newbie_eq_type  newbie_eq_table [];
 extern  const   struct  toxin_type      toxin_table     [MAX_TOXIN];
 extern  const   struct  herb_type       herb_table      [MAX_HERB];
 extern const    struct  script_type     script_type_table [];
 extern  	struct  boost_type	boost_table	[];
-extern  STAT_DATA		stat_table	[10];
+extern  LEADERBOARD_DATA	leaderboards	[MAX_LEADERBOARDS];
+extern  time_t			leaderboard_refresh_time;
+extern  time_t			leaderboard_backup_time;
 extern  IMMORTAL_DATA *immortal_groups[MAX_IMMORTAL_GROUPS];
 
 /*
@@ -7789,6 +9283,7 @@ extern		FILE *			fpReserve;
 extern		HELP_DATA	  *	help_first;
 extern		MAIL_DATA	  *	mail_list;
 extern		NPC_SHIP_DATA	  *	npc_ship_list;
+extern      QUEST_INDEX_V2_DATA   *   quest_index_v2_list;
 extern		QUEST_INDEX_DATA  *	quest_index_list;
 extern		SHOP_DATA	  *	shop_first;
 extern		TIME_INFO_DATA		time_info;
@@ -7797,10 +9292,16 @@ extern		char 		  *	help_greeting;
 extern		bool			MOBtrigger;
 extern		bool			global;
 extern		bool			logAll;
+extern		bool			test_mode;    /* Run in test mode */
+extern		char			test_pattern[256]; /* Test pattern to run */
+
+// Integration test framework (test_integration.c) - only available when BUILD_TESTS is defined
+#ifdef BUILD_TESTS
+int run_integration_tests(const char *pattern);
+#endif
 extern		char			bug_buf		[];
 extern		char			log_buf		[];
 extern		time_t			current_time;
-extern      time_t          stats_load_time;
 extern          SCRIPT_DATA       *     mprog_list;
 extern          SCRIPT_DATA       *     oprog_list;
 extern          SCRIPT_DATA       *     rprog_list;
@@ -7808,6 +9309,8 @@ extern          SCRIPT_DATA       *     tprog_list;
 extern          SCRIPT_DATA       *     aprog_list;
 extern          SCRIPT_DATA       *     iprog_list;
 extern          SCRIPT_DATA       *     dprog_list;
+extern          SCRIPT_DATA       *     qprog_list;
+extern          SCRIPT_DATA       *     eprog_list;
 extern          ROOM_INDEX_DATA   *	room_index_hash[MAX_KEY_HASH];
 extern		PROG_DATA	  *	prog_data_virtual;
 extern		char		  *     room_name_virtual;
@@ -7839,70 +9342,115 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
  * so players can go ahead and telnet to all the other descriptors.
  * Then we close it whenever we need to open a file (e.g. a save file).
  */
-#define GAME_DIR        "/sentience/"
-#define PLAYER_DIR      GAME_DIR "characters/"        	/* Player files */
-#define ACCOUNT_DIR GAME_DIR "accounts/"
-#define OLD_PLAYER_DIR	GAME_DIR "characters.old/"
-#define GOD_DIR         GAME_DIR "characters/staff/"  		/* Staff Pfiles */
-#define TEMP_FILE	PLAYER_DIR "romtmp"
-#define NULL_FILE	"/dev/null"		/* To reserve one stream */
-#define DATA_DIR		GAME_DIR "data/"
-#define WORLD_DIR		DATA_DIR "world/"
-#define BOAT_DIR		WORLD_DIR "boats/"
-#define SYSTEM_DIR		DATA_DIR "system/"
-#define NOTE_DIR		DATA_DIR "notes/"
-#define ORG_DIR			DATA_DIR "orgs/"
-#define DUMP_DIR		DATA_DIR "dump/"
-#define STATS_DIR		DATA_DIR "stats/"
-#define HELP_DIR		DATA_DIR "help/"
-#define AREA_DIR        GAME_DIR "area/"
-#define LOG_DIR         GAME_DIR "logs/"
-#define PLAYER_LIST     SYSTEM_DIR "discord_who.txt"
+
+#define GAME_DIR                "/sentience/"
+#define NULL_FILE               "/dev/null"		/* To reserve one stream */
+#define PLAYER_DIR              GAME_DIR "characters/"        	/* Player files */
+#define ACCOUNT_DIR             GAME_DIR "accounts/"
+#define OLD_PLAYER_DIR          GAME_DIR "characters.old/"
+#define GOD_DIR                 GAME_DIR "characters/staff/"  		/* Staff Pfiles */
+#define TEMP_FILE               PLAYER_DIR "romtmp"
+#define DATA_DIR		        GAME_DIR "data/"
+#define WORLD_DIR		        DATA_DIR "world/"
+#define BOAT_DIR		        WORLD_DIR "boats/"
+#define SYSTEM_DIR		        DATA_DIR "system/"
+#define NOTE_DIR		        DATA_DIR "notes/"
+#define ORG_DIR			        DATA_DIR "orgs/"
+#define DUMP_DIR		        DATA_DIR "dump/"
+#define STATS_DIR		        DATA_DIR "stats/"
+#define HELP_DIR		        DATA_DIR "help/"
+#define AREA_DIR                GAME_DIR "area/"
+#define LOG_DIR                 GAME_DIR "logs/"
+#define PLAYER_LIST             SYSTEM_DIR "discord_who.txt"
+
+/* Runtime path override helpers.
+ * resolve_game_path() rewrites compile-time /sentience/<subpath> paths when
+ * a runtime root override is configured (e.g., --data-root).
+ */
+extern char runtime_game_root[MAX_INPUT_LENGTH];
+void set_runtime_game_root(const char *root);
+const char *resolve_game_path(const char *path, char *buffer, size_t buffer_size);
 
 /*World files - Regarding things specifically for the game world. */
-#define PROJECTS_FILE	WORLD_DIR "projects.dat"
-#define STAFF_FILE		WORLD_DIR "staff.dat"
-#define PERM_OBJS_FILE	WORLD_DIR "perm_objs.dat"
-#define PERSIST_FILE	WORLD_DIR "persist.dat"
-#define GQ_FILE			WORLD_DIR "gq.dat"
-#define AREA_LIST       WORLD_DIR "area.lst"  		/* List of areas*/
-#define HELP_FILE		WORLD_DIR "help.dat"
-/*Boat data */
-#define SAILING_FILE	BOAT_DIR "sailing.dat"
-#define NPC_SHIPS_FILE	BOAT_DIR "npc_ships.dat"
-/*System Data
-#define BUG_FILE        SYSTEM_DIR "bugs.txt" 		/ For 'bug' and bug() Unused
-#define TYPO_FILE       SYSTEM_DIR "typos.txt" 		/ For 'typo' Unused */
-#define SHUTDOWN_FILE   SYSTEM_DIR "shutdown.txt"		/* For 'shutdown'*/
-#define MAINTENANCE_FILE   SYSTEM_DIR "shutdown_history.txt"		/* For 'shutdown'*/
-#define BAN_FILE		SYSTEM_DIR "ban.txt"
-/*#define MUSIC_FILE	SYSTEM_DIR	"music.txt"		Unused */
-#define CHAT_FILE		SYSTEM_DIR "chat_rooms.dat"
-#define MAIL_FILE		SYSTEM_DIR "mail.dat"
-#define CONFIG_FILE		SYSTEM_DIR "gconfig.rc"
-/*Notes of all kinds */
-#define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
-/*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
-#define NEWS_FILE		NOTE_DIR "news.not"
-#define CHANGES_FILE	NOTE_DIR "chang.not"
-/*Orgs (more to come here) */
-#define CHURCHES_FILE	ORG_DIR "churches.dat"
-/*Dump commands, the obj/skill/help db's */
-#define OBJ_DB_FILE		DUMP_DIR "object_db.txt"
-#define SKILLS_DB_FILE	DUMP_DIR "skills_db.txt"
-#define HELP_DB_FILE	DUMP_DIR "help_db.txt"
+/* Projects and staff. */
+#define PROJECTS_FILE   	    WORLD_DIR "projects.dat"
+#define PROJECTS_JSON_FILE  	WORLD_DIR "projects.json"
 
-#define BLUEPRINTS_FILE		WORLD_DIR "blueprints.dat"
-#define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
-#define INSTANCES_FILE		WORLD_DIR "instances.dat"
-#define SHIPS_FILE			WORLD_DIR "ships.dat"
-#define COMMANDS_FILE       SYSTEM_DIR "commands.dat"
-#define GAME_SETTINGS_FILE  SYSTEM_DIR "game_settings.dat"
-#define CHANGESET_FILE      SYSTEM_DIR "changesets.dat"
-#define SOCIALS_FILE  SYSTEM_DIR "socials.dat"
-#define OLD_SOCIALS_FILE AREA_DIR "social.are"
-#define MFA_ENC_KEY  SYSTEM_DIR "mfa.key"
-#define RESERVED_FILE     SYSTEM_DIR "reserved.dat"
+#define STAFF_FILE		        WORLD_DIR "staff.dat"
+#define STAFF_JSON_FILE		    WORLD_DIR "staff.json"
+
+
+#define PERM_OBJS_FILE	        WORLD_DIR "perm_objs.dat"
+#define PERSIST_FILE	        WORLD_DIR "persist.dat"
+#define GQ_FILE			        WORLD_DIR "gq.dat"
+#define AREA_LIST               WORLD_DIR "area.lst"  		/* List of areas*/
+#define HELP_FILE		        WORLD_DIR "help.dat"
+#define HELP_JSON_FILE          WORLD_DIR "help.json"
+/*Boat data */
+#define SAILING_FILE	        BOAT_DIR "sailing.dat"
+#define NPC_SHIPS_FILE	        BOAT_DIR "npc_ships.dat"
+/*System Data
+#define BUG_FILE                SYSTEM_DIR "bugs.txt" 		/ For 'bug' and bug() Unused
+#define TYPO_FILE               SYSTEM_DIR "typos.txt" 		/ For 'typo' Unused */
+#define SHUTDOWN_FILE           SYSTEM_DIR "shutdown.txt"		/* For 'shutdown'*/
+#define MAINTENANCE_FILE        SYSTEM_DIR "shutdown_history.txt"		/* For 'shutdown'*/
+#define BAN_FILE		        SYSTEM_DIR "ban.txt"
+#define BAN_JSON_FILE		    SYSTEM_DIR "ban.json"
+/*#define MUSIC_FILE	        SYSTEM_DIR	"music.txt"		Unused */
+#define CHAT_FILE		        SYSTEM_DIR "chat_rooms.dat"
+#define MAIL_FILE		        SYSTEM_DIR "mail.dat"
+#define CONFIG_FILE		        SYSTEM_DIR "gconfig.rc"
+/*Notes of all kinds */
+#define NOTE_FILE               NOTE_DIR "notes.not"		/* For 'notes'*/
+/*#define PENALTY_FILE	        NOTE_DIR "penal.not"		Unused */
+#define NEWS_FILE		        NOTE_DIR "news.not"
+#define CHANGES_FILE		    NOTE_DIR "chang.not"
+/*Orgs (more to come here) */
+#define CHURCHES_FILE		    ORG_DIR "churches.dat"
+/*Dump commands, the obj/skill/help db's */
+#define OBJ_DB_FILE		        DUMP_DIR "object_db.txt"
+#define SKILLS_DB_FILE	        DUMP_DIR "skills_db.txt"
+#define HELP_DB_FILE	        DUMP_DIR "help_db.txt"
+
+#define BLUEPRINTS_FILE 		WORLD_DIR "blueprints.dat"
+#define DUNGEONS_FILE   		WORLD_DIR "dungeons.dat"
+#define INSTANCES_FILE  		WORLD_DIR "instances.dat"
+#define SHIPS_FILE  			WORLD_DIR "ships.dat"
+#define COMMANDS_JSON_FILE      SYSTEM_DIR "commands.json"
+#define GAME_SETTINGS_FILE      SYSTEM_DIR "game_settings.dat"
+#define CHANGESET_FILE          SYSTEM_DIR "changesets.dat"
+#define CHANGESETS_JSON_FILE    SYSTEM_DIR "changesets.json"
+#define SOCIALS_FILE            SYSTEM_DIR "socials.dat"
+#define SOCIALS_JSON_FILE       SYSTEM_DIR "socials.json"
+#define OLD_SOCIALS_FILE        AREA_DIR "social.are"
+#define MFA_ENC_KEY             SYSTEM_DIR "mfa.key"
+#define RESERVED_FILE           SYSTEM_DIR "reserved.dat"
+#define ZLOG_CONF               SYSTEM_DIR "zlog.conf"
+#define TRAITS_FILE	DATA_DIR "traits/traits.json"
+#define SONGS_DIR               DATA_DIR "songs/"
+#define SONGS_FILE              SONGS_DIR "songs.json"
+#define LEADERBOARD_JSON_FILE   SYSTEM_DIR "leaderboards.json"
+#define GAME_SETTINGS_JSON_FILE DATA_DIR "system/game_settings.json"
+#define GAME_SETTINGS_DAT_BACKUP DATA_DIR "system/game_settings.dat.backup"
+#define GQ_JSON_FILE "data/gq.json"
+#define INSTANCES_FILE_JSON     "data/world/instances.json"
+#define INSTANCES_FILE_DAT      "data/world/instances.dat"
+
+/* Individual persist directories */
+#define PERSIST_SHIPS_DIR       "persist/ships/"
+#define PERSIST_DUNGEONS_DIR    "persist/dungeons/"
+#define PERSIST_INSTANCES_DIR   "persist/instances/"
+
+#define MAIL_JSON_FILE "data/mail.json"
+#define MAIL_DAT_FILE  "data/system/mail.dat"
+
+#define NOTE_JSON_FILE    "data/notes/notes.json"
+#define NEWS_JSON_FILE    "data/notes/news.json"
+#define CHANGES_JSON_FILE "data/notes/changes.json"
+#define NOTE_NOT_FILE     "data/notes/notes.not"
+#define NEWS_NOT_FILE     "data/notes/news.not"
+#define CHANGES_NOT_FILE  "data/notes/chang.not"
+
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -7927,7 +9475,15 @@ extern		IMMORTAL_DATA		*unassigned_immortal_list;
 
 /* act_comm.c */
 bool add_grouped	args( ( CHAR_DATA *ch, CHAR_DATA *master, bool show ) );
+GROUP_DATA *group_create args( ( CHAR_DATA *leader, bool allow_npc_only ) );
+void group_disband args( ( GROUP_DATA *group ) );
+bool group_add_member args( ( GROUP_DATA *group, CHAR_DATA *ch ) );
+void group_remove_member args( ( CHAR_DATA *ch, bool disband_if_empty ) );
+void groups_clear_all args( ( void ) );
 bool is_same_group	args( ( CHAR_DATA *ach, CHAR_DATA *bch ) );
+bool group_has_pending_invite args( ( CHAR_DATA *ch ) );
+bool group_has_pending_requests args( ( CHAR_DATA *ch ) );
+void group_pending_update args( ( CHAR_DATA *ch ) );
 void add_follower	args( ( CHAR_DATA *ch, CHAR_DATA *master, bool show ) );
 void check_sex	args( ( CHAR_DATA *ch) );
 void church_echo	args( ( CHURCH_DATA *church, char *message ) );
@@ -7963,6 +9519,7 @@ char *	weapon_bit_name	args( ( int weapon_flags ) );
 char *  comm_bit_name	args( ( int comm_flags ) );
 char *	cont_bit_name	args( ( int cont_flags) );
 char *channel_flag_bit_name(int channel_flags);
+bool is_stat( register const struct flag_type *flag_table );
 
 /* lookup.c */
 int	church_lookup	(const char *name);
@@ -7987,6 +9544,9 @@ void update_weather_for_chars();
 void storm_affect_char_background args((CHAR_DATA *ch, int storm_type));
 void storm_affect_char args((CHAR_DATA *ch, int storm_type));
 int get_storm_for_room(ROOM_INDEX_DATA *pRoom);
+int weather_movement_modifier(ROOM_INDEX_DATA *from_room, ROOM_INDEX_DATA *to_room, int base_move);
+bool weather_show_forecast(CHAR_DATA *ch);
+bool weather_handle_storm_command(CHAR_DATA *ch, char *argument);
 void update_weather args((void));
 
 /* invasion.c */
@@ -8002,6 +9562,7 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *area, OBJ_DATA *tre
 char* get_wilderness_map args((AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int bonus_view_y));
 CHURCH_DATA *find_char_church args( (CHAR_DATA *ch) );
 DECLARE_DO_FUN( do_look );
+DECLARE_DO_FUN( do_reputations );
 char *find_desc_for_room( ROOM_INDEX_DATA *room,CHAR_DATA *viewer);
 char *get_char_where args((CHAR_DATA * ch));
 int find_char_position_in_church(CHAR_DATA * ch);
@@ -8017,6 +9578,16 @@ void show_help_to_ch( CHAR_DATA *ch, HELP_DATA *help );
 
 /* stats.c */
 BUFFER *get_stats( int type );
+void    leaderboard_init_all(void);
+void    leaderboard_update_score(int type, const char *name, double score);
+void    leaderboard_on_player_kill(CHAR_DATA *ch, CHAR_DATA *victim);
+void    leaderboard_update_ratio(CHAR_DATA *ch);
+void    leaderboard_update_wealth(CHAR_DATA *ch);
+void    leaderboard_refresh_from_redis(void);
+bool    leaderboard_load_backup(void);
+void    leaderboard_save_backup(void);
+void    leaderboard_seed_redis(void);
+void    leaderboard_on_login(CHAR_DATA *ch);
 
 /* act_move.c */
 bool can_move( CHAR_DATA *ch, ROOM_INDEX_DATA *room );
@@ -8104,14 +9675,24 @@ void close_socket( DESCRIPTOR_DATA *dclose );
 void write_to_buffer( DESCRIPTOR_DATA *d, const char *txt, int length );
 void send_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
 void page_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
-void act_new ( char *format, CHAR_DATA *ch, CHAR_DATA *vch, CHAR_DATA *vch2, OBJ_DATA *obj, OBJ_DATA *obj2, void *arg1, void *arg2, int type, int min_pos, CHAR_TEST char_func);
+void act_new ( char *format, CHAR_DATA *ch, CHAR_DATA *vch, CHAR_DATA *vch2, const char *ch_verb, const char *vch_verb, OBJ_DATA *obj, OBJ_DATA *obj2, void *arg1, void *arg2, int type, int min_pos, CHAR_TEST char_func);
 char *stptok            args( (const char *s, char *tok, size_t toklen, char *brk));
 //int	colour		args( ( char type, CHAR_DATA *ch, char *string ) );
 //void	colourconv	args( ( char *buffer, const char *txt, CHAR_DATA *ch ) );
 void	send_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	page_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	update_pc_timers( CHAR_DATA *ch );
-void    plogf             args( ( char * fmt, ... ) );
+#define plogf(category, format, ...) log_message_f(LOG_LEVEL_INFO, category, format, ##__VA_ARGS__)
+#define pwarnf(category, format, ...) log_message_f(LOG_LEVEL_WARN, category, format, ##__VA_ARGS__)
+#define perrf(category, format, ...) log_message_f(LOG_LEVEL_ERROR, category, format, ##__VA_ARGS__)
+#define pbugf(category, format, ...) log_message_f(LOG_LEVEL_BUG, category, format, ##__VA_ARGS__)
+#define pdebugf(category, format, ...) log_message_f(LOG_LEVEL_DEBUG, category, format, ##__VA_ARGS__)
+#define plog(category, message) log_message(LOG_LEVEL_INFO, category, message)
+#define pwarn(category, message) log_message(LOG_LEVEL_WARN, category, message)
+#define perr(category, message) log_message(LOG_LEVEL_ERROR, category, message)
+#define pbug(category, message) log_message(LOG_LEVEL_BUG, category, message)
+#define pdebug(category, message) log_message(LOG_LEVEL_DEBUG, category, message)
+void complete_reconnect(DESCRIPTOR_DATA *d);
 
 
 /* auction.c */
@@ -8127,7 +9708,6 @@ void    auto_war_echo   args( ( char *message ) );
 void 	war_channel( char *msg );
 
 /* db.c */
-TOKEN_INDEX_DATA *get_token_index(long vnum);
 bool is_singular_token(TOKEN_INDEX_DATA *index);
 int     get_this_class args( ( CHAR_DATA *ch, int sn ) );
 void	reset_area      args( ( AREA_DATA * pArea ) );
@@ -8144,12 +9724,21 @@ OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) 
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
 EXTRA_DESCR_DATA *	get_extra_descr	args( ( const char *name, EXTRA_DESCR_DATA *ed ) );
-MID *	get_mob_index	args( ( long vnum ) );
-OID *	get_obj_index	args( ( long vnum ) );
-RID *	get_room_index	args( ( long vnum ) );
+MID *	get_mob_index	args( ( AREA_DATA *pArea, long vnum ) );
+OID *	get_obj_index	args( ( AREA_DATA *pArea, long vnum ) );
+RID *	get_room_index	args( ( AREA_DATA *pArea, long vnum ) );
+TOKEN_INDEX_DATA *get_token_index	args( ( AREA_DATA *pArea, long vnum ) );
+TOKEN_INDEX_DATA *get_token_index_wnum	args( ( WNUM wnum ) );
+MID *	get_mob_index_global	args( ( long vnum ) );
+OID *	get_obj_index_global	args( ( long vnum ) );
+RID *	get_room_index_global	args( ( long vnum ) );
+TOKEN_INDEX_DATA *get_token_index_global	args( ( long vnum ) );
+AREA_DATA *find_area_by_vnum	args( ( long vnum, AREA_DATA *current_area ) );
+AREA_DATA *get_system_area_fallback	args( ( void ) );
 NID *	get_npc_ship_index args( ( long vnum ) );
 PC *	get_prog_index args( ( long vnum, int type ) );
-SCRIPT_DATA *	get_script_index args( ( long vnum, int type ) );
+SCRIPT_DATA *	get_script_index args( ( AREA_DATA *pArea, long vnum, int type ) );
+SCRIPT_DATA *	get_script_index_global args( ( long vnum, int type ) );
 char	fread_letter	args( ( FILE *fp ) );
 long	fread_number	args( ( FILE *fp ) );
 long 	fread_flag	args( ( FILE *fp ) );
@@ -8183,8 +9772,10 @@ char *	strreplace	args( ( char *Str, char *OldStr, char *NewStr ) );
 char *	capitalize	args( ( const char *str ) );
 char *	cap		args( ( const char *str ) );
 void	append_file	args( ( CHAR_DATA *ch, char *file, char *str ) );
-void	bug		args( ( const char *str, int param ) );
-void	log_string	args( ( const char *str ) );
+void bug(const char *str, ...);
+void log_string(const char *str);
+void log_stringf(const char *fmt, ...);
+
 void	tail_chain	args( ( void ) );
 void    boat_attack (CHAR_DATA *ch );
 /* VIZZWILDS
@@ -8200,12 +9791,12 @@ char 	*fix_string( const char *str );
 AREA_DATA *get_wilderness_area ( void );
 char *skip_whitespace(register char *str);
 void send_boot_errors_to_coders();
+int process_garbage_collection(void);
 
 /* db2.c */
 AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random );
 CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area);
 CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent );
-MOB_INDEX_DATA *get_random_mob_index( AREA_DATA *area ) ;
 OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *room);
 OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent );
 ROOM_INDEX_DATA *get_random_room_list_byflags( CHAR_DATA *ch, LLIST *rooms, int n_room_flags, int n_room2_flags );
@@ -8215,17 +9806,14 @@ char *nocolour(const char *string);
 char *short_to_name (const char *short_desc);
 int strlen_no_colours( const char *str );
 void fix_short_description( char *short_descr );
-void generate_poa_resets( int level );
 void global_reset( void );
 void load_area_trade( AREA_DATA *pArea, FILE *fp );
 void load_npc_ships();
-void load_statistics();
 void read_chat_rooms();
 void read_mail( void );
 void write_chat_rooms();
 void write_mail( void );
 ROOM_INDEX_DATA *get_random_room_area( CHAR_DATA *ch, AREA_DATA *area );
-void load_stat( char *filename, int type );
 void write_help_to_disk(HELP_CATEGORY *hcat, HELP_DATA *help);
 void save_new_socials(void);
 bool load_new_socials(FILE *fp);
@@ -8297,16 +9885,6 @@ char    *makedrunk      args( (char *string, CHAR_DATA *ch) );
 void write_gq( void );
 void read_gq( void );
 
-/* msgqueue.c */
-void	process_message_queue( void );
-
-/* html.c */
-BUFFER  *get_churches_html( void );
-BUFFER  *get_players_html( void );
-char	*format_and_colour_html( char *buf );
-BUFFER  *get_stats_html( int type );
-BUFFER  *get_stats_for_html( int type );
-
 /* boat.c */
 void award_ship_quest_points args((int area_type, CHAR_DATA *ch, int points));
 void award_reputation_points args((int area_type, CHAR_DATA *ch, int points));
@@ -8341,8 +9919,10 @@ EXIT_DATA *new_wilderness_exit args( ( void ) );
 INVASION_QUEST *new_invasion_quest(void);
 STORM_DATA *new_storm_data(void);
 AFFECT_DATA *new_affect(void);
+CATALYST_DATA *new_catalyst(void);
 AMBUSH_DATA *new_ambush( void );
 AREA_DATA *new_area( void );
+AREA_REGION *new_area_region( void );
 AUTO_WAR *new_auto_war  args( ( int war_type, int min_players, int min_level, int max_level ) );
 CHAT_BAN_DATA *new_chat_ban( void );
 CHAT_OP_DATA *new_chat_op( void );
@@ -8364,8 +9944,17 @@ PROG_DATA *new_prog_data(void);
 LLIST **new_prog_bank(void);
 PROG_LIST *new_trigger(void);
 QUEST_INDEX_DATA *new_quest_index( void );
+QUEST_INDEX_V2_DATA *new_quest_index_v2( void );
+QUEST_STAGE_INDEX_V2_DATA *new_quest_stage_index_v2( void );
+QUEST_OBJECTIVE_INDEX_V2_DATA *new_quest_objective_index_v2( void );
+QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *new_quest_objective_pool_entry_v2( void );
+QUEST_REWARD_INDEX_V2_DATA *new_quest_reward_index_v2( void );
+QUEST_OBJECTIVE_STATE_V2_DATA *new_quest_objective_state_v2( void );
+QUEST_TARGET_BINDING_V2_DATA *new_quest_target_binding_v2( void );
+QUEST_HISTORY_DATA *new_quest_history( void );
 QUEST_DATA *new_quest( void );
 QUEST_LIST *new_quest_list( void );
+QUEST_V2_LIST *new_quest_v2_list( void );
 QUEST_PART_DATA *new_quest_part(void);
 QUESTOR_DATA *new_questor_data( void );
 RESET_DATA *new_reset_data( void );
@@ -8381,7 +9970,9 @@ void free_wilderness_exit args( ( EXIT_DATA *pexit ) );
 void free_invasion_quest( INVASION_QUEST *quest );
 void free_storm_data( STORM_DATA *storm_data );
 void free_affect( AFFECT_DATA *af );
+void free_catalyst( CATALYST_DATA *cat );
 void free_ambush( AMBUSH_DATA *ambush );
+void free_area_region( AREA_REGION *region );
 void free_auto_war  args( ( AUTO_WAR *auto_war ) );
 void free_chat_ban( CHAT_BAN_DATA *pBan );
 void free_chat_op( CHAT_OP_DATA *pOp );
@@ -8404,8 +9995,17 @@ void free_prog_data(PROG_DATA *pr_dat);
 void free_trigger(PROG_LIST *trigger);
 void free_prog_list(LLIST **pr_list);
 void free_quest_index( QUEST_INDEX_DATA *quest_index );
+void free_quest_index_v2( QUEST_INDEX_V2_DATA *quest_index_v2 );
+void free_quest_stage_index_v2( QUEST_STAGE_INDEX_V2_DATA *stage_index_v2 );
+void free_quest_objective_index_v2( QUEST_OBJECTIVE_INDEX_V2_DATA *objective_index_v2 );
+void free_quest_objective_pool_entry_v2( QUEST_OBJECTIVE_POOL_ENTRY_V2_DATA *pool_entry_v2 );
+void free_quest_reward_index_v2( QUEST_REWARD_INDEX_V2_DATA *reward_index_v2 );
+void free_quest_objective_state_v2( QUEST_OBJECTIVE_STATE_V2_DATA *objective_state_v2 );
+void free_quest_target_binding_v2( QUEST_TARGET_BINDING_V2_DATA *target_binding_v2 );
+void free_quest_history( QUEST_HISTORY_DATA *history );
 void free_quest( QUEST_DATA *pQuest );
 void free_quest_list( QUEST_LIST *quest_list );
+void free_quest_v2_list( QUEST_V2_LIST *quest_v2_list );
 void free_quest_part( QUEST_PART_DATA *pPart );
 void free_reset_data( RESET_DATA *pReset );
 void free_ship_crew( SHIP_CREW_DATA *crew );
@@ -8444,11 +10044,53 @@ void quest_update(void);
 bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno );
 bool is_quest_item( OBJ_DATA *obj );
 bool is_quest_token( OBJ_DATA *obj );
+bool quest_runtime_has_token(CHAR_DATA *ch, WNUM token_wnum);
+TOKEN_DATA *quest_runtime_add_token(CHAR_DATA *ch, WNUM token_wnum);
+bool quest_runtime_remove_token(CHAR_DATA *ch, WNUM token_wnum, int count);
+bool quest_runtime_manual_trigger_ready(CHAR_DATA *ch);
+bool quest_runtime_is_expired(CHAR_DATA *ch, time_t now);
+void quest_runtime_tick_expiration(CHAR_DATA *ch, time_t now);
+void quest_runtime_snapshot_group_runs_to_character(CHAR_DATA *ch, const unsigned long group_id[2]);
+void quest_runtime_handle_group_scope_loss(CHAR_DATA *ch, const unsigned long group_id[2]);
+void quest_runtime_sync_group_runs_for_character(CHAR_DATA *ch, bool allow_stage_advance);
+void quest_runtime_remove_church_runs(CHAR_DATA *ch, long church_uid);
+long quest_runtime_attach_active_quest(CHAR_DATA *ch, long quest_index_auid, long quest_index_vnum);
+QUEST_DATA *quest_runtime_get_run_by_id(CHAR_DATA *ch, long run_id);
+QUEST_DATA *quest_runtime_get_run_by_index(CHAR_DATA *ch, int index);
+int quest_runtime_get_active_run_count(CHAR_DATA *ch);
+QUEST_DATA *quest_runtime_get_focused_run(CHAR_DATA *ch);
+QUEST_DATA *quest_runtime_find_run_by_v2_wnum(CHAR_DATA *ch, long auid, long vnum);
+QUEST_HISTORY_DATA *quest_history_find_by_v2_wnum(CHAR_DATA *ch, long auid, long vnum);
+int quest_history_count_by_v2_wnum(CHAR_DATA *ch, long auid, long vnum, int status);
 int count_quest_parts( CHAR_DATA *ch );
+bool quest_index_v2_register(QUEST_INDEX_V2_DATA *quest_index_v2);
+void quest_index_v2_unregister(QUEST_INDEX_V2_DATA *quest_index_v2);
+void quest_index_v2_clear_registry(void);
+void fix_quests_v2(void);
+QUEST_INDEX_V2_DATA *get_quest_index_v2(long vnum);
+QUEST_INDEX_V2_DATA *get_quest_index_v2_wnum(WNUM wnum);
+QUEST_STAGE_INDEX_V2_DATA *quest_index_v2_get_stage(QUEST_INDEX_V2_DATA *quest_index_v2, int stage_id);
+QUEST_OBJECTIVE_INDEX_V2_DATA *quest_stage_index_v2_get_objective(QUEST_STAGE_INDEX_V2_DATA *stage, int objective_id);
+QUEST_INDEX_V2_DATA *quest_runtime_get_index_v2(QUEST_DATA *run);
+bool quest_runtime_bind_index_v2(QUEST_DATA *run, WNUM wnum);
+void quest_runtime_clear_objective_states(QUEST_DATA *run);
+QUEST_OBJECTIVE_STATE_V2_DATA *quest_runtime_get_objective_state(QUEST_DATA *run, int objective_id, bool create_if_missing);
+QUEST_STAGE_INDEX_V2_DATA *quest_runtime_get_current_stage(QUEST_DATA *run);
+unsigned long long quest_runtime_seed_for_stage(QUEST_DATA *run, int stage_id);
+bool quest_runtime_update_objective_progress(QUEST_DATA *run, int objective_id, int delta);
+bool quest_runtime_complete_objective(QUEST_DATA *run, int objective_id);
+bool quest_runtime_fail_objective(QUEST_DATA *run, int objective_id, const char *reason_phrase);
+bool quest_runtime_is_stage_complete(QUEST_DATA *run);
+bool quest_runtime_try_advance_stage(QUEST_DATA *run);
+bool quest_runtime_set_stage(QUEST_DATA *run, int stage_id);
+bool quest_runtime_complete_run(QUEST_DATA *run, const char *reason_phrase);
+bool quest_runtime_fail_run(QUEST_DATA *run, int failed_status, const char *reason_phrase);
 QUEST_INDEX_DATA *get_quest_index( long vnum );
+QUEST_INDEX_DATA *get_quest_index_wnum(WNUM wnum);
 void check_quest_rescue_mob( CHAR_DATA *ch, bool show );
 void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool show );
 void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob, bool show );
+void check_quest_talk_target( CHAR_DATA *ch, CHAR_DATA *victim, const char *message, bool show );
 void check_quest_totally_complete( CHAR_DATA *ch, bool show );
 void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show);
 bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show);
@@ -8458,6 +10100,7 @@ int get_coord_distance( int x1, int y1, int x2, int y2 );
 CHAR_DATA *get_player(char *name);
 void	affect_fix_char( CHAR_DATA *ch );
 void    affect_modify( CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd );
+void    char_set_race( CHAR_DATA *ch, RACE_DATA *new_race, long flags );
 void	char_to_team    args( ( CHAR_DATA *ch ) );
 void	char_from_team  args( ( CHAR_DATA *ch ) );
 void	char_to_invasion    args( ( CHAR_DATA *ch, INVASION_QUEST *quest ) );
@@ -8481,6 +10124,7 @@ void 	deduct_cost	args( (CHAR_DATA *ch, int cost) );
 void	affect_enchant	args( (OBJ_DATA *obj) );
 int 	check_immune	args( (CHAR_DATA *ch, int16_t dam_type) );
 int 	material_lookup args( ( const char *name) );
+const char *material_resolve_name args((const char *name, bool *used_legacy_fallback));
 int	weapon_lookup	args( ( const char *name) );
 int	weapon_type	args( ( const char *name) );
 int	ranged_weapon_type	args( ( const char *name) );
@@ -8501,7 +10145,7 @@ int	get_objweapon_sn	args( (OBJ_DATA *obj) );
 int	get_weapon_skill args(( CHAR_DATA *ch, int sn ) );
 int     get_age         args( ( CHAR_DATA *ch ) );
 void	reset_char	args( ( CHAR_DATA *ch )  );
-int	get_trust	args( ( CHAR_DATA *ch ) );
+int	get_mob_level	args( ( CHAR_DATA *ch ) );
 int get_staff_rank(CHAR_DATA *ch);
 
 void set_mod_stat(CHAR_DATA *ch, int stat, int value);
@@ -8518,7 +10162,7 @@ bool	is_name		args( ( char *str, char *namelist ) );
 bool	is_exact_name	args( ( char *str, char *namelist ) );
 void	affect_to_char	args( ( CHAR_DATA *ch, AFFECT_DATA *paf ) );
 void	affect_to_obj	args( ( OBJ_DATA *obj, AFFECT_DATA *paf ) );
-void	catalyst_to_obj	args( ( OBJ_DATA *obj, AFFECT_DATA *paf ) );
+void	catalyst_to_obj	args( ( OBJ_DATA *obj, CATALYST_DATA *cat ) );
 void	affect_to_room	args( ( ROOM_INDEX_DATA *room, AFFECT_DATA *paf ) );
 void	affect_remove	args( ( CHAR_DATA *ch, AFFECT_DATA *paf ) );
 bool	affect_removeall_obj	args( ( OBJ_DATA *obj ) );
@@ -8607,7 +10251,7 @@ bool can_scare( CHAR_DATA *ch );
 int get_obj_number_container( OBJ_DATA *obj );
 bool is_relic( OBJ_INDEX_DATA *obj );
 char *res_bit_name(int res_flags);
-char *vuln_bit_name(int vuln_flags);
+char *vuln_bit_name(long vuln_flags);
 bool is_on_continent_1( CHAR_DATA *ch );
 bool is_on_continent_2( CHAR_DATA *ch );
 bool is_dislinked( ROOM_INDEX_DATA *pRoom );
@@ -8615,14 +10259,13 @@ bool is_good_church( CHAR_DATA *ch );
 bool is_evil_church( CHAR_DATA *ch );
 bool wields_item_type( CHAR_DATA *ch, int weapon_type );
 char   *pirate_name_generator args(( void ));
-int get_remort_race( CHAR_DATA *ch );
+RACE_DATA *get_remort_race( CHAR_DATA *ch );
 bool is_darked( ROOM_INDEX_DATA *room );
 bool is_dead( CHAR_DATA *ch );
 void deduct_move( CHAR_DATA *ch, int amount );
 bool is_wearable( OBJ_DATA *obj );
 bool is_using_anyone( OBJ_DATA *obj );
 void return_from_maze( CHAR_DATA *ch );
-CHAR_DATA *get_char_world_vnum( CHAR_DATA *ch, long vnum );
 int get_number_in_container( OBJ_DATA *obj );
 AREA_DATA *find_area_kwd( char *keyword );
 long get_dp_value( OBJ_DATA *obj );
@@ -8638,6 +10281,7 @@ void move_obj_into_container( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container 
 OBJ_DATA *get_skull( CHAR_DATA *ch, char *owner );
 int count_exits( ROOM_INDEX_DATA *room );
 bool is_room_pk( ROOM_INDEX_DATA *room, bool arena );
+bool is_room_full_cpk( ROOM_INDEX_DATA *room );
 bool is_pk( CHAR_DATA *ch );
 int get_num_dir( char *arg );
 bool dislink_room( ROOM_INDEX_DATA *pRoom );
@@ -8662,18 +10306,18 @@ TOKEN_DATA *give_token(TOKEN_INDEX_DATA *token_index, CHAR_DATA *ch, OBJ_DATA *o
 void token_from_char(TOKEN_DATA *token);
 void token_to_char(TOKEN_DATA *token, CHAR_DATA *ch);
 void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags);
-TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count);
-TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, int count);
+TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, AREA_DATA *area, int count);
+TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, AREA_DATA *area, int count);
 void token_from_obj(TOKEN_DATA *token);
 void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj);
-TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, int count);
+TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, AREA_DATA *area, int count);
 void token_from_room(TOKEN_DATA *token);
 void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room);
-TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, int count);
+TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, AREA_DATA *area, int count);
 void fix_magic_object_index(OBJ_INDEX_DATA *obj);
 void extract_event(EVENT_DATA *event);
 void extract_project_inquiry(PROJECT_INQUIRY_DATA *pinq);
-void log_string_to_list(char *argument, LOG_ENTRY_DATA *list);
+
 void save_logs();
 int get_curr_group_stat(CHAR_DATA *ch, int stat);
 int get_perm_group_stat(CHAR_DATA *ch, int stat);
@@ -8709,6 +10353,10 @@ void crypto_init(void);
 char* encrypt_string(const char *plaintext);
 char* decrypt_string(const char *encrypted);
 bool is_encrypted_key(const char *key);
+int detect_encryption_version(const char *ciphertext);
+char *encrypt_string_versioned(const char *plaintext);
+char *decrypt_string_versioned(const char *ciphertext);
+bool needs_encryption_upgrade(const char *ciphertext);
 static const unsigned char base64_table[65] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 unsigned char *base64_decode(const char *src, size_t len, size_t *out_len);
@@ -8721,11 +10369,62 @@ SCRIPT_DATA *get_reserved_oprog_index(const char *name);
 SCRIPT_DATA *get_reserved_mprog_index(const char *name);
 SCRIPT_DATA *get_reserved_tprog_index(const char *name);
 SCRIPT_DATA *get_reserved_aprog_index(const char *name);
+BLUEPRINT *get_reserved_blueprint(const char *name);
+DUNGEON_INDEX_DATA *get_reserved_dungeon_index(const char *name);
+SHIP_INDEX_DATA *get_reserved_ship_index(const char *name);
 const struct game_setting_type *get_game_setting(const char *name);
 OBJ_INDEX_DATA *get_reserved_obj_index(const char *name);
 ROOM_INDEX_DATA *get_reserved_room_index(const char *name);
 MOB_INDEX_DATA *get_reserved_mob_index(const char *name);
 AREA_DATA *get_area_index(long uid);
+
+/* WNUM functions */
+extern WNUM wnum_zero;
+bool parse_widevnum(char *argument, AREA_DATA *current_area, WNUM *wnum);
+bool parse_widevnum_load(const char *str, WNUM_LOAD *wload);
+
+static inline bool resolve_widevnum(long vnum, AREA_DATA *context, WNUM *wnum)
+{
+    char buf[MIL];
+    snprintf(buf, sizeof(buf), "%ld", vnum);
+    return parse_widevnum(buf, context, wnum);
+}
+void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *pRefArea);
+
+/* WNUM matching - area-aware entity comparison */
+bool wnum_match(WNUM wnum, AREA_DATA *area, long vnum);
+bool wnum_match_room(WNUM wnum, ROOM_INDEX_DATA *room);
+bool wnum_match_obj(WNUM wnum, OBJ_DATA *obj);
+bool wnum_match_mob(WNUM wnum, CHAR_DATA *ch);
+bool wnum_match_token(WNUM wnum, TOKEN_DATA *token);
+
+/* WNUM extraction - populate WNUM from entity */
+void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum);
+AREA_REGION *get_room_region(ROOM_INDEX_DATA *room);
+AREA_REGION *get_area_region_by_uid(AREA_DATA *area, long uid);
+void area_region_add_room(AREA_REGION *region, ROOM_INDEX_DATA *room);
+void area_region_remove_room(ROOM_INDEX_DATA *room);
+void get_mob_wnum(MOB_INDEX_DATA *mob, WNUM *wnum);
+void get_obj_wnum(OBJ_INDEX_DATA *obj, WNUM *wnum);
+void get_token_wnum(TOKEN_INDEX_DATA *token, WNUM *wnum);
+
+/* WNUM display */
+const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea);
+const char *widevnum_string_wnum(WNUM wnum, AREA_DATA *pRefArea);
+const char *widevnum_string_mobile(MOB_INDEX_DATA *mob, AREA_DATA *pRefArea);
+const char *widevnum_string_object(OBJ_INDEX_DATA *obj, AREA_DATA *pRefArea);
+const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea);
+const char *widevnum_string_token(TOKEN_INDEX_DATA *token, AREA_DATA *pRefArea);
+const char *widevnum_string_script(SCRIPT_DATA *script, AREA_DATA *pRefArea);
+const char *widevnum_string_blueprint(BLUEPRINT *bp, AREA_DATA *pRefArea);
+const char *widevnum_string_blueprint_section(BLUEPRINT_SECTION *bs, AREA_DATA *pRefArea);
+const char *widevnum_string_dungeon(DUNGEON_INDEX_DATA *dng, AREA_DATA *pRefArea);
+const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea);
+const char *widevnum_string_event(EVENT_INDEX_DATA *event, AREA_DATA *pRefArea);
+
+void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);
+void reset_pronouns_to_body_type(CHAR_DATA *ch, body_type_t new_body_type);
+int get_colour_code_length_at_start(const char *p);
 
 
 
@@ -8751,7 +10450,8 @@ HELP_DATA *read_help_new( FILE *fp );
 /* interp.c */
 bool check_social( CHAR_DATA *ch, char *command, char *argument );
 void	interpret	args( ( CHAR_DATA *ch, char *argument ) );
-bool	is_number	args( ( char *arg ) );
+bool	is_number	args( ( const char *arg ) );
+bool	is_widevnum_format(const char *str);
 bool	is_percent	args( ( char *arg ) );
 int	number_argument	args( ( char *argument, char *arg ) );
 int	mult_argument	args( ( char *argument, char *arg) );
@@ -8772,11 +10472,54 @@ void    mob_cast        args( ( CHAR_DATA *ch, int sn, int level, char *argument
 void    mob_cast_end    args( ( CHAR_DATA *ch) );
 int	find_spell	args( ( CHAR_DATA *ch, const char *name) );
 int 	mana_cost 	(CHAR_DATA *ch, int min_mana, int level);
+
+/* sectoredit.c */
+void load_sector_data(void);
+int sector_count(void);
+const char *sector_name(int index);
+int sector_type_sanitize(int index);
+int sector_move_cost(int index);
+int sector_heal_rate(int index);
+int sector_mana_rate(int index);
+int sector_move_rate(int index);
+int sector_class(int index);
+long sector_runtime_flags_value(int index);
+int sector_soil(int index);
+const char *sector_comments(int index);
+const char *sector_description(int index);
+int sector_hide_msg_count(int index);
+const char *sector_hide_msg(int index, int slot);
+int sector_affinity_catalyst(int index, int slot);
+int sector_affinity_value(int index, int slot);
+int sector_lookup(const char *name);
+const struct flag_type *sector_class_table(void);
+const struct flag_type *sector_runtime_flag_table(void);
+int room_sector_type(const ROOM_INDEX_DATA *room);
+int room_set_sector_type(ROOM_INDEX_DATA *room, int sector_type);
+bool room_in_sector(const ROOM_INDEX_DATA *room, int sector_type);
+bool room_sector_has_flag(const ROOM_INDEX_DATA *room, long flag);
+int room_rs_sector_type(const ROOM_INDEX_DATA *room);
+int room_set_rs_sector_type(ROOM_INDEX_DATA *room, int sector_type);
+bool sector_has_flag(int index, long flag);
+bool reload_sector_data(void);
+bool sector_set_name(int index, const char *name);
+bool sector_set_move_cost(int index, int move_cost);
+bool sector_set_heal_rate(int index, int heal_rate);
+bool sector_set_mana_rate(int index, int mana_rate);
+bool sector_set_move_rate(int index, int move_rate);
+bool sector_set_comments(int index, const char *comments);
+bool sector_set_description(int index, const char *description);
+bool sector_set_class(int index, int sector_class);
+bool sector_set_runtime_flags(int index, long flags);
+bool sector_set_soil(int index, int soil);
+bool sector_set_hide_msg(int index, int slot, const char *msg);
+bool sector_set_affinity(int index, int slot, int catalyst, int value);
+bool sector_clear_affinity(int index, int slot);
 int	skill_lookup	args( ( const char *name ) );
 OD*	get_warp_stone	args( ( CHAR_DATA *ch ) );
 bool	saves_spell	args( ( int level, CHAR_DATA *victim, int16_t dam_type ) );
 void	obj_cast_spell	args( ( int sn, int level, CHAR_DATA *ch,
-				    CHAR_DATA *victim, OBJ_DATA *obj ) );
+                    CHAR_DATA *victim, OBJ_DATA *obj ) );
 void obj_cast( int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *argument);
 bool can_gate( CHAR_DATA *ch, CHAR_DATA *victim );
 void cast_end( CHAR_DATA *ch );
@@ -8813,7 +10556,7 @@ bool check_reconnect args((DESCRIPTOR_DATA * d, char *name, bool fConn));
 bool check_playing args((DESCRIPTOR_DATA * d, char *name));
 bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
 void add_possible_subclasses(CHAR_DATA *ch, char *string);
-void add_possible_races(CHAR_DATA *ch, char *string);
+void add_possible_races(ACCOUNT_DATA *account, char *string);
 void save_area_list();
 void save_area_new(AREA_DATA *area);
 bool load_account(DESCRIPTOR_DATA *d, char *name);
@@ -8831,6 +10574,7 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool send_email);
 bool check_char_mfa(CHAR_DATA *ch, const char *code);
 bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool send_email);
 bool check_account_mfa(ACCOUNT_DATA *acct, const char *code);
+bool migrate_otp_key(ACCOUNT_DATA *acct, ACCOUNT_CHARACTER *acct_char);
 void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void setup_account_mfa(DESCRIPTOR_DATA *d);
 bool process_output args((DESCRIPTOR_DATA * d, bool fPrompt));
@@ -8847,6 +10591,10 @@ char *generate_totp_key(char *buffer, size_t length);
 void display_qr_code(DESCRIPTOR_DATA *d, const char *url);
 void display_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char);
 void generate_recovery_codes(char **codes, bool *used, int count);
+char *hash_recovery_code(const char *code);
+bool is_hashed_recovery_code(const char *code);
+bool verify_recovery_code_hash(const char *stored_code, const char *input_code);
+void hash_recovery_codes_in_place(char **codes, int count);
 bool check_recovery_code(CHAR_DATA *ch, const char *code);
 bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code);
 void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct);
@@ -8864,7 +10612,16 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument);
 bool is_reconnecting(CHAR_DATA *ch);
 void reconnect_char(DESCRIPTOR_DATA *d);
 void string_end_accnote(CHAR_DATA *ch);
+void string_end_charnote(CHAR_DATA *ch);
+void free_account_note(ACCOUNT_NOTE_DATA *note);
+void free_all_account_notes(ACCOUNT_DATA *account);
+int account_note_count(ACCOUNT_NOTE_DATA *notes);
+int account_note_count_by_category(ACCOUNT_NOTE_DATA *notes, int category);
+const char *note_category_name(int category);
+int note_category_lookup(const char *name);
+void notify_staff_of_notes(DESCRIPTOR_DATA *d);
 void login_character_delete(DESCRIPTOR_DATA *d, char argument);
+bool delete_character_by_name(const char *name);
 bool delete_character(CHAR_DATA *ch);
 bool should_purge_deleted_character(const ACCOUNT_CHARACTER *ch_entry);
 void *iterator_peek_nextdata(ITERATOR *it);
@@ -8892,13 +10649,17 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
                                 bool is_for_character, const char *character_name, bool is_staff);
 bool password_matches_account(ACCOUNT_DATA *acct, const char *plaintext_password);
 bool password_matches_staff_character(ACCOUNT_DATA *acct, const char *plaintext_password, const char *exclude_name);
+void process_direct_login(DESCRIPTOR_DATA *d);
+bool set_default_character(ACCOUNT_DATA *acct, const char *char_name);
+bool is_character_online(const char *name);
+ACCOUNT_CHARACTER *find_most_recent_character(ACCOUNT_DATA *acct);
 
 
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
-				OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
-				CHAR_DATA *ch, const void *arg1,
-				const void *arg2 ) );
+                OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+                CHAR_DATA *ch, const void *arg1,
+                const void *arg2 ) );
 
 int p_act_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type);
 int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type);
@@ -8906,6 +10667,7 @@ int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DAT
 int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase);
 int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
+int p_lifecycle_bank_trigger(LLIST **bank, AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, QUEST_DATA *quest, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_number_trigger(int number, int wildcard, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount);
 int p_exit_trigger(CHAR_DATA *ch, int dir, int type);
@@ -8918,6 +10680,7 @@ int p_greet_trigger(CHAR_DATA *ch, int type);
 int	p_hprct_trigger(CHAR_DATA *mob, CHAR_DATA *ch);
 int p_emoteat_trigger(CHAR_DATA *mob, CHAR_DATA *ch, char *emote);
 int p_emote_trigger(CHAR_DATA *ch, char *emote);
+bool script_validate_trigger_table(void);
 
 
 int	script_login(CHAR_DATA *ch);
@@ -8938,7 +10701,8 @@ int rpcmd_lookup(char *command);*/
 
 /* save.c */
 bool find_class_skill( CHAR_DATA *ch, int class );
-bool load_char_obj	args( ( DESCRIPTOR_DATA *d, char *name ) );
+bool load_char_obj	args( ( DESCRIPTOR_DATA *d, const char *name ) );
+bool load_char_obj_basic args( ( DESCRIPTOR_DATA *d, const char *name ) );
 bool update_object( OBJ_DATA *obj );
 OBJ_DATA *fread_obj_new( FILE *fp );
 void cleanup_affects( OBJ_DATA *obj );
@@ -8972,7 +10736,7 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded);
 bool 	parse_gen_groups args( ( CHAR_DATA *ch,char *argument ) );
 void 	list_group_costs args( ( CHAR_DATA *ch ) );
 void    list_group_known args( ( CHAR_DATA *ch ) );
-long 	exp_per_level	args( ( CHAR_DATA *ch, long points ) );
+long 	exp_per_level	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show );
 int 	group_lookup	args( (const char *name) );
@@ -9002,7 +10766,7 @@ RID *	room_by_name	args( ( char *target, int level, bool error) );
 /* update.c */
 void	healing_locket_update args( ( CHAR_DATA *ch ) );
 void	advance_level	args( ( CHAR_DATA *ch, bool hide ) );
-void	gain_exp	args( ( CHAR_DATA *ch, int gain, bool show ) );
+void	gain_exp	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show ) );
 void	gain_condition	args( ( CHAR_DATA *ch, int iCond, int value ) );
 void	update_handler	args( ( void ) );
 void    pneuma_relic_update args( ( void ) );
@@ -9121,7 +10885,7 @@ const char *note_display_recipients_for(CHAR_DATA *viewer, NOTE_DATA *pnote);
 const char *note_display_recipients(NOTE_DATA *pnote);
 
 /* lookup.c */
-int	race_lookup	args( ( const char *name) );
+/* race_lookup now in json_race.c, returns RACE_DATA * */
 int	item_lookup	args( ( const char *name) );
 int	liq_lookup	args( ( const char *name) );
 char 	*get_weapon_class(OBJ_INDEX_DATA *obj);
@@ -9208,6 +10972,53 @@ void show_project_inquiry(PROJECT_INQUIRY_DATA *pinq, CHAR_DATA *ch);
 void show_project_inquiries(PROJECT_DATA *project, CHAR_DATA *ch);
 long get_total_minutes(PROJECT_DATA *project);
 
+/* rsgedit.c */
+void load_rsg_data(void);
+bool save_rsg_data(void);
+bool rsg_generate_any(const char *generator_token, char *out, size_t out_size);
+bool rsg_generate_pattern(const char *generator_token, int pattern_index,
+    char *out, size_t out_size);
+bool rsg_generate_pattern_named(const char *generator_token, const char *pattern_name,
+    char *out, size_t out_size);
+bool rsg_generate_template_named(const char *generator_token, const char *template_name,
+    char *out, size_t out_size);
+bool rsg_generate_class(const char *generator_token, const char *class_name,
+    char *out, size_t out_size);
+bool rsg_generate_template(const char *generator_token, const char *templ,
+    char *out, size_t out_size);
+bool rsg_generate_spec(const char *spec, char *out, size_t out_size);
+
+/* liqedit.c */
+void load_liquid_data(void);
+int liquid_count(void);
+char *liquid_name(int index);
+char *liquid_color(int index);
+int liquid_affect(int index, int affect_index);
+int liquid_lookup(const char *name);
+long liquid_uid(int index);
+int liquid_index_from_uid(long uid);
+
+/* matedit.c */
+void load_material_data(void);
+int material_count(void);
+char *material_name(int index);
+int material_strength(int index);
+int material_value(int index);
+int material_index_lookup(const char *name);
+
+/* sectoredit.c */
+void load_sector_data(void);
+bool save_sector_data(void);
+
+/* corpsedit.c */
+void load_corpse_data(void);
+bool save_corpse_data(void);
+const struct corpse_info *corpse_info_by_type(int corpse_type);
+int corpse_type_sanitize(int corpse_type);
+
+/* act_move.c */
+extern int16_t movement_loss[SECT_MAX];
+
 
 /* staff.c */
 void save_immstaff();
@@ -9215,9 +11026,19 @@ void save_immortal(FILE *fp, IMMORTAL_DATA *immortal);
 void read_immstaff();
 IMMORTAL_DATA *read_immortal(FILE *fp);
 void do_staffduty(CHAR_DATA *ch, char *argument);
+void do_cachestats(CHAR_DATA *ch, char *argument);
+void do_cacheinfo(CHAR_DATA *ch, char *argument);
+void do_cachedump(CHAR_DATA *ch, char *argument);
+void do_cacheload(CHAR_DATA *ch, char *argument);
+void do_cachejobs(CHAR_DATA *ch, char *argument);
+void do_cachestop(CHAR_DATA *ch, char *argument);
 IMMORTAL_DATA *find_immortal(char *argument);
 void do_staffdelete(CHAR_DATA *ch, char *argument);
 void do_staffsupervisor(CHAR_DATA *ch, char *argument);
+void do_pwmigrate(CHAR_DATA *ch, char *argument);
+void do_migrate(CHAR_DATA *ch, char *argument);
+void do_cryptorotate(CHAR_DATA *ch, char *argument);
+bool derive_key_from_passphrase(const char *passphrase, int version, const char *salt_base, unsigned char *key_out);
 void remove_immortal(IMMORTAL_DATA *immortal);
 void show_immortal(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
 void print_immortal_info(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
@@ -9364,8 +11185,31 @@ extern TOKEN_DATA *global_tokens;
 //extern LLIST *loaded_players;
 extern LLIST *loaded_chars;
 extern LLIST *loaded_objects;
+extern LLIST *loaded_groups;
 extern LLIST *loaded_accounts;
 extern LLIST *reserved_vnums;
+
+/*
+ * Loaded Object ID Hash - O(1) deduplication for object loading
+ *
+ * Maintains a hash table keyed on (id[0], id[1]) alongside loaded_objects.
+ * Use loaded_obj_hash_add/remove to keep in sync, and loaded_obj_hash_find
+ * to check for duplicate object IDs in O(1) time.
+ */
+#define LOADED_OBJ_HASH_SIZE    8192
+
+typedef struct loaded_obj_hash_entry {
+    unsigned long               id[2];
+    OBJ_DATA *                  obj;
+    struct loaded_obj_hash_entry *next;
+} LOADED_OBJ_HASH_ENTRY;
+
+extern LOADED_OBJ_HASH_ENTRY *loaded_obj_hash[LOADED_OBJ_HASH_SIZE];
+
+void        loaded_obj_hash_init    ( void );
+void        loaded_obj_hash_add     ( OBJ_DATA *obj );
+void        loaded_obj_hash_remove  ( OBJ_DATA *obj );
+OBJ_DATA *  loaded_obj_hash_find    ( unsigned long id0, unsigned long id1 );
 
 extern LLIST *conn_players;
 extern LLIST *conn_immortals;
@@ -9377,6 +11221,7 @@ extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
 extern BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
 extern DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
 extern SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+extern REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
 
 
 void connection_add(DESCRIPTOR_DATA *d);
@@ -9388,6 +11233,7 @@ extern int wear_params[MAX_WEAR][7];
 
 char *get_script_prompt_string(CHAR_DATA *ch, char *key);
 bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, int mana);
+void script_log_runtime_error(SCRIPT_DATA *script, int line, const char *message);
 void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int multiplier );
 int sub_class_search(const char *name);
 
@@ -9418,6 +11264,7 @@ ROOM_INDEX_DATA *create_virtual_room(ROOM_INDEX_DATA *source,bool links,bool res
 ROOM_INDEX_DATA *get_clone_room(register ROOM_INDEX_DATA *source, register unsigned long id1, register unsigned long id2);
 bool room_is_clone(ROOM_INDEX_DATA *room);
 bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long id2, bool destruct);
+void queue_clone_room_extract(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long id2, bool destruct);
 bool check_vision(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool blind, bool dark);
 void room_from_environment(ROOM_INDEX_DATA *room);
 bool room_to_environment(ROOM_INDEX_DATA *clone,CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token);
@@ -9429,7 +11276,8 @@ void obj_update_nest_clones(OBJ_DATA *obj);
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic);
 
 char *formatf(const char *fmt, ...);
-void log_stringf(const char *fmt,...);
+void formatf_to(char *dest, size_t dest_size, const char *fmt, ...);  // Safe version - writes to provided buffer
+
 bool interrupt_script( CHAR_DATA *ch, bool silent );
 CHAR_DATA *obj_carrier(OBJ_DATA *obj);
 
@@ -9437,6 +11285,7 @@ bool area_has_read_access(CHAR_DATA *ch, AREA_DATA *area);
 bool area_has_write_access(CHAR_DATA *ch, AREA_DATA *area);
 
 ROOM_INDEX_DATA *location_to_room(LOCATION *loc);
+ROOM_INDEX_DATA *get_area_recall_room(AREA_DATA *area);
 void location_from_room(LOCATION *loc,ROOM_INDEX_DATA *room);
 ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch, bool death);
 void location_clear(LOCATION *loc);
@@ -9453,18 +11302,18 @@ float diminishing_returns(float val, float scale);
 float diminishing_inverse(float val, float scale);
 
 SKILL_ENTRY *skill_entry_findname( SKILL_ENTRY *list, char *str );
-SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, int song );
+SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, SONG_DATA *song );
 SKILL_ENTRY *skill_entry_findsn( SKILL_ENTRY *list, int sn );
 SKILL_ENTRY *skill_entry_findtoken( SKILL_ENTRY *list, TOKEN_DATA *token );
 SKILL_ENTRY *skill_entry_findtokenindex( SKILL_ENTRY *list, TOKEN_INDEX_DATA *token_index );
 void skill_entry_addskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags);
 void skill_entry_addspell (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags);
-void skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source);
-void skill_entry_remove (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token, bool isspell);
+void skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source);
+void skill_entry_remove (SKILL_ENTRY **list, int sn, SONG_DATA *song, TOKEN_DATA *token, bool isspell);
 void skill_entry_removeentry (SKILL_ENTRY **list, SKILL_ENTRY *entry);
 void skill_entry_removeskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token);
 void skill_entry_removespell (CHAR_DATA *ch, int sn, TOKEN_DATA *token);
-void skill_entry_removesong (CHAR_DATA *ch, int song, TOKEN_DATA *token);
+void skill_entry_removesong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token);
 int token_skill_rating( TOKEN_DATA *token);
 int token_skill_mana( TOKEN_DATA *token);
 int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry);
@@ -9473,7 +11322,9 @@ int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry);
 char *skill_entry_name (SKILL_ENTRY *entry);
-void remort_player(CHAR_DATA *ch, int remort_class);
+bool skill_entry_is_usable_now(CHAR_DATA *ch, SKILL_ENTRY *entry);
+bool skill_is_usable_now(CHAR_DATA *ch, int sn);
+void remort_player(CHAR_DATA *ch);
 
 void persist_addmobile(CHAR_DATA *mob);
 void persist_addobject(OBJ_DATA *obj);
@@ -9526,13 +11377,36 @@ bool list_isvalid(LLIST *lp);
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 
+REPUTATION_INDEX_DATA *load_reputation_index(FILE *fp, AREA_DATA *area);
+void save_reputation_indexes(FILE *fp, AREA_DATA *pArea);
+REPUTATION_INDEX_DATA *get_reputation_index(AREA_DATA *area, long vnum);
+REPUTATION_INDEX_DATA *get_reputation_index_auid(long auid, long vnum);
+REPUTATION_INDEX_DATA *get_reputation_index_wnum(WNUM wnum);
+REPUTATION_INDEX_RANK_DATA *get_reputation_rank(REPUTATION_INDEX_DATA *rep, int ordinal);
+REPUTATION_INDEX_RANK_DATA *get_reputation_rank_uid(REPUTATION_INDEX_DATA *rep, int16_t uid);
+REPUTATION_DATA *find_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+REPUTATION_DATA *get_reputation_char(CHAR_DATA *ch, AREA_DATA *area, long vnum, bool add, bool show);
+REPUTATION_DATA *get_reputation_char_auid(CHAR_DATA *ch, long auid, long vnum, bool add, bool show);
+REPUTATION_DATA *get_reputation_char_wnum(CHAR_DATA *ch, WNUM wnum, bool add, bool show);
+bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount, int *change, long *total_given, bool show);
+bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, int rank_rep, bool show);
+REPUTATION_DATA *set_reputation_char(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, int startingRank, int startingRep, bool show);
+bool has_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+void paragon_reputation(CHAR_DATA *ch, REPUTATION_DATA *rep, bool show);
+bool is_reputation_rank_peaceful(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+bool is_reputation_rank_hostile(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex);
+void group_gain_reputation(CHAR_DATA *ch, CHAR_DATA *victim);
+void check_mob_factions(CHAR_DATA *ch, CHAR_DATA *victim);
+bool check_mob_factions_peaceful(CHAR_DATA *ch, CHAR_DATA *victim);
+bool check_mob_factions_hostile(CHAR_DATA *ch, CHAR_DATA *victim);
+
 void sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, char *name);
 void give_money(CHAR_DATA *ch, OBJ_DATA *container, int gold, int silver, bool indent);
 void get_money_from_obj(CHAR_DATA *ch, OBJ_DATA *container);
 bool obj_has_money(CHAR_DATA *ch, OBJ_DATA *container);
 void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse);
 
-int music_lookup( char *name);
+SONG_DATA *music_lookup( char *name);  /* DEPRECATED: use song_lookup() from song_data.h */
 bool is_char_busy(CHAR_DATA *ch);
 bool obj_has_spell(OBJ_DATA *obj, char *name);
 void restore_char(CHAR_DATA *ch, CHAR_DATA *whom, int percent);
@@ -9568,22 +11442,27 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
 bool is_pullable(OBJ_DATA *obj);
 
-OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, QUEST_DATA *run, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
 OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all);
 
 void load_blueprints();
-bool save_blueprints();
 bool valid_section_link(BLUEPRINT_LINK *bl);
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
 BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum);
+BLUEPRINT_SECTION *get_blueprint_section_for_area(AREA_DATA *area, long vnum);
 BLUEPRINT *get_blueprint(long vnum);
+BLUEPRINT *get_blueprint_for_area(AREA_DATA *area, long vnum);
+BLUEPRINT_EXIT_DATA *get_blueprint_entrance(BLUEPRINT *bp, int index);
+BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index);
 INSTANCE *create_instance(BLUEPRINT *blueprint);
 bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
+int instance_section_count_obj(INSTANCE_SECTION *section, OBJ_INDEX_DATA *pObjIndex);
+int instance_count_obj(INSTANCE *instance, OBJ_INDEX_DATA *pObjIndex);
 void instance_update();
 void instance_save(FILE *fp, INSTANCE *instance);
 bool save_instances();
@@ -9606,12 +11485,19 @@ char *instance_get_ownership(INSTANCE *instance);
 bool instance_can_idle(INSTANCE *instance);
 INSTANCE *get_room_instance(ROOM_INDEX_DATA *room);
 void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys);
+INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no);
 
 void load_dungeons();
-bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
-ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor);
+DUNGEON_INDEX_DATA *get_dungeon_index_for_area(AREA_DATA *area, long vnum);
+EVENT_INDEX_DATA *get_event_index(long vnum);
+EVENT_INDEX_DATA *get_event_index_for_area(AREA_DATA *area, long vnum);
+bool event_index_register(EVENT_INDEX_DATA *event_index);
+DUNGEON *create_dungeon(WNUM wnum);
+DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, WNUM wnum);
+CHAR_DATA *get_player_leader(CHAR_DATA *ch);
+ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor);
 void dungeon_save(FILE *fp, DUNGEON *dungeon);
 void dungeon_check_empty(DUNGEON *dungeon);
 void dungeon_echo(DUNGEON *dungeon, char *text);
@@ -9631,12 +11517,12 @@ bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long
 bool dungeon_canswitch_player(DUNGEON *dungeon, CHAR_DATA *ch);
 bool dungeon_isorphaned(DUNGEON *dungeon);
 bool dungeon_can_idle(DUNGEON *dungeon);
+bool can_access_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *index, DUNGEON *dungeon);
+void readycheck_update(CHAR_DATA *ch);
 
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 
-extern  bool			blueprints_changed;
-extern  bool			dungeons_changed;
 extern  bool			ships_changed;
 
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
@@ -9651,21 +11537,27 @@ void detach_instances_player(CHAR_DATA *ch);
 
 extern long top_iprog_index;
 extern long top_dprog_index;
+extern long top_qprog_index;
 
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
 bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
+void player_relock_area(CHAR_DATA *ch, AREA_DATA *area);
+bool is_dungeon_unlocked(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index);
+void player_unlock_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index);
+void player_relock_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *dungeon_index);
 void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer);
 
 
 void load_ships();
 bool save_ships();
 SHIP_INDEX_DATA *get_ship_index(long vnum);
+SHIP_INDEX_DATA *get_ship_index_for_area(AREA_DATA *area, long vnum);
 bool can_edit_ships(CHAR_DATA *ch);
 SHIP_DATA *ship_load(FILE *fp);
 bool ship_save(FILE *fp, SHIP_DATA *ship);
 
-SHIP_DATA *create_ship(long vnum);
+SHIP_DATA *create_ship(WNUM wnum);
 void extract_ship(SHIP_DATA *ship);
 bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch);
 void ships_ticks_update();
@@ -9689,14 +11581,20 @@ void ship_set_move_steps(SHIP_DATA *ship);
 bool lockstate_functional(LOCK_STATE *lock);
 OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock);
 
-SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum);
+SPECIAL_KEY_DATA *get_special_key(LLIST *list, WNUM wnum);
+bool lockstate_iskey(LOCK_STATE *lock, OBJ_DATA *key);
 void extract_special_key(OBJ_DATA *obj);
 void resolve_special_key(OBJ_DATA *obj);
 
 char *get_article(char *text, bool upper);
 bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2);
 bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y);
-SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop);
+
+AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name);
+void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr);
+void remove_aura_from_char(CHAR_DATA *ch, char *name);
+
+SHIP_DATA *purchase_ship(CHAR_DATA *ch, WNUM wnum, SHOP_DATA *shop);
 int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 void ship_cancel_route(SHIP_DATA *ship);
@@ -9729,6 +11627,7 @@ extern GLOBAL_DATA gconfig;
 extern GAME_SETTINGS_DATA game_settings;
 
 extern LLIST *commands_list;
+extern bool commands_changed;
 CMD_DATA *get_cmd_data(char *name);
 bool load_commands();
 void save_commands();
@@ -9738,7 +11637,6 @@ bool check_social_status(CHAR_DATA *ch);
 void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 void send_email_async(CHAR_DATA *ch, char *email, char *subject, char *message, char *attachment_filename, char *attachment_mime_type);
 
-void generate_key(CHAR_DATA *ch, char *key);
 bool check_mfa(CHAR_DATA *ch, char *argument);
 char *sha256_crypt(const char *pwd);
 /* SSL functions */
@@ -9752,6 +11650,15 @@ void refresh_ssl_context(void);
 DH *get_dh_params(void);
 
 void string_end_chlog(CHAR_DATA *ch);
+void string_end_chreport(CHAR_DATA *ch);
+void game_settings_string_edit(CHAR_DATA *ch);
+
+
+extern LLIST *gc_mobiles;
+extern LLIST *gc_objects;
+extern LLIST *gc_rooms;
+extern LLIST *gc_tokens;
+
 
 
 /*
@@ -9776,10 +11683,10 @@ void string_end_chlog(CHAR_DATA *ch);
 /* This macro strips a string of colours and concantenates it into a local buffer.
    Necesarry to avoid memory leaks. */
 #define STRIP_COLOUR(string, buffer) \
-	do { \
-		char *no_colour = nocolour(string); \
-		strcat((buffer), no_colour); \
-		free_string(no_colour); \
-	} while(0)
+    do { \
+        char *no_colour = nocolour(string); \
+        strcat((buffer), no_colour); \
+        free_string(no_colour); \
+    } while(0)
 
 #endif /* !def __MERC_H__ */

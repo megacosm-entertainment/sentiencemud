@@ -1,0 +1,16 @@
+{
+    "name": "warlord skills",
+    "skills": [
+        "leadership",
+        "bind",
+        "pursuit",
+        "weaving",
+        "healing aura",
+        "energy field",
+        "spell shield",
+        "dual wield",
+        "shield block",
+        "shield and weapon style",
+        "two-handed weapon style"
+    ]
+}

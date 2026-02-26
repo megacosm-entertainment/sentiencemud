@@ -40,41 +40,60 @@
 #include "merc.h"
 #include "interp.h"
 #include "wilds.h"
+#include "skill_data.h"
 
 
+/**
+ * do_disembark - Exit from a ship to the surrounding room
+ *
+ * Allows a character to leave a ship and return to the room where the ship
+ * is located. For airships, disembarking requires either the ship to be landed
+ * or the character to be flying.
+ *
+ * @param ch        The character disembarking
+ * @param argument  Unused
+ *
+ * Blocked by:
+ * - Character is in combat
+ * - Character is not currently on a ship
+ * - Airship is moving (doors locked)
+ * - Airship is stopped but not landed (requires flight ability)
+ *
+ * Side effects: Also moves any cart the character is pulling
+ */
 void do_disembark( CHAR_DATA *ch, char *argument)
 {
-    ROOM_INDEX_DATA *location;
+    ROOM_INDEX_DATA *location = NULL;
     OBJ_DATA *ship_obj;
     SHIP_DATA *ship;
 
     if ( ch->fighting != NULL )
     {
-		act("You can't disembark while fighting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
+        act("You can't disembark while fighting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
     }
 
-	ship = get_room_ship(ch->in_room);
+    ship = get_room_ship(ch->in_room);
 
     if( !IS_VALID(ship) )
-	{
-		send_to_char("You are not on a ship.\n\r", ch);
-		return;
-	}
+    {
+        send_to_char("You are not on a ship.\n\r", ch);
+        return;
+    }
 
     if ( ship->ship_type == SHIP_AIR_SHIP && !mobile_is_flying(ch) )
     {
-		if ( ship->speed > SHIP_SPEED_STOPPED )
-		{
-			act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-			return;
-		}
+        if ( ship->speed > SHIP_SPEED_STOPPED )
+        {
+            act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
 
-		if ( ship->speed == SHIP_SPEED_STOPPED )
-		{
-			act( "You need to be flying to disembark a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-			return;
-		}
+        if ( ship->speed == SHIP_SPEED_STOPPED )
+        {
+            act( "You need to be flying to disembark a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
     }
 
     location = ship->ship->in_room;
@@ -85,493 +104,575 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 
     if( get_colour_width(ship_obj->short_descr) > 0 )
     {
-	    act("{WYou disembark from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
-    	act("{W$n disembarks from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
-	}
-	else
-	{
-	    act("{WYou disembark from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
-    	act("{W$n disembarks from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
-	}
+        act("{WYou disembark from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("{W$n disembarks from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+    else
+    {
+        act("{WYou disembark from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("{W$n disembarks from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
 
-	move_cart(ch,location,true);
+    move_cart(ch,location,true);
 }
 
 
+/**
+ * do_enter - Enter a portal or board a ship
+ *
+ * Handles entry into portals (ITEM_PORTAL) and ships (ITEM_SHIP). Supports
+ * multiple portal types including dungeon portals, random destination portals,
+ * area-random portals, wilderness coordinate portals, and standard room portals.
+ *
+ * Portal flags supported:
+ * - GATE_DUNGEON: Portal leads to/within a dungeon
+ * - GATE_DUNGEONRANDOM: Random room within current dungeon
+ * - GATE_INSTANCERANDOM: Random room within current instance
+ * - GATE_SECTIONRANDOM: Random room within current section
+ * - GATE_RANDOM: Completely random destination
+ * - GATE_AREARANDOM: Random room within portal's area
+ * - GATE_BUGGY: 5% chance of random destination
+ * - GATE_NOCURSE: Blocks cursed characters
+ * - GATE_SILENTENTRY: No entry message in source room
+ * - GATE_SILENTEXIT: No arrival message in destination room
+ * - GATE_NORMAL_EXIT: Uses normal movement messages
+ * - GATE_GOWITH: Portal moves with character
+ * - GATE_NOSNEAK: Strips sneak on entry
+ * - GATE_SNEAK: Attempts auto-sneak on entry
+ * - GATE_FORCE_BRIEF: Forces brief mode for the look
+ * - GATE_NOPRIVACY: Can enter private rooms
+ * - EX_ENVIRONMENT: Goes to source room's environment
+ * - EX_PREVFLOOR/EX_NEXTFLOOR: Dungeon floor navigation
+ *
+ * @param ch        The character entering
+ * @param argument  The name of the portal/ship to enter
+ *
+ * Blocked by:
+ * - Character is in combat
+ * - Portal not found in room (also searches adjacent rooms for ships)
+ * - Portal is closed (EX_CLOSED)
+ * - Character is cursed and portal has GATE_NOCURSE
+ * - Destination is private and portal lacks GATE_NOPRIVACY
+ * - Room is locked and TRIG_PREENTER fails
+ * - Mounted character trying to board ship
+ * - Flying airship with non-flying character
+ * - Moving vessel
+ *
+ * Triggers:
+ * - TRIG_PREENTER on destination room, portal
+ * - TRIG_ENTRY on portal, dungeon, instance, character
+ * - TRIG_GREET (mob, object, room programs) on arrival
+ *
+ * Side effects:
+ * - Moves character's cart
+ * - May cast portal spells on character
+ * - May apply sneak effect
+ * - Decrements portal charges (extracts at 0)
+ * - Followers attempt to follow through portal
+ */
 void do_enter( CHAR_DATA *ch, char *argument)
 {
-    ROOM_INDEX_DATA *location;
+    ROOM_INDEX_DATA *location = NULL;
 
     if ( ch->fighting != NULL )
-	return;
+    return;
 
     if (argument[0] != '\0')
     {
-	ROOM_INDEX_DATA *old_room;
-	OBJ_DATA *portal;
-	CHAR_DATA *fch, *fch_next;
+    ROOM_INDEX_DATA *old_room;
+    OBJ_DATA *portal;
+    CHAR_DATA *fch, *fch_next;
 
-	old_room = ch->in_room;
+    old_room = ch->in_room;
 
-	portal = get_obj_list( ch, argument,  ch->in_room->contents );
+    portal = get_obj_list( ch, argument,  ch->in_room->contents );
 
-	if (portal == NULL)
-	{
-	    int i;
-	    ROOM_INDEX_DATA *r2;
-	    for ( i = 0; i < MAX_DIR; i++ ) {
-		if ( ch->in_room->exit[ i ] != NULL && (r2 = ch->in_room->exit[ i ]->u1.to_room)) {
-		    portal = get_obj_list( ch, argument,  r2->contents );
-		    if ( portal != NULL && portal->item_type == ITEM_SHIP ) {
-			break;
-		    }
-		}
-	    }
+    if (portal == NULL)
+    {
+        int i;
+        ROOM_INDEX_DATA *r2;
+        for ( i = 0; i < MAX_DIR; i++ ) {
+        if ( ch->in_room->exit[ i ] != NULL && (r2 = ch->in_room->exit[ i ]->u1.to_room)) {
+            portal = get_obj_list( ch, argument,  r2->contents );
+            if ( portal != NULL && portal->item_type == ITEM_SHIP ) {
+            break;
+            }
+        }
+        }
 
-	    if ( portal == NULL ) {
-		send_to_char("You don't see that here.\n\r",ch);
-		return;
-	    }
-	}
+        if ( portal == NULL ) {
+        send_to_char("You don't see that here.\n\r",ch);
+        return;
+        }
+    }
 
 /* - Temporary allowance of relics through portals, until ships are fixed. -- Areo
 if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
-	{
-	    send_to_char("You must drop what you are currently pulling.\n\r", ch);
-	    return;
-	}
+    {
+        send_to_char("You must drop what you are currently pulling.\n\r", ch);
+        return;
+    }
 */
 
-	if (portal->item_type == ITEM_SHIP)
-	{
-		// Why?
-	    if (MOUNTED(ch))
-	    {
-			act("You can't board this vessel while mounted.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			return;
-	    }
+    if (portal->item_type == ITEM_SHIP)
+    {
+        // Why?
+        if (MOUNTED(ch))
+        {
+            act("You can't board this vessel while mounted.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
 
-	    if( portal->ship->ship_type == SHIP_AIR_SHIP )
-	    {
-	    	if( !mobile_is_flying(ch) && portal->ship->speed != SHIP_SPEED_LANDED )
-	    	{
-				act("You need to be flying to board a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				return;
-			}
-		}
+        if( portal->ship->ship_type == SHIP_AIR_SHIP )
+        {
+            if( !mobile_is_flying(ch) && portal->ship->speed != SHIP_SPEED_LANDED )
+            {
+                act("You need to be flying to board a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                return;
+            }
+        }
 
-		if (portal->ship->speed > SHIP_SPEED_STOPPED)
-		{
-			act("You can't board a moving vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			return;
-		}
+        if (portal->ship->speed > SHIP_SPEED_STOPPED)
+        {
+            act("You can't board a moving vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
 
-	    location = portal->ship->instance->entrance;
+        location = portal->ship->instance->entrance;
 
-	    if ( location )
-	    {
-			/* CHAR_DATA *pMob; */
-			act("{WYou board {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR);
-			act("{W$n boards {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+        if ( location )
+        {
+            /* Sync entrance coordinates to ship object location */
+            if (portal->in_room && portal->in_room->wilds)
+            {
+                location->wilds = portal->in_room->wilds;
+                location->x = portal->in_room->x;
+                location->y = portal->in_room->y;
+            }
 
-			move_cart(ch,location,true);
+            /* CHAR_DATA *pMob; */
+            act("{WYou board {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("{W$n boards {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-			char_from_room(ch);
-			char_to_room(ch, location);
+            move_cart(ch,location,true);
 
-			act("{W$n boards {x$p{W.{x", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+            char_from_room(ch);
+            char_to_room(ch, location);
 
-			do_function(ch, &do_look, "auto");
+            act("{W$n boards {x$p{W.{x", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+            do_function(ch, &do_look, "auto");
 
                 /* For now this makes airship captain kill people.
-		   disable it for now as i dont know how this thing works
-		if ( !IS_NPC(ch)
-		&& portal->ship->owner != ch
-		&& portal->ship->crew_list != NULL)
-		{
-		    boat_echo(portal->ship, "{YThe ship crew charge into combat!{x");
+           disable it for now as i dont know how this thing works
+        if ( !IS_NPC(ch)
+        && portal->ship->owner != ch
+        && portal->ship->crew_list != NULL)
+        {
+            boat_echo(portal->ship, "{YThe ship crew charge into combat!{x");
 
-		     if boarding other persons boat then everyone wants to kill the person
-		    for (pMob = portal->ship->crew_list; pMob != NULL;
-		         pMob = pMob->next_in_crew)
-		    {
-			if ( pMob->fighting == NULL )
-			{
-			    char_from_room(pMob);
-			    char_to_room(pMob, get_room_index(portal->ship->first_room));
+             if boarding other persons boat then everyone wants to kill the person
+            for (pMob = portal->ship->crew_list; pMob != NULL;
+                 pMob = pMob->next_in_crew)
+            {
+            if ( pMob->fighting == NULL )
+            {
+                char_from_room(pMob);
+                char_to_room(pMob, get_room_index(portal->ship->first_room));
 
-				p_percent_trigger( ch,NULL, NULL, NULL, pMob, NULL, NULL, NULL, NULL,TRIG_BOARD , NULL);
+                p_percent_trigger( ch,NULL, NULL, NULL, pMob, NULL, NULL, NULL, NULL,TRIG_BOARD , NULL);
 
-			    set_fighting(pMob, ch);
-			}
-		    }
-		}
-		*/
+                set_fighting(pMob, ch);
+            }
+            }
+        }
+        */
 
-			return;
-	    }
-	}
+            return;
+        }
+    }
 
-	if (portal->item_type != ITEM_PORTAL
-		|| IS_SET(portal->value[1],EX_CLOSED))
-	{
-	    send_to_char("You can't seem to find a way in.\n\r",ch);
-	    return;
-	}
+    if (portal->item_type != ITEM_PORTAL
+        || IS_SET(PORTAL(portal)->exit,EX_CLOSED))
+    {
+        send_to_char("You can't seem to find a way in.\n\r",ch);
+        return;
+    }
 
- 	/* @@@NIB : 20070126 : Changed the polarity of nocurse
- 		It had a NOT.  But that's backwards to the name of
- 		the flag.*/
- 	if (IS_SET(portal->value[2],GATE_NOCURSE)
-  		&&  (IS_AFFECTED(ch,AFF_CURSE)))
-	    /*
-	       ||   IS_SET(old_room->room_flag[0],ROOM_NO_RECALL)))
-	     */
-	{
-	    send_to_char("Something prevents you from leaving...\n\r",ch);
-	    return;
-	}
+     /* @@@NIB : 20070126 : Changed the polarity of nocurse
+         It had a NOT.  But that's backwards to the name of
+         the flag.*/
+     if (IS_SET(PORTAL(portal)->flags,GATE_NOCURSE)
+          &&  (IS_AFFECTED(ch,AFF_CURSE)))
+        /*
+           ||   IS_SET(old_room->room_flag[0],ROOM_NO_RECALL)))
+         */
+    {
+        send_to_char("Something prevents you from leaving...\n\r",ch);
+        return;
+    }
 
-	DUNGEON *in_dungeon = get_room_dungeon(old_room);
-	INSTANCE *in_instance = get_room_instance(old_room);
+    DUNGEON *in_dungeon = get_room_dungeon(old_room);
+    INSTANCE *in_instance = get_room_instance(old_room);
 
-	if (IS_SET(portal->value[2],GATE_DUNGEON) ) {
-		if( IS_VALID(in_dungeon) && in_dungeon->index->vnum == portal->value[3])
-		{
-			int floor = portal->value[5];
+    if (IS_SET(PORTAL(portal)->flags,GATE_DUNGEON) ) {
+        if( IS_VALID(in_dungeon) && in_dungeon->index->vnum == PORTAL(portal)->params[0])
+        {
+            int floor = PORTAL(portal)->params[1];
 
-			if( floor < 1 )
-			{
-				if( IS_SET(portal->value[1], EX_PREVFLOOR) )
-					floor = in_instance->floor - 1;
-				else if( IS_SET(portal->value[1], EX_NEXTFLOOR) )
-					floor = in_instance->floor + 1;
-				else
-					floor = 0;
-			}
+            if( floor < 1 )
+            {
+                if( IS_SET(PORTAL(portal)->exit, EX_PREVFLOOR) )
+                    floor = in_instance->floor - 1;
+                else if( IS_SET(PORTAL(portal)->exit, EX_NEXTFLOOR) )
+                    floor = in_instance->floor + 1;
+                else
+                    floor = 0;
+            }
 
-			if( floor > 0 )
-			{
-				INSTANCE *instance = list_nthdata(in_dungeon->floors, floor);
+            if( floor > 0 )
+            {
+                INSTANCE *instance = list_nthdata(in_dungeon->floors, floor);
 
-				if( IS_VALID(instance) )
-					location = instance->entrance;
-			}
-		}
-		else
-		{
-			location = spawn_dungeon_player(ch, portal->value[3], portal->value[4]);
-		}
-	} else if (IS_SET(portal->value[2],GATE_DUNGEONRANDOM)) {
-		if( IS_VALID(old_room->instance_section) )
-		{
-			if( IS_VALID(old_room->instance_section->instance) )
-			{
-				if( IS_VALID(old_room->instance_section->instance->dungeon) )
-				{
-					location = dungeon_random_room(ch, old_room->instance_section->instance->dungeon );
-				}
-				else
-				{
-					location = instance_random_room(ch, old_room->instance_section->instance );
-				}
-			}
-			else
-			{
-				location = section_random_room(ch, old_room->instance_section );
-			}
-		}
-	} else if (IS_SET(portal->value[2],GATE_INSTANCERANDOM)) {
-		if( IS_VALID(old_room->instance_section) )
-		{
-			if( IS_VALID(old_room->instance_section->instance) )
-			{
-				location = instance_random_room(ch, old_room->instance_section->instance );
-			}
-			else
-			{
-				location = section_random_room(ch, old_room->instance_section );
-			}
-		}
-	} else if (IS_SET(portal->value[2],GATE_SECTIONRANDOM)) {
-		if( IS_VALID(old_room->instance_section) )
-		{
-			location = section_random_room(ch, old_room->instance_section );
-		}
-	} else if (IS_SET(portal->value[1],EX_ENVIRONMENT) && old_room && old_room->source) {
-		location = get_environment(old_room);
-	}
-	else if (IS_SET(portal->value[2],GATE_RANDOM) || (IS_SET(portal->value[2],GATE_BUGGY) && (number_percent() < 5)))
-	{
-		location = get_random_room( ch, 0 );
-	}
-	else if (IS_SET(portal->value[2],GATE_AREARANDOM) || portal->value[3] == -1) {
-		ROOM_INDEX_DATA *here;
+                if( IS_VALID(instance) )
+                    location = instance->entrance;
+            }
+        }
+        else
+        {
+            /* Prefer explicit dungeon area UID in params[4], otherwise use portal object's area */
+            AREA_DATA *dungeon_area = NULL;
+            if (PORTAL(portal)->params[4] > 0)
+                dungeon_area = get_area_index(PORTAL(portal)->params[4]);
 
-		here = obj_room(portal);
+            WNUM wnum = { dungeon_area ? dungeon_area : (portal->pIndexData ? portal->pIndexData->area : NULL), PORTAL(portal)->params[0] };
+            int floor = PORTAL(portal)->params[1];
 
-		if(here) {
-			if(here->wilds)
-			{
-				int x,y;
-				x = number_range(0,here->wilds->map_size_x-1);
-				y = number_range(0,here->wilds->map_size_y-1);
-				location = get_wilds_vroom(here->wilds,x,y);
-				if(!location)
-					location = create_wilds_vroom(here->wilds,x,y);
-			}
-			else if(portal->value[5] > 0)
-			{
-				location = get_random_room_area(ch, get_area_from_uid(portal->value[5]));
-			}
-			else
-				location = get_random_room_area(ch, here->area);
-		} else
-			location = get_random_room_area(ch, find_area("Plith"));
-	} else if (portal->value[5] > 0) {
-		WILDS_DATA *wilds = get_wilds_from_uid(NULL,portal->value[5]);
-		location = get_wilds_vroom(wilds,portal->value[6],portal->value[7]);
-		if(!location)
-			location = create_wilds_vroom(wilds,portal->value[6],portal->value[7]);
-	}
-	else
-	{
-		location = get_room_index(portal->value[3]);
-		// Check if this portal points to a clone room, if so, find it
-		if( location != NULL && (portal->value[6] > 0 || portal->value[7] > 0)) {
-			//log_string("get_clone_room: portal");
-			location = get_clone_room(location, (unsigned long)portal->value[6], (unsigned long)portal->value[7]);
-		}
-	}
+            /* Legacy compatibility: older dungeon portals stored floor in params[4] */
+            if (floor < 1 && !dungeon_area && PORTAL(portal)->params[4] > 0)
+                floor = PORTAL(portal)->params[4];
 
-  	if (!location || location == old_room || !can_see_room(ch,location) ||
-  		(!IS_SET(portal->value[2],GATE_NOPRIVACY) && room_is_private(location, ch))) {
-	    act("$p doesn't seem to go anywhere.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
-	    return;
-	}
+            if (floor < 1)
+                floor = 1;
 
-	if(!is_room_unlocked(ch, location) )
-	{
-		int ret = p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, NULL);
+            location = spawn_dungeon_player(ch, wnum, floor);
+        }
+    } else if (IS_SET(PORTAL(portal)->flags,GATE_DUNGEONRANDOM)) {
+        if( IS_VALID(old_room->instance_section) )
+        {
+            if( IS_VALID(old_room->instance_section->instance) )
+            {
+                if( IS_VALID(old_room->instance_section->instance->dungeon) )
+                {
+                    location = dungeon_random_room(ch, old_room->instance_section->instance->dungeon );
+                }
+                else
+                {
+                    location = instance_random_room(ch, old_room->instance_section->instance );
+                }
+            }
+            else
+            {
+                location = section_random_room(ch, old_room->instance_section );
+            }
+        }
+    } else if (IS_SET(PORTAL(portal)->flags,GATE_INSTANCERANDOM)) {
+        if( IS_VALID(old_room->instance_section) )
+        {
+            if( IS_VALID(old_room->instance_section->instance) )
+            {
+                location = instance_random_room(ch, old_room->instance_section->instance );
+            }
+            else
+            {
+                location = section_random_room(ch, old_room->instance_section );
+            }
+        }
+    } else if (IS_SET(PORTAL(portal)->flags,GATE_SECTIONRANDOM)) {
+        if( IS_VALID(old_room->instance_section) )
+        {
+            location = section_random_room(ch, old_room->instance_section );
+        }
+    } else if (IS_SET(PORTAL(portal)->exit,EX_ENVIRONMENT) && old_room && old_room->source) {
+        location = get_environment(old_room);
+    }
+    else if (IS_SET(PORTAL(portal)->flags,GATE_RANDOM) || (IS_SET(PORTAL(portal)->flags,GATE_BUGGY) && (number_percent() < 5)))
+    {
+        location = get_random_room( ch, 0 );
+    }
+    else if (IS_SET(PORTAL(portal)->flags,GATE_AREARANDOM) || PORTAL(portal)->params[0] == -1) {
+        ROOM_INDEX_DATA *here;
 
-		if( ret < 1 )
-		{
-			send_to_char("You cannot enter that place yet.\n\r", ch);
-			return;
-		}
-		else if( ret == 1 )
-		{
-			return;
-		}
-	}
+        here = obj_room(portal);
 
-	if(p_percent_trigger(NULL, NULL, location, NULL, ch, NULL, NULL,portal, NULL,TRIG_PREENTER, "portal"))
-		return;
+        if(here) {
+            if(here->wilds)
+            {
+                int x,y;
+                x = number_range(0,here->wilds->map_size_x-1);
+                y = number_range(0,here->wilds->map_size_y-1);
+                location = get_wilds_vroom(here->wilds,x,y);
+                if(!location)
+                    location = create_wilds_vroom(here->wilds,x,y);
+            }
+            else if(PORTAL(portal)->params[1] > 0)
+            {
+                location = get_random_room_area(ch, get_area_from_uid(PORTAL(portal)->params[1]));
+            }
+            else
+                location = get_random_room_area(ch, here->area);
+        } else
+            location = get_random_room_area(ch, find_area("Plith"));
+    } else if (PORTAL(portal)->params[1] > 0) {
+        WILDS_DATA *wilds = get_wilds_from_uid(NULL,PORTAL(portal)->params[1]);
+        location = get_wilds_vroom(wilds,PORTAL(portal)->params[2],PORTAL(portal)->params[3]);
+        if(!location)
+            location = create_wilds_vroom(wilds,PORTAL(portal)->params[2],PORTAL(portal)->params[3]);
+    }
+    else
+    {
+        // params[4] contains area UID, params[0] contains vnum
+        AREA_DATA *dest_area = PORTAL(portal)->params[4] > 0 ? get_area_index(PORTAL(portal)->params[4]) : NULL;
+        if (!dest_area) dest_area = get_system_area_fallback();
+        location = get_room_index(dest_area, PORTAL(portal)->params[0]);
+        // Check if this portal points to a clone room, if so, find it
+        if( location != NULL && (PORTAL(portal)->params[2] > 0 || PORTAL(portal)->params[3] > 0)) {
+            //plogf(LOG_DEBUG, "get_clone_room: portal");
+            location = get_clone_room(location, (unsigned long)PORTAL(portal)->params[2], (unsigned long)PORTAL(portal)->params[3]);
+        }
+    }
 
-	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_PREENTER, NULL))
-		return;
+      if (!location || location == old_room || !can_see_room(ch,location) ||
+          (!IS_SET(PORTAL(portal)->flags,GATE_NOPRIVACY) && room_is_private(location, ch))) {
+        act("$p doesn't seem to go anywhere.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        return;
+    }
 
-	if( !IS_SET(portal->value[2], GATE_DUNGEON) )
-	{
-		portal->value[3] = location->vnum;
-		portal->value[4] = location->area->uid;
-		portal->value[5] = location->wilds ? location->wilds->uid : 0;
-		portal->value[6] = location->wilds ? location->x : 0;
-		portal->value[7] = location->wilds ? location->y : 0;
-	}
+    if(!is_room_unlocked(ch, location) )
+    {
+        int ret = p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, NULL);
 
- 	/* @@@NIB : 20070126 : added the check */
- 	if(!IS_SET(portal->value[2],GATE_SILENTENTRY))
-  		act("$n steps into $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
+        if( ret < 1 )
+        {
+            send_to_char("You cannot enter that place yet.\n\r", ch);
+            return;
+        }
+        else if( ret == 1 )
+        {
+            return;
+        }
+    }
 
-	if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
-	    act("{YYou enter $p.{x",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_CHAR);
-	else if (!IS_SET(portal->value[2], GATE_RANDOM))
-	    act("{YYou walk through $p and find yourself in $T.{x",
-		    ch, NULL, NULL,portal, NULL, NULL,location->name,TO_CHAR);
-	else
-	    act("{YYou walk through $p and find yourself somewhere else...{x",
-		    ch, NULL, NULL,portal, NULL, NULL,location->name,TO_CHAR);
+    if(p_percent_trigger(NULL, NULL, location, NULL, ch, NULL, NULL,portal, NULL,TRIG_PREENTER, "portal"))
+        return;
 
-	move_cart(ch,location,true);
+    if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_PREENTER, NULL))
+        return;
 
-	DUNGEON *to_dungeon = get_room_dungeon(location);
-	INSTANCE *to_instance = get_room_instance(location);
+    if( !IS_SET(PORTAL(portal)->flags, GATE_DUNGEON) )
+    {
+        PORTAL(portal)->params[0] = location->vnum;
+        PORTAL(portal)->params[4] = location->area->uid;
+        PORTAL(portal)->params[1] = location->wilds ? location->wilds->uid : 0;
+        PORTAL(portal)->params[2] = location->wilds ? location->x : 0;
+        PORTAL(portal)->params[3] = location->wilds ? location->y : 0;
+    }
 
-	char_from_room(ch);
-	char_to_room(ch, location);
+     /* @@@NIB : 20070126 : added the check */
+     if(!IS_SET(PORTAL(portal)->flags,GATE_SILENTENTRY))
+          act("$n steps into $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+
+    if (IS_SET(PORTAL(portal)->flags,GATE_NORMAL_EXIT))
+        act("{YYou enter $p.{x",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
+    else if (!IS_SET(PORTAL(portal)->flags, GATE_RANDOM))
+        act("{YYou walk through $p and find yourself in $T.{x",
+            ch, NULL, NULL,portal, NULL, NULL,location->name,TO_CHAR, NULL, NULL);
+    else
+        act("{YYou walk through $p and find yourself somewhere else...{x",
+            ch, NULL, NULL,portal, NULL, NULL,location->name,TO_CHAR, NULL, NULL);
+
+    move_cart(ch,location,true);
+
+    DUNGEON *to_dungeon = get_room_dungeon(location);
+    INSTANCE *to_instance = get_room_instance(location);
+
+    char_from_room(ch);
+    char_to_room(ch, location);
 
         /* Let portals cast spells */
-	{
-		SPELL_DATA *spell;
+    {
+        SPELL_DATA *spell;
 
-		for (spell = portal->spells; spell; spell = spell->next)
-			obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
-	}
+        for (spell = portal->spells; spell; spell = spell->next)
+            obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
+    }
 
-	if (IS_SET(portal->value[2],GATE_GOWITH)) /* take the gate along */
-	{
-	    obj_from_room(portal);
-	    obj_to_room(portal,location);
-	}
+    if (IS_SET(PORTAL(portal)->flags,GATE_GOWITH)) /* take the gate along */
+    {
+        obj_from_room(portal);
+        obj_to_room(portal,location);
+    }
 
-	/* @@@NIB : 20070127 : strip off if portal is nosneak
-			Right now, it does not mix with "sneak". */
-	if(IS_SET(portal->value[2],GATE_NOSNEAK)) {
-		affect_strip(ch, gsn_sneak);
-		REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
+    /* @@@NIB : 20070127 : strip off if portal is nosneak
+            Right now, it does not mix with "sneak". */
+    SKILL_DATA *sk_sneak = skill_find("sneak");
+    int16_t sn_sneak = skill_sn(sk_sneak);
+    if(IS_SET(PORTAL(portal)->flags,GATE_NOSNEAK)) {
+        affect_strip(ch, sn_sneak);
+        REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
 
-	/* @@@NIB : 20070127 : if portal is sneak, attempt autosneak IF they can do it!
-			Maybe in the future if permitted, this can do it regardless of
-			whether they can do it or not.  For now, normal rules for "sneak"
-			apply.  If they are already sneaking, that's a different story.
-			Improvement is not done here and if you fail, it doesn't say
-			anything. */
-	} else if(IS_SET(portal->value[2],GATE_SNEAK)) {
-		if(!MOUNTED(ch) && !ch->fighting && !IS_AFFECTED(ch,AFF_SNEAK) &&
-			(number_percent() < get_skill(ch,gsn_sneak))) {
-			AFFECT_DATA af;
-			memset(&af,0,sizeof(af));
-			af.where     = TO_AFFECTS;
-			af.group     = AFFGROUP_PHYSICAL;
-			af.type      = gsn_sneak;
-			af.level     = ch->level;
-			af.duration  = ch->level;
-			af.location  = APPLY_NONE;
- 			af.modifier  = 0;
-			af.bitvector = AFF_SNEAK;
-			af.bitvector2 = 0;
-			af.slot	= WEAR_NONE;
-			affect_to_char(ch, &af);
-			send_to_char("You assume a sneaking posture.\n\r", ch);
-		}
-	}
+    /* @@@NIB : 20070127 : if portal is sneak, attempt autosneak IF they can do it!
+            Maybe in the future if permitted, this can do it regardless of
+            whether they can do it or not.  For now, normal rules for "sneak"
+            apply.  If they are already sneaking, that's a different story.
+            Improvement is not done here and if you fail, it doesn't say
+            anything. */
+    } else if(IS_SET(PORTAL(portal)->flags,GATE_SNEAK)) {
+        if(!MOUNTED(ch) && !ch->fighting && !IS_AFFECTED(ch,AFF_SNEAK) &&
+            (number_percent() < get_skill(ch,sn_sneak))) {
+            AFFECT_DATA af;
+            memset(&af,0,sizeof(af));
+            af.where     = TO_AFFECTS;
+            af.group     = AFFGROUP_PHYSICAL;
+            af.type      = sn_sneak;
+    af.skill = sk_sneak;
+            af.level     = ch->level;
+            af.duration  = ch->level;
+            af.location  = APPLY_NONE;
+             af.modifier  = 0;
+            af.bitvector = AFF_SNEAK;
+            af.bitvector2 = 0;
+            af.slot	= WEAR_NONE;
+            affect_to_char(ch, &af);
+            send_to_char("You assume a sneaking posture.\n\r", ch);
+        }
+    }
 
-	/* @@@NIB : 20070126 : added the check */
-	if(!IS_SET(portal->value[2],GATE_SILENTEXIT)) {
+    /* @@@NIB : 20070126 : added the check */
+    if(!IS_SET(PORTAL(portal)->flags,GATE_SILENTEXIT)) {
 
-		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
-		{
-			OBJ_DATA *dp = get_room_dungeon_portal(location, in_dungeon->index->vnum);
+        if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
+        {
+            OBJ_DATA *dp = get_room_dungeon_portal(location, in_dungeon->index->vnum);
 
-			if( IS_VALID(dp) )
-			{
-				if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
-				{
-					act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, dp, NULL, NULL, NULL, TO_ROOM);
-				}
-				else
-				{
-					act("$n has arrived through $p.",ch, NULL, NULL,dp, NULL, NULL,NULL,TO_ROOM);
-				}
-			}
-			else if(MOUNTED(ch))
-			{
-				if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
-					act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				else
+            if( IS_VALID(dp) )
+            {
+                if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
+                {
+                    act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, dp, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                }
+                else
+                {
+                    act("$n has arrived through $p.",ch, NULL, NULL,dp, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+                }
+            }
+            else if(MOUNTED(ch))
+            {
+                if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
+                    act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                else
 
-					act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			}
-			else
-			{
-				if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-					act(in_dungeon->index->zone_out, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				else
-					act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
-			}
-		}
-		else if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
-  		    act("$n has arrived.",ch, NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
-  		else
-  		    act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
-	}
+                    act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+            else
+            {
+                if( !IS_NULLSTR(in_dungeon->index->zone_out) )
+                    act(in_dungeon->index->zone_out, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                else
+                    act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+        }
+        else if (IS_SET(PORTAL(portal)->flags,GATE_NORMAL_EXIT))
+              act("$n has arrived.",ch, NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+          else
+              act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+    }
 
-	if(!IS_NPC(ch) && IS_SET(portal->value[2],GATE_FORCE_BRIEF)) {
-		bool was_brief = IS_SET(ch->comm, COMM_BRIEF) && true;
+    if(!IS_NPC(ch) && IS_SET(PORTAL(portal)->flags,GATE_FORCE_BRIEF)) {
+        bool was_brief = IS_SET(ch->comm, COMM_BRIEF) && true;
 
-		SET_BIT(ch->comm, COMM_BRIEF);
-		do_function(ch, &do_look, "auto");
+        SET_BIT(ch->comm, COMM_BRIEF);
+        do_function(ch, &do_look, "auto");
 
-		if( !was_brief )
-			REMOVE_BIT(ch->comm, COMM_BRIEF);
-	} else {
-		do_function(ch, &do_look, "auto");
-	}
+        if( !was_brief )
+            REMOVE_BIT(ch->comm, COMM_BRIEF);
+    } else {
+        do_function(ch, &do_look, "auto");
+    }
 
 
-	/* charges */
-	if (portal->value[0] > 0)
-	{
-	    portal->value[0]--;
-	    if (portal->value[0] == 0)
-		portal->value[0] = -1;
-	}
+    /* charges */
+    if (PORTAL(portal)->charges > 0)
+    {
+        PORTAL(portal)->charges--;
+        if (PORTAL(portal)->charges == 0)
+        PORTAL(portal)->charges = -1;
+    }
 
-	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_ENTRY, NULL))
-		return;
+    if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_ENTRY, NULL))
+        return;
 
-	/* protect against circular follows */
-	if (old_room == location)
-	    return;
+    /* protect against circular follows */
+    if (old_room == location)
+        return;
 
-	for ( fch = old_room->people; fch != NULL; fch = fch_next )
-	{
-	    fch_next = fch->next_in_room;
+    for ( fch = old_room->people; fch != NULL; fch = fch_next )
+    {
+        fch_next = fch->next_in_room;
 
-	    if (portal == NULL || portal->value[0] == -1)
-		/* no following through dead portals */
-		continue;
+        if (portal == NULL || PORTAL(portal)->charges == -1)
+        /* no following through dead portals */
+        continue;
 
-	    if ( fch->master == ch && IS_AFFECTED(fch,AFF_CHARM)
-		    &&   fch->position < POS_STANDING)
-		do_function(fch, &do_stand, "");
+        if ( fch->master == ch && IS_AFFECTED(fch,AFF_CHARM)
+            &&   fch->position < POS_STANDING)
+        do_function(fch, &do_stand, "");
 
-	    if ( fch->master == ch && fch->position == POS_STANDING)
-	    {
-		act( "You follow $N.", fch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		do_function(fch, &do_enter, argument);
-	    }
-	}
+        if ( fch->master == ch && fch->position == POS_STANDING)
+        {
+        act( "You follow $N.", fch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        do_function(fch, &do_enter, argument);
+        }
+    }
 
-	if (portal != NULL && portal->value[0] == -1)
-	{
-	    act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
-	    if (ch->in_room == old_room)
-		act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM);
-	    else if (old_room->people != NULL)
-	    {
-		act("$p fades out of existence.",
-			old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
-		act("$p fades out of existence.",
-			old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM);
-	    }
-	    extract_obj(portal);
-	}
+    if (portal != NULL && PORTAL(portal)->charges == -1)
+    {
+        act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        if (ch->in_room == old_room)
+        act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+        else if (old_room->people != NULL)
+        {
+        act("$p fades out of existence.",
+            old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        act("$p fades out of existence.",
+            old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+        }
+        extract_obj(portal);
+    }
 
-	/*
-	 * If someone is following the char, these triggers get activated
-	 * for the followers before the char, but it's safer this way...
-	 */
+    /*
+     * If someone is following the char, these triggers get activated
+     * for the followers before the char, but it's safer this way...
+     */
 
-	if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
-	{
-		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
-	}
+    if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
+    {
+        p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+    }
 
-	if( to_instance != in_instance )
-	{
-		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
-	}
+    if( to_instance != in_instance )
+    {
+        p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+    }
 
-	p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , NULL);
+    p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , NULL);
 
-	if ( !IS_NPC( ch ) ) {
-	    p_greet_trigger( ch, PRG_MPROG );
-	    p_greet_trigger( ch, PRG_OPROG );
-	    p_greet_trigger( ch, PRG_RPROG );
-	}
-	return;
+    if ( !IS_NPC( ch ) ) {
+        p_greet_trigger( ch, PRG_MPROG );
+        p_greet_trigger( ch, PRG_OPROG );
+        p_greet_trigger( ch, PRG_RPROG );
+    }
+    return;
     }
 
     send_to_char("Nope, can't do it.\n\r",ch);

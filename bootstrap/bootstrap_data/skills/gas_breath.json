@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 15,
+            "rating": 10
+        },
+        {
+            "class": "cleric",
+            "level": 15,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 15,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 15,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 175,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Gas Breath!",
+    "name": "gas breath",
+    "noun_damage": "blast of gas",
+    "race": null,
+    "spell_function": "spell_gas_breath",
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 125
+}

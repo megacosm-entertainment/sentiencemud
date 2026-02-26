@@ -20,38 +20,39 @@
 
 SPELL_FUNC(spell_deathbarbs)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	CHAR_DATA *temp_char, *next;
-	int dam;
-	int roll;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    CHAR_DATA *temp_char, *next;
+    int dam;
+    int roll;
 
-	act("{YYou shoot a swarm of razor sharp barbs toward $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{Y$n shoots a swarm of razor sharp barbs toward you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	act("{Y$n shoots a swarm of razor sharp barbs toward $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+    act("{YYou shoot a swarm of razor sharp barbs toward $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{Y$n shoots a swarm of razor sharp barbs toward you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act("{Y$n shoots a swarm of razor sharp barbs toward $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
 
-	if (check_shield_block_projectile(ch, victim, "deathbarbs", NULL))
-		return false;
+    if (check_shield_block_projectile(ch, victim, "deathbarbs", NULL))
+        return false;
 
-	roll = UMAX((level*2-15),5) * (get_skill(ch, sn)/100);
-	roll = UMAX(roll, 5);
+    roll = UMAX((level*2-15),5) * (get_skill(ch, sn)/100);
+    roll = UMAX(roll, 5);
 
-	while (roll > 0) {
-		dam = dice(roll, 3);
-		damage(ch, victim, dam, sn, DAM_PIERCE, true);
-		for (temp_char = ch->in_room->people; temp_char; temp_char = next) {
-			next = temp_char->next_in_room;
-			if (temp_char != victim && is_same_group(temp_char, victim) &&
-				!is_safe_spell(ch, temp_char, false)) {
-				act("{YThe barbs fan out, hitting $N!{x", ch,  temp_char, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("{YThe barbs fan out, hitting you!{x", ch, temp_char, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-				act("{YThe barbs fan out, hitting $N!{x", ch,  temp_char, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-				damage(ch, temp_char, dam, sn, DAM_PIERCE, true);
-			}
-		}
+    while (roll > 0) {
+        dam = dice(roll, 3);
+        damage(ch, victim, dam, sn, DAM_PIERCE, true);
+        for (temp_char = ch->in_room->people; temp_char; temp_char = next) {
+            next = temp_char->next_in_room;
+            if (temp_char != victim && is_same_group(temp_char, victim) &&
+                !is_safe_spell(ch, temp_char, false)) {
+                act("{YThe barbs fan out, hitting $N!{x", ch,  temp_char, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("{YThe barbs fan out, hitting you!{x", ch, temp_char, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                act("{YThe barbs fan out, hitting $N!{x", ch,  temp_char, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+                damage(ch, temp_char, dam, sn, DAM_PIERCE, true);
+            }
+        }
 
-		roll -= level/2;
-	}
-	return true;
+        roll -= level/2;
+    }
+    return true;
 }
 
 

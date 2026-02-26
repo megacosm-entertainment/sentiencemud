@@ -1,0 +1,22 @@
+{
+    "name": "monk skills",
+    "skills": [
+        "counterspell",
+        "dodge",
+        "dispel evil",
+        "frenzy",
+        "fireproof",
+        "catch",
+        "bless",
+        "stone skin",
+        "armour",
+        "dirt kicking",
+        "kick",
+        "lore",
+        "mass healing",
+        "holy word",
+        "reverie",
+        "martial arts",
+        "deep trance"
+    ]
+}

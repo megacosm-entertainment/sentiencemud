@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 6,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 4,
+            "rating": 3
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 6,
+            "rating": 5
+        }
+    ],
+    "inks": [
+        [
+            16,
+            1
+        ],
+        [
+            5,
+            1
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 75,
+    "minimum_position": "fighting",
+    "msg_disp": "$n is no longer blinded.",
+    "msg_obj": "",
+    "msg_off": "You can see again.",
+    "name": "blindness",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_blindness",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 22
+}

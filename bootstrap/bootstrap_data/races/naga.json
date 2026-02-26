@@ -1,0 +1,92 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "naga",
+  "uid": 21,
+  "name": "naga",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": "sith"
+  },
+  "display": {
+    "who_name": "{R Naga "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": -1,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs",
+      "tail"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [],
+    "offensive": [],
+    "immunities": [
+      "poison"
+    ],
+    "resistances": [],
+    "vulnerabilities": [
+      "pierce",
+      "fire"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 20,
+      "int": 21,
+      "wis": 21,
+      "dex": 24,
+      "con": 21
+    },
+    "max_vitals": {
+      "hp": 3600,
+      "mana": 3500,
+      "move": 4250
+    }
+  },
+  "skills": [
+    "hunt",
+    "tail kick",
+    "bite",
+    "toxins",
+    "sense danger",
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "toxin_system": true,
+    "scent_tracking": true,
+    "scent_track_flavor": "Your forked tongue tastes the air"
+  }
+}

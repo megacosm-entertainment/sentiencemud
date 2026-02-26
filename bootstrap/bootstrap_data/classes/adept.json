@@ -1,0 +1,59 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "adept",
+        "male": "adept",
+        "neutral": "adept",
+        "other": "adept"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster",
+        "remort_only"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "cleric skills",
+        "adept skills"
+    ],
+    "hp_max": 10,
+    "hp_min": 7,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "adept",
+    "primary_stat": "wisdom",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "cleric skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "adept skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "adept",
+            "keyword": "default",
+            "who_name": "   Adept    "
+        }
+    ],
+    "type": "cleric",
+    "traits": {
+        "divine_healer": true
+    },
+    "uid": 21,
+    "weapon": 0,
+    "who": {
+        "female": "   Adept    ",
+        "male": "   Adept    ",
+        "neutral": "   Adept    ",
+        "other": "   Adept    "
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "name": "thief skills",
+    "skills": [
+        "steal",
+        "dagger",
+        "sword",
+        "hide",
+        "sneak",
+        "peek",
+        "acrobatics",
+        "second attack"
+    ]
+}

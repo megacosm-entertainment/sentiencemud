@@ -1,0 +1,83 @@
+{
+  "test_suite": "reserved_wnum",
+  "description": "Tests for reserved system with WNUM support",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "reserved_lookup_with_valid_wnum",
+      "description": "Test reserved item lookup with valid area UID and vnum",
+      "dependencies": [],
+      "test_type": "reserved_lookup_test",
+      "input": {
+        "reserved_name": "room_default_recall",
+        "expected_type": "room",
+        "should_exist": true
+      },
+      "expected_output": {
+        "success": true,
+        "has_area": true,
+        "has_vnum": true
+      }
+    },
+    {
+      "name": "reserved_lookup_nonexistent",
+      "description": "Test reserved item lookup for non-existent item returns null",
+      "dependencies": [],
+      "test_type": "reserved_lookup_test",
+      "input": {
+        "reserved_name": "nonexistent_reserved_item_12345",
+        "should_exist": false
+      },
+      "expected_output": {
+        "success": true,
+        "item_found": false
+      }
+    },
+    {
+      "name": "reserved_wnum_format",
+      "description": "Test WNUM string formatting for reserved items",
+      "dependencies": ["reserved_lookup_with_valid_wnum"],
+      "test_type": "reserved_wnum_format_test",
+      "input": {
+        "reserved_name": "room_default_recall",
+        "check_format": true
+      },
+      "expected_output": {
+        "success": true,
+        "has_hash_separator": true,
+        "parseable": true
+      }
+    },
+    {
+      "name": "reserved_area_type_lookup",
+      "description": "Test reserved AREA type items (store only UID, no vnum)",
+      "dependencies": [],
+      "test_type": "reserved_lookup_test",
+      "input": {
+        "reserved_type": "area",
+        "check_area_items": true
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "reserved_get_vnum_compatibility",
+      "description": "Test backward compatibility of get_reserved_vnum() function",
+      "dependencies": ["reserved_lookup_with_valid_wnum"],
+      "test_type": "reserved_compat_test",
+      "input": {
+        "reserved_name": "room_default_recall",
+        "test_get_vnum": true
+      },
+      "expected_output": {
+        "success": true,
+        "vnum_valid": true,
+        "vnum_positive": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 10
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 10
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 17,
+            "rating": 8
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            1
+        ],
+        [
+            10,
+            2
+        ]
+    ],
+    "min_mana": 75,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "{WThe humming noise around you fades.{x",
+    "name": "energy field",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_energy_field",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 96
+}

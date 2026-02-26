@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 14,
+            "rating": 5
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 5
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 5
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 5
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            6,
+            2
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 35,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "You regain your stamina.",
+    "name": "fatigue",
+    "noun_damage": "spell_fatigue",
+    "race": null,
+    "spell_function": "spell_fatigue",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 108
+}

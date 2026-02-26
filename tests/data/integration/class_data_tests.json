@@ -1,0 +1,128 @@
+{
+  "type": "test_suite",
+  "test_suite": "class_data",
+  "description": "Class data system validation - lookups, rewards, and data integrity",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "class_count_positive",
+      "description": "Verify that classes have been loaded and count is positive",
+      "dependencies": [],
+      "test_type": "class_count_test",
+      "input": {
+        "minimum_expected": 3
+      },
+      "expected_output": {
+        "count_positive": true,
+        "above_minimum": true
+      }
+    },
+    {
+      "name": "class_lookup_by_name",
+      "description": "Verify class lookup by name for known classes",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_lookup_test",
+      "input": {
+        "test_cases": [
+          {
+            "name": "gladiator",
+            "should_exist": true,
+            "description": "Existing gladiator class"
+          },
+          {
+            "name": "wizard",
+            "should_exist": true,
+            "description": "Existing wizard class"
+          },
+          {
+            "name": "paladin",
+            "should_exist": true,
+            "description": "Existing paladin class"
+          },
+          {
+            "name": "totally_fake_class_xyz",
+            "should_exist": false,
+            "description": "Non-existent class returns NULL"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "class_default_exists",
+      "description": "Verify that a default class is defined",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_default_test",
+      "input": {},
+      "expected_output": {
+        "default_class_found": true,
+        "default_class_has_name": true
+      }
+    },
+    {
+      "name": "class_uid_integrity",
+      "description": "Verify all loaded classes have unique, positive UIDs",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_uid_integrity_test",
+      "input": {},
+      "expected_output": {
+        "all_uids_positive": true,
+        "all_uids_unique": true
+      }
+    },
+    {
+      "name": "class_uid_lookup_roundtrip",
+      "description": "Verify class_find_uid roundtrips correctly for all classes",
+      "dependencies": ["class_uid_integrity"],
+      "test_type": "class_uid_roundtrip_test",
+      "input": {
+        "invalid_uids": [-1, 0, 999999]
+      },
+      "expected_output": {
+        "all_roundtrips_match": true
+      }
+    },
+    {
+      "name": "class_name_accessor",
+      "description": "Verify class_name returns correct name, handles NULL",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_name_test",
+      "input": {},
+      "expected_output": {
+        "null_returns_none": true,
+        "valid_returns_name": true
+      }
+    },
+    {
+      "name": "class_type_valid",
+      "description": "Verify all classes have a valid class type in range",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_type_valid_test",
+      "input": {
+        "max_class_type": 7
+      },
+      "expected_output": {
+        "all_types_valid": true
+      }
+    },
+    {
+      "name": "class_exp_table",
+      "description": "Verify XP-per-level function returns reasonable values",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_exp_table_test",
+      "input": {
+        "classes_to_check": 5,
+        "test_levels": [1, 10, 50]
+      },
+      "expected_output": {
+        "all_values_positive": true,
+        "monotonically_increasing": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "type": "test_suite",
+  "test_suite": "skill_data",
+  "description": "Skill data system validation - lookups, counts, and data integrity",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "skill_count_positive",
+      "description": "Verify that skills have been loaded and count is positive",
+      "dependencies": [],
+      "test_type": "skill_count_test",
+      "input": {
+        "minimum_expected": 10
+      },
+      "expected_output": {
+        "count_positive": true,
+        "above_minimum": true
+      }
+    },
+    {
+      "name": "skill_lookup_by_name",
+      "description": "Verify skill lookup by exact name for known skills",
+      "dependencies": ["skill_count_positive"],
+      "test_type": "skill_lookup_test",
+      "input": {
+        "test_cases": [
+          {
+            "name": "sword",
+            "should_exist": true,
+            "description": "Basic weapon skill"
+          },
+          {
+            "name": "dodge",
+            "should_exist": true,
+            "description": "Common defensive skill"
+          },
+          {
+            "name": "magic missile",
+            "should_exist": true,
+            "description": "Basic offensive spell"
+          },
+          {
+            "name": "totally_nonexistent_skill_xyz",
+            "should_exist": false,
+            "description": "Verify NULL returned for non-existent skill"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "skill_search_prefix",
+      "description": "Verify prefix-based skill search works correctly",
+      "dependencies": ["skill_count_positive"],
+      "test_type": "skill_search_test",
+      "input": {
+        "test_cases": [
+          {
+            "prefix": "swo",
+            "should_find": true,
+            "expected_name": "sword",
+            "description": "Prefix match for sword"
+          },
+          {
+            "prefix": "dod",
+            "should_find": true,
+            "expected_name": "dodge",
+            "description": "Prefix match for dodge"
+          },
+          {
+            "prefix": "zzzznotaskill",
+            "should_find": false,
+            "description": "No match for bogus prefix"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_searches_correct": true
+      }
+    },
+    {
+      "name": "skill_name_not_null",
+      "description": "Verify skill_name returns 'none' for NULL, actual name otherwise",
+      "dependencies": ["skill_count_positive"],
+      "test_type": "skill_name_test",
+      "input": {},
+      "expected_output": {
+        "null_returns_none": true,
+        "valid_skill_returns_name": true
+      }
+    },
+    {
+      "name": "skill_uid_integrity",
+      "description": "Verify all loaded skills have unique, positive UIDs",
+      "dependencies": ["skill_count_positive"],
+      "test_type": "skill_uid_integrity_test",
+      "input": {},
+      "expected_output": {
+        "all_uids_positive": true,
+        "all_uids_unique": true
+      }
+    },
+    {
+      "name": "skill_uid_lookup_roundtrip",
+      "description": "Verify skill_find_uid returns the same skill for each known UID",
+      "dependencies": ["skill_uid_integrity"],
+      "test_type": "skill_uid_roundtrip_test",
+      "input": {
+        "invalid_uids": [-1, 0, 999999]
+      },
+      "expected_output": {
+        "all_roundtrips_match": true
+      }
+    },
+    {
+      "name": "spell_fun_lookup_known",
+      "description": "Verify spell function name resolution for known spells",
+      "dependencies": ["skill_count_positive"],
+      "test_type": "spell_fun_lookup_test",
+      "input": {
+        "test_cases": [
+          {
+            "name": "spell_magic_missile",
+            "should_exist": true
+          },
+          {
+            "name": "spell_cure_light",
+            "should_exist": true
+          },
+          {
+            "name": "spell_nonexistent_xyz",
+            "should_exist": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    }
+  ]
+}

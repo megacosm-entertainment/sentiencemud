@@ -16,104 +16,110 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "requirements.h"
 
 
 SPELL_FUNC(spell_armour)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	AFFECT_DATA af;
-	bool perm = false;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    AFFECT_DATA af;
+    bool perm = false;
 
-	memset(&af,0,sizeof(af));
+    memset(&af,0,sizeof(af));
 
-	if (level > MAGIC_WEAR_SPELL) {
-		level -= MAGIC_WEAR_SPELL;
-		perm = true;
-	}
+    if (level > MAGIC_WEAR_SPELL) {
+        level -= MAGIC_WEAR_SPELL;
+        perm = true;
+    }
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (is_affected(victim, sn)) {
-		if (victim == ch)
-			send_to_char("You are already armoured.\n\r",ch);
-		else
-			act("$N is already armoured.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return false;
-	}
+    if (perm && is_affected(victim, sn)) {
+        affect_strip(victim, sn);
+    } else if (is_affected(victim, sn)) {
+        if (victim == ch)
+            send_to_char("You are already armoured.\n\r",ch);
+        else
+            act("$N is already armoured.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	af.slot = obj_wear_loc;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
-	af.level = level;
-	af.duration  = perm ? -1 : 35;
-	af.modifier  = -20;
-	af.location  = APPLY_AC;
-	af.bitvector = 0;
-	af.bitvector2 = 0;
-	affect_to_char(victim, &af);
-	send_to_char("You feel someone protecting you.\n\r", victim);
-	if (ch != victim) act("$N is protected by your magic.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-	return true;
+    af.slot = obj_wear_loc;
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_MAGICAL;
+    af.type = sn;
+    af.skill = skill;
+    af.level = level;
+    af.duration  = perm ? -1 : 35;
+    af.modifier  = -20;
+    af.location  = APPLY_AC;
+    af.bitvector = 0;
+    af.bitvector2 = 0;
+    affect_to_char(victim, &af);
+    send_to_char("You feel someone protecting you.\n\r", victim);
+    if (ch != victim) act("$N is protected by your magic.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+    return true;
 }
 
 SPELL_FUNC(spell_cloak_of_guile)
 {
-	CHAR_DATA *victim;
-	AFFECT_DATA af;
-	memset(&af,0,sizeof(af));
-	bool perm = false;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim;
+    AFFECT_DATA af;
+    memset(&af,0,sizeof(af));
+    bool perm = false;
 
-	victim = (CHAR_DATA *) vo;
+    victim = (CHAR_DATA *) vo;
 
-	if (level > MAGIC_WEAR_SPELL) {
-		level -= MAGIC_WEAR_SPELL;
-		perm = true;
-	}
+    if (level > MAGIC_WEAR_SPELL) {
+        level -= MAGIC_WEAR_SPELL;
+        perm = true;
+    }
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (IS_AFFECTED2(victim, AFF2_CLOAK_OF_GUILE) || is_affected(victim, sn)) {
-		if (victim == ch)
-			send_to_char("You are already enshrouded.\n\r",ch);
-		else
-			act("$N is already enshrouded.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return false;
-	}
+    if (perm && is_affected(victim, sn)) {
+        affect_strip(victim, sn);
+    } else if (IS_AFFECTED2(victim, AFF2_CLOAK_OF_GUILE) || is_affected(victim, sn)) {
+        if (victim == ch)
+            send_to_char("You are already enshrouded.\n\r",ch);
+        else
+            act("$N is already enshrouded.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	af.slot = obj_wear_loc;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
-	af.level = level;
-	af.duration  = perm ? -1 : (level/9 + 3);
-	af.location  = APPLY_NONE;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_CLOAK_OF_GUILE;
-	affect_to_char(victim, &af);
+    af.slot = obj_wear_loc;
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_MAGICAL;
+    af.type = sn;
+    af.skill = skill;
+    af.level = level;
+    af.duration  = perm ? -1 : (level/9 + 3);
+    af.location  = APPLY_NONE;
+    af.modifier  = 0;
+    af.bitvector = 0;
+    af.bitvector2 = AFF2_CLOAK_OF_GUILE;
+    affect_to_char(victim, &af);
 
-	send_to_char("You feel shrouded.\n\r", victim);
-	act("$n shimmers with a dark green glow.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return true;
+    send_to_char("You feel shrouded.\n\r", victim);
+    act("$n shimmers with a dark green glow.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    return true;
 }
 
 SPELL_FUNC(spell_entrap)
 {
-	OBJ_DATA *obj = (OBJ_DATA *) vo;
+    int sn __attribute__((unused)) = skill->uid;
+    OBJ_DATA *obj = (OBJ_DATA *) vo;
 
-	if (IS_SET(obj->extra[0], ITEM_HOLY) ||
-		obj->item_type == ITEM_ARTIFACT) {
-		act("$p is too powerful for you to entrap.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return false;
-	}
+    if (IS_SET(obj->extra[0], ITEM_HOLY) ||
+        obj->item_type == ITEM_ARTIFACT) {
+        act("$p is too powerful for you to entrap.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	act("$p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	act("$n's $p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    act("$p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n's $p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-	obj->trap_dam = level + dice(get_skill(ch, sn),3);
-	SET_BIT(obj->extra[0], ITEM_TRAPPED);
-	return true;
+    obj->trap_dam = level + dice(get_skill(ch, sn),3);
+    SET_BIT(obj->extra[0], ITEM_TRAPPED);
+    return true;
 }
 
 
@@ -121,544 +127,583 @@ SPELL_FUNC(spell_entrap)
 
 SPELL_FUNC(spell_faerie_fire)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	AFFECT_DATA af;
-	memset(&af,0,sizeof(af));
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    AFFECT_DATA af;
+    memset(&af,0,sizeof(af));
 
-	if (IS_AFFECTED(victim, AFF_FAERIE_FIRE))
-		return false;
+    if (IS_AFFECTED(victim, AFF_FAERIE_FIRE))
+        return false;
 
-	af.slot	= obj_wear_loc;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
-	af.level = level;
-	af.duration = level;
-	af.location = APPLY_AC;
-	af.modifier = 2 * level;
-	af.bitvector = AFF_FAERIE_FIRE;
-	af.bitvector2 = 0;
-	affect_to_char(victim, &af);
+    af.slot	= obj_wear_loc;
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_MAGICAL;
+    af.type = sn;
+    af.skill = skill;
+    af.level = level;
+    af.duration = level;
+    af.location = APPLY_AC;
+    af.modifier = 2 * level;
+    af.bitvector = AFF_FAERIE_FIRE;
+    af.bitvector2 = 0;
+    affect_to_char(victim, &af);
 
-	send_to_char("You are surrounded by a pink outline.\n\r", victim);
-	act("$n is surrounded by a pink outline.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    send_to_char("You are surrounded by a pink outline.\n\r", victim);
+    act("$n is surrounded by a pink outline.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-	return true;
+    return true;
 }
 
 
 SPELL_FUNC(spell_identify)
 {
-	OBJ_DATA *obj = (OBJ_DATA *) vo;
-	BUFFER *buffer;
-	char buf[2*MAX_STRING_LENGTH];
-	char buf2[MAX_STRING_LENGTH];
-	char objtimer[MSL];
-	//char extra_flags[MSL];
-	AFFECT_DATA *af;
-	OBJ_DATA *key;
-	int i = 0;
-	SPELL_DATA *spell;
+    int sn __attribute__((unused)) = skill->uid;
+    OBJ_DATA *obj = (OBJ_DATA *) vo;
+    BUFFER *buffer;
+    char buf[2*MAX_STRING_LENGTH];
+    char buf2[MAX_STRING_LENGTH];
+    char objtimer[MSL];
+    //char extra_flags[MSL];
+    AFFECT_DATA *af;
+    OBJ_DATA *key;
+    int i = 0;
+    SPELL_DATA *spell;
 
-	if (IS_SET(obj->extra[1], ITEM_NO_LORE)) {
-		act("$p is beyond your power to identify.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return false;
-	}
+    if (IS_SET(obj->extra[1], ITEM_NO_LORE)) {
+        act("$p is beyond your power to identify.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	buffer = new_buf();
+    buffer = new_buf();
 /*
-	if (!obj->extra[0] && !obj->extra[1])
-		sprintf(extra_flags, "none");
-	else {
-		// Extra flags
-		if (obj->extra[0])
-			sprintf(extra_flags, "%s", extra_bit_name(obj->extra[0]));
-		else
-			sprintf(extra_flags, "{x");
+    if (!obj->extra[0] && !obj->extra[1])
+        sprintf(extra_flags, "none");
+    else {
+        // Extra flags
+        if (obj->extra[0])
+            sprintf(extra_flags, "%s", extra_bit_name(obj->extra[0]));
+        else
+            sprintf(extra_flags, "{x");
 
-		// Extra2 flags
-		if (obj->extra[1]) {
-			if (obj->extra[0])
-				strcat(extra_flags, " ");
+        // Extra2 flags
+        if (obj->extra[1]) {
+            if (obj->extra[0])
+                strcat(extra_flags, " ");
 
-			strcat(extra_flags, extra2_bit_name(obj->extra[1]));
-		}
+            strcat(extra_flags, extra2_bit_name(obj->extra[1]));
+        }
 
-		// Extra3 and further will be added here
-	}
+        // Extra3 and further will be added here
+    }
 */
-	if (obj->timer > 0)
-	{
-		sprintf(objtimer, "{MIt will expire after{X %d{M hours.{X\n\r", obj->timer);
-	}
+    if (obj->timer > 0)
+    {
+        sprintf(objtimer, "{MIt will expire after{X %d{M hours.{X\n\r", obj->timer);
+    }
 
-	sprintf(buf,
-		"{MObject '{x%s{M' is type {x%s{M, extra flags {x%s{M.\n\r"
-		"Weight is {x%d{M, value is {x%ld{M, level is {x%d{M.\n\r"
-		"{MFragility is {x%s{M, condition is {x%d%%{M. It has been repaired {x%d{M/{x%d {Mtimes.{x\n\r" ,
-		obj->name,
-		item_name(obj->item_type),
-		bitmatrix_string(extra_flagbank, obj->extra),
-		obj->weight,
-		obj->cost,
-		obj->level,
-		fragile_table[obj->fragility].name,
-		obj->condition,
-		obj->times_fixed,
-		obj->times_allowed_fixed
-		);
+    sprintf(buf,
+        "{MObject '{x%s{M' is type {x%s{M, extra flags {x%s{M.\n\r"
+        "Weight is {x%d{M, value is {x%ld{M, level is {x%d{M.\n\r"
+        "{MFragility is {x%s{M, condition is {x%d%%{M. It has been repaired {x%d{M/{x%d {Mtimes.{x\n\r" ,
+        obj->name,
+        item_name(obj->item_type),
+        bitmatrix_string(extra_flagbank, obj->extra),
+        obj->weight,
+        obj->cost,
+        obj->level,
+        fragile_table[obj->fragility].name,
+        obj->condition,
+        obj->times_fixed,
+        obj->times_allowed_fixed
+        );
 
-	add_buf(buffer, buf);
+    add_buf(buffer, buf);
 
-	if (obj->timer > 0)
-	{
-		sprintf(objtimer, "{MIt will expire after{X %d{M hours.{X\n\r", obj->timer);
-		add_buf(buffer, objtimer);
-	}
+    if (obj->timer > 0)
+    {
+        sprintf(objtimer, "{MIt will expire after{X %d{M hours.{X\n\r", obj->timer);
+        add_buf(buffer, objtimer);
+    }
 
-	sprintf(buf, "{MIt is made out of {x%s{M.\n\r", obj->material);
-	add_buf(buffer, buf);
+    {
+        bool used_legacy_fallback = false;
+        const char *resolved_material = material_resolve_name(obj->material, &used_legacy_fallback);
 
-	// Sages know where items come from, if from the mortal world
-	if (IS_SAGE(ch) || IS_IMMORTAL(ch)) {
-		AREA_DATA *pArea;
+        sprintf(buf, "{MIt is made out of {x%s{M.\n\r", resolved_material);
+        if (used_legacy_fallback && IS_IMMORTAL(ch))
+            strcat(buf, "{R[Legacy material fallback active]{x\n\r");
+    }
+    add_buf(buffer, buf);
 
-		pArea = obj->pIndexData->area;
-		if ((pArea->place_flags == PLACE_FIRST_CONTINENT) ||
-			(pArea->place_flags == PLACE_SECOND_CONTINENT) ||
-			(pArea->place_flags == PLACE_ISLAND) ||
-			!str_cmp(pArea->name, "Undersea")) {
-			sprintf(buf, "{MThis item comes from {x%s{M.{x\n\r", pArea->name);
-			add_buf(buffer, buf);
-		} else
-			add_buf(buffer, "{MThis item is not of the mortal world.{x\n\r");
-	}
+    // Sages know where items come from, if from the mortal world
+    if (IS_SAGE(ch) || IS_IMMORTAL(ch)) {
+        AREA_DATA *pArea;
 
-	switch (obj->item_type) {
-	case ITEM_RANGED_WEAPON:
-		add_buf(buffer, "{MRanged weapon type is {x");
+        pArea = obj->pIndexData->area;
+        if ((pArea->place_flags == PLACE_FIRST_CONTINENT) ||
+            (pArea->place_flags == PLACE_SECOND_CONTINENT) ||
+            (pArea->place_flags == PLACE_ISLAND) ||
+            !str_cmp(pArea->name, "Undersea")) {
+            sprintf(buf, "{MThis item comes from {x%s{M.{x\n\r", pArea->name);
+            add_buf(buffer, buf);
+        } else
+            add_buf(buffer, "{MThis item is not of the mortal world.{x\n\r");
+    }
 
-		switch (obj->value[0]) {
-		case(RANGED_WEAPON_EXOTIC): 	add_buf(buffer, "exotic{M.{x\n\r");	break;
-		case(RANGED_WEAPON_BOW):	add_buf(buffer, "bow{M.{x\n\r");	break;
-		case(RANGED_WEAPON_CROSSBOW): 	add_buf(buffer, "crossbow{M.{x\n\r");	break;
-		case(RANGED_WEAPON_HARPOON): 	add_buf(buffer, "harpoon{M.{x\n\r");	break;
-		case(RANGED_WEAPON_BLOWGUN): 	add_buf(buffer, "blowgun{M.{x\n\r");	break;
-		default: 			add_buf(buffer, "unknown{M.{x\n\r");	break;
-		}
+    switch (obj->item_type) {
+    case ITEM_RANGED_WEAPON:
+        add_buf(buffer, "{MRanged weapon type is {x");
 
-		sprintf(buf,"{MDamage is {x%ldd%ld {M(average {Y%ld{M).\n\r{x",
-			obj->value[1],obj->value[2],
-			(1 + obj->value[2]) * obj->value[1] / 2);
-		add_buf(buffer, buf);
+        switch (WEAPON(obj)->weapon_class) {
+        case(RANGED_WEAPON_EXOTIC): 	add_buf(buffer, "exotic{M.{x\n\r");	break;
+        case(RANGED_WEAPON_BOW):	add_buf(buffer, "bow{M.{x\n\r");	break;
+        case(RANGED_WEAPON_CROSSBOW): 	add_buf(buffer, "crossbow{M.{x\n\r");	break;
+        case(RANGED_WEAPON_HARPOON): 	add_buf(buffer, "harpoon{M.{x\n\r");	break;
+        case(RANGED_WEAPON_BLOWGUN): 	add_buf(buffer, "blowgun{M.{x\n\r");	break;
+        default: 			add_buf(buffer, "unknown{M.{x\n\r");	break;
+        }
 
-		sprintf(buf, "{MRange is {x%ld{M rooms.\n\r", obj->value[3]);
-		add_buf(buffer, buf);
-		break;
+        sprintf(buf,"{MDamage is {x%dd%d {M(average {Y%d{M).\n\r{x",
+            WEAPON(obj)->damage.number,WEAPON(obj)->damage.size,
+            (1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2);
+        add_buf(buffer, buf);
 
-	case ITEM_KEYRING:
-		sprintf(buf, "{MContains the following keys with a total weight of {x%d{M:{x\n\r", get_obj_weight_container(obj));
-		add_buf(buffer, buf);
-		if (!obj->contains) {
-			add_buf(buffer, "{xNo keys.\n\r");
-			break;
-		}
+        sprintf(buf, "{MRange is {x%d{M rooms.\n\r", WEAPON(obj)->range);
+        add_buf(buffer, buf);
+        break;
 
-		for (key = obj->contains; key; key = key->next_content) {
-			i++;
+    case ITEM_KEYRING:
+        sprintf(buf, "{MContains the following keys with a total weight of {x%d{M:{x\n\r", get_obj_weight_container(obj));
+        add_buf(buffer, buf);
+        if (!obj->contains) {
+            add_buf(buffer, "{xNo keys.\n\r");
+            break;
+        }
 
-			sprintf(buf, "{M[{x%3d{M]:{x %s\n\r", i, key->short_descr);
-			add_buf(buffer, buf);
-		}
-		break;
+        for (key = obj->contains; key; key = key->next_content) {
+            i++;
 
-	case ITEM_POTION:
-		if (obj->value[5] > 0) {
-			sprintf(buf, "{MThis potion has {x%ld{M remaining charge%s.{x\n\r",
-				obj->value[5], obj->value[5] == 1 ? "" : "s");
-			add_buf(buffer, buf);
-		}
-		break;
+            sprintf(buf, "{M[{x%3d{M]:{x %s\n\r", i, key->short_descr);
+            add_buf(buffer, buf);
+        }
+        break;
 
-	case ITEM_TATTOO:
-		if (obj->value[0] > 0) {
-			sprintf(buf, "{MThis tattoo has {x%ld{M remaining charge%s.{x\n\r",
-				obj->value[0], obj->value[0] == 1 ? "" : "s");
-			add_buf(buffer, buf);
-		}
+    case ITEM_POTION:
+        if (FLUID_CON(obj)->amount > 0) {
+            sprintf(buf, "{MThis potion has {x%d{M remaining charge%s.{x\n\r",
+                FLUID_CON(obj)->amount, FLUID_CON(obj)->amount == 1 ? "" : "s");
+            add_buf(buffer, buf);
+        }
+        break;
 
-		if ((IS_SAGE(ch) || IS_IMMORTAL(ch)) && obj->value[1] > 0) {
-			sprintf(buf, "{MThere is a %ld%% chance that the tattoo will fade with each touch{x\n\r", obj->value[1]);
-			add_buf(buffer, buf);
-		}
-		break;
+    case ITEM_TATTOO:
+        if (TATTOO(obj)->touches > 0) {
+            sprintf(buf, "{MThis tattoo has {x%d{M remaining charge%s.{x\n\r",
+                TATTOO(obj)->touches, TATTOO(obj)->touches == 1 ? "" : "s");
+            add_buf(buffer, buf);
+        }
 
-	case ITEM_INK:
-		if (obj->value[0] > 0) {
-			sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[obj->value[0]]);
-			add_buf(buffer, buf);
-		}
-		if (obj->value[1] > 0) {
-			sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[obj->value[1]]);
-			add_buf(buffer, buf);
-		}
-		if (obj->value[2] > 0) {
-			sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[obj->value[2]]);
-			add_buf(buffer, buf);
-		}
-		break;
+        if ((IS_SAGE(ch) || IS_IMMORTAL(ch)) && TATTOO(obj)->fading_chance > 0) {
+            sprintf(buf, "{MThere is a %d%% chance that the tattoo will fade with each touch{x\n\r", TATTOO(obj)->fading_chance);
+            add_buf(buffer, buf);
+        }
+        break;
 
-	case ITEM_WAND:
-	case ITEM_STAFF:
-		sprintf(buf, "{MHas {x%ld{M/{x%ld {Mcharges.{x\n\r",
-			obj->value[2], obj->value[1]);
-		add_buf(buffer, buf);
-		break;
+    case ITEM_INK:
+        if (INK(obj)->types[0] > 0) {
+            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[INK(obj)->types[0]]);
+            add_buf(buffer, buf);
+        }
+        if (INK(obj)->types[1] > 0) {
+            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[INK(obj)->types[1]]);
+            add_buf(buffer, buf);
+        }
+        if (INK(obj)->types[2] > 0) {
+            sprintf(buf, "{MThis ink has {x%s{M essence.{x\n\r", catalyst_descs[INK(obj)->types[2]]);
+            add_buf(buffer, buf);
+        }
+        break;
 
-	case ITEM_DRINK_CON:
-		sprintf(buf,"{MIt holds %s-coloured {x%s{M.\n\r{x",
-			liq_table[obj->value[2]].liq_colour,
-			liq_table[obj->value[2]].liq_name);
-		add_buf(buffer,buf);
-		break;
+    case ITEM_WAND:
+    case ITEM_STAFF:
+        sprintf(buf, "{MHas {x%d{M/{x%d {Mcharges.{x\n\r",
+            WAND(obj)->charges, WAND(obj)->max_charges);
+        add_buf(buffer, buf);
+        break;
 
-	case ITEM_WEAPON_CONTAINER:
-		sprintf(buf,"{MHolds {x%d{M/{x%ld {M%ss and {x%d{M/{x%ld{M weight\n\r",
-			get_number_in_container(obj), obj->value[3],
-			weapon_name(obj->value[1]),
-			get_obj_weight_container(obj),
-			obj->value[0]);
-		add_buf(buffer,buf);
-		if (obj->value[3] != 100) {
-			sprintf(buf,"{MWeight multiplier: {x%ld{M%%\n\r", obj->value[4]);
-			add_buf(buffer,buf);
-		}
-		break;
+    case ITEM_DRINK_CON:
+        sprintf(buf,"{MIt holds %s-coloured {x%s{M.\n\r{x",
+            liquid_color(FLUID_CON(obj)->liquid),
+            liquid_name(FLUID_CON(obj)->liquid));
+        add_buf(buffer,buf);
+        break;
 
-	case ITEM_CONTAINER:
-		sprintf(buf,"{MItems: {x%d{M/{x%ld{M  Weight: {x%ld/%ld{M  flags: {x%s{M\n\r",
-			get_number_in_container(obj), obj->value[3],
-			(get_obj_weight_container(obj) * WEIGHT_MULT(obj))/100,
-			obj->value[0], cont_bit_name(obj->value[1]));
-		add_buf(buffer,buf);
-		if (obj->value[4] != 100) {
-			sprintf(buf,"{MWeight multiplier: {x%ld{M%%\n\r", obj->value[4]);
-			add_buf(buffer,buf);
-		}
-		break;
+    case ITEM_WEAPON_CONTAINER:
+        sprintf(buf,"{MHolds {x%d{M/{x%d {M%ss and {x%d{M/{x%d{M weight\n\r",
+            get_number_in_container(obj), WEAPON_CON(obj)->max_items,
+            weapon_name(WEAPON_CON(obj)->weapon_type),
+            get_obj_weight_container(obj),
+            WEAPON_CON(obj)->max_weight);
+        add_buf(buffer,buf);
+        if (WEAPON_CON(obj)->max_items != 100) {
+            sprintf(buf,"{MWeight multiplier: {x%d{M%%\n\r", WEAPON_CON(obj)->weight_multiplier);
+            add_buf(buffer,buf);
+        }
+        break;
 
-	case ITEM_WEAPON:
-		add_buf(buffer, "{MWeapon type is {x");
-		switch (obj->value[0]) {
-		case(WEAPON_EXOTIC): 		add_buf(buffer, "exotic{M");		break;
-		case(WEAPON_SWORD): 		add_buf(buffer, "sword{M");		break;
-		case(WEAPON_DAGGER): 		add_buf(buffer, "dagger{M");		break;
-		case(WEAPON_SPEAR): 		add_buf(buffer, "spear/staff{M");	break;
-		case(WEAPON_MACE): 		add_buf(buffer, "mace/club{M");	break;
-		case(WEAPON_AXE): 		add_buf(buffer, "axe{M");		break;
-		case(WEAPON_FLAIL): 		add_buf(buffer, "flail{M");		break;
-		case(WEAPON_WHIP): 		add_buf(buffer, "whip{M");		break;
-		case(WEAPON_POLEARM): 		add_buf(buffer, "polearm{M");		break;
-		case(WEAPON_STAKE): 		add_buf(buffer, "stake{M");		break;
-		case(WEAPON_QUARTERSTAFF):	add_buf(buffer, "quarterstaff{M");	break;
-		case(WEAPON_THROWABLE): 	add_buf(buffer, "throwable{M");	break;
-		case(WEAPON_ARROW): 		add_buf(buffer, "arrow{M"); 		break;
-		case(WEAPON_BOLT): 		add_buf(buffer, "bolt{M"); 		break;
-		case(WEAPON_DART): 		add_buf(buffer, "dart{M"); 		break;
-		case(WEAPON_HARPOON):		add_buf(buffer, "harpoon{M"); 		break;
-		default:			add_buf(buffer, "unknown{M");		break;
-		}
+    case ITEM_CONTAINER:
+        sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%ld/%d{M  flags: {x%s{M\n\r",
+            get_number_in_container(obj), CONTAINER(obj)->max_items,
+            (get_obj_weight_container(obj) * WEIGHT_MULT(obj))/100,
+            CONTAINER(obj)->max_weight, cont_bit_name(CONTAINER(obj)->flags));
+        add_buf(buffer,buf);
+        if (CONTAINER(obj)->weight_multiplier != 100) {
+            sprintf(buf,"{MWeight multiplier: {x%d{M%%\n\r", CONTAINER(obj)->weight_multiplier);
+            add_buf(buffer,buf);
+        }
+        break;
 
-		sprintf(buf, " with attack type {x%s{M.{x\n\r", attack_table[obj->value[3]].noun);
-		add_buf(buffer, buf);
+    case ITEM_WEAPON:
+        add_buf(buffer, "{MWeapon type is {x");
+        switch (WEAPON(obj)->weapon_class) {
+        case(WEAPON_EXOTIC): 		add_buf(buffer, "exotic{M");		break;
+        case(WEAPON_SWORD): 		add_buf(buffer, "sword{M");		break;
+        case(WEAPON_DAGGER): 		add_buf(buffer, "dagger{M");		break;
+        case(WEAPON_SPEAR): 		add_buf(buffer, "spear/staff{M");	break;
+        case(WEAPON_MACE): 		add_buf(buffer, "mace/club{M");	break;
+        case(WEAPON_AXE): 		add_buf(buffer, "axe{M");		break;
+        case(WEAPON_FLAIL): 		add_buf(buffer, "flail{M");		break;
+        case(WEAPON_WHIP): 		add_buf(buffer, "whip{M");		break;
+        case(WEAPON_POLEARM): 		add_buf(buffer, "polearm{M");		break;
+        case(WEAPON_STAKE): 		add_buf(buffer, "stake{M");		break;
+        case(WEAPON_QUARTERSTAFF):	add_buf(buffer, "quarterstaff{M");	break;
+        case(WEAPON_THROWABLE): 	add_buf(buffer, "throwable{M");	break;
+        case(WEAPON_ARROW): 		add_buf(buffer, "arrow{M"); 		break;
+        case(WEAPON_BOLT): 		add_buf(buffer, "bolt{M"); 		break;
+        case(WEAPON_DART): 		add_buf(buffer, "dart{M"); 		break;
+        case(WEAPON_HARPOON):		add_buf(buffer, "harpoon{M"); 		break;
+        default:			add_buf(buffer, "unknown{M");		break;
+        }
 
-		sprintf(buf,"{MDamage is {x%ldd%ld {M(average {Y%ld{M).\n\r{x",
-			obj->value[1],obj->value[2], (1 + obj->value[2]) * obj->value[1] / 2);
-		add_buf(buffer, buf);
-		if (obj->value[4]) {
-			sprintf(buf,"{MWeapons flags: {x%s\n\r",weapon_bit_name(obj->value[4]));
-			add_buf(buffer,buf);
-		}
-		break;
+        sprintf(buf, " with attack type {x%s{M.{x\n\r", attack_table[WEAPON(obj)->damage_type].noun);
+        add_buf(buffer, buf);
 
-	case ITEM_ARMOUR:
-		sprintf(buf, "{MArmour class is {x%ld {Mpierce, {x%ld {Mbash, {x%ld {Mslash, and {x%ld {Mvs. magic.\n\r",
-			obj->value[0], obj->value[1], obj->value[2], obj->value[3]);
-		add_buf(buffer, buf);
-		break;
-	}
+        sprintf(buf,"{MDamage is {x%dd%d {M(average {Y%d{M).\n\r{x",
+            WEAPON(obj)->damage.number,WEAPON(obj)->damage.size, (1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2);
+        add_buf(buffer, buf);
+        if (WEAPON(obj)->flags) {
+            sprintf(buf,"{MWeapons flags: {x%s\n\r",weapon_bit_name(WEAPON(obj)->flags));
+            add_buf(buffer,buf);
+        }
+        break;
 
-	for (af = obj->affected; af; af = af->next) {
-		if (af->location != APPLY_NONE && af->modifier && !af->custom_name && !(af->type > 0 && af->type < MAX_SKILL)) {
-			sprintf(buf, "{MAffects {x%s {Mby {x%d", affect_loc_name(af->location), af->modifier);
-			add_buf(buffer, buf);
-			if (af->duration > -1)
-				sprintf(buf,"{M, {x%d {Mhours.{x\n\r",af->duration);
-			else
-				sprintf(buf,"{M.\n\r{x");
-			add_buf(buffer,buf);
-			if (af->bitvector) {
-				switch(af->where) {
-				case TO_AFFECTS:
-					sprintf(buf,"{MAdds {x%s {Maffect.{x\n", affects_bit_name(af->bitvector, af->bitvector2));
-					break;
-				case TO_OBJECT:
-					sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra_bit_name(af->bitvector));
-					break;
-				case TO_OBJECT2:
-					sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra2_bit_name(af->bitvector));
-					break;
-				case TO_OBJECT3:
-					sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra3_bit_name(af->bitvector));
-					break;
-				case TO_OBJECT4:
-					sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra4_bit_name(af->bitvector));
-					break;
-				case TO_WEAPON:
-					sprintf(buf,"{MAdds {x%s {Mweapon flags.\n{x", weapon_bit_name(af->bitvector));
-					break;
-				case TO_IMMUNE:
-					sprintf(buf,"{MAdds immunity to {x%s{M.{x\n", imm_bit_name(af->bitvector));
-					break;
-				case TO_RESIST:
-					sprintf(buf,"{MAdds resistance to {x%s{M.\n\r{x", imm_bit_name(af->bitvector));
-					break;
-				case TO_VULN:
-					sprintf(buf,"{MAdds vulnerability to {x%s{M.\n\r{x", imm_bit_name(af->bitvector));
-					break;
-				default:
-					sprintf(buf,"{MUnknown bit {x%d{M: {x%ld\n\r", af->where,af->bitvector);
-					break;
-				}
-				add_buf(buffer,buf);
-			}
-		}
-	}
+    case ITEM_ARMOUR:
+        sprintf(buf, "{MArmour class is {x%d {Mpierce, {x%d {Mbash, {x%d {Mslash, and {x%d {Mvs. magic.\n\r",
+            ARMOR(obj)->protection[0], ARMOR(obj)->protection[1], ARMOR(obj)->protection[2], ARMOR(obj)->protection[3]);
+        add_buf(buffer, buf);
+        break;
+    }
 
-	for (spell = obj->spells; spell; spell = spell->next) {
-		sprintf(buf, "{MLevel {W%d {Mspell of {W%s{M.{x\n\r",
-			spell->level, skill_table[spell->sn].name);
-		add_buf(buffer, buf);
-	}
+    for (af = obj->affected; af; af = af->next) {
+        if (af->location != APPLY_NONE && af->modifier && !af->custom_name && !(af->type > 0 && af->type < MAX_SKILL)) {
+            sprintf(buf, "{MAffects {x%s {Mby {x%d", affect_loc_name(af->location), af->modifier);
+            add_buf(buffer, buf);
+            if (af->duration > -1)
+                sprintf(buf,"{M, {x%d {Mhours.{x\n\r",af->duration);
+            else
+                sprintf(buf,"{M.\n\r{x");
+            add_buf(buffer,buf);
+            if (af->bitvector) {
+                switch(af->where) {
+                case TO_AFFECTS:
+                    sprintf(buf,"{MAdds {x%s {Maffect.{x\n", affects_bit_name(af->bitvector, af->bitvector2));
+                    break;
+                case TO_OBJECT:
+                    sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra_bit_name(af->bitvector));
+                    break;
+                case TO_OBJECT2:
+                    sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra2_bit_name(af->bitvector));
+                    break;
+                case TO_OBJECT3:
+                    sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra3_bit_name(af->bitvector));
+                    break;
+                case TO_OBJECT4:
+                    sprintf(buf,"{MAdds {x%s {Mobject flag.{x\n", extra4_bit_name(af->bitvector));
+                    break;
+                case TO_WEAPON:
+                    sprintf(buf,"{MAdds {x%s {Mweapon flags.\n{x", weapon_bit_name(af->bitvector));
+                    break;
+                case TO_IMMUNE:
+                    sprintf(buf,"{MAdds immunity to {x%s{M.{x\n", imm_bit_name(af->bitvector));
+                    break;
+                case TO_RESIST:
+                    sprintf(buf,"{MAdds resistance to {x%s{M.\n\r{x", imm_bit_name(af->bitvector));
+                    break;
+                case TO_VULN:
+                    sprintf(buf,"{MAdds vulnerability to {x%s{M.\n\r{x", imm_bit_name(af->bitvector));
+                    break;
+                default:
+                    sprintf(buf,"{MUnknown bit {x%d{M: {x%ld\n\r", af->where,af->bitvector);
+                    break;
+                }
+                add_buf(buffer,buf);
+            }
+        }
+    }
 
-	for (af = obj->catalyst; af != NULL; af = af->next) {
-		sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((af->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, af->type ), af->level);
-		add_buf(buffer, buf);
-		if (af->duration > -1)
-			sprintf(buf,"with {x%d%%{M left.\n\r{x",100 * af->duration / (af->level * af->modifier) );
-		else
-			sprintf(buf,"with an infinite source.\n\r{x");
-		add_buf(buffer,buf);
-	}
+    for (spell = obj->spells; spell; spell = spell->next) {
+        sprintf(buf, "{MLevel {W%d {Mspell of {W%s{M.{x\n\r",
+            spell->level, skill_table[spell->sn].name);
+        add_buf(buffer, buf);
+    }
 
-	if (obj->old_name) {
-		sprintf(buf, "{MOriginal name: %s{x\n\r", obj->old_name);
-		add_buf(buffer, buf);
-	}
-	if (obj->old_short_descr) {
-		sprintf(buf, "{MOriginal short desc: %s{x\n\r", obj->old_short_descr);
-		add_buf(buffer, buf);
-	}
-	if (obj->old_description) {
-		sprintf(buf, "{MOriginal long desc: %s{x\n\r", obj->old_description);
-		add_buf(buffer, buf);
-	}
+    for (CATALYST_DATA *cat = obj->catalyst; cat != NULL; cat = cat->next) {
+        sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((cat->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, cat->type ), cat->level);
+        add_buf(buffer, buf);
+        if (cat->duration > -1)
+            sprintf(buf,"with {x%d%%{M left.\n\r{x",100 * cat->duration / (cat->level * cat->modifier) );
+        else
+            sprintf(buf,"with an infinite source.\n\r{x");
+        add_buf(buffer,buf);
+    }
 
-	// Show spells like bless, etc, which have been casted on obj
-	if (obj->affected) {
-		for (af = obj->affected; af; af = af->next) {
-			if (af->type > 0 && af->type < MAX_SKILL) {
-				buf2[0] = '\0';
+    if (obj->old_name) {
+        sprintf(buf, "{MOriginal name: %s{x\n\r", obj->old_name);
+        add_buf(buffer, buf);
+    }
+    if (obj->old_short_descr) {
+        sprintf(buf, "{MOriginal short desc: %s{x\n\r", obj->old_short_descr);
+        add_buf(buffer, buf);
+    }
+    if (obj->old_description) {
+        sprintf(buf, "{MOriginal long desc: %s{x\n\r", obj->old_description);
+        add_buf(buffer, buf);
+    }
 
-				if (af->location != APPLY_NONE && str_cmp(affect_loc_name(af->location), "(unknown)")) {
-					sprintf(buf2, "which affects {x%s{M by {x%d{M ",
-						affect_loc_name(af->location), af->modifier);
-				}
+    // Show spells like bless, etc, which have been casted on obj
+    if (obj->affected) {
+        for (af = obj->affected; af; af = af->next) {
+            if (af->type > 0 && af->type < MAX_SKILL) {
+                buf2[0] = '\0';
 
-				sprintf(buf, "{MAffected by {x%s{M, level {x%d{M, %sfor {x%d{M hours.{x\n\r",
-					skill_table[af->type].name, af->level,
-					buf2[0] == '\0' ? "" : buf2, af->duration);
-				add_buf(buffer, buf);
-			}
-		}
-	}
+                if (af->location != APPLY_NONE && str_cmp(affect_loc_name(af->location), "(unknown)")) {
+                    sprintf(buf2, "which affects {x%s{M by {x%d{M ",
+                        affect_loc_name(af->location), af->modifier);
+                }
 
-	page_to_char(buf_string(buffer), ch);
-	free_buf(buffer);
+                sprintf(buf, "{MAffected by {x%s{M, level {x%d{M, %sfor {x%d{M hours.{x\n\r",
+                    skill_table[af->type].name, af->level,
+                    buf2[0] == '\0' ? "" : buf2, af->duration);
+                add_buf(buffer, buf);
+            }
+        }
+    }
 
-	if (sn == gsn__auction || sn == gsn__inspect)
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, NULL);
-	else if(sn == gsn_lore)
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
-	else if(sn == gsn_identify)
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL);
+    /* Show player-visible prerequisites (player_string) and hidden unmet hints */
+    if (obj->pIndexData && !IS_NULLSTR(obj->pIndexData->prerequisites)) {
+        REQUIREMENT_CONTEXT prereq_ctx;
+        bool meets;
+        char *ps;
+        bool is_hidden;
 
-	return true;
+        memset(&prereq_ctx, 0, sizeof(prereq_ctx));
+        prereq_ctx.actor    = ch;
+        prereq_ctx.self_obj = obj;
+        meets     = requirements_evaluate_text(obj->pIndexData->prerequisites,
+                                              &prereq_ctx, true);
+        ps        = requirements_get_player_string(obj->pIndexData->prerequisites);
+        is_hidden = requirements_is_hidden(obj->pIndexData->prerequisites);
+
+        if (ps && *ps) {
+            sprintf(buf, "{MRequires:{x %s%s{x\n\r",
+                meets ? "{G\u2713 " : "{R\u2717 ", ps);
+            add_buf(buffer, buf);
+        }
+        if (is_hidden && !meets && !(ps && *ps))
+            add_buf(buffer, "{D* Additional requirements not met.{x\n\r");
+        if (ps) free(ps);
+    }
+
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+
+    if (sn == skill_resolve_gsn("_auction") || sn == skill_resolve_gsn("_inspect"))
+        p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, NULL);
+    else if(sn == skill_resolve_gsn("lore"))
+        p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
+    else if(sn == skill_resolve_gsn("identify"))
+        p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL);
+
+    return true;
 }
 
 SPELL_FUNC(spell_locate_object)
 {
-	char buf[MAX_INPUT_LENGTH];
-	char *target_name = (char *) vo;
-	BUFFER *buffer;
-	OBJ_DATA *obj;
-	OBJ_DATA *in_obj;
-	bool found;
-	int number = 0, max_found;
-	ITERATOR it;
+    int sn __attribute__((unused)) = skill->uid;
+    char buf[MAX_INPUT_LENGTH];
+    char *target_name = (char *) vo;
+    BUFFER *buffer;
+    OBJ_DATA *obj;
+    OBJ_DATA *in_obj;
+    bool found;
+    int number = 0, max_found;
+    ITERATOR it;
 
-	if (!target_name)
-		return false;
+    if (!target_name)
+        return false;
 
-	found = false;
-	number = 0;
-	max_found = IS_IMMORTAL(ch) ? 200 : 2 * level;
+    found = false;
+    number = 0;
+    max_found = IS_IMMORTAL(ch) ? 200 : 2 * level;
 
-	buffer = new_buf();
+    buffer = new_buf();
 
-	iterator_start(&it, loaded_objects);
-	while(( obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-		if (!can_see_obj(ch, obj) ||
-			!is_name(target_name, obj->name) ||
-			IS_SET(obj->extra[0], ITEM_NOLOCATE) ||
-			number_percent() > 2 * level ||
-			ch->tot_level < obj->level)
-			continue;
+    iterator_start(&it, loaded_objects);
+    while(( obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+        if (!can_see_obj(ch, obj) ||
+            !is_name(target_name, obj->name) ||
+            IS_SET(obj->extra[0], ITEM_NOLOCATE) ||
+            number_percent() > 2 * level ||
+            ch->tot_level < obj->level)
+            continue;
 
-		found = true;
-		number++;
+        found = true;
+        number++;
 
-		for (in_obj = obj; in_obj->in_obj; in_obj = in_obj->in_obj);
+        for (in_obj = obj; in_obj->in_obj; in_obj = in_obj->in_obj);
 
-		if (in_obj->carried_by && can_see(ch,in_obj->carried_by)) {
-			sprintf(buf, "one is carried by %s\n\r",
-			pers(in_obj->carried_by, ch));
-		} else {
-			char buf2[MSL];
+        if (in_obj->carried_by && can_see(ch,in_obj->carried_by)) {
+            sprintf(buf, "one is carried by %s\n\r",
+            pers(in_obj->carried_by, ch));
+        } else {
+            char buf2[MSL];
 
-			if (IS_IMMORTAL(ch) && in_obj->in_room)
-				sprintf(buf, "one is in %s [Room %ld] ",
-					in_obj->in_room->name, in_obj->in_room->vnum);
-			else
-				sprintf(buf, "one is in %s ", !in_obj->in_room ? "somewhere" : in_obj->in_room->name);
+            if (IS_IMMORTAL(ch) && in_obj->in_room)
+                sprintf(buf, "one is in %s [Room %ld] ",
+                    in_obj->in_room->name, in_obj->in_room->vnum);
+            else
+                sprintf(buf, "one is in %s ", !in_obj->in_room ? "somewhere" : in_obj->in_room->name);
 
-			if (obj->in_room && !str_cmp(obj->in_room->area->name,"Wilderness")) {
-				sprintf(buf2, "[{YX: {x%ld {YY: {x%ld]\n\r", obj->in_room->x, obj->in_room->y);
-				strcat(buf, buf2);
-			} else {
-				strcat(buf, "\n\r");
-			}
-		}
+            if (obj->in_room && !str_cmp(obj->in_room->area->name,"Wilderness")) {
+                sprintf(buf2, "[{YX: {x%ld {YY: {x%ld]\n\r", obj->in_room->x, obj->in_room->y);
+                strcat(buf, buf2);
+            } else {
+                strcat(buf, "\n\r");
+            }
+        }
 
-		buf[0] = UPPER(buf[0]);
-		add_buf(buffer,buf);
+        buf[0] = UPPER(buf[0]);
+        add_buf(buffer,buf);
 
-		if (number >= max_found) break;
-	}
-	iterator_stop(&it);
+        if (number >= max_found) break;
+    }
+    iterator_stop(&it);
 
-	if (!found)
-		send_to_char("Nothing like that in heaven or earth.\n\r", ch);
-	else
-		page_to_char(buf_string(buffer),ch);
+    if (!found)
+        send_to_char("Nothing like that in heaven or earth.\n\r", ch);
+    else
+        page_to_char(buf_string(buffer),ch);
 
-	free_buf(buffer);
-	return true;
+    free_buf(buffer);
+    return true;
 }
 
 
 SPELL_FUNC(spell_pass_door)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	AFFECT_DATA af;
-	bool perm = false;
-	memset(&af,0,sizeof(af));
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    AFFECT_DATA af;
+    bool perm = false;
+    memset(&af,0,sizeof(af));
 
-	if (level > MAGIC_WEAR_SPELL) {
-		level -= MAGIC_WEAR_SPELL;
-		perm = true;
-	}
+    if (level > MAGIC_WEAR_SPELL) {
+        level -= MAGIC_WEAR_SPELL;
+        perm = true;
+    }
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (IS_AFFECTED(victim, AFF_PASS_DOOR)) {
-		if (victim == ch)
-			send_to_char("You are already out of phase.\n\r",ch);
-		else
-			act("$N is already shifted out of phase.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return false;
-	}
+    if (perm && is_affected(victim, sn)) {
+        affect_strip(victim, sn);
+    } else if (IS_AFFECTED(victim, AFF_PASS_DOOR)) {
+        if (victim == ch)
+            send_to_char("You are already out of phase.\n\r",ch);
+        else
+            act("$N is already shifted out of phase.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	af.slot = obj_wear_loc;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
-	af.level = level;
-	af.duration = perm ? -1 : number_fuzzy(level / 4);
-	af.location = APPLY_NONE;
-	af.modifier = 0;
-	af.bitvector = AFF_PASS_DOOR;
-	af.bitvector2 = 0;
-	affect_to_char(victim, &af);
+    af.slot = obj_wear_loc;
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_MAGICAL;
+    af.type = sn;
+    af.skill = skill;
+    af.level = level;
+    af.duration = perm ? -1 : number_fuzzy(level / 4);
+    af.location = APPLY_NONE;
+    af.modifier = 0;
+    af.bitvector = AFF_PASS_DOOR;
+    af.bitvector2 = 0;
+    affect_to_char(victim, &af);
 
-	act("$n turns translucent.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	send_to_char("You turn translucent.\n\r", victim);
-	return true;
+    act("$n turns translucent.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    send_to_char("You turn translucent.\n\r", victim);
+    return true;
 }
 
 
 SPELL_FUNC(spell_room_shield)
 {
-	OBJ_DATA *roomshield;
-	OBJ_DATA *obj;
-	int catalyst;
-	bool outside = false;
+    int sn __attribute__((unused)) = skill->uid;
+    OBJ_DATA *roomshield;
+    OBJ_DATA *obj;
+    int catalyst;
+    bool outside = false;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_LAW,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
+    catalyst = has_catalyst(ch,NULL,CATALYST_LAW,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 
-	if(IS_OUTSIDE(ch) || IS_WILDERNESS(ch->in_room)) {
-		if( catalyst >= 0 ) {
-			if ( catalyst < 10 ) {
-				send_to_char("You may not cast this spell outdoors.\n\r", ch);
-				return false;
-			} else {
-				catalyst -= 10;
-				outside = true;
-			}
-		}
-	}
+    if(IS_OUTSIDE(ch) || IS_WILDERNESS(ch->in_room)) {
+        if( catalyst >= 0 ) {
+            if ( catalyst < 10 ) {
+                send_to_char("You may not cast this spell outdoors.\n\r", ch);
+                return false;
+            } else {
+                catalyst -= 10;
+                outside = true;
+            }
+        }
+    }
 
-	for (obj = ch->in_room->contents; obj; obj = obj->next_content)
-		if (obj->item_type == ITEM_ROOM_ROOMSHIELD) {
-			send_to_char("A room shield has already been set up here.\n\r", ch);
-			return false;
-		}
+    for (obj = ch->in_room->contents; obj; obj = obj->next_content)
+        if (obj->item_type == ITEM_ROOM_ROOMSHIELD) {
+            send_to_char("A room shield has already been set up here.\n\r", ch);
+            return false;
+        }
 
-	if( catalyst > 0 )
-	{
-		int cost;
+    if( catalyst > 0 )
+    {
+        int cost;
 
-		if( catalyst > 10 )
-			catalyst = 10;
+        if( catalyst > 10 )
+            catalyst = 10;
 
-		cost = outside ? (catalyst + 10) : catalyst;	// Being outdoors weakens the use of the catalyst, but is part of the cost
+        cost = outside ? (catalyst + 10) : catalyst;	// Being outdoors weakens the use of the catalyst, but is part of the cost
 
-		use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,cost,1,CATALYST_MAXSTRENGTH,true);
-	}
-	else if(catalyst < 0)
-		catalyst = 10;
+        use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,cost,1,CATALYST_MAXSTRENGTH,true);
+    }
+    else if(catalyst < 0)
+        catalyst = 10;
 
-	roomshield = create_object(get_obj_index(get_reserved_vnum("obj_spell_roomshield")), 0, true);
-	roomshield->timer = 3 + ((3 * catalyst * catalyst + 1) / 4);
-	roomshield->level = ch->tot_level;
-	roomshield->owner = str_dup(ch->name);
+    roomshield = create_object(get_reserved_obj_index("obj_spell_roomshield"), 0, true);
+    roomshield->timer = 3 + ((3 * catalyst * catalyst + 1) / 4);
+    roomshield->level = ch->tot_level;
+    roomshield->owner = str_dup(ch->name);
 
-	obj_to_room(roomshield, ch->in_room);
-	act("{YAn orb of energy forms in $n's hands and $e casts it down.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YAn orb of energy forms in your hands and you cast it at the ground before you.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return true;
+    obj_to_room(roomshield, ch->in_room);
+    act("{YAn orb of energy forms in $n's hands and $e casts it down.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{YAn orb of energy forms in your hands and you cast it at the ground before you.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return true;
 }
 
 
@@ -666,45 +711,46 @@ SPELL_FUNC(spell_room_shield)
 
 SPELL_FUNC(spell_word_of_recall)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	ROOM_INDEX_DATA *location;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    ROOM_INDEX_DATA *location;
 
-	if (IS_NPC(victim))
-		return false;
+    if (IS_NPC(victim))
+        return false;
 
-	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL) ||
-		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL))
-		return false;
+    if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL) ||
+        p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL))
+        return false;
 
-	location = get_recall_room(ch, false);
+    location = get_recall_room(ch, false);
 
-	if (location == NULL) {
-		send_to_char("You are completely lost.\n\r",victim);
-		return false;
-	}
+    if (location == NULL) {
+        send_to_char("You are completely lost.\n\r",victim);
+        return false;
+    }
 
-	//Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
-	if (IS_SET(victim->in_room->room_flag[0],ROOM_NO_RECALL) || IS_AFFECTED(victim,AFF_CURSE) || IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
-		send_to_char("Your attempt to recall has failed.\n\r",victim);
-		return false;
-	}
+    //Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
+    if (IS_SET(victim->in_room->room_flag[0],ROOM_NO_RECALL) || IS_AFFECTED(victim,AFF_CURSE) || IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
+        send_to_char("Your attempt to recall has failed.\n\r",victim);
+        return false;
+    }
 
-	if (ch->no_recall > 0) {
-		send_to_char("You can't summon enough energy.\n\r", ch);
-		return false;
-	}
+    if (ch->no_recall > 0) {
+        send_to_char("You can't summon enough energy.\n\r", ch);
+        return false;
+    }
 
-	if (victim->fighting) {
-		send_to_char("The gods look down and grin with interest. Finish the fight!\n\r", victim);
-		return false;
-	}
+    if (victim->fighting) {
+        send_to_char("The gods look down and grin with interest. Finish the fight!\n\r", victim);
+        return false;
+    }
 
-	victim->move /= 2;
-	if(victim != ch) ch->move /= 2;
-	act("{W$n disappears.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-	char_from_room(victim);
-	char_to_room(victim,location);
-	act("{W$n appears in the room.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
-	do_function(victim, &do_look, "auto");
-	return true;
+    victim->move /= 2;
+    if(victim != ch) ch->move /= 2;
+    act("{W$n disappears.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+    char_from_room(victim);
+    char_to_room(victim,location);
+    act("{W$n appears in the room.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM, NULL, NULL);
+    do_function(victim, &do_look, "auto");
+    return true;
 }

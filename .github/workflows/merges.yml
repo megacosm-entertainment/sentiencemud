@@ -1,115 +1,84 @@
-name: Notify Discord on PR Merge
+name: Merge Notifications
 
 on:
   push:
     branches:
+      - master
       - v2_testport
       - legacy_server
+      - olc_blueprints
+      - feature/widevnum-migration
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   notify-discord:
+    name: Notify Discord on merge/direct push
     runs-on: ubuntu-latest
+
     steps:
-      - name: Extract Commit Details
-        id: extract-commit
+      - name: Build notification payload
+        id: payload
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const headCommit = context.payload.head_commit || {};
+            const message = headCommit.message || '(no commit message)';
+            const author = (headCommit.author && headCommit.author.name) || context.actor;
+            const commitUrl = headCommit.url || `${context.payload.repository.html_url}/commit/${context.sha}`;
+            const branch = context.ref.replace('refs/heads/', '');
+            const isMerge = /^Merge\s/i.test(message) || message.includes('Merge pull request');
+
+            const title = isMerge ? 'Merge pushed' : 'Direct push';
+            const color = isMerge ? 3066993 : 15158332;
+            const description = [
+              `**Repository:** ${context.repo.owner}/${context.repo.repo}`,
+              `**Branch:** ${branch}`,
+              `**Author:** ${author}`,
+              `**Message:** ${message.split('\n')[0]}`
+            ].join('\n');
+
+            const body = {
+              content: null,
+              embeds: [
+                {
+                  title,
+                  description,
+                  url: commitUrl,
+                  color,
+                  timestamp: new Date().toISOString()
+                }
+              ]
+            };
+
+            core.setOutput('json', JSON.stringify(body));
+
+      - name: Select webhook
+        id: webhook
+        shell: bash
         run: |
-          COMMIT_MESSAGE=$(jq -r '.head_commit.message' $GITHUB_EVENT_PATH)
-          COMMIT_AUTHOR=$(jq -r '.head_commit.author.name' $GITHUB_EVENT_PATH)
-          COMMIT_URL=$(jq -r '.head_commit.url' $GITHUB_EVENT_PATH)
-          REPO_URL=$(jq -r '.repository.html_url' $GITHUB_EVENT_PATH)
+          set -euo pipefail
+          BRANCH="${GITHUB_REF_NAME}"
 
-          # Extract PR number (if present)
-          PR_NUMBER=$(echo "$COMMIT_MESSAGE" | grep -o '#[0-9]\+' | sed 's/#//')
-
-          # Default to commit URL if PR_NUMBER is empty
-          if [[ -n "$PR_NUMBER" ]]; then
-            PR_URL="$REPO_URL/pull/$PR_NUMBER"
+          if [[ "$BRANCH" == "legacy_server" && -n "${{ secrets.GHA_LEGACY_DISCORD_WEBHOOK }}" ]]; then
+            echo "url=${{ secrets.GHA_LEGACY_DISCORD_WEBHOOK }}" >> "$GITHUB_OUTPUT"
+          elif [[ "$BRANCH" == "v2_testport" && -n "${{ secrets.GHA_20_DISCORD_WEBHOOK }}" ]]; then
+            echo "url=${{ secrets.GHA_20_DISCORD_WEBHOOK }}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${{ secrets.GHA_MERGES_DISCORD_WEBHOOK }}" ]]; then
+            echo "url=${{ secrets.GHA_MERGES_DISCORD_WEBHOOK }}" >> "$GITHUB_OUTPUT"
           else
-            PR_URL="$COMMIT_URL"
-            PR_NUMBER="" 
+            echo "No merge webhook secret configured for branch '$BRANCH'; skipping notification."
+            echo "url=" >> "$GITHUB_OUTPUT"
           fi
 
-          # Safely write to environment variables
-          echo "commit_message=$(printf '%q' "$COMMIT_MESSAGE")" >> $GITHUB_ENV
-          echo "commit_author=$COMMIT_AUTHOR" >> $GITHUB_ENV
-          echo "commit_url=$COMMIT_URL" >> $GITHUB_ENV
-          echo "pr_url=$PR_URL" >> $GITHUB_ENV
-
-          # Only write PR_NUMBER to $GITHUB_ENV if it exists
-          if [[ -n "$PR_NUMBER" ]]; then
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_ENV
-          fi
-
-      - name: Fetch PR Details
-        if: env.pr_number != ''
-        id: fetch-pr
+      - name: Send Discord notification
+        if: steps.webhook.outputs.url != ''
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WEBHOOK_URL: ${{ steps.webhook.outputs.url }}
+          PAYLOAD: ${{ steps.payload.outputs.json }}
         run: |
-          PR_API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${{ env.pr_number }}"
-          PR_DATA=$(curl -s -H "Authorization: token $GITHUB_TOKEN" $PR_API_URL)
-          PR_TITLE=$(echo "$PR_DATA" | jq -r '.title')
-          PR_AUTHOR=$(echo "$PR_DATA" | jq -r '.user.login')
-          PR_DESCRIPTION=$(echo "$PR_DATA" | jq -r '.body')
-          echo "pr_title=$PR_TITLE" >> $GITHUB_ENV
-          echo "pr_author=$PR_AUTHOR" >> $GITHUB_ENV
-          echo "pr_description=$PR_DESCRIPTION" >> $GITHUB_ENV
-
-      - name: Check if Commit is a Merge
-        id: check-merge
-        run: |
-          if [[ "${{ env.commit_message }}" == Merge* ]]; then
-            echo "is_merge=true" >> $GITHUB_ENV
-          else
-            echo "is_merge=false" >> $GITHUB_ENV
-          fi
-
-      - name: Set Discord Webhook URL
-        id: set-webhook
-        run: |
-          if [[ "${{ github.ref_name }}" == "legacy_server" ]]; then
-            echo "DISCORD_WEBHOOK_URL=${{ secrets.GHA_LEGACY_DISCORD_WEBHOOK }}" >> $GITHUB_ENV
-          elif [[ "${{ github.ref_name }}" == "v2_testport" ]]; then
-            echo "DISCORD_WEBHOOK_URL=${{ secrets.GHA_20_DISCORD_WEBHOOK }}" >> $GITHUB_ENV
-          else
-            echo "Unsupported branch: ${{ github.ref_name }}"
-            exit 1
-          fi
-
-      - name: Send Notification to Discord for PR Merge
-        if: env.is_merge == 'true'
-        env:
-          DISCORD_WEBHOOK_URL: ${{ env.DISCORD_WEBHOOK_URL }}
-        run: |
-          curl -X POST -H "Content-Type: application/json" \
-          -d '{
-                "content": null,
-                "embeds": [
-                  {
-                    "title": "Pull Request Merged",
-                    "description": "**Branch:** `${{ github.ref_name }}`\n**Title:** `${{ env.pr_title }}`\n**Author:** `${{ env.pr_author }}`\n**Description:** `${{ env.pr_description }}`",
-                    "url": "${{ env.pr_url }}",
-                    "color": 3066993
-                  }
-                ]
-              }' \
-          $DISCORD_WEBHOOK_URL
-
-      - name: Send Notification for Direct Commit
-        if: env.is_merge == 'false'
-        env:
-          DISCORD_WEBHOOK_URL: ${{ env.DISCORD_WEBHOOK_URL }}
-        run: |
-          curl -X POST -H "Content-Type: application/json" \
-          -d '{
-                "content": null,
-                "embeds": [
-                  {
-                    "title": "Direct Commit Pushed",
-                    "description": "**Branch:** `${{ github.ref_name }}`\n**Message:** `${{ env.commit_message }}`\n**Author:** `${{ env.commit_author }}`",
-                    "url": "${{ env.commit_url }}",
-                    "color": 15158332
-                  }
-                ]
-              }' \
-          $DISCORD_WEBHOOK_URL
+          curl -fsSL -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"

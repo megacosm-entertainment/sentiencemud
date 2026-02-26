@@ -1,0 +1,55 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "sage",
+        "male": "sage",
+        "neutral": "sage",
+        "other": "sage"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "remort_only"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "thief skills",
+        "sage skills"
+    ],
+    "hp_max": 13,
+    "hp_min": 8,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "sage",
+    "primary_stat": "dexterity",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "thief skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "sage skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "sage",
+            "keyword": "default",
+            "who_name": "   Sage     "
+        }
+    ],
+    "type": "thief",
+    "uid": 24,
+    "weapon": 0,
+    "who": {
+        "female": "   Sage     ",
+        "male": "   Sage     ",
+        "neutral": "   Sage     ",
+        "other": "   Sage     "
+    }
+}

@@ -14,8 +14,26 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
+#include "event_types.h"
 
 
+/**
+ * do_deposit - Deposit items to NPCs for rewards
+ *
+ * Handles two deposit systems:
+ *
+ * 1. Global Quest deposits (ACT2_GQ_MASTER):
+ *    - Deposits matching quest objects
+ *    - Rewards: QP, practices, XP, gold, silver
+ *
+ * 2. Soul bottles (soultaker mobs):
+ *    - Deposits pneuma_item objects
+ *    - Rewards: Pneuma points (with boost multiplier if active)
+ *    - Soultaker must match character's alignment
+ *
+ * @param ch        Character depositing
+ * @param argument  Unused
+ */
 void do_deposit(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -24,6 +42,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     CHAR_DATA *mob;
     GQ_OBJ_DATA *gq_obj;
     int i = 0;
+    int gq_items_turned = 0;
     bool found = false;
     int qp = 0;
     int prac = 0;
@@ -50,9 +69,10 @@ void do_deposit(CHAR_DATA *ch, char *argument)
             for (gq_obj = global_quest.objects; gq_obj != NULL;
                     gq_obj = gq_obj->next)
             {
-                if (obj->pIndexData->vnum == gq_obj->vnum)
+                if (wnum_match_obj(gq_obj->vnum_wnum, obj))
                 {
                     found = true;
+                    gq_items_turned++;
                     qp += gq_obj->qp_reward;
                     prac += gq_obj->prac_reward;
                     exp += gq_obj->exp_reward;
@@ -66,6 +86,8 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 
         if (found)
         {
+            event_progress_record_collection_turnin(ch, gq_items_turned);
+
             sprintf(buf, "Thank you, %s!", pers(ch, mob));
             do_say(mob, buf);
 
@@ -75,11 +97,11 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 
             sprintf(buf, "$N hands you %d silver coins and %d gold coins.",
                     silver, gold);
-            act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
             ch->questpoints += qp;
             ch->practice += prac;
-            gain_exp(ch, exp, true);
+            gain_exp(ch, NULL, exp, true);
             ch->silver += silver;
             ch->gold += gold;
         }
@@ -97,13 +119,13 @@ void do_deposit(CHAR_DATA *ch, char *argument)
         if (!IS_NPC(mob))
             continue;
 
-        if (ch->alignment == 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_neutral_soultaker"))
+        if (ch->alignment == 0 && mob->pIndexData == get_reserved_mob_index("mob_neutral_soultaker"))
             break;
 
-        if (ch->alignment < 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_evil_soultaker"))
+        if (ch->alignment < 0 && mob->pIndexData == get_reserved_mob_index("mob_evil_soultaker"))
             break;
 
-        if (ch->alignment > 0 && mob->pIndexData->vnum == get_reserved_vnum("mob_good_soultaker"))
+        if (ch->alignment > 0 && mob->pIndexData == get_reserved_mob_index("mob_good_soultaker"))
             break;
     }
 
@@ -115,7 +137,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-        if (obj->pIndexData->vnum == get_reserved_vnum("obj_pneuma_item"))
+        if (obj->pIndexData == get_reserved_obj_index("obj_pneuma_item"))
         {
             found = true;
             extract_obj(obj);
@@ -128,9 +150,9 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     {
         sprintf(buf, "You have deposited {Y%d{x bottled souls with %s!", i,
                 mob->short_descr);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "$n deposits %d bottled souls.", i);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
         if (boost_table[BOOST_PNEUMA].boost != 100)
         {
@@ -145,6 +167,19 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_besteq - Find best equipment at a specific level (admin tool)
+ *
+ * Searches all object indexes to find the highest damage weapons
+ * at a specified level. Reports best weapon for each type:
+ * sword, dagger, polearm, axe, exotic.
+ *
+ * Uses average damage formula: (1 + WEAPON(obj)->damage.size)
+ * * WEAPON(obj)->damage.number / 2
+ *
+ * @param ch        Character (should be staff)
+ * @param argument  Level number to search
+ */
 void do_besteq(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -162,146 +197,159 @@ void do_besteq(CHAR_DATA *ch, char *argument)
 
     if (!is_number(arg))
     {
-	send_to_char("What level weapon are you look for?\n\r", ch);
-	return;
+    send_to_char("What level weapon are you look for?\n\r", ch);
+    return;
     }
 
     level = atoi(arg);
 
     for (number2 = 0; number2 < 100000; number2++)
     {
-	obj = get_obj_index((long) number2);
+        WNUM wnum;
+        if (!resolve_widevnum((long) number2, NULL, &wnum)) continue;
+        obj = get_obj_index(wnum.pArea, wnum.vnum);
 
-	if (obj == NULL)
-	    continue;
-	else
-	{
-	    if (obj->level != level)
-		continue;
+    if (obj == NULL)
+        continue;
+    else
+    {
+        if (obj->level != level)
+        continue;
 
-	    if (obj->item_type != ITEM_WEAPON)
-		continue;
+        if (obj->item_type != ITEM_WEAPON)
+        continue;
 
-	    if (obj->value[0] == WEAPON_DAGGER)
-	    {
-		if (best_dagger == NULL)
-		{
-		    best_dagger = obj;
-		    continue;
-		}
+        if (WEAPON(obj)->weapon_class == WEAPON_DAGGER)
+        {
+        if (best_dagger == NULL)
+        {
+            best_dagger = obj;
+            continue;
+        }
 
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_dagger->value[2]) * best_dagger->value[1] / 2))
-		    best_dagger = obj;
-	    }
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_dagger)->damage.size) * WEAPON(best_dagger)->damage.number / 2))
+            best_dagger = obj;
+        }
 
-	    if (obj->value[0] == WEAPON_AXE)
-	    {
-		if (best_axe == NULL)
-		{
-		    best_axe = obj;
-		    continue;
-		}
+        if (WEAPON(obj)->weapon_class == WEAPON_AXE)
+        {
+        if (best_axe == NULL)
+        {
+            best_axe = obj;
+            continue;
+        }
 
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_axe->value[2]) * best_axe->value[1] / 2))
-		{
-		    best_axe = obj;
-		}
-	    }
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_axe)->damage.size) * WEAPON(best_axe)->damage.number / 2))
+        {
+            best_axe = obj;
+        }
+        }
 
-	    if (obj->value[0] == WEAPON_POLEARM)
-	    {
-		if (best_polearm == NULL)
-		{
-		    best_polearm = obj;
-		    continue;
-		}
+        if (WEAPON(obj)->weapon_class == WEAPON_POLEARM)
+        {
+        if (best_polearm == NULL)
+        {
+            best_polearm = obj;
+            continue;
+        }
 
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_polearm->value[2]) * best_polearm->value[1] / 2))
-		{
-		    best_polearm = obj;
-		}
-	    }
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_polearm)->damage.size) * WEAPON(best_polearm)->damage.number / 2))
+        {
+            best_polearm = obj;
+        }
+        }
 
-	    if (obj->value[0] == WEAPON_SWORD)
-	    {
-		if (best_sword == NULL)
-		{
-		    best_sword = obj;
-		    continue;
-		}
+        if (WEAPON(obj)->weapon_class == WEAPON_SWORD)
+        {
+        if (best_sword == NULL)
+        {
+            best_sword = obj;
+            continue;
+        }
 
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_sword->value[2]) * best_sword->value[1] / 2))
-		{
-		    best_sword = obj;
-		}
-	    }
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_sword)->damage.size) * WEAPON(best_sword)->damage.number / 2))
+        {
+            best_sword = obj;
+        }
+        }
 
-	    if (obj->value[0] == WEAPON_EXOTIC)
-	    {
-		if (best_exotic == NULL)
-		{
-		    best_exotic = obj;
-		    continue;
-		}
+        if (WEAPON(obj)->weapon_class == WEAPON_EXOTIC)
+        {
+        if (best_exotic == NULL)
+        {
+            best_exotic = obj;
+            continue;
+        }
 
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_exotic->value[2]) * best_exotic->value[1] / 2))
-		{
-		    best_exotic = obj;
-		}
-	    }
-	}
+        if (((1 + WEAPON(obj)->damage.size) * WEAPON(obj)->damage.number / 2) > ((1 + WEAPON(best_exotic)->damage.size) * WEAPON(best_exotic)->damage.number / 2))
+        {
+            best_exotic = obj;
+        }
+        }
+    }
     }
 
     send_to_char("{GThe weapons are:{x\n\r", ch);
 
     if (best_dagger != NULL)
     {
-	sprintf(buf,"{WDAGGER {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_dagger->short_descr, best_dagger->vnum,
-		best_dagger->value[1],best_dagger->value[2],
-		(1 + best_dagger->value[2]) * best_dagger->value[1] / 2);
-	send_to_char(buf, ch);
+    sprintf(buf,"{WDAGGER {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
+        best_dagger->short_descr, best_dagger->vnum,
+        WEAPON(best_dagger)->damage.number,WEAPON(best_dagger)->damage.size,
+        (1 + WEAPON(best_dagger)->damage.size) * WEAPON(best_dagger)->damage.number / 2);
+    send_to_char(buf, ch);
     }
 
     if (best_sword != NULL)
     {
-	sprintf(buf,"{WSWORD {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_sword->short_descr, best_sword->vnum,
-		best_sword->value[1],best_sword->value[2],
-		(1 + best_sword->value[2]) * best_sword->value[1] / 2);
-	send_to_char(buf, ch);
+    sprintf(buf,"{WSWORD {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
+        best_sword->short_descr, best_sword->vnum,
+        WEAPON(best_sword)->damage.number,WEAPON(best_sword)->damage.size,
+        (1 + WEAPON(best_sword)->damage.size) * WEAPON(best_sword)->damage.number / 2);
+    send_to_char(buf, ch);
     }
 
     if (best_axe != NULL)
     {
-	sprintf(buf,"{WAXE   {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_axe->short_descr, best_axe->vnum,
-		best_axe->value[1],best_axe->value[2],
-		(1 + best_axe->value[2]) * best_axe->value[1] / 2);
-	send_to_char(buf, ch);
+    sprintf(buf,"{WAXE   {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
+        best_axe->short_descr, best_axe->vnum,
+        WEAPON(best_axe)->damage.number,WEAPON(best_axe)->damage.size,
+        (1 + WEAPON(best_axe)->damage.size) * WEAPON(best_axe)->damage.number / 2);
+    send_to_char(buf, ch);
     }
 
     if (best_polearm != NULL)
     {
-	sprintf(buf,"{WPOLEARM {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_polearm->short_descr, best_polearm->vnum,
-		best_polearm->value[1],best_polearm->value[2],
-		(1 + best_polearm->value[2]) * best_polearm->value[1] / 2);
-	send_to_char(buf, ch);
+    sprintf(buf,"{WPOLEARM {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
+        best_polearm->short_descr, best_polearm->vnum,
+        WEAPON(best_polearm)->damage.number,WEAPON(best_polearm)->damage.size,
+        (1 + WEAPON(best_polearm)->damage.size) * WEAPON(best_polearm)->damage.number / 2);
+    send_to_char(buf, ch);
     }
 
     if (best_exotic != NULL)
     {
-	sprintf(buf,"{WEXOTIC {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_exotic->short_descr, best_exotic->vnum,
-		best_exotic->value[1],best_exotic->value[2],
-		(1 + best_exotic->value[2]) * best_exotic->value[1] / 2);
-	send_to_char(buf, ch);
+    sprintf(buf,"{WEXOTIC {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%d{xd{G%d {M(average {Y%d{M).\n\r{x",
+        best_exotic->short_descr, best_exotic->vnum,
+        WEAPON(best_exotic)->damage.number,WEAPON(best_exotic)->damage.size,
+        (1 + WEAPON(best_exotic)->damage.size) * WEAPON(best_exotic)->damage.number / 2);
+    send_to_char(buf, ch);
     }
 }
 
 
-/* could be used for various things in the future, atm just for crystal hammers*/
+/**
+ * do_strike - Use glass hammer to repair weapon/armor condition
+ *
+ * Strikes an item with a glass hammer to restore it to perfect condition.
+ * The hammer shatters after use. Only works on items that can decay
+ * (not SOLID fragility).
+ *
+ * Valid targets: ITEM_WEAPON, ITEM_ARMOUR, ITEM_INSTRUMENT
+ *
+ * @param ch        Character using the hammer
+ * @param argument  Name of item to repair
+ */
 void do_strike(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -311,65 +359,84 @@ void do_strike(CHAR_DATA *ch, char *argument)
     if ((obj = get_eq_char(ch, WEAR_HOLD)) == NULL)
     {
         send_to_char("You don't have anything to strike with.\n\r", ch);
-	return;
+    return;
     }
     else
     {
-	if (obj->pIndexData->vnum != OBJ_VNUM_GLASS_HAMMER)
-	{
-	    act("You can't accomplish anything with $p.",
-	    	ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+    if (obj->pIndexData != get_reserved_obj_index("OBJ_VNUM_GLASS_HAMMER"))
+    {
+        act("You can't accomplish anything with $p.",
+            ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
+    }
     }
 
     if (argument[0] == '\0')
     {
-	send_to_char("Strike what?\n\r", ch);
-	return;
+    send_to_char("Strike what?\n\r", ch);
+    return;
     }
 
     if ((obj_struck = get_obj_carry(ch, argument, ch)) == NULL)
     {
-	send_to_char("You don't have that item.\n\r", ch);
-	return;
+    send_to_char("You don't have that item.\n\r", ch);
+    return;
     }
 
     if (obj_struck == obj || obj_struck->timer > 0)
     {
-	send_to_char("You really wouldn't want to do that.\n\r", ch);
-	return;
+    send_to_char("You really wouldn't want to do that.\n\r", ch);
+    return;
     }
 
     /* Allow hammers to be used for instruments as well - Tieryo*/
     if (obj_struck->item_type != ITEM_WEAPON && obj_struck->item_type != ITEM_ARMOUR && obj_struck->item_type != ITEM_INSTRUMENT)
     {
-	send_to_char("This item can only be used on weapons and armour.\n\r", ch);
-	return;
+    send_to_char("This item can only be used on weapons and armour.\n\r", ch);
+    return;
     }
 
     if (obj_struck->fragility == OBJ_FRAGILE_SOLID)
     {
-	act("That would be pointless as $p does not decay.", ch, NULL, NULL, obj_struck, NULL, NULL, NULL, TO_CHAR);
-	return;
+    act("That would be pointless as $p does not decay.", ch, NULL, NULL, obj_struck, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     sprintf(buf, "{YYou strike $p{Y with %s and it flashes with a bright light!{x",
-    	obj->short_descr);
-    act(buf, ch, NULL, NULL, obj_struck, NULL, NULL, NULL, TO_CHAR);
+        obj->short_descr);
+    act(buf, ch, NULL, NULL, obj_struck, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     sprintf(buf, "{Y$n strikes $p{Y with %s and it flashes with a bright light!{x",
         obj->short_descr);
-    act(buf, ch, NULL, NULL, obj_struck, NULL, NULL, NULL, TO_ROOM);
+    act(buf, ch, NULL, NULL, obj_struck, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     obj_struck->condition = 100;
     obj_struck->times_fixed = 0;
 
-    act("$p shatters into a million pieces!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    act("$n's $p shatters into a million pieces!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    act("$p shatters into a million pieces!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n's $p shatters into a million pieces!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     extract_obj(obj);
 }
 
 
+/**
+ * do_lore - Query a loremaster NPC for equipment information
+ *
+ * Pays a loremaster (ACT2_LOREMASTER) to search for items matching
+ * specified criteria. Returns up to 10 random matching items on a scroll.
+ *
+ * Syntax: lore <min_level> <max_level> [item_type] [wear_loc/weapon_class]
+ *
+ * Filters:
+ * - Level range (max 15 level spread)
+ * - Item type: armor, weapon, ranged weapon, light, container, artifact, instrument
+ * - Wear location or weapon class
+ * - Excludes imm zones and closed areas
+ *
+ * Cost: 2000 + (max - min) * 10 silver
+ *
+ * @param ch        Character making the request
+ * @param argument  Search criteria string
+ */
 void do_lore(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob;
@@ -394,14 +461,14 @@ void do_lore(CHAR_DATA *ch, char *argument)
     mob = NULL;
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act[1], ACT2_LOREMASTER))
-	    break;
+    if (IS_SET(mob->act[1], ACT2_LOREMASTER))
+        break;
     }
 
     if (mob == NULL)
     {
-	send_to_char("There is nobody that can do that for you here.\n\r", ch);
-	return;
+    send_to_char("There is nobody that can do that for you here.\n\r", ch);
+    return;
     }
 
     argument = one_argument(argument, arg);
@@ -412,58 +479,58 @@ void do_lore(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0' || arg2[0] == '\0'
     || !is_number(arg) || !is_number(arg2))
     {
-	act("{R$N tells you 'To look up information on an item type 'lore <minimum level> <maximum level> <item type> <wear location/weapon class>'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{R$N tells you 'The item type and wear location/weapon class are optional.'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    act("{R$N tells you 'To look up information on an item type 'lore <minimum level> <maximum level> <item type> <wear location/weapon class>'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{R$N tells you 'The item type and wear location/weapon class are optional.'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     min = atoi(arg);
     max = atoi(arg2);
     if (min < 1 || max > 120 || min > max)
     {
-	act("{R$N tells you 'There is no such item. The level range is 1-120.'{x",
-		ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    act("{R$N tells you 'There is no such item. The level range is 1-120.'{x",
+        ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     cost = 2000 + (max - min) * 10;
     if (ch->gold * 100 + ch->silver < cost)
     {
-	sprintf(buf,
-	"{R$N tells you 'You don't have enough money for my services. You need %d silver.'{x", cost);
-	act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    sprintf(buf,
+    "{R$N tells you 'You don't have enough money for my services. You need %d silver.'{x", cost);
+    act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     if ((max - min) > 15)
     {
-	act("{R$N tells you, 'Sorry $n, that's too wide a range! I would be up digging through the books all night!'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    act("{R$N tells you, 'Sorry $n, that's too wide a range! I would be up digging through the books all night!'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     type = flag_value(type_flags, arg3);
     if (arg3[0] != '\0' && type == NO_FLAG)
     {
-	act("{R$N tells you, 'I've never heard of that type of item.'{x",
-	    ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{R$N tells you, 'I mainly know about armour, weapons, ranged weapons, lights, containers, artifacts, and musical instruments.'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    act("{R$N tells you, 'I've never heard of that type of item.'{x",
+        ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{R$N tells you, 'I mainly know about armour, weapons, ranged weapons, lights, containers, artifacts, and musical instruments.'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     if (arg4[0] != '\0'
     &&   type != ITEM_WEAPON && type != ITEM_RANGED_WEAPON
     &&   flag_value(wear_flags, arg4) == NO_FLAG)
     {
-	act("{R$N tells you, 'I've never heard of such a place to wear an item.'{x",
-	    ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{R$N tells you, 'The valid arguments are: finger, neck, body, head, legs, feet, hands, arms, shield, about, waist, wrist, wield, and hold.{x",
-	    ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    act("{R$N tells you, 'I've never heard of such a place to wear an item.'{x",
+        ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{R$N tells you, 'The valid arguments are: finger, neck, body, head, legs, feet, hands, arms, shield, about, waist, wrist, wield, and hold.{x",
+        ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     /* Hack because 'spear' is 'staff' in weapon_table*/
     if (!str_cmp(arg4, "spear"))
-	sprintf(arg4, "%s", "staff");
+    sprintf(arg4, "%s", "staff");
 
     if (arg4[0] != '\0'
     && ((type == ITEM_WEAPON
@@ -471,93 +538,97 @@ void do_lore(CHAR_DATA *ch, char *argument)
     || (type == ITEM_RANGED_WEAPON
          &&   ranged_weapon_type(arg4) == RANGED_WEAPON_EXOTIC)))
     {
-	act("{R$N tells you, 'I've never heard of such a type of weapon.'{x",
-	    ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+    act("{R$N tells you, 'I've never heard of such a type of weapon.'{x",
+        ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    return;
     }
 
     deduct_cost(ch, cost);
-    act("You hand $N some coins.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act("$n hands $N some coins.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("You hand $N some coins.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n hands $N some coins.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     act("$n wanders to the back of the room.",
-        mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("$n digs through some books for a moment.",
-    	mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     act("$n thinks, then scribbles something down on a scroll.",
-        mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-    iHash = 0;
     i = 0;
     sprintf(buf,
         "{YThe scroll says:{x\n\r"
-	"I have searched through my studies and books\n\r"
-	"and have found the following items pertaining to your\n\r"
-	"inquiry:\n\r\n\r");
-    for (objIndex = obj_index_hash[iHash]; iHash <= MAX_KEY_HASH;
-          objIndex = obj_index_hash[iHash++])
+    "I have searched through my studies and books\n\r"
+    "and have found the following items pertaining to your\n\r"
+    "inquiry:\n\r\n\r");
+    for (AREA_DATA *pArea = area_first; pArea != NULL; pArea = pArea->next)
     {
-	if (i >= 10)
-	    break;
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+        {
+            for (objIndex = pArea->obj_index_hash[iHash]; objIndex != NULL; objIndex = objIndex->next)
+            {
+                if (i >= 10)
+                    break;
 
-        if (objIndex == NULL
-	|| objIndex->level < min
-	|| objIndex->level > max
-	|| !str_cmp(objIndex->area->name, "Imm Zone")
-	|| !str_cmp(objIndex->area->name, "The Godly Realm")
-	|| !objIndex->area->open
-	|| !IS_SET(objIndex->wear_flags, ITEM_TAKE)
-	|| (objIndex->item_type != ITEM_WEAPON
-	     && objIndex->item_type != ITEM_ARMOUR
-	     && objIndex->item_type != ITEM_ARTIFACT
-	     && objIndex->item_type != ITEM_LIGHT
-	     && objIndex->item_type != ITEM_CONTAINER
-	     && objIndex->item_type != ITEM_INSTRUMENT
-	     && objIndex->item_type != ITEM_RANGED_WEAPON)
-	|| (arg3[0] != '\0'
-	     && type != objIndex->item_type)
-	|| (arg4[0] != '\0'
-	     && type != ITEM_WEAPON
-	     && !IS_SET(objIndex->wear_flags, flag_value(wear_flags, arg4)))
-	|| (arg4[0] != '\0'
-	     && type == ITEM_RANGED_WEAPON
-	     && str_cmp(ranged_weapon_name(objIndex->value[0]), arg4))
-	|| (arg4[0] != '\0'
-	     && type == ITEM_WEAPON
-	     && str_cmp(weapon_name(objIndex->value[0]), arg4))
-	|| number_percent() < 33)
-	    continue;
+                if (objIndex == NULL
+                || objIndex->level < min
+                || objIndex->level > max
+                || !str_cmp(objIndex->area->name, "Imm Zone")
+                || !str_cmp(objIndex->area->name, "The Godly Realm")
+                || !objIndex->area->open
+                || !IS_SET(objIndex->wear_flags, ITEM_TAKE)
+                || (objIndex->item_type != ITEM_WEAPON
+                     && objIndex->item_type != ITEM_ARMOUR
+                     && objIndex->item_type != ITEM_ARTIFACT
+                     && objIndex->item_type != ITEM_LIGHT
+                     && objIndex->item_type != ITEM_CONTAINER
+                     && objIndex->item_type != ITEM_INSTRUMENT
+                     && objIndex->item_type != ITEM_RANGED_WEAPON)
+                || (arg3[0] != '\0'
+                     && type != objIndex->item_type)
+                || (arg4[0] != '\0'
+                     && type != ITEM_WEAPON
+                     && !IS_SET(objIndex->wear_flags, flag_value(wear_flags, arg4)))
+                || (arg4[0] != '\0'
+                     && type == ITEM_RANGED_WEAPON
+                     && str_cmp(ranged_weapon_name(WEAPON(objIndex)->weapon_class), arg4))
+                || (arg4[0] != '\0'
+                     && type == ITEM_WEAPON
+                     && str_cmp(weapon_name(WEAPON(objIndex)->weapon_class), arg4))
+                || number_percent() < 33)
+                    continue;
 
-	sprintf(sd, "%s", objIndex->short_descr);
-	sd[0] = UPPER(sd[0]);
-	{
-	if (!str_cmp(objIndex->area->name, "Maze-Level1")
-		    || !str_cmp(objIndex->area->name, "Maze-Level2")
-		    || !str_cmp(objIndex->area->name, "Maze-Level3")
-		    || !str_cmp(objIndex->area->name, "Maze-Level4")
-		    || !str_cmp(objIndex->area->name, "Maze-Level5"))
-	sprintf(aname, "%s", "Pyramid of the Abyss");
-	else
-	sprintf(aname, "%s", objIndex->area->name);
-	}
-	aname[0] = UPPER(aname[0]);
-	sprintf(buf2,
-	"{Y%d.{x %s, from {R%s{x, which is %slevel {Y%d{x %s.\n\r",
-	    i + 1,
-	    sd,
-		aname,
-	    objIndex->item_type == ITEM_ARMOUR ? "" : "a ",
-	    objIndex->level,
-	    item_name(objIndex->item_type));
-	strcat(buf, buf2);
+                sprintf(sd, "%s", objIndex->short_descr);
+                sd[0] = UPPER(sd[0]);
+                {
+                if (!str_cmp(objIndex->area->name, "Maze-Level1")
+                        || !str_cmp(objIndex->area->name, "Maze-Level2")
+            || !str_cmp(objIndex->area->name, "Maze-Level3")
+            || !str_cmp(objIndex->area->name, "Maze-Level4")
+            || !str_cmp(objIndex->area->name, "Maze-Level5"))
+    sprintf(aname, "%s", "Pyramid of the Abyss");
+    else
+    sprintf(aname, "%s", objIndex->area->name);
+    }
+    aname[0] = UPPER(aname[0]);
+    sprintf(buf2,
+    "{Y%d.{x %s, from {R%s{x, which is %slevel {Y%d{x %s.\n\r",
+        i + 1,
+        sd,
+        aname,
+        objIndex->item_type == ITEM_ARMOUR ? "" : "a ",
+        objIndex->level,
+        item_name(objIndex->item_type));
+    strcat(buf, buf2);
 
-	i++;
+    i++;
+            }
+        }
     }
 
     sprintf(buf2, "\n\rThank you for your business.\n\r\n\rSigned, {m%s{x.", mob->short_descr);
     strcat(buf, buf2);
 
-    scroll = create_object(get_obj_index(get_reserved_vnum("obj_blank_scroll")), 1, false);
+    scroll = create_object(get_reserved_obj_index("obj_blank_scroll"), 1, false);
     free_string(scroll->name);
     free_string(scroll->short_descr);
     free_string(scroll->description);
@@ -586,13 +657,22 @@ void do_lore(CHAR_DATA *ch, char *argument)
 
     SET_BIT(scroll->extra[0], ITEM_GLOW);
 
-    act("$N gives you $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
-    act("$N gives $n $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
+    act("$N gives you $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$N gives $n $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     obj_to_char(scroll, ch);
 }
 
 
-/* Saves info about each piece of equipment, so next time the character types 'wear all', it knows what to put on.*/
+/**
+ * save_last_wear - Record current equipment configuration
+ *
+ * Saves the current wear location for all equipped items so that
+ * 'wear all' can restore the same configuration later. Clears
+ * last_wear_loc on all carried items, then sets it to current
+ * wear_loc on all worn items.
+ *
+ * @param ch  Character whose equipment configuration to save
+ */
 void save_last_wear(CHAR_DATA *ch)
 {
     OBJ_DATA *pObj = NULL;
@@ -614,6 +694,21 @@ void save_last_wear(CHAR_DATA *ch)
 }
 
 
+/**
+ * do_combine - Alchemically merge two scrolls or potions
+ *
+ * Combines two items of the same type (both scrolls or both potions)
+ * with identical spells. The resulting item has blended spell levels
+ * (2/3 of each source level). Potions also combine charges (max 3).
+ *
+ * Skill check determines outcome:
+ * - Success: Items combined with maximized spell pairing
+ * - Partial success: Combined with random spell pairing
+ * - Failure: Both items destroyed
+ *
+ * @param ch        Character combining items
+ * @param argument  "item1 item2" - the two items to combine
+ */
 void do_combine(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -627,12 +722,12 @@ void do_combine(CHAR_DATA *ch, char *argument)
     bool maximize = true;
     bool destroy = false;
     SPELL_DATA *spell1, *spell2;
-	SPELL_DATA *max_spell1, *max_spell2;
+    SPELL_DATA *max_spell1, *max_spell2;
 
-    if ((chance = get_skill(ch, gsn_combine)) < 1)
+    if ((chance = get_skill(ch, skill_resolve_gsn("combine"))) < 1)
     {
-		send_to_char("Leave that to the alchemists.\n\r", ch);
-		return;
+        send_to_char("Leave that to the alchemists.\n\r", ch);
+        return;
     }
 
     argument = one_argument(argument, arg);
@@ -640,207 +735,217 @@ void do_combine(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0' || arg2[0] == '\0')
     {
-		send_to_char("Syntax: combine <item1> <item2>\n\r", ch);
-		return;
+        send_to_char("Syntax: combine <item1> <item2>\n\r", ch);
+        return;
     }
 
     /* setup objects*/
     if ((obj1 = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
     {
-		act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
-		return;
+        act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR, NULL, NULL);
+        return;
     }
 
     if ((obj2 = get_obj_list(ch, arg2, ch->lcarrying)) == NULL)
     {
-		act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg2, NULL, TO_CHAR);
-		return;
+        act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg2, NULL, TO_CHAR, NULL, NULL);
+        return;
     }
 
     /* make sure our objects are the right item types */
     switch (obj1->item_type)
     {
-	case ITEM_SCROLL:
-	    scrolls = true;
-	    break;
-	case ITEM_POTION:
-	    potions = true;
-	    break;
-	default:
-	    act("$p is not a scroll or a potion.", ch, NULL, NULL, obj1, NULL, NULL, NULL, TO_CHAR);
-	    return;
+    case ITEM_SCROLL:
+        scrolls = true;
+        break;
+    case ITEM_POTION:
+        potions = true;
+        break;
+    default:
+        act("$p is not a scroll or a potion.", ch, NULL, NULL, obj1, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
     }
 
     if (scrolls)
     {
-		if (obj2->item_type != ITEM_SCROLL)
-		{
-			act("$p and $P are not the same type of item.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR);
-			return;
-		}
+        if (obj2->item_type != ITEM_SCROLL)
+        {
+            act("$p and $P are not the same type of item.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
     }
 
     if (potions)
     {
-		if (obj2->item_type != ITEM_POTION)
-		{
-			act("$p and $P are not the same type of item.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR);
-			return;
-		}
+        if (obj2->item_type != ITEM_POTION)
+        {
+            act("$p and $P are not the same type of item.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR, NULL, NULL);
+            return;
+        }
     }
 
     if (obj1 == obj2)
     {
-		send_to_char("You can't defy the laws of physics.\n\r", ch);
-		return;
+        send_to_char("You can't defy the laws of physics.\n\r", ch);
+        return;
     }
 
     roll = number_percent();
     if( roll > (chance + 7) )
-		destroy = true;
-	else if( roll > chance )
-		maximize = false;
+        destroy = true;
+    else if( roll > chance )
+        maximize = false;
 
-	// Check they have spells
+    // Check they have spells
     if (!obj1->spells)
     {
-	    act("$p does not contain any magic.", ch, NULL, NULL, obj1, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+        act("$p does not contain any magic.", ch, NULL, NULL, obj1, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
+    }
 
     if (!obj2->spells)
     {
-	    act("$p does not contain any magic.", ch, NULL, NULL, obj2, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+        act("$p does not contain any magic.", ch, NULL, NULL, obj2, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
+    }
 
-	// Mark all spells as not having been used
-	for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
-		spell1->repop = 0;
+    // Mark all spells as not having been used
+    for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
+        spell1->repop = 0;
 
-	for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
-		spell2->repop = false;
+    for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
+        spell2->repop = false;
 
-	if (maximize)
-	{
-		// Pair up the spells by type and level, keeping the strongest of each type paired up.
-		do
-		{
-			// Find the current maximum level of the unassigned spells
-			max_spell1 = NULL;
-			for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
-			{
-				if( spell1->level > 0 && !spell1->repop &&
-					(!max_spell1 || spell1->level > max_spell1->level) )
-					max_spell1 = spell1;
-			}
+    if (maximize)
+    {
+        // Pair up the spells by type and level, keeping the strongest of each type paired up.
+        do
+        {
+            // Find the current maximum level of the unassigned spells
+            max_spell1 = NULL;
+            for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
+            {
+                if( spell1->level > 0 && !spell1->repop &&
+                    (!max_spell1 || spell1->level > max_spell1->level) )
+                    max_spell1 = spell1;
+            }
 
-			if( max_spell1 ) {
-				// Find the corresponding spell in obj2
+            if( max_spell1 ) {
+                // Find the corresponding spell in obj2
 
-				max_spell2 = NULL;
-				for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
-				{
-					if (max_spell1->sn == spell2->sn && spell2->level > 0 && !spell2->repop &&
-						(!max_spell2 || spell2->level > max_spell2->level) )
-						max_spell2 = spell2;
-				}
+                max_spell2 = NULL;
+                for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
+                {
+                    if (max_spell1->sn == spell2->sn && spell2->level > 0 && !spell2->repop &&
+                        (!max_spell2 || spell2->level > max_spell2->level) )
+                        max_spell2 = spell2;
+                }
 
-				if( !max_spell2 )
-				{
-					send_to_char("You can only combine items which have the same spells.\n\r", ch);
-					return;
-				}
+                if( !max_spell2 )
+                {
+                    send_to_char("You can only combine items which have the same spells.\n\r", ch);
+                    return;
+                }
 
-				max_spell1->repop = max_spell2->level;
-				max_spell2->repop = true;
-			}
-		}
-		while(max_spell1 != NULL);
-	}
-	else
-	{
-		// Non-maximize, pairs up spells by type, ignoring respective levels.
-		for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
-		{
-			bool found = false;
-			if( spell1->level < 1 )
-				continue;
+                max_spell1->repop = max_spell2->level;
+                max_spell2->repop = true;
+            }
+        }
+        while(max_spell1 != NULL);
+    }
+    else
+    {
+        // Non-maximize, pairs up spells by type, ignoring respective levels.
+        for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
+        {
+            bool found = false;
+            if( spell1->level < 1 )
+                continue;
 
-			for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
-			{
-				if (spell1->sn == spell2->sn && spell2->level > 0 && !spell2->repop )
-				{
-					spell1->repop = spell2->level;
-					spell2->repop = true;
-					found = true;
-					break;
-				}
-			}
+            for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
+            {
+                if (spell1->sn == spell2->sn && spell2->level > 0 && !spell2->repop )
+                {
+                    spell1->repop = spell2->level;
+                    spell2->repop = true;
+                    found = true;
+                    break;
+                }
+            }
 
-			if( found )
-			{
-				send_to_char("You can only combine items which have the same spells.\n\r", ch);
-				return;
-			}
-		}
-	}
+            if( found )
+            {
+                send_to_char("You can only combine items which have the same spells.\n\r", ch);
+                return;
+            }
+        }
+    }
 
-	// Look for spells in obj2 that were not found.
-	for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
-	{
-		if ( spell2->level > 0 && !spell2->repop )
-		{
-			send_to_char("You can only combine items which have the same spells.\n\r", ch);
-			return;
-		}
-	}
+    // Look for spells in obj2 that were not found.
+    for (spell2 = obj2->spells; spell2; spell2 = spell2->next)
+    {
+        if ( spell2->level > 0 && !spell2->repop )
+        {
+            send_to_char("You can only combine items which have the same spells.\n\r", ch);
+            return;
+        }
+    }
 
     /* add up charges on potions*/
     charges = 2;
     if (potions)
     {
-		charges += obj1->value[5];
-		charges += obj2->value[5];
-		charges = UMIN(charges, 3);
-		obj1->value[5] = charges;
+        charges += FLUID_CON(obj1)->amount;
+        charges += FLUID_CON(obj2)->amount;
+        charges = UMIN(charges, 3);
+        FLUID_CON(obj1)->amount = charges;
     }
 
     if (destroy)
     {
-		act("You make a slight mistake and $p and $P vanish in a mist!",
-			ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR);
-		act("$n makes a slight mistake and $p and $P vanish in a mist!",
-			ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM);
-		extract_obj(obj1);
-		extract_obj(obj2);
-		check_improve(ch, gsn_combine, 1, false);
-		return;
+        act("You make a slight mistake and $p and $P vanish in a mist!",
+            ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n makes a slight mistake and $p and $P vanish in a mist!",
+            ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM, NULL, NULL);
+        extract_obj(obj1);
+        extract_obj(obj2);
+        check_improve(ch, skill_resolve_gsn("combine"), 1, false);
+        return;
     }
 
     // Blend the levels together
-	for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
-	{
-		if (spell1->level > 0)
-		{
-			spell1->level = 2 * spell1->level/3 + 2 * spell1->repop/3;
-			spell1->level = UMIN(spell1->level, ch->tot_level * 2);
-		}
-	}
+    for (spell1 = obj1->spells; spell1; spell1 = spell1->next)
+    {
+        if (spell1->level > 0)
+        {
+            spell1->level = 2 * spell1->level/3 + 2 * spell1->repop/3;
+            spell1->level = UMIN(spell1->level, ch->tot_level * 2);
+        }
+    }
 
-    act("You combine $p and $P.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR);
-    act("$n combines $p and $P.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM);
+    act("You combine $p and $P.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("$n combines $p and $P.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM, NULL, NULL);
 
     extract_obj(obj2);
-    check_improve(ch, gsn_combine, 1, true);
+    check_improve(ch, skill_resolve_gsn("combine"), 1, true);
 }
 
 
+/**
+ * do_keep - Toggle the KEPT flag on an item
+ *
+ * Marks an item as "kept" to prevent accidental dropping, selling,
+ * or giving away. Toggles the ITEM_KEPT flag on/off. Works on
+ * both carried and worn items.
+ *
+ * @param ch        Character keeping the item
+ * @param argument  Name of item to keep/unkeep
+ */
 void do_keep(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
     OBJ_DATA *obj = NULL;
-    
+
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
     {
@@ -854,7 +959,7 @@ void do_keep(CHAR_DATA *ch, char *argument)
         // If not found in carried items, check worn items
         if ((obj = get_obj_list(ch, arg, ch->lworn)) == NULL)
         {
-            act("You aren't carrying or wearing any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
+            act("You aren't carrying or wearing any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR, NULL, NULL);
             return;
         }
     }
@@ -862,26 +967,46 @@ void do_keep(CHAR_DATA *ch, char *argument)
     if (IS_SET(obj->extra[1], ITEM_KEPT))
     {
         REMOVE_BIT(obj->extra[1], ITEM_KEPT);
-        act("You will no longer keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act("You will no longer keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
     else
     {
         SET_BIT(obj->extra[1], ITEM_KEPT);
-        act("You will now keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act("You will now keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
 }
 
 
-/* Reset an obj for a new owner. Used in get, etc.*/
+/**
+ * reset_obj - Clear ownership-related flags for a new owner
+ *
+ * Clears the ITEM_KEPT flag and last_wear_loc when an object
+ * changes hands (e.g., picked up, given, looted). Called from
+ * get_obj and similar functions.
+ *
+ * @param obj  Object to reset
+ */
 void reset_obj(OBJ_DATA *obj)
 {
     if (IS_SET(obj->extra[1], ITEM_KEPT))
-	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
+    REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 
     obj->last_wear_loc = WEAR_NONE;
 }
 
 
+/**
+ * do_consume - Consume a corpse to restore health and satiate hunger
+ *
+ * Vampiric/ghoulish ability to devour corpses for sustenance.
+ * Restores 25% of missing health and counts as consuming blood
+ * for hunger/thirst/fullness conditions.
+ *
+ * Requires gsn_consume skill. Cannot use when full.
+ *
+ * @param ch        Character consuming
+ * @param argument  Name of corpse to consume
+ */
 void do_consume(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *corpse;
@@ -892,14 +1017,14 @@ void do_consume(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax: consume <corpse>\n\r", ch);
-	return;
+    send_to_char("Syntax: consume <corpse>\n\r", ch);
+    return;
     }
 
     if (is_dead(ch))
-	return;
+    return;
 
-    if ((chance = get_skill(ch,gsn_consume)) == 0)
+    if ((chance = get_skill(ch, skill_resolve_gsn("consume"))) == 0)
     {
         send_to_char("How disgusting!\n\r",ch);
         return;
@@ -920,22 +1045,24 @@ void do_consume(CHAR_DATA *ch, char *argument)
     }
 
     if (!(corpse->item_type == ITEM_CORPSE_PC
-	   || corpse->item_type == ITEM_CORPSE_NPC))
+       || corpse->item_type == ITEM_CORPSE_NPC))
     {
         send_to_char("You can't consume that.\n\r", ch);
         return;
     }
 
-    act("$n savagely consumes $p.", ch, NULL, NULL, corpse, NULL, NULL, NULL, TO_ROOM);
-    act("You savagely consume $p.", ch, NULL, NULL, corpse, NULL, NULL, NULL, TO_CHAR);
+    act("$n savagely consumes $p.", ch, NULL, NULL, corpse, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("You savagely consume $p.", ch, NULL, NULL, corpse, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     extract_obj(corpse);
 
     ch->hit = URANGE(1, ch->hit + (ch->max_hit - ch->hit)/4, ch->max_hit);
 
     WAIT_STATE(ch, 24);
-    liquid = 13; /* Value for blood*/
-    amount = liq_table[liquid].liq_affect[4] * 3;
+    liquid = liq_lookup("blood");
+    if (liquid < 0)
+        liquid = LIQ_WATER;
+    amount = liquid_affect(liquid, LIQ_AFF_SSIZE) * 3;
     gain_condition(ch, COND_FULL,
         amount * 8 / 4);
     gain_condition(ch, COND_THIRST,
@@ -950,6 +1077,19 @@ void do_consume(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * do_touch - Activate a tattoo's magical effects
+ *
+ * Touches a worn tattoo to trigger its stored spells. Each use
+ * decrements the tattoo's charge counter (TATTOO(obj)->touches).
+ * After use, there's a chance (TATTOO(obj)->fading_chance%)
+ * the tattoo fades permanently.
+ *
+ * @param ch        Character touching the tattoo
+ * @param argument  Name of tattoo to touch
+ *
+ * Triggers: TRIG_TOUCH (on tattoo, can cancel)
+ */
 void do_touch(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -960,48 +1100,60 @@ void do_touch(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("Touch what?\n\r", ch);
-	return;
+    send_to_char("Touch what?\n\r", ch);
+    return;
     }
 
     if ((obj = get_obj_wear(ch, arg, true)) == NULL)
     {
-	send_to_char("You do not have that tattoo.\n\r", ch);
-	return;
+    send_to_char("You do not have that tattoo.\n\r", ch);
+    return;
     }
 
     if (obj->item_type != ITEM_TATTOO)
     {
-	send_to_char("You can touch only tattoos.\n\r", ch);
-	return;
+    send_to_char("You can touch only tattoos.\n\r", ch);
+    return;
     }
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOUCH, argument))
-		return;
+    if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOUCH, argument))
+        return;
 
-    if (!obj->value[0])
+    if (!TATTOO(obj)->touches)
     {
-	send_to_char("Nothing happens.", ch);
+    send_to_char("Nothing happens.", ch);
     }
     else
     {
-	act("$n touches $p briefly.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	act("You touch $p briefly.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    act("$n touches $p briefly.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("You touch $p briefly.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	for (spell = obj->spells; spell != NULL; spell = spell->next)
-		obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
+    for (spell = obj->spells; spell != NULL; spell = spell->next)
+        obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
 
-	if(obj->value[0] > 0) --obj->value[0];
+    if(TATTOO(obj)->touches > 0) --TATTOO(obj)->touches;
 
-	if(number_percent() < obj->value[1]) {
-		act("$p fades away as the ink dries.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
-		extract_obj(obj);
-	}
-	WAIT_STATE(ch, 8);
+    if(number_percent() < TATTOO(obj)->fading_chance) {
+        act("$p fades away as the ink dries.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+        extract_obj(obj);
+    }
+    WAIT_STATE(ch, 8);
     }
 
 }
 
+/**
+ * do_ruboff - Remove a tattoo from skin
+ *
+ * Rubs off a worn tattoo, destroying it. Cannot remove tattoos
+ * with the NOREMOVE flag (permanent ink).
+ *
+ * @param ch        Character removing the tattoo
+ * @param argument  Name of tattoo to remove
+ *
+ * Triggers: TRIG_PREREMOVE (on tattoo, can cancel)
+ *           TRIG_REMOVE (on tattoo, fires after removal)
+ */
 void do_ruboff(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1011,39 +1163,59 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("Ruboff what?\n\r", ch);
-	return;
+    send_to_char("Ruboff what?\n\r", ch);
+    return;
     }
 
     if ((obj = get_obj_wear(ch, arg, true)) == NULL)
     {
-	send_to_char("You do not have that tattoo.\n\r", ch);
-	return;
+    send_to_char("You do not have that tattoo.\n\r", ch);
+    return;
     }
 
     if (obj->item_type != ITEM_TATTOO)
     {
-	send_to_char("You can touch only tattoos.\n\r", ch);
-	return;
+    send_to_char("You can touch only tattoos.\n\r", ch);
+    return;
     }
 
     if (IS_SET(obj->extra[0], ITEM_NOREMOVE))
     {
-	send_to_char("The ink seems to be permanent.\n\r", ch);
-	return;
+    send_to_char("The ink seems to be permanent.\n\r", ch);
+    return;
     }
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL))
-		return;
+    if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL))
+        return;
 
-	if(!p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMOVE, NULL)) {
-		act("$n rubs $p vigorously until it fades away..", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		act("You rub $p vigorously until it fades away.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	}
+    if(!p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMOVE, NULL)) {
+        act("$n rubs $p vigorously until it fades away..", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        act("You rub $p vigorously until it fades away.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    }
 
-	extract_obj(obj);
+    extract_obj(obj);
 }
 
+/**
+ * do_ink - Create a tattoo on a character using magical inks
+ *
+ * Begins the tattooing process using gsn_tattoo skill. Consumes
+ * ink items that provide required catalyst essences for the spells.
+ * Up to 3 spells can be tattooed (must target characters).
+ *
+ * Syntax: ink <target> <location> <spell1> [spell2] [spell3]
+ *
+ * Requirements:
+ * - Ink items with matching catalyst types in inventory
+ * - Spells must be known and target TAR_CHAR_*
+ * - Target location must be empty
+ *
+ * Completes via ink_end() after TATTOO_STATE timer.
+ * ROOM_ALCHEMY bonus: 50% success boost
+ *
+ * @param ch        Character creating the tattoo
+ * @param argument  "target location spell1 [spell2] [spell3]"
+ */
 void do_ink(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
@@ -1064,7 +1236,7 @@ void do_ink(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!(chance = get_skill(ch,gsn_tattoo))) {
+    if (!(chance = get_skill(ch, skill_resolve_gsn("tattoo")))) {
         send_to_char("Ink? What's that?\n\r",ch);
         return;
     }
@@ -1076,9 +1248,9 @@ void do_ink(CHAR_DATA *ch, char *argument)
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
         if (obj->item_type == ITEM_INK) {
-            if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX) have[obj->value[0]]++;
-            if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX) have[obj->value[1]]++;
-            if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX) have[obj->value[2]]++;
+            if(INK(obj)->types[0] > CATALYST_NONE && INK(obj)->types[0] < CATALYST_MAX) have[INK(obj)->types[0]]++;
+            if(INK(obj)->types[1] > CATALYST_NONE && INK(obj)->types[1] < CATALYST_MAX) have[INK(obj)->types[1]]++;
+            if(INK(obj)->types[2] > CATALYST_NONE && INK(obj)->types[2] < CATALYST_MAX) have[INK(obj)->types[2]]++;
         }
     }
     iterator_stop(&it);
@@ -1156,17 +1328,17 @@ void do_ink(CHAR_DATA *ch, char *argument)
         }
     }
 
-    act("{Y$n lays out the necessary inks and begins tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{YYou lay out the necessary inks and begin tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("{Y$n lays out the necessary inks and begins tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{YYou lay out the necessary inks and begin tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     // Use iterator for consuming inks
     iterator_start(&it, ch->lcarrying);
     while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
         found = false;
         if (obj->item_type == ITEM_INK) {
-            if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX && need[obj->value[0]]) { need[obj->value[0]]--; found = true; }
-            if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX && need[obj->value[1]]) { need[obj->value[1]]--; found = true; }
-            if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX && need[obj->value[2]]) { need[obj->value[2]]--; found = true; }
+            if(INK(obj)->types[0] > CATALYST_NONE && INK(obj)->types[0] < CATALYST_MAX && need[INK(obj)->types[0]]) { need[INK(obj)->types[0]]--; found = true; }
+            if(INK(obj)->types[1] > CATALYST_NONE && INK(obj)->types[1] < CATALYST_MAX && need[INK(obj)->types[1]]) { need[INK(obj)->types[1]]--; found = true; }
+            if(INK(obj)->types[2] > CATALYST_NONE && INK(obj)->types[2] < CATALYST_MAX && need[INK(obj)->types[2]]) { need[INK(obj)->types[2]]--; found = true; }
         }
         if (found) {
             // Need to stop the iterator before extracting the object
@@ -1192,6 +1364,29 @@ void do_ink(CHAR_DATA *ch, char *argument)
 }
 
 
+/**
+ * ink_end - Complete the tattooing process started by do_ink
+ *
+ * Called when TATTOO_STATE timer expires. Creates the tattoo object
+ * with embedded spells if skill check passes.
+ *
+ * Success chance based on:
+ * - Base skill in gsn_tattoo
+ * - Number of spells (more spells = harder)
+ * - ROOM_ALCHEMY bonus: 50% chance boost
+ *
+ * Tattoo properties:
+ * - Charges: 1 to (tot_level/20) uses
+ * - Fade chance: Based on skill (high skill = low fade)
+ * - Spell levels scale with caster level and success
+ *
+ * @param ch      Character who performed the tattooing
+ * @param victim  Character receiving the tattoo
+ * @param loc     Wear location for the tattoo
+ * @param sn      First spell number
+ * @param sn2     Second spell number (0 if none)
+ * @param sn3     Third spell number (0 if none)
+ */
 void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t sn2, int16_t sn3)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1200,9 +1395,9 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     char tattoo_name[MAX_STRING_LENGTH];
     SPELL_DATA *spell;
 
-    if (!sn2) chance = get_skill(ch, gsn_tattoo) + get_skill(ch, gsn_tattoo) / 3 + get_skill(ch, gsn_tattoo)/7;
-    else if (!sn3) chance = get_skill(ch, gsn_tattoo) / 2 + get_skill(ch, gsn_tattoo) / 3;
-    else chance = get_skill(ch, gsn_tattoo) / 2;
+    if (!sn2) chance = get_skill(ch, skill_resolve_gsn("tattoo")) + get_skill(ch, skill_resolve_gsn("tattoo")) / 3 + get_skill(ch, skill_resolve_gsn("tattoo"))/7;
+    else if (!sn3) chance = get_skill(ch, skill_resolve_gsn("tattoo")) / 2 + get_skill(ch, skill_resolve_gsn("tattoo")) / 3;
+    else chance = get_skill(ch, skill_resolve_gsn("tattoo")) / 2;
 
     if (IS_SET(ch->in_room->room_flag[1], ROOM_ALCHEMY))
         chance = (chance * 3)/2;
@@ -1214,9 +1409,9 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
 
     if (number_percent() >= chance)
     {
-    act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{YYou fail to coalesce the ink into a tattoo, dispersing them on the wind.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    check_improve(ch, gsn_tattoo, false, 2);
+    act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{YYou fail to coalesce the inks into a tattoo, dispersing them on the wind.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    check_improve(ch, skill_resolve_gsn("tattoo"), false, 2);
     return;
     }
 
@@ -1226,21 +1421,21 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
 
     if(victim != ch) {
         sprintf(buf, "You coalesce the ink into a tattoo of %s onto $N's skin.", tattoo_name);
-        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "$n coalesces the ink into a tattoo of %s onto your skin.", tattoo_name);
-        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
         sprintf(buf, "$n coalesces the ink into a tattoo of %s onto $N's skin.", tattoo_name);
-        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+        act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
     } else {
         sprintf(buf, "You coalesce the ink into a tattoo of %s onto your skin.", tattoo_name);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "$n coalesces the ink into a tattoo of %s onto $s skin.", tattoo_name);
-        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+        act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
 
-    check_improve(ch, gsn_tattoo, true, 2);
+    check_improve(ch, skill_resolve_gsn("tattoo"), true, 2);
 
-    tattoo = create_object(get_obj_index(get_reserved_vnum("obj_blank_tattoo")), 1, false);
+    tattoo = create_object(get_reserved_obj_index("obj_blank_tattoo"), 1, false);
 
     free_string(tattoo->name);
     tattoo->name = str_dup("tattoo");
@@ -1258,11 +1453,11 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     free_string(tattoo->full_description);
     tattoo->full_description = str_dup(buf);
 
-    tattoo->value[0] = number_range(1,UMAX(2,(ch->tot_level / 20)));
+    TATTOO(tattoo)->touches = number_range(1,UMAX(2,(ch->tot_level / 20)));
     if(chance < 50)
-        tattoo->value[1] = 100 - chance * chance / 100;
+        TATTOO(tattoo)->fading_chance = 100 - chance * chance / 100;
     else
-        tattoo->value[1] = (100 - chance) * (100 - chance) / 100;
+        TATTOO(tattoo)->fading_chance = (100 - chance) * (100 - chance) / 100;
 
     level = ch->tot_level * ((n - 1) * chance + 100) / (n * 100);
 
@@ -1302,6 +1497,21 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     tattoo->wear_loc = loc;
 }
 
+/**
+ * do_affix - Apply a loose tattoo to skin
+ *
+ * Applies a tattoo object from inventory to a specified body
+ * location. NPCs can optionally affix tattoos to other characters
+ * with an optional "silent" mode.
+ *
+ * Syntax: affix <tattoo> <location> [target] [silent]
+ *
+ * @param ch        Character affixing the tattoo
+ * @param argument  "tattoo location [target] [silent]"
+ *
+ * Triggers: TRIG_PREWEAR (on tattoo, can cancel)
+ *           TRIG_WEAR (on tattoo, fires after application)
+ */
 void do_affix(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1371,22 +1581,33 @@ void do_affix(CHAR_DATA *ch, char *argument)
 
     if (!silent) {
         if (victim != ch) {
-            act("$n affixes $p on $N's skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
-            act("$n affixes $p on your skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-            act("You affix $p on $N's skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            act("$n affixes $p on $N's skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+            act("$n affixes $p on your skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+            act("You affix $p on $N's skin.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         } else {
-            act("$n affixes $p to $s skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-            act("You affix $p to your skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            act("$n affixes $p to $s skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            act("You affix $p to your skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         }
         p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAR, NULL);
     }
 }
 
+/**
+ * do_activate - Toggle catalyst activation for spell fuel
+ *
+ * Activates or deactivates a catalyst item. Active catalysts
+ * (ITEM_ACTIVATED) are consumed to fuel more powerful spells.
+ * When toggled, updates catalyst affect where: TO_CATALYST_ACTIVE
+ * or TO_CATALYST_DORMANT.
+ *
+ * @param ch        Character toggling the catalyst
+ * @param argument  Name of catalyst to [de]activate
+ */
 void do_activate(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
     OBJ_DATA *obj;
-    AFFECT_DATA *aff;
+    CATALYST_DATA *cat;
 
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
@@ -1397,7 +1618,7 @@ void do_activate(CHAR_DATA *ch, char *argument)
 
     if ((obj = get_obj_list(ch, arg, ch->lcarrying)) == NULL)
     {
-        act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
+        act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR, NULL, NULL);
         return;
     }
 
@@ -1410,21 +1631,21 @@ void do_activate(CHAR_DATA *ch, char *argument)
         if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
         {
             REMOVE_BIT(obj->extra[2], ITEM_ACTIVATED);
-            for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+            for (cat = obj->catalyst; cat != NULL; cat = cat->next)
             {
-                aff->where = TO_CATALYST_DORMANT;
+                cat->where = TO_CATALYST_DORMANT;
             }
-            act("You will no longer use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            act("You will no longer use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             
         }
         else
         {
             SET_BIT(obj->extra[2], ITEM_ACTIVATED);
-            for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+            for (cat = obj->catalyst; cat != NULL; cat = cat->next)
             {
-                aff->where = TO_CATALYST_ACTIVE;
+                cat->where = TO_CATALYST_ACTIVE;
             }
-            act("You will now use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+            act("You will now use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         }
     }
 }

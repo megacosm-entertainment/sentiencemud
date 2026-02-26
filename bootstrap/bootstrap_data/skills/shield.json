@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 8,
+            "rating": 2
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 8,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 12,
+    "minimum_position": "standing",
+    "msg_disp": "The shield protecting $n vanishes.",
+    "msg_obj": "",
+    "msg_off": "{WYour force shield shimmers then fades away.{x",
+    "name": "shield",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_shield",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 209
+}

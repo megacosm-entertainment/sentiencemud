@@ -1,0 +1,61 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "ninja",
+        "male": "ninja",
+        "neutral": "ninja",
+        "other": "ninja"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "remort_only"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "thief skills",
+        "ninja skills"
+    ],
+    "hp_max": 13,
+    "hp_min": 8,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "ninja",
+    "primary_stat": "dexterity",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "thief skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "ninja skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "ninja",
+            "keyword": "default",
+            "who_name": "   Ninja    "
+        }
+    ],
+    "type": "thief",
+    "traits": {
+        "stealth_combat": true,
+        "sword_dagger_parry": true,
+        "backstab_followup": true,
+        "slit_throat_mastery": true
+    },
+    "uid": 23,
+    "weapon": 0,
+    "who": {
+        "female": "   Ninja    ",
+        "male": "   Ninja    ",
+        "neutral": "   Ninja    ",
+        "other": "   Ninja    "
+    }
+}

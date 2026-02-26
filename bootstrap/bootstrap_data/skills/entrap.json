@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 10,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 8,
+            "rating": 5
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 9
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 10
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 10
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 45,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "",
+    "name": "entrap",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_entrap",
+    "target": "obj_inv",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 99
+}

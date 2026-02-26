@@ -1,0 +1,54 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "bard",
+        "male": "bard",
+        "neutral": "bard",
+        "other": "bard"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "thief skills",
+        "bard skills"
+    ],
+    "hp_max": 13,
+    "hp_min": 8,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "bard",
+    "primary_stat": "dexterity",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "thief skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "bard skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "bard",
+            "keyword": "default",
+            "who_name": "   Bard     "
+        }
+    ],
+    "type": "thief",
+    "uid": 12,
+    "weapon": 0,
+    "who": {
+        "female": "   Bard     ",
+        "male": "   Bard     ",
+        "neutral": "   Bard     ",
+        "other": "   Bard     "
+    }
+}

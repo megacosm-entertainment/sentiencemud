@@ -13,6 +13,11 @@
 #include "recycle.h"
 #include "wilds.h"
 #include "tables.h"
+#include "class_data.h"
+#include "skill_data.h"
+#include "song_data.h"
+#include "traits.h"
+#include "event_types.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -28,6 +33,7 @@ extern	LLIST *loaded_ships;
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
+char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg);
 
 
 
@@ -35,111 +41,111 @@ char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 //	Should the ids mismatch, reset the field
 bool check_varinfo(SCRIPT_VARINFO *info)
 {
-	bool ret = true;
-	return ret;
+    bool ret = true;
+    return ret;
 }
 
 void expand_escape2print(char *str, BUFFER *buffer)
 {
-	char hex[10];
-	while(*str) {
-		if(ISPRINT(*str)) add_buf_char(buffer, *str);
-		else {
-			sprintf(hex,"0x%2.2X", *str);
-			add_buf(buffer, hex);
-		}
-		str++;
-		if(*str) add_buf_char(buffer, ' ');
-	}
+    char hex[10];
+    while(*str) {
+        if(ISPRINT(*str)) add_buf_char(buffer, *str);
+        else {
+            sprintf(hex,"0x%2.2X", *str);
+            add_buf(buffer, hex);
+        }
+        str++;
+        if(*str) add_buf_char(buffer, ' ');
+    }
 }
 
 char *expand_skip(register char *str)
 {
-	register int depth = 0;
+    register int depth = 0;
 
-	while(*str) {
-		if(*str == ESCAPE_VARIABLE || *str == ESCAPE_EXPRESSION || *str == ESCAPE_ENTITY)
-			++depth;
-		else if(*str == ESCAPE_END && !depth--)
-			break;
-		++str;
-	}
+    while(*str) {
+        if(*str == ESCAPE_VARIABLE || *str == ESCAPE_EXPRESSION || *str == ESCAPE_ENTITY)
+            ++depth;
+        else if(*str == ESCAPE_END && !depth--)
+            break;
+        ++str;
+    }
 
-	if(depth > 0) return str;
+    if(depth > 0) return str;
 
-	return str + 1;
+    return str + 1;
 }
 
 
 static bool push(STACK *stk,int val)
 {
-	if(stk->t >= MAX_STACK) return false;
-	stk->s[stk->t++] = val;
-	return true;
+    if(stk->t >= MAX_STACK) return false;
+    stk->s[stk->t++] = val;
+    return true;
 }
 
 static int perform_operation(STACK *op,STACK *opr)
 {
-	int op1, op2, optr;
+    int op1, op2, optr;
 
-	optr = pop(opr,STK_EMPTY);
+    optr = pop(opr,STK_EMPTY);
 
-	if(optr == STK_MAX || optr == STK_EMPTY || op->t < script_expression_argstack[optr])
-		return ERROR4;
+    if(optr == STK_MAX || optr == STK_EMPTY || op->t < script_expression_argstack[optr])
+        return ERROR4;
 
-	op2 = op1 = 0;
-	if(script_expression_argstack[optr] > 1) op2 = pop(op,-1);
-	if(script_expression_argstack[optr] > 0) op1 = pop(op,-1);
+    op2 = op1 = 0;
+    if(script_expression_argstack[optr] > 1) op2 = pop(op,-1);
+    if(script_expression_argstack[optr] > 0) op1 = pop(op,-1);
 
-	switch(optr) {
-	case STK_ADD:	op1 += op2; break;
-	case STK_SUB:	op1 -= op2; break;
-	case STK_MUL:	op1 *= op2; break;
-	case STK_DIV:	if(!op2) return ERROR3; op1 /= op2; break;
-	case STK_MOD:	if(!op2) return ERROR3; op1 = op1 % op2; break;
-	case STK_RAND:	op1 = number_range(op1,op2);	break;
-	case STK_NOT:	op1 = !op1; break;
-	case STK_NEG:	op1 = -op1; break;
-	default:	op1 = 0;
-	}
+    switch(optr) {
+    case STK_ADD:	op1 += op2; break;
+    case STK_SUB:	op1 -= op2; break;
+    case STK_MUL:	op1 *= op2; break;
+    case STK_DIV:	if(!op2) return ERROR3; op1 /= op2; break;
+    case STK_MOD:	if(!op2) return ERROR3; op1 = op1 % op2; break;
+    case STK_RAND:	op1 = number_range(op1,op2);	break;
+    case STK_NOT:	op1 = !op1; break;
+    case STK_NEG:	op1 = -op1; break;
+    default:	op1 = 0;
+    }
 
-	push(op,op1);
-	return DONE;
+    push(op,op1);
+    return DONE;
 }
 
 static bool push_operator(STACK *stk,int op)
 {
-	if(script_expression_tostack[op] == STK_MAX) return false;
-	return push(stk,script_expression_tostack[op]);
+    if(script_expression_tostack[op] == STK_MAX) return false;
+    return push(stk,script_expression_tostack[op]);
 }
 
 static bool process_expession_stack(STACK *stk_op,STACK *stk_opr,int op)
 {
-	int t;
+    int t;
 
-	if(op == CH_MAX) {
-		//printf("invalid operator.\n");
-		return false;
-	}
+    if(op == CH_MAX) {
+        //printf("invalid operator.\n");
+        return false;
+    }
 
-	// Iterate through the operators that CAN be popped off the stack
-	while((t = script_expression_stack_action[op][top(stk_opr,STK_EMPTY)]) == POP &&
-		(t = perform_operation(stk_op,stk_opr)) == DONE);
+    // Iterate through the operators that CAN be popped off the stack
+    while((t = script_expression_stack_action[op][top(stk_opr,STK_EMPTY)]) == POP &&
+        (t = perform_operation(stk_op,stk_opr)) == DONE);
 
-	if(t == DONE) return true;
-	else if(t == PUSH) {
-		push_operator(stk_opr,op);
-		return true;
-	} else if(t == DELETE) {
-		--stk_opr->t;
-		return true;
-	}
+    if(t == DONE) return true;
+    else if(t == PUSH) {
+        push_operator(stk_opr,op);
+        return true;
+    } else if(t == DELETE) {
+        --stk_opr->t;
+        return true;
+    }
 //	else if(t == ERROR1) printf("unmatched right parentheses.\n");
 //	else if(t == ERROR2) printf("unmatched left parentheses.\n");
 //	else if(t == ERROR3) printf("division by zero.\n");
 //	else if(t == ERROR4) printf("insufficient operators/operands on stack.\n");
 
-	return false;
+    return false;
 }
 
 // Used by expand_variable to expand internal variable references into string components
@@ -151,1017 +157,1357 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 {
 //	char esc[MSL];
 //	char msg[MSL*2];
-	char buf[MSL];
-	pVARIABLE var;
-	pVARIABLE infovar = info ? *(info->var) : NULL;
+    char buf[MSL];
+    pVARIABLE var;
+    pVARIABLE infovar = info ? *(info->var) : NULL;
 /*
-	{
-		expand_escape2print(str,esc);
-		sprintf(msg,"expand_variable_recursive->before = \"%s\"",esc);
-		wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-	}
+    {
+        expand_escape2print(str,esc);
+        sprintf(msg,"expand_variable_recursive->before = \"%s\"",esc);
+        wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+    }
 */
-	BUFFER *name_buffer = new_buf();
+    BUFFER *name_buffer = new_buf();
 
-	while(*str && *str != ESCAPE_END) {
-		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,str+1,name_buffer);
-			if(!str) return NULL;
-		} else if(*str == ESCAPE_EXPRESSION) {
-			str = expand_string_expression(info,str+1,name_buffer);
-			if(!str) return NULL;
-		} else
-			add_buf_char(name_buffer, *str++);
-	}
+    while(*str && *str != ESCAPE_END) {
+        if(*str == ESCAPE_VARIABLE) {
+            str = expand_variable_recursive(info,str+1,name_buffer);
+            if(!str) return NULL;
+        } else if(*str == ESCAPE_EXPRESSION) {
+            str = expand_string_expression(info,str+1,name_buffer);
+            if(!str) return NULL;
+        } else
+            add_buf_char(name_buffer, *str++);
+    }
 
 /*
-	{
-		expand_escape2print(str,esc);
-		sprintf(msg,"expand_variable_recursive->after = \"%s\"",esc);
-		wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-	}
+    {
+        expand_escape2print(str,esc);
+        sprintf(msg,"expand_variable_recursive->after = \"%s\"",esc);
+        wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+    }
 */
 
-	var = variable_get(infovar,buf_string(name_buffer));
-	if(var) {
-		if((var->type == VAR_STRING || var->type == VAR_STRING_S) && var->_.s && *var->_.s) {
-			add_buf(buffer,var->_.s);
-		} else if(var->type == VAR_INTEGER) {
-			sprintf(buf, "%d", var->_.i);
-			add_buf(buffer, buf);
-		}
+    var = variable_get(infovar,buf_string(name_buffer));
+    if(var) {
+        if((var->type == VAR_STRING || var->type == VAR_STRING_S) && var->_.s && *var->_.s) {
+            add_buf(buffer,var->_.s);
+        } else if(var->type == VAR_INTEGER) {
+            sprintf(buf, "%d", var->_.i);
+            add_buf(buffer, buf);
+        }
 /*
-	} else if(var) {
-		char msg[MSL];
-		sprintf(msg,"expand_variable_recursive() -> var '%s' is not a string or is empty\n\r", var->name);
-		wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-		return NULL;
-	} else {
-		char msg[MSL];
-		sprintf(msg,"expand_variable_recursive() -> no variable named '%s'\n\r", buf);
-		wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-		return NULL;
+    } else if(var) {
+        char msg[MSL];
+        sprintf(msg,"expand_variable_recursive() -> var '%s' is not a string or is empty\n\r", var->name);
+        wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+        return NULL;
+    } else {
+        char msg[MSL];
+        sprintf(msg,"expand_variable_recursive() -> no variable named '%s'\n\r", buf);
+        wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+        return NULL;
 */
-	}
+    }
 
-	free_buf(name_buffer);
+    free_buf(name_buffer);
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var)
 {
-	BUFFER *buffer;
-	bool deref = false;
-	pVARIABLE v;
+    BUFFER *buffer;
+    bool deref = false;
+    pVARIABLE v;
 
-	//if(*str == ESCAPE_VARIABLE && wiznet_variables) {
-	//	char msg[MSL];
-	//	sprintf(msg,"expand_variable() -> *str IS ESCAPE_VARIABLE\n\r");
-	//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-	//}
+    //if(*str == ESCAPE_VARIABLE && wiznet_variables) {
+    //	char msg[MSL];
+    //	sprintf(msg,"expand_variable() -> *str IS ESCAPE_VARIABLE\n\r");
+    //	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+    //}
 
-	if(*str == '*') {
-		deref = true;
-		++str;
-	}
+    if(*str == '*') {
+        deref = true;
+        ++str;
+    }
 
-	buffer = new_buf();
-	while(*str && *str != ESCAPE_END) {
-		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,str+1,buffer);
-			if(!str) {
-				//if(wiznet_variables) {
-				//	char msg[MSL];
-				//	*p = 0;
-				//	sprintf(msg,"expand_variable(\"%s\") -> NULL str RETURN\n\r", buf);
-				//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-				//}
-				free_buf(buffer);
-				return NULL;
-			}
-		} else if(*str == ESCAPE_EXPRESSION) {
-			str = expand_string_expression(info,str+1,buffer);
-			if(!str)
-			{
-				free_buf(buffer);
-				return NULL;
-			}
-		} else
-			add_buf_char(buffer, *str++);
-	}
+    buffer = new_buf();
+    while(*str && *str != ESCAPE_END) {
+        if(*str == ESCAPE_VARIABLE) {
+            str = expand_variable_recursive(info,str+1,buffer);
+            if(!str) {
+                //if(wiznet_variables) {
+                //	char msg[MSL];
+                //	*p = 0;
+                //	sprintf(msg,"expand_variable(\"%s\") -> NULL str RETURN\n\r", buf);
+                //	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+                //}
+                free_buf(buffer);
+                return NULL;
+            }
+        } else if(*str == ESCAPE_EXPRESSION) {
+            str = expand_string_expression(info,str+1,buffer);
+            if(!str)
+            {
+                free_buf(buffer);
+                return NULL;
+            }
+        } else
+            add_buf_char(buffer, *str++);
+    }
 
-	if(*str != ESCAPE_END) {
-		//if(wiznet_variables) {
-		//	char msg[MSL];
-		//	sprintf(msg,"expand_variable(\"%s\") -> NO ESCAPE\n\r", buf);
-		//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-		//}
-		free_buf(buffer);
-		return NULL;
-	}
+    if(*str != ESCAPE_END) {
+        //if(wiznet_variables) {
+        //	char msg[MSL];
+        //	sprintf(msg,"expand_variable(\"%s\") -> NO ESCAPE\n\r", buf);
+        //	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+        //}
+        free_buf(buffer);
+        return NULL;
+    }
 
-	//if(wiznet_variables) {
-	//	char msg[MSL];
-	//	sprintf(msg,"expand_variable(\"%s\")\n\r", buf);
-	//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-	//}
+    //if(wiznet_variables) {
+    //	char msg[MSL];
+    //	sprintf(msg,"expand_variable(\"%s\")\n\r", buf);
+    //	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+    //}
 
-	v = variable_get(vars,buf_string(buffer));
-	if(deref) {
-		while(v && v->type == VAR_VARIABLE)
-			v = v->_.variable;
-	}
+    v = variable_get(vars,buf_string(buffer));
+    if(deref) {
+        while(v && v->type == VAR_VARIABLE)
+            v = v->_.variable;
+    }
 
-	free_buf(buffer);
-	*var = v;
+    free_buf(buffer);
+    *var = v;
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_name(SCRIPT_VARINFO *info,pVARIABLE vars,char *str,BUFFER *buffer)
 {
-	while(*str && *str != ESCAPE_END) {
-		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,str+1,buffer);
-			if(!str) return NULL;
-		} else if(*str == ESCAPE_EXPRESSION) {
-			str = expand_string_expression(info,str+1,buffer);
-			if(!str) return NULL;
-		} else
-			add_buf_char(buffer, *str++);
-	}
+    while(*str && *str != ESCAPE_END) {
+        if(*str == ESCAPE_VARIABLE) {
+            str = expand_variable_recursive(info,str+1,buffer);
+            if(!str) return NULL;
+        } else if(*str == ESCAPE_EXPRESSION) {
+            str = expand_string_expression(info,str+1,buffer);
+            if(!str) return NULL;
+        } else
+            add_buf_char(buffer, *str++);
+    }
 
-	if(*str != ESCAPE_END) return NULL;
+    if(*str != ESCAPE_END) return NULL;
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_number(char *str, int *num)
 {
-	char arg[MIL], *s = str, *p = arg;
-	while(ISDIGIT(*s)) *p++ = *s++;
- 	*p = 0;
- 	if(arg[0]) {
-		str = s;
-		*num = atoi(arg);
-	} else
-		*num = -1;
-	return str;
+    char arg[MIL], *s = str, *p = arg;
+    while(ISDIGIT(*s)) *p++ = *s++;
+     *p = 0;
+     if(arg[0]) {
+        str = s;
+        *num = atoi(arg);
+    } else
+        *num = -1;
+    return str;
 }
 
 char *expand_ifcheck(SCRIPT_VARINFO *info,char *str,int *value)
 {
-	int xifc;
-	char *rest;
-	IFCHECK_DATA *ifc;
-	bool valid;
+    int xifc;
+    int max_ifchecks = 0;
+    char *rest;
+    IFCHECK_DATA *ifc;
+    bool valid;
 
-	DBG2ENTRY3(PTR,info,PTR,str,PTR,value);
+    DBG2ENTRY3(PTR,info,PTR,str,PTR,value);
 
-	if(str[0] >= ESCAPE_EXTRA && str[1] >= ESCAPE_EXTRA) {
-		xifc = (((str[0] - ESCAPE_EXTRA)&0x3F) |
-			(((str[1] - ESCAPE_EXTRA)&0x3F)<<6));	// 0 - 4095
+    if(str[0] >= ESCAPE_EXTRA && str[1] >= ESCAPE_EXTRA) {
+        xifc = (((str[0] - ESCAPE_EXTRA)&0x3F) |
+            (((str[1] - ESCAPE_EXTRA)&0x3F)<<6));	// 0 - 4095
 
-		if(xifc >= 0 && xifc < CHK_MAXIFCHECKS) {
-			ifc = &ifcheck_table[xifc];
+        while (ifcheck_table[max_ifchecks].name)
+            ++max_ifchecks;
 
-			rest = ifcheck_get_value(info,ifc,str+2,value,&valid);
-			if(rest && valid) {
-				if( !ifc->numeric )
-					*value = *value && 1;	// Make sure T/F is set values  1/0
+        if(xifc >= 0 && xifc < max_ifchecks) {
+            ifc = &ifcheck_table[xifc];
+
+            rest = ifcheck_get_value(info,ifc,str+2,value,&valid);
+            if(rest && valid) {
+                if( !ifc->numeric )
+                    *value = *value && 1;	// Make sure T/F is set values  1/0
 
 //					strcpy(buf,"expand_ifcheck 1:");
 //					for(xifc = 0; xifc < 20 && rest[xifc]; xifc++)
 //						sprintf(buf + 15 + 3*xifc," %2.2X", rest[xifc]&0xFF);
 //					wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
-				rest = skip_whitespace(rest);
-				if(*rest != ESCAPE_END) {
-					DBG2EXITVALUE2(INVALID);
-					return expand_skip(str);
-				}
-				++rest;
+                rest = skip_whitespace(rest);
+                if(*rest != ESCAPE_END) {
+                    DBG2EXITVALUE2(INVALID);
+                    return expand_skip(str);
+                }
+                ++rest;
 
 //					strcpy(buf,"expand_ifcheck 2:");
 //					for(xifc = 0; xifc < 20 && rest[xifc]; xifc++)
 //						sprintf(buf + 15 + 3*xifc," %2.2X", rest[xifc]&0xFF);
 //					wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-				DBG2EXITVALUE1(PTR,rest);
-				return rest;
-			}
-		}
-	}
+                DBG2EXITVALUE1(PTR,rest);
+                return rest;
+            }
+        }
+    }
 
-	*value = 0;
-	DBG2EXITVALUE2(INVALID);
-	return expand_skip(str);
+    *value = 0;
+    DBG2EXITVALUE2(INVALID);
+    return expand_skip(str);
 }
 
 
 char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 {
-	STACK optr,opnd;
-	pVARIABLE var;
-	int value,op;
-	bool expect = false;	// false = number/open, true = operator/close
-	char *p = str;
-	pVARIABLE vars = info ? *(info->var) : NULL;
+    STACK optr,opnd;
+    pVARIABLE var;
+    int value,op;
+    bool expect = false;	// false = number/open, true = operator/close
+    char *p = str;
+    pVARIABLE vars = info ? *(info->var) : NULL;
 
-	opnd.t = optr.t = 0;
+    opnd.t = optr.t = 0;
 
-	if(info)
-	while(*str && *str != ESCAPE_END) {
-		str = skip_whitespace(str);
-		if(ISDIGIT(*str)) {	// Constant
-			if(expect) {
-				// Generate an error - missing an operator
-				break;
-			}
-			str = expand_number(str,&value);
+    if(info)
+    while(*str && *str != ESCAPE_END) {
+        str = skip_whitespace(str);
+        if(ISDIGIT(*str)) {	// Constant
+            if(expect) {
+                // Generate an error - missing an operator
+                break;
+            }
+            str = expand_number(str,&value);
 //			sprintf(buf,"expand_argument_expression: number = %d, %2.2X", value, *str&0xFF);
 //			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
-			if(value < 0) {
-				// Generate an error - terms in here cannot be negative!
-				break;
-			}
-			if(!push(&opnd,value)) {
-				// Generate an error - expression too complex, simplify
-				break;
-			}
-			expect = true;
-		} else if(*str == ESCAPE_VARIABLE) {	// Variable
-			if(expect) {
-				// Generate an error - missing an operator
-				break;
-			}
+            if(value < 0) {
+                // Generate an error - terms in here cannot be negative!
+                break;
+            }
+            if(!push(&opnd,value)) {
+                // Generate an error - expression too complex, simplify
+                break;
+            }
+            expect = true;
+        } else if(*str == ESCAPE_VARIABLE) {	// Variable
+            if(expect) {
+                // Generate an error - missing an operator
+                break;
+            }
 
-			str = expand_variable(info,vars,str+1,&var);
-			if(!str) {
-				break;
-			}
-			if (var) {
-				if(var->type == VAR_INTEGER)
-					value = var->_.i;
-				else if(var->type == VAR_STRING || var->type ==  VAR_STRING_S)
-					value = is_number(var->_.s) ? atoi(var->_.s) : 0;
-				else
-					value = 0;
-			} else
-				value = 0;
+            str = expand_variable(info,vars,str+1,&var);
+            if(!str) {
+                break;
+            }
+            if (var) {
+                if(var->type == VAR_INTEGER)
+                    value = var->_.i;
+                else if(var->type == VAR_STRING || var->type ==  VAR_STRING_S)
+                    value = is_number(var->_.s) ? atoi(var->_.s) : 0;
+                else
+                    value = 0;
+            } else
+                value = 0;
 
 //			value = (var && var->type == VAR_INTEGER) ? var->_.i : 0;
 //			sprintf(buf,"expand_argument_expression: variable = %d, %2.2X", value, *str&0xFF);
 //			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
-			if(!push(&opnd,value)) {
-				// Generate an error - expression too complex, simplify
-				break;
-			}
-			expect = true;
-		} else if(*str == ESCAPE_EXPRESSION) {
-			if(expect) {
-				// Generate an error - missing an operator
-				break;
-			}
+            if(!push(&opnd,value)) {
+                // Generate an error - expression too complex, simplify
+                break;
+            }
+            expect = true;
+        } else if(*str == ESCAPE_EXPRESSION) {
+            if(expect) {
+                // Generate an error - missing an operator
+                break;
+            }
 
-			str = expand_ifcheck(info,str+1,&value);
+            str = expand_ifcheck(info,str+1,&value);
 //			sprintf(buf,"expand_argument_expression: expression = %d, %2.2X", value, *str&0xFF);
 //			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
-			DBG3MSG1("value = %d\n", value);
-			if(!str) {
-				// Generate an error - ifcheck had an error, it should report it
-				break;
-			}
-			if(!push(&opnd,value)) {
-				// Generate an error - expression too complex, simplify
-				break;
-			}
-			expect = true;
-		} else {
+            DBG3MSG1("value = %d\n", value);
+            if(!str) {
+                // Generate an error - ifcheck had an error, it should report it
+                break;
+            }
+            if(!push(&opnd,value)) {
+                // Generate an error - expression too complex, simplify
+                break;
+            }
+            expect = true;
+        } else if(*str == ESCAPE_ENTITY) {
+            SCRIPT_PARAM *entity_arg;
+
+            if(expect) {
+                break;
+            }
+
+            entity_arg = new_script_param();
+            str = expand_argument_entity(info,str+1,entity_arg);
+            if(!str) {
+                free_script_param(entity_arg);
+                break;
+            }
+
+            if(entity_arg->type == ENT_NUMBER)
+                value = entity_arg->d.num;
+            else if(entity_arg->type == ENT_BOOLEAN)
+                value = entity_arg->d.boolean ? 1 : 0;
+            else if(entity_arg->type == ENT_BITVECTOR)
+                value = entity_arg->d.bv.value;
+            else if(entity_arg->type == ENT_STRING && is_number(entity_arg->d.str))
+                value = atoi(entity_arg->d.str);
+            else
+                value = 0;
+
+            free_script_param(entity_arg);
+
+            if(!push(&opnd,value)) {
+                break;
+            }
+            expect = true;
+        } else {
 //			sprintf(buf,"expand_argument_expression: operator = %c, %2.2X", *str, str[1]&0xFF);
 //			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-			switch(*str) {
-			case '+': op = expect ? CH_ADD : CH_MAX; expect=false; break;
-			case '-': op = expect ? CH_SUB : CH_NEG; expect=false; break;
-			case '*': op = expect ? CH_MUL : CH_MAX; expect=false; break;
-			case '/': op = expect ? CH_DIV : CH_MAX; expect=false; break;
-			case '%': op = expect ? CH_MOD : CH_MAX; expect=false; break;
-			case ':': op = expect ? CH_RAND : CH_MAX; expect=false; break;
-			case '!': op = expect ? CH_MAX : CH_NOT; expect=false; break;
-			case '(': op = expect ? CH_MAX : CH_OPEN; expect=false; break;
-			case ')': op = expect ? CH_CLOSE : CH_MAX; expect=true; break;
-			default:  op = CH_MAX; break;
-			}
+            switch((unsigned char)*str) {
+            case '+': op = expect ? CH_ADD : CH_MAX; expect=false; break;
+            case '-': op = expect ? CH_SUB : CH_NEG; expect=false; break;
+            case '*': op = expect ? CH_MUL : CH_MAX; expect=false; break;
+            case '/': op = expect ? CH_DIV : CH_MAX; expect=false; break;
+            case '%': op = expect ? CH_MOD : CH_MAX; expect=false; break;
+            case ':': op = expect ? CH_RAND : CH_MAX; expect=false; break;
+            case '!': op = expect ? CH_MAX : CH_NOT; expect=false; break;
+            case '(': op = expect ? CH_MAX : CH_OPEN; expect=false; break;
+            case ')': op = expect ? CH_CLOSE : CH_MAX; expect=true; break;
+            default:  op = CH_MAX; break;
+            }
 
-			if(!process_expession_stack(&opnd,&optr,op)) {
-				// Generate an error - use what was determined in function
-				break;
-			}
+            if(!process_expession_stack(&opnd,&optr,op)) {
+                // Generate an error - use what was determined in function
+                break;
+            }
 
-			++str;
-		}
-	}
+            ++str;
+        }
+    }
 
-	for(op = 0; op < opnd.t; op++) {
-		DBG3MSG2("Operand %d: %d\n", op, opnd.s[op]);
-	}
+    for(op = 0; op < opnd.t; op++) {
+        DBG3MSG2("Operand %d: %d\n", op, opnd.s[op]);
+    }
 
-	if(!str || *str != ESCAPE_END || !process_expession_stack(&opnd,&optr,CH_EOS) || opnd.t > 1) {
-		*num = 0;
-		return expand_skip(str ? str : p);
-	} else {
-		*num = pop(&opnd,0);
-		return str+1;
-	}
+    if(!str || *str != ESCAPE_END || !process_expession_stack(&opnd,&optr,CH_EOS) || opnd.t > 1) {
+        *num = 0;
+        return expand_skip(str ? str : p);
+    } else {
+        *num = pop(&opnd,0);
+        return str+1;
+    }
 }
 
 
 char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	pVARIABLE var;
+    pVARIABLE var;
 
-	str = expand_variable(info,(info?*(info->var):NULL),str,&var);
-	if(!str) return NULL;
+    str = expand_variable(info,(info?*(info->var):NULL),str,&var);
+    if(!str) return NULL;
 
-	if(!var) {
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-	} else {
-		// If it's a variable, completely recurse out of it.
-		while(var->type == ENT_VARIABLE)
-		{
-			var = var->_.variable;
+    if(!var) {
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+    } else {
+        // If it's a variable, completely recurse out of it.
+        while(var->type == ENT_VARIABLE)
+        {
+            var = var->_.variable;
 
-			if(!var) return NULL;
-		}
+            if(!var) return NULL;
+        }
 
-		switch(var->type) {
-		default: arg->type = ENT_NUMBER; arg->d.num = 0; break;
-		case VAR_INTEGER:	arg->type = ENT_NUMBER; arg->d.num = var->_.i; break;
-		case VAR_STRING:
-		case VAR_STRING_S:	arg->type = ENT_STRING; arg->d.str = var->_.s; break;
-		case VAR_MOBILE:	arg->type = ENT_MOBILE; arg->d.mob = var->_.m; break;
-		case VAR_OBJECT:	arg->type = ENT_OBJECT; arg->d.obj = var->_.o; break;
-		case VAR_ROOM:		arg->type = ENT_ROOM; arg->d.room = var->_.r; break;
-		case VAR_EXIT:
-			arg->type = ENT_EXIT;
-			arg->d.door.r = var->_.door.r;
-			arg->d.door.door = var->_.door.door;
-			break;
-		case VAR_TOKEN:		arg->type = ENT_TOKEN; arg->d.token = var->_.t; break;
-		case VAR_AREA:		arg->type = ENT_AREA; arg->d.area = var->_.a; break;
-		case VAR_SKILL:		arg->type = ENT_SKILL; arg->d.sn = var->_.sn; break;
-		case VAR_SKILLINFO:
-			arg->type = ENT_SKILLINFO;
-			arg->d.sk.m = var->_.sk.owner;
-			arg->d.sk.t = var->_.sk.token;
-			arg->d.sk.sn = var->_.sk.sn;
-			if(IS_VALID(var->_.sk.owner)) {
-				arg->d.sk.mid[0] = var->_.sk.owner->id[0];
-				arg->d.sk.mid[1] = var->_.sk.owner->id[1];
-			} else
-				arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
-			if(IS_VALID(var->_.sk.token)) {
-				arg->d.sk.tid[0] = var->_.sk.token->id[0];
-				arg->d.sk.tid[1] = var->_.sk.token->id[1];
-			} else
-				arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
-			break;
-		case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
+        switch(var->type) {
+        default: arg->type = ENT_NUMBER; arg->d.num = 0; break;
+        case VAR_BOOLEAN:   arg->type = ENT_BOOLEAN; arg->d.boolean = var->_.boolean; break;
+        case VAR_INTEGER:	arg->type = ENT_NUMBER; arg->d.num = var->_.i; break;
+        case VAR_STRING:
+        case VAR_STRING_S:	arg->type = ENT_STRING; arg->d.str = var->_.s; break;
+        case VAR_MOBILE:	arg->type = ENT_MOBILE; arg->d.mob = var->_.m; break;
+        case VAR_OBJECT:	arg->type = ENT_OBJECT; arg->d.obj = var->_.o; break;
+        case VAR_ROOM:		arg->type = ENT_ROOM; arg->d.room = var->_.r; break;
+        case VAR_EXIT:
+            arg->type = ENT_EXIT;
+            arg->d.door.r = var->_.door.r;
+            arg->d.door.door = var->_.door.door;
+            break;
+        case VAR_TOKEN:		arg->type = ENT_TOKEN; arg->d.token = var->_.t; break;
+        case VAR_AREA:		arg->type = ENT_AREA; arg->d.area = var->_.a; break;
+        case VAR_SKILL:		arg->type = ENT_SKILL; arg->d.sn = var->_.sn; break;
+        case VAR_SKILLGROUP:arg->type = ENT_SKILLGROUP; arg->d.skill_group = var->_.skill_group; break;
+        case VAR_SONG:      arg->type = ENT_SONG; arg->d.song = var->_.song; break;
+        case VAR_RACE:      arg->type = ENT_RACE; arg->d.race = var->_.race; break;
+        case VAR_CLASS:     arg->type = ENT_CLASS; arg->d.clazz = var->_.clazz; break;
+        case VAR_CLASSLEVEL:arg->type = ENT_CLASSLEVEL; arg->d.classlevel = var->_.classlevel; break;
+        case VAR_BOOK_PAGE: arg->type = ENT_BOOK_PAGE; arg->d.book_page = var->_.book_page; break;
+        case VAR_FOOD_BUFF: arg->type = ENT_FOOD_BUFF; arg->d.food_buff = var->_.food_buff; break;
+        case VAR_WAYPOINT:  arg->type = ENT_WAYPOINT; arg->d.waypoint = var->_.waypoint; break;
+        case VAR_SHOP_STOCK:arg->type = ENT_SHOP_STOCK; arg->d.stock = var->_.stock; break;
+        case VAR_TRAINER:   arg->type = ENT_TRAINER; arg->d.trainer = var->_.trainer; break;
+        case VAR_TRAINER_ENTRY: arg->type = ENT_TRAINER_ENTRY; arg->d.trainer_entry = var->_.trainer_entry; break;
+        case VAR_SPELL:     arg->type = ENT_SPELL; arg->d.spell = var->_.spell; break;
+        case VAR_LIQUID:    arg->type = ENT_LIQUID; arg->d.liquid = var->_.liquid; break;
+        case VAR_MATERIAL:  arg->type = ENT_MATERIAL; arg->d.material = var->_.material; break;
+        case VAR_LOCK_STATE:arg->type = ENT_LOCK_STATE; arg->d.lock_state = var->_.lock_state; break;
+        case VAR_EVENT:
+            arg->type = ENT_EVENT;
+            arg->d.event.mob = var->_.event.mob;
+            arg->d.event.obj = var->_.event.obj;
+            arg->d.event.uid = var->_.event.uid;
+            arg->d.event.instance_id = var->_.event.instance_id;
+            break;
+        case VAR_MOBINDEX:  arg->type = ENT_MOBINDEX; arg->d.mobindex = var->_.mobindex; break;
+        case VAR_OBJINDEX:  arg->type = ENT_OBJINDEX; arg->d.objindex = var->_.objindex; break;
+        case VAR_TOKENINDEX:arg->type = ENT_TOKEN_INDEX; arg->d.token_index = var->_.token_index; break;
+        case VAR_BLUEPRINT: arg->type = ENT_BLUEPRINT; arg->d.blueprint = var->_.blueprint; break;
+        case VAR_BLUEPRINT_SECTION: arg->type = ENT_BLUEPRINT_SECTION; arg->d.blueprint_section = var->_.blueprint_section; break;
+        case VAR_DUNGEONINDEX: arg->type = ENT_DUNGEONINDEX; arg->d.dungeon_index = var->_.dungeon_index; break;
+        case VAR_SHIPINDEX: arg->type = ENT_SHIPINDEX; arg->d.ship_index = var->_.ship_index; break;
+        case VAR_REPUTATION: arg->type = ENT_REPUTATION; arg->d.reputation = var->_.reputation; break;
+        case VAR_REPUTATION_INDEX: arg->type = ENT_REPUTATION_INDEX; arg->d.repIndex = var->_.reputation_index; break;
+        case VAR_REPUTATION_RANK: arg->type = ENT_REPUTATION_RANK; arg->d.repRank = var->_.reputation_rank; break;
+        case VAR_SKILLINFO:
+            arg->type = ENT_SKILLINFO;
+            arg->d.sk.m = var->_.sk.owner;
+            arg->d.sk.t = var->_.sk.token;
+            arg->d.sk.sn = var->_.sk.sn;
+            if(IS_VALID(var->_.sk.owner)) {
+                arg->d.sk.mid[0] = var->_.sk.owner->id[0];
+                arg->d.sk.mid[1] = var->_.sk.owner->id[1];
+            } else
+                arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
+            if(IS_VALID(var->_.sk.token)) {
+                arg->d.sk.tid[0] = var->_.sk.token->id[0];
+                arg->d.sk.tid[1] = var->_.sk.token->id[1];
+            } else
+                arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
+            break;
+        case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
 
-		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
+        case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
 
-		case VAR_WILDS:		arg->type = ENT_WILDS; arg->d.wilds = var->_.wilds; break;
+        case VAR_WILDS:		arg->type = ENT_WILDS; arg->d.wilds = var->_.wilds; break;
 
-		case VAR_WILDS_ID:	arg->type = ENT_WILDS_ID; arg->d.wid = var->_.wid; break;
+        case VAR_WILDS_ID:	arg->type = ENT_WILDS_ID; arg->d.wid = var->_.wid; break;
 
-		case VAR_CHURCH:	arg->type = ENT_CHURCH; arg->d.church = var->_.church; break;
+        case VAR_CHURCH:	arg->type = ENT_CHURCH; arg->d.church = var->_.church; break;
 
-		case VAR_CHURCH_ID:	arg->type = ENT_CHURCH_ID; arg->d.chid = var->_.chid; break;
+        case VAR_CHURCH_ID:	arg->type = ENT_CHURCH_ID; arg->d.chid = var->_.chid; break;
 
-		case VAR_CLONE_ROOM:
-			arg->d.cr.r = var->_.cr.r;
-			arg->d.cr.a = var->_.cr.a;
-			arg->d.cr.b = var->_.cr.b;
-			arg->type = ENT_CLONE_ROOM;
-			break;
+        case VAR_CLONE_ROOM:
+            arg->d.cr.r = var->_.cr.r;
+            arg->d.cr.a = var->_.cr.a;
+            arg->d.cr.b = var->_.cr.b;
+            arg->type = ENT_CLONE_ROOM;
+            break;
 
-		case VAR_WILDS_ROOM:
-			arg->d.wroom.wuid = var->_.wroom.wuid;
-			arg->d.wroom.x = var->_.wroom.x;
-			arg->d.wroom.y = var->_.wroom.y;
-			arg->type = ENT_WILDS_ROOM;
-			break;
+        case VAR_WILDS_ROOM:
+            arg->d.wroom.wuid = var->_.wroom.wuid;
+            arg->d.wroom.x = var->_.wroom.x;
+            arg->d.wroom.y = var->_.wroom.y;
+            arg->type = ENT_WILDS_ROOM;
+            break;
 
-		case VAR_CLONE_DOOR:
-			arg->d.cdoor.r = var->_.cdoor.r;
-			arg->d.cdoor.a = var->_.cdoor.a;
-			arg->d.cdoor.b = var->_.cdoor.b;
-			arg->d.cdoor.door = var->_.cdoor.door;
-			arg->type = ENT_CLONE_DOOR;
-			break;
-		case VAR_WILDS_DOOR:
-			arg->d.wdoor.wuid = var->_.wdoor.wuid;
-			arg->d.wdoor.x = var->_.wdoor.x;
-			arg->d.wdoor.y = var->_.wdoor.y;
-			arg->d.wdoor.door = var->_.wdoor.door;
-			arg->type = ENT_WILDS_DOOR;
-			break;
+        case VAR_CLONE_DOOR:
+            arg->d.cdoor.r = var->_.cdoor.r;
+            arg->d.cdoor.a = var->_.cdoor.a;
+            arg->d.cdoor.b = var->_.cdoor.b;
+            arg->d.cdoor.door = var->_.cdoor.door;
+            arg->type = ENT_CLONE_DOOR;
+            break;
+        case VAR_WILDS_DOOR:
+            arg->d.wdoor.wuid = var->_.wdoor.wuid;
+            arg->d.wdoor.x = var->_.wdoor.x;
+            arg->d.wdoor.y = var->_.wdoor.y;
+            arg->d.wdoor.door = var->_.wdoor.door;
+            arg->type = ENT_WILDS_DOOR;
+            break;
 
-		case VAR_MOBILE_ID:
-			arg->d.uid[0] = var->_.mid.a;
-			arg->d.uid[1] = var->_.mid.b;
-			arg->type = ENT_MOBILE_ID;
-			break;
-		case VAR_OBJECT_ID:
-			arg->d.uid[0] = var->_.oid.a;
-			arg->d.uid[1] = var->_.oid.b;
-			arg->type = ENT_OBJECT_ID;
-			break;
-		case VAR_TOKEN_ID:
-			arg->d.uid[0] = var->_.tid.a;
-			arg->d.uid[1] = var->_.tid.b;
-			arg->type = ENT_TOKEN_ID;
-			break;
-		case VAR_AREA_ID:
-			arg->d.aid = var->_.aid;
-			arg->type = ENT_AREA_ID;
-			break;
+        case VAR_MOBILE_ID:
+            arg->d.uid[0] = var->_.mid.a;
+            arg->d.uid[1] = var->_.mid.b;
+            arg->type = ENT_MOBILE_ID;
+            break;
+        case VAR_OBJECT_ID:
+            arg->d.uid[0] = var->_.oid.a;
+            arg->d.uid[1] = var->_.oid.b;
+            arg->type = ENT_OBJECT_ID;
+            break;
+        case VAR_TOKEN_ID:
+            arg->d.uid[0] = var->_.tid.a;
+            arg->d.uid[1] = var->_.tid.b;
+            arg->type = ENT_TOKEN_ID;
+            break;
+        case VAR_AREA_ID:
+            arg->d.aid = var->_.aid;
+            arg->type = ENT_AREA_ID;
+            break;
 
-		case VAR_SKILLINFO_ID:
-			arg->d.sk.m = NULL;
-			arg->d.sk.t = NULL;
-			arg->d.sk.sn = var->_.skid.sn;
-			arg->d.sk.mid[0] = var->_.skid.mid[0];
-			arg->d.sk.mid[1] = var->_.skid.mid[1];
-			arg->d.sk.tid[0] = var->_.skid.tid[0];
-			arg->d.sk.tid[1] = var->_.skid.tid[1];
-			arg->type = ENT_SKILLINFO_ID;
-			break;
+        case VAR_SKILLINFO_ID:
+            arg->d.sk.m = NULL;
+            arg->d.sk.t = NULL;
+            arg->d.sk.sn = var->_.skid.sn;
+            arg->d.sk.mid[0] = var->_.skid.mid[0];
+            arg->d.sk.mid[1] = var->_.skid.mid[1];
+            arg->d.sk.tid[0] = var->_.skid.tid[0];
+            arg->d.sk.tid[1] = var->_.skid.tid[1];
+            arg->type = ENT_SKILLINFO_ID;
+            break;
 
-		case VAR_BLLIST_ROOM:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_ROOM; break;
-		case VAR_BLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_MOB; break;
-		case VAR_BLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_OBJ; break;
-		case VAR_BLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_TOK; break;
-		case VAR_BLLIST_EXIT:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_EXIT; break;
-		case VAR_BLLIST_SKILL:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_SKILL; break;
-		case VAR_BLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_AREA; break;
-		case VAR_BLLIST_WILDS:	arg->d.blist = var->_.list; arg->type = ENT_BLLIST_WILDS; break;
+        case VAR_BLLIST_ROOM:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_ROOM; break;
+        case VAR_BLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_MOB; break;
+        case VAR_BLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_OBJ; break;
+        case VAR_BLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_TOK; break;
+        case VAR_BLLIST_EXIT:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_EXIT; break;
+        case VAR_BLLIST_SKILL:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_SKILL; break;
+        case VAR_BLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_AREA; break;
+        case VAR_BLLIST_AREA_REGION: arg->d.blist = var->_.list; arg->type = ENT_BLLIST_AREA_REGION; break;
+        case VAR_BLLIST_WILDS:	arg->d.blist = var->_.list; arg->type = ENT_BLLIST_WILDS; break;
 
-		case VAR_PLLIST_STR:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_STR; break;
-		case VAR_PLLIST_CONN:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CONN; break;
-		case VAR_PLLIST_ROOM:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_ROOM; break;
-		case VAR_PLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_MOB; break;
-		case VAR_PLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_OBJ; break;
-		case VAR_PLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_TOK; break;
-		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
+        case VAR_PLLIST_STR:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_STR; break;
+        case VAR_PLLIST_CONN:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CONN; break;
+        case VAR_PLLIST_ROOM:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_ROOM; break;
+        case VAR_PLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_MOB; break;
+        case VAR_PLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_OBJ; break;
+        case VAR_PLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_TOK; break;
+        case VAR_PLLIST_AREA:  arg->d.blist = var->_.list;    arg->type = ENT_PLLIST_AREA; break;
+        case VAR_PLLIST_AREA_REGION: arg->d.blist = var->_.list; arg->type = ENT_PLLIST_AREA_REGION; break;
+        case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
+        case VAR_PLLIST_BOOK_PAGE: arg->d.blist = var->_.list; arg->type = ENT_PLLIST_BOOK_PAGE; break;
+        case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list; arg->type = ENT_PLLIST_FOOD_BUFF; break;
 
-		}
-	}
-	return str;
+        }
+    }
+    return str;
 
 }
 
 void expand_argument_simple_code(SCRIPT_VARINFO *info,unsigned char code,SCRIPT_PARAM *arg)
 {
-	arg->type = ENT_NUMBER;
-	arg->d.num = 0;
+    arg->type = ENT_NUMBER;
+    arg->d.num = 0;
 
-	switch(code) {
-	case ESCAPE_LI:
-		if(info->mob) {
-			arg->type = ENT_MOBILE;
-			arg->d.mob = info->mob;
-		} else if(info->obj) {
-			arg->type = ENT_OBJECT;
-			arg->d.obj = info->obj;
-		} else if(info->room) {
-			arg->type = ENT_ROOM;
-			arg->d.room = info->room;
-		} else if(info->token) {
-			arg->type = ENT_TOKEN;
-			arg->d.token = info->token;
-		}
-		break;
-	case ESCAPE_LN:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info->ch;
-		break;
-	case ESCAPE_LO:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = info->obj1;
-		break;
-	case ESCAPE_LP:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = info->obj2;
-		break;
-	case ESCAPE_LQ:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = (info->targ && (*info->targ)) ? *info->targ : NULL;
-		break;
-	case ESCAPE_LR:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info->rch ? info->rch : get_random_char(info->mob, info->obj, info->room, info->token);
-		break;
-	case ESCAPE_LT:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info->vch;
-		break;
-	}
+    switch(code) {
+    case ESCAPE_LI:
+        if(info->mob) {
+            arg->type = ENT_MOBILE;
+            arg->d.mob = info->mob;
+        } else if(info->obj) {
+            arg->type = ENT_OBJECT;
+            arg->d.obj = info->obj;
+        } else if(info->room) {
+            arg->type = ENT_ROOM;
+            arg->d.room = info->room;
+        } else if(info->token) {
+            arg->type = ENT_TOKEN;
+            arg->d.token = info->token;
+        } else if(info->quest) {
+            arg->type = ENT_QUEST;
+            arg->d.quest = info->quest;
+        }
+        break;
+    case ESCAPE_LN:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info->ch;
+        break;
+    case ESCAPE_LO:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = info->obj1;
+        break;
+    case ESCAPE_LP:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = info->obj2;
+        break;
+    case ESCAPE_LQ:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = (info->targ && (*info->targ)) ? *info->targ : NULL;
+        break;
+    case ESCAPE_LR:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info->rch ? info->rch : get_random_char(info->mob, info->obj, info->room, info->token);
+        break;
+    case ESCAPE_LT:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info->vch;
+        break;
+    }
 }
 
 char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRIPT_PARAM *arg)
 {
-	int type;
-	pVARIABLE var, orig;
-	str = expand_variable(info,vars,str,&var);
-	if(!str) return NULL;
+    int type;
+    pVARIABLE var, orig;
+    str = expand_variable(info,vars,str,&var);
+    if(!str) return NULL;
 
-	// Descend down the rabbit hole, fully redirecting down
-	orig = var;
+    // Descend down the rabbit hole, fully redirecting down
+    orig = var;
 //	while(var && var->type == VAR_VARIABLE)
 //		var = var->_.variable;
 
-	switch(*str) {
-	case ENTITY_VAR_NUM:
-		if(!var) arg->d.num = 0;
-		else if(var->type == VAR_INTEGER)
-			arg->d.num = var->_.i;
-		else return NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_VAR_NUM:
+        if(!var) arg->d.num = 0;
+        else if(var->type == VAR_INTEGER)
+            arg->d.num = var->_.i;
+        else return NULL;
 
-		arg->type = ENT_NUMBER;
-		break;
-	case ENTITY_VAR_STR:
-		if(!var) arg->d.str = NULL;
-		else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-			arg->d.str = var->_.s;
-		else return NULL;
+        arg->type = ENT_NUMBER;
+        break;
+    case ENTITY_VAR_BOOLEAN:
+        if(!var)
+            arg->d.boolean = false;
+        else if(var->type == VAR_BOOLEAN)
+            arg->d.boolean = var->_.boolean;
+        else return NULL;
 
-		if(!arg->d.str) arg->d.str = &str_empty[0];
-		arg->type = ENT_STRING;
-		break;
+        arg->type = ENT_BOOLEAN;
+        break;
+    case ENTITY_VAR_STR:
+        if(!var) arg->d.str = NULL;
+        else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
+            arg->d.str = var->_.s;
+        else return NULL;
 
-	case ENTITY_VAR_MOB:
-		if(var) {
-			if(var->type == VAR_MOBILE && var->_.m) {
-				arg->d.mob = var->_.m;
-				arg->type = ENT_MOBILE;
-			} else if(var->type == VAR_MOBILE_ID) {
-				arg->d.uid[0] = var->_.mid.a;
-				arg->d.uid[1] = var->_.mid.b;
-				arg->type = ENT_MOBILE_ID;
-			} else
-				return NULL;
-		} else
-			return NULL;
+        if(!arg->d.str) arg->d.str = &str_empty[0];
+        arg->type = ENT_STRING;
+        break;
 
-		break;
-	case ENTITY_VAR_OBJ:
-		if(var) {
-			if(var->type == VAR_OBJECT && var->_.o) {
-				arg->d.obj = var->_.o;
-				arg->type = ENT_OBJECT;
-			} else if(var->type == VAR_OBJECT_ID) {
-				arg->d.uid[0] = var->_.oid.a;
-				arg->d.uid[1] = var->_.oid.b;
-				arg->type = ENT_OBJECT_ID;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
-	case ENTITY_VAR_ROOM:
-		if(var) {
-			if(var->type == VAR_ROOM) {
-				arg->d.room = var->_.r;
-				arg->type = ENT_ROOM;
-			} else if(var->type == VAR_CLONE_ROOM) {
-				arg->d.cr.r = var->_.cr.r;
-				arg->d.cr.a = var->_.cr.a;
-				arg->d.cr.b = var->_.cr.b;
-				arg->type = ENT_CLONE_ROOM;
-			} else if(var->type == VAR_WILDS_ROOM) {
-				arg->d.wroom.wuid = var->_.wroom.wuid;
-				arg->d.wroom.x = var->_.wroom.x;
-				arg->d.wroom.y = var->_.wroom.y;
-				arg->type = ENT_WILDS_ROOM;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
-	case ENTITY_VAR_EXIT:
-		if(var) {
-			if(var->type == VAR_EXIT && var->_.door.r) {
-				arg->d.door.r = var->_.door.r;
-				arg->d.door.door = var->_.door.door;
-				arg->type = ENT_EXIT;
-			} else if(var->type == VAR_CLONE_DOOR) {
-				arg->d.cdoor.r = var->_.cdoor.r;
-				arg->d.cdoor.a = var->_.cdoor.a;
-				arg->d.cdoor.b = var->_.cdoor.b;
-				arg->d.cdoor.door = var->_.cdoor.door;
-				arg->type = ENT_CLONE_DOOR;
-			} else if(var->type == VAR_WILDS_DOOR) {
-				arg->d.wdoor.wuid = var->_.wdoor.wuid;
-				arg->d.wdoor.x = var->_.wdoor.x;
-				arg->d.wdoor.y = var->_.wdoor.y;
-				arg->d.wdoor.door = var->_.wdoor.door;
-				arg->type = ENT_WILDS_DOOR;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
+    case ENTITY_VAR_MOB:
+        if(var) {
+            if(var->type == VAR_MOBILE && var->_.m) {
+                arg->d.mob = var->_.m;
+                arg->type = ENT_MOBILE;
+            } else if(var->type == VAR_MOBILE_ID) {
+                arg->d.uid[0] = var->_.mid.a;
+                arg->d.uid[1] = var->_.mid.b;
+                arg->type = ENT_MOBILE_ID;
+            } else
+                return NULL;
+        } else
+            return NULL;
 
-	case ENTITY_VAR_TOKEN:
-		if(var) {
-			if(var->type == VAR_TOKEN && var->_.t) {
-				arg->d.token = var->_.t;
-				arg->type = ENT_TOKEN;
-			} else if(var->type == VAR_TOKEN_ID) {
-				arg->d.uid[0] = var->_.tid.a;
-				arg->d.uid[1] = var->_.tid.b;
-				arg->type = ENT_TOKEN_ID;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
+        break;
+    case ENTITY_VAR_OBJ:
+        if(var) {
+            if(var->type == VAR_OBJECT && var->_.o) {
+                arg->d.obj = var->_.o;
+                arg->type = ENT_OBJECT;
+            } else if(var->type == VAR_OBJECT_ID) {
+                arg->d.uid[0] = var->_.oid.a;
+                arg->d.uid[1] = var->_.oid.b;
+                arg->type = ENT_OBJECT_ID;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
+    case ENTITY_VAR_ROOM:
+        if(var) {
+            if(var->type == VAR_ROOM) {
+                arg->d.room = var->_.r;
+                arg->type = ENT_ROOM;
+            } else if(var->type == VAR_CLONE_ROOM) {
+                arg->d.cr.r = var->_.cr.r;
+                arg->d.cr.a = var->_.cr.a;
+                arg->d.cr.b = var->_.cr.b;
+                arg->type = ENT_CLONE_ROOM;
+            } else if(var->type == VAR_WILDS_ROOM) {
+                arg->d.wroom.wuid = var->_.wroom.wuid;
+                arg->d.wroom.x = var->_.wroom.x;
+                arg->d.wroom.y = var->_.wroom.y;
+                arg->type = ENT_WILDS_ROOM;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
+    case ENTITY_VAR_EXIT:
+        if(var) {
+            if(var->type == VAR_EXIT && var->_.door.r) {
+                arg->d.door.r = var->_.door.r;
+                arg->d.door.door = var->_.door.door;
+                arg->type = ENT_EXIT;
+            } else if(var->type == VAR_CLONE_DOOR) {
+                arg->d.cdoor.r = var->_.cdoor.r;
+                arg->d.cdoor.a = var->_.cdoor.a;
+                arg->d.cdoor.b = var->_.cdoor.b;
+                arg->d.cdoor.door = var->_.cdoor.door;
+                arg->type = ENT_CLONE_DOOR;
+            } else if(var->type == VAR_WILDS_DOOR) {
+                arg->d.wdoor.wuid = var->_.wdoor.wuid;
+                arg->d.wdoor.x = var->_.wdoor.x;
+                arg->d.wdoor.y = var->_.wdoor.y;
+                arg->d.wdoor.door = var->_.wdoor.door;
+                arg->type = ENT_WILDS_DOOR;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
 
-	case ENTITY_VAR_AFFECT:
-		if(var && var->type == VAR_AFFECT && var->_.aff)
-			arg->d.aff = var->_.aff;
-		else return NULL;
+    case ENTITY_VAR_TOKEN:
+        if(var) {
+            if(var->type == VAR_TOKEN && var->_.t) {
+                arg->d.token = var->_.t;
+                arg->type = ENT_TOKEN;
+            } else if(var->type == VAR_TOKEN_ID) {
+                arg->d.uid[0] = var->_.tid.a;
+                arg->d.uid[1] = var->_.tid.b;
+                arg->type = ENT_TOKEN_ID;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
 
-		arg->type = ENT_AFFECT;
-		break;
+    case ENTITY_VAR_AFFECT:
+        if(var && var->type == VAR_AFFECT && var->_.aff)
+            arg->d.aff = var->_.aff;
+        else return NULL;
 
-	case ENTITY_VAR_CONN:
-		if(var && var->type == VAR_CONNECTION && var->_.conn)
-			arg->d.conn = var->_.conn;
-		else return NULL;
+        arg->type = ENT_AFFECT;
+        break;
 
-		arg->type = ENT_CONN;
-		break;
+    case ENTITY_VAR_CONN:
+        if(var && var->type == VAR_CONNECTION && var->_.conn)
+            arg->d.conn = var->_.conn;
+        else return NULL;
 
-	case ENTITY_VAR_AREA:
-		if(var) {
-			if(var->type == VAR_AREA && var->_.a) {
-				arg->d.area = var->_.a;
-				arg->type = ENT_AREA;
-			} else if(var->type == VAR_AREA_ID) {
-				arg->d.aid = var->_.aid;
-				arg->type = ENT_AREA_ID;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
+        arg->type = ENT_CONN;
+        break;
 
-	case ENTITY_VAR_WILDS:
-		if(var) {
-			if( var->type == VAR_WILDS && var->_.wilds) {
-				arg->d.wilds = var->_.wilds;
-				arg->type = ENT_WILDS;
-			} else if(var->type == VAR_WILDS_ID) {
-				arg->d.wid = var->_.wid;
-				arg->type = ENT_WILDS_ID;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
+    case ENTITY_VAR_AREA:
+        if(var) {
+            if(var->type == VAR_AREA && var->_.a) {
+                arg->d.area = var->_.a;
+                arg->type = ENT_AREA;
+            } else if(var->type == VAR_AREA_ID) {
+                arg->d.aid = var->_.aid;
+                arg->type = ENT_AREA_ID;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
 
-	case ENTITY_VAR_CHURCH:
-		if(var) {
-			if( var->type == VAR_CHURCH && var->_.wilds) {
-				arg->d.church = var->_.church;
-				arg->type = ENT_CHURCH;
-			} else if(var->type == VAR_CHURCH_ID) {
-				arg->d.chid = var->_.chid;
-				arg->type = ENT_CHURCH_ID;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
+    case ENTITY_VAR_WILDS:
+        if(var) {
+            if( var->type == VAR_WILDS && var->_.wilds) {
+                arg->d.wilds = var->_.wilds;
+                arg->type = ENT_WILDS;
+            } else if(var->type == VAR_WILDS_ID) {
+                arg->d.wid = var->_.wid;
+                arg->type = ENT_WILDS_ID;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
 
-	case ENTITY_VAR_SKILL:
-		if(var && var->type == VAR_SKILL)
-			arg->d.sn = var->_.sn;
-		else return NULL;
+    case ENTITY_VAR_CHURCH:
+        if(var) {
+            if( var->type == VAR_CHURCH && var->_.wilds) {
+                arg->d.church = var->_.church;
+                arg->type = ENT_CHURCH;
+            } else if(var->type == VAR_CHURCH_ID) {
+                arg->d.chid = var->_.chid;
+                arg->type = ENT_CHURCH_ID;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
 
-		arg->type = ENT_SKILL;
-		break;
+    case ENTITY_VAR_SKILL:
+        if(var && var->type == VAR_SKILL)
+            arg->d.sn = var->_.sn;
+        else return NULL;
 
-	case ENTITY_VAR_SECTION:
-		if(var && var->type == VAR_SECTION && IS_VALID(var->_.section))
-			arg->d.section = var->_.section;
-		else return NULL;
+        arg->type = ENT_SKILL;
+        break;
 
-		arg->type = ENT_SECTION;
-		break;
+    case ENTITY_VAR_SKILLGROUP:
+        if(var && var->type == VAR_SKILLGROUP)
+            arg->d.skill_group = var->_.skill_group;
+        else return NULL;
 
-	case ENTITY_VAR_INSTANCE:
-		if(var && var->type == VAR_INSTANCE && IS_VALID(var->_.instance))
-			arg->d.instance = var->_.instance;
-		else return NULL;
+        arg->type = ENT_SKILLGROUP;
+        break;
 
-		arg->type = ENT_INSTANCE;
-		break;
+    case ENTITY_VAR_BOOK_PAGE:
+        if(var && var->type == VAR_BOOK_PAGE)
+            arg->d.book_page = var->_.book_page;
+        else return NULL;
 
-	case ENTITY_VAR_DUNGEON:
-		if(var && var->type == VAR_DUNGEON && IS_VALID(var->_.dungeon))
-			arg->d.dungeon= var->_.dungeon;
-		else return NULL;
+        arg->type = ENT_BOOK_PAGE;
+        break;
 
-		arg->type = ENT_DUNGEON;
-		break;
+    case ENTITY_VAR_FOOD_BUFF:
+        if(var && var->type == VAR_FOOD_BUFF)
+            arg->d.food_buff = var->_.food_buff;
+        else return NULL;
 
-	case ENTITY_VAR_SHIP:
-		if(var && var->type == VAR_SHIP && IS_VALID(var->_.ship))
-			arg->d.ship = var->_.ship;
-		else return NULL;
+        arg->type = ENT_FOOD_BUFF;
+        break;
 
-		arg->type = ENT_SHIP;
-		break;
+    case ENTITY_VAR_WAYPOINT:
+        if(var && var->type == VAR_WAYPOINT)
+            arg->d.waypoint = var->_.waypoint;
+        else return NULL;
 
-	case ENTITY_VAR_SKILLINFO:
-		if(var) {
-			if( var->type == VAR_SKILLINFO ) {
-				arg->type = ENT_SKILLINFO;
-				arg->d.sk.m = var->_.sk.owner;
-				arg->d.sk.t = var->_.sk.token;
-				arg->d.sk.sn = var->_.sk.sn;
-				if(IS_VALID(var->_.sk.owner)) {
-					arg->d.sk.mid[0] = var->_.sk.owner->id[0];
-					arg->d.sk.mid[1] = var->_.sk.owner->id[1];
-				} else
-					arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
-				if(IS_VALID(var->_.sk.token)) {
-					arg->d.sk.tid[0] = var->_.sk.token->id[0];
-					arg->d.sk.tid[1] = var->_.sk.token->id[1];
-				} else
-					arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
-			} else if(var->type == VAR_SKILLINFO_ID) {
-				arg->d.sk.m = NULL;
-				arg->d.sk.t = NULL;
-				arg->d.sk.sn = var->_.skid.sn;
-				arg->d.sk.mid[0] = var->_.skid.mid[0];
-				arg->d.sk.mid[1] = var->_.skid.mid[1];
-				arg->d.sk.tid[0] = var->_.skid.tid[0];
-				arg->d.sk.tid[1] = var->_.skid.tid[1];
-				arg->type = ENT_SKILLINFO_ID;
-			} else
-				return NULL;
-		} else
-			return NULL;
-		break;
+        arg->type = ENT_WAYPOINT;
+        break;
 
-	case ENTITY_VAR_PLLIST_STR:
-	case ENTITY_VAR_PLLIST_CONN:
-	case ENTITY_VAR_PLLIST_ROOM:
-	case ENTITY_VAR_PLLIST_MOB:
-	case ENTITY_VAR_PLLIST_OBJ:
-	case ENTITY_VAR_PLLIST_TOK:
-	case ENTITY_VAR_PLLIST_CHURCH:
-		type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
-		if(var && var->type == type && var->_.list)
-			arg->d.blist = var->_.list;
-		else return NULL;
-		arg->type = type + ENTITY_VAR_PLLIST_STR - VAR_PLLIST_STR;
-		break;
+    case ENTITY_VAR_SHOP_STOCK:
+        if(var && var->type == VAR_SHOP_STOCK)
+            arg->d.stock = var->_.stock;
+        else return NULL;
 
-	case ENTITY_VAR_BLLIST_ROOM:
-	case ENTITY_VAR_BLLIST_MOB:
-	case ENTITY_VAR_BLLIST_OBJ:
-	case ENTITY_VAR_BLLIST_TOK:
-	case ENTITY_VAR_BLLIST_EXIT:
-	case ENTITY_VAR_BLLIST_SKILL:
-	case ENTITY_VAR_BLLIST_AREA:
-	case ENTITY_VAR_BLLIST_WILDS:
-		type = (int)*str + VAR_BLLIST_ROOM - ENTITY_VAR_BLLIST_ROOM;
-		if(var && var->type == type && var->_.list)
-			arg->d.blist = var->_.list;
-		else return NULL;
-		arg->type = type + ENTITY_VAR_BLLIST_ROOM - VAR_BLLIST_ROOM;
-		break;
+        arg->type = ENT_SHOP_STOCK;
+        break;
 
-	case ENTITY_VAR_VARIABLE:
-		arg->d.variable = (orig && orig->type == VAR_VARIABLE) ? orig->_.variable : NULL;
-		arg->type = ENT_VARIABLE;
-		break;
+    case ENTITY_VAR_TRAINER:
+        if(var && var->type == VAR_TRAINER)
+            arg->d.trainer = var->_.trainer;
+        else return NULL;
 
-	}
-	return str;
+        arg->type = ENT_TRAINER;
+        break;
+
+    case ENTITY_VAR_TRAINER_ENTRY:
+        if(var && var->type == VAR_TRAINER_ENTRY)
+            arg->d.trainer_entry = var->_.trainer_entry;
+        else return NULL;
+
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    case ENTITY_VAR_SPELL:
+        if(var && var->type == VAR_SPELL)
+            arg->d.spell = var->_.spell;
+        else return NULL;
+
+        arg->type = ENT_SPELL;
+        break;
+
+    case ENTITY_VAR_LIQUID:
+        if(var && var->type == VAR_LIQUID)
+            arg->d.liquid = var->_.liquid;
+        else return NULL;
+
+        arg->type = ENT_LIQUID;
+        break;
+
+    case ENTITY_VAR_MATERIAL:
+        if(var && var->type == VAR_MATERIAL)
+            arg->d.material = var->_.material;
+        else return NULL;
+
+        arg->type = ENT_MATERIAL;
+        break;
+
+    case ENTITY_VAR_LOCK_STATE:
+        if(var && var->type == VAR_LOCK_STATE)
+            arg->d.lock_state = var->_.lock_state;
+        else return NULL;
+
+        arg->type = ENT_LOCK_STATE;
+        break;
+
+    case ENTITY_VAR_SONG:
+        if(var && var->type == VAR_SONG)
+            arg->d.song = var->_.song;
+        else return NULL;
+
+        arg->type = ENT_SONG;
+        break;
+
+    case ENTITY_VAR_RACE:
+        if(var && var->type == VAR_RACE)
+            arg->d.race = var->_.race;
+        else return NULL;
+
+        arg->type = ENT_RACE;
+        break;
+
+    case ENTITY_VAR_CLASS:
+        if(var && var->type == VAR_CLASS)
+            arg->d.clazz = var->_.clazz;
+        else return NULL;
+
+        arg->type = ENT_CLASS;
+        break;
+
+    case ENTITY_VAR_CLASSLEVEL:
+        if(var && var->type == VAR_CLASSLEVEL)
+            arg->d.classlevel = var->_.classlevel;
+        else return NULL;
+
+        arg->type = ENT_CLASSLEVEL;
+        break;
+
+    case ENTITY_VAR_REPUTATION:
+        if(var && var->type == VAR_REPUTATION)
+            arg->d.reputation = var->_.reputation;
+        else return NULL;
+
+        arg->type = ENT_REPUTATION;
+        break;
+
+    case ENTITY_VAR_REPUTATION_INDEX:
+        if(var && var->type == VAR_REPUTATION_INDEX)
+            arg->d.repIndex = var->_.reputation_index;
+        else return NULL;
+
+        arg->type = ENT_REPUTATION_INDEX;
+        break;
+
+    case ENTITY_VAR_REPUTATION_RANK:
+        if(var && var->type == VAR_REPUTATION_RANK)
+            arg->d.repRank = var->_.reputation_rank;
+        else return NULL;
+
+        arg->type = ENT_REPUTATION_RANK;
+        break;
+
+    case ENTITY_VAR_MOBINDEX:
+        if(var && var->type == VAR_MOBINDEX)
+            arg->d.mobindex = var->_.mobindex;
+        else return NULL;
+
+        arg->type = ENT_MOBINDEX;
+        break;
+
+    case ENTITY_VAR_OBJINDEX:
+        if(var && var->type == VAR_OBJINDEX)
+            arg->d.objindex = var->_.objindex;
+        else return NULL;
+
+        arg->type = ENT_OBJINDEX;
+        break;
+
+    case ENTITY_VAR_TOKENINDEX:
+        if(var && var->type == VAR_TOKENINDEX)
+            arg->d.token_index = var->_.token_index;
+        else return NULL;
+
+        arg->type = ENT_TOKEN_INDEX;
+        break;
+
+    case ENTITY_VAR_BLUEPRINT:
+        if(var && var->type == VAR_BLUEPRINT)
+            arg->d.blueprint = var->_.blueprint;
+        else return NULL;
+
+        arg->type = ENT_BLUEPRINT;
+        break;
+
+    case ENTITY_VAR_BLUEPRINT_SECTION:
+        if(var && var->type == VAR_BLUEPRINT_SECTION)
+            arg->d.blueprint_section = var->_.blueprint_section;
+        else return NULL;
+
+        arg->type = ENT_BLUEPRINT_SECTION;
+        break;
+
+    case ENTITY_VAR_DUNGEONINDEX:
+        if(var && var->type == VAR_DUNGEONINDEX)
+            arg->d.dungeon_index = var->_.dungeon_index;
+        else return NULL;
+
+        arg->type = ENT_DUNGEONINDEX;
+        break;
+
+    case ENTITY_VAR_SHIPINDEX:
+        if(var && var->type == VAR_SHIPINDEX)
+            arg->d.ship_index = var->_.ship_index;
+        else return NULL;
+
+        arg->type = ENT_SHIPINDEX;
+        break;
+
+    case ENTITY_VAR_SECTION:
+        if(var && var->type == VAR_SECTION && IS_VALID(var->_.section))
+            arg->d.section = var->_.section;
+        else return NULL;
+
+        arg->type = ENT_SECTION;
+        break;
+
+    case ENTITY_VAR_INSTANCE:
+        if(var && var->type == VAR_INSTANCE && IS_VALID(var->_.instance))
+            arg->d.instance = var->_.instance;
+        else return NULL;
+
+        arg->type = ENT_INSTANCE;
+        break;
+
+    case ENTITY_VAR_DUNGEON:
+        if(var && var->type == VAR_DUNGEON && IS_VALID(var->_.dungeon))
+            arg->d.dungeon= var->_.dungeon;
+        else return NULL;
+
+        arg->type = ENT_DUNGEON;
+        break;
+
+    case ENTITY_VAR_SHIP:
+        if(var && var->type == VAR_SHIP && IS_VALID(var->_.ship))
+            arg->d.ship = var->_.ship;
+        else return NULL;
+
+        arg->type = ENT_SHIP;
+        break;
+
+    case ENTITY_VAR_QUEST:
+        if(var && var->type == VAR_QUEST && var->_.quest)
+            arg->d.quest = var->_.quest;
+        else return NULL;
+
+        arg->type = ENT_QUEST;
+        break;
+
+    case ENTITY_VAR_QUEST_STAGE:
+        if(var && var->type == VAR_QUEST_STAGE && var->_.quest_stage)
+            arg->d.quest_stage = var->_.quest_stage;
+        else return NULL;
+
+        arg->type = ENT_QUEST_STAGE;
+        break;
+
+    case ENTITY_VAR_QUEST_OBJECTIVE:
+        if(var && var->type == VAR_QUEST_OBJECTIVE && var->_.quest_objective)
+            arg->d.quest_objective = var->_.quest_objective;
+        else return NULL;
+
+        arg->type = ENT_QUEST_OBJECTIVE;
+        break;
+
+    case ENTITY_VAR_AREA_REGION:
+        if(var && var->type == VAR_AREA_REGION && IS_VALID(var->_.aregion))
+            arg->d.aregion = var->_.aregion;
+        else return NULL;
+
+        arg->type = ENT_AREA_REGION;
+        break;
+
+    case ENTITY_VAR_SKILLINFO:
+        if(var) {
+            if( var->type == VAR_SKILLINFO ) {
+                arg->type = ENT_SKILLINFO;
+                arg->d.sk.m = var->_.sk.owner;
+                arg->d.sk.t = var->_.sk.token;
+                arg->d.sk.sn = var->_.sk.sn;
+                if(IS_VALID(var->_.sk.owner)) {
+                    arg->d.sk.mid[0] = var->_.sk.owner->id[0];
+                    arg->d.sk.mid[1] = var->_.sk.owner->id[1];
+                } else
+                    arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
+                if(IS_VALID(var->_.sk.token)) {
+                    arg->d.sk.tid[0] = var->_.sk.token->id[0];
+                    arg->d.sk.tid[1] = var->_.sk.token->id[1];
+                } else
+                    arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
+            } else if(var->type == VAR_SKILLINFO_ID) {
+                arg->d.sk.m = NULL;
+                arg->d.sk.t = NULL;
+                arg->d.sk.sn = var->_.skid.sn;
+                arg->d.sk.mid[0] = var->_.skid.mid[0];
+                arg->d.sk.mid[1] = var->_.skid.mid[1];
+                arg->d.sk.tid[0] = var->_.skid.tid[0];
+                arg->d.sk.tid[1] = var->_.skid.tid[1];
+                arg->type = ENT_SKILLINFO_ID;
+            } else
+                return NULL;
+        } else
+            return NULL;
+        break;
+
+    case ENTITY_VAR_PLLIST_STR:
+    case ENTITY_VAR_PLLIST_CONN:
+    case ENTITY_VAR_PLLIST_ROOM:
+    case ENTITY_VAR_PLLIST_MOB:
+    case ENTITY_VAR_PLLIST_OBJ:
+    case ENTITY_VAR_PLLIST_TOK:
+    case ENTITY_VAR_PLLIST_AREA:
+    case ENTITY_VAR_PLLIST_AREA_REGION:
+    case ENTITY_VAR_PLLIST_CHURCH:
+    case ENTITY_VAR_PLLIST_BOOK_PAGE:
+    case ENTITY_VAR_PLLIST_FOOD_BUFF:
+        type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
+        if(var && var->type == type && var->_.list)
+            arg->d.blist = var->_.list;
+        else return NULL;
+        arg->type = type + ENTITY_VAR_PLLIST_STR - VAR_PLLIST_STR;
+        break;
+
+    case ENTITY_VAR_BLLIST_ROOM:
+    case ENTITY_VAR_BLLIST_MOB:
+    case ENTITY_VAR_BLLIST_OBJ:
+    case ENTITY_VAR_BLLIST_TOK:
+    case ENTITY_VAR_BLLIST_EXIT:
+    case ENTITY_VAR_BLLIST_SKILL:
+    case ENTITY_VAR_BLLIST_AREA:
+    case ENTITY_VAR_BLLIST_AREA_REGION:
+    case ENTITY_VAR_BLLIST_WILDS:
+        type = (int)*str + VAR_BLLIST_ROOM - ENTITY_VAR_BLLIST_ROOM;
+        if(var && var->type == type && var->_.list)
+            arg->d.blist = var->_.list;
+        else return NULL;
+        arg->type = type + ENTITY_VAR_BLLIST_ROOM - VAR_BLLIST_ROOM;
+        break;
+
+    case ENTITY_VAR_VARIABLE:
+        arg->d.variable = (orig && orig->type == VAR_VARIABLE) ? orig->_.variable : NULL;
+        arg->type = ENT_VARIABLE;
+        break;
+
+    }
+    return str;
 }
 
 char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ESCAPE_EXPRESSION:
-		arg->type = ENT_NUMBER;
-		return expand_argument_expression(info,str+1,&arg->d.num);
+    switch((unsigned char)*str) {
+    case ESCAPE_EXPRESSION:
+        arg->type = ENT_NUMBER;
+        return expand_argument_expression(info,str+1,&arg->d.num);
 
-	case ENTITY_ENACTOR:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info ? info->ch : NULL;
-		break;
-	case ENTITY_OBJ1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = info ? info->obj1 : NULL;
-		break;
-	case ENTITY_OBJ2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = info ? info->obj2 : NULL;
-		break;
-	case ENTITY_VICTIM:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info ? info->vch : NULL;
-		break;
-	case ENTITY_VICTIM2:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info ? info->vch2 : NULL;
-		break;
-	case ENTITY_TARGET:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = (info && info->targ) ? *info->targ : NULL;
-		break;
-	case ENTITY_RANDOM:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info ? info->rch : NULL;
-		break;
-	case ENTITY_HERE:
-		arg->d.room = NULL;
-		if(info) {
-			if(info->mob)
-				arg->d.room = info->mob->in_room;
-			else if(info->obj)
-				arg->d.room = obj_room(info->obj);
-			else if(info->room)
-				arg->d.room = info->room;
-			else if(info->token)
-				arg->d.room = token_room(info->token);
-		}
-		arg->type = ENT_ROOM;
-		break;
-	case ENTITY_SELF:
-		if(info->mob) {
-			arg->type = ENT_MOBILE;
-			arg->d.mob = info->mob;
-		} else if(info->obj) {
-			arg->type = ENT_OBJECT;
-			arg->d.obj = info->obj;
-		} else if(info->room) {
-			arg->type = ENT_ROOM;
-			arg->d.room = info->room;
-		} else if(info->token) {
-			arg->type = ENT_TOKEN;
-			arg->d.token = info->token;
-		} else if(info->area) {
-			arg->type = ENT_AREA;
-			arg->d.area = info->area;
-		} else if(info->instance) {
-			arg->type = ENT_INSTANCE;
-			arg->d.instance = info->instance;
-		} else if(info->dungeon) {
-			arg->type = ENT_DUNGEON;
-			arg->d.dungeon = info->dungeon;
-		} else return NULL;
-		break;
-	case ENTITY_PHRASE:
-		arg->type = ENT_STRING;
-		arg->d.str = info->phrase;
-		break;
-	case ENTITY_TRIGGER:
-		arg->type = ENT_STRING;
-		arg->d.str = info->trigger;
-		break;
-	case ENTITY_PRIOR:
-		arg->type = ENT_PRIOR;
-		arg->d.info = script_get_prior(info);
-		break;
+    case ENTITY_ENACTOR:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info ? info->ch : NULL;
+        break;
+    case ENTITY_OBJ1:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = info ? info->obj1 : NULL;
+        break;
+    case ENTITY_OBJ2:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = info ? info->obj2 : NULL;
+        break;
+    case ENTITY_VICTIM:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info ? info->vch : NULL;
+        break;
+    case ENTITY_VICTIM2:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info ? info->vch2 : NULL;
+        break;
+    case ENTITY_TARGET:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = (info && info->targ) ? *info->targ : NULL;
+        break;
+    case ENTITY_RANDOM:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info ? info->rch : NULL;
+        break;
+    case ENTITY_HERE:
+        arg->d.room = NULL;
+        if(info) {
+            if(info->mob)
+                arg->d.room = info->mob->in_room;
+            else if(info->obj)
+                arg->d.room = obj_room(info->obj);
+            else if(info->room)
+                arg->d.room = info->room;
+            else if(info->token)
+                arg->d.room = token_room(info->token);
+        }
+        arg->type = ENT_ROOM;
+        break;
+    case ENTITY_SELF:
+        if(info->mob) {
+            arg->type = ENT_MOBILE;
+            arg->d.mob = info->mob;
+        } else if(info->obj) {
+            arg->type = ENT_OBJECT;
+            arg->d.obj = info->obj;
+        } else if(info->room) {
+            arg->type = ENT_ROOM;
+            arg->d.room = info->room;
+        } else if(info->token) {
+            arg->type = ENT_TOKEN;
+            arg->d.token = info->token;
+        } else if(info->quest) {
+            arg->type = ENT_QUEST;
+            arg->d.quest = info->quest;
+        } else if(info->area) {
+            arg->type = ENT_AREA;
+            arg->d.area = info->area;
+        } else if(info->instance) {
+            arg->type = ENT_INSTANCE;
+            arg->d.instance = info->instance;
+        } else if(info->dungeon) {
+            arg->type = ENT_DUNGEON;
+            arg->d.dungeon = info->dungeon;
+        } else return NULL;
+        break;
+    case ENTITY_PHRASE:
+        arg->type = ENT_STRING;
+        arg->d.str = info->phrase;
+        break;
+    case ENTITY_TRIGGER:
+        arg->type = ENT_STRING;
+        arg->d.str = info->trigger;
+        break;
+    case ENTITY_PRIOR:
+        arg->type = ENT_PRIOR;
+        arg->d.info = script_get_prior(info);
+        break;
 
-	case ENTITY_GAME:
-		arg->type = ENT_GAME;
-		break;
+    case ENTITY_GAME:
+        arg->type = ENT_GAME;
+        break;
 
-	case ENTITY_TOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = info->tok;
-		break;
+    case ENTITY_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = info ? info->mob : NULL;
+        arg->d.event.obj = info ? info->obj : NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        if (arg->d.event.mob) {
+            arg->d.event.uid = arg->d.event.mob->event_source.vnum;
+            arg->d.event.instance_id = arg->d.event.mob->event_source_instance_id;
+        } else if (arg->d.event.obj) {
+            arg->d.event.uid = arg->d.event.obj->event_source.vnum;
+            arg->d.event.instance_id = arg->d.event.obj->event_source_instance_id;
+        }
+        break;
 
-	case ENTITY_REGISTER1:
-	case ENTITY_REGISTER2:
-	case ENTITY_REGISTER3:
-	case ENTITY_REGISTER4:
-	case ENTITY_REGISTER5:
-		arg->type = ENT_NUMBER;
-		arg->d.num = info->registers[*str-ENTITY_REGISTER1];
-		break;
+    case ENTITY_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = info->tok;
+        break;
 
-	case ENTITY_MXP:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf_char(arg->buffer, '\t');
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    case ENTITY_REGISTER1:
+    case ENTITY_REGISTER2:
+    case ENTITY_REGISTER3:
+    case ENTITY_REGISTER4:
+    case ENTITY_REGISTER5:
+        arg->type = ENT_NUMBER;
+        arg->d.num = info->registers[(unsigned char)*str-ENTITY_REGISTER1];
+        break;
 
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,(info?*(info->var):NULL),str+1,arg);
-		if(!str) return NULL;
-		break;
+    case ENTITY_MXP:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf_char(arg->buffer, '\t');
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	default: return NULL;
-	}
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,(info?*(info->var):NULL),str+1,arg);
+        if(!str) return NULL;
+        break;
 
-	return str+1;
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_GAME_NAME:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, game_settings.game_name);
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_GAME_NAME:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, game_settings.game_name);
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_GAME_PORT:
-		arg->type = ENT_NUMBER;
-		arg->d.num = game_settings.telnet_port;
-		break;
+    case ENTITY_GAME_PORT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = game_settings.telnet_port;
+        break;
 
-	case ENTITY_GAME_PLAYERS:
-		arg->type = ENT_PLLIST_CONN;
-		arg->d.blist = conn_players;
-		break;
-	case ENTITY_GAME_IMMORTALS:
-		arg->type = ENT_PLLIST_CONN;
-		arg->d.blist = conn_immortals;
-		break;
-	case ENTITY_GAME_ONLINE:
-		arg->type = ENT_PLLIST_CONN;
-		arg->d.blist = conn_online;
-		break;
-	case ENTITY_GAME_PERSIST:
-		arg->type = ENT_PERSIST;
-		break;
-	case ENTITY_GAME_AREAS:
-		arg->type = ENT_BLLIST_AREA;
-		arg->d.blist = loaded_areas;
-		break;
-	case ENTITY_GAME_WILDS:
-		arg->type = ENT_BLLIST_WILDS;
-		arg->d.blist = loaded_wilds;
-		break;
+    case ENTITY_GAME_PLAYERS:
+        arg->type = ENT_PLLIST_CONN;
+        arg->d.blist = conn_players;
+        break;
+    case ENTITY_GAME_IMMORTALS:
+        arg->type = ENT_PLLIST_CONN;
+        arg->d.blist = conn_immortals;
+        break;
+    case ENTITY_GAME_ONLINE:
+        arg->type = ENT_PLLIST_CONN;
+        arg->d.blist = conn_online;
+        break;
+    case ENTITY_GAME_PERSIST:
+        arg->type = ENT_PERSIST;
+        break;
+    case ENTITY_GAME_AREAS:
+        arg->type = ENT_BLLIST_AREA;
+        arg->d.blist = loaded_areas;
+        break;
+    case ENTITY_GAME_WILDS:
+        arg->type = ENT_BLLIST_WILDS;
+        arg->d.blist = loaded_wilds;
+        break;
 
-	case ENTITY_GAME_CHURCHES:
-		arg->type = ENT_PLLIST_CHURCH;
-		arg->d.blist = list_churches;
-		break;
+    case ENTITY_GAME_CHURCHES:
+        arg->type = ENT_PLLIST_CHURCH;
+        arg->d.blist = list_churches;
+        break;
 
-	case ENTITY_GAME_SHIPS:
-		arg->type = ENT_ILLIST_SHIPS;
-		arg->d.blist = loaded_ships;
-		break;
+    case ENTITY_GAME_SHIPS:
+        arg->type = ENT_ILLIST_SHIPS;
+        arg->d.blist = loaded_ships;
+        break;
 
-	case ENTITY_GAME_RELIC_POWER:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = damage_relic;
-		break;
+    case ENTITY_GAME_RELIC_POWER:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = damage_relic;
+        break;
 
-	case ENTITY_GAME_RELIC_KNOWLEDGE:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = xp_relic;
-		break;
+    case ENTITY_GAME_RELIC_KNOWLEDGE:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = xp_relic;
+        break;
 
-	case ENTITY_GAME_RELIC_LOSTSOULS:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = pneuma_relic;
-		break;
+    case ENTITY_GAME_RELIC_LOSTSOULS:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = pneuma_relic;
+        break;
 
-	case ENTITY_GAME_RELIC_HEALTH:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = hp_regen_relic;
-		break;
+    case ENTITY_GAME_RELIC_HEALTH:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = hp_regen_relic;
+        break;
 
-	case ENTITY_GAME_RELIC_MAGIC:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = mana_regen_relic;
-		break;
-	
-	case ENTITY_GAME_TIME_HUMAN:
-		arg->type = ENT_STRING;
-		struct tm *local_time = localtime(&current_time);
-		char time_str[100];
-		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", local_time);
-		arg->d.str = strdup(time_str);
-		break;
-	
+    case ENTITY_GAME_RELIC_MAGIC:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = mana_regen_relic;
+        break;
+    
+    case ENTITY_GAME_TIME_HUMAN:
+        arg->type = ENT_STRING;
+        struct tm *local_time = localtime(&current_time);
+        char time_str[100];
+        strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", local_time);
+        arg->d.str = strdup(time_str);
+        break;
+    
     case ENTITY_GAME_RESERVED_MOBILE:
         arg->type = ENT_RESERVED_MOBILE;
         break;
@@ -1207,579 +1553,692 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         break;
 
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_persist(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_PERSIST_MOBS:
-		arg->d.blist = persist_mobs;
-		arg->type = ENT_PLLIST_MOB;
-		break;
-	case ENTITY_PERSIST_OBJS:
-		arg->d.blist = persist_objs;
-		arg->type = ENT_PLLIST_OBJ;
-		break;
-	case ENTITY_PERSIST_ROOMS:
-		arg->d.blist = persist_rooms;
-		arg->type = ENT_PLLIST_ROOM;
-		break;
-	default: return NULL;
-	}
-	return str+1;
+    switch((unsigned char)*str) {
+    case ENTITY_PERSIST_MOBS:
+        arg->d.blist = persist_mobs;
+        arg->type = ENT_PLLIST_MOB;
+        break;
+    case ENTITY_PERSIST_OBJS:
+        arg->d.blist = persist_objs;
+        arg->type = ENT_PLLIST_OBJ;
+        break;
+    case ENTITY_PERSIST_ROOMS:
+        arg->d.blist = persist_rooms;
+        arg->type = ENT_PLLIST_ROOM;
+        break;
+    default: return NULL;
+    }
+    return str+1;
 }
 
 char *expand_entity_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_WILDS_NAME:
-		arg->type = ENT_STRING;
-		if(arg->d.wilds) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.wilds->name);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_WILDS_NAME:
+        arg->type = ENT_STRING;
+        if(arg->d.wilds) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.wilds->name);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_WILDS_WIDTH:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.wilds) ? arg->d.wilds->map_size_x : 0;
-		break;
+    case ENTITY_WILDS_WIDTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.wilds) ? arg->d.wilds->map_size_x : 0;
+        break;
 
-	case ENTITY_WILDS_HEIGHT:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.wilds) ? arg->d.wilds->map_size_y : 0;
-		break;
+    case ENTITY_WILDS_HEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.wilds) ? arg->d.wilds->map_size_y : 0;
+        break;
 
-	case ENTITY_WILDS_VROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = (arg->d.wilds) ? arg->d.wilds->loaded_vrooms : NULL;
-		break;
+    case ENTITY_WILDS_VROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = (arg->d.wilds) ? arg->d.wilds->loaded_vrooms : NULL;
+        break;
 
-	case ENTITY_WILDS_VLINKS:
-	default: return NULL;
-	}
+    case ENTITY_WILDS_VLINKS:
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_wilds_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_WILDS_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_WILDS_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_WILDS_WIDTH:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
+    case ENTITY_WILDS_WIDTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
 
-	case ENTITY_WILDS_HEIGHT:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
+    case ENTITY_WILDS_HEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
 
-	case ENTITY_WILDS_VROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = NULL;
-		break;
+    case ENTITY_WILDS_VROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
 
-	case ENTITY_WILDS_VLINKS:
-	default: return NULL;
-	}
+    case ENTITY_WILDS_VLINKS:
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char time_str[100];
-	switch(*str) {
-	case ENTITY_CHURCH_NAME:
-		arg->type = ENT_STRING;
-		if( arg->d.church && arg->d.church->name && arg->d.church->name[0] ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.church->name);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-		break;
+    char time_str[100];
+    switch((unsigned char)*str) {
+    case ENTITY_CHURCH_NAME:
+        arg->type = ENT_STRING;
+        if( arg->d.church && arg->d.church->name && arg->d.church->name[0] ) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.church->name);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_CHURCH_SIZE:
-		arg->type = ENT_STRING;
-		if( arg->d.church ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, get_chsize_from_number(arg->d.church->size));
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
+    case ENTITY_CHURCH_SIZE:
+        arg->type = ENT_STRING;
+        if( arg->d.church ) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, get_chsize_from_number(arg->d.church->size));
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
 
-		break;
+        break;
 
-	case ENTITY_CHURCH_FLAG:
-		arg->type = ENT_STRING;
-		if( arg->d.church && arg->d.church->flag && arg->d.church->flag[0] ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.church->flag);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-		break;
+    case ENTITY_CHURCH_FLAG:
+        arg->type = ENT_STRING;
+        if( arg->d.church && arg->d.church->flag && arg->d.church->flag[0] ) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.church->flag);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_CHURCH_FOUNDER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = ( arg->d.church ) ? get_player(arg->d.church->founder) : NULL;
-		break;
+    case ENTITY_CHURCH_FOUNDER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = ( arg->d.church ) ? get_player(arg->d.church->founder) : NULL;
+        break;
 
-	case ENTITY_CHURCH_FOUNDER_LOGIN:
-		arg->type = ENT_NUMBER;
-		arg->d.num = ( arg->d.church ) ? (arg->d.church->founder_last_login) : 0;
-		break;
+    case ENTITY_CHURCH_FOUNDER_LOGIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = ( arg->d.church ) ? (arg->d.church->founder_last_login) : 0;
+        break;
 
-	case ENTITY_CHURCH_FOUNDER_LOGIN_HUMAN:
-		arg->type = ENT_STRING;
-		struct tm *founder_time = localtime(&arg->d.church->founder_last_login);
-		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", founder_time);
-		arg->d.str = (arg->d.mob) ? str_dup(time_str) : (char *)&str_empty[0];
-		break;
+    case ENTITY_CHURCH_FOUNDER_LOGIN_HUMAN:
+        arg->type = ENT_STRING;
+        struct tm *founder_time = localtime(&arg->d.church->founder_last_login);
+        strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", founder_time);
+        arg->d.str = (arg->d.mob) ? str_dup(time_str) : (char *)&str_empty[0];
+        break;
 
-	case ENTITY_CHURCH_FOUNDER_NAME:
-		arg->type = ENT_STRING;
-		if( arg->d.church && arg->d.church->founder && arg->d.church->founder[0] ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.church->founder);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-		break;
+    case ENTITY_CHURCH_FOUNDER_NAME:
+        arg->type = ENT_STRING;
+        if( arg->d.church && arg->d.church->founder && arg->d.church->founder[0] ) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.church->founder);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_CHURCH_MOTD:
-		arg->type = ENT_STRING;
-		if( arg->d.church && arg->d.church->motd && arg->d.church->motd[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_MOTD) || script_security >= MAX_SCRIPT_SECURITY)) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.church->motd);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_CHURCH_RULES:
-		arg->type = ENT_STRING;
-		if( arg->d.church && arg->d.church->rules && arg->d.church->rules[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_RULES) || script_security >= MAX_SCRIPT_SECURITY) ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.church->rules);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_CHURCH_INFO:
-		arg->type = ENT_STRING;
-		if( arg->d.church && arg->d.church->info && arg->d.church->info[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_INFO) || script_security >= MAX_SCRIPT_SECURITY) ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.church->info);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_CHURCH_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.church && location_isset(&arg->d.church->recall_point)) ? location_to_room(&arg->d.church->recall_point) : NULL;
-		break;
-	case ENTITY_CHURCH_TREASURE:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = (arg->d.church) ? arg->d.church->treasure_rooms : NULL;
-		break;
-	case ENTITY_CHURCH_KEY:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.church && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.church->key : 0;
-		break;
-	case ENTITY_CHURCH_ONLINE:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = (arg->d.church) ? arg->d.church->online_players : NULL;
-		break;
-	case ENTITY_CHURCH_ROSTER:
-		arg->type = ENT_PLLIST_STR;
-		arg->d.blist = (arg->d.church) ? arg->d.church->roster : NULL;
-		break;
+    case ENTITY_CHURCH_MOTD:
+        arg->type = ENT_STRING;
+        if( arg->d.church && arg->d.church->motd && arg->d.church->motd[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_MOTD) || script_security >= MAX_SCRIPT_SECURITY)) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.church->motd);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_CHURCH_RULES:
+        arg->type = ENT_STRING;
+        if( arg->d.church && arg->d.church->rules && arg->d.church->rules[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_RULES) || script_security >= MAX_SCRIPT_SECURITY) ) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.church->rules);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_CHURCH_INFO:
+        arg->type = ENT_STRING;
+        if( arg->d.church && arg->d.church->info && arg->d.church->info[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_INFO) || script_security >= MAX_SCRIPT_SECURITY) ) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.church->info);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_CHURCH_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = (arg->d.church && location_isset(&arg->d.church->recall_point)) ? location_to_room(&arg->d.church->recall_point) : NULL;
+        break;
+    case ENTITY_CHURCH_TREASURE:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = (arg->d.church) ? arg->d.church->treasure_rooms : NULL;
+        break;
+    case ENTITY_CHURCH_KEY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.church && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.church->key : 0;
+        break;
+    case ENTITY_CHURCH_ONLINE:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = (arg->d.church) ? arg->d.church->online_players : NULL;
+        break;
+    case ENTITY_CHURCH_ROSTER:
+        arg->type = ENT_PLLIST_STR;
+        arg->d.blist = (arg->d.church) ? arg->d.church->roster : NULL;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_church_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_CHURCH_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_CHURCH_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_CHURCH_SIZE:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
+    case ENTITY_CHURCH_SIZE:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_CHURCH_FLAG:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
+    case ENTITY_CHURCH_FLAG:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_CHURCH_FOUNDER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_CHURCH_MOTD:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_CHURCH_RULES:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_CHURCH_INFO:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_CHURCH_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_CHURCH_TREASURE:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = NULL;
-		break;
-	case ENTITY_CHURCH_KEY:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_CHURCH_ONLINE:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = NULL;
-		break;
-	case ENTITY_CHURCH_ROSTER:
-		arg->type = ENT_PLLIST_STR;
-		arg->d.blist = NULL;
-		break;
+    case ENTITY_CHURCH_FOUNDER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_CHURCH_MOTD:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_CHURCH_RULES:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_CHURCH_INFO:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_CHURCH_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_CHURCH_TREASURE:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_CHURCH_KEY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_CHURCH_ONLINE:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_CHURCH_ROSTER:
+        arg->type = ENT_PLLIST_STR;
+        arg->d.blist = NULL;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_VARIABLE_NAME:
-		arg->type = ENT_STRING;
-		if( arg->d.variable && arg->d.variable->name && arg->d.variable->name[0] ) {
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, arg->d.variable->name);
-			arg->d.str = buf_string(arg->buffer);
-		} else
-			arg->d.str = &str_empty[0];
+    switch((unsigned char)*str) {
+    case ENTITY_VARIABLE_NAME:
+        arg->type = ENT_STRING;
+        if( arg->d.variable && arg->d.variable->name && arg->d.variable->name[0] ) {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.variable->name);
+            arg->d.str = buf_string(arg->buffer);
+        } else
+            arg->d.str = &str_empty[0];
 
-		break;
-	case ENTITY_VARIABLE_TYPE:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_VARIABLE_SAVE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.variable && arg->d.variable->save) ? 1 : 0;
-		break;
-	}
+        break;
+    case ENTITY_VARIABLE_TYPE:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_VARIABLE_SAVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.variable && arg->d.variable->save) ? 1 : 0;
+        break;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_boolean(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-		case ENTITY_BOOLEAN_TRUE_FALSE:
-			arg->type = ENT_STRING;
-			arg->d.str = arg->d.boolean ? "true" : "false";
-			break;
-		
-		case ENTITY_BOOLEAN_YES_NO:
-			arg->type = ENT_STRING;
-			arg->d.str = arg->d.boolean ? "yes" : "no";
-			break;
+    switch((unsigned char)*str) {
+        case ENTITY_BOOLEAN_TRUE_FALSE:
+            arg->type = ENT_STRING;
+            arg->d.str = arg->d.boolean ? "true" : "false";
+            break;
+        
+        case ENTITY_BOOLEAN_YES_NO:
+            arg->type = ENT_STRING;
+            arg->d.str = arg->d.boolean ? "yes" : "no";
+            break;
 
-		case ENTITY_BOOLEAN_ON_OFF:
-			arg->type = ENT_STRING;
-			arg->d.str = arg->d.boolean ? "on" : "off";
-			break;
-		
-		default: return NULL;
-	}
+        case ENTITY_BOOLEAN_ON_OFF:
+            arg->type = ENT_STRING;
+            arg->d.str = arg->d.boolean ? "on" : "off";
+            break;
+        
+        default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_number(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_NUM_ABS:
-		arg->d.num = abs(arg->d.num);
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_NUM_ABS:
+        arg->d.num = abs(arg->d.num);
+        break;
 
-	case ENTITY_NUM_PADLEFT:
-		{
-			char num[MIL];
-			sprintf(num, "%d", arg->d.num);
-			int len = strlen(num);
-			int padding = *(++str) - ESCAPE_EXTRA;
+    case ENTITY_NUM_PADLEFT:
+        {
+            char num[MIL];
+            sprintf(num, "%d", arg->d.num);
+            int len = strlen(num);
+            int padding = *(++str) - ESCAPE_EXTRA;
 
-			clear_buf(arg->buffer);
-			if( len < padding )
-			{
-				char buf[MIL + padding + 1];
-				sprintf(buf, "%-*.*s", padding, padding, num);
-				add_buf(arg->buffer, buf);
-			}
-			else
-			{
-				add_buf(arg->buffer, num);
-			}
-			arg->d.str = arg->buffer->string;
-			arg->type = ENT_STRING;
-		}
-		break;
+            clear_buf(arg->buffer);
+            if( len < padding )
+            {
+                char buf[MIL + padding + 1];
+                sprintf(buf, "%-*.*s", padding, padding, num);
+                add_buf(arg->buffer, buf);
+            }
+            else
+            {
+                add_buf(arg->buffer, num);
+            }
+            arg->d.str = arg->buffer->string;
+            arg->type = ENT_STRING;
+        }
+        break;
 
-	case ENTITY_NUM_PADRIGHT:
-		{
-			char num[MIL];
-			sprintf(num, "%d", arg->d.num);
-			int len = strlen(num);
-			int padding = *(++str) - ESCAPE_EXTRA;
+    case ENTITY_NUM_PADRIGHT:
+        {
+            char num[MIL];
+            sprintf(num, "%d", arg->d.num);
+            int len = strlen(num);
+            int padding = *(++str) - ESCAPE_EXTRA;
 
-			clear_buf(arg->buffer);
-			if( len < padding )
-			{
-				char buf[MIL + padding + 1];
-				sprintf(buf, "%*.*s", padding, padding, num);
-				add_buf(arg->buffer, buf);
-			}
-			else
-			{
-				add_buf(arg->buffer, num);
-			}
-			arg->d.str = arg->buffer->string;
-			arg->type = ENT_STRING;
-		}
-		break;
+            clear_buf(arg->buffer);
+            if( len < padding )
+            {
+                char buf[MIL + padding + 1];
+                sprintf(buf, "%*.*s", padding, padding, num);
+                add_buf(arg->buffer, buf);
+            }
+            else
+            {
+                add_buf(arg->buffer, num);
+            }
+            arg->d.str = arg->buffer->string;
+            arg->type = ENT_STRING;
+        }
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 
 char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char *a;
+    char *a;
 
-	switch(*str) {
-	case ENTITY_STR_LEN:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.str ? strlen(arg->d.str) : 0;
-		break;
-	case ENTITY_STR_LOWER:
-		if( arg->d.str == buf_string(arg->buffer) )
-		{
-			// Already in the buffer
-			for( a = arg->d.str; *a; a++)
-				*a = LOWER(*a);
-		}
-		else
-		{
-			clear_buf(arg->buffer);
-			for(a = arg->d.str; *a; a++)
-				add_buf_char(arg->buffer, LOWER(*a));
+    switch((unsigned char)*str) {
+    case ENTITY_STR_LEN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.str ? strlen(arg->d.str) : 0;
+        break;
+    case ENTITY_STR_LOWER:
+        if( arg->d.str == buf_string(arg->buffer) )
+        {
+            // Already in the buffer
+            for( a = arg->d.str; *a; a++)
+                *a = LOWER(*a);
+        }
+        else
+        {
+            clear_buf(arg->buffer);
+            for(a = arg->d.str; *a; a++)
+                add_buf_char(arg->buffer, LOWER(*a));
 
-			arg->d.str = buf_string(arg->buffer);
-		}
-		break;
-	case ENTITY_STR_UPPER:
-		if( arg->d.str == buf_string(arg->buffer) )
-		{
-			// Already in the buffer
-			for( a = arg->d.str; *a; a++)
-				*a = UPPER(*a);
-		}
-		else
-		{
-			clear_buf(arg->buffer);
-			for(a = arg->d.str; *a; a++)
-				add_buf_char(arg->buffer, UPPER(*a));
+            arg->d.str = buf_string(arg->buffer);
+        }
+        break;
+    case ENTITY_STR_UPPER:
+        if( arg->d.str == buf_string(arg->buffer) )
+        {
+            // Already in the buffer
+            for( a = arg->d.str; *a; a++)
+                *a = UPPER(*a);
+        }
+        else
+        {
+            clear_buf(arg->buffer);
+            for(a = arg->d.str; *a; a++)
+                add_buf_char(arg->buffer, UPPER(*a));
 
-			arg->d.str = buf_string(arg->buffer);
-		}
-		break;
-	case ENTITY_STR_CAPITAL:
+            arg->d.str = buf_string(arg->buffer);
+        }
+        break;
+    case ENTITY_STR_CAPITAL:
         if (arg->d.str != buf_string(arg->buffer))
         {
             clear_buf(arg->buffer);
             add_buf(arg->buffer, arg->d.str);
             arg->d.str = buf_string(arg->buffer);
         }
-		/*
-		if( arg->d.str == buf_string(arg->buffer) )
-		{
-			// Already in the buffer
-			for( a = arg->d.str; *a; a++)
-				*a = LOWER(*a);
-		}
-		else
-		{
-			clear_buf(arg->buffer);
-			for(a = arg->d.str; *a; a++)
-				add_buf_char(arg->buffer, LOWER(*a));
+        /*
+        if( arg->d.str == buf_string(arg->buffer) )
+        {
+            // Already in the buffer
+            for( a = arg->d.str; *a; a++)
+                *a = LOWER(*a);
+        }
+        else
+        {
+            clear_buf(arg->buffer);
+            for(a = arg->d.str; *a; a++)
+                add_buf_char(arg->buffer, LOWER(*a));
 
-			arg->d.str = buf_string(arg->buffer);
-		}
-		*/
-		arg->d.str[0] = UPPER(arg->d.str[0]);
-		break;
+            arg->d.str = buf_string(arg->buffer);
+        }
+        */
+        arg->d.str[0] = UPPER(arg->d.str[0]);
+        break;
 
-	case ENTITY_STR_PADLEFT:
-		if( arg->d.str )
-		{
-			int len = strlen(arg->d.str);
-			int padding = *(++str) - ESCAPE_EXTRA;
+    case ENTITY_STR_PADLEFT:
+        if( arg->d.str )
+        {
+            int len = strlen(arg->d.str);
+            int padding = *(++str) - ESCAPE_EXTRA;
 
-			// Replace string
-			if( len < padding )
-			{
-				char buf[padding + 1];
-				sprintf(buf, "%-*.*s", padding, padding, arg->d.str);
-				clear_buf(arg->buffer);
-				add_buf(arg->buffer, buf);
-				arg->d.str = arg->buffer->string;
-			}
+            // Replace string
+            if( len < padding )
+            {
+                char buf[padding + 1];
+                sprintf(buf, "%-*.*s", padding, padding, arg->d.str);
+                clear_buf(arg->buffer);
+                add_buf(arg->buffer, buf);
+                arg->d.str = arg->buffer->string;
+            }
 
-		}
-		else
-		{
-			int padding = *(++str) - ESCAPE_EXTRA;
-			char buf[padding + 1];
-			sprintf(buf, "%-*.*s", padding, padding, " ");
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, buf);
-			arg->d.str = arg->buffer->string;
-		}
-		break;
+        }
+        else
+        {
+            int padding = *(++str) - ESCAPE_EXTRA;
+            char buf[padding + 1];
+            sprintf(buf, "%-*.*s", padding, padding, " ");
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, buf);
+            arg->d.str = arg->buffer->string;
+        }
+        break;
 
-	case ENTITY_STR_PADRIGHT:
-		if( arg->d.str )
-		{
-			int len = strlen(arg->d.str);
-			int padding = *(++str) - ESCAPE_EXTRA;
+    case ENTITY_STR_PADRIGHT:
+        if( arg->d.str )
+        {
+            int len = strlen(arg->d.str);
+            int padding = *(++str) - ESCAPE_EXTRA;
 
-			// Replace string
-			if( len < padding )
-			{
-				char buf[padding + 1];
-				sprintf(buf, "%*.*s", padding, padding, arg->d.str);
-				clear_buf(arg->buffer);
-				add_buf(arg->buffer, buf);
-				arg->d.str = arg->buffer->string;
-			}
+            // Replace string
+            if( len < padding )
+            {
+                char buf[padding + 1];
+                sprintf(buf, "%*.*s", padding, padding, arg->d.str);
+                clear_buf(arg->buffer);
+                add_buf(arg->buffer, buf);
+                arg->d.str = arg->buffer->string;
+            }
 
-		}
-		else
-		{
-			int padding = *(++str) - ESCAPE_EXTRA;
-			char buf[padding + 1];
-			sprintf(buf, "%*.*s", padding, padding, " ");
-			clear_buf(arg->buffer);
-			add_buf(arg->buffer, buf);
-			arg->d.str = arg->buffer->string;
-		}
-		break;
+        }
+        else
+        {
+            int padding = *(++str) - ESCAPE_EXTRA;
+            char buf[padding + 1];
+            sprintf(buf, "%*.*s", padding, padding, " ");
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, buf);
+            arg->d.str = arg->buffer->string;
+        }
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
+}
+
+static void script_event_runtime_ref_delete(void *data)
+{
+    if (data)
+        free_mem(data, sizeof(EVENT_RUNTIME_REF));
+}
+
+static LLIST *script_event_runtime_list_from_refs(const EVENT_RUNTIME_REF *refs, int count)
+{
+    LLIST *list;
+    int index;
+
+    list = list_createx(false, NULL, script_event_runtime_ref_delete);
+    if (!list)
+        return NULL;
+
+    for (index = 0; index < count; ++index)
+    {
+        EVENT_RUNTIME_REF *copy;
+
+        copy = alloc_mem(sizeof(*copy));
+        if (!copy)
+            continue;
+
+        *copy = refs[index];
+        if (!list_appendlink(list, copy))
+            free_mem(copy, sizeof(*copy));
+    }
+
+    return list;
 }
 
 char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	CHAR_DATA *self = arg->d.mob;
-	char *p;
-	char time_str[100];
-	switch(*str) {
-	case ENTITY_MOB_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)arg->d.mob->name : (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_SHORT:
-		arg->type = ENT_STRING;
-		p = arg->d.mob ? (char*)((IS_NPC(arg->d.mob) || arg->d.mob->morphed) ? arg->d.mob->short_descr : capitalize(arg->d.mob->name)) : (char*)"no one";
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, p);
-		arg->d.str = buf_string(arg->buffer);
-		break;
-	case ENTITY_MOB_LONG:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)arg->d.mob->long_descr : (char*)&str_empty[0];
-		break;
-	case ENTITY_MOB_SEX:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)male_female[URANGE(0,arg->d.mob->sex,2)] : (char*)male_female[0];
-		break;
-	case ENTITY_MOB_HE:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)he_she[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_HIM:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)him_her[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_HIS:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)his_her[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONES;
-		break;
-	case ENTITY_MOB_HIS_O:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)his_hers[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONES;
-		break;
-	case ENTITY_MOB_HIMSELF:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)himself[URANGE(0,arg->d.mob->sex,2)] : (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_RACE:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)race_table[arg->d.mob->race].name : "unknown";
-		break;
-	case ENTITY_MOB_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = arg->d.mob ? arg->d.mob->in_room : NULL;
-		break;
-	case ENTITY_MOB_HOUSE:
-		arg->type = ENT_ROOM;
-		if( arg->d.mob )
-		{
-			if( IS_NPC(arg->d.mob) )
-				arg->d.room = arg->d.mob->home_room;
-			else if( arg->d.mob->home > 0 )
-				arg->d.room = get_room_index(arg->d.mob->home);
-		}
-		else
-			arg->d.room = NULL;
-		break;
-	case ENTITY_MOB_CARRYING:
+    CHAR_DATA *self = arg->d.mob;
+    char *p;
+    char time_str[100];
+    long event_uid = 0;
+    uint32_t event_instance_id = 0;
+    int event_kills = 0;
+    int event_items = 0;
+    int event_goal = 0;
+    int event_stage_index = 0;
+    int event_stage_count = 0;
+    int event_objectives_met = 0;
+    int event_objectives_total = 0;
+    int event_objective_progress = 0;
+    int event_completion = 0;
+    int mission_points = 0;
+    int mission_total_completed = 0;
+    bool event_active = false;
+    bool mission_active = false;
+    bool leader_phase = false;
+    char event_phase_name[MIL];
+
+    event_phase_name[0] = '\0';
+    script_get_quest_metrics(self, &mission_points, &mission_total_completed, &mission_active);
+
+    if (self) {
+        if (!event_get_mobile_spawn_source(self, &event_uid, &event_instance_id) || event_uid <= 0)
+            event_get_character_active_bracket(self, &event_uid, &event_instance_id, NULL);
+
+        if (event_uid > 0)
+            event_active = event_runtime_get_source_progress(event_uid, event_instance_id, &event_kills, &event_items, &event_goal);
+        if (event_active)
+            event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+        if (event_active)
+            event_runtime_get_source_phase(event_uid, event_instance_id, event_phase_name, sizeof(event_phase_name));
+        if (event_active)
+            event_runtime_get_source_stage_progress(event_uid, event_instance_id,
+                &event_stage_index, &event_stage_count, &event_completion);
+        if (event_active)
+            event_runtime_get_source_objective_progress(event_uid, event_instance_id,
+                &event_objectives_met, &event_objectives_total, &event_objective_progress);
+    }
+
+    switch((unsigned char)*str) {
+    case ENTITY_MOB_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.mob ? (char*)arg->d.mob->name : (char*)SOMEONE;
+        break;
+    case ENTITY_MOB_SHORT:
+        arg->type = ENT_STRING;
+        p = arg->d.mob ? (char*)((IS_NPC(arg->d.mob) || arg->d.mob->morphed) ? arg->d.mob->short_descr : capitalize(arg->d.mob->name)) : (char*)"no one";
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, p);
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_MOB_LONG:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.mob ? (char*)arg->d.mob->long_descr : (char*)&str_empty[0];
+        break;
+    case ENTITY_MOB_SEX: // Now returns the body_type name string
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_body_type_name(self));
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HE: // Subjective pronoun (he, she, they, ze)
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_he_she(self));
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIM: // Objective pronoun (him, her, them, zir)
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_him_her(self));
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIS: // Possessive adjective (his, her, their, zis)
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_his_her(self));
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIS_O: // Possessive pronoun (his, hers, theirs, zirs)
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_his_hers(self));
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_HIMSELF: // Reflexive pronoun (himself, herself, themself, zirself)
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (char *)get_himself_herself(self));
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_MOB_RACE:
+        arg->type = ENT_STRING;
+        arg->d.str = (arg->d.mob && arg->d.mob->race) ? (char*)arg->d.mob->race->name : "unknown";
+        break;
+    case ENTITY_MOB_RACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = self ? self->race : NULL;
+        break;
+    case ENTITY_MOB_ORIGINALRACE:
+        arg->type = ENT_STRING;
+        arg->d.str = (arg->d.mob && arg->d.mob->orace) ? (char*)arg->d.mob->orace->name : "none";
+        break;
+    case ENTITY_MOB_ORIGINALRACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = self ? self->orace : NULL;
+        break;
+    case ENTITY_MOB_CLASS:
+    {
+        CLASS_DATA *current_class = NULL;
+        arg->type = ENT_CLASS;
+        script_get_class_metrics(self, &current_class, NULL, NULL);
+        arg->d.clazz = current_class;
+        break;
+    }
+    case ENTITY_MOB_CLASSLEVEL:
+    {
+        CLASS_LEVEL *current_level = NULL;
+        arg->type = ENT_CLASSLEVEL;
+        script_get_class_metrics(self, NULL, &current_level, NULL);
+        arg->d.classlevel = current_level;
+        break;
+    }
+    case ENTITY_MOB_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = arg->d.mob ? arg->d.mob->in_room : NULL;
+        break;
+    case ENTITY_MOB_HOUSE:
+        arg->type = ENT_ROOM;
+        if( arg->d.mob )
+        {
+            if( IS_NPC(arg->d.mob) )
+                arg->d.room = arg->d.mob->home_room;
+            else if( arg->d.mob->home > 0 ) {
+                AREA_DATA *home_area = find_area_by_vnum(arg->d.mob->home, NULL);
+                if (!home_area) home_area = get_system_area_fallback();
+                arg->d.room = get_room_index(home_area, arg->d.mob->home);
+            }
+        }
+        else
+            arg->d.room = NULL;
+        break;
+    case ENTITY_MOB_CARRYING:
         if (self && is_llist(self->lcarrying)) {
             arg->type = ENT_PLLIST_OBJ;
             arg->d.blist = self ? self->lcarrying : NULL;
@@ -1790,3632 +2249,7173 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
             arg->d.list.owner_type = ENT_UNKNOWN;
         }
         break;
-	case ENTITY_MOB_TOKENS:
-		arg->type = ENT_OLLIST_TOK;
-		arg->d.list.ptr.tok = self ? &self->tokens : NULL;
-		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_MOB_AFFECTS:
-		arg->type = ENT_OLLIST_AFF;
-		arg->d.list.ptr.aff = self ? &self->affected : NULL;
-		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_MOB_MOUNT:
-		arg->d.mob = arg->d.mob ? arg->d.mob->mount : NULL;
-		break;
-	case ENTITY_MOB_RIDER:
-		arg->d.mob = arg->d.mob ? arg->d.mob->rider : NULL;
-		break;
-	case ENTITY_MOB_MASTER:
-		arg->d.mob = arg->d.mob ? arg->d.mob->master : NULL;
-		break;
-	case ENTITY_MOB_LEADER:
-		arg->d.mob = arg->d.mob ? arg->d.mob->leader : NULL;
-		break;
-	case ENTITY_MOB_OWNER:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob && arg->d.mob->owner ? arg->d.mob->owner : &str_empty[0];
-		break;
-	case ENTITY_MOB_OPPONENT:
-		arg->d.mob = arg->d.mob ? arg->d.mob->fighting : NULL;
-		break;
-	case ENTITY_MOB_CART:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = arg->d.mob ? arg->d.mob->pulled_cart : NULL;
-		break;
-	case ENTITY_MOB_FURNITURE:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = arg->d.mob ? arg->d.mob->on : NULL;
-		break;
-	case ENTITY_MOB_TARGET:
-		arg->d.mob = (arg->d.mob && arg->d.mob->progs) ? arg->d.mob->progs->target : NULL;
-		break;
-	case ENTITY_MOB_HUNTING:
-		arg->d.mob = arg->d.mob ? arg->d.mob->hunting : NULL;
-		break;
-	case ENTITY_MOB_AREA:
-		arg->type = ENT_AREA;
-		arg->d.area = arg->d.mob && arg->d.mob->in_room ? arg->d.mob->in_room->area : NULL;
-		break;
-	case ENTITY_MOB_EQ_LIGHT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LIGHT);
-		break;
-	case ENTITY_MOB_EQ_FINGER1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_FINGER_L);
-		break;
-	case ENTITY_MOB_EQ_FINGER2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_FINGER_R);
-		break;
-	case ENTITY_MOB_EQ_NECK1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_NECK_1);
-		break;
-	case ENTITY_MOB_EQ_NECK2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_NECK_2);
-		break;
-	case ENTITY_MOB_EQ_BODY:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_BODY);
-		break;
-	case ENTITY_MOB_EQ_HEAD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_HEAD);
-		break;
-	case ENTITY_MOB_EQ_LEGS:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LEGS);
-		break;
-	case ENTITY_MOB_EQ_FEET:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_FEET);
-		break;
-	case ENTITY_MOB_EQ_HANDS:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_HANDS);
-		break;
-	case ENTITY_MOB_EQ_ARMS:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_ARMS);
-		break;
-	case ENTITY_MOB_EQ_SHIELD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_SHIELD);
-		break;
-	case ENTITY_MOB_EQ_ABOUT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_ABOUT);
-		break;
-	case ENTITY_MOB_EQ_WAIST:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_WAIST);
-		break;
-	case ENTITY_MOB_EQ_WRIST1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_WRIST_L);
-		break;
-	case ENTITY_MOB_EQ_WRIST2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_WRIST_R);
-		break;
-	case ENTITY_MOB_EQ_WIELD1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_WIELD);
-		break;
-	case ENTITY_MOB_EQ_HOLD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_HOLD);
-		break;
-	case ENTITY_MOB_EQ_WIELD2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_SECONDARY);
-		break;
-	case ENTITY_MOB_EQ_RING:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_RING_FINGER);
-		break;
-	case ENTITY_MOB_EQ_BACK:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_BACK);
-		break;
-	case ENTITY_MOB_EQ_SHOULDER:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_SHOULDER);
-		break;
-	case ENTITY_MOB_EQ_ANKLE1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_ANKLE_L);
-		break;
-	case ENTITY_MOB_EQ_ANKLE2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_ANKLE_R);
-		break;
-	case ENTITY_MOB_EQ_EAR1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_EAR_L);
-		break;
-	case ENTITY_MOB_EQ_EAR2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_EAR_R);
-		break;
-	case ENTITY_MOB_EQ_EYES:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_EYES);
-		break;
-	case ENTITY_MOB_EQ_FACE:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_FACE);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_HEAD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_HEAD);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_TORSO:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_TORSO);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_UPPER_ARM_L);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_UPPER_ARM_R);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_UPPER_LEG_L);
-		break;
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_UPPER_LEG_R);
-		break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_R);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_R);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_R);
-                break;
-	case ENTITY_MOB_EQ_TATTOO_BACK:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_BACK);
-		break;
-	case ENTITY_MOB_EQ_LODGED_HEAD:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_HEAD);
-		break;
-	case ENTITY_MOB_EQ_LODGED_TORSO:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_TORSO);
-		break;
-	case ENTITY_MOB_EQ_LODGED_ARM1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_ARM_L);
-		break;
-	case ENTITY_MOB_EQ_LODGED_ARM2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_ARM_R);
-		break;
-	case ENTITY_MOB_EQ_LODGED_LEG1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_LEG_L);
-		break;
-	case ENTITY_MOB_EQ_LODGED_LEG2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_LEG_R);
-		break;
-	case ENTITY_MOB_EQ_ENTANGLED:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_ENTANGLED);
-		break;
-	case ENTITY_MOB_EQ_CONCEALED:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = get_eq_char(arg->d.mob,WEAR_CONCEALED);
-		break;
-	case ENTITY_MOB_NEXT:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = (arg->d.mob && arg->d.mob->in_room)?arg->d.mob->next_in_room:NULL;
-		break;
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,(arg->d.mob && IS_NPC(arg->d.mob))?arg->d.mob->progs->vars:NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	case ENTITY_MOB_CASTSPELL:
-		arg->type = ENT_SKILL;
-		arg->d.sn = arg->d.mob ? arg->d.mob->cast_sn: -1;
-		break;
-	case ENTITY_MOB_CASTTOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = arg->d.mob ? arg->d.mob->cast_token: NULL;
-		break;
-	case ENTITY_MOB_CASTTARGET:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)arg->d.mob->cast_target_name : (char*)&str_empty[0];
-		break;
-	case ENTITY_MOB_SONG:
-		arg->type = ENT_SONG;
-		arg->d.song = arg->d.mob ? arg->d.mob->song_num : -1;
-		break;
-	case ENTITY_MOB_SONGTOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = arg->d.mob ? arg->d.mob->song_token: NULL;
-		break;
-	case ENTITY_MOB_SONGTARGET:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob ? (char*)arg->d.mob->music_target_name : (char*)&str_empty[0];
-		break;
-	case ENTITY_MOB_INSTRUMENT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = arg->d.mob ? arg->d.mob->song_instrument : NULL;
-		break;
-	case ENTITY_MOB_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.mob && location_isset(&arg->d.mob->recall)) ? location_to_room(&arg->d.mob->recall) : NULL;
-		break;
-	case ENTITY_MOB_CONNECTION:
-		arg->type = ENT_CONN;
-		arg->d.conn = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->desc : NULL;	// Works for PCs and switched NPCs
-		break;
-	case ENTITY_MOB_CHURCH:
-		arg->type = ENT_CHURCH;
-		arg->d.church = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->church : NULL;	// Works for PCs and switched NPCs
-		break;
-	case ENTITY_MOB_CLONEROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = arg->d.mob ? arg->d.mob->lclonerooms : NULL;
-		break;
-	case ENTITY_MOB_WORN:
-		arg->type = ENT_PLLIST_OBJ;
-		arg->d.blist = arg->d.mob ? arg->d.mob->lworn : NULL;
-		break;
-	case ENTITY_MOB_CHECKPOINT:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->checkpoint : NULL;
-		break;
-	case ENTITY_MOB_VARIABLES:
-		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = (arg->d.mob && arg->d.mob->progs) ? &arg->d.mob->progs->vars : NULL;
-		break;
-	case ENTITY_MOB_GROUP:
-		arg->type = ENT_GROUP;
-		arg->d.group_owner = arg->d.mob;
-		break;
+    case ENTITY_MOB_TOKENS:
+        arg->type = ENT_OLLIST_TOK;
+        arg->d.list.ptr.tok = self ? &self->tokens : NULL;
+        arg->d.list.owner = self;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_MOB_AFFECTS:
+        arg->type = ENT_OLLIST_AFF;
+        arg->d.list.ptr.aff = self ? &self->affected : NULL;
+        arg->d.list.owner = self;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_MOB_MOUNT:
+        arg->d.mob = arg->d.mob ? arg->d.mob->mount : NULL;
+        break;
+    case ENTITY_MOB_RIDER:
+        arg->d.mob = arg->d.mob ? arg->d.mob->rider : NULL;
+        break;
+    case ENTITY_MOB_MASTER:
+        arg->d.mob = arg->d.mob ? arg->d.mob->master : NULL;
+        break;
+    case ENTITY_MOB_LEADER:
+        arg->d.mob = arg->d.mob ? arg->d.mob->leader : NULL;
+        break;
+    case ENTITY_MOB_OWNER:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.mob && arg->d.mob->owner ? arg->d.mob->owner : &str_empty[0];
+        break;
+    case ENTITY_MOB_OPPONENT:
+        arg->d.mob = arg->d.mob ? arg->d.mob->fighting : NULL;
+        break;
+    case ENTITY_MOB_CART:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = arg->d.mob ? arg->d.mob->pulled_cart : NULL;
+        break;
+    case ENTITY_MOB_FURNITURE:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = arg->d.mob ? arg->d.mob->on : NULL;
+        break;
+    case ENTITY_MOB_TARGET:
+        arg->d.mob = (arg->d.mob && arg->d.mob->progs) ? arg->d.mob->progs->target : NULL;
+        break;
+    case ENTITY_MOB_HUNTING:
+        arg->d.mob = arg->d.mob ? arg->d.mob->hunting : NULL;
+        break;
+    case ENTITY_MOB_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = arg->d.mob && arg->d.mob->in_room ? arg->d.mob->in_room->area : NULL;
+        break;
+    case ENTITY_MOB_EQUIPMENT:
+        arg->type = ENT_EQUIPMENT;
+        break;
+    case ENTITY_MOB_NEXT:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = (arg->d.mob && arg->d.mob->in_room)?arg->d.mob->next_in_room:NULL;
+        break;
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,(arg->d.mob && IS_NPC(arg->d.mob))?arg->d.mob->progs->vars:NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    case ENTITY_MOB_CASTSPELL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = arg->d.mob ? arg->d.mob->cast_sn: -1;
+        break;
+    case ENTITY_MOB_CASTTOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = arg->d.mob ? arg->d.mob->cast_token: NULL;
+        break;
+    case ENTITY_MOB_CASTTARGET:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.mob ? (char*)arg->d.mob->cast_target_name : (char*)&str_empty[0];
+        break;
+    case ENTITY_MOB_SONG:
+        arg->type = ENT_SONG;
+        arg->d.song = arg->d.mob ? arg->d.mob->song : NULL;
+        break;
+    case ENTITY_MOB_SONGTOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = arg->d.mob ? arg->d.mob->song_token: NULL;
+        break;
+    case ENTITY_MOB_SONGTARGET:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.mob ? (char*)arg->d.mob->music_target_name : (char*)&str_empty[0];
+        break;
+    case ENTITY_MOB_INSTRUMENT:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = arg->d.mob ? arg->d.mob->song_instrument : NULL;
+        break;
+    case ENTITY_MOB_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = (arg->d.mob && location_isset(&arg->d.mob->recall)) ? location_to_room(&arg->d.mob->recall) : NULL;
+        break;
+    case ENTITY_MOB_CONNECTION:
+        arg->type = ENT_CONN;
+        arg->d.conn = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->desc : NULL;	// Works for PCs and switched NPCs
+        break;
+    case ENTITY_MOB_CHURCH:
+        arg->type = ENT_CHURCH;
+        arg->d.church = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->church : NULL;	// Works for PCs and switched NPCs
+        break;
+    case ENTITY_MOB_CLONEROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = arg->d.mob ? arg->d.mob->lclonerooms : NULL;
+        break;
+    case ENTITY_MOB_WORN:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = arg->d.mob ? arg->d.mob->lworn : NULL;
+        break;
+    case ENTITY_MOB_CHECKPOINT:
+        arg->type = ENT_ROOM;
+        arg->d.room = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->checkpoint : NULL;
+        break;
+    case ENTITY_MOB_VARIABLES:
+        arg->type = ENT_ILLIST_VARIABLE;
+        arg->d.variables = (arg->d.mob && arg->d.mob->progs) ? &arg->d.mob->progs->vars : NULL;
+        break;
+    case ENTITY_MOB_GROUP:
+        arg->type = ENT_GROUP;
+        arg->d.group_owner = arg->d.mob;
+        break;
 
-	case ENTITY_MOB_NUMGROUPED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = self ? self->num_grouped : 0;
-		break;
+    case ENTITY_MOB_NUMGROUPED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? self->num_grouped : 0;
+        break;
 
-	case ENTITY_MOB_DAMAGEDICE:
-		arg->type = ENT_DICE;
-		arg->d.dice = arg->d.mob ? &arg->d.mob->damage : NULL;;
-		break;
+    case ENTITY_MOB_DAMAGEDICE:
+        arg->type = ENT_DICE;
+        arg->d.dice = arg->d.mob ? &arg->d.mob->damage : NULL;;
+        break;
 
-	case ENTITY_MOB_ACT:
-		arg->type = ENT_BITMATRIX;
-		arg->d.bm.values = self ? self->act : NULL;
-		arg->d.bm.bank = self ? (IS_NPC(self) ? act_flagbank : plr_flagbank) : NULL;
-		break;
+    case ENTITY_MOB_ACT:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = self ? self->act : NULL;
+        arg->d.bm.bank = self ? (IS_NPC(self) ? act_flagbank : plr_flagbank) : NULL;
+        break;
 
-	case ENTITY_MOB_AFFECT:
-		arg->type = ENT_BITMATRIX;
-		arg->d.bm.values = self ? self->affected_by : NULL;
-		arg->d.bm.bank = self ? affect_flagbank : NULL;
-		break;
+    case ENTITY_MOB_AFFECT:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = self ? self->affected_by : NULL;
+        arg->d.bm.bank = self ? affect_flagbank : NULL;
+        break;
 
-	case ENTITY_MOB_OFF:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = (self && IS_NPC(self)) ? self->off_flags : 0;
-		arg->d.bv.table = (self && IS_NPC(self)) ? off_flags : NULL;
-		break;
+    case ENTITY_MOB_OFF:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = (self && IS_NPC(self)) ? self->off_flags : 0;
+        arg->d.bv.table = (self && IS_NPC(self)) ? off_flags : NULL;
+        break;
 
-	case ENTITY_MOB_IMMUNE:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->imm_flags : 0;
-		arg->d.bv.table = self ? imm_flags : NULL;
-		break;
+    case ENTITY_MOB_IMMUNE:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = self ? self->imm_flags : 0;
+        arg->d.bv.table = self ? imm_flags : NULL;
+        break;
 
-	case ENTITY_MOB_RESIST:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->res_flags : 0;
-		arg->d.bv.table = self ? res_flags : NULL;
-		break;
+    case ENTITY_MOB_RESIST:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = self ? self->res_flags : 0;
+        arg->d.bv.table = self ? res_flags : NULL;
+        break;
 
-	case ENTITY_MOB_VULN:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->vuln_flags : 0;
-		arg->d.bv.table = self ? vuln_flags : NULL;
-		break;
+    case ENTITY_MOB_VULN:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = self ? self->vuln_flags : 0;
+        arg->d.bv.table = self ? vuln_flags : NULL;
+        break;
 
-	case ENTITY_MOB_TEMPSTRING:
-		arg->type = ENT_STRING;
-		arg->d.str = self && self->tempstring ? self->tempstring : &str_empty[0];
-		break;
+    case ENTITY_MOB_TEMPSTRING:
+        arg->type = ENT_STRING;
+        arg->d.str = self && self->tempstring ? self->tempstring : &str_empty[0];
+        break;
 
-	case ENTITY_MOB_INDEX:
-		arg->type = ENT_MOBINDEX;
-		arg->d.mobindex = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->pIndexData : NULL;
-		break;
+    case ENTITY_MOB_INDEX:
+        arg->type = ENT_MOBINDEX;
+        arg->d.mobindex = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->pIndexData : NULL;
+        break;
 
-	case ENTITY_MOB_LEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->level : arg->d.mob->tot_level;
-		break;
+    case ENTITY_MOB_TRAINER:
+        arg->type = ENT_TRAINER;
+        arg->d.trainer = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->pIndexData)
+            ? arg->d.mob->pIndexData->pTrainer : NULL;
+        break;
 
-	case ENTITY_MOB_LASTLOGOFF:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_logoff : 0;
-		break;
-	case ENTITY_MOB_LASTLOGIN:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_login : 0;
-		break;
-	case ENTITY_MOB_PLAYED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->played + (int) current_time - arg->d.mob->pcdata->last_login : 0;
-		break;
-	case ENTITY_MOB_SESSIONTIME:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? (int) current_time - arg->d.mob->pcdata->last_login : 0;
-		break;
-	case ENTITY_MOB_CREATED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->creation_date : arg->d.mob->creation_time;
-		break;
-	case ENTITY_MOB_LASTLOGOFF_HUMAN:
-		arg->type = ENT_STRING;
-		struct tm *logoff_time = localtime(&arg->d.mob->pcdata->last_logoff);
-		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", logoff_time);
-		arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
-		break;
-	case ENTITY_MOB_LASTLOGIN_HUMAN:
-		arg->type = ENT_STRING;
-		struct tm *login_time = localtime(&arg->d.mob->pcdata->last_login);
-		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", login_time);
-		arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
-		break;
-	case ENTITY_MOB_CREATED_HUMAN:
-		arg->type = ENT_STRING;
-		struct tm *creation_time = localtime(&arg->d.mob->pcdata->creation_date);
-		strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", creation_time);
-		arg->d.str = (arg->d.mob && !IS_NPC(arg->d.mob)) ? str_dup(time_str) : (char *)&str_empty[0];
-		break;
-	case ENTITY_MOB_LASTLOGOFF_DELTA:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->last_logoff : 0;
-		break;
-	case ENTITY_MOB_LASTLOGIN_DELTA:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->last_login : 0;
-		break;
-	case ENTITY_MOB_CREATED_DELTA:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->creation_date : current_time - arg->d.mob->creation_time;
-		break;
-	default: return NULL;
-	}
+    case ENTITY_MOB_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = self ? self->lstache : NULL;
+        break;
 
-	return str+1;
+    case ENTITY_MOB_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.mob ? ((IS_NPC(arg->d.mob)) ? arg->d.mob->level : arg->d.mob->tot_level) : 0;
+        break;
+
+    case ENTITY_MOB_LASTLOGOFF:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_logoff : 0;
+        break;
+    case ENTITY_MOB_LASTLOGIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->last_login : 0;
+        break;
+    case ENTITY_MOB_PLAYED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? arg->d.mob->played + (int) current_time - arg->d.mob->pcdata->last_login : 0;
+        break;
+    case ENTITY_MOB_SESSIONTIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? (int) current_time - arg->d.mob->pcdata->last_login : 0;
+        break;
+    case ENTITY_MOB_CREATED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.mob ? ((!IS_NPC(arg->d.mob)) ? arg->d.mob->pcdata->creation_date : arg->d.mob->creation_time) : 0;
+        break;
+    case ENTITY_MOB_LASTLOGOFF_HUMAN:
+        arg->type = ENT_STRING;
+        if (arg->d.mob && !IS_NPC(arg->d.mob)) {
+            struct tm *logoff_time = localtime(&arg->d.mob->pcdata->last_logoff);
+            strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", logoff_time);
+            arg->d.str = str_dup(time_str);
+        } else {
+            arg->d.str = (char *)&str_empty[0];
+        }
+        break;
+    case ENTITY_MOB_LASTLOGIN_HUMAN:
+        arg->type = ENT_STRING;
+        if (arg->d.mob && !IS_NPC(arg->d.mob)) {
+            struct tm *login_time = localtime(&arg->d.mob->pcdata->last_login);
+            strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", login_time);
+            arg->d.str = str_dup(time_str);
+        } else {
+            arg->d.str = (char *)&str_empty[0];
+        }
+        break;
+    case ENTITY_MOB_CREATED_HUMAN:
+        arg->type = ENT_STRING;
+        if (arg->d.mob && !IS_NPC(arg->d.mob)) {
+            struct tm *creation_time = localtime(&arg->d.mob->pcdata->creation_date);
+            strftime(time_str, sizeof(time_str), "%a %b %d %X %Z %Y", creation_time);
+            arg->d.str = str_dup(time_str);
+        } else {
+            arg->d.str = (char *)&str_empty[0];
+        }
+        break;
+    case ENTITY_MOB_LASTLOGOFF_DELTA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->last_logoff : 0;
+        break;
+    case ENTITY_MOB_LASTLOGIN_DELTA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.mob && !IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->last_login : 0;
+        break;
+    case ENTITY_MOB_CREATED_DELTA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.mob ? ((!IS_NPC(arg->d.mob)) ? current_time - arg->d.mob->pcdata->creation_date : current_time - arg->d.mob->creation_time) : 0;
+        break;
+    case ENTITY_MOB_BODY_TYPE_VALUE:
+        arg->d.num = self->body_type;
+        arg->type = ENT_NUMBER;
+        break;
+    case ENTITY_MOB_VERB_PREF_VALUE:
+        arg->d.num = self->verb_preference;
+        arg->type = ENT_NUMBER;
+        break;
+    case ENTITY_MOB_EVENT_SOURCE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source.vnum : 0;
+        break;
+    case ENTITY_MOB_EVENT_SOURCE_INSTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source_instance_id : 0;
+        break;
+    case ENTITY_MOB_EVENT_BRACKET:
+    {
+        int bracket = 0;
+        arg->type = ENT_NUMBER;
+        if (self)
+            event_get_character_active_bracket(self, NULL, NULL, &bracket);
+        arg->d.num = bracket;
+        break;
+    }
+    case ENTITY_MOB_EVENT_ACTIVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_active ? 1 : 0;
+        break;
+    case ENTITY_MOB_EVENT_KILLS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_kills;
+        break;
+    case ENTITY_MOB_EVENT_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_items;
+        break;
+    case ENTITY_MOB_EVENT_GOAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_goal;
+        break;
+    case ENTITY_MOB_EVENT_PHASE:
+    case ENTITY_MOB_EVENT_STAGE:
+        arg->type = ENT_STRING;
+        if (!event_active)
+            arg->d.str = (char *)&str_empty[0];
+        else if (!IS_NULLSTR(event_phase_name))
+            arg->d.str = event_phase_name;
+        else
+            arg->d.str = (char *)(leader_phase ? "leader" : "active");
+        break;
+    case ENTITY_MOB_EVENT_STAGE_INDEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_index;
+        break;
+    case ENTITY_MOB_EVENT_STAGE_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_count;
+        break;
+    case ENTITY_MOB_EVENT_OBJECTIVES_MET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_met;
+        break;
+    case ENTITY_MOB_EVENT_OBJECTIVES_TOTAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_total;
+        break;
+    case ENTITY_MOB_EVENT_OBJECTIVE_PROGRESS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objective_progress;
+        break;
+    case ENTITY_MOB_EVENT_COMPLETION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_completion;
+        break;
+    case ENTITY_MOB_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = self;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = self ? self->event_source.vnum : 0;
+        arg->d.event.instance_id = self ? self->event_source_instance_id : 0;
+        break;
+    case ENTITY_MOB_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_character(self, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
+    case ENTITY_MOB_QUESTPOINTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = mission_points;
+        break;
+    case ENTITY_MOB_TOTALQUESTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = mission_total_completed;
+        break;
+    case ENTITY_MOB_ONMISSION:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = mission_active;
+        break;
+    case ENTITY_MOB_REPUTATIONS:
+        arg->type = ENT_ILLIST_REPUTATION;
+        arg->d.blist = self ? self->reputations : NULL;
+        break;
+    case ENTITY_MOB_REPUTATION:
+        arg->type = ENT_REPUTATION;
+        arg->d.reputation = self ? self->tempreputation : NULL;
+        break;
+    case ENTITY_MOB_FACTIONS:
+        arg->type = ENT_ILLIST_REPUTATION_INDEX;
+        arg->d.blist = self ? self->factions : NULL;
+        break;
+    case ENTITY_MOB_TRAIT:
+        arg->type = ENT_MOB_TRAIT;
+        break;
+    case ENTITY_MOB_QUESTS:
+    {
+        LLIST *list = list_create(false);
+        QUEST_DATA *run;
+
+        if (!list)
+            return NULL;
+
+        if (self)
+        {
+            for (run = self->quest; run != NULL; run = run->next)
+                list_appendlink(list, run);
+        }
+
+        arg->type = ENT_ILLIST_QUEST;
+        arg->d.blist = list;
+        break;
+    }
+    case ENTITY_MOB_QUESTHISTORY:
+    {
+        LLIST *list = list_create(false);
+        QUEST_HISTORY_DATA *history;
+
+        if (!list)
+            return NULL;
+
+        if (self && !IS_NPC(self) && self->pcdata)
+        {
+            for (history = self->pcdata->quest_history; history != NULL; history = history->next)
+                list_appendlink(list, history);
+        }
+
+        arg->type = ENT_ILLIST_QUEST_HISTORY;
+        arg->d.blist = list;
+        break;
+    }
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_MOB_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_SHORT:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, "no one");
-		arg->d.str = buf_string(arg->buffer);
-		break;
-	case ENTITY_MOB_LONG:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)&str_empty[0];
-		break;
-	case ENTITY_MOB_FULLDESC:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)&str_empty[0];
-		break;
-	case ENTITY_MOB_SEX:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)male_female[0];
-		break;
-	case ENTITY_MOB_HE:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_HIM:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_HIS:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)SOMEONES;
-		break;
-	case ENTITY_MOB_HIS_O:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)SOMEONES;
-		break;
-	case ENTITY_MOB_HIMSELF:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)SOMEONE;
-		break;
-	case ENTITY_MOB_RACE:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, "unknown");
-		arg->d.str = buf_string(arg->buffer);
-		break;
-	case ENTITY_MOB_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_MOB_HOUSE:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_MOB_CARRYING:
-		arg->type = ENT_OLLIST_OBJ;
-		arg->d.list.ptr.obj = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_MOB_TOKENS:
-		arg->type = ENT_OLLIST_TOK;
-		arg->d.list.ptr.tok = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_MOB_AFFECTS:
-		arg->type = ENT_OLLIST_AFF;
-		arg->d.list.ptr.aff = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_MOB_MOUNT:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_MOB_RIDER:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_MOB_MASTER:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_MOB_LEADER:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_MOB_OWNER:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_MOB_OPPONENT:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_MOB_CART:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = NULL;
-		break;
-	case ENTITY_MOB_FURNITURE:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = NULL;
-		break;
-	case ENTITY_MOB_TARGET:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_MOB_HUNTING:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_MOB_AREA:
-		arg->type = ENT_AREA;
-		arg->d.area = NULL;
-		break;
-	case ENTITY_MOB_EQ_LIGHT:
-	case ENTITY_MOB_EQ_FINGER1:
-	case ENTITY_MOB_EQ_FINGER2:
-	case ENTITY_MOB_EQ_NECK1:
-	case ENTITY_MOB_EQ_NECK2:
-	case ENTITY_MOB_EQ_BODY:
-	case ENTITY_MOB_EQ_HEAD:
-	case ENTITY_MOB_EQ_LEGS:
-	case ENTITY_MOB_EQ_FEET:
-	case ENTITY_MOB_EQ_HANDS:
-	case ENTITY_MOB_EQ_ARMS:
-	case ENTITY_MOB_EQ_SHIELD:
-	case ENTITY_MOB_EQ_ABOUT:
-	case ENTITY_MOB_EQ_WAIST:
-	case ENTITY_MOB_EQ_WRIST1:
-	case ENTITY_MOB_EQ_WRIST2:
-	case ENTITY_MOB_EQ_WIELD1:
-	case ENTITY_MOB_EQ_HOLD:
-	case ENTITY_MOB_EQ_WIELD2:
-	case ENTITY_MOB_EQ_RING:
-	case ENTITY_MOB_EQ_BACK:
-	case ENTITY_MOB_EQ_SHOULDER:
-	case ENTITY_MOB_EQ_ANKLE1:
-	case ENTITY_MOB_EQ_ANKLE2:
-	case ENTITY_MOB_EQ_EAR1:
-	case ENTITY_MOB_EQ_EAR2:
-	case ENTITY_MOB_EQ_EYES:
-	case ENTITY_MOB_EQ_FACE:
-	case ENTITY_MOB_EQ_TATTOO_HEAD:
-	case ENTITY_MOB_EQ_TATTOO_TORSO:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM1:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_ARM2:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG1:
-	case ENTITY_MOB_EQ_TATTOO_UPPER_LEG2:
-	case ENTITY_MOB_EQ_TATTOO_BACK:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
-        case ENTITY_MOB_EQ_LODGED_HEAD:
-	case ENTITY_MOB_EQ_LODGED_TORSO:
-	case ENTITY_MOB_EQ_LODGED_ARM1:
-	case ENTITY_MOB_EQ_LODGED_ARM2:
-	case ENTITY_MOB_EQ_LODGED_LEG1:
-	case ENTITY_MOB_EQ_LODGED_LEG2:
-	case ENTITY_MOB_EQ_ENTANGLED:
-	case ENTITY_MOB_EQ_CONCEALED:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = NULL;
-		break;
-	case ENTITY_MOB_NEXT:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_MOB_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)SOMEONE;
+        break;
+    case ENTITY_MOB_SHORT:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, "no one");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_MOB_LONG:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
+    case ENTITY_MOB_FULLDESC:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
+    case ENTITY_MOB_SEX:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)male_female[0];
+        break;
+    case ENTITY_MOB_HE:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)SOMEONE;
+        break;
+    case ENTITY_MOB_HIM:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)SOMEONE;
+        break;
+    case ENTITY_MOB_HIS:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)SOMEONES;
+        break;
+    case ENTITY_MOB_HIS_O:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)SOMEONES;
+        break;
+    case ENTITY_MOB_HIMSELF:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)SOMEONE;
+        break;
+    case ENTITY_MOB_QUESTPOINTS:
+    case ENTITY_MOB_TOTALQUESTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_MOB_ONMISSION:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = false;
+        break;
+    case ENTITY_MOB_REPUTATIONS:
+        arg->type = ENT_ILLIST_REPUTATION;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_REPUTATION:
+        arg->type = ENT_REPUTATION;
+        arg->d.reputation = NULL;
+        break;
+    case ENTITY_MOB_FACTIONS:
+        arg->type = ENT_ILLIST_REPUTATION_INDEX;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_TRAIT:
+        arg->type = ENT_NULL;
+        arg->d.num = 0;
+        break;
+    case ENTITY_MOB_QUESTS:
+        arg->type = ENT_ILLIST_QUEST;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_QUESTHISTORY:
+        arg->type = ENT_ILLIST_QUEST_HISTORY;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        break;
+    case ENTITY_MOB_EVENTS:
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_RACE:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, "unknown");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_MOB_RACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = NULL;
+        break;
+    case ENTITY_MOB_ORIGINALRACE:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, "none");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_MOB_ORIGINALRACEDATA:
+        arg->type = ENT_RACE;
+        arg->d.race = NULL;
+        break;
+    case ENTITY_MOB_CLASS:
+        arg->type = ENT_CLASS;
+        arg->d.clazz = NULL;
+        break;
+    case ENTITY_MOB_CLASSLEVEL:
+        arg->type = ENT_CLASSLEVEL;
+        arg->d.classlevel = NULL;
+        break;
+    case ENTITY_MOB_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_MOB_HOUSE:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_MOB_CARRYING:
+        arg->type = ENT_OLLIST_OBJ;
+        arg->d.list.ptr.obj = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_MOB_TOKENS:
+        arg->type = ENT_OLLIST_TOK;
+        arg->d.list.ptr.tok = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_MOB_AFFECTS:
+        arg->type = ENT_OLLIST_AFF;
+        arg->d.list.ptr.aff = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_MOB_MOUNT:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_MOB_RIDER:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_MOB_MASTER:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_MOB_LEADER:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_MOB_OWNER:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_MOB_OPPONENT:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_MOB_CART:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+        break;
+    case ENTITY_MOB_FURNITURE:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+        break;
+    case ENTITY_MOB_TARGET:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_MOB_HUNTING:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_MOB_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = NULL;
+        break;
+    case ENTITY_MOB_EQUIPMENT:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+        break;
+    case ENTITY_MOB_NEXT:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
 
-	case ENTITY_MOB_CASTSPELL:
-		arg->type = ENT_SKILL;
-		arg->d.sn = -1;
-		break;
-	case ENTITY_MOB_CASTTOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = NULL;
-		break;
-	case ENTITY_MOB_CASTTARGET:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)&str_empty[0];
-		break;
-	case ENTITY_MOB_SONG:
-		arg->type = ENT_SONG;
-		arg->d.song = -1;
-		break;
-	case ENTITY_MOB_SONGTOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = NULL;
-		break;
-	case ENTITY_MOB_SONGTARGET:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)&str_empty[0];
-		break;
-	case ENTITY_MOB_INSTRUMENT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = NULL;
-		break;
+    case ENTITY_MOB_CASTSPELL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = -1;
+        break;
+    case ENTITY_MOB_CASTTOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = NULL;
+        break;
+    case ENTITY_MOB_CASTTARGET:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
+    case ENTITY_MOB_SONG:
+        arg->type = ENT_SONG;
+        arg->d.song = NULL;
+        break;
+    case ENTITY_MOB_SONGTOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = NULL;
+        break;
+    case ENTITY_MOB_SONGTARGET:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
+    case ENTITY_MOB_INSTRUMENT:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+        break;
 
-	case ENTITY_MOB_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_MOB_CONNECTION:
-		arg->type = ENT_CONN;
-		arg->d.conn = NULL;
-		break;
-	case ENTITY_MOB_CHURCH:
-		arg->type = ENT_CHURCH;
-		arg->d.church = NULL;
-		break;
-	case ENTITY_MOB_CLONEROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = NULL;
-		break;
-	case ENTITY_MOB_WORN:
-		arg->type = ENT_PLLIST_OBJ;
-		arg->d.blist = NULL;
-		break;
-	case ENTITY_MOB_CHECKPOINT:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
+    case ENTITY_MOB_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_MOB_CONNECTION:
+        arg->type = ENT_CONN;
+        arg->d.conn = NULL;
+        break;
+    case ENTITY_MOB_CHURCH:
+        arg->type = ENT_CHURCH;
+        arg->d.church = NULL;
+        break;
+    case ENTITY_MOB_CLONEROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_WORN:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_MOB_CHECKPOINT:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
 
-	case ENTITY_MOB_VARIABLES:
-		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = NULL;
+    case ENTITY_MOB_VARIABLES:
+        arg->type = ENT_ILLIST_VARIABLE;
+        arg->d.variables = NULL;
 
-	case ENTITY_MOB_GROUP:
-		arg->type = ENT_GROUP;
-		arg->d.group_owner = NULL;
-		break;
+    case ENTITY_MOB_GROUP:
+        arg->type = ENT_GROUP;
+        arg->d.group_owner = NULL;
+        break;
 
-	case ENTITY_MOB_NUMGROUPED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
+    case ENTITY_MOB_NUMGROUPED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
 
-	case ENTITY_MOB_DAMAGEDICE:
-		arg->type = ENT_DICE;
-		arg->d.dice = NULL;
-		break;
+    case ENTITY_MOB_DAMAGEDICE:
+        arg->type = ENT_DICE;
+        arg->d.dice = NULL;
+        break;
 
-	case ENTITY_MOB_ACT:
-	case ENTITY_MOB_AFFECT:
-		arg->type = ENT_BITMATRIX;
-		arg->d.bm.values = NULL;
-		arg->d.bm.bank = NULL;
-		break;
-	case ENTITY_MOB_OFF:
-	case ENTITY_MOB_IMMUNE:
-	case ENTITY_MOB_RESIST:
-	case ENTITY_MOB_VULN:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = 0;
-		arg->d.bv.table = NULL;
-		break;
+    case ENTITY_MOB_ACT:
+    case ENTITY_MOB_AFFECT:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = NULL;
+        arg->d.bm.bank = NULL;
+        break;
+    case ENTITY_MOB_OFF:
+    case ENTITY_MOB_IMMUNE:
+    case ENTITY_MOB_RESIST:
+    case ENTITY_MOB_VULN:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = 0;
+        arg->d.bv.table = NULL;
+        break;
 
-	case ENTITY_MOB_TEMPSTRING:
-		arg->type = ENT_STRING;
-		arg->d.str = (char*)&str_empty[0];
-		break;
+    case ENTITY_MOB_TEMPSTRING:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
 
-	case ENTITY_MOB_INDEX:
-		arg->type = ENT_MOBINDEX;
-		arg->d.mobindex = NULL;
-		break;
+    case ENTITY_MOB_INDEX:
+        arg->type = ENT_MOBINDEX;
+        arg->d.mobindex = NULL;
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_MOB_TRAINER:
+        arg->type = ENT_TRAINER;
+        arg->d.trainer = NULL;
+        break;
 
-	return str+1;
+    case ENTITY_MOB_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = NULL;
+        break;
+
+    case ENTITY_MOB_EVENT_SOURCE_UID:
+    case ENTITY_MOB_EVENT_SOURCE_INSTANCE:
+    case ENTITY_MOB_EVENT_BRACKET:
+    case ENTITY_MOB_EVENT_ACTIVE:
+    case ENTITY_MOB_EVENT_KILLS:
+    case ENTITY_MOB_EVENT_ITEMS:
+    case ENTITY_MOB_EVENT_GOAL:
+    case ENTITY_MOB_EVENT_STAGE_INDEX:
+    case ENTITY_MOB_EVENT_STAGE_COUNT:
+    case ENTITY_MOB_EVENT_OBJECTIVES_MET:
+    case ENTITY_MOB_EVENT_OBJECTIVES_TOTAL:
+    case ENTITY_MOB_EVENT_OBJECTIVE_PROGRESS:
+    case ENTITY_MOB_EVENT_COMPLETION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+
+    case ENTITY_MOB_EVENT_PHASE:
+    case ENTITY_MOB_EVENT_STAGE:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	OBJ_DATA *self = arg->d.obj;
-	switch(*str) {
-	case ENTITY_OBJ_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->name : SOMETHING;
-		break;
-	case ENTITY_OBJ_SHORT:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->short_descr : SOMETHING;
-		break;
-	case ENTITY_OBJ_LONG:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->description : &str_empty[0];
-		break;
-	case ENTITY_OBJ_FULLDESC:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj ? arg->d.obj->full_description : &str_empty[0];
-		break;
-	case ENTITY_OBJ_CONTAINER:
-		arg->d.obj = arg->d.obj ? arg->d.obj->in_obj : NULL;
-		break;
-	case ENTITY_OBJ_FURNITURE:
-		arg->d.obj = arg->d.obj ? arg->d.obj->on : NULL;
-		break;
-	case ENTITY_OBJ_CONTENTS:
-		arg->type = ENT_OLLIST_OBJ;
-		arg->d.list.ptr.obj = self ? &self->contains : NULL;
-		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_OBJ_OWNER:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.obj && arg->d.obj->owner ? arg->d.obj->owner : &str_empty[0];
-		break;
-	case ENTITY_OBJ_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = arg->d.obj ? obj_room(arg->d.obj) : NULL;
-		break;
-	case ENTITY_OBJ_CARRIER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.obj ? arg->d.obj->carried_by : NULL;
-		break;
-	case ENTITY_OBJ_TOKENS:
-		arg->type = ENT_OLLIST_TOK;
-		arg->d.list.ptr.tok = self ? &self->tokens : NULL;
-		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_OBJ_TARGET:
-		arg->d.mob = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->target : NULL;
-		break;
-	case ENTITY_OBJ_AREA:
-		arg->type = ENT_AREA;
-		arg->d.room = arg->d.obj ? obj_room(arg->d.obj) : NULL;
-		arg->d.area = arg->d.room ? arg->d.room->area : NULL;
-		break;
-	case ENTITY_OBJ_NEXT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = arg->d.obj?arg->d.obj->next_content:NULL;
-		break;
-	case ENTITY_OBJ_EXTRADESC:
-		arg->type = ENT_EXTRADESC;
-		if( self )
-		{
-			if( self->extra_descr )
-				arg->d.list.ptr.ed = &self->extra_descr;
-			else
-				arg->d.list.ptr.ed = &self->pIndexData->extra_descr;
-		}
-		else
-			arg->d.list.ptr.ed = NULL;
-		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_OBJECT;
-		break;
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,arg->d.obj?arg->d.obj->progs->vars:NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	case ENTITY_OBJ_CLONEROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = arg->d.obj ? arg->d.obj->lclonerooms : NULL;
-		break;
-	case ENTITY_OBJ_AFFECTS:
-		arg->type = ENT_OLLIST_AFF;
-		arg->d.list.ptr.aff = self ? &self->affected: NULL;
-		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
+    OBJ_DATA *self = arg->d.obj;
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.obj ? arg->d.obj->name : SOMETHING;
+        break;
+    case ENTITY_OBJ_SHORT:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.obj ? arg->d.obj->short_descr : SOMETHING;
+        break;
+    case ENTITY_OBJ_LONG:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.obj ? arg->d.obj->description : &str_empty[0];
+        break;
+    case ENTITY_OBJ_FULLDESC:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.obj ? arg->d.obj->full_description : &str_empty[0];
+        break;
+    case ENTITY_OBJ_CONTAINER:
+        arg->d.obj = arg->d.obj ? arg->d.obj->in_obj : NULL;
+        break;
+    case ENTITY_OBJ_FURNITURE:
+        arg->d.obj = arg->d.obj ? arg->d.obj->on : NULL;
+        break;
+    case ENTITY_OBJ_CONTENTS:
+        arg->type = ENT_OLLIST_OBJ;
+        arg->d.list.ptr.obj = self ? &self->contains : NULL;
+        arg->d.list.owner = self;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_OBJ_OWNER:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.obj && arg->d.obj->owner ? arg->d.obj->owner : &str_empty[0];
+        break;
+    case ENTITY_OBJ_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = arg->d.obj ? obj_room(arg->d.obj) : NULL;
+        break;
+    case ENTITY_OBJ_CARRIER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = arg->d.obj ? arg->d.obj->carried_by : NULL;
+        break;
+    case ENTITY_OBJ_TOKENS:
+        arg->type = ENT_OLLIST_TOK;
+        arg->d.list.ptr.tok = self ? &self->tokens : NULL;
+        arg->d.list.owner = self;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_OBJ_TARGET:
+        arg->d.mob = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->target : NULL;
+        break;
+    case ENTITY_OBJ_AREA:
+        arg->type = ENT_AREA;
+        arg->d.room = arg->d.obj ? obj_room(arg->d.obj) : NULL;
+        arg->d.area = arg->d.room ? arg->d.room->area : NULL;
+        break;
+    case ENTITY_OBJ_NEXT:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = arg->d.obj?arg->d.obj->next_content:NULL;
+        break;
+    case ENTITY_OBJ_EXTRADESC:
+        arg->type = ENT_EXTRADESC;
+        if( self )
+        {
+            if( self->extra_descr )
+                arg->d.list.ptr.ed = &self->extra_descr;
+            else
+                arg->d.list.ptr.ed = &self->pIndexData->extra_descr;
+        }
+        else
+            arg->d.list.ptr.ed = NULL;
+        arg->d.list.owner = self;
+        arg->d.list.owner_type = ENT_OBJECT;
+        break;
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,arg->d.obj?arg->d.obj->progs->vars:NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    case ENTITY_OBJ_CLONEROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = arg->d.obj ? arg->d.obj->lclonerooms : NULL;
+        break;
+    case ENTITY_OBJ_AFFECTS:
+        arg->type = ENT_OLLIST_AFF;
+        arg->d.list.ptr.aff = self ? &self->affected: NULL;
+        arg->d.list.owner = self;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
 
-	case ENTITY_OBJ_INDEX:
-		arg->type = ENT_OBJINDEX;
-		arg->d.objindex = arg->d.obj ? arg->d.obj->pIndexData : NULL;
-		break;
+    case ENTITY_OBJ_INDEX:
+        arg->type = ENT_OBJINDEX;
+        arg->d.objindex = arg->d.obj ? arg->d.obj->pIndexData : NULL;
+        break;
 
-	case ENTITY_OBJ_EXTRA:
-		arg->type = ENT_BITMATRIX;
-		arg->d.bm.values = self ? self->extra : NULL;
-		arg->d.bm.bank = extra_flagbank;
-		break;
+    case ENTITY_OBJ_EXTRA:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = self ? self->extra : NULL;
+        arg->d.bm.bank = extra_flagbank;
+        break;
 
-	case ENTITY_OBJ_WEAR:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->wear_flags : 0;
-		arg->d.bv.table = wear_flags;
-		break;
+    case ENTITY_OBJ_WEAR:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = self ? self->wear_flags : 0;
+        arg->d.bv.table = wear_flags;
+        break;
 
-	case ENTITY_OBJ_SHIP:
-		arg->type = ENT_SHIP;
-		arg->d.ship = arg->d.obj ? arg->d.obj->ship : NULL;
-		break;
+    case ENTITY_OBJ_SHIP:
+        arg->type = ENT_SHIP;
+        arg->d.ship = arg->d.obj ? arg->d.obj->ship : NULL;
+        break;
 
-	case ENTITY_OBJ_VARIABLES:
-		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL;
-		break;
+    case ENTITY_OBJ_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = self ? self->lstache : NULL;
+        break;
 
-	case ENTITY_OBJ_LEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.obj ? arg->d.obj->level : 0;
-		break;
+    case ENTITY_OBJ_ISSTACHED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = self && self->stached;
+        break;
 
-	// SPELLS?
-	default: return NULL;
-	}
+    case ENTITY_OBJ_EVENT_SOURCE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source.vnum : 0;
+        break;
 
-	return str+1;
+    case ENTITY_OBJ_EVENT_SOURCE_INSTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? (int)self->event_source_instance_id : 0;
+        break;
+
+    case ENTITY_OBJ_EVENT_BRACKET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = self ? self->event_source_bracket : 0;
+        break;
+
+    case ENTITY_OBJ_EVENT_ACTIVE:
+    case ENTITY_OBJ_EVENT_KILLS:
+    case ENTITY_OBJ_EVENT_ITEMS:
+    case ENTITY_OBJ_EVENT_GOAL:
+    case ENTITY_OBJ_EVENT_STAGE_INDEX:
+    case ENTITY_OBJ_EVENT_STAGE_COUNT:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_MET:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_TOTAL:
+    case ENTITY_OBJ_EVENT_OBJECTIVE_PROGRESS:
+    case ENTITY_OBJ_EVENT_COMPLETION:
+    {
+        long event_uid = 0;
+        uint32_t event_instance_id = 0;
+        int kills = 0;
+        int items = 0;
+        int goal = 0;
+        int stage_index = 0;
+        int stage_count = 0;
+        int objectives_met = 0;
+        int objectives_total = 0;
+        int objective_progress = 0;
+        int completion = 0;
+        bool active = false;
+
+        if (self)
+            event_get_object_spawn_source(self, &event_uid, &event_instance_id);
+
+        if (event_uid > 0)
+            active = event_runtime_get_source_progress(event_uid, event_instance_id, &kills, &items, &goal);
+        if (active)
+            event_runtime_get_source_stage_progress(event_uid, event_instance_id,
+                &stage_index, &stage_count, &completion);
+        if (active)
+            event_runtime_get_source_objective_progress(event_uid, event_instance_id,
+                &objectives_met, &objectives_total, &objective_progress);
+
+        arg->type = ENT_NUMBER;
+        if ((unsigned char)*str == ENTITY_OBJ_EVENT_ACTIVE)
+            arg->d.num = active ? 1 : 0;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_KILLS)
+            arg->d.num = kills;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_ITEMS)
+            arg->d.num = items;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_STAGE_INDEX)
+            arg->d.num = stage_index;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_STAGE_COUNT)
+            arg->d.num = stage_count;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_OBJECTIVES_MET)
+            arg->d.num = objectives_met;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_OBJECTIVES_TOTAL)
+            arg->d.num = objectives_total;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_OBJECTIVE_PROGRESS)
+            arg->d.num = objective_progress;
+        else if ((unsigned char)*str == ENTITY_OBJ_EVENT_COMPLETION)
+            arg->d.num = completion;
+        else
+            arg->d.num = goal;
+        break;
+    }
+
+    case ENTITY_OBJ_EVENT_PHASE:
+    case ENTITY_OBJ_EVENT_STAGE:
+    {
+        long event_uid = 0;
+        uint32_t event_instance_id = 0;
+        bool leader_phase = false;
+        bool active = false;
+        char phase_name[MIL];
+
+        phase_name[0] = '\0';
+
+        if (self)
+            event_get_object_spawn_source(self, &event_uid, &event_instance_id);
+
+        if (event_uid > 0) {
+            active = event_runtime_get_source_progress(event_uid, event_instance_id, NULL, NULL, NULL);
+            if (active) {
+                event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+                event_runtime_get_source_phase(event_uid, event_instance_id, phase_name, sizeof(phase_name));
+            }
+        }
+
+        arg->type = ENT_STRING;
+        if (!active)
+            arg->d.str = (char *)&str_empty[0];
+        else if (!IS_NULLSTR(phase_name))
+            arg->d.str = phase_name;
+        else
+            arg->d.str = (char *)(leader_phase ? "leader" : "active");
+        break;
+    }
+
+    case ENTITY_OBJ_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = self;
+        arg->d.event.uid = self ? self->event_source.vnum : 0;
+        arg->d.event.instance_id = self ? self->event_source_instance_id : 0;
+        break;
+
+    case ENTITY_OBJ_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_object(self, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
+
+    case ENTITY_OBJ_VARIABLES:
+        arg->type = ENT_ILLIST_VARIABLE;
+        arg->d.variables = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL;
+        break;
+
+    case ENTITY_OBJ_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.obj ? arg->d.obj->level : 0;
+        break;
+
+    // Typed data sub-entity accessors
+    case ENTITY_OBJ_WEAPON_DATA:
+        arg->type = ENT_OBJ_WEAPON;
+        arg->d.obj_weapon = self ? WEAPON(self) : NULL;
+        break;
+    case ENTITY_OBJ_ARMOR_DATA:
+        arg->type = ENT_OBJ_ARMOR;
+        arg->d.obj_armor = self ? ARMOR(self) : NULL;
+        break;
+    case ENTITY_OBJ_CONTAINER_DATA:
+        arg->type = ENT_OBJ_CONTAINER;
+        arg->d.obj_container = self ? CONTAINER(self) : NULL;
+        break;
+    case ENTITY_OBJ_FLUID_CON_DATA:
+        arg->type = ENT_OBJ_FLUID_CON;
+        arg->d.obj_fluid_con = self ? FLUID_CON(self) : NULL;
+        break;
+    case ENTITY_OBJ_FOOD_DATA:
+        arg->type = ENT_OBJ_FOOD;
+        arg->d.obj_food = self ? FOOD(self) : NULL;
+        break;
+    case ENTITY_OBJ_FURNITURE_DATA:
+        arg->type = ENT_OBJ_FURNITURE;
+        arg->d.obj_furniture = self ? FURNITURE(self) : NULL;
+        break;
+    case ENTITY_OBJ_PORTAL_DATA:
+        arg->type = ENT_OBJ_PORTAL;
+        arg->d.obj_portal = self ? PORTAL(self) : NULL;
+        break;
+    case ENTITY_OBJ_LIGHT_DATA:
+        arg->type = ENT_OBJ_LIGHT;
+        arg->d.obj_light = self ? LIGHT(self) : NULL;
+        break;
+    case ENTITY_OBJ_MONEY_DATA:
+        arg->type = ENT_OBJ_MONEY;
+        arg->d.obj_money = self ? MONEY(self) : NULL;
+        break;
+    case ENTITY_OBJ_WAND_DATA:
+        arg->type = ENT_OBJ_WAND;
+        arg->d.obj_wand = self ? WAND(self) : NULL;
+        break;
+    case ENTITY_OBJ_CORPSE_DATA:
+        arg->type = ENT_OBJ_CORPSE;
+        arg->d.obj_corpse = self ? CORPSE(self) : NULL;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_DATA:
+        arg->type = ENT_OBJ_INSTRUMENT;
+        arg->d.obj_instrument = self ? INSTRUMENT(self) : NULL;
+        break;
+    case ENTITY_OBJ_SEED_DATA:
+        arg->type = ENT_OBJ_SEED;
+        arg->d.obj_seed = self ? SEED(self) : NULL;
+        break;
+    case ENTITY_OBJ_CART_DATA:
+        arg->type = ENT_OBJ_CART;
+        arg->d.obj_cart = self ? CART(self) : NULL;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_DATA:
+        arg->type = ENT_OBJ_ITEM_SHIP;
+        arg->d.obj_item_ship = self ? SHIP_TYPE(self) : NULL;
+        break;
+    case ENTITY_OBJ_SEXTANT_DATA:
+        arg->type = ENT_OBJ_SEXTANT;
+        arg->d.obj_sextant = self ? SEXTANT(self) : NULL;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_DATA:
+        arg->type = ENT_OBJ_WEAPON_CON;
+        arg->d.obj_weapon_con = self ? WEAPON_CON(self) : NULL;
+        break;
+    case ENTITY_OBJ_BOOK_DATA:
+        arg->type = ENT_OBJ_BOOK;
+        arg->d.obj_book = self ? BOOK(self) : NULL;
+        break;
+    case ENTITY_OBJ_HERB_DATA:
+        arg->type = ENT_OBJ_HERB;
+        arg->d.obj_herb = self ? HERB(self) : NULL;
+        break;
+    case ENTITY_OBJ_MIST_DATA:
+        arg->type = ENT_OBJ_MIST;
+        arg->d.obj_mist = self ? MIST(self) : NULL;
+        break;
+    case ENTITY_OBJ_TRADE_DATA:
+        arg->type = ENT_OBJ_TRADE;
+        arg->d.obj_trade = self ? TRADE(self) : NULL;
+        break;
+    case ENTITY_OBJ_TATTOO_DATA:
+        arg->type = ENT_OBJ_TATTOO;
+        arg->d.obj_tattoo = self ? TATTOO(self) : NULL;
+        break;
+    case ENTITY_OBJ_INK_DATA:
+        arg->type = ENT_OBJ_INK;
+        arg->d.obj_ink = self ? INK(self) : NULL;
+        break;
+    case ENTITY_OBJ_TELESCOPE_DATA:
+        arg->type = ENT_OBJ_TELESCOPE;
+        arg->d.obj_telescope = self ? TELESCOPE(self) : NULL;
+        break;
+    case ENTITY_OBJ_COMPASS_DATA:
+        arg->type = ENT_OBJ_COMPASS;
+        arg->d.obj_compass = self ? COMPASS(self) : NULL;
+        break;
+    case ENTITY_OBJ_BODY_PART_DATA:
+        arg->type = ENT_OBJ_BODY_PART;
+        arg->d.obj_body_part = self ? BODY_PART(self) : NULL;
+        break;
+    case ENTITY_OBJ_SCROLL_DATA:
+        arg->type = ENT_OBJ_SCROLL;
+        arg->d.obj_scroll = self ? SCROLL(self) : NULL;
+        break;
+    case ENTITY_OBJ_TOOL_DATA:
+        arg->type = ENT_OBJ_TOOL;
+        arg->d.obj_tool = self ? TOOL(self) : NULL;
+        break;
+    case ENTITY_OBJ_JEWELRY_DATA:
+        arg->type = ENT_OBJ_JEWELRY;
+        arg->d.obj_jewelry = self ? JEWELRY(self) : NULL;
+        break;
+    case ENTITY_OBJ_MAP_DATA:
+        arg->type = ENT_OBJ_MAP;
+        arg->d.obj_map = self ? MAP(self) : NULL;
+        break;
+    case ENTITY_OBJ_PAGE_DATA:
+        arg->type = ENT_OBJ_PAGE;
+        arg->d.obj_page = self ? PAGE(self) : NULL;
+        break;
+
+    // SPELLS?
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_OBJ_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = SOMETHING;
-		break;
-	case ENTITY_OBJ_SHORT:
-		arg->type = ENT_STRING;
-		arg->d.str = SOMETHING;
-		break;
-	case ENTITY_OBJ_LONG:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_OBJ_CONTAINER:
-		arg->d.obj = NULL;
-		break;
-	case ENTITY_OBJ_FURNITURE:
-		arg->d.obj = NULL;
-		break;
-	case ENTITY_OBJ_CONTENTS:
-		arg->type = ENT_OLLIST_OBJ;
-		arg->d.list.ptr.obj = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_OBJ_OWNER:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_OBJ_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_OBJ_CARRIER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_OBJ_TOKENS:
-		arg->type = ENT_OLLIST_TOK;
-		arg->d.list.ptr.tok = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_OBJ_TARGET:
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_OBJ_AREA:
-		arg->type = ENT_AREA;
-		arg->d.area = NULL;
-		break;
-	case ENTITY_OBJ_NEXT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = NULL;
-		break;
-	case ENTITY_OBJ_EXTRADESC:
-		arg->type = ENT_EXTRADESC;
-		arg->d.list.ptr.ed = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_OBJECT;
-		break;
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	case ENTITY_OBJ_CLONEROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = NULL;
-		break;
-	case ENTITY_OBJ_AFFECTS:
-		arg->type = ENT_OLLIST_AFF;
-		arg->d.list.ptr.aff = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = SOMETHING;
+        break;
+    case ENTITY_OBJ_SHORT:
+        arg->type = ENT_STRING;
+        arg->d.str = SOMETHING;
+        break;
+    case ENTITY_OBJ_LONG:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_OBJ_CONTAINER:
+        arg->d.obj = NULL;
+        break;
+    case ENTITY_OBJ_FURNITURE:
+        arg->d.obj = NULL;
+        break;
+    case ENTITY_OBJ_CONTENTS:
+        arg->type = ENT_OLLIST_OBJ;
+        arg->d.list.ptr.obj = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_OBJ_OWNER:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_OBJ_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_OBJ_CARRIER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_OBJ_TOKENS:
+        arg->type = ENT_OLLIST_TOK;
+        arg->d.list.ptr.tok = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_OBJ_TARGET:
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_OBJ_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = NULL;
+        break;
+    case ENTITY_OBJ_NEXT:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+        break;
+    case ENTITY_OBJ_EXTRADESC:
+        arg->type = ENT_EXTRADESC;
+        arg->d.list.ptr.ed = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_OBJECT;
+        break;
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    case ENTITY_OBJ_CLONEROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_OBJ_AFFECTS:
+        arg->type = ENT_OLLIST_AFF;
+        arg->d.list.ptr.aff = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
 
-	case ENTITY_OBJ_INDEX:
-		arg->type = ENT_OBJINDEX;
-		arg->d.objindex = NULL;
-		break;
+    case ENTITY_OBJ_INDEX:
+        arg->type = ENT_OBJINDEX;
+        arg->d.objindex = NULL;
+        break;
 
-	case ENTITY_OBJ_EXTRA:
-		arg->type = ENT_BITMATRIX;
-		arg->d.bm.values = NULL;
-		arg->d.bm.bank = NULL;
-		break;
-	case ENTITY_OBJ_WEAR:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = 0;
-		arg->d.bv.table = NULL;
-		break;
+    case ENTITY_OBJ_EXTRA:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = NULL;
+        arg->d.bm.bank = NULL;
+        break;
+    case ENTITY_OBJ_WEAR:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = 0;
+        arg->d.bv.table = NULL;
+        break;
 
 
-	case ENTITY_OBJ_SHIP:
-		arg->type = ENT_SHIP;
-		arg->d.ship = NULL;
-		break;
-		
+    case ENTITY_OBJ_SHIP:
+        arg->type = ENT_SHIP;
+        arg->d.ship = NULL;
+        break;
 
-	case ENTITY_OBJ_VARIABLES:
-		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = NULL;
-		break;
+    case ENTITY_OBJ_STACHE:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = NULL;
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_OBJ_ISSTACHED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = false;
+        break;
 
-	return str+1;
+    case ENTITY_OBJ_EVENT_SOURCE_UID:
+    case ENTITY_OBJ_EVENT_SOURCE_INSTANCE:
+    case ENTITY_OBJ_EVENT_BRACKET:
+    case ENTITY_OBJ_EVENT_ACTIVE:
+    case ENTITY_OBJ_EVENT_KILLS:
+    case ENTITY_OBJ_EVENT_ITEMS:
+    case ENTITY_OBJ_EVENT_GOAL:
+    case ENTITY_OBJ_EVENT_STAGE_INDEX:
+    case ENTITY_OBJ_EVENT_STAGE_COUNT:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_MET:
+    case ENTITY_OBJ_EVENT_OBJECTIVES_TOTAL:
+    case ENTITY_OBJ_EVENT_OBJECTIVE_PROGRESS:
+    case ENTITY_OBJ_EVENT_COMPLETION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+
+    case ENTITY_OBJ_EVENT_PHASE:
+    case ENTITY_OBJ_EVENT_STAGE:
+        arg->type = ENT_STRING;
+        arg->d.str = (char*)&str_empty[0];
+        break;
+    case ENTITY_OBJ_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        break;
+    case ENTITY_OBJ_EVENTS:
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = NULL;
+        break;
+        
+
+    case ENTITY_OBJ_VARIABLES:
+        arg->type = ENT_ILLIST_VARIABLE;
+        arg->d.variables = NULL;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	ROOM_INDEX_DATA *room = arg->d.room;
-	switch(*str) {
-	case ENTITY_ROOM_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.room ? arg->d.room->name : SOMEWHERE;
-		break;
-	case ENTITY_ROOM_MOBILES:
-		arg->type = ENT_OLLIST_MOB;
-		arg->d.list.ptr.mob = room ? &room->people : NULL;
-		arg->d.list.owner = room;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_OBJECTS:
-		arg->type = ENT_OLLIST_OBJ;
-		arg->d.list.ptr.obj = room ? &room->contents : NULL;
-		arg->d.list.owner = room;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_TOKENS:
-		arg->type = ENT_OLLIST_TOK;
-		arg->d.list.ptr.tok = room ? &room->tokens : NULL;
-		arg->d.list.owner = room;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_AREA:
-		arg->type = ENT_AREA;
-		arg->d.area = arg->d.room ? arg->d.room->area : NULL;
-		break;
-	case ENTITY_ROOM_TARGET:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->target : NULL;
-		break;
-	case ENTITY_ROOM_NORTH:
-	case ENTITY_ROOM_EAST:
-	case ENTITY_ROOM_SOUTH:
-	case ENTITY_ROOM_WEST:
-	case ENTITY_ROOM_UP:
-	case ENTITY_ROOM_DOWN:
-	case ENTITY_ROOM_NORTHEAST:
-	case ENTITY_ROOM_NORTHWEST:
-	case ENTITY_ROOM_SOUTHEAST:
-	case ENTITY_ROOM_SOUTHWEST:
-		arg->type = ENT_EXIT;
-		arg->d.door.r = arg->d.room;
-		arg->d.door.door = *str - ENTITY_ROOM_NORTH + DIR_NORTH;
-		break;
-	case ENTITY_ROOM_ENVIRON:
-		arg->type = ENT_ROOM;
-		arg->d.room = arg->d.room ? get_environment(arg->d.room) : NULL;
-		break;
+    ROOM_INDEX_DATA *room = arg->d.room;
+    switch((unsigned char)*str) {
+    case ENTITY_ROOM_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.room ? arg->d.room->name : SOMEWHERE;
+        break;
+    case ENTITY_ROOM_MOBILES:
+        arg->type = ENT_OLLIST_MOB;
+        arg->d.list.ptr.mob = room ? &room->people : NULL;
+        arg->d.list.owner = room;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_OBJECTS:
+        arg->type = ENT_OLLIST_OBJ;
+        arg->d.list.ptr.obj = room ? &room->contents : NULL;
+        arg->d.list.owner = room;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_TOKENS:
+        arg->type = ENT_OLLIST_TOK;
+        arg->d.list.ptr.tok = room ? &room->tokens : NULL;
+        arg->d.list.owner = room;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = arg->d.room ? arg->d.room->area : NULL;
+        break;
+    case ENTITY_ROOM_REGION:
+        arg->type = ENT_AREA_REGION;
+        arg->d.aregion = arg->d.room ? get_room_region(arg->d.room) : NULL;
+        break;
+    case ENTITY_ROOM_TARGET:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->target : NULL;
+        break;
+    case ENTITY_ROOM_NORTH:
+    case ENTITY_ROOM_EAST:
+    case ENTITY_ROOM_SOUTH:
+    case ENTITY_ROOM_WEST:
+    case ENTITY_ROOM_UP:
+    case ENTITY_ROOM_DOWN:
+    case ENTITY_ROOM_NORTHEAST:
+    case ENTITY_ROOM_NORTHWEST:
+    case ENTITY_ROOM_SOUTHEAST:
+    case ENTITY_ROOM_SOUTHWEST:
+        arg->type = ENT_EXIT;
+        arg->d.door.r = arg->d.room;
+        arg->d.door.door = (unsigned char)*str - ENTITY_ROOM_NORTH + DIR_NORTH;
+        break;
+    case ENTITY_ROOM_ENVIRON:
+        arg->type = ENT_ROOM;
+        arg->d.room = arg->d.room ? get_environment(arg->d.room) : NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.room && arg->d.room->environ_type == ENVIRON_ROOM) ? arg->d.room->environ.room : NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = (arg->d.room && arg->d.room->environ_type == ENVIRON_ROOM) ? arg->d.room->environ.room : NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_MOB:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = (arg->d.room && arg->d.room->environ_type == ENVIRON_MOBILE) ? arg->d.room->environ.mob : NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_MOB:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = (arg->d.room && arg->d.room->environ_type == ENVIRON_MOBILE) ? arg->d.room->environ.mob : NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_OBJ:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = (arg->d.room && arg->d.room->environ_type == ENVIRON_OBJECT) ? arg->d.room->environ.obj : NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_OBJ:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = (arg->d.room && arg->d.room->environ_type == ENVIRON_OBJECT) ? arg->d.room->environ.obj : NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_TOKEN:
-		arg->type = ENT_OBJECT;
-		arg->d.token = (arg->d.room && arg->d.room->environ_type == ENVIRON_TOKEN) ? arg->d.room->environ.token : NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_TOKEN:
+        arg->type = ENT_OBJECT;
+        arg->d.token = (arg->d.room && arg->d.room->environ_type == ENVIRON_TOKEN) ? arg->d.room->environ.token : NULL;
+        break;
 
-	case ENTITY_ROOM_EXTRADESC:
-		arg->type = ENT_EXTRADESC;
-		arg->d.list.ptr.ed = room ? &room->extra_descr : NULL;
-		arg->d.list.owner = room;
-		arg->d.list.owner_type = ENT_ROOM;
-		break;
+    case ENTITY_ROOM_EXTRADESC:
+        arg->type = ENT_EXTRADESC;
+        arg->d.list.ptr.ed = room ? &room->extra_descr : NULL;
+        arg->d.list.owner = room;
+        arg->d.list.owner_type = ENT_ROOM;
+        break;
 
-	case ENTITY_ROOM_DESC:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.room ? arg->d.room->description : "";
-		break;
+    case ENTITY_ROOM_DESC:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.room ? arg->d.room->description : "";
+        break;
 
-	case ENTITY_ROOM_CLONEROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = arg->d.room ? arg->d.room->lclonerooms : NULL;
-		break;
+    case ENTITY_ROOM_CLONEROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = arg->d.room ? arg->d.room->lclonerooms : NULL;
+        break;
 
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,arg->d.room?arg->d.room->progs->vars:NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	case ENTITY_ROOM_VARIABLES:
-		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL;
-		break;
-	case ENTITY_ROOM_SECTION:
-		arg->type = ENT_SECTION;
-		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
-		break;
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,arg->d.room?arg->d.room->progs->vars:NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    case ENTITY_ROOM_VARIABLES:
+        arg->type = ENT_ILLIST_VARIABLE;
+        arg->d.variables = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL;
+        break;
+    case ENTITY_ROOM_SECTION:
+        arg->type = ENT_SECTION;
+        arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+        break;
 
-	case ENTITY_ROOM_INSTANCE:
-		arg->type = ENT_INSTANCE;
-		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
-		arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
-		break;
+    case ENTITY_ROOM_INSTANCE:
+        arg->type = ENT_INSTANCE;
+        arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+        arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
+        break;
 
-	case ENTITY_ROOM_DUNGEON:
-		arg->type = ENT_DUNGEON;
-		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
-		arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
-		arg->d.dungeon = (arg->d.instance && IS_VALID(arg->d.instance->dungeon)) ? arg->d.instance->dungeon : NULL;
-		break;
+    case ENTITY_ROOM_DUNGEON:
+        arg->type = ENT_DUNGEON;
+        arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+        arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
+        arg->d.dungeon = (arg->d.instance && IS_VALID(arg->d.instance->dungeon)) ? arg->d.instance->dungeon : NULL;
+        break;
 
-	case ENTITY_ROOM_SHIP:
-		arg->type = ENT_SHIP;
-		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
-		arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
-		arg->d.ship = (arg->d.instance && IS_VALID(arg->d.instance->ship)) ? arg->d.instance->ship : NULL;
-		break;
+    case ENTITY_ROOM_SHIP:
+        arg->type = ENT_SHIP;
+        arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+        arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
+        arg->d.ship = (arg->d.instance && IS_VALID(arg->d.instance->ship)) ? arg->d.instance->ship : NULL;
+        break;
 
-	case ENTITY_ROOM_FLAGS:
-		arg->type = ENT_BITMATRIX;
-		arg->d.bm.values = room ? room->room_flag : NULL;
-		arg->d.bm.bank = room_flagbank;
-		break;
+    case ENTITY_ROOM_FLAGS:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = room ? room->room_flag : NULL;
+        arg->d.bm.bank = room_flagbank;
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_ROOM_SECTOR:
+        arg->type = ENT_SECTOR;
+        arg->d.sector = room ? room->sector : NULL;
+        break;
 
-	return str+1;
+    case ENTITY_ROOM_SECTORFLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = room && room->sector ? room->sector->flags : 0;
+        arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
+    case ENTITY_ROOM_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_room(room, refs, 1);
+
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_ROOM_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_room(room, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	EXIT_DATA *ex = (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR) ? arg->d.door.r->exit[arg->d.door.door] : NULL;
+    EXIT_DATA *ex = (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR) ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 
-	switch(*str) {
-	case ENTITY_EXIT_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = ex ? dir_name[arg->d.door.door] : SOMEWHERE;
-		break;
-	case ENTITY_EXIT_DOOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = ex ? arg->d.door.door : -1;
-		break;
-	case ENTITY_EXIT_SOURCE:
-		arg->type = ENT_ROOM;
-		arg->d.room = arg->d.door.r;
-		break;
-	case ENTITY_EXIT_REMOTE:
-		arg->type = ENT_ROOM;
-		arg->d.room = ex ? exit_destination(ex) : NULL;
-		break;
-	case ENTITY_EXIT_STATE:
-		arg->type = ENT_STRING;
-		if(ex) {
-			int i;
-			if(ex->exit_info & EX_BROKEN)
-				i = 1;
-			else if(ex->exit_info & EX_CLOSED) {
-				i = 2;
-				if(ex->door.lock.flags & LOCK_LOCKED) i++;
-				if(ex->exit_info & EX_BARRED) i+=2;
-			} else i = 0;
-			arg->d.str = (char*)exit_states[i];
-		} else
-			arg->d.str = NULL;
-		break;
-	case ENTITY_EXIT_MATE:
-		arg->type = ENT_EXIT;
-		arg->d.door.door = rev_dir[arg->d.door.door];
-		if(ex)
-			arg->d.door.r = exit_destination(ex);
-		else
-			arg->d.door.r = NULL;
-		break;
-	case ENTITY_EXIT_NORTH:
-	case ENTITY_EXIT_EAST:
-	case ENTITY_EXIT_SOUTH:
-	case ENTITY_EXIT_WEST:
-	case ENTITY_EXIT_UP:
-	case ENTITY_EXIT_DOWN:
-	case ENTITY_EXIT_NORTHEAST:
-	case ENTITY_EXIT_NORTHWEST:
-	case ENTITY_EXIT_SOUTHEAST:
-	case ENTITY_EXIT_SOUTHWEST:
-		if(ex) {
-			arg->type = ENT_EXIT;
-			arg->d.door.door = *str - ENTITY_EXIT_NORTH + DIR_NORTH;
-			arg->d.door.r = exit_destination(ex);
-		}
-		break;
-	case ENTITY_EXIT_NEXT:
-		arg->type = ENT_EXIT;
-		if(ex) {
-			arg->d.door.door++;
-			if( arg->d.door.door >= MAX_DIR )
-				arg->d.door.door = DIR_NORTH;
-		}
-		break;
-	default: return NULL;
-	}
+    switch((unsigned char)*str) {
+    case ENTITY_EXIT_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = ex ? dir_name[arg->d.door.door] : SOMEWHERE;
+        break;
+    case ENTITY_EXIT_DOOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = ex ? arg->d.door.door : -1;
+        break;
+    case ENTITY_EXIT_SOURCE:
+        arg->type = ENT_ROOM;
+        arg->d.room = arg->d.door.r;
+        break;
+    case ENTITY_EXIT_REMOTE:
+        arg->type = ENT_ROOM;
+        arg->d.room = ex ? exit_destination(ex) : NULL;
+        break;
+    case ENTITY_EXIT_STATE:
+        arg->type = ENT_STRING;
+        if(ex) {
+            int i;
+            if(ex->exit_info & EX_BROKEN)
+                i = 1;
+            else if(ex->exit_info & EX_CLOSED) {
+                i = 2;
+                if(ex->door.lock.flags & LOCK_LOCKED) i++;
+                if(ex->exit_info & EX_BARRED) i+=2;
+            } else i = 0;
+            arg->d.str = (char*)exit_states[i];
+        } else
+            arg->d.str = NULL;
+        break;
+    case ENTITY_EXIT_MATE:
+        arg->type = ENT_EXIT;
+        arg->d.door.door = rev_dir[arg->d.door.door];
+        if(ex)
+            arg->d.door.r = exit_destination(ex);
+        else
+            arg->d.door.r = NULL;
+        break;
+    case ENTITY_EXIT_NORTH:
+    case ENTITY_EXIT_EAST:
+    case ENTITY_EXIT_SOUTH:
+    case ENTITY_EXIT_WEST:
+    case ENTITY_EXIT_UP:
+    case ENTITY_EXIT_DOWN:
+    case ENTITY_EXIT_NORTHEAST:
+    case ENTITY_EXIT_NORTHWEST:
+    case ENTITY_EXIT_SOUTHEAST:
+    case ENTITY_EXIT_SOUTHWEST:
+        if(ex) {
+            arg->type = ENT_EXIT;
+            arg->d.door.door = (unsigned char)*str - ENTITY_EXIT_NORTH + DIR_NORTH;
+            arg->d.door.r = exit_destination(ex);
+        }
+        break;
+    case ENTITY_EXIT_NEXT:
+        arg->type = ENT_EXIT;
+        if(ex) {
+            arg->d.door.door++;
+            if( arg->d.door.door >= MAX_DIR )
+                arg->d.door.door = DIR_NORTH;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
+}
+
+char *expand_entity_sector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SECTOR_RUNTIME_DATA *sector = arg->d.sector;
+
+    switch((unsigned char)*str) {
+    case ENTITY_SECTOR_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = sector && sector->name ? sector->name : &str_empty[0];
+        break;
+
+    case ENTITY_SECTOR_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = sector && sector->description ? sector->description : &str_empty[0];
+        break;
+
+    case ENTITY_SECTOR_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = sector && sector->comments ? sector->comments : &str_empty[0];
+        break;
+
+    case ENTITY_SECTOR_CLASS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->sector_class : 0;
+        break;
+
+    case ENTITY_SECTOR_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = sector ? sector->flags : 0;
+        arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
+    case ENTITY_SECTOR_MOVE_COST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->move_cost : 0;
+        break;
+
+    case ENTITY_SECTOR_HEAL_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->heal_rate : 0;
+        break;
+
+    case ENTITY_SECTOR_MANA_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->mana_rate : 0;
+        break;
+
+    case ENTITY_SECTOR_MOVE_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->move_rate : 0;
+        break;
+
+    case ENTITY_SECTOR_SOIL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->soil : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY1_CATALYST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[0].catalyst : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY1_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[0].value : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY2_CATALYST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[1].catalyst : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY2_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[1].value : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY3_CATALYST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[2].catalyst : 0;
+        break;
+
+    case ENTITY_SECTOR_AFFINITY3_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = sector ? sector->affinities[2].value : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_event(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    CHAR_DATA *mob = arg->d.event.mob;
+    OBJ_DATA *obj = arg->d.event.obj;
+    long event_uid = arg->d.event.uid;
+    uint32_t event_instance_id = arg->d.event.instance_id;
+    int event_kills = 0;
+    int event_items = 0;
+    int event_goal = 0;
+    int event_stage_index = 0;
+    int event_stage_count = 0;
+    int event_objectives_met = 0;
+    int event_objectives_total = 0;
+    int event_objective_progress = 0;
+    int event_completion = 0;
+    bool event_active = false;
+    bool leader_phase = false;
+    char event_phase_name[MIL];
+
+    (void)info;
+
+    event_phase_name[0] = '\0';
+
+    if (mob && event_uid <= 0) {
+        if (!event_get_mobile_spawn_source(mob, &event_uid, &event_instance_id) || event_uid <= 0)
+            event_get_character_active_bracket(mob, &event_uid, &event_instance_id, NULL);
+    } else if (obj && event_uid <= 0) {
+        event_get_object_spawn_source(obj, &event_uid, &event_instance_id);
+    }
+
+    if (event_uid > 0) {
+        event_active = event_runtime_get_source_progress(event_uid, event_instance_id, &event_kills, &event_items, &event_goal);
+        if (event_active) {
+            event_runtime_is_source_leader_phase(event_uid, event_instance_id, &leader_phase);
+            event_runtime_get_source_phase(event_uid, event_instance_id, event_phase_name, sizeof(event_phase_name));
+            event_runtime_get_source_stage_progress(event_uid, event_instance_id,
+                &event_stage_index, &event_stage_count, &event_completion);
+            event_runtime_get_source_objective_progress(event_uid, event_instance_id,
+                &event_objectives_met, &event_objectives_total, &event_objective_progress);
+        }
+    }
+
+    switch((unsigned char)*str) {
+    case ENTITY_EVENT_UID:
+    case ENTITY_EVENT_SOURCE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_uid;
+        break;
+
+    case ENTITY_EVENT_INSTANCE:
+    case ENTITY_EVENT_SOURCE_INSTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_instance_id;
+        break;
+
+    case ENTITY_EVENT_BRACKET:
+    {
+        int bracket = 0;
+        arg->type = ENT_NUMBER;
+        if (mob)
+            event_get_character_active_bracket(mob, NULL, NULL, &bracket);
+        else if (obj)
+            bracket = obj->event_source_bracket;
+        arg->d.num = bracket;
+        break;
+    }
+
+    case ENTITY_EVENT_ACTIVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_active ? 1 : 0;
+        break;
+
+    case ENTITY_EVENT_KILLS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_kills;
+        break;
+
+    case ENTITY_EVENT_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_items;
+        break;
+
+    case ENTITY_EVENT_GOAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_goal;
+        break;
+
+    case ENTITY_EVENT_PHASE:
+    case ENTITY_EVENT_STAGE:
+        arg->type = ENT_STRING;
+        if (!event_active)
+            arg->d.str = (char *)&str_empty[0];
+        else if (!IS_NULLSTR(event_phase_name))
+            arg->d.str = event_phase_name;
+        else
+            arg->d.str = (char *)(leader_phase ? "leader" : "active");
+        break;
+
+    case ENTITY_EVENT_STAGE_INDEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_index;
+        break;
+
+    case ENTITY_EVENT_STAGE_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_stage_count;
+        break;
+
+    case ENTITY_EVENT_OBJECTIVES_MET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_met;
+        break;
+
+    case ENTITY_EVENT_OBJECTIVES_TOTAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objectives_total;
+        break;
+
+    case ENTITY_EVENT_OBJECTIVE_PROGRESS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_objective_progress;
+        break;
+
+    case ENTITY_EVENT_COMPLETION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = event_completion;
+        break;
+
+    default:
+        return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_TOKEN_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.token ? arg->d.token->name : &str_empty[0];
-		break;
-	case ENTITY_TOKEN_OWNER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.token ? arg->d.token->player : NULL;
-		break;
-	case ENTITY_TOKEN_OBJECT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = arg->d.token ? arg->d.token->object : NULL;
-		break;
-	case ENTITY_TOKEN_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = arg->d.token ? arg->d.token->room : NULL;
-		break;
-	case ENTITY_TOKEN_TIMER:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.token ? arg->d.token->timer : 0;
-		break;
-	case ENTITY_TOKEN_VAL0:
-	case ENTITY_TOKEN_VAL1:
-	case ENTITY_TOKEN_VAL2:
-	case ENTITY_TOKEN_VAL3:
-	case ENTITY_TOKEN_VAL4:
-	case ENTITY_TOKEN_VAL5:
-	case ENTITY_TOKEN_VAL6:
-	case ENTITY_TOKEN_VAL7:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.token ? arg->d.token->value[*str  - ENTITY_TOKEN_VAL0] : 0;
-		break;
-	case ENTITY_TOKEN_NEXT:
-		arg->type = ENT_TOKEN;
-		arg->d.token = arg->d.token?arg->d.token->next:NULL;
-		break;
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,arg->d.token?arg->d.token->progs->vars:NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	case ENTITY_TOKEN_VARIABLES:
-		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL;
-	default: return NULL;
-	}
+    switch((unsigned char)*str) {
+    case ENTITY_TOKEN_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.token ? arg->d.token->name : &str_empty[0];
+        break;
+    case ENTITY_TOKEN_OWNER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = arg->d.token ? arg->d.token->player : NULL;
+        break;
+    case ENTITY_TOKEN_OBJECT:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = arg->d.token ? arg->d.token->object : NULL;
+        break;
+    case ENTITY_TOKEN_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = arg->d.token ? arg->d.token->room : NULL;
+        break;
+    case ENTITY_TOKEN_TIMER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.token ? arg->d.token->timer : 0;
+        break;
+    case ENTITY_TOKEN_VAL0:
+    case ENTITY_TOKEN_VAL1:
+    case ENTITY_TOKEN_VAL2:
+    case ENTITY_TOKEN_VAL3:
+    case ENTITY_TOKEN_VAL4:
+    case ENTITY_TOKEN_VAL5:
+    case ENTITY_TOKEN_VAL6:
+    case ENTITY_TOKEN_VAL7:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.token ? arg->d.token->value[*str  - ENTITY_TOKEN_VAL0] : 0;
+        break;
+    case ENTITY_TOKEN_NEXT:
+        arg->type = ENT_TOKEN;
+        arg->d.token = arg->d.token?arg->d.token->next:NULL;
+        break;
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,arg->d.token?arg->d.token->progs->vars:NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    case ENTITY_TOKEN_VARIABLES:
+        arg->type = ENT_ILLIST_VARIABLE;
+        arg->d.variables = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_token_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_TOKEN_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
-	case ENTITY_TOKEN_OWNER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_TOKEN_OBJECT:
-		arg->type = ENT_OBJECT;
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_TOKEN_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_TOKEN_TIMER:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_TOKEN_VAL0:
-	case ENTITY_TOKEN_VAL1:
-	case ENTITY_TOKEN_VAL2:
-	case ENTITY_TOKEN_VAL3:
-	case ENTITY_TOKEN_VAL4:
-	case ENTITY_TOKEN_VAL5:
-	case ENTITY_TOKEN_VAL6:
-	case ENTITY_TOKEN_VAL7:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_TOKEN_NEXT:
-		arg->type = ENT_TOKEN;
-		arg->d.token = NULL;
-		break;
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	case ENTITY_TOKEN_VARIABLES:
-		arg->type = ENT_ILLIST_VARIABLE;
-		arg->d.variables = NULL;
-	default: return NULL;
-	}
+    switch((unsigned char)*str) {
+    case ENTITY_TOKEN_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
+    case ENTITY_TOKEN_OWNER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_TOKEN_OBJECT:
+        arg->type = ENT_OBJECT;
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_TOKEN_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_TOKEN_TIMER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_TOKEN_VAL0:
+    case ENTITY_TOKEN_VAL1:
+    case ENTITY_TOKEN_VAL2:
+    case ENTITY_TOKEN_VAL3:
+    case ENTITY_TOKEN_VAL4:
+    case ENTITY_TOKEN_VAL5:
+    case ENTITY_TOKEN_VAL6:
+    case ENTITY_TOKEN_VAL7:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_TOKEN_NEXT:
+        arg->type = ENT_TOKEN;
+        arg->d.token = NULL;
+        break;
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    case ENTITY_TOKEN_VARIABLES:
+        arg->type = ENT_ILLIST_VARIABLE;
+        arg->d.variables = NULL;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_AREA_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = arg->d.area ? arg->d.area->name : SOMEWHERE;
-		break;
-	case ENTITY_AREA_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.area && location_isset(&arg->d.area->recall)) ? location_to_room(&arg->d.area->recall) : NULL;
-		break;
-	case ENTITY_AREA_POSTOFFICE:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.area && arg->d.area->post_office > 0) ? get_room_index(arg->d.area->post_office) : NULL;
-		break;
-	case ENTITY_AREA_LOWERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->min_vnum : 0;
-		break;
-	case ENTITY_AREA_UPPERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->max_vnum : 0;
-		break;
-	case ENTITY_AREA_MINLEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->min_level : 0;
-		break;
-	case ENTITY_AREA_MAXLEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->max_level : 0;
-		break;
-	case ENTITY_AREA_ROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
-		break;
-	case ESCAPE_VARIABLE:
+    switch((unsigned char)*str) {
+    case ENTITY_AREA_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = arg->d.area ? arg->d.area->name : SOMEWHERE;
+        break;
+    case ENTITY_AREA_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = arg->d.area ? get_area_recall_room(arg->d.area) : NULL;
+    if (arg->d.area && arg->d.area->post_office_wnum.vnum > 0) {
+        AREA_DATA *post_area = find_area_by_vnum(arg->d.area->post_office_wnum.vnum, NULL);
+        if (!post_area) post_area = get_system_area_fallback();
+        arg->d.room = get_room_index(post_area, arg->d.area->post_office_wnum.vnum);
+    } else {
+        arg->d.room = NULL;
+    }
+    case ENTITY_AREA_POSTOFFICE:
+        arg->type = ENT_ROOM;
+        arg->d.room = (arg->d.area && arg->d.area->post_office_wnum.vnum > 0) ? get_room_index(arg->d.area, arg->d.area->post_office_wnum.vnum) : NULL;
+        break;
+    case ENTITY_AREA_LOWERVNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.area ? arg->d.area->min_vnum : 0;
+        break;
+    case ENTITY_AREA_UPPERVNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.area ? arg->d.area->max_vnum : 0;
+        break;
+    case ENTITY_AREA_MINLEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.area ? arg->d.area->min_level : 0;
+        break;
+    case ENTITY_AREA_MAXLEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.area ? arg->d.area->max_level : 0;
+        break;
+    case ENTITY_AREA_REGION:
+        arg->type = ENT_AREA_REGION;
+        arg->d.aregion = arg->d.area ? &arg->d.area->region : NULL;
+        break;
+    case ENTITY_AREA_ROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
+        break;
+    case ENTITY_AREA_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_area(arg->d.area, refs, 1);
+
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_AREA_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_area(arg->d.area, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
+    case ESCAPE_VARIABLE:
         str = expand_escape_variable(info,arg->d.area?arg->d.area->progs->vars:NULL,str+1,arg);
         if(!str) return NULL;
         break;
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_area_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_AREA_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = SOMEWHERE;
-		break;
-	case ENTITY_AREA_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_AREA_POSTOFFICE:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_AREA_LOWERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_AREA_UPPERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_AREA_MINLEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_AREA_MAXLEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_AREA_ROOMS:
-		arg->type = ENT_BLLIST_ROOM;
-		arg->d.blist = NULL;
-		break;
-	default: return NULL;
-	}
+    switch((unsigned char)*str) {
+    case ENTITY_AREA_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = SOMEWHERE;
+        break;
+    case ENTITY_AREA_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_AREA_POSTOFFICE:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_AREA_LOWERVNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_AREA_UPPERVNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_AREA_MINLEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_AREA_MAXLEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
+    case ENTITY_AREA_ROOMS:
+        arg->type = ENT_BLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
+    case ENTITY_AREA_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        break;
+    case ENTITY_AREA_EVENTS:
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = NULL;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
+}
+
+char *expand_entity_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    AREA_REGION *region = arg->d.aregion;
+
+    switch((unsigned char)*str) {
+    case ENTITY_AREA_REGION_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (region && region->name) ? region->name : &str_empty[0];
+        break;
+    case ENTITY_AREA_REGION_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (region && region->description) ? region->description : &str_empty[0];
+        break;
+    case ENTITY_AREA_REGION_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = (region && region->comments) ? region->comments : &str_empty[0];
+        break;
+    case ENTITY_AREA_REGION_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = region ? region->area : NULL;
+        break;
+    case ENTITY_AREA_REGION_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = (region && location_isset(&region->recall)) ? location_to_room(&region->recall) : NULL;
+        break;
+    case ENTITY_AREA_REGION_POSTOFFICE:
+        arg->type = ENT_ROOM;
+        arg->d.room = (region && region->area && region->post_office > 0) ? get_room_index(region->area, region->post_office) : NULL;
+        break;
+    case ENTITY_AREA_REGION_ROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = region ? region->rooms : NULL;
+        break;
+    case ENTITY_AREA_REGION_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = region ? region->flags : 0;
+        arg->d.bv.table = area_region_flags;
+        break;
+    case ENTITY_AREA_REGION_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->x : 0;
+        break;
+    case ENTITY_AREA_REGION_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->y : 0;
+        break;
+    case ENTITY_AREA_REGION_LAND_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->land_x : 0;
+        break;
+    case ENTITY_AREA_REGION_LAND_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->land_y : 0;
+        break;
+    case ENTITY_AREA_REGION_SAVAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = region ? region->savage_level : 0;
+        break;
+    default:
+        return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_list_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register CHAR_DATA *mob;
-	register int count;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		count = 0;
-		if(arg->d.list.ptr.mob)
-			for(mob = *arg->d.list.ptr.mob;mob;mob = mob->next_in_room) count++;
-		arg->d.num = count;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.list.ptr.mob) {
-			count = 0;
-			for(mob = *arg->d.list.ptr.mob;mob;mob = mob->next_in_room) count++;
-			if(count > 0) {
-				count = number_range(1,count);
-				for(mob = *arg->d.list.ptr.mob;count-- > 0;mob = mob->next_in_room);
-				arg->d.mob = mob;
-			} else
-				arg->d.mob = NULL;
-		} else
-			arg->d.mob = NULL;
-		arg->type = ENT_MOBILE;
-		break;
-	case ENTITY_LIST_FIRST:
-		arg->d.mob = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
-		arg->type = ENT_MOBILE;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.list.ptr.mob) {
-			for(mob = *arg->d.list.ptr.mob;mob && mob->next_in_room;mob = mob->next_in_room);
-			arg->d.mob = mob;
-		} else
-			arg->d.mob = NULL;
-		arg->type = ENT_MOBILE;
-		break;
-	default: return NULL;
-	}
+    register CHAR_DATA *mob;
+    register int count;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        count = 0;
+        if(arg->d.list.ptr.mob)
+            for(mob = *arg->d.list.ptr.mob;mob;mob = mob->next_in_room) count++;
+        arg->d.num = count;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.list.ptr.mob) {
+            count = 0;
+            for(mob = *arg->d.list.ptr.mob;mob;mob = mob->next_in_room) count++;
+            if(count > 0) {
+                count = number_range(1,count);
+                for(mob = *arg->d.list.ptr.mob; --count > 0; mob = mob->next_in_room);
+                arg->d.mob = mob;
+            } else
+                arg->d.mob = NULL;
+        } else
+            arg->d.mob = NULL;
+        arg->type = ENT_MOBILE;
+        break;
+    case ENTITY_LIST_FIRST:
+        arg->d.mob = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
+        arg->type = ENT_MOBILE;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.list.ptr.mob) {
+            for(mob = *arg->d.list.ptr.mob;mob && mob->next_in_room;mob = mob->next_in_room);
+            arg->d.mob = mob;
+        } else
+            arg->d.mob = NULL;
+        arg->type = ENT_MOBILE;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_list_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register OBJ_DATA *obj;
-	register int count;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		count = 0;
-		if(arg->d.list.ptr.obj)
-			for(obj = *arg->d.list.ptr.obj;obj;obj = obj->next_content) count++;
-		arg->d.num = count;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.list.ptr.obj) {
-			count = 0;
-			for(obj = *arg->d.list.ptr.obj;obj;obj = obj->next_content) count++;
-			if(count > 0) {
-				count = number_range(1,count);
-				for(obj = *arg->d.list.ptr.obj;count-- > 0;obj = obj->next_content);
-				arg->d.obj = obj;
-			} else
-				arg->d.obj = NULL;
-		} else
-			arg->d.obj = NULL;
-		arg->type = ENT_OBJECT;
-		break;
-	case ENTITY_LIST_FIRST:
-		arg->d.obj = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
-		arg->type = ENT_OBJECT;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.list.ptr.obj) {
-			for(obj = *arg->d.list.ptr.obj;obj && obj->next_content;obj = obj->next_content);
-			arg->d.obj = obj;
-		} else
-			arg->d.obj = NULL;
-		arg->type = ENT_OBJECT;
-		break;
-	default: return NULL;
-	}
+    register OBJ_DATA *obj;
+    register int count;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        count = 0;
+        if(arg->d.list.ptr.obj)
+            for(obj = *arg->d.list.ptr.obj;obj;obj = obj->next_content) count++;
+        arg->d.num = count;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.list.ptr.obj) {
+            count = 0;
+            for(obj = *arg->d.list.ptr.obj;obj;obj = obj->next_content) count++;
+            if(count > 0) {
+                count = number_range(1,count);
+                for(obj = *arg->d.list.ptr.obj; --count > 0; obj = obj->next_content);
+                arg->d.obj = obj;
+            } else
+                arg->d.obj = NULL;
+        } else
+            arg->d.obj = NULL;
+        arg->type = ENT_OBJECT;
+        break;
+    case ENTITY_LIST_FIRST:
+        arg->d.obj = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
+        arg->type = ENT_OBJECT;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.list.ptr.obj) {
+            for(obj = *arg->d.list.ptr.obj;obj && obj->next_content;obj = obj->next_content);
+            arg->d.obj = obj;
+        } else
+            arg->d.obj = NULL;
+        arg->type = ENT_OBJECT;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_list_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register TOKEN_DATA *token;
-	register int count;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		count = 0;
-		if(arg->d.list.ptr.tok)
-			for(token = *arg->d.list.ptr.tok;token;token = token->next) count++;
-		arg->d.num = count;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.list.ptr.tok) {
-			count = 0;
-			for(token = *arg->d.list.ptr.tok;token;token = token->next) count++;
-			if(count > 0) {
-				count = number_range(1,count);
-				for(token = *arg->d.list.ptr.tok;count-- > 0;token = token->next);
-				arg->d.token = token;
-			} else
-				arg->d.token = NULL;
-		} else
-			arg->d.token = NULL;
-		arg->type = ENT_TOKEN;
-		break;
-	case ENTITY_LIST_FIRST:
-		arg->d.token = arg->d.list.ptr.tok ? *arg->d.list.ptr.tok : NULL;
-		arg->type = ENT_TOKEN;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.list.ptr.tok) {
-			for(token = *arg->d.list.ptr.tok;token && token->next;token = token->next);
-			arg->d.token = token;
-		} else
-			arg->d.token = NULL;
-		arg->type = ENT_TOKEN;
-		break;
-	default: return NULL;
-	}
+    register TOKEN_DATA *token;
+    register int count;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        count = 0;
+        if(arg->d.list.ptr.tok)
+            for(token = *arg->d.list.ptr.tok;token;token = token->next) count++;
+        arg->d.num = count;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.list.ptr.tok) {
+            count = 0;
+            for(token = *arg->d.list.ptr.tok;token;token = token->next) count++;
+            if(count > 0) {
+                count = number_range(1,count);
+                for(token = *arg->d.list.ptr.tok; --count > 0; token = token->next);
+                arg->d.token = token;
+            } else
+                arg->d.token = NULL;
+        } else
+            arg->d.token = NULL;
+        arg->type = ENT_TOKEN;
+        break;
+    case ENTITY_LIST_FIRST:
+        arg->d.token = arg->d.list.ptr.tok ? *arg->d.list.ptr.tok : NULL;
+        arg->type = ENT_TOKEN;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.list.ptr.tok) {
+            for(token = *arg->d.list.ptr.tok;token && token->next;token = token->next);
+            arg->d.token = token;
+        } else
+            arg->d.token = NULL;
+        arg->type = ENT_TOKEN;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_list_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register AFFECT_DATA *affect;
-	register int count;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		count = 0;
-		if(arg->d.list.ptr.aff)
-			for(affect = *arg->d.list.ptr.aff;affect;affect = affect->next) count++;
-		arg->d.num = count;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.list.ptr.aff) {
-			count = 0;
-			for(affect = *arg->d.list.ptr.aff;affect;affect = affect->next) count++;
-			if(count > 0) {
-				count = number_range(1,count);
-				for(affect = *arg->d.list.ptr.aff;count-- > 0;affect = affect->next);
-				arg->d.aff = affect;
-			} else
-				arg->d.aff = NULL;
-		} else
-			arg->d.aff = NULL;
-		arg->type = ENT_AFFECT;
-		break;
-	case ENTITY_LIST_FIRST:
-		arg->d.aff = arg->d.list.ptr.aff ? *arg->d.list.ptr.aff : NULL;
-		arg->type = ENT_AFFECT;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.list.ptr.aff) {
-			for(affect = *arg->d.list.ptr.aff;affect && affect->next;affect = affect->next);
-			arg->d.aff = affect;
-		} else
-			arg->d.aff = NULL;
-		arg->type = ENT_AFFECT;
-		break;
-	default: return NULL;
-	}
+    register AFFECT_DATA *affect;
+    register int count;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        count = 0;
+        if(arg->d.list.ptr.aff)
+            for(affect = *arg->d.list.ptr.aff;affect;affect = affect->next) count++;
+        arg->d.num = count;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.list.ptr.aff) {
+            count = 0;
+            for(affect = *arg->d.list.ptr.aff;affect;affect = affect->next) count++;
+            if(count > 0) {
+                count = number_range(1,count);
+                for(affect = *arg->d.list.ptr.aff; --count > 0; affect = affect->next);
+                arg->d.aff = affect;
+            } else
+                arg->d.aff = NULL;
+        } else
+            arg->d.aff = NULL;
+        arg->type = ENT_AFFECT;
+        break;
+    case ENTITY_LIST_FIRST:
+        arg->d.aff = arg->d.list.ptr.aff ? *arg->d.list.ptr.aff : NULL;
+        arg->type = ENT_AFFECT;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.list.ptr.aff) {
+            for(affect = *arg->d.list.ptr.aff;affect && affect->next;affect = affect->next);
+            arg->d.aff = affect;
+        } else
+            arg->d.aff = NULL;
+        arg->type = ENT_AFFECT;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 
 char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_SKILL_GSN:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.sn;	// Redundant!
-		break;
+    SKILL_DATA *skill = (arg->d.sn >= 0) ? skill_find_uid(arg->d.sn) : NULL;
 
-	case ENTITY_SKILL_SPELL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].spell_fun && skill_table[arg->d.sn].spell_fun != spell_null) ? 1 : 0;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_SKILL_GSN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->uid : -1;
+        break;
 
-	case ENTITY_SKILL_NAME:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].name) ? skill_table[arg->d.sn].name : "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    case ENTITY_SKILL_SPELL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (skill && skill->isspell) ? 1 : 0;
+        break;
 
-	case ENTITY_SKILL_BEATS:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].beats : 0;
-		break;
+    case ENTITY_SKILL_ISSPELL:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = skill ? skill->isspell : false;
+        break;
 
-	case ENTITY_SKILL_LEVEL_WARRIOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_WARRIOR] : 0;
-		break;
+    case ENTITY_SKILL_NAME:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->name) ? skill->name : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_SKILL_LEVEL_CLERIC:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_CLERIC] : 0;
-		break;
+    case ENTITY_SKILL_DISPLAY:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->display) ? skill->display : ((skill && skill->name) ? skill->name : ""));
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_SKILL_LEVEL_MAGE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_MAGE] : 0;
-		break;
+    case ENTITY_SKILL_DESCRIPTION:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->description) ? skill->description : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_SKILL_LEVEL_THIEF:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].skill_level[CLASS_THIEF] : 0;
-		break;
+    case ENTITY_SKILL_SUMMARY:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->summary) ? skill->summary : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
+    case ENTITY_SKILL_COMMENTS:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->comments) ? skill->comments : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_SKILL_DIFFICULTY_WARRIOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_WARRIOR] : 0;
-		break;
+    case ENTITY_SKILL_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->uid : -1;
+        break;
 
-	case ENTITY_SKILL_DIFFICULTY_CLERIC:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_CLERIC] : 0;
-		break;
+    case ENTITY_SKILL_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = skill ? skill->flags : 0;
+        arg->d.bv.table = skill_flags;
+        break;
 
-	case ENTITY_SKILL_DIFFICULTY_MAGE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_MAGE] : 0;
-		break;
+    case ENTITY_SKILL_DIFFICULTY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->difficulty : 0;
+        break;
 
-	case ENTITY_SKILL_DIFFICULTY_THIEF:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].rating[CLASS_THIEF] : 0;
-		break;
+    case ENTITY_SKILL_BEATS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->beats : 0;
+        break;
 
-	case ENTITY_SKILL_TARGET:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].target : 0;
-		break;
+    case ENTITY_SKILL_LEVEL_WARRIOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->skill_level[CLASS_WARRIOR] : 0;
+        break;
 
-	case ENTITY_SKILL_POSITION:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].minimum_position : POS_DEAD;
-		break;
+    case ENTITY_SKILL_LEVEL_CLERIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->skill_level[CLASS_CLERIC] : 0;
+        break;
 
-	case ENTITY_SKILL_NOUN:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].noun_damage) ? skill_table[arg->d.sn].noun_damage: "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    case ENTITY_SKILL_LEVEL_MAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->skill_level[CLASS_MAGE] : 0;
+        break;
 
-	case ENTITY_SKILL_WEAROFF:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_off) ? skill_table[arg->d.sn].msg_off : "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    case ENTITY_SKILL_LEVEL_THIEF:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->skill_level[CLASS_THIEF] : 0;
+        break;
 
-	case ENTITY_SKILL_DISPEL:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_disp) ? skill_table[arg->d.sn].msg_disp : "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    case ENTITY_SKILL_DIFFICULTY_WARRIOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->rating[CLASS_WARRIOR] : 0;
+        break;
 
-	case ENTITY_SKILL_MANA:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].min_mana : 0;
-		break;
+    case ENTITY_SKILL_DIFFICULTY_CLERIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->rating[CLASS_CLERIC] : 0;
+        break;
 
-	case ENTITY_SKILL_INK_TYPE1:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[0][0] : 0;
-		break;
+    case ENTITY_SKILL_DIFFICULTY_MAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->rating[CLASS_MAGE] : 0;
+        break;
 
-	case ENTITY_SKILL_INK_TYPE2:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[1][0] : 0;
-		break;
+    case ENTITY_SKILL_DIFFICULTY_THIEF:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->rating[CLASS_THIEF] : 0;
+        break;
 
-	case ENTITY_SKILL_INK_TYPE3:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[2][0] : 0;
-		break;
+    case ENTITY_SKILL_TARGET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->target : 0;
+        break;
 
-	case ENTITY_SKILL_INK_SIZE1:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[0][1] : 0;
-		break;
+    case ENTITY_SKILL_POSITION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->minimum_position : POS_DEAD;
+        break;
 
-	case ENTITY_SKILL_INK_SIZE2:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[1][1] : 0;
-		break;
+    case ENTITY_SKILL_NOUN:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->noun_damage) ? skill->noun_damage : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_SKILL_INK_SIZE3:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL) ? skill_table[arg->d.sn].inks[2][1] : 0;
-		break;
+    case ENTITY_SKILL_WEAROFF:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->msg_off) ? skill->msg_off : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_SKILL_OBJECT:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->msg_obj) ? skill->msg_obj : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	return str+1;
+    case ENTITY_SKILL_DISPEL:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (skill && skill->msg_disp) ? skill->msg_disp : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    case ENTITY_SKILL_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->min_mana : 0;
+        break;
+
+    case ENTITY_SKILL_RACE:
+        arg->type = ENT_RACE;
+        arg->d.race = skill ? skill->race : NULL;
+        break;
+
+    case ENTITY_SKILL_INK_TYPE1:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->inks[0][0] : 0;
+        break;
+
+    case ENTITY_SKILL_INK_TYPE2:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->inks[1][0] : 0;
+        break;
+
+    case ENTITY_SKILL_INK_TYPE3:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->inks[2][0] : 0;
+        break;
+
+    case ENTITY_SKILL_INK_SIZE1:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->inks[0][1] : 0;
+        break;
+
+    case ENTITY_SKILL_INK_SIZE2:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->inks[1][1] : 0;
+        break;
+
+    case ENTITY_SKILL_INK_SIZE3:
+        arg->type = ENT_NUMBER;
+        arg->d.num = skill ? skill->inks[2][1] : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_SKILLINFO_SKILL:
-		arg->type = ENT_SKILL;
-		arg->d.sn = arg->d.sk.sn;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_SKILLINFO_SKILL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = arg->d.sk.sn;
+        break;
 
-	case ENTITY_SKILLINFO_OWNER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.sk.m;
-		break;
+    case ENTITY_SKILLINFO_OWNER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = arg->d.sk.m;
+        break;
 
-	case ENTITY_SKILLINFO_TOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = arg->d.sk.t;
-		break;
+    case ENTITY_SKILLINFO_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = arg->d.sk.t;
+        break;
 
-	case ENTITY_SKILLINFO_RATING:
-		arg->type = ENT_NUMBER;
-		if( arg->d.sk.m ) {
-			if( arg->d.sk.t )
-				arg->d.num = token_skill_rating(arg->d.sk.t);
-			else
-				arg->d.num = get_skill(arg->d.sk.m,arg->d.sk.sn);
-		} else
-			arg->d.num = 0;
-		break;
+    case ENTITY_SKILLINFO_RATING:
+        arg->type = ENT_NUMBER;
+        if( arg->d.sk.m ) {
+            if( arg->d.sk.t )
+                arg->d.num = token_skill_rating(arg->d.sk.t);
+            else
+                script_get_skill_rating_by_sn(arg->d.sk.m, arg->d.sk.sn, &arg->d.num);
+        } else
+            arg->d.num = 0;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_skillinfo_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_SKILLINFO_SKILL:
-		arg->type = ENT_SKILL;
-		arg->d.sn = arg->d.sk.sn;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_SKILLINFO_SKILL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = arg->d.sk.sn;
+        break;
 
-	case ENTITY_SKILLINFO_OWNER:
-		arg->type = ENT_MOBILE_ID;
-		arg->d.uid[0] = arg->d.sk.mid[0];
-		arg->d.uid[1] = arg->d.sk.mid[1];
-		break;
+    case ENTITY_SKILLINFO_OWNER:
+        arg->type = ENT_MOBILE_ID;
+        arg->d.uid[0] = arg->d.sk.mid[0];
+        arg->d.uid[1] = arg->d.sk.mid[1];
+        break;
 
-	case ENTITY_SKILLINFO_TOKEN:
-		arg->type = ENT_TOKEN_ID;
-		arg->d.uid[0] = arg->d.sk.tid[0];
-		arg->d.uid[1] = arg->d.sk.tid[1];
-		break;
+    case ENTITY_SKILLINFO_TOKEN:
+        arg->type = ENT_TOKEN_ID;
+        arg->d.uid[0] = arg->d.sk.tid[0];
+        arg->d.uid[1] = arg->d.sk.tid[1];
+        break;
 
-	case ENTITY_SKILLINFO_RATING:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
+    case ENTITY_SKILLINFO_RATING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = 0;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_CONN_PLAYER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.conn ? arg->d.conn->character : NULL;
-		break;
-	case ENTITY_CONN_ORIGINAL:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.conn ? (arg->d.conn->original ? arg->d.conn->original : arg->d.conn->character) : NULL;
-		break;
-	case ENTITY_CONN_HOST:
-		arg->type = ENT_STRING;
-		arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->host : &str_empty[0];
-		break;
-	case ENTITY_CONN_CONNECTION:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->connected : -1;
-		break;
-	case ENTITY_CONN_SNOOPER:
-		arg->type = ENT_CONN;
-		arg->d.conn = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->snoop_by : NULL;
-		break;
-	case ENTITY_CONN_CLIENT:
-		arg->type = ENT_STRING;
-		arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString : "Unknown";
-		break;
-	case ENTITY_CONN_SECURE:
-		arg->type = ENT_BOOLEAN;
-		arg->d.boolean = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY) && arg->d.conn->ssl) ? true : false;
-		break;
-	default: return NULL;
-	}
+    switch((unsigned char)*str) {
+    case ENTITY_CONN_PLAYER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = arg->d.conn ? arg->d.conn->character : NULL;
+        break;
+    case ENTITY_CONN_ORIGINAL:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = arg->d.conn ? (arg->d.conn->original ? arg->d.conn->original : arg->d.conn->character) : NULL;
+        break;
+    case ENTITY_CONN_HOST:
+        arg->type = ENT_STRING;
+        arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->host : &str_empty[0];
+        break;
+    case ENTITY_CONN_CONNECTION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->connected : -1;
+        break;
+    case ENTITY_CONN_SNOOPER:
+        arg->type = ENT_CONN;
+        arg->d.conn = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->snoop_by : NULL;
+        break;
+    case ENTITY_CONN_CLIENT:
+        arg->type = ENT_STRING;
+        arg->d.str = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString : "Unknown";
+        break;
+    case ENTITY_CONN_SECURE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY) && arg->d.conn->ssl) ? true : false;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
+}
+
+char *expand_entity_spelldata(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SPELL_DATA *spell = arg->d.spell;
+    SKILL_DATA *skill = (spell && spell->sn >= 0) ? skill_find_uid(spell->sn) : NULL;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_SPELLDATA_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = skill ? skill->name : "none";
+        break;
+
+    case ENTITY_SPELLDATA_SKILL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = spell ? spell->sn : -1;
+        break;
+
+    case ENTITY_SPELLDATA_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = spell ? spell->level : 0;
+        break;
+
+    case ENTITY_SPELLDATA_CHANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = spell ? spell->repop : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_lockstate(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    LOCK_STATE *lock = arg->d.lock_state;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_LOCKSTATE_KEY:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum = lock ? lock->key_wnum : wnum_zero;
+        break;
+
+    case ENTITY_LOCKSTATE_PICK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = lock ? lock->pick_chance : 0;
+        break;
+
+    case ENTITY_LOCKSTATE_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = lock ? lock->flags : 0;
+        arg->d.bv.table = lock_flags;
+        break;
+
+    case ENTITY_LOCKSTATE_SPECIALKEYS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (lock && lock->special_keys) ? list_size(lock->special_keys) : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_liquid(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    int liquid = arg->d.liquid;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_LIQUID_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = liquid_name(liquid);
+        break;
+
+    case ENTITY_LIQUID_COLOR:
+        arg->type = ENT_STRING;
+        arg->d.str = liquid_color(liquid);
+        break;
+
+    case ENTITY_LIQUID_PROOF:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_PROOF);
+        break;
+
+    case ENTITY_LIQUID_FULL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_FULL);
+        break;
+
+    case ENTITY_LIQUID_THIRST:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_THIRST);
+        break;
+
+    case ENTITY_LIQUID_HUNGER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_HUNGER);
+        break;
+
+    case ENTITY_LIQUID_SSIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_SSIZE);
+        break;
+
+    case ENTITY_LIQUID_FUEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_FUEL);
+        break;
+
+    case ENTITY_LIQUID_VAPOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = liquid_affect(liquid, LIQ_AFF_VAPOR);
+        break;
+
+    case ENTITY_LIQUID_FLAMMABLE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = liquid_affect(liquid, LIQ_AFF_FUEL) > 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_material(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    int material = arg->d.material;
+
+    switch((unsigned char)*str)
+    {
+    case ENTITY_MATERIAL_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = material_name(material);
+        break;
+
+    case ENTITY_MATERIAL_STRENGTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = material_strength(material);
+        break;
+
+    case ENTITY_MATERIAL_VALUE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = material_value(material);
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	//printf("expand_entity_affect() called\n\r");
-	switch(*str) {
-	case ENTITY_AFFECT_NAME:
-		arg->type = ENT_STRING;
-		if(arg->d.aff) {
-			if(arg->d.aff->custom_name)
-				arg->d.str = arg->d.aff->custom_name;
-			else if (arg->d.aff->type >= 0)
-				arg->d.str = skill_table[arg->d.aff->type].name;
-			else
-				arg->d.str = &str_empty[0];
-		} else
-			arg->d.str = &str_empty[0];
-		//printf("expand_entity_affect(NAME)-> \"%s\"\n\r", arg->d.str);
-		break;
+    //printf("expand_entity_affect() called\n\r");
+    switch((unsigned char)*str) {
+    case ENTITY_AFFECT_NAME:
+        arg->type = ENT_STRING;
+        if(arg->d.aff) {
+            if(arg->d.aff->custom_name)
+                arg->d.str = arg->d.aff->custom_name;
+            else if (arg->d.aff->type >= 0)
+                arg->d.str = skill_table[arg->d.aff->type].name;
+            else
+                arg->d.str = &str_empty[0];
+        } else
+            arg->d.str = &str_empty[0];
+        //printf("expand_entity_affect(NAME)-> \"%s\"\n\r", arg->d.str);
+        break;
 
-	case ENTITY_AFFECT_GROUP:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->group : -1;
-		break;
+    case ENTITY_AFFECT_GROUP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.aff ? arg->d.aff->group : -1;
+        break;
 
-	case ENTITY_AFFECT_SKILL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->type : 0;
-		break;
+    case ENTITY_AFFECT_SKILL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.aff ? arg->d.aff->type : 0;
+        break;
 
-	case ENTITY_AFFECT_LOCATION:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->location : -1;
-		break;
+    case ENTITY_AFFECT_LOCATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.aff ? arg->d.aff->location : -1;
+        break;
 
-	case ENTITY_AFFECT_MOD:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->modifier : 0;
-		break;
+    case ENTITY_AFFECT_MOD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.aff ? arg->d.aff->modifier : 0;
+        break;
 
-	case ENTITY_AFFECT_LEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->level : 0;
-		break;
+    case ENTITY_AFFECT_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.aff ? arg->d.aff->level : 0;
+        break;
 
-	case ENTITY_AFFECT_TIMER:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->duration : 0;
-		break;
+    case ENTITY_AFFECT_TIMER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.aff ? arg->d.aff->duration : 0;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_ROOM_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = SOMEWHERE;
-		break;
-	case ENTITY_ROOM_MOBILES:
-		arg->type = ENT_OLLIST_MOB;
-		arg->d.list.ptr.mob = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_OBJECTS:
-		arg->type = ENT_OLLIST_OBJ;
-		arg->d.list.ptr.obj = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_TOKENS:
-		arg->type = ENT_OLLIST_TOK;
-		arg->d.list.ptr.tok = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_AREA:
-		arg->type = ENT_AREA;
-		arg->d.area = NULL;
-		break;
-	case ENTITY_ROOM_TARGET:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_ROOM_NORTH:
-	case ENTITY_ROOM_EAST:
-	case ENTITY_ROOM_SOUTH:
-	case ENTITY_ROOM_WEST:
-	case ENTITY_ROOM_UP:
-	case ENTITY_ROOM_DOWN:
-	case ENTITY_ROOM_NORTHEAST:
-	case ENTITY_ROOM_NORTHWEST:
-	case ENTITY_ROOM_SOUTHEAST:
-	case ENTITY_ROOM_SOUTHWEST:
-		arg->type = ENT_EXIT;
-		arg->d.door.r = NULL;
-		arg->d.door.door = *str - ENTITY_ROOM_NORTH;
-		break;
-	case ENTITY_ROOM_ENVIRON:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_ROOM_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = SOMEWHERE;
+        break;
+    case ENTITY_ROOM_MOBILES:
+        arg->type = ENT_OLLIST_MOB;
+        arg->d.list.ptr.mob = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_OBJECTS:
+        arg->type = ENT_OLLIST_OBJ;
+        arg->d.list.ptr.obj = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_TOKENS:
+        arg->type = ENT_OLLIST_TOK;
+        arg->d.list.ptr.tok = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = NULL;
+        break;
+    case ENTITY_ROOM_TARGET:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_ROOM_NORTH:
+    case ENTITY_ROOM_EAST:
+    case ENTITY_ROOM_SOUTH:
+    case ENTITY_ROOM_WEST:
+    case ENTITY_ROOM_UP:
+    case ENTITY_ROOM_DOWN:
+    case ENTITY_ROOM_NORTHEAST:
+    case ENTITY_ROOM_NORTHWEST:
+    case ENTITY_ROOM_SOUTHEAST:
+    case ENTITY_ROOM_SOUTHWEST:
+        arg->type = ENT_EXIT;
+        arg->d.door.r = NULL;
+        arg->d.door.door = (unsigned char)*str - ENTITY_ROOM_NORTH;
+        break;
+    case ENTITY_ROOM_ENVIRON:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_MOB:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_MOB:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_OBJ:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_OBJ:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_TOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = NULL;
+        break;
 
-	case ENTITY_ROOM_EXTRADESC:
-		arg->type = ENT_EXTRADESC;
-		arg->d.list.ptr.ed = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_ROOM;
-		break;
+    case ENTITY_ROOM_EXTRADESC:
+        arg->type = ENT_EXTRADESC;
+        arg->d.list.ptr.ed = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_ROOM;
+        break;
 
-	case ENTITY_ROOM_DESC:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
+    case ENTITY_ROOM_DESC:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_ROOM_CLONEROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = NULL;
-		break;
+    case ENTITY_ROOM_CLONEROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
 
-	case ENTITY_ROOM_SECTION:
-		arg->type = ENT_SECTION;
-		arg->d.section = NULL;
-		break;
+    case ENTITY_ROOM_SECTION:
+        arg->type = ENT_SECTION;
+        arg->d.section = NULL;
+        break;
 
-	case ENTITY_ROOM_INSTANCE:
-		arg->type = ENT_INSTANCE;
-		arg->d.instance = NULL;
-		break;
+    case ENTITY_ROOM_INSTANCE:
+        arg->type = ENT_INSTANCE;
+        arg->d.instance = NULL;
+        break;
 
-	case ENTITY_ROOM_DUNGEON:
-		arg->type = ENT_DUNGEON;
-		arg->d.dungeon = NULL;
-		break;
+    case ENTITY_ROOM_DUNGEON:
+        arg->type = ENT_DUNGEON;
+        arg->d.dungeon = NULL;
+        break;
 
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	default: return NULL;
-	}
+    case ENTITY_ROOM_SECTOR:
+        arg->type = ENT_SECTOR;
+        arg->d.sector = NULL;
+        break;
 
-	return str+1;
+    case ENTITY_ROOM_SECTORFLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = 0;
+        arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
+    case ENTITY_ROOM_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        break;
+
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_ROOM_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = SOMEWHERE;
-		break;
-	case ENTITY_ROOM_MOBILES:
-		arg->type = ENT_OLLIST_MOB;
-		arg->d.list.ptr.mob = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_OBJECTS:
-		arg->type = ENT_OLLIST_OBJ;
-		arg->d.list.ptr.obj = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_TOKENS:
-		arg->type = ENT_OLLIST_TOK;
-		arg->d.list.ptr.tok = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_UNKNOWN;
-		break;
-	case ENTITY_ROOM_AREA:
-		arg->type = ENT_AREA;
-		arg->d.area = NULL;
-		break;
-	case ENTITY_ROOM_TARGET:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
-	case ENTITY_ROOM_NORTH:
-	case ENTITY_ROOM_EAST:
-	case ENTITY_ROOM_SOUTH:
-	case ENTITY_ROOM_WEST:
-	case ENTITY_ROOM_UP:
-	case ENTITY_ROOM_DOWN:
-	case ENTITY_ROOM_NORTHEAST:
-	case ENTITY_ROOM_NORTHWEST:
-	case ENTITY_ROOM_SOUTHEAST:
-	case ENTITY_ROOM_SOUTHWEST:
-		arg->type = ENT_EXIT;
-		arg->d.door.r = NULL;
-		arg->d.door.door = *str - ENTITY_ROOM_NORTH;
-		break;
-	case ENTITY_ROOM_ENVIRON:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_ROOM_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = SOMEWHERE;
+        break;
+    case ENTITY_ROOM_MOBILES:
+        arg->type = ENT_OLLIST_MOB;
+        arg->d.list.ptr.mob = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_OBJECTS:
+        arg->type = ENT_OLLIST_OBJ;
+        arg->d.list.ptr.obj = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_TOKENS:
+        arg->type = ENT_OLLIST_TOK;
+        arg->d.list.ptr.tok = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_ROOM_AREA:
+        arg->type = ENT_AREA;
+        arg->d.area = NULL;
+        break;
+    case ENTITY_ROOM_TARGET:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
+    case ENTITY_ROOM_NORTH:
+    case ENTITY_ROOM_EAST:
+    case ENTITY_ROOM_SOUTH:
+    case ENTITY_ROOM_WEST:
+    case ENTITY_ROOM_UP:
+    case ENTITY_ROOM_DOWN:
+    case ENTITY_ROOM_NORTHEAST:
+    case ENTITY_ROOM_NORTHWEST:
+    case ENTITY_ROOM_SOUTHEAST:
+    case ENTITY_ROOM_SOUTHWEST:
+        arg->type = ENT_EXIT;
+        arg->d.door.r = NULL;
+        arg->d.door.door = (unsigned char)*str - ENTITY_ROOM_NORTH;
+        break;
+    case ENTITY_ROOM_ENVIRON:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_MOB:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_MOB:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_OBJ:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_OBJ:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+        break;
 
-	case ENTITY_ROOM_ENVIRON_TOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = NULL;
-		break;
+    case ENTITY_ROOM_ENVIRON_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = NULL;
+        break;
 
-	case ENTITY_ROOM_EXTRADESC:
-		arg->type = ENT_EXTRADESC;
-		arg->d.list.ptr.ed = NULL;
-		arg->d.list.owner = NULL;
-		arg->d.list.owner_type = ENT_ROOM;
-		break;
+    case ENTITY_ROOM_EXTRADESC:
+        arg->type = ENT_EXTRADESC;
+        arg->d.list.ptr.ed = NULL;
+        arg->d.list.owner = NULL;
+        arg->d.list.owner_type = ENT_ROOM;
+        break;
 
-	case ENTITY_ROOM_DESC:
-		arg->type = ENT_STRING;
-		arg->d.str = &str_empty[0];
-		break;
+    case ENTITY_ROOM_DESC:
+        arg->type = ENT_STRING;
+        arg->d.str = &str_empty[0];
+        break;
 
-	case ENTITY_ROOM_CLONEROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = NULL;
-		break;
+    case ENTITY_ROOM_CLONEROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = NULL;
+        break;
 
-	case ENTITY_ROOM_SECTION:
-		arg->type = ENT_SECTION;
-		arg->d.section = NULL;
-		break;
+    case ENTITY_ROOM_SECTION:
+        arg->type = ENT_SECTION;
+        arg->d.section = NULL;
+        break;
 
-	case ENTITY_ROOM_INSTANCE:
-		arg->type = ENT_INSTANCE;
-		arg->d.instance = NULL;
-		break;
+    case ENTITY_ROOM_INSTANCE:
+        arg->type = ENT_INSTANCE;
+        arg->d.instance = NULL;
+        break;
 
-	case ENTITY_ROOM_DUNGEON:
-		arg->type = ENT_DUNGEON;
-		arg->d.dungeon = NULL;
-		break;
+    case ENTITY_ROOM_DUNGEON:
+        arg->type = ENT_DUNGEON;
+        arg->d.dungeon = NULL;
+        break;
 
-	case ESCAPE_VARIABLE:
-		str = expand_escape_variable(info,NULL,str+1,arg);
-		if(!str) return NULL;
-		break;
-	default: return NULL;
-	}
+    case ENTITY_ROOM_SECTOR:
+        arg->type = ENT_SECTOR;
+        arg->d.sector = NULL;
+        break;
 
-	return str+1;
+    case ENTITY_ROOM_SECTORFLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = 0;
+        arg->d.bv.table = sector_runtime_flag_table();
+        break;
+
+    case ENTITY_ROOM_EVENT:
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = 0;
+        arg->d.event.instance_id = 0;
+        break;
+
+    case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_clone_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_EXIT_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = SOMEWHERE;
-		break;
-	case ENTITY_EXIT_DOOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.cdoor.door;
-		break;
-	case ENTITY_EXIT_SOURCE:
-		arg->type = ENT_CLONE_ROOM;
-		arg->d.cr.r = arg->d.cdoor.r;
-		arg->d.cr.a = arg->d.cdoor.a;
-		arg->d.cr.b = arg->d.cdoor.b;
-		break;
-	case ENTITY_EXIT_REMOTE:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_EXIT_STATE:
-		arg->type = ENT_STRING;
-		arg->d.str = NULL;
-		break;
-	case ENTITY_EXIT_MATE:
-		arg->type = ENT_EXIT;
-		arg->d.door.door = DIR_NORTH;
-		arg->d.door.r = NULL;
-		break;
-	case ENTITY_EXIT_NORTH:
-	case ENTITY_EXIT_EAST:
-	case ENTITY_EXIT_SOUTH:
-	case ENTITY_EXIT_WEST:
-	case ENTITY_EXIT_UP:
-	case ENTITY_EXIT_DOWN:
-	case ENTITY_EXIT_NORTHEAST:
-	case ENTITY_EXIT_NORTHWEST:
-	case ENTITY_EXIT_SOUTHEAST:
-	case ENTITY_EXIT_SOUTHWEST:
-		arg->type = ENT_EXIT;
-		arg->d.door.door = *str - ENTITY_EXIT_NORTH + DIR_NORTH;
-		arg->d.door.r = NULL;
-		break;
-	case ENTITY_EXIT_NEXT:
-		arg->type = ENT_CLONE_DOOR;
-		arg->d.cdoor.door++;
-		if( arg->d.cdoor.door >= MAX_DIR ) {
-			arg->d.cdoor.r = NULL;
-			arg->d.cdoor.a = 0;
-			arg->d.cdoor.b = 0;
-			arg->d.cdoor.door = DIR_NORTH;
-		}
-		break;
-	default: return NULL;
-	}
+    switch((unsigned char)*str) {
+    case ENTITY_EXIT_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = SOMEWHERE;
+        break;
+    case ENTITY_EXIT_DOOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.cdoor.door;
+        break;
+    case ENTITY_EXIT_SOURCE:
+        arg->type = ENT_CLONE_ROOM;
+        arg->d.cr.r = arg->d.cdoor.r;
+        arg->d.cr.a = arg->d.cdoor.a;
+        arg->d.cr.b = arg->d.cdoor.b;
+        break;
+    case ENTITY_EXIT_REMOTE:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_EXIT_STATE:
+        arg->type = ENT_STRING;
+        arg->d.str = NULL;
+        break;
+    case ENTITY_EXIT_MATE:
+        arg->type = ENT_EXIT;
+        arg->d.door.door = DIR_NORTH;
+        arg->d.door.r = NULL;
+        break;
+    case ENTITY_EXIT_NORTH:
+    case ENTITY_EXIT_EAST:
+    case ENTITY_EXIT_SOUTH:
+    case ENTITY_EXIT_WEST:
+    case ENTITY_EXIT_UP:
+    case ENTITY_EXIT_DOWN:
+    case ENTITY_EXIT_NORTHEAST:
+    case ENTITY_EXIT_NORTHWEST:
+    case ENTITY_EXIT_SOUTHEAST:
+    case ENTITY_EXIT_SOUTHWEST:
+        arg->type = ENT_EXIT;
+        arg->d.door.door = (unsigned char)*str - ENTITY_EXIT_NORTH + DIR_NORTH;
+        arg->d.door.r = NULL;
+        break;
+    case ENTITY_EXIT_NEXT:
+        arg->type = ENT_CLONE_DOOR;
+        arg->d.cdoor.door++;
+        if( arg->d.cdoor.door >= MAX_DIR ) {
+            arg->d.cdoor.r = NULL;
+            arg->d.cdoor.a = 0;
+            arg->d.cdoor.b = 0;
+            arg->d.cdoor.door = DIR_NORTH;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_wilds_door(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ENTITY_EXIT_NAME:
-		arg->type = ENT_STRING;
-		arg->d.str = SOMEWHERE;
-		break;
-	case ENTITY_EXIT_DOOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.cdoor.door;
-		break;
-	case ENTITY_EXIT_SOURCE:
-		arg->type = ENT_WILDS_ROOM;
-		arg->d.wroom.wuid = arg->d.wdoor.wuid;
-		arg->d.wroom.x = arg->d.wdoor.x;
-		arg->d.wroom.y = arg->d.wdoor.y;
-		break;
-	case ENTITY_EXIT_REMOTE:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_EXIT_STATE:
-		arg->type = ENT_STRING;
-		arg->d.str = NULL;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_EXIT_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = SOMEWHERE;
+        break;
+    case ENTITY_EXIT_DOOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.cdoor.door;
+        break;
+    case ENTITY_EXIT_SOURCE:
+        arg->type = ENT_WILDS_ROOM;
+        arg->d.wroom.wuid = arg->d.wdoor.wuid;
+        arg->d.wroom.x = arg->d.wdoor.x;
+        arg->d.wroom.y = arg->d.wdoor.y;
+        break;
+    case ENTITY_EXIT_REMOTE:
+        arg->type = ENT_ROOM;
+        arg->d.room = NULL;
+        break;
+    case ENTITY_EXIT_STATE:
+        arg->type = ENT_STRING;
+        arg->d.str = NULL;
+        break;
 
-	// The mate to a "wilds" room flips around
-	case ENTITY_EXIT_MATE:
-		if( arg->d.wdoor.door == DIR_NORTH )		{ arg->d.wdoor.y--; }
-		else if( arg->d.wdoor.door == DIR_EAST )	{ arg->d.wdoor.x++; }
-		else if( arg->d.wdoor.door == DIR_SOUTH )	{ arg->d.wdoor.y++; }
-		else if( arg->d.wdoor.door == DIR_WEST )	{ arg->d.wdoor.x--; }
-		else if( arg->d.wdoor.door == DIR_NORTHWEST )	{ arg->d.wdoor.x--; arg->d.wdoor.y--; }
-		else if( arg->d.wdoor.door == DIR_NORTHEAST )	{ arg->d.wdoor.x++; arg->d.wdoor.y--; }
-		else if( arg->d.wdoor.door == DIR_SOUTHWEST )	{ arg->d.wdoor.x--; arg->d.wdoor.y++; }
-		else if( arg->d.wdoor.door == DIR_SOUTHEAST )	{ arg->d.wdoor.x++; arg->d.wdoor.y++; }
-		arg->d.wdoor.door = rev_dir[arg->d.wdoor.door];
-		break;
+    // The mate to a "wilds" room flips around
+    case ENTITY_EXIT_MATE:
+        if( arg->d.wdoor.door == DIR_NORTH )		{ arg->d.wdoor.y--; }
+        else if( arg->d.wdoor.door == DIR_EAST )	{ arg->d.wdoor.x++; }
+        else if( arg->d.wdoor.door == DIR_SOUTH )	{ arg->d.wdoor.y++; }
+        else if( arg->d.wdoor.door == DIR_WEST )	{ arg->d.wdoor.x--; }
+        else if( arg->d.wdoor.door == DIR_NORTHWEST )	{ arg->d.wdoor.x--; arg->d.wdoor.y--; }
+        else if( arg->d.wdoor.door == DIR_NORTHEAST )	{ arg->d.wdoor.x++; arg->d.wdoor.y--; }
+        else if( arg->d.wdoor.door == DIR_SOUTHWEST )	{ arg->d.wdoor.x--; arg->d.wdoor.y++; }
+        else if( arg->d.wdoor.door == DIR_SOUTHEAST )	{ arg->d.wdoor.x++; arg->d.wdoor.y++; }
+        arg->d.wdoor.door = rev_dir[arg->d.wdoor.door];
+        break;
 
-	// Exits in a WILDS room can "move around" even if the wilds map doesn't exist
-	case ENTITY_EXIT_NORTH:		arg->d.wdoor.y--; break;
-	case ENTITY_EXIT_EAST:		arg->d.wdoor.x++; break;
-	case ENTITY_EXIT_SOUTH:		arg->d.wdoor.y++; break;
-	case ENTITY_EXIT_WEST:		arg->d.wdoor.x--; break;
-	case ENTITY_EXIT_NORTHEAST:	arg->d.wdoor.x++; arg->d.wdoor.y--; break;
-	case ENTITY_EXIT_NORTHWEST:	arg->d.wdoor.x--; arg->d.wdoor.y--; break;
-	case ENTITY_EXIT_SOUTHEAST:	arg->d.wdoor.x++; arg->d.wdoor.y++; break;
-	case ENTITY_EXIT_SOUTHWEST:	arg->d.wdoor.x--; arg->d.wdoor.y++; break;
-	case ENTITY_EXIT_UP:
-	case ENTITY_EXIT_DOWN:
-		arg->type = ENT_EXIT;
-		arg->d.door.door = *str - ENTITY_EXIT_NORTH + DIR_NORTH;
-		arg->d.door.r = NULL;
-		break;
-	case ENTITY_EXIT_NEXT:
-		arg->type = ENT_WILDS_DOOR;
-		arg->d.wdoor.door++;
-		if( arg->d.wdoor.door >= MAX_DIR ) {
-			arg->d.wdoor.wuid = 0;
-			arg->d.wdoor.x = 0;
-			arg->d.wdoor.y = 0;
-			arg->d.wdoor.door = DIR_NORTH;
-		}
-		break;
-	default: return NULL;
-	}
+    // Exits in a WILDS room can "move around" even if the wilds map doesn't exist
+    case ENTITY_EXIT_NORTH:		arg->d.wdoor.y--; break;
+    case ENTITY_EXIT_EAST:		arg->d.wdoor.x++; break;
+    case ENTITY_EXIT_SOUTH:		arg->d.wdoor.y++; break;
+    case ENTITY_EXIT_WEST:		arg->d.wdoor.x--; break;
+    case ENTITY_EXIT_NORTHEAST:	arg->d.wdoor.x++; arg->d.wdoor.y--; break;
+    case ENTITY_EXIT_NORTHWEST:	arg->d.wdoor.x--; arg->d.wdoor.y--; break;
+    case ENTITY_EXIT_SOUTHEAST:	arg->d.wdoor.x++; arg->d.wdoor.y++; break;
+    case ENTITY_EXIT_SOUTHWEST:	arg->d.wdoor.x--; arg->d.wdoor.y++; break;
+    case ENTITY_EXIT_UP:
+    case ENTITY_EXIT_DOWN:
+        arg->type = ENT_EXIT;
+        arg->d.door.door = (unsigned char)*str - ENTITY_EXIT_NORTH + DIR_NORTH;
+        arg->d.door.r = NULL;
+        break;
+    case ENTITY_EXIT_NEXT:
+        arg->type = ENT_WILDS_DOOR;
+        arg->d.wdoor.door++;
+        if( arg->d.wdoor.door >= MAX_DIR ) {
+            arg->d.wdoor.wuid = 0;
+            arg->d.wdoor.x = 0;
+            arg->d.wdoor.y = 0;
+            arg->d.wdoor.door = DIR_NORTH;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char *p = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			p = (char *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    char *p = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            p = (char *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, p ? p : "");
-		arg->d.str = buf_string(arg->buffer);
-		arg->type = ENT_STRING;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			p = (char *)list_nthdata(arg->d.blist, 0);
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, p ? p : "");
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            p = (char *)list_nthdata(arg->d.blist, 0);
 
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, p ? p : "");
-		arg->d.str = buf_string(arg->buffer);
-		arg->type = ENT_STRING;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			p = (char *)list_nthdata(arg->d.blist, -1);
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, p ? p : "");
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            p = (char *)list_nthdata(arg->d.blist, -1);
 
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, p ? p : "");
-		arg->d.str = buf_string(arg->buffer);
-		arg->type = ENT_STRING;
-		break;
-	default: return NULL;
-	}
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, p ? p : "");
+        arg->d.str = buf_string(arg->buffer);
+        arg->type = ENT_STRING;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_blist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_ROOM_DATA *r = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register LLIST_ROOM_DATA *r = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.room = r ? r->room : NULL;
-		arg->type = ENT_ROOM;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.room = r ? r->room : NULL;
+        arg->type = ENT_ROOM;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.room = r ? r->room : NULL;
-		arg->type = ENT_ROOM;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.room = r ? r->room : NULL;
+        arg->type = ENT_ROOM;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.room = r ? r->room : NULL;
-		arg->type = ENT_ROOM;
-		break;
-	default: return NULL;
-	}
+        arg->d.room = r ? r->room : NULL;
+        arg->type = ENT_ROOM;
+        break;
+    default: return NULL;
+    }
 
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_blist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_UID_DATA *uid = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register LLIST_UID_DATA *uid = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.mob = (CHAR_DATA *)uid->ptr;
-				arg->type = ENT_MOBILE;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_MOBILE_ID;
-			}
-		} else {
-			arg->d.mob = NULL;
-			arg->type = ENT_MOBILE;
-		}
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.mob = (CHAR_DATA *)uid->ptr;
+                arg->type = ENT_MOBILE;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_MOBILE_ID;
+            }
+        } else {
+            arg->d.mob = NULL;
+            arg->type = ENT_MOBILE;
+        }
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.mob = (CHAR_DATA *)uid->ptr;
-				arg->type = ENT_MOBILE;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_MOBILE_ID;
-			}
-		} else {
-			arg->d.mob = NULL;
-			arg->type = ENT_MOBILE;
-		}
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, -1);
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.mob = (CHAR_DATA *)uid->ptr;
+                arg->type = ENT_MOBILE;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_MOBILE_ID;
+            }
+        } else {
+            arg->d.mob = NULL;
+            arg->type = ENT_MOBILE;
+        }
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, -1);
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.mob = (CHAR_DATA *)uid->ptr;
-				arg->type = ENT_MOBILE;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_MOBILE_ID;
-			}
-		} else {
-			arg->d.mob = NULL;
-			arg->type = ENT_MOBILE;
-		}
-		break;
-	default: return NULL;
-	}
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.mob = (CHAR_DATA *)uid->ptr;
+                arg->type = ENT_MOBILE;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_MOBILE_ID;
+            }
+        } else {
+            arg->d.mob = NULL;
+            arg->type = ENT_MOBILE;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_blist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_UID_DATA *uid = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register LLIST_UID_DATA *uid = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.obj = (OBJ_DATA *)uid->ptr;
-				arg->type = ENT_OBJECT;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_OBJECT_ID;
-			}
-		} else {
-			arg->d.obj = NULL;
-			arg->type = ENT_OBJECT;
-		}
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.obj = (OBJ_DATA *)uid->ptr;
+                arg->type = ENT_OBJECT;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_OBJECT_ID;
+            }
+        } else {
+            arg->d.obj = NULL;
+            arg->type = ENT_OBJECT;
+        }
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.obj = (OBJ_DATA *)uid->ptr;
-				arg->type = ENT_OBJECT;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_OBJECT_ID;
-			}
-		} else {
-			arg->d.obj = NULL;
-			arg->type = ENT_OBJECT;
-		}
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, -1);
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.obj = (OBJ_DATA *)uid->ptr;
+                arg->type = ENT_OBJECT;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_OBJECT_ID;
+            }
+        } else {
+            arg->d.obj = NULL;
+            arg->type = ENT_OBJECT;
+        }
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, -1);
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.obj = (OBJ_DATA *)uid->ptr;
-				arg->type = ENT_OBJECT;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_OBJECT_ID;
-			}
-		} else {
-			arg->d.obj = NULL;
-			arg->type = ENT_OBJECT;
-		}
-		break;
-	default: return NULL;
-	}
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.obj = (OBJ_DATA *)uid->ptr;
+                arg->type = ENT_OBJECT;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_OBJECT_ID;
+            }
+        } else {
+            arg->d.obj = NULL;
+            arg->type = ENT_OBJECT;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_blist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_UID_DATA *uid = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register LLIST_UID_DATA *uid = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.token = (TOKEN_DATA *)uid->ptr;
-				arg->type = ENT_TOKEN;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_TOKEN_ID;
-			}
-		} else {
-			arg->d.token = NULL;
-			arg->type = ENT_TOKEN;
-		}
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.token = (TOKEN_DATA *)uid->ptr;
+                arg->type = ENT_TOKEN;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_TOKEN_ID;
+            }
+        } else {
+            arg->d.token = NULL;
+            arg->type = ENT_TOKEN;
+        }
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.token  = (TOKEN_DATA *)uid->ptr;
-				arg->type = ENT_TOKEN;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_TOKEN_ID;
-			}
-		} else {
-			arg->d.mob = NULL;
-			arg->type = ENT_TOKEN;
-		}
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, -1);
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.token  = (TOKEN_DATA *)uid->ptr;
+                arg->type = ENT_TOKEN;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_TOKEN_ID;
+            }
+        } else {
+            arg->d.mob = NULL;
+            arg->type = ENT_TOKEN;
+        }
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, -1);
 
-		if( uid ) {
-			if( uid->ptr ) {
-				arg->d.token = (TOKEN_DATA *)uid->ptr;
-				arg->type = ENT_TOKEN;
-			} else {
-				arg->d.uid[0] = uid->id[0];
-				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_TOKEN_ID;
-			}
-		} else {
-			arg->d.token = NULL;
-			arg->type = ENT_TOKEN;
-		}
-		break;
-	default: return NULL;
-	}
+        if( uid ) {
+            if( uid->ptr ) {
+                arg->d.token = (TOKEN_DATA *)uid->ptr;
+                arg->type = ENT_TOKEN;
+            } else {
+                arg->d.uid[0] = uid->id[0];
+                arg->d.uid[1] = uid->id[1];
+                arg->type = ENT_TOKEN_ID;
+            }
+        } else {
+            arg->d.token = NULL;
+            arg->type = ENT_TOKEN;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_blist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_AREA_DATA *uid = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		return str+1;
+    register LLIST_AREA_DATA *uid = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        return str+1;
 
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, 0);
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, 0);
 
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, -1);
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, -1);
 
-		break;
-	default: return NULL;
-	}
+        break;
+    default: return NULL;
+    }
 
-	if( uid ) {
-		if( uid->area ) {
-			arg->d.area = (AREA_DATA *)uid->area;
-			arg->type = ENT_AREA;
-		} else {
-			arg->d.aid = uid->uid;
-			arg->type = ENT_AREA_ID;
-		}
-	} else {
-		arg->d.area = NULL;
-		arg->type = ENT_AREA;
-	}
+    if( uid ) {
+        if( uid->area ) {
+            arg->d.area = (AREA_DATA *)uid->area;
+            arg->type = ENT_AREA;
+        } else {
+            arg->d.aid = uid->uid;
+            arg->type = ENT_AREA_ID;
+        }
+    } else {
+        arg->d.area = NULL;
+        arg->type = ENT_AREA;
+    }
 
-	return str+1;
+    return str+1;
+}
+
+char *expand_entity_blist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register LLIST_AREA_REGION_DATA *region = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        return str+1;
+
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, 0);
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, -1);
+        break;
+    default:
+        return NULL;
+    }
+
+    arg->type = ENT_AREA_REGION;
+    arg->d.aregion = region ? region->aregion : NULL;
+    return str+1;
 }
 
 char *expand_entity_blist_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_WILDS_DATA *uid = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		return str+1;
+    register LLIST_WILDS_DATA *uid = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        return str+1;
 
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, 0);
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, 0);
 
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, -1);
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, -1);
 
-		break;
-	default: return NULL;
-	}
+        break;
+    default: return NULL;
+    }
 
-	if( uid ) {
-		if( uid->wilds ) {
-			arg->d.wilds = (WILDS_DATA *)uid->wilds;
-			arg->type = ENT_WILDS;
-		} else {
-			arg->d.wid = uid->uid;
-			arg->type = ENT_WILDS_ID;
-		}
-	} else {
-		arg->d.wilds = NULL;
-		arg->type = ENT_WILDS;
-	}
+    if( uid ) {
+        if( uid->wilds ) {
+            arg->d.wilds = (WILDS_DATA *)uid->wilds;
+            arg->type = ENT_WILDS;
+        } else {
+            arg->d.wid = uid->uid;
+            arg->type = ENT_WILDS_ID;
+        }
+    } else {
+        arg->d.wilds = NULL;
+        arg->type = ENT_WILDS;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_blist_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_EXIT_DATA *e = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		return str+1;
+    register LLIST_EXIT_DATA *e = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        return str+1;
 
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, 0);
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, 0);
 
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, -1);
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, -1);
 
-		break;
-	default: return NULL;
-	}
+        break;
+    default: return NULL;
+    }
 
-	if( e ) {
-		arg->d.door.r = e->room;
-		arg->d.door.door = e->door;
-	} else {
-		arg->d.door.r = NULL;
-		arg->d.door.door = 0;
-	}
-	arg->type = ENT_EXIT;
+    if( e ) {
+        arg->d.door.r = e->room;
+        arg->d.door.door = e->door;
+    } else {
+        arg->d.door.r = NULL;
+        arg->d.door.door = 0;
+    }
+    arg->type = ENT_EXIT;
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_blist_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register LLIST_SKILL_DATA *s = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register LLIST_SKILL_DATA *s = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
-			arg->d.sk.m = s->mob;
-			arg->d.sk.t = s->tok;
-			arg->d.sk.sn = (s->sn > 0 && s->sn < MAX_SKILL) ? s->sn : 0;
-			arg->d.sk.mid[0] = s->mid[0];
-			arg->d.sk.mid[1] = s->mid[1];
-			arg->d.sk.tid[0] = s->tid[0];
-			arg->d.sk.tid[1] = s->tid[1];
-		} else {
-			arg->d.sk.m = NULL;
-			arg->d.sk.t = NULL;
-			arg->d.sk.sn = 0;
-			arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
-			arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
-		}
-		arg->type = ENT_SKILLINFO;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, 0);
+        if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
+            arg->d.sk.m = s->mob;
+            arg->d.sk.t = s->tok;
+            arg->d.sk.sn = (s->sn > 0 && s->sn < MAX_SKILL) ? s->sn : 0;
+            arg->d.sk.mid[0] = s->mid[0];
+            arg->d.sk.mid[1] = s->mid[1];
+            arg->d.sk.tid[0] = s->tid[0];
+            arg->d.sk.tid[1] = s->tid[1];
+        } else {
+            arg->d.sk.m = NULL;
+            arg->d.sk.t = NULL;
+            arg->d.sk.sn = 0;
+            arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
+            arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
+        }
+        arg->type = ENT_SKILLINFO;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, 0);
 
-		if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
-			arg->d.sk.m = s->mob;
-			arg->d.sk.t = s->tok;
-			arg->d.sk.sn = (s->sn > 0 && s->sn < MAX_SKILL) ? s->sn : 0;
-			arg->d.sk.mid[0] = s->mid[0];
-			arg->d.sk.mid[1] = s->mid[1];
-			arg->d.sk.tid[0] = s->tid[0];
-			arg->d.sk.tid[1] = s->tid[1];
-		} else {
-			arg->d.sk.m = NULL;
-			arg->d.sk.t = NULL;
-			arg->d.sk.sn = 0;
-			arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
-			arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
-		}
-		arg->type = ENT_SKILLINFO;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, -1);
+        if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
+            arg->d.sk.m = s->mob;
+            arg->d.sk.t = s->tok;
+            arg->d.sk.sn = (s->sn > 0 && s->sn < MAX_SKILL) ? s->sn : 0;
+            arg->d.sk.mid[0] = s->mid[0];
+            arg->d.sk.mid[1] = s->mid[1];
+            arg->d.sk.tid[0] = s->tid[0];
+            arg->d.sk.tid[1] = s->tid[1];
+        } else {
+            arg->d.sk.m = NULL;
+            arg->d.sk.t = NULL;
+            arg->d.sk.sn = 0;
+            arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
+            arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
+        }
+        arg->type = ENT_SKILLINFO;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, -1);
 
-		if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
-			arg->d.sk.m = s->mob;
-			arg->d.sk.t = s->tok;
-			arg->d.sk.sn = (s->sn > 0 && s->sn < MAX_SKILL) ? s->sn : 0;
-			arg->d.sk.mid[0] = s->mid[0];
-			arg->d.sk.mid[1] = s->mid[1];
-			arg->d.sk.tid[0] = s->tid[0];
-			arg->d.sk.tid[1] = s->tid[1];
-		} else {
-			arg->d.sk.m = NULL;
-			arg->d.sk.t = NULL;
-			arg->d.sk.sn = 0;
-			arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
-			arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
-		}
-		arg->type = ENT_SKILLINFO;
-		break;
-	default: return NULL;
-	}
+        if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
+            arg->d.sk.m = s->mob;
+            arg->d.sk.t = s->tok;
+            arg->d.sk.sn = (s->sn > 0 && s->sn < MAX_SKILL) ? s->sn : 0;
+            arg->d.sk.mid[0] = s->mid[0];
+            arg->d.sk.mid[1] = s->mid[1];
+            arg->d.sk.tid[0] = s->tid[0];
+            arg->d.sk.tid[1] = s->tid[1];
+        } else {
+            arg->d.sk.m = NULL;
+            arg->d.sk.t = NULL;
+            arg->d.sk.sn = 0;
+            arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
+            arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
+        }
+        arg->type = ENT_SKILLINFO;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_plist_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register DESCRIPTOR_DATA *conn = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register DESCRIPTOR_DATA *conn = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.conn = conn;
-		arg->type = ENT_CONN;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.conn = conn;
+        arg->type = ENT_CONN;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.conn = conn;
-		arg->type = ENT_CONN;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.conn = conn;
+        arg->type = ENT_CONN;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.conn = conn;
-		arg->type = ENT_CONN;
-		break;
-	default: return NULL;
-	}
+        arg->d.conn = conn;
+        arg->type = ENT_CONN;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register CHURCH_DATA *church = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			church = (CHURCH_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register CHURCH_DATA *church = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            church = (CHURCH_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.church = church;
-		arg->type = ENT_CHURCH;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			church = (CHURCH_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.church = church;
+        arg->type = ENT_CHURCH;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            church = (CHURCH_DATA *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.church = church;
-		arg->type = ENT_CHURCH;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			church = (CHURCH_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.church = church;
+        arg->type = ENT_CHURCH;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            church = (CHURCH_DATA *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.church = church;
-		arg->type = ENT_CHURCH;
-		break;
-	default: return NULL;
-	}
+        arg->d.church = church;
+        arg->type = ENT_CHURCH;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
+}
+
+char *expand_entity_plist_book_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register BOOK_PAGE *page = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            page = (BOOK_PAGE *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.book_page = page;
+        arg->type = ENT_BOOK_PAGE;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            page = (BOOK_PAGE *)list_nthdata(arg->d.blist, 0);
+        arg->d.book_page = page;
+        arg->type = ENT_BOOK_PAGE;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            page = (BOOK_PAGE *)list_nthdata(arg->d.blist, -1);
+        arg->d.book_page = page;
+        arg->type = ENT_BOOK_PAGE;
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_plist_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register FOOD_BUFF_DATA *buff = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.food_buff = buff;
+        arg->type = ENT_FOOD_BUFF;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.food_buff = buff;
+        arg->type = ENT_FOOD_BUFF;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.food_buff = buff;
+        arg->type = ENT_FOOD_BUFF;
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_plist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register AREA_DATA *area = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            area = (AREA_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.area = area;
+        arg->type = ENT_AREA;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            area = (AREA_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.area = area;
+        arg->type = ENT_AREA;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            area = (AREA_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.area = area;
+        arg->type = ENT_AREA;
+        break;
+    default:
+        return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_plist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register AREA_REGION *region = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (AREA_REGION *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+        arg->d.aregion = region;
+        arg->type = ENT_AREA_REGION;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (AREA_REGION *)list_nthdata(arg->d.blist, 0);
+        arg->d.aregion = region;
+        arg->type = ENT_AREA_REGION;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            region = (AREA_REGION *)list_nthdata(arg->d.blist, -1);
+        arg->d.aregion = region;
+        arg->type = ENT_AREA_REGION;
+        break;
+    default:
+        return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_plist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register CHAR_DATA *ch = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			ch = (CHAR_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register CHAR_DATA *ch = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            ch = (CHAR_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.mob = ch;
-		arg->type = ENT_MOBILE;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			ch = (CHAR_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.mob = ch;
+        arg->type = ENT_MOBILE;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            ch = (CHAR_DATA *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.mob = ch;
-		arg->type = ENT_MOBILE;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			ch = (CHAR_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.mob = ch;
+        arg->type = ENT_MOBILE;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            ch = (CHAR_DATA *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.mob = ch;
-		arg->type = ENT_MOBILE;
-		break;
-	default: return NULL;
-	}
+        arg->d.mob = ch;
+        arg->type = ENT_MOBILE;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_plist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register OBJ_DATA *obj = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			obj = (OBJ_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register OBJ_DATA *obj = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            obj = (OBJ_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.obj = obj;
-		arg->type = ENT_OBJECT;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			obj = (OBJ_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.obj = obj;
+        arg->type = ENT_OBJECT;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            obj = (OBJ_DATA *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.obj = obj;
-		arg->type = ENT_OBJECT;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			obj = (OBJ_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.obj = obj;
+        arg->type = ENT_OBJECT;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            obj = (OBJ_DATA *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.obj = obj;
-		arg->type = ENT_OBJECT;
-		break;
-	default: return NULL;
-	}
+        arg->d.obj = obj;
+        arg->type = ENT_OBJECT;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_plist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register ROOM_INDEX_DATA *room = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register ROOM_INDEX_DATA *room = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.room = room;
-		arg->type = ENT_ROOM;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.room = room;
+        arg->type = ENT_ROOM;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.room = room;
-		arg->type = ENT_ROOM;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.room = room;
+        arg->type = ENT_ROOM;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.room = room;
-		arg->type = ENT_ROOM;
-		break;
-	default: return NULL;
-	}
+        arg->d.room = room;
+        arg->type = ENT_ROOM;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_plist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register TOKEN_DATA *token = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			token = (TOKEN_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register TOKEN_DATA *token = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            token = (TOKEN_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.token = token;
-		arg->type = ENT_TOKEN;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			token = (TOKEN_DATA *)list_nthdata(arg->d.blist, 0);
+        arg->d.token = token;
+        arg->type = ENT_TOKEN;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            token = (TOKEN_DATA *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.token = token;
-		arg->type = ENT_TOKEN;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			token = (TOKEN_DATA *)list_nthdata(arg->d.blist, -1);
+        arg->d.token = token;
+        arg->type = ENT_TOKEN;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            token = (TOKEN_DATA *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.token = token;
-		arg->type = ENT_TOKEN;
-		break;
-	default: return NULL;
-	}
+        arg->d.token = token;
+        arg->type = ENT_TOKEN;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_plist_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register VARIABLE *variable = NULL;
-	switch(*str) {
-	case ENTITY_LIST_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
-		break;
-	case ENTITY_LIST_RANDOM:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			variable = (VARIABLE *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+    register VARIABLE *variable = NULL;
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+        break;
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            variable = (VARIABLE *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		arg->d.variable = variable;
-		arg->type = ENT_VARIABLE;
-		break;
-	case ENTITY_LIST_FIRST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			variable = (VARIABLE *)list_nthdata(arg->d.blist, 0);
+        arg->d.variable = variable;
+        arg->type = ENT_VARIABLE;
+        break;
+    case ENTITY_LIST_FIRST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            variable = (VARIABLE *)list_nthdata(arg->d.blist, 0);
 
-		arg->d.variable = variable;
-		arg->type = ENT_VARIABLE;
-		break;
-	case ENTITY_LIST_LAST:
-		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			variable = (VARIABLE *)list_nthdata(arg->d.blist, -1);
+        arg->d.variable = variable;
+        arg->type = ENT_VARIABLE;
+        break;
+    case ENTITY_LIST_LAST:
+        if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+            variable = (VARIABLE *)list_nthdata(arg->d.blist, -1);
 
-		arg->d.variable = variable;
-		arg->type = ENT_VARIABLE;
-		break;
-	default: return NULL;
-	}
+        arg->d.variable = variable;
+        arg->type = ENT_VARIABLE;
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 
 char *expand_entity_group(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	register CHAR_DATA *rch;
-	register int count;
+    register CHAR_DATA *rch;
+    register int count;
 
-	switch(*str) {
-	case ENTITY_GROUP_OWNER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.group_owner;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_GROUP_OWNER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = arg->d.group_owner;
+        break;
 
-	case ENTITY_GROUP_LEADER:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = (arg->d.group_owner ? arg->d.group_owner->leader : arg->d.group_owner);
-		break;
+    case ENTITY_GROUP_LEADER:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = (arg->d.group_owner ? arg->d.group_owner->leader : arg->d.group_owner);
+        break;
 
-	case ENTITY_GROUP_ALLY:
-		arg->type = ENT_MOBILE;
-		if(arg->d.group_owner && arg->d.group_owner->in_room)
-		{
-			for(count = 0, rch = arg->d.group_owner->in_room->people; rch; rch = rch->next_in_room)
-			{
-				if(rch != arg->d.group_owner && arg->d.group_owner->leader == rch->leader)
-					++count;
-			}
+    case ENTITY_GROUP_ALLY:
+        arg->type = ENT_MOBILE;
+        if(arg->d.group_owner && arg->d.group_owner->in_room)
+        {
+            for(count = 0, rch = arg->d.group_owner->in_room->people; rch; rch = rch->next_in_room)
+            {
+                if(rch != arg->d.group_owner && arg->d.group_owner->leader == rch->leader)
+                    ++count;
+            }
 
-			count = number_range(1, count);
-			for(rch = arg->d.group_owner->in_room->people; rch && count > 0; rch = rch->next_in_room)
-			{
-				if(rch != arg->d.group_owner && arg->d.group_owner->leader == rch->leader) {
-					--count;
+            count = number_range(1, count);
+            for(rch = arg->d.group_owner->in_room->people; rch && count > 0; rch = rch->next_in_room)
+            {
+                if(rch != arg->d.group_owner && arg->d.group_owner->leader == rch->leader) {
+                    --count;
 
-					if( count < 1)
-						break;
-				}
-			}
+                    if( count < 1)
+                        break;
+                }
+            }
 
-			arg->d.mob = rch;
-		}
-		else
-			arg->d.mob = NULL;
-		break;
+            arg->d.mob = rch;
+        }
+        else
+            arg->d.mob = NULL;
+        break;
 
-	case ENTITY_GROUP_MEMBER:
-		arg->type = ENT_MOBILE;
-		if(arg->d.group_owner && arg->d.group_owner->in_room)
-		{
-			for(count = 0, rch = arg->d.group_owner->in_room->people; rch; rch = rch->next_in_room)
-			{
-				if(arg->d.group_owner->leader == rch->leader)
-					++count;
-			}
+    case ENTITY_GROUP_MEMBER:
+        arg->type = ENT_MOBILE;
+        if(arg->d.group_owner && arg->d.group_owner->in_room)
+        {
+            for(count = 0, rch = arg->d.group_owner->in_room->people; rch; rch = rch->next_in_room)
+            {
+                if(is_same_group(arg->d.group_owner, rch))
+                    ++count;
+            }
 
-			count = number_range(1, count);
-			for(rch = arg->d.group_owner->in_room->people; rch && count > 0; rch = rch->next_in_room)
-			{
-				if(arg->d.group_owner->leader == rch->leader) {
-					--count;
+            count = number_range(1, count);
+            for(rch = arg->d.group_owner->in_room->people; rch && count > 0; rch = rch->next_in_room)
+            {
+                if(is_same_group(arg->d.group_owner, rch)) {
+                    --count;
 
-					if( count < 1)
-						break;
-				}
-			}
+                    if( count < 1)
+                        break;
+                }
+            }
 
-			arg->d.mob = rch;
-		}
-		else
-			arg->d.mob = NULL;
-		break;
+            arg->d.mob = rch;
+        }
+        else
+            arg->d.mob = NULL;
+        break;
 
-	case ENTITY_GROUP_MEMBERS:
-		arg->type = ENT_ILLIST_MOB_GROUP;
-		break;
+    case ENTITY_GROUP_MEMBERS:
+        arg->type = ENT_ILLIST_MOB_GROUP;
+        break;
 
-	case ENTITY_GROUP_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.group_owner ? list_size(arg->d.group_owner->lgroup) + 1 : 0;
+    case ENTITY_GROUP_SIZE:
+        arg->type = ENT_NUMBER;
+        if (arg->d.group_owner && IS_VALID(arg->d.group_owner->group) && arg->d.group_owner->group->members)
+            arg->d.num = list_size(arg->d.group_owner->group->members);
+        else
+            arg->d.num = arg->d.group_owner ? list_size(arg->d.group_owner->lgroup) + 1 : 0;
 
-		break;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	const struct music_type* pSong = NULL;
+    SONG_DATA *pSong = arg->d.song;
 
-	if( arg->d.song >= 0 && arg->d.song < MAX_SONGS && music_table[arg->d.song].name != NULL )
-		pSong = &music_table[arg->d.song];
+    switch((unsigned char)*str) {
+    case ENTITY_SONG_NUMBER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = pSong ? pSong->uid : -1;
+        break;
+    case ENTITY_SONG_NAME:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, (pSong ? pSong->name : ""));
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_SONG_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = pSong ? pSong->uid : -1;
+        break;
+    case ENTITY_SONG_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = pSong ? pSong->flags : 0;
+        arg->d.bv.table = song_flags;
+        break;
+    case ENTITY_SONG_SPELL1:
+        arg->type = ENT_SKILL;
+        arg->d.sn = (pSong && pSong->spell1) ? skill_lookup(pSong->spell1) : -1;
+        break;
+    case ENTITY_SONG_SPELL2:
+        arg->type = ENT_SKILL;
+        arg->d.sn = (pSong && pSong->spell2) ? skill_lookup(pSong->spell2) : -1;
+        break;
+    case ENTITY_SONG_SPELL3:
+        arg->type = ENT_SKILL;
+        arg->d.sn = (pSong && pSong->spell3) ? skill_lookup(pSong->spell3) : -1;
+        break;
+    case ENTITY_SONG_TARGET:
+        arg->type = ENT_NUMBER;
+        arg->d.num = pSong ? pSong->target : -1;
+        break;
+    case ENTITY_SONG_BEATS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = pSong ? pSong->beats : -1;
+        break;
+    case ENTITY_SONG_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = pSong ? pSong->mana : -1;
+        break;
+    case ENTITY_SONG_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = pSong ? pSong->level : -1;
+        break;
 
-	switch(*str) {
-	case ENTITY_SONG_NUMBER:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.song;	// Redundant!
-		break;
-	case ENTITY_SONG_NAME:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, (pSong ? pSong->name : ""));
-		arg->d.str = buf_string(arg->buffer);
-		break;
-	case ENTITY_SONG_SPELL1:
-		arg->type = ENT_SKILL;
-		arg->d.sn = (pSong && pSong->spell1) ? skill_lookup(pSong->spell1) : -1;
-		break;
-	case ENTITY_SONG_SPELL2:
-		arg->type = ENT_SKILL;
-		arg->d.sn = (pSong && pSong->spell2) ? skill_lookup(pSong->spell2) : -1;
-		break;
-	case ENTITY_SONG_SPELL3:
-		arg->type = ENT_SKILL;
-		arg->d.sn = (pSong && pSong->spell3) ? skill_lookup(pSong->spell3) : -1;
-		break;
-	case ENTITY_SONG_TARGET:
-		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->target : -1;
-		break;
-	case ENTITY_SONG_BEATS:
-		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->beats : -1;
-		break;
-	case ENTITY_SONG_MANA:
-		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->mana : -1;
-		break;
-	case ENTITY_SONG_LEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->level : -1;
-		break;
+    default: return NULL;
+    }
 
-	default: return NULL;
-	}
+    return str+1;
+}
 
-	return str+1;
+
+char *expand_entity_skillgroup(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SKILL_GROUP *group = arg->d.skill_group;
+
+    switch((unsigned char)*str) {
+    case ENTITY_SKILLGROUP_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = group ? group->name : "";
+        break;
+
+    case ENTITY_SKILLGROUP_CONTENTS:
+        arg->type = ENT_PLLIST_STR;
+        arg->d.blist = group ? group->contents : NULL;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_race(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    RACE_DATA *race = arg->d.race;
+
+    switch((unsigned char)*str) {
+    case ENTITY_RACE_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? race->name : "";
+        break;
+    case ENTITY_RACE_DESCRIPTION:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, race ? (race->description ? race->description : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_RACE_COMMENTS:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, race ? (race->comments ? race->comments : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_RACE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->uid : -1;
+        break;
+    case ENTITY_RACE_ID:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? (race->id ? race->id : "") : "";
+        break;
+    case ENTITY_RACE_PLAYABLE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = race ? race->playable : false;
+        break;
+    case ENTITY_RACE_STARTING:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = race ? race->starting : false;
+        break;
+    case ENTITY_RACE_ACT:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = race ? race->act : NULL;
+        arg->d.bm.bank = race ? act_flagbank : NULL;
+        break;
+    case ENTITY_RACE_AFFECTS:
+        arg->type = ENT_BITMATRIX;
+        arg->d.bm.values = race ? race->aff : NULL;
+        arg->d.bm.bank = race ? affect_flagbank : NULL;
+        break;
+    case ENTITY_RACE_OFFENSE:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->off : 0;
+        arg->d.bv.table = off_flags;
+        break;
+    case ENTITY_RACE_IMMUNE:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->imm : 0;
+        arg->d.bv.table = imm_flags;
+        break;
+    case ENTITY_RACE_RESIST:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->res : 0;
+        arg->d.bv.table = res_flags;
+        break;
+    case ENTITY_RACE_VULN:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->vuln : 0;
+        arg->d.bv.table = vuln_flags;
+        break;
+    case ENTITY_RACE_FORM:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->form : 0;
+        arg->d.bv.table = form_flags;
+        break;
+    case ENTITY_RACE_PARTS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = race ? race->parts : 0;
+        arg->d.bv.table = part_flags;
+        break;
+    case ENTITY_RACE_WHO:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? (race->who_name ? race->who_name : "") : "";
+        break;
+    case ENTITY_RACE_SIZE_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->min_size : 0;
+        break;
+    case ENTITY_RACE_SIZE_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_size : 0;
+        break;
+    case ENTITY_RACE_ALIGNMENT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->default_alignment : 0;
+        break;
+    case ENTITY_RACE_SUMMARY:
+        arg->type = ENT_STRING;
+        arg->d.str = race ? (race->summary ? race->summary : "") : "";
+        break;
+    case ENTITY_RACE_PATH:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = race ? race->path_race : false;
+        break;
+    case ENTITY_RACE_REMORT_INTO:
+        arg->type = ENT_RACE;
+        arg->d.race = race ? race_get_remort_into(race) : NULL;
+        break;
+    case ENTITY_RACE_PREREQUISITE:
+        arg->type = ENT_RACE;
+        arg->d.race = race ? race_get_prerequisite(race) : NULL;
+        break;
+    case ENTITY_RACE_STAT_STR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_STR] : 0;
+        break;
+    case ENTITY_RACE_STAT_INT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_INT] : 0;
+        break;
+    case ENTITY_RACE_STAT_WIS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_WIS] : 0;
+        break;
+    case ENTITY_RACE_STAT_DEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_DEX] : 0;
+        break;
+    case ENTITY_RACE_STAT_CON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->stats[STAT_CON] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_STR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_STR] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_INT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_INT] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_WIS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_WIS] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_DEX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_DEX] : 0;
+        break;
+    case ENTITY_RACE_MAXSTAT_CON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_stats[STAT_CON] : 0;
+        break;
+    case ENTITY_RACE_MAXHIT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_vitals[MAX_HIT] : 0;
+        break;
+    case ENTITY_RACE_MAXMANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_vitals[MAX_MANA] : 0;
+        break;
+    case ENTITY_RACE_MAXMOVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = race ? race->max_vitals[MAX_MOVE] : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_class(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CLASS_DATA *clazz = arg->d.clazz;
+
+    switch((unsigned char)*str) {
+    case ENTITY_CLASS_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = clazz ? clazz->name : "";
+        break;
+    case ENTITY_CLASS_DESCRIPTION:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, clazz ? (clazz->description ? clazz->description : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_CLASS_COMMENTS:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, clazz ? (clazz->comments ? clazz->comments : "") : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_CLASS_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->uid : -1;
+        break;
+    case ENTITY_CLASS_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->type : -1;
+        break;
+    case ENTITY_CLASS_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = clazz ? clazz->flags : 0;
+        arg->d.bv.table = class_flags;
+        break;
+    case ENTITY_CLASS_GROUPS:
+        arg->type = ENT_ILLIST_SKILLGROUPS;
+        arg->d.blist = clazz ? clazz->groups : NULL;
+        break;
+    case ENTITY_CLASS_PRIMARY_STAT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->primary_stat : -1;
+        break;
+    case ENTITY_CLASS_MAX_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->max_level : 0;
+        break;
+    case ENTITY_CLASS_HP_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->hp_min : 0;
+        break;
+    case ENTITY_CLASS_HP_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->hp_max : 0;
+        break;
+    case ENTITY_CLASS_GAINS_MANA:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = clazz ? clazz->gains_mana : false;
+        break;
+    case ENTITY_CLASS_WEAPON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->weapon : 0;
+        break;
+    case ENTITY_CLASS_GROUP_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (clazz && clazz->groups) ? list_size(clazz->groups) : 0;
+        break;
+    case ENTITY_CLASS_REWARD_COUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = (clazz && clazz->rewards) ? list_size(clazz->rewards) : 0;
+        break;
+    case ENTITY_CLASS_XP_TABLE_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = clazz ? clazz->xp_table_size : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_classlevel(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CLASS_LEVEL *level = arg->d.classlevel;
+
+    switch((unsigned char)*str) {
+    case ENTITY_CLASSLEVEL_CLASS:
+        arg->type = ENT_CLASS;
+        arg->d.clazz = level ? level->clazz : NULL;
+        break;
+    case ENTITY_CLASSLEVEL_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = level ? level->level : 0;
+        break;
+    case ENTITY_CLASSLEVEL_XP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = level ? (int)level->xp : 0;
+        break;
+    case ENTITY_CLASSLEVEL_TITLE:
+        arg->type = ENT_STRING;
+        arg->d.str = level ? (level->active_title ? level->active_title : "") : "";
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_book_page(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    BOOK_PAGE *page = arg->d.book_page;
+
+    switch((unsigned char)*str) {
+    case ENTITY_BOOK_PAGE_NUMBER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = page ? page->page_no : 0;
+        break;
+
+    case ENTITY_BOOK_PAGE_TITLE:
+        arg->type = ENT_STRING;
+        arg->d.str = page ? page->title : "";
+        break;
+
+    case ENTITY_BOOK_PAGE_TEXT:
+        arg->type = ENT_STRING;
+        arg->d.str = page ? page->text : "";
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_food_buff(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FOOD_BUFF_DATA *buff = arg->d.food_buff;
+
+    switch((unsigned char)*str) {
+    case ENTITY_FOOD_BUFF_WHERE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = buff ? buff->where : -1;
+        break;
+
+    case ENTITY_FOOD_BUFF_LOCATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = buff ? buff->location : -1;
+        break;
+
+    case ENTITY_FOOD_BUFF_MOD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = buff ? buff->modifier : 0;
+        break;
+
+    case ENTITY_FOOD_BUFF_BITS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = buff ? buff->bitvector : 0;
+        arg->d.bv.table = affect_flags;
+        break;
+
+    case ENTITY_FOOD_BUFF_BITS2:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = buff ? buff->bitvector2 : 0;
+        arg->d.bv.table = affect2_flags;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_waypoint(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WAYPOINT_DATA *wp = arg->d.waypoint;
+
+    switch((unsigned char)*str) {
+    case ENTITY_WAYPOINT_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (wp && wp->name) ? wp->name : "";
+        break;
+
+    case ENTITY_WAYPOINT_WILDS:
+        arg->type = ENT_WILDS;
+        arg->d.wilds = wp ? get_wilds_from_uid(NULL, wp->w) : NULL;
+        break;
+
+    case ENTITY_WAYPOINT_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = wp ? wp->x : 0;
+        break;
+
+    case ENTITY_WAYPOINT_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = wp ? wp->y : 0;
+        break;
+
+    case ENTITY_WAYPOINT_TARGET:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        if (wp)
+        {
+            char target[MIL];
+            sprintf(target, "%ld;%d;%d", wp->w, wp->x, wp->y);
+            add_buf(arg->buffer, target);
+        }
+        arg->d.str = buf_string(arg->buffer);
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_shop_stock(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SHOP_STOCK_DATA *stock = arg->d.stock;
+
+    switch((unsigned char)*str) {
+    case ENTITY_STOCK_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->level : 0;
+        break;
+
+    case ENTITY_STOCK_SILVER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->silver : 0;
+        break;
+
+    case ENTITY_STOCK_QP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->qp : 0;
+        break;
+
+    case ENTITY_STOCK_DP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->dp : 0;
+        break;
+
+    case ENTITY_STOCK_PNEUMA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->pneuma : 0;
+        break;
+
+    case ENTITY_STOCK_DISCOUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->discount : 0;
+        break;
+
+    case ENTITY_STOCK_QUANTITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->quantity : 0;
+        break;
+
+    case ENTITY_STOCK_MAX_QUANTITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->max_quantity : 0;
+        break;
+
+    case ENTITY_STOCK_RESTOCK_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->restock_rate : 0;
+        break;
+
+    case ENTITY_STOCK_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->type : 0;
+        break;
+
+    case ENTITY_STOCK_DURATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->duration : 0;
+        break;
+
+    case ENTITY_STOCK_CUSTOM_PRICE:
+        arg->type = ENT_STRING;
+        arg->d.str = (stock && stock->custom_price) ? stock->custom_price : "";
+        break;
+
+    case ENTITY_STOCK_CUSTOM_KEYWORD:
+        arg->type = ENT_STRING;
+        arg->d.str = (stock && stock->custom_keyword) ? stock->custom_keyword : "";
+        break;
+
+    case ENTITY_STOCK_CUSTOM_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (stock && stock->custom_descr) ? stock->custom_descr : "";
+        break;
+
+    case ENTITY_STOCK_SINGULAR:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = stock ? stock->singular : false;
+        break;
+
+    case ENTITY_STOCK_OBJECT:
+        arg->type = ENT_OBJINDEX;
+        arg->d.objindex = stock ? stock->obj : NULL;
+        break;
+
+    case ENTITY_STOCK_MOBILE:
+        arg->type = ENT_MOBINDEX;
+        arg->d.mobindex = stock ? stock->mob : NULL;
+        break;
+
+    case ENTITY_STOCK_SHIP:
+        arg->type = ENT_SHIPINDEX;
+        arg->d.ship_index = stock ? stock->ship : NULL;
+        break;
+
+    case ENTITY_STOCK_REPUTATION:
+        arg->type = ENT_REPUTATION_INDEX;
+        arg->d.repIndex = stock ? stock->reputation : NULL;
+        break;
+
+    case ENTITY_STOCK_MIN_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->min_reputation_rank : 0;
+        break;
+
+    case ENTITY_STOCK_MAX_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->max_reputation_rank : 0;
+        break;
+
+    case ENTITY_STOCK_MIN_SHOW_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->min_show_rank : 0;
+        break;
+
+    case ENTITY_STOCK_MAX_SHOW_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stock ? stock->max_show_rank : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_list_trainer_entry(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    register TRAINER_ENTRY *entry;
+    register int count;
+
+    switch((unsigned char)*str) {
+    case ENTITY_LIST_SIZE:
+        arg->type = ENT_NUMBER;
+        count = 0;
+        if(arg->d.list.ptr.trainer_entry)
+            for(entry = *arg->d.list.ptr.trainer_entry; entry; entry = entry->next) count++;
+        arg->d.num = count;
+        break;
+
+    case ENTITY_LIST_RANDOM:
+        if(arg->d.list.ptr.trainer_entry) {
+            count = 0;
+            for(entry = *arg->d.list.ptr.trainer_entry; entry; entry = entry->next) count++;
+            if(count > 0) {
+                count = number_range(1,count);
+                for(entry = *arg->d.list.ptr.trainer_entry; --count > 0; entry = entry->next);
+                arg->d.trainer_entry = entry;
+            } else
+                arg->d.trainer_entry = NULL;
+        } else
+            arg->d.trainer_entry = NULL;
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    case ENTITY_LIST_FIRST:
+        arg->d.trainer_entry = arg->d.list.ptr.trainer_entry ? *arg->d.list.ptr.trainer_entry : NULL;
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    case ENTITY_LIST_LAST:
+        if(arg->d.list.ptr.trainer_entry) {
+            for(entry = *arg->d.list.ptr.trainer_entry; entry && entry->next; entry = entry->next);
+            arg->d.trainer_entry = entry;
+        } else
+            arg->d.trainer_entry = NULL;
+        arg->type = ENT_TRAINER_ENTRY;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_trainer(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TRAINER_DATA *trainer = arg->d.trainer;
+
+    switch((unsigned char)*str) {
+    case ENTITY_TRAINER_FLAGS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = trainer ? trainer->flags : 0;
+        break;
+
+    case ENTITY_TRAINER_GREETING:
+        arg->type = ENT_STRING;
+        arg->d.str = (trainer && trainer->greeting) ? trainer->greeting : "";
+        break;
+
+    case ENTITY_TRAINER_ENTRIES:
+        arg->type = ENT_OLLIST_TRAINER_ENTRY;
+        arg->d.list.ptr.trainer_entry = trainer ? &trainer->entries : NULL;
+        arg->d.list.owner = trainer;
+        arg->d.list.owner_type = ENT_TRAINER;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_trainer_entry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TRAINER_ENTRY *entry = arg->d.trainer_entry;
+
+    switch((unsigned char)*str) {
+    case ENTITY_TRAINER_ENTRY_SKILL:
+        arg->type = ENT_STRING;
+        arg->d.str = (entry && entry->skill_name) ? entry->skill_name : "";
+        break;
+
+    case ENTITY_TRAINER_ENTRY_REPUTATION:
+        arg->type = ENT_REPUTATION_INDEX;
+        arg->d.repIndex = entry ? entry->reputation : NULL;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_MIN_REP_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->min_reputation_rank : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_MAX_REP_RANK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->max_reputation_rank : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_MAX_RATING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->max_rating : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_COST_GOLD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->cost_gold : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_COST_TRAINS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->cost_trains : 0;
+        break;
+
+    case ENTITY_TRAINER_ENTRY_CHECK_SCRIPT:
+        arg->type = ENT_STRING;
+        arg->d.str = (entry && entry->check_script) ? entry->check_script : "";
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_reputation(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    REPUTATION_DATA *rep = arg->d.reputation;
+
+    switch((unsigned char)*str) {
+    case ENTITY_REPUTATION_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (rep && rep->pIndexData) ? rep->pIndexData->name : "";
+        break;
+
+    case ENTITY_REPUTATION_INDEX:
+        arg->type = ENT_REPUTATION_INDEX;
+        arg->d.repIndex = rep ? rep->pIndexData : NULL;
+        break;
+
+    case ENTITY_REPUTATION_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = rep ? rep->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+
+    case ENTITY_REPUTATION_RANK:
+        arg->type = ENT_REPUTATION_RANK;
+        arg->d.repRank = (rep && rep->pIndexData && rep->current_rank > 0)
+            ? get_reputation_rank(rep->pIndexData, rep->current_rank)
+            : NULL;
+        break;
+
+    case ENTITY_REPUTATION_MAXRANK:
+        arg->type = ENT_REPUTATION_RANK;
+        arg->d.repRank = (rep && rep->pIndexData && rep->maximum_rank > 0)
+            ? get_reputation_rank(rep->pIndexData, rep->maximum_rank)
+            : NULL;
+        break;
+
+    case ENTITY_REPUTATION_REPUTATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rep ? rep->reputation : 0;
+        break;
+
+    case ENTITY_REPUTATION_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = rep ? rep->token : NULL;
+        break;
+
+    case ENTITY_REPUTATION_PARAGON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rep ? rep->paragon_level : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_reputation_index(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    REPUTATION_INDEX_DATA *repIndex = arg->d.repIndex;
+
+    switch((unsigned char)*str) {
+    case ENTITY_REPINDEX_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = repIndex ? repIndex->name : "";
+        break;
+
+    case ENTITY_REPINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = repIndex ? repIndex->area : NULL;
+        arg->d.wnum.vnum = repIndex ? repIndex->vnum : 0;
+        break;
+
+    case ENTITY_REPINDEX_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = repIndex ? repIndex->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+
+    case ENTITY_REPINDEX_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = repIndex ? repIndex->description : "";
+        break;
+
+    case ENTITY_REPINDEX_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = repIndex ? repIndex->comments : "";
+        break;
+
+    case ENTITY_REPINDEX_INITIAL_RANK:
+        arg->type = ENT_REPUTATION_RANK;
+        arg->d.repRank = (repIndex && repIndex->initial_rank > 0)
+            ? get_reputation_rank(repIndex, repIndex->initial_rank)
+            : NULL;
+        break;
+
+    case ENTITY_REPINDEX_INITIAL_REPUTATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = repIndex ? repIndex->initial_reputation : 0;
+        break;
+
+    case ENTITY_REPINDEX_RANKS:
+        arg->type = ENT_PLLIST_REPUTATION_RANK;
+        arg->d.blist = repIndex ? repIndex->ranks : NULL;
+        break;
+
+    case ENTITY_REPINDEX_TOKEN:
+        arg->type = ENT_TOKEN_INDEX;
+        arg->d.token_index = repIndex ? repIndex->token : NULL;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_reputation_rank(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    REPUTATION_INDEX_RANK_DATA *rank = arg->d.repRank;
+
+    switch((unsigned char)*str) {
+    case ENTITY_REPRANK_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = rank ? rank->name : "";
+        break;
+
+    case ENTITY_REPRANK_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->uid : 0;
+        break;
+
+    case ENTITY_REPRANK_ORDINAL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->ordinal : 0;
+        break;
+
+    case ENTITY_REPRANK_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = rank ? rank->description : "";
+        break;
+
+    case ENTITY_REPRANK_COMMENTS:
+        arg->type = ENT_STRING;
+        arg->d.str = rank ? rank->comments : "";
+        break;
+
+    case ENTITY_REPRANK_COLOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->color : 0;
+        break;
+
+    case ENTITY_REPRANK_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = rank ? rank->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+
+    case ENTITY_REPRANK_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = rank ? rank->capacity : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_skillentry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SKILL_ENTRY *entry = arg->d.entry;
+
+    switch((unsigned char)*str) {
+    case ENTITY_SKILLENTRY_SKILL:
+        arg->type = ENT_SKILL;
+        arg->d.sn = entry ? entry->sn : -1;
+        break;
+    case ENTITY_SKILLENTRY_SONG:
+        arg->type = ENT_SONG;
+        arg->d.song = entry ? entry->song : NULL;
+        break;
+    case ENTITY_SKILLENTRY_RATING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->rating : 0;
+        break;
+    case ENTITY_SKILLENTRY_MOD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->mod_rating : 0;
+        break;
+    case ENTITY_SKILLENTRY_ISSPELL:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = entry ? entry->isspell : false;
+        break;
+    case ENTITY_SKILLENTRY_SOURCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = entry ? entry->source : 0;
+        break;
+    case ENTITY_SKILLENTRY_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = entry ? entry->flags : 0;
+        arg->d.bv.table = skill_flags;
+        break;
+    case ENTITY_SKILLENTRY_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = entry ? entry->token : NULL;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 
 char *expand_entity_prior(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	info = arg->d.info;
+    info = arg->d.info;
 
-	switch(*str) {
-	case ENTITY_PRIOR_MOB:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info ? info->mob : NULL;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_PRIOR_MOB:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info ? info->mob : NULL;
+        break;
 
-	case ENTITY_PRIOR_OBJ:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = info ? info->obj : NULL;
-		break;
+    case ENTITY_PRIOR_OBJ:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = info ? info->obj : NULL;
+        break;
 
-	case ENTITY_PRIOR_ROOM:
-		arg->type = ENT_ROOM;
-		arg->d.room = info ? info->room : NULL;
-		break;
+    case ENTITY_PRIOR_ROOM:
+        arg->type = ENT_ROOM;
+        arg->d.room = info ? info->room : NULL;
+        break;
 
-	case ENTITY_PRIOR_TOKEN:
-		arg->type = ENT_TOKEN;
-		arg->d.token = info ? info->token : NULL;
-		break;
+    case ENTITY_PRIOR_TOKEN:
+        arg->type = ENT_TOKEN;
+        arg->d.token = info ? info->token : NULL;
+        break;
 
-	case ENTITY_PRIOR_ENACTOR:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info->ch;
-		break;
-	case ENTITY_PRIOR_OBJ1:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = info->obj1;
-		break;
-	case ENTITY_PRIOR_OBJ2:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = info->obj2;
-		break;
-	case ENTITY_PRIOR_VICTIM:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info->vch;
-		break;
-	case ENTITY_PRIOR_TARGET:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info->targ ? *info->targ : NULL;
-		break;
-	case ENTITY_PRIOR_RANDOM:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = info->rch;
-		break;
-	case ENTITY_PRIOR_HERE:
-		if(info->mob)
-			arg->d.room = info->mob->in_room;
-		else if(info->obj)
-			arg->d.room = obj_room(info->obj);
-		else if(info->room)
-			arg->d.room = info->room;
-		else if(info->token)
-			arg->d.room = token_room(info->token);
-		else return NULL;
-		arg->type = ENT_ROOM;
-		break;
+    case ENTITY_PRIOR_ENACTOR:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info->ch;
+        break;
+    case ENTITY_PRIOR_OBJ1:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = info->obj1;
+        break;
+    case ENTITY_PRIOR_OBJ2:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = info->obj2;
+        break;
+    case ENTITY_PRIOR_VICTIM:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info->vch;
+        break;
+    case ENTITY_PRIOR_TARGET:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info->targ ? *info->targ : NULL;
+        break;
+    case ENTITY_PRIOR_RANDOM:
+        arg->type = ENT_MOBILE;
+        arg->d.mob = info->rch;
+        break;
+    case ENTITY_PRIOR_HERE:
+        if(info->mob)
+            arg->d.room = info->mob->in_room;
+        else if(info->obj)
+            arg->d.room = obj_room(info->obj);
+        else if(info->room)
+            arg->d.room = info->room;
+        else if(info->token)
+            arg->d.room = token_room(info->token);
+        else return NULL;
+        arg->type = ENT_ROOM;
+        break;
 
-	case ENTITY_PRIOR_PHRASE:
-		arg->type = ENT_STRING;
-		arg->d.str = info->phrase;
-		break;
-	case ENTITY_PRIOR_TRIGGER:
-		arg->type = ENT_STRING;
-		arg->d.str = info->trigger;
-		break;
+    case ENTITY_PRIOR_PHRASE:
+        arg->type = ENT_STRING;
+        arg->d.str = info->phrase;
+        break;
+    case ENTITY_PRIOR_TRIGGER:
+        arg->type = ENT_STRING;
+        arg->d.str = info->trigger;
+        break;
 
-	case ENTITY_PRIOR_REGISTER1:
-	case ENTITY_PRIOR_REGISTER2:
-	case ENTITY_PRIOR_REGISTER3:
-	case ENTITY_PRIOR_REGISTER4:
-	case ENTITY_PRIOR_REGISTER5:
-		arg->type = ENT_NUMBER;
-		arg->d.num = info->registers[*str-ENTITY_REGISTER1];
-		break;
+    case ENTITY_PRIOR_REGISTER1:
+    case ENTITY_PRIOR_REGISTER2:
+    case ENTITY_PRIOR_REGISTER3:
+    case ENTITY_PRIOR_REGISTER4:
+    case ENTITY_PRIOR_REGISTER5:
+        arg->type = ENT_NUMBER;
+        arg->d.num = info->registers[(unsigned char)*str-ENTITY_REGISTER1];
+        break;
 
-	case ENTITY_PRIOR_PRIOR:
-		arg->type = ENT_PRIOR;
-		arg->d.info = script_get_prior(arg->d.info);
-		break;
+    case ENTITY_PRIOR_PRIOR:
+        arg->type = ENT_PRIOR;
+        arg->d.info = script_get_prior(arg->d.info);
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_dice(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	info = arg->d.info;
+    info = arg->d.info;
 
-	switch(*str) {
-	case ENTITY_DICE_NUMBER:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.dice ? arg->d.dice->number : 0;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_DICE_NUMBER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.dice ? arg->d.dice->number : 0;
+        break;
 
-	case ENTITY_DICE_SIZE:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.dice ? arg->d.dice->size : 0;
-		break;
+    case ENTITY_DICE_SIZE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.dice ? arg->d.dice->size : 0;
+        break;
 
-	case ENTITY_DICE_BONUS:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.dice ? arg->d.dice->bonus: 0;
-		break;
+    case ENTITY_DICE_BONUS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.dice ? arg->d.dice->bonus: 0;
+        break;
 
-	case ENTITY_DICE_ROLL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.dice ? dice_roll(arg->d.dice) : 0;
-		break;
+    case ENTITY_DICE_ROLL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.dice ? dice_roll(arg->d.dice) : 0;
+        break;
 
-	case ENTITY_DICE_LAST:
-		arg->type = ENT_NUMBER;
-		if( arg->d.dice ) {
-			if( arg->d.dice->last_roll > 0 )
-				arg->d.num = arg->d.dice->last_roll;
-			else
-				arg->d.num = dice_roll(arg->d.dice);
-		}
-		else
-			arg->d.num = 0;
-		break;
+    case ENTITY_DICE_LAST:
+        arg->type = ENT_NUMBER;
+        if( arg->d.dice ) {
+            if( arg->d.dice->last_roll > 0 )
+                arg->d.num = arg->d.dice->last_roll;
+            else
+                arg->d.num = dice_roll(arg->d.dice);
+        }
+        else
+            arg->d.num = 0;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 
 char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	info = arg->d.info;
+    info = arg->d.info;
 
-	switch(*str) {
-	case ENTITY_MOBINDEX_VNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.mobindex ? arg->d.mobindex->vnum: 0;
-		break;
-	case ENTITY_MOBINDEX_LOADED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.mobindex ? arg->d.mobindex->count : 0;
-		break;
-	case ENTITY_MOBINDEX_LEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.mobindex ? arg->d.mobindex->level : 0;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_MOBINDEX_VNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.mobindex ? arg->d.mobindex->vnum: 0;
+        break;
+    case ENTITY_MOBINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        if (arg->d.mobindex) {
+            arg->d.wnum.pArea = arg->d.mobindex->area;
+            arg->d.wnum.vnum = arg->d.mobindex->vnum;
+        } else {
+            arg->d.wnum.pArea = NULL;
+            arg->d.wnum.vnum = 0;
+        }
+        break;
+    case ENTITY_MOBINDEX_LOADED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.mobindex ? arg->d.mobindex->count : 0;
+        break;
+    case ENTITY_MOBINDEX_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.mobindex ? arg->d.mobindex->level : 0;
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_MOBINDEX_TRAINER:
+        arg->type = ENT_TRAINER;
+        arg->d.trainer = arg->d.mobindex ? arg->d.mobindex->pTrainer : NULL;
+        break;
 
-	return str+1;
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	info = arg->d.info;
+    info = arg->d.info;
 
-	switch(*str) {
-	case ENTITY_OBJINDEX_VNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->vnum: 0;
-		break;
-	case ENTITY_OBJINDEX_LOADED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->count : 0;
-		break;
-	case ENTITY_OBJINDEX_INROOMS:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->inrooms : 0;
-		break;
-	case ENTITY_OBJINDEX_INMAIL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->inmail : 0;
-		break;
-	case ENTITY_OBJINDEX_CARRIED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->carried : 0;
-		break;
-	case ENTITY_OBJINDEX_LOCKERED:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->lockered : 0;
-		break;
-	case ENTITY_OBJINDEX_INCONTAINER:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->incontainer : 0;
-		break;
-	case ENTITY_OBJINDEX_LEVEL:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->level : 0;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_OBJINDEX_VNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->vnum: 0;
+        break;
+    case ENTITY_OBJINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        if (arg->d.objindex) {
+            arg->d.wnum.pArea = arg->d.objindex->area;
+            arg->d.wnum.vnum = arg->d.objindex->vnum;
+        } else {
+            arg->d.wnum.pArea = NULL;
+            arg->d.wnum.vnum = 0;
+        }
+        break;
+    case ENTITY_OBJINDEX_LOADED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->count : 0;
+        break;
+    case ENTITY_OBJINDEX_INROOMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->inrooms : 0;
+        break;
+    case ENTITY_OBJINDEX_INMAIL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->inmail : 0;
+        break;
+    case ENTITY_OBJINDEX_CARRIED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->carried : 0;
+        break;
+    case ENTITY_OBJINDEX_LOCKERED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->lockered : 0;
+        break;
+    case ENTITY_OBJINDEX_INCONTAINER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->incontainer : 0;
+        break;
+    case ENTITY_OBJINDEX_LEVEL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = arg->d.objindex ? arg->d.objindex->level : 0;
+        break;
 
-	default: return NULL;
-	}
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
+}
+
+char *expand_entity_tokenindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    info = arg->d.info;
+
+    switch((unsigned char)*str) {
+    case ENTITY_TOKENINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        if (arg->d.token_index) {
+            arg->d.wnum.pArea = arg->d.token_index->area;
+            arg->d.wnum.vnum = arg->d.token_index->vnum;
+        } else {
+            arg->d.wnum.pArea = NULL;
+            arg->d.wnum.vnum = 0;
+        }
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_blueprint_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    BLUEPRINT_SECTION *section = arg->d.blueprint_section;
+
+    switch((unsigned char)*str) {
+    case ENTITY_BLUEPRINT_SECTION_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = section ? section->area : NULL;
+        arg->d.wnum.vnum = section ? section->vnum : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_instance_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	INSTANCE_SECTION *section = arg->d.section;
+    INSTANCE_SECTION *section = arg->d.section;
+    MAZE_MAP_DATA *map_data = (section && section->section) ? section->section->map_data : NULL;
+    OBJ_INDEX_DATA *map_obj_index = map_data ? map_data->obj : NULL;
+    MOB_INDEX_DATA *map_mob_index = map_data ? map_data->mob : NULL;
 
-	switch(*str) {
-	case ENTITY_SECTION_ROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = (section) ? section->rooms : NULL;
-		break;
-	case ENTITY_SECTION_INSTANCE:
-		arg->type = ENT_INSTANCE;
-		arg->d.instance = (section && IS_VALID(section->instance)) ? section->instance : NULL;
-		break;
-	default: return NULL;
-	}
+    switch((unsigned char)*str) {
+    case ENTITY_SECTION_ROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = (section) ? section->rooms : NULL;
+        break;
+    case ENTITY_SECTION_INSTANCE:
+        arg->type = ENT_INSTANCE;
+        arg->d.instance = (section && IS_VALID(section->instance)) ? section->instance : NULL;
+        break;
+    case ENTITY_SECTION_MAP:
+        arg->type = ENT_STRING;
+        arg->d.str = (section && section->map_text) ? section->map_text : &str_empty[0];
+        break;
+    case ENTITY_SECTION_MAP_OBJ:
+    {
+        ROOM_INDEX_DATA *room;
+        OBJ_DATA *object;
+        ITERATOR it;
 
-	return str+1;
+        arg->type = ENT_OBJECT;
+        arg->d.obj = NULL;
+
+        if (!section || !map_obj_index || !section->rooms)
+            break;
+
+        iterator_start(&it, section->rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            for (object = room->contents; object; object = object->next_content)
+            {
+                if (object->pIndexData == map_obj_index)
+                {
+                    arg->d.obj = object;
+                    iterator_stop(&it);
+                    return str + 1;
+                }
+            }
+        }
+        iterator_stop(&it);
+        break;
+    }
+    case ENTITY_SECTION_MAP_MOB:
+    {
+        ROOM_INDEX_DATA *room;
+        CHAR_DATA *mob;
+        ITERATOR it;
+
+        arg->type = ENT_MOBILE;
+        arg->d.mob = NULL;
+
+        if (!section || !map_mob_index || !section->rooms)
+            break;
+
+        iterator_start(&it, section->rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            for (mob = room->people; mob; mob = mob->next_in_room)
+            {
+                if (IS_NPC(mob) && mob->pIndexData == map_mob_index)
+                {
+                    arg->d.mob = mob;
+                    iterator_stop(&it);
+                    return str + 1;
+                }
+            }
+        }
+        iterator_stop(&it);
+        break;
+    }
+    case ENTITY_SECTION_MAP_OBJ_INDEX:
+        arg->type = ENT_OBJINDEX;
+        arg->d.objindex = map_obj_index;
+        break;
+    case ENTITY_SECTION_MAP_MOB_INDEX:
+        arg->type = ENT_MOBINDEX;
+        arg->d.mobindex = map_mob_index;
+        break;
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	INSTANCE *instance = arg->d.instance;
+    INSTANCE *instance = arg->d.instance;
 
-	switch(*str) {
-	case ENTITY_INSTANCE_NAME:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, IS_VALID(instance) ? instance->blueprint->name : "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
-	case ENTITY_INSTANCE_SECTIONS:
-		arg->type = ENT_ILLIST_SECTIONS;
-		arg->d.blist = IS_VALID(instance) ? instance->sections : NULL;
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_INSTANCE_NAME:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, IS_VALID(instance) ? instance->blueprint->name : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
+    case ENTITY_INSTANCE_SECTIONS:
+        arg->type = ENT_ILLIST_SECTIONS;
+        arg->d.blist = IS_VALID(instance) ? instance->sections : NULL;
+        break;
 
-	case ENTITY_INSTANCE_OWNERS:
-		arg->type = ENT_BLLIST_MOB;
-		arg->d.blist = IS_VALID(instance) ? instance->player_owners : NULL;
-		break;
+    case ENTITY_INSTANCE_OWNERS:
+        arg->type = ENT_BLLIST_MOB;
+        arg->d.blist = IS_VALID(instance) ? instance->player_owners : NULL;
+        break;
 
-	case ENTITY_INSTANCE_OBJECT:
-		if( IS_VALID(instance->object) )
-		{
-			arg->type = ENT_OBJECT;
-			arg->d.obj = instance->object;
-		}
-		else if( instance->object_uid[0] > 0 || instance->object_uid[1] > 0)
-		{
-			arg->type = ENT_OBJECT_ID;
-			arg->d.uid[0] = instance->object_uid[0];
-			arg->d.uid[1] = instance->object_uid[1];
-		}
-		else
-		{
-			arg->type = ENT_OBJECT;
-			arg->d.obj = NULL;
-		}
-		break;
+    case ENTITY_INSTANCE_OBJECT:
+        if( IS_VALID(instance->object) )
+        {
+            arg->type = ENT_OBJECT;
+            arg->d.obj = instance->object;
+        }
+        else if( instance->object_uid[0] > 0 || instance->object_uid[1] > 0)
+        {
+            arg->type = ENT_OBJECT_ID;
+            arg->d.uid[0] = instance->object_uid[0];
+            arg->d.uid[1] = instance->object_uid[1];
+        }
+        else
+        {
+            arg->type = ENT_OBJECT;
+            arg->d.obj = NULL;
+        }
+        break;
 
-	case ENTITY_INSTANCE_DUNGEON:
-		arg->type = ENT_DUNGEON;
-		arg->d.dungeon = IS_VALID(instance->dungeon) ? instance->dungeon : NULL;
-		break;
+    case ENTITY_INSTANCE_DUNGEON:
+        arg->type = ENT_DUNGEON;
+        arg->d.dungeon = IS_VALID(instance->dungeon) ? instance->dungeon : NULL;
+        break;
 
-	case ENTITY_INSTANCE_QUEST:
-		// TODO: Fix QUEST entity
-		return NULL;
+    case ENTITY_INSTANCE_QUEST:
+        // TODO: Fix QUEST entity
+        return NULL;
 
-	case ENTITY_INSTANCE_SHIP:
-		arg->type = ENT_SHIP;
-		arg->d.ship = IS_VALID(instance->ship) ? instance->ship : NULL;
-		break;
+    case ENTITY_INSTANCE_SHIP:
+        arg->type = ENT_SHIP;
+        arg->d.ship = IS_VALID(instance->ship) ? instance->ship : NULL;
+        break;
 
-	case ENTITY_INSTANCE_FLOOR:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(instance) ? instance->floor : 0;
-		break;
+    case ENTITY_INSTANCE_FLOOR:
+        arg->type = ENT_NUMBER;
+        arg->d.num = IS_VALID(instance) ? instance->floor : 0;
+        break;
 
-	case ENTITY_INSTANCE_ENTRY:
-		arg->type = ENT_ROOM;
-		arg->d.room = IS_VALID(instance) ? instance->entrance : NULL;
-		break;
+    case ENTITY_INSTANCE_ENTRY:
+        arg->type = ENT_ROOM;
+        arg->d.room = IS_VALID(instance) ? instance->entrance : NULL;
+        break;
 
-	case ENTITY_INSTANCE_EXIT:
-		arg->type = ENT_ROOM;
-		arg->d.room = IS_VALID(instance) ? instance->exit : NULL;
-		break;
+    case ENTITY_INSTANCE_EXIT:
+        arg->type = ENT_ROOM;
+        arg->d.room = IS_VALID(instance) ? instance->exit : NULL;
+        break;
 
-	case ENTITY_INSTANCE_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = IS_VALID(instance) ? instance->recall : NULL;
-		break;
+    case ENTITY_INSTANCE_RECALL:
+        arg->type = ENT_ROOM;
+        arg->d.room = IS_VALID(instance) ? instance->recall : NULL;
+        break;
 
-	case ENTITY_INSTANCE_ENVIRON:
-		arg->type = ENT_ROOM;
-		arg->d.room = IS_VALID(instance) ? instance->environ : NULL;
-		break;
+    case ENTITY_INSTANCE_ENVIRON:
+        arg->type = ENT_ROOM;
+        arg->d.room = IS_VALID(instance) ? instance->environ : NULL;
+        break;
 
-	case ENTITY_INSTANCE_ROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = IS_VALID(instance) ? instance->rooms : NULL;
-		break;
+    case ENTITY_INSTANCE_ROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = IS_VALID(instance) ? instance->rooms : NULL;
+        break;
 
-	case ENTITY_INSTANCE_PLAYERS:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = IS_VALID(instance) ? instance->players : NULL;
-		break;
+    case ENTITY_INSTANCE_PLAYERS:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = IS_VALID(instance) ? instance->players : NULL;
+        break;
 
-	case ENTITY_INSTANCE_MOBILES:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = IS_VALID(instance) ? instance->mobiles : NULL;
-		break;
+    case ENTITY_INSTANCE_MOBILES:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = IS_VALID(instance) ? instance->mobiles : NULL;
+        break;
 
-	case ENTITY_INSTANCE_OBJECTS:
-		arg->type = ENT_PLLIST_OBJ;
-		arg->d.blist = IS_VALID(instance) ? instance->objects : NULL;
-		break;
+    case ENTITY_INSTANCE_OBJECTS:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = IS_VALID(instance) ? instance->objects : NULL;
+        break;
 
-	case ENTITY_INSTANCE_BOSSES:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = IS_VALID(instance) ? instance->bosses : NULL;
-		break;
+    case ENTITY_INSTANCE_BOSSES:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = IS_VALID(instance) ? instance->bosses : NULL;
+        break;
 
-	case ENTITY_INSTANCE_SPECIAL_ROOMS:
-		arg->type = ENT_ILLIST_SPECIALROOMS;
-		arg->d.blist = IS_VALID(instance) ? instance->special_rooms : NULL;
-		break;
+    case ENTITY_INSTANCE_SPECIAL_ROOMS:
+        arg->type = ENT_ILLIST_SPECIALROOMS;
+        arg->d.blist = IS_VALID(instance) ? instance->special_rooms : NULL;
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_INSTANCE_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_instance(instance, refs, 1);
 
-	return str+1;
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_INSTANCE_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_instance(instance, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_quest(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_DATA *run = arg->d.quest;
+    QUEST_INDEX_V2_DATA *quest_index_v2 = quest_runtime_get_index_v2(run);
+    QUEST_STAGE_INDEX_V2_DATA *stage = quest_runtime_get_current_stage(run);
+
+    switch((unsigned char)*str) {
+    case ENTITY_QUEST_RUNID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->run_id : 0;
+        break;
+
+    case ENTITY_QUEST_STATUS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->run_status : QUEST_RUN_STATUS_FAILED;
+        break;
+
+    case ENTITY_QUEST_ACTIVE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ACTIVE);
+        break;
+
+    case ENTITY_QUEST_COMPLETED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_COMPLETED);
+        break;
+
+    case ENTITY_QUEST_FAILED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_FAILED);
+        break;
+
+    case ENTITY_QUEST_ABANDONED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ABANDONED);
+        break;
+
+    case ENTITY_QUEST_SCOPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->target_scope : QUEST_TARGET_SCOPE_CHARACTER;
+        break;
+
+    case ENTITY_QUEST_INDEX:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = quest_index_v2 ? quest_index_v2->area : NULL;
+        arg->d.wnum.vnum = quest_index_v2 ? quest_index_v2->vnum : 0;
+        break;
+
+    case ENTITY_QUEST_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (quest_index_v2 && !IS_NULLSTR(quest_index_v2->name))
+            ? quest_index_v2->name : "";
+        break;
+
+    case ENTITY_QUEST_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (quest_index_v2 && !IS_NULLSTR(quest_index_v2->description))
+            ? quest_index_v2->description : "";
+        break;
+
+    case ENTITY_QUEST_STAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = run ? run->current_stage_id : 0;
+        break;
+
+    case ENTITY_QUEST_CURRENT_STAGE:
+        arg->type = ENT_QUEST_STAGE;
+        arg->d.quest_stage = stage;
+        break;
+
+    case ENTITY_QUEST_STAGES:
+    {
+        LLIST *list = list_create(false);
+        QUEST_STAGE_INDEX_V2_DATA *iter_stage;
+
+        if (!list)
+            return NULL;
+
+        for (iter_stage = quest_index_v2 ? quest_index_v2->stages : NULL; iter_stage; iter_stage = iter_stage->next)
+            list_appendlink(list, iter_stage);
+
+        arg->type = ENT_ILLIST_QUEST_STAGES;
+        arg->d.blist = list;
+        break;
+    }
+
+    case ENTITY_QUEST_OBJECTIVES:
+    {
+        LLIST *list = list_create(false);
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+        if (!list)
+            return NULL;
+
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            list_appendlink(list, objective);
+
+        arg->type = ENT_ILLIST_QUEST_OBJECTIVES;
+        arg->d.blist = list;
+        break;
+    }
+
+    case ENTITY_QUEST_STAGE_COMMENCED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->current_stage_commenced != 0);
+        break;
+
+    case ENTITY_QUEST_STAGE_COMPLETE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ACTIVE)
+            ? quest_runtime_is_stage_complete(run)
+            : false;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_COUNT:
+    {
+        int count = 0;
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            count++;
+
+        arg->type = ENT_NUMBER;
+        arg->d.num = count;
+        break;
+    }
+
+    case ENTITY_QUEST_PART_COUNT:
+    {
+        int count = 0;
+        QUEST_PART_DATA *part;
+        for (part = run ? run->parts : NULL; part; part = part->next)
+            count++;
+
+        arg->type = ENT_NUMBER;
+        arg->d.num = count;
+        break;
+    }
+
+    case ENTITY_QUEST_GENERATING:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = run ? run->generating : false;
+        break;
+
+    case ENTITY_QUEST_SCRIPTED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = run ? run->scripted : false;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_quest_history(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_HISTORY_DATA *history = arg->d.quest_history;
+
+    switch((unsigned char)*str) {
+    case ENTITY_QHIST_RUNID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = history ? history->run_id : 0;
+        break;
+
+    case ENTITY_QHIST_STATUS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = history ? history->run_status : QUEST_RUN_STATUS_FAILED;
+        break;
+
+    case ENTITY_QHIST_ACTIVE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_ACTIVE);
+        break;
+
+    case ENTITY_QHIST_COMPLETED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_COMPLETED);
+        break;
+
+    case ENTITY_QHIST_FAILED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_FAILED);
+        break;
+
+    case ENTITY_QHIST_ABANDONED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (history && history->run_status == QUEST_RUN_STATUS_ABANDONED);
+        break;
+
+    case ENTITY_QHIST_INDEX:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = history ? get_area_index(history->quest_index_v2_auid) : NULL;
+        arg->d.wnum.vnum = history ? history->quest_index_v2_vnum : 0;
+        break;
+
+    case ENTITY_QHIST_NAME:
+        arg->type = ENT_STRING;
+        arg->d.str = (history && !IS_NULLSTR(history->name)) ? history->name : "";
+        break;
+
+    case ENTITY_QHIST_SCOPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = history ? history->target_scope : QUEST_TARGET_SCOPE_CHARACTER;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_quest_stage(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_STAGE_INDEX_V2_DATA *stage = arg->d.quest_stage;
+    QUEST_DATA *run = info ? info->quest : NULL;
+    QUEST_STAGE_INDEX_V2_DATA *current_stage = quest_runtime_get_current_stage(run);
+
+    switch((unsigned char)*str) {
+    case ENTITY_QUEST_STAGE_ID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->id : 0;
+        break;
+
+    case ENTITY_QUEST_STAGE_NAME:
+    case ENTITY_QUEST_STAGE_SUMMARY:
+        arg->type = ENT_STRING;
+        arg->d.str = (stage && !IS_NULLSTR(stage->name)) ? stage->name : "";
+        break;
+
+    case ENTITY_QUEST_STAGE_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (stage && !IS_NULLSTR(stage->description)) ? stage->description : "";
+        break;
+
+    case ENTITY_QUEST_STAGE_SOURCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->stage_source : QUEST_STAGE_SOURCE_STATIC;
+        break;
+
+    case ENTITY_QUEST_STAGE_AUTOCOMMENCE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = stage ? stage->auto_commence : false;
+        break;
+
+    case ENTITY_QUEST_STAGE_COMPLETION_MODE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->completion_mode : QUEST_STAGE_COMPLETE_ALL;
+        break;
+
+    case ENTITY_QUEST_STAGE_NEXT_STAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = stage ? stage->next_stage_id : 0;
+        break;
+
+    case ENTITY_QUEST_STAGE_OBJECTIVES:
+    {
+        LLIST *list = list_create(false);
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+        if (!list)
+            return NULL;
+
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            list_appendlink(list, objective);
+
+        arg->type = ENT_ILLIST_QUEST_OBJECTIVES;
+        arg->d.blist = list;
+        break;
+    }
+
+    case ENTITY_QUEST_STAGE_OBJECTIVE_COUNT:
+    {
+        int count = 0;
+        QUEST_OBJECTIVE_INDEX_V2_DATA *objective;
+
+        for (objective = stage ? stage->objectives : NULL; objective; objective = objective->next)
+            count++;
+
+        arg->type = ENT_NUMBER;
+        arg->d.num = count;
+        break;
+    }
+
+    case ENTITY_QUEST_STAGE_RUNTIME_COMMENCED:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && stage && current_stage && stage->id == current_stage->id && run->current_stage_commenced != 0);
+        break;
+
+    case ENTITY_QUEST_STAGE_RUNTIME_COMPLETE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = (run && run->run_status == QUEST_RUN_STATUS_ACTIVE && stage && current_stage && stage->id == current_stage->id)
+            ? quest_runtime_is_stage_complete(run)
+            : false;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_quest_objective(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    QUEST_OBJECTIVE_INDEX_V2_DATA *objective = arg->d.quest_objective;
+    QUEST_DATA *run = info ? info->quest : NULL;
+    QUEST_OBJECTIVE_STATE_V2_DATA *state = (run && objective)
+        ? quest_runtime_get_objective_state(run, objective->id, false)
+        : NULL;
+
+    switch((unsigned char)*str) {
+    case ENTITY_QUEST_OBJECTIVE_ID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->id : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->objective_type : QUEST_OBJECTIVE_KILL;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_SUMMARY:
+    case ENTITY_QUEST_OBJECTIVE_DESCRIPTION:
+        arg->type = ENT_STRING;
+        arg->d.str = (objective && !IS_NULLSTR(objective->description)) ? objective->description : "";
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_OPTIONAL:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = objective ? objective->optional : false;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_STRICT:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = objective ? objective->strict_target : false;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_REQUIRED:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->required_count : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_QUANTITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->quantity : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TARGET_MODE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = objective ? objective->target_mode : QUEST_OBJECTIVE_TARGET_EXACT;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TARGET:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = objective ? objective->target_wnum.pArea : NULL;
+        arg->d.wnum.vnum = objective ? objective->target_wnum.vnum : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_TARGET_TAG:
+        arg->type = ENT_STRING;
+        arg->d.str = (objective && !IS_NULLSTR(objective->target_tag)) ? objective->target_tag : "";
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_DESTINATION:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = objective ? objective->destination_wnum.pArea : NULL;
+        arg->d.wnum.vnum = objective ? objective->destination_wnum.vnum : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_DESTINATION_TAG:
+        arg->type = ENT_STRING;
+        arg->d.str = (objective && !IS_NULLSTR(objective->destination_ref_name)) ? objective->destination_ref_name : "";
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_PROGRESS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = state ? state->progress : 0;
+        break;
+
+    case ENTITY_QUEST_OBJECTIVE_COMPLETE:
+        arg->type = ENT_BOOLEAN;
+        arg->d.boolean = state ? state->complete : false;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_blueprint(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    BLUEPRINT *blueprint = arg->d.blueprint;
+
+    switch((unsigned char)*str) {
+    case ENTITY_BLUEPRINT_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = blueprint ? blueprint->area : NULL;
+        arg->d.wnum.vnum = blueprint ? blueprint->vnum : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	DUNGEON *dungeon = arg->d.dungeon;
+    DUNGEON *dungeon = arg->d.dungeon;
 
-	switch(*str) {
-	case ENTITY_DUNGEON_NAME:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->name : "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_DUNGEON_NAME:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->name : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_DUNGEON_FLOORS:
-		arg->type = ENT_ILLIST_INSTANCES;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->floors : NULL;
-		break;
+    case ENTITY_DUNGEON_INDEX:
+        arg->type = ENT_DUNGEONINDEX;
+        arg->d.dungeon_index = IS_VALID(arg->d.dungeon) ? arg->d.dungeon->index : NULL;
+        break;
 
-	case ENTITY_DUNGEON_DESC:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->description : "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    case ENTITY_DUNGEON_FLOORS:
+        arg->type = ENT_ILLIST_INSTANCES;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->floors : NULL;
+        break;
 
-	case ENTITY_DUNGEON_OWNERS:
-		arg->type = ENT_BLLIST_MOB;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->player_owners : NULL;
-		break;
+    case ENTITY_DUNGEON_DESC:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->description : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_DUNGEON_ENTRY:
-		arg->type = ENT_ROOM;
-		arg->d.room = IS_VALID(dungeon) ? dungeon->entry_room : NULL;
-		break;
+    case ENTITY_DUNGEON_OWNERS:
+        arg->type = ENT_BLLIST_MOB;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->player_owners : NULL;
+        break;
 
-	case ENTITY_DUNGEON_EXIT:
-		arg->type = ENT_ROOM;
-		arg->d.room = IS_VALID(dungeon) ? dungeon->exit_room : NULL;
-		break;
+    case ENTITY_DUNGEON_ENTRY:
+        arg->type = ENT_ROOM;
+        arg->d.room = IS_VALID(dungeon) ? dungeon->entry_room : NULL;
+        break;
 
-	case ENTITY_DUNGEON_ROOMS:
-		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->rooms : NULL;
-		break;
+    case ENTITY_DUNGEON_EXIT:
+        arg->type = ENT_ROOM;
+        arg->d.room = IS_VALID(dungeon) ? dungeon->exit_room : NULL;
+        break;
 
-	case ENTITY_DUNGEON_PLAYERS:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->players : NULL;
-		break;
+    case ENTITY_DUNGEON_ROOMS:
+        arg->type = ENT_PLLIST_ROOM;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->rooms : NULL;
+        break;
 
-	case ENTITY_DUNGEON_MOBILES:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->mobiles : NULL;
-		break;
+    case ENTITY_DUNGEON_PLAYERS:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->players : NULL;
+        break;
 
-	case ENTITY_DUNGEON_OBJECTS:
-		arg->type = ENT_PLLIST_OBJ;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->objects : NULL;
-		break;
+    case ENTITY_DUNGEON_MOBILES:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->mobiles : NULL;
+        break;
 
-	case ENTITY_DUNGEON_BOSSES:
-		arg->type = ENT_PLLIST_MOB;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->bosses : NULL;
-		break;
+    case ENTITY_DUNGEON_OBJECTS:
+        arg->type = ENT_PLLIST_OBJ;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->objects : NULL;
+        break;
 
-	case ENTITY_DUNGEON_SPECIAL_ROOMS:
-		arg->type = ENT_ILLIST_SPECIALROOMS;
-		arg->d.blist = IS_VALID(dungeon) ? dungeon->special_rooms : NULL;
-		break;
+    case ENTITY_DUNGEON_BOSSES:
+        arg->type = ENT_PLLIST_MOB;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->bosses : NULL;
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_DUNGEON_SPECIAL_ROOMS:
+        arg->type = ENT_ILLIST_SPECIALROOMS;
+        arg->d.blist = IS_VALID(dungeon) ? dungeon->special_rooms : NULL;
+        break;
 
-	return str+1;
+    case ENTITY_DUNGEON_EVENT:
+    {
+        EVENT_RUNTIME_REF refs[1];
+        int count = event_runtime_collect_for_dungeon(dungeon, refs, 1);
+
+        arg->type = ENT_EVENT;
+        arg->d.event.mob = NULL;
+        arg->d.event.obj = NULL;
+        arg->d.event.uid = count > 0 ? refs[0].uid : 0;
+        arg->d.event.instance_id = count > 0 ? refs[0].instance_id : 0;
+        break;
+    }
+    case ENTITY_DUNGEON_EVENTS:
+    {
+        EVENT_RUNTIME_REF refs[SCRIPT_EVENT_LIST_MAX];
+        int count = event_runtime_collect_for_dungeon(dungeon, refs, SCRIPT_EVENT_LIST_MAX);
+
+        arg->type = ENT_ILLIST_EVENT;
+        arg->d.blist = script_event_runtime_list_from_refs(refs, count);
+        break;
+    }
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_dungeonindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    DUNGEON_INDEX_DATA *dungeon = arg->d.dungeon_index;
+
+    switch((unsigned char)*str) {
+    case ENTITY_DUNGEONINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = dungeon ? dungeon->area : NULL;
+        arg->d.wnum.vnum = dungeon ? dungeon->vnum : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
 }
 
 char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	SHIP_DATA *ship = arg->d.ship;
+    SHIP_DATA *ship = arg->d.ship;
 
-	switch(*str) {
-	case ENTITY_SHIP_NAME:
-		arg->type = ENT_STRING;
-		clear_buf(arg->buffer);
-		add_buf(arg->buffer, IS_VALID(ship) ? ship->ship_name : "");
-		arg->d.str = buf_string(arg->buffer);
-		break;
+    switch((unsigned char)*str) {
+    case ENTITY_SHIP_NAME:
+        arg->type = ENT_STRING;
+        clear_buf(arg->buffer);
+        add_buf(arg->buffer, IS_VALID(ship) ? ship->ship_name : "");
+        arg->d.str = buf_string(arg->buffer);
+        break;
 
-	case ENTITY_SHIP_OBJECT:
-		arg->type = ENT_OBJECT;
-		arg->d.obj = ship->ship;
-		break;
+    case ENTITY_SHIP_INDEX:
+        arg->type = ENT_SHIPINDEX;
+        arg->d.ship_index = IS_VALID(arg->d.ship) ? arg->d.ship->index : NULL;
+        break;
 
-	default: return NULL;
-	}
+    case ENTITY_SHIP_OBJECT:
+        arg->type = ENT_OBJECT;
+        arg->d.obj = ship->ship;
+        break;
 
-	return str+1;
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+char *expand_entity_shipindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+    SHIP_INDEX_DATA *ship = arg->d.ship_index;
+
+    switch((unsigned char)*str) {
+    case ENTITY_SHIPINDEX_WNUM:
+        arg->type = ENT_WIDEVNUM;
+        arg->d.wnum.pArea = ship ? ship->area : NULL;
+        arg->d.wnum.vnum = ship ? ship->vnum : 0;
+        break;
+
+    default: return NULL;
+    }
+
+    return str+1;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Object typed data sub-entity expand functions
+///////////////////////////////////////////////////////////////////////////////
+
+char *expand_entity_obj_weapon(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WEAPON_DATA *w = arg->d.obj_weapon;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_WEAPON_CLASS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->weapon_class : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_DAMAGE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->damage_type : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = w ? w->flags : 0;
+        arg->d.bv.table = weapon_type2;
+        break;
+    case ENTITY_OBJ_WEAPON_DICE:
+        arg->type = ENT_DICE;
+        arg->d.dice = w ? &w->damage : NULL;
+        break;
+    case ENTITY_OBJ_WEAPON_RANGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->range : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_mana : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->charges : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_MAX_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_charges : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_COOLDOWN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->cooldown : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_RECHARGE_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->recharge_time : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_armor(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    ARMOR_DATA *a = arg->d.obj_armor;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_ARMOR_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->armor_type : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_STRENGTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->armor_strength : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_PIERCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[0] : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_BASH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[1] : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_SLASH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[2] : 0;
+        break;
+    case ENTITY_OBJ_ARMOR_PROT_EXOTIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = a ? a->protection[3] : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_container(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CONTAINER_DATA *c = arg->d.obj_container;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_CONTAINER_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = c ? c->flags : 0;
+        arg->d.bv.table = container_flags;
+        break;
+    case ENTITY_OBJ_CONTAINER_MAX_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_weight : 0;
+        break;
+    case ENTITY_OBJ_CONTAINER_WEIGHT_MULT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->weight_multiplier : 0;
+        break;
+    case ENTITY_OBJ_CONTAINER_MAX_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_items : 0;
+        break;
+    case ENTITY_OBJ_CONTAINER_MAX_VOLUME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_volume : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_fluid_con(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FLUID_CONTAINER_DATA *f = arg->d.obj_fluid_con;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_FLUID_CON_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->capacity : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_AMOUNT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->amount : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_LIQUID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->liquid : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_POISON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->poison : 0;
+        break;
+    case ENTITY_OBJ_FLUID_CON_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = f ? f->flags : 0;
+        arg->d.bv.table = container_flags;
+        break;
+    case ENTITY_OBJ_FLUID_CON_REFILL_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->refill_rate : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_food(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FOOD_DATA *f = arg->d.obj_food;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_FOOD_HUNGER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->hunger : 0;
+        break;
+    case ENTITY_OBJ_FOOD_FULL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->full : 0;
+        break;
+    case ENTITY_OBJ_FOOD_POISON:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->poison : 0;
+        break;
+    case ENTITY_OBJ_FOOD_TIMER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->timer : 0;
+        break;
+    case ENTITY_OBJ_FOOD_BUFFS:
+        arg->type = ENT_PLLIST_FOOD_BUFF;
+        arg->d.blist = f ? f->buffs : NULL;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_furniture(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    FURNITURE_DATA *f = arg->d.obj_furniture;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_FURNITURE_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = f ? f->flags : 0;
+        arg->d.bv.table = furniture_flags;
+        break;
+    case ENTITY_OBJ_FURNITURE_MAX_PEOPLE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->max_people : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_MAX_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->max_weight : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_HEAL_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->heal_rate : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_MANA_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->mana_rate : 0;
+        break;
+    case ENTITY_OBJ_FURNITURE_MOVE_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = f ? f->move_rate : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_portal(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    PORTAL_DATA *p = arg->d.obj_portal;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_PORTAL_EXIT:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = p ? p->exit : 0;
+        arg->d.bv.table = portal_exit_flags;
+        break;
+    case ENTITY_OBJ_PORTAL_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = p ? p->flags : 0;
+        arg->d.bv.table = portal_flags;
+        break;
+    case ENTITY_OBJ_PORTAL_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->charges : 0;
+        break;
+    case ENTITY_OBJ_PORTAL_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->type : 0;
+        break;
+    case ENTITY_OBJ_PORTAL_DESTINATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->params[0] : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_light(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    LIGHT_DATA *l = arg->d.obj_light;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_LIGHT_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = l ? l->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    case ENTITY_OBJ_LIGHT_DURATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = l ? l->duration : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_money(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    MONEY_DATA *m = arg->d.obj_money;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_MONEY_SILVER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->silver : 0;
+        break;
+    case ENTITY_OBJ_MONEY_GOLD:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->gold : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_wand(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WAND_DATA *w = arg->d.obj_wand;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_WAND_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_mana : 0;
+        break;
+    case ENTITY_OBJ_WAND_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->charges : 0;
+        break;
+    case ENTITY_OBJ_WAND_MAX_CHARGES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_charges : 0;
+        break;
+    case ENTITY_OBJ_WAND_COOLDOWN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->cooldown : 0;
+        break;
+    case ENTITY_OBJ_WAND_RECHARGE_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->recharge_time : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_corpse(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CORPSE_DATA *c = arg->d.obj_corpse;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_CORPSE_CORPSE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->corpse_type : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_RESURRECTION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->resurrection : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_ANIMATION:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->animation : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_BODY_PARTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->body_parts : 0;
+        break;
+    case ENTITY_OBJ_CORPSE_MOBILE_VNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->mobile_vnum : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_instrument(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    INSTRUMENT_DATA *i = arg->d.obj_instrument;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_INSTRUMENT_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->type : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = i ? i->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_BEATS_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->beats_min : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_BEATS_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->beats_max : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_MANA_MIN:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->mana_min : 0;
+        break;
+    case ENTITY_OBJ_INSTRUMENT_MANA_MAX:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->mana_max : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_seed(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SEED_DATA *s = arg->d.obj_seed;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_SEED_GROWTH_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->growth_time : 0;
+        break;
+    case ENTITY_OBJ_SEED_OBJECT_VNUM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->object_vnum : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_cart(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    CART_DATA *c = arg->d.obj_cart;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_CART_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = c ? c->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    case ENTITY_OBJ_CART_MIN_STRENGTH:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->min_strength : 0;
+        break;
+    case ENTITY_OBJ_CART_MOVE_DELAY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->move_delay : 0;
+        break;
+    case ENTITY_OBJ_CART_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->capacity : 0;
+        break;
+    case ENTITY_OBJ_CART_MAX_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->max_items : 0;
+        break;
+    case ENTITY_OBJ_CART_WEIGHT_MULT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->weight_multiplier : 0;
+        break;
+    case ENTITY_OBJ_CART_VANISH_TIME:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->vanish_time : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_item_ship(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    ITEM_SHIP_DATA *s = arg->d.obj_item_ship;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_ITEM_SHIP_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->weight : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MOVE_DELAY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->move_delay : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MIN_CREW:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->min_crew : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_CAPACITY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->capacity : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MAX_CREW:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->max_crew : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_FIRST_ROOM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->first_room : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_HIT_POINTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->hit_points : 0;
+        break;
+    case ENTITY_OBJ_ITEM_SHIP_MAX_GUNS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->max_guns : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_sextant(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SEXTANT_DATA *s = arg->d.obj_sextant;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_SEXTANT_ACCURACY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->accuracy : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_weapon_con(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    WEAPON_CONTAINER_DATA *w = arg->d.obj_weapon_con;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_WEAPON_CON_MAX_WEIGHT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_weight : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_WEAPON_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->weapon_type : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_MAX_ITEMS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->max_items : 0;
+        break;
+    case ENTITY_OBJ_WEAPON_CON_WEIGHT_MULT:
+        arg->type = ENT_NUMBER;
+        arg->d.num = w ? w->weight_multiplier : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_book(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    BOOK_DATA *b = arg->d.obj_book;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_BOOK_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = b ? b->flags : 0;
+        arg->d.bv.table = container_flags;
+        break;
+    case ENTITY_OBJ_BOOK_CURRENT_PAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->current_page : 0;
+        break;
+    case ENTITY_OBJ_BOOK_OPEN_PAGE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->open_page : 0;
+        break;
+    case ENTITY_OBJ_BOOK_PAGES:
+        arg->type = ENT_PLLIST_BOOK_PAGE;
+        arg->d.blist = b ? b->pages : NULL;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_herb(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    HERB_DATA *h = arg->d.obj_herb;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_HERB_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->type : 0;
+        break;
+    case ENTITY_OBJ_HERB_HEALING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->healing : 0;
+        break;
+    case ENTITY_OBJ_HERB_REGENERATIVE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->regenerative : 0;
+        break;
+    case ENTITY_OBJ_HERB_REFRESHING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->refreshing : 0;
+        break;
+    case ENTITY_OBJ_HERB_IMMUNITY:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = h ? h->immunity : 0;
+        arg->d.bv.table = imm_flags;
+        break;
+    case ENTITY_OBJ_HERB_RESISTANCE:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = h ? h->resistance : 0;
+        arg->d.bv.table = res_flags;
+        break;
+    case ENTITY_OBJ_HERB_VULNERABILITY:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = h ? h->vulnerability : 0;
+        arg->d.bv.table = vuln_flags;
+        break;
+    case ENTITY_OBJ_HERB_SPELL:
+        arg->type = ENT_NUMBER;
+        arg->d.num = h ? h->spell : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_mist(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    MIST_DATA *m = arg->d.obj_mist;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_MIST_OBSCURE_MOBS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->obscure_mobs : 0;
+        break;
+    case ENTITY_OBJ_MIST_OBSCURE_OBJS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->obscure_objs : 0;
+        break;
+    case ENTITY_OBJ_MIST_OBSCURE_ROOM:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->obscure_room : 0;
+        break;
+    case ENTITY_OBJ_MIST_ICY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->icy : 0;
+        break;
+    case ENTITY_OBJ_MIST_FIERY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->fiery : 0;
+        break;
+    case ENTITY_OBJ_MIST_ACIDIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->acidic : 0;
+        break;
+    case ENTITY_OBJ_MIST_STINK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->stink : 0;
+        break;
+    case ENTITY_OBJ_MIST_WITHER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->wither : 0;
+        break;
+    case ENTITY_OBJ_MIST_TOXIC:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->toxic : 0;
+        break;
+    case ENTITY_OBJ_MIST_SHOCK:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->shock : 0;
+        break;
+    case ENTITY_OBJ_MIST_FOG:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->fog : 0;
+        break;
+    case ENTITY_OBJ_MIST_SLEEP:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->sleep : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_trade(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TRADE_DATA *t = arg->d.obj_trade;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_TRADE_TRADE_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->trade_type : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_tattoo(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TATTOO_DATA *t = arg->d.obj_tattoo;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_TATTOO_TOUCHES:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->touches : 0;
+        break;
+    case ENTITY_OBJ_TATTOO_FADING_CHANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->fading_chance : 0;
+        break;
+    case ENTITY_OBJ_TATTOO_FADING_RATE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->fading_rate : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_ink(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    INK_DATA *i = arg->d.obj_ink;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_INK_TYPE0:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->types[0] : 0;
+        break;
+    case ENTITY_OBJ_INK_TYPE1:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->types[1] : 0;
+        break;
+    case ENTITY_OBJ_INK_TYPE2:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->types[2] : 0;
+        break;
+    case ENTITY_OBJ_INK_AMOUNT0:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->amounts[0] : 0;
+        break;
+    case ENTITY_OBJ_INK_AMOUNT1:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->amounts[1] : 0;
+        break;
+    case ENTITY_OBJ_INK_AMOUNT2:
+        arg->type = ENT_NUMBER;
+        arg->d.num = i ? i->amounts[2] : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_telescope(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TELESCOPE_DATA *t = arg->d.obj_telescope;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_TELESCOPE_DISTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->distance : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_MIN_DISTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->min_distance : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_MAX_DISTANCE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->max_distance : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_BONUS_VIEW:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->bonus_view : 0;
+        break;
+    case ENTITY_OBJ_TELESCOPE_HEADING:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->heading : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_compass(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    COMPASS_DATA *c = arg->d.obj_compass;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_COMPASS_ACCURACY:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->accuracy : 0;
+        break;
+    case ENTITY_OBJ_COMPASS_WUID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->wuid : 0;
+        break;
+    case ENTITY_OBJ_COMPASS_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->x : 0;
+        break;
+    case ENTITY_OBJ_COMPASS_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = c ? c->y : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_body_part(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    BODY_PART_DATA *b = arg->d.obj_body_part;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_BODY_PART_PARTS:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->parts : 0;
+        break;
+    case ENTITY_OBJ_BODY_PART_RACE_UID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = b ? b->race_uid : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_scroll(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    SCROLL_DATA *s = arg->d.obj_scroll;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_SCROLL_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = s ? s->max_mana : 0;
+        break;
+    case ENTITY_OBJ_SCROLL_FLAGS:
+        arg->type = ENT_BITVECTOR;
+        arg->d.bv.value = s ? s->flags : 0;
+        arg->d.bv.table = NULL;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_tool(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    TOOL_DATA *t = arg->d.obj_tool;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_TOOL_TYPE:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->type : 0;
+        break;
+    case ENTITY_OBJ_TOOL_TIER:
+        arg->type = ENT_NUMBER;
+        arg->d.num = t ? t->tier : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_jewelry(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    JEWELRY_DATA *j = arg->d.obj_jewelry;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_JEWELRY_MAX_MANA:
+        arg->type = ENT_NUMBER;
+        arg->d.num = j ? j->max_mana : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_map(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    MAP_DATA *m = arg->d.obj_map;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_MAP_WUID:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->wuid : 0;
+        break;
+    case ENTITY_OBJ_MAP_X:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->x : 0;
+        break;
+    case ENTITY_OBJ_MAP_Y:
+        arg->type = ENT_NUMBER;
+        arg->d.num = m ? m->y : 0;
+        break;
+    default: return NULL;
+    }
+    return str+1;
+}
+
+char *expand_entity_obj_page(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    PAGE_DATA *p = arg->d.obj_page;
+
+    switch((unsigned char)*str) {
+    case ENTITY_OBJ_PAGE_PAGE_NO:
+        arg->type = ENT_NUMBER;
+        arg->d.num = p ? p->page_no : 0;
+        break;
+    case ENTITY_OBJ_PAGE_TITLE:
+        arg->type = ENT_STRING;
+        arg->d.str = (p && p->title) ? p->title : (char*)&str_empty[0];
+        break;
+    case ENTITY_OBJ_PAGE_TEXT:
+        arg->type = ENT_STRING;
+        arg->d.str = (p && p->text) ? p->text : (char*)&str_empty[0];
+        break;
+    default: return NULL;
+    }
+    return str+1;
 }
 
 
 char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 //	EXTRA_DESCR_DATA *ed;
-	switch(*str) {
-	case ESCAPE_VARIABLE:
-		if(!arg->d.list.owner || !arg->d.list.ptr.ed || !*arg->d.list.ptr.ed || !info->var) return NULL;
+    switch((unsigned char)*str) {
+    case ESCAPE_VARIABLE:
+        if(!arg->d.list.owner || !arg->d.list.ptr.ed || !*arg->d.list.ptr.ed || !info->var) return NULL;
 
 /*
-		{
-			char store[MSL];
-			char msg[MSL*2];
-			expand_escape2print(str,store);
-			sprintf(msg,"expand_entity_extradesc->str = \"%s\"",store);
-			wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-		}
+        {
+            char store[MSL];
+            char msg[MSL*2];
+            expand_escape2print(str,store);
+            sprintf(msg,"expand_entity_extradesc->str = \"%s\"",store);
+            wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+        }
 */
 
-		BUFFER *buffer = new_buf();
+        BUFFER *buffer = new_buf();
 
-		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
-		if(!str) {
-			free_buf(buffer);
-			return NULL;
-		}
+        str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+        if(!str) {
+            free_buf(buffer);
+            return NULL;
+        }
 
 /*
-		{
-			char msg[MSL*2];
-			sprintf(msg,"expand_entity_extradesc->\"%s\"",buf);
-			wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-		}
+        {
+            char msg[MSL*2];
+            sprintf(msg,"expand_entity_extradesc->\"%s\"",buf);
+            wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+        }
 */
 
-		arg->type = ENT_STRING;
-		int owner_type = arg->d.list.owner_type;
-		EXTRA_DESCR_DATA *edesc = get_extra_descr(buf_string(buffer), *arg->d.list.ptr.ed);
+        arg->type = ENT_STRING;
+        int owner_type = arg->d.list.owner_type;
+        EXTRA_DESCR_DATA *edesc = get_extra_descr(buf_string(buffer), *arg->d.list.ptr.ed);
 
-		if( edesc != NULL )
-		{
-			char *desc = edesc->description;
+        if( edesc != NULL )
+        {
+            char *desc = edesc->description;
 
-			// Enviroment ED
-			if( !desc )
-			{
-				ROOM_INDEX_DATA *environ = NULL;
+            // Enviroment ED
+            if( !desc )
+            {
+                ROOM_INDEX_DATA *environ = NULL;
 
-				if( owner_type == ENT_ROOM )
-				{
-					environ = get_environment((ROOM_INDEX_DATA *)arg->d.list.owner);
-				}
-				else if( owner_type == ENT_OBJECT )
-				{
-					OBJ_DATA *obj = (OBJ_DATA *)arg->d.list.owner;
+                if( owner_type == ENT_ROOM )
+                {
+                    environ = get_environment((ROOM_INDEX_DATA *)arg->d.list.owner);
+                }
+                else if( owner_type == ENT_OBJECT )
+                {
+                    OBJ_DATA *obj = (OBJ_DATA *)arg->d.list.owner;
 
-					if( obj )
-					{
-						if( !obj->carried_by && !obj->in_obj && !obj->locker && !obj->in_mail)
-						{
-							environ = get_environment(obj->in_room);
-						}
-					}
-				}
+                    if( obj )
+                    {
+                        if( !obj->carried_by && !obj->in_obj && !obj->locker && !obj->in_mail)
+                        {
+                            environ = get_environment(obj->in_room);
+                        }
+                    }
+                }
 
-				if( environ )
-				{
-					desc = environ->description;
-				}
-			}
+                if( environ )
+                {
+                    desc = environ->description;
+                }
+            }
 
-			arg->d.str = desc;
-		}
-		else
-			arg->d.str = NULL;
-		if (!arg->d.str) arg->d.str = str_dup("");
-		free_buf(buffer);
-		break;
-	default: return NULL;
-	}
+            arg->d.str = desc;
+        }
+        else
+            arg->d.str = NULL;
+        if (!arg->d.str) arg->d.str = str_dup("");
+        free_buf(buffer);
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ESCAPE_VARIABLE:
-		arg->type = ENT_BOOLEAN;
+    switch((unsigned char)*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_BOOLEAN;
 
-		if(arg->d.bv.table)
-		{
-			BUFFER *buffer = new_buf();
-			int bit;
-			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
-			if(!str) {
-				free_buf(buffer);
-				arg->d.boolean = false;
-				return NULL;
-			}
+        if(arg->d.bv.table)
+        {
+            BUFFER *buffer = new_buf();
+            int bit;
+            str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+            if(!str) {
+                free_buf(buffer);
+                arg->d.boolean = false;
+                return NULL;
+            }
 
 
-			bit = flag_lookup(buf_string(buffer), arg->d.bv.table);
+            bit = flag_lookup(buf_string(buffer), arg->d.bv.table);
 
-			arg->d.boolean = IS_SET(arg->d.bv.value, bit) && true;
-			free_buf(buffer);
-		}
-		else
-		{
-			arg->d.boolean = false;
-		}
-		break;
-	default: return NULL;
-	}
+            arg->d.boolean = IS_SET(arg->d.bv.value, bit) && true;
+            free_buf(buffer);
+        }
+        else
+        {
+            arg->d.boolean = false;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	switch(*str) {
-	case ESCAPE_VARIABLE:
-		arg->type = ENT_BOOLEAN;
-		if(arg->d.bm.bank && arg->d.bm.values)
-		{
-			BUFFER *buffer = new_buf();
-			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
-			if(!str) {
-				free_buf(buffer);
-				arg->d.boolean = false;
-				return NULL;
-			}
+    switch((unsigned char)*str) {
+    case ESCAPE_VARIABLE:
+        arg->type = ENT_BOOLEAN;
+        if(arg->d.bm.bank && arg->d.bm.values)
+        {
+            BUFFER *buffer = new_buf();
+            str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+            if(!str) {
+                free_buf(buffer);
+                arg->d.boolean = false;
+                return NULL;
+            }
 
-			arg->d.boolean = bitmatrix_isset(buf_string(buffer), arg->d.bm.bank, arg->d.bm.values);
-			free_buf(buffer);
-		}
-		else
-		{
-			arg->d.boolean = false;
-		}
-		break;
-	default: return NULL;
-	}
+            arg->d.boolean = bitmatrix_isset(buf_string(buffer), arg->d.bm.bank, arg->d.bm.values);
+            free_buf(buffer);
+        }
+        else
+        {
+            arg->d.boolean = false;
+        }
+        break;
+    default: return NULL;
+    }
 
-	return str+1;
+    return str+1;
 }
 
 
@@ -5423,9 +9423,7 @@ char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 // Implementation for reserved mobile lookups
 EXPAND_TYPE(reserved_mobile)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5445,8 +9443,7 @@ EXPAND_TYPE(reserved_mobile)
         if (mob) {
             arg->d.num = mob->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved mobile named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved mobile named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5464,9 +9461,7 @@ EXPAND_TYPE(reserved_mobile)
 
 EXPAND_TYPE(reserved_object)
 {
-    char buf[MSL]; // Make sure this buffer is defined and large enough
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5487,8 +9482,7 @@ EXPAND_TYPE(reserved_object)
         if (obj) {
             arg->d.num = obj->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved object named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved object named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5504,9 +9498,7 @@ EXPAND_TYPE(reserved_object)
 // Implementation for reserved room lookups
 EXPAND_TYPE(reserved_room)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5527,8 +9519,7 @@ EXPAND_TYPE(reserved_room)
         if (room) {
             arg->d.num = room->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved room named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved room named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5544,9 +9535,7 @@ EXPAND_TYPE(reserved_room)
 // Implementation for reserved area lookups
 EXPAND_TYPE(reserved_area)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5567,8 +9556,7 @@ EXPAND_TYPE(reserved_area)
         if (area) {
             arg->d.num = area->uid;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved area named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved area named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5584,9 +9572,7 @@ EXPAND_TYPE(reserved_area)
 // Implementation for reserved token lookups
 EXPAND_TYPE(reserved_token)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5607,8 +9593,7 @@ EXPAND_TYPE(reserved_token)
         if (token) {
             arg->d.num = token->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved token named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved token named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5624,9 +9609,7 @@ EXPAND_TYPE(reserved_token)
 // Add implementions for all program types
 EXPAND_TYPE(reserved_rprog)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5647,8 +9630,7 @@ EXPAND_TYPE(reserved_rprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved rprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved rprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5663,9 +9645,7 @@ EXPAND_TYPE(reserved_rprog)
 
 EXPAND_TYPE(reserved_oprog)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5686,8 +9666,7 @@ EXPAND_TYPE(reserved_oprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved oprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved oprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5702,9 +9681,7 @@ EXPAND_TYPE(reserved_oprog)
 
 EXPAND_TYPE(reserved_mprog)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5725,8 +9702,7 @@ EXPAND_TYPE(reserved_mprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved mprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved mprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5741,9 +9717,7 @@ EXPAND_TYPE(reserved_mprog)
 
 EXPAND_TYPE(reserved_tprog)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5763,8 +9737,7 @@ EXPAND_TYPE(reserved_tprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved tprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved tprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5778,9 +9751,7 @@ EXPAND_TYPE(reserved_tprog)
 
 EXPAND_TYPE(reserved_aprog)
 {
-    char buf[MSL];
-    
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_NUMBER;
         
@@ -5801,8 +9772,7 @@ EXPAND_TYPE(reserved_aprog)
         if (script) {
             arg->d.num = script->vnum;
         } else {
-            snprintf(buf, sizeof(buf), "Could not find reserved aprog named %s", reserved_name);
-            bug(buf, 0);
+            pbugf(LOG_ERROR, "Could not find reserved aprog named %s", reserved_name);
             arg->d.num = 0;
         }
         
@@ -5817,7 +9787,7 @@ EXPAND_TYPE(reserved_aprog)
 // Implementation for dynamic game settings lookups
 EXPAND_TYPE(game_setting)
 {
-    switch(*str) {
+    switch((unsigned char)*str) {
     case ESCAPE_VARIABLE:
         arg->type = ENT_STRING;
         
@@ -5876,86 +9846,236 @@ EXPAND_TYPE(game_setting)
 
     return str+1;
 }
-	
+
+// Dynamic mobile trait lookups: $(<mob>.trait.<trait_id>)
+EXPAND_TYPE(mobile_trait)
+{
+    switch((unsigned char)*str) {
+    case ESCAPE_VARIABLE:
+    {
+        BUFFER *buffer = new_buf();
+        TRAIT_DEF *def;
+        const char *trait_name;
+        CHAR_DATA *mob = arg->d.mob;
+
+        str = expand_name(info, (info ? *(info->var) : NULL), str + 1, buffer);
+        if (!str) {
+            free_buf(buffer);
+            arg->type = ENT_NULL;
+            arg->d.num = 0;
+            return NULL;
+        }
+
+        trait_name = buf_string(buffer);
+        def = trait_def_lookup_name(trait_name);
+
+        if (!mob || !def) {
+            arg->type = ENT_NULL;
+            arg->d.num = 0;
+            free_buf(buffer);
+            break;
+        }
+
+        switch (def->type) {
+        case TRAIT_BOOLEAN:
+            arg->type = ENT_BOOLEAN;
+            arg->d.boolean = ch_get_trait_bool(mob, def->id);
+            break;
+
+        case TRAIT_INTEGER:
+            arg->type = ENT_NUMBER;
+            arg->d.num = ch_get_trait_int(mob, def->id);
+            break;
+
+        case TRAIT_STRING:
+        default:
+            arg->type = ENT_STRING;
+            clear_buf(arg->buffer);
+            {
+                const char *val = ch_get_trait_string(mob, def->id);
+                if (val)
+                    add_buf(arg->buffer, val);
+            }
+            arg->d.str = buf_string(arg->buffer);
+            break;
+        }
+
+        free_buf(buffer);
+        break;
+    }
+
+    default:
+        return NULL;
+    }
+
+    return str+1;
+}
+
+
+char *expand_entity_equipment(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
+{
+    int wearloc = ((unsigned char)*str) + WEAR_NONE - ESCAPE_EXTRA;
+
+    if (wearloc > WEAR_NONE && wearloc < MAX_WEAR)
+    {
+        arg->type = ENT_OBJECT;
+        arg->d.obj = IS_VALID(arg->d.mob) ? get_eq_char(arg->d.mob, wearloc) : 0;
+        return str+1;
+    }
+
+    return NULL;
+}
+    
 
 
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char *next;
-	arg->type = ENT_NONE;		// ENT_PRIMARY
-	arg->d.num = 0;
+    char *next;
+    arg->type = ENT_NONE;		// ENT_PRIMARY
+    arg->d.num = 0;
 
-	while(str && *str && *str != ESCAPE_END) {
-		switch(arg->type) {
-		case ENT_PRIMARY:	next = expand_entity_primary(info,str,arg); break;
-		case ENT_BOOLEAN:	next = expand_entity_boolean(info,str,arg); break;
-		case ENT_NUMBER:	next = expand_entity_number(info,str,arg); break;
-		case ENT_STRING:	next = expand_entity_string(info,str,arg); break;
-		case ENT_MOBILE:	next = expand_entity_mobile(info,str,arg); break;
-		case ENT_OBJECT:	next = expand_entity_object(info,str,arg); break;
-		case ENT_ROOM:		next = expand_entity_room(info,str,arg); break;
-		case ENT_EXIT:		next = expand_entity_exit(info,str,arg); break;
-		case ENT_TOKEN:		next = expand_entity_token(info,str,arg); break;
-		case ENT_AREA:		next = expand_entity_area(info,str,arg); break;
-		case ENT_OLLIST_MOB:	next = expand_entity_list_mob(info,str,arg); break;
-		case ENT_OLLIST_OBJ:	next = expand_entity_list_obj(info,str,arg); break;
-		case ENT_OLLIST_TOK:	next = expand_entity_list_token(info,str,arg); break;
-		case ENT_OLLIST_AFF:	next = expand_entity_list_affect(info,str,arg); break;
-		case ENT_SKILL:		next = expand_entity_skill(info,str,arg); break;
-		case ENT_SKILLINFO:	next = expand_entity_skillinfo(info,str,arg); break;
-		case ENT_CONN:		next = expand_entity_conn(info,str,arg); break;
-		case ENT_WILDS:		next = expand_entity_wilds(info,str,arg); break;
-		case ENT_CHURCH:	next = expand_entity_church(info,str,arg); break;
-		case ENT_EXTRADESC:	next = expand_entity_extradesc(info,str,arg); break;
-		case ENT_AFFECT:	next = expand_entity_affect(info,str,arg); break;
-		case ENT_SONG:		next = expand_entity_song(info,str,arg); break;
-		case ENT_CLONE_ROOM:	next = expand_entity_clone_room(info,str,arg); break;
-		case ENT_WILDS_ROOM:	next = expand_entity_wilds_room(info,str,arg); break;
-		case ENT_CLONE_DOOR:	next = expand_entity_clone_door(info,str,arg); break;
-		case ENT_WILDS_DOOR:	next = expand_entity_wilds_door(info,str,arg); break;
+    while(str && *str && *str != ESCAPE_END) {
+        switch(arg->type) {
+        case ENT_PRIMARY:	next = expand_entity_primary(info,str,arg); break;
+        case ENT_BOOLEAN:	next = expand_entity_boolean(info,str,arg); break;
+        case ENT_NUMBER:	next = expand_entity_number(info,str,arg); break;
+        case ENT_STRING:	next = expand_entity_string(info,str,arg); break;
+        case ENT_MOBILE:	next = expand_entity_mobile(info,str,arg); break;
+        case ENT_OBJECT:	next = expand_entity_object(info,str,arg); break;
+        case ENT_ROOM:		next = expand_entity_room(info,str,arg); break;
+        case ENT_SECTOR:	next = expand_entity_sector(info,str,arg); break;
+        case ENT_EVENT:	next = expand_entity_event(info,str,arg); break;
+        case ENT_EXIT:		next = expand_entity_exit(info,str,arg); break;
+        case ENT_TOKEN:		next = expand_entity_token(info,str,arg); break;
+        case ENT_AREA:		next = expand_entity_area(info,str,arg); break;
+        case ENT_AREA_REGION:	next = expand_entity_area_region(info,str,arg); break;
+        case ENT_OLLIST_MOB:	next = expand_entity_list_mob(info,str,arg); break;
+        case ENT_OLLIST_OBJ:	next = expand_entity_list_obj(info,str,arg); break;
+        case ENT_OLLIST_TOK:	next = expand_entity_list_token(info,str,arg); break;
+        case ENT_OLLIST_AFF:	next = expand_entity_list_affect(info,str,arg); break;
+        case ENT_SKILL:		next = expand_entity_skill(info,str,arg); break;
+        case ENT_SKILLGROUP:	next = expand_entity_skillgroup(info,str,arg); break;
+        case ENT_SKILLINFO:	next = expand_entity_skillinfo(info,str,arg); break;
+        case ENT_SPELL:		next = expand_entity_spelldata(info,str,arg); break;
+        case ENT_LOCK_STATE:	next = expand_entity_lockstate(info,str,arg); break;
+        case ENT_LIQUID:		next = expand_entity_liquid(info,str,arg); break;
+        case ENT_MATERIAL:	next = expand_entity_material(info,str,arg); break;
+        case ENT_CONN:		next = expand_entity_conn(info,str,arg); break;
+        case ENT_WILDS:		next = expand_entity_wilds(info,str,arg); break;
+        case ENT_CHURCH:	next = expand_entity_church(info,str,arg); break;
+        case ENT_EXTRADESC:	next = expand_entity_extradesc(info,str,arg); break;
+        case ENT_AFFECT:	next = expand_entity_affect(info,str,arg); break;
+        case ENT_SONG:		next = expand_entity_song(info,str,arg); break;
+        case ENT_RACE:		next = expand_entity_race(info,str,arg); break;
+        case ENT_CLASS:		next = expand_entity_class(info,str,arg); break;
+        case ENT_CLASSLEVEL:	next = expand_entity_classlevel(info,str,arg); break;
+        case ENT_BOOK_PAGE:	next = expand_entity_book_page(info,str,arg); break;
+        case ENT_FOOD_BUFF:	next = expand_entity_food_buff(info,str,arg); break;
+        case ENT_WAYPOINT:	next = expand_entity_waypoint(info,str,arg); break;
+        case ENT_SHOP_STOCK:	next = expand_entity_shop_stock(info,str,arg); break;
+        case ENT_REPUTATION:	next = expand_entity_reputation(info,str,arg); break;
+        case ENT_REPUTATION_INDEX:	next = expand_entity_reputation_index(info,str,arg); break;
+        case ENT_REPUTATION_RANK:	next = expand_entity_reputation_rank(info,str,arg); break;
+        case ENT_SKILLENTRY:	next = expand_entity_skillentry(info,str,arg); break;
+        case ENT_CLONE_ROOM:	next = expand_entity_clone_room(info,str,arg); break;
+        case ENT_WILDS_ROOM:	next = expand_entity_wilds_room(info,str,arg); break;
+        case ENT_CLONE_DOOR:	next = expand_entity_clone_door(info,str,arg); break;
+        case ENT_WILDS_DOOR:	next = expand_entity_wilds_door(info,str,arg); break;
 
-		case ENT_BLLIST_ROOM:	next = expand_entity_blist_room(info,str,arg); break;
-		case ENT_BLLIST_MOB:		next = expand_entity_blist_mob(info,str,arg); break;
-		case ENT_BLLIST_OBJ:		next = expand_entity_blist_obj(info,str,arg); break;
-		case ENT_BLLIST_TOK:		next = expand_entity_blist_token(info,str,arg); break;
-		case ENT_BLLIST_EXIT:	next = expand_entity_blist_exit(info,str,arg); break;
-		case ENT_BLLIST_SKILL:	next = expand_entity_blist_skillinfo(info,str,arg); break;
-		case ENT_BLLIST_AREA:	next = expand_entity_blist_area(info,str,arg); break;
-		case ENT_BLLIST_WILDS:	next = expand_entity_blist_wilds(info,str,arg); break;
+        case ENT_BLLIST_ROOM:	next = expand_entity_blist_room(info,str,arg); break;
+        case ENT_BLLIST_MOB:		next = expand_entity_blist_mob(info,str,arg); break;
+        case ENT_BLLIST_OBJ:		next = expand_entity_blist_obj(info,str,arg); break;
+        case ENT_BLLIST_TOK:		next = expand_entity_blist_token(info,str,arg); break;
+        case ENT_BLLIST_EXIT:	next = expand_entity_blist_exit(info,str,arg); break;
+        case ENT_BLLIST_SKILL:	next = expand_entity_blist_skillinfo(info,str,arg); break;
+        case ENT_BLLIST_AREA:	next = expand_entity_blist_area(info,str,arg); break;
+        case ENT_BLLIST_AREA_REGION:	next = expand_entity_blist_area_region(info,str,arg); break;
+        case ENT_BLLIST_WILDS:	next = expand_entity_blist_wilds(info,str,arg); break;
 
-		case ENT_PLLIST_STR:		next = expand_entity_plist_str(info,str,arg); break;
-		case ENT_PLLIST_CONN:	next = expand_entity_plist_conn(info,str,arg); break;
-		case ENT_PLLIST_ROOM:	next = expand_entity_plist_room(info,str,arg); break;
-		case ENT_PLLIST_MOB:		next = expand_entity_plist_mob(info,str,arg); break;
-		case ENT_PLLIST_OBJ:		next = expand_entity_plist_obj(info,str,arg); break;
-		case ENT_PLLIST_TOK:		next = expand_entity_plist_token(info,str,arg); break;
-		case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
+        case ENT_PLLIST_STR:		next = expand_entity_plist_str(info,str,arg); break;
+        case ENT_PLLIST_CONN:	next = expand_entity_plist_conn(info,str,arg); break;
+        case ENT_PLLIST_ROOM:	next = expand_entity_plist_room(info,str,arg); break;
+        case ENT_PLLIST_MOB:		next = expand_entity_plist_mob(info,str,arg); break;
+        case ENT_PLLIST_OBJ:		next = expand_entity_plist_obj(info,str,arg); break;
+        case ENT_PLLIST_TOK:		next = expand_entity_plist_token(info,str,arg); break;
+        case ENT_PLLIST_AREA:	next = expand_entity_plist_area(info,str,arg); break;
+        case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
+        case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
+        case ENT_PLLIST_BOOK_PAGE:	next = expand_entity_plist_book_page(info,str,arg); break;
+        case ENT_PLLIST_FOOD_BUFF:	next = expand_entity_plist_food_buff(info,str,arg); break;
 
-		case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
-		case ENT_OBJECT_ID:		next = expand_entity_object_id(info,str,arg); break;
-		case ENT_TOKEN_ID:		next = expand_entity_token_id(info,str,arg); break;
-		case ENT_AREA_ID:		next = expand_entity_area_id(info,str,arg); break;
-		case ENT_SKILLINFO_ID:	next = expand_entity_skillinfo_id(info,str,arg); break;
-		case ENT_WILDS_ID:		next = expand_entity_wilds_id(info,str,arg); break;
-		case ENT_CHURCH_ID:		next = expand_entity_church_id(info,str,arg); break;
-		case ENT_GAME:			next = expand_entity_game(info,str,arg); break;
-		case ENT_PERSIST:		next = expand_entity_persist(info,str,arg); break;
-		case ENT_PRIOR:			next = expand_entity_prior(info,str,arg); break;
-		case ENT_VARIABLE:		next = expand_entity_variable(info,str,arg); break;
-		case ENT_GROUP:			next = expand_entity_group(info,str,arg); break;
-		case ENT_DICE:			next = expand_entity_dice(info,str,arg); break;
-		case ENT_MOBINDEX:		next = expand_entity_mobindex(info,str,arg); break;
-		case ENT_OBJINDEX:		next = expand_entity_objindex(info,str,arg); break;
+        case ENT_OLLIST_TRAINER_ENTRY:	next = expand_entity_list_trainer_entry(info,str,arg); break;
+        case ENT_TRAINER:	next = expand_entity_trainer(info,str,arg); break;
+        case ENT_TRAINER_ENTRY:	next = expand_entity_trainer_entry(info,str,arg); break;
 
-		case ENT_SECTION:		next = expand_entity_instance_section(info,str,arg); break;
-		case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
-		case ENT_DUNGEON:		next = expand_entity_dungeon(info,str,arg); break;
+        case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
+        case ENT_OBJECT_ID:		next = expand_entity_object_id(info,str,arg); break;
+        case ENT_TOKEN_ID:		next = expand_entity_token_id(info,str,arg); break;
+        case ENT_AREA_ID:		next = expand_entity_area_id(info,str,arg); break;
+        case ENT_SKILLINFO_ID:	next = expand_entity_skillinfo_id(info,str,arg); break;
+        case ENT_WILDS_ID:		next = expand_entity_wilds_id(info,str,arg); break;
+        case ENT_CHURCH_ID:		next = expand_entity_church_id(info,str,arg); break;
+        case ENT_GAME:			next = expand_entity_game(info,str,arg); break;
+        case ENT_PERSIST:		next = expand_entity_persist(info,str,arg); break;
+        case ENT_PRIOR:			next = expand_entity_prior(info,str,arg); break;
+        case ENT_VARIABLE:		next = expand_entity_variable(info,str,arg); break;
+        case ENT_GROUP:			next = expand_entity_group(info,str,arg); break;
+        case ENT_DICE:			next = expand_entity_dice(info,str,arg); break;
+        case ENT_MOBINDEX:		next = expand_entity_mobindex(info,str,arg); break;
+        case ENT_OBJINDEX:		next = expand_entity_objindex(info,str,arg); break;
+        case ENT_TOKEN_INDEX:	next = expand_entity_tokenindex(info,str,arg); break;
 
-		case ENT_SHIP:			next = expand_entity_ship(info,str,arg); break;
+        case ENT_SECTION:		next = expand_entity_instance_section(info,str,arg); break;
+        case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
+        case ENT_QUEST:		next = expand_entity_quest(info,str,arg); break;
+        case ENT_QUEST_HISTORY:	next = expand_entity_quest_history(info,str,arg); break;
+        case ENT_QUEST_STAGE:	next = expand_entity_quest_stage(info,str,arg); break;
+        case ENT_QUEST_OBJECTIVE:	next = expand_entity_quest_objective(info,str,arg); break;
+        case ENT_BLUEPRINT:		next = expand_entity_blueprint(info,str,arg); break;
+        case ENT_BLUEPRINT_SECTION:	next = expand_entity_blueprint_section(info,str,arg); break;
+        case ENT_DUNGEON:		next = expand_entity_dungeon(info,str,arg); break;
+        case ENT_DUNGEONINDEX:	next = expand_entity_dungeonindex(info,str,arg); break;
 
-		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
-		case ENT_BITMATRIX:		next = expand_entity_bitmatrix(info,str,arg); break;
-		
+        case ENT_SHIP:			next = expand_entity_ship(info,str,arg); break;
+        case ENT_SHIPINDEX:	next = expand_entity_shipindex(info,str,arg); break;
+
+        case ENT_OBJ_WEAPON:		next = expand_entity_obj_weapon(info,str,arg); break;
+        case ENT_OBJ_ARMOR:		next = expand_entity_obj_armor(info,str,arg); break;
+        case ENT_OBJ_CONTAINER:		next = expand_entity_obj_container(info,str,arg); break;
+        case ENT_OBJ_FLUID_CON:		next = expand_entity_obj_fluid_con(info,str,arg); break;
+        case ENT_OBJ_FOOD:		next = expand_entity_obj_food(info,str,arg); break;
+        case ENT_OBJ_FURNITURE:		next = expand_entity_obj_furniture(info,str,arg); break;
+        case ENT_OBJ_PORTAL:		next = expand_entity_obj_portal(info,str,arg); break;
+        case ENT_OBJ_LIGHT:		next = expand_entity_obj_light(info,str,arg); break;
+        case ENT_OBJ_MONEY:		next = expand_entity_obj_money(info,str,arg); break;
+        case ENT_OBJ_WAND:		next = expand_entity_obj_wand(info,str,arg); break;
+        case ENT_OBJ_CORPSE:		next = expand_entity_obj_corpse(info,str,arg); break;
+        case ENT_OBJ_INSTRUMENT:	next = expand_entity_obj_instrument(info,str,arg); break;
+        case ENT_OBJ_SEED:		next = expand_entity_obj_seed(info,str,arg); break;
+        case ENT_OBJ_CART:		next = expand_entity_obj_cart(info,str,arg); break;
+        case ENT_OBJ_ITEM_SHIP:		next = expand_entity_obj_item_ship(info,str,arg); break;
+        case ENT_OBJ_SEXTANT:		next = expand_entity_obj_sextant(info,str,arg); break;
+        case ENT_OBJ_WEAPON_CON:	next = expand_entity_obj_weapon_con(info,str,arg); break;
+        case ENT_OBJ_BOOK:		next = expand_entity_obj_book(info,str,arg); break;
+        case ENT_OBJ_HERB:		next = expand_entity_obj_herb(info,str,arg); break;
+        case ENT_OBJ_MIST:		next = expand_entity_obj_mist(info,str,arg); break;
+        case ENT_OBJ_TRADE:		next = expand_entity_obj_trade(info,str,arg); break;
+        case ENT_OBJ_TATTOO:		next = expand_entity_obj_tattoo(info,str,arg); break;
+        case ENT_OBJ_INK:		next = expand_entity_obj_ink(info,str,arg); break;
+        case ENT_OBJ_TELESCOPE:		next = expand_entity_obj_telescope(info,str,arg); break;
+        case ENT_OBJ_COMPASS:		next = expand_entity_obj_compass(info,str,arg); break;
+        case ENT_OBJ_BODY_PART:		next = expand_entity_obj_body_part(info,str,arg); break;
+        case ENT_OBJ_SCROLL:		next = expand_entity_obj_scroll(info,str,arg); break;
+        case ENT_OBJ_TOOL:		next = expand_entity_obj_tool(info,str,arg); break;
+        case ENT_OBJ_JEWELRY:		next = expand_entity_obj_jewelry(info,str,arg); break;
+        case ENT_OBJ_MAP:		next = expand_entity_obj_map(info,str,arg); break;
+        case ENT_OBJ_PAGE:		next = expand_entity_obj_page(info,str,arg); break;
+
+        case ENT_EQUIPMENT:		next = expand_entity_equipment(info,str,arg); break;
+
+        case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
+        case ENT_BITMATRIX:		next = expand_entity_bitmatrix(info,str,arg); break;
+        
         case ENT_RESERVED_MOBILE:
             next = expand_entity_reserved_mobile(info, str, arg);
             break;
@@ -5999,414 +10119,572 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         case ENT_GAME_SETTING:
             next = expand_entity_game_setting(info, str, arg);
             break;
-			
-		case ENT_NULL:
-			next = str+1;
-			arg->type = ENT_NULL;
-			arg->d.num = 0;
-			break;
 
-		default:				next = NULL; break;
-		}
+        case ENT_MOB_TRAIT:
+            next = expand_entity_mobile_trait(info, str, arg);
+            break;
+            
+        case ENT_NULL:
+            next = str+1;
+            arg->type = ENT_NULL;
+            arg->d.num = 0;
+            break;
 
-		if(next) str = next;
-		else {
-			str = expand_skip(str);
-			arg->type = ENT_NONE;	// ENT_PRIMARY
-			arg->d.num = 0;
-		}
-	}
-	return str && *str ? str+1 : str;
+        default:				next = NULL; break;
+        }
+
+        if(next) str = next;
+        else {
+            str = expand_skip(str);
+            arg->type = ENT_NONE;	// ENT_PRIMARY
+            arg->d.num = 0;
+        }
+    }
+    return str && *str ? str+1 : str;
 }
 
 char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
-	char buf[MIL];
-	SCRIPT_PARAM *arg = new_script_param();
+    char buf[MIL];
+    SCRIPT_PARAM *arg = new_script_param();
 
-	str = expand_argument_entity(info,str,arg);
-	if(!str || arg->type == ENT_NONE /* ENT_PRIMARY */) {
-		free_script_param(arg);
-		return NULL;
-	}
+    str = expand_argument_entity(info,str,arg);
+    if(!str || arg->type == ENT_NONE /* ENT_PRIMARY */) {
+        free_script_param(arg);
+        return NULL;
+    }
 
-	switch(arg->type) {
-	default:
-		add_buf(buffer, "{D<{x@{W@{x@{D>{x ");
-		break;
+    switch(arg->type) {
+    default:
+        add_buf(buffer, "{D<{x@{W@{x@{D>{x ");
+        break;
 
-	case ENT_BOOLEAN:
-		add_buf(buffer, arg->d.boolean ? "true" : "false");
-		break;
+    case ENT_WIDEVNUM:
+        if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0)
+        {
+            sprintf(buf, "%ld#%ld", arg->d.wnum.pArea->uid, arg->d.wnum.vnum);
+            add_buf(buffer, buf);
+        }
+        else
+            add_buf(buffer, "0#0");
+        break;
 
-	case ENT_NUMBER:
-		sprintf(buf, "%d", arg->d.num);
-		add_buf(buffer, buf);
-		break;
+    case ENT_BOOLEAN:
+        add_buf(buffer, arg->d.boolean ? "true" : "false");
+        break;
 
-	case ENT_STRING:
-		add_buf(buffer, arg->d.str ? arg->d.str : "(null)");
-		break;
+    case ENT_NUMBER:
+        sprintf(buf, "%d", arg->d.num);
+        add_buf(buffer, buf);
+        break;
 
-	case ENT_MOBILE:
-		if( IS_VALID(arg->d.mob) )
-		{
-			if( IS_NPC(arg->d.mob) )
-				add_buf(buffer, arg->d.mob->short_descr);
-			else
-				add_buf(buffer, arg->d.mob->name);
-		}
-		else
-		{
-			add_buf(buffer, SOMEONE);
-		}
-		break;
+    case ENT_STRING:
+        add_buf(buffer, arg->d.str ? arg->d.str : "(null)");
+        break;
 
-	case ENT_OBJECT:
-		add_buf(buffer, arg->d.obj ? arg->d.obj->short_descr : SOMETHING);
-		break;
+    case ENT_MOBILE:
+        if( IS_VALID(arg->d.mob) )
+        {
+            if( IS_NPC(arg->d.mob) )
+                add_buf(buffer, arg->d.mob->short_descr);
+            else
+                add_buf(buffer, arg->d.mob->name);
+        }
+        else
+        {
+            add_buf(buffer, SOMEONE);
+        }
+        break;
 
-	case ENT_ROOM:
-		add_buf(buffer, arg->d.room ? arg->d.room->name : SOMEWHERE);
-		break;
+    case ENT_OBJECT:
+        add_buf(buffer, arg->d.obj ? arg->d.obj->short_descr : SOMETHING);
+        break;
 
-	case ENT_EXIT:
-		add_buf(buffer, dir_name[arg->d.door.door]);
-		break;
+    case ENT_ROOM:
+        add_buf(buffer, arg->d.room ? arg->d.room->name : SOMEWHERE);
+        break;
 
-	case ENT_TOKEN:
-		add_buf(buffer, (arg->d.token && arg->d.token->pIndexData) ? arg->d.token->pIndexData->name : SOMETHING);
-		break;
+    case ENT_EXIT:
+        add_buf(buffer, dir_name[arg->d.door.door]);
+        break;
 
-	case ENT_AREA:
-		add_buf(buffer, arg->d.area ? arg->d.area->name : SOMEWHERE);
-		break;
+    case ENT_TOKEN:
+        add_buf(buffer, (arg->d.token && arg->d.token->pIndexData) ? arg->d.token->pIndexData->name : SOMETHING);
+        break;
 
-	case ENT_CONN:
-		add_buf(buffer, (arg->d.conn && arg->d.conn->character) ? arg->d.conn->character->name : SOMEONE);
-		break;
+    case ENT_AREA:
+        add_buf(buffer, arg->d.area ? arg->d.area->name : SOMEWHERE);
+        break;
 
-	case ENT_INSTANCE:
-		add_buf(buffer, IS_VALID(arg->d.instance) ? arg->d.instance->blueprint->name : SOMEWHERE);
-		break;
+    case ENT_AREA_REGION:
+        add_buf(buffer, arg->d.aregion && arg->d.aregion->name ? arg->d.aregion->name : SOMEWHERE);
+        break;
 
-	case ENT_DUNGEON:
-		add_buf(buffer, IS_VALID(arg->d.dungeon) ? arg->d.dungeon->index->name : SOMEWHERE);
-		break;
+    case ENT_CONN:
+        add_buf(buffer, (arg->d.conn && arg->d.conn->character) ? arg->d.conn->character->name : SOMEONE);
+        break;
 
-	case ENT_SHIP:
-		add_buf(buffer, IS_VALID(arg->d.ship) ? arg->d.ship->ship_name : SOMETHING);
-		break;
-	
-	case ENT_BITVECTOR:
-		add_buf(buffer, flag_string(arg->d.bv.table, arg->d.bv.value));
-		break;
+    case ENT_INSTANCE:
+        add_buf(buffer, IS_VALID(arg->d.instance) ? arg->d.instance->blueprint->name : SOMEWHERE);
+        break;
 
-	case ENT_BITMATRIX:
-		add_buf(buffer, bitmatrix_string(arg->d.bm.bank, arg->d.bm.values));
-		break;
-	}
+    case ENT_QUEST:
+    {
+        QUEST_INDEX_V2_DATA *quest_index_v2 = arg->d.quest ? quest_runtime_get_index_v2(arg->d.quest) : NULL;
+        if (quest_index_v2 && !IS_NULLSTR(quest_index_v2->name))
+            add_buf(buffer, quest_index_v2->name);
+        else
+            add_buf(buffer, "quest");
+        break;
+    }
 
-	free_script_param(arg);
+    case ENT_QUEST_HISTORY:
+        if (arg->d.quest_history && !IS_NULLSTR(arg->d.quest_history->name))
+            add_buf(buffer, arg->d.quest_history->name);
+        else
+            add_buf(buffer, "quest");
+        break;
 
-	return str;
+    case ENT_QUEST_STAGE:
+        if (arg->d.quest_stage && !IS_NULLSTR(arg->d.quest_stage->name))
+            add_buf(buffer, arg->d.quest_stage->name);
+        else
+            add_buf(buffer, "stage");
+        break;
+
+    case ENT_QUEST_OBJECTIVE:
+        if (arg->d.quest_objective && !IS_NULLSTR(arg->d.quest_objective->description))
+            add_buf(buffer, arg->d.quest_objective->description);
+        else
+            add_buf(buffer, "objective");
+        break;
+
+    case ENT_DUNGEON:
+        add_buf(buffer, IS_VALID(arg->d.dungeon) ? arg->d.dungeon->index->name : SOMEWHERE);
+        break;
+
+    case ENT_SHIP:
+        add_buf(buffer, IS_VALID(arg->d.ship) ? arg->d.ship->ship_name : SOMETHING);
+        break;
+
+    case ENT_SKILL: {
+        SKILL_DATA *sk = (arg->d.sn >= 0) ? skill_find_uid(arg->d.sn) : NULL;
+        add_buf(buffer, sk ? sk->name : "none");
+        break;
+    }
+
+    case ENT_SPELL:
+    {
+        SKILL_DATA *sk = (arg->d.spell && arg->d.spell->sn >= 0) ? skill_find_uid(arg->d.spell->sn) : NULL;
+        add_buf(buffer, sk ? sk->name : "none");
+        break;
+    }
+
+    case ENT_LOCK_STATE:
+        add_buf(buffer, (arg->d.lock_state && arg->d.lock_state->key_wnum.pArea)
+            ? widevnum_string_wnum(arg->d.lock_state->key_wnum, NULL)
+            : "0");
+        break;
+
+    case ENT_LIQUID:
+        add_buf(buffer, liquid_name(arg->d.liquid));
+        break;
+
+    case ENT_MATERIAL:
+        add_buf(buffer, material_name(arg->d.material));
+        break;
+
+    case ENT_SONG:
+        add_buf(buffer, arg->d.song ? arg->d.song->name : "none");
+        break;
+
+    case ENT_RACE:
+        add_buf(buffer, arg->d.race ? arg->d.race->name : "unknown");
+        break;
+
+    case ENT_CLASS:
+        add_buf(buffer, arg->d.clazz ? arg->d.clazz->name : "none");
+        break;
+
+    case ENT_CLASSLEVEL: {
+        CLASS_LEVEL *cl = arg->d.classlevel;
+        if (cl && cl->clazz)
+            add_buf(buffer, cl->clazz->name);
+        else
+            add_buf(buffer, "none");
+        break;
+    }
+
+    case ENT_BOOK_PAGE:
+        if (arg->d.book_page && arg->d.book_page->title && arg->d.book_page->title[0])
+            add_buf(buffer, arg->d.book_page->title);
+        else
+            add_buf(buffer, "(page)");
+        break;
+
+    case ENT_FOOD_BUFF:
+        add_buf(buffer, arg->d.food_buff ? "(food-buff)" : "(null)");
+        break;
+
+    case ENT_WAYPOINT:
+        if (arg->d.waypoint && arg->d.waypoint->name && arg->d.waypoint->name[0])
+            add_buf(buffer, arg->d.waypoint->name);
+        else
+            add_buf(buffer, "(waypoint)");
+        break;
+
+    case ENT_SHOP_STOCK:
+        add_buf(buffer, arg->d.stock ? "(stock)" : "(null)");
+        break;
+
+    case ENT_MOBINDEX:
+        add_buf(buffer, arg->d.mobindex ? widevnum_string_mobile(arg->d.mobindex, NULL) : "0");
+        break;
+
+    case ENT_OBJINDEX:
+        add_buf(buffer, arg->d.objindex ? widevnum_string_object(arg->d.objindex, NULL) : "0");
+        break;
+
+    case ENT_TOKEN_INDEX:
+        add_buf(buffer, arg->d.token_index ? widevnum_string_token(arg->d.token_index, NULL) : "0");
+        break;
+
+    case ENT_BLUEPRINT:
+        add_buf(buffer, arg->d.blueprint ? widevnum_string_blueprint(arg->d.blueprint, NULL) : "0");
+        break;
+
+    case ENT_BLUEPRINT_SECTION:
+        add_buf(buffer, arg->d.blueprint_section ? widevnum_string_blueprint_section(arg->d.blueprint_section, NULL) : "0");
+        break;
+
+    case ENT_DUNGEONINDEX:
+        add_buf(buffer, arg->d.dungeon_index ? widevnum_string_dungeon(arg->d.dungeon_index, NULL) : "0");
+        break;
+
+    case ENT_SHIPINDEX:
+        add_buf(buffer, arg->d.ship_index ? widevnum_string_ship(arg->d.ship_index, NULL) : "0");
+        break;
+
+    case ENT_SKILLENTRY: {
+        SKILL_ENTRY *se = arg->d.entry;
+        if (se && se->skill_data)
+            add_buf(buffer, se->skill_data->name);
+        else if (se && se->song)
+            add_buf(buffer, se->song->name);
+        else
+            add_buf(buffer, "none");
+        break;
+    }
+    
+    case ENT_BITVECTOR:
+        add_buf(buffer, flag_string(arg->d.bv.table, arg->d.bv.value));
+        break;
+
+    case ENT_BITMATRIX:
+        add_buf(buffer, bitmatrix_string(arg->d.bm.bank, arg->d.bm.values));
+        break;
+    }
+
+    free_script_param(arg);
+
+    return str;
 }
 
 void expand_string_simple_code(SCRIPT_VARINFO *info,unsigned char code, BUFFER *buffer)
 {
-	char buf[MIL], *s = buf;
+    char buf[MIL], *s = buf;
 
 //	sprintf(buf,"expand_string_simple_code: code = %2.2X", code);
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-	buf[0] = '\0';
-	switch(code) {
-	default:
-		s = " {W<{x@{D@{x@{W>{x "; break;
+    buf[0] = '\0';
+    switch(code) {
+    default:
+        s = " {W<{x@{D@{x@{W>{x "; break;
 //	case ESCAPE_UA:
 //	case ESCAPE_UB:
 //	case ESCAPE_UC:
 //	case ESCAPE_UD:
-	case ESCAPE_UE:
-		if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
-			s = (char*)he_she[URANGE(0, info->vch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UF:
-		if(info->mob) s = (char*)himself[URANGE(0, info->mob->sex, 2)];
-		else s = SOMEONE;
-		break;
+    case ESCAPE_UE:
+        if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
+            s = (char*)he_she[URANGE(0, info->vch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UF:
+        if(info->mob) s = (char*)himself[URANGE(0, info->mob->sex, 2)];
+        else s = SOMEONE;
+        break;
 //	case ESCAPE_UG:
 //	case ESCAPE_UH:
-	case ESCAPE_UI:
-		if(info->mob) s = info->mob->short_descr;
-		else if(info->obj) s = info->obj->short_descr;
-		else if(info->room) s = info->room->name;
-		else if(info->token) s = info->token->pIndexData->name;
-		break;
-	case ESCAPE_UJ:
-		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
-		if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
-			s = (char*)he_she[URANGE(0, info->rch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UK:
-		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
-		if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
-			s = (char*)him_her[URANGE(0, info->rch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UL:
-		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
-		if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
-			s = (char*)his_hers[URANGE(0, info->rch->sex, 2)];
-		else
-			s = SOMEONES;
-		break;
-	case ESCAPE_UM:
-		if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
-			s = (char*)him_her[URANGE(0, info->vch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UN:
-		if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
-			s = ((IS_NPC(info->ch) || info->ch->morphed) ? info->ch->short_descr : capitalize(info->ch->name));
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UO:
-		if(info->obj1 && (!info->mob || can_see_obj(info->mob,info->obj1)))
-			s = info->obj1->short_descr;
-		else
-			s = SOMETHING;
-		break;
-	case ESCAPE_UP:
-		if(info->obj2 && (!info->mob || can_see_obj(info->mob,info->obj2)))
-			s = info->obj2->short_descr;
-		else
-			s = SOMETHING;
-		break;
-	case ESCAPE_UQ:
-		if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
-			s = ((IS_NPC((*info->targ)) || (*info->targ)->morphed) ? (*info->targ)->short_descr : capitalize((*info->targ)->name));
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UR:
-		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
-		if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
-			s = ((IS_NPC(info->rch) || info->rch->morphed) ? info->rch->short_descr : capitalize(info->rch->name));
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_US:
-		if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
-			s = (char*)his_her[URANGE(0, info->vch->sex, 2)];
-		else
-			s = SOMEONES;
-		break;
-	case ESCAPE_UT:
-		if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
-			s = ((IS_NPC(info->vch) || info->vch->morphed) ? info->vch->short_descr : capitalize(info->vch->name));
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UU:
-		if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
-			s = (char*)his_hers[URANGE(0, info->vch->sex, 2)];
-		else
-			s = SOMEONES;
-		break;
-	case ESCAPE_UV:
-		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
-		if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
-			s = (char*)his_hers[URANGE(0, info->rch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
+    case ESCAPE_UI:
+        if(info->mob) s = info->mob->short_descr;
+        else if(info->obj) s = info->obj->short_descr;
+        else if(info->room) s = info->room->name;
+        else if(info->token) s = info->token->pIndexData->name;
+        break;
+    case ESCAPE_UJ:
+        if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
+        if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
+            s = (char*)he_she[URANGE(0, info->rch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UK:
+        if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
+        if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
+            s = (char*)him_her[URANGE(0, info->rch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UL:
+        if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
+        if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
+            s = (char*)his_hers[URANGE(0, info->rch->sex, 2)];
+        else
+            s = SOMEONES;
+        break;
+    case ESCAPE_UM:
+        if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
+            s = (char*)him_her[URANGE(0, info->vch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UN:
+        if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
+            s = ((IS_NPC(info->ch) || info->ch->morphed) ? info->ch->short_descr : capitalize(info->ch->name));
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UO:
+        if(info->obj1 && (!info->mob || can_see_obj(info->mob,info->obj1)))
+            s = info->obj1->short_descr;
+        else
+            s = SOMETHING;
+        break;
+    case ESCAPE_UP:
+        if(info->obj2 && (!info->mob || can_see_obj(info->mob,info->obj2)))
+            s = info->obj2->short_descr;
+        else
+            s = SOMETHING;
+        break;
+    case ESCAPE_UQ:
+        if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
+            s = ((IS_NPC((*info->targ)) || (*info->targ)->morphed) ? (*info->targ)->short_descr : capitalize((*info->targ)->name));
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UR:
+        if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
+        if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
+            s = ((IS_NPC(info->rch) || info->rch->morphed) ? info->rch->short_descr : capitalize(info->rch->name));
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_US:
+        if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
+            s = (char*)his_her[URANGE(0, info->vch->sex, 2)];
+        else
+            s = SOMEONES;
+        break;
+    case ESCAPE_UT:
+        if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
+            s = ((IS_NPC(info->vch) || info->vch->morphed) ? info->vch->short_descr : capitalize(info->vch->name));
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UU:
+        if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
+            s = (char*)his_hers[URANGE(0, info->vch->sex, 2)];
+        else
+            s = SOMEONES;
+        break;
+    case ESCAPE_UV:
+        if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
+        if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
+            s = (char*)his_hers[URANGE(0, info->rch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
 //	case ESCAPE_UW:
-	case ESCAPE_UX:
-		if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
-			s = (char*)he_she[URANGE(0, (*info->targ)->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UY:
-		if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
-			s = (char*)him_her[URANGE(0, (*info->targ)->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_UZ:
-		if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
-			s = (char*)his_her[URANGE(0, (*info->targ)->sex, 2)];
-		else
-			s = SOMEONES;
-		break;
+    case ESCAPE_UX:
+        if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
+            s = (char*)he_she[URANGE(0, (*info->targ)->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UY:
+        if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
+            s = (char*)him_her[URANGE(0, (*info->targ)->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_UZ:
+        if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
+            s = (char*)his_her[URANGE(0, (*info->targ)->sex, 2)];
+        else
+            s = SOMEONES;
+        break;
 //	case ESCAPE_LA:
 //	case ESCAPE_LB:
 //	case ESCAPE_LC:
 //	case ESCAPE_LD:
-	case ESCAPE_LE:
-		if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
-			s = (char*)he_she[URANGE(0, info->ch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LF:
-		if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
-			s = (char*)himself[URANGE(0, info->ch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
+    case ESCAPE_LE:
+        if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
+            s = (char*)he_she[URANGE(0, info->ch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LF:
+        if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
+            s = (char*)himself[URANGE(0, info->ch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
 //	case ESCAPE_LG:
 //	case ESCAPE_LH:
-	case ESCAPE_LI:
-		if(info->mob) one_argument(info->mob->name,buf);
-		else if(info->obj) one_argument(info->obj->name,buf);
-		else if(info->room) sprintf(buf,"%d",(int)info->room->vnum);
-		else if(info->token) sprintf(buf,"%d",(int)info->token->pIndexData->vnum);
-		break;
-	case ESCAPE_LJ:
-		if(info->mob) s = (char*)he_she[URANGE(0, info->mob->sex, 2)];
-		else s = SOMEONE;
-		break;
-	case ESCAPE_LK:
-		if(info->mob) s = (char*)him_her[URANGE(0, info->mob->sex, 2)];
-		else s = SOMEONE;
-		break;
-	case ESCAPE_LL:
-		if(info->mob) s = (char*)his_her[URANGE(0, info->mob->sex, 2)];
-		else s = SOMEONES;
-		break;
-	case ESCAPE_LM:
-		if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
-			s = (char*)him_her[URANGE(0, info->ch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LN:
-		if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
-			one_argument(info->ch->name,buf);
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LO:
-		if(info->obj1 && (!info->mob || can_see_obj(info->mob,info->obj1)))
-			one_argument(info->obj1->name,buf);
-		else
-			s = SOMETHING;
-		break;
-	case ESCAPE_LP:
-		if(info->obj2 && (!info->mob || can_see_obj(info->mob,info->obj2)))
-			one_argument(info->obj2->name,buf);
-		else
-			s = SOMETHING;
-		break;
-	case ESCAPE_LQ:
-		if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
-			one_argument((*info->targ)->name,buf);
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LR:
-		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
-		if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
-			one_argument(info->rch->name,buf);
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LS:
-		if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
-			s = (char*)his_her[URANGE(0, info->ch->sex, 2)];
-		else
-			s = SOMEONES;
-		break;
-	case ESCAPE_LT:
-		if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
-			one_argument(info->vch->name,buf);
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LU:
-		if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
-			s = (char*)his_hers[URANGE(0, info->ch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LV:
-		if(info->mob) s = (char*)his_hers[URANGE(0, info->mob->sex, 2)];
-		else s = SOMEONES;
-		break;
-	case ESCAPE_LW:
-		if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
-			s = (char*)his_hers[URANGE(0, (*info->targ)->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LX:
-		if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
-			s = (char*)himself[URANGE(0, info->vch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LY:
-		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
-		if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
-			s = (char*)himself[URANGE(0, info->rch->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	case ESCAPE_LZ:
-		if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
-			s = (char*)himself[URANGE(0, (*info->targ)->sex, 2)];
-		else
-			s = SOMEONE;
-		break;
-	}
+    case ESCAPE_LI:
+        if(info->mob) one_argument(info->mob->name,buf);
+        else if(info->obj) one_argument(info->obj->name,buf);
+        else if(info->room) s = (char*)widevnum_string_room(info->room, NULL);
+        else if(info->token) s = (char*)widevnum_string_token(info->token->pIndexData, NULL);
+        break;
+    case ESCAPE_LJ:
+        if(info->mob) s = (char*)he_she[URANGE(0, info->mob->sex, 2)];
+        else s = SOMEONE;
+        break;
+    case ESCAPE_LK:
+        if(info->mob) s = (char*)him_her[URANGE(0, info->mob->sex, 2)];
+        else s = SOMEONE;
+        break;
+    case ESCAPE_LL:
+        if(info->mob) s = (char*)his_her[URANGE(0, info->mob->sex, 2)];
+        else s = SOMEONES;
+        break;
+    case ESCAPE_LM:
+        if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
+            s = (char*)him_her[URANGE(0, info->ch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LN:
+        if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
+            one_argument(info->ch->name,buf);
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LO:
+        if(info->obj1 && (!info->mob || can_see_obj(info->mob,info->obj1)))
+            one_argument(info->obj1->name,buf);
+        else
+            s = SOMETHING;
+        break;
+    case ESCAPE_LP:
+        if(info->obj2 && (!info->mob || can_see_obj(info->mob,info->obj2)))
+            one_argument(info->obj2->name,buf);
+        else
+            s = SOMETHING;
+        break;
+    case ESCAPE_LQ:
+        if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
+            one_argument((*info->targ)->name,buf);
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LR:
+        if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
+        if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
+            one_argument(info->rch->name,buf);
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LS:
+        if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
+            s = (char*)his_her[URANGE(0, info->ch->sex, 2)];
+        else
+            s = SOMEONES;
+        break;
+    case ESCAPE_LT:
+        if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
+            one_argument(info->vch->name,buf);
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LU:
+        if(info->ch && (!info->mob || can_see(info->mob,info->ch)))
+            s = (char*)his_hers[URANGE(0, info->ch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LV:
+        if(info->mob) s = (char*)his_hers[URANGE(0, info->mob->sex, 2)];
+        else s = SOMEONES;
+        break;
+    case ESCAPE_LW:
+        if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
+            s = (char*)his_hers[URANGE(0, (*info->targ)->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LX:
+        if(info->vch && (!info->mob || can_see(info->mob,info->vch)))
+            s = (char*)himself[URANGE(0, info->vch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LY:
+        if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
+        if(info->rch && (!info->mob || can_see(info->mob,info->rch)))
+            s = (char*)himself[URANGE(0, info->rch->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    case ESCAPE_LZ:
+        if(info->targ && (*info->targ) && (!info->mob || can_see(info->mob,(*info->targ))))
+            s = (char*)himself[URANGE(0, (*info->targ)->sex, 2)];
+        else
+            s = SOMEONE;
+        break;
+    }
 
-	if(*s) {
-		add_buf(buffer, s);
-	}
+    if(*s) {
+        add_buf(buffer, s);
+    }
 }
 
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
-	char buf[MIL];
-	int num;
+    char buf[MIL];
+    int num;
 
-	str = expand_argument_expression(info,str,&num);
+    str = expand_argument_expression(info,str,&num);
 //	sprintf(buf,"expand_string_expression: str %08X, %2.2X", str, (str ? (*str&0xFF) : 0));
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-	if(!str) return NULL;
+    if(!str) return NULL;
 
-	sprintf(buf,"%d",num);
-	add_buf(buffer,buf);
+    sprintf(buf,"%d",num);
+    add_buf(buffer,buf);
 
 //	sprintf(buf,"expand_string_expression: %d -> '%s'", num, *store);
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-	//DBG3MSG2("num = '%s', str = %02.2X\n", *store, (*str)&0xFF);
+    //DBG3MSG2("num = '%s', str = %02.2X\n", *store, (*str)&0xFF);
 
-	return str;
+    return str;
 }
 
 char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
-	pVARIABLE var;
-	char buf[MIL];
+    pVARIABLE var;
+    char buf[MIL];
 
-	str = expand_variable(info,(info ? *(info->var) : NULL),str, &var);
-	if(!str) return NULL;
+    str = expand_variable(info,(info ? *(info->var) : NULL),str, &var);
+    if(!str) return NULL;
 
-	if(!var) {
-		add_buf(buffer,"(null-var)");
-	} else {
+    if(!var) {
+        add_buf(buffer,"(null-var)");
+    } else {
 //		while(var->type == VAR_VARIABLE) {
 //			var = var->_.variable;
 //			if( !var ) {
@@ -6416,176 +10694,287 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 //			}
 //		}
 
-		switch(var->type) {
-		case VAR_BOOLEAN:
-			if(var->_.boolean) {
-				add_buf(buffer,"true");
-			} else {
-				add_buf(buffer,"false");
-			}
-			break;
-		case VAR_INTEGER:
-			sprintf(buf,"%d",var->_.i);
-			add_buf(buffer, buf);
-			break;
-		case VAR_STRING:
-		case VAR_STRING_S:
-			if(var->_.s && *var->_.s)
-				add_buf(buffer,var->_.s);
-			break;
-		case VAR_ROOM:
-			sprintf(buf,"%d",var->_.r ? (int)var->_.r->vnum : 0);
-			add_buf(buffer,buf);
-			break;
-		case VAR_EXIT:
-			add_buf(buffer,dir_name[var->_.door.door]);
-			break;
-		case VAR_MOBILE:
-			if(var->_.m) {
-				one_argument(var->_.m->name,buf);
-				add_buf(buffer,buf);
-			}
-			break;
-		case VAR_OBJECT:
-			if(var->_.o) {
-				one_argument(var->_.o->name,buf);
-				add_buf(buffer,buf);
-			}
-			break;
-		case VAR_TOKEN:
-			sprintf(buf,"%d",var->_.t ? (int)var->_.t->pIndexData->vnum : 0);
-			add_buf(buffer,buf);
-			break;
+        switch(var->type) {
+        case VAR_BOOLEAN:
+            if(var->_.boolean) {
+                add_buf(buffer,"true");
+            } else {
+                add_buf(buffer,"false");
+            }
+            break;
+        case VAR_INTEGER:
+            sprintf(buf,"%d",var->_.i);
+            add_buf(buffer, buf);
+            break;
+        case VAR_STRING:
+        case VAR_STRING_S:
+            if(var->_.s && *var->_.s)
+                add_buf(buffer,var->_.s);
+            break;
+        case VAR_ROOM:
+            add_buf(buffer, var->_.r ? (char*)widevnum_string_room(var->_.r, NULL) : "0");
+            break;
+        case VAR_EXIT:
+            add_buf(buffer,dir_name[var->_.door.door]);
+            break;
+        case VAR_MOBILE:
+            if(var->_.m) {
+                one_argument(var->_.m->name,buf);
+                add_buf(buffer,buf);
+            }
+            break;
+        case VAR_OBJECT:
+            if(var->_.o) {
+                one_argument(var->_.o->name,buf);
+                add_buf(buffer,buf);
+            }
+            break;
+        case VAR_TOKEN:
+            add_buf(buffer, (var->_.t && var->_.t->pIndexData) ? (char*)widevnum_string_token(var->_.t->pIndexData, NULL) : "0");
+            break;
 
-		case VAR_CONNECTION:
-			add_buf(buffer,((var->_.conn && var->_.conn->character) ? var->_.conn->character->name : SOMEONE));
-			break;
+        case VAR_CONNECTION:
+            add_buf(buffer,((var->_.conn && var->_.conn->character) ? var->_.conn->character->name : SOMEONE));
+            break;
 
-		default:
-			add_buf(buffer,"(null)");
-			break;
-		}
-	}
+        case VAR_SONG:
+            add_buf(buffer, var->_.song ? var->_.song->name : "(null)");
+            break;
 
-	return str;
+        case VAR_RACE:
+            add_buf(buffer, var->_.race ? "(race)" : "(null)");
+            break;
+
+        case VAR_CLASS:
+            add_buf(buffer, var->_.clazz ? "(class)" : "(null)");
+            break;
+
+        case VAR_CLASSLEVEL:
+            if (var->_.classlevel) {
+                sprintf(buf, "classlevel:%d", var->_.classlevel->level);
+                add_buf(buffer, buf);
+            } else {
+                add_buf(buffer, "(null)");
+            }
+            break;
+
+        case VAR_BOOK_PAGE:
+            if (var->_.book_page && var->_.book_page->title)
+                add_buf(buffer, var->_.book_page->title);
+            else
+                add_buf(buffer, "(page)");
+            break;
+
+        case VAR_FOOD_BUFF:
+            add_buf(buffer, var->_.food_buff ? "(food-buff)" : "(null)");
+            break;
+
+        case VAR_WAYPOINT:
+            if (var->_.waypoint && var->_.waypoint->name)
+                add_buf(buffer, var->_.waypoint->name);
+            else
+                add_buf(buffer, "(waypoint)");
+            break;
+
+        case VAR_SHOP_STOCK:
+            add_buf(buffer, var->_.stock ? "(stock)" : "(null)");
+            break;
+
+        case VAR_SPELL:
+            if (var->_.spell && var->_.spell->sn >= 0) {
+                SKILL_DATA *skill = skill_find_uid(var->_.spell->sn);
+                add_buf(buffer, skill ? skill->name : "(spell)");
+            } else {
+                add_buf(buffer, "(null)");
+            }
+            break;
+
+        case VAR_LOCK_STATE:
+            add_buf(buffer, (var->_.lock_state && var->_.lock_state->key_wnum.pArea)
+                ? (char *)widevnum_string_wnum(var->_.lock_state->key_wnum, NULL)
+                : "0");
+            break;
+
+        case VAR_EVENT:
+            add_buf(buffer, formatf("%ld#%u", var->_.event.uid, var->_.event.instance_id));
+            break;
+
+        case VAR_LIQUID:
+            add_buf(buffer, liquid_name(var->_.liquid));
+            break;
+
+        case VAR_MATERIAL:
+            add_buf(buffer, material_name(var->_.material));
+            break;
+
+        case VAR_MOBINDEX:
+            add_buf(buffer, var->_.mobindex ? (char *)widevnum_string_mobile(var->_.mobindex, NULL) : "0");
+            break;
+
+        case VAR_OBJINDEX:
+            add_buf(buffer, var->_.objindex ? (char *)widevnum_string_object(var->_.objindex, NULL) : "0");
+            break;
+
+        case VAR_TOKENINDEX:
+            add_buf(buffer, var->_.token_index ? (char *)widevnum_string_token(var->_.token_index, NULL) : "0");
+            break;
+
+        case VAR_BLUEPRINT:
+            add_buf(buffer, var->_.blueprint ? (char *)widevnum_string_blueprint(var->_.blueprint, NULL) : "0");
+            break;
+
+        case VAR_BLUEPRINT_SECTION:
+            add_buf(buffer, var->_.blueprint_section ? (char *)widevnum_string_blueprint_section(var->_.blueprint_section, NULL) : "0");
+            break;
+
+        case VAR_DUNGEONINDEX:
+            add_buf(buffer, var->_.dungeon_index ? (char *)widevnum_string_dungeon(var->_.dungeon_index, NULL) : "0");
+            break;
+
+        case VAR_SHIPINDEX:
+            add_buf(buffer, var->_.ship_index ? (char *)widevnum_string_ship(var->_.ship_index, NULL) : "0");
+            break;
+
+        default:
+            add_buf(buffer,"(null)");
+            break;
+        }
+    }
+
+    return str;
 }
 
 void expand_string_dump(char *str)
 {
 #ifdef DEBUG_MODULE
-	char buf[MSL*4+1];
-	int i;
+    char buf[MSL*4+1];
+    int i;
 
-	i = 0;
-	while(*str)
-		i += sprintf(buf+i," %02.2X", (*str++)&0xFF);
-	buf[i] = 0;
+    i = 0;
+    while(*str)
+        i += sprintf(buf+i," %02.2X", (*str++)&0xFF);
+    buf[i] = 0;
 
-	printf("str: %s\n", buf);
+    printf("str: %s\n", buf);
 #endif
 }
 
 bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 {
-	str = skip_whitespace(str);
-	while(*str) {
-		if(*str == ESCAPE_ENTITY)
-			str = expand_string_entity(info,str+1,buffer);
-		else if(*str == ESCAPE_EXPRESSION)
-			str = expand_string_expression(info,str+1,buffer);
-		else if(*str == ESCAPE_VARIABLE)
-			str = expand_string_variable(info,str+1,buffer);
-		else if((unsigned char)*str >= ESCAPE_UA && (unsigned char)*str <= ESCAPE_LZ) {
-			expand_string_simple_code(info,*str,buffer);
-			++str;
-		} else
-			add_buf_char(buffer, *str++);
+    str = skip_whitespace(str);
+    while(*str) {
+        if(*str == ESCAPE_ENTITY)
+            str = expand_string_entity(info,str+1,buffer);
+        else if(*str == ESCAPE_EXPRESSION)
+            str = expand_string_expression(info,str+1,buffer);
+        else if(*str == ESCAPE_VARIABLE)
+            str = expand_string_variable(info,str+1,buffer);
+        else if((unsigned char)*str >= ESCAPE_UA && (unsigned char)*str <= ESCAPE_LZ) {
+            expand_string_simple_code(info,*str,buffer);
+            ++str;
+        } else
+            add_buf_char(buffer, *str++);
 
-		if(!str) {
-			clear_buf(buffer);
-			expand_string_dump(buf_string(buffer));
-			DBG2EXITVALUE2(false);
-			return false;
-		}
-	}
+        if(!str) {
+            clear_buf(buffer);
+            expand_string_dump(buf_string(buffer));
+            DBG2EXITVALUE2(false);
+            return false;
+        }
+    }
 
 //	wiznet("EXPAND_STRING:",NULL,NULL,WIZ_TESTING,0,0);
 //	wiznet(start,NULL,NULL,WIZ_TESTING,0,0);
-	expand_string_dump(buf_string(buffer));
-	DBG2EXITVALUE2(true);
-	return true;
+    expand_string_dump(buf_string(buffer));
+    DBG2EXITVALUE2(true);
+    return true;
 }
 
 char *one_argument_escape( char *argument, char *arg_first )
 {
-	int depth;
-	char cEnd;
+    int depth;
+    char cEnd;
 
-	argument = skip_whitespace(argument);
+    argument = skip_whitespace(argument);
 
-	cEnd = ' ';
-	if ( *argument == '\'' || *argument == '"' )
-		cEnd = *argument++;
+    cEnd = ' ';
+    if ( *argument == '\'' || *argument == '"' )
+        cEnd = *argument++;
 
-	while ( *argument && *argument != ESCAPE_END ) {
-		if(*argument == ESCAPE_VARIABLE ||
-		   *argument == ESCAPE_EXPRESSION ||
-		   *argument == ESCAPE_ENTITY) {
-			*arg_first++ = *argument++;
-			depth = 0;
-			while(*argument) {
-				if(*argument == ESCAPE_VARIABLE ||
-				   *argument == ESCAPE_EXPRESSION ||
-				   *argument == ESCAPE_ENTITY)
-					++depth;
-				else if(*argument == ESCAPE_END && !depth--)
-					break;
-				*arg_first++ = *argument++;
-			}
-		}
+    while ( *argument && *argument != ESCAPE_END ) {
+        if(*argument == ESCAPE_VARIABLE ||
+           *argument == ESCAPE_EXPRESSION ||
+           *argument == ESCAPE_ENTITY) {
+            *arg_first++ = *argument++;
+            depth = 0;
+            while(*argument) {
+                if(*argument == ESCAPE_VARIABLE ||
+                   *argument == ESCAPE_EXPRESSION ||
+                   *argument == ESCAPE_ENTITY)
+                    ++depth;
+                else if(*argument == ESCAPE_END && !depth--)
+                    break;
+                *arg_first++ = *argument++;
+            }
+        }
 
-		if ( *argument == cEnd ) {
-			argument++;
-			break;
-		}
-		*arg_first++ = *argument++;
-	}
-	*arg_first = '\0';
+        if ( *argument == cEnd ) {
+            argument++;
+            break;
+        }
+        *arg_first++ = *argument++;
+    }
+    *arg_first = '\0';
 
-	return skip_whitespace(argument);
+    return skip_whitespace(argument);
 }
 
 
 char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char *buf = malloc(strlen(str) + 1);
+    char buf[MSL*2+1];
 
-	str = skip_whitespace(str);
-	arg->type = ENT_NONE;		// ENT_PRIMARY
-	clear_buf(arg->buffer);
+    str = skip_whitespace(str);
+    arg->type = ENT_NONE;		// ENT_PRIMARY
+    clear_buf(arg->buffer);
 
-	if(*str == ESCAPE_ENTITY)
-		str = expand_argument_entity(info,str+1,arg);
-	else if(*str == ESCAPE_EXPRESSION) {
-		arg->type = ENT_NUMBER;
-		str = expand_argument_expression(info,str+1,&arg->d.num);
-	} else if(*str == ESCAPE_VARIABLE) {
-		str = expand_argument_variable(info,str+1,arg);
-	} else if((unsigned char)*str >= ESCAPE_UA && (unsigned char)*str <= ESCAPE_LZ) {
-		expand_argument_simple_code(info,(unsigned char)(*str++),arg);
-	} else if(*str) {
-		str = one_argument_escape(str,buf);
+    if(*str == ESCAPE_ENTITY)
+        str = expand_argument_entity(info,str+1,arg);
+    else if(*str == ESCAPE_EXPRESSION) {
+        arg->type = ENT_NUMBER;
+        str = expand_argument_expression(info,str+1,&arg->d.num);
+    } else if(*str == ESCAPE_VARIABLE) {
+        str = expand_argument_variable(info,str+1,arg);
+    } else if((unsigned char)*str >= ESCAPE_UA && (unsigned char)*str <= ESCAPE_LZ) {
+        expand_argument_simple_code(info,(unsigned char)(*str++),arg);
+    } else if(*str) {
+        str = one_argument_escape(str,buf);
 
-		if(is_number(buf)) {
-			arg->type = ENT_NUMBER;
-			arg->d.num = atoi(buf);
-		} else if(expand_string(info,buf,arg->buffer)) {
-			arg->type = ENT_STRING;
-			arg->d.str = buf_string(arg->buffer);
-		}
-	}
+        if(is_number(buf)) {
+            arg->type = ENT_NUMBER;
+            arg->d.num = atoi(buf);
+        } else if(expand_string(info,buf,arg->buffer)) {
+            arg->type = ENT_STRING;
+            arg->d.str = buf_string(arg->buffer);
 
-	free(buf);
+            // If this can be parsed as a widevnum...
+            //  AUID#VNUM
+            //  NAME#VNUM 
+            //
+            WNUM wnum;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+            {
+                arg->type = ENT_WIDEVNUM;
+                arg->d.wnum = wnum;
+            }
+            else if (is_number(arg->d.str))
+            {
+                int value = atoi(arg->d.str);
+                arg->type = ENT_NUMBER;
+                arg->d.num = value;
+            }
+        }
+    }
 
-	return skip_whitespace(str);
+    return skip_whitespace(str);
 }

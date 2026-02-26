@@ -74,7 +74,7 @@ void string_append(CHAR_DATA *ch, char **pString)
 
     /*
     if (*(*pString + strlen(*pString) - 1) != '\r')
-	send_to_char("\n\r", ch); */
+    send_to_char("\n\r", ch); */
 
     ch->desc->pString = pString;
 
@@ -83,7 +83,7 @@ void string_append(CHAR_DATA *ch, char **pString)
 
 char *string_replace_static(char * orig, char * old, char * new)
 {
-	static int cnt = 0;
+    static int cnt = 0;
     static char xbuf[4][MAX_STRING_LENGTH * 2];
 
     cnt = (cnt+1) & 3;;
@@ -127,9 +127,9 @@ char *string_replace(char * orig, char * old, char * new)
 
 void string_postprocess(CHAR_DATA *ch, bool execute)
 {
-	ch->desc->pString = NULL;
+    ch->desc->pString = NULL;
 
-		    // Handle changeset comment editing
+            // Handle changeset comment editing
     if (ch->desc->editor == ED_CHANGESET) {
         ch->desc->editor = ED_NONE;
         
@@ -138,75 +138,87 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
         send_to_char("Changeset comment saved.\n\r", ch);
     }
 
-	if (ch->desc->editor == ED_ACCNOTE) {
-		ch->desc->editor = ED_NONE;
+    if (ch->desc->editor == ED_ACCNOTE) {
+        ch->desc->editor = ED_NONE;
 
-		string_end_accnote(ch);
-	}
+        string_end_accnote(ch);
+    }
 
-	if (ch->desc->editor == ED_CHLOG) {
-		ch->desc->editor = ED_NONE;
+    if (ch->desc->editor == ED_CHARNOTE) {
+        ch->desc->editor = ED_NONE;
 
-		string_end_chlog(ch);
-	}
-	
-	if (ch->desc->editor == ED_GAMESETTING) {
-		ch->desc->editor = ED_NONE;
+        string_end_charnote(ch);
+    }
 
-		game_settings_string_edit(ch);
-	}
+    if (ch->desc->editor == ED_CHLOG) {
+        ch->desc->editor = ED_NONE;
 
-	if( ch->desc->input && ch->desc->inputString != NULL)
-	{
-		int ret;
-		SCRIPT_DATA *script = NULL;
-		VARIABLE **var = NULL;
-		CHAR_DATA *mob = ch->desc->input_mob;
-		OBJ_DATA *obj = ch->desc->input_obj;
-		ROOM_INDEX_DATA *room = ch->desc->input_room;
-		TOKEN_DATA *tok = ch->desc->input_tok;
-		char *v = ch->desc->input_var;
-		char *s = ch->desc->inputString;
+        string_end_chlog(ch);
+    }
 
-		if(ch->desc->input_mob) {
-			script = get_script_index(ch->desc->input_script,PRG_MPROG);
-			var = &ch->desc->input_mob->progs->vars;
-		} else if(ch->desc->input_obj) {
-			script = get_script_index(ch->desc->input_script,PRG_OPROG);
-			var = &ch->desc->input_obj->progs->vars;
-		} else if(ch->desc->input_room) {
-			script = get_script_index(ch->desc->input_script,PRG_RPROG);
-			var = &ch->desc->input_room->progs->vars;
-		} else if(ch->desc->input_tok) {
-			script = get_script_index(ch->desc->input_script,PRG_TPROG);
-			var = &ch->desc->input_tok->progs->vars;
-		}
+    if (ch->desc->editor == ED_CHREPORT) {
+        ch->desc->editor = ED_NONE;
 
-		// Clear this incase other scripts chain together
-		ch->desc->input = false;
-		ch->desc->input_var = NULL;
-		ch->desc->input_script = 0;
-		ch->desc->input_mob = NULL;
-		ch->desc->input_obj = NULL;
-		ch->desc->input_room = NULL;
-		ch->desc->input_tok = NULL;
-		if(ch->desc->input_prompt) free_string(ch->desc->input_prompt);
-		ch->desc->input_prompt = NULL;
-		ch->desc->inputString = NULL;
+        string_end_chreport(ch);
+    }
+    
+    if (ch->desc->editor == ED_GAMESETTING) {
+        ch->desc->editor = ED_NONE;
 
-		if(script && execute) {
-			if(!IS_NULLSTR(v) && !IS_NULLSTR(s)) {
-				variables_set_string(var,v,s,false);
-			}
+        game_settings_string_edit(ch);
+    }
 
-			ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,0,0,0,0,0);
-			if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
-				do_function(ch, &do_quit, NULL);
-		}
+    if( ch->desc->input && ch->desc->inputString != NULL)
+    {
+        int ret;
+        SCRIPT_DATA *script = NULL;
+        VARIABLE **var = NULL;
+        CHAR_DATA *mob = ch->desc->input_mob;
+        OBJ_DATA *obj = ch->desc->input_obj;
+        ROOM_INDEX_DATA *room = ch->desc->input_room;
+        TOKEN_DATA *tok = ch->desc->input_tok;
+        char *v = ch->desc->input_var;
+        char *s = ch->desc->inputString;
 
-		if(v) free_string(v);
-		if(s) free_string(s);
-	}
+        if(ch->desc->input_mob) {
+            script = get_script_index_global(ch->desc->input_script,PRG_MPROG);
+            var = &ch->desc->input_mob->progs->vars;
+        } else if(ch->desc->input_obj) {
+            script = get_script_index_global(ch->desc->input_script,PRG_OPROG);
+            var = &ch->desc->input_obj->progs->vars;
+        } else if(ch->desc->input_room) {
+            script = get_script_index_global(ch->desc->input_script,PRG_RPROG);
+            var = &ch->desc->input_room->progs->vars;
+        } else if(ch->desc->input_tok) {
+            script = get_script_index_global(ch->desc->input_script,PRG_TPROG);
+            var = &ch->desc->input_tok->progs->vars;
+        }
+
+        // Clear this incase other scripts chain together
+        ch->desc->input = false;
+        ch->desc->input_var = NULL;
+        ch->desc->input_script = 0;
+        ch->desc->input_mob = NULL;
+        ch->desc->input_obj = NULL;
+        ch->desc->input_room = NULL;
+        ch->desc->input_tok = NULL;
+        if(ch->desc->input_prompt) free_string(ch->desc->input_prompt);
+        ch->desc->input_prompt = NULL;
+        ch->desc->inputString = NULL;
+
+        if(script && execute) {
+            if(!IS_NULLSTR(v) && !IS_NULLSTR(s)) {
+                variables_set_string(var,v,s,false);
+            }
+
+            ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,TRIG_NONE,0,0,0,0,0);
+            if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
+                do_function(ch, &do_quit, NULL);
+        }
+
+        if(v) free_string(v);
+        if(s) free_string(s);
+    }
 
 }
 
@@ -225,36 +237,36 @@ void string_add(CHAR_DATA *ch, char *argument)
         char arg2 [MAX_INPUT_LENGTH];
         char arg3 [MAX_INPUT_LENGTH];
         char tmparg3 [MAX_INPUT_LENGTH];
-	//char *col_line;
+    //char *col_line;
 
         argument = one_argument(argument, arg1);
 
-	if (!str_cmp (arg1, "./"))
-	{
-		interpret(ch, argument);
-		send_to_char ("Command performed.\n\r", ch);
-		return;
+    if (!str_cmp (arg1, "./"))
+    {
+        interpret(ch, argument);
+        send_to_char ("Command performed.\n\r", ch);
+        return;
 
-	}
+    }
 
-	argument = first_arg(argument, arg2, false);
-	strcpy(tmparg3, argument);
+    argument = first_arg(argument, arg2, false);
+    strcpy(tmparg3, argument);
         argument = first_arg(argument, arg3, false);
 
 
-	 if (!str_cmp(arg1, ".c"))
+     if (!str_cmp(arg1, ".c"))
         {
             send_to_char("String cleared.\n\r", ch);
-	    free_string(*ch->desc->pString);
-	    *ch->desc->pString = str_dup("");
+        free_string(*ch->desc->pString);
+        *ch->desc->pString = str_dup("");
             return;
         }
 
         if (!str_cmp(arg1, ".s"))
         {
             send_to_char("String so far:\n\r", ch);
-	    send_to_char(numlineas(*ch->desc->pString), ch);
-	    return;
+        send_to_char(numlineas(*ch->desc->pString), ch);
+        return;
         }
 
         if (!str_cmp(arg1, ".r"))
@@ -287,27 +299,27 @@ void string_add(CHAR_DATA *ch, char *argument)
             return;
         }
 
-	if (!str_cmp(arg1, ".ld"))
-	{
-		*ch->desc->pString = string_linedel(*ch->desc->pString, atoi(arg2));
-		send_to_char("Line deleted.\n\r", ch);
-		return;
-	}
+    if (!str_cmp(arg1, ".ld"))
+    {
+        *ch->desc->pString = string_linedel(*ch->desc->pString, atoi(arg2));
+        send_to_char("Line deleted.\n\r", ch);
+        return;
+    }
 
-	if (!str_cmp(arg1, ".li"))
-	{
-		*ch->desc->pString = string_lineadd(*ch->desc->pString, tmparg3, atoi(arg2));
-		send_to_char("Line inserted.\n\r", ch);
-		return;
-	}
+    if (!str_cmp(arg1, ".li"))
+    {
+        *ch->desc->pString = string_lineadd(*ch->desc->pString, tmparg3, atoi(arg2));
+        send_to_char("Line inserted.\n\r", ch);
+        return;
+    }
 
-	if (!str_cmp(arg1, ".lr"))
-	{
-		*ch->desc->pString = string_linedel(*ch->desc->pString, atoi(arg2));
-		*ch->desc->pString = string_lineadd(*ch->desc->pString, tmparg3, atoi(arg2));
-		send_to_char("Line replaced.\n\r", ch);
-		return;
-	}
+    if (!str_cmp(arg1, ".lr"))
+    {
+        *ch->desc->pString = string_linedel(*ch->desc->pString, atoi(arg2));
+        *ch->desc->pString = string_lineadd(*ch->desc->pString, tmparg3, atoi(arg2));
+        send_to_char("Line replaced.\n\r", ch);
+        return;
+    }
 
         if (!str_cmp(arg1, ".h"))
         {
@@ -317,13 +329,13 @@ void string_add(CHAR_DATA *ch, char *argument)
             send_to_char("{M.h{X               - get help (this info)\n\r", ch);
             send_to_char("{M.s{X               - show string so far  \n\r", ch);
             send_to_char("{M.f{X               - format (word wrap) string  \n\r", ch);
-			send_to_char("{M.fp{X              - format string, leaving blank lines \n\r", ch);
+            send_to_char("{M.fp{X              - format string, leaving blank lines \n\r", ch);
             send_to_char("{M.c{X               - clear string so far \n\r", ch);
             send_to_char("{M.ld <num>{X    - delete line <num>\n\r", ch);
             send_to_char("{M.li <num> <str>{X- insert <str> before line <num>\n\r", ch);
             send_to_char("{M.lr <num> <str>{X- replace line <num> with <str>\n\r", ch);
-	    send_to_char("{M./ <command>{X - do a regular command\n\r", ch);
-	    send_to_char("{M@{X                - exit the editor          \n\r", ch);
+        send_to_char("{M./ <command>{X - do a regular command\n\r", ch);
+        send_to_char("{M@{X                - exit the editor          \n\r", ch);
             return;
         }
 
@@ -333,7 +345,7 @@ void string_add(CHAR_DATA *ch, char *argument)
 
     if (*argument == '~' || *argument == '@')
     {
-		string_postprocess(ch, true);
+        string_postprocess(ch, true);
         return;
     }
 
@@ -347,8 +359,8 @@ void string_add(CHAR_DATA *ch, char *argument)
     {
         send_to_char("String too long, last line skipped.\n\r", ch);
 
-	/* Force character out of editing mode. */
-		string_postprocess(ch, false);
+    /* Force character out of editing mode. */
+        string_postprocess(ch, false);
         return;
     }
 
@@ -367,290 +379,290 @@ void string_add(CHAR_DATA *ch, char *argument)
 
 char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 {
-	char xbuf[MAX_STRING_LENGTH];
-	char xbuf2[MAX_STRING_LENGTH];
-	char xbuf3[MAX_STRING_LENGTH];
-	char *rdesc;
-	int i = 0, lines = 0, leni, len;
-	bool cap = true;
+    char xbuf[MAX_STRING_LENGTH];
+    char xbuf2[MAX_STRING_LENGTH];
+    char xbuf3[MAX_STRING_LENGTH];
+    char *rdesc;
+    int i = 0, lines = 0, leni, len;
+    bool cap = true;
 
-	xbuf[0] = xbuf2[0] = xbuf3[0] = 0;
+    xbuf[0] = xbuf2[0] = xbuf3[0] = 0;
 
-	for (rdesc = oldstring; *rdesc; rdesc++) {
-		if (*rdesc=='\n') {
-			xbuf2[i++] = '\n';
+    for (rdesc = oldstring; *rdesc; rdesc++) {
+        if (*rdesc=='\n') {
+            xbuf2[i++] = '\n';
 
-		} else if (*rdesc=='\r')
-			;
-		else if (*rdesc==' ') {
-			if (xbuf2[i-1] != ' ' && xbuf2[i-1] != '\n') xbuf2[i++]=' ';
-		} else if (*rdesc==')') {
-			if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
-				(xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
-				xbuf2[i-2]=*rdesc;
-				xbuf2[i-1]=' ';
-				xbuf2[i]=' ';
-				i++;
-			} else
-				xbuf2[i++]=*rdesc;
-		} else if ((*rdesc=='.' || *rdesc=='?' || *rdesc=='!') && *(rdesc+1) == ' ') {
-			if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
-				(xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
-				xbuf2[i-2]=*rdesc;
-				if (*(rdesc+1) != '\"') {
-					xbuf2[i-1]=' ';
-					xbuf2[i++]=' ';
-				} else {
-					xbuf2[i-1]='\"';
-					xbuf2[i]=' ';
-					xbuf2[i+1]=' ';
-					i+=2;
-					rdesc++;
-				}
-			} else {
-				xbuf2[i]=*rdesc;
-				if (*(rdesc+1) != '\"') {
-					xbuf2[i+1]=' ';
-					xbuf2[i+2]=' ';
-					i += 3;
-				} else {
-					xbuf2[i+1]='\"';
-					xbuf2[i+2]=' ';
-					xbuf2[i+3]=' ';
-					i += 4;
-					rdesc++;
-				}
-			}
-			cap = true;
-		} else {
-			xbuf2[i]=*rdesc;
-			if (cap) {
-				cap = false;
-				xbuf2[i] = UPPER(xbuf2[i]);
-			}
-			i++;
-		}
-	}
-	xbuf2[i]=0;
+        } else if (*rdesc=='\r')
+            ;
+        else if (*rdesc==' ') {
+            if (xbuf2[i-1] != ' ' && xbuf2[i-1] != '\n') xbuf2[i++]=' ';
+        } else if (*rdesc==')') {
+            if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
+                (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+                xbuf2[i-2]=*rdesc;
+                xbuf2[i-1]=' ';
+                xbuf2[i]=' ';
+                i++;
+            } else
+                xbuf2[i++]=*rdesc;
+        } else if ((*rdesc=='.' || *rdesc=='?' || *rdesc=='!') && *(rdesc+1) == ' ') {
+            if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
+                (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+                xbuf2[i-2]=*rdesc;
+                if (*(rdesc+1) != '\"') {
+                    xbuf2[i-1]=' ';
+                    xbuf2[i++]=' ';
+                } else {
+                    xbuf2[i-1]='\"';
+                    xbuf2[i]=' ';
+                    xbuf2[i+1]=' ';
+                    i+=2;
+                    rdesc++;
+                }
+            } else {
+                xbuf2[i]=*rdesc;
+                if (*(rdesc+1) != '\"') {
+                    xbuf2[i+1]=' ';
+                    xbuf2[i+2]=' ';
+                    i += 3;
+                } else {
+                    xbuf2[i+1]='\"';
+                    xbuf2[i+2]=' ';
+                    xbuf2[i+3]=' ';
+                    i += 4;
+                    rdesc++;
+                }
+            }
+            cap = true;
+        } else {
+            xbuf2[i]=*rdesc;
+            if (cap) {
+                cap = false;
+                xbuf2[i] = UPPER(xbuf2[i]);
+            }
+            i++;
+        }
+    }
+    xbuf2[i]=0;
 
-	// Collapse all single newlines to spaces
-	char *wdesc = xbuf3;
-	for(rdesc = xbuf2; *rdesc; rdesc++)
-	{
-		if( *rdesc == '\n' )
-		{
-			if( rdesc[1] == '\n' )
-			{
-				while(rdesc[1] == '\n')
-					*wdesc++ = *rdesc++;
-			}
-			else
-			{
-				*wdesc++ = ' ';
-			}
-		}
-		else
-			*wdesc++ = *rdesc;
-	}
-	while((wdesc > xbuf2) && (*wdesc == ' ' || *wdesc == '\n')) --wdesc;
-	*wdesc++ = '\n';
-	*wdesc = '\0';
+    // Collapse all single newlines to spaces
+    char *wdesc = xbuf3;
+    for(rdesc = xbuf2; *rdesc; rdesc++)
+    {
+        if( *rdesc == '\n' )
+        {
+            if( rdesc[1] == '\n' )
+            {
+                while(rdesc[1] == '\n')
+                    *wdesc++ = *rdesc++;
+            }
+            else
+            {
+                *wdesc++ = ' ';
+            }
+        }
+        else
+            *wdesc++ = *rdesc;
+    }
+    while((wdesc > xbuf2) && (*wdesc == ' ' || *wdesc == '\n')) --wdesc;
+    *wdesc++ = '\n';
+    *wdesc = '\0';
 
 
-	xbuf[0]=0;
-	lines = 0;
-	leni = 0;
-	for (rdesc = xbuf3; *rdesc; )
-	{
-		// Get the line length for this line
-		if((leni+1) < lenc && lines >= lens[leni+1][0])
-			++leni;
-		len = lens[leni][1];
+    xbuf[0]=0;
+    lines = 0;
+    leni = 0;
+    for (rdesc = xbuf3; *rdesc; )
+    {
+        // Get the line length for this line
+        if((leni+1) < lenc && lines >= lens[leni+1][0])
+            ++leni;
+        len = lens[leni][1];
 
-		if( *rdesc == '\n' )
-		{
-			strcat(xbuf,"\n\r");
-			rdesc++;
-			continue;
-		}
+        if( *rdesc == '\n' )
+        {
+            strcat(xbuf,"\n\r");
+            rdesc++;
+            continue;
+        }
 
-		// Check if we are the end of the line
-		for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
+        // Check if we are the end of the line
+        for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
 
-		// If the current line will fit completely, break
-		if (i<len)
-		{
-			strncat(xbuf,rdesc,i);
-			strcat(xbuf,"\n\r");
+        // If the current line will fit completely, break
+        if (i<len)
+        {
+            strncat(xbuf,rdesc,i);
+            strcat(xbuf,"\n\r");
 
-			rdesc += i;
-		}
-		else
-		{
-			int j;
-			// Find a line break
-			for (j = len; --j > 0 && *(rdesc+j)!=' ';);
+            rdesc += i;
+        }
+        else
+        {
+            int j;
+            // Find a line break
+            for (j = len; --j > 0 && *(rdesc+j)!=' ';);
 
-			// Found a line break
-			if (j > 0) {
-				strncat(xbuf,rdesc,j);
-				strcat(xbuf,"\n\r");
-				rdesc += j+1;
-				while (*rdesc == ' ') rdesc++;
-			// The entire line has no breaks
-			} else {
-				bug ("No spaces", 0);
-				strncat(xbuf,rdesc,len);
-				strcat(xbuf,"-\n\r");
-				rdesc += len;
-			}
+            // Found a line break
+            if (j > 0) {
+                strncat(xbuf,rdesc,j);
+                strcat(xbuf,"\n\r");
+                rdesc += j+1;
+                while (*rdesc == ' ') rdesc++;
+            // The entire line has no breaks
+            } else {
+                pbugf(LOG_ERROR, "No spaces");
+                strncat(xbuf,rdesc,len);
+                strcat(xbuf,"-\n\r");
+                rdesc += len;
+            }
 
-			if( *rdesc == '\n' ) rdesc++;
-		}
-	}
+            if( *rdesc == '\n' ) rdesc++;
+        }
+    }
 
-	if( xbuf[0] != '\0' )
-	{
-		int i = strlen(xbuf);
-		while( (--i > 0) && ISSPACE(xbuf[i]) );
-		xbuf[++i] = '\n';
-		xbuf[++i] = '\r';
-		xbuf[++i] = '\0';
-	}
+    if( xbuf[0] != '\0' )
+    {
+        int i = strlen(xbuf);
+        while( (--i > 0) && ISSPACE(xbuf[i]) );
+        xbuf[++i] = '\n';
+        xbuf[++i] = '\r';
+        xbuf[++i] = '\0';
+    }
 
-	if(mem) free_string(oldstring);
-	return(str_dup(xbuf));
+    if(mem) free_string(oldstring);
+    return(str_dup(xbuf));
 
 }
 
 char *format_paragraph(char *oldstring)
 {
-	int lens[1][2] = { { 0,77 } };
-	return format_paragraph_len(oldstring,lens,1,true);
+    int lens[1][2] = { { 0,77 } };
+    return format_paragraph_len(oldstring,lens,1,true);
 }
 
 
 char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
 {
-	char xbuf[MAX_STRING_LENGTH];
-	char xbuf2[MAX_STRING_LENGTH];
-	char *rdesc;
-	int i = 0, lines = 0, leni, len;
-	bool cap = true;
+    char xbuf[MAX_STRING_LENGTH];
+    char xbuf2[MAX_STRING_LENGTH];
+    char *rdesc;
+    int i = 0, lines = 0, leni, len;
+    bool cap = true;
 
-	xbuf[0] = xbuf2[0] = 0;
+    xbuf[0] = xbuf2[0] = 0;
 
-	// This collapses the string into one line
-	for (rdesc = oldstring; *rdesc; rdesc++) {
-		if (*rdesc=='\n') {
-			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
-		} else if (*rdesc=='\r') ;
-		else if (*rdesc==' ') {
-			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
-		} else if (*rdesc==')') {
-			if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
-				(xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
-				xbuf2[i-2]=*rdesc;
-				xbuf2[i-1]=' ';
-				xbuf2[i]=' ';
-				i++;
-			} else
-				xbuf2[i++]=*rdesc;
-		} else if ((*rdesc=='.' || *rdesc=='?' || *rdesc=='!') && *(rdesc+1) == ' ') {
-			if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
-				(xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
-				xbuf2[i-2]=*rdesc;
-				if (*(rdesc+1) != '\"') {
-					xbuf2[i-1]=' ';
-					xbuf2[i++]=' ';
-				} else {
-					xbuf2[i-1]='\"';
-					xbuf2[i]=' ';
-					xbuf2[i+1]=' ';
-					i+=2;
-					rdesc++;
-				}
-			} else {
-				xbuf2[i]=*rdesc;
-				if (*(rdesc+1) != '\"') {
-					xbuf2[i+1]=' ';
-					xbuf2[i+2]=' ';
-					i += 3;
-				} else {
-					xbuf2[i+1]='\"';
-					xbuf2[i+2]=' ';
-					xbuf2[i+3]=' ';
-					i += 4;
-					rdesc++;
-				}
-			}
-			cap = true;
-		} else {
-			xbuf2[i]=*rdesc;
-			if (cap) {
-				cap = false;
-				xbuf2[i] = UPPER(xbuf2[i]);
-			}
-			i++;
-		}
-	}
-	xbuf2[i]=0;
+    // This collapses the string into one line
+    for (rdesc = oldstring; *rdesc; rdesc++) {
+        if (*rdesc=='\n') {
+            if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
+        } else if (*rdesc=='\r') ;
+        else if (*rdesc==' ') {
+            if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
+        } else if (*rdesc==')') {
+            if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
+                (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+                xbuf2[i-2]=*rdesc;
+                xbuf2[i-1]=' ';
+                xbuf2[i]=' ';
+                i++;
+            } else
+                xbuf2[i++]=*rdesc;
+        } else if ((*rdesc=='.' || *rdesc=='?' || *rdesc=='!') && *(rdesc+1) == ' ') {
+            if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
+                (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+                xbuf2[i-2]=*rdesc;
+                if (*(rdesc+1) != '\"') {
+                    xbuf2[i-1]=' ';
+                    xbuf2[i++]=' ';
+                } else {
+                    xbuf2[i-1]='\"';
+                    xbuf2[i]=' ';
+                    xbuf2[i+1]=' ';
+                    i+=2;
+                    rdesc++;
+                }
+            } else {
+                xbuf2[i]=*rdesc;
+                if (*(rdesc+1) != '\"') {
+                    xbuf2[i+1]=' ';
+                    xbuf2[i+2]=' ';
+                    i += 3;
+                } else {
+                    xbuf2[i+1]='\"';
+                    xbuf2[i+2]=' ';
+                    xbuf2[i+3]=' ';
+                    i += 4;
+                    rdesc++;
+                }
+            }
+            cap = true;
+        } else {
+            xbuf2[i]=*rdesc;
+            if (cap) {
+                cap = false;
+                xbuf2[i] = UPPER(xbuf2[i]);
+            }
+            i++;
+        }
+    }
+    xbuf2[i]=0;
 
-	rdesc=xbuf2;
+    rdesc=xbuf2;
 
-	xbuf[0]=0;
-	lines = 0;
-	leni = 0;
+    xbuf[0]=0;
+    lines = 0;
+    leni = 0;
 
-	for (; ;) {
-		// Get the line length for this line
-		if((leni+1) < lenc && lines >= lens[leni+1][0])
-			++leni;
-		len = lens[leni][1];
+    for (; ;) {
+        // Get the line length for this line
+        if((leni+1) < lenc && lines >= lens[leni+1][0])
+            ++leni;
+        len = lens[leni][1];
 
-		// Check if we are the end of the line
-		for (i=0; i<len && *(rdesc+i); i++);
-		// If the current line will fit completely, break
-		if (i<len) break;
+        // Check if we are the end of the line
+        for (i=0; i<len && *(rdesc+i); i++);
+        // If the current line will fit completely, break
+        if (i<len) break;
 
-		// Find a line break
-		for (i=len-(xbuf[0]?0:3) ; --i > 0 && *(rdesc+i)!=' ';);
+        // Find a line break
+        for (i=len-(xbuf[0]?0:3) ; --i > 0 && *(rdesc+i)!=' ';);
 
-		// Found a line break
-		if (i > 0) {
-			strncat(xbuf,rdesc,i);
-			strcat(xbuf,"\n\r");
-			rdesc += i+1;
-			while (*rdesc == ' ') rdesc++;
-		// The entire line has no breaks
-		} else {
-			bug ("No spaces", 0);
-			strncat(xbuf,rdesc,len-2);
-			strcat(xbuf,"-\n\r");
-			rdesc += len - 2;
-		}
-	}
+        // Found a line break
+        if (i > 0) {
+            strncat(xbuf,rdesc,i);
+            strcat(xbuf,"\n\r");
+            rdesc += i+1;
+            while (*rdesc == ' ') rdesc++;
+        // The entire line has no breaks
+        } else {
+            pbugf(LOG_ERROR, "No spaces");
+            strncat(xbuf,rdesc,len-2);
+            strcat(xbuf,"-\n\r");
+            rdesc += len - 2;
+        }
+    }
 
-	// Strip off excess whitespace
-	while (*(rdesc+i) && (*(rdesc+i)==' '||
-		*(rdesc+i)=='\n'|| *(rdesc+i)=='\r')) i--;
+    // Strip off excess whitespace
+    while (*(rdesc+i) && (*(rdesc+i)==' '||
+        *(rdesc+i)=='\n'|| *(rdesc+i)=='\r')) i--;
 
-	*(rdesc+i+1)=0;
-	strcat(xbuf,rdesc);
-	i = strlen(xbuf);
-	if (xbuf[i-2] != '\n')
-		strcat(xbuf,"\n\r");
+    *(rdesc+i+1)=0;
+    strcat(xbuf,rdesc);
+    i = strlen(xbuf);
+    if (xbuf[i-2] != '\n')
+        strcat(xbuf,"\n\r");
 
-	if(mem) free_string(oldstring);
-	return(str_dup(xbuf));
+    if(mem) free_string(oldstring);
+    return(str_dup(xbuf));
 }
 
 
 
 char *format_string(char *oldstring)
 {
-	int lens[1][2] = { { 0,77 } };
-	return format_string_len(oldstring,lens,1,true);
+    int lens[1][2] = { { 0,77 } };
+    return format_string_len(oldstring,lens,1,true);
 }
 
 
@@ -659,7 +671,7 @@ char *first_arg(char *argument, char *arg_first, bool fCase)
     char cEnd;
 
     while (*argument == ' ')
-	argument++;
+    argument++;
 
     cEnd = ' ';
     if (*argument == '\'' || *argument == '"'
@@ -675,20 +687,20 @@ char *first_arg(char *argument, char *arg_first, bool fCase)
 
     while (*argument != '\0')
     {
-	if (*argument == cEnd)
-	{
-	    argument++;
-	    break;
-	}
+    if (*argument == cEnd)
+    {
+        argument++;
+        break;
+    }
     if (fCase) *arg_first = LOWER(*argument);
             else *arg_first = *argument;
-	arg_first++;
-	argument++;
+    arg_first++;
+    argument++;
     }
     *arg_first = '\0';
 
     while (*argument == ' ')
-	argument++;
+    argument++;
 
     return argument;
 }
@@ -765,21 +777,21 @@ char *string_linedel(char *string, int line)
 
     for (; *strtmp != '\0'; strtmp++)
     {
-	if (cnt != line)
-	    buf[tmp++] = *strtmp;
+    if (cnt != line)
+        buf[tmp++] = *strtmp;
 
-	if (*strtmp == '\n')
-	{
-	    if (*(strtmp + 1) == '\r')
-	    {
-		if (cnt != line)
-		    buf[tmp++] = *(++strtmp);
-		else
-		    ++strtmp;
-	    }
+    if (*strtmp == '\n')
+    {
+        if (*(strtmp + 1) == '\r')
+        {
+        if (cnt != line)
+            buf[tmp++] = *(++strtmp);
+        else
+            ++strtmp;
+        }
 
-	    cnt++;
-	}
+        cnt++;
+    }
     }
 
     buf[tmp] = '\0';
@@ -799,29 +811,29 @@ char *string_lineadd(char *string, char *newstr, int line)
 
     for (; *strtmp != '\0' || (!done && cnt == line); strtmp++)
     {
-	if (cnt == line && !done)
-	{
-	    strcat(buf, newstr);
-	    strcat(buf, "\n\r");
-	    tmp += strlen(newstr) + 2;
-	    cnt++;
-	    done = true;
-	}
+    if (cnt == line && !done)
+    {
+        strcat(buf, newstr);
+        strcat(buf, "\n\r");
+        tmp += strlen(newstr) + 2;
+        cnt++;
+        done = true;
+    }
 
-	buf[tmp++] = *strtmp;
+    buf[tmp++] = *strtmp;
 
-	if (done && *strtmp == '\0')
-	    break;
+    if (done && *strtmp == '\0')
+        break;
 
-	if (*strtmp == '\n')
-	{
-	    if (*(strtmp + 1) == '\r')
-		buf[tmp++] = *(++strtmp);
+    if (*strtmp == '\n')
+    {
+        if (*(strtmp + 1) == '\r')
+        buf[tmp++] = *(++strtmp);
 
-	    cnt++;
-	}
+        cnt++;
+    }
 
-	buf[tmp] = '\0';
+    buf[tmp] = '\0';
     }
 
     free_string(string);
@@ -836,21 +848,21 @@ char *olc_getline(char *str, char *buf)
 
     while (*str)
     {
-	if (*str == '\n')
-	{
-	    found = true;
-	    break;
-	}
+    if (*str == '\n')
+    {
+        found = true;
+        break;
+    }
 
-	buf[tmp++] = *(str++);
+    buf[tmp++] = *(str++);
     }
 
     if (found)
     {
-	if (*(str + 1) == '\r')
-	    str += 2;
-	else
-	    str += 1;
+    if (*(str + 1) == '\r')
+        str += 2;
+    else
+        str += 1;
     }
 
     buf[tmp] = '\0';
@@ -869,9 +881,9 @@ char *numlineas(char *string)
 
     while (*string)
     {
-		string = olc_getline(string, tmpb);
-		sprintf(buf2, "%2d. %s\n\r", cnt++, tmpb);
-		strcat(buf, buf2);
+        string = olc_getline(string, tmpb);
+        sprintf(buf2, "%2d. %s\n\r", cnt++, tmpb);
+        strcat(buf, buf2);
     }
 
     return buf;
@@ -880,85 +892,85 @@ char *numlineas(char *string)
 
 bool string_argremove_index(char *src, int argindex, char *buf)
 {
-	char *left_start = src;
-	char *left_end = src;
-	char *right_start;
-	char arg[MIL];
-	int i;
+    char *left_start = src;
+    char *left_end = src;
+    char *right_start;
+    char arg[MIL];
+    int i;
 
-	if( !src || !buf || argindex < 0 ) return false;
+    if( !src || !buf || argindex < 0 ) return false;
 
-	strcpy(buf, src);
+    strcpy(buf, src);
 
 
-	// Find the left part
-	for(i = 0; i < argindex; i++) {
-		left_end = one_argument(left_end, arg);
-	}
+    // Find the left part
+    for(i = 0; i < argindex; i++) {
+        left_end = one_argument(left_end, arg);
+    }
 
-	if(IS_NULLSTR(left_end)) {
-		strcpy(buf, src);
-	}
+    if(IS_NULLSTR(left_end)) {
+        strcpy(buf, src);
+    }
 
-	// Get the right part
-	right_start = one_argument(left_end, arg);
+    // Get the right part
+    right_start = one_argument(left_end, arg);
 
-	strcpy(buf + (int)(left_end - left_start), right_start);
-	return true;
+    strcpy(buf + (int)(left_end - left_start), right_start);
+    return true;
 }
 
 bool string_argremove_phrase(char *src, char *phrase, char *buf)
 {
-	char *left_start = src;
-	char *left_end = src;
-	char arg[MIL];
+    char *left_start = src;
+    char *left_end = src;
+    char arg[MIL];
 
-	if( !src || !buf || IS_NULLSTR(phrase) ) return false;
+    if( !src || !buf || IS_NULLSTR(phrase) ) return false;
 
-	strcpy(buf, src);
+    strcpy(buf, src);
 
-	while(!IS_NULLSTR(left_end)) {
-		char *rest = one_argument(left_end, arg);
+    while(!IS_NULLSTR(left_end)) {
+        char *rest = one_argument(left_end, arg);
 
-		if(!str_cmp(phrase, arg)) {
-			// If the phrase matches, copy the rest to where the left ended.
-			strcpy(buf + (int)(left_end - left_start), rest);
-			break;
+        if(!str_cmp(phrase, arg)) {
+            // If the phrase matches, copy the rest to where the left ended.
+            strcpy(buf + (int)(left_end - left_start), rest);
+            break;
 
-		} else
-			left_end = rest;
-	}
+        } else
+            left_end = rest;
+    }
 
-	return true;
+    return true;
 }
 
 char *string_indent(const char *src, int indent)
 {
-	static char buf[4][MSL * 2];
-	static int cnt = 0;
+    static char buf[4][MSL * 2];
+    static int cnt = 0;
 
-	if (++cnt == 4) cnt = 0;
+    if (++cnt == 4) cnt = 0;
 
-	bool do_indent = true;
-	char *start = buf[cnt];
-	char *p = start;
-	while(*src)
-	{
-		if (do_indent)
-		{
-			if(*src != '\n' && *src != '\r')
-			{
-				for(int i = 0; i < indent; i++)
-					*p++ = ' ';
-				do_indent = false;
-			}
-		}
+    bool do_indent = true;
+    char *start = buf[cnt];
+    char *p = start;
+    while(*src)
+    {
+        if (do_indent)
+        {
+            if(*src != '\n' && *src != '\r')
+            {
+                for(int i = 0; i < indent; i++)
+                    *p++ = ' ';
+                do_indent = false;
+            }
+        }
 
-		*p++ = *src++;
-		if (*src == '\n' || *src == '\r')
-			do_indent = true;
-	}
+        *p++ = *src++;
+        if (*src == '\n' || *src == '\r')
+            do_indent = true;
+    }
 
-	*p = '\0';
-	return start;
+    *p = '\0';
+    return start;
 }

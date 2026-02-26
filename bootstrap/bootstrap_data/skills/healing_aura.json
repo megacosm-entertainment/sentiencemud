@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 15,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            4,
+            4
+        ]
+    ],
+    "min_mana": 75,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "Your healing aura fades.",
+    "name": "healing aura",
+    "noun_damage": "healing_aura",
+    "race": null,
+    "spell_function": "spell_healing_aura",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 136
+}

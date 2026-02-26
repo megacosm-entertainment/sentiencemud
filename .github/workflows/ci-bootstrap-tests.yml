@@ -1,0 +1,346 @@
+name: CI Bootstrap Tests
+
+on:
+  pull_request:
+    branches:
+      - master
+      - v2_testport
+      - legacy_server
+      - olc_blueprints
+      - feature/widevnum-migration
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  merge_group:
+  push:
+    branches:
+      - master
+      - v2_testport
+      - legacy_server
+      - olc_blueprints
+      - feature/widevnum-migration
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-bootstrap-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bootstrap-ci-tests:
+    name: Bootstrap-root regression tests
+    runs-on: ubuntu-latest
+    outputs:
+      failure_snippet: ${{ steps.ci_tests.outputs.failure_snippet }}
+    container:
+      image: ghcr.io/megacosm-entertainment/sentience_trixie:latest
+      options: --user root
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Mark repo as safe for git
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Resolve bootstrap seed source path
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/bootstrap/bootstrap_data" ]; then
+            BOOTSTRAP_SOURCE="$GITHUB_WORKSPACE/bootstrap/bootstrap_data"
+          elif [ -d "$GITHUB_WORKSPACE/src/bootstrap/bootstrap_data" ]; then
+            BOOTSTRAP_SOURCE="$GITHUB_WORKSPACE/src/bootstrap/bootstrap_data"
+          else
+            echo "Bootstrap seed data not found under expected locations:" >&2
+            echo "  - $GITHUB_WORKSPACE/bootstrap/bootstrap_data" >&2
+            echo "  - $GITHUB_WORKSPACE/src/bootstrap/bootstrap_data" >&2
+            exit 1
+          fi
+
+          echo "SENTIENCE_BOOTSTRAP_DATA_SOURCE=$BOOTSTRAP_SOURCE" >> "$GITHUB_ENV"
+          echo "Resolved SENTIENCE_BOOTSTRAP_DATA_SOURCE=$BOOTSTRAP_SOURCE"
+
+      - name: Resolve test source data path
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/tests/data" ]; then
+            TEST_SOURCE_DIR="$GITHUB_WORKSPACE/tests/data"
+          elif [ -d "$GITHUB_WORKSPACE/src/tests/data" ]; then
+            TEST_SOURCE_DIR="$GITHUB_WORKSPACE/src/tests/data"
+          else
+            echo "Test source data not found under expected locations:" >&2
+            echo "  - $GITHUB_WORKSPACE/tests/data" >&2
+            echo "  - $GITHUB_WORKSPACE/src/tests/data" >&2
+            exit 1
+          fi
+
+          echo "SENTIENCE_TEST_SOURCE_DIR=$TEST_SOURCE_DIR" >> "$GITHUB_ENV"
+          echo "Resolved SENTIENCE_TEST_SOURCE_DIR=$TEST_SOURCE_DIR"
+
+      - name: Build dependencies
+        working-directory: ${{ github.workspace }}
+        run: |
+          cd .deps
+          ./build_deps.sh
+
+      - name: Build tests binary
+        working-directory: ${{ github.workspace }}
+        run: |
+          ./build tests
+
+      - name: Bootstrap isolated CI root
+        working-directory: ${{ github.workspace }}
+        env:
+          BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
+        run: |
+          rm -rf "$BOOT_ROOT"
+          mkdir -p "$BOOT_ROOT"
+
+          ./.build/Debug/sent \
+            -bootstrap \
+            --bootstrap-auto \
+            --bootstrap-ci-fixtures \
+            --bootstrap-root="$BOOT_ROOT" \
+            --bootstrap-username=bootstrapci \
+            --bootstrap-email=bootstrapci@example.com \
+            --bootstrap-password=bootstrap123
+
+      - name: Run bootstrap CI profile tests
+        id: ci_tests
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        env:
+          BOOT_ROOT: ${{ runner.temp }}/sent_bootstrap_root
+        run: |
+          LOG_FILE="$RUNNER_TEMP/bootstrap_ci_profile.log"
+          JSON_LOG_FILE="$RUNNER_TEMP/bootstrap_ci_profile.jsonl"
+          FAILURE_SUMMARY_FILE="$RUNNER_TEMP/bootstrap_ci_failures.txt"
+          export JSON_LOG_FILE
+
+          rm -f "$LOG_FILE" "$JSON_LOG_FILE" "$FAILURE_SUMMARY_FILE"
+          # Keep pipeline failures visible and preserve the test binary's exit code.
+          set -o pipefail
+
+          SENTIENCE_TEST_LOG_FILE="$JSON_LOG_FILE" \
+          SENTIENCE_TEST_LOG_FORMAT="json" \
+          ./.build/Debug/sent -test:profile:bootstrap_ci --data-root="$BOOT_ROOT" 2>&1 | tee "$LOG_FILE"
+          TEST_STATUS=${PIPESTATUS[0]}
+
+          python3 - <<'PY'
+          import json
+          import os
+
+          json_path = os.environ.get("JSON_LOG_FILE")
+          summary = None
+          failures = []
+
+          if json_path and os.path.exists(json_path):
+            with open(json_path, "r", encoding="utf-8") as f:
+              for line in f:
+                line = line.strip()
+                if not line:
+                  continue
+                try:
+                  event = json.loads(line)
+                except json.JSONDecodeError:
+                  continue
+
+                if event.get("event") == "session_start":
+                  summary = None
+                  failures = []
+                  continue
+
+                if event.get("event") == "test_result" and event.get("result") in ("FAIL", "ERROR"):
+                  failures.append(event)
+                elif event.get("event") == "summary":
+                  summary = event
+
+          print("\n=== JSON Failure Summary ===")
+          if summary:
+            print(
+              f"Summary: total={summary.get('total', 0)} "
+              f"passed={summary.get('passed', 0)} "
+              f"failed={summary.get('failed', 0)} "
+              f"errors={summary.get('errors', 0)} "
+              f"skipped={summary.get('skipped', 0)}"
+            )
+          else:
+            print("Summary: unavailable (no summary event found)")
+
+          if failures:
+            print("Failures:")
+            for idx, evt in enumerate(failures, start=1):
+              print(f"  {idx}. {evt.get('test', '<unknown>')} [{evt.get('result', 'UNKNOWN')}] ({evt.get('test_type', 'unknown')})")
+          else:
+            print("Failures: none")
+          print("============================\n")
+          PY
+
+          python3 - <<'PY' > "$FAILURE_SUMMARY_FILE"
+          import json
+          import os
+
+          json_path = os.environ.get("JSON_LOG_FILE")
+          summary = None
+          failures = []
+
+          if json_path and os.path.exists(json_path):
+            with open(json_path, "r", encoding="utf-8") as f:
+              for line in f:
+                line = line.strip()
+                if not line:
+                  continue
+                try:
+                  event = json.loads(line)
+                except json.JSONDecodeError:
+                  continue
+
+                if event.get("event") == "session_start":
+                  summary = None
+                  failures = []
+                  continue
+
+                if event.get("event") == "test_result" and event.get("result") in ("FAIL", "ERROR"):
+                  failures.append(event)
+                elif event.get("event") == "summary":
+                  summary = event
+
+          if summary:
+            print(
+              f"Summary: total={summary.get('total', 0)} "
+              f"passed={summary.get('passed', 0)} "
+              f"failed={summary.get('failed', 0)} "
+              f"errors={summary.get('errors', 0)} "
+              f"skipped={summary.get('skipped', 0)}"
+            )
+          else:
+            print("Summary: unavailable")
+
+          if failures:
+            print("Failures:")
+            for idx, evt in enumerate(failures, start=1):
+              print(f"{idx}. {evt.get('test', '<unknown>')} [{evt.get('result', 'UNKNOWN')}] ({evt.get('test_type', 'unknown')})")
+          else:
+            print("Failures: none")
+          PY
+
+          if [ "$TEST_STATUS" -ne 0 ]; then
+            echo "failure_snippet<<EOF" >> "$GITHUB_OUTPUT"
+          {
+            tail -n 60 "$LOG_FILE"
+            echo
+            echo "--- JSON Failure Summary ---"
+            cat "$FAILURE_SUMMARY_FILE"
+          } | head -c 1500 >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "failure_snippet=" >> "$GITHUB_OUTPUT"
+          fi
+
+          exit "$TEST_STATUS"
+
+      - name: Upload bootstrap CI log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-ci-profile-log
+          path: |
+            ${{ runner.temp }}/bootstrap_ci_profile.log
+            ${{ runner.temp }}/bootstrap_ci_profile.jsonl
+            ${{ runner.temp }}/bootstrap_ci_failures.txt
+          if-no-files-found: ignore
+
+  notify-discord:
+    name: Notify Discord
+    needs: bootstrap-ci-tests
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.GHA_CI_TESTS_DISCORD_WEBHOOK }}
+    steps:
+      - name: Build notification payload
+        id: payload
+        uses: actions/github-script@v7
+        env:
+          FAILURE_SNIPPET: ${{ needs.bootstrap-ci-tests.outputs.failure_snippet }}
+        with:
+          script: |
+            const result = '${{ needs.bootstrap-ci-tests.result }}';
+            const success = result === 'success';
+            const icon = success ? '✅' : (result === 'cancelled' ? '⚠️' : '❌');
+            const color = success ? 3066993 : (result === 'cancelled' ? 16705372 : 15158332);
+            const title = `${icon} CI Bootstrap Tests ${success ? 'Passed' : result.charAt(0).toUpperCase() + result.slice(1)}`;
+
+            const repo = `${context.repo.owner}/${context.repo.repo}`;
+            const branch = context.ref.replace('refs/heads/', '');
+            const actor = context.actor;
+            const runUrl = `${context.serverUrl}/${repo}/actions/runs/${context.runId}`;
+            const failureSnippet = (process.env.FAILURE_SNIPPET || '').trim();
+
+            const fields = [
+              {
+                name: 'Workflow',
+                value: 'CI Bootstrap Tests',
+                inline: true
+              },
+              {
+                name: 'Result',
+                value: result,
+                inline: true
+              },
+              {
+                name: 'Logs',
+                value: `[View run logs & artifacts](${runUrl})`,
+                inline: false
+              }
+            ];
+
+            if (!success && failureSnippet) {
+              fields.push({
+                name: 'Failure Snippet (tail)',
+                value: '```\n' + failureSnippet.slice(0, 900) + '\n```',
+                inline: false
+              });
+            }
+
+            const body = {
+              content: null,
+              embeds: [
+                {
+                  title,
+                  description: [
+                    `**Repository:** ${repo}`,
+                    `**Branch:** ${branch}`,
+                    `**Event:** ${context.eventName}`,
+                    `**Conclusion:** ${result}`,
+                    `**Triggered by:** ${actor}`
+                  ].join('\n'),
+                  url: runUrl,
+                  color,
+                  timestamp: new Date().toISOString(),
+                  fields
+                }
+              ]
+            };
+
+            core.setOutput('json', JSON.stringify(body));
+
+      - name: Explain notification skip
+        if: env.DISCORD_WEBHOOK_URL == ''
+        run: |
+          echo "Discord notification skipped: secret GHA_CI_TESTS_DISCORD_WEBHOOK is empty or not configured."
+
+      - name: Send Discord notification
+        if: env.DISCORD_WEBHOOK_URL != ''
+        env:
+          PAYLOAD: ${{ steps.payload.outputs.json }}
+        run: |
+          curl -fsSL -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            --data "$PAYLOAD"

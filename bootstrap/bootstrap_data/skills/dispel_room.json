@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 16,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 18,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 100,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Dispel Room!",
+    "name": "dispel room",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_dispel_room",
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 85
+}

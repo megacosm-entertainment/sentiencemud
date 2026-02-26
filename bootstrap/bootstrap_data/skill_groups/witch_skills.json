@@ -1,0 +1,17 @@
+{
+    "name": "witch skills",
+    "skills": [
+        "skull",
+        "counterspell",
+        "third eye",
+        "dispel good",
+        "poison",
+        "curse",
+        "plague",
+        "spear",
+        "demonfire",
+        "fly",
+        "blindness",
+        "mass healing"
+    ]
+}

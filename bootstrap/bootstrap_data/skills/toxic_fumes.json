@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 10,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 31
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 31
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 31
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 31
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 70,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "The affects of the toxic fumes subside.",
+    "name": "toxic fumes",
+    "noun_damage": "toxic fumes",
+    "race": null,
+    "spell_function": "spell_toxic_fumes",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 249
+}

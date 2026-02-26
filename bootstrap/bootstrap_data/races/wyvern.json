@@ -1,0 +1,83 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "wyvern",
+  "uid": 57,
+  "name": "wyvern",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "wyvern"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "poison",
+      "sentient",
+      "dragon"
+    ],
+    "parts": [
+      "brains",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "guts",
+      "head",
+      "heart",
+      "legs",
+      "scales",
+      "tail"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "detect_invis",
+      "detect_hidden",
+      "flying"
+    ],
+    "offensive": [
+      "bash",
+      "dodge"
+    ],
+    "immunities": [
+      "poison"
+    ],
+    "resistances": [],
+    "vulnerabilities": [
+      "light"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

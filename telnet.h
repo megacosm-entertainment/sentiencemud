@@ -41,8 +41,8 @@
 
 #ifdef TELCMDS
 char *telcmds[] = {
-	"SE", "NOP", "DMARK", "BRK", "IP", "AO", "AYT", "EC",
-	"EL", "GA", "SB", "WILL", "WONT", "DO", "DONT", "IAC",
+    "SE", "NOP", "DMARK", "BRK", "IP", "AO", "AYT", "EC",
+    "EL", "GA", "SB", "WILL", "WONT", "DO", "DONT", "IAC",
 };
 #endif
 
@@ -81,12 +81,12 @@ char *telcmds[] = {
 #ifdef TELOPTS
 #define	NTELOPTS	(1+TELOPT_EOR)
 char *telopts[NTELOPTS] = {
-	"BINARY", "ECHO", "RCP", "SUPPRESS GO AHEAD", "NAME",
-	"STATUS", "TIMING MARK", "RCTE", "NAOL", "NAOP",
-	"NAOCRD", "NAOHTS", "NAOHTD", "NAOFFD", "NAOVTS",
-	"NAOVTD", "NAOLFD", "EXTEND ASCII", "LOGOUT", "BYTE MACRO",
-	"DATA ENTRY TERMINAL", "SUPDUP", "SUPDUP OUTPUT",
-	"SEND LOCATION", "TERMINAL TYPE", "END OF RECORD",
+    "BINARY", "ECHO", "RCP", "SUPPRESS GO AHEAD", "NAME",
+    "STATUS", "TIMING MARK", "RCTE", "NAOL", "NAOP",
+    "NAOCRD", "NAOHTS", "NAOHTD", "NAOFFD", "NAOVTS",
+    "NAOVTD", "NAOLFD", "EXTEND ASCII", "LOGOUT", "BYTE MACRO",
+    "DATA ENTRY TERMINAL", "SUPDUP", "SUPDUP OUTPUT",
+    "SEND LOCATION", "TERMINAL TYPE", "END OF RECORD",
 };
 #endif
 

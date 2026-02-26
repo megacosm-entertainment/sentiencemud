@@ -1,0 +1,25 @@
+{
+    "name": "wizard skills",
+    "skills": [
+        "electrical barrier",
+        "light shroud",
+        "entrap",
+        "sanctuary",
+        "locate object",
+        "fireproof",
+        "lore",
+        "blindness",
+        "healing hands",
+        "sanctuary",
+        "improved invisibility",
+        "acid blast",
+        "room shield",
+        "starflare",
+        "dispel room",
+        "gate",
+        "nexus",
+        "summon",
+        "mass invis",
+        "afterburn"
+    ]
+}

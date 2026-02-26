@@ -1,3 +1,18 @@
+#ifndef __INTERP_H__
+#define __INTERP_H__
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#ifndef args
+#define args(list) list
+#endif
+
+#ifndef __MERC_H__
+typedef struct char_data CHAR_DATA;
+typedef void DO_FUN(CHAR_DATA *ch, char *argument);
+#endif
+
 /***************************************************************************
  *  Original Diku Mud copyright (C) 1990, 1991 by Sebastian Hammer,	   *
  *  Michael Seifert, Hans Henrik St{rfeldt, Tom Madsen, and Katja Nyboe.   *
@@ -39,7 +54,9 @@ void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
 
 void cmd_under_construction(CHAR_DATA *ch);
 
-/* for command types */
+/* (Deprecated) Legacy level macros retained for compatibility with older
+ * command metadata and helper code paths. Runtime commands use
+ * CMD_DATA.rank with STAFF_* constants. */
 #define ML 	MAX_LEVEL	/* implementor */
 #define L1	MAX_LEVEL - 1  	/* creator */
 #define L2	MAX_LEVEL - 2	/* supremacy */
@@ -75,14 +92,11 @@ struct	cmd_type
     char * const	name;	   /* command name */
     DO_FUN *		do_fun;	   /* do_function */
     int16_t		position;  /* minimum position required */
-    int16_t		level;     /* min. level required */
+    int16_t		level;     /* (Deprecated) was min level; bootstrap only */
     int16_t		log;       /* log when? */
     int16_t              show;      /* show? */
     bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
 };
-
-/* the command table itself */
-extern	const	struct	cmd_type	cmd_table	[];
 
 /*
  * Command functions.
@@ -91,6 +105,12 @@ extern	const	struct	cmd_type	cmd_table	[];
 DECLARE_DO_FUN( do_addcommand	);
 DECLARE_DO_FUN(	do_advance	);
 DECLARE_DO_FUN(	do_alevel	);
+DECLARE_DO_FUN( do_corpsedit    );
+DECLARE_DO_FUN( do_sectoredit   );
+DECLARE_DO_FUN( do_repedit      );
+DECLARE_DO_FUN( do_evtedit      );
+DECLARE_DO_FUN( do_event        );
+DECLARE_DO_FUN( do_events       );
 DECLARE_DO_FUN( do_aload	);
 DECLARE_DO_FUN( do_aedit	);
 DECLARE_DO_FUN( do_affects	);
@@ -171,9 +191,12 @@ DECLARE_DO_FUN( do_chrem    	);
 DECLARE_DO_FUN(	do_chtalk	);
 DECLARE_DO_FUN(	do_church	);
 DECLARE_DO_FUN(	do_circle	);
+DECLARE_DO_FUN(	do_classes	);
+DECLARE_DO_FUN(	do_classinfo	);
 DECLARE_DO_FUN(	do_clear	);
 DECLARE_DO_FUN( do_clone	);
 DECLARE_DO_FUN(	do_close	);
+DECLARE_DO_FUN(	do_clslist	);
 DECLARE_DO_FUN( do_colour	);
 DECLARE_DO_FUN( do_colour       );
 DECLARE_DO_FUN( do_combine	);
@@ -212,7 +235,6 @@ DECLARE_DO_FUN( do_dungeon  );
 DECLARE_DO_FUN(	do_east		);
 DECLARE_DO_FUN(	do_eat		);
 DECLARE_DO_FUN(	do_echo		);
-DECLARE_DO_FUN( do_email	);
 DECLARE_DO_FUN(	do_emote	);
 DECLARE_DO_FUN( do_enter	);
 DECLARE_DO_FUN( do_envenom	);
@@ -232,6 +254,7 @@ DECLARE_DO_FUN(	do_follow	);
 DECLARE_DO_FUN(	do_force	);
 DECLARE_DO_FUN( do_formstate    );
 DECLARE_DO_FUN(	do_freeze	);
+DECLARE_DO_FUN(	do_freelevel	);
 DECLARE_DO_FUN(	do_get		);
 DECLARE_DO_FUN(	do_get2	);
 DECLARE_DO_FUN(	do_give		);
@@ -245,10 +268,11 @@ DECLARE_DO_FUN(	do_group	);
 DECLARE_DO_FUN( do_groups	);
 DECLARE_DO_FUN(	do_gtell	);
 DECLARE_DO_FUN( do_hands	);
-DECLARE_DO_FUN( do_heal		);
+//DECLARE_DO_FUN( do_heal		);
 DECLARE_DO_FUN( do_hedit	);
 DECLARE_DO_FUN(	do_help		);
 DECLARE_DO_FUN( do_helper	);
+DECLARE_DO_FUN( do_history	);
 DECLARE_DO_FUN(	do_hide		);
 DECLARE_DO_FUN(	do_hints	);
 DECLARE_DO_FUN(	do_holdup	);
@@ -281,6 +305,7 @@ DECLARE_DO_FUN(	do_kick		);
 DECLARE_DO_FUN(	do_kill		);
 DECLARE_DO_FUN( do_knock	);
 DECLARE_DO_FUN(	do_list		);
+DECLARE_DO_FUN( do_leaderboard	);
 DECLARE_DO_FUN( do_load		);
 DECLARE_DO_FUN(	do_lock		);
 DECLARE_DO_FUN(	do_locker	);
@@ -288,6 +313,9 @@ DECLARE_DO_FUN(	do_log		);
 DECLARE_DO_FUN(	do_look		);
 DECLARE_DO_FUN( do_lore		);
 DECLARE_DO_FUN( do_lyc		);
+DECLARE_DO_FUN( do_liqedit	);
+DECLARE_DO_FUN( do_matedit	);
+DECLARE_DO_FUN( do_rview );
 DECLARE_DO_FUN( do_mail		);
 DECLARE_DO_FUN( do_mapgoto	);
 DECLARE_DO_FUN( do_memory	);
@@ -349,7 +377,6 @@ DECLARE_DO_FUN(	do_ostat	);
 DECLARE_DO_FUN( do_otransfer	);
 DECLARE_DO_FUN( do_owhere	);
 DECLARE_DO_FUN(	do_pardon	);
-DECLARE_DO_FUN(	do_password	);
 DECLARE_DO_FUN(	do_peace	);
 DECLARE_DO_FUN( do_pecho	);
 DECLARE_DO_FUN( do_pdelete 	);
@@ -374,6 +401,7 @@ DECLARE_DO_FUN(	do_purge	);
 DECLARE_DO_FUN(	do_push		);
 DECLARE_DO_FUN(	do_put		);
 DECLARE_DO_FUN( do_qedit	);
+DECLARE_DO_FUN( do_qfind       );
 DECLARE_DO_FUN( do_qlist 	);
 DECLARE_DO_FUN(	do_quaff	);
 DECLARE_DO_FUN( do_quest        );
@@ -381,6 +409,7 @@ DECLARE_DO_FUN( do_quiet	);
 DECLARE_DO_FUN(	do_quit		);
 DECLARE_DO_FUN( do_quote	);
 DECLARE_DO_FUN( do_rack         );
+DECLARE_DO_FUN( do_raceinfo	);
 DECLARE_DO_FUN( do_rcopy	);
 DECLARE_DO_FUN( do_read		);
 DECLARE_DO_FUN(	do_reboo	);
@@ -395,6 +424,7 @@ DECLARE_DO_FUN( do_remcommand	);
 DECLARE_DO_FUN(	do_remove	);
 DECLARE_DO_FUN(	do_renew	);
 DECLARE_DO_FUN(	do_repair	);
+DECLARE_DO_FUN( do_repset	);
 DECLARE_DO_FUN( do_replay	);
 DECLARE_DO_FUN(	do_reply	);
 DECLARE_DO_FUN(	do_report	);
@@ -404,6 +434,7 @@ DECLARE_DO_FUN(	do_rest		);
 DECLARE_DO_FUN(	do_restore	);
 DECLARE_DO_FUN( do_restring	);
 DECLARE_DO_FUN( do_resurrect	);
+DECLARE_DO_FUN( do_summon	);
 DECLARE_DO_FUN(	do_return	);
 DECLARE_DO_FUN( do_reverie 	);
 DECLARE_DO_FUN( do_rjunk	);
@@ -415,6 +446,7 @@ DECLARE_DO_FUN( do_rpedit 	);
 DECLARE_DO_FUN( do_rpstat 	);
 DECLARE_DO_FUN(	do_rset		);
 DECLARE_DO_FUN( do_rshow	);
+DECLARE_DO_FUN( do_rsgedit	);
 DECLARE_DO_FUN(	do_rstat	);
 DECLARE_DO_FUN( do_rules	);
 DECLARE_DO_FUN( do_rwhere	);
@@ -434,8 +466,7 @@ DECLARE_DO_FUN( do_sduty	);
 DECLARE_DO_FUN(	do_search	);
 DECLARE_DO_FUN(	do_secondary	);
 DECLARE_DO_FUN(	do_sell		);
-DECLARE_DO_FUN( do_set		);
-DECLARE_DO_FUN( do_sexual	);	/* What? hahaha*/
+DECLARE_DO_FUN( do_set		);DECLARE_DO_FUN(	do_setclass	);DECLARE_DO_FUN( do_sexual	);	/* What? hahaha*/
 DECLARE_DO_FUN( do_sflag	);
 DECLARE_DO_FUN( do_shape	);
 DECLARE_DO_FUN( do_shift	);
@@ -447,6 +478,7 @@ DECLARE_DO_FUN(	do_shutdow	);
 DECLARE_DO_FUN(	do_shutdown	);
 DECLARE_DO_FUN( do_sit		);
 DECLARE_DO_FUN( do_skills	);
+DECLARE_DO_FUN( do_skillinfo	);
 DECLARE_DO_FUN( do_skull	);
 DECLARE_DO_FUN(	do_slay		);
 DECLARE_DO_FUN(	do_sleep	);
@@ -494,6 +526,11 @@ DECLARE_DO_FUN(	do_throw	);
 DECLARE_DO_FUN(	do_time		);
 DECLARE_DO_FUN(	do_title	);
 DECLARE_DO_FUN( do_token	);
+DECLARE_DO_FUN( do_rfind    );
+DECLARE_DO_FUN( do_bpfind   );
+DECLARE_DO_FUN( do_bsfind   );
+DECLARE_DO_FUN( do_dngfind  );
+DECLARE_DO_FUN( do_shfind   );
 DECLARE_DO_FUN( do_toggle	);
 DECLARE_DO_FUN( do_toxins	);
 DECLARE_DO_FUN(	do_tpedit       );
@@ -516,6 +553,7 @@ DECLARE_DO_FUN(	do_unlock	);
 DECLARE_DO_FUN( do_ungroup	);
 DECLARE_DO_FUN( do_unread	);
 DECLARE_DO_FUN( do_unrestring   );
+DECLARE_DO_FUN( do_unlockset    );
 DECLARE_DO_FUN(	do_up		);
 DECLARE_DO_FUN(	do_use		);
 DECLARE_DO_FUN(	do_value	);
@@ -523,7 +561,7 @@ DECLARE_DO_FUN( do_showversion	);
 DECLARE_DO_FUN(	do_visible	);
 DECLARE_DO_FUN( do_vislist	);
 /* VIZZWILDS */
-DECLARE_DO_FUN( do_vledit	);
+
 DECLARE_DO_FUN( do_vlinks	);
 
 DECLARE_DO_FUN( do_vnum		);
@@ -548,6 +586,7 @@ DECLARE_DO_FUN(	do_wimpy	);
 DECLARE_DO_FUN(	do_wizhelp	);
 DECLARE_DO_FUN( do_wizlist	);
 DECLARE_DO_FUN(	do_wizlock	);
+DECLARE_DO_FUN(	do_migratefiles	);
 DECLARE_DO_FUN( do_wiznet	);
 DECLARE_DO_FUN( do_wlist	);		// Wilderness List
 DECLARE_DO_FUN( do_worth	);
@@ -564,6 +603,8 @@ DECLARE_DO_FUN( do_tplist	);
 DECLARE_DO_FUN( do_aplist	);
 DECLARE_DO_FUN( do_iplist	);
 DECLARE_DO_FUN( do_dplist	);
+DECLARE_DO_FUN( do_qplist	);
+DECLARE_DO_FUN( do_eplist	);
 
 
 DECLARE_DO_FUN( do_touch	);
@@ -577,6 +618,7 @@ DECLARE_DO_FUN( do_land		);
 DECLARE_DO_FUN( do_behead	);
 DECLARE_DO_FUN( do_conceal	);
 DECLARE_DO_FUN(	do_rehearse	);
+DECLARE_DO_FUN( do_readycheck	);
 
 DECLARE_DO_FUN( do_bpedit	);
 DECLARE_DO_FUN( do_bplist	);
@@ -593,10 +635,15 @@ DECLARE_DO_FUN( do_dngshow	);
 DECLARE_DO_FUN( do_apdump 	);
 DECLARE_DO_FUN( do_ipdump 	);
 DECLARE_DO_FUN( do_dpdump 	);
+DECLARE_DO_FUN( do_qpdump 	);
+DECLARE_DO_FUN( do_epdump 	);
+DECLARE_DO_FUN( do_epstat 	);
 
 DECLARE_DO_FUN(	do_apedit	);
 DECLARE_DO_FUN(	do_ipedit	);
 DECLARE_DO_FUN(	do_dpedit	);
+DECLARE_DO_FUN(	do_qpedit	);
+DECLARE_DO_FUN(	do_epedit	);
 
 DECLARE_DO_FUN(	do_shedit	);
 DECLARE_DO_FUN(	do_shlist	);
@@ -609,6 +656,8 @@ DECLARE_DO_FUN( do_collapse	);
 DECLARE_DO_FUN( do_spawntreasuremap );
 DECLARE_DO_FUN( do_activate );
 DECLARE_DO_FUN( do_reloadstats );
+DECLARE_DO_FUN( do_classreload );
+DECLARE_DO_FUN( do_racereload );
 DECLARE_DO_FUN( do_cmdlist );
 DECLARE_DO_FUN( do_cmdedit );
 DECLARE_DO_FUN( do_cmdshow );
@@ -618,16 +667,34 @@ DECLARE_DO_FUN( do_cmdshow );
 DECLARE_DO_FUN( do_testemail );
 DECLARE_DO_FUN( do_pwreset );
 DECLARE_DO_FUN( do_lvlaudit );
-DECLARE_DO_FUN( do_keygen );
 DECLARE_DO_FUN ( do_mfareset );
 DECLARE_DO_FUN( do_logout );
 DECLARE_DO_FUN (do_accset);
 DECLARE_DO_FUN (do_accstat);
 DECLARE_DO_FUN( do_gameedit );
 DECLARE_DO_FUN( do_accnote);
+DECLARE_DO_FUN( do_charnote);
+DECLARE_DO_FUN( do_standing);
 DECLARE_DO_FUN ( do_vault );
 DECLARE_DO_FUN( do_coffer );
 DECLARE_DO_FUN( do_acctlink );
 DECLARE_DO_FUN( do_acctunlink );
 DECLARE_DO_FUN( do_socialedit );
+DECLARE_DO_FUN( do_racedit );
+DECLARE_DO_FUN( do_traitedit );
+DECLARE_DO_FUN( do_clsedit );
+DECLARE_DO_FUN( do_skedit );
+DECLARE_DO_FUN( do_gredit );
+DECLARE_DO_FUN( do_soedit );
 DECLARE_DO_FUN( do_reserved );
+DECLARE_DO_FUN( do_pronouns );
+DECLARE_DO_FUN( do_gcstats );
+DECLARE_DO_FUN( do_penalty );
+DECLARE_DO_FUN( do_bonus );
+DECLARE_DO_FUN( do_prefadmin );
+DECLARE_DO_FUN( do_prefs );
+DECLARE_DO_FUN( do_raceunlock );
+
+bool dispatch_dynamic_channel_command(CHAR_DATA *ch, const char *command, char *argument);
+
+#endif /* __INTERP_H__ */

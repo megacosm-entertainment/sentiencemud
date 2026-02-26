@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 17,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 15,
+            "rating": 2
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 4
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 100,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Enchant Weapon!",
+    "name": "enchant weapon",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_enchant_weapon",
+    "target": "obj_inv",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 94
+}

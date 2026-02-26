@@ -1,0 +1,87 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "slayer",
+  "uid": 9,
+  "name": "slayer",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "path_race": true,
+  "remort": {
+    "prerequisite_race": null,
+    "remort_into": "changeling"
+  },
+  "display": {
+    "who_name": "{GSlayer"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 1,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "detect_evil"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [],
+    "vulnerabilities": [
+      "negative"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 20,
+      "int": 20,
+      "wis": 20,
+      "dex": 20,
+      "con": 20
+    },
+    "max_vitals": {
+      "hp": 3250,
+      "mana": 2750,
+      "move": 2750
+    }
+  },
+  "skills": [
+    "holy wrath",
+    "stake",
+    "shift"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "holy_damage_bonus": 10,
+    "can_shapeshift": true,
+    "shift_form": "slayer"
+  }
+}

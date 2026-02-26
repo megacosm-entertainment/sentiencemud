@@ -1,22 +1,81 @@
 #!/bin/bash
+#
+# config - Configure CMake build for Sentience MUD
+#
+# Usage: ./config [gcc|clang] [--help]
+#
+# This script sets up the CMake build system in the .build directory
+# using Ninja Multi-Config generator.
+#
+
+show_help() {
+    cat << 'EOF'
+Usage: ./config [OPTIONS]
+
+Configure CMake build for Sentience MUD.
+
+Options:
+    gcc         Use GCC compiler (default if not specified)
+    clang       Use Clang compiler
+    tests       Enable integration test framework
+    coverage    Enable code coverage instrumentation (implies tests)
+    --help, -h  Show this help message
+
+Examples:
+    ./config            # Configure with default compiler
+    ./config gcc        # Configure with GCC
+    ./config clang      # Configure with Clang
+    ./config tests      # Configure with test framework enabled
+    ./config coverage   # Configure with coverage instrumentation
+
+After configuring, use ./compile to build:
+    ./compile           # Build Debug (default)
+    ./compile release   # Build Release
+
+Or use ./build for a combined configure + compile:
+    ./build             # Configure (if needed) and build Debug
+    ./build release     # Configure (if needed) and build Release
+EOF
+    exit 0
+}
 
 compiler=""
+build_tests=""
+enable_coverage=""
 
-for arg in "$@" 
+for arg in "$@"
 do
-    if [[ ${arg,,} == "gcc" ]]
-    then
+    if [[ ${arg,,} == "gcc" ]]; then
         compiler="-DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc"
-    elif [[ ${arg,,} == "clang" ]]
-    then
+    elif [[ ${arg,,} == "clang" ]]; then
         compiler="-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang"
+    elif [[ ${arg,,} == "tests" ]]; then
+        build_tests="-DBUILD_TESTS=ON"
+    elif [[ ${arg,,} == "coverage" ]]; then
+        enable_coverage="-DENABLE_COVERAGE=ON"
+        build_tests="-DBUILD_TESTS=ON"
+    elif [[ ${arg,,} == "--help" ]] || [[ ${arg,,} == "-h" ]]; then
+        show_help
     else
-        echo "Unknown argument '${arg,,}'."
-        exit
+        echo "Unknown argument '${arg}'."
+        echo "Use --help for usage information."
+        exit 1
     fi
-
 done
 
+echo "Configuring CMake build..."
 mkdir -p .build
-rm .build/* -rf
-cmake -G "Ninja Multi-Config" -B .build . $compiler
+rm -rf .build/*
+cmake -G "Ninja Multi-Config" -B .build . $compiler $build_tests $enable_coverage
+
+if [[ $? -eq 0 ]]; then
+    echo ""
+    echo "Configuration complete. Build directory: .build/"
+    echo "Next steps:"
+    echo "  ./compile         # Build Debug"
+    echo "  ./compile release # Build Release"
+else
+    echo ""
+    echo "Configuration failed."
+    exit 1
+fi

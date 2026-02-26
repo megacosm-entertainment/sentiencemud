@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 10,
+            "rating": 5
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            12,
+            2
+        ]
+    ],
+    "min_mana": 75,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "{CYou feel less resistant to evil attacks.{x",
+    "name": "avatar shield",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_avatar_shield",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 11
+}

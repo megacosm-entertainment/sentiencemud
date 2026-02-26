@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 7,
+            "rating": 2
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Fireball!",
+    "name": "fireball",
+    "noun_damage": "fireball",
+    "race": null,
+    "spell_function": "spell_fireball",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 114
+}

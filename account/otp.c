@@ -76,6 +76,7 @@
 #include "../tables.h"
 #include "../wilds.h"
 #include "../protocol.h"
+#include "auth_sodium.h"
  
 /*
  * Generate a new TOTP key for a user
@@ -121,7 +122,7 @@ bool validate_totp_code(const char *key, const char *code)
     
     if (is_encrypted) {
         // Decrypt the key before validation
-        plaintext_key = decrypt_string(key);
+        plaintext_key = decrypt_string_versioned(key);
         key = plaintext_key;
     }
     
@@ -158,6 +159,81 @@ bool validate_totp_code(const char *key, const char *code)
         free_string(plaintext_key);
         
     return valid;
+}
+
+/**
+ * migrate_otp_key - Migrate OTP key from v1 to v2 encryption
+ *
+ * Transparently upgrades OTP key from AES-CBC (v1) to authenticated
+ * encryption (v2). Handles both account-level and character-level keys.
+ *
+ * @param acct       Account to migrate (required)
+ * @param acct_char  Character to migrate (NULL for account-level)
+ * @return           true if migration performed, false if not needed/error
+ */
+bool migrate_otp_key(ACCOUNT_DATA *acct, ACCOUNT_CHARACTER *acct_char)
+{
+    char **mfa_key_ptr;
+    char **mfa_pending_ptr;
+    const char *context;
+    bool migrated = false;
+
+    if (!acct) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "migrate_otp_key: NULL account");
+        return false;
+    }
+
+    // Determine which keys to migrate (account or character)
+    if (acct_char) {
+        mfa_key_ptr = &acct_char->mfa_key;
+        mfa_pending_ptr = &acct_char->mfa_pending_key;
+        context = acct_char->name;
+    } else {
+        mfa_key_ptr = &acct->mfa_key;
+        mfa_pending_ptr = &acct->mfa_pending_key;
+        context = acct->username;
+    }
+
+    // Migrate active MFA key if needed
+    if (!IS_NULLSTR(*mfa_key_ptr) && needs_encryption_upgrade(*mfa_key_ptr)) {
+        char *plaintext = decrypt_string_versioned(*mfa_key_ptr);
+        if (!IS_NULLSTR(plaintext)) {
+            char *upgraded = encrypt_string_versioned(plaintext);
+            if (upgraded) {
+                free_string(*mfa_key_ptr);
+                *mfa_key_ptr = str_dup(upgraded);
+                free_string(upgraded);
+                migrated = true;
+                log_message_f(LOG_LEVEL_INFO, LOG_SECURITY,
+                    "Migrated OTP key to v2 for %s", context);
+            }
+            free_string(plaintext);
+        }
+    }
+
+    // Migrate pending MFA key if needed
+    if (!IS_NULLSTR(*mfa_pending_ptr) && needs_encryption_upgrade(*mfa_pending_ptr)) {
+        char *plaintext = decrypt_string_versioned(*mfa_pending_ptr);
+        if (!IS_NULLSTR(plaintext)) {
+            char *upgraded = encrypt_string_versioned(plaintext);
+            if (upgraded) {
+                free_string(*mfa_pending_ptr);
+                *mfa_pending_ptr = str_dup(upgraded);
+                free_string(upgraded);
+                migrated = true;
+                log_message_f(LOG_LEVEL_INFO, LOG_SECURITY,
+                    "Migrated pending OTP key to v2 for %s", context);
+            }
+            free_string(plaintext);
+        }
+    }
+
+    // Save account if any migration occurred
+    if (migrated) {
+        save_account(acct);
+    }
+
+    return migrated;
 }
 
 /*
@@ -300,17 +376,17 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
         if (has_auth_data && acct_char) {
             // Store as pending key - requires confirmation before enabling
             // Encrypt the key before storing
-            char *encrypted_key = encrypt_string(key);
+            char *encrypted_key = encrypt_string_versioned(key);
             free_string(acct_char->mfa_pending_key);
             acct_char->mfa_pending_key = str_dup(encrypted_key);
             free_string(encrypted_key);
             save_account(acct);
         } else {
-            log_string(formatf("setup_mfa_for_char: No account character entry found for %s", ch->name));
+            log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "setup_mfa_for_char: No account character entry found for %s", ch->name);
             return false;
         }
     } else {
-        log_string(formatf("setup_mfa_for_char: No account found for %s", ch->name));
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "setup_mfa_for_char: No account found for %s", ch->name);
         return false;
     }
 
@@ -365,7 +441,7 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool has_email)
     generate_totp_key(key, sizeof(key));
     
     // Save key to account as pending - encrypt the key before storing
-    char *encrypted_key = encrypt_string(key);
+    char *encrypted_key = encrypt_string_versioned(key);
     free_string(acct->mfa_pending_key);
     acct->mfa_pending_key = str_dup(encrypted_key);
     free_string(encrypted_key);
@@ -412,8 +488,12 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
     if (ch->desc && ch->desc->account) {
         acct = ch->desc->account;
         has_auth_data = get_character_auth_data(ch, acct, &acct_char);
-        
+
         if (has_auth_data && acct_char) {
+            // Migrate OTP key encryption if needed
+            migrate_otp_key(acct, acct_char);
+
+
             // Use pending key if in setup mode, otherwise use active key
             encrypted_key = !IS_NULLSTR(acct_char->mfa_pending_key) ? 
                       acct_char->mfa_pending_key : acct_char->mfa_key;
@@ -438,9 +518,9 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
             
             // Check recovery codes as fallback
             for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
-                if (!IS_NULLSTR(acct_char->recovery_codes[i]) && 
+                if (!IS_NULLSTR(acct_char->recovery_codes[i]) &&
                     !acct_char->recovery_used[i] &&
-                    !strcmp(code, acct_char->recovery_codes[i])) {
+                    verify_recovery_code_hash(acct_char->recovery_codes[i], code)) {
                     acct_char->recovery_used[i] = true;
                     save_account(acct);
                     return true;
@@ -452,108 +532,61 @@ bool check_char_mfa(CHAR_DATA *ch, const char *code)
     return false;
 }
 
-/*
- * Check if a TOTP code is valid for an account
+/**
+ * check_account_mfa - Validate a TOTP code or recovery code for an account
+ *
+ * Checks the TOTP code against the account's active or pending MFA key.
+ * If a pending key validates, it is activated (setup confirmation).
+ * Falls back to recovery codes if TOTP validation fails.
+ *
+ * @param acct  Account to validate against
+ * @param code  User-provided TOTP code or recovery code
+ * @return      true if code is valid, false otherwise
  */
 bool check_account_mfa(ACCOUNT_DATA *acct, const char *code) {
-    const char *encrypted_key = acct->mfa_pending ? acct->mfa_pending_key : acct->mfa_key;
-    if (IS_NULLSTR(encrypted_key)) return false;
-    
-    // validate_totp_code now handles decryption
-    return validate_totp_code(encrypted_key, code);
-}
+    const char *encrypted_key;
 
-/*
- * In-game command to manage MFA
- */
-void do_keygen(CHAR_DATA *ch, char *argument)
-{
-    if (argument[0] == '\0') {
-        send_to_char("Syntax: keygen <generate|clear|confirm>\n\r", ch);
-        return;
-    }
+    if (!acct)
+        return false;
 
-    if (IS_NPC(ch)) {
-        send_to_char("NPCs cannot use MFA.\n\r", ch);
-        return;
-    }
+    // Migrate OTP key encryption if needed
+    migrate_otp_key(acct, NULL);
 
-    if (!strcmp(argument, "clear")) {
-        if (IS_NULLSTR(ch->pcdata->mfa_key)) {
-            send_to_char("You do not have an MFA key to clear.\n\r", ch);
-            return;
+    // Use pending key if in setup mode, otherwise use active key
+    encrypted_key = !IS_NULLSTR(acct->mfa_pending_key) ?
+                    acct->mfa_pending_key : acct->mfa_key;
+
+    if (!IS_NULLSTR(encrypted_key)) {
+        // Check TOTP code against the key (validate_totp_code handles decryption)
+        bool valid = validate_totp_code(encrypted_key, code);
+
+        // If code validates against pending key, activate it
+        if (valid && !IS_NULLSTR(acct->mfa_pending_key)) {
+            free_string(acct->mfa_key);
+            acct->mfa_key = str_dup(acct->mfa_pending_key);
+            free_string(acct->mfa_pending_key);
+            acct->mfa_pending_key = str_dup("");
+            acct->mfa_enabled = true;
+            acct->mfa_pending = false;
+            save_account(acct);
         }
-        free_string(ch->pcdata->mfa_key);
-        ch->pcdata->mfa_key = str_dup("");
-        ch->pcdata->mfa_enabled = false;
-        //ch->pcdata->qr_code_expiration = 0;
-        send_to_char("Your MFA key has been cleared.\n\r", ch);
-        return;
-    }
-    else if (!strcmp(argument, "generate")) {
-        if (IS_NULLSTR(ch->pcdata->mfa_key)) {
-            setup_mfa_for_char(ch, true);
-        }
-        else {
-            send_to_char("You already have an MFA key. If you would like to generate a new key, please run 'keygen clear'.\n\r", ch);
-        }
-    }
-    else if (!str_prefix(argument, "confirm")) {
-        if (IS_NULLSTR(ch->pcdata->mfa_key)) {
-            send_to_char("You do not have an MFA key to validate.\n\r", ch);
-            return;
-        }
-        
 
+        if (valid)
+            return true;
+    }
 
-        // Prompt the user to enter the MFA code
-        send_to_char("Please enter the code from your MFA app to authenticate your account.\n\r", ch);
-        ch->pcdata->mfa_question = true;
-        return;
+    // Check recovery codes as fallback
+    for (int i = 0; i < MFA_RECOVERY_CODES; i++) {
+        if (!IS_NULLSTR(acct->recovery_codes[i]) &&
+            !acct->recovery_used[i] &&
+            verify_recovery_code_hash(acct->recovery_codes[i], code)) {
+            acct->recovery_used[i] = true;
+            save_account(acct);
+            return true;
+        }
     }
-    else {
-        send_to_char("Syntax: keygen <generate|clear|confirm>\n\r", ch);
-        return;
-    }
-}
 
-/*
- * Compatibility function
- * -- Updated to encrypt keys before storing
- */
-void generate_key(CHAR_DATA *ch, char *key)
-{
-    ACCOUNT_DATA *acct = NULL;
-    ACCOUNT_CHARACTER *acct_char = NULL;
-    bool has_auth_data = false;
-    cotp_error_t cotp_err;
-    
-    // Get account character data
-    if (ch->desc && ch->desc->account) {
-        acct = ch->desc->account;
-        has_auth_data = get_character_auth_data(ch, acct, &acct_char);
-    }
-    
-    if (!has_auth_data || !acct_char) {
-        log_string(formatf("generate_key: No account character entry found for %s", ch->name));
-        return;
-    }
-    
-    char *secret_key = base32_encode((uchar *)key, strlen(key)+1, &cotp_err);
-    
-    // Encrypt the key before storing
-    char *encrypted_key = encrypt_string(secret_key);
-    
-    if (!IS_NULLSTR(acct_char->mfa_key)) {
-        free_string(acct_char->mfa_key);
-    }
-    
-    acct_char->mfa_key = str_dup(encrypted_key);
-    free(secret_key);
-    free_string(encrypted_key);
-    
-    // Save the changes
-    save_account(acct);
+    return false;
 }
 
 /*
@@ -584,7 +617,7 @@ void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *encryp
     
     // If no account data, we can't send email
     if (!has_auth_data || !acct_char) {
-        log_string(formatf("send_qr_email_for_char: No account character entry found for %s", ch->name));
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "send_qr_email_for_char: No account character entry found for %s", ch->name);
         return;
     }
     
@@ -593,7 +626,7 @@ void send_qr_email_for_char(CHAR_DATA *ch, const char *email, const char *encryp
     bool is_encrypted = is_encrypted_key(encrypted_secret);
     
     if (is_encrypted)
-        plaintext_secret = decrypt_string(encrypted_secret);
+        plaintext_secret = decrypt_string_versioned(encrypted_secret);
     else
         plaintext_secret = str_dup(encrypted_secret);
     
@@ -638,7 +671,7 @@ void send_recovery_codes_email_for_char(CHAR_DATA *ch, const char *email) {
     
     // If no account data, we can't send email
     if (!has_auth_data || !acct_char) {
-        log_string(formatf("send_recovery_codes_email_for_char: No account character entry found for %s", ch->name));
+        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "send_recovery_codes_email_for_char: No account character entry found for %s", ch->name);
         return;
     }
     
@@ -673,7 +706,7 @@ void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char
     bool is_encrypted = is_encrypted_key(encrypted_secret);
     
     if (is_encrypted)
-        plaintext_secret = decrypt_string(encrypted_secret);
+        plaintext_secret = decrypt_string_versioned(encrypted_secret);
     else
         plaintext_secret = str_dup(encrypted_secret);
     

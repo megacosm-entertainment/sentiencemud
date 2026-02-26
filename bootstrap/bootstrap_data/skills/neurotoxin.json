@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 1,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 0
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 0
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 0
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 0
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "",
+    "name": "neurotoxin",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_toxin_neurotoxin",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 177
+}

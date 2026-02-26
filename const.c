@@ -123,7 +123,7 @@ const struct item_type          npc_sub_type_boat_table [] =
 {
     {  NPC_SHIP_SUB_TYPE_NONE,                  "None" },
     {  NPC_SHIP_SUB_TYPE_COAST_GUARD_ATHEMIA, 	"Coast Guard - Athemia" },
-		{  NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA,   "Coast Guard - Seralia" },
+        {  NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA,   "Coast Guard - Seralia" },
     {  NPC_SHIP_SUB_TYPE_LIGHT_TRADER,   "Light Trader (random light cargo)" },
     {  NPC_SHIP_SUB_TYPE_MEDIUM_TRADER,   "Medium Trader (more cargo)" },
     {  NPC_SHIP_SUB_TYPE_TREASURE_BOAT,   "Treasure Boat" },
@@ -246,15 +246,15 @@ const struct item_type		item_table	[]	=
     {   ITEM_TATTOO,   "tattoo"    },
     {   ITEM_INK,   "ink"    },
     {	ITEM_PART,		"part"	},
-	{	ITEM_TELESCOPE,		"telescope"	},
-	{	ITEM_COMPASS,		"compass"	},
-	{	ITEM_WHETSTONE,		"whetstone"	},
-	{	ITEM_CHISEL,		"chisel" },
-	{	ITEM_PICK,			"pick"	},
-	{	ITEM_TINDERBOX,		"tinderbox"},
-	{	ITEM_DRYING_CLOTH,	"drying_cloth"},
-	{	ITEM_NEEDLE,		"needle"},
-	{	ITEM_BODY_PART,		"body_part"},
+    {	ITEM_TELESCOPE,		"telescope"	},
+    {	ITEM_COMPASS,		"compass"	},
+    {	ITEM_WHETSTONE,		"whetstone"	},
+    {	ITEM_CHISEL,		"chisel" },
+    {	ITEM_PICK,			"pick"	},
+    {	ITEM_TINDERBOX,		"tinderbox"},
+    {	ITEM_DRYING_CLOTH,	"drying_cloth"},
+    {	ITEM_NEEDLE,		"needle"},
+    {	ITEM_BODY_PART,		"body_part"},
 
     {   0,			NULL				}
 };
@@ -292,34 +292,34 @@ const   struct  tunneler_place_type  tunneler_place_table[] =
 const	struct	weapon_type	weapon_table	[]	=
 {
 /*  name		vnum				type			gsn*/
-    { "sword",		0,				WEAPON_SWORD,		&gsn_sword		},
-    { "mace",		0,				WEAPON_MACE,		&gsn_mace 		},
-    { "dagger",		0,				WEAPON_DAGGER,		&gsn_dagger		},
-    { "axe",	    	0,				WEAPON_AXE,		&gsn_axe		},
-    { "staff",	    	0,				WEAPON_SPEAR,		&gsn_spear		},
-    { "flail",	    	0,				WEAPON_FLAIL,		&gsn_flail		},
-    { "whip",	    	0,				WEAPON_WHIP,		&gsn_whip		},
-    { "polearm",	0,				WEAPON_POLEARM,		&gsn_polearm		},
-    { "quarterstaff",	0,       			WEAPON_QUARTERSTAFF, 	&gsn_quarterstaff 	},
-    { "stake",		0,				WEAPON_STAKE,		&gsn_stake	 	},
-    { "arrow",		0,	                	WEAPON_ARROW,   	NULL			},
-    { "bolt",		0,              		WEAPON_BOLT,    	NULL			},
-    { "throwable",	0,             			WEAPON_THROWABLE,    	NULL			},
-    { "exotic",		0,				WEAPON_EXOTIC,		&gsn_exotic		},
-    { "dart",		0,	                	WEAPON_DART,	   	NULL			},	/* @@@NIB : 20070126*/
-    { "harpoon",	0,              		WEAPON_HARPOON,    	&gsn_spear		},	/* @@@NIB : 20070126 : instead of the harpoon skill, since it's basically a short spear*/
-    { NULL,		0,				0,			NULL			}
+    { "sword",		0,				WEAPON_SWORD		},
+    { "mace",		0,				WEAPON_MACE 		},
+    { "dagger",		0,				WEAPON_DAGGER		},
+    { "axe",	    	0,				WEAPON_AXE		},
+    { "staff",	    	0,				WEAPON_SPEAR		},
+    { "flail",	    	0,				WEAPON_FLAIL		},
+    { "whip",	    	0,				WEAPON_WHIP		},
+    { "polearm",	0,				WEAPON_POLEARM		},
+    { "quarterstaff",	0,       			WEAPON_QUARTERSTAFF 	},
+    { "stake",		0,				WEAPON_STAKE	 	},
+    { "arrow",		0,	                	WEAPON_ARROW			},
+    { "bolt",		0,              		WEAPON_BOLT			},
+    { "throwable",	0,             			WEAPON_THROWABLE			},
+    { "exotic",		0,				WEAPON_EXOTIC		},
+    { "dart",		0,	                	WEAPON_DART			},	/* @@@NIB : 20070126*/
+    { "harpoon",	0,              		WEAPON_HARPOON		},	/* @@@NIB : 20070126 : instead of the harpoon skill, since it's basically a short spear*/
+    { NULL,		0,				0			}
 };
 
 
 const	struct	weapon_type	ranged_weapon_table	[]	=
 {
-    { "crossbow",	0,	RANGED_WEAPON_CROSSBOW,	&gsn_crossbow	},
-    { "bow",		0,	RANGED_WEAPON_BOW,	&gsn_bow	},
-    { "exotic",		0,	RANGED_WEAPON_EXOTIC,	&gsn_exotic	},	/* @@@NIB : 20070126*/
-    { "blowgun",	0,	RANGED_WEAPON_BLOWGUN,	&gsn_blowgun	},	/* @@@NIB : 20070126*/
-    { "harpoon",	0,	RANGED_WEAPON_HARPOON,	&gsn_harpooning	},	/* @@@NIB : 20070126*/
-    { NULL,		0,	0,			NULL		}
+    { "crossbow",	0,	RANGED_WEAPON_CROSSBOW	},
+    { "bow",		0,	RANGED_WEAPON_BOW	},
+    { "exotic",		0,	RANGED_WEAPON_EXOTIC	},	/* @@@NIB : 20070126*/
+    { "blowgun",	0,	RANGED_WEAPON_BLOWGUN	},	/* @@@NIB : 20070126*/
+    { "harpoon",	0,	RANGED_WEAPON_HARPOON	},	/* @@@NIB : 20070126*/
+    { NULL,		0,	0		}
 };
 
 const	int	size_weight[] = { 0, 10, 50, 120, 450, 4500 };
@@ -361,8 +361,8 @@ const   long   			plith_docks_table[] 		=
 /* Treasure vnums*/
 const long          treasure_table[] =
 {
-	// TODO: TEMPORARY
-	265555
+    // TODO: TEMPORARY
+    265555
 };
 const   struct wiznet_type      wiznet_table    [] =
 {
@@ -415,7 +415,7 @@ const  struct player_setting_type    pc_set_table[] =
     {   "holylight",	PLR_HOLYLIGHT,	 0,		0,		false,	STAFF_IMMORTAL,	SETTING_OFF	},
     {   "holywarp",	0,		PLR_HOLYWARP,	 0,		false,	STAFF_IMMORTAL,	SETTING_OFF	},
     {	"map",		0,		 0,		COMM_NOMAP,	true,	STAFF_PLAYER,	SETTING_OFF	},
-	{	"mxp",		0,		0,		COMM_MXP,	false,	STAFF_PLAYER,	SETTING_ON	},
+    {	"mxp",		0,		0,		COMM_MXP,	false,	STAFF_PLAYER,	SETTING_ON	},
     {	"nochallenge",	PLR_NO_CHALLENGE,0,		0,		false,	STAFF_PLAYER,	SETTING_OFF	},
     {	"nofollow",	PLR_NOFOLLOW,	 0,		0,		false,	STAFF_PLAYER,	SETTING_OFF	},
     {   "nolore",	0,		PLR_NOLORE,	 0,		false,	STAFF_PLAYER,	SETTING_OFF	},
@@ -424,6 +424,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"nosummon",	PLR_NOSUMMON,	 0,		0,		false,	STAFF_PLAYER,	SETTING_ON	},
     {   "nowake",	0,		 PLR_NO_WAKE,	0,		false,  STAFF_PLAYER,      SETTING_OFF	},
     {   "notify",	0,	 	 0,		COMM_NOTIFY,	false,	STAFF_PLAYER,	SETTING_ON	},
+    {   "eventnotify",0,	 	 0,		0,		false,	STAFF_PLAYER,	SETTING_ON	},
     {	"prompt",	0,		 0,		COMM_PROMPT,	false,	STAFF_PLAYER,	SETTING_ON	},
     {	"pursuit",	PLR_PURSUIT,	 0,		0,		false,	STAFF_PLAYER,	SETTING_OFF	},
     {	"quiet",	0,		 0,		COMM_QUIET,	false,	STAFF_PLAYER,	SETTING_OFF	},
@@ -431,8 +432,12 @@ const  struct player_setting_type    pc_set_table[] =
     {	"showdamage",	PLR_SHOWDAMAGE,	 0,		0,		false,	STAFF_PLAYER,	SETTING_OFF	},
     {	"mobile",	PLR_MOBILE,	0,	0, false,	STAFF_PLAYER, SETTING_OFF },
     {	"favskills",	0,	PLR_FAVSKILLS,	0, false,	STAFF_PLAYER, SETTING_OFF },
-	{	"compass",	0,	PLR_COMPASS,	0,	false,	STAFF_PLAYER,	SETTING_ON},
-	{	"autocatalyst", 0, PLR_AUTOCAT,	0,	false, STAFF_PLAYER,	SETTING_ON},
+    {	"olctabs",	0,	0,	0,	false,	STAFF_IMMORTAL,	SETTING_ON },
+    {	"compass",	0,	PLR_COMPASS,	0,	false,	STAFF_PLAYER,	SETTING_ON},
+    {	"autocatalyst", 0, PLR_AUTOCAT,	0,	false, STAFF_PLAYER,	SETTING_ON},
+    {	"autoafk",	0,	PLR_AUTOAFK,	0,	false, STAFF_PLAYER,	SETTING_OFF},
+    {	"hideidle",	0,	PLR_HIDE_IDLE,	0,	false, STAFF_PLAYER,	SETTING_OFF},
+    {	"timestamps",	0,	PLR_SHOW_TIMESTAMPS,0,	false, STAFF_PLAYER,	SETTING_OFF},
 /*    {	"building",     PLR_BUILDING,	 0,		0,		false,  STAFF_IMMORTAL,	SETTING_OFF	},*/
     {	NULL,		0,		 0,		0,		false,	STAFF_PLAYER,	SETTING_OFF	}
 };
@@ -512,1689 +517,6 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
     {	"venom",	"venom",		DAM_POISON	},
     {	"winbrth",	"wintery breath",	DAM_COLD	},
     {   NULL,		NULL,			0		}
-};
-
-
-const 	struct	race_type	race_table	[] =
-{
-	/*
-	{
-		name,
-		pc_race?,
-		act bits,
-		act2 bits,
-		aff_by bits,
-		off bits,
-		imm,
-		res,
-		vuln,
-		form,
-		parts
-	},
-	*/
-	{
-		"none",
-		false,
-		NULL,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0
-	}, {
-		"human",
-		true,
-		&grn_human,&gprn_human,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"elf",
-		true,
-		&grn_elf,&gprn_elf,
-		0,
-		0,
-		AFF_HASTE,
-		0,
-		0,
-		0,
-		RES_MAGIC,
-		VULN_IRON,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"dwarf",
-		true,
-		&grn_dwarf,&gprn_dwarf,
-		0,
-		0,
-		AFF_INFRARED | AFF_REGENERATION,
-		0,
-		0,
-		0,
-		RES_FIRE | RES_COLD | RES_LIGHTNING | RES_ACID, VULN_DROWNING,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"titan",
-		true,
-		&grn_titan,&gprn_titan,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		RES_FIRE|RES_COLD,
-		VULN_LIGHTNING,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"vampire",
-		true,
-		&grn_vampire,&gprn_vampire,
-		0,
-		0,
-		AFF_DETECT_INVIS|AFF_DETECT_HIDDEN,
-		0,
-		0,
-		IMM_POISON,
-		RES_DISEASE,
-		VULN_LIGHT|VULN_HOLY|VULN_FIRE,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS
-	}, {
-		"drow",
-		true,
-		&grn_drow,&gprn_drow,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		OFF_DODGE,
-		0,
-		RES_CHARM,
-		VULN_SILVER|VULN_LIGHT,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"sith",
-		true,
-		&grn_sith,&gprn_sith,
-		0,
-		0,
-		0,
-		0,
-		0,
-		IMM_POISON,
-		0,
-		VULN_FIRE|VULN_PIERCE,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_TAIL
-	}, {
-		"draconian",
-		true,
-		&grn_draconian,&gprn_draconian,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		RES_FIRE|RES_BASH|RES_CHARM,
-		VULN_COLD,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_DRAGON,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS | PART_SCALES
-	}, {
-		"slayer",
-		true,
-		&grn_slayer,&gprn_slayer,
-		0,
-		0,
-		AFF_DETECT_EVIL,
-		0,
-		0,
-		0,
-		0,
-		VULN_NEGATIVE,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"minotaur",
-		true,
-		&grn_minotaur,&gprn_minotaur,
-		0,
-		0,
-		AFF_REGENERATION,
-		0,
-		0,
-		0,
-		RES_COLD,
-		VULN_FIRE,
-		FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_HORNS
-	}, {
-		"angel",
-		true,
-		&grn_angel,&gprn_angel,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		0,
-		VULN_NEGATIVE,
-		FORM_MAGICAL | FORM_BIPED | FORM_SENTIENT,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES
-	}, {
-		"mystic",
-		true,
-		&grn_mystic,&gprn_mystic,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		RES_MAGIC,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"demon",
-		true,
-		&grn_demon,&gprn_demon,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		VULN_HOLY,
-		FORM_MAGICAL | FORM_BIPED | FORM_SENTIENT,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES | PART_FANGS
-	}, {
-		"lich",
-		true,
-		&grn_lich,&gprn_lich,
-		0,
-		0,
-		AFF_PASS_DOOR,
-		0,
-		0,
-		IMM_COLD | IMM_LIGHTNING | IMM_CHARM | IMM_KILL,
-		RES_POISON | RES_PIERCE | RES_SLASH,
-		VULN_BASH | VULN_FIRE,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_CLAWS
-	}, {
-		"avatar",
-		true,
-		&grn_avatar,&gprn_avatar,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"seraph",
-		true,
-		&grn_seraph,&gprn_seraph,
-		0,
-		0,
-		AFF_HASTE,
-		0,
-		0,
-		0,
-		RES_MAGIC,
-		VULN_IRON,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS
-	}, {
-		"berserker",
-		true,
-		&grn_berserker,&gprn_berserker,
-		0,
-		0,
-		AFF_INFRARED | AFF_REGENERATION,
-		0,
-		0,
-		0,
-		RES_FIRE | RES_COLD | RES_LIGHTNING | RES_ACID,
-		VULN_DROWNING,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"colossus",
-		true,
-		&grn_colossus,&gprn_colossus,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		RES_FIRE|RES_COLD,
-		VULN_LIGHTNING,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"fiend",
-		true,
-		&grn_fiend,&gprn_fiend,
-		0,
-		0,
-		AFF_DETECT_INVIS|AFF_DETECT_HIDDEN,
-		0,
-		0,
-		IMM_POISON,
-		RES_DISEASE,
-		VULN_LIGHT|VULN_HOLY|VULN_FIRE,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS
-	}, {
-		"specter",
-		true,
-		&grn_specter,&gprn_specter,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		OFF_DODGE,
-		0,
-		RES_CHARM,
-		VULN_SILVER|VULN_LIGHT,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS
-	}, {
-		"naga",
-		true,
-		&grn_naga,&gprn_naga,
-		0,
-		0,
-		0,
-		0,
-		0,
-		IMM_POISON,
-		0,
-		VULN_FIRE|VULN_PIERCE,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_TAIL
-	}, {
-		"dragon",
-		true,
-		&grn_dragon,&gprn_dragon,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		RES_FIRE|RES_BASH|RES_CHARM,
-		VULN_COLD,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_DRAGON,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS | PART_SCALES
-	}, {
-		"changeling",
-		true,
-		&grn_changeling,&gprn_changeling,
-		0,
-		0,
-		AFF_DETECT_EVIL,
-		0,
-		0,
-		0,
-		0,
-		VULN_NEGATIVE,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"hell baron",
-		true,
-		&grn_hell_baron,&gprn_hell_baron,
-		0,
-		0,
-		AFF_REGENERATION,
-		0,
-		0,
-		RES_COLD,
-		0,
-		VULN_FIRE,
-		FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_HORNS
-	}, {
-		"wraith",
-		true,
-		&grn_wraith,&gprn_wraith,
-		0,
-		0,
-		AFF_PASS_DOOR,
-		0,
-		0,
-		IMM_COLD | IMM_LIGHTNING | IMM_CHARM | IMM_KILL,
-		RES_POISON | RES_PIERCE | RES_SLASH,
-		VULN_BASH | VULN_FIRE,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_CLAWS
-	}, {
-		"shaper",
-		true,
-		&grn_shaper,&gprn_shaper,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"were_changed",
-		false,
-		&grn_were_changed,NULL,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		RES_BASH|RES_COLD,
-		VULN_SILVER|VULN_FIRE,
-		FORM_UNDEAD | FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS
-	}, {
-		"mob_vampire",
-		false,
-		&grn_mob_vampire,NULL,
-		0,
-		0,
-		AFF_FLYING|AFF_DETECT_INVIS|AFF_DETECT_HIDDEN,
-		0,
-		OFF_BASH|OFF_DODGE,
-		IMM_POISON,
-		RES_MAGIC,
-		VULN_LIGHT|VULN_HOLY,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS
-	}, {
-		"bat",
-		false,
-		&grn_bat,NULL,
-		0,
-		0,
-		AFF_FLYING|AFF_DETECT_INVIS|AFF_DETECT_HIDDEN|AFF_INFRARED,
-		0,
-		OFF_DODGE,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_WINGS
-	}, {
-		"werewolf",
-		false,
-		&grn_werewolf,NULL,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"bear",
-		false,
-		&grn_bear,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_CRUSH|OFF_DISARM|OFF_BERSERK,
-		0,
-		RES_BASH|RES_COLD,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS
-	}, {
-		"bugbear",
-		false,
-		&grn_bugbear,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_DODGE|OFF_BERSERK,
-		0,
-		RES_BASH|RES_COLD,
-		VULN_FIRE,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS
-	}, {
-		"cat",
-		false,
-		&grn_cat,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_DODGE,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS
-	}, {
-		"centipede",
-		false,
-		&grn_centipede,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		RES_PIERCE|RES_COLD,
-		VULN_BASH,
-		FORM_EDIBLE | FORM_POISON | FORM_SENTIENT | FORM_INSECT,
-		PART_HEAD | PART_LEGS | PART_EYE
-	}, {
-		"dog",
-		false,
-		&grn_dog,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS
-	}, {
-		"doll",
-		false,
-		&grn_doll,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		IMM_COLD|IMM_POISON|IMM_HOLY|IMM_NEGATIVE|IMM_MENTAL|IMM_DISEASE|IMM_DROWNING,
-		RES_BASH|RES_LIGHT,
-		VULN_SLASH|VULN_FIRE|VULN_ACID|VULN_LIGHTNING|VULN_ENERGY,
-		FORM_OTHER | FORM_CONSTRUCT | FORM_BIPED | FORM_COLD_BLOOD,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HANDS | PART_FEET | PART_EYE
-	}, {
-		"fido",
-		false,
-		&grn_fido,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_DODGE|ASSIST_RACE,
-		0,
-		0,
-		VULN_MAGIC,
-		FORM_EDIBLE | FORM_POISON | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS
-	}, {
-		"fox",
-		false,
-		&grn_fox,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_DODGE,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS
-	}, {
-		"goblin",
-		false,
-		&grn_goblin,NULL,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		RES_DISEASE,
-		VULN_MAGIC,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"hobgoblin",
-		false,
-		&grn_hobgoblin,NULL,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		RES_DISEASE|RES_POISON,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TUSKS
-	}, {
-		"kobold",
-		false,
-		&grn_kobold,NULL,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		RES_POISON,
-		VULN_MAGIC,
-		FORM_EDIBLE | FORM_POISON | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL
-	}, {
-		"lizard",
-		false,
-		&grn_lizard,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		RES_POISON,
-		VULN_COLD,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_REPTILE | FORM_COLD_BLOOD,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_TAIL | PART_FANGS
-	}, {
-		"doxian",
-		false,
-		&grn_doxian,NULL,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		ASSIST_RACE|ASSIST_ALIGN,
-		IMM_CHARM|IMM_DISEASE|IMM_MENTAL|IMM_HOLY|IMM_NEGATIVE,
-		RES_FIRE|RES_COLD|RES_ACID,
-		0,
-		FORM_SENTIENT,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HANDS | PART_FEET | PART_EAR | PART_EYE
-	}, {
-		"orc",
-		false,
-		&grn_orc,NULL,
-		0,
-		0,
-		AFF_INFRARED,
-		0,
-		0,
-		0,
-		RES_DISEASE,
-		VULN_LIGHT,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE
-	}, {
-		"pig",
-		false,
-		&grn_pig,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE
-	}, {
-		"rabbit",
-		false,
-		&grn_rabbit,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_DODGE,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE
-	}, {
-		"school monster",
-		false,
-		&grn_school_monster,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		IMM_CHARM|IMM_SUMMON,
-		0,
-		VULN_MAGIC,
-		FORM_EDIBLE | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS
-	}, {
-		"snake",
-		false,
-		&grn_snake,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		RES_POISON,
-		VULN_COLD,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_REPTILE | FORM_SNAKE | FORM_COLD_BLOOD,
-		PART_HEAD | PART_HEART | PART_BRAINS | PART_GUTS | PART_EYE | PART_LONG_TONGUE | PART_TAIL | PART_FANGS | PART_SCALES
-	}, {
-		"song bird",
-		false,
-		&grn_song_bird,NULL,
-		0,
-		0,
-		AFF_FLYING,
-		0,
-		OFF_DODGE,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIRD,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS
-	}, {
-		"golem",
-		false,
-		&grn_golem,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_CRUSH|OFF_AREA_ATTACK,
-		0,
-		RES_MAGIC,
-		VULN_ACID|VULN_ENERGY,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIRD,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS
-	}, {
-		"unicorn",
-		false,
-		&grn_unicorn,NULL,
-		0,
-		0,
-		AFF_DETECT_EVIL|AFF_DETECT_HIDDEN,
-		0,
-		OFF_FADE|OFF_AREA_ATTACK,
-		0,
-		RES_MAGIC,
-		VULN_IRON|VULN_DROWNING,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIRD,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS
-	}, {
-		"griffon",
-		false,
-		&grn_griffon,NULL,
-		0,
-		0,
-		AFF_FLYING|AFF_HASTE,
-		0,
-		OFF_DODGE|OFF_FADE,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIRD,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_CLAWS | PART_FANGS
-	}, {
-		"troll",
-		false,
-		&grn_troll,NULL,
-		0,
-		0,
-		AFF_REGENERATION|AFF_INFRARED|AFF_DETECT_HIDDEN,
-		0,
-		OFF_BERSERK,
-		0,
-		RES_CHARM|RES_BASH,
-		VULN_FIRE|VULN_ACID,
-		FORM_EDIBLE | FORM_POISON | FORM_SENTIENT | FORM_BIPED | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_CLAWS | PART_FANGS
-	}, {
-		"water fowl",
-		false,
-		&grn_water_fowl,NULL,
-		0,
-		0,
-		AFF_SWIM|AFF_FLYING,
-		0,
-		0,
-		0,
-		RES_DROWNING,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIRD,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS
-	}, {
-		"giant",
-		false,
-		&grn_giant,NULL,
-		0,
-		0,
-		AFF_SWIM|AFF_FLYING,
-		0,
-		0,
-		0,
-		RES_DROWNING,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_BIRD,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS
-	}, {
-		"wolf",
-		false,
-		&grn_wolf,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_DODGE,
-		0,
-		0,
-		0,
-		FORM_EDIBLE | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS
-	}, {
-		"wyvern",
-		false,
-		&grn_wyvern,NULL,
-		0,
-		0,
-		AFF_FLYING|AFF_DETECT_INVIS|AFF_DETECT_HIDDEN,
-		0,
-		OFF_BASH|OFF_DODGE,
-		IMM_POISON,
-		0,
-		VULN_LIGHT,
-		FORM_EDIBLE | FORM_POISON | FORM_SENTIENT | FORM_DRAGON,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_FANGS | PART_SCALES
-	}, {
-		"nileshian",
-		false,
-		&grn_nileshian,NULL,
-		0,
-		0,
-		AFF_INVISIBLE|AFF_SANCTUARY,
-		0,
-		OFF_BASH|OFF_AREA_ATTACK,
-		IMM_BASH,
-		RES_MAGIC,
-		VULN_WOOD|VULN_LIGHT|VULN_HOLY,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS | PART_CLAWS | PART_TAIL
-	}, {
-		"skeleton",
-		false,
-		&grn_skeleton,NULL,
-		0,
-		0,
-		AFF_DETECT_INVIS|AFF_DETECT_HIDDEN,
-		0,
-		0,
-		0,
-		RES_MAGIC,
-		VULN_HOLY,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS
-	}, {
-		"zombie",
-		false,
-		&grn_zombie,NULL,
-		0,
-		0,
-		AFF_DETECT_INVIS|AFF_DETECT_HIDDEN,
-		0,
-		0,
-		IMM_POISON,
-		RES_MAGIC,
-		VULN_HOLY,
-		FORM_UNDEAD | FORM_SENTIENT | FORM_BIPED,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_FANGS
-	}, {
-		"wisp",
-		false,
-		&grn_wisp,NULL,
-		0,
-		0,
-		AFF_FLYING,
-		0,
-		OFF_DODGE,
-		IMM_HOLY,
-		0,
-		VULN_NEGATIVE,
-		FORM_MIST,
-		0
-	}, {
-		"insect",
-		false,
-		&grn_insect,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		RES_COLD|RES_DISEASE,
-		VULN_ACID,
-		FORM_INSECT,
-		PART_HEAD | PART_LEGS | PART_BRAINS | PART_GUTS | PART_FEET | PART_EYE | PART_WINGS | PART_TAIL | PART_EYESTALKS
-	}, {
-		"gnome",
-		false,
-		&grn_gnome,NULL,
-		0,
-		0,
-		0,
-		0,
-		OFF_KICK_DIRT,
-		0,
-		RES_COLD|RES_IRON,
-		VULN_FIRE|VULN_LIGHT,
-		FORM_BIPED | FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS
-	}, {
-		"angel_mob",
-		false,
-		&grn_angel_mob,NULL,
-		0,
-		0,
-		AFF_SANCTUARY,
-		0,
-		OFF_DODGE,
-		0,
-		RES_MAGIC|RES_POISON,
-		VULN_NEGATIVE|VULN_ACID,
-		FORM_MAGICAL | FORM_BIPED | FORM_SENTIENT,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES
-	}, {
-		"demon_mob",
-		false,
-		&grn_demon_mob,NULL,
-		0,
-		0,
-		AFF_SANCTUARY,
-		0,
-		0,
-		0,
-		RES_MAGIC|RES_IRON,
-		VULN_HOLY|VULN_COLD,
-		FORM_MAGICAL | FORM_BIPED | FORM_SENTIENT,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES
-	}, {
-		"rodent",
-		false,
-		&grn_rodent,NULL,
-		0,
-		0,
-		AFF_PLAGUE,
-		0,
-		OFF_DODGE,
-		IMM_DISEASE,
-		0,
-		VULN_FIRE,
-		FORM_SENTIENT | FORM_MAMMAL,
-		PART_HEAD | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_FEET | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS
-	}, {
-		"treant",
-		false,
-		&grn_treant,NULL,
-		0,
-		0,
-		AFF_REGENERATION,
-		0,
-		OFF_PARRY|OFF_KICK_DIRT,
-		IMM_SLASH,
-		0,
-		VULN_FIRE|VULN_ACID,
-		FORM_INTANGIBLE,
-		PART_ARMS | PART_LEGS | PART_HANDS | PART_FEET
-	}, {
-		"horse",
-		false,
-		&grn_horse,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_BLOB,
-		PART_GUTS
-	}, {
-		"bird",
-		false,
-		&grn_bird,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		FORM_MAGICAL | FORM_BIPED | FORM_SENTIENT,
-		PART_HEAD | PART_ARMS | PART_LEGS | PART_HEART | PART_BRAINS | PART_GUTS | PART_HANDS | PART_FEET | PART_FINGERS | PART_EAR | PART_EYE | PART_TAIL | PART_CLAWS | PART_FANGS | PART_HORNS | PART_SCALES
-	}, {
-		"fungus",
-		false,
-		&grn_fungus,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		VULN_LIGHT,
-		FORM_BLOB,
-		PART_GUTS
-	}, {
-		"unique",
-		false,
-		&grn_unique,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0
-	}, {
-		NULL,
-		false,
-		NULL,NULL,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0
-	}
-};
-
-
-
-const	struct	pc_race_type	pc_race_table	[]	=
-{
-	/*
-	{
-		"race name",
-		short name,
-		points,
-		{class multipliers},
-		{bonus skills},
-		{base stats},
-		{max stats},
-		size,
-		alignment,
-		remort,
-		{starting objects}
-},
-	*/
-
-	{
-		"null race",
-		"",
-		{""},
-		{13, 13, 13, 13, 13},
-		{18, 18, 18, 18, 18},
-		{3000, 3000, 3000},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		NULL,
-		NULL,
-		false,
-		{0, 0, 0, 0, 0}
-	},{
-		"human",
-		"{YHuman ",
-		{NULL},
-		{13, 13, 13, 13, 13},
-		{18, 18, 18, 18, 18},
-		{3000, 3000, 3000},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		&gprn_human,
-		&grn_avatar,
-		false,
-		{0, 0, 0, 0, 0}
-	},{
-		"elf",
-		"{G Elf  ",
-		{"sneak", "hide", "bow", "archery", NULL},
-		{13, 13, 13, 13, 13},
-		{20, 22, 20, 21, 20},
-		{2500, 3750, 2800},
-		SIZE_MEDIUM,
-		ALIGN_GOOD,
-		&gprn_elf,
-		&grn_seraph,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"dwarf",
-		"{YDwarf ",
-		{"berserk","repair",NULL},
-		{13, 13, 13, 13, 13},
-		{21, 18, 18, 18, 21},
-		{3350, 2750, 3500},
-		SIZE_SMALL,
-		ALIGN_NONE,
-		&gprn_dwarf,
-		&grn_berserker,
-		false,
-		{0, 0, 0, 0, 0}
-
-	}, {
-		"titan",
-		"{GTitan ",
-		{"bash", "fast healing", "titanic attack", NULL},
-		{13, 13, 13, 13, 13},
-		{25, 18, 18, 17, 23},
-		{3750, 2450, 2700},
-		SIZE_HUGE,
-		ALIGN_GOOD,
-		&gprn_titan,
-		&grn_colossus,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"vampire",
-		"{R Vamp ",
-		{"fast healing", "shape", "shift", "bite", "consume", "temperance", NULL},
-		{13, 13, 13, 13, 13},
-		{22, 18, 20, 19, 18},
-		{3350, 3250, 3250},
-		SIZE_MEDIUM,
-		ALIGN_EVIL,
-		&gprn_vampire,
-		&grn_fiend,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"drow",
-		"{R Drow ",
-		{"swerve", "sneak", "hide", "crossbow", NULL},
-		{13, 13, 13, 13, 13},
-		{18, 22, 20, 20, 18},
-		{2750, 3500, 2600},
-		SIZE_MEDIUM,
-		ALIGN_EVIL,
-		&gprn_drow,
-		&grn_specter,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"sith",
-		"{R Sith ",
-		{"hunt", "tail kick", "bite", "toxins", "sense danger", NULL},
-		{13, 13, 13, 13, 13},
-		{18, 19, 19, 22, 18},
-		{3100, 3000, 3750},
-		SIZE_MEDIUM,
-		ALIGN_EVIL,
-		&gprn_sith,
-		&grn_naga,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"draconian",
-		"{G Drac ",
-		{"fast healing", "breath", "flight", NULL},
-		{13, 13, 13, 13, 13},
-		{21, 18, 18, 18, 21},
-		{3150, 2750, 3000},
-		SIZE_MEDIUM,
-		ALIGN_GOOD,
-		&gprn_draconian,
-		&grn_dragon,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"slayer",
-		"{GSlayer",
-		{"holy wrath", "stake", "shift", NULL},
-		{13, 13, 13, 13, 13},
-		{20, 20, 20, 20, 20},
-		{3250, 2750, 2750},
-		SIZE_MEDIUM,
-		ALIGN_GOOD,
-		&gprn_slayer,
-		&grn_changeling,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"minotaur",
-		"{R Mino ",
-		{"charge", "bash", NULL},
-		{13, 13, 13, 13, 13},
-		{23, 18, 18, 19, 22},
-		{3500, 2350, 2500},
-		SIZE_LARGE,
-		ALIGN_EVIL,
-		&gprn_minotaur,
-		&grn_hell_baron,
-		false,
-		{0, 0, 0, 0, 0}
-	}, {
-		"Angel",
-		"{WAngel ",
-		{"resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{25, 25, 25, 25, 25},
-		{3500, 3500, 3500},
-		SIZE_MEDIUM,
-		ALIGN_GOOD,
-		&gprn_angel,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"Mystic",
-		"{xMystic",
-		{"resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{25, 25, 25, 25, 25},
-		{3500, 3500, 3500},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		&gprn_mystic,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"Demon",
-		"{DDemon ",
-		{"resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{25, 25, 25, 25, 25},
-		{3500, 3500, 3500},
-		SIZE_MEDIUM,
-		ALIGN_EVIL,
-		&gprn_demon,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"lich",
-		"{Y Lich ",
-		{"crippling touch", "rending", "scry",  "spirit rack", NULL},
-		{13, 13, 13, 13, 13},
-		{18, 23, 24, 16, 23},
-		{2350, 3850, 2500},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		&gprn_lich,
-		&grn_wraith,
-		false,
-		{0, 0, 0, 0, 0}
-
-	}, {	/* Remort Races */
-		"avatar",
-		"{YAvatar",
-		{"resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{20, 20, 20, 20, 20},
-		{3500, 3500, 3500},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		&gprn_avatar,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"seraph",
-		"{GSeraph",
-		{"sneak", "hide", "resurrect", "fade", "flight", NULL},
-		{13, 13, 13, 13, 13},
-		{22, 24, 22, 23, 22},
-		{3000, 4250, 3300},
-		SIZE_MEDIUM,
-		ALIGN_GOOD,
-		&gprn_seraph,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"berserker",
-		"{YBerskr",
-		{"berserk","repair", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{23, 20, 20, 20, 23},
-		{3850, 3250, 4000},
-		SIZE_SMALL,
-		ALIGN_NONE,
-		&gprn_berserker,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"colossus",
-		"{GCollos",
-		{"bash", "fast healing", "titanic attack", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{25, 20, 20, 19, 25},
-		{4250, 2950, 3200},
-		SIZE_HUGE,
-		ALIGN_GOOD,
-		&gprn_colossus,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"fiend",
-		"{RFiend ",
-		{"fast healing", "shape", "shift", "bite", "consume", "temperance", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{24, 20, 22, 21, 20},
-		{3850, 3750, 3750},
-		SIZE_MEDIUM,
-		ALIGN_EVIL,
-		&gprn_fiend,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"specter",
-		"{RSpectr",
-		{"swerve", "sneak", "hide", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{20, 24, 22, 22, 20},
-		{3250, 4000, 3100},
-		SIZE_MEDIUM,
-		ALIGN_EVIL,
-		&gprn_specter,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"naga",
-		"{R Naga ",
-		{"hunt", "tail kick", "bite", "toxins", "sense danger", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{20, 21, 21, 24, 21},
-		{3600, 3500, 4250},
-		SIZE_MEDIUM,
-		ALIGN_EVIL,
-		&gprn_naga,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"dragon",
-		"{GDragon",
-		{"breath", "fast healing", "resurrect", "fade", "flight", NULL},
-		{13, 13, 13, 13, 13},
-		{23, 20, 20, 20, 23},
-		{3650, 3250,3500},
-		SIZE_HUGE,
-		ALIGN_GOOD,
-		&gprn_dragon,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"changeling",
-		"{GChling",
-		{"holy wrath", "stake", "shift", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{22, 22, 22, 22, 22},
-		{3750, 3250, 3250},
-		SIZE_LARGE,
-		ALIGN_GOOD,
-		&gprn_changeling,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"hell baron",
-		"{RHellBn",
-		{"charge", "bash", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{25, 20, 20, 21, 24},
-		{4000, 2850, 3000},
-		SIZE_LARGE,
-		ALIGN_EVIL,
-		&gprn_hell_baron,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"wraith",
-		"{YWraith",
-		{"crippling touch", "rending", "scry", "spirit rack", "resurrect", "fade", NULL},
-		{13, 13, 13, 13, 13},
-		{20, 25, 25, 18, 25},
-		{2850, 4600, 3000},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		&gprn_wraith,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	}, {
-		"shaper",
-		"{CShaper",
-		{NULL},
-		{13, 13, 13, 13, 13},
-		{50, 50, 50, 50, 50},
-		{30000, 30000, 30000},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		&gprn_shaper,
-		NULL,
-		true,
-		{0, 0, 0, 0, 0}
-	},	{
-		NULL,
-		NULL,
-		{""},
-		{13, 13, 13, 13, 13},
-		{18, 18, 18, 18, 18},
-		{3000, 3000, 3000},
-		SIZE_MEDIUM,
-		ALIGN_NONE,
-		NULL,
-		NULL,
-		false,
-		{0, 0, 0, 0, 0}
-	}
-};
-
-
-const   struct  sub_class_type  sub_class_table [] =
-{
-    /*
-    {
-	name {neutral, male, female},
-   	who name {neutral, male, female},
-    	subclass type,	skill group,
-	alignment,	remort?,	prereqs{1, 2}
-    }
-    */
-
-    /* Morts*/
-    {
-	{"marauder", 	"marauder", 	"marauder"	},
-	{"  Marauder  ", "  Marauder  ", "  Marauder  "	},
-	CLASS_WARRIOR, 	"marauder skills",
-	ALIGN_EVIL,	false,			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"gladiator", 	"gladiator", 	"gladiator"	},
-	{" Gladiator  ", " Gladiator  ", " Gladiator  "	},
-	CLASS_WARRIOR, 	"gladiator skills",
-	ALIGN_NONE, 	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"paladin", 	"paladin", 	"paladin"	},
-	{"  Paladin   ", "  Paladin   ", "  Paladin   "	},
-	CLASS_WARRIOR, 	"paladin skills",
-	ALIGN_GOOD,	false,			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"necromancer",	"necromancer",	"necromancer"	},
-	{"Necromancer ", "Necromancer ", "Necromancer "	},
-	CLASS_MAGE, 	"necromancer skills",
-	ALIGN_EVIL,	false,			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"sorcerer",	"sorcerer",	"sorceress"	},
-	{"  Sorcerer  ", "  Sorcerer  ", " Sorceress  "	},
-	CLASS_MAGE, 	"sorcerer skills",
-	ALIGN_NONE,	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"wizard",     "wizard",	"wizard",	},
-	{"  Wizard    ", "  Wizard    ", "  Wizard    "	},
-	CLASS_MAGE, 	"wizard skills",
-	ALIGN_GOOD,	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"witch",	"warlock",	"witch"		},
-	{"   Witch    ", "  Warlock   ", "   Witch    "	},
-	CLASS_CLERIC, 	"witch skills",
-	ALIGN_EVIL,	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"druid",    	"druid",	"druid",	},
-	{"   Druid    ", "   Druid    ", "   Druid    "	},
-	CLASS_CLERIC, 	"druid skills",
-	ALIGN_NONE, 	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"monk",     	"monk",		"monk"		},
-	{"   Monk     ", "   Monk     ", "   Monk     "	},
-	CLASS_CLERIC, 	"monk skills",
-	ALIGN_GOOD, 	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"assassin",    "assassin",	"assassin"	},
-	{"  Assassin  ", "  Assassin  ", "  Assassin  "	},
-	CLASS_THIEF, 	"assassin skills",
-	ALIGN_EVIL, 	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"rogue", 	"rogue",	"rogue"		},
-	{"   Rogue    ", "   Rogue    ", "   Rogue    "	},
-	CLASS_THIEF, 	"rogue skills",
-	ALIGN_NONE, 	false, 			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"bard", 	"bard",		"bard"		},
-	{"   Bard     ", "   Bard     ", "   Bard     "	},
-	CLASS_THIEF, 	"bard skills",
-	ALIGN_GOOD,	false,			{-1, -1	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    /* Remorts*/
-
-    {
-	{"warlord",	"warlord",	"warlord"	},
-	{"  Warlord   ", "  Warlord   ", "  Warlord   "	},
-	CLASS_WARRIOR, 	"warlord skills",
-	ALIGN_NONE,	true,
-	{CLASS_WARRIOR_MARAUDER, CLASS_WARRIOR_PALADIN	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"destroyer", 	"destroyer",	"destroyer",	},
-	{" Destroyer  ", " Destroyer  ", " Destroyer  "	},
-	CLASS_WARRIOR, 	"destroyer skills",
-	ALIGN_NONE,	true,
-	{CLASS_WARRIOR_GLADIATOR, CLASS_WARRIOR_MARAUDER},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"crusader", 	"crusader",	"crusader"	},
-	{"  Crusader  ", "  Crusader  ", "  Crusader  "	},
-	CLASS_WARRIOR, 	"crusader skills",
-	ALIGN_NONE,	true,
-	{CLASS_WARRIOR_GLADIATOR, CLASS_WARRIOR_PALADIN	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"archmage", 	"archmage",	"archmage"	},
-	{" Arch-Mage  ", " Arch-Mage  ", " Arch-Mage  "	},
-	CLASS_MAGE, 	"archmage skills",
-	ALIGN_NONE,	true,
-	{CLASS_MAGE_NECROMANCER, CLASS_MAGE_SORCERER	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"geomancer", 	"geomancer",	"geomancer"	},
-	{" Geomancer  ", " Geomancer  ", " Geomancer  "	},
-	CLASS_MAGE, 	"geomancer skills",
-	ALIGN_NONE,	true,
-	{CLASS_MAGE_NECROMANCER, CLASS_MAGE_WIZARD	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"illusionist",	"illusionist",	"illusionist"	},
-	{"Illusionist ", "Illusionist ", "Illusionist "	},
-	CLASS_MAGE, 	"illusionist skills",
-	ALIGN_NONE,	true,
-	{CLASS_MAGE_SORCERER, CLASS_MAGE_WIZARD		},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"alchemist", 	"alchemist",	"alchemist"	},
-	{" Alchemist  ", " Alchemist  ", " Alchemist  "	},
-	CLASS_CLERIC, 	"alchemist skills",
-	ALIGN_NONE,	true,
-	{CLASS_CLERIC_WITCH, CLASS_CLERIC_DRUID		},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"ranger", 	"ranger",	"ranger"	},
-	{"   Ranger   ", "   Ranger   ", "   Ranger   " },
-	CLASS_CLERIC, 	"ranger skills",
-	ALIGN_NONE,	true,
-	{CLASS_CLERIC_DRUID, CLASS_CLERIC_MONK		},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"adept", 	"adept",	"adept",	},
-	{"   Adept    ", "   Adept    ", "   Adept    "	},
-	CLASS_CLERIC, 	"adept skills",
-	ALIGN_NONE,	true,
-	{CLASS_CLERIC_WITCH, CLASS_CLERIC_MONK		},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"highwayman", 	"highwayman",	"highwaywoman"	},
-	{" Highwayman ", " Highwayman ", "Highwaywoman"	},
-	CLASS_THIEF, 	"highwayman skills",
-	ALIGN_NONE,	true,
-	{CLASS_THIEF_ASSASSIN, CLASS_THIEF_BARD		},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"ninja", 	"ninja",	"ninja"		},
-	{"   Ninja    ", "   Ninja    ", "   Ninja    "	},
-	CLASS_THIEF, 	"ninja skills",
-	ALIGN_NONE,	true,
-	{CLASS_THIEF_ASSASSIN, CLASS_THIEF_ROGUE	},
-	{0,	0,	0,	0,	0		}
-    },
-
-    {
-	{"sage", 	"sage",		"sage"		},
-	{"   Sage     ", "   Sage     ", "   Sage     "	},
-	CLASS_THIEF, 	"sage skills",
-	ALIGN_NONE,	true,
-	{CLASS_THIEF_BARD, CLASS_THIEF_ROGUE		},
-	{0,	0,	0,	0,	0		}
-    },
-};
-
-
-const	struct	class_type	class_table	[MAX_CLASS]	=
-{
-    /*
-    {
-	name,	prime attribute,	weapon,
-	hp_min/lev,	hp_max/lev, gain mana on leveling?,
-	skill group
-    }
-    */
-
-    {
-	"mage", 	STAT_INT,  	OBJ_VNUM_NEWB_QUARTERSTAFF,
-	6,  		8, 		true,
-	"mage skills"
-    },
-
-    {
-	"cleric", 	STAT_WIS,  	OBJ_VNUM_NEWB_QUARTERSTAFF,
-	7, 		10, 		true,
-	"cleric skills"
-    },
-
-    {
-	"thief",   	STAT_DEX,  	OBJ_VNUM_NEWB_DAGGER,
-	8, 		13, 		false,
-	"thief skills"
-    },
-
-    {
-	"warrior", 	STAT_STR,  	OBJ_VNUM_NEWB_SWORD,
-	11, 		15, 		false,
-	"warrior skills"
-    }
 };
 
 
@@ -2515,13 +837,13 @@ const struct  material_type material_table [] =
 };
 
 
-const  struct  newbie_eq_type  newbie_eq_table[] =
+struct  newbie_eq_type  newbie_eq_table[] =
 {
-    {	OBJ_VNUM_NEWB_ARMOUR,	WEAR_BODY	},
-    {	OBJ_VNUM_NEWB_CLOAK,	WEAR_ABOUT	},
-    {	OBJ_VNUM_NEWB_LEGGINGS, WEAR_LEGS	},
-    {	OBJ_VNUM_NEWB_BOOTS,	WEAR_FEET	},
-    {	OBJ_VNUM_NEWB_HELM,	WEAR_HEAD	},
+    {	0,	WEAR_BODY	},
+    {	0,	WEAR_ABOUT	},
+    {	0,	WEAR_LEGS	},
+    {	0,	WEAR_FEET	},
+    {	0,	WEAR_HEAD	},
     {	-1,			WEAR_NONE	},
 };
 
@@ -2628,1896 +950,1896 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 {
     /*
     {
-	name,	{level needed by each class}, {difficulty to learn for each class},
-	spell pointer,	legal targets,	min position for caster/user,
-	gsn pointer,	racial skill,	min mana used,	waiting time after use,
-	damage message,	wear off message,	wear off message(for objects)
+    name,	{level needed by each class}, {difficulty to learn for each class},
+    spell pointer,	legal targets,	min position for caster/user,
+    gsn pointer,	racial skill,	min mana used,	waiting time after use,
+    damage message,	wear off message,	wear off message(for objects)
     }
     */
-	{
-		"reserved",
-		{ 1, 1, 1, 1 }, { 200, 200, 200, 200},
-		NULL, TAR_IGNORE, POS_STANDING, NULL,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"acid blast",
-		{ 16, 31, 31, 16 }, { 4, 4, 4, 4},
-		spell_acid_blast, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_acid_blast,
-		-1, 20, 4,
-		"acid blast", "!Acid Blast!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"acid breath",
-		{ 11, 11, 11, 11 }, { 10, 1, 2, 2},
-		spell_acid_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_acid_breath,
-		-1, 100, 2,
-		"blast of acid", "!Acid Breath!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"acrobatics",
-		{ 31, 31, 3, 31 }, { 8, 8, 8, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_acro,
-		-1, 0, 0,
-		"", "!Acrobatics!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"afterburn",
-		{ 20, 31, 31, 31 }, { 15, 25, 25, 25 },
-		spell_afterburn, TAR_IGNORE, POS_STANDING, &gsn_afterburn,
-		0, 150, 10,
-		"scorching fireball", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"air spells",
-		{1, 31, 31, 31}, {15, 20, 30, 30},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_air_spells,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"ambush",
-		{ 31, 31, 22, 31 }, { 20, 18, 13, 14 },
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_ambush,
-		0, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"animate dead",
-		{ 12, 31, 31, 31 }, { 5, 5, 4, 4},
-		spell_animate_dead, TAR_OBJ_GROUND, POS_STANDING, &gsn_animate_dead,
-		-1, 75, 8,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"archery",
-		{ 10, 10, 7, 8 }, { 15, 15, 10, 12},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_archery,
-		-1, 0, 24,
-		"shot", "!Archery!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"armour",
-		{ 3, 1, 31, 3 }, { 2, 2, 5, 5},
-		spell_armour, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_armour,
-		-1, 5, 2,
-		"", "{CYou feel less armoured.{x", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"athletics",
-		{ 31, 31, 25, 5 }, { 14, 14, 14, 8 },
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_athletics,
-		0, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"avatar shield",
-		{ 31, 10, 31, 31 }, { 3, 5, 2, 2},
-		spell_avatar_shield, TAR_CHAR_SELF, POS_STANDING, &gsn_avatar_shield,
-		-1, 75, 12,
-		"", "{CYou feel less resistant to evil attacks.{x", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_HOLY, 2 } }
-	}, {
-		"axe",
-		{ 1, 1, 1, 1 }, { 6, 6, 5, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_axe,
-		-1, 0, 0,
-		"", "!Axe!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"backstab",
-		{ 31, 31, 15, 31 }, { 0, 0, 5, 0},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_backstab,
-		-1, 0, 6,
-		"backstab", "!Backstab!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"bar",
-		{ 31, 31, 12, 31 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_bar,
-		-1, 0, 12,
-		"bar", "!Bar!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"bash",
-		{ 15, 12, 11, 10}, { 11, 5, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_bash,
-		-1, 0, 9,
-		"bash", "!Bash!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"behead",
-		{ 31, 31, 31, 18 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_behead,
-		-1, 0, 12,
-		"", "!Behead!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"berserk",
-		{ 2, 2, 2, 2 }, { 9, 8, 6, 5},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_berserk,
-		PC_RACE_DWARF, 0, 24,
-		"", "{CYou feel your pulse slow down.{x", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"bind",
-		{ 31, 31, 31, 8 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_bind,
-		-1, 0, 0,
-		"", "!Bind!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"bite",
-		{ 1, 1, 1, 1 }, { 2, 2, 2, 2},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_bite,
-		-1, 0, 12,
-		"bite", "!Bite!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"blackjack",
-		{ 31, 31, 21, 31 }, { 0, 0, 5, 0},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_blackjack,
-		-1, 0, 12,
-		"blackjack", "!Blackjack!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"bless",
-		{ 10, 4, 31, 4 }, { 2, 2, 4, 4},
-		spell_bless, TAR_OBJ_CHAR_DEF, POS_STANDING, &gsn_bless,
-		-1, 5, 2,
-		"", "{CYou feel less righteous.{x", "$p's holy aura fades.", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"blindness",
-		{ 6, 4, 31, 6 }, { 3, 3, 4, 5},
-		spell_blindness, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_blindness,
-		-1, 75, 8,
-		"", "You can see again.", "", "$n is no longer blinded.",
-		{ { CATALYST_MIND, 1 },{ CATALYST_BODY, 1 },{ CATALYST_NONE, 0 } }
-	}, {
-		"blowgun",
-		{ 1, 1, 1, 1 }, { 4, 4, 4, 3},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_blowgun,
-		-1, 0, 0,
-		"", "!Blowgun!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"bomb",
-		{ 31, 31, 14, 31 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_bomb,
-		-1, 0, 24,
-		"bomb", "!Bomb!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"bow",
-		{ 1, 1, 1, 1 }, { 10, 10, 8, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_bow,
-		-1, 0, 0,
-		"arrow", "!Bow!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"breath",
-		{ 1, 1, 1, 1 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_breath,
-		PC_RACE_DRACONIAN, 0, 12,
-		"breath", "!Breath!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"brew",
-		{ 31, 13, 31, 31 }, { 8, 8, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_brew,
-		-1, 0, 0,
-		"", "!Brew!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"burgle",
-		{ 31, 31, 15, 31 }, { 0, 0, 9, 0},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_burgle,
-		-1, 0, 0,
-		"", "!Burgle!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"burning hands",
-		{ 3, 31, 31, 31 }, { 3, 3, 3, 3},
-		spell_burning_hands, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_burning_hands,
-		-1, 15, 4,
-		"burning hands", "!Burning Hands!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"call familiar",
-		{ 31, 16, 31, 31 }, { 4, 8, 2, 2},
-		spell_call_familiar, TAR_IGNORE, POS_STANDING, &gsn_call_familiar,
-		-1, 5, 12,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"call lightning",
-		{ 13, 9, 31, 9 }, { 7, 7, 6, 7},
-		spell_call_lightning, TAR_IGNORE, POS_FIGHTING, &gsn_call_lightning,
-		-1, 15, 8,
-		"lightning bolt", "!Call Lightning!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"calm",
-		{ 18, 8, 31, 8 }, { 5, 5, 4, 4},
-		spell_calm, TAR_IGNORE, POS_FIGHTING, &gsn_calm,
-		-1, 30, 8,
-		"", "{CYou have lost your peace of mind.{x", "", "$n no longer looks so peaceful...",
-		{ { CATALYST_MIND, 1 },{ CATALYST_HOLY, 1 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cancellation",
-		{ 9, 31, 31, 31 }, { 4, 4, 4, 4},
-		spell_cancellation, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cancellation,
-		-1, 20, 12,
-		"", "!cancellation!", "", "",
-		{ { CATALYST_BODY, 5 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"catch",
-		{ 31, 14, 31, 31 }, { 8, 10, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_catch,
-		-1, 0, 0,
-		"", "!Catch!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cause critical",
-		{ 31, 16, 31, 16 }, { 4, 4, 4, 4},
-		spell_cause_critical, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_cause_critical,
-		-1, 20, 6,
-		"spell", "!Cause Critical!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cause light",
-		{ 31, 1, 31, 1 }, { 1, 1, 2, 2},
-		spell_cause_light, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_cause_light,
-		-1, 15, 2,
-		"spell", "!Cause Light!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cause serious",
-		{ 31, 4, 31, 4 }, { 1, 3, 2, 2},
-		spell_cause_serious, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_cause_serious,
-		-1, 17, 6,
-		"spell", "!Cause Serious!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"chain lightning",
-		{ 18, 31, 31, 31 }, { 4, 8, 2, 2},
-		spell_chain_lightning, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_chain_lightning,
-		-1, 75, 12,
-		"lightning", "!Chain Lightning!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"channel",
-		{ 14, 31, 31, 31 }, { 4, 1, 2, 2},
-		spell_channel, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_channel,
-		-1, 50, 9,
-		"channel", "!Channel!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"charge",
-		{ 1, 1, 1, 1}, { 4, 4, 4, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_charge,
-		PC_RACE_MINOTAUR, 0, 3,
-		"charge", "!Charge!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"charm person",
-		{ 10, 31, 31, 31 }, { 4, 7, 2, 2},
-		spell_charm_person, TAR_CHAR_OFFENSIVE, POS_STANDING, &gsn_charm_person,
-		-1, 5, 12,
-		"", "{YYou feel more self-confident.{x", "", "$n regains $s free will.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"chill touch",
-		{ 2, 31, 31, 31 }, { 3, 4, 2, 2},
-		spell_chill_touch, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_chill_touch,
-		-1, 15, 6,
-		"chilling touch", "{CYou feel less cold.{x", "", "$n looks to shiver less.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"circle",
-		{ 31, 31, 15, 15 }, { 0, 0, 5, 5},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_circle,
-		-1, 0, 16,
-		"circle", "!Circle!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cloak of guile",
-		{ 31, 31, 6, 31 }, { 5, 5, 5, 5},
-		spell_cloak_of_guile, TAR_CHAR_SELF, POS_STANDING, &gsn_cloak_of_guile,
-		-1, 50, 12,
-		"", "{YYou are no longer invisible to creatures.{x", "", "$n is no longer invisible to creatures.",
-		{ { CATALYST_BODY, 10 },{ CATALYST_ASTRAL, 5 },{ CATALYST_LAW, 5 } }
-	}, {
-		"colour spray",
-		{ 8, 31, 31, 31 }, { 3, 3, 2, 2},
-		spell_colour_spray, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_colour_spray,
-		-1, 15, 6,
-		"colour spray", "!Colour Spray!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"combine",
-		{ 31, 9, 31, 31 }, { 15, 12, 10, 9 },
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_combine,
-		0, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"consume",
-		{ 1, 1, 1, 1 }, { 1, 1, 1, 1},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_consume,
-		PC_RACE_VAMPIRE, 0, 6,
-		"", "!Consume!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"continual light",
-		{ 6, 4, 31, 6 }, { 2, 3, 2, 2},
-		spell_continual_light, TAR_OBJ_INV, POS_STANDING, &gsn_continual_light,
-		-1, 7, 6,
-		"", "!Continual Light!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"control weather",
-		{ 15, 19, 31, 31 }, { 3, 3, 2, 2},
-		spell_control_weather, TAR_IGNORE, POS_STANDING, &gsn_control_weather,
-		-1, 25, 4,
-		"", "!Control Weather!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cosmic blast",
-		{ 31, 25, 31, 31 }, { 1, 8, 2, 2},
-		spell_cosmic_blast, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_cosmic_blast,
-		-1, 75, 10,
-		"cosmic blast", "!Cosmic Blast!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"counterspell",
-		{ 22, 22, 31, 31 }, { 6, 6, 5, 5},
-		spell_counter_spell, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_counterspell,
-		-1, 100, 1,
-		"counterspell", "!Counterspell!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"create food",
-		{ 31, 5, 31, 5 }, { 1, 3, 2, 2},
-		spell_create_food, TAR_IGNORE, POS_STANDING, &gsn_create_food,
-		-1, 5, 2,
-		"", "!Create Food!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"create rose",
-		{15, 5, 31, 31}, {6, 4, 8, 9},
-		spell_create_rose, TAR_IGNORE, POS_STANDING, &gsn_create_rose,
-		0, 50, 8,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"create spring",
-		{ 8, 31, 31, 8 }, { 1, 3, 2, 2},
-		spell_create_spring, TAR_IGNORE, POS_STANDING, &gsn_create_spring,
-		-1, 20, 6,
-		"", "!Create Spring!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"create water",
-		{ 31, 3, 31, 3 }, { 1, 3, 2, 2},
-		spell_create_water, TAR_OBJ_INV, POS_STANDING, &gsn_create_water,
-		-1, 5, 2,
-		"", "!Create Water!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"crippling touch",
-		{ 5, 5, 3, 1 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_crippling_touch,
-		PC_RACE_LICH, 0, 0,
-		"", "!crippling touch!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"crossbow",
-		{ 1, 1, 1, 1 }, { 10, 10, 9, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_crossbow,
-		-1, 0, 0,
-		"bolt", "!Crossbow!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cure blindness",
-		{ 31, 6, 31, 6 }, { 1, 4, 2, 2},
-		spell_cure_blindness, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cure_blindness,
-		-1, 5, 4,
-		"", "!Cure Blindness!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cure critical",
-		{ 10, 10, 10, 10 }, { 4, 4, 4, 4},
-		spell_cure_critical, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cure_critical,
-		-1, 35, 6,
-		"", "!Cure Critical!", "", "",
-		{ { CATALYST_BODY, 4 },{ CATALYST_BLOOD, 1 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cure disease",
-		{ 31, 9, 31, 9 }, { 1, 3, 2, 2},
-		spell_cure_disease, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cure_disease,
-		-1, 20, 6,
-		"", "!Cure Disease!", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_BLOOD, 1 },{ CATALYST_TOXIN, 3 } }
-	}, {
-		"cure light",
-		{ 1, 1, 1, 1 }, { 1, 2, 2, 2},
-		spell_cure_light, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cure_light,
-		-1, 10, 2,
-		"", "!Cure Light!", "", "",
-		{ { CATALYST_BODY, 1 },{ CATALYST_BLOOD, 1 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cure poison",
-		{ 31, 10, 31, 10 }, { 1, 4, 2, 2},
-		spell_cure_poison, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cure_poison,
-		-1, 5, 2,
-		"", "!Cure Poison!", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_BLOOD, 1 },{ CATALYST_TOXIN, 3 } }
-	}, {
-		"cure serious",
-		{ 7, 7, 7, 7 }, { 4, 4, 2, 2},
-		spell_cure_serious, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cure_serious,
-		-1, 15, 6,
-		"", "!Cure Serious!", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_BLOOD, 1 },{ CATALYST_NONE, 0 } }
-	}, {
-		"cure toxic",
-		{ 31, 31, 31, 31 }, { 31, 31, 31, 31},
-		spell_cure_toxic, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_cure_toxic,
-		-1, 5, 2,
-		"", "!Cure Toxic!", "", "",
-		{ { CATALYST_BODY, 5 },{ CATALYST_TOXIN, 2 },{ CATALYST_DEATH, 2 } }
-	}, {
-		"curse",
-		{ 10, 10, 31, 10 }, { 1, 4, 2, 2},
-		spell_curse, TAR_OBJ_CHAR_OFF, POS_FIGHTING, &gsn_curse,
-		-1, 20, 6,
-		"curse", "{CThe curse wears off.{x", "$p is no longer impure.", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dagger",
-		{ 1, 1, 1, 1 }, { 2, 3, 2, 2},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_dagger,
-		-1, 0, 0,
-		"", "!Dagger!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dark shroud",
-		{ 10, 31, 31, 31 }, { 2, 1, 2, 2},
-		spell_dark_shroud, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_dark_shroud,
-		-1, 40, 4,
-		"", "{WEverything seems brighter as your dark shroud fades.{x", "", "",
-		{ { CATALYST_MIND, 2 },{ CATALYST_DEATH, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"death grip",
-		{ 13, 31, 31, 31 }, { 6, 1, 2, 2},
-		spell_death_grip, TAR_CHAR_SELF, POS_STANDING, &gsn_death_grip,
-		-1, 20, 6,
-		"", "Your grip on your weapon loosens.", "", "$n's grip on $s weapon loosens.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"deathbarbs",
-		{ 31, 31, 13, 31 }, { 6, 6, 6, 6},
-		spell_deathbarbs, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_deathbarbs,
-		-1, 100, 8,
-		"deathbarbs", "!Deathbarbs!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"deathsight",
-		{ 5, 31, 31, 31 }, { 2, 1, 2, 2},
-		spell_deathsight, TAR_CHAR_SELF, POS_STANDING, &gsn_deathsight,
-		-1, 15, 4,
-		"", "{DYour perception of the dead fades.{x", "", "",
-		{ { CATALYST_MIND, 2 },{ CATALYST_DEATH, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"deception",
-		{ 8, 8, 8, 8 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_deception,
-		-1, 0, 24,
-		"deception", "!Deception!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"deep trance",
-		{ 8, 5, 31, 31 }, { 7, 6, 8, 9 },
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_deep_trance,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"demonfire",
-		{ 31, 25, 31, 31 }, { 1, 8, 2, 2},
-		spell_demonfire, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_demonfire,
-		-1, 20, 8,
-		"torments", "!Demonfire!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"destruction",
-		{ 8, 31, 31, 31 }, { 5, 10, 10, 10 },
-		spell_destruction, TAR_OBJ_INV, POS_STANDING, &gsn_destruction,
-		0, 250, 14,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"detect hidden",
-		{ 12, 12, 12, 12 }, { 3, 3, 2, 2},
-		spell_detect_hidden, TAR_CHAR_SELF, POS_STANDING, &gsn_detect_hidden,
-		-1, 5, 2,
-		"", "{YYou feel less aware of your surroundings.{x", "", "",
-		{ { CATALYST_MIND, 2 },{ CATALYST_LIGHT, 1 },{ CATALYST_EARTH, 1 } }
-	}, {
-		"detect invis",
-		{ 3, 8, 31, 8 }, { 3, 3, 2, 2},
-		spell_detect_invis, TAR_CHAR_SELF, POS_FIGHTING, &gsn_detect_invis,
-		-1, 5, 2,
-		"", "{YYou no longer see invisible objects.{x", "", "",
-		{ { CATALYST_MIND, 2 },{ CATALYST_LIGHT, 1 },{ CATALYST_AIR, 1 } }
-	}, {
-		"detect magic",
-		{ 2, 6, 31, 6 }, { 3, 3, 2, 2},
-		spell_detect_magic, TAR_CHAR_SELF, POS_STANDING, &gsn_detect_magic,
-		-1, 5, 2,
-		"", "{CThe detect magic wears off.{x", "", "",
-		{ { CATALYST_MIND, 2 },{ CATALYST_LIGHT, 1 },{ CATALYST_ENERGY, 1 } }
-	}, {
-		"detect traps",
-		{31, 31, 12, 31}, {25, 22, 8, 15},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_detect_traps,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dirt kicking",
-		{ 16, 16, 16, 16 }, { 20, 20, 4, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_dirt,
-		-1, 0, 7,
-		"kicked dirt", "You rub the dirt out of your eyes.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"disarm",
-		{ 31, 31, 31, 11 }, { 20, 20, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_disarm,
-		-1, 0, 12,
-		"", "!Disarm!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"discharge",
-		{ 17, 31, 31, 31 }, { 8, 2, 4, 4},
-		spell_discharge, TAR_OBJ_INV, POS_STANDING, &gsn_discharge,
-		-1, 250, 16,
-		"", "!Discharge!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dispel evil",
-		{ 31, 15, 31, 15 }, { 4, 3, 2, 2},
-		spell_dispel_evil, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_dispel_evil,
-		-1, 15, 6,
-		"dispel evil", "!Dispel Evil!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dispel good",
-		{ 31, 15, 31, 15 }, { 4, 4, 2, 2},
-		spell_dispel_good, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_dispel_good,
-		-1, 15, 6,
-		"dispel good", "!Dispel Good!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dispel magic",
-		{ 16, 15, 31, 31 }, { 6, 6, 2, 2},
-		spell_dispel_magic, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_dispel_magic,
-		-1, 50, 8,
-		"", "!Dispel Magic!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dispel room",
-		{ 18, 31, 31, 31 }, { 6, 6, 2, 2},
-		spell_dispel_room, TAR_IGNORE, POS_STANDING, &gsn_dispel_room,
-		-1, 100, 16,
-		"", "!Dispel Room!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dodge",
-		{ 31, 8, 5, 5 }, { 8, 8, 4, 6},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_dodge,
-		-1, 0, 0,
-		"", "!Dodge!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"dual wield",
-		{ 31, 31, 31, 5 }, { 5, 5, 10, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_dual,
-		-1, 0, 0,
-		"", "!Dual!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"eagle eye",
-		{ 21, 31, 31, 31 }, { 8, 6, 6, 6},
-		spell_eagle_eye, TAR_CHAR_SELF, POS_STANDING, &gsn_eagle_eye,
-		-1, 50, 8,
-		"", "", "", "",
-		{ { CATALYST_AIR, 4 },{ CATALYST_COSMIC, 4 },{ CATALYST_NONE, 0 } }
-	}, {
-		"earth spells",
-		{1, 31, 31, 31}, {15, 20, 30, 30},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_earth_spells,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"earth walk",
-		{ 20, 31, 31, 31 }, { 15, 25, 25, 25 },
-		spell_earth_walk, TAR_IGNORE_CHAR_DEF, POS_STANDING, &gsn_earth_walk,
-		0, 150, 10,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"earthquake",
-		{ 15, 10, 15, 10 }, { 1, 5, 2, 5},
-		spell_earthquake, TAR_IGNORE, POS_FIGHTING, &gsn_earthquake,
-		-1, 25, 6,
-		"earthquake", "!Earthquake!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"electrical barrier",
-		{ 20, 31, 31, 31}, { 15, 15, 0, 0 },
-		spell_electrical_barrier, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_electrical_barrier,
-		-1, 100, 8,
-		"electrical wave", "{CThe electrical barrier surrounding you vanishes.{x", "", "The hazy blue barrier around $n vanishes.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_ENERGY, 2 } }
-	}, {
-		"enchant armour",
-		{ 10, 15, 31, 31 }, { 3, 2, 4, 4 },
-		spell_enchant_armour, TAR_OBJ_INV, POS_STANDING, &gsn_enchant_armour,
-		-1, 100, 8,
-		"", "!Enchant Armour!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"enchant weapon",
-		{ 17, 15, 31, 31 }, { 4, 2, 4, 4},
-		spell_enchant_weapon, TAR_OBJ_INV, POS_STANDING, &gsn_enchant_weapon,
-		-1, 100, 8,
-		"", "!Enchant Weapon!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"energy drain",
-		{ 15, 31, 31, 31 }, { 4, 1, 2, 2},
-		spell_energy_drain, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_energy_drain,
-		-1, 50, 6,
-		"energy drain", "!Energy Drain!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"energy field",
-		{ 31, 31, 31, 17 }, { 10, 10, 2, 8},
-		spell_energy_field, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_energy_field,
-		-1, 75, 8,
-		"", "{WThe humming noise around you fades.{x", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_ENERGY, 2 } }
-	}, {
-		"enhanced damage",
-		{ 31, 22, 15, 13 }, { 10, 9, 5, 6},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_enhanced_damage,
-		-1, 0, 0,
-		"", "!Enhanced Damage!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"ensnare",
-		{15, 31, 31, 31}, {6, 10, 11, 11},
-		spell_ensnare, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_ensnare,
-		-1, 50, 7,
-		"", "The vines clutching you wither and fall away.", "", "The vines clutching $n crumble.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"entrap",
-		{8, 31, 31, 31}, {5, 9, 10, 10},
-		spell_entrap, TAR_OBJ_INV, POS_STANDING, &gsn_entrap,
-		-1, 45, 10,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"envenom",
-		{ 31, 31, 10, 31 }, { 20,20, 5, 20 },
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_envenom,
-		-1, 0, 36,
-		"", "!Envenom!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"evasion",
-		{ 31, 31, 20, 31 }, { 6, 6, 8, 6},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_evasion,
-		-1, 0, 12,
-		"", "You no longer feel evasive.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"exorcism",
-		{ 31, 15, 31, 31 }, { 4, 5, 2, 2},
-		spell_exorcism, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_exorcism,
-		-1, 50, 12,
-		"exorcism", "!Exorcism!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"exotic",
-		{ 1, 1, 1, 1 }, { 2, 3, 2, 2},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_exotic,
-		-1, 0, 0,
-		"", "!Exotic!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fade",
-		{ 1, 1, 1, 1 }, { 10, 10, 10, 10},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_fade,
-		-1, 0, 24,
-		"fade", "!Fade!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"faerie fire",
-		{ 6, 3, 31, 6 }, { 4, 4, 2, 2},
-		spell_faerie_fire, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_faerie_fire,
-		-1, 5, 6,
-		"faerie fire", "{MThe pink aura around you fades away.{x", "", "$n's outline fades.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"faerie fog",
-		{ 14, 31, 31, 14 }, { 4, 1, 2, 2},
-		spell_faerie_fog, TAR_IGNORE, POS_STANDING, &gsn_faerie_fog,
-		-1, 12, 6,
-		"faerie fog", "!Faerie Fog!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fast healing",
-		{ 12, 12, 11, 6 }, { 8, 5, 6, 4},
-		spell_null, TAR_IGNORE, POS_SLEEPING, &gsn_fast_healing,
-		-1, 0, 0,
-		"", "!Fast Healing!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fatigue",
-		{ 14, 31, 31, 31 }, { 5, 5, 5, 5},
-		spell_fatigue, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_fatigue,
-		-1, 35, 6,
-		"spell_fatigue", "You regain your stamina.", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_CHAOS, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"feign",
-		{ 8, 8, 8, 8 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_feign,
-		-1, 0, 12,
-		"feign", "!Feign!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fire barrier",
-		{ 12, 31, 31, 31}, { 10, 10, 0, 0 },
-		spell_fire_barrier, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_fire_barrier,
-		-1, 50, 8,
-		"fire wave", "{RThe flames protecting you vanish.{x", "", "The fire shield surrounding $n vanishes.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_FIRE, 2 } }
-	}, {
-		"fire breath",
-		{ 1, 1, 1, 1 }, { 10, 1, 2, 2},
-		spell_fire_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_fire_breath,
-		-1, 200, 2,
-		"blast of flame", "The smoke leaves your eyes.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fire cloud",
-		{ 13, 31, 31, 31 }, { 8, 6, 2, 2},
-		spell_fire_cloud, TAR_IGNORE, POS_STANDING, &gsn_fire_cloud,
-		-1, 50, 12,
-		"fire cloud", "!Fire Cloud!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fire spells",
-		{1, 31, 31, 31}, {15, 20, 30, 30},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_fire_spells,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fireball",
-		{ 7, 31, 31, 31 }, { 2, 2, 2, 2},
-		spell_fireball, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_fireball,
-		-1, 50, 6,
-		"fireball", "!Fireball!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fireproof",
-		{ 12, 12, 31, 12 }, { 6, 6, 2, 2},
-		spell_fireproof, TAR_OBJ_INV, POS_STANDING, &gsn_fireproof,
-		-1, 10, 6,
-		"", "", "{R$p's protective aura fades.{x", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"flail",
-		{ 1, 1, 1, 1 }, { 6, 3, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_flail,
-		-1, 0, 0,
-		"", "!Flail!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"flamestrike",
-		{ 31, 17, 31, 31 }, { 6, 6, 2, 2},
-		spell_flamestrike, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_flamestrike,
-		-1, 20, 8,
-		"flamestrike", "!Flamestrike!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"flash",
-		{ 20, 31, 31, 31 }, { 15, 25, 25, 25 },
-		spell_flash, TAR_IGNORE, POS_STANDING, &gsn_flash,
-		0, 150, 10,
-		"", "", "", "",
-		{ { CATALYST_LIGHT, 5 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"flight",
-		{ 1, 1, 1, 1 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_flight,
-		-1, 0, 12,
-		"", "!Flight!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fly",
-		{ 10, 17, 31, 17 }, { 4, 4, 2, 2},
-		spell_fly, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_fly,
-		-1, 10, 4,
-		"", "{CYou slowly float to the ground.{x", "", "$n falls to the ground!",
-		{ { CATALYST_AIR, 2 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"fourth attack",
-		{ 31, 31, 31, 24 }, { 20, 20, 10, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_fourth_attack,
-		-1, 0, 0,
-		"", "!Fourth Attack!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"frenzy",
-		{ 31, 24, 31, 28 }, { 1, 5, 2, 8},
-		spell_frenzy, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_frenzy,
-		-1, 30, 8,
-		"", "{CYour rage ebbs.{x", "", "$n no longer looks so wild.",
-		{ { CATALYST_MIND, 2 },{ CATALYST_CHAOS, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"frost barrier",
-		{ 15, 31, 31, 31}, { 12, 12, 0, 0 },
-		spell_frost_barrier, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_frost_barrier,
-		-1, 75, 8,
-		"frost wave", "{BThe air around you heats up as the frost barrier dissipates.{x", "", "The frost shield surrounding $n vanishes.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_ICE, 2 } }
-	}, {
-		"frost breath",
-		{ 7, 7, 7, 7 }, { 10, 1, 2, 2},
-		spell_frost_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_frost_breath,
-		-1, 125, 2,
-		"blast of frost", "!Frost Breath!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"gas breath",
-		{ 15, 15, 15, 15 }, { 10, 1, 2, 2},
-		spell_gas_breath, TAR_IGNORE, POS_FIGHTING, &gsn_gas_breath,
-		-1, 175, 2,
-		"blast of gas", "!Gas Breath!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"gate",
-		{ 18, 18, 31, 31 }, { 8, 8, 2, 2},
-		spell_gate, TAR_IGNORE_CHAR_DEF, POS_FIGHTING, &gsn_gate,
-		-1, 80, 6,
-		"", "!Gate!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"giant strength",
-		{ 15, 31, 31, 18 }, { 4, 4, 2, 4},
-		spell_giant_strength, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_giant_strength,
-		-1, 20, 4,
-		"", "{YYou feel weaker.{x", "", "$n no longer looks so mighty.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_EARTH, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"glacial wave",
-		{ 20, 31, 31, 31 }, { 15, 25, 25, 25 },
-		spell_glacial_wave, TAR_IGNORE, POS_STANDING, &gsn_glacial_wave,
-		0, 150, 10,
-		"glacial wave", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"glorious bolt",
-		{ 31, 25, 31, 31 }, { 2, 8, 4, 4},
-		spell_glorious_bolt, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_glorious_bolt,
-		-1, 200, 10,
-		"glorious bolt", "!Glorious Bolt!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"haggle",
-		{ 31, 31, 5, 31 }, { 5, 8, 3, 6},
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_haggle,
-		-1, 0, 0,
-		"", "!Haggle!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"hand to hand",
-		{ 1, 1, 1, 1 }, { 8, 5, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_hand_to_hand,
-		-1, 0, 0,
-		"", "!Hand to Hand!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"harm",
-		{ 31, 24, 31, 24 }, { 1, 5, 2, 5},
-		spell_harm, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_harm,
-		-1, 35, 6,
-		"harm spell", "!Harm!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"harpooning",
-		{ 1, 1, 1, 1 }, { 4, 4, 4, 3},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_harpooning,
-		-1, 0, 0,
-		"", "!Thar She Blows!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"haste",
-		{ 8, 31, 31, 31 }, { 6, 1, 2, 2},
-		spell_haste, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_haste,
-		-1, 30, 6,
-		"", "{YYou feel yourself slow down.{x", "", "$n is no longer moving so quickly.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_CHAOS, 1 } }
-	}, {
-		"heal",
-		{ 15, 15, 15, 15 }, { 6, 6, 6, 6},
-		spell_heal, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_heal,
-		-1, 50, 7,
-		"", "!Heal!", "", "",
-		{ { CATALYST_BODY, 5 },{ CATALYST_BLOOD, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"healing aura",
-		{ 31, 31, 31, 15 }, { 6, 6, 2, 2},
-		spell_healing_aura, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_healing_aura,
-		-1, 75, 6,
-		"healing_aura", "Your healing aura fades.", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_BLOOD, 4 } }
-	}, {
-		"healing hands",
-		{ 15, 15, 15, 14 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_healing_hands,
-		-1, 0, 12,
-		"healing hands", "!Healing Hands!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"hide",
-		{ 13, 13, 1, 13 }, { 4, 6, 6, 6},
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_hide,
-		-1, 0, 12,
-		"", "!Hide!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"holdup",
-		{ 31, 31, 10, 31 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_holdup,
-		-1, 0, 24,
-		"holdup", "!Holdup!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"holy shield",
-		{ 31, 31, 31, 12 }, { 2, 2, 4, 8},
-		spell_holy_shield, TAR_OBJ_INV, POS_STANDING, &gsn_holy_shield,
-		-1, 5, 2,
-		"", "", "The runes on $p fade.", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"holy sword",
-		{ 31, 31, 31, 14 }, { 2, 2, 4, 8},
-		spell_holy_sword, TAR_OBJ_INV, POS_STANDING, &gsn_holy_sword,
-		-1, 5, 2,
-		"", "", "The runes on $p fade.", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"holy word",
-		{ 31, 25, 31, 31 }, { 2, 8, 4, 4},
-		spell_holy_word, TAR_IGNORE, POS_FIGHTING, &gsn_holy_word,
-		-1, 200, 16,
-		"divine wrath", "!Holy Word!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"holy wrath",
-		{ 1, 1, 1, 1 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_holy_wrath,
-		PC_RACE_SLAYER, 0, 0,
-		"", "!holy wrath!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"hunt",
-		{ 17, 17, 17, 17 }, { 10, 10, 10, 4},
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_hunt,
-		-1, 0, 7,
-		"", "!Hunt!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"ice shards",
-		{ 7, 31, 31, 31 }, { 2, 2, 2, 2},
-		spell_ice_shards, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_ice_shards,
-		-1, 50, 6,
-		"shards of ice", "!Ice Shards!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"ice storm",
-		{ 15, 31, 31, 31 }, { 8, 15, 20, 20 },
-		spell_ice_storm, TAR_IGNORE, POS_STANDING, &gsn_ice_storm,
-		0, 110, 9,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"identify",
-		{ 8, 10, 31, 31 }, { 2, 2, 2, 2},
-		spell_identify, TAR_OBJ_INV, POS_STANDING, &gsn_identify,
-		-1, 12, 4,
-		"", "!Identify!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"improved invisibility",
-		{ 9, 31, 31, 31 }, { 4, 1, 2, 2},
-		spell_improved_invisibility, TAR_CHAR_SELF, POS_STANDING, &gsn_improved_invisibility,
-		-1, 50, 8,
-		"", "{CYou are no longer invisible.{x", "", "$n fades into existance.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_AIR, 5 } }
-	}, {
-		"inferno",
-		{ 18, 31, 31, 31 }, { 6, 6, 2, 2},
-		spell_inferno, TAR_IGNORE, POS_STANDING, &gsn_inferno,
-		-1, 50, 6,
-		"inferno", "!Inferno!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"infravision",
-		{ 4, 31, 31, 31 }, { 2, 1, 2, 2},
-		spell_infravision, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_infravision,
-		-1, 5, 4,
-		"", "{CYou no longer see in the dark.{x", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_LIGHT, 1 } }
-	}, {
-		"infuse",
-		{ 31, 15, 31, 31}, { 20, 8, 20, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_infuse,
-		-1, 0, 12,
-		"infuse", "!Infuse!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"intimidate",
-		{ 31, 31, 31, 13 }, { 20, 20, 20, 5},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_intimidate,
-		-1, 0, 24,
-		"intimidate", "!Intimidate!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"invisibility",
-		{ 5, 31, 31, 31 }, { 4, 1, 2, 2},
-		spell_invis, TAR_OBJ_CHAR_DEF, POS_STANDING, &gsn_invis,
-		-1, 5, 4,
-		"", "{CYou are no longer invisible.{x", "$p fades into view.", "$n fades into existance.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_AIR, 2 } }
-	}, {
-		"judge",
-		{ 31, 31, 6, 31 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_judge,
-		-1, 0, 24,
-		"judge", "!Judge!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"kick",
-		{ 31, 8, 31, 8 }, { 20, 4, 6, 4},
-		spell_null, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_kick,
-		-1, 0, 12,
-		"kick", "!Kick!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"kill",
-		{ 12, 31, 31, 31 }, { 5, 5, 4, 4},
-		spell_kill, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_kill,
-		-1, 150, 10,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"leadership",
-		{ 31, 31, 31, 18 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_leadership,
-		-1, 0, 0,
-		"", "!Leadership!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"light shroud",
-		{ 31, 31, 31, 16 }, { 10, 10, 2, 8},
-		spell_light_shroud, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_light_shroud,
-		-1, 75, 8,
-		"", "{WThe white shroud around your body fades.{x", "", "The light shroud around $n's body vanishes.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_LIGHT, 2 },{ CATALYST_HOLY, 2 } }
-	}, {
-		"lightning bolt",
-		{ 3, 31, 31, 31 }, { 2, 2, 2, 2},
-		spell_lightning_bolt, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_lightning_bolt,
-		-1, 15, 6,
-		"lightning bolt", "!Lightning Bolt!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"lightning breath",
-		{ 21, 21, 21, 21 }, { 1, 1, 2, 2},
-		spell_lightning_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_lightning_breath,
-		-1, 150, 2,
-		"blast of lightning", "!Lightning Breath!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"locate object",
-		{ 9, 10, 31, 31 }, { 5, 5, 2, 2},
-		spell_locate_object, TAR_IGNORE, POS_STANDING, &gsn_locate_object,
-		-1, 20, 6,
-		"", "!Locate Object!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"lore",
-		{ 14, 11, 11, 31 }, { 6, 6, 4, 8},
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_lore,
-		-1, 0, 36,
-		"", "!Lore!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"mace",
-		{ 1, 1, 1, 1 }, { 5, 2, 3, 3},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_mace,
-		-1, 0, 0,
-		"", "!Mace!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"magic missile",
-		{ 1, 31, 31, 31 }, { 1, 1, 2, 2},
-		spell_magic_missile, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_magic_missile,
-		-1, 15, 6,
-		"magic missile", "!Magic Missile!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"martial arts",
-		{ 31, 1, 5, 3 }, { 15, 10, 12, 10 },
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_martial_arts,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"mass healing",
-		{ 31, 27, 31, 31 }, { 8, 8, 4, 4},
-		spell_mass_healing, TAR_IGNORE, POS_STANDING, &gsn_mass_healing,
-		-1, 300, 8,
-		"", "!Mass Healing!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"mass invis",
-		{ 22, 31, 31, 31 }, { 8, 7, 2, 2},
-		spell_mass_invis, TAR_IGNORE, POS_STANDING, &gsn_mass_invis,
-		-1, 20, 8,
-		"", "{CYou are no longer invisible.{x", "", "$n fades into existance.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"master weather",
-		{ 22, 31, 31, 31 }, { 8, 9, 12, 15 },
-		spell_master_weather, TAR_IGNORE, POS_STANDING, &gsn_master_weather,
-		-1, 200, 12,
-		"master weather", "!Master Weather!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"maze",
-		{ 22, 31, 31, 31 }, { 5, 5, 4, 4},
-		spell_maze, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_maze,
-		-1, 100, 8,
-		"", "!Maze!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"meditation",
-		{ 6, 6, 31, 31 }, { 5, 5, 8, 8},
-		spell_null, TAR_IGNORE, POS_SLEEPING, &gsn_meditation,
-		-1, 0, 0,
-		"", "Meditation", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"mob lore",
-		{ 31, 31, 14, 31 }, { 6, 6, 6, 6},
-		spell_null, TAR_IGNORE, POS_RESTING, &gsn_mob_lore,
-		-1, 0, 36,
-		"", "!Mob Lore!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"momentary darkness",
-		{ 20, 31, 31, 31 }, { 6, 6, 6, 6},
-		spell_momentary_darkness, TAR_IGNORE, POS_FIGHTING, &gsn_momentary_darkness,
-		-1, 500, 15,
-		"momentary darkness", "!Momentary Darkness!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"morphlock",
-		{ 31, 31, 31, 31 }, { 31, 31, 31, 31 },
-		spell_morphlock, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_morphlock,
-		-1, 50, 12,
-		"", "Your body feels free.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"mount and weapon style",
-		{ 31, 31, 31, 6 }, { 10, 9, 5, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_mount_and_weapon_style,
-		-1, 0, 0,
-		"", "!Mount And Weapon Style!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"music",
-		{ 1, 1, 1, 1 }, { 2, 3, 5, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_music,
-		-1, 0, 12,
-		"", "!Music!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"navigation",
-		{ 1, 1, 1, 1 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_navigation,
-		-1, 0, 12,
-		"", "!Navigation!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"neurotoxin",
-		{ 31, 31, 31, 31 }, {0,0,0,0},
-		spell_toxin_neurotoxin, TAR_CHAR_OFFENSIVE, POS_STANDING, &gsn_neurotoxin,
-		-1, 0, 1 ,
-		"","","","",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"nexus",
-		{ 23, 31, 31, 31 }, { 8, 8, 4, 4},
-		spell_nexus, TAR_IGNORE_CHAR_DEF, POS_STANDING, &gsn_nexus,
-		-1, 150, 8,
-		"", "!Nexus!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"parry",
-		{ 31, 31, 31, 15 }, { 8, 8, 6, 8},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_parry,
-		-1, 0, 0,
-		"", "!Parry!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"pass door",
-		{ 19, 31, 31, 31 }, { 6, 1, 2, 2},
-		spell_pass_door, TAR_CHAR_SELF, POS_STANDING, &gsn_pass_door,
-		-1, 20, 4,
-		"", "{CYou feel solid again.{x", "", "$n becomes solid again.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_AIR, 2 } }
-	}, {
-		"peek",
-		{ 31, 31, 11, 31 }, { 5, 7, 3, 6},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_peek,
-		-1, 0, 0,
-		"", "!Peek!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"pick lock",
-		{ 31, 31, 7, 31 }, { 8, 8, 4, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_pick_lock,
-		-1, 0, 3,
-		"", "!Pick!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"plague",
-		{ 21, 21, 31, 23 }, { 3, 6, 2, 2},
-		spell_plague, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_plague,
-		-1, 20, 6,
-		"sickness", "Your sores vanish.", "", "",
-		{ { CATALYST_BODY, 5 },{ CATALYST_TOXIN, 2 },{ CATALYST_DEATH, 1 } }
-	}, {
-		"poison",
-		{ 12, 14, 31, 17 }, { 3, 6, 2, 2},
-		spell_poison, TAR_OBJ_CHAR_OFF, POS_FIGHTING, &gsn_poison,
-		-1, 10, 6,
-		"poison", "You feel less sick.", "The poison on $p dries up.", "",
-		{ { CATALYST_BODY, 5 },{ CATALYST_TOXIN, 2 },{ CATALYST_BLOOD, 1 } }
-	}, {
-		"polearm",
-		{ 1, 1, 1, 1 }, { 6, 6, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_polearm,
-		-1, 0, 0,
-		"", "!Polearm!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"possess",
-		{ 31, 31, 31, 31 }, { 6, 6, 2, 2},
-		spell_null, TAR_IGNORE_CHAR_DEF, POS_STANDING, &gsn_possess,
-		-1, 100, 12,
-		"Possess", "!Possess!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"pursuit",
-		{ 31, 31, 31, 13}, { 10, 10, 10, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_pursuit,
-		-1, 0, 12,
-		"pursuit", "!Persue!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"quarterstaff",
-		{ 1, 1, 1, 1 }, { 3, 3, 3, 3},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_quarterstaff,
-		-1, 0, 0,
-		"", "!Quarterstaff!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"raise dead",
-		{ 28, 31, 31, 31 }, { 12, 12, 12, 12},
-		spell_raise_dead, TAR_OBJ_GROUND, POS_STANDING, &gsn_raise_dead,
-		-1, 1000, 8,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"recharge",
-		{ 9, 31, 31, 23 }, { 6, 1, 2, 2 },
-		spell_recharge, TAR_OBJ_INV, POS_STANDING, &gsn_recharge,
-		-1, 60, 6,
-		"", "!Recharge!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"refresh",
-		{ 31, 6, 31, 5 }, { 2, 6, 2, 2},
-		spell_refresh, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_refresh,
-		-1, 12, 2,
-		"refresh", "!Refresh!", "", "",
-		{ { CATALYST_BODY, 1 },{ CATALYST_NATURE, 1 },{ CATALYST_NONE, 0 } }
-	}, {
-		"regeneration",
-		{ 31, 18, 31, 31 }, { 6, 8, 6, 6},
-		spell_regeneration, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_regeneration,
-		-1, 75, 12,
-		"regeneration", "You stop regenerating.", "", "",
-		{ { CATALYST_BODY, 5 },{ CATALYST_COSMIC, 5 },{ CATALYST_BLOOD, 5 } }
-	}, {
-		"remove curse",
-		{ 31, 18, 31, 18 }, { 3, 6, 2, 2},
-		spell_remove_curse, TAR_OBJ_CHAR_DEF, POS_STANDING, &gsn_remove_curse,
-		-1, 5, 4,
-		"", "!Remove Curse!", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_NATURE, 1 },{ CATALYST_LAW, 2 } }
-	}, {
-		"rending",
-		{ 2, 2, 2, 1 }, { 8, 8, 7, 6},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_rending,
-		PC_RACE_LICH, 0, 0,
-		"", "!rending!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"repair",
-		{ 11, 11, 11, 11 }, { 21, 15, 13, 11 },
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_repair,
-		PC_RACE_DWARF, 0, 10,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"rescue",
-		{ 31, 31, 31, 3 }, { 20, 20, 20, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_rescue,
-		-1, 0, 12,
-		"", "!Rescue!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"resurrect",
-		{ 1, 1, 1, 1 }, { 15, 15, 15, 15},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_resurrect,
-		-1, 0, 24,
-		"resurrect", "!Resurrect!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"reverie",
-		{ 31, 15, 31, 15 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_reverie,
-		-1, 0, 0,
-		"", "!Reverie!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"riding",
-		{31,31,31,5}, {20,20,20,12},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_riding,
-		0, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"room shield",
-		{ 15, 31, 31, 31 }, { 6, 6, 2, 2},
-		spell_room_shield, TAR_IGNORE, POS_STANDING, &gsn_room_shield,
-		-1, 75, 6,
-		"room shield", "!Room Shield!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"sanctuary",
-		{ 20, 26, 31, 31 }, { 10, 10, 2, 2},
-		spell_sanctuary, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_sanctuary,
-		-1, 75, 8,
-		"", "{WThe white aura around your body fades.{x", "", "The white aura around $n's body vanishes.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_HOLY, 2 } }
-	}, {
-		"scan",
-		{ 31, 31, 8, 31 }, { 11, 11, 5, 8 },
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_scan,
-		0, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"scribe",
-		{ 31, 19, 31, 31 }, { 8, 8, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_scribe,
-		-1, 0, 0,
-		"", "!Scribe!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"scrolls",
-		{ 1, 1, 1, 1 }, { 2, 3, 5, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_scrolls,
-		-1, 0, 24,
-		"", "!Scrolls!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"scry",
-		{16, 16, 16, 16 }, { 15, 17, 19, 25},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_scry,
-		PC_RACE_LICH, 0, 12,
-		"", "!Scry!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"second attack",
-		{ 10, 10, 10, 8 }, { 10, 8, 5, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_second_attack,
-		-1, 0, 0,
-		"", "!Second Attack!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"sense danger",
-		{5, 4, 3, 3}, {8, 6, 5, 4},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_sense_danger,
-		PC_RACE_SITH, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"shape",
-		{ 1, 1, 1, 1 }, { 2, 2, 2, 2},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_shape,
-		PC_RACE_VAMPIRE, 0, 12,
-		"", "!Shape!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"shield",
-		{ 8, 31, 31, 8 }, { 2, 2, 2, 2},
-		spell_shield, TAR_CHAR_DEFENSIVE, POS_STANDING, &gsn_shield,
-		-1, 12, 4,
-		"", "{WYour force shield shimmers then fades away.{x", "", "The shield protecting $n vanishes.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"shield and weapon style",
-		{ 31, 31, 31, 6 }, { 10, 9, 5, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_shield_weapon_style,
-		-1, 0, 0,
-		"", "!Shield And Weapon Style!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"shield block",
-		{ 7, 7, 7, 7 }, { 6, 4, 6, 2},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_shield_block,
-		-1, 0, 0,
-		"", "!Shield!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"shift",
-		{ 1, 1, 1, 1 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_shift,
-		-1, 0, 12,
-		"", "!Shift!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"shocking grasp",
-		{ 10, 31, 31, 31 }, { 2, 2, 2, 2},
-		spell_shocking_grasp, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_shocking_grasp,
-		-1, 15, 4,
-		"shocking grasp", "!Shocking Grasp!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"shriek",
-		{ 7, 31, 31, 31 }, { 2, 2, 2, 2},
-		spell_shriek, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_shriek,
-		-1, 50, 6,
-		"deafening shriek", "!SHRIEK!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"silence",
-		{ 25, 31, 31, 31 }, { 8, 1, 2, 2},
-		spell_silence, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_silence,
-		-1, 50, 12,
-		"", "Your throat clears.", "", "$n is no longer silenced.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"single weapon style",
-		{ 1, 1, 1, 1 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_single_style,
-		-1, 0, 0,
-		"", "!Single Weapon Style!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"skull",
-		{ 7, 7, 7, 7 }, { 2, 3, 5, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_skull,
-		-1, 0, 12,
-		"", "!Skull!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"sleep",
-		{ 16, 31, 31, 31 }, { 6, 6, 2, 2},
-		spell_sleep, TAR_CHAR_OFFENSIVE, POS_STANDING, &gsn_sleep,
-		-1, 15, 6,
-		"", "You feel less tired.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"slit throat",
-		{ 31, 31, 19, 31 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_slit_throat,
-		-1, 0, 12,
-		"breath", "!Slit Throat!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"slow",
-		{ 23, 31, 31, 31 }, { 6, 6, 2, 2},
-		spell_slow, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_slow,
-		-1, 30, 8,
-		"", "You feel yourself speed up.", "", "$n is no longer moving so slowly.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"smite",
-		{31, 31, 31, 15}, {22, 15, 23, 10},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_smite,
-		-1, 0, 12,
-		"strike", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"sneak",
-		{ 10, 10, 10, 10 }, { 6, 4, 4, 6},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_sneak,
-		-1, 0, 12,
-		"", "You no longer feel stealthy.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"soul essence",
-		{ 1, 1, 1, 1 }, { 12, 12, 12, 12},
-		spell_soul_essence, TAR_IGNORE, POS_STANDING, &gsn_soul_essence,
-		-1, 500, 20,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"spear",
-		{ 1, 1, 1, 1 }, { 4, 4, 4, 3},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_spear,
-		-1, 0, 0,
-		"", "!Spear!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"spell deflection",
-		{ 15, 31, 31, 31 }, { 14, 1, 2, 2},
-		spell_spell_deflection, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_spell_deflection,
-		-1, 50, 6,
-		"spell_spell_deflection", "The dazzling crimson aura around you dissipates.", "", "The crimson aura around $n's body vanishes.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_LAW, 5 } }
-	}, {
-		"spell shield",
-		{ 31, 31, 31, 20 }, { 4, 1, 2, 10},
-		spell_spell_shield, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_spell_shield,
-		-1, 50, 8,
-		"spell_shield", "The spell shield around you fades away.", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_ENERGY, 2 } }
-	}, {
-		"spell trap",
-		{ 24, 31, 31, 31 }, { 8, 6, 2, 2},
-		spell_spell_trap, TAR_IGNORE, POS_STANDING, &gsn_spell_trap,
-		-1, 200, 12,
-		"spell_trap", "!Spell Trap!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"spirit rack",
-		{ 11, 11, 11, 11 }, { 7, 7, 7, 6},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_spirit_rack,
-		PC_RACE_LICH, 0, 12,
-		"spirit rack", "!spirit rack!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"stake",
-		{ 1, 1, 1, 1 }, { 4, 4, 6, 3},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_stake,
-		PC_RACE_SLAYER, 0, 9,
-		"", "!Stake!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"starflare",
-		{20, 31, 31, 31}, {9, 10, 15, 18},
-		spell_starflare, TAR_CHAR_OFFENSIVE, POS_STANDING, &gsn_starflare,
-		-1, 150, 12,
-		"starflare", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"staves",
-		{ 1, 1, 1, 1 }, { 2, 3, 5, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_staves,
-		-1, 0, 10,
-		"", "!Staves!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"steal",
-		{ 31, 31, 16, 31 }, { 20, 20, 4, 20},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_steal,
-		-1, 0, 8,
-		"", "!Steal!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"stone skin",
-		{ 4, 6, 31, 21}, { 4, 4, 2, 2},
-		spell_stone_skin, TAR_CHAR_SELF, POS_STANDING, &gsn_stone_skin,
-		-1, 12, 4,
-		"", "Your skin feels soft again.", "", "$n's skin regains its normal texture.",
-		{ { CATALYST_BODY, 2 },{ CATALYST_EARTH, 3 },{ CATALYST_NONE, 0 } }
-	}, {
-		"stone spikes",
-		{16, 31, 31, 31}, {8, 12, 14, 15},
-		spell_stone_spikes, TAR_IGNORE, POS_STANDING, &gsn_stone_spikes,
-		0, 125, 10,
-		"stone spikes", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"stone touch",
-		{ 4, 6, 31, 21}, { 6, 6, 4, 4},
-		spell_stone_touch, TAR_CHAR_OFFENSIVE, POS_STANDING, &gsn_stone_touch,
-		-1, 150, 10,
-		"", "Your skin feels soft again.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"subvert",
-		{ 31, 31, 26, 31 }, { 0, 0, 5, 0},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_subvert,
-		-1, 0, 24,
-		"subvert", "!Subvert!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"summon",
-		{ 15, 12, 31, 31 }, { 6, 6, 2, 2},
-		spell_summon, TAR_IGNORE_CHAR_DEF, POS_STANDING, &gsn_summon,
-		-1, 50, 6,
-		"", "!Summon!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"survey",
-		{ 8, 8, 8, 8 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_survey,
-		-1, 0, 24,
-		"survey", "!Survey!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"swerve",
-		{ 1, 1, 1, 1 }, { 8, 8, 4, 6},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_swerve,
-		PC_RACE_DROW, 0, 0,
-		"", "!Swerve!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"sword",
-		{ 1, 1, 1, 1}, { 5, 6, 3, 2},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_sword,
-		-1, 0, 0,
-		"", "!sword!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"sword and dagger style",
-		{ 31, 31, 31, 6 }, { 10, 9, 5, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_sword_and_dagger_style,
-		-1, 0, 0,
-		"deadly slice", "!Sword And Dagger Style!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"tail kick",
-		{ 1, 1, 1, 1 }, { 5, 5, 5, 5},
-		spell_null, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_tail_kick,
-		PC_RACE_SITH, 0, 12,
-		"tail kick", "!Tail Kick!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"tattoo",
-		{ 31, 19, 31, 31 }, { 8, 8, 6, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_tattoo,
-		-1, 0, 0,
-		"", "!Tattoo!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"temperance",
-		{5,4,3,2}, {3,5,6,6},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_temperance,
-		PC_RACE_VAMPIRE, 0, 12,
-		"","","","",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"third attack",
-		{ 31, 31, 31, 18 }, { 20, 20, 10, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_third_attack,
-		-1, 0, 0,
-		"", "!Third Attack!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"third eye",
-		{ 31, 16, 31, 31 }, { 6, 5, 2, 2},
-		spell_third_eye, TAR_OBJ_INV, POS_STANDING, &gsn_third_eye,
-		-1, 55, 6,
-		"", "!Third Eye!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"throw",
-		{ 31, 12, 12, 31 }, { 0, 8, 8, 0},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_throw,
-		-1, 0, 4,
-		"throw", "!Throw!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"titanic attack",
-		{ 1, 1, 1, 1 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_titanic_attack,
-		PC_RACE_TITAN, 0, 0,
-		"", "!Titanic Attack!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"toxic fumes",
-		{ 31, 31, 31, 31 }, { 31, 31, 31, 31},
-		spell_toxic_fumes, TAR_CHAR_OFFENSIVE, POS_STANDING, &gsn_toxic_fumes,
-		-1, 70, 10,
-		"toxic fumes", "The affects of the toxic fumes subside.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"toxins",
-		{ 13, 13, 13, 13 }, { 5, 5, 5, 5},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_toxins,
-		PC_RACE_SITH, 0, 12,
-		"", "!Toxins!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"trackless step",
-		{31, 7, 31, 31 }, {18, 10, 13, 11},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_trackless_step,
-		0, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"trample",
-		{31,31,31,11}, {23,22,23,11},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_trample,
-		0, 0, 8,
-		"charge", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"turn undead",
-		{ 31, 20, 31, 31 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_turn_undead,
-		-1, 0, 12,
-		"turn_undead", "!Turn Undead!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"two-handed weapon style",
-		{ 31, 31, 31, 11 }, { 10, 9, 5, 10},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_two_handed_style,
-		-1, 0, 0,
-		"", "!Two Handed Weapon Style!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"underwater breathing",
-		{ 7, 12, 31, 31 }, { 7, 1, 2, 2},
-		spell_underwater_breathing, TAR_CHAR_SELF, POS_STANDING, &gsn_underwater_breathing,
-		-1, 70, 10,
-		"", "The gills behind your ears disappear.", "", "",
-		{ { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_WATER, 2 } }
-	}, {
-		"vision",
-		{ 31, 9, 31, 31 }, { 3, 8, 2, 2},
-		spell_vision, TAR_IGNORE, POS_STANDING, &gsn_vision,
-		-1, 50, 6,
-		"", "", "", "",
-		{ { CATALYST_AIR, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_NONE, 0 } }
-	}, {
-		"wands",
-		{ 1, 1, 1, 1 }, { 2, 3, 5, 8},
-		spell_null, TAR_IGNORE, POS_STANDING, &gsn_wands,
-		-1, 0, 10,
-		"", "!Wands!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"warcry",
-		{ 31, 31, 31, 18 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_warcry,
-		-1, 0, 10,
-		"", "Your adrenaline thins out and your breathing returns to normal.", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"water spells",
-		{1, 31, 31, 31}, {15, 20, 30, 30},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_water_spells,
-		-1, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"weaken",
-		{ 13, 15, 31, 31 }, { 5, 5, 2, 2},
-		spell_weaken, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_weaken,
-		-1, 20, 6,
-		"spell", "{YYou feel stronger.{x", "", "$n looks stronger.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"weaving",
-		{ 31, 31, 31, 15 }, { 8, 8, 8, 8},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_weaving,
-		-1, 0, 12,
-		"", "!Weaving!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"web",
-		{ 24, 31, 31, 31 }, { 8, 1, 2, 2},
-		spell_web, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_web,
-		-1, 50, 12,
-		"", "The webs holding you in place disappear.", "", "The webs around $n disappear.",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"whip",
-		{ 1, 1, 1, 1}, { 6, 5, 5, 4},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_whip,
-		-1, 0, 0,
-		"", "!Whip!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"wilderness spear style",
-		{ 31, 18, 31, 31 }, { 5, 8, 5, 5},
-		spell_null, TAR_IGNORE, POS_FIGHTING, &gsn_wilderness_spear_style,
-		-1, 0, 0,
-		"", "!Wilderness Spear Style!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"wind of confusion",
-		{ 25, 31, 31, 31 }, { 14, 1, 2, 2},
-		spell_wind_of_confusion, TAR_IGNORE, POS_FIGHTING, &gsn_wind_of_confusion,
-		-1, 100, 12,
-		"wind of confusion", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"withering cloud",
-		{ 14, 31, 31, 31 }, { 8, 6, 2, 2},
-		spell_withering_cloud, TAR_IGNORE, POS_STANDING, &gsn_withering_cloud,
-		-1, 50, 12,
-		"withering cloud", "!Withering Cloud!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"word of recall",
-		{ 12, 12, 12, 12 }, { 4, 4, 2, 2},
-		spell_word_of_recall, TAR_CHAR_SELF, POS_RESTING, &gsn_word_of_recall,
-		-1, 5, 8,
-		"", "!Word of Recall!", "", "",
-		{ { CATALYST_LAW, 5 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"none",
-		{31, 31, 31, 31}, {100,100,100,100},
-		spell_null, TAR_IGNORE, POS_STANDING, NULL,
-		0, 0, 0,
-		"", "", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}
+    {
+        "reserved",
+        { 1, 1, 1, 1 }, { 200, 200, 200, 200},
+        NULL, TAR_IGNORE, POS_STANDING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "acid blast",
+        { 16, 31, 31, 16 }, { 4, 4, 4, 4},
+        spell_acid_blast, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 20, 4,
+        "acid blast", "!Acid Blast!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "acid breath",
+        { 11, 11, 11, 11 }, { 10, 1, 2, 2},
+        spell_acid_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 100, 2,
+        "blast of acid", "!Acid Breath!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "acrobatics",
+        { 31, 31, 3, 31 }, { 8, 8, 8, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Acrobatics!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "afterburn",
+        { 20, 31, 31, 31 }, { 15, 25, 25, 25 },
+        spell_afterburn, TAR_IGNORE, POS_STANDING,
+        0, 150, 10,
+        "scorching fireball", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "air spells",
+        {1, 31, 31, 31}, {15, 20, 30, 30},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "ambush",
+        { 31, 31, 22, 31 }, { 20, 18, 13, 14 },
+        spell_null, TAR_IGNORE, POS_STANDING,
+        0, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "animate dead",
+        { 12, 31, 31, 31 }, { 5, 5, 4, 4},
+        spell_animate_dead, TAR_OBJ_GROUND, POS_STANDING,
+        -1, 75, 8,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "archery",
+        { 10, 10, 7, 8 }, { 15, 15, 10, 12},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "shot", "!Archery!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "armour",
+        { 3, 1, 31, 3 }, { 2, 2, 5, 5},
+        spell_armour, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 5, 2,
+        "", "{CYou feel less armoured.{x", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "athletics",
+        { 31, 31, 25, 5 }, { 14, 14, 14, 8 },
+        spell_null, TAR_IGNORE, POS_STANDING,
+        0, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "avatar shield",
+        { 31, 10, 31, 31 }, { 3, 5, 2, 2},
+        spell_avatar_shield, TAR_CHAR_SELF, POS_STANDING,
+        -1, 75, 12,
+        "", "{CYou feel less resistant to evil attacks.{x", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_HOLY, 2 } }
+    }, {
+        "axe",
+        { 1, 1, 1, 1 }, { 6, 6, 5, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Axe!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "backstab",
+        { 31, 31, 15, 31 }, { 0, 0, 5, 0},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 6,
+        "backstab", "!Backstab!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "bar",
+        { 31, 31, 12, 31 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "bar", "!Bar!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "bash",
+        { 15, 12, 11, 10}, { 11, 5, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 9,
+        "bash", "!Bash!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "behead",
+        { 31, 31, 31, 18 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "!Behead!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "berserk",
+        { 2, 2, 2, 2 }, { 9, 8, 6, 5},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_DWARF, 0, 24,
+        "", "{CYou feel your pulse slow down.{x", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "bind",
+        { 31, 31, 31, 8 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Bind!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "bite",
+        { 1, 1, 1, 1 }, { 2, 2, 2, 2},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "bite", "!Bite!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "blackjack",
+        { 31, 31, 21, 31 }, { 0, 0, 5, 0},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "blackjack", "!Blackjack!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "bless",
+        { 10, 4, 31, 4 }, { 2, 2, 4, 4},
+        spell_bless, TAR_OBJ_CHAR_DEF, POS_STANDING,
+        -1, 5, 2,
+        "", "{CYou feel less righteous.{x", "$p's holy aura fades.", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "blindness",
+        { 6, 4, 31, 6 }, { 3, 3, 4, 5},
+        spell_blindness, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 75, 8,
+        "", "You can see again.", "", "$n is no longer blinded.",
+        { { CATALYST_MIND, 1 },{ CATALYST_BODY, 1 },{ CATALYST_NONE, 0 } }
+    }, {
+        "blowgun",
+        { 1, 1, 1, 1 }, { 4, 4, 4, 3},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Blowgun!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "bomb",
+        { 31, 31, 14, 31 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "bomb", "!Bomb!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "bow",
+        { 1, 1, 1, 1 }, { 10, 10, 8, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "arrow", "!Bow!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "breath",
+        { 1, 1, 1, 1 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        PC_RACE_DRACONIAN, 0, 12,
+        "breath", "!Breath!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "brew",
+        { 31, 13, 31, 31 }, { 8, 8, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Brew!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "burgle",
+        { 31, 31, 15, 31 }, { 0, 0, 9, 0},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 0,
+        "", "!Burgle!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "burning hands",
+        { 3, 31, 31, 31 }, { 3, 3, 3, 3},
+        spell_burning_hands, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 4,
+        "burning hands", "!Burning Hands!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "call familiar",
+        { 31, 16, 31, 31 }, { 4, 8, 2, 2},
+        spell_call_familiar, TAR_IGNORE, POS_STANDING,
+        -1, 5, 12,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "call lightning",
+        { 13, 9, 31, 9 }, { 7, 7, 6, 7},
+        spell_call_lightning, TAR_IGNORE, POS_FIGHTING,
+        -1, 15, 8,
+        "lightning bolt", "!Call Lightning!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "calm",
+        { 18, 8, 31, 8 }, { 5, 5, 4, 4},
+        spell_calm, TAR_IGNORE, POS_FIGHTING,
+        -1, 30, 8,
+        "", "{CYou have lost your peace of mind.{x", "", "$n no longer looks so peaceful...",
+        { { CATALYST_MIND, 1 },{ CATALYST_HOLY, 1 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cancellation",
+        { 9, 31, 31, 31 }, { 4, 4, 4, 4},
+        spell_cancellation, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 20, 12,
+        "", "!cancellation!", "", "",
+        { { CATALYST_BODY, 5 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "catch",
+        { 31, 14, 31, 31 }, { 8, 10, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Catch!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cause critical",
+        { 31, 16, 31, 16 }, { 4, 4, 4, 4},
+        spell_cause_critical, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 20, 6,
+        "spell", "!Cause Critical!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cause light",
+        { 31, 1, 31, 1 }, { 1, 1, 2, 2},
+        spell_cause_light, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 2,
+        "spell", "!Cause Light!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cause serious",
+        { 31, 4, 31, 4 }, { 1, 3, 2, 2},
+        spell_cause_serious, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 17, 6,
+        "spell", "!Cause Serious!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "chain lightning",
+        { 18, 31, 31, 31 }, { 4, 8, 2, 2},
+        spell_chain_lightning, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 75, 12,
+        "lightning", "!Chain Lightning!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "channel",
+        { 14, 31, 31, 31 }, { 4, 1, 2, 2},
+        spell_channel, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 9,
+        "channel", "!Channel!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "charge",
+        { 1, 1, 1, 1}, { 4, 4, 4, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_MINOTAUR, 0, 3,
+        "charge", "!Charge!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "charm person",
+        { 10, 31, 31, 31 }, { 4, 7, 2, 2},
+        spell_charm_person, TAR_CHAR_OFFENSIVE, POS_STANDING,
+        -1, 5, 12,
+        "", "{YYou feel more self-confident.{x", "", "$n regains $s free will.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "chill touch",
+        { 2, 31, 31, 31 }, { 3, 4, 2, 2},
+        spell_chill_touch, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 6,
+        "chilling touch", "{CYou feel less cold.{x", "", "$n looks to shiver less.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "circle",
+        { 31, 31, 15, 15 }, { 0, 0, 5, 5},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 16,
+        "circle", "!Circle!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cloak of guile",
+        { 31, 31, 6, 31 }, { 5, 5, 5, 5},
+        spell_cloak_of_guile, TAR_CHAR_SELF, POS_STANDING,
+        -1, 50, 12,
+        "", "{YYou are no longer invisible to creatures.{x", "", "$n is no longer invisible to creatures.",
+        { { CATALYST_BODY, 10 },{ CATALYST_ASTRAL, 5 },{ CATALYST_LAW, 5 } }
+    }, {
+        "colour spray",
+        { 8, 31, 31, 31 }, { 3, 3, 2, 2},
+        spell_colour_spray, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 6,
+        "colour spray", "!Colour Spray!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "combine",
+        { 31, 9, 31, 31 }, { 15, 12, 10, 9 },
+        spell_null, TAR_IGNORE, POS_RESTING,
+        0, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "consume",
+        { 1, 1, 1, 1 }, { 1, 1, 1, 1},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        PC_RACE_VAMPIRE, 0, 6,
+        "", "!Consume!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "continual light",
+        { 6, 4, 31, 6 }, { 2, 3, 2, 2},
+        spell_continual_light, TAR_OBJ_INV, POS_STANDING,
+        -1, 7, 6,
+        "", "!Continual Light!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "control weather",
+        { 15, 19, 31, 31 }, { 3, 3, 2, 2},
+        spell_control_weather, TAR_IGNORE, POS_STANDING,
+        -1, 25, 4,
+        "", "!Control Weather!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cosmic blast",
+        { 31, 25, 31, 31 }, { 1, 8, 2, 2},
+        spell_cosmic_blast, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 75, 10,
+        "cosmic blast", "!Cosmic Blast!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "counterspell",
+        { 22, 22, 31, 31 }, { 6, 6, 5, 5},
+        spell_counter_spell, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 100, 1,
+        "counterspell", "!Counterspell!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "create food",
+        { 31, 5, 31, 5 }, { 1, 3, 2, 2},
+        spell_create_food, TAR_IGNORE, POS_STANDING,
+        -1, 5, 2,
+        "", "!Create Food!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "create rose",
+        {15, 5, 31, 31}, {6, 4, 8, 9},
+        spell_create_rose, TAR_IGNORE, POS_STANDING,
+        0, 50, 8,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "create spring",
+        { 8, 31, 31, 8 }, { 1, 3, 2, 2},
+        spell_create_spring, TAR_IGNORE, POS_STANDING,
+        -1, 20, 6,
+        "", "!Create Spring!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "create water",
+        { 31, 3, 31, 3 }, { 1, 3, 2, 2},
+        spell_create_water, TAR_OBJ_INV, POS_STANDING,
+        -1, 5, 2,
+        "", "!Create Water!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "crippling touch",
+        { 5, 5, 3, 1 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_LICH, 0, 0,
+        "", "!crippling touch!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "crossbow",
+        { 1, 1, 1, 1 }, { 10, 10, 9, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "bolt", "!Crossbow!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cure blindness",
+        { 31, 6, 31, 6 }, { 1, 4, 2, 2},
+        spell_cure_blindness, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 5, 4,
+        "", "!Cure Blindness!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cure critical",
+        { 10, 10, 10, 10 }, { 4, 4, 4, 4},
+        spell_cure_critical, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 35, 6,
+        "", "!Cure Critical!", "", "",
+        { { CATALYST_BODY, 4 },{ CATALYST_BLOOD, 1 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cure disease",
+        { 31, 9, 31, 9 }, { 1, 3, 2, 2},
+        spell_cure_disease, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 20, 6,
+        "", "!Cure Disease!", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_BLOOD, 1 },{ CATALYST_TOXIN, 3 } }
+    }, {
+        "cure light",
+        { 1, 1, 1, 1 }, { 1, 2, 2, 2},
+        spell_cure_light, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 10, 2,
+        "", "!Cure Light!", "", "",
+        { { CATALYST_BODY, 1 },{ CATALYST_BLOOD, 1 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cure poison",
+        { 31, 10, 31, 10 }, { 1, 4, 2, 2},
+        spell_cure_poison, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 5, 2,
+        "", "!Cure Poison!", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_BLOOD, 1 },{ CATALYST_TOXIN, 3 } }
+    }, {
+        "cure serious",
+        { 7, 7, 7, 7 }, { 4, 4, 2, 2},
+        spell_cure_serious, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 15, 6,
+        "", "!Cure Serious!", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_BLOOD, 1 },{ CATALYST_NONE, 0 } }
+    }, {
+        "cure toxic",
+        { 31, 31, 31, 31 }, { 31, 31, 31, 31},
+        spell_cure_toxic, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 5, 2,
+        "", "!Cure Toxic!", "", "",
+        { { CATALYST_BODY, 5 },{ CATALYST_TOXIN, 2 },{ CATALYST_DEATH, 2 } }
+    }, {
+        "curse",
+        { 10, 10, 31, 10 }, { 1, 4, 2, 2},
+        spell_curse, TAR_OBJ_CHAR_OFF, POS_FIGHTING,
+        -1, 20, 6,
+        "curse", "{CThe curse wears off.{x", "$p is no longer impure.", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dagger",
+        { 1, 1, 1, 1 }, { 2, 3, 2, 2},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Dagger!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dark shroud",
+        { 10, 31, 31, 31 }, { 2, 1, 2, 2},
+        spell_dark_shroud, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 40, 4,
+        "", "{WEverything seems brighter as your dark shroud fades.{x", "", "",
+        { { CATALYST_MIND, 2 },{ CATALYST_DEATH, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "death grip",
+        { 13, 31, 31, 31 }, { 6, 1, 2, 2},
+        spell_death_grip, TAR_CHAR_SELF, POS_STANDING,
+        -1, 20, 6,
+        "", "Your grip on your weapon loosens.", "", "$n's grip on $s weapon loosens.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "deathbarbs",
+        { 31, 31, 13, 31 }, { 6, 6, 6, 6},
+        spell_deathbarbs, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 100, 8,
+        "deathbarbs", "!Deathbarbs!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "deathsight",
+        { 5, 31, 31, 31 }, { 2, 1, 2, 2},
+        spell_deathsight, TAR_CHAR_SELF, POS_STANDING,
+        -1, 15, 4,
+        "", "{DYour perception of the dead fades.{x", "", "",
+        { { CATALYST_MIND, 2 },{ CATALYST_DEATH, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "deception",
+        { 8, 8, 8, 8 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "deception", "!Deception!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "deep trance",
+        { 8, 5, 31, 31 }, { 7, 6, 8, 9 },
+        spell_null, TAR_IGNORE, POS_RESTING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "demonfire",
+        { 31, 25, 31, 31 }, { 1, 8, 2, 2},
+        spell_demonfire, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 20, 8,
+        "torments", "!Demonfire!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "destruction",
+        { 8, 31, 31, 31 }, { 5, 10, 10, 10 },
+        spell_destruction, TAR_OBJ_INV, POS_STANDING,
+        0, 250, 14,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "detect hidden",
+        { 12, 12, 12, 12 }, { 3, 3, 2, 2},
+        spell_detect_hidden, TAR_CHAR_SELF, POS_STANDING,
+        -1, 5, 2,
+        "", "{YYou feel less aware of your surroundings.{x", "", "",
+        { { CATALYST_MIND, 2 },{ CATALYST_LIGHT, 1 },{ CATALYST_EARTH, 1 } }
+    }, {
+        "detect invis",
+        { 3, 8, 31, 8 }, { 3, 3, 2, 2},
+        spell_detect_invis, TAR_CHAR_SELF, POS_FIGHTING,
+        -1, 5, 2,
+        "", "{YYou no longer see invisible objects.{x", "", "",
+        { { CATALYST_MIND, 2 },{ CATALYST_LIGHT, 1 },{ CATALYST_AIR, 1 } }
+    }, {
+        "detect magic",
+        { 2, 6, 31, 6 }, { 3, 3, 2, 2},
+        spell_detect_magic, TAR_CHAR_SELF, POS_STANDING,
+        -1, 5, 2,
+        "", "{CThe detect magic wears off.{x", "", "",
+        { { CATALYST_MIND, 2 },{ CATALYST_LIGHT, 1 },{ CATALYST_ENERGY, 1 } }
+    }, {
+        "detect traps",
+        {31, 31, 12, 31}, {25, 22, 8, 15},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dirt kicking",
+        { 16, 16, 16, 16 }, { 20, 20, 4, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 7,
+        "kicked dirt", "You rub the dirt out of your eyes.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "disarm",
+        { 31, 31, 31, 11 }, { 20, 20, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 12,
+        "", "!Disarm!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "discharge",
+        { 17, 31, 31, 31 }, { 8, 2, 4, 4},
+        spell_discharge, TAR_OBJ_INV, POS_STANDING,
+        -1, 250, 16,
+        "", "!Discharge!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dispel evil",
+        { 31, 15, 31, 15 }, { 4, 3, 2, 2},
+        spell_dispel_evil, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 6,
+        "dispel evil", "!Dispel Evil!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dispel good",
+        { 31, 15, 31, 15 }, { 4, 4, 2, 2},
+        spell_dispel_good, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 6,
+        "dispel good", "!Dispel Good!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dispel magic",
+        { 16, 15, 31, 31 }, { 6, 6, 2, 2},
+        spell_dispel_magic, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 8,
+        "", "!Dispel Magic!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dispel room",
+        { 18, 31, 31, 31 }, { 6, 6, 2, 2},
+        spell_dispel_room, TAR_IGNORE, POS_STANDING,
+        -1, 100, 16,
+        "", "!Dispel Room!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dodge",
+        { 31, 8, 5, 5 }, { 8, 8, 4, 6},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Dodge!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "dual wield",
+        { 31, 31, 31, 5 }, { 5, 5, 10, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Dual!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "eagle eye",
+        { 21, 31, 31, 31 }, { 8, 6, 6, 6},
+        spell_eagle_eye, TAR_CHAR_SELF, POS_STANDING,
+        -1, 50, 8,
+        "", "", "", "",
+        { { CATALYST_AIR, 4 },{ CATALYST_COSMIC, 4 },{ CATALYST_NONE, 0 } }
+    }, {
+        "earth spells",
+        {1, 31, 31, 31}, {15, 20, 30, 30},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "earth walk",
+        { 20, 31, 31, 31 }, { 15, 25, 25, 25 },
+        spell_earth_walk, TAR_IGNORE_CHAR_DEF, POS_STANDING,
+        0, 150, 10,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "earthquake",
+        { 15, 10, 15, 10 }, { 1, 5, 2, 5},
+        spell_earthquake, TAR_IGNORE, POS_FIGHTING,
+        -1, 25, 6,
+        "earthquake", "!Earthquake!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "electrical barrier",
+        { 20, 31, 31, 31}, { 15, 15, 0, 0 },
+        spell_electrical_barrier, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 100, 8,
+        "electrical wave", "{CThe electrical barrier surrounding you vanishes.{x", "", "The hazy blue barrier around $n vanishes.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_ENERGY, 2 } }
+    }, {
+        "enchant armour",
+        { 10, 15, 31, 31 }, { 3, 2, 4, 4 },
+        spell_enchant_armour, TAR_OBJ_INV, POS_STANDING,
+        -1, 100, 8,
+        "", "!Enchant Armour!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "enchant weapon",
+        { 17, 15, 31, 31 }, { 4, 2, 4, 4},
+        spell_enchant_weapon, TAR_OBJ_INV, POS_STANDING,
+        -1, 100, 8,
+        "", "!Enchant Weapon!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "energy drain",
+        { 15, 31, 31, 31 }, { 4, 1, 2, 2},
+        spell_energy_drain, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 6,
+        "energy drain", "!Energy Drain!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "energy field",
+        { 31, 31, 31, 17 }, { 10, 10, 2, 8},
+        spell_energy_field, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 75, 8,
+        "", "{WThe humming noise around you fades.{x", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_ENERGY, 2 } }
+    }, {
+        "enhanced damage",
+        { 31, 22, 15, 13 }, { 10, 9, 5, 6},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Enhanced Damage!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "ensnare",
+        {15, 31, 31, 31}, {6, 10, 11, 11},
+        spell_ensnare, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 7,
+        "", "The vines clutching you wither and fall away.", "", "The vines clutching $n crumble.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "entrap",
+        {8, 31, 31, 31}, {5, 9, 10, 10},
+        spell_entrap, TAR_OBJ_INV, POS_STANDING,
+        -1, 45, 10,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "envenom",
+        { 31, 31, 10, 31 }, { 20,20, 5, 20 },
+        spell_null, TAR_IGNORE, POS_RESTING,
+        -1, 0, 36,
+        "", "!Envenom!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "evasion",
+        { 31, 31, 20, 31 }, { 6, 6, 8, 6},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "You no longer feel evasive.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "exorcism",
+        { 31, 15, 31, 31 }, { 4, 5, 2, 2},
+        spell_exorcism, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 12,
+        "exorcism", "!Exorcism!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "exotic",
+        { 1, 1, 1, 1 }, { 2, 3, 2, 2},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Exotic!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fade",
+        { 1, 1, 1, 1 }, { 10, 10, 10, 10},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "fade", "!Fade!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "faerie fire",
+        { 6, 3, 31, 6 }, { 4, 4, 2, 2},
+        spell_faerie_fire, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 5, 6,
+        "faerie fire", "{MThe pink aura around you fades away.{x", "", "$n's outline fades.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "faerie fog",
+        { 14, 31, 31, 14 }, { 4, 1, 2, 2},
+        spell_faerie_fog, TAR_IGNORE, POS_STANDING,
+        -1, 12, 6,
+        "faerie fog", "!Faerie Fog!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fast healing",
+        { 12, 12, 11, 6 }, { 8, 5, 6, 4},
+        spell_null, TAR_IGNORE, POS_SLEEPING,
+        -1, 0, 0,
+        "", "!Fast Healing!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fatigue",
+        { 14, 31, 31, 31 }, { 5, 5, 5, 5},
+        spell_fatigue, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 35, 6,
+        "spell_fatigue", "You regain your stamina.", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_CHAOS, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "feign",
+        { 8, 8, 8, 8 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "feign", "!Feign!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fire barrier",
+        { 12, 31, 31, 31}, { 10, 10, 0, 0 },
+        spell_fire_barrier, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 50, 8,
+        "fire wave", "{RThe flames protecting you vanish.{x", "", "The fire shield surrounding $n vanishes.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_FIRE, 2 } }
+    }, {
+        "fire breath",
+        { 1, 1, 1, 1 }, { 10, 1, 2, 2},
+        spell_fire_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 200, 2,
+        "blast of flame", "The smoke leaves your eyes.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fire cloud",
+        { 13, 31, 31, 31 }, { 8, 6, 2, 2},
+        spell_fire_cloud, TAR_IGNORE, POS_STANDING,
+        -1, 50, 12,
+        "fire cloud", "!Fire Cloud!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fire spells",
+        {1, 31, 31, 31}, {15, 20, 30, 30},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fireball",
+        { 7, 31, 31, 31 }, { 2, 2, 2, 2},
+        spell_fireball, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 6,
+        "fireball", "!Fireball!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fireproof",
+        { 12, 12, 31, 12 }, { 6, 6, 2, 2},
+        spell_fireproof, TAR_OBJ_INV, POS_STANDING,
+        -1, 10, 6,
+        "", "", "{R$p's protective aura fades.{x", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "flail",
+        { 1, 1, 1, 1 }, { 6, 3, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Flail!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "flamestrike",
+        { 31, 17, 31, 31 }, { 6, 6, 2, 2},
+        spell_flamestrike, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 20, 8,
+        "flamestrike", "!Flamestrike!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "flash",
+        { 20, 31, 31, 31 }, { 15, 25, 25, 25 },
+        spell_flash, TAR_IGNORE, POS_STANDING,
+        0, 150, 10,
+        "", "", "", "",
+        { { CATALYST_LIGHT, 5 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "flight",
+        { 1, 1, 1, 1 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "!Flight!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fly",
+        { 10, 17, 31, 17 }, { 4, 4, 2, 2},
+        spell_fly, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 10, 4,
+        "", "{CYou slowly float to the ground.{x", "", "$n falls to the ground!",
+        { { CATALYST_AIR, 2 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "fourth attack",
+        { 31, 31, 31, 24 }, { 20, 20, 10, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Fourth Attack!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "frenzy",
+        { 31, 24, 31, 28 }, { 1, 5, 2, 8},
+        spell_frenzy, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 30, 8,
+        "", "{CYour rage ebbs.{x", "", "$n no longer looks so wild.",
+        { { CATALYST_MIND, 2 },{ CATALYST_CHAOS, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "frost barrier",
+        { 15, 31, 31, 31}, { 12, 12, 0, 0 },
+        spell_frost_barrier, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 75, 8,
+        "frost wave", "{BThe air around you heats up as the frost barrier dissipates.{x", "", "The frost shield surrounding $n vanishes.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_ICE, 2 } }
+    }, {
+        "frost breath",
+        { 7, 7, 7, 7 }, { 10, 1, 2, 2},
+        spell_frost_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 125, 2,
+        "blast of frost", "!Frost Breath!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "gas breath",
+        { 15, 15, 15, 15 }, { 10, 1, 2, 2},
+        spell_gas_breath, TAR_IGNORE, POS_FIGHTING,
+        -1, 175, 2,
+        "blast of gas", "!Gas Breath!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "gate",
+        { 18, 18, 31, 31 }, { 8, 8, 2, 2},
+        spell_gate, TAR_IGNORE_CHAR_DEF, POS_FIGHTING,
+        -1, 80, 6,
+        "", "!Gate!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "giant strength",
+        { 15, 31, 31, 18 }, { 4, 4, 2, 4},
+        spell_giant_strength, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 20, 4,
+        "", "{YYou feel weaker.{x", "", "$n no longer looks so mighty.",
+        { { CATALYST_BODY, 2 },{ CATALYST_EARTH, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "glacial wave",
+        { 20, 31, 31, 31 }, { 15, 25, 25, 25 },
+        spell_glacial_wave, TAR_IGNORE, POS_STANDING,
+        0, 150, 10,
+        "glacial wave", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "glorious bolt",
+        { 31, 25, 31, 31 }, { 2, 8, 4, 4},
+        spell_glorious_bolt, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 200, 10,
+        "glorious bolt", "!Glorious Bolt!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "haggle",
+        { 31, 31, 5, 31 }, { 5, 8, 3, 6},
+        spell_null, TAR_IGNORE, POS_RESTING,
+        -1, 0, 0,
+        "", "!Haggle!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "hand to hand",
+        { 1, 1, 1, 1 }, { 8, 5, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Hand to Hand!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "harm",
+        { 31, 24, 31, 24 }, { 1, 5, 2, 5},
+        spell_harm, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 35, 6,
+        "harm spell", "!Harm!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "harpooning",
+        { 1, 1, 1, 1 }, { 4, 4, 4, 3},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Thar She Blows!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "haste",
+        { 8, 31, 31, 31 }, { 6, 1, 2, 2},
+        spell_haste, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 30, 6,
+        "", "{YYou feel yourself slow down.{x", "", "$n is no longer moving so quickly.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_CHAOS, 1 } }
+    }, {
+        "heal",
+        { 15, 15, 15, 15 }, { 6, 6, 6, 6},
+        spell_heal, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 50, 7,
+        "", "!Heal!", "", "",
+        { { CATALYST_BODY, 5 },{ CATALYST_BLOOD, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "healing aura",
+        { 31, 31, 31, 15 }, { 6, 6, 2, 2},
+        spell_healing_aura, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 75, 6,
+        "healing_aura", "Your healing aura fades.", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_BLOOD, 4 } }
+    }, {
+        "healing hands",
+        { 15, 15, 15, 14 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "healing hands", "!Healing Hands!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "hide",
+        { 13, 13, 1, 13 }, { 4, 6, 6, 6},
+        spell_null, TAR_IGNORE, POS_RESTING,
+        -1, 0, 12,
+        "", "!Hide!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "holdup",
+        { 31, 31, 10, 31 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "holdup", "!Holdup!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "holy shield",
+        { 31, 31, 31, 12 }, { 2, 2, 4, 8},
+        spell_holy_shield, TAR_OBJ_INV, POS_STANDING,
+        -1, 5, 2,
+        "", "", "The runes on $p fade.", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "holy sword",
+        { 31, 31, 31, 14 }, { 2, 2, 4, 8},
+        spell_holy_sword, TAR_OBJ_INV, POS_STANDING,
+        -1, 5, 2,
+        "", "", "The runes on $p fade.", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "holy word",
+        { 31, 25, 31, 31 }, { 2, 8, 4, 4},
+        spell_holy_word, TAR_IGNORE, POS_FIGHTING,
+        -1, 200, 16,
+        "divine wrath", "!Holy Word!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "holy wrath",
+        { 1, 1, 1, 1 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_SLAYER, 0, 0,
+        "", "!holy wrath!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "hunt",
+        { 17, 17, 17, 17 }, { 10, 10, 10, 4},
+        spell_null, TAR_IGNORE, POS_RESTING,
+        -1, 0, 7,
+        "", "!Hunt!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "ice shards",
+        { 7, 31, 31, 31 }, { 2, 2, 2, 2},
+        spell_ice_shards, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 6,
+        "shards of ice", "!Ice Shards!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "ice storm",
+        { 15, 31, 31, 31 }, { 8, 15, 20, 20 },
+        spell_ice_storm, TAR_IGNORE, POS_STANDING,
+        0, 110, 9,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "identify",
+        { 8, 10, 31, 31 }, { 2, 2, 2, 2},
+        spell_identify, TAR_OBJ_INV, POS_STANDING,
+        -1, 12, 4,
+        "", "!Identify!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "improved invisibility",
+        { 9, 31, 31, 31 }, { 4, 1, 2, 2},
+        spell_improved_invisibility, TAR_CHAR_SELF, POS_STANDING,
+        -1, 50, 8,
+        "", "{CYou are no longer invisible.{x", "", "$n fades into existance.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_AIR, 5 } }
+    }, {
+        "inferno",
+        { 18, 31, 31, 31 }, { 6, 6, 2, 2},
+        spell_inferno, TAR_IGNORE, POS_STANDING,
+        -1, 50, 6,
+        "inferno", "!Inferno!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "infravision",
+        { 4, 31, 31, 31 }, { 2, 1, 2, 2},
+        spell_infravision, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 5, 4,
+        "", "{CYou no longer see in the dark.{x", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_LIGHT, 1 } }
+    }, {
+        "infuse",
+        { 31, 15, 31, 31}, { 20, 8, 20, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 12,
+        "infuse", "!Infuse!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "intimidate",
+        { 31, 31, 31, 13 }, { 20, 20, 20, 5},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 24,
+        "intimidate", "!Intimidate!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "invisibility",
+        { 5, 31, 31, 31 }, { 4, 1, 2, 2},
+        spell_invis, TAR_OBJ_CHAR_DEF, POS_STANDING,
+        -1, 5, 4,
+        "", "{CYou are no longer invisible.{x", "$p fades into view.", "$n fades into existance.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_AIR, 2 } }
+    }, {
+        "judge",
+        { 31, 31, 6, 31 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "judge", "!Judge!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "kick",
+        { 31, 8, 31, 8 }, { 20, 4, 6, 4},
+        spell_null, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 0, 12,
+        "kick", "!Kick!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "kill",
+        { 12, 31, 31, 31 }, { 5, 5, 4, 4},
+        spell_kill, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 150, 10,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "leadership",
+        { 31, 31, 31, 18 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Leadership!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "light shroud",
+        { 31, 31, 31, 16 }, { 10, 10, 2, 8},
+        spell_light_shroud, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 75, 8,
+        "", "{WThe white shroud around your body fades.{x", "", "The light shroud around $n's body vanishes.",
+        { { CATALYST_BODY, 2 },{ CATALYST_LIGHT, 2 },{ CATALYST_HOLY, 2 } }
+    }, {
+        "lightning bolt",
+        { 3, 31, 31, 31 }, { 2, 2, 2, 2},
+        spell_lightning_bolt, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 6,
+        "lightning bolt", "!Lightning Bolt!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "lightning breath",
+        { 21, 21, 21, 21 }, { 1, 1, 2, 2},
+        spell_lightning_breath, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 150, 2,
+        "blast of lightning", "!Lightning Breath!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "locate object",
+        { 9, 10, 31, 31 }, { 5, 5, 2, 2},
+        spell_locate_object, TAR_IGNORE, POS_STANDING,
+        -1, 20, 6,
+        "", "!Locate Object!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "lore",
+        { 14, 11, 11, 31 }, { 6, 6, 4, 8},
+        spell_null, TAR_IGNORE, POS_RESTING,
+        -1, 0, 36,
+        "", "!Lore!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "mace",
+        { 1, 1, 1, 1 }, { 5, 2, 3, 3},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Mace!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "magic missile",
+        { 1, 31, 31, 31 }, { 1, 1, 2, 2},
+        spell_magic_missile, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 6,
+        "magic missile", "!Magic Missile!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "martial arts",
+        { 31, 1, 5, 3 }, { 15, 10, 12, 10 },
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "mass healing",
+        { 31, 27, 31, 31 }, { 8, 8, 4, 4},
+        spell_mass_healing, TAR_IGNORE, POS_STANDING,
+        -1, 300, 8,
+        "", "!Mass Healing!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "mass invis",
+        { 22, 31, 31, 31 }, { 8, 7, 2, 2},
+        spell_mass_invis, TAR_IGNORE, POS_STANDING,
+        -1, 20, 8,
+        "", "{CYou are no longer invisible.{x", "", "$n fades into existance.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "master weather",
+        { 22, 31, 31, 31 }, { 8, 9, 12, 15 },
+        spell_master_weather, TAR_IGNORE, POS_STANDING,
+        -1, 200, 12,
+        "master weather", "!Master Weather!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "maze",
+        { 22, 31, 31, 31 }, { 5, 5, 4, 4},
+        spell_maze, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 100, 8,
+        "", "!Maze!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "meditation",
+        { 6, 6, 31, 31 }, { 5, 5, 8, 8},
+        spell_null, TAR_IGNORE, POS_SLEEPING,
+        -1, 0, 0,
+        "", "Meditation", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "mob lore",
+        { 31, 31, 14, 31 }, { 6, 6, 6, 6},
+        spell_null, TAR_IGNORE, POS_RESTING,
+        -1, 0, 36,
+        "", "!Mob Lore!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "momentary darkness",
+        { 20, 31, 31, 31 }, { 6, 6, 6, 6},
+        spell_momentary_darkness, TAR_IGNORE, POS_FIGHTING,
+        -1, 500, 15,
+        "momentary darkness", "!Momentary Darkness!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "morphlock",
+        { 31, 31, 31, 31 }, { 31, 31, 31, 31 },
+        spell_morphlock, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 12,
+        "", "Your body feels free.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "mount and weapon style",
+        { 31, 31, 31, 6 }, { 10, 9, 5, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Mount And Weapon Style!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "music",
+        { 1, 1, 1, 1 }, { 2, 3, 5, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "!Music!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "navigation",
+        { 1, 1, 1, 1 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "!Navigation!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "neurotoxin",
+        { 31, 31, 31, 31 }, {0,0,0,0},
+        spell_toxin_neurotoxin, TAR_CHAR_OFFENSIVE, POS_STANDING,
+        -1, 0, 1 ,
+        "","","","",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "nexus",
+        { 23, 31, 31, 31 }, { 8, 8, 4, 4},
+        spell_nexus, TAR_IGNORE_CHAR_DEF, POS_STANDING,
+        -1, 150, 8,
+        "", "!Nexus!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "parry",
+        { 31, 31, 31, 15 }, { 8, 8, 6, 8},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Parry!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "pass door",
+        { 19, 31, 31, 31 }, { 6, 1, 2, 2},
+        spell_pass_door, TAR_CHAR_SELF, POS_STANDING,
+        -1, 20, 4,
+        "", "{CYou feel solid again.{x", "", "$n becomes solid again.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_AIR, 2 } }
+    }, {
+        "peek",
+        { 31, 31, 11, 31 }, { 5, 7, 3, 6},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 0,
+        "", "!Peek!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "pick lock",
+        { 31, 31, 7, 31 }, { 8, 8, 4, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 3,
+        "", "!Pick!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "plague",
+        { 21, 21, 31, 23 }, { 3, 6, 2, 2},
+        spell_plague, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 20, 6,
+        "sickness", "Your sores vanish.", "", "",
+        { { CATALYST_BODY, 5 },{ CATALYST_TOXIN, 2 },{ CATALYST_DEATH, 1 } }
+    }, {
+        "poison",
+        { 12, 14, 31, 17 }, { 3, 6, 2, 2},
+        spell_poison, TAR_OBJ_CHAR_OFF, POS_FIGHTING,
+        -1, 10, 6,
+        "poison", "You feel less sick.", "The poison on $p dries up.", "",
+        { { CATALYST_BODY, 5 },{ CATALYST_TOXIN, 2 },{ CATALYST_BLOOD, 1 } }
+    }, {
+        "polearm",
+        { 1, 1, 1, 1 }, { 6, 6, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Polearm!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "possess",
+        { 31, 31, 31, 31 }, { 6, 6, 2, 2},
+        spell_null, TAR_IGNORE_CHAR_DEF, POS_STANDING,
+        -1, 100, 12,
+        "Possess", "!Possess!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "pursuit",
+        { 31, 31, 31, 13}, { 10, 10, 10, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 12,
+        "pursuit", "!Persue!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "quarterstaff",
+        { 1, 1, 1, 1 }, { 3, 3, 3, 3},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Quarterstaff!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "raise dead",
+        { 28, 31, 31, 31 }, { 12, 12, 12, 12},
+        spell_raise_dead, TAR_OBJ_GROUND, POS_STANDING,
+        -1, 1000, 8,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "recharge",
+        { 9, 31, 31, 23 }, { 6, 1, 2, 2 },
+        spell_recharge, TAR_OBJ_INV, POS_STANDING,
+        -1, 60, 6,
+        "", "!Recharge!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "refresh",
+        { 31, 6, 31, 5 }, { 2, 6, 2, 2},
+        spell_refresh, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 12, 2,
+        "refresh", "!Refresh!", "", "",
+        { { CATALYST_BODY, 1 },{ CATALYST_NATURE, 1 },{ CATALYST_NONE, 0 } }
+    }, {
+        "regeneration",
+        { 31, 18, 31, 31 }, { 6, 8, 6, 6},
+        spell_regeneration, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 75, 12,
+        "regeneration", "You stop regenerating.", "", "",
+        { { CATALYST_BODY, 5 },{ CATALYST_COSMIC, 5 },{ CATALYST_BLOOD, 5 } }
+    }, {
+        "remove curse",
+        { 31, 18, 31, 18 }, { 3, 6, 2, 2},
+        spell_remove_curse, TAR_OBJ_CHAR_DEF, POS_STANDING,
+        -1, 5, 4,
+        "", "!Remove Curse!", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_NATURE, 1 },{ CATALYST_LAW, 2 } }
+    }, {
+        "rending",
+        { 2, 2, 2, 1 }, { 8, 8, 7, 6},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_LICH, 0, 0,
+        "", "!rending!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "repair",
+        { 11, 11, 11, 11 }, { 21, 15, 13, 11 },
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_DWARF, 0, 10,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "rescue",
+        { 31, 31, 31, 3 }, { 20, 20, 20, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 12,
+        "", "!Rescue!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "resurrect",
+        { 1, 1, 1, 1 }, { 15, 15, 15, 15},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "resurrect", "!Resurrect!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "reverie",
+        { 31, 15, 31, 15 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Reverie!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "riding",
+        {31,31,31,5}, {20,20,20,12},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        0, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "room shield",
+        { 15, 31, 31, 31 }, { 6, 6, 2, 2},
+        spell_room_shield, TAR_IGNORE, POS_STANDING,
+        -1, 75, 6,
+        "room shield", "!Room Shield!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "sanctuary",
+        { 20, 26, 31, 31 }, { 10, 10, 2, 2},
+        spell_sanctuary, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 75, 8,
+        "", "{WThe white aura around your body fades.{x", "", "The white aura around $n's body vanishes.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 1 },{ CATALYST_HOLY, 2 } }
+    }, {
+        "scan",
+        { 31, 31, 8, 31 }, { 11, 11, 5, 8 },
+        spell_null, TAR_IGNORE, POS_STANDING,
+        0, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "scribe",
+        { 31, 19, 31, 31 }, { 8, 8, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Scribe!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "scrolls",
+        { 1, 1, 1, 1 }, { 2, 3, 5, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "", "!Scrolls!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "scry",
+        {16, 16, 16, 16 }, { 15, 17, 19, 25},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        PC_RACE_LICH, 0, 12,
+        "", "!Scry!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "second attack",
+        { 10, 10, 10, 8 }, { 10, 8, 5, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Second Attack!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "sense danger",
+        {5, 4, 3, 3}, {8, 6, 5, 4},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        PC_RACE_SITH, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "shape",
+        { 1, 1, 1, 1 }, { 2, 2, 2, 2},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        PC_RACE_VAMPIRE, 0, 12,
+        "", "!Shape!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "shield",
+        { 8, 31, 31, 8 }, { 2, 2, 2, 2},
+        spell_shield, TAR_CHAR_DEFENSIVE, POS_STANDING,
+        -1, 12, 4,
+        "", "{WYour force shield shimmers then fades away.{x", "", "The shield protecting $n vanishes.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "shield and weapon style",
+        { 31, 31, 31, 6 }, { 10, 9, 5, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Shield And Weapon Style!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "shield block",
+        { 7, 7, 7, 7 }, { 6, 4, 6, 2},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Shield!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "shift",
+        { 1, 1, 1, 1 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "!Shift!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "shocking grasp",
+        { 10, 31, 31, 31 }, { 2, 2, 2, 2},
+        spell_shocking_grasp, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 15, 4,
+        "shocking grasp", "!Shocking Grasp!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "shriek",
+        { 7, 31, 31, 31 }, { 2, 2, 2, 2},
+        spell_shriek, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 6,
+        "deafening shriek", "!SHRIEK!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "silence",
+        { 25, 31, 31, 31 }, { 8, 1, 2, 2},
+        spell_silence, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 12,
+        "", "Your throat clears.", "", "$n is no longer silenced.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "single weapon style",
+        { 1, 1, 1, 1 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Single Weapon Style!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "skull",
+        { 7, 7, 7, 7 }, { 2, 3, 5, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "!Skull!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "sleep",
+        { 16, 31, 31, 31 }, { 6, 6, 2, 2},
+        spell_sleep, TAR_CHAR_OFFENSIVE, POS_STANDING,
+        -1, 15, 6,
+        "", "You feel less tired.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "slit throat",
+        { 31, 31, 19, 31 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "breath", "!Slit Throat!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "slow",
+        { 23, 31, 31, 31 }, { 6, 6, 2, 2},
+        spell_slow, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 30, 8,
+        "", "You feel yourself speed up.", "", "$n is no longer moving so slowly.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "smite",
+        {31, 31, 31, 15}, {22, 15, 23, 10},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "strike", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "sneak",
+        { 10, 10, 10, 10 }, { 6, 4, 4, 6},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "", "You no longer feel stealthy.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "soul essence",
+        { 1, 1, 1, 1 }, { 12, 12, 12, 12},
+        spell_soul_essence, TAR_IGNORE, POS_STANDING,
+        -1, 500, 20,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "spear",
+        { 1, 1, 1, 1 }, { 4, 4, 4, 3},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Spear!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "spell deflection",
+        { 15, 31, 31, 31 }, { 14, 1, 2, 2},
+        spell_spell_deflection, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 50, 6,
+        "spell_spell_deflection", "The dazzling crimson aura around you dissipates.", "", "The crimson aura around $n's body vanishes.",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_LAW, 5 } }
+    }, {
+        "spell shield",
+        { 31, 31, 31, 20 }, { 4, 1, 2, 10},
+        spell_spell_shield, TAR_CHAR_DEFENSIVE, POS_FIGHTING,
+        -1, 50, 8,
+        "spell_shield", "The spell shield around you fades away.", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_ENERGY, 2 } }
+    }, {
+        "spell trap",
+        { 24, 31, 31, 31 }, { 8, 6, 2, 2},
+        spell_spell_trap, TAR_IGNORE, POS_STANDING,
+        -1, 200, 12,
+        "spell_trap", "!Spell Trap!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "spirit rack",
+        { 11, 11, 11, 11 }, { 7, 7, 7, 6},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_LICH, 0, 12,
+        "spirit rack", "!spirit rack!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "stake",
+        { 1, 1, 1, 1 }, { 4, 4, 6, 3},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_SLAYER, 0, 9,
+        "", "!Stake!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "starflare",
+        {20, 31, 31, 31}, {9, 10, 15, 18},
+        spell_starflare, TAR_CHAR_OFFENSIVE, POS_STANDING,
+        -1, 150, 12,
+        "starflare", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "staves",
+        { 1, 1, 1, 1 }, { 2, 3, 5, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 10,
+        "", "!Staves!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "steal",
+        { 31, 31, 16, 31 }, { 20, 20, 4, 20},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 8,
+        "", "!Steal!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "stone skin",
+        { 4, 6, 31, 21}, { 4, 4, 2, 2},
+        spell_stone_skin, TAR_CHAR_SELF, POS_STANDING,
+        -1, 12, 4,
+        "", "Your skin feels soft again.", "", "$n's skin regains its normal texture.",
+        { { CATALYST_BODY, 2 },{ CATALYST_EARTH, 3 },{ CATALYST_NONE, 0 } }
+    }, {
+        "stone spikes",
+        {16, 31, 31, 31}, {8, 12, 14, 15},
+        spell_stone_spikes, TAR_IGNORE, POS_STANDING,
+        0, 125, 10,
+        "stone spikes", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "stone touch",
+        { 4, 6, 31, 21}, { 6, 6, 4, 4},
+        spell_stone_touch, TAR_CHAR_OFFENSIVE, POS_STANDING,
+        -1, 150, 10,
+        "", "Your skin feels soft again.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "subvert",
+        { 31, 31, 26, 31 }, { 0, 0, 5, 0},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "subvert", "!Subvert!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "summon",
+        { 15, 12, 31, 31 }, { 6, 6, 2, 2},
+        spell_summon, TAR_IGNORE_CHAR_DEF, POS_STANDING,
+        -1, 50, 6,
+        "", "!Summon!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "survey",
+        { 8, 8, 8, 8 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 24,
+        "survey", "!Survey!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "swerve",
+        { 1, 1, 1, 1 }, { 8, 8, 4, 6},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_DROW, 0, 0,
+        "", "!Swerve!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "sword",
+        { 1, 1, 1, 1}, { 5, 6, 3, 2},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!sword!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "sword and dagger style",
+        { 31, 31, 31, 6 }, { 10, 9, 5, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "deadly slice", "!Sword And Dagger Style!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "tail kick",
+        { 1, 1, 1, 1 }, { 5, 5, 5, 5},
+        spell_null, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        PC_RACE_SITH, 0, 12,
+        "tail kick", "!Tail Kick!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "tattoo",
+        { 31, 19, 31, 31 }, { 8, 8, 6, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Tattoo!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "temperance",
+        {5,4,3,2}, {3,5,6,6},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        PC_RACE_VAMPIRE, 0, 12,
+        "","","","",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "third attack",
+        { 31, 31, 31, 18 }, { 20, 20, 10, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Third Attack!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "third eye",
+        { 31, 16, 31, 31 }, { 6, 5, 2, 2},
+        spell_third_eye, TAR_OBJ_INV, POS_STANDING,
+        -1, 55, 6,
+        "", "!Third Eye!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "throw",
+        { 31, 12, 12, 31 }, { 0, 8, 8, 0},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 4,
+        "throw", "!Throw!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "titanic attack",
+        { 1, 1, 1, 1 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        PC_RACE_TITAN, 0, 0,
+        "", "!Titanic Attack!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "toxic fumes",
+        { 31, 31, 31, 31 }, { 31, 31, 31, 31},
+        spell_toxic_fumes, TAR_CHAR_OFFENSIVE, POS_STANDING,
+        -1, 70, 10,
+        "toxic fumes", "The affects of the toxic fumes subside.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "toxins",
+        { 13, 13, 13, 13 }, { 5, 5, 5, 5},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        PC_RACE_SITH, 0, 12,
+        "", "!Toxins!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "trackless step",
+        {31, 7, 31, 31 }, {18, 10, 13, 11},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        0, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "trample",
+        {31,31,31,11}, {23,22,23,11},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        0, 0, 8,
+        "charge", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "turn undead",
+        { 31, 20, 31, 31 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 12,
+        "turn_undead", "!Turn Undead!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "two-handed weapon style",
+        { 31, 31, 31, 11 }, { 10, 9, 5, 10},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Two Handed Weapon Style!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "underwater breathing",
+        { 7, 12, 31, 31 }, { 7, 1, 2, 2},
+        spell_underwater_breathing, TAR_CHAR_SELF, POS_STANDING,
+        -1, 70, 10,
+        "", "The gills behind your ears disappear.", "", "",
+        { { CATALYST_BODY, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_WATER, 2 } }
+    }, {
+        "vision",
+        { 31, 9, 31, 31 }, { 3, 8, 2, 2},
+        spell_vision, TAR_IGNORE, POS_STANDING,
+        -1, 50, 6,
+        "", "", "", "",
+        { { CATALYST_AIR, 2 },{ CATALYST_COSMIC, 2 },{ CATALYST_NONE, 0 } }
+    }, {
+        "wands",
+        { 1, 1, 1, 1 }, { 2, 3, 5, 8},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        -1, 0, 10,
+        "", "!Wands!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "warcry",
+        { 31, 31, 31, 18 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 10,
+        "", "Your adrenaline thins out and your breathing returns to normal.", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "water spells",
+        {1, 31, 31, 31}, {15, 20, 30, 30},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "weaken",
+        { 13, 15, 31, 31 }, { 5, 5, 2, 2},
+        spell_weaken, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 20, 6,
+        "spell", "{YYou feel stronger.{x", "", "$n looks stronger.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "weaving",
+        { 31, 31, 31, 15 }, { 8, 8, 8, 8},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 12,
+        "", "!Weaving!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "web",
+        { 24, 31, 31, 31 }, { 8, 1, 2, 2},
+        spell_web, TAR_CHAR_OFFENSIVE, POS_FIGHTING,
+        -1, 50, 12,
+        "", "The webs holding you in place disappear.", "", "The webs around $n disappear.",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "whip",
+        { 1, 1, 1, 1}, { 6, 5, 5, 4},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Whip!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "wilderness spear style",
+        { 31, 18, 31, 31 }, { 5, 8, 5, 5},
+        spell_null, TAR_IGNORE, POS_FIGHTING,
+        -1, 0, 0,
+        "", "!Wilderness Spear Style!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "wind of confusion",
+        { 25, 31, 31, 31 }, { 14, 1, 2, 2},
+        spell_wind_of_confusion, TAR_IGNORE, POS_FIGHTING,
+        -1, 100, 12,
+        "wind of confusion", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "withering cloud",
+        { 14, 31, 31, 31 }, { 8, 6, 2, 2},
+        spell_withering_cloud, TAR_IGNORE, POS_STANDING,
+        -1, 50, 12,
+        "withering cloud", "!Withering Cloud!", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "word of recall",
+        { 12, 12, 12, 12 }, { 4, 4, 2, 2},
+        spell_word_of_recall, TAR_CHAR_SELF, POS_RESTING,
+        -1, 5, 8,
+        "", "!Word of Recall!", "", "",
+        { { CATALYST_LAW, 5 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }, {
+        "none",
+        {31, 31, 31, 31}, {100,100,100,100},
+        spell_null, TAR_IGNORE, POS_STANDING,
+        0, 0, 0,
+        "", "", "", "",
+        { { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+    }
 
 };
 
@@ -4535,246 +2857,246 @@ const struct group_type group_table [MAX_GROUP] =
 {
     /*
     {
-	name,		rating for each class,
-	skills/spells
+    name,		rating for each class,
+    skills/spells
     }
     */
     {
-	"global skills",	{ 0, 0, 0, 0 },
-	{ "scrolls", "staves", "wands", "hand to hand", "single weapon style", "lore", NULL }
+    "global skills",	{ 0, 0, 0, 0 },
+    { "scrolls", "staves", "wands", "hand to hand", "single weapon style", "lore", NULL }
     },
 
     {
-	"mage skills",		{ 0, -1, -1, -1 },
-	{ "dagger", "quarterstaff", "lightning bolt", "dispel magic",
-	  "shield", "stone skin", "fireball", "magic missile",
-	  "shocking grasp", "burning hands", "chain lightning", "invis",
-	  "armour", "control weather", "haste", "giant strength",
-	  "infravision", "colour spray", "earthquake", "charm person",
-	  "pass door", "fly", "invisibility", "inferno", NULL
-	}
+    "mage skills",		{ 0, -1, -1, -1 },
+    { "dagger", "quarterstaff", "lightning bolt", "dispel magic",
+      "shield", "stone skin", "fireball", "magic missile",
+      "shocking grasp", "burning hands", "chain lightning", "invis",
+      "armour", "control weather", "haste", "giant strength",
+      "infravision", "colour spray", "earthquake", "charm person",
+      "pass door", "fly", "invisibility", "inferno", NULL
+    }
     },
 
     {
-	"cleric skills",	{ -1, 0, -1, -1 },
-	{ "mace", "flail", "quarterstaff", "sanctuary", "create food",
-	  "cure light", "cure serious", "cure critical", "heal",
-	  "refresh", "cure blindness", "cure disease", "cure poison",
-	  "create water", "continual light", "create spring",
-	  "cause light", "cause serious", "cause critical", "harm",
-	  "control weather", "detect hidden", "flamestrike",
-	  "detect invis", "detect magic", "remove curse", "calm",
-	  "identify", "create rose", "word of recall", "meditation", NULL
-	}
+    "cleric skills",	{ -1, 0, -1, -1 },
+    { "mace", "flail", "quarterstaff", "sanctuary", "create food",
+      "cure light", "cure serious", "cure critical", "heal",
+      "refresh", "cure blindness", "cure disease", "cure poison",
+      "create water", "continual light", "create spring",
+      "cause light", "cause serious", "cause critical", "harm",
+      "control weather", "detect hidden", "flamestrike",
+      "detect invis", "detect magic", "remove curse", "calm",
+      "identify", "create rose", "word of recall", "meditation", NULL
+    }
     },
 
     {
-	"thief skills",		{ -1, -1, 0, -1 },
-	{ "steal", "dagger", "sword", "hide", "sneak", "peek", "acrobatics", "second attack",
-	  NULL}
+    "thief skills",		{ -1, -1, 0, -1 },
+    { "steal", "dagger", "sword", "hide", "sneak", "peek", "acrobatics", "second attack",
+      NULL}
     },
 
     {
-	"warrior skills",	{ -1, -1, -1, 0 },
-	{ "sword", "axe", "dagger", "spear", "whip",
-	  "second attack", "bash", "dodge", "fast healing",
-	  "enhanced damage", "parry", "third attack", "kick",
-	  NULL}
+    "warrior skills",	{ -1, -1, -1, 0 },
+    { "sword", "axe", "dagger", "spear", "whip",
+      "second attack", "bash", "dodge", "fast healing",
+      "enhanced damage", "parry", "third attack", "kick",
+      NULL}
     },
 
     /* Necromancer - death energies */
     {
-	"necromancer skills",      { 4, 4, 8, 8 },
- 	{ "feign", "animate dead", "raise dead",
-	  "energy drain", "kill", "chill touch", "deathsight",
-	  NULL },
+    "necromancer skills",      { 4, 4, 8, 8 },
+     { "feign", "animate dead", "raise dead",
+      "energy drain", "kill", "chill touch", "deathsight",
+      NULL },
     },
 
     /* Sorcerer - master of combat magic */
     {
-	"sorcerer skills",      { 4, 4, 8, 8 },
- 	{ "web", "silence", "sleep", "death grip", "slow",
-	  "channel", "summon", "weaken", "faerie fire",
-	  "blindness", "cancellation", "acid blast", NULL }
+    "sorcerer skills",      { 4, 4, 8, 8 },
+     { "web", "silence", "sleep", "death grip", "slow",
+      "channel", "summon", "weaken", "faerie fire",
+      "blindness", "cancellation", "acid blast", NULL }
     },
 
     /* Wizard - guardian of knowledge, truth and magical energies */
     {
-	"wizard skills",      { 4, 4, 8, 8 },
- 	{ "electrical barrier", "light shroud", "entrap",
-	  "sanctuary", "locate object", "fireproof", "lore",
-	  "blindness", "healing hands", "sanctuary", "improved invisibility",
-	  "acid blast", "room shield", "starflare", "dispel room",
-	  "gate", "nexus", "summon", "mass invis", "afterburn", NULL },
+    "wizard skills",      { 4, 4, 8, 8 },
+     { "electrical barrier", "light shroud", "entrap",
+      "sanctuary", "locate object", "fireproof", "lore",
+      "blindness", "healing hands", "sanctuary", "improved invisibility",
+      "acid blast", "room shield", "starflare", "dispel room",
+      "gate", "nexus", "summon", "mass invis", "afterburn", NULL },
     },
 
     /* Witch/Warlock - voodoo witchcraft doctor */
     {
-	"witch skills",      { 4, 4, 8, 8 },
- 	{ "skull", "counterspell", "third eye", "dispel good",
-	  "poison", "curse", "plague", "spear", "demonfire",
- 	  "fly", "blindness", "mass healing", NULL },
+    "witch skills",      { 4, 4, 8, 8 },
+     { "skull", "counterspell", "third eye", "dispel good",
+      "poison", "curse", "plague", "spear", "demonfire",
+       "fly", "blindness", "mass healing", NULL },
     },
 
     /* Druid - in tune with nature */
     {
-	"druid skills",      { 4, 4, 8, 8 },
- 	{ "dispel evil", "dispel good", "brew", "cosmic blast",
+    "druid skills",      { 4, 4, 8, 8 },
+     { "dispel evil", "dispel good", "brew", "cosmic blast",
           "enchant armour", "enchant weapon", "underwater breathing",
-	  "fireproof", "summon", "scribe", "lore",
-	  "earthquake", "call lightning",
-	  "bless", "archery", "bow", NULL},
+      "fireproof", "summon", "scribe", "lore",
+      "earthquake", "call lightning",
+      "bless", "archery", "bow", NULL},
     },
 
     /* Monk - master of body control and hand to hand */
     {
-	"monk skills",      { 4, 4, 8, 8 },
- 	{ "counterspell", "dodge", "dispel evil", "frenzy",
-	  "fireproof", "catch", "bless", "stone skin",
-	  "armour", "dirt kicking", "kick",
-	  "lore", "mass healing",
-	  "holy word", "reverie", "martial arts", "deep trance", NULL },
+    "monk skills",      { 4, 4, 8, 8 },
+     { "counterspell", "dodge", "dispel evil", "frenzy",
+      "fireproof", "catch", "bless", "stone skin",
+      "armour", "dirt kicking", "kick",
+      "lore", "mass healing",
+      "holy word", "reverie", "martial arts", "deep trance", NULL },
     },
 
     /* Assassin - hired killers */
     {
-	"assassin skills",      { 4, 4, 8, 8 },
- 	{ "blackjack", "enhanced damage", "slit throat",
-	  "envenom", "backstab", "hunt", "crossbow", NULL },
+    "assassin skills",      { 4, 4, 8, 8 },
+     { "blackjack", "enhanced damage", "slit throat",
+      "envenom", "backstab", "hunt", "crossbow", NULL },
     },
 
     /* Rogue - burglar and pickpocket */
     {
-	"rogue skills",      { 4, 4, 8, 8 },
- 	{ "circle", "pick lock", "backstab", "detect traps",
-	  "blackjack", "hunt", "haggle", "scan", NULL },
+    "rogue skills",      { 4, 4, 8, 8 },
+     { "circle", "pick lock", "backstab", "detect traps",
+      "blackjack", "hunt", "haggle", "scan", NULL },
     },
 
     /* Bard - travelling musician, has magical powers */
     {
-	"bard skills",      { 4, 4, 8, 8 },
- 	{ "music", "lore", "haggle", NULL },
+    "bard skills",      { 4, 4, 8, 8 },
+     { "music", "lore", "haggle", NULL },
     },
 
     /* Marauder - brute strength and ferocity, vicious warrior */
     {
-	"marauder skills",      { 4, 4, 8, 8 },
- 	{ "fourth attack", "dirt kicking",
-	  "two-handed weapon style", "intimidate",
-	  "polearm", NULL },
+    "marauder skills",      { 4, 4, 8, 8 },
+     { "fourth attack", "dirt kicking",
+      "two-handed weapon style", "intimidate",
+      "polearm", NULL },
     },
 
     /* Gladiator - master of combat skills */
     {
-	"gladiator skills",      { 4, 4, 8, 8 },
- 	{ "circle", "dual wield",
-	  "rescue", "disarm", "two-handed weapon style",
-	  "shield and weapon style",
-	  "exotic", "polearm", "shield block", "mace", NULL },
+    "gladiator skills",      { 4, 4, 8, 8 },
+     { "circle", "dual wield",
+      "rescue", "disarm", "two-handed weapon style",
+      "shield and weapon style",
+      "exotic", "polearm", "shield block", "mace", NULL },
     },
 
     /* Paladin - holy warrior with some spells */
     {
-	"paladin skills",      { 4, 4, 8, 8 },
- 	{ "refresh", "cure critical", "rescue", "dual wield",
-	  "disarm", "armour", "bless",
-	  "shield and weapon style", "remove curse",
-	  "cure disease", "cure poison", "shield block",
-	  "stone skin", "cure blindness",
-	  "polearm", "cure serious", "cure light", "cause light",
-	  "cause serious", "continual light",
-	  "mount and weapon style", "smite", NULL },
+    "paladin skills",      { 4, 4, 8, 8 },
+     { "refresh", "cure critical", "rescue", "dual wield",
+      "disarm", "armour", "bless",
+      "shield and weapon style", "remove curse",
+      "cure disease", "cure poison", "shield block",
+      "stone skin", "cure blindness",
+      "polearm", "cure serious", "cure light", "cause light",
+      "cause serious", "continual light",
+      "mount and weapon style", "smite", NULL },
     },
 
     /* Remort Classes */
 
     /* Archmage - master of mana and inner energy */
     {
-    	"archmage skills", { 4, 4, 8, 8 },
-	{ "ice storm", "fire cloud", "discharge",
-	  "eagle eye", "spell trap", "withering cloud",
-	  "maze", "destruction", NULL },
+        "archmage skills", { 4, 4, 8, 8 },
+    { "ice storm", "fire cloud", "discharge",
+      "eagle eye", "spell trap", "withering cloud",
+      "maze", "destruction", NULL },
     },
 
     /* Geomancer - elemental skills and affects. */
     {
-	"geomancer skills", { 4, 4, 8, 8 },
-	{ "electrical barrier", "frost barrier", "fire barrier",
-	  "master weather", "ensnare", "stone spikes", /* "earth spells", "fire spells",
-	  "water spells", "air spells",*/ NULL },
+    "geomancer skills", { 4, 4, 8, 8 },
+    { "electrical barrier", "frost barrier", "fire barrier",
+      "master weather", "ensnare", "stone spikes", /* "earth spells", "fire spells",
+      "water spells", "air spells",*/ NULL },
     },
 
     /* Illusionist - master of illusion */
     {
-	"illusionist skills", { 4, 4, 8, 8 },
-	{ "momentary darkness", "spell deflection", "wind of confusion", NULL },
+    "illusionist skills", { 4, 4, 8, 8 },
+    { "momentary darkness", "spell deflection", "wind of confusion", NULL },
     },
 
     /* Adept - ultra holy cleric fighter */
     {
-    	"adept skills", { 4, 4, 8, 8 },
-    	{ "avatar shield", "glorious bolt", "light shroud",
-	  "exorcism", "turn undead", NULL },
+        "adept skills", { 4, 4, 8, 8 },
+        { "avatar shield", "glorious bolt", "light shroud",
+      "exorcism", "turn undead", NULL },
     },
 
     /* Alchemist - master of materials, that can involve magic */
     {
-    	"alchemist skills", { 4, 4, 8, 8 },
-	{ "brew", "scribe", "throw", "recharge", "combine", NULL },
+        "alchemist skills", { 4, 4, 8, 8 },
+    { "brew", "scribe", "throw", "recharge", "combine", NULL },
     },
 
     /* Ranger - super druid */
     {
-    	"ranger skills", { 4, 4, 8, 8 },
-	{ "survey", "vision", "call familiar", "wilderness spear style",
-	  "shield and weapon style", "infuse", "trackless step", "archery",
-	  "bow", "crossbow", "hunt", NULL },
+        "ranger skills", { 4, 4, 8, 8 },
+    { "survey", "vision", "call familiar", "wilderness spear style",
+      "shield and weapon style", "infuse", "trackless step", "archery",
+      "bow", "crossbow", "hunt", NULL },
     },
 
     /* Highwayman - master of thieving */
     {
-    	"highwayman skills", { 4, 4, 8, 8 },
-    	{ "holdup", "bar", "pick lock", "backstab", "blackjack", "ambush", NULL },
+        "highwayman skills", { 4, 4, 8, 8 },
+        { "holdup", "bar", "pick lock", "backstab", "blackjack", "ambush", NULL },
     },
 
     /* Ninja - ultra secretive super fighter */
     {
-    	"ninja skills", { 4, 4, 8, 8 },
-    	{ "throw", "bomb", "evasion", "cloak of guile", "deathbarbs",
-	  "sword and dagger style", "dual wield", "slit throat", NULL },
+        "ninja skills", { 4, 4, 8, 8 },
+        { "throw", "bomb", "evasion", "cloak of guile", "deathbarbs",
+      "sword and dagger style", "dual wield", "slit throat", NULL },
     },
 
     /* Sage - master of knowledge in all forms */
     {
-    	"sage skills", { 4, 4, 8, 8 },
-    	{ "judge", "mob lore", "deception", NULL },
+        "sage skills", { 4, 4, 8, 8 },
+        { "judge", "mob lore", "deception", NULL },
     },
 
     /* Warlord - overlord, leader, etc */
     {
-    	"warlord skills", { 4, 4, 8, 8 },
-    	{ "leadership", "bind", "pursuit", "weaving", "healing aura",
-	  "energy field", "spell shield", "dual wield", "shield block",
-	  "shield and weapon style", "two-handed weapon style", NULL  },
+        "warlord skills", { 4, 4, 8, 8 },
+        { "leadership", "bind", "pursuit", "weaving", "healing aura",
+      "energy field", "spell shield", "dual wield", "shield block",
+      "shield and weapon style", "two-handed weapon style", NULL  },
     },
 
     /* Destroyer - ultra-vicious fighter */
     {
-    	"destroyer skills", { 4, 4, 8, 8 },
-    	{ "warcry", "behead", "fourth attack", "athletics",
-	  "two-handed weapon style", NULL },
+        "destroyer skills", { 4, 4, 8, 8 },
+        { "warcry", "behead", "fourth attack", "athletics",
+      "two-handed weapon style", NULL },
     },
 
     /* Crusader - travelling warrior */
     {
-    	"crusader skills", { 4, 4, 8, 8 },
-    	{ "holy sword", "holy shield", "riding", "trample", "smite",
-	  "mount and weapon style", "shield and weapon style", NULL }
+        "crusader skills", { 4, 4, 8, 8 },
+        { "holy sword", "holy shield", "riding", "trample", "smite",
+      "mount and weapon style", "shield and weapon style", NULL }
     },
 
     {
-	NULL,	{ 0, 0, 0, 0 },
-	{ }
+    NULL,	{ 0, 0, 0, 0 },
+    { }
     }
 };
 
@@ -4782,14 +3104,16 @@ const struct group_type group_table [MAX_GROUP] =
 const struct script_type script_type_table[] =
 {
 /* Script Types and their commands */
-	{ PRG_MPROG, "MobProg", "mp"},
-	{ PRG_OPROG, "ObjProg", "op"},
-	{ PRG_RPROG, "RoomProg", "rp"},
-	{ PRG_TPROG, "TokenProg", "tp"},
-	{ PRG_APROG, "AreaProg", "ap"},
-	{ PRG_IPROG, "InstanceProg", "ip"},
-	{ PRG_DPROG, "DungeonProg", "dp"},
-	{ -1, NULL, NULL }
+    { PRG_MPROG, "MobProg", "mp"},
+    { PRG_OPROG, "ObjProg", "op"},
+    { PRG_RPROG, "RoomProg", "rp"},
+    { PRG_TPROG, "TokenProg", "tp"},
+    { PRG_APROG, "AreaProg", "ap"},
+    { PRG_IPROG, "InstanceProg", "ip"},
+    { PRG_DPROG, "DungeonProg", "dp"},
+    { PRG_QPROG, "QuestProg", "qp"},
+    { PRG_EPROG, "EventProg", "ep"},
+    { -1, NULL, NULL }
 };
 
 /* MSP sounds (for the future)*/

@@ -1,0 +1,100 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "fiend",
+  "uid": 19,
+  "name": "fiend",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "path_race": true,
+  "remort": {
+    "prerequisite_race": "vampire"
+  },
+  "display": {
+    "who_name": "{RFiend "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": -1,
+    "form": [
+      "sentient",
+      "undead",
+      "biped"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "detect_invis",
+      "detect_hidden"
+    ],
+    "offensive": [],
+    "immunities": [
+      "poison"
+    ],
+    "resistances": [
+      "disease"
+    ],
+    "vulnerabilities": [
+      "fire",
+      "light",
+      "holy"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 24,
+      "int": 20,
+      "wis": 22,
+      "dex": 21,
+      "con": 20
+    },
+    "max_vitals": {
+      "hp": 3850,
+      "mana": 3750,
+      "move": 3750
+    }
+  },
+  "skills": [
+    "fast healing",
+    "shape",
+    "shift",
+    "bite",
+    "consume",
+    "temperance",
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "sunlight_vulnerability": true,
+    "blood_feeding": true,
+    "stakeable": true,
+    "can_shapeshift": true,
+    "shift_form": "werewolf"
+  }
+}

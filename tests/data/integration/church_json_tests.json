@@ -1,0 +1,163 @@
+{
+  "test_suite": "church_json",
+  "description": "Tests for church JSON serialization migrated from .org format",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "church_serialize_basic",
+      "description": "Test basic church data serialization",
+      "dependencies": [],
+      "test_type": "church_serialize_test",
+      "input": {
+        "test_church_name": "Test Church",
+        "test_motto": "For Glory!",
+        "test_founder": "TestFounder"
+      },
+      "expected_output": {
+        "success": true,
+        "has_name": true,
+        "has_motto": true,
+        "has_founder": true
+      }
+    },
+    {
+      "name": "church_members_serialize",
+      "description": "Test church member list serialization",
+      "dependencies": ["church_serialize_basic"],
+      "test_type": "church_members_test",
+      "input": {
+        "test_members": [
+          {"name": "Leader", "rank": "high"},
+          {"name": "Member1", "rank": "member"}
+        ]
+      },
+      "expected_output": {
+        "success": true,
+        "members_serialized": true,
+        "ranks_preserved": true
+      }
+    },
+    {
+      "name": "church_treasury_serialize",
+      "description": "Test church treasury/gold serialization",
+      "dependencies": ["church_serialize_basic"],
+      "test_type": "church_treasury_test",
+      "input": {
+        "test_gold": 100000,
+        "test_silver": 50000
+      },
+      "expected_output": {
+        "success": true,
+        "gold_matches": true,
+        "silver_matches": true
+      }
+    },
+    {
+      "name": "church_skills_serialize",
+      "description": "Test church skills and abilities serialization",
+      "dependencies": ["church_serialize_basic"],
+      "test_type": "church_skills_test",
+      "input": {
+        "test_skills": ["skill1", "skill2"]
+      },
+      "expected_output": {
+        "success": true,
+        "skills_serialized": true
+      }
+    },
+    {
+      "name": "church_deserialize",
+      "description": "Test church deserialization from JSON",
+      "dependencies": ["church_serialize_basic"],
+      "test_type": "church_deserialize_test",
+      "input": {
+        "json_data": {
+          "name": "Test Church Load",
+          "motd": "Victory!",
+          "founder": "TestAdmin",
+          "members": [],
+          "gold": 50000
+        }
+      },
+      "expected_output": {
+        "success": true,
+        "name_matches": true,
+        "motto_matches": true
+      }
+    },
+    {
+      "name": "church_file_save",
+      "description": "Test save_church_json file output",
+      "dependencies": ["church_serialize_basic"],
+      "test_type": "church_file_save_test",
+      "input": {
+        "church_name": "SaveTest",
+        "verify_file_created": true
+      },
+      "expected_output": {
+        "success": true,
+        "file_exists": true,
+        "json_valid": true
+      }
+    },
+    {
+      "name": "church_file_load",
+      "description": "Test load_church_json file parsing",
+      "dependencies": ["church_file_save"],
+      "test_type": "church_file_load_test",
+      "input": {
+        "load_saved_church": true
+      },
+      "expected_output": {
+        "success": true,
+        "church_loaded": true,
+        "data_matches": true
+      }
+    },
+    {
+      "name": "church_file_load_invalid_json",
+      "description": "Test church load behavior with malformed JSON input",
+      "dependencies": ["church_file_save"],
+      "test_type": "church_file_load_test",
+      "input": {
+        "invalid_json": true
+      },
+      "expected_output": {
+        "success": true,
+        "invalid_rejected": true
+      }
+    },
+    {
+      "name": "church_file_load_invalid_schema",
+      "description": "Test church load behavior with valid JSON but wrong schema",
+      "dependencies": ["church_file_save"],
+      "test_type": "church_file_load_test",
+      "input": {
+        "invalid_schema": true
+      },
+      "expected_output": {
+        "success": true,
+        "schema_rejected": true
+      }
+    },
+    {
+      "name": "church_roundtrip",
+      "description": "Test full save and reload cycle",
+      "dependencies": ["church_file_save", "church_file_load"],
+      "test_type": "church_roundtrip_test",
+      "input": {
+        "create_church": true,
+        "save_church": true,
+        "reload_church": true,
+        "verify_data": true
+      },
+      "expected_output": {
+        "success": true,
+        "all_fields_preserved": true
+      }
+    }
+  ]
+}

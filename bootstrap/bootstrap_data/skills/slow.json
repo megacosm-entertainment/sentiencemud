@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 23,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 30,
+    "minimum_position": "fighting",
+    "msg_disp": "$n is no longer moving so slowly.",
+    "msg_obj": "",
+    "msg_off": "You feel yourself speed up.",
+    "name": "slow",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_slow",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 220
+}

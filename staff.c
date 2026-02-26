@@ -13,6 +13,7 @@
 #include "olc.h"
 #include "recycle.h"
 #include "interp.h"
+#include "io/json/json_staff.h"
 
 /* A global list of all imms. */
 IMMORTAL_DATA		*immortal_list;
@@ -28,45 +29,45 @@ void do_staff(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
     if (IS_NPC(ch))
-	return;
+    return;
 
     if (ch->pcdata->security < 10 && !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_STAFF))
     {
-	send_to_char("You aren't authorized to do this.\n\r", ch);
-	return;
+    send_to_char("You aren't authorized to do this.\n\r", ch);
+    return;
     }
 
     if (!str_cmp(arg, "list")) {
-	do_function(ch, &do_slist, argument);
-	return;
+    do_function(ch, &do_slist, argument);
+    return;
     }
 
     if (!str_cmp(arg, "add")) {
-	do_function(ch, &do_sadd, argument);
-	return;
+    do_function(ch, &do_sadd, argument);
+    return;
     }
 
     if (!str_cmp(arg, "duty")) {
-	do_function(ch, &do_sduty, argument);
-	return;
+    do_function(ch, &do_sduty, argument);
+    return;
     }
 
     if (!str_cmp(arg, "supervisor")) {
-	do_function(ch, &do_ssupervisor, argument);
-	return;
+    do_function(ch, &do_ssupervisor, argument);
+    return;
     }
 
     if (!str_cmp(arg, "delete")) {
-	do_function(ch, &do_sdelete, argument);
-	return;
+    do_function(ch, &do_sdelete, argument);
+    return;
     }
 
 
     send_to_char("Syntax:  staff list\n\r"
-		 "         staff add [immortal]\n\r"
-	         "         staff delete [immortal]\n\r"
-		 "         staff duty [immortal] [duty]\n\r"
-		 "         staff supervisor [immortal] [supervisor|none]\n\r", ch);
+         "         staff add [immortal]\n\r"
+             "         staff delete [immortal]\n\r"
+         "         staff duty [immortal] [duty]\n\r"
+         "         staff supervisor [immortal] [supervisor|none]\n\r", ch);
 }
 
 
@@ -85,19 +86,19 @@ void do_sadd(CHAR_DATA *ch, char *argument)
     char buf[MSL];
 
     if (argument[0] == '\0' || strlen(argument) < 3) {
-	send_to_char("Syntax:  staff add [player name]\n\r",  ch);
-	return;
+    send_to_char("Syntax:  staff add [player name]\n\r",  ch);
+    return;
     }
 
     if (!player_exists(argument))
     {
-	send_to_char("That character doesn't exist.\n\r", ch);
-	return;
+    send_to_char("That character doesn't exist.\n\r", ch);
+    return;
     }
 
     if (find_immortal(argument) != NULL) {
-	send_to_char("There is already an immortal by that name.\n\r", ch);
-	return;
+    send_to_char("There is already an immortal by that name.\n\r", ch);
+    return;
     }
 
     sprintf(buf, "%s", argument);
@@ -111,7 +112,7 @@ void do_sadd(CHAR_DATA *ch, char *argument)
 
     add_immortal(immortal);
 
-    act("Created new immortal $T.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR);
+    act("Created new immortal $T.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR, NULL, NULL);
     save_immstaff();
 }
 
@@ -124,25 +125,25 @@ void add_immortal(IMMORTAL_DATA *immortal)
     /* first imm ever added */
     if (immortal_list == NULL) {
     immortal_list = immortal;
-	immortal->next = NULL;
+    immortal->next = NULL;
     }
 
     /* first alphabetically */
     else if (str_cmp(immortal->name, immortal_list->name) < 0) {
-	immortal->next = immortal_list;
-	immortal_list = immortal;
+    immortal->next = immortal_list;
+    immortal_list = immortal;
     }
 
     /* in the middleor at the end */
     else {
-	for (imm_tmp = immortal_list; imm_tmp != NULL; imm_tmp = imm_tmp->next) {
-	    if (str_cmp(imm_tmp->name, immortal->name) > 0)
-		break;
-	    imm_last = imm_tmp;
-	}
+    for (imm_tmp = immortal_list; imm_tmp != NULL; imm_tmp = imm_tmp->next) {
+        if (str_cmp(imm_tmp->name, immortal->name) > 0)
+        break;
+        imm_last = imm_tmp;
+    }
 
-	imm_last->next = immortal;
-	immortal->next = imm_tmp;
+    imm_last->next = immortal;
+    immortal->next = imm_tmp;
 
     }
 
@@ -160,24 +161,24 @@ void do_sduty(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  staff duty [immortal] [duty]\n\r", ch);
-	send_to_char("For a list of duties, type 'staff duty ?'\n\r", ch);
-	return;
+    send_to_char("Syntax:  staff duty [immortal] [duty]\n\r", ch);
+    send_to_char("For a list of duties, type 'staff duty ?'\n\r", ch);
+    return;
     }
 
     if (arg[0] == '?') {
-	show_help(ch, "immortalflags");
-	return;
+    show_help(ch, "immortalflags");
+    return;
     }
 
     if ((immortal = find_immortal(arg)) == NULL) {
-	send_to_char("Immortal not found.\n\r", ch);
-	return;
+    send_to_char("Immortal not found.\n\r", ch);
+    return;
     }
 
     if ((value = flag_value(immortal_flags, argument)) == NO_FLAG) {
-	send_to_char("Invalid duty.\n\r", ch);
-	return;
+    send_to_char("Invalid duty.\n\r", ch);
+    return;
     }
 
     TOGGLE_BIT(immortal->duties, value);
@@ -193,11 +194,11 @@ IMMORTAL_DATA *find_immortal(char *argument)
     IMMORTAL_DATA *immortal;
 
     if (argument[0] == '\0')
-	return NULL;
+    return NULL;
 
     for (immortal = immortal_list; immortal != NULL; immortal = immortal->next)  {
-	if (!str_prefix(argument, immortal->name))
-	    break;
+    if (!str_prefix(argument, immortal->name))
+        break;
     }
 
     return immortal;
@@ -344,30 +345,30 @@ void do_sdelete(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  staff delete [immortal]"
-		     "\n\r{RWARNING:{x all information associated with this immortal will be wiped!\n\r", ch);
-	return;
+    send_to_char("Syntax:  staff delete [immortal]"
+             "\n\r{RWARNING:{x all information associated with this immortal will be wiped!\n\r", ch);
+    return;
     }
 
     if ((immortal = find_immortal(arg)) == NULL) {
-	send_to_char("No such immortal.\n\r", ch);
-	return;
+    send_to_char("No such immortal.\n\r", ch);
+    return;
     }
 
-    act("$T's immortal priveleges have been terminated.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR);
+    act("$T's immortal priveleges have been terminated.", ch, NULL, NULL, NULL, NULL, NULL, immortal->name, TO_CHAR, NULL, NULL);
     /* Remove it from the global list */
     last = NULL;
     for (tmp = immortal_list; tmp != NULL; tmp = tmp->next) {
-	if (tmp == immortal)
-	    break;
+    if (tmp == immortal)
+        break;
 
-	last = tmp;
+    last = tmp;
     }
 
     if (last != NULL)
-	last->next = immortal->next;
+    last->next = immortal->next;
     else
-	immortal_list = immortal->next;
+    immortal_list = immortal->next;
 
     free_immortal(immortal);
     save_immstaff();
@@ -386,23 +387,23 @@ void do_ssupervisor(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     if (arg[0] == '\0' || arg2[0] == '\0') {
-	send_to_char("Syntax:  staff supervisor [immortal] [supervisor]\n\r", ch);
-	return;
+    send_to_char("Syntax:  staff supervisor [immortal] [supervisor]\n\r", ch);
+    return;
     }
 
     if ((immortal = find_immortal(arg)) == NULL) {
-	send_to_char("Immortal not found.\n\r", ch);
-	return;
+    send_to_char("Immortal not found.\n\r", ch);
+    return;
     }
 
     if ((leader = find_immortal(arg2)) == NULL) {
-	send_to_char("Supervisor not found.\n\r", ch);
-	return;
+    send_to_char("Supervisor not found.\n\r", ch);
+    return;
     }
 
     immortal->leader = str_dup(leader->name);
-    act("Set $t's supervisor to $T.", ch, NULL, NULL, NULL, NULL, immortal->name, leader->name,  TO_CHAR);
-	}
+    act("Set $t's supervisor to $T.", ch, NULL, NULL, NULL, NULL, immortal->name, leader->name,  TO_CHAR, NULL, NULL);
+    }
 
 
 
@@ -426,18 +427,7 @@ void do_ssupervisor(CHAR_DATA *ch, char *argument)
 /* Save the imm staff. */
 void save_immstaff()
 {
-    FILE *fp;
-
-    if ((fp = fopen(STAFF_FILE, "w")) == NULL) {
-	bug("save_immstaff: couldn't open staff.dat for writing", 0);
-	return;
-    }
-
-    if (immortal_list)
-    save_immortal(fp, immortal_list);
-
-    fprintf(fp, "#END\n");
-    fclose(fp);
+    json_save_staff(STAFF_JSON_FILE);
 }
 
 
@@ -445,7 +435,7 @@ void save_immstaff()
 void save_immortal(FILE *fp, IMMORTAL_DATA *immortal)
 {
     if (immortal->next != NULL)
-	save_immortal(fp, immortal->next);
+    save_immortal(fp, immortal->next);
 
     fprintf(fp, "#IMMORTAL\n");
     fprintf(fp, "Name %s~\n", immortal->name);
@@ -474,109 +464,115 @@ void read_immstaff()
 {
     FILE *fp;
     IMMORTAL_DATA *immortal;
+    char staff_file_buf[MAX_INPUT_LENGTH];
+    const char *staff_file = resolve_game_path(STAFF_FILE, staff_file_buf, sizeof(staff_file_buf));
 
-    if ((fp = fopen(STAFF_FILE, "r")) == NULL) {
-	bug("read_immstaff: couldn't open immstaff.dat", 0);
-	exit(1);
+    // Try JSON first
+    if (json_load_staff(STAFF_JSON_FILE))
+        return;
+
+    // Fall back to legacy format
+    if ((fp = fopen(staff_file, "r")) == NULL) {
+        pbugf(LOG_ERROR, "Couldn't open staff file '%s'.", staff_file);
+        return;
     }
 
-	loading_immortal_data = true;
+    loading_immortal_data = true;
     for (;;)
     {
-	word = fread_word(fp);
-	if (!str_cmp(word, "#IMMORTAL"))
-	{
-	    immortal = read_immortal(fp);
-		immortal->next = immortal_list;
-	    immortal_list = immortal;
-	}
+        word = fread_word(fp);
+        if (!str_cmp(word, "#IMMORTAL"))
+        {
+            immortal = read_immortal(fp);
+            immortal->next = immortal_list;
+            immortal_list = immortal;
+        }
 
-	if (!str_cmp(word, "#END"))
-	    break;
+        if (!str_cmp(word, "#END"))
+            break;
     }
-	loading_immortal_data = false;
+    loading_immortal_data = false;
 
     fclose(fp);
+
+    // Migrate to JSON
+    json_save_staff(STAFF_JSON_FILE);
 }
 
 
 IMMORTAL_DATA *read_immortal(FILE *fp)
 {
     IMMORTAL_DATA *immortal;
-    char buf[MSL];
 
     immortal = new_immortal();
 
     while (str_cmp((word = fread_word(fp)), "#-IMMORTAL"))
     {
-	fMatch = false;
-	switch (word[0])
-	{
-	    case '#':
-		break;
+    fMatch = false;
+    switch (word[0])
+    {
+        case '#':
+        break;
 
-	    case 'C':
-	        KEY("Created", immortal->created, fread_number(fp));
+        case 'C':
+            KEY("Created", immortal->created, fread_number(fp));
 
-	    case 'D':
-		if (!str_cmp(word, "Duties")) {
-		    immortal->duties = fread_number(fp);
-		    fMatch = true;
-		}
-		break;
+        case 'D':
+        if (!str_cmp(word, "Duties")) {
+            immortal->duties = fread_number(fp);
+            fMatch = true;
+        }
+        break;
 
             case 'I':
-		KEYS("ImmFlag",	immortal->imm_flag,	fread_string(fp));
-		break;
+        KEYS("ImmFlag",	immortal->imm_flag,	fread_string(fp));
+        break;
 
-	    case 'L':
-		KEY("LastOLCCommand", immortal->last_olc_command, fread_number(fp));
+        case 'L':
+        KEY("LastOLCCommand", immortal->last_olc_command, fread_number(fp));
                 KEYS("Leader", immortal->leader, fread_string(fp));
 
-		break;
+        break;
 
-	    case 'N':
-		KEYS("Name",	immortal->name,		fread_string(fp));
-		break;
+        case 'N':
+        KEYS("Name",	immortal->name,		fread_string(fp));
+        break;
 
-	    case 'P':
-		KEYS("Poofin",	immortal->bamfin,	fread_string(fp));
-		KEYS("Poofout",	immortal->bamfout,	fread_string(fp));
-		break;
+        case 'P':
+        KEYS("Poofin",	immortal->bamfin,	fread_string(fp));
+        KEYS("Poofout",	immortal->bamfout,	fread_string(fp));
+        break;
 
-	    default:
-		sprintf(buf, "read_immortal: no match for word %s", word);
-		bug(buf, 0);
-		break;
-	}
+        default:
+        pbugf(LOG_ERROR, "No match for word %s", word);
+
+        break;
+    }
     }
 
-	// Missing creation date
-	if(immortal->created < 1)
-	{
-		DESCRIPTOR_DATA d;
-		// TEMPORARY
-		if( !load_char_obj(&d, immortal->name) )
-		{
-		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
-		    bug(buf, 0);
-		}
-		else if( !d.character || !d.character->pcdata )
-	    {
-		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
-		    bug(buf, 0);
-		}
-		else
-		{
-			immortal->created = d.character->pcdata->creation_date;
-			d.character->desc = NULL;
-			extract_char(d.character, true);
-		}
-	}
+    // Missing creation date
+    if(immortal->created < 1)
+    {
+        DESCRIPTOR_DATA d;
+        // TEMPORARY
+        if( !load_char_obj(&d, immortal->name) )
+        {
+            pbugf(LOG_ERROR, "Attempting to correct created timestamp failed for %s", immortal->name);
+        }
+        else if( !d.character || !d.character->pcdata )
+        {
+            pbugf(LOG_ERROR, "Attempting to correct created timestamp failed for %s", immortal->name);
+        }
+        else
+        {
+            immortal->created = d.character->pcdata->creation_date;
+            d.character->desc = NULL;
+            extract_char(d.character, true);
+        }
+    }
 
 
-    sprintf(buf, "read_immortal: immortal %s", immortal->name);
-    log_string(buf);
+    plogf(LOG_INFO, "Immortal %s", immortal->name);
     return immortal;
 }
 

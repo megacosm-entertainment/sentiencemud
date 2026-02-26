@@ -1,0 +1,286 @@
+{
+  "_version": "1.0",
+  "_format": "trait_definitions",
+  "traits": [
+    {
+      "id": "toxin_system",
+      "name": "Toxin System",
+      "description": "Has a toxin resource pool that regenerates and can be injected via bite.",
+      "type": "boolean",
+      "default": false,
+      "category": "resource"
+    },
+    {
+      "id": "scent_tracking",
+      "name": "Scent Tracking",
+      "description": "Enhanced hunt via scent with 100% success rate.",
+      "type": "boolean",
+      "default": false,
+      "category": "ability"
+    },
+    {
+      "id": "scent_track_flavor",
+      "name": "Scent Track Flavor",
+      "description": "Custom flavor text for the hunt command scent message.",
+      "type": "string",
+      "default": null,
+      "category": "ability"
+    },
+    {
+      "id": "breath_damage_bonus",
+      "name": "Breath Damage Bonus",
+      "description": "Percentage bonus to breath-type spell damage.",
+      "type": "integer",
+      "default": 0,
+      "category": "combat"
+    },
+    {
+      "id": "sunlight_vulnerability",
+      "name": "Sunlight Vulnerability",
+      "description": "Takes damage when outdoors during daytime.",
+      "type": "boolean",
+      "default": false,
+      "category": "survival"
+    },
+    {
+      "id": "blood_feeding",
+      "name": "Blood Feeding",
+      "description": "Gains nourishment from blood and biting rather than normal food.",
+      "type": "boolean",
+      "default": false,
+      "category": "survival"
+    },
+    {
+      "id": "bash_damage_multiplier",
+      "name": "Bash Damage Multiplier",
+      "description": "Multiplier applied to bash damage.",
+      "type": "integer",
+      "default": 1,
+      "category": "combat"
+    },
+    {
+      "id": "holy_damage_bonus",
+      "name": "Holy Damage Bonus",
+      "description": "Percentage bonus to melee damage against evil-aligned targets.",
+      "type": "integer",
+      "default": 0,
+      "category": "combat"
+    },
+    {
+      "id": "stakeable",
+      "name": "Stakeable",
+      "description": "Can be staked while sleeping.",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "can_shapeshift",
+      "name": "Can Shapeshift",
+      "description": "Has access to the shift command for alternate combat forms.",
+      "type": "boolean",
+      "default": false,
+      "category": "ability"
+    },
+    {
+      "id": "shift_form",
+      "name": "Shift Form",
+      "description": "Name of the alternate form when shapeshifting.",
+      "type": "string",
+      "default": null,
+      "category": "ability"
+    },
+    {
+      "id": "mana_regen_multiplier",
+      "name": "Mana Regen Multiplier",
+      "description": "Multiplier applied to mana regeneration rate.",
+      "type": "integer",
+      "default": 1,
+      "category": "resource"
+    },
+    {
+      "id": "ranged_accuracy_bonus",
+      "name": "Ranged Accuracy Bonus",
+      "description": "Flat percentage bonus to ranged weapon accuracy.",
+      "type": "integer",
+      "default": 0,
+      "category": "combat"
+    },
+    {
+      "id": "death_plane_vnum_min",
+      "name": "Death Plane VNUM Min",
+      "description": "Minimum vnum of alternate death room range. 0 means use default death room.",
+      "type": "integer",
+      "default": 0,
+      "category": "planar"
+    },
+    {
+      "id": "death_plane_vnum_max",
+      "name": "Death Plane VNUM Max",
+      "description": "Maximum vnum of alternate death room range. 0 means use default death room.",
+      "type": "integer",
+      "default": 0,
+      "category": "planar"
+    },
+    {
+      "id": "cosmic_projection",
+      "name": "Cosmic Projection",
+      "description": "Can project between planes of existence.",
+      "type": "boolean",
+      "default": false,
+      "category": "planar"
+    },
+    {
+      "id": "classless_skills",
+      "name": "Classless Skills",
+      "description": "Can learn skills from any class rather than only their own.",
+      "type": "boolean",
+      "default": false,
+      "category": "ability"
+    },
+    {
+      "id": "uses_mana",
+      "name": "Uses Mana",
+      "description": "Class is mana-focused and gains full mana regen per level.",
+      "type": "boolean",
+      "default": false,
+      "category": "resource"
+    },
+    {
+      "id": "hp_gain_min",
+      "name": "HP Gain Min",
+      "description": "Minimum HP gained per level from class (before CON bonus).",
+      "type": "integer",
+      "default": 6,
+      "category": "progression"
+    },
+    {
+      "id": "hp_gain_max",
+      "name": "HP Gain Max",
+      "description": "Maximum HP gained per level from class (before CON bonus).",
+      "type": "integer",
+      "default": 10,
+      "category": "progression"
+    },
+    {
+      "id": "primary_stat",
+      "name": "Primary Stat",
+      "description": "Primary attribute index for the class (STAT_STR=0, STAT_INT=1, STAT_WIS=2, STAT_DEX=3, STAT_CON=4).",
+      "type": "integer",
+      "default": 0,
+      "category": "progression"
+    },
+    {
+      "id": "nature_regen",
+      "name": "Nature Regen",
+      "description": "Gains 33% bonus HP/mana/move regen while in natural terrain, and small HP/move ticks while moving through nature.",
+      "type": "boolean",
+      "default": false,
+      "category": "resource"
+    },
+    {
+      "id": "exotic_weapon_mastery",
+      "name": "Exotic Weapon Mastery",
+      "description": "Gains 25% bonus melee damage when wielding an exotic weapon.",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "mounted_combat",
+      "name": "Mounted Combat",
+      "description": "Mount can enter combat while being ridden (normally mounts cannot fight).",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "backstab_multiplier",
+      "name": "Backstab Multiplier",
+      "description": "Damage multiplier applied to backstab attacks.",
+      "type": "integer",
+      "default": 25,
+      "category": "combat"
+    },
+    {
+      "id": "blackjack_mastery",
+      "name": "Blackjack Mastery",
+      "description": "Gets improved blackjack chance (3x/2) instead of reduced (1/2).",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "lockpick_mastery",
+      "name": "Lockpick Mastery",
+      "description": "Automatically succeeds at lock picking without a skill check.",
+      "type": "boolean",
+      "default": false,
+      "category": "ability"
+    },
+    {
+      "id": "stealth_combat",
+      "name": "Stealth Combat",
+      "description": "Sneaking is not broken when dealing damage in combat.",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "sword_dagger_parry",
+      "name": "Sword and Dagger Parry",
+      "description": "Gets improved parry when dual-wielding a sword and dagger combination.",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "backstab_followup",
+      "name": "Backstab Followup",
+      "description": "Can perform a bonus slice attack after a successful backstab when wielding sword and dagger.",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "slit_throat_mastery",
+      "name": "Slit Throat Mastery",
+      "description": "Gets 50% improved slit throat chance.",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "extra_attack_chance",
+      "name": "Extra Attack Chance",
+      "description": "Gets improved fourth attack chance (skill/2 instead of skill/3).",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "enhanced_parry",
+      "name": "Enhanced Parry",
+      "description": "Gets 50% improved parry chance.",
+      "type": "boolean",
+      "default": false,
+      "category": "combat"
+    },
+    {
+      "id": "divine_healer",
+      "name": "Divine Healer",
+      "description": "Cure spells use full skill proficiency instead of a flat 75% chance.",
+      "type": "boolean",
+      "default": false,
+      "category": "ability"
+    },
+    {
+      "id": "potion_recharge",
+      "name": "Potion Recharge",
+      "description": "Can recharge magical potions using the brew skill.",
+      "type": "boolean",
+      "default": false,
+      "category": "ability"
+    }
+  ]
+}

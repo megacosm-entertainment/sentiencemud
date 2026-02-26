@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 3,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 8,
+            "rating": 3
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 8,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            16,
+            2
+        ],
+        [
+            15,
+            1
+        ],
+        [
+            2,
+            1
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "{YYou no longer see invisible objects.{x",
+    "name": "detect invis",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_detect_invis",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 76
+}

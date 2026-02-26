@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 18,
+            "rating": 8
+        },
+        {
+            "class": "cleric",
+            "level": 18,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 80,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Gate!",
+    "name": "gate",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_gate",
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 126
+}

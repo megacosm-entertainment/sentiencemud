@@ -1,4 +1,5 @@
-
+#ifndef __OLC_H__
+#define __OLC_H__
 /**************************************************************************
  *  File: olc.h                                                            *
  *                                                                         *
@@ -25,7 +26,6 @@
 typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 
 #define DECLARE_OLC_FUN( fun )	OLC_FUN    fun
-
 
 /*
  * Connected states for editor.
@@ -55,12 +55,30 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_APCODE	19
 #define ED_IPCODE	20
 #define ED_DPCODE	21
+#define ED_QPCODE	42
+#define ED_EPCODE      45
 #define ED_CMDEDIT  22
 #define ED_CHANGESET	23
 #define ED_ACCNOTE	24
+#define ED_CHARNOTE	28
 #define ED_CHLOG 25
 #define ED_SOCIAL 26
 #define ED_GAMESETTING    27  // Or whatever value is appropriate
+#define ED_RACE           29
+#define ED_TRAIT          30
+#define ED_SKILL          31
+#define ED_GROUP          32
+#define ED_SONG           33
+#define ED_CLASS          34
+#define ED_LIQUID         35
+#define ED_MATERIAL       36
+#define ED_CORPSE        37
+#define ED_SECTOR        38
+#define ED_REPUTATION    39
+#define ED_EVENT         40
+#define ED_QUEST         41
+#define ED_CEDIT         43
+#define ED_CHREPORT      44
 
 
 
@@ -76,45 +94,36 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define PEDIT(fun)		bool fun( CHAR_DATA *ch, char *argument )
 /* VIZZWILDS */
 #define WEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
-#define VLEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 // Blueprints
 #define BSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define BPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define DNGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define CMDEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define SOCEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define RACEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define TRAITEDIT( fun )      bool fun( CHAR_DATA *ch, char *argument )
+#define SKEDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
+#define GREDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
+#define SOEDIT( fun )         bool fun( CHAR_DATA *ch, char *argument )
+#define CLSEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define LIQEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define MATEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define CORPSEDIT( fun )      bool fun( CHAR_DATA *ch, char *argument )
+#define SECTOREDIT( fun )     bool fun( CHAR_DATA *ch, char *argument )
+#define REPEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
+#define EVTEDIT( fun )        bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
+ *
+ * Framework-migrated editors are dispatched via the editor registry
+ * (olc_find_editor_by_type + olc_editor_interp) — their interpreter
+ * functions are local to their own .c files.  Only non-framework
+ * editors need extern declarations here.
  */
-void    aedit 	( CHAR_DATA *ch, char *argument );
 void    hedit   ( CHAR_DATA *ch, char *argument );
-void    medit 	( CHAR_DATA *ch, char *argument );
-void	mpedit	( CHAR_DATA *ch, char *argument );
-void    oedit 	( CHAR_DATA *ch, char *argument );
-void    opedit  ( CHAR_DATA *ch, char *argument );
 void    qedit	( CHAR_DATA *ch, char *argument );
-void    redit 	( CHAR_DATA *ch, char *argument );
-void    rpedit  ( CHAR_DATA *ch, char *argument );
-void    shedit  ( CHAR_DATA *ch, char *argument );
-void	tedit	( CHAR_DATA *ch, char *argument );
-void	tpedit	( CHAR_DATA *ch, char *argument );
-void	pedit	( CHAR_DATA *ch, char *argument );
-/* VIZZWILDS */
-void    wedit   ( CHAR_DATA *ch, char *argument );
-void    vledit  ( CHAR_DATA *ch, char *argument );
-// Blueprints
-void    bsedit 	( CHAR_DATA *ch, char *argument );	// Blueprint Sections
-void    bpedit 	( CHAR_DATA *ch, char *argument );	// Blueprints
-void	dngedit ( CHAR_DATA *ch, char *argument );	// Dungeons
-
-void	apedit	( CHAR_DATA *ch, char *argument );
-void	ipedit	( CHAR_DATA *ch, char *argument );
-void	dpedit	( CHAR_DATA *ch, char *argument );
-
-void	cmdedit	( CHAR_DATA *ch, char *argument );
 void    gameedit ( CHAR_DATA *ch, char *argument );
-void    socialedit( CHAR_DATA *ch, char *argument );
 
 
 /*
@@ -125,11 +134,17 @@ void    socialedit( CHAR_DATA *ch, char *argument );
 
 /*
  * Structure for an OLC editor command.
+ *
+ * The min_staff_rank field is optional. When 0 (default), the command
+ * inherits the editor's own permission check. When set to a STAFF_*
+ * value, only characters with that rank or higher may use the command.
+ * C99 designated initializers ensure existing tables default to 0.
  */
 struct olc_cmd_type
 {
     char * const	name;
     OLC_FUN *		olc_fun;
+    int			min_staff_rank;     /**< STAFF_* minimum, 0 = inherit editor perm */
 };
 
 
@@ -152,36 +167,22 @@ bool show_help( CHAR_DATA *ch, char *argument );
 bool show_version( CHAR_DATA *ch, char *argument );
 int cd_phrase_lookup( int condition, char *phrase );
 void add_reset( ROOM_INDEX_DATA *room, RESET_DATA *pReset, int index );
-bool edit_deltrigger(LLIST **list, int index);
+
+/* Script management helpers (olc_act.c) */
+bool edit_script_attached(LLIST **progs, SCRIPT_DATA *script);
+bool edit_trigger_exists(LLIST **progs, SCRIPT_DATA *script, int trig_type, const char *phrase);
+bool edit_delscript(LLIST **progs, SCRIPT_DATA *script);
+bool edit_deltrigger_specific(LLIST **progs, SCRIPT_DATA *script, int trig_type, const char *phrase);
 
 
 /*
- * Interpreter Table Prototypes
+ * Command Table Externs
+ *
+ * Framework-migrated editors store their command tables in OLC_EDITOR_DEF
+ * structs local to their own .c files — no extern needed.  Only tables
+ * referenced directly by olc.c fallback code need externs here.
  */
-extern const struct olc_cmd_type	aedit_table[];
 extern const struct olc_cmd_type	hedit_table[];
-extern const struct olc_cmd_type	medit_table[];
-extern const struct olc_cmd_type	mpedit_table[];
-extern const struct olc_cmd_type	oedit_table[];
-extern const struct olc_cmd_type	redit_table[];
-extern const struct olc_cmd_type        opedit_table[];
-extern const struct olc_cmd_type        rpedit_table[];
-extern const struct olc_cmd_type        shedit_table[];
-extern const struct olc_cmd_type        tedit_table[];
-extern const struct olc_cmd_type        tpedit_table[];
-extern const struct olc_cmd_type        pedit_table[];
-/* VIZZWILDS */
-extern const struct olc_cmd_type        wedit_table[];
-extern const struct olc_cmd_type	vledit_table[];
-// Blueprints
-extern const struct olc_cmd_type	bsedit_table[];
-extern const struct olc_cmd_type	bpedit_table[];
-extern const struct olc_cmd_type	dngedit_table[];
-extern const struct olc_cmd_type        apedit_table[];
-extern const struct olc_cmd_type        ipedit_table[];
-extern const struct olc_cmd_type        dpedit_table[];
-extern const struct olc_cmd_type        cmdedit_table[];
-extern const struct olc_cmd_type        socialedit_table[];
 
 
 /*
@@ -199,12 +200,26 @@ DECLARE_DO_FUN( do_shedit       );
 DECLARE_DO_FUN( do_tedit       );
 DECLARE_DO_FUN( do_tpedit       );
 DECLARE_DO_FUN( do_pedit       );
+DECLARE_DO_FUN( do_rsgedit     );
 /* VIZZWILDS */
 DECLARE_DO_FUN( do_wedit        );
-DECLARE_DO_FUN( do_vledit       );
 DECLARE_DO_FUN( do_bsedit       );
 DECLARE_DO_FUN( do_dngedit       );
 DECLARE_DO_FUN( do_cmdedit      );
+DECLARE_DO_FUN( do_racedit      );
+DECLARE_DO_FUN( do_traitedit    );
+DECLARE_DO_FUN( do_skedit       );
+DECLARE_DO_FUN( do_gredit       );
+DECLARE_DO_FUN( do_soedit       );
+DECLARE_DO_FUN( do_clsedit      );
+DECLARE_DO_FUN( do_liqedit      );
+DECLARE_DO_FUN( do_matedit      );
+DECLARE_DO_FUN( do_corpsedit    );
+DECLARE_DO_FUN( do_sectoredit   );
+DECLARE_DO_FUN( do_repedit      );
+DECLARE_DO_FUN( do_evtedit      );
+DECLARE_DO_FUN( do_epedit      );
+DECLARE_DO_FUN( do_cedit        );
 
 
 /*
@@ -227,12 +242,15 @@ DECLARE_OLC_FUN( aedit_name		);
 DECLARE_OLC_FUN( aedit_notes    );
 DECLARE_OLC_FUN( aedit_open		);
 DECLARE_OLC_FUN( aedit_placetype	);
+DECLARE_OLC_FUN( aedit_topic		);
+DECLARE_OLC_FUN( aedit_regions     );
 DECLARE_OLC_FUN( aedit_recall		);
 DECLARE_OLC_FUN( aedit_remove_trade	);
 DECLARE_OLC_FUN( aedit_repop		);
 DECLARE_OLC_FUN( aedit_security		);
 DECLARE_OLC_FUN( aedit_set_trade	);
 DECLARE_OLC_FUN( aedit_show		);
+DECLARE_OLC_FUN( aedit_tags        );
 DECLARE_OLC_FUN( aedit_view_trade	);
 DECLARE_OLC_FUN( aedit_vnum		);
 DECLARE_OLC_FUN( aedit_x		);
@@ -273,11 +291,14 @@ DECLARE_OLC_FUN( redit_northeast	);
 DECLARE_OLC_FUN( redit_northwest	);
 DECLARE_OLC_FUN( redit_oreset		);
 DECLARE_OLC_FUN( redit_owner		);
+DECLARE_OLC_FUN( redit_parent      );
 DECLARE_OLC_FUN( redit_recall       );
+DECLARE_OLC_FUN( redit_region       );
 DECLARE_OLC_FUN( redit_room		);
 //DECLARE_OLC_FUN( redit_room2		);
 DECLARE_OLC_FUN( redit_sector		);
 DECLARE_OLC_FUN( redit_show		);
+DECLARE_OLC_FUN( redit_tags        );
 DECLARE_OLC_FUN( redit_south		);
 DECLARE_OLC_FUN( redit_southeast	);
 DECLARE_OLC_FUN( redit_southwest	);
@@ -295,9 +316,11 @@ DECLARE_OLC_FUN( oedit_addaffect	);
 DECLARE_OLC_FUN( oedit_addapply		);
 DECLARE_OLC_FUN( oedit_addimmune	);
 DECLARE_OLC_FUN( oedit_addoprog		);
+DECLARE_OLC_FUN( oedit_addquest		);
 DECLARE_OLC_FUN( oedit_addspell		);
 DECLARE_OLC_FUN( oedit_addskill		);
 DECLARE_OLC_FUN( oedit_addcatalyst	);
+DECLARE_OLC_FUN( oedit_addtype		);
 DECLARE_OLC_FUN( oedit_affect           );
 DECLARE_OLC_FUN( oedit_allowed_fixed	);
 DECLARE_OLC_FUN( oedit_armour_strength	);
@@ -309,6 +332,7 @@ DECLARE_OLC_FUN( oedit_delaffect	);
 DECLARE_OLC_FUN( oedit_delimmune	);
 DECLARE_OLC_FUN( oedit_delcatalyst	);
 DECLARE_OLC_FUN( oedit_deloprog		);
+DECLARE_OLC_FUN( oedit_delquest		);
 DECLARE_OLC_FUN( oedit_delspell		);
 DECLARE_OLC_FUN( oedit_desc		);
 DECLARE_OLC_FUN( oedit_ed		);
@@ -323,9 +347,11 @@ DECLARE_OLC_FUN( oedit_material		);
 DECLARE_OLC_FUN( oedit_name		);
 DECLARE_OLC_FUN( oedit_next		);
 DECLARE_OLC_FUN( oedit_prev		);
+DECLARE_OLC_FUN( oedit_removetype	);
 DECLARE_OLC_FUN( oedit_short		);
 DECLARE_OLC_FUN( oedit_show		);
 DECLARE_OLC_FUN( oedit_sign		);
+DECLARE_OLC_FUN( oedit_tags        );
 DECLARE_OLC_FUN( oedit_timer		);
 DECLARE_OLC_FUN( oedit_type             );
 DECLARE_OLC_FUN( oedit_update		);
@@ -340,11 +366,48 @@ DECLARE_OLC_FUN( oedit_value7		);
 DECLARE_OLC_FUN( oedit_wear             );
 DECLARE_OLC_FUN( oedit_weight		);
 DECLARE_OLC_FUN( oedit_skeywds			);
+DECLARE_OLC_FUN( oedit_listname			);
+DECLARE_OLC_FUN( oedit_listkeywords		);
+DECLARE_OLC_FUN( oedit_parent           );
 DECLARE_OLC_FUN( oedit_varset	);
 DECLARE_OLC_FUN( oedit_varclear	);
 DECLARE_OLC_FUN( oedit_persist  );
+DECLARE_OLC_FUN( oedit_prerequisites );
 DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
+
+/* Type-specific subcommands (oedit_types.c) */
+DECLARE_OLC_FUN( oedit_armor		);
+DECLARE_OLC_FUN( oedit_bodypart		);
+DECLARE_OLC_FUN( oedit_book		);
+DECLARE_OLC_FUN( oedit_cart		);
+DECLARE_OLC_FUN( oedit_compass		);
+DECLARE_OLC_FUN( oedit_container	);
+DECLARE_OLC_FUN( oedit_corpse		);
+DECLARE_OLC_FUN( oedit_drink		);
+DECLARE_OLC_FUN( oedit_food		);
+DECLARE_OLC_FUN( oedit_furniture	);
+DECLARE_OLC_FUN( oedit_herb		);
+DECLARE_OLC_FUN( oedit_ink		);
+DECLARE_OLC_FUN( oedit_instrument	);
+DECLARE_OLC_FUN( oedit_jewelry		);
+DECLARE_OLC_FUN( oedit_light		);
+DECLARE_OLC_FUN( oedit_map		);
+DECLARE_OLC_FUN( oedit_mist		);
+DECLARE_OLC_FUN( oedit_money		);
+DECLARE_OLC_FUN( oedit_page		);
+DECLARE_OLC_FUN( oedit_portal		);
+DECLARE_OLC_FUN( oedit_scroll		);
+DECLARE_OLC_FUN( oedit_seed		);
+DECLARE_OLC_FUN( oedit_sextant		);
+DECLARE_OLC_FUN( oedit_ship		);
+DECLARE_OLC_FUN( oedit_tattoo		);
+DECLARE_OLC_FUN( oedit_telescope	);
+DECLARE_OLC_FUN( oedit_tool		);
+DECLARE_OLC_FUN( oedit_trade		);
+DECLARE_OLC_FUN( oedit_wand		);
+DECLARE_OLC_FUN( oedit_weapon		);
+DECLARE_OLC_FUN( oedit_weaponcon	);
 
 /*
  * Mobile Editor Prototypes
@@ -353,6 +416,7 @@ DECLARE_OLC_FUN( medit_ac		);
 DECLARE_OLC_FUN( medit_act		);
 DECLARE_OLC_FUN( medit_act2		);
 DECLARE_OLC_FUN( medit_addmprog		);
+DECLARE_OLC_FUN( medit_addreputation	);
 DECLARE_OLC_FUN( medit_addquest		);
 DECLARE_OLC_FUN( medit_affect		);
 DECLARE_OLC_FUN( medit_affect2	        );
@@ -363,6 +427,7 @@ DECLARE_OLC_FUN( medit_create		);
 DECLARE_OLC_FUN( medit_damdice		);
 DECLARE_OLC_FUN( medit_damtype		);
 DECLARE_OLC_FUN( medit_delmprog		);
+DECLARE_OLC_FUN( medit_delreputation	);
 DECLARE_OLC_FUN( medit_delquest		);
 DECLARE_OLC_FUN( medit_desc		);
 DECLARE_OLC_FUN( medit_form		);
@@ -379,6 +444,7 @@ DECLARE_OLC_FUN( medit_name		);
 DECLARE_OLC_FUN( medit_next 		);
 DECLARE_OLC_FUN( medit_off		);
 DECLARE_OLC_FUN( medit_owner		);
+DECLARE_OLC_FUN( medit_parent      );
 DECLARE_OLC_FUN( medit_part		);
 DECLARE_OLC_FUN( medit_position		);
 DECLARE_OLC_FUN( medit_prev 		);
@@ -389,10 +455,13 @@ DECLARE_OLC_FUN( medit_shop		);
 DECLARE_OLC_FUN( medit_short		);
 DECLARE_OLC_FUN( medit_show		);
 DECLARE_OLC_FUN( medit_sign		);
+DECLARE_OLC_FUN( medit_tags        );
 DECLARE_OLC_FUN( medit_size		);
 DECLARE_OLC_FUN( medit_spec		);
 DECLARE_OLC_FUN( medit_vuln		);
 DECLARE_OLC_FUN( medit_skeywds	);
+DECLARE_OLC_FUN( medit_listname	);
+DECLARE_OLC_FUN( medit_listkeywords	);
 DECLARE_OLC_FUN( medit_varset	);
 DECLARE_OLC_FUN( medit_varclear	);
 DECLARE_OLC_FUN( medit_corpsetype	);
@@ -402,6 +471,12 @@ DECLARE_OLC_FUN( medit_persist  );
 DECLARE_OLC_FUN( medit_questor  );
 DECLARE_OLC_FUN( medit_boss		);
 DECLARE_OLC_FUN( medit_crew		);
+DECLARE_OLC_FUN( medit_bodytype	);
+DECLARE_OLC_FUN( medit_pronounss	);
+DECLARE_OLC_FUN( medit_pronounos	);
+DECLARE_OLC_FUN( medit_pronounpas	);
+DECLARE_OLC_FUN( medit_pronounpps	);
+DECLARE_OLC_FUN( medit_pronounrs	);
 
 /* Any script editor */
 DECLARE_OLC_FUN( scriptedit_show	);
@@ -503,22 +578,45 @@ DECLARE_OLC_FUN( pedit_pflag		);
 DECLARE_OLC_FUN( pedit_builder		);
 DECLARE_OLC_FUN( pedit_completed	);
 
+/* Random String Generator editor */
+DECLARE_OLC_FUN( rsgedit_list            );
+DECLARE_OLC_FUN( rsgedit_create          );
+DECLARE_OLC_FUN( rsgedit_show            );
+DECLARE_OLC_FUN( rsgedit_pattern         );
+DECLARE_OLC_FUN( rsgedit_class           );
+DECLARE_OLC_FUN( rsgedit_generate        );
+DECLARE_OLC_FUN( rsgedit_pattern_list    );
+DECLARE_OLC_FUN( rsgedit_pattern_create  );
+DECLARE_OLC_FUN( rsgedit_pattern_edit    );
+DECLARE_OLC_FUN( rsgedit_pattern_show    );
+DECLARE_OLC_FUN( rsgedit_pattern_delete  );
+DECLARE_OLC_FUN( rsgedit_pattern_help    );
+DECLARE_OLC_FUN( rsgedit_class_list      );
+DECLARE_OLC_FUN( rsgedit_class_create    );
+DECLARE_OLC_FUN( rsgedit_class_show      );
+DECLARE_OLC_FUN( rsgedit_class_delete    );
+DECLARE_OLC_FUN( rsgedit_class_add       );
+DECLARE_OLC_FUN( rsgedit_class_edit      );
+DECLARE_OLC_FUN( rsgedit_class_remove    );
+DECLARE_OLC_FUN( rsgedit_class_help      );
+
 /* VIZZWILDS */
 /* Wilds Editor */
 DECLARE_OLC_FUN( wedit_create           );
 DECLARE_OLC_FUN( wedit_delete           );
 DECLARE_OLC_FUN( wedit_show             );
 DECLARE_OLC_FUN( wedit_name             );
+DECLARE_OLC_FUN( wedit_region           );
+DECLARE_OLC_FUN( wedit_placetype        );
+DECLARE_OLC_FUN( wedit_overlay          );
 DECLARE_OLC_FUN( wedit_terrain          );
+DECLARE_OLC_FUN( wedit_wildgen          );
 DECLARE_OLC_FUN( wedit_vlink            );
-
-/* VLink Editor */
-DECLARE_OLC_FUN( vledit_show            );
-
 
 /* Blueprint Section Editor */
 DECLARE_OLC_FUN( bsedit_list			);
 DECLARE_OLC_FUN( bsedit_show			);
+DECLARE_OLC_FUN( bsedit_maze			);
 DECLARE_OLC_FUN( bsedit_create			);
 DECLARE_OLC_FUN( bsedit_name			);
 DECLARE_OLC_FUN( bsedit_description		);
@@ -546,16 +644,23 @@ DECLARE_OLC_FUN( bpedit_addiprog		);
 DECLARE_OLC_FUN( bpedit_deliprog		);
 DECLARE_OLC_FUN( bpedit_repop			);
 DECLARE_OLC_FUN( bpedit_flags			);
+DECLARE_OLC_FUN( bpedit_channel			);
 
 // Dungeon Editor
 DECLARE_OLC_FUN( dngedit_list			);
 DECLARE_OLC_FUN( dngedit_show			);
+DECLARE_OLC_FUN( dngedit_mingroup		);
+DECLARE_OLC_FUN( dngedit_maxgroup		);
+DECLARE_OLC_FUN( dngedit_maxplayers		);
+DECLARE_OLC_FUN( dngedit_deathrelease	);
+DECLARE_OLC_FUN( dngedit_idletimeout	);
 DECLARE_OLC_FUN( dngedit_create			);
 DECLARE_OLC_FUN( dngedit_name			);
 DECLARE_OLC_FUN( dngedit_description	);
 DECLARE_OLC_FUN( dngedit_comments		);
 DECLARE_OLC_FUN( dngedit_areawho		);
 DECLARE_OLC_FUN( dngedit_floors			);
+DECLARE_OLC_FUN( dngedit_levels         );
 DECLARE_OLC_FUN( dngedit_entry			);
 DECLARE_OLC_FUN( dngedit_exit			);
 DECLARE_OLC_FUN( dngedit_flags			);
@@ -568,6 +673,7 @@ DECLARE_OLC_FUN( dngedit_varclear		);
 DECLARE_OLC_FUN( dngedit_adddprog		);
 DECLARE_OLC_FUN( dngedit_deldprog		);
 DECLARE_OLC_FUN( dngedit_repop			);
+DECLARE_OLC_FUN( dngedit_channel			);
 
 
 DECLARE_OLC_FUN( apedit_list		);
@@ -578,6 +684,12 @@ DECLARE_OLC_FUN( ipedit_create		);
 
 DECLARE_OLC_FUN( dpedit_list		);
 DECLARE_OLC_FUN( dpedit_create		);
+
+DECLARE_OLC_FUN( qpedit_list		);
+DECLARE_OLC_FUN( qpedit_create		);
+
+DECLARE_OLC_FUN( epedit_list		);
+DECLARE_OLC_FUN( epedit_create		);
 
 
 
@@ -616,6 +728,105 @@ DECLARE_OLC_FUN(socialedit_list);
 DECLARE_OLC_FUN(socialedit_save);
 
 /*
+ * Race Editor Prototypes
+ */
+DECLARE_OLC_FUN( racedit_show );
+DECLARE_OLC_FUN( racedit_name );
+DECLARE_OLC_FUN( racedit_summary );
+DECLARE_OLC_FUN( racedit_whoname );
+DECLARE_OLC_FUN( racedit_description );
+DECLARE_OLC_FUN( racedit_comments );
+DECLARE_OLC_FUN( racedit_playable );
+DECLARE_OLC_FUN( racedit_starting );
+DECLARE_OLC_FUN( racedit_pathrace );
+DECLARE_OLC_FUN( racedit_alignment );
+DECLARE_OLC_FUN( racedit_size );
+DECLARE_OLC_FUN( racedit_stats );
+DECLARE_OLC_FUN( racedit_maxstats );
+DECLARE_OLC_FUN( racedit_maxvitals );
+DECLARE_OLC_FUN( racedit_form );
+DECLARE_OLC_FUN( racedit_parts );
+DECLARE_OLC_FUN( racedit_act );
+DECLARE_OLC_FUN( racedit_affects );
+DECLARE_OLC_FUN( racedit_offensive );
+DECLARE_OLC_FUN( racedit_immunities );
+DECLARE_OLC_FUN( racedit_resistances );
+DECLARE_OLC_FUN( racedit_vulnerabilities );
+DECLARE_OLC_FUN( racedit_skills );
+DECLARE_OLC_FUN( racedit_prerequisite );
+DECLARE_OLC_FUN( racedit_remortinto );
+DECLARE_OLC_FUN( racedit_trait );
+DECLARE_OLC_FUN( racedit_save );
+DECLARE_OLC_FUN( racedit_list );
+
+/*
+ * Trait Editor Prototypes
+ */
+DECLARE_OLC_FUN( traitedit_show );
+DECLARE_OLC_FUN( traitedit_name );
+DECLARE_OLC_FUN( traitedit_category );
+DECLARE_OLC_FUN( traitedit_description );
+DECLARE_OLC_FUN( traitedit_type );
+DECLARE_OLC_FUN( traitedit_default );
+DECLARE_OLC_FUN( traitedit_create );
+DECLARE_OLC_FUN( traitedit_delete );
+DECLARE_OLC_FUN( traitedit_save );
+DECLARE_OLC_FUN( traitedit_list );
+
+/*
+ * Skill Editor Prototypes
+ */
+DECLARE_OLC_FUN( skedit_show );
+DECLARE_OLC_FUN( skedit_list );
+DECLARE_OLC_FUN( skedit_name );
+DECLARE_OLC_FUN( skedit_display );
+DECLARE_OLC_FUN( skedit_summary );
+DECLARE_OLC_FUN( skedit_description );
+DECLARE_OLC_FUN( skedit_comments );
+DECLARE_OLC_FUN( skedit_helpkeyword );
+DECLARE_OLC_FUN( skedit_difficulty );
+DECLARE_OLC_FUN( skedit_mana );
+DECLARE_OLC_FUN( skedit_beats );
+DECLARE_OLC_FUN( skedit_target );
+DECLARE_OLC_FUN( skedit_position );
+DECLARE_OLC_FUN( skedit_damtype );
+DECLARE_OLC_FUN( skedit_msgoff );
+DECLARE_OLC_FUN( skedit_msgobj );
+DECLARE_OLC_FUN( skedit_spellfun );
+DECLARE_OLC_FUN( skedit_flags );
+DECLARE_OLC_FUN( skedit_save );
+
+/*
+ * Group Editor Prototypes
+ */
+DECLARE_OLC_FUN( gredit_show );
+DECLARE_OLC_FUN( gredit_list );
+DECLARE_OLC_FUN( gredit_name );
+DECLARE_OLC_FUN( gredit_add );
+DECLARE_OLC_FUN( gredit_remove );
+DECLARE_OLC_FUN( gredit_create );
+DECLARE_OLC_FUN( gredit_delete );
+DECLARE_OLC_FUN( gredit_save );
+
+/*
+ * Song Editor Prototypes
+ */
+DECLARE_OLC_FUN( soedit_show );
+DECLARE_OLC_FUN( soedit_list );
+DECLARE_OLC_FUN( soedit_name );
+DECLARE_OLC_FUN( soedit_level );
+DECLARE_OLC_FUN( soedit_mana );
+DECLARE_OLC_FUN( soedit_beats );
+DECLARE_OLC_FUN( soedit_target );
+DECLARE_OLC_FUN( soedit_spell );
+DECLARE_OLC_FUN( soedit_save );
+
+/*
+ * MEdit Trainer Sub-editor
+ */
+DECLARE_OLC_FUN( medit_trainer );
+
+/*
  * Macros
  */
 #define TOGGLE_BIT(var, bit)    ((var) ^= (bit))
@@ -647,6 +858,12 @@ DECLARE_OLC_FUN(socialedit_save);
 #define EDIT_SHIP(ch, ship)     ( ship = (SHIP_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_CMD(ch, command)   ( command = (CMD_DATA *)ch->desc->pEdit )
 #define EDIT_SOCIAL(ch, social)  (social = (struct social_type *)ch->desc->pEdit)
+#define EDIT_RACE(ch, race)      (race = (RACE_DATA *)ch->desc->pEdit)
+#define EDIT_TRAIT(ch, def)      (def = (TRAIT_DEF *)ch->desc->pEdit)
+#define EDIT_SKILL(ch, skill)    (skill = (SKILL_DATA *)ch->desc->pEdit)
+#define EDIT_GROUP(ch, group)    (group = (SKILL_GROUP *)ch->desc->pEdit)
+#define EDIT_SONG(ch, song)      (song = (SONG_DATA *)ch->desc->pEdit)
+#define EDIT_CLASS(ch, clazz)    (clazz = (CLASS_DATA *)ch->desc->pEdit)
 
 
 /*
@@ -660,5 +877,8 @@ char *token_index_getvaluename args( (TOKEN_INDEX_DATA *token, int v) );
 
 SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);
 bool check_range(long lower, long upper);
-void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title);
 
+#define RSGEDIT( fun )           bool fun(CHAR_DATA *ch, char*argument)
+
+#define EDIT_RSG(ch, rsg)   ( rsg = (RANDOM_STRING*)ch->desc->pEdit )
+#endif /* !def __OLC_H__ */

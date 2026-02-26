@@ -1,0 +1,87 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "hell baron",
+  "uid": 24,
+  "name": "hell baron",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": "minotaur"
+  },
+  "display": {
+    "who_name": "{RHellBn"
+  },
+  "physical": {
+    "min_size": 3,
+    "max_size": 3,
+    "default_alignment": -1,
+    "form": [
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "horns",
+      "legs",
+      "tail"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "regeneration"
+    ],
+    "offensive": [],
+    "immunities": [
+      "cold"
+    ],
+    "resistances": [],
+    "vulnerabilities": [
+      "fire"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 25,
+      "int": 20,
+      "wis": 20,
+      "dex": 21,
+      "con": 24
+    },
+    "max_vitals": {
+      "hp": 4000,
+      "mana": 2850,
+      "move": 3000
+    }
+  },
+  "skills": [
+    "charge",
+    "bash",
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "bash_damage_multiplier": 2
+  }
+}

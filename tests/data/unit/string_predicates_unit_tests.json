@@ -1,0 +1,56 @@
+{
+  "type": "test_suite",
+  "test_suite": "string_predicates_unit_tests",
+  "description": "Pure-function unit tests for core string predicate semantics",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "str_cmp_semantics",
+      "description": "Validates case-insensitive equality semantics where false means equal",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "str_cmp",
+        "test_cases": [
+          { "left": "hello", "right": "hello", "expected_not_equal": false },
+          { "left": "HELLO", "right": "hello", "expected_not_equal": false },
+          { "left": "hello", "right": "world", "expected_not_equal": true },
+          { "left": "", "right": "", "expected_not_equal": false },
+          { "left": "x", "right": "", "expected_not_equal": true }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "str_infix_semantics",
+      "description": "Validates not-infix return convention for substring matching",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "str_infix",
+        "test_cases": [
+          { "needle": "ell", "haystack": "hello", "expected_not_infix": false },
+          { "needle": "HEL", "haystack": "hello", "expected_not_infix": false },
+          { "needle": "xyz", "haystack": "hello", "expected_not_infix": true },
+          { "needle": "", "haystack": "hello", "expected_not_infix": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "str_suffix_semantics",
+      "description": "Validates not-suffix return convention",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "str_suffix",
+        "test_cases": [
+          { "astr": "world", "bstr": "hello world", "expected_not_suffix": false },
+          { "astr": "WORLD", "bstr": "hello world", "expected_not_suffix": false },
+          { "astr": "hello", "bstr": "hello world", "expected_not_suffix": true },
+          { "astr": "", "bstr": "hello world", "expected_not_suffix": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    }
+  ]
+}

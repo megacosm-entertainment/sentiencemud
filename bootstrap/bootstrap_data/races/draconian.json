@@ -1,0 +1,89 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "draconian",
+  "uid": 8,
+  "name": "draconian",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": true,
+  "remort": {
+    "prerequisite_race": null,
+    "remort_into": "dragon"
+  },
+  "display": {
+    "who_name": "{G Drac "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 1,
+    "form": [
+      "edible",
+      "sentient",
+      "dragon"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "claws",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs",
+      "scales",
+      "tail",
+      "wings"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared"
+    ],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "charm",
+      "bash",
+      "fire"
+    ],
+    "vulnerabilities": [
+      "cold"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 21,
+      "int": 18,
+      "wis": 18,
+      "dex": 18,
+      "con": 21
+    },
+    "max_vitals": {
+      "hp": 3150,
+      "mana": 2750,
+      "move": 3000
+    }
+  },
+  "skills": [
+    "fast healing",
+    "breath",
+    "flight"
+  ],
+  "starting_equipment": []
+}

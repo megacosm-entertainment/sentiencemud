@@ -1,0 +1,59 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "crusader",
+        "male": "crusader",
+        "neutral": "crusader",
+        "other": "crusader"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "remort_only"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "warrior skills",
+        "crusader skills"
+    ],
+    "hp_max": 15,
+    "hp_min": 11,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "crusader",
+    "primary_stat": "strength",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "warrior skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "crusader skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "crusader",
+            "keyword": "default",
+            "who_name": "  Crusader  "
+        }
+    ],
+    "type": "warrior",
+    "traits": {
+        "exotic_weapon_mastery": true,
+        "mounted_combat": true
+    },
+    "uid": 15,
+    "weapon": 0,
+    "who": {
+        "female": "  Crusader  ",
+        "male": "  Crusader  ",
+        "neutral": "  Crusader  ",
+        "other": "  Crusader  "
+    }
+}

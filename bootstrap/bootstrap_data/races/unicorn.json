@@ -1,0 +1,83 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "unicorn",
+  "uid": 51,
+  "name": "unicorn",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "unicorn"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "sentient",
+      "bird"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "claws",
+      "eye",
+      "fangs",
+      "feet",
+      "guts",
+      "head",
+      "heart",
+      "legs",
+      "tail",
+      "wings"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "detect_evil",
+      "detect_hidden"
+    ],
+    "offensive": [
+      "area_attack",
+      "fade"
+    ],
+    "immunities": [],
+    "resistances": [
+      "magic"
+    ],
+    "vulnerabilities": [
+      "drowning",
+      "iron"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

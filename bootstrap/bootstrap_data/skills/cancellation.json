@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 9,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 4
+        }
+    ],
+    "inks": [
+        [
+            5,
+            5
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 20,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!cancellation!",
+    "name": "cancellation",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_cancellation",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 33
+}

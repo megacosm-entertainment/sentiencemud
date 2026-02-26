@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 20,
+            "rating": 15
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 15
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 0
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 0
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            1
+        ],
+        [
+            10,
+            2
+        ]
+    ],
+    "min_mana": 100,
+    "minimum_position": "standing",
+    "msg_disp": "The hazy blue barrier around $n vanishes.",
+    "msg_obj": "",
+    "msg_off": "{CThe electrical barrier surrounding you vanishes.{x",
+    "name": "electrical barrier",
+    "noun_damage": "electrical wave",
+    "race": null,
+    "spell_function": "spell_electrical_barrier",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 92
+}

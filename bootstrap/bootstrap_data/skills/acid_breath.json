@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 2,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 11,
+            "rating": 10
+        },
+        {
+            "class": "cleric",
+            "level": 11,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 11,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 11,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 100,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Acid Breath!",
+    "name": "acid breath",
+    "noun_damage": "blast of acid",
+    "race": null,
+    "spell_function": "spell_acid_breath",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 2
+}

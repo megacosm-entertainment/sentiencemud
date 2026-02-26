@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 18,
+            "rating": 5
+        },
+        {
+            "class": "cleric",
+            "level": 8,
+            "rating": 5
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 8,
+            "rating": 4
+        }
+    ],
+    "inks": [
+        [
+            16,
+            1
+        ],
+        [
+            12,
+            1
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 30,
+    "minimum_position": "fighting",
+    "msg_disp": "$n no longer looks so peaceful...",
+    "msg_obj": "",
+    "msg_off": "{CYou have lost your peace of mind.{x",
+    "name": "calm",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_calm",
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 32
+}

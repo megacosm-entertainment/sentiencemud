@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 8,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 20,
+            "rating": 10
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            10,
+            2
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "The spell shield around you fades away.",
+    "name": "spell shield",
+    "noun_damage": "spell_shield",
+    "race": null,
+    "spell_function": "spell_spell_shield",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 226
+}

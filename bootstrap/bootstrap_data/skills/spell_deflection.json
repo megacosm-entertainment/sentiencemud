@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 15,
+            "rating": 14
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            14,
+            5
+        ]
+    ],
+    "min_mana": 50,
+    "minimum_position": "fighting",
+    "msg_disp": "The crimson aura around $n's body vanishes.",
+    "msg_obj": "",
+    "msg_off": "The dazzling crimson aura around you dissipates.",
+    "name": "spell deflection",
+    "noun_damage": "spell_spell_deflection",
+    "race": null,
+    "spell_function": "spell_spell_deflection",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 225
+}

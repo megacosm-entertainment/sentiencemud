@@ -6,13 +6,25 @@
  **************************************************************************/
 
 #include "strings.h"
+#include <assert.h>
+#include <ctype.h>
+#include <stdarg.h>
+#include <time.h>
 #include "merc.h"
+#include "traits.h"
 #include "tables.h"
 #include "scripts.h"
+#include "class_data.h"
+#include "skill_data.h"
+#include "song_data.h"
+#include "event_types.h"
 #include "recycle.h"
 #include "wilds.h"
+#include "skill_group.h"
 //#define DEBUG_MODULE
 #include "debug.h"
+
+void do_emote(CHAR_DATA *ch, char *argument);
 
 extern const char *cmd_operator_table[];
 
@@ -24,6 +36,9 @@ bool script_destructed = false;
 bool wiznet_script = false;
 bool script_force_execute = false;	// Executes the script even if disabled
 SCRIPT_CB *script_call_stack = NULL;
+static SCRIPT_EXECUTE_CONTEXT script_exec_context = { NULL, NULL };
+
+#define SCRIPT_LOG_MAX_LEN 16384
 
 ROOM_INDEX_DATA room_used_for_wilderness;
 ROOM_INDEX_DATA room_pointer_vlink;
@@ -31,6 +46,305 @@ ROOM_INDEX_DATA room_pointer_environment;
 
 bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock);
 bool is_stat( const struct flag_type *flag_table );
+
+#define SCRIPT_ENTITY_HASH_SIZE 257
+#define SCRIPT_ENTITY_LIST_CACHE_MAX 256
+#define SCRIPT_IFCHECK_HASH_SIZE 257
+#define SCRIPT_LOOKUP_REPORT_INTERVAL 50000UL
+
+typedef struct script_entity_lookup_node SCRIPT_ENTITY_LOOKUP_NODE;
+struct script_entity_lookup_node {
+    ENT_FIELD *field;
+    SCRIPT_ENTITY_LOOKUP_NODE *next;
+};
+
+typedef struct script_entity_list_cache SCRIPT_ENTITY_LIST_CACHE;
+struct script_entity_list_cache {
+    ENT_FIELD *list;
+    SCRIPT_ENTITY_LOOKUP_NODE *buckets[SCRIPT_ENTITY_HASH_SIZE];
+};
+
+typedef struct script_ifcheck_lookup_node SCRIPT_IFCHECK_LOOKUP_NODE;
+struct script_ifcheck_lookup_node {
+    int index;
+    SCRIPT_IFCHECK_LOOKUP_NODE *next;
+};
+
+static SCRIPT_ENTITY_LIST_CACHE script_entity_list_caches[SCRIPT_ENTITY_LIST_CACHE_MAX];
+static int script_entity_list_cache_count = 0;
+static bool script_entity_list_cache_full_logged = false;
+static SCRIPT_IFCHECK_LOOKUP_NODE *script_ifcheck_buckets[SCRIPT_IFCHECK_HASH_SIZE];
+static bool script_ifcheck_cache_built = false;
+static bool script_ifcheck_cache_failed = false;
+
+typedef struct script_lookup_profile_data SCRIPT_LOOKUP_PROFILE;
+struct script_lookup_profile_data {
+    unsigned long entity_calls;
+    unsigned long entity_hash_hits;
+    unsigned long entity_linear_fallbacks;
+    unsigned long entity_probe_steps;
+    unsigned long entity_hash_calls;
+    unsigned long entity_linear_calls;
+    unsigned long long entity_hash_time_ns;
+    unsigned long long entity_linear_time_ns;
+
+    unsigned long ifcheck_calls;
+    unsigned long ifcheck_hash_hits;
+    unsigned long ifcheck_linear_fallbacks;
+    unsigned long ifcheck_probe_steps;
+    unsigned long ifcheck_hash_calls;
+    unsigned long ifcheck_linear_calls;
+    unsigned long long ifcheck_hash_time_ns;
+    unsigned long long ifcheck_linear_time_ns;
+};
+
+static SCRIPT_LOOKUP_PROFILE script_lookup_profile = {0};
+
+static void script_set_log_text(char **target, const char *text)
+{
+    size_t len;
+    const char *source;
+
+    if (!target)
+        return;
+
+    if (*target) {
+        free_string(*target);
+        *target = NULL;
+    }
+
+    if (!text || !text[0])
+        return;
+
+    len = strlen(text);
+    source = text;
+
+    if (len > SCRIPT_LOG_MAX_LEN)
+        source = text + (len - SCRIPT_LOG_MAX_LEN);
+
+    *target = str_dup(source);
+}
+
+static void script_append_runtime_logf(SCRIPT_DATA *script, int line, const char *fmt, ...)
+{
+    char entry[MSL];
+    char combined[SCRIPT_LOG_MAX_LEN + MSL + 8];
+    const char *source;
+    size_t len;
+    va_list args;
+
+    if (!script || IS_NULLSTR(fmt))
+        return;
+
+    va_start(args, fmt);
+    vsnprintf(entry, sizeof(entry), fmt, args);
+    va_end(args);
+
+    if (line > 0)
+        snprintf(combined, sizeof(combined), "[%ld#%d line %d] %s\n\r",
+            script->area ? script->area->uid : 0,
+            script->vnum,
+            line,
+            entry);
+    else
+        snprintf(combined, sizeof(combined), "[%ld#%d] %s\n\r",
+            script->area ? script->area->uid : 0,
+            script->vnum,
+            entry);
+
+    if (script->last_runtime_log && script->last_runtime_log[0]) {
+        char merged[SCRIPT_LOG_MAX_LEN + MSL + 8];
+        snprintf(merged, sizeof(merged), "%s%s", script->last_runtime_log, combined);
+        len = strlen(merged);
+        source = merged;
+        if (len > SCRIPT_LOG_MAX_LEN)
+            source = merged + (len - SCRIPT_LOG_MAX_LEN);
+        script_set_log_text(&script->last_runtime_log, source);
+    } else {
+        script_set_log_text(&script->last_runtime_log, combined);
+    }
+
+    script->last_runtime_time = current_time;
+}
+
+void script_log_runtime_error(SCRIPT_DATA *script, int line, const char *message)
+{
+    script_append_runtime_logf(script, line, "%s", message ? message : "(null)");
+}
+
+static unsigned long long script_profile_now_ns(void)
+{
+    struct timespec ts;
+
+#if defined(CLOCK_MONOTONIC)
+    if(clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+        return ((unsigned long long)ts.tv_sec * 1000000000ULL) + (unsigned long long)ts.tv_nsec;
+#endif
+
+#if defined(TIME_UTC)
+    if(timespec_get(&ts, TIME_UTC) == TIME_UTC)
+        return ((unsigned long long)ts.tv_sec * 1000000000ULL) + (unsigned long long)ts.tv_nsec;
+#endif
+
+    return 0ULL;
+}
+
+void script_lookup_profile_report(const char *tag)
+{
+    const char *label = IS_NULLSTR(tag) ? "runtime" : tag;
+    double entity_hash_avg_us = 0.0;
+    double entity_linear_avg_us = 0.0;
+    double ifcheck_hash_avg_us = 0.0;
+    double ifcheck_linear_avg_us = 0.0;
+
+    if(script_lookup_profile.entity_hash_calls > 0)
+        entity_hash_avg_us = ((double)script_lookup_profile.entity_hash_time_ns /
+            (double)script_lookup_profile.entity_hash_calls) / 1000.0;
+    if(script_lookup_profile.entity_linear_calls > 0)
+        entity_linear_avg_us = ((double)script_lookup_profile.entity_linear_time_ns /
+            (double)script_lookup_profile.entity_linear_calls) / 1000.0;
+    if(script_lookup_profile.ifcheck_hash_calls > 0)
+        ifcheck_hash_avg_us = ((double)script_lookup_profile.ifcheck_hash_time_ns /
+            (double)script_lookup_profile.ifcheck_hash_calls) / 1000.0;
+    if(script_lookup_profile.ifcheck_linear_calls > 0)
+        ifcheck_linear_avg_us = ((double)script_lookup_profile.ifcheck_linear_time_ns /
+            (double)script_lookup_profile.ifcheck_linear_calls) / 1000.0;
+
+    pbugf(LOG_SCRIPTS,
+        "Lookup profile[%s]: entity calls=%lu hash_hits=%lu fallback=%lu avg_probe=%.2f hash_avg=%.2fus linear_avg=%.2fus | ifcheck calls=%lu hash_hits=%lu fallback=%lu avg_probe=%.2f hash_avg=%.2fus linear_avg=%.2fus",
+        label,
+        script_lookup_profile.entity_calls,
+        script_lookup_profile.entity_hash_hits,
+        script_lookup_profile.entity_linear_fallbacks,
+        (script_lookup_profile.entity_calls > 0)
+            ? ((double)script_lookup_profile.entity_probe_steps / (double)script_lookup_profile.entity_calls)
+            : 0.0,
+        entity_hash_avg_us,
+        entity_linear_avg_us,
+        script_lookup_profile.ifcheck_calls,
+        script_lookup_profile.ifcheck_hash_hits,
+        script_lookup_profile.ifcheck_linear_fallbacks,
+        (script_lookup_profile.ifcheck_calls > 0)
+            ? ((double)script_lookup_profile.ifcheck_probe_steps / (double)script_lookup_profile.ifcheck_calls)
+            : 0.0,
+        ifcheck_hash_avg_us,
+        ifcheck_linear_avg_us);
+}
+
+static unsigned int script_hash_ci(const char *name, unsigned int size)
+{
+    unsigned int hash = 5381;
+    const unsigned char *ptr = (const unsigned char *)name;
+
+    while(*ptr)
+        hash = ((hash << 5) + hash) + (unsigned char)tolower(*ptr++);
+
+    return hash % size;
+}
+
+static ENT_FIELD *entity_type_lookup_linear(char *name, ENT_FIELD *list)
+{
+    int i;
+
+    if(!list || !name)
+        return NULL;
+
+    for(i = 0; list[i].name; i++)
+        if(!str_cmp(name, list[i].name))
+            return &list[i];
+
+    return NULL;
+}
+
+static SCRIPT_ENTITY_LIST_CACHE *script_get_entity_list_cache(ENT_FIELD *list)
+{
+    int i;
+    int count;
+
+    for(i = 0; i < script_entity_list_cache_count; i++)
+        if(script_entity_list_caches[i].list == list)
+            return &script_entity_list_caches[i];
+
+    if(script_entity_list_cache_count >= SCRIPT_ENTITY_LIST_CACHE_MAX) {
+        if(!script_entity_list_cache_full_logged) {
+            pbugf(LOG_SCRIPTS,
+                "Entity lookup cache exhausted at %d distinct tables; using linear fallback.",
+                SCRIPT_ENTITY_LIST_CACHE_MAX);
+            script_entity_list_cache_full_logged = true;
+        }
+        return NULL;
+    }
+
+    SCRIPT_ENTITY_LIST_CACHE *cache = &script_entity_list_caches[script_entity_list_cache_count++];
+    memset(cache, 0, sizeof(*cache));
+    cache->list = list;
+
+    for(count = 0; list[count].name; count++)
+        ;
+
+    for(i = count - 1; i >= 0; i--) {
+        SCRIPT_ENTITY_LOOKUP_NODE *node;
+        unsigned int bucket;
+
+        node = alloc_mem(sizeof(*node));
+        if(!node)
+            return NULL;
+
+        node->field = &list[i];
+        bucket = script_hash_ci(list[i].name, SCRIPT_ENTITY_HASH_SIZE);
+        node->next = cache->buckets[bucket];
+        cache->buckets[bucket] = node;
+    }
+
+    return cache;
+}
+
+static int ifcheck_lookup_linear(char *name, int type)
+{
+    int i;
+
+    for(i = 0; ifcheck_table[i].name; i++)
+        if((ifcheck_table[i].type & type) && !str_cmp(name, ifcheck_table[i].name))
+            return i;
+
+    return -1;
+}
+
+static bool script_build_ifcheck_cache(void)
+{
+    int count;
+    int i;
+
+    if(script_ifcheck_cache_built)
+        return true;
+    if(script_ifcheck_cache_failed)
+        return false;
+
+    memset(script_ifcheck_buckets, 0, sizeof(script_ifcheck_buckets));
+
+    for(count = 0; ifcheck_table[count].name; count++)
+        ;
+
+    for(i = count - 1; i >= 0; i--) {
+        SCRIPT_IFCHECK_LOOKUP_NODE *node;
+        unsigned int bucket;
+
+        node = alloc_mem(sizeof(*node));
+        if(!node) {
+            script_ifcheck_cache_failed = true;
+            pbugf(LOG_SCRIPTS, "Ifcheck lookup cache allocation failed; using linear fallback.");
+            return false;
+        }
+
+        node->index = i;
+        bucket = script_hash_ci(ifcheck_table[i].name, SCRIPT_IFCHECK_HASH_SIZE);
+        node->next = script_ifcheck_buckets[bucket];
+        script_ifcheck_buckets[bucket] = node;
+    }
+
+    script_ifcheck_cache_built = true;
+    return true;
+}
 
 char *	const	dir_name_phrase	[]		=
 {
@@ -40,707 +354,1259 @@ char *	const	dir_name_phrase	[]		=
 
 void script_clear_mobile(CHAR_DATA *ptr)
 {
-	register int lp;
-	register SCRIPT_CB *stack = script_call_stack;
+    register int lp;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		if(stack->info.mob == ptr) {
-			stack->info.mob = NULL;
-			stack->info.var = NULL;
-			stack->info.targ = NULL;
-			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
-		}
-		if(stack->info.ch == ptr) stack->info.ch = NULL;
-		if(stack->info.vch == ptr) stack->info.vch = NULL;
-		if(stack->info.rch == ptr) stack->info.rch = NULL;
-		for(lp = 0; lp < stack->loop; lp++) {
-			if(stack->loops[lp].d.l.type == ENT_MOBILE) {
-				if(stack->loops[lp].d.l.next.m == ptr) {
-					if(stack->loops[lp].d.l.cur.m && ptr != stack->loops[lp].d.l.cur.m->next_in_room)
-						stack->loops[lp].d.l.next.m = stack->loops[lp].d.l.cur.m->next_in_room;
-				}
-			}
-		}
+    while(stack) {
+        if(stack->info.mob == ptr) {
+            stack->info.mob = NULL;
+            stack->info.var = NULL;
+            stack->info.targ = NULL;
+            SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+        }
+        if(stack->info.ch == ptr) stack->info.ch = NULL;
+        if(stack->info.vch == ptr) stack->info.vch = NULL;
+        if(stack->info.rch == ptr) stack->info.rch = NULL;
+        for(lp = 0; lp < stack->loop; lp++) {
+            if(stack->loops[lp].d.l.type == ENT_MOBILE) {
+                if(stack->loops[lp].d.l.next.m == ptr) {
+                    if(stack->loops[lp].d.l.cur.m && ptr != stack->loops[lp].d.l.cur.m->next_in_room)
+                        stack->loops[lp].d.l.next.m = stack->loops[lp].d.l.cur.m->next_in_room;
+                }
+            }
+        }
 
-		stack = stack->next;
-	}
+        stack = stack->next;
+    }
 }
 
 void script_clear_object(OBJ_DATA *ptr)
 {
-	register int lp;
-	register SCRIPT_CB *stack = script_call_stack;
+    register int lp;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		if(stack->info.obj == ptr) {
-			stack->info.obj = NULL;
-			stack->info.var = NULL;
-			stack->info.targ = NULL;
-			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
-		}
-		if(stack->info.obj1 == ptr) stack->info.obj1 = NULL;
-		if(stack->info.obj2 == ptr) stack->info.obj2 = NULL;
-		for(lp = 0; lp < stack->loop; lp++) {
-			if(stack->loops[lp].d.l.type == ENT_OBJECT) {
-				if(stack->loops[lp].d.l.next.o == ptr) {
-					if(stack->loops[lp].d.l.cur.o && ptr != stack->loops[lp].d.l.cur.o->next_content)
-						stack->loops[lp].d.l.next.o = stack->loops[lp].d.l.cur.o->next_content;
-				}
-			}
-		}
-		stack = stack->next;
-	}
+    while(stack) {
+        if(stack->info.obj == ptr) {
+            stack->info.obj = NULL;
+            stack->info.var = NULL;
+            stack->info.targ = NULL;
+            SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+        }
+        if(stack->info.obj1 == ptr) stack->info.obj1 = NULL;
+        if(stack->info.obj2 == ptr) stack->info.obj2 = NULL;
+        for(lp = 0; lp < stack->loop; lp++) {
+            if(stack->loops[lp].d.l.type == ENT_OBJECT) {
+                if(stack->loops[lp].d.l.next.o == ptr) {
+                    if(stack->loops[lp].d.l.cur.o && ptr != stack->loops[lp].d.l.cur.o->next_content)
+                        stack->loops[lp].d.l.next.o = stack->loops[lp].d.l.cur.o->next_content;
+                }
+            }
+        }
+        stack = stack->next;
+    }
 }
 
 void script_clear_room(ROOM_INDEX_DATA *ptr)
 {
-	register SCRIPT_CB *stack = script_call_stack;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		if(stack->info.room == ptr) {
-			stack->info.room = NULL;
-			stack->info.var = NULL;
-			stack->info.targ = NULL;
-			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
-		}
-		stack = stack->next;
-	}
+    while(stack) {
+        if(stack->info.room == ptr) {
+            stack->info.room = NULL;
+            stack->info.var = NULL;
+            stack->info.targ = NULL;
+            SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+        }
+        stack = stack->next;
+    }
 }
 
 void script_clear_token(TOKEN_DATA *ptr)
 {
-	register int lp;
-	register SCRIPT_CB *stack = script_call_stack;
+    register int lp;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		if(stack->info.token == ptr) {
-			stack->info.token = NULL;
-			stack->info.var = NULL;
-			stack->info.targ = NULL;
-			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
-		}
-		for(lp = 0; lp < stack->loop; lp++) {
-			if(stack->loops[lp].d.l.type == ENT_TOKEN) {
-				if(stack->loops[lp].d.l.next.t == ptr) {
-					if(stack->loops[lp].d.l.cur.t && ptr != stack->loops[lp].d.l.cur.t->next)
-						stack->loops[lp].d.l.next.t = stack->loops[lp].d.l.cur.t->next;
-				}
-			}
-		}
-		stack = stack->next;
-	}
+    while(stack) {
+        if(stack->info.token == ptr) {
+            stack->info.token = NULL;
+            stack->info.var = NULL;
+            stack->info.targ = NULL;
+            SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+        }
+        for(lp = 0; lp < stack->loop; lp++) {
+            if(stack->loops[lp].d.l.type == ENT_TOKEN) {
+                if(stack->loops[lp].d.l.next.t == ptr) {
+                    if(stack->loops[lp].d.l.cur.t && ptr != stack->loops[lp].d.l.cur.t->next)
+                        stack->loops[lp].d.l.next.t = stack->loops[lp].d.l.cur.t->next;
+                }
+            }
+        }
+        stack = stack->next;
+    }
 }
 
 void script_clear_affect(AFFECT_DATA *ptr)
 {
-	register int lp;
-	register SCRIPT_CB *stack = script_call_stack;
+    register int lp;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		for(lp = 0; lp < stack->loop; lp++) {
-			if(stack->loops[lp].d.l.type == ENT_AFFECT) {
-				if(stack->loops[lp].d.l.next.aff == ptr) {
-					if(stack->loops[lp].d.l.cur.aff && ptr != stack->loops[lp].d.l.cur.aff->next)
-						stack->loops[lp].d.l.next.aff = stack->loops[lp].d.l.cur.aff->next;
-				}
-			}
-		}
-		stack = stack->next;
-	}
+    while(stack) {
+        for(lp = 0; lp < stack->loop; lp++) {
+            if(stack->loops[lp].d.l.type == ENT_AFFECT) {
+                if(stack->loops[lp].d.l.next.aff == ptr) {
+                    if(stack->loops[lp].d.l.cur.aff && ptr != stack->loops[lp].d.l.cur.aff->next)
+                        stack->loops[lp].d.l.next.aff = stack->loops[lp].d.l.cur.aff->next;
+                }
+            }
+        }
+        stack = stack->next;
+    }
 }
 
 void script_clear_list(register void *owner)
 {
-	register int lp;
-	register SCRIPT_CB *stack = script_call_stack;
+    register int lp;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		for(lp = 0; lp < stack->loop; lp++) {
-			if(stack->loops[lp].d.l.owner == owner) {
-				stack->loops[lp].d.l.owner = NULL;
-				stack->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-				stack->loops[lp].d.l.cur.raw = NULL;
-				stack->loops[lp].d.l.next.raw = NULL;
-			}
-		}
-		stack = stack->next;
-	}
+    while(stack) {
+        for(lp = 0; lp < stack->loop; lp++) {
+            if(stack->loops[lp].d.l.owner == owner) {
+                stack->loops[lp].d.l.owner = NULL;
+                stack->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+                stack->loops[lp].d.l.cur.raw = NULL;
+                stack->loops[lp].d.l.next.raw = NULL;
+            }
+        }
+        stack = stack->next;
+    }
 }
 
 void script_clear_instance(INSTANCE *ptr)
 {
-	register SCRIPT_CB *stack = script_call_stack;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		if(stack->info.instance == ptr) {
-			stack->info.instance = NULL;
-			stack->info.var = NULL;
-			stack->info.targ = NULL;
-			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
-		}
-		stack = stack->next;
-	}
+    while(stack) {
+        if(stack->info.instance == ptr) {
+            stack->info.instance = NULL;
+            stack->info.var = NULL;
+            stack->info.targ = NULL;
+            SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+        }
+        stack = stack->next;
+    }
 }
 
 void script_clear_dungeon(DUNGEON *ptr)
 {
-	register SCRIPT_CB *stack = script_call_stack;
+    register SCRIPT_CB *stack = script_call_stack;
 
-	while(stack) {
-		if(stack->info.dungeon == ptr) {
-			stack->info.dungeon = NULL;
-			stack->info.var = NULL;
-			stack->info.targ = NULL;
-			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
-		}
-		stack = stack->next;
-	}
+    while(stack) {
+        if(stack->info.dungeon == ptr) {
+            stack->info.dungeon = NULL;
+            stack->info.var = NULL;
+            stack->info.targ = NULL;
+            SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+        }
+        stack = stack->next;
+    }
 }
 
 
 void script_mobile_addref(CHAR_DATA *ch)
 {
-	if(IS_VALID(ch) && IS_NPC(ch) && ch->progs)
-		ch->progs->script_ref++;
+    if(IS_VALID(ch) && IS_NPC(ch) && ch->progs)
+        ch->progs->script_ref++;
 }
 
 bool script_mobile_remref(CHAR_DATA *ch)
 {
-	if(IS_VALID(ch) && IS_NPC(ch) && ch->progs) {
-		if( ch->progs->script_ref > 0 && !--ch->progs->script_ref ) {
-			if( ch->progs->extract_when_done ) {
-				// Remove!
-				ch->progs->extract_when_done = false;
-				extract_char(ch, ch->progs->extract_fPull);
-				return true;
-			}
-		}
-	}
+    if(IS_VALID(ch) && IS_NPC(ch) && ch->progs) {
+        if( ch->progs->script_ref > 0 && !--ch->progs->script_ref ) {
+            if( ch->progs->extract_when_done ) {
+                // Remove!
+                ch->progs->extract_when_done = false;
+                extract_char(ch, ch->progs->extract_fPull);
+                return true;
+            }
+        }
+    }
 
-	return false;
+    return false;
 }
 
 void script_object_addref(OBJ_DATA *obj)
 {
-	if(IS_VALID(obj) && obj->progs)
-		obj->progs->script_ref++;
+    if(IS_VALID(obj) && obj->progs)
+        obj->progs->script_ref++;
 }
 
 bool script_object_remref(OBJ_DATA *obj)
 {
-	if(IS_VALID(obj) && obj->progs) {
-		if( obj->progs->script_ref > 0 && !--obj->progs->script_ref ) {
-			if( obj->progs->extract_when_done ) {
-				// Remove!
-				obj->progs->extract_when_done = false;
-				extract_obj(obj);
-				return true;
-			}
-		}
-	}
+    if(IS_VALID(obj) && obj->progs) {
+        if( obj->progs->script_ref > 0 && !--obj->progs->script_ref ) {
+            if( obj->progs->extract_when_done ) {
+                // Remove!
+                obj->progs->extract_when_done = false;
+                extract_obj(obj);
+                return true;
+            }
+        }
+    }
 
-	return false;
+    return false;
 }
 
 void script_room_addref(ROOM_INDEX_DATA *room)
 {
-	if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs)
-		room->progs->script_ref++;
+    if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs)
+        room->progs->script_ref++;
 }
 
 bool script_room_remref(ROOM_INDEX_DATA *room)
 {
-	if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs) {
-		if( room->progs->script_ref > 0 && !--room->progs->script_ref ) {
-			if( room->progs->extract_when_done ) {
-				// Remove!
-				room->progs->extract_when_done = false;
-				if(room->source)
-					extract_clone_room(room, room->id[0], room->id[1],false);
-				else	// Is a WILDS room
-					destroy_wilds_vroom(room);
-				return true;
-			}
-		}
-	}
+    if((room->source || IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM)) && room->progs) {
+        if( room->progs->script_ref > 0 && !--room->progs->script_ref ) {
+            if( room->progs->extract_when_done ) {
+                // Remove!
+                room->progs->extract_when_done = false;
+                if(room->source)
+                    extract_clone_room(room, room->id[0], room->id[1],false);
+                else	// Is a WILDS room
+                    destroy_wilds_vroom(room);
+                return true;
+            }
+        }
+    }
 
-	return false;
+    return false;
 }
 
 void script_token_addref(TOKEN_DATA *token)
 {
-	if(IS_VALID(token) && token->progs)
-		token->progs->script_ref++;
+    if(IS_VALID(token) && token->progs)
+        token->progs->script_ref++;
 }
 
 bool script_token_remref(TOKEN_DATA *token)
 {
-	if(IS_VALID(token) && token->progs) {
-		if( token->progs->script_ref > 0 && !--token->progs->script_ref ) {
-			if( token->progs->extract_when_done ) {
-				// Remove!
-				token->progs->extract_when_done = false;
-				extract_token(token);
-				return true;
-			}
-		}
-	}
+    if(IS_VALID(token) && token->progs) {
+        if( token->progs->script_ref > 0 && !--token->progs->script_ref ) {
+            if( token->progs->extract_when_done ) {
+                // Remove!
+                token->progs->extract_when_done = false;
+                extract_token(token);
+                return true;
+            }
+        }
+    }
 
-	return false;
+    return false;
 }
 
 void script_instance_addref(INSTANCE *instance)
 {
-	if(IS_VALID(instance) && instance->progs)
-		instance->progs->script_ref++;
+    if(IS_VALID(instance) && instance->progs)
+        instance->progs->script_ref++;
 }
 
 bool script_instance_remref(INSTANCE *instance)
 {
-	if(IS_VALID(instance) && instance->progs) {
-		if( instance->progs->script_ref > 0 && !--instance->progs->script_ref ) {
-			if( instance->progs->extract_when_done ) {
-				// Remove!
-				instance->progs->extract_when_done = false;
-				extract_instance(instance);
-				return true;
-			}
-		}
-	}
+    if(IS_VALID(instance) && instance->progs) {
+        if( instance->progs->script_ref > 0 && !--instance->progs->script_ref ) {
+            if( instance->progs->extract_when_done ) {
+                // Remove!
+                instance->progs->extract_when_done = false;
+                extract_instance(instance);
+                return true;
+            }
+        }
+    }
 
-	return false;
+    return false;
 }
 
 void script_dungeon_addref(DUNGEON *dungeon)
 {
-	if(IS_VALID(dungeon) && dungeon->progs)
-		dungeon->progs->script_ref++;
+    if(IS_VALID(dungeon) && dungeon->progs)
+        dungeon->progs->script_ref++;
 }
 
 bool script_dungeon_remref(DUNGEON *dungeon)
 {
-	if(IS_VALID(dungeon) && dungeon->progs) {
-		if( dungeon->progs->script_ref > 0 && !--dungeon->progs->script_ref ) {
-			if( dungeon->progs->extract_when_done ) {
-				// Remove!
-				dungeon->progs->extract_when_done = false;
-				extract_dungeon(dungeon);
-				return true;
-			}
-		}
-	}
+    if(IS_VALID(dungeon) && dungeon->progs) {
+        if( dungeon->progs->script_ref > 0 && !--dungeon->progs->script_ref ) {
+            if( dungeon->progs->extract_when_done ) {
+                // Remove!
+                dungeon->progs->extract_when_done = false;
+                extract_dungeon(dungeon);
+                return true;
+            }
+        }
+    }
 
-	return false;
+    return false;
 }
 
 ENT_FIELD *script_entity_fields(int type)
 {
-	int i;
+    int i;
 
-	for(i=0; entity_type_info[i].type_min < ENT_MAX; i++)
-		if( (type >= entity_type_info[i].type_min) && (type <= entity_type_info[i].type_max))
-			return entity_type_info[i].fields;
+    for(i=0; entity_type_info[i].type_min < ENT_MAX; i++)
+        if( (type >= entity_type_info[i].type_min) && (type <= entity_type_info[i].type_max))
+            return entity_type_info[i].fields;
 
-	return NULL;
+    return NULL;
 }
 
 bool script_entity_allow_vars(int type)
 {
-	int i;
+    int i;
 
-	for(i=0; entity_type_info[i].type_min < ENT_MAX; i++)
-		if( (type >= entity_type_info[i].type_min) && (type <= entity_type_info[i].type_max))
-			return entity_type_info[i].allow_vars;
+    for(i=0; entity_type_info[i].type_min < ENT_MAX; i++)
+        if( (type >= entity_type_info[i].type_min) && (type <= entity_type_info[i].type_max))
+            return entity_type_info[i].allow_vars;
 
-	return false;
+    return false;
+}
+
+const char *script_entity_field_description(const ENT_FIELD *field)
+{
+    if(!field)
+        return NULL;
+
+    return IS_NULLSTR(field->description) ? NULL : field->description;
+}
+
+bool script_entity_field_deprecated(const ENT_FIELD *field)
+{
+    return field ? field->deprecated : false;
+}
+
+void script_log_entity_field_pressure_report(int warn_threshold_pct)
+{
+    int i;
+    int threshold = warn_threshold_pct;
+    int report_count = 0;
+    const int usable_codes = 256 - (int)ESCAPE_EXTRA;
+
+    if(threshold < 0)
+        threshold = 0;
+    else if(threshold > 100)
+        threshold = 100;
+
+    pbugf(LOG_SCRIPTS,
+        "Entity field pressure report: threshold=%d%% usable_codes=%d code_range=%u..255",
+        threshold,
+        usable_codes,
+        (unsigned int)ESCAPE_EXTRA);
+
+    for(i = 0; entity_type_info[i].type_min < ENT_MAX; i++) {
+        ENT_FIELD *fields = entity_type_info[i].fields;
+        const char *first_name_for_code[256] = {0};
+        bool warned_code_reuse[256] = {0};
+        bool used_code[256] = {0};
+        int j;
+        int unique_code_count = 0;
+        int reuse_count = 0;
+        int max_code = -1;
+        int total_fields = 0;
+        int pressure_pct;
+
+        if(!fields)
+            continue;
+
+        for(j = 0; fields[j].name; j++) {
+            unsigned int code = (unsigned int)fields[j].code;
+
+            total_fields++;
+
+            if(first_name_for_code[code] == NULL) {
+                first_name_for_code[code] = fields[j].name;
+            } else if(!warned_code_reuse[code]
+                && str_cmp(first_name_for_code[code], fields[j].name)) {
+                warned_code_reuse[code] = true;
+                reuse_count++;
+            }
+
+            if(!used_code[code]) {
+                used_code[code] = true;
+                unique_code_count++;
+            }
+
+            if((int)code > max_code)
+                max_code = (int)code;
+        }
+
+        pressure_pct = (usable_codes > 0)
+            ? (unique_code_count * 100) / usable_codes
+            : 0;
+
+        if(threshold > 0 && pressure_pct < threshold)
+            continue;
+
+        pbugf(LOG_SCRIPTS,
+            "Entity field pressure: table_index=%d type_range=[%d..%d] fields=%d unique_codes=%d/%d (%d%%) max_code=%d reuses=%d",
+            i,
+            entity_type_info[i].type_min,
+            entity_type_info[i].type_max,
+            total_fields,
+            unique_code_count,
+            usable_codes,
+            pressure_pct,
+            max_code,
+            reuse_count);
+        report_count++;
+    }
+
+    pbugf(LOG_SCRIPTS,
+        "Entity field pressure report complete: reported_tables=%d threshold=%d%%",
+        report_count,
+        threshold);
+}
+
+bool script_validate_entity_tables(void)
+{
+    int errors = 0;
+    int warnings = 0;
+    int table_count = 0;
+    int field_count = 0;
+    int highest_pressure_pct = -1;
+    int highest_pressure_table_index = -1;
+    int highest_pressure_type_min = ENT_UNKNOWN;
+    int highest_pressure_type_max = ENT_UNKNOWN;
+    int i;
+
+    for(i = 0; entity_type_info[i].type_min < ENT_MAX; i++) {
+        ENT_FIELD *fields;
+        int j;
+
+        if(entity_type_info[i].type_min > entity_type_info[i].type_max) {
+            pbugf(LOG_SCRIPTS,
+                "Entity table registry invalid range: min=%d max=%d (index=%d)",
+                entity_type_info[i].type_min,
+                entity_type_info[i].type_max,
+                i);
+            errors++;
+        }
+
+        if(entity_type_info[i].type_min < ENT_NONE || entity_type_info[i].type_max >= ENT_MAX) {
+            pbugf(LOG_SCRIPTS,
+                "Entity table registry out-of-range types: min=%d max=%d (index=%d)",
+                entity_type_info[i].type_min,
+                entity_type_info[i].type_max,
+                i);
+            errors++;
+        }
+
+        for(j = i + 1; entity_type_info[j].type_min < ENT_MAX; j++) {
+            if(entity_type_info[i].type_min <= entity_type_info[j].type_max
+            && entity_type_info[j].type_min <= entity_type_info[i].type_max) {
+                pbugf(LOG_SCRIPTS,
+                    "Entity table registry overlap: [%d..%d] with [%d..%d]",
+                    entity_type_info[i].type_min,
+                    entity_type_info[i].type_max,
+                    entity_type_info[j].type_min,
+                    entity_type_info[j].type_max);
+                errors++;
+            }
+        }
+
+        fields = entity_type_info[i].fields;
+        if(!fields)
+            continue;
+
+        table_count++;
+        {
+            const char *first_name_for_code[256] = {0};
+            bool warned_code_reuse[256] = {0};
+            bool used_code[256] = {0};
+            int unique_code_count = 0;
+            int reuse_count = 0;
+            int max_code = -1;
+            const int usable_codes = 256 - (int)ESCAPE_EXTRA;
+
+        for(j = 0; fields[j].name; j++) {
+            int k;
+            field_count++;
+
+            if(fields[j].name[0] == '\0') {
+                pbugf(LOG_SCRIPTS,
+                    "Entity field has empty name in table index=%d field_index=%d",
+                    i,
+                    j);
+                errors++;
+            }
+
+            if(fields[j].code < ESCAPE_EXTRA) {
+                pbugf(LOG_SCRIPTS,
+                    "Entity field '%s' has out-of-band code=%u (valid range %u..%u)",
+                    fields[j].name,
+                    (unsigned int)fields[j].code,
+                    (unsigned int)ESCAPE_EXTRA,
+                    255U);
+                errors++;
+            }
+
+            if(fields[j].type != ENT_UNKNOWN
+            && (fields[j].type < ENT_NONE || fields[j].type >= ENT_MAX)) {
+                pbugf(LOG_SCRIPTS,
+                    "Entity field '%s' has invalid result type=%u",
+                    fields[j].name,
+                    (unsigned int)fields[j].type);
+                errors++;
+            }
+
+            if(first_name_for_code[fields[j].code] == NULL) {
+                first_name_for_code[fields[j].code] = fields[j].name;
+            } else if(!warned_code_reuse[fields[j].code]
+                && str_cmp(first_name_for_code[fields[j].code], fields[j].name)) {
+                pwarnf(LOG_SCRIPTS,
+                    "WARNING: Entity table index=%d reuses field code=%u for '%s' and '%s'",
+                    i,
+                    (unsigned int)fields[j].code,
+                    first_name_for_code[fields[j].code],
+                    fields[j].name);
+                warned_code_reuse[fields[j].code] = true;
+                warnings++;
+                reuse_count++;
+            }
+
+            if(!used_code[fields[j].code]) {
+                used_code[fields[j].code] = true;
+                unique_code_count++;
+            }
+            if((int)fields[j].code > max_code)
+                max_code = (int)fields[j].code;
+
+            for(k = j + 1; fields[k].name; k++) {
+                if(!str_cmp(fields[j].name, fields[k].name)) {
+                    pbugf(LOG_SCRIPTS,
+                        "Duplicate entity field name '%s' within table index=%d",
+                        fields[j].name,
+                        i);
+                    errors++;
+                }
+            }
+        }
+
+            if(usable_codes > 0) {
+                int pressure_pct = (unique_code_count * 100) / usable_codes;
+
+                if(pressure_pct > highest_pressure_pct) {
+                    highest_pressure_pct = pressure_pct;
+                    highest_pressure_table_index = i;
+                    highest_pressure_type_min = entity_type_info[i].type_min;
+                    highest_pressure_type_max = entity_type_info[i].type_max;
+                }
+
+            }
+        }
+    }
+
+    if(errors > 0) {
+        pbugf(LOG_SCRIPTS,
+            "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
+            table_count,
+            field_count,
+            errors,
+            warnings);
+    } else if(warnings > 0) {
+        pwarnf(LOG_SCRIPTS,
+            "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
+            table_count,
+            field_count,
+            errors,
+            warnings);
+    } else {
+        plogf(LOG_SCRIPTS,
+            "Entity table validation complete: tables=%d fields=%d errors=%d warnings=%d",
+            table_count,
+            field_count,
+            errors,
+            warnings);
+    }
+
+    if(highest_pressure_table_index >= 0) {
+        plogf(LOG_SCRIPTS,
+            "Entity field pressure peak: table_index=%d type_range=[%d..%d] pressure=%d%%",
+            highest_pressure_table_index,
+            highest_pressure_type_min,
+            highest_pressure_type_max,
+            highest_pressure_pct);
+    }
+
+    script_log_entity_field_pressure_report(75);
+
+    return (errors == 0);
 }
 
 //void compile_error_show(char *msg);
 ENT_FIELD *entity_type_lookup(char *name, ENT_FIELD *list)
 {
-	int i;
-//	char buf[MSL];
+    SCRIPT_ENTITY_LIST_CACHE *cache;
+    SCRIPT_ENTITY_LOOKUP_NODE *node;
+    unsigned int bucket;
+    unsigned long long t0;
+    unsigned long long t1;
 
-	if(!list) return NULL;
+    if(!list || !name)
+        return NULL;
 
-	for(i=0;list[i].name;i++) {
-//		compile_error_show(buf);
-//		sprintf(buf,"entity_type_lookup: '%s' '%s'",list[i].name,name);
-		if(!str_cmp(name,list[i].name)) {
-//			sprintf(buf,"entity_type_lookup: '%s' found",name);
-//			compile_error_show(buf);
-			return &list[i];
-		}
-	}
+    script_lookup_profile.entity_calls++;
 
-//	sprintf(buf,"entity_type_lookup: '%s' NOT found",name);
-//	compile_error_show(buf);
-	return NULL;
+    cache = script_get_entity_list_cache(list);
+    if(!cache) {
+        ENT_FIELD *field;
+
+        t0 = script_profile_now_ns();
+        field = entity_type_lookup_linear(name, list);
+        t1 = script_profile_now_ns();
+
+        script_lookup_profile.entity_linear_calls++;
+        if(t1 >= t0)
+            script_lookup_profile.entity_linear_time_ns += (t1 - t0);
+        script_lookup_profile.entity_linear_fallbacks++;
+        if(script_lookup_profile.entity_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+            script_lookup_profile_report("entity_lookup");
+        return field;
+    }
+
+    bucket = script_hash_ci(name, SCRIPT_ENTITY_HASH_SIZE);
+    t0 = script_profile_now_ns();
+    for(node = cache->buckets[bucket]; node; node = node->next) {
+        script_lookup_profile.entity_probe_steps++;
+        if(!str_cmp(name, node->field->name)) {
+            t1 = script_profile_now_ns();
+            script_lookup_profile.entity_hash_calls++;
+            if(t1 >= t0)
+                script_lookup_profile.entity_hash_time_ns += (t1 - t0);
+            script_lookup_profile.entity_hash_hits++;
+            if(script_lookup_profile.entity_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+                script_lookup_profile_report("entity_lookup");
+            return node->field;
+        }
+    }
+
+    t1 = script_profile_now_ns();
+    script_lookup_profile.entity_hash_calls++;
+    if(t1 >= t0)
+        script_lookup_profile.entity_hash_time_ns += (t1 - t0);
+
+    if(script_lookup_profile.entity_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+        script_lookup_profile_report("entity_lookup");
+
+    return NULL;
 }
 
 bool script_expression_push(STACK *stk,int val)
 {
-	if(stk->t >= MAX_STACK) return false;
-	stk->s[stk->t++] = val;
-	return true;
+    if(stk->t >= MAX_STACK) return false;
+    stk->s[stk->t++] = val;
+    return true;
 }
 
 bool script_expression_push_operator(STACK *stk,int op)
 {
-	if(script_expression_tostack[op] == STK_MAX) return false;
-	return script_expression_push(stk,script_expression_tostack[op]);
+    if(script_expression_tostack[op] == STK_MAX) return false;
+    return script_expression_push(stk,script_expression_tostack[op]);
 }
 
 
 int get_operator(char *keyword)
 {
-	register int i;
-	for(i = 0; script_operators[i]; i++)
-		if(!str_cmp(script_operators[i], keyword))
-			return(i);
-	return -1;
+    register int i;
+    for(i = 0; script_operators[i]; i++)
+        if(!str_cmp(script_operators[i], keyword))
+            return(i);
+    return -1;
 }
 
 int ifcheck_lookup(char *name, int type)
 {
-	register int i;
+    unsigned int bucket;
+    SCRIPT_IFCHECK_LOOKUP_NODE *node;
+    unsigned long long t0;
+    unsigned long long t1;
 
-	for(i=0;ifcheck_table[i].name;i++)
-		if((ifcheck_table[i].type & type) && !str_cmp(name,ifcheck_table[i].name))
-			return i;
+    if(!name)
+        return -1;
 
-	return -1;
+    script_lookup_profile.ifcheck_calls++;
+
+    if(!script_build_ifcheck_cache()) {
+        int index;
+
+        t0 = script_profile_now_ns();
+        index = ifcheck_lookup_linear(name, type);
+        t1 = script_profile_now_ns();
+
+        script_lookup_profile.ifcheck_linear_calls++;
+        if(t1 >= t0)
+            script_lookup_profile.ifcheck_linear_time_ns += (t1 - t0);
+        script_lookup_profile.ifcheck_linear_fallbacks++;
+        if(script_lookup_profile.ifcheck_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+            script_lookup_profile_report("ifcheck_lookup");
+        return index;
+    }
+
+    bucket = script_hash_ci(name, SCRIPT_IFCHECK_HASH_SIZE);
+    t0 = script_profile_now_ns();
+    for(node = script_ifcheck_buckets[bucket]; node; node = node->next) {
+        script_lookup_profile.ifcheck_probe_steps++;
+        if((ifcheck_table[node->index].type & type)
+        && !str_cmp(name, ifcheck_table[node->index].name)) {
+            t1 = script_profile_now_ns();
+            script_lookup_profile.ifcheck_hash_calls++;
+            if(t1 >= t0)
+                script_lookup_profile.ifcheck_hash_time_ns += (t1 - t0);
+            script_lookup_profile.ifcheck_hash_hits++;
+            if(script_lookup_profile.ifcheck_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+                script_lookup_profile_report("ifcheck_lookup");
+            return node->index;
+        }
+    }
+
+    t1 = script_profile_now_ns();
+    script_lookup_profile.ifcheck_hash_calls++;
+    if(t1 >= t0)
+        script_lookup_profile.ifcheck_hash_time_ns += (t1 - t0);
+
+    if(script_lookup_profile.ifcheck_calls % SCRIPT_LOOKUP_REPORT_INTERVAL == 0)
+        script_lookup_profile_report("ifcheck_lookup");
+
+    return -1;
 }
 
 char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid)
 {
-	int i;
-	SCRIPT_PARAM *argv[IFC_MAXPARAMS];
-	char *argument;
+    int i;
+    SCRIPT_PARAM *argv[IFC_MAXPARAMS];
+    char *argument;
 
-	*valid = false;
+    *valid = false;
 
-	// Validate parameters
-	if(!ifc || !ret) return NULL;
+    // Validate parameters
+    if(!ifc || !ret) return NULL;
 
-	if(!ifc->func) return NULL;
+    if(!ifc->func) return NULL;
 
-	// Clear variables
-	for(i = 0; i < IFC_MAXPARAMS; i++)
-		argv[i] = new_script_param();
+    // Clear variables
+    for(i = 0; i < IFC_MAXPARAMS; i++)
+        argv[i] = new_script_param();
 
-	text = skip_whitespace(text);
-	argument = text;
+    text = skip_whitespace(text);
+    argument = text;
 
-	// Stop when there the param list is full, there's no more text or it hits an
-	//	operator
-	for(i=0;argument && *argument && *argument != ESCAPE_END && *argument != '=' && *argument != '<' &&
-		*argument != '>' && *argument != '!' && *argument != '&' && i<IFC_MAXPARAMS;i++) {
+    // Stop when there the param list is full, there's no more text or it hits an
+    //	operator
+    for(i=0;argument && *argument && *argument != ESCAPE_END && *argument != '=' && *argument != '<' &&
+        *argument != '>' && *argument != '!' && *argument != '&' && i<IFC_MAXPARAMS;i++) {
 //		if(wiznet_script) {
 //			sprintf(buf,"*argument = %02.2X (%c)", *argument, ISPRINT(*argument) ? *argument : ' ');
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //		}
-		clear_buf(argv[i]->buffer);
-		argument = expand_argument(info,argument,argv[i]);
+        clear_buf(argv[i]->buffer);
+        argument = expand_argument(info,argument,argv[i]);
 //		if(wiznet_script) {
 //			sprintf(buf,"argv[%d].type = %d (%s)", i, argv[i].type, ifcheck_param_type_names[argv[i].type]);
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //		}
-	}
+    }
 //	if(wiznet_script) {
 //		sprintf(buf,"args = %d", i);
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //	}
-	if(info && (ifc->func)(info,info->mob,info->obj,info->room,info->token,info->area,ret,i,argv))
-		*valid = true;
+    if(info && (ifc->func)(info,info->mob,info->obj,info->room,info->token,info->area,ret,i,argv))
+        *valid = true;
 
 //	if(wiznet_script) {
 //		sprintf(buf,"ret = %d", *ret);
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //	}
-	DBG2EXITVALUE1(PTR,argument);
-	for(i = 0; i < IFC_MAXPARAMS; i++)
-		free_script_param(argv[i]);
+    DBG2EXITVALUE1(PTR,argument);
+    for(i = 0; i < IFC_MAXPARAMS; i++)
+        free_script_param(argv[i]);
 
-	return argument;
+    return argument;
+}
+
+static bool compare_entity_params(const SCRIPT_PARAM *lhs, const SCRIPT_PARAM *rhs, bool *equal)
+{
+    if (!lhs || !rhs || !equal)
+        return false;
+
+    switch (lhs->type) {
+    case ENT_MOBILE:
+        if (rhs->type != ENT_MOBILE) return false;
+        *equal = (lhs->d.mob == rhs->d.mob);
+        return true;
+    case ENT_OBJECT:
+        if (rhs->type != ENT_OBJECT) return false;
+        *equal = (lhs->d.obj == rhs->d.obj);
+        return true;
+    case ENT_ROOM:
+        if (rhs->type != ENT_ROOM) return false;
+        *equal = (lhs->d.room == rhs->d.room);
+        return true;
+    case ENT_TOKEN:
+        if (rhs->type != ENT_TOKEN) return false;
+        *equal = (lhs->d.token == rhs->d.token);
+        return true;
+    case ENT_AREA:
+        if (rhs->type != ENT_AREA) return false;
+        *equal = (lhs->d.area == rhs->d.area);
+        return true;
+    case ENT_AREA_REGION:
+        if (rhs->type != ENT_AREA_REGION) return false;
+        *equal = (lhs->d.aregion == rhs->d.aregion);
+        return true;
+    case ENT_SECTOR:
+        if (rhs->type != ENT_SECTOR) return false;
+        *equal = (lhs->d.sector == rhs->d.sector);
+        return true;
+    case ENT_EVENT:
+        if (rhs->type != ENT_EVENT) return false;
+        *equal = (lhs->d.event.mob == rhs->d.event.mob) &&
+                 (lhs->d.event.obj == rhs->d.event.obj) &&
+                 (lhs->d.event.uid == rhs->d.event.uid) &&
+                 (lhs->d.event.instance_id == rhs->d.event.instance_id);
+        return true;
+    case ENT_EXIT:
+        if (rhs->type != ENT_EXIT) return false;
+        *equal = (lhs->d.door.r == rhs->d.door.r && lhs->d.door.door == rhs->d.door.door);
+        return true;
+    case ENT_WIDEVNUM:
+        if (rhs->type != ENT_WIDEVNUM) return false;
+        *equal = (lhs->d.wnum.pArea == rhs->d.wnum.pArea && lhs->d.wnum.vnum == rhs->d.wnum.vnum);
+        return true;
+    case ENT_SKILLGROUP:
+        if (rhs->type != ENT_SKILLGROUP) return false;
+        *equal = (lhs->d.skill_group == rhs->d.skill_group);
+        return true;
+    case ENT_REPUTATION:
+        if (rhs->type != ENT_REPUTATION) return false;
+        *equal = (lhs->d.reputation == rhs->d.reputation);
+        return true;
+    case ENT_REPUTATION_INDEX:
+        if (rhs->type != ENT_REPUTATION_INDEX) return false;
+        *equal = (lhs->d.repIndex == rhs->d.repIndex);
+        return true;
+    case ENT_REPUTATION_RANK:
+        if (rhs->type != ENT_REPUTATION_RANK) return false;
+        *equal = (lhs->d.repRank == rhs->d.repRank);
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool script_param_truthy(const SCRIPT_PARAM *value)
+{
+    if (!value)
+        return false;
+
+    switch (value->type) {
+    case ENT_BOOLEAN:
+        return value->d.boolean;
+    case ENT_NUMBER:
+        return value->d.num != 0;
+    case ENT_BITVECTOR:
+        return value->d.bv.value != 0;
+    case ENT_STRING:
+        return !IS_NULLSTR(value->d.str);
+    case ENT_WIDEVNUM:
+        return value->d.wnum.pArea != NULL && value->d.wnum.vnum > 0;
+    case ENT_MOBILE:
+        return IS_VALID(value->d.mob);
+    case ENT_OBJECT:
+        return IS_VALID(value->d.obj);
+    case ENT_ROOM:
+        return value->d.room != NULL;
+    case ENT_TOKEN:
+        return IS_VALID(value->d.token);
+    case ENT_AREA:
+        return value->d.area != NULL;
+    case ENT_AREA_REGION:
+        return value->d.aregion != NULL;
+    case ENT_SECTOR:
+        return value->d.sector != NULL;
+    case ENT_EVENT:
+        return value->d.event.uid > 0 || value->d.event.mob != NULL || value->d.event.obj != NULL;
+    case ENT_SKILLGROUP:
+        return value->d.skill_group != NULL;
+    case ENT_REPUTATION:
+        return value->d.reputation != NULL;
+    case ENT_REPUTATION_INDEX:
+        return value->d.repIndex != NULL;
+    case ENT_REPUTATION_RANK:
+        return value->d.repRank != NULL;
+    case ENT_EXIT:
+        return value->d.door.r &&
+               value->d.door.door >= 0 &&
+               value->d.door.door < MAX_DIR &&
+               value->d.door.r->exit[value->d.door.door] != NULL;
+    default:
+        return false;
+    }
 }
 
 int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PARAM *arg)
 {
-	int lhs, oper, rhs;
-	char *text, *p, buf[MIL], buf2[MSL];
-	bool valid;
-	IFCHECK_DATA *ifc;
+    int lhs = 0, oper, rhs = 0;
+    char *text, *p, buf[MIL], buf2[MSL];
+    const char *lhs_string = NULL;
+    const char *rhs_string = NULL;
+    bool valid;
+    IFCHECK_DATA *ifc;
+    int max_ifchecks = 0;
+    SCRIPT_PARAM lhs_param;
+    bool lhs_is_numeric = false;
+    bool rhs_is_numeric = false;
+    bool lhs_is_string = false;
+    bool rhs_is_string = false;
+    bool entity_equal = false;
+    bool entity_comparable = false;
 
-	if(!info) return -1;	// Error
+    memset(&lhs_param, 0, sizeof(lhs_param));
 
-	if(param < -1 || param >= CHK_MAXIFCHECKS)
-		 return -1;
+    if(!info) return -1;	// Error
 
-	if(param == -1) {
-		text = expand_argument(info,rest,arg);
-		if(!text) return -1;
+    while (ifcheck_table[max_ifchecks].name)
+        ++max_ifchecks;
 
-		if( arg->type == ENT_BOOLEAN )
-			return arg->d.boolean ? 1 : 0;
+    if(param < -1 || param >= max_ifchecks)
+         return -1;
 
-		if( arg->type != ENT_NUMBER )
-			return -1;
+    if(param == -1) {
+        text = expand_argument(info,rest,arg);
+        if(!text) return -1;
 
-		lhs = arg->d.num;
+        lhs_param = *arg;
 
-	} else {
-		ifc = &ifcheck_table[param];
+        if( arg->type == ENT_BOOLEAN )
+            return arg->d.boolean ? 1 : 0;
 
-		if(wiznet_script) {
-			sprintf(buf2,"Doing ifcheck: %d, '%s'", param, ifc->name);
-			wiznet(buf2,NULL,NULL,WIZ_SCRIPTS,0,0);
-		}
+        if( arg->type == ENT_BITVECTOR ) {
+            lhs = arg->d.bv.value;
+            lhs_is_numeric = true;
+        } else if( arg->type == ENT_STRING && is_number(arg->d.str) ) {
+            lhs = atoi(arg->d.str);
+            lhs_is_numeric = true;
+        } else if (arg->type == ENT_STRING) {
+            lhs_string = arg->d.str;
+            lhs_is_string = true;
+        } else {
+            if( arg->type == ENT_NUMBER ) {
+                lhs = arg->d.num;
+                lhs_is_numeric = true;
+            }
+        }
 
-		text = ifcheck_get_value(info,ifc,rest,&lhs,&valid);
+    } else {
+        ifc = &ifcheck_table[param];
 
-		if(!valid) return false;
+        if(wiznet_script) {
+            sprintf(buf2,"Doing ifcheck: %d, '%s'", param, ifc->name);
+            wiznet(buf2,NULL,NULL,WIZ_SCRIPTS,0,0);
+        }
 
-		if(!ifc->numeric) return (lhs > 0);
-	}
+        text = ifcheck_get_value(info,ifc,rest,&lhs,&valid);
 
-	text = one_argument(text, buf);
+        if(!valid) return false;
 
-	oper = get_operator(buf);
-	if (oper < 0) return false;
+        lhs_is_numeric = true;
 
-	p = expand_argument(info,text,arg);
-	if(!p || p == text) {
-		return -1;
-	}
+        if(!ifc->numeric) return (lhs > 0);
+    }
 
-	switch(arg->type) {
-	case ENT_NUMBER: rhs = arg->d.num; break;
-	case ENT_STRING:
-		if(is_number(arg->d.str)) {
-			rhs = atoi(arg->d.str);
-			break;
-		}
-	default:
-		return false;
-	}
+    text = one_argument(text, buf);
 
-	switch(oper) {
-	case EVAL_EQ:	return (lhs == rhs);
-	case EVAL_GE:	return (lhs >= rhs);
-	case EVAL_LE:	return (lhs <= rhs);
-	case EVAL_NE:	return (lhs != rhs);
-	case EVAL_GT:	return (lhs > rhs);
-	case EVAL_LT:	return (lhs < rhs);
-	case EVAL_MASK:	return (lhs & rhs);
-	default:	return false;
-	}
+    oper = get_operator(buf);
+    if (oper < 0) {
+        if (param == -1)
+            return script_param_truthy(&lhs_param) ? 1 : 0;
+        return false;
+    }
+
+    p = expand_argument(info,text,arg);
+    if(!p || p == text) {
+        return -1;
+    }
+
+    switch(arg->type) {
+    case ENT_NUMBER: rhs = arg->d.num; rhs_is_numeric = true; break;
+    case ENT_BOOLEAN: rhs = arg->d.boolean ? 1 : 0; rhs_is_numeric = true; break;
+    case ENT_BITVECTOR: rhs = arg->d.bv.value; rhs_is_numeric = true; break;
+    case ENT_STRING:
+        if(is_number(arg->d.str)) {
+            rhs = atoi(arg->d.str);
+            rhs_is_numeric = true;
+            break;
+        }
+        rhs_string = arg->d.str;
+        rhs_is_string = true;
+        break;
+    default:
+        rhs_is_numeric = false;
+        break;
+    }
+
+    if (param == -1 && (oper == EVAL_EQ || oper == EVAL_NE)) {
+        entity_comparable = compare_entity_params(&lhs_param, arg, &entity_equal);
+        if (entity_comparable)
+            return (oper == EVAL_EQ) ? entity_equal : !entity_equal;
+
+        if (lhs_is_string && rhs_is_string) {
+            bool strings_equal = !str_cmp(lhs_string ? lhs_string : "", rhs_string ? rhs_string : "");
+            return (oper == EVAL_EQ) ? strings_equal : !strings_equal;
+        }
+    }
+
+    if (!lhs_is_numeric || !rhs_is_numeric)
+        return false;
+
+    switch(oper) {
+    case EVAL_EQ:	return (lhs == rhs);
+    case EVAL_GE:	return (lhs >= rhs);
+    case EVAL_LE:	return (lhs <= rhs);
+    case EVAL_NE:	return (lhs != rhs);
+    case EVAL_GT:	return (lhs > rhs);
+    case EVAL_LT:	return (lhs < rhs);
+    case EVAL_MASK:	return (lhs & rhs);
+    default:	return false;
+    }
 }
 
 int boolexp_evaluate(SCRIPT_CB *block, BOOLEXP *be, SCRIPT_PARAM *arg)
 {
-	int ret;
-	if(!block) return -1;	// Error
+    int ret;
+    if(!block) return -1;	// Error
 
-	switch(be->type) {
-	case BOOLEXP_TRUE:
-		return ifcheck_comparison(&block->info, be->param, be->rest, arg);
+    switch(be->type) {
+    case BOOLEXP_TRUE:
+        return ifcheck_comparison(&block->info, be->param, be->rest, arg);
 
-	case BOOLEXP_NOT:
-		ret = ifcheck_comparison(&block->info, be->param, be->rest, arg);
+    case BOOLEXP_NOT:
+        ret = ifcheck_comparison(&block->info, be->param, be->rest, arg);
 
-		if( ret < 0 ) return -1;
+        if( ret < 0 ) return -1;
 
-		return ret ? false : true;
+        return ret ? false : true;
 
-	case BOOLEXP_AND:
-		ret = boolexp_evaluate(block, be->left, arg);
-		if( ret < 0 ) return -1;
+    case BOOLEXP_AND:
+        ret = boolexp_evaluate(block, be->left, arg);
+        if( ret < 0 ) return -1;
 
-		if( ret == false ) return false;	// Short circuit false
+        if( ret == false ) return false;	// Short circuit false
 
-		ret = boolexp_evaluate(block, be->right, arg);
-		if( ret < 0 ) return -1;
+        ret = boolexp_evaluate(block, be->right, arg);
+        if( ret < 0 ) return -1;
 
-		return ret ? true : false;
+        return ret ? true : false;
 
-	case BOOLEXP_OR:
-		ret = boolexp_evaluate(block, be->left, arg);
-		if( ret < 0 ) return -1;
+    case BOOLEXP_OR:
+        ret = boolexp_evaluate(block, be->left, arg);
+        if( ret < 0 ) return -1;
 
-		if( ret == true ) return true;		// Short circuit true
+        if( ret == true ) return true;		// Short circuit true
 
-		ret = boolexp_evaluate(block, be->right, arg);
-		if( ret < 0 ) return -1;
+        ret = boolexp_evaluate(block, be->right, arg);
+        if( ret < 0 ) return -1;
 
-		return ret ? true : false;
-	}
+        return ret ? true : false;
+    }
 
 
-	return false;
+    return false;
 }
 
 bool opc_skip_to_label(SCRIPT_CB *block,int op,int id,bool dir)
 {
-	int line, last;
-	SCRIPT_CODE *code;
-	char buf[MIL];
+    int line, last;
+    SCRIPT_CODE *code;
+    char buf[MIL];
 
-	code = block->script->code;
-	last = block->script->lines;
+    code = block->script->code;
+    last = block->script->lines;
 
-	if(wiznet_script) {
-		sprintf(buf,"Skipping to %s with ID %d.", opcode_names[op], id);
-		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-	}
+    if(wiznet_script) {
+        sprintf(buf,"Skipping to %s with ID %d.", opcode_names[op], id);
+        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+    }
 
-	if(dir) {	// Forward, after the loop
-		for(line = block->line; line < last; line++) {
+    if(dir) {	// Forward, after the loop
+        for(line = block->line; line < last; line++) {
 //			if(wiznet_script) {
 //				sprintf(buf,"Checking: Line=%d, Opcode=%d(%s), Level=%d", line+1,code[line].opcode,opcode_names[code[line].opcode],code[line].level);
 //				wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //			}
-			if(code[line].opcode == op && code[line].label == id) {
-				block->line = line+1;
-				DBG2EXITVALUE2(true);
-				return true;
-			}
-		}
-	} else {	// Backward
-		for(line = block->line; line >= 0; --line) {
+            if(code[line].opcode == op && code[line].label == id) {
+                block->line = line+1;
+                DBG2EXITVALUE2(true);
+                return true;
+            }
+        }
+    } else {	// Backward
+        for(line = block->line; line >= 0; --line) {
 //			if(wiznet_script) {
 //				sprintf(buf,"Checking: Line=%d, Opcode=%d(%s), Level=%d", line+1,code[line].opcode,opcode_names[code[line].opcode],code[line].level);
 //				wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //			}
-			if(code[line].opcode == op && code[line].label == id) {
-				block->line = line;
-				DBG2EXITVALUE2(true);
-				return true;
-			}
-		}
-	}
+            if(code[line].opcode == op && code[line].label == id) {
+                block->line = line;
+                DBG2EXITVALUE2(true);
+                return true;
+            }
+        }
+    }
 
-	DBG2EXITVALUE2(false);
-	return false;
+    DBG2EXITVALUE2(false);
+    return false;
 }
 
 bool opc_skip_to_level(SCRIPT_CB *block,int op,int level)
 {
-	int line, last;
-	SCRIPT_CODE *code;
-	char buf[MIL];
+    int line, last;
+    SCRIPT_CODE *code;
+    char buf[MIL];
 
-	code = block->script->code;
-	last = block->script->lines;
+    code = block->script->code;
+    last = block->script->lines;
 
-	if(wiznet_script) {
-		sprintf(buf,"Skipping to %s with Level %d.", opcode_names[op], level);
-		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-	}
+    if(wiznet_script) {
+        sprintf(buf,"Skipping to %s with Level %d.", opcode_names[op], level);
+        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+    }
 
-	for(line = block->line; line < last; line++) {
+    for(line = block->line; line < last; line++) {
 //		if(wiznet_script) {
 //			(buf,"Checking: Line=%d, Opcode=%d(%s), Level=%d", line+1,code[line].opcode,opcode_names[code[line].opcode],code[line].level);
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //		}
-		if(code[line].opcode == op && code[line].level == level) {
-			block->line = line+1;
-			DBG2EXITVALUE2(true);
-			return true;
-		}
-	}
+        if(code[line].opcode == op && code[line].level == level) {
+            block->line = line+1;
+            DBG2EXITVALUE2(true);
+            return true;
+        }
+    }
 
-	DBG2EXITVALUE2(false);
-	return false;
+    DBG2EXITVALUE2(false);
+    return false;
 }
 
 bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock)
 {
-	int line, last;
-	SCRIPT_CODE *code;
+    int line, last;
+    SCRIPT_CODE *code;
 
 //	if(wiznet_script) {
 //		sprintf(buf,"Skipping to %s on level %d.", endblock?"ENDIF":"ELSE/ENDIF", level);
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //	}
 
-	// Looking for an ELSE/ELSEIF or ENDIF
-	if(block->state[level] == OP_IF) {
-		code = block->script->code;
-		last = block->script->lines;
+    // Looking for an ELSE/ELSEIF or ENDIF
+    if(block->state[level] == OP_IF) {
+        code = block->script->code;
+        last = block->script->lines;
 
-		line = block->line;
-		if(code[line].opcode == OP_ELSEIF) ++line;
+        line = block->line;
+        if(code[line].opcode == OP_ELSEIF) ++line;
 
-		for(; line < last; line++) {
+        for(; line < last; line++) {
 //			if(wiznet_script) {
 //				sprintf(buf,"Checking: Line=%d, Opcode=%d(%s), Level=%d", line+1,code[line].opcode,opcode_names[code[line].opcode],code[line].level);
 //				wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //			}
-			if(((!endblock && (code[line].opcode == OP_ELSE || code[line].opcode == OP_ELSEIF)) ||
-				code[line].opcode == OP_ENDIF) && code[line].level == level) {
-				block->line = line;
-				DBG2EXITVALUE2(true);
-				return true;
-			}
-		}
-	} else if(block->state[level] == OP_WHILE)
-		return opc_skip_to_label(block,OP_ENDWHILE,block->cur_line->label,true);
+            if(((!endblock && (code[line].opcode == OP_ELSE || code[line].opcode == OP_ELSEIF)) ||
+                code[line].opcode == OP_ENDIF) && code[line].level == level) {
+                block->line = line;
+                DBG2EXITVALUE2(true);
+                return true;
+            }
+        }
+    } else if(block->state[level] == OP_WHILE)
+        return opc_skip_to_label(block,OP_ENDWHILE,block->cur_line->label,true);
 
-	DBG2EXITVALUE2(false);
-	return false;
+    DBG2EXITVALUE2(false);
+    return false;
 }
 
 void opc_next_line(SCRIPT_CB *block)
 {
-	block->line++;
+    block->line++;
 }
 
 void script_loop_cleanup(SCRIPT_CB *block, int level)
 {
-	int i;
+    int i;
 
-	for(i = 0; i < MAX_NESTED_LOOPS; i++)
-	{
-		if(block->loops[i].valid && block->loops[i].level >= level )
-		{
-			switch(block->loops[i].d.l.type) {
-			case ENT_STRING:
-			case ENT_EXIT:
-			case ENT_MOBILE:
-			case ENT_OBJECT:
-			case ENT_TOKEN:
-			case ENT_AFFECT:
-				break;
+    for(i = 0; i < MAX_NESTED_LOOPS; i++)
+    {
+        if(block->loops[i].valid && block->loops[i].level >= level )
+        {
+            switch(block->loops[i].d.l.type) {
+            case ENT_STRING:
+            case ENT_EXIT:
+            case ENT_MOBILE:
+            case ENT_OBJECT:
+            case ENT_TOKEN:
+            case ENT_AFFECT:
+                break;
 
-			case ENT_PLLIST_STR:
-			case ENT_BLLIST_MOB:
-			case ENT_BLLIST_OBJ:
-			case ENT_BLLIST_TOK:
-			case ENT_BLLIST_ROOM:
-			case ENT_BLLIST_EXIT:
-			case ENT_BLLIST_SKILL:
-			case ENT_BLLIST_AREA:
-			case ENT_BLLIST_WILDS:
-			case ENT_PLLIST_CONN:
-			case ENT_PLLIST_MOB:
-			case ENT_PLLIST_OBJ:
-			case ENT_PLLIST_ROOM:
-			case ENT_PLLIST_TOK:
-			case ENT_PLLIST_CHURCH:
-			case ENT_ILLIST_VARIABLE:
-				iterator_stop(&block->loops[i].d.l.list.it);
-				break;
+            case ENT_PLLIST_STR:
+            case ENT_BLLIST_MOB:
+            case ENT_BLLIST_OBJ:
+            case ENT_BLLIST_TOK:
+            case ENT_BLLIST_ROOM:
+            case ENT_BLLIST_EXIT:
+            case ENT_BLLIST_SKILL:
+            case ENT_BLLIST_AREA:
+            case ENT_BLLIST_AREA_REGION:
+            case ENT_BLLIST_WILDS:
+            case ENT_PLLIST_CONN:
+            case ENT_PLLIST_MOB:
+            case ENT_PLLIST_OBJ:
+            case ENT_PLLIST_ROOM:
+            case ENT_PLLIST_TOK:
+            case ENT_PLLIST_AREA:
+            case ENT_PLLIST_AREA_REGION:
+            case ENT_PLLIST_CHURCH:
+            case ENT_PLLIST_BOOK_PAGE:
+            case ENT_PLLIST_FOOD_BUFF:
+            case ENT_PLLIST_REPUTATION_RANK:
+            case ENT_ILLIST_VARIABLE:
+            case ENT_ILLIST_REPUTATION:
+            case ENT_ILLIST_REPUTATION_INDEX:
+            case ENT_ILLIST_SKILLGROUPS:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                break;
 
-			case ENT_ILLIST_MOB_GROUP:
-				iterator_stop(&block->loops[i].d.l.list.it);
-				list_destroy(block->loops[i].d.l.list.lp);
-				break;
-			}
+            case ENT_ILLIST_QUEST_STAGES:
+            case ENT_ILLIST_QUEST_OBJECTIVES:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                list_destroy(block->loops[i].d.l.list.lp);
+                break;
 
-			block->loops[i].valid = false;
-		}
-	}
+            case ENT_ILLIST_QUEST:
+            case ENT_ILLIST_QUEST_HISTORY:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                list_destroy(block->loops[i].d.l.list.lp);
+                break;
+
+            case ENT_ILLIST_EVENT:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                list_destroy(block->loops[i].d.l.list.lp);
+                break;
+
+            case ENT_ILLIST_MOB_GROUP:
+                iterator_stop(&block->loops[i].d.l.list.it);
+                list_destroy(block->loops[i].d.l.list.lp);
+                break;
+            }
+
+            block->loops[i].valid = false;
+        }
+    }
 }
 
 // Function: End script execution
@@ -751,2491 +1617,3576 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 //
 DECL_OPC_FUN(opc_end)
 {
-	int val;
+    int val;
 
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Anything to evaluate?
-	if(block->cur_line->rest[0]) {
-		SCRIPT_PARAM *arg = new_script_param();
-		if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
+    // Anything to evaluate?
+    if(block->cur_line->rest[0]) {
+        SCRIPT_PARAM *arg = new_script_param();
+        if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
 
-		switch(arg->type) {
-		case ENT_STRING: val = atoi(arg->d.str); break;
-		case ENT_NUMBER: val = arg->d.num; break;
-		default: val = 0; break;
-		}
+        switch(arg->type) {
+        case ENT_STRING: val = atoi(arg->d.str); break;
+        case ENT_NUMBER: val = arg->d.num; break;
+        default: val = 0; break;
+        }
 
-		DBG3MSG1("val = %d\n", val);
-		if(val >= 0) block->ret_val = val;
-		free_script_param(arg);
-	}
+        DBG3MSG1("val = %d\n", val);
+        if(val >= 0) block->ret_val = val;
+        free_script_param(arg);
+    }
 
-	return false;
+    return false;
 }
 
 DECL_OPC_FUN(opc_if)
 {
-	int ret;
+    int ret;
 
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	if(block->cur_line->opcode == OP_ELSEIF && block->cond[block->cur_line->level])
-		return opc_skip_block(block,block->cur_line->level,true);
+    if(block->cur_line->opcode == OP_ELSEIF && block->cond[block->cur_line->level])
+        return opc_skip_block(block,block->cur_line->level,true);
 
-	SCRIPT_PARAM *arg = new_script_param();
-	ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest, arg);
-	free_script_param(arg);
-	if(ret < 0) return false;
+    SCRIPT_PARAM *arg = new_script_param();
+    ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest, arg);
+    free_script_param(arg);
+    if(ret < 0) return false;
 
-	block->state[block->cur_line->level] = OP_IF;
-	block->cond[block->cur_line->level] = ret;
-	opc_next_line(block);
-	return true;
+    block->state[block->cur_line->level] = OP_IF;
+    block->cond[block->cur_line->level] = ret;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_while)
 {
-	int ret;
+    int ret;
 
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	SCRIPT_PARAM *arg = new_script_param();
-	ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest, arg);
-	free_script_param(arg);
-	if(ret < 0) return false;
+    SCRIPT_PARAM *arg = new_script_param();
+    ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest, arg);
+    free_script_param(arg);
+    if(ret < 0) return false;
 
-	block->state[block->cur_line->level] = OP_WHILE;
-	block->cond[block->cur_line->level] = ret;
-	opc_next_line(block);
-	return true;
+    block->state[block->cur_line->level] = OP_WHILE;
+    block->cond[block->cur_line->level] = ret;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_else)
 {
-	if(block->cond[block->cur_line->level])
-		return opc_skip_block(block,block->cur_line->level,true);
+    if(block->cond[block->cur_line->level])
+        return opc_skip_block(block,block->cur_line->level,true);
 
-	// Since the previous check was false, this block must be true
-	block->cond[block->cur_line->level] = true;
-	opc_next_line(block);
-	return true;
+    // Since the previous check was false, this block must be true
+    block->cond[block->cur_line->level] = true;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_endif)
 {
-	// No need to do anything, just keep going.
-	// Invalid structures are handled by the preparser
-	opc_next_line(block);
-	return true;
+    // No need to do anything, just keep going.
+    // Invalid structures are handled by the preparser
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_command)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Allow only MOBS to do this...
-	if(block->type == IFC_M && block->info.mob) {
-		BUFFER *buffer = new_buf();
-		expand_string(&block->info,block->cur_line->rest,buffer);
-		interpret(block->info.mob,buf_string(buffer));
-		free_buf(buffer);
-	}
-	// Ignore the others
+    // Allow only MOBS to do this...
+    if(block->type == IFC_M && block->info.mob) {
+        BUFFER *buffer = new_buf();
+        char command[MAX_INPUT_LENGTH];
+        char expanded[MAX_STRING_LENGTH];
+        char *rest = NULL;
+        char *ptr;
 
-	opc_next_line(block);
-	return true;
+        expand_string(&block->info,block->cur_line->rest,buffer);
+
+        strlcpy(expanded, buf_string(buffer), sizeof(expanded));
+        ptr = expanded;
+        while (ISSPACE(*ptr))
+            ptr++;
+
+        if (!IS_NULLSTR(ptr) && !ISALPHA(*ptr) && !ISDIGIT(*ptr)) {
+            command[0] = *ptr;
+            command[1] = '\0';
+            ptr++;
+            while (ISSPACE(*ptr))
+                ptr++;
+            rest = ptr;
+        } else {
+            rest = one_argument(ptr, command);
+        }
+
+        if (!str_cmp(command, "say") || !str_cmp(command, "'")) {
+            do_say(block->info.mob, rest);
+        } else if (!str_cmp(command, "emote") || !str_cmp(command, ",")) {
+            do_emote(block->info.mob, rest);
+        } else {
+            interpret(block->info.mob, buf_string(buffer));
+        }
+
+        free_buf(buffer);
+    }
+    // Ignore the others
+
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_gotoline)
 {
-	int val;
+    int val;
 
-	script_loop_cleanup(block, block->cur_line->level);
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    script_loop_cleanup(block, block->cur_line->level);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Anything to evaluate?
-	if(block->cur_line->rest[0]) {
-		SCRIPT_PARAM *arg = new_script_param();
-		if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
+    // Anything to evaluate?
+    if(block->cur_line->rest[0]) {
+        SCRIPT_PARAM *arg = new_script_param();
+        if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
 
-		switch(arg->type) {
-		case ENT_STRING: val = atoi(arg->d.str)-1; break;
-		case ENT_NUMBER: val = arg->d.num-1; break;
-		default: val = -1; break;
-		}
+        switch(arg->type) {
+        case ENT_STRING: val = atoi(arg->d.str)-1; break;
+        case ENT_NUMBER: val = arg->d.num-1; break;
+        default: val = -1; break;
+        }
 
-		free_script_param(arg);
+        free_script_param(arg);
 
-		if(val >= 0 && val < block->script->lines) {
-			block->line = val;
-			block->cur_line = &block->script->code[val];
-			script_loop_cleanup(block, block->cur_line->level);
-			if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
-			return true;
-		}
-	}
+        if(val >= 0 && val < block->script->lines) {
+            block->line = val;
+            block->cur_line = &block->script->code[val];
+            script_loop_cleanup(block, block->cur_line->level);
+            if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
+            return true;
+        }
+    }
 
-	return false;
+    return false;
 }
 
 DECL_OPC_FUN(opc_for)
 {
-	bool skip = false;
-	int lp, end, cur, inc;
-	char *str1,*str2;
+    bool skip = false;
+    int lp, end, cur, inc;
+    char *str1,*str2;
 
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	for(lp = block->loop; lp-- > 0;)
-		if(block->cur_line->label == block->loops[lp].id)
-			break;
+    for(lp = block->loop; lp-- > 0;)
+        if(block->cur_line->label == block->loops[lp].id)
+            break;
 
-	// Initialize loop control
-	if(lp < 0) {
-		lp = block->loop;
+    // Initialize loop control
+    if(lp < 0) {
+        lp = block->loop;
 
-		// Variable Name
-		str1 = one_argument(block->cur_line->rest,block->loops[lp].var_name);
+        // Variable Name
+        str1 = one_argument(block->cur_line->rest,block->loops[lp].var_name);
 
-		if(!block->loops[lp].var_name[0]) {
-			block->ret_val = PRET_BADSYNTAX;
-			return false;
-		}
+        if(!block->loops[lp].var_name[0]) {
+            block->ret_val = PRET_BADSYNTAX;
+            return false;
+        }
 
-		SCRIPT_PARAM *arg = new_script_param();
+        SCRIPT_PARAM *arg = new_script_param();
 
-		if(!(str2 = expand_argument(&block->info,str1,arg))) {
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
+        if(!(str2 = expand_argument(&block->info,str1,arg))) {
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
 
-		switch(arg->type) {
-		case ENT_STRING: cur = atoi(arg->d.str); break;
-		case ENT_NUMBER: cur = arg->d.num; break;
-		default:
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
+        switch(arg->type) {
+        case ENT_STRING: cur = atoi(arg->d.str); break;
+        case ENT_NUMBER: cur = arg->d.num; break;
+        default:
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
 
-		if(!(str1 = expand_argument(&block->info,str2,arg))) {
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
+        if(!(str1 = expand_argument(&block->info,str2,arg))) {
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
 
-		switch(arg->type) {
-		case ENT_STRING: end = atoi(arg->d.str); break;
-		case ENT_NUMBER: end = arg->d.num; break;
-		default:
-			block->ret_val = PRET_BADSYNTAX;
-			return false;
-		}
+        switch(arg->type) {
+        case ENT_STRING: end = atoi(arg->d.str); break;
+        case ENT_NUMBER: end = arg->d.num; break;
+        default:
+            block->ret_val = PRET_BADSYNTAX;
+            return false;
+        }
 
 
-		if(!(str2 = expand_argument(&block->info,str1,arg))) {
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
+        if(!(str2 = expand_argument(&block->info,str1,arg))) {
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
 
-		switch(arg->type) {
-		case ENT_STRING: inc = atoi(arg->d.str); break;
-		case ENT_NUMBER: inc = arg->d.num; break;
-		default:
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
+        switch(arg->type) {
+        case ENT_STRING: inc = atoi(arg->d.str); break;
+        case ENT_NUMBER: inc = arg->d.num; break;
+        default:
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
 
-		free_script_param(arg);
+        free_script_param(arg);
 
-		// No increment?  No looping!
-		if(!inc) return opc_skip_to_label(block,OP_ENDFOR,block->cur_line->label,true);
+        // No increment?  No looping!
+        if(!inc) return opc_skip_to_label(block,OP_ENDFOR,block->cur_line->label,true);
 
-		block->loops[lp].id = block->cur_line->label;
-		block->loops[lp].d.f.inc = inc;
+        block->loops[lp].id = block->cur_line->label;
+        block->loops[lp].d.f.inc = inc;
 
-		// set the directions correctly
-		if((inc > 0) == (cur < end)) {
-			block->loops[lp].d.f.cur = cur;
-			block->loops[lp].d.f.end = end;
-		} else {
-			block->loops[lp].d.f.cur = end;
-			block->loops[lp].d.f.end = cur;
-		}
+        // set the directions correctly
+        if((inc > 0) == (cur < end)) {
+            block->loops[lp].d.f.cur = cur;
+            block->loops[lp].d.f.end = end;
+        } else {
+            block->loops[lp].d.f.cur = end;
+            block->loops[lp].d.f.end = cur;
+        }
 
-		// Set the variable
-		variables_set_integer(block->info.var,block->loops[lp].var_name,block->loops[lp].d.f.cur);
-		block->loop++;
-		block->cond[block->cur_line->level] = true;
-	} else {
-		// Continue loop
-		block->loops[lp].d.f.cur += block->loops[lp].d.f.inc;
+        // Set the variable
+        variables_set_integer(block->info.var,block->loops[lp].var_name,block->loops[lp].d.f.cur);
+        block->loop++;
+        block->cond[block->cur_line->level] = true;
+    } else {
+        // Continue loop
+        block->loops[lp].d.f.cur += block->loops[lp].d.f.inc;
 
-		// Set the variable
-		variables_set_integer(block->info.var,block->loops[lp].var_name,block->loops[lp].d.f.cur);
+        // Set the variable
+        variables_set_integer(block->info.var,block->loops[lp].var_name,block->loops[lp].d.f.cur);
 
-		if(block->loops[lp].d.f.inc < 0 && (block->loops[lp].d.f.cur < block->loops[lp].d.f.end))
-			skip = true;
-		else if(block->loops[lp].d.f.inc > 0 && (block->loops[lp].d.f.cur > block->loops[lp].d.f.end))
-			skip = true;
+        if(block->loops[lp].d.f.inc < 0 && (block->loops[lp].d.f.cur < block->loops[lp].d.f.end))
+            skip = true;
+        else if(block->loops[lp].d.f.inc > 0 && (block->loops[lp].d.f.cur > block->loops[lp].d.f.end))
+            skip = true;
 
-		if(skip) {
-			block->loop--;
-			return opc_skip_to_label(block,OP_ENDFOR,block->loops[lp].id,true);
-		}
-		block->cond[block->cur_line->level] = true;
-	}
+        if(skip) {
+            block->loop--;
+            return opc_skip_to_label(block,OP_ENDFOR,block->loops[lp].id,true);
+        }
+        block->cond[block->cur_line->level] = true;
+    }
 
-	opc_next_line(block);
-	return true;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_endfor)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	return opc_skip_to_label(block,OP_FOR,block->cur_line->label,false);
+    return opc_skip_to_label(block,OP_FOR,block->cur_line->label,false);
 }
 
 DECL_OPC_FUN(opc_exitfor)
 {
-	script_loop_cleanup(block, block->cur_line->level);
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    script_loop_cleanup(block, block->cur_line->level);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	return opc_skip_to_label(block,OP_ENDFOR,block->cur_line->label,true);
+    return opc_skip_to_label(block,OP_ENDFOR,block->cur_line->label,true);
 }
 
 
 DECL_OPC_FUN(opc_list)
 {
-	bool skip = false;
-	int lp, i;
-	char *str1,*str2, *str;
-	char buf[MSL];
-	LLIST *list;
-	LLIST_UID_DATA *uid;
-	LLIST_ROOM_DATA *lrd;
-	LLIST_EXIT_DATA *led;
-	LLIST_SKILL_DATA *lsk;
-	LLIST_AREA_DATA *lar;
-	LLIST_WILDS_DATA *lwd;
-	DESCRIPTOR_DATA *conn;
-	CHAR_DATA *ch;
-	OBJ_DATA *obj;
-	TOKEN_DATA *tok;
-	ROOM_INDEX_DATA *here;
-	EXIT_DATA *ex;
-	CHURCH_DATA *church;
-	VARIABLE *variable;
-	EXTRA_DESCR_DATA *ed;
-	INSTANCE_SECTION *section;
-	INSTANCE *instance;
-	NAMED_SPECIAL_ROOM *special_room;
-	SHIP_DATA *ship;
-
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
-
-	for(lp = block->loop; lp-- > 0;)
-		if(block->cur_line->label == block->loops[lp].id)
-			break;
-
-	// Initialize loop control
-	if(lp < 0) {
-		lp = block->loop;
-
-		// Variable Name
-		str1 = one_argument(block->cur_line->rest,block->loops[lp].var_name);
-
-		log_stringf("opc_list: initializing for loop variable '%s'", block->loops[lp].var_name);
-
-		if(!block->loops[lp].var_name[0]) {
-			block->ret_val = PRET_BADSYNTAX;
-			return false;
-		}
-
-		SCRIPT_PARAM *arg = new_script_param();
-
-		// Get the LIST
-		if(!(str2 = expand_argument(&block->info,str1,arg))) {
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
-
-		block->loops[lp].counter = 1;
-
-		switch(arg->type) {
-		case ENT_STRING:
-			//log_stringf("opc_list: list type ENT_STRING");
-			if(IS_NULLSTR(arg->d.str))
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			strncpy(block->loops[lp].buf, arg->d.str, MSL-1);
-			str = one_argument_norm(block->loops[lp].buf, buf);
-
-			block->loops[lp].d.l.type = ENT_STRING;
-			block->loops[lp].d.l.cur.str = NULL;
-			block->loops[lp].d.l.next.str = str;
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-
-			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name,buf,false);
-			break;
-		case ENT_EXIT:
-			//log_stringf("opc_list: list type ENT_EXIT");
-			if(!arg->d.door.r)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			here = arg->d.door.r;
-			ex = here->exit[arg->d.door.door];
-			block->loops[lp].d.l.type = ENT_EXIT;
-			block->loops[lp].d.l.cur.door = arg->d.door.door;
-			block->loops[lp].d.l.next.door = MAX_DIR;
-			block->loops[lp].d.l.owner = arg->d.door.r;
-			block->loops[lp].d.l.owner_type = ENT_EXIT;
-
-			/*
-			if(ex) {
-				if(here->wilds)
-					log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[arg.d.door.door], here->wilds->uid, here->x, here->y);
-				else if(here->source)
-					log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[arg.d.door.door], here->vnum, here->name, here->id[0], here->id[1]);
-				else
-					log_stringf("opc_list: %s(%ld,%s)", dir_name[arg.d.door.door], here->vnum, here->name);
-			} else
-				log_stringf("opc_list: exit(<END>)");
-			*/
-
-
-			if(ex) {
-				here = arg->d.door.r;
-				for(i=arg->d.door.door + 1; i < MAX_DIR && !here->exit[i]; i++);
-				block->loops[lp].d.l.next.door = i;
-			}
-			// Set the variable
-			variables_set_exit(block->info.var,block->loops[lp].var_name,ex);
-			break;
-
-		case ENT_OLLIST_MOB:
-			//log_stringf("opc_list: list type ENT_MOBILE");
-			if(!arg->d.list.ptr.mob || !*arg->d.list.ptr.mob)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_MOBILE;
-			block->loops[lp].d.l.cur.m = *arg->d.list.ptr.mob;
-			block->loops[lp].d.l.next.m = block->loops[lp].d.l.cur.m->next_in_room;
-			block->loops[lp].d.l.owner = arg->d.list.owner;
-			block->loops[lp].d.l.owner_type = ENT_MOBILE;
-
-			/*
-			if(block->loops[lp].d.l.cur.m) {
-				ch = block->loops[lp].d.l.cur.m;
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-			*/
-
-			// Set the variable
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.mob);
-			break;
-
-		case ENT_OLLIST_OBJ:
-			//log_stringf("opc_list: list type ENT_OBJECT");
-			if(!arg->d.list.ptr.obj || !*arg->d.list.ptr.obj)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_OBJECT;
-			block->loops[lp].d.l.cur.o = *arg->d.list.ptr.obj;
-			block->loops[lp].d.l.next.o = block->loops[lp].d.l.cur.o->next_content;
-			block->loops[lp].d.l.owner = arg->d.list.owner;
-			block->loops[lp].d.l.owner_type = ENT_OBJECT;
-
-			/*
-			if(block->loops[lp].d.l.cur.o)
-				log_stringf("opc_list: object(%ld,%ld,%ld)", block->loops[lp].d.l.cur.o->pIndexData->vnum, block->loops[lp].d.l.cur.o->id[0], block->loops[lp].d.l.cur.o->id[1]);
-			else
-				log_stringf("opc_list: object(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_object(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.obj);
-			break;
-
-		case ENT_OLLIST_TOK:
-			//log_stringf("opc_list: list type ENT_TOKEN");
-			if(!arg->d.list.ptr.tok || !*arg->d.list.ptr.tok)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_TOKEN;
-			block->loops[lp].d.l.cur.t = *arg->d.list.ptr.tok;
-			block->loops[lp].d.l.next.t = block->loops[lp].d.l.cur.t->next;
-			block->loops[lp].d.l.owner = arg->d.list.owner;
-			block->loops[lp].d.l.owner_type = ENT_TOKEN;
-
-			/*
-			if(block->loops[lp].d.l.cur.t)
-				log_stringf("opc_list: token(%ld,%ld,%ld)", block->loops[lp].d.l.cur.t->pIndexData->vnum, block->loops[lp].d.l.cur.t->id[0], block->loops[lp].d.l.cur.t->id[1]);
-			else
-				log_stringf("opc_list: token(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_token(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.tok);
-			break;
-
-		case ENT_OLLIST_AFF:
-			//log_stringf("opc_list: list type ENT_AFFECT");
-			if(!arg->d.list.ptr.aff || !*arg->d.list.ptr.aff)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_AFFECT;
-			block->loops[lp].d.l.cur.aff = *arg->d.list.ptr.aff;
-			block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
-			block->loops[lp].d.l.owner = arg->d.list.owner;
-			block->loops[lp].d.l.owner_type = ENT_AFFECT;
-
-			/*
-			if(block->loops[lp].d.l.cur.aff) {
-				if(block->loops[lp].d.l.cur.aff->custom_name)
-					log_stringf("opc_list: affect(%s)", block->loops[lp].d.l.cur.aff->custom_name);
-				else
-					log_stringf("opc_list: affect(%s)", skill_table[block->loops[lp].d.l.cur.aff->type].name);
-			} else
-				log_stringf("opc_list: affect(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_affect(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.aff);
-			break;
-
-		case ENT_EXTRADESC:
-			if(!arg->d.list.ptr.ed || !*arg->d.list.ptr.ed)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_EXTRADESC;
-			block->loops[lp].d.l.cur.ed = *arg->d.list.ptr.ed;
-			block->loops[lp].d.l.next.ed = block->loops[lp].d.l.cur.ed->next;
-			block->loops[lp].d.l.owner = arg->d.list.owner;
-			block->loops[lp].d.l.owner_type = arg->d.list.owner_type;
-
-			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name,(*arg->d.list.ptr.ed)->keyword, false);
-			break;
-
-		case ENT_PLLIST_STR:
-			//log_stringf("opc_list: list type ENT_PLLIST_STR");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_PLLIST_STR;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(str)
-				log_stringf("opc_list: string(%s)",str);
-			else
-				log_stringf("opc_list: string(<END>)");
-				*/
-
-			if( !str ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name,str,false);
-			break;
-
-		case ENT_BLLIST_MOB:
-			//log_stringf("opc_list: list type ENT_BLLIST_MOB");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_MOB;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			if( !uid ) {
-				//log_stringf("opc_list: mobile(<END>)");
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			if( IS_VALID((CHAR_DATA *)uid->ptr) )
-				variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
-			else
-				variables_set_mobile_id(block->info.var,block->loops[lp].var_name, uid->id[0], uid->id[1],false);
-
-			/*
-			ch = (CHAR_DATA *)(uid->ptr);
-			if(!IS_NPC(ch))
-				log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-			else
-				log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-				*/
-			break;
-
-		case ENT_BLLIST_OBJ:
-			//log_stringf("opc_list: list type ENT_BLLIST_OBJ");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_OBJ;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			if( !uid ) {
-				//log_stringf("opc_list: object(<END>)");
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			if( IS_VALID((OBJ_DATA *)uid->ptr) )
-				variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
-			else
-				variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
-
-			//obj = (OBJ_DATA *)(uid->ptr);
-			//log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
-
-			break;
-
-		case ENT_BLLIST_TOK:
-			//log_stringf("opc_list: list type ENT_BLLIST_TOK");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_TOK;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			if( !uid ) {
-				//log_stringf("opc_list: token(<END>)");
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			if( IS_VALID((TOKEN_DATA *)uid->ptr) )
-				variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
-			else
-				variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
-
-			//tok = (TOKEN_DATA *)(uid->ptr);
-			//log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
-			break;
-
-		case ENT_BLLIST_ROOM:
-			//log_stringf("opc_list: list type ENT_BLLIST_ROOM");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_ROOM;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			do {
-				lrd = (LLIST_ROOM_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				//log_stringf("opc_list: lrd = %016lX", lrd);
-				if( !lrd ) {
-					//log_stringf("opc_list: room(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-				}
-
-				// Set the variable
-				if( lrd->room )
-					variables_set_room(block->info.var,block->loops[lp].var_name,lrd->room);
-
-			} while( !lrd->room );
-
-			/*
-			log_stringf("opc_list: lrd->room = %016lX", lrd->room);
-			if(lrd->room->wilds)
-				log_stringf("opc_list: room(%ld,%ld,%ld)", lrd->room->wilds->uid, lrd->room->x, lrd->room->y);
-			else if(lrd->room->source)
-				log_stringf("opc_list: room(%ld,%s,%ld,%ld)", lrd->room->vnum, lrd->room->name, lrd->room->id[0], lrd->room->id[1]);
-			else
-				log_stringf("opc_list: room(%ld,%s)", lrd->room->vnum, lrd->room->name);
-				*/
-
-			break;
-
-		case ENT_BLLIST_EXIT:
-			//log_stringf("opc_list: list type ENT_BLLIST_EXIT");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_EXIT;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			do {
-				led = (LLIST_EXIT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				if( !led ) {
-					//log_stringf("opc_list: exit(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-				}
-
-				// Set the variable
-				if( led->room && led->door >= 0 && led->door < MAX_DIR && led->room->exit[led->door])
-					variables_set_door(block->info.var,block->loops[lp].var_name,led->room, led->door, false);
-
-			} while( !led->room || led->door < 0 || led->door >= MAX_DIR || !led->room->exit[led->door] );
-
-			/*
-			if(led->room->wilds)
-				log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[led->door], led->room->wilds->uid, led->room->x, led->room->y);
-			else if(led->room->source)
-				log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[led->door], led->room->vnum, led->room->name, led->room->id[0], led->room->id[1]);
-			else
-				log_stringf("opc_list: %s(%ld,%s)", dir_name[led->door], led->room->vnum, led->room->name);
-				*/
-
-			break;
-
-		case ENT_BLLIST_SKILL:
-			//log_stringf("opc_list: list type ENT_BLLIST_SKILL");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_SKILL;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			do {
-				lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				if( !lsk ) {
-					//log_stringf("opc_list: skill(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-				}
-
-				// Set the variable
-				if( IS_VALID(lsk->mob) && (IS_VALID(lsk->tok) || ( lsk->sn > 0 && lsk->sn < MAX_SKILL )) )
-					variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->sn, lsk->tok, false);
-
-			} while( !IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL )) );
-
-			/*
-			if(lsk->tok)
-				log_stringf("opc_list: skill(%ld,%ld,TOKEN,%s)", lsk->mob->id[0], lsk->mob->id[1], lsk->tok->name);
-			else
-				log_stringf("opc_list: skill(%ld,%ld,SKILL,%s)", lsk->mob->id[0], lsk->mob->id[1], skill_table[lsk->sn].name);
-				*/
-
-			break;
-
-		case ENT_BLLIST_AREA:
-			//log_stringf("opc_list: list type ENT_BLLIST_AREA");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_AREA;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			do {
-				lar = (LLIST_AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				if( !lar ) {
-					//log_stringf("opc_list: area(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-				}
-
-				// Set the variable
-				if( lar->area )
-					variables_setsave_area(block->info.var,block->loops[lp].var_name, lar->area, false);
-
-			} while( !lar->area );
-
-			//log_stringf("opc_list: area(%ld,%s)", lar->area->uid, lar->area->name);
-
-			break;
-
-		case ENT_BLLIST_WILDS:
-			//log_stringf("opc_list: list type ENT_BLLIST_WILDS");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_BLLIST_WILDS;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			do {
-				lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				if( !lwd ) {
-					//log_stringf("opc_list: wilds(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-				}
-
-				// Set the variable
-				if( lwd->wilds )
-					variables_setsave_wilds(block->info.var,block->loops[lp].var_name, lwd->wilds, false);
-
-			} while( !lwd->wilds );
-
-			//log_stringf("opc_list: wilds(%ld,%s)", lwd->wilds->uid, lwd->wilds->name);
-
-			break;
-
-		case ENT_PLLIST_CONN:
-			//log_stringf("opc_list: list type ENT_PLLIST_CONN");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_PLLIST_CONN;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			conn = (DESCRIPTOR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(conn) {
-				if(conn->original)
-					log_stringf("opc_list: connection(%s,%d) [SWITCHED]", conn->original->name, conn->original->tot_level);
-				else
-					log_stringf("opc_list: connection(%s,%d)", conn->character->name, conn->character->tot_level);
-			} else
-				log_stringf("opc_list: connection(<END>)");*/
-
-			if( !conn ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_connection(block->info.var,block->loops[lp].var_name,conn);
-			break;
-
-		case ENT_PLLIST_MOB:
-			//log_stringf("opc_list: list type ENT_PLLIST_MOB");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_PLLIST_MOB;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(ch) {
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-				*/
-
-			if( !ch ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
-			break;
-
-		case ENT_PLLIST_OBJ:
-			//log_stringf("opc_list: list type ENT_PLLIST_OBJ");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_PLLIST_OBJ;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(obj)
-				log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
-			else
-				log_stringf("opc_list: object(<END>)");
-				*/
-
-			if( !obj ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_object(block->info.var,block->loops[lp].var_name,obj);
-			break;
-
-		case ENT_PLLIST_ROOM:
-			//log_stringf("opc_list: list type ENT_PLLIST_ROOM");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_PLLIST_ROOM;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			here = (ROOM_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(here) {
-				if(here->wilds)
-					log_stringf("opc_list: room(%ld,%ld,%ld)", here->wilds->uid, here->x, here->y);
-				else if(here->source)
-					log_stringf("opc_list: room(%ld,%s,%ld,%ld)", here->vnum, here->name, here->id[0], here->id[1]);
-				else
-					log_stringf("opc_list: room(%ld,%s)", here->vnum, here->name);
-			} else
-				log_stringf("opc_list: room(<END>)");
-				*/
-
-			if( !here ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_room(block->info.var,block->loops[lp].var_name,here);
-			break;
-
-		case ENT_PLLIST_TOK:
-			//log_stringf("opc_list: list type ENT_PLLIST_TOK");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_PLLIST_TOK;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			tok = (TOKEN_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(tok)
-				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
-			else
-				log_stringf("opc_list: token(<END>)");
-				*/
-
-			if( !tok ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_token(block->info.var,block->loops[lp].var_name,tok);
-			break;
-
-		case ENT_PLLIST_CHURCH:
-			//log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
-			if(!arg->d.blist || !arg->d.blist->valid)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_PLLIST_CHURCH;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
-
-			if( !church ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_church(block->info.var,block->loops[lp].var_name,church);
-			break;
-
-		case ENT_ILLIST_MOB_GROUP:
-			//log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
-			if(!arg->d.group_owner || !arg->d.group_owner->in_room)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			ch = arg->d.group_owner->leader ? arg->d.group_owner->leader : arg->d.group_owner;
-
-			list = list_copy(ch->lgroup);
-			if( !list )
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			if( !list_addlink(list, ch) ) {
-				list_destroy(list);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_ILLIST_MOB_GROUP;
-			block->loops[lp].d.l.list.lp = list;
-			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(ch) {
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-				*/
-
-			if( !ch ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
-			break;
-
-		case ENT_ILLIST_VARIABLE:
-			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
-			if(!arg->d.variables || !*arg->d.variables)
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_ILLIST_VARIABLE;
-			block->loops[lp].d.l.list.lp = variable_copy_tolist(arg->d.variables);
-			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
-
-			if( !variable ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
-			break;
-
-		case ENT_ILLIST_SECTIONS:
-			if(!IS_VALID(arg->d.blist))
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_ILLIST_SECTIONS;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			section = (INSTANCE_SECTION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			if( !section ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_instance_section(block->info.var,block->loops[lp].var_name,section);
-			break;
-
-		case ENT_ILLIST_INSTANCES:
-			if(!IS_VALID(arg->d.blist))
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_ILLIST_INSTANCES;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			instance = (INSTANCE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			if( !instance ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
-			break;
-
-		case ENT_ILLIST_SPECIALROOMS:
-			if(!IS_VALID(arg->d.blist))
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_ILLIST_SPECIALROOMS;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			if( !special_room ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_room(block->info.var,block->loops[lp].var_name,special_room->room);
-			break;
-
-		case ENT_ILLIST_SHIPS:
-			if(!IS_VALID(arg->d.blist))
-			{
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			block->loops[lp].d.l.type = ENT_ILLIST_SHIPS;
-			block->loops[lp].d.l.list.lp = arg->d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
-			block->loops[lp].d.l.owner = NULL;
-			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
-
-			ship = (SHIP_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			if( !ship ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				free_script_param(arg);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			// Set the variable
-			variables_set_ship(block->info.var,block->loops[lp].var_name,ship);
-			break;
-
-		default:
-			//log_stringf("opc_list: list_type INVALID");
-			block->ret_val = PRET_BADSYNTAX;
-			free_script_param(arg);
-			return false;
-		}
-
-		block->loops[lp].id = block->cur_line->label;
-		block->loops[lp].valid = true;
-		block->loops[lp].level = block->cur_line->level;
-		block->loop++;
-		block->cond[block->cur_line->level] = true;
-		free_script_param(arg);
-	} else {
-		//log_stringf("opc_list: next loop variable '%s'", block->loops[lp].var_name);
-		block->loops[lp].counter++;
-
-		// Continue loop
-		switch(block->loops[lp].d.l.type) {
-		case ENT_STRING:
-			//log_stringf("opc_list: list type ENT_STRING");
-			str = block->loops[lp].d.l.next.str;
-
-			if( IS_NULLSTR(str) )
-			{
-				skip = true;
-				break;
-			}
-
-			str = one_argument_norm(str,buf);
-
-			variables_set_string(block->info.var,block->loops[lp].var_name,buf,false);
-
-			block->loops[lp].d.l.next.str = str;
-			break;
-
-
-		case ENT_EXIT:
-			//log_stringf("opc_list: list type ENT_EXIT");
-			i = block->loops[lp].d.l.cur.door = block->loops[lp].d.l.next.door;
-
-			if( i >= MAX_DIR ) {
-				skip = true;
-				break;
-			}
-
-			here = (ROOM_INDEX_DATA *)block->loops[lp].d.l.owner;
-			ex = here->exit[i];
-
-			/*
-			if(ex) {
-				if(here->wilds)
-					log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[i], here->wilds->uid, here->x, here->y);
-				else if(here->source)
-					log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[i], here->vnum, here->name, here->id[0], here->id[1]);
-				else
-					log_stringf("opc_list: %s(%ld,%s)", dir_name[i], here->vnum, here->name);
-			} else
-				log_stringf("opc_list: exit(<END>)");
-				*/
-
-
-			// Set the variable
-			variables_set_exit(block->info.var,block->loops[lp].var_name,ex);
-
-			if(!ex) {
-				skip = true;
-				break;
-			}
-
-			for(i++; i < MAX_DIR && !here->exit[i]; i++);
-
-			block->loops[lp].d.l.next.door = i;
-			break;
-
-		case ENT_MOBILE:
-			//log_stringf("opc_list: list type ENT_MOBILE");
-			block->loops[lp].d.l.cur.m = block->loops[lp].d.l.next.m;
-			// Set the variable
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.m);
-
-			/*
-			if(block->loops[lp].d.l.cur.m) {
-				ch = block->loops[lp].d.l.cur.m;
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-				*/
-
-			if(!block->loops[lp].d.l.cur.m) {
-				skip = true;
-				break;
-			}
-
-			block->loops[lp].d.l.next.m = block->loops[lp].d.l.cur.m->next_in_room;
-			break;
-
-		case ENT_OBJECT:
-			//log_stringf("opc_list: list type ENT_OBJECT");
-			block->loops[lp].d.l.cur.o = block->loops[lp].d.l.next.o;
-			// Set the variable
-			variables_set_object(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.o);
-
-			/*
-			if(block->loops[lp].d.l.cur.o)
-				log_stringf("opc_list: object(%ld,%ld,%ld)", block->loops[lp].d.l.cur.o->pIndexData->vnum, block->loops[lp].d.l.cur.o->id[0], block->loops[lp].d.l.cur.o->id[1]);
-			else
-				log_stringf("opc_list: object(<END>)");
-				*/
-
-			if(!block->loops[lp].d.l.cur.o) {
-				skip = true;
-				break;
-			}
-
-			block->loops[lp].d.l.next.o = block->loops[lp].d.l.cur.o->next_content;
-			break;
-
-		case ENT_TOKEN:
-			//log_stringf("opc_list: list type ENT_TOKEN");
-			block->loops[lp].d.l.cur.t = block->loops[lp].d.l.next.t;
-			// Set the variable
-			variables_set_token(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.t);
-
-			/*
-			if(block->loops[lp].d.l.cur.t)
-				log_stringf("opc_list: token(%ld,%ld,%ld)", block->loops[lp].d.l.cur.t->pIndexData->vnum, block->loops[lp].d.l.cur.t->id[0], block->loops[lp].d.l.cur.t->id[1]);
-			else
-				log_stringf("opc_list: token(<END>)");
-				*/
-
-			if(!block->loops[lp].d.l.cur.t) {
-				skip = true;
-				break;
-			}
-
-			block->loops[lp].d.l.next.t = block->loops[lp].d.l.cur.t->next;
-			break;
-
-		case ENT_AFFECT:
-			//log_stringf("opc_list: list type ENT_AFFECT");
-			block->loops[lp].d.l.cur.aff = block->loops[lp].d.l.next.aff;
-			// Set the variable
-			variables_set_affect(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.aff);
-
-			/*
-			if(block->loops[lp].d.l.cur.aff) {
-				if(block->loops[lp].d.l.cur.aff->custom_name)
-					log_stringf("opc_list: affect(%s)", block->loops[lp].d.l.cur.aff->custom_name);
-				else
-					log_stringf("opc_list: affect(%s)", skill_table[block->loops[lp].d.l.cur.aff->type].name);
-			} else
-				log_stringf("opc_list: affect(<END>)");
-				*/
-
-			if(!block->loops[lp].d.l.cur.aff) {
-				skip = true;
-				break;
-			}
-
-			block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
-			break;
-
-		case ENT_EXTRADESC:
-			block->loops[lp].d.l.cur.ed = block->loops[lp].d.l.next.ed;
-			ed = block->loops[lp].d.l.cur.ed;
-			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name, ed ? ed->keyword : &str_empty[0], false);
-			if(!ed) {
-				skip = true;
-				break;
-			}
-
-			block->loops[lp].d.l.next.ed = ed->next;
-			break;
-
-		case ENT_PLLIST_STR:
-			//log_stringf("opc_list: list type ENT_PLLIST_STR");
-			str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-
-			/*
-			if(str)
-				log_stringf("opc_list: string(%s)",str);
-			else
-				log_stringf("opc_list: string(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name,str?str:&str_empty[0],false);
-
-			if( !str ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
-			}
-
-			break;
-
-		case ENT_BLLIST_MOB:
-			//log_stringf("opc_list: list type ENT_BLLIST_MOB");
-			while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((CHAR_DATA *)uid->ptr) );
-
-			/*
-			if(uid) {
-				ch = (CHAR_DATA *)(uid->ptr);
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-				*/
-
-			if( uid )
-			{
-				if( IS_VALID((CHAR_DATA *)uid->ptr) )
-					variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
-				else
-					variables_set_mobile_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
-			}
-			else
-				variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)NULL);
-
-			if( !uid ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_BLLIST_OBJ:
-			//log_stringf("opc_list: list type ENT_BLLIST_OBJ");
-			while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((OBJ_DATA *)uid->ptr) );
-			/*
-			if(uid) {
-				obj = (OBJ_DATA *)(uid->ptr);
-				log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
-			} else
-				log_stringf("opc_list: object(<END>)");
-				*/
-
-			if( uid )
-			{
-				if( IS_VALID((OBJ_DATA *)uid->ptr) )
-					variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
-				else
-					variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
-			}
-			else
-				variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)NULL);
-
-			if( !uid ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_BLLIST_TOK:
-			//log_stringf("opc_list: list type ENT_BLLIST_TOK");
-			while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((TOKEN_DATA *)uid->ptr) );
-
-			/*
-			if(uid) {
-				tok = (TOKEN_DATA *)(uid->ptr);
-				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
-			} else
-				log_stringf("opc_list: token(<END>)");
-				*/
-
-			if( uid )
-			{
-				if( IS_VALID((TOKEN_DATA *)uid->ptr) )
-					variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
-				else
-					variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
-			}
-			else
-				variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)NULL);
-
-			if( !uid ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_BLLIST_ROOM:
-			//log_stringf("opc_list: list type ENT_BLLIST_ROOM");
-			while( (lrd = (LLIST_ROOM_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lrd->room );
-			/*
-			if(lrd) {
-				if(lrd->room->wilds)
-					log_stringf("opc_list: room(%ld,%ld,%ld)", lrd->room->wilds->uid, lrd->room->x, lrd->room->y);
-				else if(lrd->room->source)
-					log_stringf("opc_list: room(%ld,%s,%ld,%ld)", lrd->room->vnum, lrd->room->name, lrd->room->id[0], lrd->room->id[1]);
-				else
-					log_stringf("opc_list: room(%ld,%s)", lrd->room->vnum, lrd->room->name);
-			} else
-				log_stringf("opc_list: room(<END>)");
-				*/
-
-			variables_set_room(block->info.var,block->loops[lp].var_name,lrd?lrd->room:NULL);
-
-			if( !lrd ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-			break;
-
-		case ENT_BLLIST_EXIT:
-			//log_stringf("opc_list: list type ENT_BLLIST_EXIT");
-			while( (led = (LLIST_EXIT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) &&
-				(!led->room || led->door < 0 || led->door >= MAX_DIR || !led->room->exit[led->door]));
-			/*
-			if(led) {
-				if(led->room->wilds)
-					log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[led->door], led->room->wilds->uid, led->room->x, led->room->y);
-				else if(led->room->source)
-					log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[led->door], led->room->vnum, led->room->name, led->room->id[0], led->room->id[1]);
-				else
-					log_stringf("opc_list: %s(%ld,%s)", dir_name[led->door], led->room->vnum, led->room->name);
-			} else
-				log_stringf("opc_list: exit(<END>)");
-				*/
-
-			if( !led ) {
-				variables_set_door(block->info.var,block->loops[lp].var_name,NULL, DIR_NORTH, false);
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			variables_set_door(block->info.var,block->loops[lp].var_name,led->room, led->door, false);
-			break;
-
-		case ENT_BLLIST_SKILL:
-			//log_stringf("opc_list: list type ENT_BLLIST_SKILL");
-			while( (lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) &&
-				(!IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL ))) );
-			/*
-			if(lsk) {
-				if(lsk->tok)
-					log_stringf("opc_list: skill(%ld,%ld,TOKEN,%s)", lsk->mob->id[0], lsk->mob->id[1], lsk->tok->name);
-				else
-					log_stringf("opc_list: skill(%ld,%ld,SKILL,%s)", lsk->mob->id[0], lsk->mob->id[1], skill_table[lsk->sn].name);
-			} else
-				log_stringf("opc_list: skill(<END>)");
-				*/
-
-			if( !lsk ) {
-				variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, NULL, 0, NULL, false);
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->sn, lsk->tok, false);
-			break;
-
-		case ENT_BLLIST_AREA:
-			//log_stringf("opc_list: list type ENT_BLLIST_AREA");
-			while( (lar = (LLIST_AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lar->area );
-			/*
-			if(lar) {
-				log_stringf("opc_list: area(%ld,%s)", lar->area->uid, lar->area->name);
-			} else
-				log_stringf("opc_list: area(<END>)");
-				*/
-
-			variables_set_area(block->info.var,block->loops[lp].var_name,lar?lar->area:NULL);
-
-			if( !lar ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-			break;
-
-		case ENT_BLLIST_WILDS:
-			//log_stringf("opc_list: list type ENT_BLLIST_WILDS");
-			while( (lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lwd->wilds );
-			/*
-			if(lwd) {
-				log_stringf("opc_list: wilds(%ld,%s)", lwd->wilds->uid, lwd->wilds->name);
-			} else
-				log_stringf("opc_list: wilds(<END>)");
-				*/
-
-			variables_set_wilds(block->info.var,block->loops[lp].var_name,lwd?lwd->wilds:NULL);
-
-			if( !lwd ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-			break;
-
-		case ENT_PLLIST_CONN:
-			//log_stringf("opc_list: list type ENT_PLLIST_CONN");
-			conn = (DESCRIPTOR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			/*
-			if(conn) {
-				if(conn->original)
-					log_stringf("opc_list: connection(%s,%d) [SWITCHED]", conn->original->name, conn->original->tot_level);
-				else
-					log_stringf("opc_list: connection(%s,%d)", conn->character->name, conn->character->tot_level);
-			} else
-				log_stringf("opc_list: connection(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_connection(block->info.var,block->loops[lp].var_name,conn);
-
-			if( !conn ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_PLLIST_MOB:
-			//log_stringf("opc_list: list type ENT_PLLIST_MOB");
-			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			/*
-			if(ch) {
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
-
-			if( !ch ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_PLLIST_OBJ:
-			//log_stringf("opc_list: list type ENT_PLLIST_OBJ");
-			obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			/*
-			if(obj)
-				log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
-			else
-				log_stringf("opc_list: object(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_object(block->info.var,block->loops[lp].var_name,obj);
-
-			if( !obj ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_PLLIST_ROOM:
-			//log_stringf("opc_list: list type ENT_PLLIST_ROOM");
-			here = (ROOM_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			/*
-			if(here) {
-				if(here->wilds)
-					log_stringf("opc_list: room(%ld,%ld,%ld)", here->wilds->uid, here->x, here->y);
-				else if(here->source)
-					log_stringf("opc_list: room(%ld,%s,%ld,%ld)", here->vnum, here->name, here->id[0], here->id[1]);
-				else
-					log_stringf("opc_list: room(%ld,%s)", here->vnum, here->name);
-			} else
-				log_stringf("opc_list: room(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_room(block->info.var,block->loops[lp].var_name,here);
-
-			if( !here ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_PLLIST_TOK:
-			//log_stringf("opc_list: list type ENT_PLLIST_TOK");
-			tok = (TOKEN_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			/*
-			if(tok)
-				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
-			else
-				log_stringf("opc_list: token(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_token(block->info.var,block->loops[lp].var_name,tok);
-
-			if( !tok ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-			break;
-
-		case ENT_PLLIST_CHURCH:
-			//log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
-			church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
-
-			// Set the variable
-			variables_set_church(block->info.var,block->loops[lp].var_name,church);
-
-			if( !church ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-		case ENT_ILLIST_VARIABLE:
-			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
-			variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
-
-			// Set the variable
-			variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
-
-			if( !variable) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_ILLIST_MOB_GROUP:
-			//log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
-			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			/*
-			if(ch) {
-				if(!IS_NPC(ch))
-					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
-				else
-					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
-			} else
-				log_stringf("opc_list: mobile(<END>)");
-				*/
-
-			// Set the variable
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
-
-			if( !ch ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				// This needs to be destroyed
-				list_destroy(block->loops[lp].d.l.list.lp);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_ILLIST_SECTIONS:
-			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
-			section = (INSTANCE_SECTION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
-
-			// Set the variable
-			variables_set_instance_section(block->info.var,block->loops[lp].var_name,section);
-
-			if( !section ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_ILLIST_INSTANCES:
-			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
-			instance = (INSTANCE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
-
-			// Set the variable
-			variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
-
-			if( !instance ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_ILLIST_SPECIALROOMS:
-			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
-			special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
-
-			// Set the variable
-			variables_set_room(block->info.var,block->loops[lp].var_name,special_room ? special_room->room : NULL);
-
-			if( !special_room ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		case ENT_ILLIST_SHIPS:
-			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
-			ship = (SHIP_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
-
-			// Set the variable
-			variables_set_ship(block->info.var,block->loops[lp].var_name,ship);
-
-			if( !ship ) {
-				iterator_stop(&block->loops[lp].d.l.list.it);
-				skip = true;
-				break;
-			}
-
-			break;
-
-		}
-
-		if(skip) {
-			block->loops[lp].valid = false;
-			block->loop--;
-			return opc_skip_to_label(block,OP_ENDLIST,block->loops[lp].id,true);
-		}
-
-		block->cond[block->cur_line->level] = true;
-	}
-
-	opc_next_line(block);
-	return true;
+    bool skip = false;
+    int lp, i;
+    char *str1,*str2, *str;
+    char buf[MSL];
+    LLIST *list;
+    LLIST_UID_DATA *uid;
+    LLIST_ROOM_DATA *lrd;
+    LLIST_EXIT_DATA *led;
+    LLIST_SKILL_DATA *lsk;
+    LLIST_AREA_DATA *lar;
+    LLIST_AREA_REGION_DATA *lareg;
+    LLIST_WILDS_DATA *lwd;
+    DESCRIPTOR_DATA *conn;
+    CHAR_DATA *ch;
+    OBJ_DATA *obj;
+    TOKEN_DATA *tok;
+    ROOM_INDEX_DATA *here;
+    EXIT_DATA *ex;
+    AREA_DATA *area;
+    AREA_REGION *aregion;
+    CHURCH_DATA *church;
+    BOOK_PAGE *book_page;
+    FOOD_BUFF_DATA *food_buff;
+    VARIABLE *variable;
+    EXTRA_DESCR_DATA *ed;
+    INSTANCE_SECTION *section;
+    INSTANCE *instance;
+    REPUTATION_DATA *reputation;
+    REPUTATION_INDEX_DATA *repIndex;
+    REPUTATION_INDEX_RANK_DATA *repRank;
+    SKILL_GROUP *skill_group;
+    QUEST_STAGE_INDEX_V2_DATA *quest_stage;
+    QUEST_OBJECTIVE_INDEX_V2_DATA *quest_objective;
+    QUEST_DATA *quest_run;
+    QUEST_HISTORY_DATA *quest_hist;
+    NAMED_SPECIAL_ROOM *special_room;
+    SHIP_DATA *ship;
+    EVENT_RUNTIME_REF *event_ref;
+    EVENT_RUNTIME_REF empty_event_ref = { 0, 0 };
+
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
+
+    for(lp = block->loop; lp-- > 0;)
+        if(block->cur_line->label == block->loops[lp].id)
+            break;
+
+    // Initialize loop control
+    if(lp < 0) {
+        lp = block->loop;
+
+        // Variable Name
+        str1 = one_argument(block->cur_line->rest,block->loops[lp].var_name);
+
+        log_stringf("opc_list: initializing for loop variable '%s'", block->loops[lp].var_name);
+
+        if(!block->loops[lp].var_name[0]) {
+            block->ret_val = PRET_BADSYNTAX;
+            return false;
+        }
+
+        SCRIPT_PARAM *arg = new_script_param();
+
+        // Get the LIST
+        if(!(str2 = expand_argument(&block->info,str1,arg))) {
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
+
+        block->loops[lp].counter = 1;
+
+        switch(arg->type) {
+        case ENT_STRING:
+            //log_stringf("opc_list: list type ENT_STRING");
+            if(IS_NULLSTR(arg->d.str))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            strncpy(block->loops[lp].buf, arg->d.str, MSL-1);
+            str = one_argument_norm(block->loops[lp].buf, buf);
+
+            block->loops[lp].d.l.type = ENT_STRING;
+            block->loops[lp].d.l.cur.str = NULL;
+            block->loops[lp].d.l.next.str = str;
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+
+            // Set the variable
+            variables_set_string(block->info.var,block->loops[lp].var_name,buf,false);
+            break;
+        case ENT_EXIT:
+            //log_stringf("opc_list: list type ENT_EXIT");
+            if(!arg->d.door.r)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            here = arg->d.door.r;
+            ex = here->exit[arg->d.door.door];
+            block->loops[lp].d.l.type = ENT_EXIT;
+            block->loops[lp].d.l.cur.door = arg->d.door.door;
+            block->loops[lp].d.l.next.door = MAX_DIR;
+            block->loops[lp].d.l.owner = arg->d.door.r;
+            block->loops[lp].d.l.owner_type = ENT_EXIT;
+
+            /*
+            if(ex) {
+                if(here->wilds)
+                    log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[arg.d.door.door], here->wilds->uid, here->x, here->y);
+                else if(here->source)
+                    log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[arg.d.door.door], here->vnum, here->name, here->id[0], here->id[1]);
+                else
+                    log_stringf("opc_list: %s(%ld,%s)", dir_name[arg.d.door.door], here->vnum, here->name);
+            } else
+                log_stringf("opc_list: exit(<END>)");
+            */
+
+
+            if(ex) {
+                here = arg->d.door.r;
+                for(i=arg->d.door.door + 1; i < MAX_DIR && !here->exit[i]; i++);
+                block->loops[lp].d.l.next.door = i;
+            }
+            // Set the variable
+            variables_set_exit(block->info.var,block->loops[lp].var_name,ex);
+            break;
+
+        case ENT_OLLIST_MOB:
+            //log_stringf("opc_list: list type ENT_MOBILE");
+            if(!arg->d.list.ptr.mob || !*arg->d.list.ptr.mob)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_MOBILE;
+            block->loops[lp].d.l.cur.m = *arg->d.list.ptr.mob;
+            block->loops[lp].d.l.next.m = block->loops[lp].d.l.cur.m->next_in_room;
+            block->loops[lp].d.l.owner = arg->d.list.owner;
+            block->loops[lp].d.l.owner_type = ENT_MOBILE;
+
+            /*
+            if(block->loops[lp].d.l.cur.m) {
+                ch = block->loops[lp].d.l.cur.m;
+                if(!IS_NPC(ch))
+                    log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+                else
+                    log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+            } else
+                log_stringf("opc_list: mobile(<END>)");
+            */
+
+            // Set the variable
+            variables_set_mobile(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.mob);
+            break;
+
+        case ENT_OLLIST_OBJ:
+            //log_stringf("opc_list: list type ENT_OBJECT");
+            if(!arg->d.list.ptr.obj || !*arg->d.list.ptr.obj)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_OBJECT;
+            block->loops[lp].d.l.cur.o = *arg->d.list.ptr.obj;
+            block->loops[lp].d.l.next.o = block->loops[lp].d.l.cur.o->next_content;
+            block->loops[lp].d.l.owner = arg->d.list.owner;
+            block->loops[lp].d.l.owner_type = ENT_OBJECT;
+
+            /*
+            if(block->loops[lp].d.l.cur.o)
+                log_stringf("opc_list: object(%ld,%ld,%ld)", block->loops[lp].d.l.cur.o->pIndexData->vnum, block->loops[lp].d.l.cur.o->id[0], block->loops[lp].d.l.cur.o->id[1]);
+            else
+                log_stringf("opc_list: object(<END>)");
+                */
+
+            // Set the variable
+            variables_set_object(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.obj);
+            break;
+
+        case ENT_OLLIST_TOK:
+            //log_stringf("opc_list: list type ENT_TOKEN");
+            if(!arg->d.list.ptr.tok || !*arg->d.list.ptr.tok)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_TOKEN;
+            block->loops[lp].d.l.cur.t = *arg->d.list.ptr.tok;
+            block->loops[lp].d.l.next.t = block->loops[lp].d.l.cur.t->next;
+            block->loops[lp].d.l.owner = arg->d.list.owner;
+            block->loops[lp].d.l.owner_type = ENT_TOKEN;
+
+            /*
+            if(block->loops[lp].d.l.cur.t)
+                log_stringf("opc_list: token(%ld,%ld,%ld)", block->loops[lp].d.l.cur.t->pIndexData->vnum, block->loops[lp].d.l.cur.t->id[0], block->loops[lp].d.l.cur.t->id[1]);
+            else
+                log_stringf("opc_list: token(<END>)");
+                */
+
+            // Set the variable
+            variables_set_token(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.tok);
+            break;
+
+        case ENT_OLLIST_AFF:
+            //log_stringf("opc_list: list type ENT_AFFECT");
+            if(!arg->d.list.ptr.aff || !*arg->d.list.ptr.aff)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_AFFECT;
+            block->loops[lp].d.l.cur.aff = *arg->d.list.ptr.aff;
+            block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
+            block->loops[lp].d.l.owner = arg->d.list.owner;
+            block->loops[lp].d.l.owner_type = ENT_AFFECT;
+
+            /*
+            if(block->loops[lp].d.l.cur.aff) {
+                if(block->loops[lp].d.l.cur.aff->custom_name)
+                    log_stringf("opc_list: affect(%s)", block->loops[lp].d.l.cur.aff->custom_name);
+                else
+                    log_stringf("opc_list: affect(%s)", skill_table[block->loops[lp].d.l.cur.aff->type].name);
+            } else
+                log_stringf("opc_list: affect(<END>)");
+                */
+
+            // Set the variable
+            variables_set_affect(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.aff);
+            break;
+
+        case ENT_OLLIST_TRAINER_ENTRY:
+            if(!arg->d.list.ptr.trainer_entry || !*arg->d.list.ptr.trainer_entry)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_TRAINER_ENTRY;
+            block->loops[lp].d.l.cur.trainer_entry = *arg->d.list.ptr.trainer_entry;
+            block->loops[lp].d.l.next.trainer_entry = block->loops[lp].d.l.cur.trainer_entry->next;
+            block->loops[lp].d.l.owner = arg->d.list.owner;
+            block->loops[lp].d.l.owner_type = ENT_TRAINER;
+
+            variables_set_trainer_entry(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.trainer_entry);
+            break;
+
+        case ENT_EXTRADESC:
+            if(!arg->d.list.ptr.ed || !*arg->d.list.ptr.ed)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_EXTRADESC;
+            block->loops[lp].d.l.cur.ed = *arg->d.list.ptr.ed;
+            block->loops[lp].d.l.next.ed = block->loops[lp].d.l.cur.ed->next;
+            block->loops[lp].d.l.owner = arg->d.list.owner;
+            block->loops[lp].d.l.owner_type = arg->d.list.owner_type;
+
+            // Set the variable
+            variables_set_string(block->info.var,block->loops[lp].var_name,(*arg->d.list.ptr.ed)->keyword, false);
+            break;
+
+        case ENT_PLLIST_STR:
+            //log_stringf("opc_list: list type ENT_PLLIST_STR");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_STR;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(str)
+                log_stringf("opc_list: string(%s)",str);
+            else
+                log_stringf("opc_list: string(<END>)");
+                */
+
+            if( !str ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_string(block->info.var,block->loops[lp].var_name,str,false);
+            break;
+
+        case ENT_BLLIST_MOB:
+            //log_stringf("opc_list: list type ENT_BLLIST_MOB");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_MOB;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            if( !uid ) {
+                //log_stringf("opc_list: mobile(<END>)");
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            if( IS_VALID((CHAR_DATA *)uid->ptr) )
+                variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
+            else
+                variables_set_mobile_id(block->info.var,block->loops[lp].var_name, uid->id[0], uid->id[1],false);
+
+            /*
+            ch = (CHAR_DATA *)(uid->ptr);
+            if(!IS_NPC(ch))
+                log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+            else
+                log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+                */
+            break;
+
+        case ENT_BLLIST_OBJ:
+            //log_stringf("opc_list: list type ENT_BLLIST_OBJ");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_OBJ;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            if( !uid ) {
+                //log_stringf("opc_list: object(<END>)");
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            if( IS_VALID((OBJ_DATA *)uid->ptr) )
+                variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
+            else
+                variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
+
+            //obj = (OBJ_DATA *)(uid->ptr);
+            //log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
+
+            break;
+
+        case ENT_BLLIST_TOK:
+            //log_stringf("opc_list: list type ENT_BLLIST_TOK");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_TOK;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            if( !uid ) {
+                //log_stringf("opc_list: token(<END>)");
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            if( IS_VALID((TOKEN_DATA *)uid->ptr) )
+                variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
+            else
+                variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
+
+            //tok = (TOKEN_DATA *)(uid->ptr);
+            //log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
+            break;
+
+        case ENT_BLLIST_ROOM:
+            //log_stringf("opc_list: list type ENT_BLLIST_ROOM");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_ROOM;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            do {
+                lrd = (LLIST_ROOM_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+                //log_stringf("opc_list: lrd = %016lX", lrd);
+                if( !lrd ) {
+                    //log_stringf("opc_list: room(<END>)");
+                    iterator_stop(&block->loops[lp].d.l.list.it);
+                    free_script_param(arg);
+                    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                }
+
+                // Set the variable
+                if( lrd->room )
+                    variables_set_room(block->info.var,block->loops[lp].var_name,lrd->room);
+
+            } while( !lrd->room );
+
+            /*
+            log_stringf("opc_list: lrd->room = %016lX", lrd->room);
+            if(lrd->room->wilds)
+                log_stringf("opc_list: room(%ld,%ld,%ld)", lrd->room->wilds->uid, lrd->room->x, lrd->room->y);
+            else if(lrd->room->source)
+                log_stringf("opc_list: room(%ld,%s,%ld,%ld)", lrd->room->vnum, lrd->room->name, lrd->room->id[0], lrd->room->id[1]);
+            else
+                log_stringf("opc_list: room(%ld,%s)", lrd->room->vnum, lrd->room->name);
+                */
+
+            break;
+
+        case ENT_BLLIST_EXIT:
+            //log_stringf("opc_list: list type ENT_BLLIST_EXIT");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_EXIT;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            do {
+                led = (LLIST_EXIT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+                if( !led ) {
+                    //log_stringf("opc_list: exit(<END>)");
+                    iterator_stop(&block->loops[lp].d.l.list.it);
+                    free_script_param(arg);
+                    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                }
+
+                // Set the variable
+                if( led->room && led->door >= 0 && led->door < MAX_DIR && led->room->exit[led->door])
+                    variables_set_door(block->info.var,block->loops[lp].var_name,led->room, led->door, false);
+
+            } while( !led->room || led->door < 0 || led->door >= MAX_DIR || !led->room->exit[led->door] );
+
+            /*
+            if(led->room->wilds)
+                log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[led->door], led->room->wilds->uid, led->room->x, led->room->y);
+            else if(led->room->source)
+                log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[led->door], led->room->vnum, led->room->name, led->room->id[0], led->room->id[1]);
+            else
+                log_stringf("opc_list: %s(%ld,%s)", dir_name[led->door], led->room->vnum, led->room->name);
+                */
+
+            break;
+
+        case ENT_BLLIST_SKILL:
+            //log_stringf("opc_list: list type ENT_BLLIST_SKILL");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_SKILL;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            do {
+                lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+                if( !lsk ) {
+                    //log_stringf("opc_list: skill(<END>)");
+                    iterator_stop(&block->loops[lp].d.l.list.it);
+                    free_script_param(arg);
+                    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                }
+
+                // Set the variable
+                if( IS_VALID(lsk->mob) && (IS_VALID(lsk->tok) || ( lsk->sn > 0 && lsk->sn < MAX_SKILL )) )
+                    variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->sn, lsk->tok, false);
+
+            } while( !IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL )) );
+
+            /*
+            if(lsk->tok)
+                log_stringf("opc_list: skill(%ld,%ld,TOKEN,%s)", lsk->mob->id[0], lsk->mob->id[1], lsk->tok->name);
+            else
+                log_stringf("opc_list: skill(%ld,%ld,SKILL,%s)", lsk->mob->id[0], lsk->mob->id[1], skill_table[lsk->sn].name);
+                */
+
+            break;
+
+        case ENT_BLLIST_AREA:
+            //log_stringf("opc_list: list type ENT_BLLIST_AREA");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_AREA;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            do {
+                lar = (LLIST_AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+                if( !lar ) {
+                    //log_stringf("opc_list: area(<END>)");
+                    iterator_stop(&block->loops[lp].d.l.list.it);
+                    free_script_param(arg);
+                    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                }
+
+                // Set the variable
+                if( lar->area )
+                    variables_setsave_area(block->info.var,block->loops[lp].var_name, lar->area, false);
+
+            } while( !lar->area );
+
+            //log_stringf("opc_list: area(%ld,%s)", lar->area->uid, lar->area->name);
+
+            break;
+
+        case ENT_BLLIST_AREA_REGION:
+            //log_stringf("opc_list: list type ENT_BLLIST_AREA_REGION");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_AREA_REGION;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            do {
+                lareg = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+                if( !lareg ) {
+                    iterator_stop(&block->loops[lp].d.l.list.it);
+                    free_script_param(arg);
+                    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                }
+
+                if( lareg->aregion )
+                    variables_setsave_area_region(block->info.var,block->loops[lp].var_name, lareg->aregion, false);
+
+            } while( !lareg->aregion );
+
+            break;
+
+        case ENT_BLLIST_WILDS:
+            //log_stringf("opc_list: list type ENT_BLLIST_WILDS");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_BLLIST_WILDS;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            do {
+                lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+                if( !lwd ) {
+                    //log_stringf("opc_list: wilds(<END>)");
+                    iterator_stop(&block->loops[lp].d.l.list.it);
+                    free_script_param(arg);
+                    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                }
+
+                // Set the variable
+                if( lwd->wilds )
+                    variables_setsave_wilds(block->info.var,block->loops[lp].var_name, lwd->wilds, false);
+
+            } while( !lwd->wilds );
+
+            //log_stringf("opc_list: wilds(%ld,%s)", lwd->wilds->uid, lwd->wilds->name);
+
+            break;
+
+        case ENT_PLLIST_CONN:
+            //log_stringf("opc_list: list type ENT_PLLIST_CONN");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_CONN;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            conn = (DESCRIPTOR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(conn) {
+                if(conn->original)
+                    log_stringf("opc_list: connection(%s,%d) [SWITCHED]", conn->original->name, conn->original->tot_level);
+                else
+                    log_stringf("opc_list: connection(%s,%d)", conn->character->name, conn->character->tot_level);
+            } else
+                log_stringf("opc_list: connection(<END>)");*/
+
+            if( !conn ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_connection(block->info.var,block->loops[lp].var_name,conn);
+            break;
+
+        case ENT_PLLIST_MOB:
+            //log_stringf("opc_list: list type ENT_PLLIST_MOB");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_MOB;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(ch) {
+                if(!IS_NPC(ch))
+                    log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+                else
+                    log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+            } else
+                log_stringf("opc_list: mobile(<END>)");
+                */
+
+            if( !ch ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
+            break;
+
+        case ENT_PLLIST_OBJ:
+            //log_stringf("opc_list: list type ENT_PLLIST_OBJ");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_OBJ;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(obj)
+                log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
+            else
+                log_stringf("opc_list: object(<END>)");
+                */
+
+            if( !obj ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_object(block->info.var,block->loops[lp].var_name,obj);
+            break;
+
+        case ENT_PLLIST_ROOM:
+            //log_stringf("opc_list: list type ENT_PLLIST_ROOM");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_ROOM;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            here = (ROOM_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(here) {
+                if(here->wilds)
+                    log_stringf("opc_list: room(%ld,%ld,%ld)", here->wilds->uid, here->x, here->y);
+                else if(here->source)
+                    log_stringf("opc_list: room(%ld,%s,%ld,%ld)", here->vnum, here->name, here->id[0], here->id[1]);
+                else
+                    log_stringf("opc_list: room(%ld,%s)", here->vnum, here->name);
+            } else
+                log_stringf("opc_list: room(<END>)");
+                */
+
+            if( !here ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_room(block->info.var,block->loops[lp].var_name,here);
+            break;
+
+        case ENT_PLLIST_TOK:
+            //log_stringf("opc_list: list type ENT_PLLIST_TOK");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_TOK;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            tok = (TOKEN_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(tok)
+                log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
+            else
+                log_stringf("opc_list: token(<END>)");
+                */
+
+            if( !tok ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_token(block->info.var,block->loops[lp].var_name,tok);
+            break;
+
+        case ENT_PLLIST_CHURCH:
+            //log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_CHURCH;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            //log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+
+            if( !church ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_church(block->info.var,block->loops[lp].var_name,church);
+            break;
+
+        case ENT_PLLIST_BOOK_PAGE:
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_BOOK_PAGE;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !book_page ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+            break;
+
+        case ENT_PLLIST_FOOD_BUFF:
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_FOOD_BUFF;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            food_buff = (FOOD_BUFF_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !food_buff ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_food_buff(block->info.var,block->loops[lp].var_name,food_buff);
+            break;
+
+        case ENT_PLLIST_REPUTATION_RANK:
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_REPUTATION_RANK;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            repRank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !repRank ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_reputation_rank(block->info.var,block->loops[lp].var_name,repRank);
+            break;
+
+        case ENT_PLLIST_AREA:
+            //log_stringf("opc_list: list type ENT_PLLIST_AREA");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_AREA;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            area = (AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !area ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_area(block->info.var,block->loops[lp].var_name,area);
+            break;
+
+        case ENT_PLLIST_AREA_REGION:
+            //log_stringf("opc_list: list type ENT_PLLIST_AREA_REGION");
+            if(!arg->d.blist || !arg->d.blist->valid)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_PLLIST_AREA_REGION;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            aregion = (AREA_REGION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !aregion ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_area_region(block->info.var,block->loops[lp].var_name,aregion);
+            break;
+
+        case ENT_ILLIST_MOB_GROUP:
+            //log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
+            if(!arg->d.group_owner || !arg->d.group_owner->in_room)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            ch = arg->d.group_owner->leader ? arg->d.group_owner->leader : arg->d.group_owner;
+
+            list = list_copy(ch->lgroup);
+            if( !list )
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            if( !list_addlink(list, ch) ) {
+                list_destroy(list);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_MOB_GROUP;
+            block->loops[lp].d.l.list.lp = list;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(ch) {
+                if(!IS_NPC(ch))
+                    log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+                else
+                    log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+            } else
+                log_stringf("opc_list: mobile(<END>)");
+                */
+
+            if( !ch ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
+            break;
+
+        case ENT_ILLIST_VARIABLE:
+            //log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+            if(!arg->d.variables || !*arg->d.variables)
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_VARIABLE;
+            block->loops[lp].d.l.list.lp = variable_copy_tolist(arg->d.variables);
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            //log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+            if( !variable ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
+            break;
+
+        case ENT_ILLIST_REPUTATION:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_REPUTATION;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            reputation = (REPUTATION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !reputation ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
+            break;
+
+        case ENT_ILLIST_REPUTATION_INDEX:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_REPUTATION_INDEX;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !repIndex ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
+            break;
+
+        case ENT_ILLIST_SKILLGROUPS:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_SKILLGROUPS;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            skill_group = (SKILL_GROUP *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !skill_group ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_skill_group(block->info.var,block->loops[lp].var_name,skill_group);
+            break;
+
+        case ENT_ILLIST_QUEST_STAGES:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST_STAGES;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_stage = (QUEST_STAGE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_stage ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest_stage(block->info.var,block->loops[lp].var_name,quest_stage);
+            break;
+
+        case ENT_ILLIST_QUEST_OBJECTIVES:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST_OBJECTIVES;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_objective = (QUEST_OBJECTIVE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_objective ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest_objective(block->info.var,block->loops[lp].var_name,quest_objective);
+            break;
+
+        case ENT_ILLIST_QUEST:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_run = (QUEST_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_run ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest(block->info.var,block->loops[lp].var_name,quest_run);
+            break;
+
+        case ENT_ILLIST_QUEST_HISTORY:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_QUEST_HISTORY;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            quest_hist = (QUEST_HISTORY_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !quest_hist ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_quest_history(block->info.var,block->loops[lp].var_name,quest_hist);
+            break;
+
+        case ENT_ILLIST_EVENT:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_EVENT;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            event_ref = (EVENT_RUNTIME_REF *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !event_ref ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            variables_set_event(block->info.var,block->loops[lp].var_name,*event_ref);
+            break;
+
+        case ENT_ILLIST_SECTIONS:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_SECTIONS;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            section = (INSTANCE_SECTION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !section ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_instance_section(block->info.var,block->loops[lp].var_name,section);
+            break;
+
+        case ENT_ILLIST_INSTANCES:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_INSTANCES;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            instance = (INSTANCE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !instance ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
+            break;
+
+        case ENT_ILLIST_SPECIALROOMS:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_SPECIALROOMS;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !special_room ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_room(block->info.var,block->loops[lp].var_name,special_room->room);
+            break;
+
+        case ENT_ILLIST_SHIPS:
+            if(!IS_VALID(arg->d.blist))
+            {
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            block->loops[lp].d.l.type = ENT_ILLIST_SHIPS;
+            block->loops[lp].d.l.list.lp = arg->d.blist;
+            iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+            block->loops[lp].d.l.owner = NULL;
+            block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+            ship = (SHIP_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( !ship ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                free_script_param(arg);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            // Set the variable
+            variables_set_ship(block->info.var,block->loops[lp].var_name,ship);
+            break;
+
+        default:
+            //log_stringf("opc_list: list_type INVALID");
+            block->ret_val = PRET_BADSYNTAX;
+            free_script_param(arg);
+            return false;
+        }
+
+        block->loops[lp].id = block->cur_line->label;
+        block->loops[lp].valid = true;
+        block->loops[lp].level = block->cur_line->level;
+        block->loop++;
+        block->cond[block->cur_line->level] = true;
+        free_script_param(arg);
+    } else {
+        //log_stringf("opc_list: next loop variable '%s'", block->loops[lp].var_name);
+        block->loops[lp].counter++;
+
+        // Continue loop
+        switch(block->loops[lp].d.l.type) {
+        case ENT_STRING:
+            //log_stringf("opc_list: list type ENT_STRING");
+            str = block->loops[lp].d.l.next.str;
+
+            if( IS_NULLSTR(str) )
+            {
+                skip = true;
+                break;
+            }
+
+            str = one_argument_norm(str,buf);
+
+            variables_set_string(block->info.var,block->loops[lp].var_name,buf,false);
+
+            block->loops[lp].d.l.next.str = str;
+            break;
+
+
+        case ENT_EXIT:
+            //log_stringf("opc_list: list type ENT_EXIT");
+            i = block->loops[lp].d.l.cur.door = block->loops[lp].d.l.next.door;
+
+            if( i >= MAX_DIR ) {
+                skip = true;
+                break;
+            }
+
+            here = (ROOM_INDEX_DATA *)block->loops[lp].d.l.owner;
+            ex = here->exit[i];
+
+            /*
+            if(ex) {
+                if(here->wilds)
+                    log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[i], here->wilds->uid, here->x, here->y);
+                else if(here->source)
+                    log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[i], here->vnum, here->name, here->id[0], here->id[1]);
+                else
+                    log_stringf("opc_list: %s(%ld,%s)", dir_name[i], here->vnum, here->name);
+            } else
+                log_stringf("opc_list: exit(<END>)");
+                */
+
+
+            // Set the variable
+            variables_set_exit(block->info.var,block->loops[lp].var_name,ex);
+
+            if(!ex) {
+                skip = true;
+                break;
+            }
+
+            for(i++; i < MAX_DIR && !here->exit[i]; i++);
+
+            block->loops[lp].d.l.next.door = i;
+            break;
+
+        case ENT_MOBILE:
+            //log_stringf("opc_list: list type ENT_MOBILE");
+            block->loops[lp].d.l.cur.m = block->loops[lp].d.l.next.m;
+            // Set the variable
+            variables_set_mobile(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.m);
+
+            /*
+            if(block->loops[lp].d.l.cur.m) {
+                ch = block->loops[lp].d.l.cur.m;
+                if(!IS_NPC(ch))
+                    log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+                else
+                    log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+            } else
+                log_stringf("opc_list: mobile(<END>)");
+                */
+
+            if(!block->loops[lp].d.l.cur.m) {
+                skip = true;
+                break;
+            }
+
+            block->loops[lp].d.l.next.m = block->loops[lp].d.l.cur.m->next_in_room;
+            break;
+
+        case ENT_OBJECT:
+            //log_stringf("opc_list: list type ENT_OBJECT");
+            block->loops[lp].d.l.cur.o = block->loops[lp].d.l.next.o;
+            // Set the variable
+            variables_set_object(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.o);
+
+            /*
+            if(block->loops[lp].d.l.cur.o)
+                log_stringf("opc_list: object(%ld,%ld,%ld)", block->loops[lp].d.l.cur.o->pIndexData->vnum, block->loops[lp].d.l.cur.o->id[0], block->loops[lp].d.l.cur.o->id[1]);
+            else
+                log_stringf("opc_list: object(<END>)");
+                */
+
+            if(!block->loops[lp].d.l.cur.o) {
+                skip = true;
+                break;
+            }
+
+            block->loops[lp].d.l.next.o = block->loops[lp].d.l.cur.o->next_content;
+            break;
+
+        case ENT_TOKEN:
+            //log_stringf("opc_list: list type ENT_TOKEN");
+            block->loops[lp].d.l.cur.t = block->loops[lp].d.l.next.t;
+            // Set the variable
+            variables_set_token(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.t);
+
+            /*
+            if(block->loops[lp].d.l.cur.t)
+                log_stringf("opc_list: token(%ld,%ld,%ld)", block->loops[lp].d.l.cur.t->pIndexData->vnum, block->loops[lp].d.l.cur.t->id[0], block->loops[lp].d.l.cur.t->id[1]);
+            else
+                log_stringf("opc_list: token(<END>)");
+                */
+
+            if(!block->loops[lp].d.l.cur.t) {
+                skip = true;
+                break;
+            }
+
+            block->loops[lp].d.l.next.t = block->loops[lp].d.l.cur.t->next;
+            break;
+
+        case ENT_AFFECT:
+            //log_stringf("opc_list: list type ENT_AFFECT");
+            block->loops[lp].d.l.cur.aff = block->loops[lp].d.l.next.aff;
+            // Set the variable
+            variables_set_affect(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.aff);
+
+            /*
+            if(block->loops[lp].d.l.cur.aff) {
+                if(block->loops[lp].d.l.cur.aff->custom_name)
+                    log_stringf("opc_list: affect(%s)", block->loops[lp].d.l.cur.aff->custom_name);
+                else
+                    log_stringf("opc_list: affect(%s)", skill_table[block->loops[lp].d.l.cur.aff->type].name);
+            } else
+                log_stringf("opc_list: affect(<END>)");
+                */
+
+            if(!block->loops[lp].d.l.cur.aff) {
+                skip = true;
+                break;
+            }
+
+            block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
+            break;
+
+        case ENT_TRAINER_ENTRY:
+            block->loops[lp].d.l.cur.trainer_entry = block->loops[lp].d.l.next.trainer_entry;
+            variables_set_trainer_entry(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.trainer_entry);
+
+            if(!block->loops[lp].d.l.cur.trainer_entry) {
+                skip = true;
+                break;
+            }
+
+            block->loops[lp].d.l.next.trainer_entry = block->loops[lp].d.l.cur.trainer_entry->next;
+            break;
+
+        case ENT_EXTRADESC:
+            block->loops[lp].d.l.cur.ed = block->loops[lp].d.l.next.ed;
+            ed = block->loops[lp].d.l.cur.ed;
+            // Set the variable
+            variables_set_string(block->info.var,block->loops[lp].var_name, ed ? ed->keyword : &str_empty[0], false);
+            if(!ed) {
+                skip = true;
+                break;
+            }
+
+            block->loops[lp].d.l.next.ed = ed->next;
+            break;
+
+        case ENT_PLLIST_STR:
+            //log_stringf("opc_list: list type ENT_PLLIST_STR");
+            str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            /*
+            if(str)
+                log_stringf("opc_list: string(%s)",str);
+            else
+                log_stringf("opc_list: string(<END>)");
+                */
+
+            // Set the variable
+            variables_set_string(block->info.var,block->loops[lp].var_name,str?str:&str_empty[0],false);
+
+            if( !str ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            break;
+
+        case ENT_BLLIST_MOB:
+            //log_stringf("opc_list: list type ENT_BLLIST_MOB");
+            while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((CHAR_DATA *)uid->ptr) );
+
+            /*
+            if(uid) {
+                ch = (CHAR_DATA *)(uid->ptr);
+                if(!IS_NPC(ch))
+                    log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+                else
+                    log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+            } else
+                log_stringf("opc_list: mobile(<END>)");
+                */
+
+            if( uid )
+            {
+                if( IS_VALID((CHAR_DATA *)uid->ptr) )
+                    variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
+                else
+                    variables_set_mobile_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
+            }
+            else
+                variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)NULL);
+
+            if( !uid ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_BLLIST_OBJ:
+            //log_stringf("opc_list: list type ENT_BLLIST_OBJ");
+            while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((OBJ_DATA *)uid->ptr) );
+            /*
+            if(uid) {
+                obj = (OBJ_DATA *)(uid->ptr);
+                log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
+            } else
+                log_stringf("opc_list: object(<END>)");
+                */
+
+            if( uid )
+            {
+                if( IS_VALID((OBJ_DATA *)uid->ptr) )
+                    variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
+                else
+                    variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
+            }
+            else
+                variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)NULL);
+
+            if( !uid ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_BLLIST_TOK:
+            //log_stringf("opc_list: list type ENT_BLLIST_TOK");
+            while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((TOKEN_DATA *)uid->ptr) );
+
+            /*
+            if(uid) {
+                tok = (TOKEN_DATA *)(uid->ptr);
+                log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
+            } else
+                log_stringf("opc_list: token(<END>)");
+                */
+
+            if( uid )
+            {
+                if( IS_VALID((TOKEN_DATA *)uid->ptr) )
+                    variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
+                else
+                    variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
+            }
+            else
+                variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)NULL);
+
+            if( !uid ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_BLLIST_ROOM:
+            //log_stringf("opc_list: list type ENT_BLLIST_ROOM");
+            while( (lrd = (LLIST_ROOM_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lrd->room );
+            /*
+            if(lrd) {
+                if(lrd->room->wilds)
+                    log_stringf("opc_list: room(%ld,%ld,%ld)", lrd->room->wilds->uid, lrd->room->x, lrd->room->y);
+                else if(lrd->room->source)
+                    log_stringf("opc_list: room(%ld,%s,%ld,%ld)", lrd->room->vnum, lrd->room->name, lrd->room->id[0], lrd->room->id[1]);
+                else
+                    log_stringf("opc_list: room(%ld,%s)", lrd->room->vnum, lrd->room->name);
+            } else
+                log_stringf("opc_list: room(<END>)");
+                */
+
+            variables_set_room(block->info.var,block->loops[lp].var_name,lrd?lrd->room:NULL);
+
+            if( !lrd ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+            break;
+
+        case ENT_BLLIST_EXIT:
+            //log_stringf("opc_list: list type ENT_BLLIST_EXIT");
+            while( (led = (LLIST_EXIT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) &&
+                (!led->room || led->door < 0 || led->door >= MAX_DIR || !led->room->exit[led->door]));
+            /*
+            if(led) {
+                if(led->room->wilds)
+                    log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[led->door], led->room->wilds->uid, led->room->x, led->room->y);
+                else if(led->room->source)
+                    log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[led->door], led->room->vnum, led->room->name, led->room->id[0], led->room->id[1]);
+                else
+                    log_stringf("opc_list: %s(%ld,%s)", dir_name[led->door], led->room->vnum, led->room->name);
+            } else
+                log_stringf("opc_list: exit(<END>)");
+                */
+
+            if( !led ) {
+                variables_set_door(block->info.var,block->loops[lp].var_name,NULL, DIR_NORTH, false);
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            variables_set_door(block->info.var,block->loops[lp].var_name,led->room, led->door, false);
+            break;
+
+        case ENT_BLLIST_SKILL:
+            //log_stringf("opc_list: list type ENT_BLLIST_SKILL");
+            while( (lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) &&
+                (!IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL ))) );
+            /*
+            if(lsk) {
+                if(lsk->tok)
+                    log_stringf("opc_list: skill(%ld,%ld,TOKEN,%s)", lsk->mob->id[0], lsk->mob->id[1], lsk->tok->name);
+                else
+                    log_stringf("opc_list: skill(%ld,%ld,SKILL,%s)", lsk->mob->id[0], lsk->mob->id[1], skill_table[lsk->sn].name);
+            } else
+                log_stringf("opc_list: skill(<END>)");
+                */
+
+            if( !lsk ) {
+                variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, NULL, 0, NULL, false);
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->sn, lsk->tok, false);
+            break;
+
+        case ENT_BLLIST_AREA:
+            //log_stringf("opc_list: list type ENT_BLLIST_AREA");
+            while( (lar = (LLIST_AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lar->area );
+            /*
+            if(lar) {
+                log_stringf("opc_list: area(%ld,%s)", lar->area->uid, lar->area->name);
+            } else
+                log_stringf("opc_list: area(<END>)");
+                */
+
+            variables_set_area(block->info.var,block->loops[lp].var_name,lar?lar->area:NULL);
+
+            if( !lar ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+            break;
+
+        case ENT_BLLIST_AREA_REGION:
+            while( (lareg = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lareg->aregion );
+
+            variables_set_area_region(block->info.var,block->loops[lp].var_name,lareg?lareg->aregion:NULL);
+
+            if( !lareg ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+            break;
+
+        case ENT_BLLIST_WILDS:
+            //log_stringf("opc_list: list type ENT_BLLIST_WILDS");
+            while( (lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lwd->wilds );
+            /*
+            if(lwd) {
+                log_stringf("opc_list: wilds(%ld,%s)", lwd->wilds->uid, lwd->wilds->name);
+            } else
+                log_stringf("opc_list: wilds(<END>)");
+                */
+
+            variables_set_wilds(block->info.var,block->loops[lp].var_name,lwd?lwd->wilds:NULL);
+
+            if( !lwd ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+            break;
+
+        case ENT_PLLIST_CONN:
+            //log_stringf("opc_list: list type ENT_PLLIST_CONN");
+            conn = (DESCRIPTOR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            /*
+            if(conn) {
+                if(conn->original)
+                    log_stringf("opc_list: connection(%s,%d) [SWITCHED]", conn->original->name, conn->original->tot_level);
+                else
+                    log_stringf("opc_list: connection(%s,%d)", conn->character->name, conn->character->tot_level);
+            } else
+                log_stringf("opc_list: connection(<END>)");
+                */
+
+            // Set the variable
+            variables_set_connection(block->info.var,block->loops[lp].var_name,conn);
+
+            if( !conn ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_MOB:
+            //log_stringf("opc_list: list type ENT_PLLIST_MOB");
+            ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            /*
+            if(ch) {
+                if(!IS_NPC(ch))
+                    log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+                else
+                    log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+            } else
+                log_stringf("opc_list: mobile(<END>)");
+                */
+
+            // Set the variable
+            variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
+
+            if( !ch ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_OBJ:
+            //log_stringf("opc_list: list type ENT_PLLIST_OBJ");
+            obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            /*
+            if(obj)
+                log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
+            else
+                log_stringf("opc_list: object(<END>)");
+                */
+
+            // Set the variable
+            variables_set_object(block->info.var,block->loops[lp].var_name,obj);
+
+            if( !obj ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_ROOM:
+            //log_stringf("opc_list: list type ENT_PLLIST_ROOM");
+            here = (ROOM_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            /*
+            if(here) {
+                if(here->wilds)
+                    log_stringf("opc_list: room(%ld,%ld,%ld)", here->wilds->uid, here->x, here->y);
+                else if(here->source)
+                    log_stringf("opc_list: room(%ld,%s,%ld,%ld)", here->vnum, here->name, here->id[0], here->id[1]);
+                else
+                    log_stringf("opc_list: room(%ld,%s)", here->vnum, here->name);
+            } else
+                log_stringf("opc_list: room(<END>)");
+                */
+
+            // Set the variable
+            variables_set_room(block->info.var,block->loops[lp].var_name,here);
+
+            if( !here ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_TOK:
+            //log_stringf("opc_list: list type ENT_PLLIST_TOK");
+            tok = (TOKEN_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            /*
+            if(tok)
+                log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
+            else
+                log_stringf("opc_list: token(<END>)");
+                */
+
+            // Set the variable
+            variables_set_token(block->info.var,block->loops[lp].var_name,tok);
+
+            if( !tok ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+            break;
+
+        case ENT_PLLIST_AREA:
+            area = (AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_area(block->info.var,block->loops[lp].var_name,area);
+
+            if( !area ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_AREA_REGION:
+            aregion = (AREA_REGION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_area_region(block->info.var,block->loops[lp].var_name,aregion);
+
+            if( !aregion ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_CHURCH:
+            //log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
+            church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            //log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+
+            // Set the variable
+            variables_set_church(block->info.var,block->loops[lp].var_name,church);
+
+            if( !church ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_BOOK_PAGE:
+            book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+
+            if( !book_page ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_FOOD_BUFF:
+            food_buff = (FOOD_BUFF_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_food_buff(block->info.var,block->loops[lp].var_name,food_buff);
+
+            if( !food_buff ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_PLLIST_REPUTATION_RANK:
+            repRank = (REPUTATION_INDEX_RANK_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_reputation_rank(block->info.var,block->loops[lp].var_name,repRank);
+
+            if( !repRank ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+        case ENT_ILLIST_VARIABLE:
+            //log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+            variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            //log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+            // Set the variable
+            variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
+
+            if( !variable) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_REPUTATION:
+            reputation = (REPUTATION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_reputation(block->info.var,block->loops[lp].var_name,reputation);
+
+            if( !reputation ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_REPUTATION_INDEX:
+            repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_reputation_index(block->info.var,block->loops[lp].var_name,repIndex);
+
+            if( !repIndex ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_SKILLGROUPS:
+            skill_group = (SKILL_GROUP *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_skill_group(block->info.var,block->loops[lp].var_name,skill_group);
+
+            if( !skill_group ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_QUEST_STAGES:
+            quest_stage = (QUEST_STAGE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest_stage(block->info.var,block->loops[lp].var_name,quest_stage);
+
+            if( !quest_stage ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_QUEST_OBJECTIVES:
+            quest_objective = (QUEST_OBJECTIVE_INDEX_V2_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest_objective(block->info.var,block->loops[lp].var_name,quest_objective);
+
+            if( !quest_objective ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_QUEST:
+            quest_run = (QUEST_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest(block->info.var,block->loops[lp].var_name,quest_run);
+
+            if( !quest_run ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_QUEST_HISTORY:
+            quest_hist = (QUEST_HISTORY_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            variables_set_quest_history(block->info.var,block->loops[lp].var_name,quest_hist);
+
+            if( !quest_hist ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_EVENT:
+            event_ref = (EVENT_RUNTIME_REF *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+            if( event_ref )
+                variables_set_event(block->info.var,block->loops[lp].var_name,*event_ref);
+            else
+                variables_set_event(block->info.var,block->loops[lp].var_name,empty_event_ref);
+
+            if( !event_ref ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_MOB_GROUP:
+            //log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
+            ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            /*
+            if(ch) {
+                if(!IS_NPC(ch))
+                    log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
+                else
+                    log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+            } else
+                log_stringf("opc_list: mobile(<END>)");
+                */
+
+            // Set the variable
+            variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
+
+            if( !ch ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                // This needs to be destroyed
+                list_destroy(block->loops[lp].d.l.list.lp);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_SECTIONS:
+            //log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+            section = (INSTANCE_SECTION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            //log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+            // Set the variable
+            variables_set_instance_section(block->info.var,block->loops[lp].var_name,section);
+
+            if( !section ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_INSTANCES:
+            //log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+            instance = (INSTANCE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            //log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+            // Set the variable
+            variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
+
+            if( !instance ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_SPECIALROOMS:
+            //log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+            special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            //log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+            // Set the variable
+            variables_set_room(block->info.var,block->loops[lp].var_name,special_room ? special_room->room : NULL);
+
+            if( !special_room ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        case ENT_ILLIST_SHIPS:
+            //log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+            ship = (SHIP_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+            //log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+            // Set the variable
+            variables_set_ship(block->info.var,block->loops[lp].var_name,ship);
+
+            if( !ship ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                skip = true;
+                break;
+            }
+
+            break;
+
+        }
+
+        if(skip) {
+            block->loops[lp].valid = false;
+            block->loop--;
+            return opc_skip_to_label(block,OP_ENDLIST,block->loops[lp].id,true);
+        }
+
+        block->cond[block->cur_line->level] = true;
+    }
+
+    opc_next_line(block);
+    return true;
 }
 
 
 DECL_OPC_FUN(opc_endlist)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	return opc_skip_to_label(block,OP_LIST,block->cur_line->label,false);
+    return opc_skip_to_label(block,OP_LIST,block->cur_line->label,false);
 }
 
 DECL_OPC_FUN(opc_exitlist)
 {
-	script_loop_cleanup(block, block->cur_line->level);
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    script_loop_cleanup(block, block->cur_line->level);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+    return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
 }
 
 DECL_OPC_FUN(opc_endwhile)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	return opc_skip_to_label(block,OP_WHILE,block->cur_line->label,false);
+    return opc_skip_to_label(block,OP_WHILE,block->cur_line->label,false);
 }
 
 DECL_OPC_FUN(opc_exitwhile)
 {
-	script_loop_cleanup(block, block->cur_line->level);
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    script_loop_cleanup(block, block->cur_line->level);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	return opc_skip_to_label(block,OP_ENDWHILE,block->cur_line->label,true);
+    return opc_skip_to_label(block,OP_ENDWHILE,block->cur_line->label,true);
 }
 
 DECL_OPC_FUN(opc_switch)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	SCRIPT_PARAM *arg = new_script_param();
-	if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
-		block->ret_val = PRET_BADSYNTAX;
-		free_script_param(arg);
-		return false;
-	}
+    SCRIPT_PARAM *arg = new_script_param();
+    if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
+        block->ret_val = PRET_BADSYNTAX;
+        free_script_param(arg);
+        return false;
+    }
 
-	if (arg->type != ENT_NUMBER)
-	{
-		block->ret_val = PRET_BADSYNTAX;
-		free_script_param(arg);
-		return false;
-	}
+    if (arg->type != ENT_NUMBER)
+    {
+        block->ret_val = PRET_BADSYNTAX;
+        free_script_param(arg);
+        return false;
+    }
 
-	long value = arg->d.num;
-	free_script_param(arg);
+    long value = arg->d.num;
+    free_script_param(arg);
 
-	if (block->script->switch_table && block->cur_line->param >= 0 && block->cur_line->param < block->script->n_switch_table)
-	{
-		SCRIPT_SWITCH *sw = &block->script->switch_table[block->cur_line->param];
-		SCRIPT_SWITCH_CASE *swc;
+    if (block->script->switch_table && block->cur_line->param >= 0 && block->cur_line->param < block->script->n_switch_table)
+    {
+        SCRIPT_SWITCH *sw = &block->script->switch_table[block->cur_line->param];
+        SCRIPT_SWITCH_CASE *swc;
 
-		for(swc = sw->cases; swc; swc = swc->next)
-		{
-			if (value >= swc->a && value <= swc->b)
-			{
-				if(swc->line >= 0 && swc->line < block->script->lines) {
-					block->line = swc->line;
-					block->cur_line = &block->script->code[swc->line];
-					script_loop_cleanup(block, block->cur_line->level);
-					if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
-					return true;
-				}
-				return false;
-			}
-		}
+        for(swc = sw->cases; swc; swc = swc->next)
+        {
+            if (value >= swc->a && value <= swc->b)
+            {
+                if(swc->line >= 0 && swc->line < block->script->lines) {
+                    block->line = swc->line;
+                    block->cur_line = &block->script->code[swc->line];
+                    script_loop_cleanup(block, block->cur_line->level);
+                    if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
+                    return true;
+                }
+                return false;
+            }
+        }
 
-		// While lines start at 0, the default in a switch statement can never point to line 0, as the switch statement itself (this opcode) must come before it
-		if(sw->default_case > 0 && sw->default_case < block->script->lines) {
-			block->line = sw->default_case;
-			block->cur_line = &block->script->code[sw->default_case];
-			script_loop_cleanup(block, block->cur_line->level);
-			if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
-			return true;
-		}
+        // While lines start at 0, the default in a switch statement can never point to line 0, as the switch statement itself (this opcode) must come before it
+        if(sw->default_case > 0 && sw->default_case < block->script->lines) {
+            block->line = sw->default_case;
+            block->cur_line = &block->script->code[sw->default_case];
+            script_loop_cleanup(block, block->cur_line->level);
+            if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
+            return true;
+        }
 
-		// Skip to the end of the switch
-		return opc_skip_to_label(block,OP_ENDSWITCH,block->cur_line->level, true);
-	}
+        // Skip to the end of the switch
+        return opc_skip_to_label(block,OP_ENDSWITCH,block->cur_line->level, true);
+    }
 
-	// To get to here means something bad happened
-	block->ret_val = PRET_BADSYNTAX;
-	return false;
+    // To get to here means something bad happened
+    block->ret_val = PRET_BADSYNTAX;
+    return false;
 }
 
 DECL_OPC_FUN(opc_endswitch)
 {
-	opc_next_line(block);
-	return true;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_exitswitch)
 {
-	// Skip to the end of the switch
-	return opc_skip_to_label(block,OP_ENDSWITCH,block->cur_line->level, true);
+    // Skip to the end of the switch
+    return opc_skip_to_label(block,OP_ENDSWITCH,block->cur_line->level, true);
 }
 
 DECL_OPC_FUN(opc_mob)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type != IFC_M) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type != IFC_M) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,mob_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,mob_cmd_table[block->cur_line->param].name);
 
-	if(mob_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted mob command '%s' with nulled security.",mob_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else if(IS_VALID(block->info.mob)) {
-		if( !mob_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*mob_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
+    if(mob_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted mob command '%s' with nulled security.",mob_cmd_table[block->cur_line->param].name);
+    } else if(IS_VALID(block->info.mob)) {
+        if( !mob_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*mob_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
 
 
-	opc_next_line(block);
-	return true;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_obj)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type != IFC_O) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type != IFC_O) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,obj_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,obj_cmd_table[block->cur_line->param].name);
 
-	if(obj_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted obj command '%s' with nulled security.",obj_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else if(IS_VALID(block->info.obj)) {
-		if( !obj_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*obj_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
-	opc_next_line(block);
-	return true;
+    if(obj_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted obj command '%s' with nulled security.",obj_cmd_table[block->cur_line->param].name);
+    } else if(IS_VALID(block->info.obj)) {
+        if( !obj_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*obj_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_room)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type != IFC_R) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type != IFC_R) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,room_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,room_cmd_table[block->cur_line->param].name);
 
-	if(room_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted room command '%s' with nulled security.",room_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else if(block->info.room) {
-		if( !room_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*room_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
-	opc_next_line(block);
-	return true;
+    if(room_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted room command '%s' with nulled security.",room_cmd_table[block->cur_line->param].name);
+    } else if(block->info.room) {
+        if( !room_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*room_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_token)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type != IFC_T) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type != IFC_T) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,token_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,token_cmd_table[block->cur_line->param].name);
 
-	if(token_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted token command '%s' with nulled security.",token_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else if(IS_VALID(block->info.token)) {
-		if( !token_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*token_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
+    if(token_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted token command '%s' with nulled security.",token_cmd_table[block->cur_line->param].name);
+    } else if(IS_VALID(block->info.token)) {
+        if( !token_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*token_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
 
-	opc_next_line(block);
-	return true;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_tokenother)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type == IFC_T) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type == IFC_T) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,tokenother_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,tokenother_cmd_table[block->cur_line->param].name);
 
-	if(tokenother_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted tokenother command '%s' with nulled security.",tokenother_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else {
-		if( !tokenother_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*tokenother_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
-	opc_next_line(block);
-	return true;
+    if(tokenother_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted tokenother command '%s' with nulled security.",tokenother_cmd_table[block->cur_line->param].name);
+    } else {
+        if( !tokenother_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*tokenother_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_area)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type != IFC_A) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type != IFC_A) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,area_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,area_cmd_table[block->cur_line->param].name);
 
-	if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted area command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else if(block->info.area) {
-		if( !area_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*area_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
+    if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted area command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
+    } else if(block->info.area) {
+        if( !area_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*area_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
 
-	opc_next_line(block);
-	return true;
+    opc_next_line(block);
+    return true;
+}
+
+DECL_OPC_FUN(opc_quest)
+{
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
+
+    if(block->type != IFC_Q) {
+        return false;
+    }
+
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,area_cmd_table[block->cur_line->param].name);
+
+    if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted quest command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
+    } else if(block->info.area) {
+        if( !area_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*area_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
+
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_instance)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type != IFC_I) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type != IFC_I) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,instance_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,instance_cmd_table[block->cur_line->param].name);
 
-	if(instance_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted instance command '%s' with nulled security.",instance_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else if(IS_VALID(block->info.instance)) {
-		if( !instance_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*instance_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
+    if(instance_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted instance command '%s' with nulled security.",instance_cmd_table[block->cur_line->param].name);
+    } else if(IS_VALID(block->info.instance)) {
+        if( !instance_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*instance_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
 
-	opc_next_line(block);
-	return true;
+    opc_next_line(block);
+    return true;
 }
 
 DECL_OPC_FUN(opc_dungeon)
 {
-	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
-		return opc_skip_block(block,block->cur_line->level-1,false);
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
 
-	// Verify
-	if(block->type != IFC_D) {
-		// Log the error
-		return false;
-	}
+    // Verify
+    if(block->type != IFC_D) {
+        // Log the error
+        return false;
+    }
 
-	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,dungeon_cmd_table[block->cur_line->param].name);
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,dungeon_cmd_table[block->cur_line->param].name);
 
-	if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
-		char buf[MIL];
-		sprintf(buf, "Attempted execution of a restricted dungeon command '%s' with nulled security.",dungeon_cmd_table[block->cur_line->param].name);
-		bug(buf, 0);
-	} else if(IS_VALID(block->info.dungeon)) {
-		if( !dungeon_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			SCRIPT_PARAM *arg = new_script_param();
-			(*dungeon_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
-			free_script_param(arg);
-			tail_chain();
-		}
-	}
+    if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted dungeon command '%s' with nulled security.",dungeon_cmd_table[block->cur_line->param].name);
+    } else if(IS_VALID(block->info.dungeon)) {
+        if( !dungeon_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*dungeon_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
 
 
-	opc_next_line(block);
-	return true;
+    opc_next_line(block);
+    return true;
+}
+
+DECL_OPC_FUN(opc_event)
+{
+    if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+        return opc_skip_block(block,block->cur_line->level-1,false);
+
+    if(block->type != IFC_E) {
+        return false;
+    }
+
+    DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,evt_cmd_table[block->cur_line->param].name);
+
+    if(evt_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+        pbugf(LOG_SCRIPTS, "Attempted execution of a restricted evt command '%s' with nulled security.",evt_cmd_table[block->cur_line->param].name);
+    } else if(block->info.area) {
+        if( !evt_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+            SCRIPT_PARAM *arg = new_script_param();
+            (*evt_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+            free_script_param(arg);
+            tail_chain();
+        }
+    }
+
+    opc_next_line(block);
+    return true;
 }
 
 
 bool echo_line(SCRIPT_CB *block)
 {
-	char buf[MSL];
-	DBG3MSG4("Executing: Line=%d, Opcode=%d(%s), Level=%d\n", block->line+1,block->cur_line->opcode,opcode_names[block->cur_line->opcode],block->cur_line->level);
-	if(wiznet_script) {
-		sprintf(buf,"Executing: Line=%d, Opcode=%d(%s), Level=%d", block->line+1,block->cur_line->opcode,opcode_names[block->cur_line->opcode],block->cur_line->level);
-		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-	}
-	return true;
+    char buf[MSL];
+    DBG3MSG4("Executing: Line=%d, Opcode=%d(%s), Level=%d\n", block->line+1,block->cur_line->opcode,opcode_names[block->cur_line->opcode],block->cur_line->level);
+    if(wiznet_script) {
+        sprintf(buf,"Executing: Line=%d, Opcode=%d(%s), Level=%d", block->line+1,block->cur_line->opcode,opcode_names[block->cur_line->opcode],block->cur_line->level);
+        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+    }
+    return true;
 }
 
 void script_dump(SCRIPT_DATA *script)
 {
 #ifdef DEBUG_MODULE
-	int i;
-	DBG3MSG2("vnum = %d, lines = %d\n", script->vnum, script->lines);
-	if(script->code) {
-		for(i=0; i < script->lines; i++) {
-			DBG3MSG4("Line %d: Opcode=%d(%s), Level=%d\n", i+1,script->code[i].opcode,opcode_names[script->code[i].opcode],script->code[i].level);
-		}
-	}
+    int i;
+    DBG3MSG2("vnum = %d, lines = %d\n", script->vnum, script->lines);
+    if(script->code) {
+        for(i=0; i < script->lines; i++) {
+            DBG3MSG4("Line %d: Opcode=%d(%s), Level=%d\n", i+1,script->code[i].opcode,opcode_names[script->code[i].opcode],script->code[i].level);
+        }
+    }
 
 #endif
 }
 
 void script_dump_wiznet(SCRIPT_DATA *script)
 {
-	int i;
-	char buf[MSL];
-	sprintf(buf,"vnum = %d, lines = %d", script->vnum, script->lines);
-	wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-	if(script->code) {
-		for(i=0; i < script->lines; i++) {
-			sprintf(buf,"Line %d: Opcode=%d(%s), Level=%d", i+1,script->code[i].opcode,opcode_names[script->code[i].opcode],script->code[i].level);
-			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
-		}
-	}
+    int i;
+    char buf[MSL];
+    sprintf(buf,"vnum = %d, lines = %d", script->vnum, script->lines);
+    wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+    if(script->code) {
+        for(i=0; i < script->lines; i++) {
+            sprintf(buf,"Line %d: Opcode=%d(%s), Level=%d", i+1,script->code[i].opcode,opcode_names[script->code[i].opcode],script->code[i].level);
+            wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        }
+    }
 }
 
 int execute_script(long pvnum, SCRIPT_DATA *script,
-	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
-	AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
-	CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
-	TOKEN_DATA *tok, char *phrase, char *trigger,
-	int number1, int number2, int number3, int number4, int number5)
+    CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+    AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+    CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
+    TOKEN_DATA *tok, char *phrase, char *trigger, int trigger_type,
+    int number1, int number2, int number3, int number4, int number5)
 {
-	char buf[MSL];
-	SCRIPT_CB block;	// Control block
-	int saved_call_depth;	// Call depth copied
-	int saved_security;	// Security copied
-	bool saved_wiznet;
-	long level, i;
+    char buf[MSL];
+    SCRIPT_CB block;	// Control block
+    int saved_call_depth;	// Call depth copied
+    int saved_security;	// Security copied
+    bool saved_wiznet;
+    long level, i;
 
-	DBG2ENTRY7(NUM,pvnum,PTR,script,PTR,mob,PTR,obj,PTR,room,PTR,token,PTR,ch);
+    DBG2ENTRY7(NUM,pvnum,PTR,script,PTR,mob,PTR,obj,PTR,room,PTR,token,PTR,ch);
 
-	script_destructed = false;
+    script_destructed = false;
 
-	if (!script || !script->code) {
-		bug("PROGs: No script to execute for vnum %d.", pvnum);
-		return PRET_NOSCRIPT;
-	}
+    if (!script || !script->code) {
+        script_append_runtime_logf(script, 0, "No script bytecode available for execution.");
+        pbugf(LOG_SCRIPTS, "PROGs: No script to execute for vnum %d.", pvnum);
+        return PRET_NOSCRIPT;
+    }
 
-	if (IS_VALID(mob) && !IS_NPC(mob) )
-	{
-		bug("PROGs: Attempting to run a script with a player actor.", pvnum);
-		return PRET_NOSCRIPT;
-	}
+    if (!script->src || script->src[0] == '\0') {
+        script_append_runtime_logf(script, 0, "No script source available for execution.");
+        pbugf(LOG_SCRIPTS, "PROGs: No script source to execute for vnum %d.", pvnum);
+        return PRET_NOSCRIPT;
+    }
 
-	if ((mob && obj) || (mob && room) || (mob && token) || (mob && area) || (mob && instance) || (mob && dungeon) ||
-		(obj && room) || (obj && token) || (obj && area) || (obj && instance) || (obj && dungeon) ||
-		(room && token) || (room && area) || (room && instance) || (room && dungeon) ||
-		(token && area) || (token && instance) || (token && dungeon) ||
-		(area && instance) || (area && dungeon) ||
-		(instance && dungeon)) {
-		bug("PROGs: program_flow received multiple prog types for vnum.", pvnum);
-		return PRET_BADTYPE;
-	}
+    if (IS_VALID(mob) && !IS_NPC(mob) )
+    {
+        script_append_runtime_logf(script, 0, "Attempted to run script with a player actor.");
+        pbugf(LOG_SCRIPTS, "PROGs: Attempting to run a script with a player actor for vnum %d.", pvnum);
+        return PRET_NOSCRIPT;
+    }
 
-	// Silently return.  Disabled scripts should just pretend they don't exist.
-	if (!script_force_execute && IS_SET(script->flags,SCRIPT_DISABLED))
-		return PRET_NOSCRIPT;
+    if ((mob && obj) || (mob && room) || (mob && token) || (mob && area) || (mob && instance) || (mob && dungeon) ||
+        (obj && room) || (obj && token) || (obj && area) || (obj && instance) || (obj && dungeon) ||
+        (room && token) || (room && area) || (room && instance) || (room && dungeon) ||
+        (token && area) || (token && instance) || (token && dungeon) ||
+        (area && instance) || (area && dungeon) ||
+        (instance && dungeon)) {
+        script_append_runtime_logf(script, 0, "Script dispatch received multiple conflicting entity contexts.");
+        pbugf(LOG_SCRIPTS, "PROGs: program_flow received multiple prog types for vnum %d.", pvnum);
+        return PRET_BADTYPE;
+    }
 
-	// System scripts require system level security, only set at specific times!
-	if(IS_SET(script->flags, SCRIPT_SYSTEM) && script_security < SYSTEM_SCRIPT_SECURITY)
-		return PRET_NOSCRIPT;
+    // Silently return.  Disabled scripts should just pretend they don't exist.
+    if (!script_force_execute && IS_SET(script->flags,SCRIPT_DISABLED))
+        return PRET_NOSCRIPT;
+
+    // System scripts require system level security, only set at specific times!
+    if(IS_SET(script->flags, SCRIPT_SYSTEM) && script_security < SYSTEM_SCRIPT_SECURITY)
+        return PRET_NOSCRIPT;
 
 
-	memset(&block,0,sizeof(block));
-	block.info.block = &block;
-	for(i = 0; i < MAX_NESTED_LOOPS; i++) {
-		block.loops[i].valid = false;
-		block.loops[i].level = -1;
-	}
+    memset(&block,0,sizeof(block));
+    block.info.block = &block;
+    for(i = 0; i < MAX_NESTED_LOOPS; i++) {
+        block.loops[i].valid = false;
+        block.loops[i].level = -1;
+    }
 
-	saved_wiznet = wiznet_script;
-	wiznet_script = (bool)(int)IS_SET(script->flags,SCRIPT_WIZNET);
+    saved_wiznet = wiznet_script;
+    wiznet_script = (bool)(int)IS_SET(script->flags,SCRIPT_WIZNET);
 
-	if (mob) {
-		mob->progs->lastreturn = PRET_EXECUTED;
-		block.type = IFC_M;
-		block.info.progs = mob->progs;
-		block.info.location = mob->in_room;
-		block.info.var = &mob->progs->vars;
-		block.info.targ = &mob->progs->target;
+    if (mob) {
+        mob->progs->lastreturn = PRET_EXECUTED;
+        block.type = IFC_M;
+        block.info.progs = mob->progs;
+        block.info.location = mob->in_room;
+        block.info.var = &mob->progs->vars;
+        block.info.targ = &mob->progs->target;
 
-	} else if (obj) {
-		obj->progs->lastreturn = PRET_EXECUTED;
-		block.type = IFC_O;
-		block.info.progs = obj->progs;
-		block.info.location = obj_room(obj);
-		block.info.var = &obj->progs->vars;
-		block.info.targ = &obj->progs->target;
+    } else if (obj) {
+        obj->progs->lastreturn = PRET_EXECUTED;
+        block.type = IFC_O;
+        block.info.progs = obj->progs;
+        block.info.location = obj_room(obj);
+        block.info.var = &obj->progs->vars;
+        block.info.targ = &obj->progs->target;
 
-	} else if (room) {
-		room->progs->lastreturn = PRET_EXECUTED;
-		block.type = IFC_R;
-		block.info.progs = room->progs;
-		block.info.location = room;
-		block.info.var = &room->progs->vars;
-		block.info.targ = &room->progs->target;
+    } else if (room) {
+        room->progs->lastreturn = PRET_EXECUTED;
+        block.type = IFC_R;
+        block.info.progs = room->progs;
+        block.info.location = room;
+        block.info.var = &room->progs->vars;
+        block.info.targ = &room->progs->target;
 
-	} else if (token) {
-		token->progs->lastreturn = PRET_EXECUTED;
-		block.type = IFC_T;
-		block.info.progs = token->progs;
-		block.info.location = token_room(token);
-		block.info.var = &token->progs->vars;
-		block.info.targ = &token->progs->target;
+    } else if (token) {
+        token->progs->lastreturn = PRET_EXECUTED;
+        block.type = IFC_T;
+        block.info.progs = token->progs;
+        block.info.location = token_room(token);
+        block.info.var = &token->progs->vars;
+        block.info.targ = &token->progs->target;
 
-	} else if (area) {
-		area->progs->lastreturn = PRET_EXECUTED;
-		block.type = IFC_A;
-		block.info.progs = area->progs;
-		block.info.location = NULL;
-		block.info.var = &area->progs->vars;
-		block.info.targ = &area->progs->target;
+    } else if (area) {
+        area->progs->lastreturn = PRET_EXECUTED;
+        if (script && script->type == PRG_QPROG)
+            block.type = IFC_Q;
+        else if (script && script->type == PRG_EPROG)
+            block.type = IFC_E;
+        else
+            block.type = IFC_A;
+        block.info.progs = area->progs;
+        block.info.location = NULL;
+        block.info.var = &area->progs->vars;
+        block.info.targ = &area->progs->target;
 
-	} else if (instance) {
-		instance->progs->lastreturn = PRET_EXECUTED;
-		block.type = IFC_I;
-		block.info.progs = instance->progs;
-		block.info.location = NULL;
-		block.info.var = &instance->progs->vars;
-		block.info.targ = &instance->progs->target;
+    } else if (instance) {
+        instance->progs->lastreturn = PRET_EXECUTED;
+        block.type = IFC_I;
+        block.info.progs = instance->progs;
+        block.info.location = NULL;
+        block.info.var = &instance->progs->vars;
+        block.info.targ = &instance->progs->target;
 
-	} else if (dungeon) {
-		dungeon->progs->lastreturn = PRET_EXECUTED;
-		block.type = IFC_D;
-		block.info.progs = dungeon->progs;
-		block.info.location = NULL;
-		block.info.var = &dungeon->progs->vars;
-		block.info.targ = &dungeon->progs->target;
+    } else if (dungeon) {
+        dungeon->progs->lastreturn = PRET_EXECUTED;
+        block.type = IFC_D;
+        block.info.progs = dungeon->progs;
+        block.info.location = NULL;
+        block.info.var = &dungeon->progs->vars;
+        block.info.targ = &dungeon->progs->target;
 
-	} else {
-		// Log error
-		return PRET_BADTYPE;
-	}
+    } else {
+        // Log error
+        return PRET_BADTYPE;
+    }
 
-	if(phrase) strncpy(block.info.phrase,phrase,MSL);
-	if(trigger) strncpy(block.info.trigger,trigger,MSL);
+    if(phrase) strlcpy(block.info.phrase, phrase, sizeof(block.info.phrase));
+    if(trigger) strlcpy(block.info.trigger, trigger, sizeof(block.info.trigger));
 
-	if(wiznet_script) {
-		sprintf(buf,"{BScript{C({W%d{C){D: {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){x",
-			script ? script->vnum : -1,
-			mob ? HANDLE(mob) : "(mob)",
-			mob ? (int)VNUM(mob) : -1,
-			obj ? obj->short_descr : "(obj)",
-			obj ? (int)VNUM(obj) : -1,
-			room ? room->name : "(room)",
-			room ? (int)room->vnum : -1,
-			token ? token->name : "(token)",
-			token ? (int)VNUM(token) : -1,
-			ch ? HANDLE(ch) : "(ch)",
-			ch ? (int)VNUM(ch) : -1);
-		wiznet(buf, NULL, NULL,WIZ_SCRIPTS,0,0);
-		script_dump_wiznet(script);
-	}
+    if(wiznet_script) {
+        sprintf(buf,"{BScript{C({W%d{C){D: {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){D, {B%s{C({W%d{C){x",
+            script ? script->vnum : -1,
+            mob ? HANDLE(mob) : "(mob)",
+            mob ? (int)VNUM(mob) : -1,
+            obj ? obj->short_descr : "(obj)",
+            obj ? (int)VNUM(obj) : -1,
+            room ? room->name : "(room)",
+            room ? (int)room->vnum : -1,
+            token ? token->name : "(token)",
+            token ? (int)VNUM(token) : -1,
+            ch ? HANDLE(ch) : "(ch)",
+            ch ? (int)VNUM(ch) : -1);
+        wiznet(buf, NULL, NULL,WIZ_SCRIPTS,0,0);
+        script_dump_wiznet(script);
+    }
 
-	// Save script parameters
-	block.info.mob = mob;
-	block.info.obj = obj;
-	block.info.room = room;
-	block.info.token = token;
-	block.info.area = area;
-	block.info.instance = instance;
-	block.info.dungeon = dungeon;
-	block.info.ch = ch;
-	block.info.obj1 = obj1;
-	block.info.obj2 = obj2;
-	block.info.vch = vch;
-	block.info.vch2 = vch2;
-	block.info.rch = rch;
-	block.info.tok = tok;
-	block.info.registers[0] = number1;
-	block.info.registers[1] = number2;
-	block.info.registers[2] = number3;
-	block.info.registers[3] = number4;
-	block.info.registers[4] = number5;
-	block.script = script;
+    // Save script parameters
+    block.info.mob = mob;
+    block.info.obj = obj;
+    block.info.room = room;
+    block.info.token = token;
+    block.info.area = area;
+    block.info.instance = instance;
+    block.info.dungeon = dungeon;
+    block.info.quest = script_exec_context.quest;
+    block.info.ch = ch;
+    block.info.obj1 = obj1;
+    block.info.obj2 = obj2;
+    block.info.vch = vch;
+    block.info.vch2 = vch2;
+    block.info.rch = rch;
+    block.info.tok = tok;
+    block.info.registers[0] = number1;
+    block.info.registers[1] = number2;
+    block.info.registers[2] = number3;
+    block.info.registers[3] = number4;
+    block.info.registers[4] = number5;
+    block.script = script;
 
-	saved_security = script_security;
+    saved_security = script_security;
 
-	// Non-system scripts modify the security
-	if(!IS_SET(script->flags, SCRIPT_SYSTEM)) {
-		if(script_security == INIT_SCRIPT_SECURITY ||
-			(IS_SET(script->flags,SCRIPT_SECURED) && (script->security >= script_security)) ||
-			script->security < script_security)
-			script_security = script->security;
-	}
+    // Non-system scripts modify the security
+    if(!IS_SET(script->flags, SCRIPT_SYSTEM)) {
+        if(script_security == INIT_SCRIPT_SECURITY ||
+            (IS_SET(script->flags,SCRIPT_SECURED) && (script->security >= script_security)) ||
+            script->security < script_security)
+            script_security = script->security;
+    }
 
-	// Call depth code
-	saved_call_depth = script_call_depth;
-	if(!script_call_depth) {
-		if(!script->depth)
-			script_call_depth = MAX_CALL_LEVEL;
-		else
-			script_call_depth = script->depth;
-	}
+    // Call depth code
+    saved_call_depth = script_call_depth;
+    if(!script_call_depth) {
+        if(!script->depth)
+            script_call_depth = MAX_CALL_LEVEL;
+        else
+            script_call_depth = script->depth;
+    }
 
-	// Init stack
-	for (level = 0; level < MAX_NESTED_LEVEL; level++) {
-		block.state[level] = IN_BLOCK;
-		block.cond[level]  = true;
-	}
-	block.level = 0;
-	block.line = 0;
-	block.loop = 0;
-	block.ret_val = PRET_EXECUTED;
-	block.cur_line = &block.script->code[block.line];
-	block.next = script_call_stack;
-	script_call_stack = &block;
+    // Init stack
+    for (level = 0; level < MAX_NESTED_LEVEL; level++) {
+        block.state[level] = IN_BLOCK;
+        block.cond[level]  = true;
+    }
+    block.level = 0;
+    block.line = 0;
+    block.loop = 0;
+    block.ret_val = PRET_EXECUTED;
+    block.cur_line = &block.script->code[block.line];
+    block.next = script_call_stack;
+    script_call_stack = &block;
 
-	DBG3MSG0("Starting script...\n");
-	if(wiznet_script) wiznet("Starting script...",NULL,NULL,WIZ_SCRIPTS,0,0);
+    DBG3MSG0("Starting script...\n");
+    if(wiznet_script) wiznet("Starting script...",NULL,NULL,WIZ_SCRIPTS,0,0);
 
-	// Run script
-	// Until the number of lines of the script has been reached or
-	//	An opcode function tells it to quit.
-	while(block.line < block.script->lines &&
-		block.cur_line->opcode < OP_LASTCODE &&
-		echo_line(&block) &&
-		(*opcode_table[block.cur_line->opcode])(&block) &&
-		!IS_SET(block.flags,SCRIPTEXEC_HALT)) {
+    // Run script
+    // Until the number of lines of the script has been reached or
+    //	An opcode function tells it to quit.
+    while(block.line < block.script->lines &&
+        block.cur_line->opcode < OP_LASTCODE &&
+        echo_line(&block) &&
+        (*opcode_table[block.cur_line->opcode])(&block) &&
+        !IS_SET(block.flags,SCRIPTEXEC_HALT)) {
 
-		if(block.line < block.script->lines)
-			block.cur_line = &block.script->code[block.line];
-	}
+        if(block.line < block.script->lines)
+            block.cur_line = &block.script->code[block.line];
+    }
 
-	if(IS_SET(block.flags,SCRIPTEXEC_HALT)) script_destructed = true;
+    if(IS_SET(block.flags,SCRIPTEXEC_HALT)) script_destructed = true;
 
-	DBG3MSG0("Completed script...\n");
-	if(wiznet_script) wiznet((script_destructed?"Script halted due to entity destruction...":"Completed script..."),NULL,NULL,WIZ_SCRIPTS,0,0);
+    DBG3MSG0("Completed script...\n");
+    if(wiznet_script) wiznet((script_destructed?"Script halted due to entity destruction...":"Completed script..."),NULL,NULL,WIZ_SCRIPTS,0,0);
 
-	wiznet_script = saved_wiznet;
+    wiznet_script = saved_wiznet;
 
-	DBG2EXITVALUE1(NUM,block.ret_val);
-	script_security = saved_security;
-	script_call_depth = saved_call_depth; // Restore call depth
-	script_call_stack = script_call_stack->next; // Back up call stack
+    DBG2EXITVALUE1(NUM,block.ret_val);
+    script_security = saved_security;
+    script_call_depth = saved_call_depth; // Restore call depth
+    script_call_stack = script_call_stack->next; // Back up call stack
 
-	script_loop_cleanup(&block, 0);
+    script_loop_cleanup(&block, 0);
 
-	return block.ret_val;
+    return block.ret_val;
+}
+
+const SCRIPT_EXECUTE_CONTEXT *script_get_execute_context(void)
+{
+    return &script_exec_context;
+}
+
+SCRIPT_EXECUTE_CONTEXT script_set_execute_context(const SCRIPT_EXECUTE_CONTEXT *context)
+{
+    SCRIPT_EXECUTE_CONTEXT saved_context = script_exec_context;
+
+    if (context)
+        script_exec_context = *context;
+    else {
+        script_exec_context.quest = NULL;
+        script_exec_context.event = NULL;
+    }
+
+    return saved_context;
+}
+
+QUEST_DATA *script_set_execute_quest_context(QUEST_DATA *quest)
+{
+    SCRIPT_EXECUTE_CONTEXT context = script_exec_context;
+    QUEST_DATA *saved_quest = context.quest;
+
+    context.quest = quest;
+    script_set_execute_context(&context);
+
+    return saved_quest;
+}
+
+int execute_script_quest(long pvnum, SCRIPT_DATA *script, QUEST_DATA *quest,
+    CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+    AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+    CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
+    TOKEN_DATA *tok, char *phrase, char *trigger, int trigger_type,
+    int number1, int number2, int number3, int number4, int number5)
+{
+    SCRIPT_EXECUTE_CONTEXT context;
+    SCRIPT_EXECUTE_CONTEXT saved_context;
+    int ret;
+
+    context = script_exec_context;
+    context.quest = quest;
+    saved_context = script_set_execute_context(&context);
+
+    ret = execute_script(pvnum, script,
+        mob, obj, room, token,
+        area, instance, dungeon,
+        ch, obj1, obj2, vch, vch2, rch,
+        tok, phrase, trigger, trigger_type,
+        number1, number2, number3, number4, number5);
+    script_set_execute_context(&saved_context);
+
+    return ret;
+}
+
+static ROOM_INDEX_DATA *script_room_from_obj_or_token(OBJ_DATA *obj, TOKEN_DATA *token)
+{
+    if (obj)
+        return obj_room(obj);
+    if (token)
+        return token_room(token);
+    return NULL;
+}
+
+static ROOM_INDEX_DATA *script_room_from_context(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token)
+{
+    if (mob)
+        return mob->in_room;
+    if (obj || token)
+        return script_room_from_obj_or_token(obj, token);
+    return room;
+}
+
+static ROOM_INDEX_DATA *script_room_from_info_context(SCRIPT_VARINFO *info)
+{
+    if (!info)
+        return NULL;
+    return script_room_from_context(info->mob, info->obj, info->room, info->token);
+}
+
+bool script_get_quest_metrics(const CHAR_DATA *mob, int *points, int *total_completed, bool *active)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+
+    if (points)
+        *points = valid_player ? mob->questpoints : 0;
+
+    if (total_completed)
+        *total_completed = valid_player ? mob->pcdata->quests_completed : 0;
+
+    if (active)
+        *active = valid_player ? ON_QUEST(mob) : false;
+
+    return valid_player;
+}
+
+bool script_get_mission_metrics(const CHAR_DATA *mob, int *points, int *total_completed, bool *active)
+{
+    return script_get_quest_metrics(mob, points, total_completed, active);
+}
+
+bool script_adjust_quest_points(CHAR_DATA *mob, int delta, int *applied_delta)
+{
+    int before;
+    int after;
+
+    if (applied_delta)
+        *applied_delta = 0;
+
+    if (!mob || IS_NPC(mob) || !mob->pcdata)
+        return false;
+
+    before = mob->questpoints;
+    after = before + delta;
+
+    if (after < 0)
+        after = 0;
+
+    mob->questpoints = after;
+
+    if (applied_delta)
+        *applied_delta = (after - before);
+
+    return true;
+}
+
+bool script_get_class_metrics(const CHAR_DATA *mob, CLASS_DATA **current_class, CLASS_LEVEL **current_level, int *class_count)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    CLASS_LEVEL *level = NULL;
+
+    if (valid_player) {
+        level = get_class_level(ch, NULL);
+    }
+
+    if (current_class)
+        *current_class = valid_player ? get_current_class(ch) : NULL;
+
+    if (current_level)
+        *current_level = valid_player ? level : NULL;
+
+    if (class_count)
+        *class_count = valid_player ? list_size(ch->pcdata->classes) : 0;
+
+    return valid_player;
+}
+
+bool script_get_class_by_name_metrics(const CHAR_DATA *mob, const char *class_name, bool *is_current, int *level, bool *has_class)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    CLASS_DATA *clazz = NULL;
+    CLASS_LEVEL *class_level = NULL;
+
+    if (is_current)
+        *is_current = false;
+    if (level)
+        *level = 0;
+    if (has_class)
+        *has_class = false;
+
+    if (!valid_player || IS_NULLSTR(class_name))
+        return false;
+
+    clazz = class_find(class_name);
+    if (!clazz)
+        return false;
+
+    class_level = get_class_level(ch, clazz);
+
+    if (has_class)
+        *has_class = (class_level != NULL);
+
+    if (level)
+        *level = class_level ? class_level->level : 0;
+
+    if (is_current)
+        *is_current = (get_current_class(ch) == clazz);
+
+    return true;
+}
+
+bool script_get_skill_rating_by_sn(const CHAR_DATA *mob, int sn, int *rating)
+{
+    bool valid_player = (mob && !IS_NPC(mob) && mob->pcdata);
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+
+    if (rating)
+        *rating = 0;
+
+    if (!valid_player || sn <= 0)
+        return false;
+
+    if (rating)
+        *rating = get_skill(ch, sn);
+
+    return true;
+}
+
+bool script_get_skill_metrics(const CHAR_DATA *mob, const char *skill_name, int *rating, bool *known)
+{
+    bool available_now = false;
+    bool has_any = false;
+    SKILL_DATA *skill;
+    int sn;
+
+    if (rating)
+        *rating = 0;
+    if (known)
+        *known = false;
+
+    if (!mob || IS_NULLSTR(skill_name))
+        return false;
+
+    if (!script_get_skill_availability(mob, skill_name, &available_now, &has_any))
+        return false;
+
+    skill = skill_search(skill_name);
+    if (!skill)
+        return false;
+
+    sn = skill_sn(skill);
+    if (sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    if (rating)
+        *rating = available_now ? get_skill((CHAR_DATA *)mob, sn) : 0;
+
+    if (known)
+        *known = has_any;
+
+    return true;
+}
+
+bool script_get_song_known(const CHAR_DATA *mob, const char *song_name, bool *known)
+{
+    bool has_any = false;
+
+    if (known)
+        *known = false;
+
+    if (!mob || IS_NULLSTR(song_name))
+        return false;
+
+    if (!script_get_song_availability(mob, song_name, NULL, &has_any))
+        return false;
+
+    if (known)
+        *known = has_any;
+
+    return true;
+}
+
+bool script_get_skill_availability(const CHAR_DATA *mob, const char *skill_name, bool *available_now, bool *has_any)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    SKILL_DATA *skill;
+    SKILL_ENTRY *entry;
+    int sn;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+
+    if (!ch || IS_NULLSTR(skill_name))
+        return false;
+
+    skill = skill_search(skill_name);
+    if (!skill)
+        return false;
+
+    sn = skill_sn(skill);
+    if (sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    if (available_now)
+        *available_now = (get_skill(ch, sn) > 0);
+
+    if (has_any) {
+        if (IS_NPC(ch) || IS_IMMORTAL(ch)) {
+            *has_any = (get_skill(ch, sn) > 0);
+        } else {
+            entry = skill_entry_findsn(ch->sorted_skills, sn);
+            *has_any = (entry != NULL) || had_skill(ch, sn) || any_class_grants_skill(ch, sn);
+        }
+    }
+
+    return true;
+}
+
+bool script_get_spell_availability(const CHAR_DATA *mob, const char *spell_name, bool *available_now, bool *has_any)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    SKILL_DATA *skill;
+    SKILL_ENTRY *entry;
+    int sn;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+
+    if (!ch || IS_NULLSTR(spell_name))
+        return false;
+
+    skill = skill_search(spell_name);
+    if (!skill)
+        return false;
+
+    sn = skill_sn(skill);
+    if (sn < 0 || sn >= MAX_SKILL)
+        return false;
+
+    if (!skill_table[sn].spell_fun || skill_table[sn].spell_fun == spell_null)
+        return false;
+
+    if (available_now)
+        *available_now = (get_skill(ch, sn) > 0);
+
+    if (has_any) {
+        if (IS_NPC(ch) || IS_IMMORTAL(ch)) {
+            *has_any = (get_skill(ch, sn) > 0);
+        } else {
+            entry = skill_entry_findsn(ch->sorted_skills, sn);
+            *has_any = (entry != NULL) || had_skill(ch, sn) || any_class_grants_skill(ch, sn);
+        }
+    }
+
+    return true;
+}
+
+bool script_get_song_availability(const CHAR_DATA *mob, const char *song_name, bool *available_now, bool *has_any)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    SONG_DATA *song;
+    SKILL_ENTRY *entry;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+
+    if (!ch || IS_NULLSTR(song_name))
+        return false;
+
+    song = song_lookup(song_name);
+    if (!song)
+        return false;
+
+    entry = skill_entry_findsong(ch->sorted_songs, song);
+
+    if (has_any)
+        *has_any = (entry != NULL);
+
+    if (available_now)
+        *available_now = (entry != NULL) && skill_entry_is_usable_now(ch, entry);
+
+    return true;
+}
+
+bool script_get_trait_metrics(const CHAR_DATA *mob, const char *trait_name, bool *available_now, bool *has_any, bool *bool_value, int *int_value, const char **string_value)
+{
+    CHAR_DATA *ch = (CHAR_DATA *)mob;
+    TRAIT_DEF *def;
+    ITERATOR it;
+    CLASS_LEVEL *cl;
+
+    if (available_now)
+        *available_now = false;
+    if (has_any)
+        *has_any = false;
+    if (bool_value)
+        *bool_value = false;
+    if (int_value)
+        *int_value = 0;
+    if (string_value)
+        *string_value = NULL;
+
+    if (!ch || IS_NULLSTR(trait_name))
+        return false;
+
+    def = trait_def_lookup_name(trait_name);
+    if (!def)
+        return false;
+
+    if (available_now)
+        *available_now = ch_has_trait(ch, def->id);
+
+    if (bool_value)
+        *bool_value = ch_get_trait_bool(ch, def->id);
+
+    if (int_value)
+        *int_value = ch_get_trait_int(ch, def->id);
+
+    if (string_value)
+        *string_value = ch_get_trait_string(ch, def->id);
+
+    if (has_any) {
+        if (ch->race && ch->race->trait_values && ch->race->trait_values[def->index].set)
+            *has_any = true;
+
+        if (!*has_any && ch->orace && ch->orace->trait_values && ch->orace->trait_values[def->index].set)
+            *has_any = true;
+
+        if (!*has_any && ch->pcdata && ch->pcdata->trait_values && ch->pcdata->trait_values[def->index].set)
+            *has_any = true;
+
+        if (!*has_any && ch->pcdata && ch->pcdata->classes) {
+            iterator_start(&it, ch->pcdata->classes);
+            while ((cl = (CLASS_LEVEL *)iterator_nextdata(&it))) {
+                if (cl->clazz && cl->clazz->trait_values && cl->clazz->trait_values[def->index].set) {
+                    *has_any = true;
+                    break;
+                }
+            }
+            iterator_stop(&it);
+        }
+    }
+
+    return true;
 }
 
 /*
@@ -3244,33 +5195,29 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
 CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token)
 {
     CHAR_DATA *vch, *victim = NULL;
+    ROOM_INDEX_DATA *context_room = NULL;
     int now = 0, highest = 0;
 
     if ((mob && obj) || (mob && room) || (obj && room)) {
-	bug("get_random_char received multiple prog types",0);
-	return NULL;
+    pbugf(LOG_SCRIPTS, "get_random_char received multiple prog types");
+    return NULL;
     }
 
-    if (mob)
-	vch = mob->in_room->people;
-    else if (obj)
-	vch = obj_room(obj)->people;
-    else if (token)
-	vch = token_room(token)->people;
-    else if (!room) {
-	    bug("get_random_char: no room, object, or mob!", 0);
-	    return NULL;
-    } else
-	vch = room->people;
+    context_room = script_room_from_context(mob, obj, room, token);
+    if (!context_room) {
+        pbugf(LOG_SCRIPTS, "get_random_char: no room, object, or mob!");
+        return NULL;
+    }
+    vch = context_room->people;
 
     for (; vch; vch = vch->next_in_room) {
         if (mob && mob != vch && !IS_NPC(vch) && can_see(mob, vch) && (now = number_percent()) > highest) {
             victim = vch;
             highest = now;
         } else if ((now = number_percent()) > highest) {
-	    victim = vch;
-	    highest = now;
-	}
+        victim = vch;
+        highest = now;
+    }
     }
 
     return victim;
@@ -3284,44 +5231,39 @@ CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
 int count_people_room(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, int iFlag)
 {
     CHAR_DATA *vch;
+    ROOM_INDEX_DATA *context_room = NULL;
     int count;
 
     if ((mob && obj) || (mob && room) || (obj && room)) {
-	bug("count_people_room received multiple prog types",0);
-	return 0;
+    pbugf(LOG_SCRIPTS, "count_people_room received multiple prog types");
+    return 0;
     }
 
-    if (mob && mob->in_room)
-	vch = mob->in_room->people;
-    else if (obj)
-	vch = obj_room(obj)->people;
-    else if (token)
-	vch = token_room(token)->people;
-    else if (room)
-        vch = room->people;
-    else {
-	bug("count_people_room had null room obj and mob.",0);
-	return 0;
+    context_room = script_room_from_context(mob, obj, room, token);
+    if (!context_room) {
+    pbugf(LOG_SCRIPTS, "count_people_room had null room obj and mob.");
+    return 0;
     }
+    vch = context_room->people;
 
     for (count = 0; vch; vch = vch->next_in_room) {
-	if (mob) {
-	    if (mob != vch
-	    && (iFlag == 0
-	    || (iFlag == 1 && !IS_NPC(vch))
-	    || (iFlag == 2 && IS_NPC(vch))
-	    || (iFlag == 3 && IS_NPC(mob) && IS_NPC(vch)
-	    && mob->pIndexData->vnum == vch->pIndexData->vnum)
-	    || (iFlag == 4 && is_same_group(mob, vch)))
-	    && can_see(mob, vch))
-	  	++count;
+    if (mob) {
+        if (mob != vch
+        && (iFlag == 0
+        || (iFlag == 1 && !IS_NPC(vch))
+        || (iFlag == 2 && IS_NPC(vch))
+        || (iFlag == 3 && IS_NPC(mob) && IS_NPC(vch)
+        && mob->pIndexData->vnum == vch->pIndexData->vnum)
+        || (iFlag == 4 && is_same_group(mob, vch)))
+        && can_see(mob, vch))
+          ++count;
 
-	} else if (obj || room) {
-	    if (iFlag == 0
-	    || (iFlag == 1 && !IS_NPC(vch))
-	    || (iFlag == 2 && IS_NPC(vch)))
-		++count;
-	}
+    } else if (obj || room) {
+        if (iFlag == 0
+        || (iFlag == 1 && !IS_NPC(vch))
+        || (iFlag == 2 && IS_NPC(vch)))
+        ++count;
+    }
     }
 
     return (count);
@@ -3339,175 +5281,173 @@ int get_order(CHAR_DATA *ch, OBJ_DATA *obj)
 {
     CHAR_DATA *vch;
     OBJ_DATA *vobj;
+    ROOM_INDEX_DATA *context_room;
     int i;
 
     if (ch && obj) {
-	bug("get_order received multiple prog types",0);
-	return 0;
+    pbugf(LOG_SCRIPTS, "get_order received multiple prog types");
+    return 0;
     }
 
     if (ch) {
-	if(!IS_NPC(ch)) return 0;
-	vch = ch->in_room->people;
+    if(!IS_NPC(ch)) return 0;
+    if(!ch->in_room) return 0;
+    vch = ch->in_room->people;
 
-	for (i = 0; vch; vch = vch->next_in_room) {
-	    if (vch == ch) return i;
+    for (i = 0; vch; vch = vch->next_in_room) {
+        if (vch == ch) return i;
 
-	    if (IS_NPC(vch) && vch->pIndexData->vnum == ch->pIndexData->vnum)
-		++i;
-	}
+        if (IS_NPC(vch) && vch->pIndexData->vnum == ch->pIndexData->vnum)
+        ++i;
+    }
 
     } else {
-	if (obj->in_room)
-	    vobj = obj->in_room->contents;
-	else if (obj->carried_by->in_room->contents)
-	    vobj = obj->carried_by->in_room->contents;
-	else
-	    vobj = NULL;
+    context_room = script_room_from_obj_or_token(obj, NULL);
+    if (context_room)
+        vobj = context_room->contents;
+    else
+        vobj = NULL;
 
-	for (i = 0; vobj; vobj = vobj->next_content) {
-	    if (vobj == obj) return i;
+    for (i = 0; vobj; vobj = vobj->next_content) {
+        if (vobj == obj) return i;
 
-	    if (vobj->pIndexData->vnum == obj->pIndexData->vnum)
-		++i;
-	}
+        if (vobj->pIndexData->vnum == obj->pIndexData->vnum)
+        ++i;
+    }
     }
 
     return 0;
 }
 
-CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, int vnum, char *name)
+CHAR_DATA *script_get_char_blist(SCRIPT_VARINFO *info, LLIST *blist, CHAR_DATA *viewer, bool player, WNUM wnum, char *name)
 {
-	int nth = 1, i = 0;
-	char buf[MSL];
-	CHAR_DATA *ch;
-	ITERATOR it;
-	LLIST_UID_DATA *luid;
+    int nth = 1, i = 0;
+    char buf[MSL];
+    CHAR_DATA *ch;
+    ITERATOR it;
+    LLIST_UID_DATA *luid;
 
-	if(!IS_VALID(blist)) return NULL;
+    if(!IS_VALID(blist)) return NULL;
 
-	if( player && vnum > 0 ) return NULL;
+    if( player && wnum.pArea && wnum.vnum > 0 ) return NULL;
 
-	if(name) {
-		nth = number_argument(name,buf);
+    if(name) {
+        nth = number_argument(name,buf);
 
-		if(!player && is_number(buf)) {
-			vnum = atol(buf);
-			name = NULL;
-		} else {
-			vnum = 0;
-			name = buf;
-		}
-	}
+        if(!player && parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
+            name = NULL;
+        } else {
+            wnum = wnum_zero;
+            name = buf;
+        }
+    }
 
-	iterator_start(&it, blist);
-	while((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
-	{
-		if( !luid->ptr ) continue;
+    iterator_start(&it, blist);
+    while((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+    {
+        if( !luid->ptr ) continue;
 
-		ch = (CHAR_DATA *)luid->ptr;
+        ch = (CHAR_DATA *)luid->ptr;
 
-		if( player && IS_NPC(ch) ) continue;
-		if( name && !is_name(name,ch->name) ) continue;
-		if( (vnum > 0) && ch->pIndexData->vnum != vnum ) continue;
-		if( viewer && !can_see(viewer,ch) ) continue;
+        if( player && IS_NPC(ch) ) continue;
+        if( name && !is_name(name,ch->name) ) continue;
+        if( (wnum.pArea && wnum.vnum > 0) && !wnum_match_mob(wnum, ch) ) continue;
+        if( viewer && !can_see(viewer,ch) ) continue;
 
-		if( ++i == nth )
-			break;
-	}
-	iterator_stop(&it);
+        if( ++i == nth )
+            break;
+    }
+    iterator_stop(&it);
 
-	if(luid && luid->ptr)
-		return (CHAR_DATA *)luid->ptr;
-	return NULL;
+    if(luid && luid->ptr)
+        return (CHAR_DATA *)luid->ptr;
+    return NULL;
 }
 
-CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name)
+CHAR_DATA *script_get_char_list(SCRIPT_VARINFO *info, CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, WNUM wnum, char *name)
 {
-	int nth = 1, i = 0;
-	char buf[MSL];
-	CHAR_DATA *ch;
-	if(!mobs) return NULL;
+    int nth = 1, i = 0;
+    char buf[MSL];
+    CHAR_DATA *ch;
+    if(!mobs) return NULL;
 
-	if( player && vnum > 0 ) return NULL;
+    if( player && wnum.pArea && wnum.vnum > 0 ) return NULL;
 
-	if(name) {
-		nth = number_argument(name,buf);
+    if(name) {
+        nth = number_argument(name,buf);
 
-		if(!player && is_number(buf)) {
-			vnum = atol(buf);
-			name = NULL;
-		} else {
-			vnum = 0;
-			name = buf;
-		}
-	}
+        if(!player && parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
+            name = NULL;
+        } else {
+            wnum = wnum_zero;
+            name = buf;
+        }
+    }
 
-	if(player) {
-		for(ch = mobs; ch; ch = ch->next_in_room)
-			if(!IS_NPC(ch) && is_name(name,ch->name) && (!viewer || can_see(viewer,ch)))
-				if( ++i == nth ) return ch;
+    if(player) {
+        for(ch = mobs; ch; ch = ch->next_in_room)
+            if(!IS_NPC(ch) && is_name(name,ch->name) && (!viewer || can_see(viewer,ch)))
+                if( ++i == nth ) return ch;
 
-	} else if(vnum > 0) {
-		for(ch = mobs; ch; ch = ch->next_in_room)
-			if(IS_NPC(ch) && ch->pIndexData->vnum == vnum && (!viewer || can_see(viewer,ch)))
-				if( ++i == nth ) return ch;
+    } else if(wnum.pArea && wnum.vnum > 0) {
+        for(ch = mobs; ch; ch = ch->next_in_room)
+            if(IS_NPC(ch) && wnum_match_mob(wnum, ch) && (!viewer || can_see(viewer,ch)))
+                if( ++i == nth ) return ch;
 
-	} else if(name) {
-		for(ch = mobs; ch; ch = ch->next_in_room)
-			if(is_name(name,ch->name) && (!viewer || can_see(viewer,ch)))
-				if( ++i == nth ) return ch;
+    } else if(name) {
+        for(ch = mobs; ch; ch = ch->next_in_room)
+            if(is_name(name,ch->name) && (!viewer || can_see(viewer,ch)))
+                if( ++i == nth ) return ch;
 
-	}
-	return NULL;
-}
-
-
-OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *name)
-{
-	int nth = 1, i = 0;
-	char buf[MSL];
-	OBJ_DATA *obj;
-	ITERATOR it;
-	LLIST_UID_DATA *luid;
-
-	if(!IS_VALID(blist)) return NULL;
-
-	if(name) {
-		nth = number_argument(name,buf);
-
-		if(is_number(buf)) {
-			vnum = atol(buf);
-			name = NULL;
-		} else {
-			vnum = 0;
-			name = buf;
-		}
-	}
-
-	iterator_start(&it, blist);
-	while((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
-	{
-		if( !luid->ptr ) continue;
-
-		obj = (OBJ_DATA *)luid->ptr;
-
-		if( name && !is_name(name,obj->name) ) continue;
-		if( (vnum > 0) && obj->pIndexData->vnum != vnum ) continue;
-		if( viewer && !can_see_obj(viewer,obj) ) continue;
-
-		if( ++i == nth )
-			break;
-	}
-	iterator_stop(&it);
-
-	if(luid && luid->ptr)
-		return (OBJ_DATA *)luid->ptr;
-	return NULL;
+    }
+    return NULL;
 }
 
 
-OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum, char *name)
+OBJ_DATA *script_get_obj_blist(SCRIPT_VARINFO *info, LLIST *blist, CHAR_DATA *viewer, WNUM wnum, char *name)
+{
+    int nth = 1, i = 0;
+    char buf[MSL];
+    OBJ_DATA *obj;
+    ITERATOR it;
+    LLIST_UID_DATA *luid;
+
+    if(!IS_VALID(blist)) return NULL;
+
+    if(name) {
+        nth = number_argument(name,buf);
+
+        if(parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
+            name = NULL;
+        } else {
+            wnum = wnum_zero;
+            name = buf;
+        }
+    }
+
+    iterator_start(&it, blist);
+    while((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+    {
+        if( !luid->ptr ) continue;
+
+        obj = (OBJ_DATA *)luid->ptr;
+
+        if( name && !is_name(name,obj->name) ) continue;
+        if( (wnum.pArea && wnum.vnum > 0) && !wnum_match_obj(wnum, obj) ) continue;
+        if( viewer && !can_see_obj(viewer,obj) ) continue;
+
+        if( ++i == nth )
+            break;
+    }
+    iterator_stop(&it);
+
+    if(luid && luid->ptr)
+        return (OBJ_DATA *)luid->ptr;
+    return NULL;
+}
+
+
+OBJ_DATA *script_get_obj_list(SCRIPT_VARINFO *info, void *objs, CHAR_DATA *viewer, int worn, WNUM wnum, char *name)
 {
     int nth = 1, i = 0;
     char buf[MSL];
@@ -3519,11 +5459,10 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
     if(name) {
         nth = number_argument(name,buf);
 
-        if(is_number(buf)) {
-            vnum = atol(buf);
+        if(parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
             name = NULL;
         } else {
-            vnum = 0;
+            wnum = wnum_zero;
             name = buf;
         }
     }
@@ -3535,9 +5474,9 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
         iterator_start(&it, llist);
         switch(worn) {
         default:
-            if(vnum > 0) {
+            if(wnum.pArea && wnum.vnum > 0) {
                 while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
-                    if(obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+                    if(wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
                         if( ++i == nth ) {
                             iterator_stop(&it);
                             return obj;
@@ -3552,9 +5491,9 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
             }
             break;
         case 1:
-            if(vnum > 0) {
+            if(wnum.pArea && wnum.vnum > 0) {
                 while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
-                    if(obj->wear_loc != WEAR_NONE && obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+                    if(obj->wear_loc != WEAR_NONE && wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
                         if( ++i == nth ) {
                             iterator_stop(&it);
                             return obj;
@@ -3569,9 +5508,9 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
             }
             break;
         case 2:
-            if(vnum > 0) {
+            if(wnum.pArea && wnum.vnum > 0) {
                 while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
-                    if(obj->wear_loc == WEAR_NONE && obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+                    if(obj->wear_loc == WEAR_NONE && wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
                         if( ++i == nth ) {
                             iterator_stop(&it);
                             return obj;
@@ -3594,9 +5533,9 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
     OBJ_DATA *linked_objs = (OBJ_DATA *)objs;
     switch(worn) {
     default:
-        if(vnum > 0) {
+        if(wnum.pArea && wnum.vnum > 0) {
             for(obj = linked_objs; obj; obj = obj->next_content)
-                if(obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+                if(wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
                     if( ++i == nth ) return obj;
         } else if(name) {
             for(obj = linked_objs; obj; obj = obj->next_content)
@@ -3605,9 +5544,9 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
         }
         break;
     case 1:
-        if(vnum > 0) {
+        if(wnum.pArea && wnum.vnum > 0) {
             for(obj = linked_objs; obj; obj = obj->next_content)
-                if(obj->wear_loc != WEAR_NONE && obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+                if(obj->wear_loc != WEAR_NONE && wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
                     if( ++i == nth ) return obj;
         } else if(name) {
             for(obj = linked_objs; obj; obj = obj->next_content)
@@ -3616,9 +5555,9 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
         }
         break;
     case 2:
-        if(vnum > 0) {
+        if(wnum.pArea && wnum.vnum > 0) {
             for(obj = linked_objs; obj; obj = obj->next_content)
-                if(obj->wear_loc == WEAR_NONE && obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+                if(obj->wear_loc == WEAR_NONE && wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
                     if( ++i == nth ) return obj;
         } else if(name) {
             for(obj = linked_objs; obj; obj = obj->next_content)
@@ -3633,57 +5572,62 @@ OBJ_DATA *script_get_obj_list(void *objs, CHAR_DATA *viewer, int worn, int vnum,
 
 TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument, SCRIPT_PARAM *arg)
 {
-	char *rest;
-	int i, nth = 1, vnum = 0, matches;
-	int values[MAX_TOKEN_VALUES];
-	bool match[MAX_TOKEN_VALUES];
-	char buf[MSL];
+    char *rest;
+    int i, nth = 1, matches;
+    WNUM wnum = wnum_zero;
+    int values[MAX_TOKEN_VALUES];
+    bool match[MAX_TOKEN_VALUES];
+    char buf[MSL];
 
-	if(!(rest = expand_argument(info,argument,arg)))
-		return NULL;
+    if(!(rest = expand_argument(info,argument,arg)))
+        return NULL;
 
-	if(arg->type == ENT_NUMBER)
-		vnum = arg->d.num;
-	else if(arg->type == ENT_STRING) {
-		nth = number_argument(arg->d.str,buf);
-		if(nth < 1 || !is_number(buf))
-			return NULL;
-		vnum = atoi(buf);
-	}
+    if(arg->type == ENT_WIDEVNUM)
+        wnum = arg->d.wnum;
+    else if(arg->type == ENT_NUMBER) {
+        char vnum_str[32];
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        if(!parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum))
+            return NULL;
+    }
+    else if(arg->type == ENT_STRING) {
+        nth = number_argument(arg->d.str,buf);
+        if(nth < 1 || !parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum))
+            return NULL;
+    }
 
+    if(!wnum.pArea || wnum.vnum < 1) return NULL;
 
-	if(vnum < 1) return NULL;
+    for(i=0;*rest && i < MAX_TOKEN_VALUES; i++) {
+        argument = rest;
+        if(!(rest = expand_argument(info,argument,arg)))
+            return NULL;
 
-	for(i=0;*rest && i < MAX_TOKEN_VALUES; i++) {
-		argument = rest;
-		if(!(rest = expand_argument(info,argument,arg)))
-			return NULL;
+        if(arg->type == ENT_NUMBER)
+            values[i] = arg->d.num;
+        else if(arg->type == ENT_STRING && is_number(arg->d.str))
+            values[i] = atoi(arg->d.str);
+        else {
+            match[i] = false;
+            continue;
+        }
+        match[i] = true;
+    }
 
-		if(arg->type == ENT_NUMBER)
-			values[i] = arg->d.num;
-		else if(arg->type == ENT_STRING && is_number(arg->d.str))
-			values[i] = atoi(arg->d.str);
-		else {
-			match[i] = false;
-			continue;
-		}
-		match[i] = true;
-	}
+    for(;i < MAX_TOKEN_VALUES; i++) match[i] = false;
 
-	for(;i < MAX_TOKEN_VALUES; i++) match[i] = false;
+    for(;tokens;tokens = tokens->next) {
+        if(wnum_match_token(wnum, tokens)) {
+            for(matches = 0, i = 0; i < MAX_TOKEN_VALUES; i++)
+                if( !match[i] || tokens->value[i] == values[i] )
+                    matches++;
 
-	for(;tokens;tokens = tokens->next) {
-		if(tokens->pIndexData->vnum == vnum) {
-			for(matches = 0, i = 0; i < MAX_TOKEN_VALUES; i++)
-				if( !match[i] || tokens->value[i] == values[i] )
-					matches++;
+            if( matches == MAX_TOKEN_VALUES && !--nth )
+                break;
+        }
+    }
 
-			if( matches == MAX_TOKEN_VALUES && !--nth )
-				break;
-		}
-	}
-
-	return tokens;
+    return tokens;
 }
 
 /*
@@ -3692,7 +5636,7 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
  * item_type: item type or -1
  * fWear: true: item must be worn, false: don't care
  */
-bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
+bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear, AREA_DATA *area)
 {
     OBJ_DATA *obj;
     ITERATOR it;
@@ -3701,7 +5645,7 @@ bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
     if (fWear && ch->lworn) {
         iterator_start(&it, ch->lworn);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if ((vnum < 0 || obj->pIndexData->vnum == vnum) &&
+            if ((vnum < 0 || (obj->pIndexData->vnum == vnum && (!area || obj->pIndexData->area == area))) &&
                 (item_type < 0 || obj->pIndexData->item_type == item_type)) {
                 iterator_stop(&it);
                 return true;
@@ -3715,7 +5659,7 @@ bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
     if (ch->lcarrying) {
         iterator_start(&it, ch->lcarrying);
         while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
-            if ((vnum < 0 || obj->pIndexData->vnum == vnum) &&
+            if ((vnum < 0 || (obj->pIndexData->vnum == vnum && (!area || obj->pIndexData->area == area))) &&
                 (item_type < 0 || obj->pIndexData->item_type == item_type) &&
                 (!fWear || obj->wear_loc != WEAR_NONE)) {
                 iterator_stop(&it);
@@ -3732,27 +5676,25 @@ bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
 /*
  * Check if there's a mob with given vnum in the room
  */
-CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum)
+CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area)
 {
     CHAR_DATA *mob;
+    ROOM_INDEX_DATA *context_room = NULL;
 
     if ((ch && obj) || (ch && room) || (obj && room) ||
-    	(ch && token) || (obj && token) || (room && token)) {
-	bug("get_mob_vnum_room received multiple prog types",0);
-	return NULL;
+        (ch && token) || (obj && token) || (room && token)) {
+    pbugf(LOG_SCRIPTS, "get_mob_vnum_room received multiple prog types");
+    return NULL;
     }
 
-    if (ch)
-	mob = ch->in_room->people;
-    else if (obj)
-	mob = obj_room(obj)->people;
-    else if (token)
-	mob = token_room(token)->people;
-    else mob = room->people;
+    context_room = script_room_from_context(ch, obj, room, token);
+    if (!context_room)
+    return NULL;
+    mob = context_room->people;
 
     for (; mob; mob = mob->next_in_room)
-	if (IS_NPC(mob) && mob->pIndexData->vnum == vnum)
-	    return mob;
+    if (IS_NPC(mob) && mob->pIndexData->vnum == vnum && (!area || mob->pIndexData->area == area))
+        return mob;
     return NULL;
 }
 
@@ -3760,363 +5702,423 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 /*
  * Check if there's an object with given vnum in the room
  */
-OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum)
+OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum, AREA_DATA *area)
 {
     OBJ_DATA *vobj;
+    ROOM_INDEX_DATA *context_room = NULL;
 
     if ((ch && obj) || (ch && room) || (obj && room) ||
-    	(ch && token) || (obj && token) || (room && token)) {
-	bug("get_obj_vnum_room received multiple prog types",0);
-	return NULL;
+        (ch && token) || (obj && token) || (room && token)) {
+    pbugf(LOG_SCRIPTS, "get_obj_vnum_room received multiple prog types");
+    return NULL;
     }
 
-    if (ch)
-	vobj = ch->in_room->contents;
-    else if (obj)
-	vobj = obj_room(obj)->contents;
-    else if (token)
-	vobj = token_room(token)->contents;
-    else
-	vobj = room->contents;
+    context_room = script_room_from_context(ch, obj, room, token);
+    if (!context_room)
+    return NULL;
+    vobj = context_room->contents;
 
     for (; vobj; vobj = vobj->next_content)
-	if (vobj->pIndexData->vnum == vnum)
-	    return vobj;
+    if (vobj->pIndexData->vnum == vnum && (!area || vobj->pIndexData->area == area))
+        return vobj;
     return NULL;
 }
 
 void get_level_damage(int level, int *num, int *type, bool fRemort, bool fTwo)
 {
-	*num = (level + 20) / 10;
-	*type = (level + 20) / 4;
+    *num = (level + 20) / 10;
+    *type = (level + 20) / 4;
 
-	if(fTwo) *type = (*type * 7)/5 - 1;
-	if(fRemort) {
-		*num += 2;
-		*type += 2;
-	}
+    if(fTwo) *type = (*type * 7)/5 - 1;
+    if(fRemort) {
+        *num += 2;
+        *type += 2;
+    }
 
-	*num = UMAX(1, *num);
-	*type = UMAX(8, *type);
+    *num = UMAX(1, *num);
+    *type = UMAX(8, *type);
 }
 
 void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 {
-	if( ch->desc && quiet )
-	{
-		ch->desc->muted++;
-	}
+    if( ch->desc && quiet )
+    {
+        ch->desc->muted++;
+    }
 
-	bool show = !quiet;
-	char *phrase = quiet?"silent":NULL;
+    bool show = !quiet;
+    char *phrase = quiet?"silent":NULL;
 
-	ROOM_INDEX_DATA *in_room = ch->in_room;
+    ROOM_INDEX_DATA *in_room = ch->in_room;
 
-	DUNGEON *in_dungeon = get_room_dungeon(ch->in_room);
-	DUNGEON *to_dungeon = get_room_dungeon(room);
+    DUNGEON *in_dungeon = get_room_dungeon(ch->in_room);
+    DUNGEON *to_dungeon = get_room_dungeon(room);
 
-	INSTANCE *in_instance = get_room_instance(ch->in_room);
-	INSTANCE *to_instance = get_room_instance(room);
+    INSTANCE *in_instance = get_room_instance(ch->in_room);
+    INSTANCE *to_instance = get_room_instance(room);
 
-	if (ch->fighting)
-		stop_fighting(ch, true);
+    if (ch->fighting)
+        stop_fighting(ch, true);
 
-	if( mode == TRANSFER_MODE_MOVEMENT )
-	{
-		check_room_shield_source(ch, show);
+    if( mode == TRANSFER_MODE_MOVEMENT )
+    {
+        check_room_shield_source(ch, show);
 
-		if (!IS_DEAD(ch)) {
-			check_room_flames(ch, show);
-			if ((!IS_NPC(ch) && IS_DEAD(ch)) || (IS_NPC(ch) && ch->hit < 1))
-				return;
-		}
+        if (!IS_DEAD(ch)) {
+            check_room_flames(ch, show);
+            if ((!IS_NPC(ch) && IS_DEAD(ch)) || (IS_NPC(ch) && ch->hit < 1))
+                return;
+        }
 
-		/* moving your char negates your ambush */
-		if (ch->ambush) {
-			if( show )
-			{
-				send_to_char("You stop your ambush.\n\r", ch);
-			}
-			free_ambush(ch->ambush);
-			ch->ambush = NULL;
-		}
+        /* moving your char negates your ambush */
+        if (ch->ambush) {
+            if( show )
+            {
+                send_to_char("You stop your ambush.\n\r", ch);
+            }
+            free_ambush(ch->ambush);
+            ch->ambush = NULL;
+        }
 
-		/* Cancels your reciting too. This is incase move_char is called
-		   from some other function and doesnt go through interpret(). */
-		if (ch->recite > 0) {
-			if( show )
-			{
-				send_to_char("You stop reciting.\n\r", ch);
-				act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			}
-			ch->recite = 0;
-		}
-	}
+        /* Cancels your reciting too. This is incase move_char is called
+           from some other function and doesnt go through interpret(). */
+        if (ch->recite > 0) {
+            if( show )
+            {
+                send_to_char("You stop reciting.\n\r", ch);
+                act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+            ch->recite = 0;
+        }
+    }
 
-	char_from_room(ch);
-	if(room->wilds)
-		char_to_vroom(ch, room->wilds, room->x, room->y);
-	else
-		char_to_room(ch, room);
+    char_from_room(ch);
+    if(room->wilds)
+        char_to_vroom(ch, room->wilds, room->x, room->y);
+    else
+        char_to_room(ch, room);
 
-	if( mode == TRANSFER_MODE_PORTAL )
-	{
-		if (show) {
-			if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
-			{
-				OBJ_DATA *portal = get_room_dungeon_portal(room, in_dungeon->index->vnum);
+    if( mode == TRANSFER_MODE_PORTAL )
+    {
+        if (show) {
+            if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
+            {
+                OBJ_DATA *portal = get_room_dungeon_portal(room, in_dungeon->index->vnum);
 
-				if( IS_VALID(portal) )
-				{
-					if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
-					{
-						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
-					}
-					else
-					{
-						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
-					}
-				}
-				else if(MOUNTED(ch))
-				{
-					if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
-						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					else
+                if( IS_VALID(portal) )
+                {
+                    if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
+                    {
+                        act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    }
+                    else
+                    {
+                        act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+                    }
+                }
+                else if(MOUNTED(ch))
+                {
+                    if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
+                        act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    else
 
-						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				}
-				else
-				{
-					if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
-					else
-						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
-				}
-			}
-			else if(!MOUNTED(ch)) {
-				if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				else
-					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
-			} else {
-				if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
-					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				else
-					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			}
-		}
-	}
-	else if( mode == TRANSFER_MODE_MOVEMENT )
-	{
-		if (show && !IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
-			if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
-			{
-				OBJ_DATA *portal = get_room_dungeon_portal(room, in_dungeon->index->vnum);
+                        act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                }
+                else
+                {
+                    if( !IS_NULLSTR(in_dungeon->index->zone_out) )
+                        act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    else
+                        act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                }
+            }
+            else if(!MOUNTED(ch)) {
+                if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
+                    act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                else
+                    act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            } else {
+                if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
+                    act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                else
+                    act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+        }
+    }
+    else if( mode == TRANSFER_MODE_MOVEMENT )
+    {
+        if (show && !IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
+            if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
+            {
+                OBJ_DATA *portal = get_room_dungeon_portal(room, in_dungeon->index->vnum);
 
-				if( IS_VALID(portal) )
-				{
-					if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
-					{
-						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
-					}
-					else
-					{
-						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
-					}
-				}
-				else if(MOUNTED(ch))
-				{
-					if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
-						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					else
+                if( IS_VALID(portal) )
+                {
+                    if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
+                    {
+                        act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    }
+                    else
+                    {
+                        act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+                    }
+                }
+                else if(MOUNTED(ch))
+                {
+                    if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
+                        act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    else
 
-						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				}
-				else
-				{
-					if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
-					else
-						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
-				}
-			}
-			else if (in_room->sector_type == SECT_WATER_NOSWIM)
-				act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			else if (PULLING_CART(ch))
-				act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM);
-			else if(!MOUNTED(ch)) {
-				if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				else
-					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
-			} else {
-				if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
-					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				else
-					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			}
-		}
-	}
+                        act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                }
+                else
+                {
+                    if( !IS_NULLSTR(in_dungeon->index->zone_out) )
+                        act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                    else
+                        act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                }
+            }
+            else if (room_in_sector(in_room, SECT_WATER_NOSWIM))
+                act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            else if (PULLING_CART(ch))
+                act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            else if(!MOUNTED(ch)) {
+                if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
+                    act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                else
+                    act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            } else {
+                if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
+                    act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+                else
+                    act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            }
+        }
+    }
 
-	move_cart(ch,room,show);
+    move_cart(ch,room,show);
 
-	if(show) do_look(ch, "auto");
+    if(show) do_look(ch, "auto");
 
-	if( mode == TRANSFER_MODE_PORTAL )
-	{
-		if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
-		{
-			p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
-		}
+    if( mode == TRANSFER_MODE_PORTAL )
+    {
+        if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
+        {
+            p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+        }
 
-		if( to_instance != in_instance )
-		{
-			p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
-		}
+        if( to_instance != in_instance )
+        {
+            p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+        }
 
-		p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , phrase);
+        p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , phrase);
 
-		if ( !IS_NPC( ch ) ) {
-			p_greet_trigger( ch, PRG_MPROG );
-			p_greet_trigger( ch, PRG_OPROG );
-			p_greet_trigger( ch, PRG_RPROG );
-		}
+        if ( !IS_NPC( ch ) ) {
+            p_greet_trigger( ch, PRG_MPROG );
+            p_greet_trigger( ch, PRG_OPROG );
+            p_greet_trigger( ch, PRG_RPROG );
+        }
 
-	}
-	else if( mode == TRANSFER_MODE_MOVEMENT )
-	{
-		if (!IS_WILDERNESS(room))
-			check_traps(ch, show);
+    }
+    else if( mode == TRANSFER_MODE_MOVEMENT )
+    {
+        if (!IS_WILDERNESS(room))
+            check_traps(ch, show);
 
-		if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
-		{
-			p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
-		}
+        if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
+        {
+            p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+        }
 
-		if( IS_VALID(to_instance) && to_instance != in_instance )
-		{
-			p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
-		}
+        if( IS_VALID(to_instance) && to_instance != in_instance )
+        {
+            p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+        }
 
-		p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+        p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
 
-		if (!IS_NPC(ch)) {
-			p_greet_trigger(ch, PRG_MPROG);
-			p_greet_trigger(ch, PRG_OPROG);
-			p_greet_trigger(ch, PRG_RPROG);
-		}
+        if (!IS_NPC(ch)) {
+            p_greet_trigger(ch, PRG_MPROG);
+            p_greet_trigger(ch, PRG_OPROG);
+            p_greet_trigger(ch, PRG_RPROG);
+        }
 
-		if (!IS_DEAD(ch)) check_rocks(ch, show);
-		if (!IS_DEAD(ch)) check_ice(ch, show);
-		if (!IS_DEAD(ch)) check_room_flames(ch, show);
-		//if (!IS_DEAD(ch)) check_ambush(ch);
+        if (!IS_DEAD(ch)) check_rocks(ch, show);
+        if (!IS_DEAD(ch)) check_ice(ch, show);
+        if (!IS_DEAD(ch)) check_room_flames(ch, show);
+        //if (!IS_DEAD(ch)) check_ambush(ch);
 
-		if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsn_riding) > 0)
-			check_improve_show(ch, gsn_riding, true, 8, show);
+        int16_t sn_riding = skill_resolve_gsn("riding");
+        if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, sn_riding) > 0)
+            check_improve_show(ch, sn_riding, true, 8, show);
 
-		if (!MOUNTED(ch) && get_skill(ch, gsn_trackless_step) > 0 && number_percent() == 1)
-			check_improve_show(ch, gsn_trackless_step, true, 8, show);
+        int16_t sn_trackless = skill_resolve_gsn("trackless step");
+        if (!MOUNTED(ch) && get_skill(ch, sn_trackless) > 0 && number_percent() == 1)
+            check_improve_show(ch, sn_trackless, true, 8, show);
 
-		/* Druids regenerate in nature */
-		if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch)) {
-			ch->move += number_range(1,3);
-			ch->move = UMIN(ch->move, ch->max_move);
-			ch->hit += number_range(1,3);
-			ch->hit  = UMIN(ch->hit, ch->max_hit);
-		}
+        /* Nature regen: regenerate in nature */
+        if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch)) {
+            ch->move += number_range(1,3);
+            ch->move = UMIN(ch->move, ch->max_move);
+            ch->hit += number_range(1,3);
+            ch->hit  = UMIN(ch->hit, ch->max_hit);
+        }
 
-		if (!IS_NPC(ch))
-			check_quest_rescue_mob(ch, show);
-	}
+        if (!IS_NPC(ch))
+            check_quest_rescue_mob(ch, show);
+    }
 
-	if( ch->desc && quiet && ch->desc->muted > 0)
-	{
-		ch->desc->muted--;
-	}
+    if( ch->desc && quiet && ch->desc->muted > 0)
+    {
+        ch->desc->muted--;
+    }
 }
 
 
 bool has_trigger(LLIST **bank, int trigger)
 {
-	int slot;
-	PROG_LIST *trig;
-	ITERATOR it;
+    int slot;
+    PROG_LIST *trig;
+    ITERATOR it;
 
 //	DBG2ENTRY2(PTR,bank,NUM,trigger);
 
 //	DBG3MSG3("trigger = %d, name = '%s', slot = %d\n",trigger, trigger_table[trigger].name,trigger_slots[trigger]);
 
-	slot = trigger_table[trigger].slot;
+    int trigger_tindex = -1;
+    for (int i = 0; i < trigger_table_size; i++) {
+        if (trigger_table[i].type == trigger) {
+            trigger_tindex = i;
+            break;
+        }
+    }
 
-	if(bank) {
-		iterator_start(&it, bank[slot]);
-		while((trig = (PROG_LIST *)iterator_nextdata(&it))) {
-			if (is_trigger_type(trig->trig_type,trigger))
-				break;
-		}
-		iterator_stop(&it);
+    if (trigger_tindex < 0)
+        return false;
 
-		if(trig)
-			return true;
-	}
+    slot = trigger_table[trigger_tindex].slot;
+
+    if(bank) {
+        iterator_start(&it, bank[slot]);
+        while((trig = (PROG_LIST *)iterator_nextdata(&it))) {
+            if (is_trigger_type(trig->trig_type,trigger))
+                break;
+        }
+        iterator_stop(&it);
+
+        if(trig)
+            return true;
+    }
 
 //	DBG2EXITVALUE2(false);
-	return false;
+    return false;
 }
 
 int trigger_index(char *name, int type)
 {
-	register int i;
+    register int i;
 
-	// Check Cannonical names first, so aliases don't override
-	for (i = 0; trigger_table[i].name; i++) {
-		if (!str_cmp(trigger_table[i].name, name))
-			switch (type) {
-			case PRG_MPROG: if (trigger_table[i].mob) return i;
-			case PRG_OPROG: if (trigger_table[i].obj) return i;
-			case PRG_RPROG: if (trigger_table[i].room) return i;
-			case PRG_TPROG: if (trigger_table[i].token) return i;
-			case PRG_APROG: if (trigger_table[i].area) return i;
-			case PRG_IPROG: if (trigger_table[i].instance) return i;
-			case PRG_DPROG: if (trigger_table[i].dungeon) return i;
-			}
-	}
+    // Check Cannonical names first, so aliases don't override
+    for (i = 0; trigger_table[i].name; i++) {
+        if (!str_cmp(trigger_table[i].name, name))
+            switch (type) {
+            case PRG_MPROG: if (trigger_table[i].mob) return i;
+            case PRG_OPROG: if (trigger_table[i].obj) return i;
+            case PRG_RPROG: if (trigger_table[i].room) return i;
+            case PRG_TPROG: if (trigger_table[i].token) return i;
+            case PRG_APROG: if (trigger_table[i].area) return i;
+            case PRG_IPROG: if (trigger_table[i].instance) return i;
+            case PRG_DPROG: if (trigger_table[i].dungeon) return i;
+            case PRG_QPROG: if (trigger_table[i].quest) return i;
+            case PRG_EPROG: if (trigger_table[i].event) return i;
+            }
+    }
 
-	// Check Aliases
-	for (i = 0; trigger_table[i].name; i++) {
-		if (trigger_table[i].alias && is_exact_name(trigger_table[i].alias, name))
-			switch (type) {
-			case PRG_MPROG: if (trigger_table[i].mob) return i;
-			case PRG_OPROG: if (trigger_table[i].obj) return i;
-			case PRG_RPROG: if (trigger_table[i].room) return i;
-			case PRG_TPROG: if (trigger_table[i].token) return i;
-			case PRG_APROG: if (trigger_table[i].area) return i;
-			case PRG_IPROG: if (trigger_table[i].instance) return i;
-			case PRG_DPROG: if (trigger_table[i].dungeon) return i;
-			}
-	}
+    // Check Aliases
+    for (i = 0; trigger_table[i].name; i++) {
+        if (trigger_table[i].alias && is_exact_name(trigger_table[i].alias, name))
+            switch (type) {
+            case PRG_MPROG: if (trigger_table[i].mob) return i;
+            case PRG_OPROG: if (trigger_table[i].obj) return i;
+            case PRG_RPROG: if (trigger_table[i].room) return i;
+            case PRG_TPROG: if (trigger_table[i].token) return i;
+            case PRG_APROG: if (trigger_table[i].area) return i;
+            case PRG_IPROG: if (trigger_table[i].instance) return i;
+            case PRG_DPROG: if (trigger_table[i].dungeon) return i;
+            case PRG_QPROG: if (trigger_table[i].quest) return i;
+            case PRG_EPROG: if (trigger_table[i].event) return i;
+            }
+    }
 
-	return -1;
+    return -1;
 }
 
 bool is_trigger_type(int tindex, int type)
 {
-	if(tindex < 0) return false;
+    if(tindex < 0) return false;
 
 //	log_stringf("is_trigger_type: %d, %s, %d", tindex, trigger_table[tindex].name, type);
 
-	return (trigger_table[tindex].type == type);
+    return (trigger_table[tindex].type == type);
+}
+
+bool script_validate_trigger_table(void)
+{
+    bool ok = true;
+    int canonical_count = 0;
+
+    for (int i = 0; i < trigger_table_size && trigger_table[i].name; i++) {
+        canonical_count++;
+
+        if (trigger_table[i].type != i) {
+            pbugf(LOG_ERROR,
+                  "trigger_table mismatch: index %d ('%s') has type %d (expected %d)",
+                  i,
+                  trigger_table[i].name,
+                  trigger_table[i].type,
+                  i);
+            ok = false;
+        }
+
+        if (trigger_table[i].slot < 0 || trigger_table[i].slot >= TRIGSLOT_MAX) {
+            pbugf(LOG_ERROR,
+                  "trigger_table mismatch: index %d ('%s') has invalid slot %d",
+                  i,
+                  trigger_table[i].name,
+                  trigger_table[i].slot);
+            ok = false;
+        }
+    }
+
+    if (canonical_count != (TRIG_ZAP + 1)) {
+        pbugf(LOG_ERROR,
+              "trigger_table mismatch: canonical entry count is %d (expected %d)",
+              canonical_count,
+              TRIG_ZAP + 1);
+        ok = false;
+    }
+
+    if (!ok) {
+#ifndef NDEBUG
+        assert(ok);
+#endif
+        return false;
+    }
+
+    return true;
 }
 
 bool mp_same_group(CHAR_DATA *ch,CHAR_DATA *vch,CHAR_DATA *to)
 {
-	return (ch != vch && ch != to && is_same_group(vch,to));
+    return (ch != vch && ch != to && is_same_group(vch,to));
 }
 
 bool rop_same_group(CHAR_DATA *ch,CHAR_DATA *vch,CHAR_DATA *to)
 {
-	// vch is NULL from these
-	return (is_same_group(ch,to));
+    // vch is NULL from these
+    return (is_same_group(ch,to));
 }
 
 
@@ -4125,7 +6127,7 @@ ROOM_INDEX_DATA *get_exit_dest(ROOM_INDEX_DATA *room, char *argument)
     EXIT_DATA *ex;
 
     if (!room || !argument[0])
-	return NULL;
+    return NULL;
 
     if (!str_cmp(argument, "north"))		ex = room->exit[DIR_NORTH];
     else if (!str_cmp(argument, "south"))	ex = room->exit[DIR_SOUTH];
@@ -4145,93 +6147,93 @@ ROOM_INDEX_DATA *get_exit_dest(ROOM_INDEX_DATA *room, char *argument)
 
 bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int door)
 {
-	EXIT_DATA *pExit;
+    EXIT_DATA *pExit;
 
-	if (!pToRoom) {
-		int16_t rev;
+    if (!pToRoom) {
+        int16_t rev;
 
-		if (!pRoom->exit[door]) {
-			bug("script_change_exit: Couldn't delete exit. %d", pRoom->vnum);
-			return false;
-		}
+        if (!pRoom->exit[door]) {
+            pbugf(LOG_SCRIPTS, "script_change_exit: Couldn't delete exit. %d", pRoom->vnum);
+            return false;
+        }
 
-		if( IS_SET(pRoom->exit[door]->exit_info, (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR)) )
-		{
-			bug("script_change_exit: Exit is protected from deletion. %d", pRoom->vnum);
-			return false;
-		}
+        if( IS_SET(pRoom->exit[door]->exit_info, (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR)) )
+        {
+            pbugf(LOG_SCRIPTS, "script_change_exit: Exit is protected from deletion. %d", pRoom->vnum);
+            return false;
+        }
 
-		// Remove ToRoom Exit.
-		rev = rev_dir[door];
-		pToRoom = pRoom->exit[door]->u1.to_room;
+        // Remove ToRoom Exit.
+        rev = rev_dir[door];
+        pToRoom = pRoom->exit[door]->u1.to_room;
 
-		if (pToRoom->exit[rev]) {
-			free_exit(pToRoom->exit[rev]);
-			pToRoom->exit[rev] = NULL;
-		}
+        if (pToRoom->exit[rev]) {
+            free_exit(pToRoom->exit[rev]);
+            pToRoom->exit[rev] = NULL;
+        }
 
-		// Remove this exit.
-		free_exit(pRoom->exit[door]);
-		pRoom->exit[door] = NULL;
+        // Remove this exit.
+        free_exit(pRoom->exit[door]);
+        pRoom->exit[door] = NULL;
 
-		return true;
-	}
+        return true;
+    }
 
-	// Rules...
-	// EITHER -> ENVIRON ... OK
-	// STATIC -> CLONE ..... NOT OK
-	// CLONE -> STATIC ..... WILL CLONE
-	// CLONE -> CLONE ...... OK
+    // Rules...
+    // EITHER -> ENVIRON ... OK
+    // STATIC -> CLONE ..... NOT OK
+    // CLONE -> STATIC ..... WILL CLONE
+    // CLONE -> CLONE ...... OK
 
-	if(pToRoom != &room_pointer_environment) {
-		if(room_is_clone(pRoom)) {
-			if(!room_is_clone(pToRoom) && !(pToRoom = create_virtual_room(pToRoom,false,false)))
-				return false;
-		} else if(room_is_clone(pToRoom)) {
-			bug("script_change_exit: A link cannot be made from a static room to a clone room.\n\r",0);
-			return false;
-		}
-	}
+    if(pToRoom != &room_pointer_environment) {
+        if(room_is_clone(pRoom)) {
+            if(!room_is_clone(pToRoom) && !(pToRoom = create_virtual_room(pToRoom,false,false)))
+                return false;
+        } else if(room_is_clone(pToRoom)) {
+            pbugf(LOG_SCRIPTS, "script_change_exit: A link cannot be made from a static room to a clone room.\n\r",0);
+            return false;
+        }
+    }
 
-	if(room_is_clone(pRoom)) {
-		if(pToRoom != &room_pointer_environment && !room_is_clone(pToRoom)) {
-			// Should this be illegal or should it be made into a cloned room?
-			bug("script_change_exit: A link cannot be made between static and clone room.\n\r",0);
-			return false;
-		}
-	} else {
-		if(pToRoom != &room_pointer_environment && room_is_clone(pToRoom)) {
-			bug("script_change_exit: A link cannot be made between static and clone room.\n\r",0);
-			return false;
-		}
-	}
+    if(room_is_clone(pRoom)) {
+        if(pToRoom != &room_pointer_environment && !room_is_clone(pToRoom)) {
+            // Should this be illegal or should it be made into a cloned room?
+            pbugf(LOG_SCRIPTS, "script_change_exit: A link cannot be made between static and clone room.\n\r",0);
+            return false;
+        }
+    } else {
+        if(pToRoom != &room_pointer_environment && room_is_clone(pToRoom)) {
+            pbugf(LOG_SCRIPTS, "script_change_exit: A link cannot be made between static and clone room.\n\r",0);
+            return false;
+        }
+    }
 
-	if(pToRoom != &room_pointer_environment) {
-		if (pToRoom->exit[rev_dir[door]]) {
-			bug("script_change_exit: Reverse-side exit to room already exists.", 0);
-			return false;
-		}
-	}
+    if(pToRoom != &room_pointer_environment) {
+        if (pToRoom->exit[rev_dir[door]]) {
+            pbugf(LOG_SCRIPTS, "script_change_exit: Reverse-side exit to room already exists.", 0);
+            return false;
+        }
+    }
 
-	if (!pRoom->exit[door]) pRoom->exit[door] = new_exit();
+    if (!pRoom->exit[door]) pRoom->exit[door] = new_exit();
 
-	pRoom->exit[door]->u1.to_room = pToRoom;
-	pRoom->exit[door]->orig_door = door;
-	pRoom->exit[door]->from_room = pRoom;
+    pRoom->exit[door]->u1.to_room = pToRoom;
+    pRoom->exit[door]->orig_door = door;
+    pRoom->exit[door]->from_room = pRoom;
 
-	if(pToRoom != &room_pointer_environment) {
-		door = rev_dir[door];
-		pExit = new_exit();
-		pExit->u1.to_room = pRoom;
-		pExit->orig_door = door;
-		pExit->from_room = pToRoom;
-		pToRoom->exit[door] = pExit;
-	} else {
-		// Mark it as an environment
-		SET_BIT(pRoom->exit[door]->exit_info, EX_ENVIRONMENT);
-	}
+    if(pToRoom != &room_pointer_environment) {
+        door = rev_dir[door];
+        pExit = new_exit();
+        pExit->u1.to_room = pRoom;
+        pExit->orig_door = door;
+        pExit->from_room = pToRoom;
+        pToRoom->exit[door] = pExit;
+    } else {
+        // Mark it as an environment
+        SET_BIT(pRoom->exit[door]->exit_info, EX_ENVIRONMENT);
+    }
 
-	return true;
+    return true;
 }
 
 
@@ -4239,107 +6241,125 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 
 char *trigger_name(int type)
 {
-	if(type >= 0 && type < trigger_table_size && trigger_table[type].name)
-		return trigger_table[type].name;
+    int tindex;
 
-	return "INVALID";
+    for (tindex = 0; tindex < trigger_table_size; tindex++) {
+        if (trigger_table[tindex].type == type && trigger_table[tindex].name)
+            return trigger_table[tindex].name;
+    }
+
+    return "INVALID";
 }
 
 char *trigger_phrase(int type, char *phrase)
 {
-	int sn;
-	if(type >= 0 && type < trigger_table_size && trigger_table[type].name) {
-		if(type == TRIG_SPELLCAST) {
-			sn = atoi(phrase);
-			if(sn < 0) return "reserved";
-			return skill_table[sn].name;
-		}
-	}
+    int sn;
+    int tindex;
 
-	return phrase;
+    for (tindex = 0; tindex < trigger_table_size; tindex++) {
+        if (trigger_table[tindex].type == type && trigger_table[tindex].name)
+            break;
+    }
+
+    if (tindex < trigger_table_size) {
+        if(type == TRIG_SPELLCAST) {
+            sn = atoi(phrase);
+            if(sn < 0) return "reserved";
+            return skill_table[sn].name;
+        }
+    }
+
+    return phrase;
 }
 
 char *trigger_phrase_olcshow(int type, char *phrase, bool is_rprog, bool is_tprog)
 {
-	int sn;
-	if(type >= 0 && type < trigger_table_size && trigger_table[type].name) {
-		if(type == TRIG_SPELLCAST) {
-			sn = atoi(phrase);
-			if(sn < 0) return "reserved";
-			return skill_table[sn].name;
-		}
+    int sn;
+    int tindex;
 
-		if(	type == TRIG_EXIT ||
-			type == TRIG_EXALL ||
-			type == TRIG_KNOCK ||
-			type == TRIG_KNOCKING) {
-			sn = atoi(phrase);
+    for (tindex = 0; tindex < trigger_table_size; tindex++) {
+        if (trigger_table[tindex].type == type && trigger_table[tindex].name)
+            break;
+    }
 
-			if( sn < 0 || sn >= MAX_DIR) return "nowhere";
+    if (tindex < trigger_table_size) {
+        if(type == TRIG_SPELLCAST) {
+            sn = atoi(phrase);
+            if(sn < 0) return "reserved";
+            return skill_table[sn].name;
+        }
 
-			return dir_name[sn];
-		}
+        if(	type == TRIG_EXIT ||
+            type == TRIG_EXALL ||
+            type == TRIG_KNOCK ||
+            type == TRIG_KNOCKING) {
+            sn = atoi(phrase);
 
-		// Only care if is_rprog/is_tprog is set
-		if((is_rprog || is_tprog) && (type == TRIG_OPEN || type == TRIG_CLOSE)) {
-			sn = atoi(phrase);
+            if( sn < 0 || sn >= MAX_DIR) return "nowhere";
 
-			if( is_rprog ) {
-				if( sn < 0 || sn >= MAX_DIR) return "nowhere";
+            return dir_name[sn];
+        }
 
-				return dir_name[sn];
-			} else {
-				if( sn < 0 || sn >= MAX_DIR) return phrase;
+        // Only care if is_rprog/is_tprog is set
+        if((is_rprog || is_tprog) && (type == TRIG_OPEN || type == TRIG_CLOSE)) {
+            sn = atoi(phrase);
 
-				return dir_name_phrase[sn];
-			}
+            if( is_rprog ) {
+                if( sn < 0 || sn >= MAX_DIR) return "nowhere";
+
+                return dir_name[sn];
+            } else {
+                if( sn < 0 || sn >= MAX_DIR) return phrase;
+
+                return dir_name_phrase[sn];
+            }
 
 
 
-		}
-	}
+        }
+    }
 
-	return phrase;
+    return phrase;
 
 }
 
 // Common entry point for all the queued commands!
 void script_interpret(SCRIPT_VARINFO *info, char *command)
 {
-	char buf[MSL];
+    char buf[MSL];
 
-	one_argument(command,buf);
+    one_argument(command,buf);
 
-	if(info->mob) {
-		if(!str_cmp(buf,"mob")) mob_interpret(info,command);
-		else if(!str_cmp(buf,"token")) tokenother_interpret(info,command);
-		else {
-			BUFFER *buffer = new_buf();
-			expand_string(info,command,buffer);
-			interpret(info->mob,buf_string(buffer));
-			free_buf(buffer);
-		}
-		return;
-	}
+    if(info->mob) {
+        if(!str_cmp(buf,"mob")) mob_interpret(info,command);
+        else if(!str_cmp(buf,"token")) tokenother_interpret(info,command);
+        else {
+            BUFFER *buffer = new_buf();
+            expand_string(info,command,buffer);
+            interpret(info->mob,buf_string(buffer));
+            free_buf(buffer);
+        }
+        return;
+    }
 
-	if(info->obj) {
-		if(!str_cmp(buf,"obj")) obj_interpret(info,command);
-		else if(!str_cmp(buf,"token")) tokenother_interpret(info,command);
-		return;
-	}
+    if(info->obj) {
+        if(!str_cmp(buf,"obj")) obj_interpret(info,command);
+        else if(!str_cmp(buf,"token")) tokenother_interpret(info,command);
+        return;
+    }
 
-	if(info->room) {
-		if(!str_cmp(buf,"room")) room_interpret(info,command);
-		else if(!str_cmp(buf,"token")) tokenother_interpret(info,command);
-		return;
-	}
+    if(info->room) {
+        if(!str_cmp(buf,"room")) room_interpret(info,command);
+        else if(!str_cmp(buf,"token")) tokenother_interpret(info,command);
+        return;
+    }
 
-	if(info->token) {
-		if(!str_cmp(buf,"token")) token_interpret(info,command);
-		return;
-	}
+    if(info->token) {
+        if(!str_cmp(buf,"token")) token_interpret(info,command);
+        return;
+    }
 
-	// Complain
+    // Complain
 }
 
 typedef bool (*MATCH_STRING)(char *a, char *b);
@@ -4350,457 +6370,470 @@ typedef bool (*MATCH_RANGE)(int a, int b, int c);
 // MATCH_STRING
 static bool __attribute__ ((unused)) match_substr(register char *a, register char *b)
 {
-	register char *a2;
-	register char *b2;
+    register char *a2;
+    register char *b2;
 
-	if(!a || !b) return false;
+    if(!a || !b) return false;
 
-	if(!*b) return true;
+    if(!*b) return true;
 
-	if(!*a) return false;
+    if(!*a) return false;
 
-	while(*a) {
-		for(a2 = a, b2 = b;(*a2 && *b2 && LOWER(*a2) == LOWER(*b2)); ++a2, ++b2);
+    while(*a) {
+        for(a2 = a, b2 = b;(*a2 && *b2 && LOWER(*a2) == LOWER(*b2)); ++a2, ++b2);
 
-		if(!*b2) return true;
+        if(!*b2) return true;
 
-		a++;
-	}
+        a++;
+    }
 
-	return false;
+    return false;
 }
 
 // MATCH_STRING
 static bool __attribute__ ((unused)) match_exact_name(char *a, char *b)
 {
-	return !str_cmp(a, b);
+    return !str_cmp(a, b);
 }
 
 // MATCH_STRING
 static bool __attribute__ ((unused)) match_name(char *a, char *b)
 {
-	return is_name(b, a);
+    return is_name(b, a);
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_random(int a, int b)
 {
-	return number_range(0, b-1) < a;
+    return number_range(0, b-1) < a;
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_percent(int a, int b)
 {
-	return number_percent() < a;
+    return number_percent() < a;
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_equal(int a, int b)
 {
-	return a == b;
+    return a == b;
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_lt(int a, int b)
 {
-	return b < a;
+    return b < a;
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_gt(int a, int b)
 {
-	return b > a;
+    return b > a;
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_not_equal(int a, int b)
 {
-	return a != b;
+    return a != b;
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_lte(int a, int b)
 {
-	return b <= a;
+    return b <= a;
 }
 
 // MATCH_NUMBER
 static bool __attribute__ ((unused)) match_gte(int a, int b)
 {
-	return b >= a;
+    return b >= a;
 }
 
 // STRING TRIGGER
 int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int type,
-			CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
-			CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
-			OBJ_DATA *obj1, OBJ_DATA *obj2)
+            CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
+            CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
+            OBJ_DATA *obj1, OBJ_DATA *obj2)
 {
-	ITERATOR tit;	// Token iterator
-	ITERATOR pit;	// Prog iterator
-	PROG_LIST *prg;
-	TOKEN_DATA *token;
-	unsigned long uid[2];
-	int slot;
-	int ret_val = PRET_NOSCRIPT, ret;
+    ITERATOR tit;	// Token iterator
+    ITERATOR pit;	// Prog iterator
+    PROG_LIST *prg;
+    TOKEN_DATA *token;
+    unsigned long uid[2];
+    int slot;
+    int ret_val = PRET_NOSCRIPT, ret;
 
-	if ((mob && obj) || (mob && room) || (obj && room)) {
-		bug("test_string_trigger: Multiple program types in trigger %d.", type);
-		PRETURN;
-	}
+    if ((mob && obj) || (mob && room) || (obj && room)) {
+        pbugf(LOG_SCRIPTS, "test_string_trigger: Multiple program types in trigger %d.", type);
+        PRETURN;
+    }
 
-	slot = trigger_table[type].slot;
-
-
-	if (mob) {
-		script_mobile_addref(mob);
-
-		// Save the UID
-		uid[0] = mob->id[0];
-		uid[1] = mob->id[1];
-
-		// Check for tokens FIRST
-		iterator_start(&tit, mob->ltokens);
-		// Loop Level 1
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				// Loop Level 2
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ((*match)(string, prg->trig_phrase)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
-								script_token_remref(token);
-								script_mobile_remref(mob);
-								return ret;
-							}
-						}
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-				BREAKPRET;
-			}
-		}
-		iterator_stop(&tit);
-
-		if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
-			iterator_start(&pit, mob->pIndexData->progs[slot]);
-			// Loop Level 1:
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(string, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&pit);
-							script_mobile_remref(mob);
-							return ret;
-						}
-
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == type) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_string_trigger: unknown trigger type %d.", type);
+            PRETURN;
+        }
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
 
-			if(ret_val == PRET_NOSCRIPT && wildcard != NULL && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1])
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, mob->ltokens);
-				// Loop Level 1
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						// Loop Level 2
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,type)) {
-								if (match_exact_name(wildcard, prg->trig_phrase)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-									if( ret != PRET_NOSCRIPT) {
-										iterator_stop(&tit);
-										iterator_stop(&pit);
-										script_token_remref(token);
-										script_mobile_remref(mob);
-										return ret;
-									}
-								}
-							}
-						}
-						iterator_stop(&pit);
-						script_token_remref(token);
-						BREAKPRET;
-					}
-				}
-				iterator_stop(&tit);
+    if (mob) {
+        script_mobile_addref(mob);
 
-				if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
-					iterator_start(&pit, mob->pIndexData->progs[slot]);
-					// Loop Level 1:
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if (match_exact_name(wildcard, prg->trig_phrase)) {
-								ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&pit);
-									script_mobile_remref(mob);
-									return ret;
-								}
+        // Save the UID
+        uid[0] = mob->id[0];
+        uid[1] = mob->id[1];
 
-							}
-						}
-						BREAKPRET;
-					}
-					iterator_stop(&pit);
-				}
-			}
-		}
-		script_mobile_remref(mob);
+        // Check for tokens FIRST
+        iterator_start(&tit, mob->ltokens);
+        // Loop Level 1
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                // Loop Level 2
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if ((*match)(string, prg->trig_phrase)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
+                                script_token_remref(token);
+                                script_mobile_remref(mob);
+                                return ret;
+                            }
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+                BREAKPRET;
+            }
+        }
+        iterator_stop(&tit);
 
-	} else if (obj && obj_room(obj) ) {
-		// Save the UID
-		uid[0] = obj->id[0];
-		uid[1] = obj->id[1];
-		script_object_addref(obj);
+        if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
+            iterator_start(&pit, mob->pIndexData->progs[slot]);
+            // Loop Level 1:
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(string, prg->trig_phrase)) {
+                        ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&pit);
+                            script_mobile_remref(mob);
+                            return ret;
+                        }
 
-		// Check for tokens FIRST
-		iterator_start(&tit, obj->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ((*match)(string, prg->trig_phrase)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
-
-								script_token_remref(token);
-								script_object_remref(obj);
-								return ret;
-							}
-
-						}
-					}
-				}
-				iterator_stop(&pit);
-
-				script_token_remref(token);
-				BREAKPRET;
-			}
-		}
-		iterator_stop(&tit);
-
-		if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-			script_destructed = false;
-			iterator_start(&pit, obj->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(string, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&pit);
-							script_object_remref(obj);
-							return ret;
-						}
-
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
-
-			if(ret_val == PRET_NOSCRIPT && wildcard != NULL && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1])
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, obj->ltokens);
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,type)) {
-								if (match_exact_name(wildcard, prg->trig_phrase)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-									if( ret != PRET_NOSCRIPT) {
-										iterator_stop(&tit);
-										iterator_stop(&pit);
-
-										script_token_remref(token);
-										script_object_remref(obj);
-										return ret;
-									}
-
-								}
-							}
-						}
-						iterator_stop(&pit);
-
-						script_token_remref(token);
-						BREAKPRET;
-					}
-				}
-				iterator_stop(&tit);
-
-				if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-					script_destructed = false;
-					iterator_start(&pit, obj->pIndexData->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if (match_exact_name(wildcard, prg->trig_phrase)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&pit);
-									script_object_remref(obj);
-									return ret;
-								}
-
-							}
-						}
-						BREAKPRET;
-					}
-					iterator_stop(&pit);
-				}
-			}
-		}
-
-		script_object_remref(obj);
-
-	} else if (room) {
-		ROOM_INDEX_DATA *source;
-
-		if(room->source) {
-			source = room->source;
-			uid[0] = room->id[0];
-			uid[1] = room->id[1];
-		} else {
-			source = room;
-		}
-
-		script_room_addref(room);
-
-		// Check for tokens FIRST
-		iterator_start(&tit, room->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ((*match)(string, prg->trig_phrase)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
-
-								script_token_remref(token);
-								script_room_remref(room);
-								return ret;
-							}
-
-						}
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-
-				BREAKPRET;
-			}
-		}
-		iterator_stop(&tit);
-
-		if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
-			script_destructed = false;
-			iterator_start(&pit, source->progs->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(string, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&pit);
-							script_room_remref(room);
-							return ret;
-						}
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
 
 
-			if(ret_val == PRET_NOSCRIPT && !script_destructed && wildcard != NULL)
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, room->ltokens);
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,type)) {
-								if (match_exact_name(wildcard, prg->trig_phrase)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-									if( ret != PRET_NOSCRIPT) {
-										iterator_stop(&tit);
-										iterator_stop(&pit);
+            if(ret_val == PRET_NOSCRIPT && wildcard != NULL && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1])
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, mob->ltokens);
+                // Loop Level 1
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        // Loop Level 2
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,type)) {
+                                if (match_exact_name(wildcard, prg->trig_phrase)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                                    if( ret != PRET_NOSCRIPT) {
+                                        iterator_stop(&tit);
+                                        iterator_stop(&pit);
+                                        script_token_remref(token);
+                                        script_mobile_remref(mob);
+                                        return ret;
+                                    }
+                                }
+                            }
+                        }
+                        iterator_stop(&pit);
+                        script_token_remref(token);
+                        BREAKPRET;
+                    }
+                }
+                iterator_stop(&tit);
 
-										script_token_remref(token);
-										script_room_remref(room);
-										return ret;
-									}
+                if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
+                    iterator_start(&pit, mob->pIndexData->progs[slot]);
+                    // Loop Level 1:
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (match_exact_name(wildcard, prg->trig_phrase)) {
+                                ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&pit);
+                                    script_mobile_remref(mob);
+                                    return ret;
+                                }
 
-								}
-							}
-						}
-						iterator_stop(&pit);
-						script_token_remref(token);
+                            }
+                        }
+                        BREAKPRET;
+                    }
+                    iterator_stop(&pit);
+                }
+            }
+        }
+        script_mobile_remref(mob);
 
-						BREAKPRET;
-					}
-				}
-				iterator_stop(&tit);
+    } else if (obj && obj_room(obj) ) {
+        // Save the UID
+        uid[0] = obj->id[0];
+        uid[1] = obj->id[1];
+        script_object_addref(obj);
 
-				if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
-					script_destructed = false;
-					iterator_start(&pit, source->progs->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if (match_exact_name(wildcard, prg->trig_phrase)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&pit);
-									script_room_remref(room);
-									return ret;
-								}
-							}
-						}
-						BREAKPRET;
-					}
-					iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, obj->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if ((*match)(string, prg->trig_phrase)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
 
-				}
-			}
+                                script_token_remref(token);
+                                script_object_remref(obj);
+                                return ret;
+                            }
 
-		}
-		script_room_remref(room);
+                        }
+                    }
+                }
+                iterator_stop(&pit);
 
-	} else
-		bug("test_string_trigger: no program type for trigger %d.", type);
+                script_token_remref(token);
+                BREAKPRET;
+            }
+        }
+        iterator_stop(&tit);
 
-	PRETURN;
+        if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+            script_destructed = false;
+            iterator_start(&pit, obj->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(string, prg->trig_phrase)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&pit);
+                            script_object_remref(obj);
+                            return ret;
+                        }
+
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
+
+            if(ret_val == PRET_NOSCRIPT && wildcard != NULL && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1])
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, obj->ltokens);
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,type)) {
+                                if (match_exact_name(wildcard, prg->trig_phrase)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                                    if( ret != PRET_NOSCRIPT) {
+                                        iterator_stop(&tit);
+                                        iterator_stop(&pit);
+
+                                        script_token_remref(token);
+                                        script_object_remref(obj);
+                                        return ret;
+                                    }
+
+                                }
+                            }
+                        }
+                        iterator_stop(&pit);
+
+                        script_token_remref(token);
+                        BREAKPRET;
+                    }
+                }
+                iterator_stop(&tit);
+
+                if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+                    script_destructed = false;
+                    iterator_start(&pit, obj->pIndexData->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (match_exact_name(wildcard, prg->trig_phrase)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&pit);
+                                    script_object_remref(obj);
+                                    return ret;
+                                }
+
+                            }
+                        }
+                        BREAKPRET;
+                    }
+                    iterator_stop(&pit);
+                }
+            }
+        }
+
+        script_object_remref(obj);
+
+    } else if (room) {
+        ROOM_INDEX_DATA *source;
+
+        if(room->source) {
+            source = room->source;
+            uid[0] = room->id[0];
+            uid[1] = room->id[1];
+        } else {
+            source = room;
+        }
+
+        script_room_addref(room);
+
+        // Check for tokens FIRST
+        iterator_start(&tit, room->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if ((*match)(string, prg->trig_phrase)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
+
+                                script_token_remref(token);
+                                script_room_remref(room);
+                                return ret;
+                            }
+
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+
+                BREAKPRET;
+            }
+        }
+        iterator_stop(&tit);
+
+        if(ret_val == PRET_NOSCRIPT && source->progs && source->progs->progs) {
+            script_destructed = false;
+            iterator_start(&pit, source->progs->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(string, prg->trig_phrase)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&pit);
+                            script_room_remref(room);
+                            return ret;
+                        }
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
+
+
+            if(ret_val == PRET_NOSCRIPT && !script_destructed && wildcard != NULL)
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, room->ltokens);
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,type)) {
+                                if (match_exact_name(wildcard, prg->trig_phrase)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                                    if( ret != PRET_NOSCRIPT) {
+                                        iterator_stop(&tit);
+                                        iterator_stop(&pit);
+
+                                        script_token_remref(token);
+                                        script_room_remref(room);
+                                        return ret;
+                                    }
+
+                                }
+                            }
+                        }
+                        iterator_stop(&pit);
+                        script_token_remref(token);
+
+                        BREAKPRET;
+                    }
+                }
+                iterator_stop(&tit);
+
+                if(ret_val == PRET_NOSCRIPT && source->progs && source->progs->progs) {
+                    script_destructed = false;
+                    iterator_start(&pit, source->progs->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (match_exact_name(wildcard, prg->trig_phrase)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&pit);
+                                    script_room_remref(room);
+                                    return ret;
+                                }
+                            }
+                        }
+                        BREAKPRET;
+                    }
+                    iterator_stop(&pit);
+
+                }
+            }
+
+        }
+        script_room_remref(room);
+
+    } else
+        pbugf(LOG_SCRIPTS, "test_string_trigger: no program type for trigger %d.", type);
+
+    PRETURN;
 }
 
 
@@ -4809,1658 +6842,1831 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
  * phrase.
  */
 int p_act_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
-	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
+    CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
 {
-	return test_string_trigger(argument, "*", match_substr, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
+    return test_string_trigger(argument, "*", match_substr, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
 }
 
 // Similar to p_act_trigger, except it does EXACT match
 int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
-	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
+    CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
 {
-	if( type == TRIG_SPELLCAST ) {
-		char buf[MIL];
+    if( type == TRIG_SPELLCAST ) {
+        char buf[MIL];
 
-		sprintf(buf, "SPELLCAST: %s", argument);
-		wiznet(buf, NULL, NULL, WIZ_SCRIPTS, 0, 0);
-	}
+        sprintf(buf, "SPELLCAST: %s", argument);
+        wiznet(buf, NULL, NULL, WIZ_SCRIPTS, 0, 0);
+    }
 
-	return test_string_trigger(argument, "*", match_exact_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
+    return test_string_trigger(argument, "*", match_exact_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
 }
 
 // Similar to p_act_trigger, except it uses is_name
 int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
-	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
+    CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type)
 {
-	return test_string_trigger(argument, "*", match_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
+    return test_string_trigger(argument, "*", match_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2);
 }
 
 
 
 
 int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
-			CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
-			AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
-			CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
-			OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok,
-			char *phrase)
+            CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+            AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+            CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
+            OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok,
+            char *phrase)
 {
-	//char buf[MIL];
-	ITERATOR tit;	// Token iterator
-	ITERATOR pit;	// Prog iterator
-	PROG_LIST *prg;
-	unsigned long uid[2];
-	int slot;
-	int ret_val = PRET_NOSCRIPT, ret;
+    //char buf[MIL];
+    ITERATOR tit;	// Token iterator
+    ITERATOR pit;	// Prog iterator
+    PROG_LIST *prg;
+    unsigned long uid[2];
+    int slot;
+    int ret_val = PRET_NOSCRIPT, ret;
 
-	if ((mob && obj) || (mob && room) || (mob && token) || (mob && area) || (mob && instance) || (mob && dungeon) ||
-		(obj && room) || (obj && token) || (obj && area) || (obj && instance) || (obj && dungeon) ||
-		(room && token) || (room && area) || (room && instance) || (room && dungeon) ||
-		(token && area) || (token && instance) || (token && dungeon) ||
-		(area && instance) || (area && dungeon) ||
-		(instance && dungeon)) {
-		bug("test_number_trigger: Multiple program types in trigger %d.", type);
-		PRETURN;
-	}
+    if ((mob && obj) || (mob && room) || (mob && token) || (mob && area) || (mob && instance) || (mob && dungeon) ||
+        (obj && room) || (obj && token) || (obj && area) || (obj && instance) || (obj && dungeon) ||
+        (room && token) || (room && area) || (room && instance) || (room && dungeon) ||
+        (token && area) || (token && instance) || (token && dungeon) ||
+        (area && instance) || (area && dungeon) ||
+        (instance && dungeon)) {
+        pbugf(LOG_SCRIPTS, "test_number_trigger: Multiple program types in trigger %d.", type);
+        PRETURN;
+    }
 
-	slot = trigger_table[type].slot;
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == type) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_number_trigger: unknown trigger type %d.", type);
+            PRETURN;
+        }
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
 
-	if (mob) {
-		script_mobile_addref(mob);
+    if (mob) {
+        script_mobile_addref(mob);
 
-		// Save the UID
-		uid[0] = mob->id[0];
-		uid[1] = mob->id[1];
+        // Save the UID
+        uid[0] = mob->id[0];
+        uid[1] = mob->id[1];
 
-		// Check for tokens FIRST
-		iterator_start(&tit, mob->ltokens);
-		// Loop Level 1
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+        // Check for tokens FIRST
+        iterator_start(&tit, mob->ltokens);
+        // Loop Level 1
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
 
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				// Loop Level 2
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-						}
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-			}
-		}
-		iterator_stop(&tit);
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                // Loop Level 2
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+            }
+        }
+        iterator_stop(&tit);
 
-		if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
-			iterator_start(&pit, mob->pIndexData->progs[slot]);
-			// Loop Level 1:
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-						SETPRET;
-					}
-				}
-			}
-			iterator_stop(&pit);
+        if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
+            iterator_start(&pit, mob->pIndexData->progs[slot]);
+            // Loop Level 1:
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(prg->trig_number, number)) {
+                        ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                        SETPRET;
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
-			if( number != wildcard )
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, mob->ltokens);
-				// Loop Level 1
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( number != wildcard )
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, mob->ltokens);
+                // Loop Level 1
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
 
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						// Loop Level 2
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,type)) {
-								if (match_equal(prg->trig_number, wildcard)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-									SETPRET;
-								}
-							}
-						}
-						iterator_stop(&pit);
-						script_token_remref(token);
-					}
-				}
-				iterator_stop(&tit);
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        // Loop Level 2
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,type)) {
+                                if (match_equal(prg->trig_number, wildcard)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                    SETPRET;
+                                }
+                            }
+                        }
+                        iterator_stop(&pit);
+                        script_token_remref(token);
+                    }
+                }
+                iterator_stop(&tit);
 
-				if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
-					iterator_start(&pit, mob->pIndexData->progs[slot]);
-					// Loop Level 1:
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if (match_equal(prg->trig_number, wildcard)) {
-								ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-								SETPRET;
-							}
-						}
-					}
-					iterator_stop(&pit);
+                if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
+                    iterator_start(&pit, mob->pIndexData->progs[slot]);
+                    // Loop Level 1:
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (match_equal(prg->trig_number, wildcard)) {
+                                ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                SETPRET;
+                            }
+                        }
+                    }
+                    iterator_stop(&pit);
 
-				}
-			}
+                }
+            }
 
-		}
-		script_mobile_remref(mob);
+        }
+        script_mobile_remref(mob);
 
-	} else if (obj && obj_room(obj) ) {
-		// Save the UID
-		uid[0] = obj->id[0];
-		uid[1] = obj->id[1];
-		script_object_addref(obj);
+    } else if (obj && obj_room(obj) ) {
+        // Save the UID
+        uid[0] = obj->id[0];
+        uid[1] = obj->id[1];
+        script_object_addref(obj);
 
-		// Check for tokens FIRST
-		iterator_start(&tit, obj->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-						}
-					}
-				}
-				iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, obj->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                        }
+                    }
+                }
+                iterator_stop(&pit);
 
-				script_token_remref(token);
-			}
-		}
-		iterator_stop(&tit);
+                script_token_remref(token);
+            }
+        }
+        iterator_stop(&tit);
 
-		if(!script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-			script_destructed = false;
-			iterator_start(&pit, obj->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-					}
-				}
-			}
-			iterator_stop(&pit);
+        if(!script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+            script_destructed = false;
+            iterator_start(&pit, obj->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(prg->trig_number, number)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
-			if( number != wildcard )
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, obj->ltokens);
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,type)) {
-								if (match_equal(prg->trig_number, wildcard)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-									SETPRET;
-								}
-							}
-						}
-						iterator_stop(&pit);
+            if( number != wildcard )
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, obj->ltokens);
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,type)) {
+                                if (match_equal(prg->trig_number, wildcard)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                    SETPRET;
+                                }
+                            }
+                        }
+                        iterator_stop(&pit);
 
-						script_token_remref(token);
-					}
-				}
-				iterator_stop(&tit);
+                        script_token_remref(token);
+                    }
+                }
+                iterator_stop(&tit);
 
-				if(!script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-					script_destructed = false;
-					iterator_start(&pit, obj->pIndexData->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if (match_equal(prg->trig_number, wildcard)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-									SETPRET;
-							}
-						}
-					}
-					iterator_stop(&pit);
-				}
-			}
+                if(!script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+                    script_destructed = false;
+                    iterator_start(&pit, obj->pIndexData->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (match_equal(prg->trig_number, wildcard)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                    SETPRET;
+                            }
+                        }
+                    }
+                    iterator_stop(&pit);
+                }
+            }
 
-		}
+        }
 
-		script_object_remref(obj);
+        script_object_remref(obj);
 
-	} else if (room) {
-		ROOM_INDEX_DATA *source;
+    } else if (room) {
+        ROOM_INDEX_DATA *source;
 
-		if(room->source) {
-			source = room->source;
-			uid[0] = room->id[0];
-			uid[1] = room->id[1];
-		} else {
-			source = room;
-		}
+        if(room->source) {
+            source = room->source;
+            uid[0] = room->id[0];
+            uid[1] = room->id[1];
+        } else {
+            source = room;
+        }
 
-		script_room_addref(room);
+        script_room_addref(room);
 
-		// Check for tokens FIRST
-		iterator_start(&tit, room->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-						}
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-			}
-		}
-		iterator_stop(&tit);
+        // Check for tokens FIRST
+        iterator_start(&tit, room->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+            }
+        }
+        iterator_stop(&tit);
 
-		if(!script_destructed && source->progs->progs) {
-			script_destructed = false;
-			iterator_start(&pit, source->progs->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-					}
-				}
-			}
-			iterator_stop(&pit);
+        if(!script_destructed && source->progs && source->progs->progs) {
+            script_destructed = false;
+            iterator_start(&pit, source->progs->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(prg->trig_number, number)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
-			if( number != wildcard )
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, room->ltokens);
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,type)) {
-								if (match_equal(prg->trig_number, wildcard)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-									SETPRET;
-								}
-							}
-						}
-						iterator_stop(&pit);
-						script_token_remref(token);
-					}
-				}
-				iterator_stop(&tit);
+            if( number != wildcard )
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, room->ltokens);
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,type)) {
+                                if (match_equal(prg->trig_number, wildcard)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                    SETPRET;
+                                }
+                            }
+                        }
+                        iterator_stop(&pit);
+                        script_token_remref(token);
+                    }
+                }
+                iterator_stop(&tit);
 
-				if(!script_destructed && source->progs->progs) {
-					script_destructed = false;
-					iterator_start(&pit, source->progs->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if (match_equal(prg->trig_number, wildcard)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
-									SETPRET;
-							}
-						}
-					}
-					iterator_stop(&pit);
+                if(!script_destructed && source->progs && source->progs->progs) {
+                    script_destructed = false;
+                    iterator_start(&pit, source->progs->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (match_equal(prg->trig_number, wildcard)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                    SETPRET;
+                            }
+                        }
+                    }
+                    iterator_stop(&pit);
 
-				}
-			}
+                }
+            }
 
-		}
-		script_room_remref(room);
-	} else if(token) {
-		if( token->pIndexData->progs ) {
-			script_token_addref(token);
-			script_destructed = false;
-			iterator_start(&pit, token->pIndexData->progs[slot]);
-			// Loop Level 2
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-					}
-				}
-			}
-			iterator_stop(&pit);
+        }
+        script_room_remref(room);
+    } else if(token) {
+        if( token->pIndexData && token->pIndexData->progs ) {
+            script_token_addref(token);
+            script_destructed = false;
+            iterator_start(&pit, token->pIndexData->progs[slot]);
+            // Loop Level 2
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
-			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
-			{
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				// Loop Level 2
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if (match_equal(prg->trig_number, wildcard)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-								SETPRET;
-						}
-					}
-				}
-				iterator_stop(&pit);
-			}
+            if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+            {
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                // Loop Level 2
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (match_equal(prg->trig_number, wildcard)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                SETPRET;
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+            }
 
-			script_token_remref(token);
-		}
+            script_token_remref(token);
+        }
 
-	} else if(area) {
-		if( area->progs->progs ) {
-			iterator_start(&pit, area->progs->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, area, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-					}
-				}
-			}
-			iterator_stop(&pit);
+    } else if(area) {
+        if( area->progs->progs ) {
+            iterator_start(&pit, area->progs->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, area, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
-			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
-			{
-				iterator_start(&pit, area->progs->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if (match_equal(prg->trig_number, wildcard)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, area, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-								SETPRET;
-						}
-					}
-				}
-				iterator_stop(&pit);
-			}
-		}
+            if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+            {
+                iterator_start(&pit, area->progs->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (match_equal(prg->trig_number, wildcard)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, area, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                SETPRET;
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+            }
+        }
 
-	} else if(instance) {
-		if( instance->blueprint->progs ) {
-			script_instance_addref(instance);
-			script_destructed = false;
-			iterator_start(&pit, instance->blueprint->progs[slot]);
-			// Loop Level 2
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, instance, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-					}
-				}
-			}
-			iterator_stop(&pit);
+    } else if(instance) {
+        if( instance->blueprint->progs ) {
+            script_instance_addref(instance);
+            script_destructed = false;
+            iterator_start(&pit, instance->blueprint->progs[slot]);
+            // Loop Level 2
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, instance, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
-			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
-			{
-				iterator_start(&pit, instance->blueprint->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if (match_equal(prg->trig_number, wildcard)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, instance, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-								SETPRET;
-						}
-					}
-				}
-				iterator_stop(&pit);
-			}
+            if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+            {
+                iterator_start(&pit, instance->blueprint->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (match_equal(prg->trig_number, wildcard)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, instance, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                SETPRET;
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+            }
 
-			script_instance_remref(instance);
-		}
+            script_instance_remref(instance);
+        }
 
-	} else if(dungeon) {
-		if( dungeon->index->progs ) {
-			script_dungeon_addref(dungeon);
-			script_destructed = false;
-			iterator_start(&pit, dungeon->index->progs[slot]);
-			// Loop Level 2
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, NULL, dungeon, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-							SETPRET;
-					}
-				}
-			}
-			iterator_stop(&pit);
+    } else if(dungeon) {
+        if( dungeon->index->progs ) {
+            script_dungeon_addref(dungeon);
+            script_destructed = false;
+            iterator_start(&pit, dungeon->index->progs[slot]);
+            // Loop Level 2
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, NULL, dungeon, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            SETPRET;
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
-			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
-			{
-				iterator_start(&pit, dungeon->index->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if (match_equal(prg->trig_number, wildcard)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, NULL, dungeon, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
-								SETPRET;
-						}
-					}
-				}
-				iterator_stop(&pit);
-			}
+            if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+            {
+                iterator_start(&pit, dungeon->index->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (match_equal(prg->trig_number, wildcard)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, NULL, NULL, dungeon, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                SETPRET;
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+            }
 
-			script_dungeon_remref(dungeon);
-		}
+            script_dungeon_remref(dungeon);
+        }
 
-	} else
-		bug("test_number_trigger: no program type for trigger %d.", type);
+    } else
+        pbugf(LOG_SCRIPTS, "test_number_trigger: no program type for trigger %d.", type);
 
-	PRETURN;
+    PRETURN;
 }
 
 int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
-	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
+    CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase);
+    return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase);
+}
+
+int p_lifecycle_bank_trigger(LLIST **bank, AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+    QUEST_DATA *quest, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2,
+    OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
+{
+    ITERATOR it;
+    PROG_LIST *prg;
+    int trigger_tindex = -1;
+    int slot;
+    int ret_val = PRET_NOSCRIPT;
+    const char *safe_phrase;
+
+    if (!bank || type < 0)
+        return PRET_NOSCRIPT;
+
+    safe_phrase = IS_NULLSTR(phrase) ? "" : phrase;
+
+    for (int i = 0; i < trigger_table_size; i++)
+    {
+        if (trigger_table[i].type == type)
+        {
+            trigger_tindex = i;
+            break;
+        }
+    }
+
+    if (trigger_tindex < 0)
+        return PRET_NOSCRIPT;
+
+    slot = trigger_table[trigger_tindex].slot;
+    if (slot < 0 || slot >= TRIGSLOT_MAX || !bank[slot])
+        return PRET_NOSCRIPT;
+
+    iterator_start(&it, bank[slot]);
+    while ((prg = (PROG_LIST *)iterator_nextdata(&it)) != NULL)
+    {
+        bool phrase_match;
+        int ret;
+        QUEST_DATA *saved_quest_context;
+
+        if (!prg->script || !is_trigger_type(prg->trig_type, type))
+            continue;
+
+        if (prg->numeric)
+        {
+            if (type == TRIG_RANDOM)
+                phrase_match = (number_percent() <= URANGE(0, prg->trig_number, 100));
+            else if (!IS_NULLSTR(safe_phrase) && is_number((char *)safe_phrase))
+                phrase_match = (prg->trig_number == atoi(safe_phrase));
+            else if (prg->trig_number > 0 && prg->trig_number <= 100)
+                phrase_match = (number_percent() <= prg->trig_number);
+            else
+                phrase_match = false;
+        }
+        else if (IS_NULLSTR(prg->trig_phrase) || !str_cmp(prg->trig_phrase, "*"))
+            phrase_match = true;
+        else
+            phrase_match = !str_cmp(prg->trig_phrase, safe_phrase);
+
+        if (!phrase_match)
+            continue;
+
+        saved_quest_context = script_set_execute_quest_context(quest);
+
+        ret = execute_script(prg->vnum, prg->script,
+            NULL, NULL, NULL, NULL,
+            area, instance, dungeon,
+            ch, obj1, obj2, victim, victim2, NULL,
+            NULL, (char *)safe_phrase, prg->trig_phrase, type,
+            0, 0, 0, 0, 0);
+
+        script_set_execute_quest_context(saved_quest_context);
+
+        if (ret != PRET_NOSCRIPT)
+            ret_val = ret;
+    }
+    iterator_stop(&it);
+
+    return ret_val;
 }
 
 int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
-	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
+    CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(0, 0, match_percent, type, NULL, NULL, NULL, NULL, area, instance, dungeon, ch, victim, victim2, obj1, obj2, NULL, phrase);
+    return test_number_trigger(0, 0, match_percent, type, NULL, NULL, NULL, NULL, area, instance, dungeon, ch, victim, victim2, obj1, obj2, NULL, phrase);
 }
 
 
 int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
-	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase)
+    CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase)
 {
-	return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, tok, phrase);
+    return test_number_trigger(0, 0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, tok, phrase);
 }
 
 
 
 int p_number_trigger(int number, int wildcard, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
-	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
+    CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(number, wildcard, match_equal, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase);
+    return test_number_trigger(number, wildcard, match_equal, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, phrase);
 }
 
 int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount)
 {
-	return test_number_trigger(amount, -1, match_gte, TRIG_BRIBE, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
+    return test_number_trigger(amount, -1, match_gte, TRIG_BRIBE, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 
 int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int type, int typeall,
-			CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
-			CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
-			OBJ_DATA *obj1, OBJ_DATA *obj2,
-			char *phrase)
+            CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
+            CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
+            OBJ_DATA *obj1, OBJ_DATA *obj2,
+            char *phrase)
 {
-	ITERATOR tit;	// Token iterator
-	ITERATOR pit;	// Prog iterator
-	PROG_LIST *prg;
-	TOKEN_DATA *token;
-	unsigned long uid[2];
-	int slot;
-	int ret_val = PRET_NOSCRIPT, ret;
+    ITERATOR tit;	// Token iterator
+    ITERATOR pit;	// Prog iterator
+    PROG_LIST *prg;
+    TOKEN_DATA *token;
+    unsigned long uid[2];
+    int slot;
+    int ret_val = PRET_NOSCRIPT, ret;
 
-	if ((mob && obj) || (mob && room) || (obj && room)) {
-		bug("test_number_sight_trigger: Multiple program types in trigger %d.", type);
-		PRETURN;
-	}
+    if ((mob && obj) || (mob && room) || (obj && room)) {
+        pbugf(LOG_SCRIPTS, "test_number_sight_trigger: Multiple program types in trigger %d.", type);
+        PRETURN;
+    }
 
-	// They must be in the same slot
-	if( trigger_table[type].slot != trigger_table[typeall].slot )
-	{
-		bug("test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
-		PRETURN;
-	}
+    {
+        int type_tindex = -1;
+        int typeall_tindex = -1;
+        int i;
 
-	slot = trigger_table[typeall].slot;
+        for (i = 0; i < trigger_table_size; i++) {
+            if (type_tindex < 0 && trigger_table[i].type == type)
+                type_tindex = i;
+            if (typeall_tindex < 0 && trigger_table[i].type == typeall)
+                typeall_tindex = i;
+            if (type_tindex >= 0 && typeall_tindex >= 0)
+                break;
+        }
 
-	if (mob) {
-		script_mobile_addref(mob);
+        if (type_tindex < 0 || typeall_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_number_sight_trigger: unknown trigger type(s) %d/%d.", type, typeall);
+            PRETURN;
+        }
 
-		// Save the UID
-		uid[0] = mob->id[0];
-		uid[1] = mob->id[1];
+        // They must be in the same slot
+        if( trigger_table[type_tindex].slot != trigger_table[typeall_tindex].slot )
+        {
+            pbugf(LOG_SCRIPTS, "test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
+            PRETURN;
+        }
 
-		// Check for tokens FIRST
-		iterator_start(&tit, mob->ltokens);
-		// Loop Level 1
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				// Loop Level 2
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (type != typeall && is_trigger_type(prg->trig_type,type) &&
-						(IS_SET(token->flags, TOKEN_SEE_ALL) ||
-							(mob->position == mob->pIndexData->default_pos && can_see(mob, enactor))) &&
-						(*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&tit);
-							iterator_stop(&pit);
-							script_token_remref(token);
-							script_mobile_remref(mob);
-							return ret;
-						}
+        slot = trigger_table[typeall_tindex].slot;
+    }
 
-					} else if (is_trigger_type(prg->trig_type,typeall) &&
-						(*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&tit);
-							iterator_stop(&pit);
-							script_token_remref(token);
-							script_mobile_remref(mob);
-							return ret;
-						}
+    if (mob) {
+        script_mobile_addref(mob);
 
-					}
-					BREAKPRET;
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-				BREAKPRET;
-			}
-		}
-		iterator_stop(&tit);
+        // Save the UID
+        uid[0] = mob->id[0];
+        uid[1] = mob->id[1];
 
-		if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
-			iterator_start(&pit, mob->pIndexData->progs[slot]);
-			// Loop Level 1:
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (type != typeall && is_trigger_type(prg->trig_type,type) &&
-					mob->position == mob->pIndexData->default_pos &&
-					can_see(mob, enactor) &&
-					(*match)(prg->trig_number, number)) {
-					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-					if( ret != PRET_NOSCRIPT) {
-						iterator_stop(&pit);
-						script_mobile_remref(mob);
-						return ret;
-					}
+        // Check for tokens FIRST
+        iterator_start(&tit, mob->ltokens);
+        // Loop Level 1
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                // Loop Level 2
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (type != typeall && is_trigger_type(prg->trig_type,type) &&
+                        (IS_SET(token->flags, TOKEN_SEE_ALL) ||
+                            (mob->position == mob->pIndexData->default_pos && can_see(mob, enactor))) &&
+                        (*match)(prg->trig_number, number)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&tit);
+                            iterator_stop(&pit);
+                            script_token_remref(token);
+                            script_mobile_remref(mob);
+                            return ret;
+                        }
 
-				} else if (is_trigger_type(prg->trig_type,typeall) &&
-					(*match)(prg->trig_number, number)) {
-					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-					if( ret != PRET_NOSCRIPT) {
-						iterator_stop(&pit);
-						script_mobile_remref(mob);
-						return ret;
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
+                    } else if (is_trigger_type(prg->trig_type,typeall) &&
+                        (*match)(prg->trig_number, number)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&tit);
+                            iterator_stop(&pit);
+                            script_token_remref(token);
+                            script_mobile_remref(mob);
+                            return ret;
+                        }
 
-			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard&& IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) )
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, mob->ltokens);
-				// Loop Level 1
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						// Loop Level 2
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (type != typeall && is_trigger_type(prg->trig_type,type) &&
-								(IS_SET(token->flags, TOKEN_SEE_ALL) ||
-									(mob->position == mob->pIndexData->default_pos && can_see(mob, enactor))) &&
-								match_equal(prg->trig_number, wildcard)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&tit);
-									iterator_stop(&pit);
-									script_token_remref(token);
-									script_mobile_remref(mob);
-									return ret;
-								}
+                    }
+                    BREAKPRET;
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+                BREAKPRET;
+            }
+        }
+        iterator_stop(&tit);
 
-							} else if (is_trigger_type(prg->trig_type,typeall) &&
-								match_equal(prg->trig_number, wildcard)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&tit);
-									iterator_stop(&pit);
-									script_token_remref(token);
-									script_mobile_remref(mob);
-									return ret;
-								}
+        if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
+            iterator_start(&pit, mob->pIndexData->progs[slot]);
+            // Loop Level 1:
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (type != typeall && is_trigger_type(prg->trig_type,type) &&
+                    mob->position == mob->pIndexData->default_pos &&
+                    can_see(mob, enactor) &&
+                    (*match)(prg->trig_number, number)) {
+                    ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                    if( ret != PRET_NOSCRIPT) {
+                        iterator_stop(&pit);
+                        script_mobile_remref(mob);
+                        return ret;
+                    }
 
-							}
-							BREAKPRET;
-						}
-						iterator_stop(&pit);
-						script_token_remref(token);
-						BREAKPRET;
-					}
-				}
-				iterator_stop(&tit);
+                } else if (is_trigger_type(prg->trig_type,typeall) &&
+                    (*match)(prg->trig_number, number)) {
+                    ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                    if( ret != PRET_NOSCRIPT) {
+                        iterator_stop(&pit);
+                        script_mobile_remref(mob);
+                        return ret;
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
 
-				if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs)
-				{
-					iterator_start(&pit, mob->pIndexData->progs[slot]);
-					// Loop Level 1:
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (type != typeall && is_trigger_type(prg->trig_type,type) &&
-							mob->position == mob->pIndexData->default_pos &&
-							can_see(mob, enactor) &&
-							match_equal(prg->trig_number, wildcard)) {
-							ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&pit);
-								script_mobile_remref(mob);
-								return ret;
-							}
+            if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard&& IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) )
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, mob->ltokens);
+                // Loop Level 1
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        // Loop Level 2
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (type != typeall && is_trigger_type(prg->trig_type,type) &&
+                                (IS_SET(token->flags, TOKEN_SEE_ALL) ||
+                                    (mob->position == mob->pIndexData->default_pos && can_see(mob, enactor))) &&
+                                match_equal(prg->trig_number, wildcard)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&tit);
+                                    iterator_stop(&pit);
+                                    script_token_remref(token);
+                                    script_mobile_remref(mob);
+                                    return ret;
+                                }
 
-						} else if (is_trigger_type(prg->trig_type,typeall) &&
-							match_equal(prg->trig_number, wildcard)) {
-							ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&pit);
-								script_mobile_remref(mob);
-								return ret;
-							}
-						}
-						BREAKPRET;
-					}
-					iterator_stop(&pit);
-				}
+                            } else if (is_trigger_type(prg->trig_type,typeall) &&
+                                match_equal(prg->trig_number, wildcard)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&tit);
+                                    iterator_stop(&pit);
+                                    script_token_remref(token);
+                                    script_mobile_remref(mob);
+                                    return ret;
+                                }
 
-			}
-		}
-		script_mobile_remref(mob);
+                            }
+                            BREAKPRET;
+                        }
+                        iterator_stop(&pit);
+                        script_token_remref(token);
+                        BREAKPRET;
+                    }
+                }
+                iterator_stop(&tit);
 
-	} else if (obj && obj_room(obj) ) {
-		// Save the UID
-		uid[0] = obj->id[0];
-		uid[1] = obj->id[1];
-		script_object_addref(obj);
+                if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs)
+                {
+                    iterator_start(&pit, mob->pIndexData->progs[slot]);
+                    // Loop Level 1:
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (type != typeall && is_trigger_type(prg->trig_type,type) &&
+                            mob->position == mob->pIndexData->default_pos &&
+                            can_see(mob, enactor) &&
+                            match_equal(prg->trig_number, wildcard)) {
+                            ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&pit);
+                                script_mobile_remref(mob);
+                                return ret;
+                            }
 
-		// Check for tokens FIRST
-		iterator_start(&tit, obj->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,typeall)) {
-						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
-								script_token_remref(token);
-								script_object_remref(obj);
-								return ret;
-							}
+                        } else if (is_trigger_type(prg->trig_type,typeall) &&
+                            match_equal(prg->trig_number, wildcard)) {
+                            ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&pit);
+                                script_mobile_remref(mob);
+                                return ret;
+                            }
+                        }
+                        BREAKPRET;
+                    }
+                    iterator_stop(&pit);
+                }
 
-						}
-					}
-				}
-				iterator_stop(&pit);
+            }
+        }
+        script_mobile_remref(mob);
 
-				script_token_remref(token);
-				BREAKPRET;
-			}
-		}
-		iterator_stop(&tit);
+    } else if (obj && obj_room(obj) ) {
+        // Save the UID
+        uid[0] = obj->id[0];
+        uid[1] = obj->id[1];
+        script_object_addref(obj);
 
-		if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-			script_destructed = false;
-			iterator_start(&pit, obj->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,typeall)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-						if( ret != PRET_NOSCRIPT) {
-							iterator_stop(&pit);
-							script_object_remref(obj);
-							return ret;
-						}
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, obj->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,typeall)) {
+                        if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
+                                script_token_remref(token);
+                                script_object_remref(obj);
+                                return ret;
+                            }
 
-			if(ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs)
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, obj->ltokens);
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,typeall)) {
-								if (match_equal(prg->trig_number, wildcard)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-									if( ret != PRET_NOSCRIPT) {
-										iterator_stop(&tit);
-										iterator_stop(&pit);
-										script_token_remref(token);
-										script_object_remref(obj);
-										return ret;
-									}
+                        }
+                    }
+                }
+                iterator_stop(&pit);
 
-								}
-							}
-						}
-						iterator_stop(&pit);
+                script_token_remref(token);
+                BREAKPRET;
+            }
+        }
+        iterator_stop(&tit);
 
-						script_token_remref(token);
-						BREAKPRET;
-					}
-				}
-				iterator_stop(&tit);
+        if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+            script_destructed = false;
+            iterator_start(&pit, obj->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,typeall)) {
+                    if ((*match)(prg->trig_number, number)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                        if( ret != PRET_NOSCRIPT) {
+                            iterator_stop(&pit);
+                            script_object_remref(obj);
+                            return ret;
+                        }
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
 
-				if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-					script_destructed = false;
-					iterator_start(&pit, obj->pIndexData->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,typeall)) {
-							if (match_equal(prg->trig_number, wildcard)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&pit);
-									script_object_remref(obj);
-									return ret;
-								}
-							}
-						}
-						BREAKPRET;
-					}
-					iterator_stop(&pit);
-				}
+            if(ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs)
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, obj->ltokens);
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,typeall)) {
+                                if (match_equal(prg->trig_number, wildcard)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                    if( ret != PRET_NOSCRIPT) {
+                                        iterator_stop(&tit);
+                                        iterator_stop(&pit);
+                                        script_token_remref(token);
+                                        script_object_remref(obj);
+                                        return ret;
+                                    }
 
-			}
+                                }
+                            }
+                        }
+                        iterator_stop(&pit);
 
-		}
+                        script_token_remref(token);
+                        BREAKPRET;
+                    }
+                }
+                iterator_stop(&tit);
 
-		script_object_remref(obj);
+                if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+                    script_destructed = false;
+                    iterator_start(&pit, obj->pIndexData->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,typeall)) {
+                            if (match_equal(prg->trig_number, wildcard)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&pit);
+                                    script_object_remref(obj);
+                                    return ret;
+                                }
+                            }
+                        }
+                        BREAKPRET;
+                    }
+                    iterator_stop(&pit);
+                }
 
-	} else if (room) {
-		ROOM_INDEX_DATA *source;
+            }
 
-		if(room->source) {
-			source = room->source;
-			uid[0] = room->id[0];
-			uid[1] = room->id[1];
-		} else {
-			source = room;
-		}
+        }
 
-		script_room_addref(room);
+        script_object_remref(obj);
 
-		// Check for tokens FIRST
-		iterator_start(&tit, room->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,typeall)) {
-						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
-								script_token_remref(token);
-								script_room_remref(room);
-								return ret;
-							}
+    } else if (room) {
+        ROOM_INDEX_DATA *source;
 
-						}
-					}
-					BREAKPRET;
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
+        if(room->source) {
+            source = room->source;
+            uid[0] = room->id[0];
+            uid[1] = room->id[1];
+        } else {
+            source = room;
+        }
 
-				BREAKPRET;
-			}
-		}
-		iterator_stop(&tit);
+        script_room_addref(room);
 
-		if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
-			script_destructed = false;
-			iterator_start(&pit, source->progs->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,typeall)) {
-					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, room->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,typeall)) {
+                        if ((*match)(prg->trig_number, number)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
+                                script_token_remref(token);
+                                script_room_remref(room);
+                                return ret;
+                            }
 
-								script_room_remref(room);
-								return ret;
-							}
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
+                        }
+                    }
+                    BREAKPRET;
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
 
-			if(ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard)
-			{
-				// Check for tokens FIRST
-				iterator_start(&tit, room->ltokens);
-				while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-					if( token->pIndexData->progs ) {
-						script_token_addref(token);
-						script_destructed = false;
-						iterator_start(&pit, token->pIndexData->progs[slot]);
-						while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-							if (is_trigger_type(prg->trig_type,typeall)) {
-								if (match_equal(prg->trig_number, wildcard)) {
-									ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-									if( ret != PRET_NOSCRIPT) {
-										iterator_stop(&tit);
-										iterator_stop(&pit);
-										script_token_remref(token);
-										script_room_remref(room);
-										return ret;
-									}
+                BREAKPRET;
+            }
+        }
+        iterator_stop(&tit);
 
-								}
-							}
-							BREAKPRET;
-						}
-						iterator_stop(&pit);
-						script_token_remref(token);
+        if(ret_val == PRET_NOSCRIPT && source->progs && source->progs->progs) {
+            script_destructed = false;
+            iterator_start(&pit, source->progs->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,typeall)) {
+                    if ((*match)(prg->trig_number, number)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&pit);
 
-						BREAKPRET;
-					}
-				}
-				iterator_stop(&tit);
+                                script_room_remref(room);
+                                return ret;
+                            }
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
 
-				if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
-					script_destructed = false;
-					iterator_start(&pit, source->progs->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,typeall)) {
-							if (match_equal(prg->trig_number, wildcard)) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-									if( ret != PRET_NOSCRIPT) {
-										iterator_stop(&pit);
+            if(ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard)
+            {
+                // Check for tokens FIRST
+                iterator_start(&tit, room->ltokens);
+                while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                    if( token->pIndexData && token->pIndexData->progs ) {
+                        script_token_addref(token);
+                        script_destructed = false;
+                        iterator_start(&pit, token->pIndexData->progs[slot]);
+                        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                            if (is_trigger_type(prg->trig_type,typeall)) {
+                                if (match_equal(prg->trig_number, wildcard)) {
+                                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                    if( ret != PRET_NOSCRIPT) {
+                                        iterator_stop(&tit);
+                                        iterator_stop(&pit);
+                                        script_token_remref(token);
+                                        script_room_remref(room);
+                                        return ret;
+                                    }
 
-										script_room_remref(room);
-										return ret;
-									}
-							}
-						}
-						BREAKPRET;
-					}
-					iterator_stop(&pit);
+                                }
+                            }
+                            BREAKPRET;
+                        }
+                        iterator_stop(&pit);
+                        script_token_remref(token);
 
-					if(ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard)
-					{
-					}
-				}
-			}
-		}
-		script_room_remref(room);
+                        BREAKPRET;
+                    }
+                }
+                iterator_stop(&tit);
 
-	} else
-		bug("test_number_sight_trigger: no program type for trigger %d.", type);
+                if(ret_val == PRET_NOSCRIPT && source->progs && source->progs->progs) {
+                    script_destructed = false;
+                    iterator_start(&pit, source->progs->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,typeall)) {
+                            if (match_equal(prg->trig_number, wildcard)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                    if( ret != PRET_NOSCRIPT) {
+                                        iterator_stop(&pit);
 
-	PRETURN;
+                                        script_room_remref(room);
+                                        return ret;
+                                    }
+                            }
+                        }
+                        BREAKPRET;
+                    }
+                    iterator_stop(&pit);
+
+                    if(ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard)
+                    {
+                    }
+                }
+            }
+        }
+        script_room_remref(room);
+
+    } else
+        pbugf(LOG_SCRIPTS, "test_number_sight_trigger: no program type for trigger %d.", type);
+
+    PRETURN;
 }
 
 
 int p_location_trigger(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int number, int wildcard, MATCH_NUMBER match, int type, int trig, int trigall)
 {
-	ITERATOR oit, mit;
+    ITERATOR oit, mit;
 
-	CHAR_DATA *mob;
-	OBJ_DATA *obj;
-	//TOKEN_DATA *token;
-	//PROG_LIST *prg;
-	//unsigned long uid[2];
-	int ret_val = PRET_NOSCRIPT; // Default for a trigger loop is NO SCRIPT
+    CHAR_DATA *mob;
+    OBJ_DATA *obj;
+    //TOKEN_DATA *token;
+    //PROG_LIST *prg;
+    //unsigned long uid[2];
+    int ret_val = PRET_NOSCRIPT; // Default for a trigger loop is NO SCRIPT
 
-	// If not in a valid room, there's nothing to check!
-	if (!ch || !room)
-		PRETURN;
+    // If not in a valid room, there's nothing to check!
+    if (!ch || !room)
+        PRETURN;
 
-	if (type == PRG_MPROG) {
-		iterator_start(&mit, room->lpeople);
-		while((ret_val == PRET_NOSCRIPT) && (mob = (CHAR_DATA *)iterator_nextdata(&mit))) {
-			ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
-						mob, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL);
-		}
+    if (type == PRG_MPROG) {
+        iterator_start(&mit, room->lpeople);
+        while((ret_val == PRET_NOSCRIPT) && (mob = (CHAR_DATA *)iterator_nextdata(&mit))) {
+            ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
+                        mob, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL);
+        }
 
-		iterator_stop(&mit);
+        iterator_stop(&mit);
 
-	} else if (type == PRG_OPROG) {
-		// Check carrying inventory
-		iterator_start(&oit, ch->lcarrying);
-		while((ret_val == PRET_NOSCRIPT) && (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-			ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
-						NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, NULL);
-		}
+    } else if (type == PRG_OPROG) {
+        // Check carrying inventory
+        iterator_start(&oit, ch->lcarrying);
+        while((ret_val == PRET_NOSCRIPT) && (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+            ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
+                        NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, NULL);
+        }
 
-		iterator_stop(&oit);
-		ISSETPRET;
+        iterator_stop(&oit);
+        ISSETPRET;
 
-		// Check room contents
-		iterator_start(&oit, room->lcontents);
-		while((ret_val == PRET_NOSCRIPT) && (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-			ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
-						NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, NULL);
-		}
+        // Check room contents
+        iterator_start(&oit, room->lcontents);
+        while((ret_val == PRET_NOSCRIPT) && (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+            ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
+                        NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, NULL);
+        }
 
-		iterator_stop(&oit);
-		ISSETPRET;
+        iterator_stop(&oit);
+        ISSETPRET;
 
-		iterator_start(&mit, room->lpeople);
-		while((ret_val == PRET_NOSCRIPT) && (mob = (CHAR_DATA *)iterator_nextdata(&mit))) {
-			// Check every other mobile
-			if( mob != ch ) {
-				iterator_start(&oit, mob->lcarrying);
-				while((ret_val == PRET_NOSCRIPT) && (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-					ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
-								NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, NULL);
-				}
-				iterator_stop(&oit);
-			}
-		}
-		iterator_stop(&mit);
+        iterator_start(&mit, room->lpeople);
+        while((ret_val == PRET_NOSCRIPT) && (mob = (CHAR_DATA *)iterator_nextdata(&mit))) {
+            // Check every other mobile
+            if( mob != ch ) {
+                iterator_start(&oit, mob->lcarrying);
+                while((ret_val == PRET_NOSCRIPT) && (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+                    ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
+                                NULL, obj, NULL, ch, NULL, NULL, NULL, NULL, NULL);
+                }
+                iterator_stop(&oit);
+            }
+        }
+        iterator_stop(&mit);
 
-	} else if (type == PRG_RPROG) {
-		ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
-					NULL, NULL, room, ch, NULL, NULL, NULL, NULL, NULL);
-	}
+    } else if (type == PRG_RPROG) {
+        ret_val = test_number_sight_trigger(number, wildcard, match, trig, trigall,
+                    NULL, NULL, room, ch, NULL, NULL, NULL, NULL, NULL);
+    }
 
-	PRETURN;
+    PRETURN;
 }
 
 int p_exit_trigger(CHAR_DATA *ch, int dir, int type)
 {
-	return p_location_trigger(ch, ch ? ch->in_room : NULL, dir, -1, match_equal, type, TRIG_EXIT, TRIG_EXALL);
+    return p_location_trigger(ch, ch ? ch->in_room : NULL, dir, -1, match_equal, type, TRIG_EXIT, TRIG_EXALL);
 }
 
 int p_direction_trigger(CHAR_DATA *ch, ROOM_INDEX_DATA *here, int dir, int type, int trigger)
 {
-	return p_location_trigger(ch, here, dir, -1, match_equal, type, trigger, trigger);
+    return p_location_trigger(ch, here, dir, -1, match_equal, type, trigger, trigger);
 }
 
 
 static bool __attribute__ ((unused)) match_target_name(register char *a, register char *b)
 {
-	char buf[MIL];
+    char buf[MIL];
 
-	while(*a) {
-		a = one_argument(a, buf);
-		if( is_name(buf, b) || !str_cmp("all", buf) )
-			return true;
-	}
+    while(*a) {
+        a = one_argument(a, buf);
+        if( is_name(buf, b) || !str_cmp("all", buf) )
+            return true;
+    }
 
-	return false;
+    return false;
 }
 
 
-int test_vnumname_trigger(char *name, int vnum, int type,
-			CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
-			CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
-			OBJ_DATA *obj1, OBJ_DATA *obj2,
-			char *phrase)
+/**
+ * trigger_match_vnum - Check if a trigger's numeric phrase matches an entity
+ *
+ * For widevnum triggers (auid#vnum format): matches both area and vnum.
+ * For legacy bare vnum triggers: matches vnum only (any area, backward compat).
+ */
+static inline bool trigger_match_vnum(PROG_LIST *prg, AREA_DATA *entity_area, int vnum)
 {
-	ITERATOR tit;	// Token iterator
-	ITERATOR pit;	// Prog iterator
-	PROG_LIST *prg;
-	TOKEN_DATA *token;
-	unsigned long uid[2];
-	int slot;
-	int ret_val = PRET_NOSCRIPT, ret;
+    if (prg->trig_is_widevnum) {
+        return (prg->trig_wnum.pArea == entity_area && prg->trig_wnum.vnum == (long)vnum);
+    }
+    return match_equal(prg->trig_number, vnum);
+}
 
-	if ((mob && obj) || (mob && room) || (obj && room)) {
-		bug("test_vnumname_trigger: Multiple program types in trigger %d.", type);
-		PRETURN;
-	}
+bool script_vnumname_match_primary(PROG_LIST *prg, AREA_DATA *entity_area, int vnum, const char *name)
+{
+    if (!prg)
+        return false;
 
-	slot = trigger_table[type].slot;
+    if (prg->numeric)
+        return trigger_match_vnum(prg, entity_area, vnum);
 
+    if (!prg->trig_phrase || !name)
+        return false;
 
-	if (mob) {
-		script_mobile_addref(mob);
+    return match_target_name(prg->trig_phrase, (char *)name);
+}
 
-		// Save the UID
-		uid[0] = mob->id[0];
-		uid[1] = mob->id[1];
+bool script_vnumname_match_wildcard(PROG_LIST *prg)
+{
+    if (!prg)
+        return false;
 
-		// Check for tokens FIRST
-		iterator_start(&tit, mob->ltokens);
-		// Loop Level 1
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				// Loop Level 2
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
-							(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT ) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
+    if (prg->numeric)
+        return (!prg->trig_is_widevnum && match_equal(prg->trig_number, 0));
 
-								script_token_remref(token);
-								script_mobile_remref(mob);
-								return ret;
-							}
-						}
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
-			}
-		}
-		iterator_stop(&tit);
+    if (!prg->trig_phrase)
+        return false;
 
-		if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
-			iterator_start(&pit, mob->pIndexData->progs[slot]);
-			// Loop Level 1:
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
-						(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT ) {
-								iterator_stop(&pit);
+    return match_exact_name(prg->trig_phrase, "*");
+}
 
-								script_mobile_remref(mob);
-								return ret;
-							}
+int test_vnumname_trigger(char *name, int vnum, AREA_DATA *entity_area, int type,
+            CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
+            CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
+            OBJ_DATA *obj1, OBJ_DATA *obj2,
+            char *phrase)
+{
+    ITERATOR tit;	// Token iterator
+    ITERATOR pit;	// Prog iterator
+    PROG_LIST *prg;
+    TOKEN_DATA *token;
+    unsigned long uid[2];
+    int slot;
+    int ret_val = PRET_NOSCRIPT, ret;
 
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
+    if ((mob && obj) || (mob && room) || (obj && room)) {
+        pbugf(LOG_SCRIPTS, "test_vnumname_trigger: Multiple program types in trigger %d.", type);
+        PRETURN;
+    }
 
-			// RECHECK FOR WILDCARDS
-
-			// Check for tokens FIRST
-			iterator_start(&tit, mob->ltokens);
-			// Loop Level 1
-			while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-				if( token->pIndexData->progs ) {
-					script_token_addref(token);
-					script_destructed = false;
-					iterator_start(&pit, token->pIndexData->progs[slot]);
-					// Loop Level 2
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
-								(!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT ) {
-									iterator_stop(&tit);
-									iterator_stop(&pit);
-
-									script_token_remref(token);
-									script_mobile_remref(mob);
-									return ret;
-								}
-							}
-						}
-					}
-					iterator_stop(&pit);
-					script_token_remref(token);
-				}
-			}
-			iterator_stop(&tit);
-
-			if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
-				iterator_start(&pit, mob->pIndexData->progs[slot]);
-				// Loop Level 1:
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
-							(!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
-							ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&pit);
-
-									script_mobile_remref(mob);
-									return ret;
-								}
-
-						}
-					}
-					BREAKPRET;
-				}
-				iterator_stop(&pit);
-			}
-
-		}
-		script_mobile_remref(mob);
-
-	} else if (obj && obj_room(obj) ) {
-		// Save the UID
-		uid[0] = obj->id[0];
-		uid[1] = obj->id[1];
-		script_object_addref(obj);
-
-		// Check for tokens FIRST
-		iterator_start(&tit, obj->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
-							(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
-
-								script_token_remref(token);
-								script_object_remref(obj);
-								return ret;
-							}
-
-						}
-					}
-				}
-				iterator_stop(&pit);
-
-				script_token_remref(token);
-				BREAKPRET;
-			}
-		}
-		iterator_stop(&tit);
-
-		if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-			script_destructed = false;
-			iterator_start(&pit, obj->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
-						(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&pit);
-
-								script_object_remref(obj);
-								return ret;
-							}
-
-					}
-				}
-				BREAKPRET;
-			}
-			iterator_stop(&pit);
-
-			// RECHECK WILDCARDS
-
-			// Check for tokens FIRST
-			iterator_start(&tit, obj->ltokens);
-			while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-				if( token->pIndexData->progs ) {
-					script_token_addref(token);
-					script_destructed = false;
-					iterator_start(&pit, token->pIndexData->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
-								(!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&tit);
-									iterator_stop(&pit);
-
-									script_token_remref(token);
-									script_object_remref(obj);
-									return ret;
-								}
-
-							}
-						}
-					}
-					iterator_stop(&pit);
-
-					script_token_remref(token);
-					BREAKPRET;
-				}
-			}
-			iterator_stop(&tit);
-
-			if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
-				script_destructed = false;
-				iterator_start(&pit, obj->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
-							(!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&pit);
-
-									script_object_remref(obj);
-									return ret;
-								}
-
-						}
-					}
-					BREAKPRET;
-				}
-				iterator_stop(&pit);
-			}
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == type) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0) {
+            pbugf(LOG_SCRIPTS, "test_vnumname_trigger: unknown trigger type %d.", type);
+            PRETURN;
+        }
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
 
-		}
+    if (mob) {
+        script_mobile_addref(mob);
 
-		script_object_remref(obj);
+        // Save the UID
+        uid[0] = mob->id[0];
+        uid[1] = mob->id[1];
 
-	} else if (room) {
-		ROOM_INDEX_DATA *source;
+        // Check for tokens FIRST
+        iterator_start(&tit, mob->ltokens);
+        // Loop Level 1
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                // Loop Level 2
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (script_vnumname_match_primary(prg, entity_area, vnum, name)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT ) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
 
-		if(room->source) {
-			source = room->source;
-			uid[0] = room->id[0];
-			uid[1] = room->id[1];
-		} else {
-			source = room;
-		}
+                                script_token_remref(token);
+                                script_mobile_remref(mob);
+                                return ret;
+                            }
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+            }
+        }
+        iterator_stop(&tit);
 
-		script_room_addref(room);
+        if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
+            iterator_start(&pit, mob->pIndexData->progs[slot]);
+            // Loop Level 1:
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if (script_vnumname_match_primary(prg, entity_area, vnum, name)) {
+                        ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT ) {
+                                iterator_stop(&pit);
 
-		// Check for tokens FIRST
-		iterator_start(&tit, room->ltokens);
-		while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if( token->pIndexData->progs ) {
-				script_token_addref(token);
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
-							(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&tit);
-								iterator_stop(&pit);
+                                script_mobile_remref(mob);
+                                return ret;
+                            }
 
-								script_token_remref(token);
-								script_room_remref(room);
-								return ret;
-							}
-						}
-					}
-				}
-				iterator_stop(&pit);
-				script_token_remref(token);
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
 
-			}
-		}
-		iterator_stop(&tit);
+            // RECHECK FOR WILDCARDS
 
-		if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
-			script_destructed = false;
-			iterator_start(&pit, source->progs->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,type)) {
-					if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
-						(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-							if( ret != PRET_NOSCRIPT) {
-								iterator_stop(&pit);
+            // Check for tokens FIRST
+            iterator_start(&tit, mob->ltokens);
+            // Loop Level 1
+            while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                if( token->pIndexData && token->pIndexData->progs ) {
+                    script_token_addref(token);
+                    script_destructed = false;
+                    iterator_start(&pit, token->pIndexData->progs[slot]);
+                    // Loop Level 2
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (script_vnumname_match_wildcard(prg)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT ) {
+                                    iterator_stop(&tit);
+                                    iterator_stop(&pit);
 
-								script_room_remref(room);
-								return ret;
-							}
+                                    script_token_remref(token);
+                                    script_mobile_remref(mob);
+                                    return ret;
+                                }
+                            }
+                        }
+                    }
+                    iterator_stop(&pit);
+                    script_token_remref(token);
+                }
+            }
+            iterator_stop(&tit);
 
-					}
-				}
-			}
-			iterator_stop(&pit);
+            if(!script_destructed && IS_VALID(mob) && mob->id[0] == uid[0] && mob->id[1] == uid[1] && IS_NPC(mob) && mob->pIndexData->progs) {
+                iterator_start(&pit, mob->pIndexData->progs[slot]);
+                // Loop Level 1:
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (script_vnumname_match_wildcard(prg)) {
+                            ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&pit);
+
+                                    script_mobile_remref(mob);
+                                    return ret;
+                                }
+
+                        }
+                    }
+                    BREAKPRET;
+                }
+                iterator_stop(&pit);
+            }
+
+        }
+        script_mobile_remref(mob);
+
+    } else if (obj && obj_room(obj) ) {
+        // Save the UID
+        uid[0] = obj->id[0];
+        uid[1] = obj->id[1];
+        script_object_addref(obj);
+
+        // Check for tokens FIRST
+        iterator_start(&tit, obj->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (script_vnumname_match_primary(prg, entity_area, vnum, name)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
+
+                                script_token_remref(token);
+                                script_object_remref(obj);
+                                return ret;
+                            }
+
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+
+                script_token_remref(token);
+                BREAKPRET;
+            }
+        }
+        iterator_stop(&tit);
+
+        if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+            script_destructed = false;
+            iterator_start(&pit, obj->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if (script_vnumname_match_primary(prg, entity_area, vnum, name)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&pit);
+
+                                script_object_remref(obj);
+                                return ret;
+                            }
+
+                    }
+                }
+                BREAKPRET;
+            }
+            iterator_stop(&pit);
+
+            // RECHECK WILDCARDS
+
+            // Check for tokens FIRST
+            iterator_start(&tit, obj->ltokens);
+            while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                if( token->pIndexData && token->pIndexData->progs ) {
+                    script_token_addref(token);
+                    script_destructed = false;
+                    iterator_start(&pit, token->pIndexData->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (script_vnumname_match_wildcard(prg)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&tit);
+                                    iterator_stop(&pit);
+
+                                    script_token_remref(token);
+                                    script_object_remref(obj);
+                                    return ret;
+                                }
+
+                            }
+                        }
+                    }
+                    iterator_stop(&pit);
+
+                    script_token_remref(token);
+                    BREAKPRET;
+                }
+            }
+            iterator_stop(&tit);
+
+            if(ret_val == PRET_NOSCRIPT && !script_destructed && IS_VALID(obj) && obj->id[0] == uid[0] && obj->id[1] == uid[1] && obj->pIndexData->progs) {
+                script_destructed = false;
+                iterator_start(&pit, obj->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (script_vnumname_match_wildcard(prg)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&pit);
+
+                                    script_object_remref(obj);
+                                    return ret;
+                                }
+
+                        }
+                    }
+                    BREAKPRET;
+                }
+                iterator_stop(&pit);
+            }
 
 
-			// Check for tokens FIRST
-			iterator_start(&tit, room->ltokens);
-			while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-				if( token->pIndexData->progs ) {
-					script_token_addref(token);
-					script_destructed = false;
-					iterator_start(&pit, token->pIndexData->progs[slot]);
-					while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-						if (is_trigger_type(prg->trig_type,type)) {
-							if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
-								(!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
-								ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT ) {
-									iterator_stop(&tit);
-									iterator_stop(&pit);
+        }
 
-									script_token_remref(token);
-									script_room_remref(room);
-									return ret;
-								}
-							}
-						}
-					}
-					iterator_stop(&pit);
-					script_token_remref(token);
+        script_object_remref(obj);
 
-				}
-			}
-			iterator_stop(&tit);
+    } else if (room) {
+        ROOM_INDEX_DATA *source;
 
-			if(ret_val == PRET_NOSCRIPT && source->progs->progs) {
-				script_destructed = false;
-				iterator_start(&pit, source->progs->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,type)) {
-						if ( (prg->numeric && match_equal(prg->trig_number, 0)) ||
-							(!prg->numeric && match_exact_name(prg->trig_phrase, "*")) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
-								if( ret != PRET_NOSCRIPT) {
-									iterator_stop(&pit);
+        if(room->source) {
+            source = room->source;
+            uid[0] = room->id[0];
+            uid[1] = room->id[1];
+        } else {
+            source = room;
+        }
 
-									script_room_remref(room);
-									return ret;
-								}
+        script_room_addref(room);
 
-						}
-					}
-				}
-				iterator_stop(&pit);
+        // Check for tokens FIRST
+        iterator_start(&tit, room->ltokens);
+        while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if( token->pIndexData && token->pIndexData->progs ) {
+                script_token_addref(token);
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (script_vnumname_match_primary(prg, entity_area, vnum, name)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&tit);
+                                iterator_stop(&pit);
 
-			}
+                                script_token_remref(token);
+                                script_room_remref(room);
+                                return ret;
+                            }
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+                script_token_remref(token);
+
+            }
+        }
+        iterator_stop(&tit);
+
+        if(ret_val == PRET_NOSCRIPT && source->progs && source->progs->progs) {
+            script_destructed = false;
+            iterator_start(&pit, source->progs->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,type)) {
+                    if (script_vnumname_match_primary(prg, entity_area, vnum, name)) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                            if( ret != PRET_NOSCRIPT) {
+                                iterator_stop(&pit);
+
+                                script_room_remref(room);
+                                return ret;
+                            }
+
+                    }
+                }
+            }
+            iterator_stop(&pit);
 
 
-		}
-		script_room_remref(room);
+            // Check for tokens FIRST
+            iterator_start(&tit, room->ltokens);
+            while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+                if( token->pIndexData && token->pIndexData->progs ) {
+                    script_token_addref(token);
+                    script_destructed = false;
+                    iterator_start(&pit, token->pIndexData->progs[slot]);
+                    while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                        if (is_trigger_type(prg->trig_type,type)) {
+                            if (script_vnumname_match_wildcard(prg)) {
+                                ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT ) {
+                                    iterator_stop(&tit);
+                                    iterator_stop(&pit);
 
-	} else
-		bug("test_vnumname_trigger: no program type for trigger %d.", type);
+                                    script_token_remref(token);
+                                    script_room_remref(room);
+                                    return ret;
+                                }
+                            }
+                        }
+                    }
+                    iterator_stop(&pit);
+                    script_token_remref(token);
 
-	PRETURN;
+                }
+            }
+            iterator_stop(&tit);
+
+            if(ret_val == PRET_NOSCRIPT && source->progs && source->progs->progs) {
+                script_destructed = false;
+                iterator_start(&pit, source->progs->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,type)) {
+                        if (script_vnumname_match_wildcard(prg)) {
+                            ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,type,0,0,0,0,0);
+                                if( ret != PRET_NOSCRIPT) {
+                                    iterator_stop(&pit);
+
+                                    script_room_remref(room);
+                                    return ret;
+                                }
+
+                        }
+                    }
+                }
+                iterator_stop(&pit);
+
+            }
+
+
+        }
+        script_room_remref(room);
+
+    } else
+        pbugf(LOG_SCRIPTS, "test_vnumname_trigger: no program type for trigger %d.", type);
+
+    PRETURN;
 }
 
 
 
 int p_give_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
-			CHAR_DATA *ch, OBJ_DATA *dropped, int type)
+            CHAR_DATA *ch, OBJ_DATA *dropped, int type)
 {
-	return test_vnumname_trigger(dropped->name, dropped->pIndexData->vnum, type,
-					mob, obj, room, ch, NULL, NULL, dropped, NULL, NULL);
+    return test_vnumname_trigger(dropped->name, dropped->pIndexData->vnum,
+                    dropped->pIndexData->area, type,
+                    mob, obj, room, ch, NULL, NULL, dropped, NULL, NULL);
 }
 
 
 int p_use_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type)
 {
-	if (obj == NULL) {
-		bug("p_use_trigger: received null obj!", 0);
-		return PRET_NOSCRIPT;
-	}
+    if (obj == NULL) {
+        pbugf(LOG_SCRIPTS, "p_use_trigger: received null obj!", 0);
+        return PRET_NOSCRIPT;
+    }
 
-	if (!obj_room(obj)) return PRET_NOSCRIPT;
+    if (!obj_room(obj)) return PRET_NOSCRIPT;
 
 
-	if (type == TRIG_PUSH || type == TRIG_TURN || type == TRIG_PULL || type == TRIG_USE)
-		return test_number_trigger(0, 0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
+    if (type == TRIG_PUSH || type == TRIG_TURN || type == TRIG_PULL || type == TRIG_USE)
+        return test_number_trigger(0, 0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
 
-	return PRET_NOSCRIPT;
+    return PRET_NOSCRIPT;
 }
 
 int p_use_on_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, char *argument)
 {
-	if (obj == NULL) {
-		bug("p_use_on_trigger: received null obj!", 0);
-		return PRET_NOSCRIPT;
-	}
+    if (obj == NULL) {
+        pbugf(LOG_SCRIPTS, "p_use_on_trigger: received null obj!", 0);
+        return PRET_NOSCRIPT;
+    }
 
-	if (!obj_room(obj)) return PRET_NOSCRIPT;
+    if (!obj_room(obj)) return PRET_NOSCRIPT;
 
-	if (type == TRIG_PUSH_ON || type == TRIG_TURN_ON || type == TRIG_PULL_ON)
-		return test_string_trigger(argument, "*", match_substr, type, NULL, obj, NULL, ch, NULL, NULL, NULL, NULL);
+    if (type == TRIG_PUSH_ON || type == TRIG_TURN_ON || type == TRIG_PULL_ON)
+        return test_string_trigger(argument, "*", match_substr, type, NULL, obj, NULL, ch, NULL, NULL, NULL, NULL);
 
-	return PRET_NOSCRIPT;
+    return PRET_NOSCRIPT;
 }
 
 int p_use_with_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, OBJ_DATA *obj1, OBJ_DATA *obj2, CHAR_DATA *victim, CHAR_DATA *victim2)
 {
-	if (obj == NULL) {
-		bug("p_use_with_trigger: received null obj!", 0);
-		return PRET_NOSCRIPT;
-	}
+    if (obj == NULL) {
+        pbugf(LOG_SCRIPTS, "p_use_with_trigger: received null obj!", 0);
+        return PRET_NOSCRIPT;
+    }
 
-	if (!obj_room(obj)) return PRET_NOSCRIPT;
+    if (!obj_room(obj)) return PRET_NOSCRIPT;
 
-	if (type == TRIG_USEWITH)
-		return test_number_trigger(0, 0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, NULL);
+    if (type == TRIG_USEWITH)
+        return test_number_trigger(0, 0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, NULL);
 
-	return PRET_NOSCRIPT;
+    return PRET_NOSCRIPT;
 }
 
 
 int p_greet_trigger(CHAR_DATA *ch, int type)
 {
-	return p_location_trigger(ch, ch ? ch->in_room : NULL, 0, 0, match_percent, type, TRIG_GREET, TRIG_GRALL);
+    return p_location_trigger(ch, ch ? ch->in_room : NULL, 0, 0, match_percent, type, TRIG_GREET, TRIG_GRALL);
 }
 
 
 int p_hprct_trigger(CHAR_DATA *mob, CHAR_DATA *ch) // @@@NIB
 {
-	int hit = (100 * mob->hit / mob->max_hit);
+    int hit = (100 * mob->hit / mob->max_hit);
 
-	return test_number_trigger(hit, hit, match_lt, TRIG_HPCNT, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
+    return test_number_trigger(hit, hit, match_lt, TRIG_HPCNT, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 int p_emote_trigger(CHAR_DATA *ch, char *emote)
 {
-	int ret_val = PRET_NOSCRIPT, ret;
-	// Check tokens on player
+    int ret_val = PRET_NOSCRIPT, ret;
+    // Check tokens on player
 
-	ret_val = test_string_trigger(emote, "*", match_exact_name, TRIG_EMOTE, ch, NULL, NULL, ch, NULL, NULL, NULL, NULL);
+    ret_val = test_string_trigger(emote, "*", match_exact_name, TRIG_EMOTE, ch, NULL, NULL, ch, NULL, NULL, NULL, NULL);
 
 
-	if( ret_val == PRET_NOSCRIPT && ch->in_room != NULL) {
-		CHAR_DATA *mob, *mob_next;
+    if( ret_val == PRET_NOSCRIPT && ch->in_room != NULL) {
+        CHAR_DATA *mob, *mob_next;
 
-		// Check all mobs in the room
-		for (mob = ch->in_room->people; mob != NULL; mob = mob_next) {
-			mob_next = mob->next_in_room;
+        // Check all mobs in the room
+        for (mob = ch->in_room->people; mob != NULL; mob = mob_next) {
+            mob_next = mob->next_in_room;
 
-			if (!IS_NPC(mob) || mob->position == mob->pIndexData->default_pos)
-			{
-				ret = test_string_trigger(emote, "*", match_exact_name, TRIG_EMOTE, mob, NULL, NULL, ch, NULL, NULL, NULL, NULL);
+            if (!IS_NPC(mob) || mob->position == mob->pIndexData->default_pos)
+            {
+                ret = test_string_trigger(emote, "*", match_exact_name, TRIG_EMOTE, mob, NULL, NULL, ch, NULL, NULL, NULL, NULL);
 
-				if( ret != PRET_NOSCRIPT ) {
-					ret_val = ret;
-					break;
-				}
-			}
-		}
-	}
+                if( ret != PRET_NOSCRIPT ) {
+                    ret_val = ret;
+                    break;
+                }
+            }
+        }
+    }
 
-	PRETURN;
+    PRETURN;
 }
 
 int p_emoteat_trigger(CHAR_DATA *mob, CHAR_DATA *ch, char *emote)
 {
-	int trig = (mob != ch) ? TRIG_EMOTEAT : TRIG_EMOTESELF;
-	return test_string_trigger(emote, "*", match_exact_name, trig, mob, NULL, NULL, ch, NULL, NULL, NULL, NULL);
+    int trig = (mob != ch) ? TRIG_EMOTEAT : TRIG_EMOTESELF;
+    return test_string_trigger(emote, "*", match_exact_name, trig, mob, NULL, NULL, ch, NULL, NULL, NULL, NULL);
 }
 
 int script_login(CHAR_DATA *ch) // @@@NIB
 {
-	ITERATOR tit, oit, pit;
-	TOKEN_DATA *token;
-	OBJ_DATA *obj;
-	PROG_LIST *prg;
-	SCRIPT_DATA *script;
-	unsigned long uid[2];
-	//unsigned long ouid[2];
-	int slot;
-	int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
+    ITERATOR tit, oit, pit;
+    TOKEN_DATA *token;
+    OBJ_DATA *obj;
+    PROG_LIST *prg;
+    SCRIPT_DATA *script;
+    unsigned long uid[2];
+    //unsigned long ouid[2];
+    int slot;
+    int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
 
-	variable_dynamic_fix_mobile(ch);
+    variable_dynamic_fix_mobile(ch);
 
-	// Run the SYSTEM LOGIN ROOM SCRIPT
-	script = get_script_index(RPROG_VNUM_PLAYER_INIT,PRG_RPROG);
-	if(script) {
-		script_force_execute = true;
-		script_security = SYSTEM_SCRIPT_SECURITY;
-		execute_script(RPROG_VNUM_PLAYER_INIT, script, NULL, NULL, get_room_index(1), NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
-		script_security = INIT_SCRIPT_SECURITY;
-		script_force_execute = false;
-	}
+    // Run the SYSTEM LOGIN ROOM SCRIPT
+    WNUM wnum;
+    if (resolve_widevnum(RPROG_VNUM_PLAYER_INIT, NULL, &wnum))
+        script = get_script_index(wnum.pArea, wnum.vnum, PRG_RPROG);
+    else
+        script = NULL;
 
-	// Run the TRIG_LOGIN
-	slot = trigger_table[TRIG_LOGIN].slot;
+    if(script) {
+        script_force_execute = true;
+        script_security = SYSTEM_SCRIPT_SECURITY;
+        execute_script(RPROG_VNUM_PLAYER_INIT, script, NULL, NULL, get_room_index_global(1), NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,TRIG_LOGIN,0,0,0,0,0);
+        script_security = INIT_SCRIPT_SECURITY;
+        script_force_execute = false;
+    }
 
-	// Save the UID
-	uid[0] = ch->id[0];
-	uid[1] = ch->id[1];
+    // Run the TRIG_LOGIN
+    {
+        int trigger_tindex = -1;
+        for (int i = 0; i < trigger_table_size; i++) {
+            if (trigger_table[i].type == TRIG_LOGIN) {
+                trigger_tindex = i;
+                break;
+            }
+        }
+        if (trigger_tindex < 0)
+            return PRET_NOSCRIPT;
+        slot = trigger_table[trigger_tindex].slot;
+    }
 
-	// Check for tokens FIRST
-	iterator_start(&tit, ch->ltokens);
-	while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-		if(token->pIndexData->progs) {
-			script_token_addref(token);
-			script_destructed = false;
-			iterator_start(&pit, token->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
-					SETPRET;
-				}
-			}
-			script_token_remref(token);
-			iterator_stop(&pit);
-		}
-	}
-	iterator_stop(&tit);
+    // Save the UID
+    uid[0] = ch->id[0];
+    uid[1] = ch->id[1];
 
-	// Check objects SECOND
-	iterator_start(&oit, ch->lcarrying);
-	while(( obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-		iterator_start(&tit, obj->ltokens);
-		while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
-			if(token->pIndexData->progs) {
-				script_destructed = false;
-				iterator_start(&pit, token->pIndexData->progs[slot]);
-				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-					if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL,NULL, NULL,NULL,NULL, NULL,0,0,0,0,0);
-						SETPRET;
-					}
-				}
-				iterator_stop(&pit);
-			}
-		}
-		iterator_stop(&tit);
+    // Check for tokens FIRST
+    iterator_start(&tit, ch->ltokens);
+    while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+        if(token->pIndexData && token->pIndexData->progs) {
+            script_token_addref(token);
+            script_destructed = false;
+            iterator_start(&pit, token->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
+                    ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,TRIG_LOGIN,0,0,0,0,0);
+                    SETPRET;
+                }
+            }
+            script_token_remref(token);
+            iterator_stop(&pit);
+        }
+    }
+    iterator_stop(&tit);
 
-		if(obj->pIndexData->progs) {
-			script_destructed = false;
-			iterator_start(&pit, obj->pIndexData->progs[slot]);
-			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-				if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
-					ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
-					SETPRET;
-				}
-			}
-			iterator_stop(&pit);
-		}
-	}
-	iterator_stop(&oit);
+    // Check objects SECOND
+    iterator_start(&oit, ch->lcarrying);
+    while(( obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+        iterator_start(&tit, obj->ltokens);
+        while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+            if(token->pIndexData && token->pIndexData->progs) {
+                script_destructed = false;
+                iterator_start(&pit, token->pIndexData->progs[slot]);
+                while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                    if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
+                        ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL,NULL, NULL,NULL,NULL, NULL, TRIG_LOGIN,0,0,0,0,0);
+                        SETPRET;
+                    }
+                }
+                iterator_stop(&pit);
+            }
+        }
+        iterator_stop(&tit);
 
-	if(ret_val == PRET_NOSCRIPT && IS_VALID(ch) && ch->id[0] == uid[0] && ch->id[0] == uid[1] && IS_NPC(ch) && ch->pIndexData->progs) {
-		script_destructed = false;
-		iterator_start(&pit, ch->pIndexData->progs[slot]);
-		while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
-			if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number &&
-				((ret = execute_script(prg->vnum, prg->script, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0)) != PRET_NOSCRIPT)) {
-				ret_val = ret;
-				break;
-			}
-		}
-		iterator_stop(&pit);
-	}
+        if(obj->pIndexData->progs) {
+            script_destructed = false;
+            iterator_start(&pit, obj->pIndexData->progs[slot]);
+            while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+                if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
+                    ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL, TRIG_LOGIN,0,0,0,0,0);
+                    SETPRET;
+                }
+            }
+            iterator_stop(&pit);
+        }
+    }
+    iterator_stop(&oit);
 
-	PRETURN; // @@@NIB
+    if(ret_val == PRET_NOSCRIPT && IS_VALID(ch) && ch->id[0] == uid[0] && ch->id[0] == uid[1] && IS_NPC(ch) && ch->pIndexData->progs) {
+        script_destructed = false;
+        iterator_start(&pit, ch->pIndexData->progs[slot]);
+        while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+            if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number &&
+                ((ret = execute_script(prg->vnum, prg->script, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL, TRIG_LOGIN,0,0,0,0,0)) != PRET_NOSCRIPT)) {
+                ret_val = ret;
+                break;
+            }
+        }
+        iterator_stop(&pit);
+    }
+
+    PRETURN; // @@@NIB
 }
 
 void do_ifchecks( CHAR_DATA *ch, char *argument)
 {
-	char buf[MIL]/*, *pbuf*/;
-	BUFFER *buffer;
-	int i,j;
+    char buf[MIL]/*, *pbuf*/;
+    BUFFER *buffer;
+    int i,j;
 
-	if(!ch->lines) {
-		send_to_char("Viewing this with paging off is not permitted due to the number of ifchecks.\n\r",ch);
-		return;
-	}
+    if(!ch->lines) {
+        send_to_char("Viewing this with paging off is not permitted due to the number of ifchecks.\n\r",ch);
+        return;
+    }
 
-	buffer = new_buf();
-	if(!buffer) {
-		send_to_char("WTF?! Couldn't create the buffer!\n\r",ch);
-		return;
-	}
+    buffer = new_buf();
+    if(!buffer) {
+        send_to_char("WTF?! Couldn't create the buffer!\n\r",ch);
+        return;
+    }
 
-	add_buf(buffer,"{WIf-Checks:{x\n\r");
-	add_buf(buffer,"{D========================================================================={x\n\r");
-	add_buf(buffer,"{WNum  {D| {WName                {D| {W              Types               {D| {WValue {D|{x\n\r");
-	add_buf(buffer,"{D-------------------------------------------------------------------------{x\n\r");
+    add_buf(buffer,"{WIf-Checks:{x\n\r");
+    add_buf(buffer,"{D========================================================================={x\n\r");
+    add_buf(buffer,"{WNum  {D| {WName                {D| {W              Types               {D| {WValue {D|{x\n\r");
+    add_buf(buffer,"{D-------------------------------------------------------------------------{x\n\r");
 
-	for(i=0,j=0;ifcheck_table[i].name;i++) if(!*argument || is_name(argument,ifcheck_table[i].name)) {
-		sprintf(buf,"{W%4d{D)  {Y%-20.20s %s %s %s %s %s %s %s   %s{x\n\r",++j,
-			ifcheck_table[i].name,
-			((ifcheck_table[i].type & IFC_M) ? "{Gmob" : "   "),
-			((ifcheck_table[i].type & IFC_O) ? "{Gobj" : "   "),
-			((ifcheck_table[i].type & IFC_R) ? "{Groom" : "    "),
-			((ifcheck_table[i].type & IFC_T) ? "{Gtoken" : "     "),
-			((ifcheck_table[i].type & IFC_A) ? "{Garea" : "    "),
-			((ifcheck_table[i].type & IFC_I) ? "{Ginst" : "    "),
-			((ifcheck_table[i].type & IFC_D) ? "{Gdung" : "    "),
-			(ifcheck_table[i].numeric ? "{B NUM " : "{R T/F "));
-		add_buf(buffer,buf);
-	}
-	add_buf(buffer,"{D========================================================================={x\n\r");
+    for(i=0,j=0;ifcheck_table[i].name;i++) if(!*argument || is_name(argument,ifcheck_table[i].name)) {
+        sprintf(buf,"{W%4d{D)  {Y%-20.20s %s %s %s %s %s %s %s   %s{x\n\r",++j,
+            ifcheck_table[i].name,
+            ((ifcheck_table[i].type & IFC_M) ? "{Gmob" : "   "),
+            ((ifcheck_table[i].type & IFC_O) ? "{Gobj" : "   "),
+            ((ifcheck_table[i].type & IFC_R) ? "{Groom" : "    "),
+            ((ifcheck_table[i].type & IFC_T) ? "{Gtoken" : "     "),
+            ((ifcheck_table[i].type & IFC_A) ? "{Garea" : "    "),
+            ((ifcheck_table[i].type & IFC_I) ? "{Ginst" : "    "),
+            ((ifcheck_table[i].type & IFC_D) ? "{Gdung" : "    "),
+            (ifcheck_table[i].numeric ? "{B NUM " : "{R T/F "));
+        add_buf(buffer,buf);
+    }
+    add_buf(buffer,"{D========================================================================={x\n\r");
 
 //	pbuf = buf_string(buffer);
 //	sprintf(buf,"pbuf = '%.15s{x', %d\n\r", pbuf, strlen(pbuf));
 
-	if(j > 0)
-		page_to_char(buf_string(buffer), ch);
+    if(j > 0)
+        page_to_char(buf_string(buffer), ch);
 //		send_to_char(buf,ch);
-	else
-		send_to_char("No ifchecks match that name pattern.\n\r",ch);
-	free_buf(buffer);
-	return;
+    else
+        send_to_char("No ifchecks match that name pattern.\n\r",ch);
+    free_buf(buffer);
+    return;
 }
 
 
 char *get_script_prompt_string(CHAR_DATA *ch, char *key)
 {
-	STRING_VECTOR *v;
-	if(IS_NPC(ch) || !ch->pcdata->script_prompts) return "";
+    STRING_VECTOR *v;
+    if(IS_NPC(ch) || !ch->pcdata->script_prompts) return "";
 
-	v = string_vector_find(ch->pcdata->script_prompts,key);
-	return v ? v->string : "";
+    v = string_vector_find(ch->pcdata->script_prompts,key);
+    return v ? v->string : "";
 }
 
 
@@ -6468,156 +8674,156 @@ char *get_script_prompt_string(CHAR_DATA *ch, char *key)
 // Used for token scripts
 bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, int mana)
 {
-	CHAR_DATA *rch = NULL;
-	AFFECT_DATA *af;
-	int attempts;
-	int lev;
-	int type;
+    CHAR_DATA *rch = NULL;
+    AFFECT_DATA *af;
+    int attempts;
+    int lev;
+    int type;
 
-	if (!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION))
-		return true;
+    if (!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION))
+        return true;
 
-	act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-	// Find spell deflection
-	for (af = victim->affected; af; af = af->next) {
-		if (af->type == skill_lookup("spell deflection"))
-		break;
-	}
+    // Find spell deflection
+    for (af = victim->affected; af; af = af->next) {
+        if (af->type == skill_lookup("spell deflection"))
+        break;
+    }
 
-	if (!af) return true;
+    if (!af) return true;
 
-	lev = (af->level * 3)/4;
-	lev = URANGE(15, lev, 90);
+    lev = (af->level * 3)/4;
+    lev = URANGE(15, lev, 90);
 
-	if (number_percent() > lev) {
-		if (ch) {
-			if (ch == victim)
-				send_to_char("Your spell gets through your protective crimson aura!\n\r", ch);
-			else {
-				act("Your spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("$n's spell gets through your protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-				act("$n's spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-			}
-		}
+    if (number_percent() > lev) {
+        if (ch) {
+            if (ch == victim)
+                send_to_char("Your spell gets through your protective crimson aura!\n\r", ch);
+            else {
+                act("Your spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$n's spell gets through your protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+                act("$n's spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+            }
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	type = token->pIndexData->value[TOKVAL_SPELL_TARGET];
-	/* it bounces to a random person */
-	if (type != TAR_IGNORE)
-		for (attempts = 0; attempts < 6; attempts++) {
-			rch = get_random_char(NULL, NULL, victim->in_room, NULL);
-			if ((ch && rch == ch) || rch == victim ||
-				((type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF) && ch && is_safe(ch, rch, false))) {
-				rch = NULL;
-				continue;
-			}
-		}
+    type = token->pIndexData->value[TOKVAL_SPELL_TARGET];
+    /* it bounces to a random person */
+    if (type != TAR_IGNORE)
+        for (attempts = 0; attempts < 6; attempts++) {
+            rch = get_random_char(NULL, NULL, victim->in_room, NULL);
+            if ((ch && rch == ch) || rch == victim ||
+                ((type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF) && ch && is_safe(ch, rch, false))) {
+                rch = NULL;
+                continue;
+            }
+        }
 
-	// Loses potency with time
-	af->level -= 10;
-	if (af->level <= 0) {
-		send_to_char("{MThe crimson aura around you vanishes.{x\n\r", victim);
-		act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		affect_remove(victim, af);
-		return true;
-	}
+    // Loses potency with time
+    af->level -= 10;
+    if (af->level <= 0) {
+        send_to_char("{MThe crimson aura around you vanishes.{x\n\r", victim);
+        act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        affect_remove(victim, af);
+        return true;
+    }
 
-	if (rch) {
-		if (ch) {
-			act("{YYour spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("{Y$n's spell bounces off onto you!{x", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-			act("{Y$n's spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		}
+    if (rch) {
+        if (ch) {
+            act("{YYour spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("{Y$n's spell bounces off onto you!{x", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+            act("{Y$n's spell bounces off onto $N!{x",  ch, rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+        }
 
-		token->value[3] = ch ? ch->tot_level : af->level;
+        token->value[3] = ch ? ch->tot_level : af->level;
 
-		execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch ? ch : rch, NULL, NULL, rch, NULL,NULL, NULL,"deflection",NULL,0,0,0,0,0);
-	} else if (ch) {
-		act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n's spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
+        execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch ? ch : rch, NULL, NULL, rch, NULL,NULL, NULL,"deflection",NULL,TRIG_NONE,0,0,0,0,0);
+    } else if (ch) {
+        act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("{Y$n's spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
 
-	return false;
+    return false;
 }
 
 
 void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int multiplier )
 {
-	int chance, per;
-	char buf[100];
-	int rating, max_rating, diff;
+    int chance, per;
+    char buf[100];
+    int rating, max_rating, diff;
 
-	if (IS_NPC(ch))
-		return;
+    if (IS_NPC(ch))
+        return;
 
-	if (IS_SOCIAL(ch))
-		return;
+    if (IS_SOCIAL(ch))
+        return;
 
-	rating = token->value[TOKVAL_SPELL_RATING];
-	max_rating = token->pIndexData->value[TOKVAL_SPELL_RATING] * 100;
-	diff = token->pIndexData->value[TOKVAL_SPELL_DIFFICULTY];
-	if (diff < 1) diff = 1;
+    rating = token->value[TOKVAL_SPELL_RATING];
+    max_rating = token->pIndexData->value[TOKVAL_SPELL_RATING] * 100;
+    diff = token->pIndexData->value[TOKVAL_SPELL_DIFFICULTY];
+    if (diff < 1) diff = 1;
 
-	if(!max_rating) max_rating = 100;
+    if(!max_rating) max_rating = 100;
 
-	if(rating < 1 || rating >= max_rating)
-		return;
+    if(rating < 1 || rating >= max_rating)
+        return;
 
-	// check to see if the character has a chance to learn
-	chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
-	multiplier  = UMAX(multiplier,1);
-	chance     /= (multiplier * diff * 4);
-	chance     += ch->level;
+    // check to see if the character has a chance to learn
+    chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
+    multiplier  = UMAX(multiplier,1);
+    chance     /= (multiplier * diff * 4);
+    chance     += ch->level;
 
-	if (number_range(1,1000) > chance)
-		return;
+    if (number_range(1,1000) > chance)
+        return;
 
-	per = 100 * rating / max_rating;
+    per = 100 * rating / max_rating;
 
-	// now that the character has a CHANCE to learn, see if they really have
-	if (success) {
-		chance = URANGE(2, 100 - per, 25);
-		if (number_percent() < chance) {
-			sprintf(buf,"{WYou have become better at %s!{x\n\r", token->name);
-			send_to_char(buf,ch);
-			token->value[TOKVAL_SPELL_RATING]++;
-			gain_exp(ch, 2 * diff, true);
-		}
-	} else {
-		chance = URANGE(5, per/2, 30);
-		if (number_percent() < chance) {
-			sprintf(buf, "{WYou learn from your mistakes, and your %s skill improves.{x\n\r", token->name);
-			send_to_char(buf, ch);
-			token->value[TOKVAL_SPELL_RATING] += number_range(1,3);
-			if(token->value[TOKVAL_SPELL_RATING] >= max_rating)
-				token->value[TOKVAL_SPELL_RATING] = max_rating;
-			gain_exp(ch,2 * diff, true);
-		}
-	}
+    // now that the character has a CHANCE to learn, see if they really have
+    if (success) {
+        chance = URANGE(2, 100 - per, 25);
+        if (number_percent() < chance) {
+            sprintf(buf,"{WYou have become better at %s!{x\n\r", token->name);
+            send_to_char(buf,ch);
+            token->value[TOKVAL_SPELL_RATING]++;
+            gain_exp(ch, NULL, 2 * diff, true);
+        }
+    } else {
+        chance = URANGE(5, per/2, 30);
+        if (number_percent() < chance) {
+            sprintf(buf, "{WYou learn from your mistakes, and your %s skill improves.{x\n\r", token->name);
+            send_to_char(buf, ch);
+            token->value[TOKVAL_SPELL_RATING] += number_range(1,3);
+            if(token->value[TOKVAL_SPELL_RATING] >= max_rating)
+                token->value[TOKVAL_SPELL_RATING] = max_rating;
+            gain_exp(ch, NULL, 2 * diff, true);
+        }
+    }
 }
 
 SCRIPT_VARINFO *script_get_prior(SCRIPT_VARINFO *info)
 {
-	return ((info && info->block && info->block->next) ? &(info->block->next->info) : NULL);
+    return ((info && info->block && info->block->next) ? &(info->block->next->info) : NULL);
 }
 
 bool interrupt_script( CHAR_DATA *ch, bool silent )
 {
-	bool ret = false;
+    bool ret = false;
 
-	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INTERRUPT, silent?"silent":NULL))
-		ret = true;
+    if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INTERRUPT, silent?"silent":NULL))
+        ret = true;
 
-	if( ch->script_wait > 0) {
-		script_end_failure(ch, !silent);
-		ret = true;
-	}
+    if( ch->script_wait > 0) {
+        script_end_failure(ch, !silent);
+        ret = true;
+    }
 
-	return ret;
+    return ret;
 }
 
 
@@ -6634,15 +8840,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     LLIST *carry_list = NULL;  // For lcarrying
     LLIST *worn_list = NULL;   // For lworn
     ITERATOR it;
+    WNUM wnum = wnum_zero;
     int vnum = 0, i, idx;
     unsigned long id1/*, id2*/;
 
     if(!info) return;
 
-    if(info->mob) here = info->mob->in_room;
-    else if(info->obj) here = obj_room(info->obj);
-    else if(info->room) here = info->room;
-    else if(info->token) here = token_room(info->token);
+    here = script_room_from_info_context(info);
 
     if(!vars) return;
 
@@ -6685,7 +8889,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: BOOL <boolean>
     // Format: BOOL <number>
     // Format: BOOL <numerical string>
-    if(!str_cmp(buf,"bool")) {
+    if(!str_cmp(buf,"bool") || !str_cmp(buf,"boolean")) {
         switch(arg->type) {
         case ENT_BOOLEAN: variables_set_boolean(vars,name,arg->d.boolean); break;
         case ENT_NUMBER: variables_set_boolean(vars,name,(arg->d.num != 0)); break;
@@ -6704,7 +8908,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Saves a number
     // Format: INTEGER <number>
     // Format: INTEGER <numerical string>
-    } else if(!str_cmp(buf,"integer") || !str_cmp(buf,"number")) {
+    } else if(!str_cmp(buf,"integer") || !str_cmp(buf,"number") || !str_cmp(buf,"num")) {
         switch(arg->type) {
         case ENT_NUMBER: variables_set_integer(vars,name,arg->d.num); break;
         case ENT_STRING:
@@ -6712,6 +8916,22 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                 variables_set_integer(vars,name,atoi(arg->d.str));
             break;
         }
+
+    // Generates and stores an RSG value from a generator spec.
+    // Format: RSG <generator_spec>
+    // Example: varset myname rsg ^sith_names:pattern:2
+    } else if(!str_cmp(buf,"rsg") || !str_cmp(buf,"generator")) {
+        BUFFER *spec_buf = new_buf();
+        char generated[MSL];
+
+        expand_string(info, argument, spec_buf);
+        if (!rsg_generate_spec(buf_string(spec_buf), generated, sizeof(generated))) {
+            free_buf(spec_buf);
+            return;
+        }
+
+        variables_set_string(vars, name, generated, false);
+        free_buf(spec_buf);
 
     // Decrements the variable, if it's a NUMBER by the specified decrement
     // Format: DEC <step>
@@ -6747,7 +8967,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             break;
         }
     // Format: STRING <string>[ <word index>]
-    } else if(!str_cmp(buf,"string")) {
+    } else if(!str_cmp(buf,"string") || !str_cmp(buf,"str")) {
         char tmp[MSL],*p;
 
         switch(arg->type) {
@@ -6908,7 +9128,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
         free_buf(buffer);
 
-    // Format: ROOM <VNUM> - room vnum
+    // Format: ROOM <VNUM> - room vnum (supports widevnum)
     // Format: ROOM <ROOM> - explicit room
     // Format: ROOM <EXIT> - gets the destination of the exit
     // Format: ROOM <ROOM-LIST> - first room from the list
@@ -6918,8 +9138,25 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: ROOM <ROOM-LIST> RANDOM - random valid room from the list
     } else if(!str_cmp(buf,"room")) {
         switch(arg->type) {
-        case ENT_NUMBER:
-            variables_set_room(vars,name,get_room_index(arg->d.num));
+        case ENT_WIDEVNUM:
+            variables_set_room(vars,name,get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER: {
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            AREA_DATA *context_area = here ? here->area : NULL;
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea)
+                variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+            if (is_number(arg->d.str)) {
+                WNUM room_wnum = { NULL, 0 };
+                AREA_DATA *context_area = here ? here->area : NULL;
+                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea)
+                    variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
+            }
             break;
         case ENT_ROOM:
             variables_set_room(vars,name,arg->d.room);
@@ -7016,6 +9253,52 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             }
         }
 
+    // Format: COORD <wilds_room>
+    // Format: COORD <room-in-wilds>
+    // Format: COORD <wilds|wilds_id|wilds_uid> <x> <y>
+    } else if(!str_cmp(buf,"coord") || !str_cmp(buf,"coords") || !str_cmp(buf,"wilds_room") || !str_cmp(buf,"wcoord")) {
+        WILDS_DATA *wilds = NULL;
+        int x = 0;
+        int y = 0;
+
+        if (arg->type == ENT_WILDS_ROOM) {
+            wilds = get_wilds_from_uid(NULL, arg->d.wroom.wuid);
+            x = arg->d.wroom.x;
+            y = arg->d.wroom.y;
+        } else if (arg->type == ENT_ROOM && arg->d.room && arg->d.room->wilds) {
+            wilds = arg->d.room->wilds;
+            x = arg->d.room->x;
+            y = arg->d.room->y;
+        } else if (arg->type == ENT_WILDS || arg->type == ENT_WILDS_ID || arg->type == ENT_NUMBER) {
+            if (arg->type == ENT_WILDS)
+                wilds = arg->d.wilds;
+            else if (arg->type == ENT_WILDS_ID)
+                wilds = get_wilds_from_uid(NULL, arg->d.wid);
+            else
+                wilds = get_wilds_from_uid(NULL, arg->d.num);
+
+            if (!wilds)
+                return;
+
+            if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+                return;
+            x = arg->d.num;
+
+            if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+                return;
+            y = arg->d.num;
+        } else {
+            return;
+        }
+
+        if (!wilds)
+            return;
+
+        if (x < 0 || x >= wilds->map_size_x || y < 0 || y >= wilds->map_size_y)
+            return;
+
+        variables_set_wilds_room(vars, name, wilds->uid, x, y, false);
+
     // Format: EXIT <STRING> - finds the exit at the given direction in the current room
     // Format: EXIT <ROOM> <STRING> - same as EXIT <STRING> but at the given room
     // Format: EXIT <EXIT> - explicit exit
@@ -7057,29 +9340,30 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: MOBILE NAME|WORLD <NAME>[ <VIEWER>]
     // Format: MOBILE HERE <NAME>[ <VIEWER>]
     // Format: MOBILE <MOBILE>
-    } else if(!str_cmp(buf,"mobile")) {
+    } else if(!str_cmp(buf,"mobile") || !str_cmp(buf,"mob")) {
         if( arg->type == ENT_BLLIST_MOB )
         {
             LLIST *blist = arg->d.blist;
             BUFFER *buffer = NULL;
+            wnum = wnum_zero;
             if(!(rest = expand_argument(info,rest,arg)))
                 return;
 
             if( arg->type == ENT_NUMBER )
             {
-                vnum = arg->d.num;
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
                 str = NULL;
             }
             else if( arg->type == ENT_STRING )
             {
-                if(is_number(arg->d.str))
+                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
                 {
-                    vnum = atoi(arg->d.str);
                     str = NULL;
                 }
                 else
                 {
-                    vnum = 0;
                     str = arg->d.str;
                 }
             }
@@ -7106,7 +9390,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                     viewer = arg->d.mob;
             }
 
-            vch = script_get_char_blist(blist, viewer, false, vnum, str);
+            vch = script_get_char_blist(info, blist, viewer, false, wnum, str);
             variables_set_mobile(vars,name,vch);
             if( buffer )
                 free_buf(buffer);
@@ -7114,15 +9398,30 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         }
 
         switch(arg->type) {
-        case ENT_NUMBER:
-            here = get_room_index(arg->d.num);
+        case ENT_WIDEVNUM:
+            here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
             mobs = here ? here->people : NULL;
             break;
+        case ENT_NUMBER: {
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            AREA_DATA *context_area = here ? here->area : NULL;
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
+                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                mobs = here ? here->people : NULL;
+            }
+            break;
+        }
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                here = get_room_index(atoi(arg->d.str));
-                mobs = here ? here->people : NULL;
+                WNUM room_wnum = { NULL, 0 };
+                AREA_DATA *context_area = here ? here->area : NULL;
+                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
+                    here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                    mobs = here ? here->people : NULL;
+                }
             }
             else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
             {
@@ -7138,7 +9437,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
 
-                MOB_INDEX_DATA *mob_index = get_mob_index(arg->d.num);
+                MOB_INDEX_DATA *mob_index = get_mob_index_from_info(info, arg->d.num);
                 if(!mob_index) return;
 
                 vch = get_char_world_index(NULL, mob_index);
@@ -7161,11 +9460,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                 return;
 
             BUFFER *buffer = NULL;
-            if(arg->type == ENT_NUMBER)
-                vnum = arg->d.num;
+            wnum = wnum_zero;
+            if(arg->type == ENT_NUMBER) {
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+            }
             else if(arg->type == ENT_STRING) {
-                if(is_number(arg->d.str))
-                    vnum = atoi(arg->d.str);
+                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                    str = NULL;
                 else
                 {
                     str = arg->d.str;
@@ -7194,7 +9497,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                     viewer = arg->d.mob;
             }
 
-            vch = script_get_char_list(mobs, viewer, false, vnum, str);
+            vch = script_get_char_list(info, mobs, viewer, false, wnum, str);
             if( buffer )
                 free_buf(buffer);
         }
@@ -7232,7 +9535,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                     viewer = arg->d.mob;
             }
 
-            vch = script_get_char_blist(blist, viewer, true, 0, str);
+            vch = script_get_char_blist(info, blist, viewer, true, wnum_zero, str);
             variables_set_mobile(vars,name,vch);
             return;
         }
@@ -7282,7 +9585,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                     viewer = arg->d.mob;
             }
 
-            vch = script_get_char_list(mobs, viewer, true, 0, str);
+            vch = script_get_char_list(info, mobs, viewer, true, wnum_zero, str);
 
             if( buffer )
                 free_buf(buffer);
@@ -7294,28 +9597,29 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: OBJECT WORLD <NAME>
     // Format: OBJECT VNUM <VNUM>
     // Format: OBJECT <OBJECT>
-    } else if(!str_cmp(buf,"object")) {
+    } else if(!str_cmp(buf,"object") || !str_cmp(buf,"obj")) {
         if( arg->type == ENT_BLLIST_OBJ)
         {
             LLIST *blist = arg->d.blist;
+            wnum = wnum_zero;
             if(!(rest = expand_argument(info,rest,arg)))
                 return;
 
             if( arg->type == ENT_NUMBER )
             {
-                vnum = arg->d.num;
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
                 str = NULL;
             }
             else if( arg->type == ENT_STRING )
             {
-                if(is_number(arg->d.str))
+                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
                 {
-                    vnum = atoi(arg->d.str);
                     str = NULL;
                 }
                 else
                 {
-                    vnum = 0;
                     str = arg->d.str;
                 }
             }
@@ -7344,7 +9648,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                     viewer = arg->d.mob;
             }
 
-            obj = script_get_obj_blist(blist, viewer, vnum, str);
+            obj = script_get_obj_blist(info, blist, viewer, wnum, str);
             variables_set_object(vars,name,obj);
 
             if( buffer )
@@ -7354,15 +9658,30 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 
         switch(arg->type) {
-        case ENT_NUMBER:
-            here = get_room_index(arg->d.num);
+        case ENT_WIDEVNUM:
+            here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
             objs = here ? here->contents : NULL;
             break;
+        case ENT_NUMBER: {
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            AREA_DATA *context_area = here ? here->area : NULL;
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
+                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                objs = here ? here->contents : NULL;
+            }
+            break;
+        }
         case ENT_STRING:
             if(is_number(arg->d.str))
             {
-                here = get_room_index(atoi(arg->d.str));
-                objs = here ? here->contents : NULL;
+                WNUM room_wnum = { NULL, 0 };
+                AREA_DATA *context_area = here ? here->area : NULL;
+                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
+                    here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                    objs = here ? here->contents : NULL;
+                }
             }
             else if(!str_cmp(arg->d.str, "here"))
             {
@@ -7380,7 +9699,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
 
-                OBJ_INDEX_DATA *obj_index = get_obj_index(arg->d.num);
+                OBJ_INDEX_DATA *obj_index = get_obj_index_from_info(info, arg->d.num);
 
                 obj = get_obj_world_index(NULL, obj_index, false);
             }
@@ -7412,11 +9731,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             if(!(rest = expand_argument(info,rest,arg)))
                 return;
 
-            if(arg->type == ENT_NUMBER)
-                vnum = arg->d.num;
+            wnum = wnum_zero;
+            if(arg->type == ENT_NUMBER) {
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+            }
             else if(arg->type == ENT_STRING) {
-                if(is_number(arg->d.str))
-                    vnum = atoi(arg->d.str);
+                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                    str = NULL;
                 else
                     str = arg->d.str;
             } else
@@ -7443,7 +9766,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                     viewer = arg->d.mob;
             }
 
-            obj = script_get_obj_list(objs_list, viewer, 0, vnum, str);
+            obj = script_get_obj_list(info, objs_list, viewer, 0, wnum, str);
 
             if( buffer )
                 free_buf(buffer);
@@ -7451,11 +9774,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             if(!(rest = expand_argument(info,rest,arg)))
                 return;
 
-            if(arg->type == ENT_NUMBER)
-                vnum = arg->d.num;
+            wnum = wnum_zero;
+            if(arg->type == ENT_NUMBER) {
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+            }
             else if(arg->type == ENT_STRING) {
-                if(is_number(arg->d.str))
-                    vnum = atoi(arg->d.str);
+                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                    str = NULL;
                 else
                     str = arg->d.str;
             } else
@@ -7482,7 +9809,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                     viewer = arg->d.mob;
             }
 
-            obj = script_get_obj_list(objs, viewer, 0, vnum, str);
+            obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
 
             if( buffer )
                 free_buf(buffer);
@@ -7493,18 +9820,23 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: CARRY <MOBILE> <VNUM or NAME>
     // Format: CARRY <OBJLIST> <VNUM or NAME>
     } else if(!str_cmp(buf,"carry")) {
+        wnum = wnum_zero;
         switch(arg->type) {
         case ENT_NUMBER:
-            vnum = arg->d.num;
+        {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
             if (info->mob && info->mob->lcarrying) {
                 carry_list = info->mob->lcarrying;
             } else {
                 objs = NULL;
             }
             break;
+        }
         case ENT_STRING:
-            if(is_number(arg->d.str))
-                vnum = atoi(arg->d.str);
+            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                str = NULL;
             else
                 str = arg->d.str;
             if (info->mob && info->mob->lcarrying) {
@@ -7536,11 +9868,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)))
                     return;
-                if(arg->type == ENT_NUMBER)
-                    vnum = arg->d.num;
+                if(arg->type == ENT_NUMBER) {
+                    char vnum_str[32];
+                    snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                    parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+                }
                 else if(arg->type == ENT_STRING) {
-                    if(is_number(arg->d.str))
-                        vnum = atoi(arg->d.str);
+                    if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                        str = NULL;
                     else
                         str = arg->d.str;
                 } else
@@ -7569,9 +9904,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             }
 
             if (carry_list) {
-                obj = script_get_obj_list(carry_list, viewer, 2, vnum, str);
+                obj = script_get_obj_list(info, carry_list, viewer, 2, wnum, str);
             } else {
-                obj = script_get_obj_list(objs, viewer, 2, vnum, str);
+                obj = script_get_obj_list(info, objs, viewer, 2, wnum, str);
             }
 
             if( buffer )
@@ -7582,9 +9917,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: WORN <VNUM or NAME>
     // Format: WORN <MOBILE or OBJLIST> <VNUM or NAME>
     } else if(!str_cmp(buf,"worn")) {
+        wnum = wnum_zero;
         switch(arg->type) {
         case ENT_NUMBER:
-            vnum = arg->d.num;
+        {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
             if (info->mob && info->mob->lworn) {
                 worn_list = info->mob->lworn;
             } else if (info->mob) {
@@ -7593,9 +9932,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
                 objs = NULL;
             }
             break;
+        }
         case ENT_STRING:
-            if(is_number(arg->d.str))
-                vnum = atoi(arg->d.str);
+            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                str = NULL;
             else
                 str = arg->d.str;
             if (info->mob && info->mob->lworn) {
@@ -7631,11 +9971,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             {
                 if(!(rest = expand_argument(info,rest,arg)))
                     return;
-                if(arg->type == ENT_NUMBER)
-                    vnum = arg->d.num;
+                if(arg->type == ENT_NUMBER) {
+                    char vnum_str[32];
+                    snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                    parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+                }
                 else if(arg->type == ENT_STRING) {
-                    if(is_number(arg->d.str))
-                        vnum = atoi(arg->d.str);
+                    if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                        str = NULL;
                     else
                         str = arg->d.str;
                 } else
@@ -7664,9 +10007,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             }
 
             if (worn_list) {
-                obj = script_get_obj_list(worn_list, viewer, 1, vnum, str);
+                obj = script_get_obj_list(info, worn_list, viewer, 1, wnum, str);
             } else {
-                obj = script_get_obj_list(objs, viewer, 1, vnum, str);
+                obj = script_get_obj_list(info, objs, viewer, 1, wnum, str);
             }
 
             if( buffer )
@@ -7698,11 +10041,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         {
             if(!(rest = expand_argument(info,rest,arg)))
                 return;
-            if(arg->type == ENT_NUMBER)
-                vnum = arg->d.num;
+            wnum = wnum_zero;
+            if(arg->type == ENT_NUMBER) {
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+            }
             else if(arg->type == ENT_STRING) {
-                if(is_number(arg->d.str))
-                    vnum = atoi(arg->d.str);
+                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                    str = NULL;
                 else
                     str = arg->d.str;
             } else
@@ -7730,9 +10077,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             }
 
             if (objs_list) {
-                obj = script_get_obj_list(objs_list, viewer, 0, vnum, str);
+                obj = script_get_obj_list(info, objs_list, viewer, 0, wnum, str);
             } else {
-                obj = script_get_obj_list(objs, viewer, 0, vnum, str);
+                obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
             }
 
             if( buffer )
@@ -7767,7 +10114,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // VARIABLE OBJECT NAME
     // VARIABLE ROOM NAME
     // VARIABLE TOKEN NAME
-    } else if(!str_cmp(buf,"variable")) {
+    } else if(!str_cmp(buf,"variable") || !str_cmp(buf,"var")) {
         pVARIABLE their_vars, their_var;
         switch(arg->type) {
         case ENT_MOBILE:   their_vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
@@ -7831,8 +10178,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: CROOM <ROOM VNUM> <IDa> <IDb>
     } else if(!str_cmp(buf,"croom")) {
         switch(arg->type) {
-        case ENT_NUMBER:
-            here = get_room_index(arg->d.num);
+        case ENT_NUMBER: 
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
+            if (!area) area = get_system_area_fallback();
+            here = get_room_index(area, arg->d.num);
             if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
                 return;
             id1 = arg->d.num;
@@ -7852,6 +10201,20 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         default: return;
         }
 
+    // Format: SKILLGROUP <name>
+    // Format: SKILLGROUP <skillgroup>
+    } else if(!str_cmp(buf,"skillgroup") || !str_cmp(buf,"skill_group")) {
+        switch(arg->type) {
+        case ENT_STRING:
+            variables_set_skill_group(vars, name, skill_group_find(arg->d.str));
+            break;
+        case ENT_SKILLGROUP:
+            variables_set_skill_group(vars, name, arg->d.skill_group);
+            break;
+        default:
+            return;
+        }
+
     // Format: SKILLINFO <MOBILE> <NAME or TOKEN>
     } else if(!str_cmp(buf,"skillinfo")) {
         switch(arg->type) {
@@ -7868,6 +10231,299 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         default: return;
         }
 
+    // Format: SONG <NAME>
+    // Format: SONG <SONG>
+    } else if(!str_cmp(buf,"song")) {
+        switch(arg->type) {
+        case ENT_STRING:
+            variables_set_song(vars, name, song_lookup(arg->d.str));
+            break;
+        case ENT_SONG:
+            variables_set_song(vars, name, arg->d.song);
+            break;
+        default:
+            return;
+        }
+
+    // Format: SPELL <SPELL>
+    } else if(!str_cmp(buf,"spell")) {
+        switch(arg->type) {
+        case ENT_SPELL:
+            variables_set_spell(vars, name, arg->d.spell);
+            break;
+        default:
+            return;
+        }
+
+    // Format: LIQUID <NUMBER|STRING|LIQUID>
+    } else if(!str_cmp(buf,"liquid")) {
+        switch(arg->type) {
+        case ENT_NUMBER:
+            if (arg->d.num >= 0 && arg->d.num < liquid_count())
+                variables_set_liquid(vars, name, arg->d.num);
+            break;
+        case ENT_STRING:
+        {
+            int liq = liquid_lookup(arg->d.str);
+            if (liq >= 0)
+                variables_set_liquid(vars, name, liq);
+            break;
+        }
+        case ENT_LIQUID:
+            variables_set_liquid(vars, name, arg->d.liquid);
+            break;
+        default:
+            return;
+        }
+
+    // Format: MATERIAL <NUMBER|STRING|MATERIAL>
+    } else if(!str_cmp(buf,"material")) {
+        switch(arg->type) {
+        case ENT_NUMBER:
+            if (arg->d.num >= 0 && arg->d.num < material_count())
+                variables_set_material(vars, name, arg->d.num);
+            break;
+        case ENT_STRING:
+        {
+            int mat = material_index_lookup(arg->d.str);
+            if (mat >= 0)
+                variables_set_material(vars, name, mat);
+            break;
+        }
+        case ENT_MATERIAL:
+            variables_set_material(vars, name, arg->d.material);
+            break;
+        default:
+            return;
+        }
+
+    // Format: LOCKSTATE <LOCK_STATE|EXIT>
+    // Format: LOCK_STATE <LOCK_STATE|EXIT>
+    } else if(!str_cmp(buf,"lockstate") || !str_cmp(buf,"lock_state")) {
+        switch(arg->type) {
+        case ENT_LOCK_STATE:
+            variables_set_lock_state(vars, name, arg->d.lock_state);
+            break;
+        case ENT_EXIT:
+            if (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR && arg->d.door.r->exit[arg->d.door.door])
+                variables_set_lock_state(vars, name, &arg->d.door.r->exit[arg->d.door.door]->door.lock);
+            break;
+        default:
+            return;
+        }
+
+    // Format: MOBINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: MOBINDEX <MOBINDEX>
+    } else if(!str_cmp(buf,"mobindex") || !str_cmp(buf,"mob_index")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_mobindex(vars, name, get_mob_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_MOBINDEX:
+            variables_set_mobindex(vars, name, arg->d.mobindex);
+            break;
+        default:
+            return;
+        }
+
+    // Format: OBJINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: OBJINDEX <OBJINDEX>
+    } else if(!str_cmp(buf,"objindex") || !str_cmp(buf,"obj_index")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_objindex(vars, name, get_obj_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_OBJINDEX:
+            variables_set_objindex(vars, name, arg->d.objindex);
+            break;
+        default:
+            return;
+        }
+
+    // Format: TOKENINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: TOKENINDEX <TOKEN_INDEX>
+    // Format: TOKINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: TOKINDEX <TOKEN_INDEX>
+    } else if(!str_cmp(buf,"tokenindex") || !str_cmp(buf,"tokindex") || !str_cmp(buf,"token_index")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_tokenindex(vars, name, get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_TOKEN_INDEX:
+            variables_set_tokenindex(vars, name, arg->d.token_index);
+            break;
+        default:
+            return;
+        }
+
+    // Format: BLUEPRINT <WIDEVNUM|NUMBER|STRING>
+    // Format: BLUEPRINT <BLUEPRINT>
+    } else if(!str_cmp(buf,"blueprint") || !str_cmp(buf,"bp")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_blueprint(vars, name, get_blueprint_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_BLUEPRINT:
+            variables_set_blueprint(vars, name, arg->d.blueprint);
+            break;
+        default:
+            return;
+        }
+
+    // Format: BPSECTION <WIDEVNUM|NUMBER|STRING>
+    // Format: BPSECTION <BLUEPRINT_SECTION>
+    } else if(!str_cmp(buf,"bpsection") || !str_cmp(buf,"blueprint_section")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_BLUEPRINT_SECTION:
+            variables_set_blueprint_section(vars, name, arg->d.blueprint_section);
+            break;
+        default:
+            return;
+        }
+
+    // Format: DNGINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: DNGINDEX <DUNGEONINDEX>
+    } else if(!str_cmp(buf,"dngindex") || !str_cmp(buf,"dungeonindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_DUNGEONINDEX:
+            variables_set_dungeonindex(vars, name, arg->d.dungeon_index);
+            break;
+        default:
+            return;
+        }
+
+    // Format: SHIPINDEX <WIDEVNUM|NUMBER|STRING>
+    // Format: SHIPINDEX <SHIPINDEX>
+    } else if(!str_cmp(buf,"shipindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_shipindex(vars, name, get_ship_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_SHIPINDEX:
+            variables_set_shipindex(vars, name, arg->d.ship_index);
+            break;
+        default:
+            return;
+        }
+
     // Format: FINDPATH <ROOM> <ROOM> <DEPTH> <IN-ZONE> <DOORS> - returns the EXIT entity
     } else if(!str_cmp(buf,"findpath")) {
         ROOM_INDEX_DATA *start_room = NULL, *end_room = NULL;
@@ -7875,7 +10531,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
         int dir;
 
         switch(arg->type) {
-        case ENT_NUMBER:    start_room = get_room_index(arg->d.num); break;
+        case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
+                            if (!area) area = get_system_area_fallback();
+                            start_room = get_room_index(area, arg->d.num);
+                            break;
+                        }
         case ENT_ROOM:      start_room = arg->d.room; break;
         case ENT_EXIT:      start_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
         }
@@ -7884,7 +10544,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
             return;
 
         switch(arg->type) {
-        case ENT_NUMBER:    end_room = get_room_index(arg->d.num); break;
+                case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
+                            if (!area) area = get_system_area_fallback();
+                            end_room = get_room_index(area, arg->d.num);
+                            break;
+                }
         case ENT_ROOM:      end_room = arg->d.room; break;
         case ENT_EXIT:      end_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
         }
@@ -7927,6 +10591,261 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
         if( area )
             variables_set_area(vars,name,area);
+
+    // AREAREGION <area> <region uid>
+    // AREAREGION <aregion>
+    // AREGION <area> <region uid>
+    // AREGION <aregion>
+    } else if(!str_cmp(buf,"arearegion") || !str_cmp(buf,"aregion")) {
+        if (arg->type == ENT_AREA) {
+            AREA_DATA *area = arg->d.area;
+            AREA_REGION *region = NULL;
+
+            if (!expand_argument(info, rest, arg) || arg->type != ENT_NUMBER)
+                return;
+
+            region = get_area_region_by_uid(area, arg->d.num);
+            if (region)
+                variables_set_area_region(vars, name, region);
+        } else if (arg->type == ENT_AREA_REGION) {
+            variables_set_area_region(vars, name, arg->d.aregion);
+        }
+
+    // Format: WILDS <uid>
+    // Format: WILDS <wilds>
+    // Format: WILDS <wilds_id>
+    } else if(!str_cmp(buf,"wilds")) {
+        WILDS_DATA *wilds = NULL;
+
+        switch(arg->type) {
+        case ENT_NUMBER:
+            wilds = get_wilds_from_uid(NULL, arg->d.num);
+            break;
+        case ENT_WILDS:
+            wilds = arg->d.wilds;
+            break;
+        case ENT_WILDS_ID:
+            wilds = get_wilds_from_uid(NULL, arg->d.wid);
+            break;
+        default:
+            wilds = NULL;
+            break;
+        }
+
+        if (wilds)
+            variables_set_wilds(vars, name, wilds);
+
+    // Format: SECTION <section>
+    // Format: SECT <section>
+    } else if(!str_cmp(buf,"section") || !str_cmp(buf,"sect")) {
+        if (arg->type == ENT_SECTION)
+            variables_set_instance_section(vars, name, arg->d.section);
+
+    // Format: INSTANCE <instance>
+    // Format: INST <instance>
+    } else if(!str_cmp(buf,"instance") || !str_cmp(buf,"inst")) {
+        if (arg->type == ENT_INSTANCE)
+            variables_set_instance(vars, name, arg->d.instance);
+
+    // Format: DUNGEON <dungeon>
+    // Format: DUNG <dungeon>
+    } else if(!str_cmp(buf,"dungeon") || !str_cmp(buf,"dung")) {
+        if (arg->type == ENT_DUNGEON)
+            variables_set_dungeon(vars, name, arg->d.dungeon);
+
+    // Format: SHIP <ship>
+    } else if(!str_cmp(buf,"ship")) {
+        if (arg->type == ENT_SHIP)
+            variables_set_ship(vars, name, arg->d.ship);
+
+    // Format: QUEST <quest>
+    } else if(!str_cmp(buf,"quest")) {
+        if (arg->type == ENT_QUEST)
+            variables_set_quest(vars, name, arg->d.quest);
+
+    // Format: QUEST_STAGE <quest_stage>
+    // Format: QSTAGE <quest_stage>
+    } else if(!str_cmp(buf,"quest_stage") || !str_cmp(buf,"qstage")) {
+        if (arg->type == ENT_QUEST_STAGE)
+            variables_set_quest_stage(vars, name, arg->d.quest_stage);
+
+    // Format: QUEST_OBJECTIVE <quest_objective>
+    // Format: QOBJECTIVE <quest_objective>
+    } else if(!str_cmp(buf,"quest_objective") || !str_cmp(buf,"qobjective")) {
+        if (arg->type == ENT_QUEST_OBJECTIVE)
+            variables_set_quest_objective(vars, name, arg->d.quest_objective);
+
+    // Format: CLASS <name>
+    // Format: CLASS <class>
+    } else if(!str_cmp(buf,"class")) {
+        if (arg->type == ENT_STRING) {
+            CLASS_DATA *clazz = class_find(arg->d.str);
+            if (clazz)
+                variables_set_class(vars, name, clazz);
+        } else if (arg->type == ENT_CLASS) {
+            variables_set_class(vars, name, arg->d.clazz);
+        }
+
+    // Format: CLASSLEVEL <classlevel>
+    // Format: CLASSLEVEL <mobile> <class>
+    // Format: CLASSLEVEL <mobile> <class-name>
+    } else if(!str_cmp(buf,"classlevel") || !str_cmp(buf,"class_level")) {
+        if (arg->type == ENT_CLASSLEVEL)
+            variables_set_classlevel(vars, name, arg->d.classlevel);
+        else if (arg->type == ENT_MOBILE) {
+            CHAR_DATA *class_mob = arg->d.mob;
+            CLASS_DATA *clazz = NULL;
+            CLASS_LEVEL *class_level = NULL;
+
+            if (!expand_argument(info, rest, arg))
+                return;
+
+            if (arg->type == ENT_CLASS)
+                clazz = arg->d.clazz;
+            else if (arg->type == ENT_STRING)
+                clazz = class_find(arg->d.str);
+
+            if (!class_mob || !clazz)
+                return;
+
+            class_level = get_class_level(class_mob, clazz);
+            if (class_level)
+                variables_set_classlevel(vars, name, class_level);
+        }
+
+    // Format: BOOK_PAGE <book_page>
+    } else if(!str_cmp(buf,"book_page") || !str_cmp(buf,"bookpage")) {
+        if (arg->type == ENT_BOOK_PAGE)
+            variables_set_book_page(vars, name, arg->d.book_page);
+
+    // Format: FOOD_BUFF <food_buff>
+    // Format: FOOD_BUFF <obj_food_buff>
+    } else if(!str_cmp(buf,"food_buff") || !str_cmp(buf,"foodbuff")) {
+        if (arg->type == ENT_FOOD_BUFF)
+            variables_set_food_buff(vars, name, arg->d.food_buff);
+
+    // Format: WAYPOINT <waypoint>
+    } else if(!str_cmp(buf,"waypoint")) {
+        if (arg->type == ENT_WAYPOINT)
+            variables_set_waypoint(vars, name, arg->d.waypoint);
+
+    // Format: STOCK <stock>
+    // Format: SHOP_STOCK <stock>
+    } else if(!str_cmp(buf,"stock") || !str_cmp(buf,"shop_stock")) {
+        if (arg->type == ENT_SHOP_STOCK)
+            variables_set_shop_stock(vars, name, arg->d.stock);
+
+    // Format: TRAINER <trainer>
+    } else if(!str_cmp(buf,"trainer")) {
+        if (arg->type == ENT_TRAINER)
+            variables_set_trainer(vars, name, arg->d.trainer);
+
+    // Format: TRAINER_ENTRY <trainer_entry>
+    // Format: TENTRY <trainer_entry>
+    } else if(!str_cmp(buf,"trainer_entry") || !str_cmp(buf,"tentry")) {
+        if (arg->type == ENT_TRAINER_ENTRY)
+            variables_set_trainer_entry(vars, name, arg->d.trainer_entry);
+
+    // Format: REPUTATION_INDEX <widevnum|number|string|repindex|reputation>
+    // Format: REPINDEX <widevnum|number|string|repindex|reputation>
+    // Format: FACTION <widevnum|number|string|repindex|reputation>
+    } else if(!str_cmp(buf,"reputation_index") || !str_cmp(buf,"repindex") || !str_cmp(buf,"faction")) {
+        REPUTATION_INDEX_DATA *repIndex = NULL;
+        switch(arg->type) {
+        case ENT_REPUTATION_INDEX:
+            repIndex = arg->d.repIndex;
+            break;
+        case ENT_REPUTATION:
+            repIndex = arg->d.reputation ? arg->d.reputation->pIndexData : NULL;
+            break;
+        case ENT_WIDEVNUM:
+            repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            break;
+        }
+        default:
+            return;
+        }
+
+        if (repIndex)
+            variables_set_reputation_index(vars, name, repIndex);
+
+    // Format: REPUTATION <reputation>
+    // Format: REPUTATION <mobile> <repindex|widevnum|number|string>
+    } else if(!str_cmp(buf,"reputation")) {
+        if (arg->type == ENT_REPUTATION) {
+            variables_set_reputation(vars, name, arg->d.reputation);
+        } else if (arg->type == ENT_MOBILE) {
+            CHAR_DATA *rep_mob = arg->d.mob;
+            REPUTATION_INDEX_DATA *repIndex = NULL;
+            REPUTATION_DATA *reputation = NULL;
+
+            if (!expand_argument(info, rest, arg))
+                return;
+
+            if (arg->type == ENT_REPUTATION_INDEX)
+                repIndex = arg->d.repIndex;
+            else if (arg->type == ENT_WIDEVNUM)
+                repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            else if (arg->type == ENT_NUMBER) {
+                WNUM index_wnum = wnum_zero;
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            } else if (arg->type == ENT_STRING) {
+                WNUM index_wnum = wnum_zero;
+                if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            }
+
+            if (!rep_mob || !repIndex)
+                return;
+
+            reputation = get_reputation_char(rep_mob, repIndex->area, repIndex->vnum, false, false);
+            if (reputation)
+                variables_set_reputation(vars, name, reputation);
+        }
+
+    // Format: REPUTATION_RANK <reprank>
+    // Format: REPUTATION_RANK <reputation>
+    } else if(!str_cmp(buf,"reputation_rank") || !str_cmp(buf,"reprank")) {
+        if (arg->type == ENT_REPUTATION_RANK) {
+            variables_set_reputation_rank(vars, name, arg->d.repRank);
+        } else if (arg->type == ENT_REPUTATION) {
+            REPUTATION_INDEX_RANK_DATA *rank = NULL;
+            if (arg->d.reputation && arg->d.reputation->pIndexData)
+                rank = get_reputation_rank(arg->d.reputation->pIndexData, arg->d.reputation->current_rank);
+            if (rank)
+                variables_set_reputation_rank(vars, name, rank);
+        }
+
+    // Format: RACE <name>
+    // Format: RACE <race>
+    } else if(!str_cmp(buf,"race")) {
+        if (arg->type == ENT_STRING) {
+            RACE_DATA *race = race_lookup(arg->d.str);
+            if (!race)
+                race = race_lookup_name(arg->d.str);
+            if (race)
+                variables_set_race(vars, name, race);
+        } else if (arg->type == ENT_RACE) {
+            variables_set_race(vars, name, arg->d.race);
+        }
 
     // MOBLIST add <mobile>
     // MOBLIST remove <index>
@@ -8161,181 +11080,182 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 bool valid_spell_token( TOKEN_DATA *token )
 {
-	ITERATOR pit;
-	PROG_LIST *prg = NULL;
+    ITERATOR pit;
+    PROG_LIST *prg = NULL;
 
-	if( IS_VALID(token) && token->pIndexData->progs ) {
-		iterator_start(&pit, token->pIndexData->progs[TRIGSLOT_SPELL]);
-		while((prg = (PROG_LIST *)iterator_nextdata(&pit)))
-			if(prg->trig_type == TRIG_SPELL)
-				break;
-		iterator_stop(&pit);
-	}
+    if( IS_VALID(token) && token->pIndexData && token->pIndexData->progs ) {
+        iterator_start(&pit, token->pIndexData->progs[TRIGSLOT_SPELL]);
+        while((prg = (PROG_LIST *)iterator_nextdata(&pit)))
+            if(prg->trig_type == TRIG_SPELL)
+                break;
+        iterator_stop(&pit);
+    }
 
-	return prg && true;
+    return prg && true;
 }
 
 bool visit_script_execute(ROOM_INDEX_DATA *room, void *argv[], int argc, int depth, int door)
 {
-	int ret;
-	SCRIPT_DATA *script = (SCRIPT_DATA *)argv[0];
+    int ret;
+    SCRIPT_DATA *script = (SCRIPT_DATA *)argv[0];
 
-	ret = execute_script(script->vnum, script, NULL, NULL, room, NULL, NULL, NULL, NULL,
-		(CHAR_DATA *)argv[1],	// enactor
-		(OBJ_DATA *)argv[2],	// object 1
-		(OBJ_DATA *)argv[3],	// object 2
-		(CHAR_DATA *)argv[4],	// victim 1
-		(CHAR_DATA *)argv[5],	// victim 2
-		NULL,					// no random
-		NULL,					// no token
-		(char *)argv[6],		// phrase
-		NULL,					// no trigger
-		depth,					// register 1
-		door,					// register 2
-		0,						// register 3
-		0,						// register 4
-		0);						// register 5
+    ret = execute_script(script->vnum, script, NULL, NULL, room, NULL, NULL, NULL, NULL,
+        (CHAR_DATA *)argv[1],	// enactor
+        (OBJ_DATA *)argv[2],	// object 1
+        (OBJ_DATA *)argv[3],	// object 2
+        (CHAR_DATA *)argv[4],	// victim 1
+        (CHAR_DATA *)argv[5],	// victim 2
+        NULL,					// no random
+        NULL,					// no token
+        (char *)argv[6],		// phrase
+        NULL,					// no trigger
+        TRIG_NONE,				// trigger type
+        depth,					// register 1
+        door,					// register 2
+        0,						// register 3
+        0,						// register 4
+        0);						// register 5
 
-	return ret > 0;
+    return ret > 0;
 }
 
 void script_end_success(CHAR_DATA *ch)
 {
-	TOKEN_DATA *tok = NULL;
-	CHAR_DATA *mob = NULL;
-	OBJ_DATA *obj = NULL;
-	SCRIPT_DATA *script = NULL;
-	VARIABLE **var = NULL;
+    TOKEN_DATA *tok = NULL;
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    SCRIPT_DATA *script = NULL;
+    VARIABLE **var = NULL;
 
-	if( ch->script_wait_success != NULL) {
-		script = ch->script_wait_success;
+    if( ch->script_wait_success != NULL) {
+        script = ch->script_wait_success;
 
-		if( ch->script_wait_token != NULL ) {
-			if( IS_VALID(ch->script_wait_token) &&
-				ch->script_wait_token->id[0] == ch->script_wait_id[0] &&
-				ch->script_wait_token->id[1] == ch->script_wait_id[1]) {
-				tok = ch->script_wait_token;
-				var = &tok->progs->vars;
-			}
-		} else if( ch->script_wait_mob != NULL ) {
-			if( IS_VALID(ch->script_wait_mob) &&
-				ch->script_wait_mob->id[0] == ch->script_wait_id[0] &&
-				ch->script_wait_mob->id[1] == ch->script_wait_id[1]) {
-				mob = ch->script_wait_mob;
-				var = &mob->progs->vars;
-			}
-		} else if( ch->script_wait_obj != NULL ) {
-			if( IS_VALID(ch->script_wait_obj) &&
-				ch->script_wait_obj->id[0] == ch->script_wait_id[0] &&
-				ch->script_wait_obj->id[1] == ch->script_wait_id[1]) {
-				obj = ch->script_wait_obj;
-				var = &obj->progs->vars;
-			}
-		}
+        if( ch->script_wait_token != NULL ) {
+            if( IS_VALID(ch->script_wait_token) &&
+                ch->script_wait_token->id[0] == ch->script_wait_id[0] &&
+                ch->script_wait_token->id[1] == ch->script_wait_id[1]) {
+                tok = ch->script_wait_token;
+                var = &tok->progs->vars;
+            }
+        } else if( ch->script_wait_mob != NULL ) {
+            if( IS_VALID(ch->script_wait_mob) &&
+                ch->script_wait_mob->id[0] == ch->script_wait_id[0] &&
+                ch->script_wait_mob->id[1] == ch->script_wait_id[1]) {
+                mob = ch->script_wait_mob;
+                var = &mob->progs->vars;
+            }
+        } else if( ch->script_wait_obj != NULL ) {
+            if( IS_VALID(ch->script_wait_obj) &&
+                ch->script_wait_obj->id[0] == ch->script_wait_id[0] &&
+                ch->script_wait_obj->id[1] == ch->script_wait_id[1]) {
+                obj = ch->script_wait_obj;
+                var = &obj->progs->vars;
+            }
+        }
 
-	}
+    }
 
-	ch->script_wait_success = NULL;
-	ch->script_wait_failure = NULL;
-	ch->script_wait_pulse = NULL;
-	ch->script_wait_mob = NULL;
-	ch->script_wait_obj = NULL;
-	ch->script_wait_token = NULL;
+    ch->script_wait_success = NULL;
+    ch->script_wait_failure = NULL;
+    ch->script_wait_pulse = NULL;
+    ch->script_wait_mob = NULL;
+    ch->script_wait_obj = NULL;
+    ch->script_wait_token = NULL;
 
-	if( var != NULL && script != NULL )
-		execute_script(script->vnum, script, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,0,0,0,0,0);
+    if( var != NULL && script != NULL )
+        execute_script(script->vnum, script, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_NONE,0,0,0,0,0);
 
-	ch->script_wait = 0;
+    ch->script_wait = 0;
 }
 
 void script_end_failure(CHAR_DATA *ch, bool messages)
 {
-	TOKEN_DATA *tok = NULL;
-	CHAR_DATA *mob = NULL;
-	OBJ_DATA *obj = NULL;
-	SCRIPT_DATA *script = NULL;
-	VARIABLE **var = NULL;
+    TOKEN_DATA *tok = NULL;
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    SCRIPT_DATA *script = NULL;
+    VARIABLE **var = NULL;
 
-	if( ch->script_wait_failure != NULL) {
-		script = ch->script_wait_failure;
+    if( ch->script_wait_failure != NULL) {
+        script = ch->script_wait_failure;
 
-		if( ch->script_wait_token != NULL ) {
-			if( IS_VALID(ch->script_wait_token) &&
-				ch->script_wait_token->id[0] == ch->script_wait_id[0] &&
-				ch->script_wait_token->id[1] == ch->script_wait_id[1]) {
-				tok = ch->script_wait_token;
-				var = &tok->progs->vars;
-			}
-		} else if( ch->script_wait_mob != NULL ) {
-			if( IS_VALID(ch->script_wait_mob) &&
-				ch->script_wait_mob->id[0] == ch->script_wait_id[0] &&
-				ch->script_wait_mob->id[1] == ch->script_wait_id[1]) {
-				mob = ch->script_wait_mob;
-				var = &mob->progs->vars;
-			}
-		} else if( ch->script_wait_obj != NULL ) {
-			if( IS_VALID(ch->script_wait_obj) &&
-				ch->script_wait_obj->id[0] == ch->script_wait_id[0] &&
-				ch->script_wait_obj->id[1] == ch->script_wait_id[1]) {
-				obj = ch->script_wait_obj;
-				var = &obj->progs->vars;
-			}
-		}
-	}
+        if( ch->script_wait_token != NULL ) {
+            if( IS_VALID(ch->script_wait_token) &&
+                ch->script_wait_token->id[0] == ch->script_wait_id[0] &&
+                ch->script_wait_token->id[1] == ch->script_wait_id[1]) {
+                tok = ch->script_wait_token;
+                var = &tok->progs->vars;
+            }
+        } else if( ch->script_wait_mob != NULL ) {
+            if( IS_VALID(ch->script_wait_mob) &&
+                ch->script_wait_mob->id[0] == ch->script_wait_id[0] &&
+                ch->script_wait_mob->id[1] == ch->script_wait_id[1]) {
+                mob = ch->script_wait_mob;
+                var = &mob->progs->vars;
+            }
+        } else if( ch->script_wait_obj != NULL ) {
+            if( IS_VALID(ch->script_wait_obj) &&
+                ch->script_wait_obj->id[0] == ch->script_wait_id[0] &&
+                ch->script_wait_obj->id[1] == ch->script_wait_id[1]) {
+                obj = ch->script_wait_obj;
+                var = &obj->progs->vars;
+            }
+        }
+    }
 
-	ch->script_wait_success = NULL;
-	ch->script_wait_failure = NULL;
-	ch->script_wait_pulse = NULL;
-	ch->script_wait_mob = NULL;
-	ch->script_wait_obj = NULL;
-	ch->script_wait_token = NULL;
+    ch->script_wait_success = NULL;
+    ch->script_wait_failure = NULL;
+    ch->script_wait_pulse = NULL;
+    ch->script_wait_mob = NULL;
+    ch->script_wait_obj = NULL;
+    ch->script_wait_token = NULL;
 
-	if( var != NULL && script != NULL )
-		execute_script(script->vnum, script, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, (messages?NULL:"silent"), NULL,0,0,0,0,0);
+    if( var != NULL && script != NULL )
+        execute_script(script->vnum, script, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, (messages?NULL:"silent"), NULL,TRIG_NONE,0,0,0,0,0);
 
-	ch->script_wait = 0;
+    ch->script_wait = 0;
 }
 
 
 void script_end_pulse(CHAR_DATA *ch)
 {
-	TOKEN_DATA *tok = NULL;
-	CHAR_DATA *mob = NULL;
-	OBJ_DATA *obj = NULL;
-	VARIABLE **var = NULL;
+    TOKEN_DATA *tok = NULL;
+    CHAR_DATA *mob = NULL;
+    OBJ_DATA *obj = NULL;
+    VARIABLE **var = NULL;
 
-	if( ch->script_wait_pulse == NULL)
-		return;
+    if( ch->script_wait_pulse == NULL)
+        return;
 
-	//printf_to_char(ch, "script_end_pulse: %ld\n\r", ch->script_wait);
+    //printf_to_char(ch, "script_end_pulse: %ld\n\r", ch->script_wait);
 
-	if( ch->script_wait_token != NULL ) {
-		if( IS_VALID(ch->script_wait_token) &&
-			ch->script_wait_token->id[0] == ch->script_wait_id[0] &&
-			ch->script_wait_token->id[1] == ch->script_wait_id[1]) {
-			tok = ch->script_wait_token;
-			var = &tok->progs->vars;
-		}
-	} else if( ch->script_wait_mob != NULL ) {
-		if( IS_VALID(ch->script_wait_mob) &&
-			ch->script_wait_mob->id[0] == ch->script_wait_id[0] &&
-			ch->script_wait_mob->id[1] == ch->script_wait_id[1]) {
-			mob = ch->script_wait_mob;
-			var = &mob->progs->vars;
-		}
-	} else if( ch->script_wait_obj != NULL ) {
-		if( IS_VALID(ch->script_wait_obj) &&
-			ch->script_wait_obj->id[0] == ch->script_wait_id[0] &&
-			ch->script_wait_obj->id[1] == ch->script_wait_id[1]) {
-			obj = ch->script_wait_obj;
-			var = &obj->progs->vars;
-		}
-	}
+    if( ch->script_wait_token != NULL ) {
+        if( IS_VALID(ch->script_wait_token) &&
+            ch->script_wait_token->id[0] == ch->script_wait_id[0] &&
+            ch->script_wait_token->id[1] == ch->script_wait_id[1]) {
+            tok = ch->script_wait_token;
+            var = &tok->progs->vars;
+        }
+    } else if( ch->script_wait_mob != NULL ) {
+        if( IS_VALID(ch->script_wait_mob) &&
+            ch->script_wait_mob->id[0] == ch->script_wait_id[0] &&
+            ch->script_wait_mob->id[1] == ch->script_wait_id[1]) {
+            mob = ch->script_wait_mob;
+            var = &mob->progs->vars;
+        }
+    } else if( ch->script_wait_obj != NULL ) {
+        if( IS_VALID(ch->script_wait_obj) &&
+            ch->script_wait_obj->id[0] == ch->script_wait_id[0] &&
+            ch->script_wait_obj->id[1] == ch->script_wait_id[1]) {
+            obj = ch->script_wait_obj;
+            var = &obj->progs->vars;
+        }
+    }
 
-	if(!mob && !obj && !tok) return;
+    if(!mob && !obj && !tok) return;
 
-	if( var != NULL )
-		execute_script(ch->script_wait_pulse->vnum, ch->script_wait_pulse, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,0,0,0,0,0);
+    if( var != NULL )
+        execute_script(ch->script_wait_pulse->vnum, ch->script_wait_pulse, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,TRIG_NONE,0,0,0,0,0);
 }
 
 int script_flag_lookup (const char *name, const struct flag_type *flag_table)
@@ -8344,9 +11264,9 @@ int script_flag_lookup (const char *name, const struct flag_type *flag_table)
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
-		!str_prefix(name,flag_table[flag].name))
-	    return flag_table[flag].bit;
+    if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+        !str_prefix(name,flag_table[flag].name))
+        return flag_table[flag].bit;
     }
 
     return 0;
@@ -8407,16 +11327,16 @@ long script_flag_value( const struct flag_type *flag_table, char *argument)
 
     if ( is_stat( flag_table ) )
     {
-		one_argument( argument, word );
+        one_argument( argument, word );
 
-	    for (flag = 0; flag_table[flag].name != NULL; flag++)
-	    {
-			if (LOWER(word[0]) == LOWER(flag_table[flag].name[0]) &&
-				!str_prefix(word,flag_table[flag].name))
-	    		return flag_table[flag].bit;
-    	}
+        for (flag = 0; flag_table[flag].name != NULL; flag++)
+        {
+            if (LOWER(word[0]) == LOWER(flag_table[flag].name[0]) &&
+                !str_prefix(word,flag_table[flag].name))
+                return flag_table[flag].bit;
+        }
 
-	    return NO_FLAG;
+        return NO_FLAG;
     }
 
     /*
@@ -8427,7 +11347,7 @@ long script_flag_value( const struct flag_type *flag_table, char *argument)
         argument = one_argument( argument, word );
 
         if ( word[0] == '\0' )
-	    break;
+        break;
 
         if ( ( bit = script_flag_lookup( word, flag_table ) ) != 0 )
         {
@@ -8437,290 +11357,760 @@ long script_flag_value( const struct flag_type *flag_table, char *argument)
     }
 
     if ( found )
-	return marked;
+    return marked;
     else
-	return NO_FLAG;
+    return NO_FLAG;
 }
 
 CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all)
 {
-	if( !info ) return NULL;
+    ROOM_INDEX_DATA *resolved_room = NULL;
 
-	if( info->mob ) {
-		if( see_all )	// If see_all, bypass ALL vision checks
-			return get_char_room(NULL, info->mob->in_room, name);
-		else
-			return get_char_room(info->mob, NULL, name);
-	}
-	if( info->obj ) return get_char_room(NULL, obj_room(info->obj), name);
-	if( info->room ) return get_char_room(NULL, info->room, name);
-	if( info->token ) return get_char_room(NULL, token_room(info->token), name);
+    if( !info ) return NULL;
 
-	return NULL;
+    if( info->mob ) {
+        if( !info->mob->in_room )
+            return NULL;
+        if( see_all )	// If see_all, bypass ALL vision checks
+            return get_char_room(NULL, info->mob->in_room, name);
+        else
+            return get_char_room(info->mob, NULL, name);
+    }
+    resolved_room = script_room_from_info_context(info);
+    if (!resolved_room)
+        return NULL;
+    return get_char_room(NULL, resolved_room, name);
+
+    return NULL;
 }
 
 OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name)
 {
+    ROOM_INDEX_DATA *resolved_room = NULL;
 
-	if( !info ) return NULL;
+    if( !info ) return NULL;
 
-	if( info->mob ) return get_obj_here(info->mob, NULL, name);
-	if( info->obj ) return get_obj_here(NULL, obj_room(info->obj), name);
-	if( info->room ) return get_obj_here(NULL, info->room, name);
-	if( info->token ) return get_obj_here(NULL, token_room(info->token), name);
+    if( info->mob ) {
+        if( !info->mob->in_room )
+            return NULL;
+        return get_obj_here(info->mob, NULL, name);
+    }
+    resolved_room = script_room_from_info_context(info);
+    if (!resolved_room)
+        return NULL;
+    return get_obj_here(NULL, resolved_room, name);
 
-	return NULL;
+    return NULL;
+}
+
+static bool script_get_event_source_from_info(SCRIPT_VARINFO *info, long *event_uid, uint32_t *instance_id, int *bracket)
+{
+    long uid = 0;
+    uint32_t instance = 0;
+    int source_bracket = 0;
+
+    if (event_uid)
+        *event_uid = 0;
+    if (instance_id)
+        *instance_id = 0;
+    if (bracket)
+        *bracket = 0;
+
+    if (!info)
+        return false;
+
+    if (info->mob && event_get_mobile_spawn_source(info->mob, &uid, &instance) && uid > 0) {
+        event_get_mobile_spawn_bracket(info->mob, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->mob && !IS_NPC(info->mob)
+        && event_get_character_active_bracket(info->mob, &uid, &instance, &source_bracket)
+        && uid > 0) {
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->obj && event_get_object_spawn_source(info->obj, &uid, &instance) && uid > 0) {
+        event_get_object_spawn_bracket(info->obj, &source_bracket);
+        if (event_uid)
+            *event_uid = uid;
+        if (instance_id)
+            *instance_id = instance;
+        if (bracket)
+            *bracket = source_bracket;
+        return true;
+    }
+
+    if (info->token) {
+        if (info->token->player && event_get_mobile_spawn_source(info->token->player, &uid, &instance) && uid > 0) {
+            event_get_mobile_spawn_bracket(info->token->player, &source_bracket);
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+
+        if (info->token->player && !IS_NPC(info->token->player)
+            && event_get_character_active_bracket(info->token->player, &uid, &instance, &source_bracket)
+            && uid > 0) {
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+
+        if (info->token->object && event_get_object_spawn_source(info->token->object, &uid, &instance) && uid > 0) {
+            event_get_object_spawn_bracket(info->token->object, &source_bracket);
+            if (event_uid)
+                *event_uid = uid;
+            if (instance_id)
+                *instance_id = instance;
+            if (bracket)
+                *bracket = source_bracket;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // MLOAD $VNUM|$MOBILE $ROOM[ $VARIABLENAME]
 CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
-	char buf[MIL], *rest;
-	long vnum;
-	MOB_INDEX_DATA *pMobIndex;
-	ROOM_INDEX_DATA *room;
-	CHAR_DATA *victim;
+    char *rest;
+    WNUM wnum = { NULL, 0 };
+    MOB_INDEX_DATA *pMobIndex = NULL;
+    ROOM_INDEX_DATA *room;
+    CHAR_DATA *victim;
+    long event_uid = 0;
+    uint32_t event_instance_id = 0;
+    int event_bracket = 0;
 
-	if(!info) return NULL;
+    if(!info) return NULL;
 
-	info->progs->lastreturn = 0;
+    info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,arg)))
-		return NULL;
+    if(!(rest = expand_argument(info,argument,arg)))
+        return NULL;
 
-	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-	case ENT_MOBILE: vnum = arg->d.mob ? arg->d.mob->pIndexData->vnum : 0; break;
-	default: vnum = 0; break;
-	}
+    switch(arg->type) {
+    case ENT_WIDEVNUM:
+        wnum = arg->d.wnum;
+        break;
+    case ENT_NUMBER:
+    {
+        char vnum_str[32];
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    }
+    case ENT_STRING:
+        if (arg->d.str)
+            parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    case ENT_MOBILE:
+        if (arg->d.mob && arg->d.mob->pIndexData) {
+            wnum.pArea = arg->d.mob->pIndexData->area;
+            wnum.vnum = arg->d.mob->pIndexData->vnum;
+        }
+        break;
+    default:
+        break;
+    }
 
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
-		sprintf(buf, "Mpmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->mob));
-		bug(buf, 0);
-		return NULL;
-	}
+    if (!wnum.pArea || wnum.vnum < 1) {
+        return NULL;
+    }
 
-	room = NULL;
+    pMobIndex = get_mob_index(wnum.pArea, wnum.vnum);
+    if (!pMobIndex) {
+        return NULL;
+    }
 
-	char *var_name = rest;
+    room = NULL;
 
-	if( rest && *rest )
-	{
-		if(!(rest = expand_argument(info,rest,arg)))
-			return NULL;
+    char *var_name = rest;
 
-		if( arg->type == ENT_ROOM )
-		{
-			room = arg->d.room;
-			var_name = rest;
-		}
-		else if( arg->type == ENT_NUMBER )
-		{
-			room = get_room_index(arg->d.num);
-			var_name = rest;
-		}
+    if( rest && *rest )
+    {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return NULL;
 
-	}
+        if( arg->type == ENT_ROOM )
+        {
+            room = arg->d.room;
+            var_name = rest;
+        }
+        else if( arg->type == ENT_WIDEVNUM )
+        {
+            room = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            var_name = rest;
+        }
+        else if( arg->type == ENT_NUMBER )
+        {
+            WNUM room_wnum = { NULL, 0 };
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &room_wnum);
+            if (room_wnum.pArea)
+                room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            var_name = rest;
+        }
 
-	if( !room )
-	{
-		if( info->mob ) room = info->mob->in_room;
-		else if( info->obj ) room = obj_room(info->obj);
-		else if( info->room ) room = info->room;
-		else if( info->token ) room = token_room(info->token);
-	}
+    }
 
-	if( !room )
-		return NULL;
+    if( !room )
+        room = script_room_from_info_context(info);
 
-	victim = create_mobile(pMobIndex, false);
-	if( !IS_VALID(victim) )
-		return NULL;
+    if( !room )
+        return NULL;
 
-	if( instanced )
-		SET_BIT(victim->act[1], ACT2_INSTANCE_MOB);
+    victim = create_mobile(pMobIndex, false);
+    if( !IS_VALID(victim) )
+        return NULL;
 
-	char_to_room(victim, room);
-	if(var_name && *var_name) variables_set_mobile(info->var,var_name,victim);
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+    if (script_get_event_source_from_info(info, &event_uid, &event_instance_id, &event_bracket) && event_uid > 0) {
+        event_tag_mobile_spawn(victim, event_uid, event_instance_id);
+        event_set_mobile_spawn_bracket(victim, event_bracket);
+    }
 
-	info->progs->lastreturn = 1;
+    if( instanced )
+        SET_BIT(victim->act[1], ACT2_INSTANCE_MOB);
 
-	return victim;
+    char_to_room(victim, room);
+    if(var_name && *var_name) variables_set_mobile(info->var,var_name,victim);
+    p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+
+    info->progs->lastreturn = 1;
+
+    return victim;
+}
+
+// Helper to get current room from script info
+static ROOM_INDEX_DATA *get_current_room_from_info(SCRIPT_VARINFO *info)
+{
+    return script_room_from_info_context(info);
+}
+
+// Unified location parser for all script types
+// Supports: ENT_WIDEVNUM, ENT_NUMBER (with area context), wilderness coords, 
+// named locations, vroom/clone, ENT_MOBILE, ENT_OBJECT, ENT_ROOM, ENT_EXIT, ENT_TOKEN
+char *script_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **room)
+{
+    char *rest, *rest2;
+    CHAR_DATA *victim;
+    OBJ_DATA *obj;
+    AREA_DATA *area;
+    ROOM_INDEX_DATA *loc, *current_room;
+    WILDS_DATA *pWilds;
+    SCRIPT_PARAM *arg = new_script_param();
+    EXIT_DATA *ex;
+    int x, y;
+
+    *room = NULL;
+    current_room = get_current_room_from_info(info);
+
+    if((rest = expand_argument(info,argument,arg))) {
+        switch(arg->type) {
+        case ENT_NONE: 
+            *room = current_room; 
+            break;
+
+        case ENT_WIDEVNUM:
+            if (arg->d.wnum.pArea)
+                *room = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            break;
+
+        case ENT_NUMBER:
+            x = arg->d.num;
+            rest2 = rest;
+            if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                y = arg->d.num;
+                if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                    if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
+
+                    if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
+
+                    if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+                        !str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+                        break;
+
+                    rest = rest2;
+                    room_used_for_wilderness.wilds = pWilds;
+                    room_used_for_wilderness.x = x;
+                    room_used_for_wilderness.y = y;
+                    *room = &room_used_for_wilderness;
+                }
+            } else {
+                // Single number - resolve with area context
+                WNUM wnum = { NULL, 0 };
+                char vnum_str[32];
+                AREA_DATA *context_area = current_room ? current_room->area : NULL;
+                snprintf(vnum_str, sizeof(vnum_str), "%d", x);
+                parse_widevnum(vnum_str, context_area, &wnum);
+                if (wnum.pArea)
+                    *room = get_room_index(wnum.pArea, wnum.vnum);
+                rest = rest2;
+            }
+            break;
+
+        case ENT_STRING:
+            if(arg->d.str[0] == '@')
+                *room = get_exit_dest(current_room, arg->d.str+1);
+            else if(!str_cmp(arg->d.str,"here"))
+                *room = current_room;
+            else if(!str_cmp(arg->d.str,"vroom") || !str_cmp(arg->d.str,"clone")) {
+                int vnum,id1, id2;
+                if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                    rest = rest2;
+                    vnum = arg->d.num;
+                    if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                        rest = rest2;
+                        id1 = arg->d.num;
+                        if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                            rest = rest2;
+                            id2 = arg->d.num;
+                            *room = get_clone_room(get_room_index_global(vnum),id1,id2);
+                        }
+                    }
+                }
+            } else if(!str_cmp(arg->d.str,"wilds")) {
+                if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                    x = arg->d.num;
+                    if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                        y = arg->d.num;
+                        if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+                            if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
+                            if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
+
+                            if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+                                !str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+                                break;
+
+                            room_used_for_wilderness.wilds = pWilds;
+                            room_used_for_wilderness.x = x;
+                            room_used_for_wilderness.y = y;
+                            *room = &room_used_for_wilderness;
+                        }
+                    }
+                }
+            } else {
+                // Named locations: search area names, then mobs, then objects
+                loc = NULL;
+                for (area = area_first; area; area = area->next) {
+                    if (!str_infix(arg->d.str, area->name)) {
+                        if(!(loc = get_area_recall_room(area))) {
+                            // Find any room in this area by iterating hash buckets
+                            for (int iHash = 0; iHash < MAX_KEY_HASH && !loc; iHash++)
+                                if ((loc = area->room_index_hash[iHash]) != NULL)
+                                    break;
+                        }
+                        break;
+                    }
+                }
+
+                if(!loc) {
+                    // Search for character by name
+                    victim = NULL;
+                    if (info->mob) victim = get_char_world(info->mob, arg->d.str);
+                    else if (info->obj) victim = get_char_world(NULL, arg->d.str);
+                    else if (info->room || info->token) victim = get_char_world(NULL, arg->d.str);
+                    
+                    if(victim)
+                        loc = victim->in_room;
+                    else {
+                        // Search for object by name
+                        obj = NULL;
+                        if (info->mob) obj = get_obj_world(info->mob, arg->d.str);
+                        else obj = get_obj_world(NULL, arg->d.str);
+                        
+                        if (obj)
+                            loc = obj_room(obj);
+                    }
+                }
+                *room = loc;
+            }
+            break;
+
+        case ENT_MOBILE:
+            *room = arg->d.mob ? arg->d.mob->in_room : NULL; 
+            break;
+        case ENT_OBJECT:
+            *room = arg->d.obj ? obj_room(arg->d.obj) : NULL; 
+            break;
+        case ENT_ROOM:
+            *room = arg->d.room; 
+            break;
+        case ENT_EXIT:
+            ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
+            *room = ex ? exit_destination(ex) : NULL; 
+            break;
+        case ENT_TOKEN:
+            *room = token_room(arg->d.token); 
+            break;
+        }
+    }
+
+    free_script_param(arg);
+    return rest;
+}
+
+AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info)
+{
+    if (!info) return NULL;
+    if (!info->block) return NULL;
+    if (!info->block->script) return NULL;
+    return info->block->script->area;
+}
+
+/**
+ * get_script_from_info - Look up a script using the calling script's area context
+ *
+ * Tries the script's own area first, then falls back to global lookup.
+ */
+SCRIPT_DATA *get_script_from_info(SCRIPT_VARINFO *info, long vnum, int type)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_script_index(wnum.pArea, wnum.vnum, type);
+    return NULL;
+}
+
+/**
+ * get_script_from_arg - Resolve a script reference argument to a script index
+ *
+ * Supports:
+ * - Numeric values (existing behavior via get_script_from_info)
+ * - Numeric strings (via parse_widevnum)
+ * - Explicit widevnum strings, parsed with script area context
+ */
+SCRIPT_DATA *get_script_from_arg(SCRIPT_VARINFO *info, SCRIPT_PARAM *arg, int type, long *resolved_vnum)
+{
+    long vnum = 0;
+
+    if (!info || !arg) {
+        return NULL;
+    }
+
+    switch (arg->type) {
+    case ENT_WIDEVNUM:
+        if (!arg->d.wnum.pArea || arg->d.wnum.vnum < 1)
+            return NULL;
+
+        if (resolved_vnum) {
+            *resolved_vnum = arg->d.wnum.vnum;
+        }
+
+        return get_script_index(arg->d.wnum.pArea, arg->d.wnum.vnum, type);
+
+    case ENT_NUMBER:
+        vnum = arg->d.num;
+        if (resolved_vnum) {
+            *resolved_vnum = vnum;
+        }
+        return (vnum > 0) ? get_script_from_info(info, vnum, type) : NULL;
+
+    case ENT_STRING:
+        if (IS_NULLSTR(arg->d.str)) {
+            return NULL;
+        }
+
+        {
+            WNUM wnum = wnum_zero;
+            AREA_DATA *context = get_area_from_scriptinfo(info);
+
+            if (parse_widevnum(arg->d.str, context, &wnum) && wnum.vnum > 0) {
+                if (resolved_vnum) {
+                    *resolved_vnum = wnum.vnum;
+                }
+
+                if (wnum.pArea) {
+                    return get_script_index(wnum.pArea, wnum.vnum, type);
+                }
+
+                return get_script_from_info(info, wnum.vnum, type);
+            }
+        }
+        return NULL;
+
+    default:
+        return NULL;
+    }
+}
+
+/**
+ * get_mob_index_from_info - Look up a mob index using the calling script's area context
+ */
+MOB_INDEX_DATA *get_mob_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_mob_index(wnum.pArea, wnum.vnum);
+    return NULL;
+}
+
+/**
+ * get_obj_index_from_info - Look up an obj index using the calling script's area context
+ */
+OBJ_INDEX_DATA *get_obj_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_obj_index(wnum.pArea, wnum.vnum);
+    return NULL;
+}
+
+/**
+ * get_room_index_from_info - Look up a room index using the calling script's area context
+ */
+ROOM_INDEX_DATA *get_room_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_room_index(wnum.pArea, wnum.vnum);
+    return NULL;
+}
+
+/**
+ * get_token_index_from_info - Look up a token index using the calling script's area context
+ */
+TOKEN_INDEX_DATA *get_token_index_from_info(SCRIPT_VARINFO *info, long vnum)
+{
+    AREA_DATA *area = get_area_from_scriptinfo(info);
+    WNUM wnum;
+    if (resolve_widevnum(vnum, area, &wnum))
+        return get_token_index(wnum.pArea, wnum.vnum);
+    return NULL;
 }
 
 // OLOAD $VNUM|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]
 OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
-	char buf[MIL], *rest;
-	long vnum, level;
-	bool fToroom = false, fWear = false;
-	OBJ_INDEX_DATA *pObjIndex;
-	OBJ_DATA *obj;
-	CHAR_DATA *to_mob = info->mob;
-	OBJ_DATA *to_obj = NULL;
-	ROOM_INDEX_DATA *here = NULL;
-	ROOM_INDEX_DATA *to_room = NULL;
+    char buf[MIL], *rest;
+    WNUM wnum = { NULL, 0 };
+    long level;
+    bool fToroom = false, fWear = false;
+    OBJ_INDEX_DATA *pObjIndex = NULL;
+    OBJ_DATA *obj;
+    CHAR_DATA *to_mob = info->mob;
+    OBJ_DATA *to_obj = NULL;
+    ROOM_INDEX_DATA *here = NULL;
+    ROOM_INDEX_DATA *to_room = NULL;
+    int event_bracket = 0;
+    long event_uid = 0;
+    uint32_t event_instance_id = 0;
 
-	if(!info) return NULL;
+    if(!info) return NULL;
 
-	info->progs->lastreturn = 0;
+    info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,arg)))
-		return NULL;
+    if(!(rest = expand_argument(info,argument,arg)))
+        return NULL;
 
-	if( info->mob ) here = info->mob->in_room;
-	else if( info->obj ) here = obj_room(info->obj);
-	else if( info->room ) here = info->room;
-	else if( info->token ) here = token_room(info->token);
+    here = script_room_from_info_context(info);
 
-	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-	case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
-	default: vnum = 0; break;
-	}
+    switch(arg->type) {
+    case ENT_WIDEVNUM:
+        wnum = arg->d.wnum;
+        break;
+    case ENT_NUMBER:
+    {
+        // Backward compatibility: convert to string and parse
+        char vnum_str[32];
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    }
+    case ENT_STRING:
+        if (arg->d.str)
+            parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum);
+        break;
+    case ENT_OBJECT:
+        if (arg->d.obj && arg->d.obj->pIndexData) {
+            wnum.pArea = arg->d.obj->pIndexData->area;
+            wnum.vnum = arg->d.obj->pIndexData->vnum;
+        }
+        break;
+    default:
+        break;
+    }
 
-	if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-		bug("Mpoload - Bad vnum arg from vnum %d.", VNUM(info->mob));
-		return NULL;
-	}
+    if (!wnum.pArea || wnum.vnum < 1) {
+        pbugf(LOG_SCRIPTS, "script_oload - Bad wnum arg (%ld#%ld)", 
+            wnum.pArea ? wnum.pArea->uid : 0, wnum.vnum);
+        return NULL;
+    }
 
-	if(rest && *rest) {
-		argument = rest;
-		if(!(rest = expand_argument(info,argument,arg)))
-			return NULL;
+    pObjIndex = get_obj_index(wnum.pArea, wnum.vnum);
+    if (!pObjIndex) {
+        pbugf(LOG_SCRIPTS, "script_oload - Bad obj index (%ld#%ld)",
+            wnum.pArea->uid, wnum.vnum);
+        return NULL;
+    }
 
-		switch(arg->type) {
-		case ENT_NUMBER: level = arg->d.num; break;
-		case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-		case ENT_MOBILE: level = arg->d.mob ? get_staff_rank(arg->d.mob) : 0; break;
-		case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
-		default: level = 0; break;
-		}
+    if(rest && *rest) {
+        argument = rest;
+        if(!(rest = expand_argument(info,argument,arg)))
+            return NULL;
 
-		if(level <= 0 || level > get_trust(info->mob))
-			level = get_trust(info->mob);
+        switch(arg->type) {
+        case ENT_NUMBER: level = arg->d.num; break;
+        case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
+        case ENT_MOBILE: level = arg->d.mob ? get_staff_rank(arg->d.mob) : 0; break;
+        case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
+        default: level = 0; break;
+        }
 
-		if(rest && *rest) {
-			argument = rest;
-			if(!(rest = expand_argument(info,argument,arg)))
-				return NULL;
+        if(level <= 0 || level > pObjIndex->level)
+            level = pObjIndex->level;
 
-			/*
-			 * Added 3rd argument
-			 * omitted - load to mobile's inventory
-			 * 'none'  - load to mobile's inventory
-			 * 'room'  - load to room
-			 * 'wear'  - load to mobile and force wear
-			 * MOBILE  - load to target mobile
-			 *         - 'W' automatically wear
-			 * OBJECT  - load to target object
-			 * ROOM    - load to target room
-			 */
+        if(rest && *rest) {
+            argument = rest;
+            if(!(rest = expand_argument(info,argument,arg)))
+                return NULL;
 
-			switch(arg->type) {
-			case ENT_STRING:
-				if(!str_cmp(arg->d.str, "room"))
-					fToroom = true;
-				else if(!str_cmp(arg->d.str, "wear"))
-					fWear = true;
-				break;
+            /*
+             * Added 3rd argument
+             * omitted - load to mobile's inventory
+             * 'none'  - load to mobile's inventory
+             * 'room'  - load to room
+             * 'wear'  - load to mobile and force wear
+             * MOBILE  - load to target mobile
+             *         - 'W' automatically wear
+             * OBJECT  - load to target object
+             * ROOM    - load to target room
+             */
 
-			case ENT_MOBILE:
-				to_mob = arg->d.mob;
-				if((rest = one_argument(rest,buf))) {
-					if(!str_cmp(buf, "wear"))
-						fWear = true;
-					// use "none" for neither
-				}
-				break;
+            switch(arg->type) {
+            case ENT_STRING:
+                if(!str_cmp(arg->d.str, "room"))
+                    fToroom = true;
+                else if(!str_cmp(arg->d.str, "wear"))
+                    fWear = true;
+                break;
 
-			case ENT_OBJECT:
-				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg->d.obj->item_type == ITEM_CONTAINER ||
-						arg->d.obj->item_type == ITEM_CART)
-						to_obj = arg->d.obj;
-					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg->d.obj->value[1])
-						to_obj = arg->d.obj;
-					else
-						return NULL;	// Trying to put the item into a non-container won't work
-				}
-				break;
+            case ENT_MOBILE:
+                to_mob = arg->d.mob;
+                if((rest = one_argument(rest,buf))) {
+                    if(!str_cmp(buf, "wear"))
+                        fWear = true;
+                    // use "none" for neither
+                }
+                break;
 
-			case ENT_ROOM:		to_room = arg->d.room; break;
-			}
-		}
+            case ENT_OBJECT:
+                if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
+                    if(arg->d.obj->item_type == ITEM_CONTAINER ||
+                        arg->d.obj->item_type == ITEM_CART)
+                        to_obj = arg->d.obj;
+                    else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
+                        pObjIndex->item_type == ITEM_WEAPON &&
+                        IS_WEAPON(pObjIndex) && IS_WEAPON_CON(arg->d.obj) &&
+                        WEAPON(pObjIndex)->weapon_class == WEAPON_CON(arg->d.obj)->weapon_type)
+                        to_obj = arg->d.obj;
+                    else
+                        return NULL;	// Trying to put the item into a non-container won't work
+                }
+                break;
 
-	} else
-		level = get_trust(info->mob);
+            case ENT_ROOM:		to_room = arg->d.room; break;
+            }
+        }
 
-	obj = create_object(pObjIndex, level, true);
-	if( !IS_VALID(obj) )
-		return NULL;
+    } else
+        level = pObjIndex->level;
 
-	if( instanced )
-		SET_BIT(obj->extra[2], ITEM_INSTANCE_OBJ);
+    obj = create_object(pObjIndex, level, true);
+    if( !IS_VALID(obj) )
+        return NULL;
 
-	if( to_room )
-		obj_to_room(obj, to_room);
-	else if( to_obj )
-		obj_to_obj(obj, to_obj);
-	else if( to_mob && (fWear || !fToroom) && CAN_WEAR(obj, ITEM_TAKE) &&
-		(to_mob->carry_number < can_carry_n (to_mob)) &&
-		(get_carry_weight (to_mob) + get_obj_weight (obj) <= can_carry_w (to_mob))) {
-		obj_to_char(obj, to_mob);
-		if (fWear)
-			wear_obj(to_mob, obj, true);
-	}
-	else if( here )
-		obj_to_room(obj, here);
-	else
-	{
-		// No place to put the object, nuke it
+    if (script_get_event_source_from_info(info, &event_uid, &event_instance_id, &event_bracket) && event_uid > 0) {
+        event_tag_object_spawn(obj, event_uid, event_instance_id);
+        event_set_object_spawn_bracket(obj, event_bracket);
+    }
 
-		// This shouldn't be necessary since it was never put anywhere, used anywhere!
-		//extract_obj(obj);
+    if( instanced )
+        SET_BIT(obj->extra[2], ITEM_INSTANCE_OBJ);
 
-		// This is the minimum actions necessary for a phantom object extraction
-		list_remlink(loaded_objects, obj, false);
-	    --obj->pIndexData->count;
-	    free_obj(obj);
-	    return NULL;
-	}
+    if( to_room )
+        obj_to_room(obj, to_room);
+    else if( to_obj )
+        obj_to_obj(obj, to_obj);
+    else if( to_mob && (fWear || !fToroom) && CAN_WEAR(obj, ITEM_TAKE) &&
+        (to_mob->carry_number < can_carry_n (to_mob)) &&
+        (get_carry_weight (to_mob) + get_obj_weight (obj) <= can_carry_w (to_mob))) {
+        obj_to_char(obj, to_mob);
+        if (fWear)
+            wear_obj(to_mob, obj, true);
+    }
+    else if( here )
+        obj_to_room(obj, here);
+    else
+    {
+        // No place to put the object, nuke it
+
+        // This shouldn't be necessary since it was never put anywhere, used anywhere!
+        //extract_obj(obj);
+
+        // This is the minimum actions necessary for a phantom object extraction
+        list_remlink(loaded_objects, obj, false);
+        loaded_obj_hash_remove(obj);
+        --obj->pIndexData->count;
+        free_obj(obj);
+        return NULL;
+    }
 
 
-	if(rest && *rest) variables_set_object(info->var,rest,obj);
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+    if(rest && *rest) variables_set_object(info->var,rest,obj);
+    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 
-	info->progs->lastreturn = 1;
+    info->progs->lastreturn = 1;
 
-	obj->script_created = true;
-	obj->created_script_vnum = info->block->script->vnum;
-	obj->created_script_type = info->block->script->type;
+    obj->script_created = true;
+    obj->created_script_load.vnum = info->block->script->vnum;
+    obj->created_script_type = info->block->script->type;
 
-	return obj;
+    return obj;
 }
 
 void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
 {
-	char buf[2 * MSL];
+    if (info && info->block && info->block->script)
+        script_log_runtime_error(info->block->script, info->block->line, message ? message : "(null)");
 
-	sprintf(buf, "Script:%ld#%d:Line:%d:%s\n\r",
-		info->block->script->area->uid, info->block->script->vnum,
-		info->block->line,
-		message);
-	bug(buf, 0);
+    pbugf(LOG_SCRIPTS, "Script:%ld#%d:Line:%d:%s\n\r",
+        info->block->script->area->uid, info->block->script->vnum,
+        info->block->line,
+        message);
 }
 
 int cmd_operator_lookup(const char *str)
 {
-	for(int i = 0; cmd_operator_table[i]; i++)
-		if (!str_cmp(str, cmd_operator_table[i]))
-			return i;
-	
-	return OPR_UNKNOWN;
+    for(int i = 0; cmd_operator_table[i]; i++)
+        if (!str_cmp(str, cmd_operator_table[i]))
+            return i;
+    
+    return OPR_UNKNOWN;
 }

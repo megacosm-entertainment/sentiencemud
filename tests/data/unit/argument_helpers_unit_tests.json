@@ -1,0 +1,63 @@
+{
+  "type": "test_suite",
+  "test_suite": "argument_helpers_unit_tests",
+  "description": "Pure-function unit tests for argument/token parsing edge behavior",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "number_argument_edge_cases",
+      "description": "Covers malformed dot notation, leading zeros, and empty remainder behavior",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "number_argument",
+        "test_cases": [
+          { "argument": "001.sword", "expected_number": 1, "expected_arg": "sword" },
+          { "argument": "3.", "expected_number": 3, "expected_arg": "" },
+          { "argument": ".ring", "expected_number": 0, "expected_arg": "ring" },
+          { "argument": "12..gem", "expected_number": 12, "expected_arg": ".gem" },
+          { "argument": "notnumber.item", "expected_number": 0, "expected_arg": "item" }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "one_argument_quoting_edges",
+      "description": "Validates quote handling, escaped spacing, and trailing whitespace behavior",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "one_argument",
+        "test_cases": [
+          { "argument": "\"Mixed Case\"   Tail", "expected_first": "mixed case", "expected_rest": "Tail" },
+          { "argument": "'single quoted'", "expected_first": "single quoted", "expected_rest": "" },
+          { "argument": "unterminated\"quote test", "expected_first": "unterminated\"quote", "expected_rest": "test" },
+          { "argument": "\t\tNORTH   east", "expected_first": "north", "expected_rest": "east" },
+          { "argument": "", "expected_first": "", "expected_rest": "" }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "first_arg_case_behavior",
+      "description": "Verifies first_arg fcase toggle and quote parsing",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "first_arg",
+        "test_cases": [
+          { "argument": "SAY hello", "fcase": false, "expected_first": "say", "expected_rest": "hello" },
+          { "argument": "SAY hello", "fcase": true, "expected_first": "SAY", "expected_rest": "hello" },
+          { "argument": "\"Quoted Value\" rem", "fcase": false, "expected_first": "quoted value", "expected_rest": "rem" },
+          { "argument": "\"Quoted Value\" rem", "fcase": true, "expected_first": "Quoted Value", "expected_rest": "rem" }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

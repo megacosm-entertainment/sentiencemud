@@ -19,102 +19,124 @@
 
 SPELL_FUNC(spell_shriek)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	int dam;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    int dam;
 
-	act("$n fills your ears with high-pitched shriek!",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	act("You inflict $N with an ear-piercing shriek!",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("$n fills your ears with high-pitched shriek!",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act("You inflict $N with an ear-piercing shriek!",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	dam = level * 16;
+    dam = level * 16;
 
-	victim->set_death_type = DEATHTYPE_MAGIC;
+    victim->set_death_type = DEATHTYPE_MAGIC;
 
-	if (saves_spell(level,victim,DAM_SOUND)) {
-		damage(ch,victim,dam/4,sn,DAM_SOUND,true);
-	} else {
-		act("$N screams in pain, covering $S ears.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		damage(ch,victim,dam,sn,DAM_SOUND,true);
-	}
-	return true;
+    if (saves_spell(level,victim,DAM_SOUND)) {
+        damage(ch,victim,dam/4,sn,DAM_SOUND,true);
+    } else {
+        act("$N screams in pain, covering $S ears.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+        damage(ch,victim,dam,sn,DAM_SOUND,true);
+    }
+    return true;
 }
 
 
 SPELL_FUNC(spell_silence)
 {
-	CHAR_DATA *victim;
-	AFFECT_DATA af;
-	int lvl, catalyst;
-	char buf[MIL];
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim;
+    AFFECT_DATA af;
+    int lvl, catalyst;
+    char buf[MIL];
 
-	memset(&af,0,sizeof(af));
+    memset(&af,0,sizeof(af));
 
-	/* character target */
-	victim = (CHAR_DATA *) vo;
+    /* character target */
+    victim = (CHAR_DATA *) vo;
 
-	lvl = victim->tot_level - ch->tot_level;
-	if(IS_REMORT(victim)) lvl += LEVEL_HERO;	// If the victim is remort, it will require MORE catalyst
-	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
-	lvl = (lvl > 19) ? (lvl / 10) : 1;
+    lvl = victim->tot_level - ch->tot_level;
+    if(IS_REMORT(victim)) lvl += LEVEL_HERO;	// If the victim is remort, it will require MORE catalyst
+    if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
+    lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
-	if(catalyst >= 0 && catalyst < lvl) {
-		sprintf(buf,"You appear to be missing a required sound catalyst. (%d/%d)\n\r",catalyst,lvl);
-		send_to_char(buf, ch);
-		return false;
-	}
+    catalyst = has_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
+    if(catalyst >= 0 && catalyst < lvl) {
+        sprintf(buf,"You appear to be missing a required sound catalyst. (%d/%d)\n\r",catalyst,lvl);
+        send_to_char(buf, ch);
+        return false;
+    }
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl * 3,1,CATALYST_MAXSTRENGTH,true);
+    catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl * 3,1,CATALYST_MAXSTRENGTH,true);
 
-	if (IS_AFFECTED2(victim, AFF2_SILENCE)) {
-		if (victim == ch)
-			send_to_char("You are already silenced.\n\r",ch);
-		else
-			act("$N is already silenced.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return false;
-	}
+    if (IS_AFFECTED2(victim, AFF2_SILENCE)) {
+        if (victim == ch)
+            send_to_char("You are already silenced.\n\r",ch);
+        else
+            act("$N is already silenced.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	if (saves_spell(level,victim,DAM_OTHER)) {
-		send_to_char("Nothing happens.\n\r", ch);
-		return false;
-	}
+    if (saves_spell(level,victim,DAM_OTHER)) {
+        send_to_char("Nothing happens.\n\r", ch);
+        return false;
+    }
 
-	af.slot	= WEAR_NONE;
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
-	af.level = level;
-	af.duration = catalyst / lvl;
-	af.location = APPLY_NONE;
-	af.modifier = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_SILENCE;
-	affect_to_char(victim, &af);
+    af.slot	= WEAR_NONE;
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_MAGICAL;
+    af.type = sn;
+    af.skill = skill;
+    af.level = level;
+    af.duration = catalyst / lvl;
+    af.location = APPLY_NONE;
+    af.modifier = 0;
+    af.bitvector = 0;
+    af.bitvector2 = AFF2_SILENCE;
+    affect_to_char(victim, &af);
 
-	send_to_char("You get the feeling there is a huge sock in your throat.\n\r", victim);
-	act("You have been silenced!",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
-	act("$n has been silenced!",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
-	return true;
+    send_to_char("You get the feeling there is a huge sock in your throat.\n\r", victim);
+    act("You have been silenced!",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR, NULL, NULL);
+    act("$n has been silenced!",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
+    return true;
 }
 
 SPELL_FUNC(spell_vocalize)
 {
-	char buf[MAX_STRING_LENGTH];
-	char speaker[MAX_INPUT_LENGTH];
-	char dir[MAX_INPUT_LENGTH];
-	int direction;
+    int sn __attribute__((unused)) = skill->uid;
+    char buf[MAX_STRING_LENGTH];
+    char speaker[MAX_INPUT_LENGTH];
+    char dir[MAX_INPUT_LENGTH];
+    char *argument = (char *) vo;
+    CHAR_DATA *to;
+    ROOM_INDEX_DATA *to_room;
+    int direction;
 
-	if ((direction = parse_direction(dir)) == -1) {
-		send_to_char("That's not a direction.", ch);
-		return false;
-	}
+    argument = one_argument(argument, dir);
+    if (IS_NULLSTR(argument)) {
+        send_to_char("What do you want to vocalize?\n\r", ch);
+        return false;
+    }
 
-	if (!ch->in_room->exit[direction]) {
-		send_to_char("Nothing happens.", ch);
-		return false;
-	}
+    strcpy(speaker, argument);
 
-	sprintf(buf, "%s says '%s'.\n\r", ch->name, speaker);
-	buf[0] = UPPER(buf[0]);
-	return false;
+    if ((direction = parse_direction(dir)) == -1) {
+        send_to_char("That's not a direction.", ch);
+        return false;
+    }
+
+    if (!ch->in_room->exit[direction]) {
+        send_to_char("Nothing happens.", ch);
+        return false;
+    }
+
+    sprintf(buf, "%s says '%s'.\n\r", ch->name, speaker);
+    buf[0] = UPPER(buf[0]);
+    to_room = ch->in_room->exit[direction]->u1.to_room;
+    if (!to_room)
+        return false;
+
+    for (to = to_room->people; to; to = to->next_in_room)
+        send_to_char(buf, to);
+
+    return true;
 }
 

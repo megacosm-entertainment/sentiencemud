@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 18,
+            "rating": 8
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 6
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 6
+        }
+    ],
+    "inks": [
+        [
+            5,
+            5
+        ],
+        [
+            7,
+            5
+        ],
+        [
+            4,
+            5
+        ]
+    ],
+    "min_mana": 75,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "You stop regenerating.",
+    "name": "regeneration",
+    "noun_damage": "regeneration",
+    "race": null,
+    "spell_function": "spell_regeneration",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 192
+}

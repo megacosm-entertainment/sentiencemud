@@ -22,64 +22,119 @@
 
 //extern long int   __BUILD_DATE;
 extern char __BUILD_DATE;
-extern long int   __BUILD_NUMBER;
 
-/* MOVED: combat/assess.c */
+/**
+ * do_showdamage - Toggle display of combat damage numbers
+ *
+ * Enables/disables showing numerical damage values during combat.
+ * By default, only available to immortals or on test port.
+ *
+ * @param ch        The character toggling the setting
+ * @param argument  Unused
+ *
+ * Requires: IS_IMMORTAL or is_test_port (unless DEBUG_ALLOW_SHOW_DAMAGE)
+ *
+ * Planned refactor: combat/assess.c (never executed)
+ */
 void do_showdamage(CHAR_DATA *ch, char *argument)
 {
 #ifndef DEBUG_ALLOW_SHOW_DAMAGE
     if (!IS_IMMORTAL(ch) && !is_test_port) {
-	send_to_char("As a player, you may only see the damages of hits on the testport.\n\r", ch);
-	return;
+  send_to_char("As a player, you may only see the damages of hits on the testport.\n\r", ch);
+  return;
     }
 #endif
 
     if (IS_SET(ch->act[0], PLR_SHOWDAMAGE)) {
-		REMOVE_BIT(ch->act[0], PLR_SHOWDAMAGE);
-		send_to_char("You will no longer see the damages of hits.\n\r", ch);
+    REMOVE_BIT(ch->act[0], PLR_SHOWDAMAGE);
+    send_to_char("You will no longer see the damages of hits.\n\r", ch);
     } else {
-		SET_BIT(ch->act[0], PLR_SHOWDAMAGE);
-		send_to_char("You will now see the damages of hits.\n\r", ch);
+    SET_BIT(ch->act[0], PLR_SHOWDAMAGE);
+    send_to_char("You will now see the damages of hits.\n\r", ch);
     }
 }
 
-/* MOVED: ship.c */
+/**
+ * do_autosurvey - Toggle automatic survey when on ships
+ *
+ * When enabled, automatically performs survey command when moving
+ * around on ships.
+ *
+ * @param ch        The character toggling the setting
+ * @param argument  Unused
+ *
+ * Blocked by: IS_NPC
+ *
+ * Planned refactor: ship.c (never executed)
+ */
 void do_autosurvey(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))
-	return;
+  return;
 
     if (IS_SET(ch->act[1], PLR_AUTOSURVEY))
     {
-	REMOVE_BIT(ch->act[1], PLR_AUTOSURVEY);
-	send_to_char("You will no longer automatically survey on ships.\n\r", ch);
+  REMOVE_BIT(ch->act[1], PLR_AUTOSURVEY);
+  send_to_char("You will no longer automatically survey on ships.\n\r", ch);
     }
     else
     {
-	SET_BIT(ch->act[1], PLR_AUTOSURVEY);
-	send_to_char("You will now automatically survey on ships.\n\r", ch);
+  SET_BIT(ch->act[1], PLR_AUTOSURVEY);
+  send_to_char("You will now automatically survey on ships.\n\r", ch);
     }
 }
 
+/**
+ * do_showversion - Display game version and build information
+ *
+ * Shows the current game version, commit URL, and build date.
+ *
+ * @param ch        The character viewing version info
+ * @param argument  Unused
+ */
 void do_showversion(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH];
-	buf[0] = '\0';
+  char buf[MAX_STRING_LENGTH];
+  buf[0] = '\0';
 //	time_t  build_date;
 //	build_date = (time_t) &__BUILD_DATE;
 //	builddate = &__BUILD_DATE)
 //	sprintf(buf,"Build Date: %u\n\r",&build_date);
-	sprintf(buf,"Build Number: %s (\t<a href=\"%s\">%s\t</a>)\n\rCommit URL: %s\n\rBuild Date: %s\n\r", BUILD_NUMBER, COMMIT, VERSION, COMMIT, BUILD_DATE);
-	send_to_char(buf,ch);
+  sprintf(buf,"Version: (\t<a href=\"%s\">%s\t</a>)\n\rCommit URL: %s\n\rBuild Date: %s\n\r", COMMIT, VERSION, COMMIT, BUILD_DATE);
+  send_to_char(buf,ch);
 
 }
 
 
+/**
+ * list_attachment_callback - Callback for quickmail attachment listing
+ *
+ * Debug callback that prints attachment filenames. Used with quickmail
+ * library for email functionality.
+ *
+ * @param mailobj                        The quickmail object
+ * @param filename                       Attachment filename
+ * @param email_info_attachment_open     Open function pointer
+ * @param email_info_attachment_read     Read function pointer
+ * @param email_info_attachment_close    Close function pointer
+ * @param callbackdata                   Counter pointer for numbering
+ */
 void list_attachment_callback (quickmail mailobj, const char* filename, quickmail_attachment_open_fn email_info_attachment_open, quickmail_attachment_read_fn email_info_attachment_read, quickmail_attachment_close_fn email_info_attachment_close, void* callbackdata)
 {
   printf("[%i]: %s\n", ++*(int*)callbackdata, filename);
 }
 
+/**
+ * do_testemail - Send a test email to verify email configuration
+ *
+ * Sends a test email to the character's registered email address
+ * using the game's SMTP settings. Used for debugging email delivery.
+ *
+ * @param ch        The character sending the test email
+ * @param argument  Optional subject line override
+ *
+ * Requires: Email configuration (host, port, username, password, from_addr)
+ */
 void do_testemail (CHAR_DATA *ch, char *argument)
 {
 
@@ -148,4 +203,132 @@ void do_testemail (CHAR_DATA *ch, char *argument)
     fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
   quickmail_destroy(mailobj);
   quickmail_cleanup();
+}
+
+/**
+ * do_raceinfo - Display detailed information about a race
+ *
+ * Shows the race description, stats, size, and links to help files.
+ * Players can view any playable race; immortals can view all races.
+ *
+ * Syntax: raceinfo <race name>
+ */
+void do_raceinfo(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    RACE_DATA *race;
+    BUFFER *buffer;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: raceinfo <race name>\n\r", ch);
+        return;
+    }
+
+    race = race_lookup_name(arg);
+    if (!race) {
+        race = race_lookup(arg);
+    }
+    if (!race) {
+        send_to_char("No such race found.\n\r", ch);
+        return;
+    }
+
+    /* Hide non-playable races from mortals */
+    if (!race->playable && !IS_IMMORTAL(ch)) {
+        send_to_char("No such race found.\n\r", ch);
+        return;
+    }
+
+    buffer = new_buf();
+
+    /* Header */
+    add_buf(buffer, formatf("{C=== Race: {W%s{C ==={x\n\r", race->name));
+
+    /* Description */
+    if (!IS_NULLSTR(race->description)) {
+        add_buf(buffer, formatf("\n\r%s{x\n\r", race->description));
+    }
+
+    add_buf(buffer, "\n\r");
+
+    /* Availability */
+    if (race->starting)
+        add_buf(buffer, "{xAvailability: {GStarting race{x\n\r");
+    else if (race_is_remort(race))
+        add_buf(buffer, "{xAvailability: {YRemort race{x\n\r");
+    else if (race->playable)
+        add_buf(buffer, "{xAvailability: {YPlayable{x\n\r");
+    else
+        add_buf(buffer, "{xAvailability: {DNPC only{x\n\r");
+
+    /* Size */
+    if (race->min_size == race->max_size)
+        add_buf(buffer, formatf("{xSize:         {W%s{x\n\r",
+                                size_table[race->min_size].name));
+    else
+        add_buf(buffer, formatf("{xSize:         {W%s{x to {W%s{x\n\r",
+                                size_table[race->min_size].name,
+                                size_table[race->max_size].name));
+
+    /* Stats */
+    static const char *stat_short[] = {"Str", "Int", "Wis", "Dex", "Con"};
+    add_buf(buffer, "{xBase stats:   ");
+    for (int i = 0; i < MAX_STATS; i++) {
+        add_buf(buffer, formatf("{C%s{x:{W%d{x ", stat_short[i], race->stats[i]));
+    }
+    add_buf(buffer, "\n\r");
+
+    add_buf(buffer, "{xMax stats:    ");
+    for (int i = 0; i < MAX_STATS; i++) {
+        add_buf(buffer, formatf("{C%s{x:{W%d{x ", stat_short[i], race->max_stats[i]));
+    }
+    add_buf(buffer, "\n\r");
+
+    /* Racial skills */
+    if (race->skills && list_size(race->skills) > 0) {
+        add_buf(buffer, "\n\r{xRacial skills: ");
+        ITERATOR it;
+        char *skill_name;
+        bool first = true;
+        iterator_start(&it, race->skills);
+        while ((skill_name = (char *)iterator_nextdata(&it))) {
+            if (!first) add_buf(buffer, ", ");
+            add_buf(buffer, formatf("{W%s{x", skill_name));
+            first = false;
+        }
+        iterator_stop(&it);
+        add_buf(buffer, "\n\r");
+    }
+
+    /* Remort info */
+    if (race->remort_into_id) {
+        RACE_DATA *into = race_get_remort_into(race);
+        if (into)
+            add_buf(buffer, formatf("\n\r{xRemorts into: {W%s{x\n\r", into->name));
+    }
+    if (race->remort_race_id) {
+        RACE_DATA *prereq = race_get_prerequisite(race);
+        if (prereq)
+            add_buf(buffer, formatf("{xRequires:     {W%s{x\n\r", prereq->name));
+    }
+
+    /* Player's race check */
+    if (!IS_NPC(ch)) {
+        if (ch->race == race)
+            add_buf(buffer, "\n\r{YThis is your current race.{x\n\r");
+    }
+
+    /* Help file link */
+    HELP_DATA *help = lookup_help_exact(race->name, get_staff_rank(ch), topHelpCat);
+    if (!help && race->id)
+        help = lookup_help_exact(race->id, get_staff_rank(ch), topHelpCat);
+    if (help) {
+        add_buf(buffer, formatf("\n\r{xHelp:         \t<send href=\"help #%d\">{Whelp %s{x\t</send>\n\r",
+                                help->index, race->name));
+    }
+
+    page_to_char(buffer->string, ch);
+    free_buf(buffer);
 }

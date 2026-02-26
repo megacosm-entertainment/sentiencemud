@@ -1,0 +1,1462 @@
+{
+  "version": 1,
+  "count": 182,
+  "entities": [
+    {
+      "name": "mob_death",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 1,
+      "removable": false,
+      "description": "Death mob used for death handling"
+    },
+    {
+      "name": "mob_objcaster",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 2,
+      "removable": false,
+      "description": "Special mobile used for object casting"
+    },
+    {
+      "name": "mob_reflection",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 3,
+      "removable": false,
+      "description": "Reflection mobile"
+    },
+    {
+      "name": "mob_shifted_slayer",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 4,
+      "removable": false,
+      "description": "Slayer mobile"
+    },
+    {
+      "name": "mob_shifted_werewolf",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 5,
+      "removable": false,
+      "description": "Werewolf mobile"
+    },
+    {
+      "name": "mob_neutral_soultaker",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 7,
+      "removable": false,
+      "description": "Mayor of Plith"
+    },
+    {
+      "name": "mob_evil_soultaker",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 8,
+      "removable": false,
+      "description": "Ravage mobile"
+    },
+    {
+      "name": "mob_good_soultaker",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 9,
+      "removable": false,
+      "description": "Stiener mobile"
+    },
+    {
+      "name": "mob_shifted_changeling",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 10,
+      "removable": false,
+      "description": "Changeling mobile"
+    },
+    {
+      "name": "mob_dark_wraith",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 11,
+      "removable": false,
+      "description": "Dark Wraith mobile"
+    },
+    {
+      "name": "mob_abyss_gatekeeper",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 23,
+      "removable": false,
+      "description": "Abyss gatekeeper"
+    },
+    {
+      "name": "mob_sailor_burly",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 26,
+      "removable": false,
+      "description": "Burly sailor"
+    },
+    {
+      "name": "MOB_VNUM_SAILOR_DIRTY",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 25,
+      "removable": false,
+      "description": "Dirty sailor"
+    },
+    {
+      "name": "MOB_VNUM_SAILOR_DISEASED",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 24,
+      "removable": false,
+      "description": "Diseased sailor"
+    },
+    {
+      "name": "MOB_VNUM_SAILOR_ELITE",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 29,
+      "removable": false,
+      "description": "Elite sailor"
+    },
+    {
+      "name": "MOB_VNUM_SAILOR_MERCENARY",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 28,
+      "removable": false,
+      "description": "Mercenary sailor"
+    },
+    {
+      "name": "MOB_VNUM_SAILOR_TRAINED",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 27,
+      "removable": false,
+      "description": "Trained sailor"
+    },
+    {
+      "name": "MOB_VNUM_GELDOFF",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 31,
+      "removable": false,
+      "description": "Geldoff mobile"
+    },
+    {
+      "name": "MOB_VNUM_PIRATE_HUNTER_1",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 12,
+      "removable": false,
+      "description": "Pirate hunter (< lvl 60)"
+    },
+    {
+      "name": "MOB_VNUM_PIRATE_HUNTER_2",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 13,
+      "removable": false,
+      "description": "Pirate hunter (< lvl 90)"
+    },
+    {
+      "name": "MOB_VNUM_PIRATE_HUNTER_3",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 14,
+      "removable": false,
+      "description": "Pirate hunter (< lvl 120)"
+    },
+    {
+      "name": "VNUM_QUESTOR_1",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 6,
+      "removable": false,
+      "description": "Roscharch questor"
+    },
+    {
+      "name": "VNUM_QUESTOR_2",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 30,
+      "removable": false,
+      "description": "Alemnos questor"
+    },
+    {
+      "name": "mob_invasion_leader_lvl60",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 15,
+      "removable": false,
+      "description": "Goblin invasion leader"
+    },
+    {
+      "name": "mob_invasion_leader_lvl90",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 16,
+      "removable": false,
+      "description": "Skeleton invasion leader"
+    },
+    {
+      "name": "mob_invasion_leader_lvl30",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 18,
+      "removable": false,
+      "description": "Bandit invasion leader"
+    },
+    {
+      "name": "mob_invasion_leader_lvl120",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 17,
+      "removable": false,
+      "description": "Pirate invasion leader"
+    },
+    {
+      "name": "mob_invasion_lvl60",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 19,
+      "removable": false,
+      "description": "Goblin invader"
+    },
+    {
+      "name": "mob_invasion_level90",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 20,
+      "removable": false,
+      "description": "Skeleton invader"
+    },
+    {
+      "name": "mob_invasion_lvl30",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 22,
+      "removable": false,
+      "description": "Bandit invader"
+    },
+    {
+      "name": "mob_invasion_lvl120",
+      "type": "mob",
+      "area_uid": 1,
+      "vnum": 21,
+      "removable": false,
+      "description": "Pirate invader"
+    },
+    {
+      "name": "obj_coin_silver_single",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 1,
+      "removable": false,
+      "description": "One silver coin"
+    },
+    {
+      "name": "obj_coin_gold_single",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 2,
+      "removable": false,
+      "description": "One gold coin"
+    },
+    {
+      "name": "obj_coin_gold_multiple",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 3,
+      "removable": false,
+      "description": "Multiple gold coins"
+    },
+    {
+      "name": "obj_coin_silver_multiple",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 4,
+      "removable": false,
+      "description": "Multiple silver coins"
+    },
+    {
+      "name": "obj_coin_mixed",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 5,
+      "removable": false,
+      "description": "Mixed currency"
+    },
+    {
+      "name": "obj_corpse_npc",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 6,
+      "removable": false,
+      "description": "NPC corpse object"
+    },
+    {
+      "name": "obj_corpse_pc",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 7,
+      "removable": false,
+      "description": "Player character corpse"
+    },
+    {
+      "name": "obj_part_head",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 8,
+      "removable": false,
+      "description": "Severed head from corpse part"
+    },
+    {
+      "name": "obj_part_heart",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 9,
+      "removable": false,
+      "description": "Torn heart from corpse part"
+    },
+    {
+      "name": "obj_part_arm",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 10,
+      "removable": false,
+      "description": "Sliced arm from corpse part"
+    },
+    {
+      "name": "obj_part_leg",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 11,
+      "removable": false,
+      "description": "Sliced leg from corpse part"
+    },
+    {
+      "name": "obj_part_guts",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 12,
+      "removable": false,
+      "description": "Guts from corpse part"
+    },
+    {
+      "name": "obj_part_brains",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 13,
+      "removable": false,
+      "description": "Brains from corpse part"
+    },
+    {
+      "name": "OBJ_VNUM_MUSHROOM",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 14,
+      "removable": false,
+      "description": "Standard mushroom object"
+    },
+    {
+      "name": "OBJ_VNUM_LIGHT_BALL",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 15,
+      "removable": false,
+      "description": "Magical light ball"
+    },
+    {
+      "name": "obj_spring",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 16,
+      "removable": false,
+      "description": "Magic spring"
+    },
+    {
+      "name": "OBJ_VNUM_DISC",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 17,
+      "removable": false,
+      "description": "Floating disc"
+    },
+    {
+      "name": "obj_portal",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 18,
+      "removable": false,
+      "description": "Magical portal"
+    },
+    {
+      "name": "obj_nav_chart",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 19,
+      "removable": false,
+      "description": "Navigational chart for ships and travel"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_QUARTERSTAFF",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 21,
+      "removable": false,
+      "description": "Starting quarterstaff for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_DAGGER",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 22,
+      "removable": false,
+      "description": "Starting dagger for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_SWORD",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 23,
+      "removable": false,
+      "description": "Starting sword for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_ARMOUR",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 24,
+      "removable": false,
+      "description": "Starting armor for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_CLOAK",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 25,
+      "removable": false,
+      "description": "Starting cloak for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_LEGGINGS",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 26,
+      "removable": false,
+      "description": "Starting leggings for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_BOOTS",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 27,
+      "removable": false,
+      "description": "Starting boots for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_HELM",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 28,
+      "removable": false,
+      "description": "Starting helm for new players"
+    },
+    {
+      "name": "OBJ_VNUM_NEWB_HARMONICA",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 29,
+      "removable": false,
+      "description": "Starting harmonica for new players"
+    },
+    {
+      "name": "OBJ_VNUM_ROSE",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 64,
+      "removable": false,
+      "description": "A beautiful red rose"
+    },
+    {
+      "name": "obj_pit",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 65,
+      "removable": false,
+      "description": "A donation pit for unwanted items"
+    },
+    {
+      "name": "obj_patrol_whistle",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 66,
+      "removable": false,
+      "description": "A shrill whistle"
+    },
+    {
+      "name": "OBJ_VNUM_HEALING_LOCKET",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 67,
+      "removable": false,
+      "description": "A locket with healing properties"
+    },
+    {
+      "name": "OBJ_VNUM_STARCHART",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 68,
+      "removable": false,
+      "description": "A chart of the stars and constellations"
+    },
+    {
+      "name": "OBJ_VNUM_ARGYLE_RING",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 69,
+      "removable": false,
+      "description": "A ring with argyle pattern"
+    },
+    {
+      "name": "obj_dragon_shield",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 70,
+      "removable": false,
+      "description": "A shield adorned with a dragon emblem"
+    },
+    {
+      "name": "OBJ_VNUM_SWORD_MISHKAL",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 71,
+      "removable": false,
+      "description": "The legendary sword of Mishkal"
+    },
+    {
+      "name": "obj_golden_apple",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 72,
+      "removable": false,
+      "description": "A perfectly formed golden apple"
+    },
+    {
+      "name": "OBJ_VNUM_GLASS_HAMMER",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 73,
+      "removable": false,
+      "description": "A hammer made entirely of glass"
+    },
+    {
+      "name": "OBJ_VNUM_PAWN_TICKET",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 74,
+      "removable": false,
+      "description": "A ticket from a pawnshop"
+    },
+    {
+      "name": "OBJ_VNUM_CURSED_ORB",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 75,
+      "removable": false,
+      "description": "A mysterious orb radiating dark energy"
+    },
+    {
+      "name": "OBJ_VNUM_GOLD_WHISTLE",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 76,
+      "removable": false,
+      "description": "A whistle made of pure gold"
+    },
+    {
+      "name": "OBJ_VNUM_SWORD_SENT",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 77,
+      "removable": false,
+      "description": "The Sword of Sentience"
+    },
+    {
+      "name": "obj_black_moonstone_shard",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 78,
+      "removable": false,
+      "description": "A crystal shard of unknown origin"
+    },
+    {
+      "name": "OBJ_VNUM_KEY_ABYSS",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 81,
+      "removable": false,
+      "description": "A key to the Abyss gate"
+    },
+    {
+      "name": "obj_pneuma_item",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 82,
+      "removable": false,
+      "description": "A soul trapped in a bottle"
+    },
+    {
+      "name": "OBJ_VNUM_SAILING_BOAT_MAST",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 83,
+      "removable": false,
+      "description": "The mast of a sailing boat"
+    },
+    {
+      "name": "OBJ_VNUM_SAILING_BOAT",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 84,
+      "removable": false,
+      "description": "A sailing boat"
+    },
+    {
+      "name": "OBJ_VNUM_SAILING_BOAT_DEBRIS",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 85,
+      "removable": false,
+      "description": "Debris from a destroyed sailing boat"
+    },
+    {
+      "name": "OBJ_VNUM_SAILING_BOAT_CANNON",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 86,
+      "removable": false,
+      "description": "A cannon for a sailing boat"
+    },
+    {
+      "name": "OBJ_VNUM_CARGO_SHIP",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 87,
+      "removable": false,
+      "description": "A large cargo ship"
+    },
+    {
+      "name": "OBJ_VNUM_AIR_SHIP",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 88,
+      "removable": false,
+      "description": "A magnificent airship"
+    },
+    {
+      "name": "OBJ_VNUM_SAILING_BOAT_WHEEL",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 89,
+      "removable": false,
+      "description": "The steering wheel of a sailing boat"
+    },
+    {
+      "name": "OBJ_VNUM_SAILING_BOAT_SEXTANT",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 90,
+      "removable": false,
+      "description": "A navigation sextant for seafaring"
+    },
+    {
+      "name": "OBJ_VNUM_FRIGATE_SHIP",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 91,
+      "removable": false,
+      "description": "A powerful frigate ship"
+    },
+    {
+      "name": "OBJ_VNUM_TRADE_CANNON",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 92,
+      "removable": false,
+      "description": "A cannon used for merchant ship defense"
+    },
+    {
+      "name": "OBJ_VNUM_GALLEON_SHIP",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 93,
+      "removable": false,
+      "description": "A majestic galleon ship"
+    },
+    {
+      "name": "obj_airship_whistle",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 94,
+      "removable": false,
+      "description": "Whistle used to summon goblins during invasions"
+    },
+    {
+      "name": "OBJ_VNUM_PIRATE_HEAD",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 95,
+      "removable": false,
+      "description": "Severed head of a pirate"
+    },
+    {
+      "name": "obj_part_invasion_leader_head",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 96,
+      "removable": false,
+      "description": "Head of an invasion leader"
+    },
+    {
+      "name": "OBJ_VNUM_SHACKLES",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 30,
+      "removable": false,
+      "description": "Restraint shackles"
+    },
+    {
+      "name": "OBJ_VNUM_DEATH_BOOK",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 31,
+      "removable": false,
+      "description": "Book of death magic"
+    },
+    {
+      "name": "obj_spell_inferno",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 32,
+      "removable": false,
+      "description": "Magical inferno object"
+    },
+    {
+      "name": "obj_skull_normal",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 33,
+      "removable": false,
+      "description": "A human skull"
+    },
+    {
+      "name": "obj_skull_golden",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 34,
+      "removable": false,
+      "description": "A skull made of gold"
+    },
+    {
+      "name": "obj_empty_vial",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 35,
+      "removable": false,
+      "description": "An empty potion vial"
+    },
+    {
+      "name": "obj_potion",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 36,
+      "removable": false,
+      "description": "A generic potion"
+    },
+    {
+      "name": "obj_blank_scroll",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 37,
+      "removable": false,
+      "description": "A blank magical scroll"
+    },
+    {
+      "name": "obj_scroll",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 38,
+      "removable": false,
+      "description": "A magical scroll"
+    },
+    {
+      "name": "OBJ_VNUM_LEATHER_JACKET",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 39,
+      "removable": false,
+      "description": "A leather jacket"
+    },
+    {
+      "name": "OBJ_VNUM_GREEN_TIGHTS",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 40,
+      "removable": false,
+      "description": "Green tights"
+    },
+    {
+      "name": "OBJ_VNUM_SANDALS",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 41,
+      "removable": false,
+      "description": "A pair of sandals"
+    },
+    {
+      "name": "OBJ_VNUM_BLACK_CLOAK",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 42,
+      "removable": false,
+      "description": "A black cloak"
+    },
+    {
+      "name": "OBJ_VNUM_RED_CLOAK",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 43,
+      "removable": false,
+      "description": "A red cloak"
+    },
+    {
+      "name": "OBJ_VNUM_BROWN_TUNIC",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 44,
+      "removable": false,
+      "description": "A brown tunic"
+    },
+    {
+      "name": "OBJ_VNUM_BROWN_ROBE",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 45,
+      "removable": false,
+      "description": "A brown robe"
+    },
+    {
+      "name": "OBJ_VNUM_FEATHERED_ROBE",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 46,
+      "removable": false,
+      "description": "A robe adorned with feathers"
+    },
+    {
+      "name": "OBJ_VNUM_FEATHERED_STICK",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 47,
+      "removable": false,
+      "description": "A stick decorated with feathers"
+    },
+    {
+      "name": "OBJ_VNUM_GREEN_ROBE",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 48,
+      "removable": false,
+      "description": "A green robe"
+    },
+    {
+      "name": "obj_quest_scroll",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 49,
+      "removable": false,
+      "description": "A quest scroll"
+    },
+    {
+      "name": "obj_treasure_map",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 80,
+      "removable": false,
+      "description": "Map leading to hidden treasure"
+    },
+    {
+      "name": "OBJ_VNUM_RELIC_EXTRA_DAMAGE",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 50,
+      "removable": false,
+      "description": "Relic that enhances damage output"
+    },
+    {
+      "name": "OBJ_VNUM_RELIC_EXTRA_XP",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 51,
+      "removable": false,
+      "description": "Relic that increases experience gain"
+    },
+    {
+      "name": "OBJ_VNUM_RELIC_EXTRA_PNEUMA",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 52,
+      "removable": false,
+      "description": "Relic that enhances pneuma acquisition"
+    },
+    {
+      "name": "OBJ_VNUM_RELIC_HP_REGEN",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 53,
+      "removable": false,
+      "description": "Relic that accelerates health regeneration"
+    },
+    {
+      "name": "OBJ_VNUM_RELIC_MANA_REGEN",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 54,
+      "removable": false,
+      "description": "Relic that accelerates mana regeneration"
+    },
+    {
+      "name": "obj_spell_darkness",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 55,
+      "removable": false,
+      "description": "Magical item that creates darkness in a room"
+    },
+    {
+      "name": "obj_spell_roomshield",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 56,
+      "removable": false,
+      "description": "Magical shield for room protection"
+    },
+    {
+      "name": "OBJ_VNUM_HARMONICA",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 57,
+      "removable": false,
+      "description": "A musical harmonica"
+    },
+    {
+      "name": "obj_bomb_smoke",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 58,
+      "removable": false,
+      "description": "A bomb that releases smoke when triggered"
+    },
+    {
+      "name": "obj_cloud_stinking",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 59,
+      "removable": false,
+      "description": "Magical item that creates a foul-smelling cloud"
+    },
+    {
+      "name": "obj_spell_spelltrap",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 60,
+      "removable": false,
+      "description": "Magical trap that triggers a spell effect"
+    },
+    {
+      "name": "obj_cloud_withering",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 61,
+      "removable": false,
+      "description": "Magical cloud that withers its targets"
+    },
+    {
+      "name": "obj_spell_icestorm",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 62,
+      "removable": false,
+      "description": "Magical object that creates an ice storm"
+    },
+    {
+      "name": "obj_blank_tattoo",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 63,
+      "removable": false,
+      "description": "An unfilled magical tattoo template"
+    },
+    {
+      "name": "OBJ_VNUM_DARK_WRAITH_EQ",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 79,
+      "removable": false,
+      "description": "Equipment for the Dark Wraith"
+    },
+    {
+      "name": "obj_portal_abyss",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 97,
+      "removable": false,
+      "description": "Portal to the Abyss"
+    },
+    {
+      "name": "obj_system_dummy",
+      "type": "obj",
+      "area_uid": 1,
+      "vnum": 20,
+      "removable": false,
+      "description": "Generic dummy object for testing"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_NEST",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 32,
+      "removable": false,
+      "description": "Crow's nest area of a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_HELM",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 33,
+      "removable": false,
+      "description": "Helm/wheel area of a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_DECK",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 34,
+      "removable": false,
+      "description": "Main deck of a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_CABIN",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 35,
+      "removable": false,
+      "description": "Captain's cabin on a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_BOW",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 36,
+      "removable": false,
+      "description": "Bow section of a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_STERN",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 37,
+      "removable": false,
+      "description": "Stern section of a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_CARGO",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 38,
+      "removable": false,
+      "description": "Cargo hold of a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_GALLEON_TREASURE",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 39,
+      "removable": false,
+      "description": "Treasure storage on a galleon ship"
+    },
+    {
+      "name": "ROOM_VNUM_FRIGATE_NEST",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 25,
+      "removable": false,
+      "description": "Crow's nest area of a frigate ship"
+    },
+    {
+      "name": "ROOM_VNUM_FRIGATE_HELM",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 26,
+      "removable": false,
+      "description": "Helm/wheel area of a frigate ship"
+    },
+    {
+      "name": "ROOM_VNUM_FRIGATE_DECK",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 27,
+      "removable": false,
+      "description": "Main deck of a frigate ship"
+    },
+    {
+      "name": "ROOM_VNUM_FRIGATE_CABIN",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 28,
+      "removable": false,
+      "description": "Captain's cabin on a frigate ship"
+    },
+    {
+      "name": "ROOM_VNUM_FRIGATE_BOW",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 29,
+      "removable": false,
+      "description": "Bow section of a frigate ship"
+    },
+    {
+      "name": "ROOM_VNUM_FRIGATE_STERN",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 30,
+      "removable": false,
+      "description": "Stern section of a frigate ship"
+    },
+    {
+      "name": "ROOM_VNUM_FRIGATE_CARGO",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 31,
+      "removable": false,
+      "description": "Cargo hold of a frigate ship"
+    },
+    {
+      "name": "ROOM_VNUM_ABYSS_GATE",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 40,
+      "removable": false,
+      "description": "Entrance gate to the Abyss realm"
+    },
+    {
+      "name": "room_default",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 1,
+      "removable": false,
+      "description": "Default room used as fallback location"
+    },
+    {
+      "name": "room_limbo",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 2,
+      "removable": false,
+      "description": "Limbo room for storage of objects and disconnected players"
+    },
+    {
+      "name": "room_chat_lobby",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 3,
+      "removable": false,
+      "description": "Main chat room in the game.\n\r"
+    },
+    {
+      "name": "ROOM_VNUM_MYSTICA",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 4,
+      "removable": false,
+      "description": "Mystica area room"
+    },
+    {
+      "name": "room_default_recall",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 10,
+      "removable": false,
+      "description": "Main temple room"
+    },
+    {
+      "name": "room_donation",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 13,
+      "removable": false,
+      "description": "Donation room for players"
+    },
+    {
+      "name": "room_defualt_altar",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 10,
+      "removable": false,
+      "description": "Temple altar room"
+    },
+    {
+      "name": "room_begin_new_character",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 5,
+      "removable": false,
+      "description": "Newbie school entrance"
+    },
+    {
+      "name": "room_newbie_repop",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 6,
+      "removable": false,
+      "description": "Newbie death room"
+    },
+    {
+      "name": "ROOM_VNUM_EVIL",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 11,
+      "removable": false,
+      "description": "Evil alignment temple"
+    },
+    {
+      "name": "ROOM_VNUM_GOOD",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 12,
+      "removable": false,
+      "description": "Good alignment temple"
+    },
+    {
+      "name": "ROOM_VNUM_PLITH_AIRSHIP",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 14,
+      "removable": false,
+      "description": "Plith airship boarding location"
+    },
+    {
+      "name": "room_default_arena",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 9,
+      "removable": false,
+      "description": "Main arena room"
+    },
+    {
+      "name": "room_death",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 7,
+      "removable": false,
+      "description": "Death room for player deaths"
+    },
+    {
+      "name": "room_war_staging",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 8,
+      "removable": false,
+      "description": "Automated war zone room"
+    },
+    {
+      "name": "ROOM_VNUM_SEA_DEEP",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 42,
+      "removable": false,
+      "description": "Deep sea room for ocean travel"
+    },
+    {
+      "name": "ROOM_VNUM_SEA_SHALLOW",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 43,
+      "removable": false,
+      "description": "Shallow sea room for ocean travel"
+    },
+    {
+      "name": "room_plith_harbour",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 44,
+      "removable": false,
+      "description": "Plith harbor sea room"
+    },
+    {
+      "name": "room_southern_harbour",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 45,
+      "removable": false,
+      "description": "Southern harbor sea room"
+    },
+    {
+      "name": "room_northern_harbour",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 46,
+      "removable": false,
+      "description": "Northern harbor sea room"
+    },
+    {
+      "name": "ROOM_VNUM_PIER",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 41,
+      "removable": false,
+      "description": "Pier for boat docking"
+    },
+    {
+      "name": "ROOM_VNUM_SAILING_BOAT_HELM",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 15,
+      "removable": false,
+      "description": "Helm room on standard sailing boat"
+    },
+    {
+      "name": "room_sailing_boat_nest",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 16,
+      "removable": false,
+      "description": "Crow's nest on standard sailing boat"
+    },
+    {
+      "name": "ROOM_VNUM_SAILING_BOAT_STERN",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 17,
+      "removable": false,
+      "description": "Stern area of standard sailing boat"
+    },
+    {
+      "name": "ROOM_VNUM_CARGO_SHIP_HELM",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 18,
+      "removable": false,
+      "description": "Helm/steering area of a cargo ship"
+    },
+    {
+      "name": "ROOM_VNUM_CARGO_SHIP_NEST",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 19,
+      "removable": false,
+      "description": "Crow's nest area of a cargo ship"
+    },
+    {
+      "name": "ROOM_VNUM_CARGO_SHIP_BOW",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 20,
+      "removable": false,
+      "description": "Bow section of a cargo ship"
+    },
+    {
+      "name": "ROOM_VNUM_CARGO_SHIP_STERN",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 21,
+      "removable": false,
+      "description": "Stern section of a cargo ship"
+    },
+    {
+      "name": "ROOM_VNUM_CARGO_SHIP_CARGO",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 22,
+      "removable": false,
+      "description": "Main cargo hold of a cargo ship"
+    },
+    {
+      "name": "ROOM_VNUM_AIR_SHIP_HELM",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 23,
+      "removable": false,
+      "description": "Control/helm room of an airship"
+    },
+    {
+      "name": "ROOM_VNUM_AIR_SHIP_DECK",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 24,
+      "removable": false,
+      "description": "Main deck on the airship.\n\r"
+    },
+    {
+      "name": "AREA_VNUM_SHIP_CARGO",
+      "type": "area",
+      "area_uid": 1,
+      "vnum": 1,
+      "removable": false,
+      "description": "Cargo ship area"
+    },
+    {
+      "name": "AREA_VNUM_SHIP_FRIGATE",
+      "type": "area",
+      "area_uid": 1,
+      "vnum": 2,
+      "removable": false,
+      "description": "Frigate ship area"
+    },
+    {
+      "name": "AREA_VNUM_SHIP_GALLEON",
+      "type": "area",
+      "area_uid": 1,
+      "vnum": 3,
+      "removable": false,
+      "description": "Galleon ship area"
+    },
+    {
+      "name": "AREA_VNUM_SHIP_WAR_GALLEON",
+      "type": "area",
+      "area_uid": 1,
+      "vnum": 4,
+      "removable": false,
+      "description": "War galleon ship area"
+    },
+    {
+      "name": "room_begin_remort",
+      "type": "room",
+      "area_uid": 1,
+      "vnum": 5,
+      "removable": false,
+      "description": "Where do we send remorts?\n\r"
+    },
+    {
+      "name": "maze_death",
+      "type": "dungeon",
+      "area_uid": 1299,
+      "vnum": 1,
+      "removable": false,
+      "description": "Geldoff combat maze dungeon"
+    },
+    {
+      "name": "maze_poa",
+      "type": "dungeon",
+      "area_uid": 1557,
+      "vnum": 1,
+      "removable": false,
+      "description": "Pyramid of the Abyss maze dungeon"
+    }
+  ]
+}

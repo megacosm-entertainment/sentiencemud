@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 8,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            6,
+            1
+        ]
+    ],
+    "min_mana": 30,
+    "minimum_position": "fighting",
+    "msg_disp": "$n is no longer moving so quickly.",
+    "msg_obj": "",
+    "msg_off": "{YYou feel yourself slow down.{x",
+    "name": "haste",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_haste",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 134
+}

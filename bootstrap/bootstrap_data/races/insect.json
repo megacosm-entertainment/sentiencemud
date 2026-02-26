@@ -1,0 +1,72 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "insect",
+  "uid": 62,
+  "name": "insect",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": false,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": null
+  },
+  "display": {
+    "who_name": "insect"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "insect"
+    ],
+    "parts": [
+      "brains",
+      "eye",
+      "eyestalks",
+      "feet",
+      "guts",
+      "head",
+      "legs",
+      "tail",
+      "wings"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [
+      "cold",
+      "disease"
+    ],
+    "vulnerabilities": [
+      "acid"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_stats": {
+      "str": 0,
+      "int": 0,
+      "wis": 0,
+      "dex": 0,
+      "con": 0
+    },
+    "max_vitals": {
+      "hp": 0,
+      "mana": 0,
+      "move": 0
+    }
+  },
+  "skills": [],
+  "starting_equipment": []
+}

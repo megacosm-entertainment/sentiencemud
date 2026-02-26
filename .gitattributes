@@ -1,0 +1,24 @@
+# Normalize line endings to LF in the repository
+* text=auto
+
+# Source files - always LF in repo, convert to native on checkout
+*.c text eol=lf
+*.h text eol=lf
+
+# Build files
+Makefile text eol=lf
+CMakeLists.txt text eol=lf
+*.cmake text eol=lf
+
+# Scripts - always LF (they may run on Linux)
+*.sh text eol=lf
+
+# Config files
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary files - don't touch
+*.png binary
+*.jpg binary
+*.gif binary

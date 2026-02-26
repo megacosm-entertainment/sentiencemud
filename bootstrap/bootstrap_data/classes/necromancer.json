@@ -1,0 +1,55 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "necromancer",
+        "male": "necromancer",
+        "neutral": "necromancer",
+        "other": "necromancer"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "caster"
+    ],
+    "gains_mana": true,
+    "groups": [
+        "mage skills",
+        "necromancer skills"
+    ],
+    "hp_max": 8,
+    "hp_min": 6,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "necromancer",
+    "primary_stat": "intelligence",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "mage skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "necromancer skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "necromancer",
+            "keyword": "default",
+            "who_name": "Necromancer "
+        }
+    ],
+    "type": "mage",
+    "uid": 4,
+    "weapon": 0,
+    "who": {
+        "female": "Necromancer ",
+        "male": "Necromancer ",
+        "neutral": "Necromancer ",
+        "other": "Necromancer "
+    }
+}

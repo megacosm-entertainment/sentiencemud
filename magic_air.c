@@ -19,145 +19,152 @@
 
 SPELL_FUNC(spell_air_pocket)
 {
-	return false;
+    int sn __attribute__((unused)) = skill->uid;
+    return false;
 }
 
 SPELL_FUNC(spell_faerie_fog)
 {
-	CHAR_DATA *ich;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *ich;
 
-	act("$n conjures a cloud of purple smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	send_to_char("You conjure a cloud of purple smoke.\n\r", ch);
+    act("$n conjures a cloud of purple smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    send_to_char("You conjure a cloud of purple smoke.\n\r", ch);
 
-	for (ich = ch->in_room->people; ich; ich = ich->next_in_room) {
-		if (ich->invis_level > 0)
-			continue;
+    for (ich = ch->in_room->people; ich; ich = ich->next_in_room) {
+        if (ich->invis_level > 0)
+            continue;
 
-		if (ich == ch || saves_spell(level, ich,DAM_OTHER))
-			continue;
+        if (ich == ch || saves_spell(level, ich,DAM_OTHER))
+            continue;
 
-		// Umm, O.o  Wouldn't this expose something that's hidden?
-		if (!check_spell_deflection(ch, ich, sn))
-			continue;
+        // Umm, O.o  Wouldn't this expose something that's hidden?
+        if (!check_spell_deflection(ch, ich, sn))
+            continue;
 
-		affect_strip(ich, gsn_invis);
-		affect_strip(ich, gsn_mass_invis);
-		affect_strip(ich, gsn_sneak);
+        affect_strip(ich, skill_resolve_gsn("invis"));
+        affect_strip(ich, skill_resolve_gsn("mass invis"));
+        affect_strip(ich, skill_resolve_gsn("sneak"));
 
-		REMOVE_BIT(ich->affected_by[0], AFF_HIDE);
-		REMOVE_BIT(ich->affected_by[0], AFF_INVISIBLE);
-		REMOVE_BIT(ich->affected_by[0], AFF_SNEAK);
+        REMOVE_BIT(ich->affected_by[0], AFF_HIDE);
+        REMOVE_BIT(ich->affected_by[0], AFF_INVISIBLE);
+        REMOVE_BIT(ich->affected_by[0], AFF_SNEAK);
 
-		act("$n is revealed!", ich, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		send_to_char("You are revealed!\n\r", ich);
-	}
-	return true;
+        act("$n is revealed!", ich, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        send_to_char("You are revealed!\n\r", ich);
+    }
+    return true;
 }
 
 SPELL_FUNC(spell_fly)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	AFFECT_DATA af;
-	bool perm = false;
-	memset(&af,0,sizeof(af));
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    AFFECT_DATA af;
+    bool perm = false;
+    memset(&af,0,sizeof(af));
 
-	if (level > MAGIC_WEAR_SPELL) {
-		level -= MAGIC_WEAR_SPELL;
-		perm = true;
-	}
+    if (level > MAGIC_WEAR_SPELL) {
+        level -= MAGIC_WEAR_SPELL;
+        perm = true;
+    }
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (IS_AFFECTED(victim, AFF_FLYING)) {
-		if (victim == ch)
-			send_to_char("You are already airborne.\n\r",ch);
-		else
-			act("$N doesn't need your help to fly.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return false;
-	}
+    if (perm && is_affected(victim, sn)) {
+        affect_strip(victim, sn);
+    } else if (IS_AFFECTED(victim, AFF_FLYING)) {
+        if (victim == ch)
+            send_to_char("You are already airborne.\n\r",ch);
+        else
+            act("$N doesn't need your help to fly.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
-	af.level = level;
-	af.duration = perm ? -1 : (level + 3);
-	af.location = 0;
-	af.modifier = 0;
-	af.bitvector = AFF_FLYING;
-	af.bitvector2 = 0;
-	af.slot = obj_wear_loc;
-	affect_to_char(victim, &af);
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_MAGICAL;
+    af.type = sn;
+    af.skill = skill;
+    af.level = level;
+    af.duration = perm ? -1 : (level + 3);
+    af.location = 0;
+    af.modifier = 0;
+    af.bitvector = AFF_FLYING;
+    af.bitvector2 = 0;
+    af.slot = obj_wear_loc;
+    affect_to_char(victim, &af);
 
-	send_to_char("Your feet rise off the ground.\n\r", victim);
-	act("$n's feet rise off the ground.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    send_to_char("Your feet rise off the ground.\n\r", victim);
+    act("$n's feet rise off the ground.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-	return true;
+    return true;
 }
 
 
 SPELL_FUNC(spell_underwater_breathing)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	AFFECT_DATA af;
-	bool perm = false;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    AFFECT_DATA af;
+    bool perm = false;
 
-	memset(&af,0,sizeof(af));
+    memset(&af,0,sizeof(af));
 
-	if(level > MAGIC_SCRIPT_SPELL)
-		level -= MAGIC_SCRIPT_SPELL;
-	else if (level > MAGIC_WEAR_SPELL) {
-		level -= MAGIC_WEAR_SPELL;
-		perm = true;
-	}
+    if(level > MAGIC_SCRIPT_SPELL)
+        level -= MAGIC_SCRIPT_SPELL;
+    else if (level > MAGIC_WEAR_SPELL) {
+        level -= MAGIC_WEAR_SPELL;
+        perm = true;
+    }
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
-	else if (is_affected(victim, sn)) {
-		if (victim == ch)
-			send_to_char("You can already breath underwater.\n\r",ch);
-		else
-			act("$N can already breath underwater.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return false;
-	}
+    if (perm && is_affected(victim, sn))
+        affect_strip(victim, sn);
+    else if (is_affected(victim, sn)) {
+        if (victim == ch)
+            send_to_char("You can already breathe underwater.\n\r",ch);
+        else
+            act("$N can already breathe underwater.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+        return false;
+    }
 
-	af.where = TO_AFFECTS;
-	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
-	af.level = level;
-	af.duration = perm ? -1 : 35;
-	af.modifier = 0;
-	af.location = 0;
-	af.bitvector = AFF_SWIM;
-	af.bitvector2 = 0;
-	af.slot = obj_wear_loc;
-	affect_to_char(victim, &af);
-	send_to_char("You feel a strange sensation as gills sprout behind your ears.\n\r", victim);
-	if (ch != victim) act("Gills sprout from behind $N's ears.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-	return true;
+    af.where = TO_AFFECTS;
+    af.group = AFFGROUP_MAGICAL;
+    af.type = sn;
+    af.skill = skill;
+    af.level = level;
+    af.duration = perm ? -1 : 35;
+    af.modifier = 0;
+    af.location = 0;
+    af.bitvector = AFF_SWIM;
+    af.bitvector2 = 0;
+    af.slot = obj_wear_loc;
+    affect_to_char(victim, &af);
+    send_to_char("You feel a strange sensation as gills sprout behind your ears.\n\r", victim);
+    if (ch != victim) act("Gills sprout from behind $N's ears.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR, NULL, NULL);
+    return true;
 }
 
 SPELL_FUNC(spell_wind_of_confusion)
 {
-	CHAR_DATA *vch;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *vch;
 
-	send_to_char("{MYou summon forth a howling wind!{x\n\r", ch);
-	act("{RA howling chaotic wind of confusion whips around you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    send_to_char("{MYou summon forth a howling wind!{x\n\r", ch);
+    act("{RA howling chaotic wind of confusion whips around you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-	for (vch = ch->in_room->people; vch; vch = vch->next_in_room) {
-		if (!is_same_group(ch, vch) && ch->fighting && is_same_group(ch->fighting, vch)) {
-			if (!check_spell_deflection(ch, vch, sn))
-				continue;
+    for (vch = ch->in_room->people; vch; vch = vch->next_in_room) {
+        if (!is_same_group(ch, vch) && ch->fighting && is_same_group(ch->fighting, vch)) {
+            if (!check_spell_deflection(ch, vch, sn))
+                continue;
 
-			if (saves_spell(level, vch, DAM_NONE)) {
-				send_to_char("You are unaffected by the spell.\n\r", vch);
-				continue;
-			}
+            if (saves_spell(level, vch, DAM_NONE)) {
+                send_to_char("You are unaffected by the spell.\n\r", vch);
+                continue;
+            }
 
-			if (vch->master) {
-				stop_follower(vch,true);
-				die_follower(vch);
-			}
-		}
-	}
-	return true;
+            if (vch->master) {
+                stop_follower(vch,true);
+                die_follower(vch);
+            }
+        }
+    }
+    return true;
 }

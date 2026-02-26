@@ -1,0 +1,29 @@
+{
+  "type": "test_suite",
+  "test_suite": "bitset_helpers_unit_tests",
+  "description": "Pure-function unit tests for type bitset helper behavior",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "tbit_subset_of_semantics",
+      "description": "Validates subset behavior for empty, equal, superset, and disjoint sets",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "tbit_subset_of",
+        "test_cases": [
+          { "test_bits": [], "mask_bits": [], "expected": true },
+          { "test_bits": [5], "mask_bits": [5], "expected": true },
+          { "test_bits": [1, 5], "mask_bits": [1, 5, 8], "expected": true },
+          { "test_bits": [1, 9], "mask_bits": [1, 8], "expected": false },
+          { "test_bits": [63, 64], "mask_bits": [63, 64, 65], "expected": true },
+          { "test_bits": [63, 66], "mask_bits": [63, 64, 65], "expected": false }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

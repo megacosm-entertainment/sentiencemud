@@ -1,0 +1,127 @@
+{
+  "type": "test_suite",
+  "test_suite": "widevnum_string_wrapper_helpers_unit_tests",
+  "description": "Pure-function unit tests for all widevnum_string_* wrapper helpers",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "widevnum_string_mobile_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_mobile",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 1, "ref_area": "Limbo", "expected": "#1" },
+          { "area": "Limbo", "vnum": 1, "expected": "%AREA_UID%#1" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_object_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_object",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 2, "ref_area": "Limbo", "expected": "#2" },
+          { "area": "Limbo", "vnum": 2, "expected": "%AREA_UID%#2" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_room_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_room",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 3, "ref_area": "Limbo", "expected": "#3" },
+          { "area": "Limbo", "vnum": 3, "expected": "%AREA_UID%#3" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_token_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_token",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 4, "ref_area": "Limbo", "expected": "#4" },
+          { "area": "Limbo", "vnum": 4, "expected": "%AREA_UID%#4" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_script_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_script",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 5, "ref_area": "Limbo", "expected": "#5" },
+          { "area": "Limbo", "vnum": 5, "expected": "%AREA_UID%#5" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_blueprint_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_blueprint",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 6, "ref_area": "Limbo", "expected": "#6" },
+          { "area": "Limbo", "vnum": 6, "expected": "%AREA_UID%#6" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_blueprint_section_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_blueprint_section",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 7, "ref_area": "Limbo", "expected": "#7" },
+          { "area": "Limbo", "vnum": 7, "expected": "%AREA_UID%#7" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_dungeon_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_dungeon",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 8, "ref_area": "Limbo", "expected": "#8" },
+          { "area": "Limbo", "vnum": 8, "expected": "%AREA_UID%#8" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "widevnum_string_ship_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "widevnum_string_ship",
+        "test_cases": [
+          { "area": "Limbo", "vnum": 9, "ref_area": "Limbo", "expected": "#9" },
+          { "area": "Limbo", "vnum": 9, "expected": "%AREA_UID%#9" },
+          { "use_null_entity": true, "expected": "0#0" }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
+    }
+  ]
+}

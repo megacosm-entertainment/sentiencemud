@@ -1,0 +1,53 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 12,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 10,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 10,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 10,
+            "rating": 4
+        },
+        {
+            "class": "warrior",
+            "level": 10,
+            "rating": 6
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 0,
+    "minimum_position": "standing",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "You no longer feel stealthy.",
+    "name": "sneak",
+    "noun_damage": "",
+    "race": null,
+    "target": "ignore",
+    "token_wnum": null,
+    "type": "skill",
+    "uid": 222
+}

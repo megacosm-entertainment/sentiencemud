@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "cleric",
+            "level": 9,
+            "rating": 3
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 9,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            4,
+            1
+        ],
+        [
+            19,
+            3
+        ]
+    ],
+    "min_mana": 20,
+    "minimum_position": "fighting",
+    "msg_disp": "",
+    "msg_obj": "",
+    "msg_off": "!Cure Disease!",
+    "name": "cure disease",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_cure_disease",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 60
+}

@@ -1,0 +1,11 @@
+{
+    "name": "geomancer skills",
+    "skills": [
+        "electrical barrier",
+        "frost barrier",
+        "fire barrier",
+        "master weather",
+        "ensnare",
+        "stone spikes"
+    ]
+}

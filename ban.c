@@ -39,73 +39,87 @@
 #include <stdlib.h>
 #include "merc.h"
 #include "recycle.h"
+#include "io/json/json_ban.h"
 
 BAN_DATA *ban_list;
 
 
+/**
+ * save_bans - Write permanent bans to disk
+ *
+ * Saves all bans with the BAN_PERMANENT flag to BAN_FILE.
+ * Temporary bans are not persisted. If no permanent bans exist,
+ * the ban file is deleted.
+ *
+ * File format: name level flags (one per line)
+ */
 void save_bans(void)
 {
-    BAN_DATA *pban;
-    FILE *fp;
-    bool found = false;
-
-    fclose( fpReserve );
-    if ( ( fp = fopen( BAN_FILE, "w" ) ) == NULL )
-    {
-        perror( BAN_FILE );
-    }
-
-    for (pban = ban_list; pban != NULL; pban = pban->next)
-    {
-	if (IS_SET(pban->ban_flags,BAN_PERMANENT))
-	{
-	    found = true;
-	    fprintf(fp,"%-20s %-2d %s\n",pban->name,pban->level,
-		print_flags(pban->ban_flags));
-	}
-     }
-
-     fclose(fp);
-     fpReserve = fopen( NULL_FILE, "r" );
-     if (!found)
-	unlink(BAN_FILE);
+    char null_file_buf[MAX_INPUT_LENGTH];
+    const char *null_file = resolve_game_path(NULL_FILE, null_file_buf, sizeof(null_file_buf));
+    fclose(fpReserve);
+    json_save_bans(BAN_JSON_FILE);
+    fpReserve = fopen(null_file, "r");
 }
 
 
+/**
+ * load_bans - Load saved bans from disk at boot time
+ *
+ * Reads BAN_FILE and populates ban_list with all saved bans.
+ * Called during server initialization.
+ */
 void load_bans(void)
 {
+    if (json_load_bans(BAN_JSON_FILE))
+        return;
+
     FILE *fp;
     BAN_DATA *ban_last;
+    char ban_file_buf[MAX_INPUT_LENGTH];
+    const char *ban_file = resolve_game_path(BAN_FILE, ban_file_buf, sizeof(ban_file_buf));
 
-    if ( ( fp = fopen( BAN_FILE, "r" ) ) == NULL )
+    if ((fp = fopen(ban_file, "r")) == NULL)
         return;
 
     ban_last = NULL;
-    for ( ; ; )
-    {
+    for (;;) {
         BAN_DATA *pban;
-        if ( feof(fp) )
-        {
-            fclose( fp );
+        if (feof(fp)) {
+            fclose(fp);
+            json_save_bans(BAN_JSON_FILE);
             return;
         }
 
         pban = new_ban();
 
         pban->name = str_dup(fread_word(fp));
-	pban->level = fread_number(fp);
-	pban->ban_flags = fread_flag(fp);
-	fread_to_eol(fp);
+        pban->level = fread_number(fp);
+        pban->ban_flags = fread_flag(fp);
+        fread_to_eol(fp);
 
         if (ban_list == NULL)
-	    ban_list = pban;
-	else
-	    ban_last->next = pban;
-	ban_last = pban;
+            ban_list = pban;
+        else
+            ban_last->next = pban;
+        ban_last = pban;
     }
 }
 
 
+/**
+ * check_ban - Check if a site/host matches any active bans
+ *
+ * Checks the ban_list for matches against the given site name.
+ * Supports wildcard matching:
+ * - BAN_PREFIX: ban name matches end of host (*example.com)
+ * - BAN_SUFFIX: ban name matches start of host (example.*)
+ * - Both: ban name found anywhere in host (*example*)
+ *
+ * @param site  Hostname or IP to check
+ * @param type  Ban type to check for (BAN_ALL, BAN_NEWBIES, BAN_PERMIT)
+ * @return      true if site is banned for this type, false otherwise
+ */
 bool check_ban(char *site,int type)
 {
     BAN_DATA *pban;
@@ -116,27 +130,46 @@ bool check_ban(char *site,int type)
 
     for ( pban = ban_list; pban != NULL; pban = pban->next )
     {
-	if(!IS_SET(pban->ban_flags,type))
-	    continue;
+    if(!IS_SET(pban->ban_flags,type))
+        continue;
 
-	if (IS_SET(pban->ban_flags,BAN_PREFIX)
-	&&  IS_SET(pban->ban_flags,BAN_SUFFIX)
-	&&  strstr(pban->name,host) != NULL)
-	    return true;
+    if (IS_SET(pban->ban_flags,BAN_PREFIX)
+    &&  IS_SET(pban->ban_flags,BAN_SUFFIX)
+    &&  strstr(pban->name,host) != NULL)
+        return true;
 
-	if (IS_SET(pban->ban_flags,BAN_PREFIX)
-	&&  !str_suffix(pban->name,host))
-	    return true;
+    if (IS_SET(pban->ban_flags,BAN_PREFIX)
+    &&  !str_suffix(pban->name,host))
+        return true;
 
-	if (IS_SET(pban->ban_flags,BAN_SUFFIX)
-	&&  !str_prefix(pban->name,host))
-	    return true;
+    if (IS_SET(pban->ban_flags,BAN_SUFFIX)
+    &&  !str_prefix(pban->name,host))
+        return true;
     }
 
     return false;
 }
 
 
+/**
+ * ban_site - Internal function to add or list bans
+ *
+ * With no arguments, lists all current bans with their level, type, and status.
+ * With arguments, creates a new ban entry.
+ *
+ * Syntax: ban [site] [type]
+ * - site: Hostname/IP to ban. Use * prefix/suffix for wildcards.
+ *   Examples: *aol.com, 192.168.*, *bad*
+ * - type: all (default), newbies (new chars only), permit (requires permit)
+ *
+ * Ban precedence: Staff rank determines who can modify/remove a ban.
+ * If a ban already exists for the site, it's replaced if the caller
+ * has sufficient rank.
+ *
+ * @param ch     Staff member issuing the ban
+ * @param argument  Site and optional type
+ * @param fPerm  true for permanent ban (saved to file), false for temp
+ */
 void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
 {
     char buf[2*MAX_STRING_LENGTH],buf2[MAX_STRING_LENGTH];
@@ -152,66 +185,66 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
 
     if ( arg1[0] == '\0' )
     {
-	if (ban_list == NULL)
-	{
-	    send_to_char("No sites banned at this time.\n\r",ch);
-	    return;
-  	}
-	buffer = new_buf();
+    if (ban_list == NULL)
+    {
+        send_to_char("No sites banned at this time.\n\r",ch);
+        return;
+      }
+    buffer = new_buf();
 
         add_buf(buffer,"Banned sites  level  type     status\n\r");
         for (pban = ban_list;pban != NULL;pban = pban->next)
         {
-			sprintf(buf2,"%s%s%s",
-				IS_SET(pban->ban_flags,BAN_PREFIX) ? "*" : "",
-				pban->name,
-				IS_SET(pban->ban_flags,BAN_SUFFIX) ? "*" : "");
-				sprintf(buf,"%-12s    %-3d  %-7s  %s\n\r",
-				buf2, pban->level,
-				IS_SET(pban->ban_flags,BAN_NEWBIES) ? "newbies" :
-				IS_SET(pban->ban_flags,BAN_PERMIT)  ? "permit"  :
-				IS_SET(pban->ban_flags,BAN_ALL)     ? "all"	: "",
-				IS_SET(pban->ban_flags,BAN_PERMANENT) ? "perm" : "temp");
-			add_buf(buffer,buf);
+            sprintf(buf2,"%s%s%s",
+                IS_SET(pban->ban_flags,BAN_PREFIX) ? "*" : "",
+                pban->name,
+                IS_SET(pban->ban_flags,BAN_SUFFIX) ? "*" : "");
+                sprintf(buf,"%-12s    %-3d  %-7s  %s\n\r",
+                buf2, pban->level,
+                IS_SET(pban->ban_flags,BAN_NEWBIES) ? "newbies" :
+                IS_SET(pban->ban_flags,BAN_PERMIT)  ? "permit"  :
+                IS_SET(pban->ban_flags,BAN_ALL)     ? "all"	: "",
+                IS_SET(pban->ban_flags,BAN_PERMANENT) ? "perm" : "temp");
+            add_buf(buffer,buf);
         }
 
         page_to_char( buf_string(buffer), ch );
-	free_buf(buffer);
+    free_buf(buffer);
         return;
     }
 
     /* find out what type of ban */
     if (arg2[0] == '\0' || !str_prefix(arg2,"all"))
-	type = BAN_ALL;
+    type = BAN_ALL;
     else if (!str_prefix(arg2,"newbies"))
-	type = BAN_NEWBIES;
+    type = BAN_NEWBIES;
     else if (!str_prefix(arg2,"permit"))
-	type = BAN_PERMIT;
+    type = BAN_PERMIT;
     else
     {
-	send_to_char("Acceptable ban types are all, newbies, and permit.\n\r",
-	    ch);
-	return;
+    send_to_char("Acceptable ban types are all, newbies, and permit.\n\r",
+        ch);
+    return;
     }
 
     name = arg1;
 
     if (name[0] == '*')
     {
-	prefix = true;
-	name++;
+    prefix = true;
+    name++;
     }
 
     if (name[strlen(name) - 1] == '*')
     {
-	suffix = true;
-	name[strlen(name) - 1] = '\0';
+    suffix = true;
+    name[strlen(name) - 1] = '\0';
     }
 
     if (strlen(name) == 0)
     {
-	send_to_char("You have to ban SOMETHING.\n\r",ch);
-	return;
+    send_to_char("You have to ban SOMETHING.\n\r",ch);
+    return;
     }
 
     prev = NULL;
@@ -219,19 +252,19 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
     {
         if (!str_cmp(name,pban->name))
         {
-	    if (pban->rank > get_staff_rank(ch))
-	    {
-            	send_to_char( "That ban was set by a higher power.\n\r", ch );
-            	return;
-	    }
-	    else
-	    {
-		if (prev == NULL)
-		    ban_list = pban->next;
-		else
-		    prev->next = pban->next;
-		free_ban(pban);
-	    }
+        if (pban->rank > get_staff_rank(ch))
+        {
+                send_to_char( "That ban was set by a higher power.\n\r", ch );
+                return;
+        }
+        else
+        {
+        if (prev == NULL)
+            ban_list = pban->next;
+        else
+            prev->next = pban->next;
+        free_ban(pban);
+        }
         }
     }
 
@@ -243,11 +276,11 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
     pban->ban_flags = type;
 
     if (prefix)
-	SET_BIT(pban->ban_flags,BAN_PREFIX);
+    SET_BIT(pban->ban_flags,BAN_PREFIX);
     if (suffix)
-	SET_BIT(pban->ban_flags,BAN_SUFFIX);
+    SET_BIT(pban->ban_flags,BAN_SUFFIX);
     if (fPerm)
-	SET_BIT(pban->ban_flags,BAN_PERMANENT);
+    SET_BIT(pban->ban_flags,BAN_PERMANENT);
 
     pban->next  = ban_list;
     ban_list    = pban;
@@ -258,18 +291,46 @@ void ban_site(CHAR_DATA *ch, char *argument, bool fPerm)
 }
 
 
+/**
+ * do_ban - Staff command to create a temporary site ban
+ *
+ * Creates a ban that lasts until server reboot (not saved to file).
+ * Wrapper for ban_site() with fPerm=false.
+ *
+ * @param ch        Staff member issuing the ban
+ * @param argument  Site pattern and optional ban type
+ */
 void do_ban(CHAR_DATA *ch, char *argument)
 {
     ban_site(ch,argument,false);
 }
 
 
+/**
+ * do_permban - Staff command to create a permanent site ban
+ *
+ * Creates a ban that persists across reboots (saved to BAN_FILE).
+ * Wrapper for ban_site() with fPerm=true.
+ *
+ * @param ch        Staff member issuing the ban
+ * @param argument  Site pattern and optional ban type
+ */
 void do_permban(CHAR_DATA *ch, char *argument)
 {
     ban_site(ch,argument,true);
 }
 
 
+/**
+ * do_allow - Staff command to remove a site ban
+ *
+ * Removes a ban from the ban_list if the caller has sufficient rank
+ * (must be >= the rank of the staff member who created the ban).
+ * Saves updated ban list to file.
+ *
+ * @param ch        Staff member removing the ban
+ * @param argument  Name of the banned site to unban
+ */
 void do_allow( CHAR_DATA *ch, char *argument )
 {
     char arg[MAX_INPUT_LENGTH];
@@ -290,21 +351,21 @@ void do_allow( CHAR_DATA *ch, char *argument )
     {
         if ( !str_cmp( arg, curr->name ) )
         {
-	    if (curr->rank > get_staff_rank(ch))
-	    {
-		send_to_char(
-		   "You are not powerful enough to lift that ban.\n\r",ch);
-		return;
-	    }
+        if (curr->rank > get_staff_rank(ch))
+        {
+        send_to_char(
+           "You are not powerful enough to lift that ban.\n\r",ch);
+        return;
+        }
             if ( prev == NULL )
                 ban_list   = ban_list->next;
             else
                 prev->next = curr->next;
 
             free_ban(curr);
-	    sprintf(buf,"Ban on %s lifted.\n\r",arg);
+        sprintf(buf,"Ban on %s lifted.\n\r",arg);
             send_to_char( buf, ch );
-	    save_bans();
+        save_bans();
             return;
         }
     }

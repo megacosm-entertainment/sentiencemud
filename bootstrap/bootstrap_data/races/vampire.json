@@ -1,0 +1,99 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "vampire",
+  "uid": 5,
+  "name": "vampire",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "path_race": true,
+  "remort": {
+    "prerequisite_race": null,
+    "remort_into": "fiend"
+  },
+  "display": {
+    "who_name": "{R Vamp "
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": -1,
+    "form": [
+      "sentient",
+      "undead",
+      "biped"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "fangs",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "detect_invis",
+      "detect_hidden"
+    ],
+    "offensive": [],
+    "immunities": [
+      "poison"
+    ],
+    "resistances": [
+      "disease"
+    ],
+    "vulnerabilities": [
+      "fire",
+      "light",
+      "holy"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 22,
+      "int": 18,
+      "wis": 20,
+      "dex": 19,
+      "con": 18
+    },
+    "max_vitals": {
+      "hp": 3350,
+      "mana": 3250,
+      "move": 3250
+    }
+  },
+  "skills": [
+    "fast healing",
+    "shape",
+    "shift",
+    "bite",
+    "consume",
+    "temperance"
+  ],
+  "starting_equipment": [],
+  "traits": {
+    "sunlight_vulnerability": true,
+    "blood_feeding": true,
+    "stakeable": true,
+    "can_shapeshift": true,
+    "shift_form": "werewolf"
+  }
+}

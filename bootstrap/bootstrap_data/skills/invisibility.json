@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 5,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            2,
+            2
+        ]
+    ],
+    "min_mana": 5,
+    "minimum_position": "standing",
+    "msg_disp": "$n fades into existance.",
+    "msg_obj": "$p fades into view.",
+    "msg_off": "{CYou are no longer invisible.{x",
+    "name": "invisibility",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_invis",
+    "target": "obj_char_def",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 153
+}

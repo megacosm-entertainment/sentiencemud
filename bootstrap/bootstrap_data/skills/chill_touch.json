@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 6,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 2,
+            "rating": 3
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 15,
+    "minimum_position": "fighting",
+    "msg_disp": "$n looks to shiver less.",
+    "msg_obj": "",
+    "msg_off": "{CYou feel less cold.{x",
+    "name": "chill touch",
+    "noun_damage": "chilling touch",
+    "race": null,
+    "spell_function": "spell_chill_touch",
+    "target": "offensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 42
+}

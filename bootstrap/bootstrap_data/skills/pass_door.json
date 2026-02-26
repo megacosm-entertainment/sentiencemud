@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 19,
+            "rating": 6
+        },
+        {
+            "class": "cleric",
+            "level": 31,
+            "rating": 1
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 31,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            5,
+            2
+        ],
+        [
+            7,
+            2
+        ],
+        [
+            2,
+            2
+        ]
+    ],
+    "min_mana": 20,
+    "minimum_position": "standing",
+    "msg_disp": "$n becomes solid again.",
+    "msg_obj": "",
+    "msg_off": "{CYou feel solid again.{x",
+    "name": "pass door",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_pass_door",
+    "target": "self",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 180
+}

@@ -1,0 +1,63 @@
+{
+  "type": "test_suite",
+  "test_suite": "wnum_verbose_example",
+  "description": "Example tests demonstrating verbose output configuration",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "timeout_seconds": 120,
+  "dependencies": [],
+  "tests": [
+    {
+      "name": "basic_vnum_parsing_verbose",
+      "description": "Test WNUM parsing with verbose output enabled",
+      "test_type": "pure_function_test",
+      "verbose_output": true,
+      "timeout_seconds": 30,
+      "dependencies": [],
+      "input": {
+        "function": "parse_widevnum",
+        "test_cases": [
+          {
+            "input": "1#1",
+            "context_area": "Bootstrap Reserved",
+            "expected_area": "Bootstrap Reserved",
+            "expected_vnum": 1
+          },
+          {
+            "input_area_uid_from": "Limbo",
+            "input_vnum": 1,
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "basic_vnum_parsing_quiet",
+      "description": "Test WNUM parsing with verbose output disabled",
+      "test_type": "pure_function_test",
+      "verbose_output": false,
+      "timeout_seconds": 15,
+      "dependencies": [],
+      "input": {
+        "function": "parse_widevnum",
+        "test_cases": [
+          {
+            "input_area_uid_from": "Limbo",
+            "input_vnum": 1,
+            "context_area": "Limbo",
+            "expected_area": "Limbo",
+            "expected_vnum": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

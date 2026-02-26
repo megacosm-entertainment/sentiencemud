@@ -16,42 +16,45 @@
 #include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
+#include "traits.h"
 
 SPELL_FUNC(spell_acid_blast)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	int dam;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    int dam;
 
-	if (check_shield_block_projectile(ch, victim, "acid blast", NULL))
-		return false;
+    if (check_shield_block_projectile(ch, victim, "acid blast", NULL))
+        return false;
 
-	dam = dice(level, 6);
-	if (saves_spell(level, victim, DAM_ACID)) dam /= 2;
+    dam = dice(level, 6);
+    if (saves_spell(level, victim, DAM_ACID)) dam /= 2;
 
-	damage(ch, victim, dam, sn, DAM_ACID, true);
-	return true;
+    damage(ch, victim, dam, sn, DAM_ACID, true);
+    return true;
 }
 
 SPELL_FUNC(spell_acid_breath)
 {
-	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	int dam;
+    int sn __attribute__((unused)) = skill->uid;
+    CHAR_DATA *victim = (CHAR_DATA *) vo;
+    int dam;
 
-	act("$n spits acid at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	act("$n spits a stream of corrosive acid at you.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	act("You spit acid at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    act("$n spits acid at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
+    act("$n spits a stream of corrosive acid at you.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act("You spit acid at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
-	if (check_shield_block_projectile(ch, victim, "acid stream", NULL))
-		return false;
+    if (check_shield_block_projectile(ch, victim, "acid stream", NULL))
+        return false;
 
-	dam = level * 15;
+    dam = level * 15;
 
-	if (IS_DRAGON(ch))
-		dam += dam/4;
+    if (race_get_trait_int(ch->race, "breath_damage_bonus") > 0)
+        dam += dam * race_get_trait_int(ch->race, "breath_damage_bonus") / 100;
 
-	acid_effect(victim,level,dam/13,TARGET_CHAR);
-	victim->set_death_type = DEATHTYPE_BREATH;
-	damage(ch,victim,dam,sn,DAM_ACID,true);
-	return true;
+    acid_effect(victim,level,dam/13,TARGET_CHAR);
+    victim->set_death_type = DEATHTYPE_BREATH;
+    damage(ch,victim,dam,sn,DAM_ACID,true);
+    return true;
 }
 

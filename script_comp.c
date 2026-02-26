@@ -24,182 +24,219 @@
 
 static BUFFER *compile_err_buffer = NULL;
 static int compile_current_line = 0;
+static char *compile_store_limit = NULL;
 
+void compile_error_show(char *msg);
+
+static bool compile_emit_byte(char **store, unsigned char value)
+{
+    char buf[MSL];
+
+    if (compile_store_limit && (*store >= compile_store_limit)) {
+        sprintf(buf, "Line %d: Script line too long after escape compilation.", compile_current_line);
+        compile_error_show(buf);
+        return false;
+    }
+
+    *(*store)++ = (char)value;
+    return true;
+}
 
 void compile_error(char *msg)
 {
-	char buf[MSL];
-	if(compile_err_buffer) {
-		add_buf(compile_err_buffer,msg);
-		add_buf(compile_err_buffer,"\n\r");
-	}
-	sprintf(buf, "SCRIPT ERROR: %s", msg);
-	bug(buf,0);
+    if(compile_err_buffer) {
+        add_buf(compile_err_buffer,msg);
+        add_buf(compile_err_buffer,"\n\r");
+    }
+    pbugf(LOG_SCRIPTS, "SCRIPT ERROR: %s", msg);
 }
 
 void compile_error_show(char *msg)
 {
-	char buf[MSL];
-	if(compile_err_buffer) {
-		add_buf(compile_err_buffer,msg);
-		add_buf(compile_err_buffer,"\n\r");
-	} else {
-		sprintf(buf, "SCRIPT ERROR: %s", msg);
-		bug(buf,0);
-	}
+    if(compile_err_buffer) {
+        add_buf(compile_err_buffer,msg);
+        add_buf(compile_err_buffer,"\n\r");
+    } else {
+        pbugf(LOG_SCRIPTS, "SCRIPT ERROR: %s", msg);
+    }
 }
 
 static int check_operation(int *opnds,STACK *opr)
 {
-	int optr;
+    int optr;
 
-	DBG2ENTRY2(PTR,opnds,PTR,opr);
+    DBG2ENTRY2(PTR,opnds,PTR,opr);
 
-	optr = pop(opr,STK_EMPTY);
+    optr = pop(opr,STK_EMPTY);
 
-	if(optr == STK_MAX || optr == STK_EMPTY || *opnds < script_expression_argstack[optr])
-		return ERROR4;
+    if(optr == STK_MAX || optr == STK_EMPTY || *opnds < script_expression_argstack[optr])
+        return ERROR4;
 
-	*opnds = *opnds + 1 - script_expression_argstack[optr];
-	return DONE;
+    *opnds = *opnds + 1 - script_expression_argstack[optr];
+    return DONE;
 }
 
 static int check_expession_stack(int *opnds,STACK *stk_opr,int op)
 {
-	int t;
+    int t;
 
-	DBG2ENTRY3(PTR,opnds,PTR,stk_opr,NUM,op);
+    DBG2ENTRY3(PTR,opnds,PTR,stk_opr,NUM,op);
 
-	if(op == CH_MAX) return ERROR0;
+    if(op == CH_MAX) return ERROR0;
 
-	// Iterate through the operators that CAN be popped off the stack
-	while((t = script_expression_stack_action[op][top(stk_opr,STK_EMPTY)]) == POP &&
-		(t = check_operation(opnds,stk_opr)) == DONE);
+    // Iterate through the operators that CAN be popped off the stack
+    while((t = script_expression_stack_action[op][top(stk_opr,STK_EMPTY)]) == POP &&
+        (t = check_operation(opnds,stk_opr)) == DONE);
 
-	if(t == DONE) return DONE;
-	else if(t == PUSH) {
-		script_expression_push_operator(stk_opr,op);
-	} else if(t == DELETE) --stk_opr->t;
-	else if(t >= ERROR0) return t;
+    if(t == DONE) return DONE;
+    else if(t == PUSH) {
+        script_expression_push_operator(stk_opr,op);
+    } else if(t == DELETE) --stk_opr->t;
+    else if(t >= ERROR0) return t;
 
-	return DONE;
+    return DONE;
 }
 
 char *compile_ifcheck(char *str,int type, char **store)
 {
-	char *p = *store;
-	char buf[MIL], buf2[MSL], *s;
-	int ifc;
+    char *p = *store;
+    char buf[MIL], buf2[MSL], *s;
+    int ifc;
 
-	DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
+    DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
 
-	str = skip_whitespace(str);
+    str = skip_whitespace(str);
 
-	if(!ISALPHA(*str)) {
-		sprintf(buf2,"Line %d: Ifchecks must start with an alphabetic character.", compile_current_line);
-		compile_error_show(buf2);
-		return NULL;
-	}
+    if(!ISALPHA(*str)) {
+        sprintf(buf2,"Line %d: Ifchecks must start with an alphabetic character.", compile_current_line);
+        compile_error_show(buf2);
+        return NULL;
+    }
 
-	s = buf;
-	while(ISALNUM(*str)) *s++ = *str++;
-	*s = 0;
+    s = buf;
+    while(ISALNUM(*str)) *s++ = *str++;
+    *s = 0;
 
-	ifc = ifcheck_lookup(buf, type);
-	if(ifc < 0 || ifc > 4095) {
-		sprintf(buf2,"Line %d: Invalid ifcheck '%s'.", compile_current_line, buf);
-		compile_error_show(buf2);
-		return NULL;
-	}
-	*p++ = (ifc & 0x3F) + ESCAPE_EXTRA;	// ????______LLLLLL
-	*p++ = ((ifc>>6) & 0x3F) + ESCAPE_EXTRA;	// ????HHHHHH______
+    ifc = ifcheck_lookup(buf, type);
+    if(ifc < 0 || ifc > 4095) {
+        sprintf(buf2,"Line %d: Invalid ifcheck '%s'.", compile_current_line, buf);
+        compile_error_show(buf2);
+        return NULL;
+    }
+    if(!compile_emit_byte(&p, (ifc & 0x3F) + ESCAPE_EXTRA)) return NULL;
+    if(!compile_emit_byte(&p, ((ifc>>6) & 0x3F) + ESCAPE_EXTRA)) return NULL;
 
-	str = compile_substring(str,type,&p,true,true,false);
-	if(!str) {
-		sprintf(buf2,"Line %d: Error processing ifcheck call '%s'.", compile_current_line, buf);
-		compile_error_show(buf2);
-		return NULL;
-	}
+    str = compile_substring(str,type,&p,true,true,false);
+    if(!str) {
+        sprintf(buf2,"Line %d: Error processing ifcheck call '%s'.", compile_current_line, buf);
+        compile_error_show(buf2);
+        return NULL;
+    }
 
-	*store = p;
-	return str+1;
+    *store = p;
+    return str+1;
 }
 
 char *compile_expression(char *str,int type, char **store)
 {
-	char buf[MSL];
-	STACK optr;
-	int op,opnds=0;
-	bool expect = false;	// false = number/open, true = operator/close
-	char *p = *store, *rest;
+    char buf[MSL];
+    STACK optr;
+    int op,opnds=0;
+    bool expect = false;	// false = number/open, true = operator/close
+    char *p = *store, *rest;
 
-	DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
+    DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
 
-	str = skip_whitespace(str);	// Process to the first non-whitespace
+    str = skip_whitespace(str);	// Process to the first non-whitespace
 
-	*p++ = ESCAPE_EXPRESSION;
+    if(!compile_emit_byte(&p, ESCAPE_EXPRESSION)) return NULL;
 
-	optr.t = 0;
+    optr.t = 0;
 
-	while(*str && *str != ']') {
-		str = skip_whitespace(str);
-		if(ISDIGIT(*str)) {	// Constant
-			if(expect) {
-				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
+    while(*str && *str != ']') {
+        str = skip_whitespace(str);
+        if(ISDIGIT(*str)) {	// Constant
+            if(expect) {
+                sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
 
-			while(ISDIGIT(*str)) *p++ = *str++;
-			++opnds;
-			expect = true;
-		} else if(ISALPHA(*str)) {	// Variable (simple, alpha-only)
-			if(expect) {
-				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
-			*p++ = ESCAPE_VARIABLE;
-			while(ISALPHA(*str)) *p++ = *str++;
-			*p++ = ESCAPE_END;
-			++opnds;
-			expect = true;
-		} else if(*str == '"') {	// Variable (long, any character)
-			if(expect) {
-				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
-			*p++ = ESCAPE_VARIABLE;
-			++str;
-			while(*str && *str != '"' && ISPRINT(*str)) *p++ = *str++;
-			if(*str != '"') {
-				sprintf(buf,"Line %d: Missing quote around long variable name in expression.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
-			++str;
-			*p++ = ESCAPE_END;
-			++opnds;
-			expect = true;
-		} else if(*str == '[') {
-			if(expect) {
-				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
-				compile_error_show(buf);
-				return NULL;
-			}
+            while(ISDIGIT(*str)) {
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+            }
+            ++opnds;
+            expect = true;
+        } else if(ISALPHA(*str)) {	// Variable (simple, alpha-only)
+            if(expect) {
+                sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            if(!compile_emit_byte(&p, ESCAPE_VARIABLE)) return NULL;
+                while(ISALPHA(*str) || ISDIGIT(*str)) {
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+            }
+            if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
+            ++opnds;
+            expect = true;
+            } else if(*str == '$') {
+                if(expect) {
+                    sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
+                    compile_error_show(buf);
+                    return NULL;
+                }
 
-			*p++ = ESCAPE_EXPRESSION;
-			rest = compile_ifcheck(str+1,type,&p);
-			if(!rest) {
-				// Error message handled by compile_ifcheck
-				return NULL;
-			}
-			str = rest;
-			*p++ = ESCAPE_END;
-			++opnds;
-			expect = true;
-		} else if(*str != ']') {
+                ++str;
+                if(*str != '(') {
+                    sprintf(buf,"Line %d: Expecting an open parenthesis '(' after '$' for entity expansion.", compile_current_line);
+                    compile_error_show(buf);
+                    return NULL;
+                }
+
+                str = compile_entity(str+1,type,&p);
+                if(!str) return NULL;
+
+                ++opnds;
+                expect = true;
+        } else if(*str == '"') {	// Variable (long, any character)
+            if(expect) {
+                sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            if(!compile_emit_byte(&p, ESCAPE_VARIABLE)) return NULL;
+            ++str;
+            while(*str && *str != '"' && ISPRINT(*str)) {
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+            }
+            if(*str != '"') {
+                sprintf(buf,"Line %d: Missing quote around long variable name in expression.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            ++str;
+            if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
+            ++opnds;
+            expect = true;
+        } else if(*str == '[') {
+            if(expect) {
+                sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+
+            if(!compile_emit_byte(&p, ESCAPE_EXPRESSION)) return NULL;
+            rest = compile_ifcheck(str+1,type,&p);
+            if(!rest) {
+                // Error message handled by compile_ifcheck
+                return NULL;
+            }
+            str = rest;
+            if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
+            ++opnds;
+            expect = true;
+        } else if(*str != ']') {
 // -expression
 //
 //
@@ -207,143 +244,147 @@ char *compile_expression(char *str,int type, char **store)
 //
 
 
-			switch(*str) {
-			case '+': op = expect ? CH_ADD : CH_MAX; expect=false; break;
-			case '-': op = expect ? CH_SUB : CH_NEG; expect=false; break;
-			case '*': op = expect ? CH_MUL : CH_MAX; expect=false; break;
-			case '%': op = expect ? CH_MOD : CH_MAX; expect=false; break;
-			case '/': op = expect ? CH_DIV : CH_MAX; expect=false; break;
-			case ':': op = expect ? CH_RAND : CH_MAX; expect=false; break;
-			case '!': op = expect ? CH_MAX : CH_NOT; expect=false; break;
-			case '(': op = expect ? CH_MAX : CH_OPEN; expect=false; break;
-			case ')': op = expect ? CH_CLOSE : CH_MAX; expect=true; break;
-			default:  op = CH_MAX; break;
-			}
+            switch(*str) {
+            case '+': op = expect ? CH_ADD : CH_MAX; expect=false; break;
+            case '-': op = expect ? CH_SUB : CH_NEG; expect=false; break;
+            case '*': op = expect ? CH_MUL : CH_MAX; expect=false; break;
+            case '%': op = expect ? CH_MOD : CH_MAX; expect=false; break;
+            case '/': op = expect ? CH_DIV : CH_MAX; expect=false; break;
+            case ':': op = expect ? CH_RAND : CH_MAX; expect=false; break;
+            case '!': op = expect ? CH_MAX : CH_NOT; expect=false; break;
+            case '(': op = expect ? CH_MAX : CH_OPEN; expect=false; break;
+            case ')': op = expect ? CH_CLOSE : CH_MAX; expect=true; break;
+            default:  op = CH_MAX; break;
+            }
 
-			if((op = check_expession_stack(&opnds,&optr,op)) != DONE) {
-				switch(op) {
-				case ERROR0:
-					sprintf(buf,"Line %d: Invalid operator '%c' encountered.", compile_current_line, *str);
-					break;
-				case ERROR1:
-					sprintf(buf,"Line %d: Unmatched right parenthesis.", compile_current_line);
-					break;
-				case ERROR2:
-					sprintf(buf,"Line %d: Unmatched left parenthesis.", compile_current_line);
-					break;
-				case ERROR3:	// NOT DONE HERE!  They will "result" in zero with a bug message
-					sprintf(buf,"Line %d: Division by zero.", compile_current_line);
-					break;
-				case ERROR4:
-					sprintf(buf,"Line %d: Invalid expression.", compile_current_line);
-					break;
-				default:
-					sprintf(buf,"Line %d: Unknown expression error.", compile_current_line);
-					break;
-				}
-				compile_error_show(buf);
-				return NULL;
-			}
-			*p++ = *str++;
-		}
-	}
+            if((op = check_expession_stack(&opnds,&optr,op)) != DONE) {
+                switch(op) {
+                case ERROR0:
+                    sprintf(buf,"Line %d: Invalid operator '%c' encountered.", compile_current_line, *str);
+                    break;
+                case ERROR1:
+                    sprintf(buf,"Line %d: Unmatched right parenthesis.", compile_current_line);
+                    break;
+                case ERROR2:
+                    sprintf(buf,"Line %d: Unmatched left parenthesis.", compile_current_line);
+                    break;
+                case ERROR3:	// NOT DONE HERE!  They will "result" in zero with a bug message
+                    sprintf(buf,"Line %d: Division by zero.", compile_current_line);
+                    break;
+                case ERROR4:
+                    sprintf(buf,"Line %d: Invalid expression.", compile_current_line);
+                    break;
+                default:
+                    sprintf(buf,"Line %d: Unknown expression error.", compile_current_line);
+                    break;
+                }
+                compile_error_show(buf);
+                return NULL;
+            }
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+        }
+    }
 
-	str = skip_whitespace(str);
-	// There should be a terminating ] after all this mess
-	if(*str != ']') {
-		sprintf(buf,"Line %d: Missing terminating ']'.", compile_current_line);
-		compile_error_show(buf);
-		return NULL;
-	}
+    str = skip_whitespace(str);
+    // There should be a terminating ] after all this mess
+    if(*str != ']') {
+        sprintf(buf,"Line %d: Missing terminating ']'.", compile_current_line);
+        compile_error_show(buf);
+        return NULL;
+    }
 
-	if(!check_expession_stack(&opnds,&optr,CH_EOS)) {
-		sprintf(buf,"Line %d: Invalid expression.", compile_current_line);
-		compile_error_show(buf);
-		return NULL;
-	}
+    if(!check_expession_stack(&opnds,&optr,CH_EOS)) {
+        sprintf(buf,"Line %d: Invalid expression.", compile_current_line);
+        compile_error_show(buf);
+        return NULL;
+    }
 
-	// There must be one result left
-	if(opnds != 1) {
-		sprintf(buf,"Line %d: Expression doesn't compute to one value.", compile_current_line);
-		compile_error_show(buf);
-		return NULL;
-	}
+    // There must be one result left
+    if(opnds != 1) {
+        sprintf(buf,"Line %d: Expression doesn't compute to one value.", compile_current_line);
+        compile_error_show(buf);
+        return NULL;
+    }
 
-	*p++ = ESCAPE_END;
+    if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
 
-	*store = p;
-	return str+1;
+    *store = p;
+    return str+1;
 }
 
 char *compile_variable(char *str, char **store, int type, bool bracket, bool anychar)
 {
-	char *p = *store;
-	*p++ = ESCAPE_VARIABLE;
-	while(str && *str && *str != '>') {
-		if(ISALPHA(*str)) *p++ = *str++;
-		else if(*str == '<') {
-			str = compile_variable(str+1,&p, type,true,true);
-			if(!str) return NULL;
-		} else if(*str == '[') {
-			str = compile_expression(str+1,type,&p);
-			if(!str) return NULL;
-		} else if(anychar && ISPRINT(*str)) *p++ = *str++;
-		else {
-			char buf[MIL];
-			sprintf(buf,"Line %d: Invalid character in variable name.", compile_current_line);
-			compile_error_show(buf);
-			return NULL;
-		}
-	}
-	*p++ = ESCAPE_END;
-	if(bracket) {
-		if(*str != '>') {
-			char buf[MIL];
-			sprintf(buf,"Line %d: Missing terminating '>'.", compile_current_line);
-			compile_error_show(buf);
-			return NULL;
-		}
-		str++;
-	}
+    char *p = *store;
+    if(!compile_emit_byte(&p, ESCAPE_VARIABLE)) return NULL;
+    while(str && *str && *str != '>') {
+        if(ISALPHA(*str)) {
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+        }
+        else if(*str == '<') {
+            str = compile_variable(str+1,&p, type,true,true);
+            if(!str) return NULL;
+        } else if(*str == '[') {
+            str = compile_expression(str+1,type,&p);
+            if(!str) return NULL;
+        } else if(anychar && ISPRINT(*str)) {
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+        }
+        else {
+            char err[MIL];
+            sprintf(err,"Line %d: Invalid character in variable name.", compile_current_line);
+            compile_error_show(err);
+            return NULL;
+        }
+    }
+    if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
+    if(bracket) {
+        if(*str != '>') {
+            char buf[MIL];
+            sprintf(buf,"Line %d: Missing terminating '>'.", compile_current_line);
+            compile_error_show(buf);
+            return NULL;
+        }
+        str++;
+    }
 
-	*store = p;
-	return str;
+    *store = p;
+    return str;
 }
 
 char *compile_entity_field(char *str,char *field, char *suffix)
 {
-	char buf[MSL];
+    char buf[MSL];
 
-	str = skip_whitespace(str);
+    str = skip_whitespace(str);
 
-	if(*str == '"') {
-		++str;
-		while(*str && *str != '"') *field++ = *str++;
-		if(!*str) {
-			sprintf(buf,"Line %d: Expecting terminating '\"' in $().", compile_current_line);
-			compile_error_show(buf);
-			return NULL;
-		}
-		++str;
-	} else {
-		while(*str && !ISSPACE(*str) && *str != ')' && *str != '.' && *str != ':') *field++ = *str++;
-	}
-	*field = 0;
+    if(*str == '"') {
+        ++str;
+        while(*str && *str != '"') *field++ = *str++;
+        if(!*str) {
+            sprintf(buf,"Line %d: Expecting terminating '\"' in $().", compile_current_line);
+            compile_error_show(buf);
+            return NULL;
+        }
+        ++str;
+    } else {
+        while(*str && !ISSPACE(*str) && *str != ')' && *str != '.' && *str != ':') *field++ = *str++;
+    }
+    *field = 0;
 
-	str = skip_whitespace(str);
+    str = skip_whitespace(str);
 
-	// Has a type suffix, used for variables
-	if(*str == ':') {
-		str = skip_whitespace(str+1);
-		while(*str && !ISSPACE(*str) && *str != ')' && *str != '.') *suffix++ = *str++;
-	} else if(*str != ')' && *str != '.') {
-		sprintf(buf,"Line %d: Invalid character in $().", compile_current_line);
-		compile_error_show(buf);
-		return NULL;
-	}
-	*suffix = 0;
+    // Has a type suffix, used for variables
+    if(*str == ':') {
+        str = skip_whitespace(str+1);
+        while(*str && !ISSPACE(*str) && *str != ')' && *str != '.') *suffix++ = *str++;
+    } else if(*str != ')' && *str != '.') {
+        sprintf(buf,"Line %d: Invalid character in $().", compile_current_line);
+        compile_error_show(buf);
+        return NULL;
+    }
+    *suffix = 0;
 
-	return str;
+    return str;
 }
 
 char *compile_entity(char *str,int type, char **store)
@@ -356,7 +397,7 @@ char *compile_entity(char *str,int type, char **store)
 
     DBG2ENTRY3(PTR,str,NUM,type,PTR,store);
 
-    *p++ = ESCAPE_ENTITY;
+    if(!compile_emit_byte(&p, ESCAPE_ENTITY)) return NULL;
     while(*str && *str != ')') {
         str = skip_whitespace(str);
 
@@ -398,7 +439,7 @@ char *compile_entity(char *str,int type, char **store)
             }
             if(!compile_variable(field,&p,type,false,true))
                 return NULL;
-            *p++ = ENTITY_VAR_STR;
+            if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
             next_ent = ENT_STRING;
 
         } else if(ent == ENT_BITVECTOR || ent == ENT_BITMATRIX) {
@@ -409,7 +450,7 @@ char *compile_entity(char *str,int type, char **store)
             }
             if(!compile_variable(field,&p,type,false,true))
                 return NULL;
-            *p++ = ENTITY_VAR_BOOLEAN;
+            if(!compile_emit_byte(&p, ENTITY_VAR_BOOLEAN)) return NULL;
             next_ent = ENT_BOOLEAN;
 
         } else if(ent == ENT_STRING) {
@@ -447,15 +488,15 @@ char *compile_entity(char *str,int type, char **store)
                     return NULL;
                 }
 
-                *p++ = paddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT;
-                *p++ = padding + ESCAPE_EXTRA;
+                if(!compile_emit_byte(&p, paddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT)) return NULL;
+                if(!compile_emit_byte(&p, padding + ESCAPE_EXTRA)) return NULL;
 
                 next_ent = ENT_STRING;
             }
             else
             {
                 if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-                    *p++ = ftype->code;
+                    if(!compile_emit_byte(&p, ftype->code)) return NULL;
                     next_ent = ftype->type;
                 }
                 else
@@ -501,20 +542,20 @@ char *compile_entity(char *str,int type, char **store)
                     return NULL;
                 }
 
-                *p++ = paddir ? ENTITY_NUM_PADRIGHT : ENTITY_NUM_PADLEFT;
-                *p++ = padding + ESCAPE_EXTRA;
+                if(!compile_emit_byte(&p, paddir ? ENTITY_NUM_PADRIGHT : ENTITY_NUM_PADLEFT)) return NULL;
+                if(!compile_emit_byte(&p, padding + ESCAPE_EXTRA)) return NULL;
 
                 next_ent = ENT_STRING;
             }
             else
             {
                 if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-                    *p++ = ftype->code;
+                    if(!compile_emit_byte(&p, ftype->code)) return NULL;
                     next_ent = ftype->type;
                 } 
                 else if(ent == ENT_GAME && (!str_cmp(field, "settings") || !str_cmp(field, "setting"))) {
                     // Special handling for game.settings
-                    *p++ = ENTITY_GAME_SETTINGS;  // Use the ENTITY_GAME_SETTINGS constant
+                    if(!compile_emit_byte(&p, ENTITY_GAME_SETTINGS)) return NULL;  // Use the ENTITY_GAME_SETTINGS constant
                     next_ent = ENT_GAME_SETTING;  // Set the next entity type to ENT_GAME_SETTING
                 }
                 else {
@@ -542,7 +583,7 @@ char *compile_entity(char *str,int type, char **store)
 
                 if(!compile_variable(field,&p,type,false,true))
                     return NULL;
-                *p++ = ftype->code;
+                if(!compile_emit_byte(&p, ftype->code)) return NULL;
                 next_ent = ftype->type;
             } else {
                 sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
@@ -550,11 +591,11 @@ char *compile_entity(char *str,int type, char **store)
                 return NULL;
             }
         } else if((ftype = entity_type_lookup(field,script_entity_fields(ent)))) {
-            *p++ = ftype->code;
+            if(!compile_emit_byte(&p, ftype->code)) return NULL;
             next_ent = ftype->type;
         } else if(ent == ENT_GAME && (!str_cmp(field, "settings") || !str_cmp(field, "setting"))) {
             // Special handling for game.settings
-            *p++ = ENTITY_GAME_SETTINGS;
+            if(!compile_emit_byte(&p, ENTITY_GAME_SETTINGS)) return NULL;
             next_ent = ENT_GAME_SETTING;
         } else if(ent == ENT_GAME_SETTING) {
             // Special handling for game settings fields - accept any valid settings name
@@ -569,21 +610,21 @@ char *compile_entity(char *str,int type, char **store)
                 // Set appropriate type based on the setting
                 switch (setting->type) {
                     case SETTING_TYPE_BOOL:
-                        *p++ = ENTITY_VAR_BOOLEAN;
+                        if(!compile_emit_byte(&p, ENTITY_VAR_BOOLEAN)) return NULL;
                         next_ent = ENT_BOOLEAN;
                         break;
                     case SETTING_TYPE_INT:
-                        *p++ = ENTITY_VAR_NUM;
+                        if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;
                         next_ent = ENT_NUMBER;
                         break;
                     case SETTING_TYPE_FLOAT:
-                        *p++ = ENTITY_VAR_NUM;  // Treat floats as numbers
+                        if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;  // Treat floats as numbers
                         next_ent = ENT_NUMBER;
                         break;
                     case SETTING_TYPE_STRING:
                     case SETTING_TYPE_EXTSTR:
                     default:
-                        *p++ = ENTITY_VAR_STR;
+                        if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
                         next_ent = ENT_STRING;
                         break;
                 }
@@ -592,6 +633,23 @@ char *compile_entity(char *str,int type, char **store)
                 compile_error_show(buf);
                 return NULL;
             } 
+        } else if(ent == ENT_EQUIPMENT) {
+            if(suffix[0]) {
+                sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+                compile_error_show(buf);
+                return NULL;
+            }
+            int wearloc = stat_lookup(field, wear_loc_flags, MAX_WEAR);
+            if (wearloc <= 0 || wearloc >= MAX_WEAR)
+            {
+                sprintf(buf,"Line %d: invalid wear location '%s' in equipment entity.", compile_current_line, field);
+                compile_error_show(buf);
+                return NULL;
+            }
+
+            if(!compile_emit_byte(&p, ESCAPE_EXTRA + wearloc - WEAR_NONE)) return NULL;
+            next_ent = ENT_OBJECT;
+
         } else if(ent == ENT_RESERVED_MOBILE || ent == ENT_RESERVED_OBJECT || 
                   ent == ENT_RESERVED_ROOM || ent == ENT_RESERVED_AREA || 
                   ent == ENT_RESERVED_TOKEN || ent == ENT_RESERVED_RPROG || 
@@ -607,100 +665,91 @@ switch(ent) {
         valid_reserved = (get_reserved_mob_index(field) != NULL);
         if (valid_reserved) {
             MOB_INDEX_DATA *mob = get_reserved_mob_index(field);
-            //bug("Found reserved mob %s with vnum %ld", field, mob->vnum);
+            (void)mob; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved mobile '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved mobile '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_OBJECT:
         valid_reserved = (get_reserved_obj_index(field) != NULL);
         if (valid_reserved) {
             OBJ_INDEX_DATA *obj = get_reserved_obj_index(field);
-            //bug("Found reserved object %s with vnum %d", field, obj->vnum);
+            (void)obj; // Reserved for future debugging
+            //pbugf(LOG_SCRIPTS, "Found reserved object %s with vnum %d", field, obj->vnum);
         } else {
-            sprintf(buf, "Line %d: Could not find reserved object '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved object '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_ROOM:
         valid_reserved = (get_reserved_room_index(field) != NULL);
         if (valid_reserved) {
             ROOM_INDEX_DATA *room = get_reserved_room_index(field);
-            //bug("Found reserved room %s with vnum %ld", field, room->vnum);
+            (void)room; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved room '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved room '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_AREA:
         valid_reserved = (get_reserved_area_index(field) != NULL);
         if (valid_reserved) {
             AREA_DATA *area = get_reserved_area_index(field);
-            //bug("Found reserved area %s with uid %ld", field, area->uid);
+            (void)area; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved area '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved area '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_TOKEN:
         valid_reserved = (get_reserved_token_index(field) != NULL);
         if (valid_reserved) {
             TOKEN_INDEX_DATA *token = get_reserved_token_index(field);
-            //bug("Found reserved token %s with vnum %ld", field, token->vnum);
+            (void)token; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved token '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved token '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_RPROG:
         valid_reserved = (get_reserved_rprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_rprog_index(field);
-            //bug("Found reserved rprog %s with vnum %ld", field, script->vnum);
+            (void)script; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved rprog '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved rprog '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_OPROG:
         valid_reserved = (get_reserved_oprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_oprog_index(field);
-            //bug("Found reserved oprog %s with vnum %ld", field, script->vnum);
+            (void)script; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved oprog '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved oprog '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_MPROG:
         valid_reserved = (get_reserved_mprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_mprog_index(field);
-            //bug("Found reserved mprog %s with vnum %ld", field, script->vnum);
+            (void)script; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved mprog '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved mprog '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_TPROG:
         valid_reserved = (get_reserved_tprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_tprog_index(field);
-            //bug("Found reserved tprog %s with vnum %ld", field, script->vnum);
+            (void)script; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved tprog '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved tprog '%s'.", compile_current_line, field);
         }
         break;
     case ENT_RESERVED_APROG:
         valid_reserved = (get_reserved_aprog_index(field) != NULL);
         if (valid_reserved) {
             SCRIPT_DATA *script = get_reserved_aprog_index(field);
-            //bug("Found reserved aprog %s with vnum %ld", field, script->vnum);
+            (void)script; // Reserved for future debugging
         } else {
-            sprintf(buf, "Line %d: Could not find reserved aprog '%s'.", compile_current_line, field);
-            bug(buf, 0);
+            pbugf(LOG_SCRIPTS, "Line %d: Could not find reserved aprog '%s'.", compile_current_line, field);
         }
         break;
 }
@@ -711,7 +760,7 @@ switch(ent) {
                     return NULL;
                 
                 // All reserved entities are integers (VNUMs)
-                *p++ = ENTITY_VAR_NUM;
+                if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;
                 next_ent = ENT_NUMBER;
             } else {
                 sprintf(buf, "Line %d: Invalid reserved name '%s'.", compile_current_line, field);
@@ -764,21 +813,21 @@ switch(ent) {
                     // Set appropriate type based on the setting
                     switch (setting->type) {
                         case SETTING_TYPE_BOOL:
-                            *p++ = ENTITY_VAR_BOOLEAN;
+                            if(!compile_emit_byte(&p, ENTITY_VAR_BOOLEAN)) return NULL;
                             ent = ENT_BOOLEAN;
                             break;
                         case SETTING_TYPE_INT:
-                            *p++ = ENTITY_VAR_NUM;
+                            if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;
                             ent = ENT_NUMBER;
                             break;
                         case SETTING_TYPE_FLOAT:
-                            *p++ = ENTITY_VAR_NUM;  // Treat floats as numbers
+                            if(!compile_emit_byte(&p, ENTITY_VAR_NUM)) return NULL;  // Treat floats as numbers
                             ent = ENT_NUMBER;
                             break;
                         case SETTING_TYPE_STRING:
                         case SETTING_TYPE_EXTSTR:
                         default:
-                            *p++ = ENTITY_VAR_STR;
+                            if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
                             ent = ENT_STRING;
                             break;
                     }
@@ -786,7 +835,7 @@ switch(ent) {
                     // For unknown settings, default to string
                     if(!compile_variable(field, &p, type, false, true))
                         return NULL;
-                    *p++ = ENTITY_VAR_STR;
+                    if(!compile_emit_byte(&p, ENTITY_VAR_STR)) return NULL;
                     ent = ENT_STRING;
                 }
                 break;
@@ -795,6 +844,7 @@ switch(ent) {
             case ENT_OLLIST_OBJ:	ent = ENT_OBJECT; break;
             case ENT_OLLIST_TOK:	ent = ENT_TOKEN; break;
             case ENT_OLLIST_AFF:	ent = ENT_AFFECT; break;
+            case ENT_OLLIST_TRAINER_ENTRY:	ent = ENT_TRAINER_ENTRY; break;
 
             case ENT_BLLIST_ROOM:	ent = ENT_ROOM; break;
             case ENT_BLLIST_MOB:	ent = ENT_MOBILE; break;
@@ -803,6 +853,7 @@ switch(ent) {
             case ENT_BLLIST_EXIT:	ent = ENT_EXIT; break;
             case ENT_BLLIST_SKILL:	ent = ENT_SKILLINFO; break;
             case ENT_BLLIST_AREA:	ent = ENT_AREA; break;
+            case ENT_BLLIST_AREA_REGION:	ent = ENT_AREA_REGION; break;
             case ENT_BLLIST_WILDS:	ent = ENT_WILDS; break;
 
             case ENT_PLLIST_STR:	ent = ENT_STRING; break;
@@ -811,9 +862,17 @@ switch(ent) {
             case ENT_PLLIST_MOB:	ent = ENT_MOBILE; break;
             case ENT_PLLIST_OBJ:	ent = ENT_OBJECT; break;
             case ENT_PLLIST_TOK:	ent = ENT_TOKEN; break;
+            case ENT_PLLIST_AREA:	ent = ENT_AREA; break;
+            case ENT_PLLIST_AREA_REGION:	ent = ENT_AREA_REGION; break;
             case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
+            case ENT_PLLIST_BOOK_PAGE:	ent = ENT_BOOK_PAGE; break;
+            case ENT_PLLIST_FOOD_BUFF:	ent = ENT_FOOD_BUFF; break;
+            case ENT_PLLIST_REPUTATION_RANK:	ent = ENT_REPUTATION_RANK; break;
 
             case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+            case ENT_ILLIST_REPUTATION:	ent = ENT_REPUTATION; break;
+            case ENT_ILLIST_REPUTATION_INDEX:	ent = ENT_REPUTATION_INDEX; break;
+            case ENT_ILLIST_SKILLGROUPS:	ent = ENT_SKILLGROUP; break;
 
             default:
                 sprintf(buf,"Line %d: Invalid $() primary '%s'.", compile_current_line, field);
@@ -832,112 +891,160 @@ switch(ent) {
         return NULL;
     }
 
-    *p++ = ESCAPE_END;
+    if(!compile_emit_byte(&p, ESCAPE_END)) return NULL;
     *store = p;
     return str+1;
 }
 
 char *compile_substring(char *str, int type, char **store, bool ifc, bool doquotes, bool recursed)
 {
-	char buf[MSL];
-	char buf2[MSL];
-	char *p, *s, ch;
-	bool startword = true, inquote = false;
+    char buf[MSL];
+    char buf2[MSL];
+    char *p, *s, ch;
+    bool startword = true, inquote = false;
 
-	DBG2ENTRY4(PTR,str,NUM,type,PTR,store,FLG,ifc);
+    DBG2ENTRY4(PTR,str,NUM,type,PTR,store,FLG,ifc);
 
-	p = *store;
-	while(*str) {
-		// Escape code
-		if(*str == '$') {
-			if(str[1] == '[')
-				str = compile_expression(str+2,type,&p);
-			else if(str[1] == '(')
-				str = compile_entity(str+2,type,&p);
-			else if(str[1] == '<') {
-				str = compile_variable(str+2,&p,type,true,true);
-			} else if(ISALPHA(str[1])) {
-				*p++ = ESCAPE_UA + str[1] - 'A';
-				str += 2;
-			} else if(str[1] == '$') {
-				*p++ = '$';
-				str += 2;
-			} else {
-				sprintf(buf2,"Line %d: Invalid $-escape sequence.", compile_current_line);
-				compile_error_show(buf2);
-				return NULL;
-			}
+    p = *store;
+    while(*str) {
+        // Escape code
+        if(*str == '$') {
+            if(str[1] == '[')
+                str = compile_expression(str+2,type,&p);
+            else if(str[1] == '(')
+                str = compile_entity(str+2,type,&p);
+            else if(str[1] == '<') {
+                str = compile_variable(str+2,&p,type,true,true);
+            } else if(ISALPHA(str[1])) {
+                if(!compile_emit_byte(&p, ESCAPE_UA + str[1] - 'A')) return NULL;
+                str += 2;
+            } else if(str[1] == '$') {
+                if(!compile_emit_byte(&p, '$')) return NULL;
+                str += 2;
+            } else {
+                sprintf(buf2,"Line %d: Invalid $-escape sequence.", compile_current_line);
+                compile_error_show(buf2);
+                return NULL;
+            }
 
-			if(!str) {
-				return NULL;
-			}
+            if(!str) {
+                return NULL;
+            }
 
-			startword = false;
-		} else if(ifc && *str == ']')
-			break;
-		else if(doquotes) {
-			if(ISSPACE(*str)) {
-				*p++ = *str++;
-				startword = true;
-			} else {
-				s = recursed ? p : buf;
-				// Taken from one_argument_norm, except it doesn't skip trailing whitespace
-				ch = ' ';
-				if(!recursed && doquotes && startword && (*str == '\'' || *str == '"')) {
-					inquote = true;
-					*s++ = (ch = *str++);
-				}
-				while(*str && *str != ch) {
-					if(ifc && *str == ']') break;
-					*s++ = *str++;
-				}
-				if(*str && inquote) {
-					if(ifc && *str == ']') {
-						sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
-						compile_error_show(buf2);
-						return NULL;
-					}
-					inquote = false;
-					*s++ = *str++;
-				}
-				if(!*str && inquote) {
-					sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
-					compile_error_show(buf2);
-					return NULL;
-				}
+            startword = false;
+        } else if(ifc && *str == ']')
+            break;
+        else if(doquotes) {
+            if(ISSPACE(*str)) {
+                if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+                startword = true;
+            } else {
+                // Taken from one_argument_norm, except it doesn't skip trailing whitespace
+                ch = ' ';
 
-				if(recursed)
-					p = s;
-				else {
-					*s = 0;
-					s = compile_substring(buf, type, &p, ifc, false, true);
-					if(!s) {
-						sprintf(buf2,"Line %d: Could not recurse substring.", compile_current_line);
-						compile_error_show(buf2);
-						return NULL;
-					}
-				}
-			}
-		} else
-			*p++ = *str++;
-	}
+                if(recursed) {
+                    if(doquotes && startword && (*str == '\'' || *str == '"')) {
+                        inquote = true;
+                        ch = *str++;
+                        if(!compile_emit_byte(&p, (unsigned char)ch)) return NULL;
+                    }
 
-	*store = p;
-	return str;
+                    while(*str && *str != ch) {
+                        if(ifc && *str == ']') break;
+                        if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+                    }
+
+                    if(*str && inquote) {
+                        if(ifc && *str == ']') {
+                            sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        inquote = false;
+                        if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+                    }
+
+                    if(!*str && inquote) {
+                        sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
+                        compile_error_show(buf2);
+                        return NULL;
+                    }
+                } else {
+                    s = buf;
+
+                    if(doquotes && startword && (*str == '\'' || *str == '"')) {
+                        inquote = true;
+                        ch = *str++;
+                        if(s >= buf + sizeof(buf) - 1) {
+                            sprintf(buf2,"Line %d: Script token too long during quote parsing.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        *s++ = ch;
+                    }
+
+                    while(*str && *str != ch) {
+                        if(ifc && *str == ']') break;
+                        if(s >= buf + sizeof(buf) - 1) {
+                            sprintf(buf2,"Line %d: Script token too long during quote parsing.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        *s++ = *str++;
+                    }
+
+                    if(*str && inquote) {
+                        if(ifc && *str == ']') {
+                            sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        inquote = false;
+                        if(s >= buf + sizeof(buf) - 1) {
+                            sprintf(buf2,"Line %d: Script token too long during quote parsing.", compile_current_line);
+                            compile_error_show(buf2);
+                            return NULL;
+                        }
+                        *s++ = *str++;
+                    }
+
+                    if(!*str && inquote) {
+                        sprintf(buf2,"Line %d: Non-terminated quoted string.", compile_current_line);
+                        compile_error_show(buf2);
+                        return NULL;
+                    }
+
+                    *s = 0;
+                    s = compile_substring(buf, type, &p, ifc, false, true);
+                    if(!s) {
+                        sprintf(buf2,"Line %d: Could not recurse substring.", compile_current_line);
+                        compile_error_show(buf2);
+                        return NULL;
+                    }
+                }
+            }
+        } else
+        {
+            if(!compile_emit_byte(&p, (unsigned char)*str++)) return NULL;
+        }
+    }
+
+    *store = p;
+    return str;
 }
 
 void compile_string_dump(char *str)
 {
 #ifdef DEBUG_MODULE
-	char buf[MSL*4+1];
-	int i;
+    char buf[MSL*4+1];
+    int i;
 
-	i = 0;
-	while(*str)
-		i += sprintf(buf+i," %02.2X", (*str++)&0xFF);
-	buf[i] = 0;
+    i = 0;
+    while(*str)
+        i += sprintf(buf+i," %02.2X", (*str++)&0xFF);
+    buf[i] = 0;
 
-	printf("str: %s\n", buf);
+    printf("str: %s\n", buf);
 #endif
 }
 
@@ -954,34 +1061,38 @@ void compile_string_dump(char *str)
 //////
 char *compile_string(char *str, int type, int *length, bool doquotes)
 {
-	char buf[MSL*2+1];
-	char *result, *p;
+    char buf[MSL*2+1];
+    char *result, *p;
+    char *saved_limit;
 
-	DBG2ENTRY3(PTR,str,NUM,type,PTR,length);
+    DBG2ENTRY3(PTR,str,NUM,type,PTR,length);
 
-	p = buf;
-	str = compile_substring(str,type,&p,false,doquotes,false);
+    p = buf;
+    saved_limit = compile_store_limit;
+    compile_store_limit = buf + sizeof(buf) - 1;
+    str = compile_substring(str,type,&p,false,doquotes,false);
+    compile_store_limit = saved_limit;
 //_D_
-	if(!str) {
-		*p = 0;
-		compile_string_dump(buf);
-		return NULL;
-	}
+    if(!str) {
+        *p = 0;
+        compile_string_dump(buf);
+        return NULL;
+    }
 
-	// Trim off excess whitespace
-	while(p > buf && ISSPACE(p[-1])) --p;
+    // Trim off excess whitespace
+    while(p > buf && ISSPACE(p[-1])) --p;
 //_D_
 
-	*p = 0;
-	*length = p - buf;
+    *p = 0;
+    *length = p - buf;
 
 //_D_
-	result = alloc_mem(*length + 1);
+    result = alloc_mem(*length + 1);
 //_D_
-	if(result) memcpy(result,buf,*length + 1);
+    if(result) memcpy(result,buf,*length + 1);
 
-	DBG2EXITVALUE1(PTR,result);
-	return result;
+    DBG2EXITVALUE1(PTR,result);
+    return result;
 }
 
 char *parse_number(char *str, long *value)
@@ -989,1434 +1100,1537 @@ char *parse_number(char *str, long *value)
     long number;
     bool sign;
 
-	str = skip_whitespace(str);
+    str = skip_whitespace(str);
 
     number = 0;
 
     sign   = false;
     if (*str == '+')
-		++str;
+        ++str;
     else if (*str == '-')
     {
-		sign = true;
-		++str;
+        sign = true;
+        ++str;
     }
 
     if (!isdigit(*str))
-		return NULL;
+        return NULL;
 
     while (isdigit(*str))
     {
-		number = number * 10 + *str - '0';
-		++str;
+        number = number * 10 + *str - '0';
+        ++str;
     }
 
     if (sign)
-		number = 0 - number;
+        number = 0 - number;
 
-	if (*str == ' ')
-		str = skip_whitespace(str);
+    if (*str == ' ')
+        str = skip_whitespace(str);
 
-	*value = number;
-	return str;
+    *value = number;
+    return str;
 }
 
 bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 {
-	BOOLEXP *bool_exp = NULL, *bool_exp_root = NULL;
-	char labels[MAX_NAMED_LABELS][MIL];
-	SCRIPT_CODE *code;
-	char *src, *start, *line, eol;
-	char buf[MIL], rbuf[MSL];
-	bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline, muted, mute_used, last_case, got_case;
-	int state[MAX_NESTED_LEVEL];
-	int loops[MAX_NESTED_LOOPS];
-	struct switch_data *switch_head = NULL;
-	struct switch_data *switch_tail = NULL;
-	struct switch_data *switches[MAX_NESTED_LEVEL];
-	int i, x, y, level, loop, nswitch, nswitches, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
-	char *type_name;
-	const struct script_cmd_type *cmd;
-
-	DBG2ENTRY4(PTR,err_buf,PTR,script,PTR,source,NUM,type);
-
-	if(type == IFC_M) {
-		script->type = PRG_MPROG;
-		type_name = "MOB";
-	} else if(type == IFC_O) {
-		script->type = PRG_OPROG;
-		type_name = "OBJ";
-	} else if(type == IFC_R) {
-		script->type = PRG_RPROG;
-		type_name = "ROOM";
-	} else if(type == IFC_T) {
-		script->type = PRG_TPROG;
-		type_name = "TOKEN";
-	} else if(type == IFC_A) {
-		script->type = PRG_APROG;
-		type_name = "AREA";
-	} else if(type == IFC_I) {
-		script->type = PRG_IPROG;
-		type_name = "INSTANCE";
-	} else if(type == IFC_D) {
-		script->type = PRG_DPROG;
-		type_name = "DUNGEON";
-	} else {
-		script->type = -1;
-		type_name = "???";
-	}
-
-	DBG3MSG2("Parsing %s(%d)\n", type_name, script->vnum);
-
-	compile_err_buffer = err_buf;
-
-	inspect = (bool)IS_SET(script->flags,SCRIPT_INSPECT);
-	disable = false;
-	muted = false;
-	mute_used = false;
-
-	// Clear the inspection flag.  This is only set when the COMPILE command
-	//	is issued by a non-IMP.
-	script->flags &= ~SCRIPT_INSPECT;
-
-	bool_exp = NULL;
-	bool_exp_cline = -1;
-
-	// Count the lines
-	i = 0;
-	src = source;
-	while(*src) {
-		comment = false;
-		src = start = skip_whitespace(src);
-
-		// if the first non whitespace is '*', comment
-		if(*src == '*') comment = true;
-
-		// Skip to EOL/EOS
-		while(*src && *src != '\n' && *src != '\r') ++src;
-
-		// If not a comment and there was anything on the line,
-		//	there is something to parse
-		if(!comment && src != start) i++;
-
-		// Skip over repeated EOL's, including blank lines
-		while(*src == '\n' || *src == '\r') ++src;
-	}
-
-	// Create the instruction list
-	lines = i;
-	code = alloc_mem((lines+1)*sizeof(SCRIPT_CODE));
-	if(!code) return false;
-	memset(code,0,(lines+1)*sizeof(SCRIPT_CODE));
-
-	// Initialize parsing
-	for(i=0;i<MAX_NESTED_LEVEL;i++) state[i] = IN_BLOCK;
-	for(i=0;i<MAX_NESTED_LOOPS;i++) loops[i] = -1;
-	for(i=0;i<MAX_NESTED_LEVEL;i++) switches[i] = NULL;
-	for(i=0;i<MAX_NAMED_LABELS;i++) labels[i][0] = 0;
-	i = 0;
-	cline = 0;
-	line = 0;
-	rline = 0;
-	level = 0;
-	loop = 0;
-	named_labels = 0;
-	nswitch = 0;
-	nswitches = 0;
-	src = source;
-	eol = '\0';
-	switch_head = NULL;
-	switch_tail = NULL;
-	got_case = false;
-	last_case = false;
-
-	valid = true;
-	errors = 0;
-
-	// Start parsing
-	while(*src) {
-		compile_current_line = ++rline;	// Increase real line number
-
-		comment = false;
-		src = start = skip_whitespace(src);
-		// if the first non whitespace is '*', comment
-		if(*src == '*') comment = true;
-
-		// Skip to EOL/EOS
-		while(*src && *src != '\n' && *src != '\r') ++src;
-		eol = *src; *src = '\0';
-
-		// If not a comment and there was anything on the line,
-		//	there is something to parse
-		if(!comment && src != start) {
-			line = start;
-			line = one_argument(line,buf);
-
-			doquotes = true;
-			linevalid = true;
-			processrest = true;
-			incline = true;
-			got_case = false;
-
-			do {
-
-
-				if(!str_cmp(buf,"end") || !str_cmp(buf,"break")) {
-					if( muted )
-					{
-						sprintf(rbuf,"Line %d: {RWARNING:{x Reached '%s' while possibly muted.  Please add the necessary 'unmute' call.", rline, buf);
-						compile_error_show(rbuf);
-						valid = true;
-						break;
-					}
-					code[cline].opcode = OP_END;
-					code[cline].level = level;
-					state[level] = IN_BLOCK;
-				} else if(!str_cmp(buf,"gotoline")) {
-					code[cline].opcode = OP_GOTOLINE;
-					code[cline].level = level;
-					state[level] = IN_BLOCK;
-					if(inspect) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'gotoline' requires inspection by an IMP.", rline);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-				} else if(!str_cmp(buf,"if")) {
-					if(state[level] == BEGIN_BLOCK) {
-						sprintf(rbuf,"Line %d: Unexpected 'if'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					neg = false;
-					code[cline].level = level;
-					code[cline].opcode = OP_IF;
-
-					state[level++] = BEGIN_BLOCK;
-					if (level >= MAX_NESTED_LEVEL) {
-						sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					if(!str_prefix("not ",line)) {
-						neg = !neg;
-						line = skip_whitespace(line+3);
-					}
-
-					if(*line == '!') {
-						neg = !neg;
-						++line;
-					}
-
-					bool_exp_root = bool_exp = new_boolexp();
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
-					bool_exp_cline = cline;
-
-					if(*line == '$') {
-						bool_exp->param = -1;
-
-					} else {
-						line = one_argument(line,buf);
-						code[cline].param = ifcheck_lookup(buf,type);
-						bool_exp->param = ifcheck_lookup(buf,type);
-						if(bool_exp->param < 0) {
-							sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
-							compile_error_show(rbuf);
-							linevalid = false;
-							break;
-						}
-					}
-
-					processrest = false;
-					bool_exp->rest = compile_string(line,type,&length,doquotes);
-					if(!bool_exp->rest) {
-						sprintf(rbuf,"Line %d: Error parsing string.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					} else
-						bool_exp->length = (short)length;
-
-					code[cline].rest = (char *)bool_exp;
-
-					state[level] = END_BLOCK;
-				} else if(!str_cmp(buf,"elseif")) {
-					if (!level || state[level-1] != BEGIN_BLOCK) {
-						sprintf(rbuf,"Line %d: Unexpected 'elseif'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					neg = false;
-					code[cline].level = level-1;
-					code[cline].opcode = OP_ELSEIF;
-
-					if(!str_prefix("not ",line)) {
-						neg = !neg;
-						line = skip_whitespace(line+3);
-					}
-
-					if(*line == '!') {
-						neg = !neg;
-						++line;
-					}
-
-					bool_exp_root = bool_exp = new_boolexp();
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
-					bool_exp_cline = cline;
-
-					if(*line == '$') {
-						bool_exp->param = -1;
-
-					} else {
-						line = one_argument(line,buf);
-						code[cline].param = ifcheck_lookup(buf,type);
-						bool_exp->param = ifcheck_lookup(buf,type);
-						if(bool_exp->param < 0) {
-							sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
-							compile_error_show(rbuf);
-							linevalid = false;
-							break;
-						}
-					}
-
-					processrest = false;
-					bool_exp->rest = compile_string(line,type,&length,doquotes);
-					if(!bool_exp->rest) {
-						sprintf(rbuf,"Line %d: Error parsing string.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					} else
-						bool_exp->length = (short)length;
-
-					code[cline].rest = (char *)bool_exp;
-
-					state[level] = END_BLOCK;
-				} else if(!str_cmp(buf,"while")) {
-					if(state[level] == BEGIN_BLOCK || state[level] == IN_WHILE) {
-						sprintf(rbuf,"Line %d: Unexpected 'while'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					neg = false;
-					code[cline].level = level;
-					code[cline].opcode = OP_WHILE;
-
-					state[level++] = IN_WHILE;
-					if (level >= MAX_NESTED_LEVEL) {
-						sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					state[level] = IN_BLOCK;
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-					if(x >= 0) {
-						sprintf(rbuf,"Line %d: duplicate named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					if(named_labels >= MAX_NAMED_LABELS) {
-						sprintf(rbuf,"Line %d: too many named labels in script.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					if(loop >= MAX_NESTED_LOOPS) {
-						sprintf(rbuf,"Line %d: too many nested loops in script.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					loops[loop++] = named_labels;
-					code[cline].label = named_labels;
-					strcpy(labels[named_labels++],buf);
-
-					if(!str_prefix("not ",line)) {
-						neg = !neg;
-						line = skip_whitespace(line+3);
-					}
-
-					if(*line == '!') {
-						neg = !neg;
-						++line;
-					}
-
-					bool_exp_root = bool_exp = new_boolexp();
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
-					bool_exp_cline = cline;
-
-					if(*line == '$') {
-						bool_exp->param = -1;
-
-					} else {
-						line = one_argument(line,buf);
-						bool_exp->param = ifcheck_lookup(buf,type);
-						if(bool_exp->param < 0) {
-							sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
-							compile_error_show(rbuf);
-							linevalid = false;
-							break;
-						}
-					}
-
-					processrest = false;
-					bool_exp->rest = compile_string(line,type,&length,doquotes);
-					if(!bool_exp->rest) {
-						sprintf(rbuf,"Line %d: Error parsing string.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					} else
-						bool_exp->length = (short)length;
-
-					code[cline].rest = (char *)bool_exp;
-
-				} else if(!str_cmp(buf,"or")) {
-					BOOLEXP *be;
-
-					if (!level || (state[level-1] != BEGIN_BLOCK && state[level-1] != IN_WHILE)) {
-						sprintf(rbuf,"Line %d: 'or' used without 'if' or 'while'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					neg = false;
-
-					if(!str_prefix("not ",line)) {
-						neg = !neg;
-						line = skip_whitespace(line+3);
-					}
-
-					if(*line == '!') {
-						neg = !neg;
-						++line;
-					}
-
-					be = new_boolexp();
-					be->type = BOOLEXP_OR;
-					code[bool_exp_cline].rest = (char *)be;	// Update the code entry
-					be->left = bool_exp_root;
-					be->left->parent = be;
-					bool_exp_root = be;
-
-					// Add expression for this line
-					bool_exp = be->right = new_boolexp();
-					bool_exp->parent = be;
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
-
-					code[cline].level = level-1;
-
-					if(*line == '$') {
-						bool_exp->param = -1;
-					} else {
-						line = one_argument(line,buf);
-						bool_exp->param = ifcheck_lookup(buf,type);
-						if(bool_exp->param < 0) {
-							sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
-							compile_error_show(rbuf);
-							linevalid = false;
-							break;
-						}
-					}
-
-
-					processrest = false;
-					incline = false;
-					bool_exp->rest = compile_string(line,type,&length,doquotes);
-					if(!bool_exp->rest) {
-						sprintf(rbuf,"Line %d: Error parsing string.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					} else
-						bool_exp->length = (short)length;
-
-				} else if(!str_cmp(buf,"and")) {
-					BOOLEXP *be;
-
-					if (!level || (state[level-1] != BEGIN_BLOCK && state[level-1] != IN_WHILE)) {
-						sprintf(rbuf,"Line %d: 'and' used without 'if' or 'while'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					neg = false;
-
-					if(!str_prefix("not ",line)) {
-						neg = !neg;
-						line = skip_whitespace(line+3);
-					}
-
-					if(*line == '!') {
-						neg = !neg;
-						++line;
-					}
-
-					code[cline].level = level-1;
-
-
-					be = new_boolexp();
-					be->type = BOOLEXP_AND;
-					be->left = bool_exp;
-					be->right = new_boolexp();
-
-					if( bool_exp->parent ) {
-						bool_exp->parent->right = be;
-					} else {
-						// This is the root node too
-						bool_exp_root = be;
-						code[bool_exp_cline].rest = (char *)be;
-					}
-
-					be->left->parent = be;
-					be->right->parent = be;
-
-					bool_exp->parent = be;
-					bool_exp = be->right;
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
-
-
-					if(*line == '$') {
-						bool_exp->param = -1;
-					} else {
-						line = one_argument(line,buf);
-						bool_exp->param = ifcheck_lookup(buf,type);
-						if(bool_exp->param < 0) {
-							sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
-							compile_error_show(rbuf);
-							linevalid = false;
-							break;
-						}
-					}
-
-					processrest = false;
-					incline = false;
-					bool_exp->rest = compile_string(line,type,&length,doquotes);
-					if(!bool_exp->rest) {
-						sprintf(rbuf,"Line %d: Error parsing string.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					} else
-						bool_exp->length = (short)length;
-
-				} else if(!str_cmp(buf,"else")) {
-					if (!level || state[level-1] != BEGIN_BLOCK) {
-						sprintf(rbuf,"Line %d: Unmatched 'else'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					state[level] = IN_BLOCK;
-					code[cline].level = level-1;
-					code[cline].opcode = OP_ELSE;
-				} else if(!str_cmp(buf,"endif")) {
-					if (!level || state[level-1] != BEGIN_BLOCK) {
-						sprintf(rbuf,"Line %d: Unmatched 'endif'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					code[cline].level = level-1;
-					code[cline].opcode = OP_ENDIF;
-					state[level] = IN_BLOCK;
-					state[--level] = END_BLOCK;
-				} else if(!str_cmp(buf,"for")) {
-					code[cline].opcode = OP_FOR;
-					code[cline].level = level;
-
-					state[level++] = IN_FOR;
-					if (level >= MAX_NESTED_LEVEL) {
-						sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					state[level] = IN_BLOCK;
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-					if(x >= 0) {
-						sprintf(rbuf,"Line %d: duplicate named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					if(named_labels >= MAX_NAMED_LABELS) {
-						sprintf(rbuf,"Line %d: too many named labels in script.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					if(loop >= MAX_NESTED_LOOPS) {
-						sprintf(rbuf,"Line %d: too many nested loops in script.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					loops[loop++] = named_labels;
-					code[cline].label = named_labels;
-					strcpy(labels[named_labels++],buf);
-				} else if(!str_cmp(buf,"endfor")) {
-					if (!level || state[level-1] != IN_FOR) {
-						sprintf(rbuf,"Line %d: Unmatched 'endfor'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-
-					if(x < 0) {
-						sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					if(loops[loop-1] != x) {
-						sprintf(rbuf,"Line %d: trying to end a loop inside another loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					loops[--loop] = -1;
-					code[cline].level = level-1;
-					code[cline].opcode = OP_ENDFOR;
-					code[cline].label = x;
-					state[level] = IN_BLOCK;
-					state[--level] = IN_BLOCK;
-				} else if(!str_cmp(buf,"exitfor")) {
-					if (!level || !loop) {
-						sprintf(rbuf,"Line %d: 'exitfor' used outside of for loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-
-					if(x < 0) {
-						sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					for(y = loop;y-- > 0;)
-						if(loops[y] == x) break;
-
-					if(y < 0) {
-						sprintf(rbuf,"Line %d: 'exitfor' used outside of named loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					code[cline].level = level;
-					code[cline].opcode = OP_EXITFOR;
-					code[cline].label = x;
-					state[level] = IN_BLOCK;
-				} else if(!str_cmp(buf,"list")) {
-					code[cline].opcode = OP_LIST;
-					code[cline].level = level;
-
-					state[level++] = IN_LIST;
-					if (level >= MAX_NESTED_LEVEL) {
-						sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					state[level] = IN_BLOCK;
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-					if(x >= 0) {
-						sprintf(rbuf,"Line %d: duplicate named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					if(named_labels >= MAX_NAMED_LABELS) {
-						sprintf(rbuf,"Line %d: too many named labels in script.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					if(loop >= MAX_NESTED_LOOPS) {
-						sprintf(rbuf,"Line %d: too many nested loops in script.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					loops[loop++] = named_labels;
-					code[cline].label = named_labels;
-					strcpy(labels[named_labels++],buf);
-				} else if(!str_cmp(buf,"endlist")) {
-					if (!level || state[level-1] != IN_LIST) {
-						sprintf(rbuf,"Line %d: Unmatched 'endlist'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-
-					if(x < 0) {
-						sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					if(loops[loop-1] != x) {
-						sprintf(rbuf,"Line %d: trying to end a loop inside another loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					loops[--loop] = -1;
-					code[cline].level = level-1;
-					code[cline].opcode = OP_ENDLIST;
-					code[cline].label = x;
-					state[level] = IN_BLOCK;
-					state[--level] = IN_BLOCK;
-				} else if(!str_cmp(buf,"exitlist")) {
-					if (!level || !loop) {
-						sprintf(rbuf,"Line %d: 'exitlist' used outside of for loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-
-					if(x < 0) {
-						sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					for(y = loop;y-- > 0;)
-						if(loops[y] == x) break;
-
-					if(y < 0) {
-						sprintf(rbuf,"Line %d: 'exitlist' used outside of named loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					code[cline].level = level;
-					code[cline].opcode = OP_EXITLIST;
-					code[cline].label = x;
-					state[level] = IN_BLOCK;
-				} else if(!str_cmp(buf,"endwhile")) {
-					if (!level || state[level-1] != IN_WHILE) {
-						sprintf(rbuf,"Line %d: Unmatched 'endwhile'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-
-					if(x < 0) {
-						sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					if(loops[loop-1] != x) {
-						sprintf(rbuf,"Line %d: trying to end a loop inside another loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					loops[--loop] = -1;
-					code[cline].level = level-1;
-					code[cline].opcode = OP_ENDWHILE;
-					code[cline].label = x;
-					state[level] = IN_BLOCK;
-					state[--level] = IN_BLOCK;
-				} else if(!str_cmp(buf,"exitwhile")) {
-					if (!level || !loop) {
-						sprintf(rbuf,"Line %d: 'exitwhile' used outside of for loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					// Get for name
-					line = one_argument(line,buf);
-					for(x = named_labels; x-- > 0;)
-						if(!str_cmp(buf,labels[x])) break;
-
-					if(x < 0) {
-						sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					for(y = loop;y-- > 0;)
-						if(loops[y] == x) break;
-
-					if(y < 0) {
-						sprintf(rbuf,"Line %d: 'exitwhile' used outside of named loop.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					code[cline].level = level;
-					code[cline].opcode = OP_EXITWHILE;
-					code[cline].label = x;
-					state[level] = IN_BLOCK;
-				} else if(!str_cmp(buf,"switch")) {
-					if(state[level] == IN_SWITCH) {
-						sprintf(rbuf,"Line %d: Unexpected 'switch'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					code[cline].level = level;
-					code[cline].opcode = OP_SWITCH;
-
-					state[level++] = IN_SWITCH;
-					if (level >= MAX_NESTED_LEVEL) {
-						sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-					if(nswitch >= MAX_NESTED_LEVEL) {
-						sprintf(rbuf,"Line %d: too many nested switch in script.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					state[level] = IN_BLOCK;
-					code[cline].param = nswitches;	// Which switch statement is it using?
-
-					struct switch_data *sw = alloc_mem(sizeof(struct switch_data));
-					memset(sw, 0, sizeof(*sw));
-
-					if (switch_tail)
-						switch_tail->next = sw;
-					else
-						switch_head = sw;
-					switch_tail = sw;
-					nswitches++;
-
-					switches[nswitch++] = sw;
-
-				} else if(!str_cmp(buf,"case")) {
-					// This needs to support multiple case statements such as
-					// case #
-					// case # #
-					// case #
-					//  code block #1
-					// case # #
-					// case #
-					//  code block #2
-					// ...
-
-					// Each number must be unique and not overlap another entry in the current switch
-
-					if (!level || state[level-1] != IN_SWITCH || !nswitch) {
-						sprintf(rbuf,"Line %d: case statement used outside of switch.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					struct switch_case_data *_case;
-					long a, b;
-
-					line = parse_number(line, &a);	// case #
-					if (!line)
-					{
-						sprintf(rbuf,"Line %d: expected a number in case statement.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					if (*line)		// case # # - inclusive range
-					{
-						line = parse_number(line, &b);
-
-						if (!line)
-						{
-							sprintf(rbuf,"Line %d: expected second number in range for case statement.", rline);
-							compile_error_show(rbuf);
-							linevalid = false;
-							break;
-						}
-					}
-					else
-						b = a;
-
-					if (a > b)
-					{
-						long x = a;
-						a = b;
-						b = x;
-					}
-
-					struct switch_data *sw = switches[nswitch-1];
-
-					// Verify uniqueness
-					struct switch_case_data *swc;
-					bool found = false;
-					for(swc = sw->case_head; swc; swc = swc->next)
-					{
-						// Is there overlap
-						if ((swc->a >= a && swc->a <= b) ||
-							(swc->b >= a && swc->b <= b) ||
-							(a >= swc->a && a <= swc->b) ||
-							(b >= swc->a && b <= swc->b))
-						{
-							found = true;
-							break;
-						}
-					}
-
-					if (found)
-					{
-						if (a != b)
-							sprintf(rbuf,"Line %d: duplicate/overlapping switch case found for case [%ld to %ld].", rline, a, b);
-						else
-							sprintf(rbuf,"Line %d: duplicate/overlapping switch case found for case %ld.", rline, a);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					_case = alloc_mem(sizeof(struct switch_case_data));
-					if (!_case)
-					{
-						sprintf(rbuf,"Line %d: memory allocation error.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-
-					if ((sw->case_head || sw->default_case > 0) && !last_case)
-					{
-						// Has at least one case the last command was not a case statement of any kind
-						code[cline].opcode = OP_EXITSWITCH;
-						code[cline].level = level - 1;
-						code[cline].rest = str_dup("");
-						code[cline].length = 0;
-						++cline;
-					}
-
-					_case->a = a;
-					_case->b = b;
-					_case->line = cline;	// Points to the next code line
-
-					if (sw->case_tail)
-						sw->case_tail->next = _case;
-					else
-						sw->case_head = _case;
-					sw->case_tail = _case;
-
-					got_case = true;
-					processrest = false;
-					incline = false;
-
-				} else if(!str_cmp(buf,"default")) {
-					if (!level || state[level-1] != IN_SWITCH || !nswitch) {
-						sprintf(rbuf,"Line %d: default case statement used outside of switch.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					struct switch_data *sw = switches[nswitch-1];
-
-					if ((sw->case_head || sw->default_case > 0) && !last_case)
-					{
-						// Has at least one case the last command was not a case statement of any kind
-						code[cline].opcode = OP_EXITSWITCH;
-						code[cline].level = level - 1;
-						code[cline].rest = str_dup("");
-						code[cline].length = 0;
-						++cline;
-					}
-
-					sw->default_case = cline;
-
-					got_case = true;
-					processrest = false;
-					incline = false;
-				} else if(!str_cmp(buf,"endswitch")) {
-					if (!level || state[level-1] != IN_SWITCH) {
-						sprintf(rbuf,"Line %d: Unmatched 'endswitch'.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					switches[--nswitch] = NULL;
-					state[level] = IN_BLOCK;
-					state[--level] = IN_BLOCK;
-					code[cline].level = level;
-					code[cline].opcode = OP_ENDSWITCH;
-
-					processrest = false;
-				} else if(!str_cmp(buf,"mob")) {
-					if(type != IFC_M) {
-						sprintf(rbuf,"Line %d: Attempting to do a mob command outside an mprog.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					line = one_argument(line,buf);
-					state[level] = IN_BLOCK;
-					code[cline].opcode = OP_MOB;
-					code[cline].level = level;
-					code[cline].param = mpcmd_lookup(buf);
-
-					if(code[cline].param < 0) {
-						sprintf(rbuf,"Line %d: Invalid mob command '%s'.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					cmd = &mob_cmd_table[code[cline].param];
-					if(inspect && cmd->restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'mob %s' requires inspection by an IMP.", rline, cmd->name);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-
-					if( cmd->func == scriptcmd_mute )
-					{
-						muted = true;
-						mute_used = true;
-					}
-					else if(cmd->func == scriptcmd_unmute )
-						muted = false;
-
-					doquotes = false;
-				} else if(!str_cmp(buf,"obj")) {
-					if(type != IFC_O) {
-						sprintf(rbuf,"Line %d: Attempting to do a obj command outside an oprog.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					line = one_argument(line,buf);
-					state[level] = IN_BLOCK;
-					code[cline].opcode = OP_OBJ;
-					code[cline].level = level;
-					code[cline].param = opcmd_lookup(buf);
-
-					if(code[cline].param < 0) {
-						sprintf(rbuf,"Line %d: Invalid obj command '%s'.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					cmd = &obj_cmd_table[code[cline].param];
-					if(inspect && cmd->restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'obj %s' requires inspection by an IMP.", rline, cmd->name);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-
-					if( cmd->func == scriptcmd_mute )
-					{
-						muted = true;
-						mute_used = true;
-					}
-					else if(cmd->func == scriptcmd_unmute )
-						muted = false;
-
-					doquotes = false;
-				} else if(!str_cmp(buf,"room")) {
-					if(type != IFC_R) {
-						sprintf(rbuf,"Line %d: Attempting to do a room command outside an rprog.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					line = one_argument(line,buf);
-					state[level] = IN_BLOCK;
-					code[cline].opcode = OP_ROOM;
-					code[cline].level = level;
-					code[cline].param = rpcmd_lookup(buf);
-					if(code[cline].param < 0) {
-						sprintf(rbuf,"Line %d: Invalid room command '%s'.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					cmd = &room_cmd_table[code[cline].param];
-					if(inspect && cmd->restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'room %s' requires inspection by an IMP.", rline, cmd->name);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-
-					if( cmd->func == scriptcmd_mute )
-					{
-						muted = true;
-						mute_used = true;
-					}
-					else if(cmd->func == scriptcmd_unmute )
-						muted = false;
-
-					doquotes = false;
-				} else if(!str_cmp(buf,"token")) {
-					line = one_argument(line,buf);
-					state[level] = IN_BLOCK;
-					code[cline].opcode = (type == IFC_T) ? OP_TOKEN : OP_TOKENOTHER;
-					code[cline].level = level;
-					code[cline].param = tpcmd_lookup(buf,(type == IFC_T));
-					if(code[cline].param < 0) {
-						sprintf(rbuf,"Line %d: Invalid token command '%s'.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					if( type == IFC_T )
-						cmd = &token_cmd_table[code[cline].param];
-					else
-						cmd = &tokenother_cmd_table[code[cline].param];
-					if(inspect && cmd->restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'token %s' requires inspection by an IMP.", rline, cmd->name);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-
-					if( cmd->func == scriptcmd_mute )
-					{
-						muted = true;
-						mute_used = true;
-					}
-					else if(cmd->func == scriptcmd_unmute )
-						muted = false;
-
-					doquotes = false;
-				} else if(!str_cmp(buf,"area")) {
-					if(type != IFC_A) {
-						sprintf(rbuf,"Line %d: Attempting to do an area command outside an aprog.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					line = one_argument(line,buf);
-					state[level] = IN_BLOCK;
-					code[cline].opcode = OP_AREA;
-					code[cline].level = level;
-					code[cline].param = apcmd_lookup(buf);
-
-					if(code[cline].param < 0) {
-						sprintf(rbuf,"Line %d: Invalid area command '%s'.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					cmd = &area_cmd_table[code[cline].param];
-					if(inspect && cmd->restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'area %s' requires inspection by an IMP.", rline, cmd->name);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-
-					if( cmd->func == scriptcmd_mute )
-					{
-						muted = true;
-						mute_used = true;
-					}
-					else if(cmd->func == scriptcmd_unmute )
-						muted = false;
-
-					doquotes = false;
-
-				} else if(!str_cmp(buf,"instance")) {
-					if(type != IFC_I) {
-						sprintf(rbuf,"Line %d: Attempting to do an instance command outside an iprog.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					line = one_argument(line,buf);
-					state[level] = IN_BLOCK;
-					code[cline].opcode = OP_INSTANCE;
-					code[cline].level = level;
-					code[cline].param = ipcmd_lookup(buf);
-
-					if(code[cline].param < 0) {
-						sprintf(rbuf,"Line %d: Invalid instance command '%s'.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					cmd = &instance_cmd_table[code[cline].param];
-					if(inspect && cmd->restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'instance %s' requires inspection by an IMP.", rline, cmd->name);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-
-					if( cmd->func == scriptcmd_mute )
-					{
-						muted = true;
-						mute_used = true;
-					}
-					else if(cmd->func == scriptcmd_unmute )
-						muted = false;
-
-					doquotes = false;
-
-				} else if(!str_cmp(buf,"dungeon")) {
-					if(type != IFC_D) {
-						sprintf(rbuf,"Line %d: Attempting to do a dungeon command outside a dprog.", rline);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					line = one_argument(line,buf);
-					state[level] = IN_BLOCK;
-					code[cline].opcode = OP_DUNGEON;
-					code[cline].level = level;
-					code[cline].param = dpcmd_lookup(buf);
-
-					if(code[cline].param < 0) {
-						sprintf(rbuf,"Line %d: Invalid dungeon command '%s'.", rline, buf);
-						compile_error_show(rbuf);
-						linevalid = false;
-						break;
-					}
-
-					cmd = &dungeon_cmd_table[code[cline].param];
-					if(inspect && cmd->restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'dungeon %s' requires inspection by an IMP.", rline, cmd->name);
-						compile_error_show(rbuf);
-						disable = true;
-					}
-
-					if( cmd->func == scriptcmd_mute )
-					{
-						muted = true;
-						mute_used = true;
-					}
-					else if(cmd->func == scriptcmd_unmute )
-						muted = false;
-
-					doquotes = false;
-
-				} else if(type == IFC_M) {
-					state[level] = IN_BLOCK;
-					code[cline].opcode = OP_COMMAND;
-					code[cline].level = level;
-					line = start;
-					doquotes = false;
-				} else {
-					sprintf(rbuf,"Line %d: Can only call interpreter commands in mprogs.", rline);
-					compile_error_show(rbuf);
-					linevalid = false;
-					break;
-				}
-			} while(0);
-
-			if(linevalid && processrest) {
-				code[cline].rest = compile_string(line,type,&length,doquotes);
-				if(!code[cline].rest) {
-					sprintf(rbuf,"Line %d: Error parsing string.", rline);
-					compile_error_show(rbuf);
-					linevalid = false;
-				} else
-					code[cline].length = (short)length;
-			}
-
-			if(!linevalid) {
-				code[cline].rest = NULL;
-				code[cline].length = 0;
-				valid = false;
-				++errors;
-			}
-
-			if(incline)
-				++cline;
-			++i;
-			last_case = got_case;
-		}
-		*src = eol;
-		eol = 0;
-
-		// Skip over repeated EOL's, including blank lines
-		while(*src == '\n' || *src == '\r') ++src;
-
-	}
-
-	if( muted )
-	{
-		sprintf(rbuf,"END OF SCRIPT: {RWARNING:{x Reached end of script while possibly muted.  Please add the necessary 'unmute' call.");
-		compile_error_show(rbuf);
-		valid = true;
-	}
-
-	if( mute_used )
-	{
-		sprintf(rbuf,"{RWARNING:{x MUTE command encountered.  Please verify a corresponding UNMUTE is applied to given target to play nice.");
-		compile_error_show(rbuf);
-	}
-
-	if(eol) *src = eol;
-
-	// Error happened
-	if(*src || i < lines || !valid) {
-		sprintf(rbuf,"%s(%d) encountered %d error%s.", type_name, script->vnum, errors, ((errors==1)?"":"s"));
-		compile_error(rbuf);
-		free_script_code(code,lines);
-		if(fBootDb) {
-			script->code = NULL;
-			script->lines = 0;
-
-			// Clean up
-			struct switch_data *sw, *sw_next;
-			for(sw = switch_head; sw; sw = sw_next)
-			{
-				sw_next = sw->next;
-
-				struct switch_case_data *swc, *swc_next;
-				for(swc = sw->case_head; swc; swc = swc_next)
-				{
-					swc_next = swc->next;
-					free_mem(swc, sizeof(*swc));
-				}
-
-				free_mem(sw, sizeof(*sw));
-			}
-		}
-		return false;
-	}
-
-	// Only deal with
-	if(inspect) {
-		// If no errors have occured, check if the script needs to be disabled.
-		if(disable) {
-			sprintf(rbuf,"%s(%d) disabled due to restricted commands.", type_name, script->vnum);
-			compile_error_show(rbuf);
-			script->flags |= SCRIPT_DISABLED;
-		} else
-			script->flags &= ~SCRIPT_DISABLED;
-	}
-
-	if( !cline || (code[cline-1].opcode != OP_END) ) {
-		// Even empty scripts have "one" code.
-		//	Only BAD scripts have "no" codes
-		code[cline].opcode = OP_END;
-		code[cline].level = 0;
-		code[cline].rest = str_dup("");
-		code[cline].length = 0;
-	}
-
-	free_script_code(script->code,script->lines);
-	free_string(script->src);
-	script->code = code;
-	script->src = source;
-	script->lines = lines+1;
-
-	// Create Switch Table data and cleanup
-	if (nswitches > 0)
-	{
-		script->n_switch_table = nswitches;
-		script->switch_table = new_script_switch(nswitches);
-
-		nswitch = 0;
-		struct switch_data *sw, *sw_next;
-
-		// Only need to do actual clean up if nswitches > 0
-		for(sw = switch_head; sw; sw = sw_next, nswitch++)
-		{
-			sw_next = sw->next;
-
-			script->switch_table[nswitch].default_case = sw->default_case;
-
-			SCRIPT_SWITCH_CASE *case_head = NULL;
-			SCRIPT_SWITCH_CASE *case_tail = NULL;
-
-			struct switch_case_data *swc, *swc_next;
-			for(swc = sw->case_head; swc; swc = swc_next)
-			{
-				SCRIPT_SWITCH_CASE *c = new_script_switch_case();
-				c->a = swc->a;
-				c->b = swc->b;
-				c->line = swc->line;
-				c->next = NULL;
-
-				if (case_tail)
-					case_tail->next = c;
-				else
-					case_head = c;
-				case_tail = c;
-
-				swc_next = swc->next;
-				free_mem(swc, sizeof(*swc));
-			}
-
-			free_mem(sw, sizeof(*sw));
-
-			script->switch_table[nswitch].cases = case_head;
-		}
-	}
-
-	return true;
+    BOOLEXP *bool_exp = NULL, *bool_exp_root = NULL;
+    char labels[MAX_NAMED_LABELS][MIL];
+    SCRIPT_CODE *code;
+    char *src, *start, *line, eol;
+    char buf[MIL], rbuf[MSL];
+    bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline, muted, mute_used, last_case, got_case;
+    int state[MAX_NESTED_LEVEL];
+    int loops[MAX_NESTED_LOOPS];
+    struct switch_data *switch_head = NULL;
+    struct switch_data *switch_tail = NULL;
+    struct switch_data *switches[MAX_NESTED_LEVEL];
+    int i, x, y, level, loop, nswitch, nswitches, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
+    char *type_name;
+    const struct script_cmd_type *cmd;
+    static unsigned long compile_success_count = 0;
+    BUFFER *saved_err_buffer = compile_err_buffer;
+    int saved_current_line = compile_current_line;
+    char *saved_store_limit = compile_store_limit;
+
+    DBG2ENTRY4(PTR,err_buf,PTR,script,PTR,source,NUM,type);
+
+    if(type == IFC_M) {
+        script->type = PRG_MPROG;
+        type_name = "MOB";
+    } else if(type == IFC_O) {
+        script->type = PRG_OPROG;
+        type_name = "OBJ";
+    } else if(type == IFC_R) {
+        script->type = PRG_RPROG;
+        type_name = "ROOM";
+    } else if(type == IFC_T) {
+        script->type = PRG_TPROG;
+        type_name = "TOKEN";
+    } else if(type == IFC_A) {
+        script->type = PRG_APROG;
+        type_name = "AREA";
+    } else if(type == IFC_Q) {
+        script->type = PRG_QPROG;
+        type_name = "QUEST";
+    } else if(type == IFC_I) {
+        script->type = PRG_IPROG;
+        type_name = "INSTANCE";
+    } else if(type == IFC_D) {
+        script->type = PRG_DPROG;
+        type_name = "DUNGEON";
+    } else if(type == IFC_E) {
+        script->type = PRG_EPROG;
+        type_name = "EVENT";
+    } else {
+        script->type = -1;
+        type_name = "???";
+    }
+
+    DBG3MSG2("Parsing %s(%d)\n", type_name, script->vnum);
+
+    compile_err_buffer = err_buf;
+
+    inspect = (bool)IS_SET(script->flags,SCRIPT_INSPECT);
+    disable = false;
+    muted = false;
+    mute_used = false;
+
+    // Clear the inspection flag.  This is only set when the COMPILE command
+    //	is issued by a non-IMP.
+    script->flags &= ~SCRIPT_INSPECT;
+
+    bool_exp = NULL;
+    bool_exp_cline = -1;
+
+    // Count the lines
+    i = 0;
+    src = source;
+    while(*src) {
+        comment = false;
+        src = start = skip_whitespace(src);
+
+        // if the first non whitespace is '*', comment
+        if(*src == '*') comment = true;
+
+        // Skip to EOL/EOS
+        while(*src && *src != '\n' && *src != '\r') ++src;
+
+        // If not a comment and there was anything on the line,
+        //	there is something to parse
+        if(!comment && src != start) i++;
+
+        // Skip over repeated EOL's, including blank lines
+        while(*src == '\n' || *src == '\r') ++src;
+    }
+
+    // Create the instruction list
+    lines = i;
+    code = alloc_mem((lines+1)*sizeof(SCRIPT_CODE));
+    if(!code) {
+        compile_err_buffer = saved_err_buffer;
+        compile_current_line = saved_current_line;
+        compile_store_limit = saved_store_limit;
+        return false;
+    }
+    memset(code,0,(lines+1)*sizeof(SCRIPT_CODE));
+
+    // Initialize parsing
+    for(i=0;i<MAX_NESTED_LEVEL;i++) state[i] = IN_BLOCK;
+    for(i=0;i<MAX_NESTED_LOOPS;i++) loops[i] = -1;
+    for(i=0;i<MAX_NESTED_LEVEL;i++) switches[i] = NULL;
+    for(i=0;i<MAX_NAMED_LABELS;i++) labels[i][0] = 0;
+    i = 0;
+    cline = 0;
+    line = 0;
+    rline = 0;
+    level = 0;
+    loop = 0;
+    named_labels = 0;
+    nswitch = 0;
+    nswitches = 0;
+    src = source;
+    eol = '\0';
+    switch_head = NULL;
+    switch_tail = NULL;
+    got_case = false;
+    last_case = false;
+
+    valid = true;
+    errors = 0;
+
+    // Start parsing
+    while(*src) {
+        compile_current_line = ++rline;	// Increase real line number
+
+        comment = false;
+        src = start = skip_whitespace(src);
+        // if the first non whitespace is '*', comment
+        if(*src == '*') comment = true;
+
+        // Skip to EOL/EOS
+        while(*src && *src != '\n' && *src != '\r') ++src;
+        eol = *src; *src = '\0';
+
+        // If not a comment and there was anything on the line,
+        //	there is something to parse
+        if(!comment && src != start) {
+            line = start;
+            line = one_argument(line,buf);
+
+            doquotes = true;
+            linevalid = true;
+            processrest = true;
+            incline = true;
+            got_case = false;
+
+            do {
+
+
+                if(!str_cmp(buf,"end") || !str_cmp(buf,"break")) {
+                    if( muted )
+                    {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Reached '%s' while possibly muted.  Please add the necessary 'unmute' call.", rline, buf);
+                        compile_error_show(rbuf);
+                        valid = true;
+                        break;
+                    }
+                    code[cline].opcode = OP_END;
+                    code[cline].level = level;
+                    state[level] = IN_BLOCK;
+                } else if(!str_cmp(buf,"gotoline")) {
+                    code[cline].opcode = OP_GOTOLINE;
+                    code[cline].level = level;
+                    state[level] = IN_BLOCK;
+                    if(inspect) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'gotoline' requires inspection by an IMP.", rline);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+                } else if(!str_cmp(buf,"if")) {
+                    if(state[level] == BEGIN_BLOCK) {
+                        sprintf(rbuf,"Line %d: Unexpected 'if'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    neg = false;
+                    code[cline].level = level;
+                    code[cline].opcode = OP_IF;
+
+                    state[level++] = BEGIN_BLOCK;
+                    if (level >= MAX_NESTED_LEVEL) {
+                        sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    if(!str_prefix("not ",line)) {
+                        neg = !neg;
+                        line = skip_whitespace(line+3);
+                    }
+
+                    if(*line == '!') {
+                        neg = !neg;
+                        ++line;
+                    }
+
+                    bool_exp_root = bool_exp = new_boolexp();
+                    bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
+                    bool_exp_cline = cline;
+
+                    if(*line == '$') {
+                        bool_exp->param = -1;
+
+                    } else {
+                        line = one_argument(line,buf);
+                        code[cline].param = ifcheck_lookup(buf,type);
+                        bool_exp->param = ifcheck_lookup(buf,type);
+                        if(bool_exp->param < 0) {
+                            sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
+                            compile_error_show(rbuf);
+                            linevalid = false;
+                            break;
+                        }
+                    }
+
+                    processrest = false;
+                    bool_exp->rest = compile_string(line,type,&length,doquotes);
+                    if(!bool_exp->rest) {
+                        sprintf(rbuf,"Line %d: Error parsing string.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    } else
+                        bool_exp->length = (short)length;
+
+                    code[cline].rest = (char *)bool_exp;
+
+                    state[level] = END_BLOCK;
+                } else if(!str_cmp(buf,"elseif")) {
+                    if (!level || state[level-1] != BEGIN_BLOCK) {
+                        sprintf(rbuf,"Line %d: Unexpected 'elseif'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    neg = false;
+                    code[cline].level = level-1;
+                    code[cline].opcode = OP_ELSEIF;
+
+                    if(!str_prefix("not ",line)) {
+                        neg = !neg;
+                        line = skip_whitespace(line+3);
+                    }
+
+                    if(*line == '!') {
+                        neg = !neg;
+                        ++line;
+                    }
+
+                    bool_exp_root = bool_exp = new_boolexp();
+                    bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
+                    bool_exp_cline = cline;
+
+                    if(*line == '$') {
+                        bool_exp->param = -1;
+
+                    } else {
+                        line = one_argument(line,buf);
+                        code[cline].param = ifcheck_lookup(buf,type);
+                        bool_exp->param = ifcheck_lookup(buf,type);
+                        if(bool_exp->param < 0) {
+                            sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
+                            compile_error_show(rbuf);
+                            linevalid = false;
+                            break;
+                        }
+                    }
+
+                    processrest = false;
+                    bool_exp->rest = compile_string(line,type,&length,doquotes);
+                    if(!bool_exp->rest) {
+                        sprintf(rbuf,"Line %d: Error parsing string.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    } else
+                        bool_exp->length = (short)length;
+
+                    code[cline].rest = (char *)bool_exp;
+
+                    state[level] = END_BLOCK;
+                } else if(!str_cmp(buf,"while")) {
+                    if(state[level] == BEGIN_BLOCK || state[level] == IN_WHILE) {
+                        sprintf(rbuf,"Line %d: Unexpected 'while'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    neg = false;
+                    code[cline].level = level;
+                    code[cline].opcode = OP_WHILE;
+
+                    state[level++] = IN_WHILE;
+                    if (level >= MAX_NESTED_LEVEL) {
+                        sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    state[level] = IN_BLOCK;
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+                    if(x >= 0) {
+                        sprintf(rbuf,"Line %d: duplicate named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    if(named_labels >= MAX_NAMED_LABELS) {
+                        sprintf(rbuf,"Line %d: too many named labels in script.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    if(loop >= MAX_NESTED_LOOPS) {
+                        sprintf(rbuf,"Line %d: too many nested loops in script.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    loops[loop++] = named_labels;
+                    code[cline].label = named_labels;
+                    strcpy(labels[named_labels++],buf);
+
+                    if(!str_prefix("not ",line)) {
+                        neg = !neg;
+                        line = skip_whitespace(line+3);
+                    }
+
+                    if(*line == '!') {
+                        neg = !neg;
+                        ++line;
+                    }
+
+                    bool_exp_root = bool_exp = new_boolexp();
+                    bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
+                    bool_exp_cline = cline;
+
+                    if(*line == '$') {
+                        bool_exp->param = -1;
+
+                    } else {
+                        line = one_argument(line,buf);
+                        bool_exp->param = ifcheck_lookup(buf,type);
+                        if(bool_exp->param < 0) {
+                            sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
+                            compile_error_show(rbuf);
+                            linevalid = false;
+                            break;
+                        }
+                    }
+
+                    processrest = false;
+                    bool_exp->rest = compile_string(line,type,&length,doquotes);
+                    if(!bool_exp->rest) {
+                        sprintf(rbuf,"Line %d: Error parsing string.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    } else
+                        bool_exp->length = (short)length;
+
+                    code[cline].rest = (char *)bool_exp;
+
+                } else if(!str_cmp(buf,"or")) {
+                    BOOLEXP *be;
+
+                    if (!level || (state[level-1] != BEGIN_BLOCK && state[level-1] != IN_WHILE)) {
+                        sprintf(rbuf,"Line %d: 'or' used without 'if' or 'while'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    neg = false;
+
+                    if(!str_prefix("not ",line)) {
+                        neg = !neg;
+                        line = skip_whitespace(line+3);
+                    }
+
+                    if(*line == '!') {
+                        neg = !neg;
+                        ++line;
+                    }
+
+                    be = new_boolexp();
+                    be->type = BOOLEXP_OR;
+                    code[bool_exp_cline].rest = (char *)be;	// Update the code entry
+                    be->left = bool_exp_root;
+                    be->left->parent = be;
+                    bool_exp_root = be;
+
+                    // Add expression for this line
+                    bool_exp = be->right = new_boolexp();
+                    bool_exp->parent = be;
+                    bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
+
+                    code[cline].level = level-1;
+
+                    if(*line == '$') {
+                        bool_exp->param = -1;
+                    } else {
+                        line = one_argument(line,buf);
+                        bool_exp->param = ifcheck_lookup(buf,type);
+                        if(bool_exp->param < 0) {
+                            sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
+                            compile_error_show(rbuf);
+                            linevalid = false;
+                            break;
+                        }
+                    }
+
+
+                    processrest = false;
+                    incline = false;
+                    bool_exp->rest = compile_string(line,type,&length,doquotes);
+                    if(!bool_exp->rest) {
+                        sprintf(rbuf,"Line %d: Error parsing string.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    } else
+                        bool_exp->length = (short)length;
+
+                } else if(!str_cmp(buf,"and")) {
+                    BOOLEXP *be;
+
+                    if (!level || (state[level-1] != BEGIN_BLOCK && state[level-1] != IN_WHILE)) {
+                        sprintf(rbuf,"Line %d: 'and' used without 'if' or 'while'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    neg = false;
+
+                    if(!str_prefix("not ",line)) {
+                        neg = !neg;
+                        line = skip_whitespace(line+3);
+                    }
+
+                    if(*line == '!') {
+                        neg = !neg;
+                        ++line;
+                    }
+
+                    code[cline].level = level-1;
+
+
+                    be = new_boolexp();
+                    be->type = BOOLEXP_AND;
+                    be->left = bool_exp;
+                    be->right = new_boolexp();
+
+                    if( bool_exp->parent ) {
+                        bool_exp->parent->right = be;
+                    } else {
+                        // This is the root node too
+                        bool_exp_root = be;
+                        code[bool_exp_cline].rest = (char *)be;
+                    }
+
+                    be->left->parent = be;
+                    be->right->parent = be;
+
+                    bool_exp->parent = be;
+                    bool_exp = be->right;
+                    bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
+
+
+                    if(*line == '$') {
+                        bool_exp->param = -1;
+                    } else {
+                        line = one_argument(line,buf);
+                        bool_exp->param = ifcheck_lookup(buf,type);
+                        if(bool_exp->param < 0) {
+                            sprintf(rbuf,"Line %d: Invalid ifcheck '%s'.", rline, buf);
+                            compile_error_show(rbuf);
+                            linevalid = false;
+                            break;
+                        }
+                    }
+
+                    processrest = false;
+                    incline = false;
+                    bool_exp->rest = compile_string(line,type,&length,doquotes);
+                    if(!bool_exp->rest) {
+                        sprintf(rbuf,"Line %d: Error parsing string.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    } else
+                        bool_exp->length = (short)length;
+
+                } else if(!str_cmp(buf,"else")) {
+                    if (!level || state[level-1] != BEGIN_BLOCK) {
+                        sprintf(rbuf,"Line %d: Unmatched 'else'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    state[level] = IN_BLOCK;
+                    code[cline].level = level-1;
+                    code[cline].opcode = OP_ELSE;
+                } else if(!str_cmp(buf,"endif")) {
+                    if (!level || state[level-1] != BEGIN_BLOCK) {
+                        sprintf(rbuf,"Line %d: Unmatched 'endif'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    code[cline].level = level-1;
+                    code[cline].opcode = OP_ENDIF;
+                    state[level] = IN_BLOCK;
+                    state[--level] = END_BLOCK;
+                } else if(!str_cmp(buf,"for")) {
+                    code[cline].opcode = OP_FOR;
+                    code[cline].level = level;
+
+                    state[level++] = IN_FOR;
+                    if (level >= MAX_NESTED_LEVEL) {
+                        sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    state[level] = IN_BLOCK;
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+                    if(x >= 0) {
+                        sprintf(rbuf,"Line %d: duplicate named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    if(named_labels >= MAX_NAMED_LABELS) {
+                        sprintf(rbuf,"Line %d: too many named labels in script.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    if(loop >= MAX_NESTED_LOOPS) {
+                        sprintf(rbuf,"Line %d: too many nested loops in script.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    loops[loop++] = named_labels;
+                    code[cline].label = named_labels;
+                    strcpy(labels[named_labels++],buf);
+                } else if(!str_cmp(buf,"endfor")) {
+                    if (!level || state[level-1] != IN_FOR) {
+                        sprintf(rbuf,"Line %d: Unmatched 'endfor'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+
+                    if(x < 0) {
+                        sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    if(loops[loop-1] != x) {
+                        sprintf(rbuf,"Line %d: trying to end a loop inside another loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    loops[--loop] = -1;
+                    code[cline].level = level-1;
+                    code[cline].opcode = OP_ENDFOR;
+                    code[cline].label = x;
+                    state[level] = IN_BLOCK;
+                    state[--level] = IN_BLOCK;
+                } else if(!str_cmp(buf,"exitfor")) {
+                    if (!level || !loop) {
+                        sprintf(rbuf,"Line %d: 'exitfor' used outside of for loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+
+                    if(x < 0) {
+                        sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    for(y = loop;y-- > 0;)
+                        if(loops[y] == x) break;
+
+                    if(y < 0) {
+                        sprintf(rbuf,"Line %d: 'exitfor' used outside of named loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    code[cline].level = level;
+                    code[cline].opcode = OP_EXITFOR;
+                    code[cline].label = x;
+                    state[level] = IN_BLOCK;
+                } else if(!str_cmp(buf,"list")) {
+                    code[cline].opcode = OP_LIST;
+                    code[cline].level = level;
+
+                    state[level++] = IN_LIST;
+                    if (level >= MAX_NESTED_LEVEL) {
+                        sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    state[level] = IN_BLOCK;
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+                    if(x >= 0) {
+                        sprintf(rbuf,"Line %d: duplicate named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    if(named_labels >= MAX_NAMED_LABELS) {
+                        sprintf(rbuf,"Line %d: too many named labels in script.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    if(loop >= MAX_NESTED_LOOPS) {
+                        sprintf(rbuf,"Line %d: too many nested loops in script.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    loops[loop++] = named_labels;
+                    code[cline].label = named_labels;
+                    strcpy(labels[named_labels++],buf);
+                } else if(!str_cmp(buf,"endlist")) {
+                    if (!level || state[level-1] != IN_LIST) {
+                        sprintf(rbuf,"Line %d: Unmatched 'endlist'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+
+                    if(x < 0) {
+                        sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    if(loops[loop-1] != x) {
+                        sprintf(rbuf,"Line %d: trying to end a loop inside another loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    loops[--loop] = -1;
+                    code[cline].level = level-1;
+                    code[cline].opcode = OP_ENDLIST;
+                    code[cline].label = x;
+                    state[level] = IN_BLOCK;
+                    state[--level] = IN_BLOCK;
+                } else if(!str_cmp(buf,"exitlist")) {
+                    if (!level || !loop) {
+                        sprintf(rbuf,"Line %d: 'exitlist' used outside of for loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+
+                    if(x < 0) {
+                        sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    for(y = loop;y-- > 0;)
+                        if(loops[y] == x) break;
+
+                    if(y < 0) {
+                        sprintf(rbuf,"Line %d: 'exitlist' used outside of named loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    code[cline].level = level;
+                    code[cline].opcode = OP_EXITLIST;
+                    code[cline].label = x;
+                    state[level] = IN_BLOCK;
+                } else if(!str_cmp(buf,"endwhile")) {
+                    if (!level || state[level-1] != IN_WHILE) {
+                        sprintf(rbuf,"Line %d: Unmatched 'endwhile'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+
+                    if(x < 0) {
+                        sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    if(loops[loop-1] != x) {
+                        sprintf(rbuf,"Line %d: trying to end a loop inside another loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    loops[--loop] = -1;
+                    code[cline].level = level-1;
+                    code[cline].opcode = OP_ENDWHILE;
+                    code[cline].label = x;
+                    state[level] = IN_BLOCK;
+                    state[--level] = IN_BLOCK;
+                } else if(!str_cmp(buf,"exitwhile")) {
+                    if (!level || !loop) {
+                        sprintf(rbuf,"Line %d: 'exitwhile' used outside of for loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    // Get for name
+                    line = one_argument(line,buf);
+                    for(x = named_labels; x-- > 0;)
+                        if(!str_cmp(buf,labels[x])) break;
+
+                    if(x < 0) {
+                        sprintf(rbuf,"Line %d: undefined named label '%s' used.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    for(y = loop;y-- > 0;)
+                        if(loops[y] == x) break;
+
+                    if(y < 0) {
+                        sprintf(rbuf,"Line %d: 'exitwhile' used outside of named loop.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    code[cline].level = level;
+                    code[cline].opcode = OP_EXITWHILE;
+                    code[cline].label = x;
+                    state[level] = IN_BLOCK;
+                } else if(!str_cmp(buf,"switch")) {
+                    if(state[level] == IN_SWITCH) {
+                        sprintf(rbuf,"Line %d: Unexpected 'switch'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    code[cline].level = level;
+                    code[cline].opcode = OP_SWITCH;
+
+                    state[level++] = IN_SWITCH;
+                    if (level >= MAX_NESTED_LEVEL) {
+                        sprintf(rbuf,"Line %d: Nested levels too deep.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+                    if(nswitch >= MAX_NESTED_LEVEL) {
+                        sprintf(rbuf,"Line %d: too many nested switch in script.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    state[level] = IN_BLOCK;
+                    code[cline].param = nswitches;	// Which switch statement is it using?
+
+                    struct switch_data *sw = alloc_mem(sizeof(struct switch_data));
+                    memset(sw, 0, sizeof(*sw));
+
+                    if (switch_tail)
+                        switch_tail->next = sw;
+                    else
+                        switch_head = sw;
+                    switch_tail = sw;
+                    nswitches++;
+
+                    switches[nswitch++] = sw;
+
+                } else if(!str_cmp(buf,"case")) {
+                    // This needs to support multiple case statements such as
+                    // case #
+                    // case # #
+                    // case #
+                    //  code block #1
+                    // case # #
+                    // case #
+                    //  code block #2
+                    // ...
+
+                    // Each number must be unique and not overlap another entry in the current switch
+
+                    if (!level || state[level-1] != IN_SWITCH || !nswitch) {
+                        sprintf(rbuf,"Line %d: case statement used outside of switch.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    struct switch_case_data *_case;
+                    long a, b;
+
+                    line = parse_number(line, &a);	// case #
+                    if (!line)
+                    {
+                        sprintf(rbuf,"Line %d: expected a number in case statement.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    if (*line)		// case # # - inclusive range
+                    {
+                        line = parse_number(line, &b);
+
+                        if (!line)
+                        {
+                            sprintf(rbuf,"Line %d: expected second number in range for case statement.", rline);
+                            compile_error_show(rbuf);
+                            linevalid = false;
+                            break;
+                        }
+                    }
+                    else
+                        b = a;
+
+                    if (a > b)
+                    {
+                        long x = a;
+                        a = b;
+                        b = x;
+                    }
+
+                    struct switch_data *sw = switches[nswitch-1];
+
+                    // Verify uniqueness
+                    struct switch_case_data *swc;
+                    bool found = false;
+                    for(swc = sw->case_head; swc; swc = swc->next)
+                    {
+                        // Is there overlap
+                        if ((swc->a >= a && swc->a <= b) ||
+                            (swc->b >= a && swc->b <= b) ||
+                            (a >= swc->a && a <= swc->b) ||
+                            (b >= swc->a && b <= swc->b))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (found)
+                    {
+                        if (a != b)
+                            sprintf(rbuf,"Line %d: duplicate/overlapping switch case found for case [%ld to %ld].", rline, a, b);
+                        else
+                            sprintf(rbuf,"Line %d: duplicate/overlapping switch case found for case %ld.", rline, a);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    _case = alloc_mem(sizeof(struct switch_case_data));
+                    if (!_case)
+                    {
+                        sprintf(rbuf,"Line %d: memory allocation error.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+
+                    if ((sw->case_head || sw->default_case > 0) && !last_case)
+                    {
+                        // Has at least one case the last command was not a case statement of any kind
+                        code[cline].opcode = OP_EXITSWITCH;
+                        code[cline].level = level - 1;
+                        code[cline].rest = str_dup("");
+                        code[cline].length = 0;
+                        ++cline;
+                    }
+
+                    _case->a = a;
+                    _case->b = b;
+                    _case->line = cline;	// Points to the next code line
+
+                    if (sw->case_tail)
+                        sw->case_tail->next = _case;
+                    else
+                        sw->case_head = _case;
+                    sw->case_tail = _case;
+
+                    got_case = true;
+                    processrest = false;
+                    incline = false;
+
+                } else if(!str_cmp(buf,"default")) {
+                    if (!level || state[level-1] != IN_SWITCH || !nswitch) {
+                        sprintf(rbuf,"Line %d: default case statement used outside of switch.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    struct switch_data *sw = switches[nswitch-1];
+
+                    if ((sw->case_head || sw->default_case > 0) && !last_case)
+                    {
+                        // Has at least one case the last command was not a case statement of any kind
+                        code[cline].opcode = OP_EXITSWITCH;
+                        code[cline].level = level - 1;
+                        code[cline].rest = str_dup("");
+                        code[cline].length = 0;
+                        ++cline;
+                    }
+
+                    sw->default_case = cline;
+
+                    got_case = true;
+                    processrest = false;
+                    incline = false;
+                } else if(!str_cmp(buf,"endswitch")) {
+                    if (!level || state[level-1] != IN_SWITCH) {
+                        sprintf(rbuf,"Line %d: Unmatched 'endswitch'.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    switches[--nswitch] = NULL;
+                    state[level] = IN_BLOCK;
+                    state[--level] = IN_BLOCK;
+                    code[cline].level = level;
+                    code[cline].opcode = OP_ENDSWITCH;
+
+                    processrest = false;
+                } else if(!str_cmp(buf,"mob")) {
+                    if(type != IFC_M) {
+                        sprintf(rbuf,"Line %d: Attempting to do a mob command outside an mprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_MOB;
+                    code[cline].level = level;
+                    code[cline].param = mpcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid mob command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &mob_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'mob %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+                } else if(!str_cmp(buf,"obj")) {
+                    if(type != IFC_O) {
+                        sprintf(rbuf,"Line %d: Attempting to do a obj command outside an oprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_OBJ;
+                    code[cline].level = level;
+                    code[cline].param = opcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid obj command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &obj_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'obj %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+                } else if(!str_cmp(buf,"room")) {
+                    if(type != IFC_R) {
+                        sprintf(rbuf,"Line %d: Attempting to do a room command outside an rprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_ROOM;
+                    code[cline].level = level;
+                    code[cline].param = rpcmd_lookup(buf);
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid room command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &room_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'room %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+                } else if(!str_cmp(buf,"token")) {
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = (type == IFC_T) ? OP_TOKEN : OP_TOKENOTHER;
+                    code[cline].level = level;
+                    code[cline].param = tpcmd_lookup(buf,(type == IFC_T));
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid token command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    if( type == IFC_T )
+                        cmd = &token_cmd_table[code[cline].param];
+                    else
+                        cmd = &tokenother_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'token %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+                } else if(!str_cmp(buf,"area")) {
+                    if(type != IFC_A) {
+                        sprintf(rbuf,"Line %d: Attempting to do an area command outside an aprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_AREA;
+                    code[cline].level = level;
+                    code[cline].param = apcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid area command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &area_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'area %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+
+                } else if(!str_cmp(buf,"quest")) {
+                    if(type != IFC_Q) {
+                        sprintf(rbuf,"Line %d: Attempting to do a quest command outside a qprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_QUEST;
+                    code[cline].level = level;
+                    code[cline].param = apcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid quest command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &area_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'quest %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+
+                } else if(!str_cmp(buf,"instance")) {
+                    if(type != IFC_I) {
+                        sprintf(rbuf,"Line %d: Attempting to do an instance command outside an iprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_INSTANCE;
+                    code[cline].level = level;
+                    code[cline].param = ipcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid instance command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &instance_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'instance %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+
+                } else if(!str_cmp(buf,"dungeon")) {
+                    if(type != IFC_D) {
+                        sprintf(rbuf,"Line %d: Attempting to do a dungeon command outside a dprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_DUNGEON;
+                    code[cline].level = level;
+                    code[cline].param = dpcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid dungeon command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &dungeon_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'dungeon %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+
+                } else if(!str_cmp(buf,"evt")) {
+                    if(type != IFC_E) {
+                        sprintf(rbuf,"Line %d: Attempting to do an evt command outside an eprog.", rline);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    line = one_argument(line,buf);
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_EVENT;
+                    code[cline].level = level;
+                    code[cline].param = evtcmd_lookup(buf);
+
+                    if(code[cline].param < 0) {
+                        sprintf(rbuf,"Line %d: Invalid evt command '%s'.", rline, buf);
+                        compile_error_show(rbuf);
+                        linevalid = false;
+                        break;
+                    }
+
+                    cmd = &evt_cmd_table[code[cline].param];
+                    if(inspect && cmd->restricted) {
+                        sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'evt %s' requires inspection by an IMP.", rline, cmd->name);
+                        compile_error_show(rbuf);
+                        disable = true;
+                    }
+
+                    if( cmd->func == scriptcmd_mute )
+                    {
+                        muted = true;
+                        mute_used = true;
+                    }
+                    else if(cmd->func == scriptcmd_unmute )
+                        muted = false;
+
+                    doquotes = false;
+
+                } else if(type == IFC_M) {
+                    state[level] = IN_BLOCK;
+                    code[cline].opcode = OP_COMMAND;
+                    code[cline].level = level;
+                    line = start;
+                    doquotes = false;
+                } else {
+                    sprintf(rbuf,"Line %d: Bare interpreter commands are mprog-only; use prefixed commands (mob/obj/room/token/area/quest/instance/dungeon/evt) in other prog types.", rline);
+                    compile_error_show(rbuf);
+                    linevalid = false;
+                    break;
+                }
+            } while(0);
+
+            if(linevalid && processrest) {
+                code[cline].rest = compile_string(line,type,&length,doquotes);
+                if(!code[cline].rest) {
+                    sprintf(rbuf,"Line %d: Error parsing string.", rline);
+                    compile_error_show(rbuf);
+                    linevalid = false;
+                } else
+                    code[cline].length = (short)length;
+            }
+
+            if(!linevalid) {
+                code[cline].rest = NULL;
+                code[cline].length = 0;
+                valid = false;
+                ++errors;
+            }
+
+            if(incline)
+                ++cline;
+            ++i;
+            last_case = got_case;
+        }
+        *src = eol;
+        eol = 0;
+
+        // Skip over repeated EOL's, including blank lines
+        while(*src == '\n' || *src == '\r') ++src;
+
+    }
+
+    if( muted )
+    {
+        sprintf(rbuf,"END OF SCRIPT: {RWARNING:{x Reached end of script while possibly muted.  Please add the necessary 'unmute' call.");
+        compile_error_show(rbuf);
+        valid = true;
+    }
+
+    if( mute_used )
+    {
+        sprintf(rbuf,"{RWARNING:{x MUTE command encountered.  Please verify a corresponding UNMUTE is applied to given target to play nice.");
+        compile_error_show(rbuf);
+    }
+
+    if(eol) *src = eol;
+
+    // Error happened
+    if(*src || i < lines || !valid) {
+        sprintf(rbuf,"%s(%d) encountered %d error%s.", type_name, script->vnum, errors, ((errors==1)?"":"s"));
+        compile_error(rbuf);
+        free_script_code(code,lines);
+        if(fBootDb) {
+            script->code = NULL;
+            script->lines = 0;
+
+            // Clean up
+            struct switch_data *sw, *sw_next;
+            for(sw = switch_head; sw; sw = sw_next)
+            {
+                sw_next = sw->next;
+
+                struct switch_case_data *swc, *swc_next;
+                for(swc = sw->case_head; swc; swc = swc_next)
+                {
+                    swc_next = swc->next;
+                    free_mem(swc, sizeof(*swc));
+                }
+
+                free_mem(sw, sizeof(*sw));
+            }
+        }
+        compile_err_buffer = saved_err_buffer;
+        compile_current_line = saved_current_line;
+        compile_store_limit = saved_store_limit;
+        return false;
+    }
+
+    // Only deal with
+    if(inspect) {
+        // If no errors have occured, check if the script needs to be disabled.
+        if(disable) {
+            sprintf(rbuf,"%s(%d) disabled due to restricted commands.", type_name, script->vnum);
+            compile_error_show(rbuf);
+            script->flags |= SCRIPT_DISABLED;
+        } else
+            script->flags &= ~SCRIPT_DISABLED;
+    }
+
+    if( !cline || (code[cline-1].opcode != OP_END) ) {
+        // Even empty scripts have "one" code.
+        //	Only BAD scripts have "no" codes
+        code[cline].opcode = OP_END;
+        code[cline].level = 0;
+        code[cline].rest = str_dup("");
+        code[cline].length = 0;
+    }
+
+    free_script_code(script->code,script->lines);
+    if (script->src && script->src != source)
+        free_string(script->src);
+
+    script->code = code;
+    script->src = source;
+    script->lines = lines+1;
+
+    // Create Switch Table data and cleanup
+    if (nswitches > 0)
+    {
+        script->n_switch_table = nswitches;
+        script->switch_table = new_script_switch(nswitches);
+
+        nswitch = 0;
+        struct switch_data *sw, *sw_next;
+
+        // Only need to do actual clean up if nswitches > 0
+        for(sw = switch_head; sw; sw = sw_next, nswitch++)
+        {
+            sw_next = sw->next;
+
+            script->switch_table[nswitch].default_case = sw->default_case;
+
+            SCRIPT_SWITCH_CASE *case_head = NULL;
+            SCRIPT_SWITCH_CASE *case_tail = NULL;
+
+            struct switch_case_data *swc, *swc_next;
+            for(swc = sw->case_head; swc; swc = swc_next)
+            {
+                SCRIPT_SWITCH_CASE *c = new_script_switch_case();
+                c->a = swc->a;
+                c->b = swc->b;
+                c->line = swc->line;
+                c->next = NULL;
+
+                if (case_tail)
+                    case_tail->next = c;
+                else
+                    case_head = c;
+                case_tail = c;
+
+                swc_next = swc->next;
+                free_mem(swc, sizeof(*swc));
+            }
+
+            free_mem(sw, sizeof(*sw));
+
+            script->switch_table[nswitch].cases = case_head;
+        }
+    }
+
+    if((++compile_success_count % 100UL) == 0UL)
+        script_lookup_profile_report("compile_script");
+
+    compile_err_buffer = saved_err_buffer;
+    compile_current_line = saved_current_line;
+    compile_store_limit = saved_store_limit;
+
+    return true;
 }

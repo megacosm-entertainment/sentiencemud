@@ -14,7 +14,7 @@ name: "CodeQL Advanced"
 on:
   workflow_dispatch:
   push:
-    branches: [ "master", "legacy_server", "olc_blueprints", "v2_testport" ]
+    branches: [ "master", "legacy_server", "olc_blueprints", "v2_testport", "feature/widevnum-migration" ]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ "legacy_server", "olc_blueprints" ]
@@ -26,7 +26,7 @@ jobs:
     name: Analyze
     runs-on: ubuntu-latest
     container: 
-      image: ghcr.io/megacosm-entertainment/sentience_bookworm:latest
+      image: ghcr.io/megacosm-entertainment/sentience_trixie:latest
       options: --user root
     permissions:
       actions: read
@@ -41,12 +41,22 @@ jobs:
         # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
 
     steps:
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Mark repo as safe for git
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+    - name: Build dependencies
+      run: |
+        cd .deps
+        ./build_deps.sh
+
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
@@ -71,10 +81,11 @@ jobs:
     # - run: |
     #   echo "Run, Build Application using script"
     #   ./location_of_script_within_repo/buildscript.sh
-    - run: |
-        make
+    - name: Build project
+      run: |
+        ./build
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@v4
       with:
         category: "/language:${{matrix.language}}"

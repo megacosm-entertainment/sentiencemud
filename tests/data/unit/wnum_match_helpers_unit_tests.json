@@ -1,0 +1,105 @@
+{
+  "type": "test_suite",
+  "test_suite": "wnum_match_helpers_unit_tests",
+  "description": "Pure-function unit tests for WNUM match helper semantics",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "wnum_match_core_cases",
+      "description": "Validates area+vnum equality and guard behavior",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "wnum_match",
+        "test_cases": [
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "compare_area": "Limbo",
+            "compare_vnum": 1,
+            "expected": true
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "compare_area": "Limbo",
+            "compare_vnum": 2,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "compare_area": "Bootstrap Reserved",
+            "compare_vnum": 1,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "compare_vnum": 1,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "compare_area": "Limbo",
+            "compare_vnum": 0,
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "wnum_match_room_core_cases",
+      "description": "Validates room matching and clone-room guard behavior",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "wnum_match_room",
+        "test_cases": [
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "room_area": "Limbo",
+            "room_vnum": 1,
+            "expected": true
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 2,
+            "room_area": "Limbo",
+            "room_vnum": 1,
+            "expected": false
+          },
+          {
+            "wnum_area": "Bootstrap Reserved",
+            "wnum_vnum": 1,
+            "room_area": "Limbo",
+            "room_vnum": 1,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "room_area": "Limbo",
+            "room_vnum": 1,
+            "room_is_clone": true,
+            "expected": false
+          },
+          {
+            "wnum_area": "Limbo",
+            "wnum_vnum": 1,
+            "use_null_room": true,
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

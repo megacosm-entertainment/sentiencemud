@@ -37,84 +37,100 @@
 
 struct npc_ship_type
 {
-	int npc_ship_type;
+    int npc_ship_type;
         int ship_type;
 };
 
 struct exp_table
 {
-	long exp;
+    long exp;
 };
 
 struct hint_type
 {
-	char *hint;
+    char *hint;
 };
 
 struct wepHitDice
 {
-	int num;
-	int type;
+    int num;
+    int type;
 };
 
 struct exp_type
 {
-	char class;
-	long exp;
+    char class;
+    long exp;
 };
 
 struct church_rank_type
 {
-	char * rank_name;
+    char * rank_name;
 };
 
 struct church_band_rank_type
 {
-	char * mrank_name; /* males */
-	char * frank_name; /* females */
+    char * mrank_name; /* males */
+    char * frank_name; /* females */
 };
 
 struct church_cult_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct church_order_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct church_church_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct court_rank_type
 {
-	char * mrank_name;
-	char * frank_name;
+    char * mrank_name;
+    char * frank_name;
 };
 
 struct talk_type
 {
-	char * from;
-	char * to;
+    char * from;
+    char * to;
 };
 
 struct string_type
 {
-	char * name;
+    char * name;
 };
 
+/**
+ * struct flag_type - Universal flag/stat table entry
+ *
+ * Used throughout the codebase for mapping between flag names and bit values.
+ * Supports both "stats" (single-value enumerations like sex, position) and
+ * "flags" (bitmasks where multiple values can be combined like ACT_, AFF_).
+ *
+ * The distinction between stats and flags is determined by whether the table
+ * appears in flag_stat_table[] in bit.c. Stats use exact match on bit value,
+ * flags use IS_SET() for bitmask matching.
+ *
+ * @name        String name of the flag (e.g., "sanctuary", "glow")
+ * @bit         Bit value or enumeration value
+ * @settable    Whether this flag can be modified via OLC/commands
+ * @description Optional description for help/documentation (may be NULL)
+ */
 struct flag_type
 {
     char *name;
     long bit;
     bool settable;
-	char *description;
+    char *description;
 };
 
 struct church_type
@@ -148,20 +164,20 @@ struct size_type
 
 struct	bit_type
 {
-	const	struct	flag_type *	table;
-	char *				help;
+    const	struct	flag_type *	table;
+    char *				help;
 };
 
 struct do_func_type
 {
-	char *name;
-	DO_FUN *func;
+    char *name;
+    DO_FUN *func;
 };
 
 struct spell_func_type
 {
-	char *name;
-	SPELL_FUN *func;
+    char *name;
+    SPELL_FUN *func;
 };
 
 
@@ -179,7 +195,7 @@ struct game_setting_type {
     char *help;              /* Help text */
     bool olc_settable;       /* Can be modified through OLC */
     bool requires_reboot;    /* Requires reboot to take effect */
-	bool sensitive;		 /* Sensitive setting */
+    bool sensitive;		 /* Sensitive setting */
 };
 
 typedef struct church_log_meta_category {
@@ -200,6 +216,8 @@ extern	const	struct	church_band_rank_type	church_band_rank_table[];
 extern	const	struct	church_cult_rank_type	church_cult_rank_table[];
 extern	const	struct	church_order_rank_type	church_order_rank_table[];
 extern	const	struct	church_church_rank_type	church_church_rank_table[];
+/* DEPRECATED: Use class_exp_per_level() from class_data.h instead.
+ * This table is retained only for legacy compatibility during migration. */
 extern  const   struct  exp_table	exp_per_level_table[];
 extern	const	struct	position_type	position_table[];
 extern	const	struct	sex_type	sex_table[];
@@ -215,6 +233,8 @@ extern  const   struct  string_type     object_damage_table[];
 extern  const   struct  flag_type       token_flags[];
 extern  const   struct  flag_type       area_flags[];
 extern	const	struct	flag_type	place_flags[];
+extern	const	struct	flag_type	area_region_flags[];
+extern	const	struct	flag_type	wilderness_regions[];
 extern	const	struct	flag_type	act_flags[];
 extern	const	struct	flag_type	act2_flags[];
 extern	const	struct	flag_type   *act_flagbank[];
@@ -279,11 +299,10 @@ extern  const   struct  flag_type	channel_flags[];
 extern  const   struct  flag_type       project_flags[];
 extern  const   struct  flag_type       immortal_flags[];
 extern  const	struct	flag_type	damage_classes[];
-extern  const	struct	flag_type	relic_types[];
 extern	const	struct	flag_type	script_flags[];
 extern	const	struct	flag_type	interrupt_action_types[];
 extern	const struct flag_type corpse_types[];
-extern	const struct corpse_info corpse_info_table[];
+extern	struct corpse_info corpse_info_table[];
 extern	const struct flag_type time_of_day_flags[];
 extern	const struct flag_type death_types[];
 extern	const struct flag_type tool_types[];
@@ -306,6 +325,7 @@ extern	const struct flag_type instrument_flags[];
 extern	const struct flag_type corpse_object_flags[];
 extern	const struct flag_type variable_types[];
 extern	const struct flag_type skill_flags[];
+extern	const struct flag_type song_flags[];
 
 extern	const struct flag_type shop_flags[];
 
@@ -313,6 +333,7 @@ extern	const struct flag_type blueprint_section_flags[];
 extern	const struct flag_type blueprint_section_types[];
 extern	const struct flag_type instance_flags[];
 extern	const struct flag_type dungeon_flags[];
+extern	const struct flag_type death_release_types[];
 
 extern	const struct flag_type transfer_modes[];
 
@@ -336,6 +357,13 @@ extern const char *setting_category_names[];
 extern const char *setting_type_names[];
 extern const struct flag_type church_permission_flags[];
 extern const struct flag_type church_log_category_flags[];
+extern const struct flag_type quest_v2_flags[];
 extern const CHURCH_LOG_META_CATEGORY church_log_meta_categories[];
 extern const struct flag_type staff_ranks[];
+extern const struct flag_type body_types[];
+extern const struct flag_type reward_types[];
+extern const struct flag_type armor_types[];
+extern const struct flag_type cart_flags[];
+extern const struct flag_type light_flags[];
+extern const struct flag_type scroll_flags[];
 #endif

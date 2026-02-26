@@ -1,0 +1,83 @@
+{
+  "type": "test_suite",
+  "test_suite": "database_integrity",
+  "description": "Database and system integrity validation",
+  "version": "1.0",
+  "requires_mud_environment": true, 
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 45,
+  "tests": [
+    {
+      "name": "global_config_validation",
+      "description": "Verify global configuration is valid",
+      "dependencies": [],
+      "test_type": "config_validator",
+      "input": {
+        "strict": false,
+        "checks": [
+          "next_area_uid_valid",
+          "memory_allocator_working",
+          "logging_system_active"
+        ]
+      },
+      "expected_output": {
+        "next_area_uid_positive": true,
+        "allocator_functional": true,
+        "logging_active": true,
+        "success": true
+      }
+    },
+    {
+      "name": "area_uid_uniqueness",
+      "description": "Verify all areas have unique UIDs",
+      "dependencies": ["global_config_validation"],
+      "test_type": "uid_uniqueness_check", 
+      "input": {
+        "scan_range": [1, 1000000],
+        "check_duplicates": true,
+        "area_count_positive": true
+      },
+      "expected_output": {
+        "unique_uids": true,
+        "duplicate_count": 0,
+        "area_count_positive": true,
+        "success": true
+      }
+    },
+    {
+      "name": "area_data_integrity_baseline",
+      "description": "Verify loaded area metadata is structurally sane",
+      "dependencies": ["area_uid_uniqueness"],
+      "test_type": "area_integrity_check",
+      "input": {
+        "checks": [
+          "area_exists",
+          "valid_uid",
+          "area_name_not_empty",
+          "no_duplicate_uids"
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "bootstrap_tests_fixture_still_present",
+      "description": "Verify bootstrap tests fixture area remains discoverable",
+      "dependencies": ["area_data_integrity_baseline"],
+      "test_type": "area_existence_check",
+      "input": {
+        "required_areas": [
+          {
+            "name": "Bootstrap Tests",
+            "expected_uid": 3,
+            "required": true
+          }
+        ]
+      },
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

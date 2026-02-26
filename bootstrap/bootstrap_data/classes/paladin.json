@@ -1,0 +1,54 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "paladin",
+        "male": "paladin",
+        "neutral": "paladin",
+        "other": "paladin"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "warrior skills",
+        "paladin skills"
+    ],
+    "hp_max": 15,
+    "hp_min": 11,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "paladin",
+    "primary_stat": "strength",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "warrior skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "paladin skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "paladin",
+            "keyword": "default",
+            "who_name": "  Paladin   "
+        }
+    ],
+    "type": "warrior",
+    "uid": 3,
+    "weapon": 0,
+    "who": {
+        "female": "  Paladin   ",
+        "male": "  Paladin   ",
+        "neutral": "  Paladin   ",
+        "other": "  Paladin   "
+    }
+}

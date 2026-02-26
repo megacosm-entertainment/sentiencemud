@@ -1,0 +1,27 @@
+{
+    "name": "paladin skills",
+    "skills": [
+        "refresh",
+        "cure critical",
+        "rescue",
+        "dual wield",
+        "disarm",
+        "armour",
+        "bless",
+        "shield and weapon style",
+        "remove curse",
+        "cure disease",
+        "cure poison",
+        "shield block",
+        "stone skin",
+        "cure blindness",
+        "polearm",
+        "cure serious",
+        "cure light",
+        "cause light",
+        "cause serious",
+        "continual light",
+        "mount and weapon style",
+        "smite"
+    ]
+}

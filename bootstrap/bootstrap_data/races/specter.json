@@ -1,0 +1,88 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "specter",
+  "uid": 20,
+  "name": "specter",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": "drow"
+  },
+  "display": {
+    "who_name": "{RSpectr"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": -1,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs",
+      "wings"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [
+      "infrared"
+    ],
+    "offensive": [
+      "dodge"
+    ],
+    "immunities": [],
+    "resistances": [
+      "charm"
+    ],
+    "vulnerabilities": [
+      "light",
+      "silver"
+    ]
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 20,
+      "int": 24,
+      "wis": 22,
+      "dex": 22,
+      "con": 20
+    },
+    "max_vitals": {
+      "hp": 3250,
+      "mana": 4000,
+      "move": 3100
+    }
+  },
+  "skills": [
+    "swerve",
+    "sneak",
+    "hide",
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": []
+}

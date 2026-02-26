@@ -1,0 +1,55 @@
+{
+    "_format": "class_data",
+    "_version": 1,
+    "display": {
+        "female": "warlord",
+        "male": "warlord",
+        "neutral": "warlord",
+        "other": "warlord"
+    },
+    "enter_function": null,
+    "flags": [
+        "combative",
+        "remort_only"
+    ],
+    "gains_mana": false,
+    "groups": [
+        "warrior skills",
+        "warlord skills"
+    ],
+    "hp_max": 15,
+    "hp_min": 11,
+    "leave_function": null,
+    "max_level": 30,
+    "name": "warlord",
+    "primary_stat": "strength",
+    "rewards": [
+        {
+            "level": 1,
+            "name": "warrior skills",
+            "type": "group"
+        },
+        {
+            "level": 1,
+            "name": "warlord skills",
+            "type": "group"
+        }
+    ],
+    "titles": [
+        {
+            "default": true,
+            "display": "warlord",
+            "keyword": "default",
+            "who_name": "  Warlord   "
+        }
+    ],
+    "type": "warrior",
+    "uid": 13,
+    "weapon": 0,
+    "who": {
+        "female": "  Warlord   ",
+        "male": "  Warlord   ",
+        "neutral": "  Warlord   ",
+        "other": "  Warlord   "
+    }
+}

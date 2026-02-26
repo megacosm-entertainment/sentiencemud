@@ -33,70 +33,81 @@
 #include "tables.h"
 
 
-/*****************************************************************************
- Name:		flag_stat_table
- Purpose:	This table catagorizes the tables following the lookup
- 		functions below into stats and flags.  Flags can be toggled
- 		but stats can only be assigned.  Update this table when a
- 		new set of flags is installed.
- ****************************************************************************/
-
-
+/**
+ * flag_stat_table - Registry of stat-type flag tables
+ *
+ * This table categorizes flag tables into "stats" (single-value enumerations)
+ * versus "flags" (bitmasks). Tables listed here are treated as stats where
+ * only one value can be set at a time. Tables NOT listed are treated as
+ * flags where multiple values can be combined with SET_BIT().
+ *
+ * Examples of stats: sex_flags, position_flags, size_flags
+ * Examples of flags: act_flags, affect_flags, extra_flags
+ *
+ * Update this table when adding new stat-type flag tables.
+ */
 const struct flag_type *flag_stat_table[] =
 {
-	sex_flags,
-	door_resets,
-	sector_flags,
-	
-	type_flags,
-	apply_flags,
-	wear_loc_flags,
-	wear_loc_strings,
-	wear_loc_names,
-	ac_type,
-	size_flags,
-	position_flags,
-	
-	weapon_class,
-	apply_types,
-	damage_classes,
-	ranged_weapon_class,
-	catalyst_types,
+    sex_flags,
+    door_resets,
+    sector_flags,
     
-	affgroup_mobile_flags,
-	affgroup_object_flags,
-	catalyst_types,
-	boolean_types,
-	moon_phases,
-	spell_target_types,
-	area_who_titles,
-	area_who_display,
-	instrument_types,
-	place_flags,
-	corpse_types,
-	variable_types,
-	blueprint_section_types,
-	transfer_modes,
-	ship_class_types,
+    type_flags,
+    apply_flags,
+    wear_loc_flags,
+    wear_loc_strings,
+    wear_loc_names,
+    ac_type,
+    size_flags,
+    position_flags,
+    
+    weapon_class,
+    apply_types,
+    damage_classes,
+    ranged_weapon_class,
+    catalyst_types,
+    
+    affgroup_mobile_flags,
+    affgroup_object_flags,
+    catalyst_types,
+    boolean_types,
+    moon_phases,
+    spell_target_types,
+    area_who_titles,
+    area_who_display,
+    instrument_types,
+    place_flags,
+    wilderness_regions,
+    corpse_types,
+    variable_types,
+    blueprint_section_types,
+    transfer_modes,
+    ship_class_types,
 
-	stock_types,
-	tattoo_loc_flags,
-	song_target_types,
+    stock_types,
+    tattoo_loc_flags,
+    song_target_types,
 
-	armour_strength_table,
+    armour_strength_table,
 
-	command_types,
-	staff_ranks,
+    command_types,
+    staff_ranks,
+    body_types,
+    reward_types,
 
     NULL
 };
 
-/*****************************************************************************
- Name:		is_stat( table )
- Purpose:	Returns true if the table is a stat table and false if flag.
- Called by:	flag_value and flag_string.
- Note:		This function is local and used only in bit.c.
- ****************************************************************************/
+/**
+ * is_stat - Check if a flag table is a stat table or a flag table
+ *
+ * Searches flag_stat_table[] to determine if the given table should
+ * be treated as a stat (single-value) or flag (bitmask). Used by
+ * flag_value() and flag_string() to determine parsing behavior.
+ *
+ * @param flag_table  Flag table to check
+ * @return            true if stat table (single-value), false if flag table (bitmask)
+ */
 bool is_stat( register const struct flag_type *flag_table )
 {
     register const struct flag_type **f = flag_stat_table;
@@ -112,11 +123,16 @@ bool is_stat( register const struct flag_type *flag_table )
 }
 
 
-/*****************************************************************************
- Name:		flag_value( table, flag )
- Purpose:	Returns the value of the flags entered.  Multi-flags accepted.
- Called by:	olc.c and olc_act.c.
- ****************************************************************************/
+/**
+ * flag_value - Parse flag name(s) from string and return bit value
+ *
+ * For stat tables: Parses first word and returns exact match value.
+ * For flag tables: Parses all words and returns OR'd bitmask of all matches.
+ *
+ * @param flag_table  Flag table to look up names in
+ * @param argument    Space-separated flag name(s) to parse
+ * @return            Bit value(s) or NO_FLAG if no matches found
+ */
 long flag_value( const struct flag_type *flag_table, char *argument)
 {
     char word[MAX_INPUT_LENGTH];
@@ -128,12 +144,13 @@ long flag_value( const struct flag_type *flag_table, char *argument)
 
     if ( is_stat( flag_table ) )
     {
-	one_argument( argument, word );
+    one_argument( argument, word );
 
-	if ( ( bit = flag_lookup( word, flag_table ) ) != 0 )
-	    return bit;
-	else
-	    return NO_FLAG;
+    /* Use stat_lookup with NO_FLAG sentinel so that value 0 is valid.
+     * flag_lookup returns 0 for not-found, which is ambiguous when
+     * 0 is a legitimate enum value (e.g., BODY_TYPE_NEUTRAL). */
+    bit = stat_lookup( word, flag_table, NO_FLAG );
+    return bit;
     }
 
     /*
@@ -144,7 +161,7 @@ long flag_value( const struct flag_type *flag_table, char *argument)
         argument = one_argument( argument, word );
 
         if ( word[0] == '\0' )
-	    break;
+        break;
 
         if ( ( bit = flag_lookup( word, flag_table ) ) != 0 )
         {
@@ -154,17 +171,24 @@ long flag_value( const struct flag_type *flag_table, char *argument)
     }
 
     if ( found )
-	return marked;
+    return marked;
     else
-	return NO_FLAG;
+    return NO_FLAG;
 }
 
 
-/*****************************************************************************
- Name:		flag_string( table, flags/stat )
- Purpose:	Returns string with name(s) of the flags or stat entered.
- Called by:	act_olc.c, olc.c, and olc_save.c.
- ****************************************************************************/
+/**
+ * flag_string - Convert bit value(s) to space-separated name string
+ *
+ * For stat tables: Returns the name matching the exact bit value.
+ * For flag tables: Returns space-separated list of all matching flag names.
+ *
+ * Uses rotating static buffer (4 buffers) for return value.
+ *
+ * @param flag_table  Flag table to look up names in
+ * @param bits        Bit value(s) to convert
+ * @return            Space-separated name string, or "none" if no matches
+ */
 char *flag_string( const struct flag_type *flag_table, long bits )
 {
     static char buf[4][512];
@@ -174,31 +198,39 @@ char *flag_string( const struct flag_type *flag_table, long bits )
     if (!flag_table) return "none";
 
     if ( ++cnt > 3 )
-    	cnt = 0;
+        cnt = 0;
 
     buf[cnt][0] = '\0';
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if ( !is_stat( flag_table ) && IS_SET(bits, flag_table[flag].bit) )
-	{
-	    strcat( buf[cnt], " " );
-	    strcat( buf[cnt], flag_table[flag].name );
-	}
-	else
-	if ( flag_table[flag].bit == bits )
-	{
-	    strcat( buf[cnt], " " );
-	    strcat( buf[cnt], flag_table[flag].name );
-	    break;
-	}
+    if ( !is_stat( flag_table ) && IS_SET(bits, flag_table[flag].bit) )
+    {
+        strcat( buf[cnt], " " );
+        strcat( buf[cnt], flag_table[flag].name );
+    }
+    else
+    if ( flag_table[flag].bit == bits )
+    {
+        strcat( buf[cnt], " " );
+        strcat( buf[cnt], flag_table[flag].name );
+        break;
+    }
     }
     return (buf[cnt][0] != '\0') ? buf[cnt]+1 : "none";
 }
 
 
-/* Exactly identical to flag_string in every way except that it's delimited
-   by commas instead of spaces. */
+/**
+ * flag_string_commas - Convert bit value(s) to comma-separated name string
+ *
+ * Identical to flag_string() but uses ", " as delimiter instead of " ".
+ * Uses rotating static buffer (2 buffers) for return value.
+ *
+ * @param flag_table  Flag table to look up names in
+ * @param bits        Bit value(s) to convert
+ * @return            Comma-separated name string, or "none" if no matches
+ */
 char *flag_string_commas( const struct flag_type *flag_table, long bits )
 {
     static char buf[2][512];
@@ -208,24 +240,24 @@ char *flag_string_commas( const struct flag_type *flag_table, long bits )
     if (!flag_table) return "none";
 
     if ( ++cnt > 1 )
-    	cnt = 0;
+        cnt = 0;
 
     buf[cnt][0] = '\0';
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if ( !is_stat( flag_table ) && IS_SET(bits, flag_table[flag].bit) )
-	{
-	    strcat( buf[cnt], ", " );
-	    strcat( buf[cnt], flag_table[flag].name );
-	}
-	else
-	if ( flag_table[flag].bit == bits )
-	{
-	    strcat( buf[cnt], ", " );
-	    strcat( buf[cnt], flag_table[flag].name );
-	    break;
-	}
+    if ( !is_stat( flag_table ) && IS_SET(bits, flag_table[flag].bit) )
+    {
+        strcat( buf[cnt], ", " );
+        strcat( buf[cnt], flag_table[flag].name );
+    }
+    else
+    if ( flag_table[flag].bit == bits )
+    {
+        strcat( buf[cnt], ", " );
+        strcat( buf[cnt], flag_table[flag].name );
+        break;
+    }
     }
 
     return (buf[cnt][0] != '\0') ? buf[cnt]+1 : "none";
@@ -234,48 +266,57 @@ char *flag_string_commas( const struct flag_type *flag_table, long bits )
 
 /* the following functions return ASCII names for bit vectors */
 
-/*
- * Return ascii name of an affect location.
+/**
+ * affect_loc_name - Get display name for an affect location constant
+ *
+ * Converts APPLY_* constants to human-readable strings.
+ * Special handling for skill affects (APPLY_SKILL range).
+ *
+ * @param location  APPLY_* constant
+ * @return          Human-readable name string
  */
 char *affect_loc_name( int location )
 {
-	static char buf[4][MIL];
-	static int i = -1;
+    static char buf[4][MIL];
+    static int i = -1;
 
-	i = (i+1)&3;
+    i = (i+1)&3;
 
     switch ( location )
     {
-	case APPLY_NONE:		return "none";
-	case APPLY_STR:			return "strength";
-	case APPLY_DEX:			return "dexterity";
-	case APPLY_INT:			return "intelligence";
-	case APPLY_WIS:			return "wisdom";
-	case APPLY_CON:			return "constitution";
-	case APPLY_SEX:			return "sex";
-	case APPLY_MANA:		return "mana";
-	case APPLY_HIT:			return "hp";
-	case APPLY_MOVE:		return "moves";
-	case APPLY_GOLD:		return "gold";
-	case APPLY_AC:			return "armour class";
-	case APPLY_HITROLL:		return "hit roll";
-	case APPLY_DAMROLL:		return "damage roll";
-	case APPLY_SPELL_AFFECT:	return "none";
-	default:
-		if(location >= APPLY_SKILL && location < APPLY_SKILL_MAX && skill_table[location - APPLY_SKILL].name) {
-			sprintf(buf[i], "%s %%rating", skill_table[location - APPLY_SKILL].name);
-			return buf[i];
-		}
-		break;
+    case APPLY_NONE:		return "none";
+    case APPLY_STR:			return "strength";
+    case APPLY_DEX:			return "dexterity";
+    case APPLY_INT:			return "intelligence";
+    case APPLY_WIS:			return "wisdom";
+    case APPLY_CON:			return "constitution";
+    case APPLY_SEX:			return "sex";
+    case APPLY_MANA:		return "mana";
+    case APPLY_HIT:			return "hp";
+    case APPLY_MOVE:		return "moves";
+    case APPLY_GOLD:		return "gold";
+    case APPLY_AC:			return "armour class";
+    case APPLY_HITROLL:		return "hit roll";
+    case APPLY_DAMROLL:		return "damage roll";
+    case APPLY_SPELL_AFFECT:	return "none";
+    default:
+        if(location >= APPLY_SKILL && location < APPLY_SKILL_MAX && skill_table[location - APPLY_SKILL].name) {
+            sprintf(buf[i], "%s %%rating", skill_table[location - APPLY_SKILL].name);
+            return buf[i];
+        }
+        break;
     }
 
-    bug( "Affect_location_name: unknown location %d.", location );
+    pbugf(LOG_ERROR, "Affect_location_name: unknown location %d.", location );
     return "(unknown)";
 }
 
 
-/*
- * Return ascii name of an affect bit vector.
+/**
+ * affect_bit_name - Convert AFF_ bitmask to space-separated name string
+ *
+ * @param vector  AFF_* flags bitmask (ch->affected_by)
+ * @return        Space-separated string of affect names, or "none"
  */
 char *affect_bit_name( long vector )
 {
@@ -315,6 +356,12 @@ char *affect_bit_name( long vector )
 }
 
 
+/**
+ * affect2_bit_name - Convert AFF2_ bitmask to space-separated name string
+ *
+ * @param vector  AFF2_* flags bitmask (ch->affected_by2)
+ * @return        Space-separated string of affect names, or "none"
+ */
 char *affect2_bit_name( long vector )
 {
     static char buf[1024];
@@ -348,6 +395,16 @@ char *affect2_bit_name( long vector )
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
+/**
+ * affects_bit_name - Convert combined AFF_ and AFF2_ bitmasks to string
+ *
+ * Combines both affect bitmasks into a single alphabetically-sorted
+ * string of affect names.
+ *
+ * @param vector   AFF_* flags bitmask (ch->affected_by)
+ * @param vector2  AFF2_* flags bitmask (ch->affected_by2)
+ * @return         Space-separated string of affect names, or "none"
+ */
 char *affects_bit_name( long vector, long vector2 )
 {
     static char buf[2048];
@@ -412,8 +469,11 @@ char *affects_bit_name( long vector, long vector2 )
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
-/*
- * Return ascii name of extra flags vector.
+/**
+ * extra_bit_name - Convert ITEM_ extra[0] bitmask to string
+ *
+ * @param extra_flags  ITEM_* flags from obj->extra[0]
+ * @return             Space-separated string of flag names, or "none"
  */
 char *extra_bit_name( long extra_flags )
 {
@@ -448,6 +508,12 @@ char *extra_bit_name( long extra_flags )
 }
 
 
+/**
+ * extra2_bit_name - Convert ITEM_ extra[1] bitmask to string
+ *
+ * @param extra2_flags  ITEM_* flags from obj->extra[1]
+ * @return              Space-separated string of flag names, or "none"
+ */
 char *extra2_bit_name( long extra2_flags )
 {
     static char buf[512];
@@ -480,10 +546,17 @@ char *extra2_bit_name( long extra2_flags )
     if ( extra2_flags & ITEM_NOLOCKER		) strcat( buf, " no_locker"		);
     if ( extra2_flags & ITEM_NOAUCTION		) strcat( buf, " no_auction"		);
     if ( extra2_flags & ITEM_KEEP_VALUE		) strcat( buf, " keep_value"		);
+    if ( extra2_flags & ITEM_KEY_ITEM		) strcat( buf, " key_item"		);
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
 
+/**
+ * extra3_bit_name - Convert ITEM_ extra[2] bitmask to string
+ *
+ * @param extra3_flags  ITEM_* flags from obj->extra[2]
+ * @return              Space-separated string of flag names, or "none"
+ */
 char *extra3_bit_name( long extra3_flags )
 {
     static char buf[512];
@@ -502,6 +575,14 @@ char *extra3_bit_name( long extra3_flags )
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
+/**
+ * extra4_bit_name - Convert ITEM_ extra[3] bitmask to string
+ *
+ * Currently unused/empty. Reserved for future flag expansion.
+ *
+ * @param extra4_flags  ITEM_* flags from obj->extra[3]
+ * @return              Space-separated string of flag names, or "none"
+ */
 char *extra4_bit_name( long extra4_flags )
 {
     static char buf[512];
@@ -512,7 +593,19 @@ char *extra4_bit_name( long extra4_flags )
 
 
 
-/* return ascii name of an act vector */
+/**
+ * act_bit_name - Convert ACT/PLR bitmask to string based on type
+ *
+ * Handles different flag sets based on act_type parameter:
+ * - 1: NPC act flags (ch->act for NPCs)
+ * - 2: NPC act2 flags (ch->act2 for NPCs)
+ * - 3: Player act flags (ch->act for PCs)
+ * - 4: Player act2 flags (ch->act2 for PCs)
+ *
+ * @param act_type   Type selector (1-4)
+ * @param act_flags  ACT_ or PLR_ bitmask
+ * @return           Space-separated string of flag names, or "none"
+ */
 char *act_bit_name( int act_type, long act_flags )
 {
     static char buf[512];
@@ -520,93 +613,99 @@ char *act_bit_name( int act_type, long act_flags )
     buf[0] = '\0';
 
     switch(act_type) {
-	case 1:		// NPC->act
-		strcat(buf," npc");
-		if (act_flags & ACT_SENTINEL 	) strcat(buf, " sentinel");
-		if (act_flags & ACT_SCAVENGER	) strcat(buf, " scavenger");
-		if (act_flags & ACT_AGGRESSIVE	) strcat(buf, " aggressive");
-		if (act_flags & ACT_STAY_AREA	) strcat(buf, " stay_area");
-		if (act_flags & ACT_PROTECTED	) strcat(buf, " protected");
-		if (act_flags & ACT_WIMPY	) strcat(buf, " wimpy");
-		if (act_flags & ACT_PET		) strcat(buf, " pet");
-		if (act_flags & ACT_MOUNT	) strcat(buf, " mount");
-		if (act_flags & ACT_TRAIN	) strcat(buf, " train");
-		if (act_flags & ACT_PRACTICE	) strcat(buf, " practice");
-		if (act_flags & ACT_UNDEAD	) strcat(buf, " undead");
-		if (act_flags & ACT_CLERIC	) strcat(buf, " cleric");
-		if (act_flags & ACT_MAGE	) strcat(buf, " mage");
-		if (act_flags & ACT_THIEF	) strcat(buf, " thief");
-		if (act_flags & ACT_WARRIOR	) strcat(buf, " warrior");
-		if (act_flags & ACT_NOPURGE	) strcat(buf, " nopurge");
-		if (act_flags & ACT_IS_HEALER	) strcat(buf, " healer");
-		if (act_flags & ACT_IS_BANKER   ) strcat(buf, " banker");
-		if (act_flags & ACT_IS_RESTRINGER) strcat(buf, " restringer");
-		if (act_flags & ACT_IS_CHANGER  ) strcat(buf, " changer");
-		if (act_flags & ACT_UPDATE_ALWAYS) strcat(buf," update_always");
-		if (act_flags & ACT_QUESTOR) strcat(buf," questor");
-		if (act_flags & ACT_STAY_LOCALE) strcat(buf, " stay_locale");
-		break;
-	case 2:		// NPC->act2
-		if (act_flags & ACT2_CHURCHMASTER) strcat(buf, " churchmaster");
-	    if (act_flags & ACT2_NOQUEST ) strcat( buf, " noquest" );
-	    if (act_flags & ACT2_PLANE_TUNNELER ) strcat( buf, " plane_tunneler" );
- 	    if (act_flags & ACT2_NO_HUNT ) strcat( buf, " no_hunt" );
- 	    if (act_flags & ACT2_WIZI_MOB ) strcat( buf, " wizi_mob" );
- 	    if (act_flags & ACT2_AIRSHIP_SELLER ) strcat( buf, " airship_seller" );
-	    if (act_flags & ACT2_LOREMASTER ) strcat( buf, " loremaster" );
-	    if (act_flags & ACT2_NO_RESURRECT ) strcat( buf, " no_resurrect");
-	    if (act_flags & ACT2_DROP_EQ ) strcat( buf, " drop_eq");
-	    if (act_flags & ACT2_GQ_MASTER ) strcat( buf, " gq_master");
-	    if (act_flags & ACT2_SHIP_QUESTMASTER ) strcat( buf, " ship_quest_master" );
-	    if (act_flags & ACT2_SEE_ALL ) strcat(buf, " see_all");
-	    if (act_flags & ACT2_NO_CHASE ) strcat(buf, " no_chase");
-	    if (act_flags & ACT2_TAKES_SKULLS ) strcat( buf, " takes_skulls");
-	    if (act_flags & ACT2_PIRATE ) strcat( buf, " pirate");
-	    if (act_flags & ACT2_SEE_WIZI) strcat( buf, " see_wizi");
-	    if (act_flags & ACT2_SOUL_DEPOSIT) strcat( buf, " soul_deposit");
-		if (act_flags & ACT2_HIRED) strcat(buf, " hired");
+    case 1:		// NPC->act
+        strcat(buf," npc");
+        if (act_flags & ACT_SENTINEL 	) strcat(buf, " sentinel");
+        if (act_flags & ACT_SCAVENGER	) strcat(buf, " scavenger");
+        if (act_flags & ACT_AGGRESSIVE	) strcat(buf, " aggressive");
+        if (act_flags & ACT_STAY_AREA	) strcat(buf, " stay_area");
+        if (act_flags & ACT_PROTECTED	) strcat(buf, " protected");
+        if (act_flags & ACT_WIMPY	) strcat(buf, " wimpy");
+        if (act_flags & ACT_PET		) strcat(buf, " pet");
+        if (act_flags & ACT_MOUNT	) strcat(buf, " mount");
+        if (act_flags & ACT_TRAIN	) strcat(buf, " train");
+        if (act_flags & ACT_PRACTICE	) strcat(buf, " practice");
+        if (act_flags & ACT_UNDEAD	) strcat(buf, " undead");
+        if (act_flags & ACT_CLERIC	) strcat(buf, " cleric");
+        if (act_flags & ACT_MAGE	) strcat(buf, " mage");
+        if (act_flags & ACT_THIEF	) strcat(buf, " thief");
+        if (act_flags & ACT_WARRIOR	) strcat(buf, " warrior");
+        if (act_flags & ACT_NOPURGE	) strcat(buf, " nopurge");
+        if (act_flags & ACT_IS_HEALER	) strcat(buf, " healer");
+        if (act_flags & ACT_IS_BANKER   ) strcat(buf, " banker");
+        if (act_flags & ACT_IS_RESTRINGER) strcat(buf, " restringer");
+        if (act_flags & ACT_IS_CHANGER  ) strcat(buf, " changer");
+        if (act_flags & ACT_UPDATE_ALWAYS) strcat(buf," update_always");
+        if (act_flags & ACT_QUESTOR) strcat(buf," questor");
+        if (act_flags & ACT_STAY_LOCALE) strcat(buf, " stay_locale");
+        break;
+    case 2:		// NPC->act2
+        if (act_flags & ACT2_CHURCHMASTER) strcat(buf, " churchmaster");
+        if (act_flags & ACT2_NOQUEST ) strcat( buf, " noquest" );
+        if (act_flags & ACT2_PLANE_TUNNELER ) strcat( buf, " plane_tunneler" );
+         if (act_flags & ACT2_NO_HUNT ) strcat( buf, " no_hunt" );
+         if (act_flags & ACT2_WIZI_MOB ) strcat( buf, " wizi_mob" );
+         if (act_flags & ACT2_AIRSHIP_SELLER ) strcat( buf, " airship_seller" );
+        if (act_flags & ACT2_LOREMASTER ) strcat( buf, " loremaster" );
+        if (act_flags & ACT2_NO_RESURRECT ) strcat( buf, " no_resurrect");
+        if (act_flags & ACT2_DROP_EQ ) strcat( buf, " drop_eq");
+        if (act_flags & ACT2_GQ_MASTER ) strcat( buf, " gq_master");
+        if (act_flags & ACT2_SHIP_QUESTMASTER ) strcat( buf, " ship_quest_master" );
+        if (act_flags & ACT2_SEE_ALL ) strcat(buf, " see_all");
+        if (act_flags & ACT2_NO_CHASE ) strcat(buf, " no_chase");
+        if (act_flags & ACT2_TAKES_SKULLS ) strcat( buf, " takes_skulls");
+        if (act_flags & ACT2_PIRATE ) strcat( buf, " pirate");
+        if (act_flags & ACT2_SEE_WIZI) strcat( buf, " see_wizi");
+        if (act_flags & ACT2_SOUL_DEPOSIT) strcat( buf, " soul_deposit");
+        if (act_flags & ACT2_HIRED) strcat(buf, " hired");
         if (act_flags & ACT2_ADVANCED_TRAINER) strcat(buf, " advanced_trainer");
-		break;
-	case 3:		// PC->act
-		strcat(buf," player");
-		if (act_flags & PLR_PK		) strcat(buf, " pk");
-		if (act_flags & PLR_AUTOEXIT	) strcat(buf, " autoexit");
-		if (act_flags & PLR_AUTOLOOT	) strcat(buf, " autoloot");
-		if (act_flags & PLR_AUTOSAC		) strcat(buf, " autosac");
-		if (act_flags & PLR_AUTOGOLD	) strcat(buf, " autogold");
-		if (act_flags & PLR_AUTOSPLIT	) strcat(buf, " autosplit");
-		if (act_flags & PLR_HOLYLIGHT	) strcat(buf, " holy_light");
-		if (act_flags & PLR_SHOWDAMAGE	) strcat(buf, " show_damage");
-		if (act_flags & PLR_AUTOEQ    	) strcat(buf, " autoeq");
-		if (act_flags & PLR_NOSUMMON	) strcat(buf, " no_summon");
-		if (act_flags & PLR_NOFOLLOW	) strcat(buf, " no_follow");
-		if (act_flags & PLR_FREEZE		) strcat(buf, " frozen");
-		if (act_flags & PLR_COLOUR		) strcat(buf, " colour");
-		if (act_flags & PLR_PURSUIT		) strcat(buf, " pursuit");
-		if (act_flags & PLR_BUILDING	) strcat(buf, " building");
-		break;
-	case 4:		// PC->act2
-		if (act_flags & PLR_AUTOSURVEY	) strcat(buf, " autosurvey");
-		if (act_flags & PLR_SACRIFICE_ALL	) strcat(buf, " sacrifice_all");
-		if (act_flags & PLR_NO_WAKE		) strcat(buf, " no_wake");
-		if (act_flags & PLR_HOLYAURA	) strcat(buf, " holy_aura");
-		if (act_flags & PLR_MOBILE		) strcat(buf, " mobile");
-		if (act_flags & PLR_FAVSKILLS		) strcat(buf, " favskills");
-		if (act_flags & PLR_HOLYWARP	) strcat(buf, " holy_warp");
-		if (act_flags & PLR_NORECKONING	) strcat(buf, " no_reckoning");
-		if (act_flags & PLR_NOLORE		) strcat(buf, " no_lore");
+        break;
+    case 3:		// PC->act
+        strcat(buf," player");
+        if (act_flags & PLR_PK		) strcat(buf, " pk");
+        if (act_flags & PLR_AUTOEXIT	) strcat(buf, " autoexit");
+        if (act_flags & PLR_AUTOLOOT	) strcat(buf, " autoloot");
+        if (act_flags & PLR_AUTOSAC		) strcat(buf, " autosac");
+        if (act_flags & PLR_AUTOGOLD	) strcat(buf, " autogold");
+        if (act_flags & PLR_AUTOSPLIT	) strcat(buf, " autosplit");
+        if (act_flags & PLR_HOLYLIGHT	) strcat(buf, " holy_light");
+        if (act_flags & PLR_SHOWDAMAGE	) strcat(buf, " show_damage");
+        if (act_flags & PLR_AUTOEQ    	) strcat(buf, " autoeq");
+        if (act_flags & PLR_NOSUMMON	) strcat(buf, " no_summon");
+        if (act_flags & PLR_NOFOLLOW	) strcat(buf, " no_follow");
+        if (act_flags & PLR_FREEZE		) strcat(buf, " frozen");
+        if (act_flags & PLR_COLOUR		) strcat(buf, " colour");
+        if (act_flags & PLR_PURSUIT		) strcat(buf, " pursuit");
+        if (act_flags & PLR_BUILDING	) strcat(buf, " building");
+        break;
+    case 4:		// PC->act2
+        if (act_flags & PLR_AUTOSURVEY	) strcat(buf, " autosurvey");
+        if (act_flags & PLR_SACRIFICE_ALL	) strcat(buf, " sacrifice_all");
+        if (act_flags & PLR_NO_WAKE		) strcat(buf, " no_wake");
+        if (act_flags & PLR_HOLYAURA	) strcat(buf, " holy_aura");
+        if (act_flags & PLR_MOBILE		) strcat(buf, " mobile");
+        if (act_flags & PLR_FAVSKILLS		) strcat(buf, " favskills");
+        if (act_flags & PLR_HOLYWARP	) strcat(buf, " holy_warp");
+        if (act_flags & PLR_NORECKONING	) strcat(buf, " no_reckoning");
+        if (act_flags & PLR_NOLORE		) strcat(buf, " no_lore");
         if (act_flags & PLR_COMPASS     ) strcat(buf, " compass");
         if (act_flags & PLR_AUTOCAT     ) strcat(buf, " autocat");
         if (act_flags & PLR_STAFF       ) strcat(buf, " staff");
         if (act_flags & PLR_AUTOAFK     ) strcat(buf, " autoafk");
         if (act_flags & PLR_HIDE_IDLE   ) strcat(buf, " hide_idle");
         if (act_flags & PLR_SHOW_TIMESTAMPS   ) strcat(buf, " show_timestamps");
-		break;
-	}
+        break;
+    }
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
 
+/**
+ * comm_bit_name - Convert COMM_ bitmask to string
+ *
+ * @param comm_flags  COMM_ flags bitmask (ch->comm)
+ * @return            Space-separated string of flag names, or "none"
+ */
 char *comm_bit_name(int comm_flags)
 {
     static char buf[512];
@@ -629,6 +728,12 @@ char *comm_bit_name(int comm_flags)
 }
 
 
+/**
+ * imm_bit_name - Convert IMM_ (immunity) bitmask to string
+ *
+ * @param imm_flags  IMM_ flags bitmask (ch->imm_flags)
+ * @return           Space-separated string of immunity names, or "none"
+ */
 char *imm_bit_name(int imm_flags)
 {
     static char buf[512];
@@ -668,6 +773,12 @@ char *imm_bit_name(int imm_flags)
 }
 
 
+/**
+ * res_bit_name - Convert RES_ (resistance) bitmask to string
+ *
+ * @param res_flags  RES_ flags bitmask (ch->res_flags)
+ * @return           Space-separated string of resistance names, or "none"
+ */
 char *res_bit_name(int res_flags)
 {
     static char buf[512];
@@ -707,7 +818,13 @@ char *res_bit_name(int res_flags)
 }
 
 
-char *vuln_bit_name(int vuln_flags)
+/**
+ * vuln_bit_name - Convert VULN_ (vulnerability) bitmask to string
+ *
+ * @param vuln_flags  VULN_ flags bitmask (ch->vuln_flags)
+ * @return            Space-separated string of vulnerability names, or "none"
+ */
+char *vuln_bit_name(long vuln_flags)
 {
     static char buf[512];
 
@@ -746,6 +863,12 @@ char *vuln_bit_name(int vuln_flags)
 }
 
 
+/**
+ * wear_bit_name - Convert ITEM_WEAR_ bitmask to string
+ *
+ * @param wear_flags  ITEM_WEAR_ flags bitmask (obj->wear_flags)
+ * @return            Space-separated string of wear location names, or "none"
+ */
 char *wear_bit_name(int wear_flags)
 {
     static char buf[512];
@@ -777,6 +900,12 @@ char *wear_bit_name(int wear_flags)
 }
 
 
+/**
+ * form_bit_name - Convert FORM_ bitmask to string
+ *
+ * @param form_flags  FORM_ flags bitmask (ch->form)
+ * @return            Space-separated string of form names, or "none"
+ */
 char *form_bit_name(long form_flags)
 {
     static char buf[512];
@@ -813,6 +942,15 @@ char *form_bit_name(long form_flags)
 }
 
 
+/**
+ * part_bit_name - Convert body part flags to readable string
+ *
+ * Translates a PART_* bitmask into a space-separated string of body part
+ * names. Used for displaying mobile anatomy (head, arms, legs, etc.).
+ *
+ * @param part_flags  PART_* bitmask to convert
+ * @return            Static buffer with part names, or "none" if empty
+ */
 char *part_bit_name(int part_flags)
 {
     static char buf[512];
@@ -845,6 +983,15 @@ char *part_bit_name(int part_flags)
 }
 
 
+/**
+ * weapon_bit_name - Convert weapon property flags to readable string
+ *
+ * Translates a WEAPON_* bitmask into a space-separated string of weapon
+ * properties and enchantments (flaming, frost, vampiric, two-handed, etc.).
+ *
+ * @param weapon_flags  WEAPON_* bitmask to convert
+ * @return              Static buffer with weapon properties, or "none" if empty
+ */
 char *weapon_bit_name(int weapon_flags)
 {
     static char buf[512];
@@ -874,6 +1021,15 @@ char *weapon_bit_name(int weapon_flags)
 }
 
 
+/**
+ * cont_bit_name - Convert container flags to readable string
+ *
+ * Translates a CONT_* bitmask into a space-separated string of container
+ * properties (closable, locked, pickproof, etc.).
+ *
+ * @param cont_flags  CONT_* bitmask to convert
+ * @return            Static buffer with container properties, or "none" if empty
+ */
 char *cont_bit_name( int cont_flags)
 {
     static char buf[512];
@@ -892,6 +1048,16 @@ char *cont_bit_name( int cont_flags)
 }
 
 
+/**
+ * off_bit_name - Convert offensive capability flags to readable string
+ *
+ * Translates an OFF_* / ASSIST_* bitmask into a space-separated string of
+ * combat abilities and assistance behaviors for mobiles (backstab, bash,
+ * kick, assist_all, etc.).
+ *
+ * @param off_flags  OFF_* and ASSIST_* bitmask to convert
+ * @return           Static buffer with offensive abilities, or "none" if empty
+ */
 char *off_bit_name(int off_flags)
 {
     static char buf[512];
@@ -925,6 +1091,15 @@ char *off_bit_name(int off_flags)
 }
 
 
+/**
+ * channel_flag_bit_name - Convert channel flags to readable string
+ *
+ * Translates a FLAG_* bitmask into a space-separated string of
+ * communication channel names (gossip, tells, ooc, music, etc.).
+ *
+ * @param channel_flags  FLAG_* bitmask for channels
+ * @return               Static buffer with channel names, or "none" if empty
+ */
 char *channel_flag_bit_name(int channel_flags)
 {
     static char buf[512];
@@ -945,6 +1120,22 @@ char *channel_flag_bit_name(int channel_flags)
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
+/**
+ * bitvector_lookup - Parse flag names across multiple flag tables
+ *
+ * Parses space-separated flag names from argument and looks them up
+ * across multiple flag tables (banks). Sets the corresponding bits in
+ * the output banks array. Useful for parsing flags that span multiple
+ * flag tables (e.g., affect_flags + affect2_flags).
+ *
+ * Variadic arguments should be flag_type pointers, one per bank.
+ *
+ * @param argument  Space-separated list of flag names to parse
+ * @param nbanks    Number of flag table banks
+ * @param banks     Output array of bit values (one per bank)
+ * @param ...       Variable flag_type* tables, one per bank
+ * @return          true if all names were valid, false if any unrecognized
+ */
 bool bitvector_lookup(char *argument, int nbanks, long *banks, ...)
 {
     char word[MIL];
@@ -991,6 +1182,22 @@ bool bitvector_lookup(char *argument, int nbanks, long *banks, ...)
     return valid;
 }
 
+/**
+ * bitmatrix_lookup - Parse flag names using a NULL-terminated flagbank array
+ *
+ * Similar to bitvector_lookup but uses a pre-defined flagbank array
+ * (NULL-terminated array of flag_type pointers) instead of variadic args.
+ * Parses flag names and sets corresponding bits in the output flags array.
+ *
+ * Example usage with affect_flagbank (contains affect_flags, affect2_flags):
+ *   long flags[2];
+ *   bitmatrix_lookup("sanctuary haste", affect_flagbank, flags);
+ *
+ * @param argument  Space-separated list of flag names to parse
+ * @param bank      NULL-terminated array of flag_type* tables
+ * @param flags     Output array of bit values (one per table in bank)
+ * @return          true if all names were valid, false if any unrecognized
+ */
 bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags)
 {
     char word[MIL];
@@ -1033,6 +1240,18 @@ bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags
     return valid;
 }
 
+/**
+ * bitmatrix_isset - Check if all named flags are set in a flagbank
+ *
+ * Parses flag names from argument and verifies each one is set in the
+ * corresponding flags array. Uses a flagbank (NULL-terminated array of
+ * flag_type pointers) to look up which table each flag belongs to.
+ *
+ * @param argument  Space-separated list of flag names to check
+ * @param bank      NULL-terminated array of flag_type* tables
+ * @param flags     Array of current bit values to check against
+ * @return          true if all named flags are set, false otherwise
+ */
 bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags)
 {
     char word[MIL];
@@ -1073,17 +1292,26 @@ bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags)
     return valid;
 }
 
-// These will assume *ONLY* flags
-// Use flag_string for stats
-/*
-Example:
-
-long bit = AFF_SANCTUARY;
-long bit2 = AFF_ELECTRICAL_BARRIER;
-
-char *text = bitvector_string(2, bit, affect_flags, bit2, affect2_flags);
-
-*/
+/**
+ * bitvector_string - Convert multiple flag bitmasks to readable string
+ *
+ * Converts bitmasks from multiple flag tables into a single space-separated
+ * string. Assumes flags (bitmasks), not stats. Use flag_string() for stats.
+ *
+ * Variadic arguments alternate between bit values and their flag tables:
+ *   bitvector_string(2, bits1, table1, bits2, table2);
+ *
+ * Uses a rotating buffer of 4 static strings for safe concurrent usage.
+ *
+ * Example:
+ *   long bit = AFF_SANCTUARY;
+ *   long bit2 = AFF_ELECTRICAL_BARRIER;
+ *   char *text = bitvector_string(2, bit, affect_flags, bit2, affect2_flags);
+ *
+ * @param nbanks  Number of bit/table pairs to process
+ * @param ...     Alternating: long bits, const struct flag_type* table
+ * @return        Static buffer with all flag names, or "none" if empty
+ */
 char *bitvector_string(int nbanks, ...)
 {
     static char buf[4][512];
@@ -1091,7 +1319,7 @@ char *bitvector_string(int nbanks, ...)
     va_list args;
 
     if ( ++cnt > 3 )
-    	cnt = 0;
+        cnt = 0;
 
     buf[cnt][0] = '\0';
 
@@ -1115,6 +1343,19 @@ char *bitvector_string(int nbanks, ...)
     return buf[cnt][0] ? (buf[cnt] + 1) : "none";
 }
 
+/**
+ * bitmatrix_string - Convert flagbank bitmasks to readable string
+ *
+ * Converts bitmasks using a NULL-terminated flagbank array into a single
+ * space-separated string of flag names. Each element in flags array
+ * corresponds to the matching table in the bank array.
+ *
+ * Uses a rotating buffer of 4 static strings for safe concurrent usage.
+ *
+ * @param bank   NULL-terminated array of flag_type* tables
+ * @param flags  Array of bit values (one per table in bank)
+ * @return       Static buffer with all flag names, or "none" if empty/NULL
+ */
 char *bitmatrix_string(const struct flag_type **bank, const long *flags)
 {
     static char buf[4][512];
@@ -1123,7 +1364,7 @@ char *bitmatrix_string(const struct flag_type **bank, const long *flags)
     if (!bank || !flags) return "none";
 
     if ( ++cnt > 3 )
-    	cnt = 0;
+        cnt = 0;
 
     buf[cnt][0] = '\0';
 
@@ -1148,6 +1389,19 @@ char *bitmatrix_string(const struct flag_type **bank, const long *flags)
     return buf[cnt][0] ? (buf[cnt] + 1) : "none";
 }
 
+/**
+ * flagbank_string - Convert flagbank bitmasks to string using variadic args
+ *
+ * Similar to bitmatrix_string but takes bit values as variadic arguments
+ * instead of an array. Each variadic long corresponds to the matching table
+ * in the bank array.
+ *
+ * Uses a rotating buffer of 4 static strings for safe concurrent usage.
+ *
+ * @param bank  NULL-terminated array of flag_type* tables
+ * @param ...   Variable long bit values, one per table in bank
+ * @return      Static buffer with all flag names, or "none" if empty
+ */
 char *flagbank_string(const struct flag_type **bank, ...)
 {
     static char buf[4][512];
@@ -1155,7 +1409,7 @@ char *flagbank_string(const struct flag_type **bank, ...)
     va_list args;
 
     if ( ++cnt > 3 )
-    	cnt = 0;
+        cnt = 0;
 
     buf[cnt][0] = '\0';
 

@@ -1,0 +1,75 @@
+{
+  "_version": "1.0",
+  "_format": "race_data",
+  "id": "avatar",
+  "uid": 15,
+  "name": "avatar",
+  "description": "",
+  "comments": "Imported from legacy tables",
+  "playable": true,
+  "starting": false,
+  "remort": {
+    "prerequisite_race": "human"
+  },
+  "display": {
+    "who_name": "{YAvatar"
+  },
+  "physical": {
+    "min_size": 2,
+    "max_size": 2,
+    "default_alignment": 0,
+    "form": [
+      "edible",
+      "sentient",
+      "biped",
+      "mammal"
+    ],
+    "parts": [
+      "arms",
+      "brains",
+      "ear",
+      "eye",
+      "feet",
+      "fingers",
+      "guts",
+      "hands",
+      "head",
+      "heart",
+      "legs"
+    ]
+  },
+  "combat": {
+    "act": [],
+    "affects": [],
+    "offensive": [],
+    "immunities": [],
+    "resistances": [],
+    "vulnerabilities": []
+  },
+  "attributes": {
+    "stats": {
+      "str": 13,
+      "int": 13,
+      "wis": 13,
+      "dex": 13,
+      "con": 13
+    },
+    "max_stats": {
+      "str": 20,
+      "int": 20,
+      "wis": 20,
+      "dex": 20,
+      "con": 20
+    },
+    "max_vitals": {
+      "hp": 3500,
+      "mana": 3500,
+      "move": 3500
+    }
+  },
+  "skills": [
+    "resurrect",
+    "fade"
+  ],
+  "starting_equipment": []
+}

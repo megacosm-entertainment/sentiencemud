@@ -1,0 +1,54 @@
+{
+    "_format": "skill_data",
+    "_version": 1,
+    "beats": 4,
+    "class_levels": [
+        {
+            "class": "mage",
+            "level": 10,
+            "rating": 4
+        },
+        {
+            "class": "cleric",
+            "level": 17,
+            "rating": 4
+        },
+        {
+            "class": "thief",
+            "level": 31,
+            "rating": 2
+        },
+        {
+            "class": "warrior",
+            "level": 17,
+            "rating": 2
+        }
+    ],
+    "inks": [
+        [
+            2,
+            2
+        ],
+        [
+            0,
+            0
+        ],
+        [
+            0,
+            0
+        ]
+    ],
+    "min_mana": 10,
+    "minimum_position": "standing",
+    "msg_disp": "$n falls to the ground!",
+    "msg_obj": "",
+    "msg_off": "{CYou slowly float to the ground.{x",
+    "name": "fly",
+    "noun_damage": "",
+    "race": null,
+    "spell_function": "spell_fly",
+    "target": "defensive",
+    "token_wnum": null,
+    "type": "spell",
+    "uid": 120
+}

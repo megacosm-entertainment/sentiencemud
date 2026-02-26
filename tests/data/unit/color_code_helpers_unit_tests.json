@@ -1,0 +1,32 @@
+{
+  "type": "test_suite",
+  "test_suite": "color_code_helpers_unit_tests",
+  "description": "Pure-function unit tests for color code parsing helpers",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "get_colour_code_length_at_start_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_colour_code_length_at_start",
+        "test_cases": [
+          { "input": "x", "expected_len": 0 },
+          { "input": "{", "expected_len": 0 },
+          { "input": "{Y", "expected_len": 2 },
+          { "input": "{i", "expected_len": 2 },
+          { "input": "{f", "expected_len": 2 },
+          { "input": "{[F123]", "expected_len": 7 },
+          { "input": "{[B050]", "expected_len": 7 },
+          { "input": "{[F12]", "expected_len": 0 },
+          { "input": "{[X123]", "expected_len": 0 },
+          { "input": "{[F623]", "expected_len": 0 }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}
