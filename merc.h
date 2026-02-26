@@ -5145,6 +5145,7 @@ struct	char_data
     CHAR_DATA *		master;
     CHAR_DATA *		leader;
     GROUP_DATA *	group;
+    int                 group_slot;
     CHAR_DATA *		pet;
     CHAR_DATA *		fighting;
     CHAR_DATA *		heldup;
@@ -5590,9 +5591,15 @@ int temp_log_entry_id;
         unsigned long id[2];
         CHAR_DATA *leader;
         LLIST *members;
+        LLIST *pending_requests;
         int player_count;
         bool allow_npc_only;
     };
+
+#define GROUP_SLOT_FRONT 0
+#define GROUP_SLOT_MID   1
+#define GROUP_SLOT_BACK  2
+#define GROUP_SLOT_MAX   3
 
 
 /* These values are used in a bitfield to store what type of channels will
@@ -5784,6 +5791,7 @@ struct	pc_data
     time_t              last_changes;
     time_t		last_logoff;
     time_t		last_login;
+    time_t              last_ready_check;
     time_t		last_project_inquiry;
     time_t		last_manual_save;
     char *      mfa_key;
@@ -5833,6 +5841,7 @@ struct	pc_data
     int			true_sex;
     int			last_level;
     int			condition	[5];
+    sent_bool           readycheck_answer;
     bool		songs_learned[MAX_SONGS];
     bool		songs_unlocked[MAX_SONGS];    /* Transient: songs unlocked for rehearsal by class rewards */
     int			learned		[MAX_SKILL];
@@ -5877,6 +5886,16 @@ struct	pc_data
     int 		danger_range;
 
     bool		quit_on_input;
+
+    time_t      pending_group_invite_expires;
+    unsigned long pending_group_inviter_id[2];
+    unsigned long pending_group_id[2];
+    time_t      pending_group_request_expires;
+    unsigned long pending_group_request_group_id[2];
+    time_t      pending_resurrect_offer_expires;
+    unsigned long pending_resurrect_offer_from_id[2];
+    time_t      pending_summon_offer_expires;
+    unsigned long pending_summon_offer_from_id[2];
 
     LOCATION		recall;
     PROJECT_INQUIRY_DATA *inquiry_subject; /* Prompts for subject upon addition to a project inquiry */
@@ -9448,6 +9467,9 @@ bool group_add_member args( ( GROUP_DATA *group, CHAR_DATA *ch ) );
 void group_remove_member args( ( CHAR_DATA *ch, bool disband_if_empty ) );
 void groups_clear_all args( ( void ) );
 bool is_same_group	args( ( CHAR_DATA *ach, CHAR_DATA *bch ) );
+bool group_has_pending_invite args( ( CHAR_DATA *ch ) );
+bool group_has_pending_requests args( ( CHAR_DATA *ch ) );
+void group_pending_update args( ( CHAR_DATA *ch ) );
 void add_follower	args( ( CHAR_DATA *ch, CHAR_DATA *master, bool show ) );
 void check_sex	args( ( CHAR_DATA *ch) );
 void church_echo	args( ( CHURCH_DATA *church, char *message ) );
@@ -11460,6 +11482,7 @@ EVENT_INDEX_DATA *get_event_index_for_area(AREA_DATA *area, long vnum);
 bool event_index_register(EVENT_INDEX_DATA *event_index);
 DUNGEON *create_dungeon(WNUM wnum);
 DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, WNUM wnum);
+CHAR_DATA *get_player_leader(CHAR_DATA *ch);
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, WNUM wnum, int floor);
 void dungeon_save(FILE *fp, DUNGEON *dungeon);
 void dungeon_check_empty(DUNGEON *dungeon);
@@ -11481,6 +11504,7 @@ bool dungeon_canswitch_player(DUNGEON *dungeon, CHAR_DATA *ch);
 bool dungeon_isorphaned(DUNGEON *dungeon);
 bool dungeon_can_idle(DUNGEON *dungeon);
 bool can_access_dungeon(CHAR_DATA *ch, DUNGEON_INDEX_DATA *index, DUNGEON *dungeon);
+void readycheck_update(CHAR_DATA *ch);
 
 
 bool can_room_update(ROOM_INDEX_DATA *room);

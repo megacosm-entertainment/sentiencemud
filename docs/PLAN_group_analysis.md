@@ -1,78 +1,126 @@
-# PLAN: Grouping System Analysis and Refactoring
+# PLAN: Group and Party System Rework
 
-This document outlines an analysis of the current grouping mechanism within the Sentience MUD and proposes a high-level refactoring strategy to address identified issues, support advanced features, and improve integration with other systems like the new Pub/Sub communication model.
+This document updates the grouping analysis to match current `src` reality and defines the next-phase party UX: invite/request flows with non-intrusive prompt markers (ready-check style) instead of interruptive dialogs.
 
-## 1. Current Grouping Implementation
+## 1. Current State (as of `feature/widevnum-migration`)
 
-The current grouping mechanism in Sentience MUD is implicitly defined by the `leader` field within the `CHAR_DATA` structure. While there is no explicit `GROUP_DATA` structure, the leader's `CHAR_DATA` holds some group-related state.
+The codebase is in a **hybrid** state:
 
--   **`is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)`:** This function (located in `src/act_comm.c`) is the primary method to determine if two characters are in the same group. Its logic relies entirely on comparing the `leader` pointers:
-    -   `ach == bch` (same character)
-    -   `ach == MOUNTED(bch) || bch == MOUNTED(ach)` (mounted relationship, treated as same group)
-    -   `ach->leader == bch->leader && ach->leader != NULL` (same leader)
-    -   `ach->leader == bch` or `bch->leader == ach` (direct leader/follower relationship)
--   **`do_group(CHAR_DATA *ch, char *argument)`:** This command (also in `src/act_comm.c`) handles group formation, disbandment, and listing.
-    -   **Listing Group Members:** When `do_group` is called without arguments, it iterates through *all loaded characters* (`char_list` or `loaded_chars`) and for each character, it calls `is_same_group` to identify members of the caller's group. This is an O(N) operation where N is the total number of loaded characters.
--   **`add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)`:** (Located in `src/act_comm.c`)
-    -   Adds `ch` to `master`'s group.
-    -   Checks `master->num_grouped` against a limit (currently 9).
-    -   Increments `master->num_grouped` and adds `ch` to `master->lgroup` (a `list` of `CHAR_DATA`).
-    -   Sets `ch->leader = master;`.
-    -   Fires `TRIG_GROUPED`.
--   **`stop_grouped(CHAR_DATA *ch)`:** (Located in `src/act_comm.c`)
-    -   Removes `ch` from its group.
-    -   Decrements `ch->leader->num_grouped`.
-    -   **Identified Bug:** Contains a bug: `if( list_hasdata(ch->leader->lgroup, ch)) list_appendlink(ch->leader->lgroup, ch);` which attempts to append the character to the list again, rather than removing it. This means `lgroup` will not correctly reflect actual group membership after members are removed via `stop_grouped`.
-    -   Sets `ch->leader = NULL;`.
-    -   Fires `TRIG_UNGROUPED`.
--   **NPCs in Groups:** NPCs can have `leader` pointers and thus can be part of these implicit groups.
+- `GROUP_DATA` already exists and is used in `src/act_comm.c` (`group_create`, `group_add_member`, `group_remove_member`, `group_disband`, `group_sync_legacy_state`).
+- `do_group` and `do_gtell` already prefer `group->members` iteration when available (better than full `loaded_chars` scans).
+- Legacy fields (`leader`, `num_grouped`, `lgroup`) still exist and are synchronized for compatibility.
+- `is_same_group` already checks `ach->group == bch->group` first, then falls back to leader logic.
 
-## 2. Identified Issues
+Conclusion: we are **not** starting from implicit leader-only groups anymore; we are finishing a migration that already began.
 
--   **Inefficient Group Iteration:** To find all members of a group or perform a group-wide action (as seen in `do_group` listing), the system requires iterating through *all loaded characters* in the game and calling `is_same_group` for each. This is highly inefficient and does not scale well.
--   **Distributed Group State:** While `master->num_grouped` and `master->lgroup` provide some centralized state, they are embedded within the leader's `CHAR_DATA`, not a distinct `GROUP_DATA` object. This makes group management more complex than it needs to be.
--   **`lgroup` Bug:** The bug in `stop_grouped` means `master->lgroup` does not accurately reflect current group members, hindering any attempt to use this list for efficient group-wide operations.
--   **Lack of Central Group Entity:** The absence of a distinct `GROUP_DATA` structure still implies:
-    -   No single, stable `unique_id` for a group itself.
-    -   No central place to store group-wide settings (e.g., loot distribution rules, XP sharing preferences, group-specific tactics, custom group names).
--   **Leadership Changes Impact Group Identity:** If a group's leader changes, the group's "identity" (as defined by `ch->leader` or the leader's `CHAR_DATA`) effectively changes.
--   **Ambiguity of `leader` Pointer:** The `leader` pointer serves multiple purposes (formal group leader, master for a pet/follower, charmed mob master), which can lead to ambiguity and makes it harder to distinguish formal groups from simple follower relationships.
+## 2. Gap: Party UX and Consent Flow
 
-## 3. Proposed Refactoring: Distinct Group Entity
+Current group joining behavior is still immediate/legacy-oriented. We need explicit social flow for player parties:
 
-To address these issues, a refactoring to introduce a distinct `GROUP_DATA` entity is proposed.
+- Leader invites outsider → outsider must accept/decline.
+- Outsider requests join → leader must accept/decline.
+- No forced modal prompts or interruptive spam.
+- Prompt should show compact pending markers (similar to 2.0 ready-check indicator style).
 
--   **`GROUP_DATA` Structure:**
-    -   A new `GROUP_DATA` structure would be introduced, representing a formal group.
-    -   Each `GROUP_DATA` instance would have its own stable, canonical `unique_id` (e.g., a Redis-managed ID or a combination of system-generated IDs).
-    -   It would contain a list (e.g., `list_t *members`) of all its members, stored as their `unique_id`s, including both PCs and NPCs.
-    -   It would store a pointer to the group's current leader (`CHAR_DATA *leader`) or the leader's `unique_id`.
-    -   It would be the central repository for group-wide settings (loot, XP, etc.).
--   **`CHAR_DATA` Linkage:** The `CHAR_DATA` structure would be updated to hold a pointer or `unique_id` to the `GROUP_DATA` it belongs to, replacing or augmenting the existing `leader` pointer for formal groups.
--   **API Redesign:** New functions would be introduced for group management (e.g., `group_create`, `group_disband`, `group_add_member`, `group_remove_member`, `group_change_leader`).
--   **`is_same_group` Replacement:** This function would be replaced by checking if two characters belong to the same `GROUP_DATA` instance (e.g., comparing their `CHAR_DATA->group_id` fields) or if their `CHAR_DATA->group_unique_id` matches.
+## 3. Target UX
 
-## 4. Benefits of Refactoring
+### 3.1 Commands
 
--   **Performance Improvement:** Group-wide operations would no longer require iterating through all loaded characters. Instead, they would iterate through the members list of the relevant `GROUP_DATA` object, making them O(M) where M is the number of group members.
--   **Consistent Group Identification:** Each group would have a stable `unique_id`, simplifying its identification for logging, persistent storage, and integration with systems like the Pub/Sub communication model.
--   **Robust NPC Group Membership:** NPCs can be explicitly added as members to a `GROUP_DATA` object, fully participating in group mechanics without ambiguity.
--   **Centralized Group Settings:** Group-wide settings (loot, XP, etc.) can be stored and managed in one place.
--   **Clearer API:** A well-defined set of functions for group management would improve code clarity and maintainability.
--   **Seamless Pub/Sub Integration:** The group's `unique_id` would directly translate to a stable topic identifier for group communication channels (`rt:group:<group_unique_id>`), simplifying subscription management.
+- `group` (existing): status list.
+- `group invite <player>`: leader invites target player.
+- `group request <leader>`: outsider requests to join leader's group.
+- `group accept` / `group decline`: responder handles own pending invite.
+- `group requests`: leader sees pending join requests.
+- `group accept <player>` / `group decline <player>`: leader handles specific request.
+- `group pending`: show personal pending invite/request metadata and remaining timeout.
 
-## 5. Challenges and Considerations
+### 3.2 Prompt Markers (non-interruptive)
 
--   **Scope of Change:** This is a significant refactoring that touches fundamental `CHAR_DATA` structures and numerous functions that currently rely on the `leader` pointer.
--   **Migration Strategy:** A plan for migrating existing implicit groups to the new `GROUP_DATA` structure would be needed, especially if existing groups are to be preserved across reboots.
--   **Backward Compatibility:** Care must be taken to ensure minimal disruption to existing group-related mechanics during the transition.
--   **Pet/Follower System:** The `leader` pointer still serves its purpose for pets, charmed mobs, and simple followers. The new `GROUP_DATA` system should be designed to coexist with or cleanly replace this aspect, differentiating formal groups from simple follower hierarchies.
+Add concise markers to prompt (same spirit as old ready-check):
 
-## 6. Stretch Goals / Future Features (Enabled by Refactoring)
+- `{Y[INV]{x` when player has an incoming invite.
+- `{C[REQ]{x` when leader has pending join requests.
 
--   **Configurable Loot Distribution:** Group leaders could set rules for how loot is split (e.g., free for all, leader distributes, round-robin, need/greed).
--   **Flexible XP Sharing:** Advanced XP sharing algorithms (e.g., weighted by level, bonus XP for smaller groups).
--   **Group-Specific Tactics:** Commands or configurations for group-wide battle tactics.
--   **Persistent Groups:** Groups that persist across reboots or even when all members log off.
--   **Group-wide Affects/Buffs:** Centralized management of temporary buffs or affects applied to the entire group.
--   **Formal Group Finder System:** In-game tools for players to find or form groups based on criteria.
+Markers should persist until resolved or expired, with normal command flow uninterrupted.
+
+### 3.3 Notifications
+
+- On create/expire/accept/decline, send one-line feedback.
+- No repeated spam each pulse; rely on prompt marker for ambient awareness.
+
+## 4. Data Model Additions
+
+### 4.1 Per-player pending invite
+
+Add to `PC_DATA`:
+
+- inviter identity (`id[2]` and/or name snapshot)
+- inviter group id snapshot
+- expiry timestamp
+
+Only one active incoming invite per player at a time (replace policy: newest wins, with notice).
+
+### 4.2 Per-group join request queue
+
+Add to `GROUP_DATA`:
+
+- list of request entries `{requester_id, requester_name, created_at, expires_at}`
+
+Cap requests per group to prevent abuse (e.g., 10 active).
+
+### 4.3 Timeout policy
+
+- Default TTL: 60s (configurable later).
+- Expiry cleanup during periodic update pulse.
+
+## 5. Behavior Rules
+
+- Only players can invite/request (no NPC party invites).
+- Leader-only invite authority.
+- Cross-room allowed; cross-world restrictions follow existing grouping rules.
+- Block invites/requests if either side is charmed, linkdead, or not in valid state.
+- Respect existing group size limits.
+- Invite acceptance re-validates all constraints at decision time (not only at send time).
+
+## 6. Integration Points
+
+- `src/act_comm.c`:
+    - Extend `do_group` subcommand parser.
+    - Add helper routines for enqueue/dequeue/resolve invite and request entries.
+- Prompt rendering path (`src/comm.c`):
+    - Append `[INV]` / `[REQ]` markers where other status tags are shown.
+- Pulse/update path (`src/update.c` or existing periodic tick):
+    - Expire stale invite/request entries and emit minimal notices.
+- Optional script hooks (later):
+    - `TRIG_GROUP_INVITE_SENT`, `TRIG_GROUP_INVITE_ACCEPTED`, etc.
+
+## 7. Refactor Direction (after UX parity)
+
+Once invite/request flow is stable:
+
+- Continue reducing dependence on `leader` legacy semantics for party membership.
+- Restrict `leader` to follower/charm compatibility or derive from `group->leader` consistently.
+- Move grouping primitives into dedicated module (`groups.c/.h`) to reduce `act_comm.c` coupling.
+
+## 8. Risks and Mitigations
+
+- **Hybrid-state bugs** (group pointer vs leader mismatch):
+    - Always call `group_sync_legacy_state()` after membership changes.
+- **Request leak/stale markers**:
+    - Centralize expiry cleanup and marker state calculation.
+- **Command ambiguity**:
+    - Keep subcommands explicit (`invite`, `request`, `accept`, `decline`, `requests`, `pending`).
+
+## 9. Implementation Order
+
+1. Add data structures for pending invite and group requests.
+2. Add command handling for invite/request/accept/decline.
+3. Add prompt markers `[INV]` / `[REQ]`.
+4. Add expiry cleanup and notices.
+5. Validate with focused tests/manual scenarios (simultaneous requests, leader swap, disband mid-pending).
+
+## 10. Stretch Goals
+
+- Ready-check command parity in current `src` (`readycheck start|yes|no|info`) integrated with same marker framework.
+- Party role metadata (tank/healer/dps) and status indicators.
+- LFG/group finder tooling.

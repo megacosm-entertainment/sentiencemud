@@ -2674,6 +2674,359 @@ void do_ungroup(CHAR_DATA *ch, char *argument)
     die_follower(ch);
 }
 
+#define GROUP_PENDING_TTL 60
+#define GROUP_PENDING_MAX 10
+
+typedef struct group_pending_request_data GROUP_PENDING_REQUEST;
+struct group_pending_request_data {
+    unsigned long requester_id[2];
+    char *requester_name;
+    time_t expires_at;
+};
+
+static bool group_ids_match(const unsigned long left[2], const unsigned long right[2])
+{
+    return left[0] == right[0] && left[1] == right[1];
+}
+
+static const char *group_slot_name(int slot)
+{
+    switch (slot) {
+    case GROUP_SLOT_FRONT: return "front";
+    case GROUP_SLOT_MID:   return "mid";
+    case GROUP_SLOT_BACK:  return "back";
+    default:               return "front";
+    }
+}
+
+static const char *group_slot_label(int slot)
+{
+    switch (slot) {
+    case GROUP_SLOT_FRONT: return "FRONT";
+    case GROUP_SLOT_MID:   return "MID";
+    case GROUP_SLOT_BACK:  return "BACK";
+    default:               return "FRONT";
+    }
+}
+
+static int group_slot_from_name(const char *name)
+{
+    if (IS_NULLSTR(name))
+        return -1;
+
+    if (!str_prefix(name, "front"))
+        return GROUP_SLOT_FRONT;
+    if (!str_prefix(name, "mid") || !str_prefix(name, "middle"))
+        return GROUP_SLOT_MID;
+    if (!str_prefix(name, "back") || !str_prefix(name, "rear"))
+        return GROUP_SLOT_BACK;
+
+    return -1;
+}
+
+static CHAR_DATA *group_find_member_by_name(GROUP_DATA *group, const char *name)
+{
+    CHAR_DATA *member;
+    ITERATOR it;
+
+    if (!IS_VALID(group) || !group->members || IS_NULLSTR(name))
+        return NULL;
+
+    iterator_start(&it, group->members);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (!IS_VALID(member))
+            continue;
+
+        if (!str_prefix(name, member->name)) {
+            iterator_stop(&it);
+            return member;
+        }
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
+static void group_clear_invite_state(CHAR_DATA *ch)
+{
+    if (!IS_VALID(ch) || IS_NPC(ch) || !ch->pcdata)
+        return;
+
+    ch->pcdata->pending_group_invite_expires = 0;
+    ch->pcdata->pending_group_inviter_id[0] = 0;
+    ch->pcdata->pending_group_inviter_id[1] = 0;
+    ch->pcdata->pending_group_id[0] = 0;
+    ch->pcdata->pending_group_id[1] = 0;
+}
+
+static void group_clear_request_state(CHAR_DATA *ch)
+{
+    if (!IS_VALID(ch) || IS_NPC(ch) || !ch->pcdata)
+        return;
+
+    ch->pcdata->pending_group_request_expires = 0;
+    ch->pcdata->pending_group_request_group_id[0] = 0;
+    ch->pcdata->pending_group_request_group_id[1] = 0;
+}
+
+static bool group_has_active_invite(const CHAR_DATA *ch)
+{
+    if (!IS_VALID(ch) || IS_NPC(ch) || !ch->pcdata)
+        return false;
+
+    if (ch->pcdata->pending_group_invite_expires <= current_time)
+        return false;
+
+    return ch->pcdata->pending_group_inviter_id[0] != 0 || ch->pcdata->pending_group_inviter_id[1] != 0;
+}
+
+static bool group_has_active_request(const CHAR_DATA *ch)
+{
+    if (!IS_VALID(ch) || IS_NPC(ch) || !ch->pcdata)
+        return false;
+
+    if (ch->pcdata->pending_group_request_expires <= current_time)
+        return false;
+
+    return ch->pcdata->pending_group_request_group_id[0] != 0 || ch->pcdata->pending_group_request_group_id[1] != 0;
+}
+
+static GROUP_DATA *group_find_by_id(const unsigned long id[2])
+{
+    GROUP_DATA *group;
+    ITERATOR it;
+
+    if (!loaded_groups)
+        return NULL;
+
+    iterator_start(&it, loaded_groups);
+    while ((group = (GROUP_DATA *)iterator_nextdata(&it))) {
+        if (!IS_VALID(group))
+            continue;
+
+        if (group->id[0] == id[0] && group->id[1] == id[1]) {
+            iterator_stop(&it);
+            return group;
+        }
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
+static CHAR_DATA *group_command_leader(CHAR_DATA *ch)
+{
+    if (!IS_VALID(ch))
+        return NULL;
+
+    if (IS_VALID(ch->group) && IS_VALID(ch->group->leader))
+        return ch->group->leader;
+
+    if (IS_VALID(ch->leader))
+        return ch->leader;
+
+    return ch;
+}
+
+static bool group_actor_is_leader(CHAR_DATA *ch)
+{
+    CHAR_DATA *leader = group_command_leader(ch);
+
+    if (!IS_VALID(ch) || !IS_VALID(leader) || leader != ch)
+        return false;
+
+    if (ch->master != NULL)
+        return false;
+
+    if (ch->leader != NULL && ch->leader != ch)
+        return false;
+
+    return true;
+}
+
+static bool group_can_have_npc_leader(const GROUP_DATA *group)
+{
+    return IS_VALID(group) && group->allow_npc_only;
+}
+
+static bool group_set_leader(GROUP_DATA *group, CHAR_DATA *new_leader)
+{
+    if (!IS_VALID(group) || !IS_VALID(new_leader) || new_leader->group != group)
+        return false;
+
+    if (IS_NPC(new_leader)
+        && (!group_can_have_npc_leader(group) || group->player_count > 0))
+        return false;
+
+    group->leader = new_leader;
+    group_sync_legacy_state(group);
+    return true;
+}
+
+static void group_announce_leader(GROUP_DATA *group, CHAR_DATA *leader)
+{
+    CHAR_DATA *member;
+    ITERATOR it;
+    char buf[MAX_STRING_LENGTH];
+
+    if (!IS_VALID(group) || !group->members || !IS_VALID(leader))
+        return;
+
+    sprintf(buf, "%s is now the group leader.\n\r", leader->name);
+
+    iterator_start(&it, group->members);
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (!IS_VALID(member))
+            continue;
+        send_to_char(buf, member);
+    }
+    iterator_stop(&it);
+}
+
+static void group_free_request_entry(GROUP_PENDING_REQUEST *request)
+{
+    if (!request)
+        return;
+
+    free_string(request->requester_name);
+    free_mem(request, sizeof(*request));
+}
+
+static GROUP_PENDING_REQUEST *group_find_request_by_id(GROUP_DATA *group, unsigned long id1, unsigned long id2)
+{
+    GROUP_PENDING_REQUEST *request;
+    ITERATOR it;
+
+    if (!IS_VALID(group) || !group->pending_requests)
+        return NULL;
+
+    iterator_start(&it, group->pending_requests);
+    while ((request = (GROUP_PENDING_REQUEST *)iterator_nextdata(&it))) {
+        if (request->requester_id[0] == id1 && request->requester_id[1] == id2) {
+            iterator_stop(&it);
+            return request;
+        }
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
+static GROUP_PENDING_REQUEST *group_find_request_by_name(GROUP_DATA *group, const char *name)
+{
+    GROUP_PENDING_REQUEST *request;
+    ITERATOR it;
+
+    if (!IS_VALID(group) || !group->pending_requests || IS_NULLSTR(name))
+        return NULL;
+
+    iterator_start(&it, group->pending_requests);
+    while ((request = (GROUP_PENDING_REQUEST *)iterator_nextdata(&it))) {
+        if (request->requester_name && !str_prefix(name, request->requester_name)) {
+            iterator_stop(&it);
+            return request;
+        }
+    }
+    iterator_stop(&it);
+
+    return NULL;
+}
+
+static void group_remove_request_by_id(GROUP_DATA *group, unsigned long id1, unsigned long id2)
+{
+    GROUP_PENDING_REQUEST *request;
+    int index = 1;
+
+    if (!IS_VALID(group) || !group->pending_requests)
+        return;
+
+    while ((request = (GROUP_PENDING_REQUEST *)list_nthdata(group->pending_requests, index)) != NULL) {
+        if (request->requester_id[0] == id1 && request->requester_id[1] == id2) {
+            list_remlink(group->pending_requests, request, false);
+            group_free_request_entry(request);
+            continue;
+        }
+        index++;
+    }
+}
+
+static void group_remove_expired_requests(GROUP_DATA *group, bool notify)
+{
+    GROUP_PENDING_REQUEST *request;
+    int index = 1;
+
+    if (!IS_VALID(group) || !group->pending_requests)
+        return;
+
+    while ((request = (GROUP_PENDING_REQUEST *)list_nthdata(group->pending_requests, index)) != NULL) {
+        if (request->expires_at > current_time) {
+            index++;
+            continue;
+        }
+
+        if (notify) {
+            CHAR_DATA *requester = idfind_player(request->requester_id[0], request->requester_id[1]);
+            if (IS_VALID(requester) && !IS_NPC(requester) && requester->pcdata) {
+                if (group_ids_match(requester->pcdata->pending_group_request_group_id, group->id))
+                    group_clear_request_state(requester);
+                send_to_char("Your group join request has expired.\n\r", requester);
+            }
+        }
+
+        list_remlink(group->pending_requests, request, false);
+        group_free_request_entry(request);
+    }
+}
+
+bool group_has_pending_invite(CHAR_DATA *ch)
+{
+    return group_has_active_invite(ch);
+}
+
+bool group_has_pending_requests(CHAR_DATA *ch)
+{
+    GROUP_DATA *group;
+
+    if (!IS_VALID(ch) || IS_NPC(ch) || !group_actor_is_leader(ch))
+        return false;
+
+    group = IS_VALID(ch->group) ? ch->group : NULL;
+    if (!IS_VALID(group) || !group->pending_requests)
+        return false;
+
+    group_remove_expired_requests(group, false);
+    return list_size(group->pending_requests) > 0;
+}
+
+void group_pending_update(CHAR_DATA *ch)
+{
+    GROUP_DATA *group;
+
+    if (!IS_VALID(ch) || IS_NPC(ch) || !ch->pcdata)
+        return;
+
+    if (ch->pcdata->pending_group_invite_expires > 0
+        && ch->pcdata->pending_group_invite_expires <= current_time) {
+        group_clear_invite_state(ch);
+        send_to_char("Your pending group invite has expired.\n\r", ch);
+    }
+
+    if (ch->pcdata->pending_group_request_expires > 0
+        && ch->pcdata->pending_group_request_expires <= current_time) {
+        group_clear_request_state(ch);
+        send_to_char("Your group join request has expired.\n\r", ch);
+    }
+
+    if (!group_actor_is_leader(ch))
+        return;
+
+    group = IS_VALID(ch->group) ? ch->group : NULL;
+    if (!IS_VALID(group) || !group->pending_requests)
+        return;
+
+    group_remove_expired_requests(group, true);
+}
+
 
 /**
  * do_group - View group status or add/remove group members
@@ -2698,10 +3051,14 @@ void do_group(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
     ITERATOR it;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
 
     /* Show group status */
     if (arg[0] == '\0') {
@@ -2747,7 +3104,7 @@ void do_group(CHAR_DATA *ch, char *argument)
                     strftime(hired_time, 100, "%Y-%m-%d %X %Z", localtime(&gch->hired_to));
                 }
                 sprintf(buf,
-                    "{B[{G%3d %s%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x %s%s{X\n\r",
+                    "{B[{G%3d %s%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv {Y[%s]{x %s%s{X\n\r",
                     gch->tot_level,
                     IS_NPC(gch) ? "{A" : "{Y",
                     race,
@@ -2755,6 +3112,7 @@ void do_group(CHAR_DATA *ch, char *argument)
                     gch->hit,   gch->max_hit,
                     gch->mana,  gch->max_mana,
                     gch->move,  gch->max_move,
+                    group_slot_label(gch->group_slot),
                     IS_SET(gch->act[1], ACT2_HIRED) ? "{BUntil:{W " : "",
                     IS_SET(gch->act[1], ACT2_HIRED) ? hired_time : "");
                 send_to_char(buf, ch);
@@ -2764,7 +3122,541 @@ void do_group(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    /* Put someone else into your group (or remove them)*/
+    if (!str_prefix(arg, "formation")) {
+        CHAR_DATA *leader;
+        GROUP_DATA *group;
+        CHAR_DATA *member;
+        int count[GROUP_SLOT_MAX] = {0, 0, 0};
+
+        leader = group_command_leader(ch);
+        group = IS_VALID(ch->group) ? ch->group : (IS_VALID(leader) ? leader->group : NULL);
+
+        if (!IS_VALID(group) || !group->members || list_size(group->members) < 1) {
+            send_to_char("You are not in a formed group.\n\r", ch);
+            return;
+        }
+
+        send_to_char("{YGroup formation:{x\n\r", ch);
+        iterator_start(&it, group->members);
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            int slot;
+
+            if (!IS_VALID(member))
+                continue;
+
+            slot = member->group_slot;
+            if (slot < GROUP_SLOT_FRONT || slot >= GROUP_SLOT_MAX)
+                slot = GROUP_SLOT_FRONT;
+            count[slot]++;
+
+            sprintf(buf, "  %-16s -> %s\n\r", member->name, group_slot_name(slot));
+            send_to_char(buf, ch);
+        }
+        iterator_stop(&it);
+
+        sprintf(buf, "{WFront:{x %d  {WMid:{x %d  {WBack:{x %d\n\r",
+            count[GROUP_SLOT_FRONT], count[GROUP_SLOT_MID], count[GROUP_SLOT_BACK]);
+        send_to_char(buf, ch);
+        return;
+    }
+
+    if (!str_prefix(arg, "slot")) {
+        CHAR_DATA *leader;
+        GROUP_DATA *group;
+        CHAR_DATA *target;
+        int slot;
+
+        leader = group_command_leader(ch);
+        group = IS_VALID(ch->group) ? ch->group : (IS_VALID(leader) ? leader->group : NULL);
+
+        if (!IS_VALID(group) || !group->members || list_size(group->members) < 1) {
+            send_to_char("You are not in a formed group.\n\r", ch);
+            return;
+        }
+
+        if (IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: group slot <front|mid|back>\n\r", ch);
+            send_to_char("        group slot <member> <front|mid|back>\n\r", ch);
+            return;
+        }
+
+        slot = group_slot_from_name(arg2);
+        if (slot >= 0) {
+            target = ch;
+        } else {
+            if (IS_NULLSTR(arg3)) {
+                send_to_char("Syntax: group slot <member> <front|mid|back>\n\r", ch);
+                return;
+            }
+
+            if (!group_actor_is_leader(ch)) {
+                send_to_char("Only the group leader can set other members' slots.\n\r", ch);
+                return;
+            }
+
+            slot = group_slot_from_name(arg3);
+            if (slot < 0) {
+                send_to_char("Valid slots are: front, mid, back.\n\r", ch);
+                return;
+            }
+
+            target = group_find_member_by_name(group, arg2);
+            if (!IS_VALID(target)) {
+                send_to_char("That member is not in your group.\n\r", ch);
+                return;
+            }
+        }
+
+        if (!IS_VALID(target) || target->group != group) {
+            send_to_char("That member is not in your group.\n\r", ch);
+            return;
+        }
+
+        target->group_slot = slot;
+
+        if (target == ch)
+            sprintf(buf, "You move to the %s slot.\n\r", group_slot_name(slot));
+        else
+            sprintf(buf, "You assign %s to the %s slot.\n\r", target->name, group_slot_name(slot));
+        send_to_char(buf, ch);
+
+        if (target != ch) {
+            sprintf(buf, "$n sets your formation slot to %s.", group_slot_name(slot));
+            act_new(buf, ch, target, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+        }
+
+        return;
+    }
+
+    if (!str_prefix(arg, "promote")) {
+        CHAR_DATA *leader;
+        GROUP_DATA *group;
+        CHAR_DATA *target;
+
+        if (IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: group promote <member>\n\r", ch);
+            return;
+        }
+
+        if (!group_actor_is_leader(ch)) {
+            send_to_char("Only the group leader can promote another member.\n\r", ch);
+            return;
+        }
+
+        leader = group_command_leader(ch);
+        group = IS_VALID(ch->group) ? ch->group : (IS_VALID(leader) ? leader->group : NULL);
+        if (!IS_VALID(group) || !group->members || list_size(group->members) < 1) {
+            send_to_char("You are not in a formed group.\n\r", ch);
+            return;
+        }
+
+        target = group_find_member_by_name(group, arg2);
+        if (!IS_VALID(target)) {
+            send_to_char("That member is not in your group.\n\r", ch);
+            return;
+        }
+
+        if (target == ch) {
+            send_to_char("You are already the group leader.\n\r", ch);
+            return;
+        }
+
+        if (IS_NPC(target)) {
+            send_to_char("Players cannot promote NPCs to group leader.\n\r", ch);
+            return;
+        }
+
+        if (!group_set_leader(group, target)) {
+            send_to_char("Unable to promote that member right now.\n\r", ch);
+            return;
+        }
+
+        group_announce_leader(group, target);
+        return;
+    }
+
+    if (!str_prefix(arg, "invite")) {
+        CHAR_DATA *leader;
+        GROUP_DATA *group;
+
+        if (IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: group invite <player>\n\r", ch);
+            return;
+        }
+
+        if (!group_actor_is_leader(ch)) {
+            send_to_char("Only the group leader can invite players.\n\r", ch);
+            return;
+        }
+
+        leader = group_command_leader(ch);
+        group = IS_VALID(leader->group) ? leader->group : group_create(leader, false);
+        if (!IS_VALID(group)) {
+            send_to_char("Unable to create or access your group.\n\r", ch);
+            return;
+        }
+
+        victim = get_char_world(ch, arg2);
+        if (!IS_VALID(victim) || IS_NPC(victim)) {
+            send_to_char("That player is not online.\n\r", ch);
+            return;
+        }
+
+        if (victim == ch) {
+            send_to_char("You cannot invite yourself.\n\r", ch);
+            return;
+        }
+
+        if (IS_VALID(victim->group)) {
+            send_to_char("That player is already in a group.\n\r", ch);
+            return;
+        }
+
+        if (is_same_group(victim, ch)) {
+            send_to_char("They are already in your group.\n\r", ch);
+            return;
+        }
+
+        if (!victim->pcdata) {
+            send_to_char("That target cannot receive group invites.\n\r", ch);
+            return;
+        }
+
+        if (group_has_active_invite(victim)) {
+            CHAR_DATA *existing_inviter = idfind_player(victim->pcdata->pending_group_inviter_id[0], victim->pcdata->pending_group_inviter_id[1]);
+
+            if (IS_VALID(existing_inviter) && !IS_NPC(existing_inviter)) {
+                sprintf(buf, "%s already has a pending group invite from %s.\n\r", victim->name, existing_inviter->name);
+                send_to_char(buf, ch);
+            } else {
+                sprintf(buf, "%s already has a pending group invite.\n\r", victim->name);
+                send_to_char(buf, ch);
+            }
+            return;
+        }
+
+        victim->pcdata->pending_group_inviter_id[0] = ch->id[0];
+        victim->pcdata->pending_group_inviter_id[1] = ch->id[1];
+        victim->pcdata->pending_group_id[0] = group->id[0];
+        victim->pcdata->pending_group_id[1] = group->id[1];
+        victim->pcdata->pending_group_invite_expires = current_time + GROUP_PENDING_TTL;
+
+        send_to_char("Group invitation sent.\n\r", ch);
+        act_new("$n has invited you to join $s group. Type {Ygroup accept{x or {Ygroup decline{x.",
+            ch, victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+        return;
+    }
+
+    if (!str_prefix(arg, "request")) {
+        CHAR_DATA *leader;
+        GROUP_DATA *group;
+        GROUP_PENDING_REQUEST *request;
+
+        if (IS_NULLSTR(arg2)) {
+            send_to_char("Syntax: group request <leader>\n\r", ch);
+            return;
+        }
+
+        if (IS_NPC(ch) || !ch->pcdata) {
+            send_to_char("Only players can request to join groups.\n\r", ch);
+            return;
+        }
+
+        leader = get_char_world(ch, arg2);
+        if (!IS_VALID(leader) || IS_NPC(leader)) {
+            send_to_char("That player is not online.\n\r", ch);
+            return;
+        }
+
+        if (leader == ch) {
+            send_to_char("You cannot request to join your own group.\n\r", ch);
+            return;
+        }
+
+        if (!group_actor_is_leader(leader)) {
+            send_to_char("That player is not currently leading a group.\n\r", ch);
+            return;
+        }
+
+        if (is_same_group(ch, leader)) {
+            send_to_char("You are already in that group.\n\r", ch);
+            return;
+        }
+
+        group = IS_VALID(leader->group) ? leader->group : group_create(leader, false);
+        if (!IS_VALID(group)) {
+            send_to_char("Unable to target that group right now.\n\r", ch);
+            return;
+        }
+
+        if (group_has_active_request(ch)
+            && !group_ids_match(ch->pcdata->pending_group_request_group_id, group->id)) {
+            send_to_char("You already have another pending group request.\n\r", ch);
+            return;
+        }
+
+        if (!group->pending_requests)
+            group->pending_requests = list_create(false);
+
+        group_remove_expired_requests(group, false);
+
+        if (group_find_request_by_id(group, ch->id[0], ch->id[1]) != NULL) {
+            send_to_char("You have already requested to join that group.\n\r", ch);
+            return;
+        }
+
+        if (list_size(group->pending_requests) >= GROUP_PENDING_MAX) {
+            send_to_char("That group has too many pending requests right now.\n\r", ch);
+            return;
+        }
+
+        request = alloc_mem(sizeof(*request));
+        memset(request, 0, sizeof(*request));
+        request->requester_id[0] = ch->id[0];
+        request->requester_id[1] = ch->id[1];
+        request->requester_name = str_dup(ch->name);
+        request->expires_at = current_time + GROUP_PENDING_TTL;
+        list_appendlink(group->pending_requests, request);
+
+        ch->pcdata->pending_group_request_group_id[0] = group->id[0];
+        ch->pcdata->pending_group_request_group_id[1] = group->id[1];
+        ch->pcdata->pending_group_request_expires = request->expires_at;
+
+        send_to_char("Join request sent to group leader.\n\r", ch);
+        act_new("$n has requested to join your group. Use {Ygroup requests{x or {Ygroup accept $N{x.",
+            ch, leader, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+        return;
+    }
+
+    if (!str_prefix(arg, "accept")) {
+        if (group_has_active_invite(ch)) {
+            CHAR_DATA *inviter = idfind_player(ch->pcdata->pending_group_inviter_id[0], ch->pcdata->pending_group_inviter_id[1]);
+            GROUP_DATA *group = group_find_by_id(ch->pcdata->pending_group_id);
+
+            if (!IS_NULLSTR(arg2)) {
+                if (!IS_VALID(inviter) || IS_NPC(inviter) || str_prefix(arg2, inviter->name)) {
+                    send_to_char("You do not have a pending invite from that player.\n\r", ch);
+                    return;
+                }
+            }
+
+            if (!IS_VALID(inviter) || IS_NPC(inviter) || !group_actor_is_leader(inviter)) {
+                group_clear_invite_state(ch);
+                send_to_char("That invite is no longer valid.\n\r", ch);
+                return;
+            }
+
+            if (!IS_VALID(group) || !group_ids_match(group->id, ch->pcdata->pending_group_id) || inviter->group != group) {
+                group_clear_invite_state(ch);
+                send_to_char("That invite is no longer valid.\n\r", ch);
+                return;
+            }
+
+            if (IS_VALID(ch->group) && ch->group != group) {
+                send_to_char("You are already in another group. Leave it first.\n\r", ch);
+                return;
+            }
+
+            if (is_same_group(ch, inviter)) {
+                group_clear_invite_state(ch);
+                send_to_char("You are already in that group.\n\r", ch);
+                return;
+            }
+
+            if (!add_grouped(ch, inviter, true)) {
+                group_clear_invite_state(ch);
+                send_to_char("Unable to join that group.\n\r", ch);
+                return;
+            }
+
+            group_clear_invite_state(ch);
+            act_new("You accept $N's group invitation.", ch, inviter, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, POS_SLEEPING, NULL);
+            act_new("$n accepted your group invitation.", ch, inviter, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+            return;
+        }
+
+        if (!IS_NULLSTR(arg2)) {
+            CHAR_DATA *leader;
+            GROUP_DATA *group;
+            GROUP_PENDING_REQUEST *request;
+            CHAR_DATA *requester;
+
+            if (!group_actor_is_leader(ch)) {
+                send_to_char("Only the group leader can accept join requests.\n\r", ch);
+                return;
+            }
+
+            leader = group_command_leader(ch);
+            group = IS_VALID(leader->group) ? leader->group : group_create(leader, false);
+            if (!IS_VALID(group) || !group->pending_requests) {
+                send_to_char("There are no pending requests.\n\r", ch);
+                return;
+            }
+
+            group_remove_expired_requests(group, true);
+            request = group_find_request_by_name(group, arg2);
+            if (!request) {
+                send_to_char("No pending request by that player.\n\r", ch);
+                return;
+            }
+
+            requester = idfind_player(request->requester_id[0], request->requester_id[1]);
+            if (!IS_VALID(requester) || IS_NPC(requester)) {
+                group_remove_request_by_id(group, request->requester_id[0], request->requester_id[1]);
+                send_to_char("That requester is no longer available.\n\r", ch);
+                return;
+            }
+
+            if (!add_grouped(requester, leader, true)) {
+                send_to_char("Unable to add that player to your group.\n\r", ch);
+                return;
+            }
+
+            group_remove_request_by_id(group, requester->id[0], requester->id[1]);
+            group_clear_request_state(requester);
+            group_clear_invite_state(requester);
+
+            act_new("You accept $N's group request.", ch, requester, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, POS_SLEEPING, NULL);
+            act_new("$n accepted your request and added you to the group.", ch, requester, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+            return;
+        }
+
+        if (!group_has_active_invite(ch)) {
+            send_to_char("You do not have a pending group invite.\n\r", ch);
+            return;
+        }
+    }
+
+    if (!str_prefix(arg, "decline")) {
+        if (group_has_active_invite(ch)) {
+            CHAR_DATA *inviter = idfind_player(ch->pcdata->pending_group_inviter_id[0], ch->pcdata->pending_group_inviter_id[1]);
+
+            if (!IS_NULLSTR(arg2)) {
+                if (!IS_VALID(inviter) || IS_NPC(inviter) || str_prefix(arg2, inviter->name)) {
+                    send_to_char("You do not have a pending invite from that player.\n\r", ch);
+                    return;
+                }
+            }
+
+            if (IS_VALID(inviter) && !IS_NPC(inviter))
+                act_new("$n declined your group invitation.", ch, inviter, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+
+            group_clear_invite_state(ch);
+            send_to_char("Group invitation declined.\n\r", ch);
+            return;
+        }
+
+        if (!IS_NULLSTR(arg2)) {
+            GROUP_DATA *group;
+            GROUP_PENDING_REQUEST *request;
+            CHAR_DATA *requester;
+
+            if (!group_actor_is_leader(ch)) {
+                send_to_char("Only the group leader can decline join requests.\n\r", ch);
+                return;
+            }
+
+            group = IS_VALID(ch->group) ? ch->group : NULL;
+            if (!IS_VALID(group) || !group->pending_requests) {
+                send_to_char("There are no pending requests.\n\r", ch);
+                return;
+            }
+
+            group_remove_expired_requests(group, true);
+            request = group_find_request_by_name(group, arg2);
+            if (!request) {
+                send_to_char("No pending request by that player.\n\r", ch);
+                return;
+            }
+
+            requester = idfind_player(request->requester_id[0], request->requester_id[1]);
+            if (IS_VALID(requester) && !IS_NPC(requester)) {
+                group_clear_request_state(requester);
+                act_new("$n declined your group request.", ch, requester, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+            }
+
+            group_remove_request_by_id(group, request->requester_id[0], request->requester_id[1]);
+            send_to_char("Group request declined.\n\r", ch);
+            return;
+        }
+
+        if (!group_has_active_invite(ch)) {
+            send_to_char("You do not have a pending group invite.\n\r", ch);
+            return;
+        }
+    }
+
+    if (!str_prefix(arg, "requests")) {
+        GROUP_DATA *group;
+        GROUP_PENDING_REQUEST *request;
+        ITERATOR rit;
+        int shown = 0;
+
+        if (!group_actor_is_leader(ch)) {
+            send_to_char("Only the group leader can view join requests.\n\r", ch);
+            return;
+        }
+
+        group = IS_VALID(ch->group) ? ch->group : NULL;
+        if (!IS_VALID(group) || !group->pending_requests) {
+            send_to_char("There are no pending join requests.\n\r", ch);
+            return;
+        }
+
+        group_remove_expired_requests(group, true);
+        if (list_size(group->pending_requests) < 1) {
+            send_to_char("There are no pending join requests.\n\r", ch);
+            return;
+        }
+
+        send_to_char("Pending group requests:\n\r", ch);
+        iterator_start(&rit, group->pending_requests);
+        while ((request = (GROUP_PENDING_REQUEST *)iterator_nextdata(&rit))) {
+            int left = (int)(request->expires_at - current_time);
+            if (left < 0)
+                left = 0;
+
+            sprintf(buf, "  %-20s (%ds)\n\r", request->requester_name ? request->requester_name : "(unknown)", left);
+            send_to_char(buf, ch);
+            shown++;
+        }
+        iterator_stop(&rit);
+
+        if (!shown)
+            send_to_char("  (none)\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg, "pending")) {
+        bool shown = false;
+
+        if (!IS_NPC(ch) && ch->pcdata && group_has_active_invite(ch)) {
+            CHAR_DATA *inviter = idfind_player(ch->pcdata->pending_group_inviter_id[0], ch->pcdata->pending_group_inviter_id[1]);
+            int left = (int)(ch->pcdata->pending_group_invite_expires - current_time);
+            if (left < 0)
+                left = 0;
+            sprintf(buf, "Pending invite: %s (%ds remaining)\n\r", inviter ? inviter->name : "(offline)", left);
+            send_to_char(buf, ch);
+            shown = true;
+        }
+
+        if (!IS_NPC(ch) && ch->pcdata && group_has_active_request(ch)) {
+            GROUP_DATA *group = group_find_by_id(ch->pcdata->pending_group_request_group_id);
+            CHAR_DATA *leader = (IS_VALID(group) && IS_VALID(group->leader)) ? group->leader : NULL;
+            int left = (int)(ch->pcdata->pending_group_request_expires - current_time);
+            if (left < 0)
+                left = 0;
+            sprintf(buf, "Pending join request: %s (%ds remaining)\n\r", leader ? leader->name : "(unknown group)", left);
+            send_to_char(buf, ch);
+            shown = true;
+        }
+
+        if (!shown)
+            send_to_char("You have no pending group invites or requests.\n\r", ch);
+        return;
+    }
+
+    /* Legacy behavior: Put someone else into your group (or remove them). */
     if ((victim = get_char_room(ch, NULL, arg)) == NULL) {
         send_to_char("They aren't here.\n\r", ch);
         return;
@@ -3034,7 +3926,12 @@ GROUP_DATA *group_create(CHAR_DATA *leader, bool allow_npc_only)
     VALIDATE(group);
 
     group->members = list_create(false);
-    if (!group->members) {
+    group->pending_requests = list_create(false);
+    if (!group->members || !group->pending_requests) {
+        if (group->members)
+            list_destroy(group->members);
+        if (group->pending_requests)
+            list_destroy(group->pending_requests);
         INVALIDATE(group);
         free_mem(group, sizeof(GROUP_DATA));
         return NULL;
@@ -3067,9 +3964,25 @@ bool group_add_member(GROUP_DATA *group, CHAR_DATA *ch)
         list_appendlink(group->members, ch);
 
     ch->group = group;
+    if (ch->group_slot < GROUP_SLOT_FRONT || ch->group_slot >= GROUP_SLOT_MAX)
+        ch->group_slot = GROUP_SLOT_FRONT;
+
+    if (!IS_NPC(ch) && ch->pcdata)
+    {
+        group_clear_invite_state(ch);
+        group_clear_request_state(ch);
+        ch->pcdata->last_ready_check = 0;
+        ch->pcdata->readycheck_answer = TRISTATE_UNDEF;
+    }
 
     if (!IS_NPC(ch))
         group->player_count++;
+
+    if (!IS_NPC(ch)
+        && IS_VALID(group->leader)
+        && IS_NPC(group->leader)
+        && group->player_count > 0)
+        group->leader = ch;
 
     if (!IS_VALID(group->leader))
         group->leader = ch;
@@ -3087,6 +4000,7 @@ void group_disband(GROUP_DATA *group)
 {
     CHAR_DATA *member;
     ITERATOR it;
+    GROUP_PENDING_REQUEST *request;
 
     if (!IS_VALID(group))
         return;
@@ -3097,7 +4011,15 @@ void group_disband(GROUP_DATA *group)
             if (IS_VALID(member) && member->group == group) {
                 if (!IS_NPC(member))
                     quest_runtime_handle_group_scope_loss(member, group->id);
+                if (!IS_NPC(member) && member->pcdata)
+                {
+                    group_clear_invite_state(member);
+                    group_clear_request_state(member);
+                    member->pcdata->last_ready_check = 0;
+                    member->pcdata->readycheck_answer = TRISTATE_UNDEF;
+                }
                 member->group = NULL;
+                member->group_slot = GROUP_SLOT_FRONT;
                 member->leader = NULL;
                 member->num_grouped = 0;
                 if (member->lgroup)
@@ -3107,11 +4029,23 @@ void group_disband(GROUP_DATA *group)
         iterator_stop(&it);
     }
 
+    if (group->pending_requests) {
+        while ((request = (GROUP_PENDING_REQUEST *)list_nthdata(group->pending_requests, 1)) != NULL) {
+            CHAR_DATA *requester = idfind_player(request->requester_id[0], request->requester_id[1]);
+            if (IS_VALID(requester) && !IS_NPC(requester) && requester->pcdata)
+                group_clear_request_state(requester);
+            list_remlink(group->pending_requests, request, false);
+            group_free_request_entry(request);
+        }
+    }
+
     if (loaded_groups && list_hasdata(loaded_groups, group))
         list_remlink(loaded_groups, group, false);
 
     list_destroy(group->members);
     group->members = NULL;
+    list_destroy(group->pending_requests);
+    group->pending_requests = NULL;
 
     INVALIDATE(group);
     free_mem(group, sizeof(GROUP_DATA));
@@ -3139,7 +4073,16 @@ void group_remove_member(CHAR_DATA *ch, bool disband_if_empty)
         list_remlink(group->members, ch, false);
 
     ch->group = NULL;
+    ch->group_slot = GROUP_SLOT_FRONT;
     ch->leader = NULL;
+
+    if (!IS_NPC(ch) && ch->pcdata)
+    {
+        group_clear_invite_state(ch);
+        group_clear_request_state(ch);
+        ch->pcdata->last_ready_check = 0;
+        ch->pcdata->readycheck_answer = TRISTATE_UNDEF;
+    }
 
     if (was_player && group->player_count > 0)
         group->player_count--;
@@ -3163,8 +4106,13 @@ void group_remove_member(CHAR_DATA *ch, bool disband_if_empty)
         }
         iterator_stop(&it);
 
-        if (!IS_VALID(group->leader))
-            group->leader = fallback;
+        if (!IS_VALID(group->leader)) {
+            if (group_can_have_npc_leader(group) && group->player_count < 1)
+                group->leader = fallback;
+        }
+
+        if (IS_VALID(group->leader))
+            group_announce_leader(group, group->leader);
     }
 
     if (!group->members || list_size(group->members) < 1) {

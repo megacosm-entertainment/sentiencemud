@@ -5108,6 +5108,15 @@ void resurrect_pc(CHAR_DATA *ch)
 
     ch->time_left_death = 0;
 
+    if (ch->pcdata) {
+        ch->pcdata->pending_resurrect_offer_expires = 0;
+        ch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+        ch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+        ch->pcdata->pending_summon_offer_expires = 0;
+        ch->pcdata->pending_summon_offer_from_id[0] = 0;
+        ch->pcdata->pending_summon_offer_from_id[1] = 0;
+    }
+
     char_from_room(ch);
 
     if ((pRoom = location_to_room(&ch->recall)) == NULL)

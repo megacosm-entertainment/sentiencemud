@@ -17,6 +17,34 @@
 #include "tables.h"
 #include "wilds.h"
 
+static const char *offer_room_display_name(ROOM_INDEX_DATA *room, char *out, size_t out_size)
+{
+    const char *base_name;
+
+    if (!room || !out || out_size < 2)
+        return "(unknown)";
+
+    base_name = IS_NULLSTR(room->name) ? "(unnamed)" : room->name;
+
+    if (IS_WILDERNESS(room) && room->wilds)
+    {
+        WILDS_TERRAIN *terrain = get_terrain_by_coors(room->wilds, room->x, room->y);
+        WILDS_REGION *region = get_region_by_coors(room->wilds, room->x, room->y);
+
+        if (terrain && !IS_NULLSTR(terrain->showname))
+            base_name = terrain->showname;
+
+        if (region && !IS_NULLSTR(region->name))
+            snprintf(out, out_size, "%s (%s) (%ld,%ld)", base_name, region->name, room->x, room->y);
+        else
+            snprintf(out, out_size, "%s (%ld,%ld)", base_name, room->x, room->y);
+        return out;
+    }
+
+    snprintf(out, out_size, "%s", base_name);
+    return out;
+}
+
 static ROOM_INDEX_DATA *maze_spawn_destination(CHAR_DATA *victim, const char *reserved_dungeon, bool randomize_room)
 {
     DUNGEON_INDEX_DATA *index;
@@ -351,11 +379,6 @@ SPELL_FUNC(spell_summon)
         return false;
     }
 
-    if (IS_SET(victim->act[0], PLR_NOSUMMON)) {
-        act("$N isn't allowing summons.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        return false;
-    }
-
     if (victim->fighting || victim->maze_time_left > 0) {
         send_to_char("Nothing happens.\n\r", ch);
         return false;
@@ -391,6 +414,36 @@ SPELL_FUNC(spell_summon)
     if (victim->pulled_cart) {
         act("$N must first drop what $E is pulling.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         return false;
+    }
+
+    if (!IS_NPC(victim) && victim->pcdata != NULL) {
+        char where[MIL];
+
+        if (IS_SET(victim->act[0], PLR_NOSUMMON)) {
+            act("$N has automatic summon refusal enabled.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act_new("$n attempted to summon you, but your automatic refusal setting declined it.",
+                ch, victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+            return false;
+        }
+
+        if (victim->pcdata->pending_summon_offer_expires > current_time
+        && (victim->pcdata->pending_summon_offer_from_id[0] != 0
+            || victim->pcdata->pending_summon_offer_from_id[1] != 0)) {
+            act("$N already has a pending summon offer.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            return false;
+        }
+
+        victim->pcdata->pending_summon_offer_from_id[0] = ch->id[0];
+        victim->pcdata->pending_summon_offer_from_id[1] = ch->id[1];
+        victim->pcdata->pending_summon_offer_expires = current_time + 60;
+
+        printf_to_char(ch, "You offer to summon %s to %s. Waiting for consent.\n\r",
+            victim->name,
+            offer_room_display_name(ch->in_room, where, sizeof(where)));
+        printf_to_char(victim, "%s offers to summon you to %s. Type {Ysummon accept{x or {Ysummon decline{x.\n\r",
+            ch->name,
+            offer_room_display_name(ch->in_room, where, sizeof(where)));
+        return true;
     }
 
     act("{R$n disappears suddenly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);

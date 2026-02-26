@@ -65,6 +65,8 @@ void update_has_done(CHAR_DATA *ch);
 void reset_waypoint(NPC_SHIP_DATA *npc_ship) ;
 void relic_update(void);
 void check_relic_vanish(OBJ_DATA *relic);
+void readycheck_update(CHAR_DATA *ch);
+void group_pending_update(CHAR_DATA *ch);
 void update_invasion_quest();
 void instance_update();
 void dungeon_update();
@@ -2825,6 +2827,30 @@ void aggr_update(void)
             sprintf(buf, "%d.corpse", i);
             do_function(wch, &do_skull, buf);
         }
+        }
+    }
+
+    if (!IS_NPC(wch) && wch->pcdata != NULL && wch->pcdata->last_ready_check > 0)
+        readycheck_update(wch);
+
+    if (!IS_NPC(wch) && wch->pcdata != NULL)
+        group_pending_update(wch);
+
+    if (!IS_NPC(wch) && wch->pcdata != NULL) {
+        if (wch->pcdata->pending_resurrect_offer_expires > 0
+        && wch->pcdata->pending_resurrect_offer_expires <= current_time) {
+            wch->pcdata->pending_resurrect_offer_expires = 0;
+            wch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+            wch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+            send_to_char("Your pending resurrection offer expired.\n\r", wch);
+        }
+
+        if (wch->pcdata->pending_summon_offer_expires > 0
+        && wch->pcdata->pending_summon_offer_expires <= current_time) {
+            wch->pcdata->pending_summon_offer_expires = 0;
+            wch->pcdata->pending_summon_offer_from_id[0] = 0;
+            wch->pcdata->pending_summon_offer_from_id[1] = 0;
+            send_to_char("Your pending summon offer expired.\n\r", wch);
         }
     }
 

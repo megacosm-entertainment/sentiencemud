@@ -434,6 +434,7 @@ DECLARE_DO_FUN(	do_rest		);
 DECLARE_DO_FUN(	do_restore	);
 DECLARE_DO_FUN( do_restring	);
 DECLARE_DO_FUN( do_resurrect	);
+DECLARE_DO_FUN( do_summon	);
 DECLARE_DO_FUN(	do_return	);
 DECLARE_DO_FUN( do_reverie 	);
 DECLARE_DO_FUN( do_rjunk	);
@@ -617,6 +618,7 @@ DECLARE_DO_FUN( do_land		);
 DECLARE_DO_FUN( do_behead	);
 DECLARE_DO_FUN( do_conceal	);
 DECLARE_DO_FUN(	do_rehearse	);
+DECLARE_DO_FUN( do_readycheck	);
 
 DECLARE_DO_FUN( do_bpedit	);
 DECLARE_DO_FUN( do_bplist	);

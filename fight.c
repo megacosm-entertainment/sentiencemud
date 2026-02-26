@@ -52,6 +52,34 @@
 #define MAX_BACKSTAB_DAMAGE 15000
 #define MAX_FLEE_ATTEMPTS 10
 
+static const char *offer_room_display_name(ROOM_INDEX_DATA *room, char *out, size_t out_size)
+{
+    const char *base_name;
+
+    if (!room || !out || out_size < 2)
+        return "(unknown)";
+
+    base_name = IS_NULLSTR(room->name) ? "(unnamed)" : room->name;
+
+    if (IS_WILDERNESS(room) && room->wilds)
+    {
+        WILDS_TERRAIN *terrain = get_terrain_by_coors(room->wilds, room->x, room->y);
+        WILDS_REGION *region = get_region_by_coors(room->wilds, room->x, room->y);
+
+        if (terrain && !IS_NULLSTR(terrain->showname))
+            base_name = terrain->showname;
+
+        if (region && !IS_NULLSTR(region->name))
+            snprintf(out, out_size, "%s (%s) (%ld,%ld)", base_name, region->name, room->x, room->y);
+        else
+            snprintf(out, out_size, "%s (%ld,%ld)", base_name, room->x, room->y);
+        return out;
+    }
+
+    snprintf(out, out_size, "%s", base_name);
+    return out;
+}
+
 void char_id(CHAR_DATA *ch, long *id)
 {
     id[0] = ch->id[0];
@@ -7162,14 +7190,126 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
     char arg[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
     int chance;
 
     argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg2);
+
+    if (!IS_NPC(ch) && ch->pcdata != NULL) {
+        bool has_offer = (ch->pcdata->pending_resurrect_offer_expires > current_time)
+            && (ch->pcdata->pending_resurrect_offer_from_id[0] != 0
+                || ch->pcdata->pending_resurrect_offer_from_id[1] != 0);
+
+        if (!str_prefix(arg, "accept") || !str_prefix(arg, "decline") || !str_prefix(arg, "pending")) {
+            CHAR_DATA *offer_from = NULL;
+            int left = 0;
+            char where[MIL];
+
+            if (has_offer) {
+                offer_from = idfind_player(ch->pcdata->pending_resurrect_offer_from_id[0], ch->pcdata->pending_resurrect_offer_from_id[1]);
+                left = (int)(ch->pcdata->pending_resurrect_offer_expires - current_time);
+                if (left < 0)
+                    left = 0;
+            }
+
+            if (!str_prefix(arg, "pending")) {
+                if (!has_offer) {
+                    send_to_char("You have no pending resurrection offer.\n\r", ch);
+                    return;
+                }
+
+                printf_to_char(ch, "Pending resurrection offer: %s at %s (%ds remaining).\n\r",
+                    (offer_from && !IS_NPC(offer_from)) ? offer_from->name : "(offline)",
+                    (offer_from && offer_from->in_room) ? offer_room_display_name(offer_from->in_room, where, sizeof(where)) : "(unknown)",
+                    left);
+                send_to_char("Type {Yresurrect accept{x or {Yresurrect decline{x.\n\r", ch);
+                return;
+            }
+
+            if (!has_offer) {
+                send_to_char("You have no pending resurrection offer.\n\r", ch);
+                return;
+            }
+
+            if (!IS_NULLSTR(arg2)) {
+                if (!IS_VALID(offer_from) || IS_NPC(offer_from) || str_prefix(arg2, offer_from->name)) {
+                    send_to_char("You do not have a pending resurrection offer from that player.\n\r", ch);
+                    return;
+                }
+            }
+
+            if (!str_prefix(arg, "decline")) {
+                if (IS_VALID(offer_from) && !IS_NPC(offer_from))
+                    act_new("$n declined your resurrection offer.", ch, offer_from, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+
+                ch->pcdata->pending_resurrect_offer_expires = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+                send_to_char("Resurrection offer declined.\n\r", ch);
+                return;
+            }
+
+            if (IS_SET(ch->act[0], PLR_NO_RESURRECT)) {
+                if (IS_VALID(offer_from) && !IS_NPC(offer_from))
+                    act_new("$n has automatic resurrection refusal enabled.", ch, offer_from, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+
+                ch->pcdata->pending_resurrect_offer_expires = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+                send_to_char("Automatic resurrection refusal is enabled. Offer declined.\n\r", ch);
+                return;
+            }
+
+            if (!IS_DEAD(ch)) {
+                ch->pcdata->pending_resurrect_offer_expires = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+                send_to_char("You are already alive.\n\r", ch);
+                return;
+            }
+
+            if (!IS_VALID(offer_from) || IS_NPC(offer_from) || offer_from->fighting != NULL) {
+                ch->pcdata->pending_resurrect_offer_expires = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+                send_to_char("That resurrection offer is no longer valid.\n\r", ch);
+                return;
+            }
+
+            obj = ch->pcdata->corpse;
+            if (!IS_VALID(obj) || obj->item_type != ITEM_CORPSE_PC || obj->in_room != offer_from->in_room || obj->owner == NULL || str_cmp(obj->owner, ch->name)) {
+                ch->pcdata->pending_resurrect_offer_expires = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+                ch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+                send_to_char("That resurrection offer is no longer valid.\n\r", ch);
+                if (IS_VALID(offer_from))
+                    send_to_char("Your target is no longer available for resurrection here.\n\r", offer_from);
+                return;
+            }
+
+            RESURRECT_STATE(offer_from, 5 + ch->tot_level / 10);
+            offer_from->resurrect_target = obj;
+
+            ch->pcdata->pending_resurrect_offer_expires = 0;
+            ch->pcdata->pending_resurrect_offer_from_id[0] = 0;
+            ch->pcdata->pending_resurrect_offer_from_id[1] = 0;
+
+            act_new("$N accepts your resurrection offer.", offer_from, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, POS_SLEEPING, NULL);
+            send_to_char("You accept the resurrection offer.\n\r", ch);
+            act("{YYou kneel down and place your hands over $p.{x", offer_from, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("{Y$n kneels down and places $s hands over $p.{x", offer_from, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            return;
+        }
+    }
 
     if (arg[0] == '\0')
     {
-        send_to_char("Resurrect whom?\n\r", ch);
+        send_to_char("Syntax: resurrect <corpse>\n\r", ch);
+        send_to_char("        resurrect accept [player]\n\r", ch);
+        send_to_char("        resurrect decline [player]\n\r", ch);
+        send_to_char("        resurrect pending\n\r", ch);
         return;
     }
 
@@ -7241,12 +7381,6 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (IS_SET(obj->extra[1], ITEM_NO_RESURRECT))
-    {
-        act("$p seems to be immune to your divine energies.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        return;
-    }
-
     // Only allow resurrection of chaotic corpses in full chaotic PK rooms
     if( is_room_full_cpk(ch->in_room)
     &&  !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
@@ -7295,13 +7429,161 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
     }
     */
 
-    RESURRECT_STATE(ch, 5 + victim->tot_level/10);
-    ch->resurrect_target = obj;
+    if (IS_SET(victim->act[0], PLR_NO_RESURRECT)) {
+        act("$N has automatic resurrection refusal enabled.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act_new("$n attempted to resurrect you, but your automatic refusal setting declined it.", ch, victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+        return;
+    }
 
-    act("{YYou kneel down and place your hands over $p.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-    act("{Y$n kneels down and places $s hands over $p.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    if (!IS_NPC(victim) && victim->pcdata
+    && victim->pcdata->pending_resurrect_offer_expires > current_time
+    && (victim->pcdata->pending_resurrect_offer_from_id[0] != 0
+        || victim->pcdata->pending_resurrect_offer_from_id[1] != 0)) {
+        act("$N already has a pending resurrection offer.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return;
+    }
+
+    victim->pcdata->pending_resurrect_offer_from_id[0] = ch->id[0];
+    victim->pcdata->pending_resurrect_offer_from_id[1] = ch->id[1];
+    victim->pcdata->pending_resurrect_offer_expires = current_time + 60;
+
+    {
+        char where[MIL];
+        printf_to_char(ch, "You offer to resurrect %s at %s. Waiting for consent.\n\r",
+            victim->name,
+            offer_room_display_name(ch->in_room, where, sizeof(where)));
+        printf_to_char(victim, "%s offers to resurrect you at %s. Type {Yresurrect accept{x or {Yresurrect decline{x.\n\r",
+            ch->name,
+            offer_room_display_name(ch->in_room, where, sizeof(where)));
+    }
 
     return;
+}
+
+void do_summon(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    CHAR_DATA *summoner;
+    char where[MIL];
+
+    argument = one_argument(argument, arg);
+
+    if (IS_NPC(ch) || !ch->pcdata) {
+        send_to_char("Huh?\n\r", ch);
+        return;
+    }
+
+    if (arg[0] == '\0' || !str_prefix(arg, "pending")) {
+        int left;
+
+        if (ch->pcdata->pending_summon_offer_expires <= current_time
+        || (ch->pcdata->pending_summon_offer_from_id[0] == 0 && ch->pcdata->pending_summon_offer_from_id[1] == 0)) {
+            send_to_char("You have no pending summon offer.\n\r", ch);
+            return;
+        }
+
+        summoner = idfind_player(ch->pcdata->pending_summon_offer_from_id[0], ch->pcdata->pending_summon_offer_from_id[1]);
+        left = (int)(ch->pcdata->pending_summon_offer_expires - current_time);
+        if (left < 0)
+            left = 0;
+
+        printf_to_char(ch, "Pending summon offer: %s at %s (%ds remaining).\n\r",
+            (summoner && !IS_NPC(summoner)) ? summoner->name : "(offline)",
+            (summoner && summoner->in_room) ? offer_room_display_name(summoner->in_room, where, sizeof(where)) : "(unknown)",
+            left);
+        send_to_char("Type {Ysummon accept{x or {Ysummon decline{x.\n\r", ch);
+        return;
+    }
+
+    if (ch->pcdata->pending_summon_offer_expires <= current_time
+    || (ch->pcdata->pending_summon_offer_from_id[0] == 0 && ch->pcdata->pending_summon_offer_from_id[1] == 0)) {
+        send_to_char("You have no pending summon offer.\n\r", ch);
+        return;
+    }
+
+    summoner = idfind_player(ch->pcdata->pending_summon_offer_from_id[0], ch->pcdata->pending_summon_offer_from_id[1]);
+
+    if (!str_prefix(arg, "decline")) {
+        if (IS_VALID(summoner) && !IS_NPC(summoner))
+            act_new("$n declined your summon offer.", ch, summoner, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+
+        ch->pcdata->pending_summon_offer_expires = 0;
+        ch->pcdata->pending_summon_offer_from_id[0] = 0;
+        ch->pcdata->pending_summon_offer_from_id[1] = 0;
+        send_to_char("Summon offer declined.\n\r", ch);
+        return;
+    }
+
+    if (str_prefix(arg, "accept")) {
+        send_to_char("Syntax: summon accept\n\r", ch);
+        send_to_char("        summon decline\n\r", ch);
+        send_to_char("        summon pending\n\r", ch);
+        return;
+    }
+
+    if (IS_SET(ch->act[0], PLR_NOSUMMON)) {
+        if (IS_VALID(summoner) && !IS_NPC(summoner))
+            act_new("$n has automatic summon refusal enabled.", ch, summoner, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TO_VICT, POS_SLEEPING, NULL);
+
+        ch->pcdata->pending_summon_offer_expires = 0;
+        ch->pcdata->pending_summon_offer_from_id[0] = 0;
+        ch->pcdata->pending_summon_offer_from_id[1] = 0;
+        send_to_char("Automatic summon refusal is enabled. Offer declined.\n\r", ch);
+        return;
+    }
+
+    if (!IS_VALID(summoner) || IS_NPC(summoner)) {
+        ch->pcdata->pending_summon_offer_expires = 0;
+        ch->pcdata->pending_summon_offer_from_id[0] = 0;
+        ch->pcdata->pending_summon_offer_from_id[1] = 0;
+        send_to_char("That summon offer is no longer valid.\n\r", ch);
+        return;
+    }
+
+    if (ch->fighting || ch->maze_time_left > 0) {
+        send_to_char("You cannot accept a summon right now.\n\r", ch);
+        return;
+    }
+
+    if (IS_SET(ch->in_room->room_flag[0], ROOM_NO_RECALL) ||
+        IS_SET(ch->in_room->room_flag[0], ROOM_NOMAGIC) ||
+        IS_SET(ch->in_room->room_flag[0], ROOM_SAFE) ||
+        IS_SET(ch->in_room->area->area_flags, AREA_NO_RECALL)) {
+        send_to_char("You cannot be summoned from this location.\n\r", ch);
+        return;
+    }
+
+    if (IS_SET(summoner->in_room->room_flag[0], ROOM_PK) || IS_SET(summoner->in_room->room_flag[0], ROOM_CPK) || IS_SET(summoner->in_room->room_flag[0], ROOM_ARENA)) {
+        send_to_char("You cannot be summoned to that location.\n\r", ch);
+        return;
+    }
+
+    if (!can_gate(summoner, ch))
+        return;
+
+    if (ch->tot_level < summoner->tot_level - 20 && !is_pk(ch)) {
+        if (is_pk_safe_range(summoner->in_room, 5, -1) > -1) {
+            send_to_char("That summon destination is too close to PK danger.\n\r", ch);
+            return;
+        }
+    }
+
+    if (ch->pulled_cart) {
+        send_to_char("You must first drop what you are pulling.\n\r", ch);
+        return;
+    }
+
+    ch->pcdata->pending_summon_offer_expires = 0;
+    ch->pcdata->pending_summon_offer_from_id[0] = 0;
+    ch->pcdata->pending_summon_offer_from_id[1] = 0;
+
+    act("{R$n disappears suddenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    char_from_room(ch);
+    char_to_room(ch, summoner->in_room);
+    act("{R$n arrives suddenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    act("{M$n has summoned you!{x", summoner, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    act("$N accepts your summon offer.", summoner, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+    do_function(ch, &do_look, "auto");
 }
 
 
@@ -7350,7 +7632,7 @@ void resurrect_end(CHAR_DATA *ch)
         return;
     }
 
-    victim = get_char_world(ch, obj->owner);
+    victim = get_char_world(NULL, obj->owner);
 
     if (victim == NULL)
     {
@@ -8074,12 +8356,14 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
             victim->cpk_deaths++;
             if (IN_CHURCH(ch)) {
                 ch->church->cpk_wins++;
-                ch->church_member->cpk_wins++;
+                if (ch->church_member != NULL)
+                    ch->church_member->cpk_wins++;
             }
 
             if (IN_CHURCH(victim)) {
                 victim->church->cpk_losses++;
-                victim->church_member->cpk_losses++;
+                if (victim->church_member != NULL)
+                    victim->church_member->cpk_losses++;
             }
         // PK
         } else {
@@ -8088,12 +8372,14 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 
             if (IN_CHURCH(ch)) {
                 ch->church->pk_wins++;
-                ch->church_member->pk_wins++;
+                if (ch->church_member != NULL)
+                    ch->church_member->pk_wins++;
             }
 
             if (IN_CHURCH(victim)) {
                 victim->church->pk_losses++;
-                victim->church_member->pk_losses++;
+                if (victim->church_member != NULL)
+                    victim->church_member->pk_losses++;
             }
         }
 

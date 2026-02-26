@@ -45,6 +45,340 @@ extern LLIST *loaded_instances;
 long top_dungeon_vnum = 0;
 LLIST *loaded_dungeons;
 
+#define DEFAULT_READY_CHECK 300
+
+static bool readycheck_member_matches(CHAR_DATA *member, CHAR_DATA *leader, GROUP_DATA *group)
+{
+    if (!IS_VALID(member) || !IS_VALID(leader) || IS_NPC(member) || !member->pcdata)
+        return false;
+
+    if (IS_VALID(group))
+        return member->group == group;
+
+    return is_same_group(member, leader);
+}
+
+static bool is_readycheck_complete(CHAR_DATA *leader)
+{
+    GROUP_DATA *group;
+    ITERATOR it;
+    CHAR_DATA *member;
+
+    if (!IS_VALID(leader) || !leader->pcdata)
+        return false;
+
+    group = IS_VALID(leader->group) ? leader->group : NULL;
+
+    if (IS_VALID(group) && group->members)
+        iterator_start(&it, group->members);
+    else
+        iterator_start(&it, loaded_chars);
+
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (!readycheck_member_matches(member, leader, group) || member == leader)
+            continue;
+
+        if (member->pcdata->readycheck_answer != TRISTATE_TRUE) {
+            iterator_stop(&it);
+            return false;
+        }
+    }
+    iterator_stop(&it);
+
+    return true;
+}
+
+void do_readycheck(CHAR_DATA *ch, char *argument)
+{
+    CHAR_DATA *leader;
+    GROUP_DATA *group;
+    char arg[MIL];
+
+    if (IS_NPC(ch) || !ch->pcdata)
+        return;
+
+    if (argument[0] == '\0')
+    {
+        send_to_char("Syntax:  readycheck info    - show current state of ready check\n\r", ch);
+        send_to_char("         readycheck start   - initiate a ready check on group\n\r", ch);
+        send_to_char("         readycheck yes     - confirm you are ready\n\r", ch);
+        send_to_char("         readycheck no      - confirm you are not ready\n\r", ch);
+        return;
+    }
+
+    leader = get_player_leader(ch);
+    if (!IS_VALID(leader) || !leader->pcdata)
+    {
+        send_to_char("You are not in a valid group.\n\r", ch);
+        return;
+    }
+
+    group = IS_VALID(leader->group) ? leader->group : NULL;
+
+    argument = one_argument(argument, arg);
+
+    if (!str_prefix(arg, "info"))
+    {
+        char buf[MSL];
+        bool active = false;
+        bool complete;
+        int plr_no = 1;
+        int yes = 0;
+        int no = 0;
+        int unknown = 0;
+        ITERATOR it;
+        CHAR_DATA *member;
+
+        complete = is_readycheck_complete(leader);
+
+        if (complete && leader->pcdata->last_ready_check > 0)
+        {
+            send_to_char("Ready Check Results:\n\r", ch);
+        }
+        else if (leader->pcdata->last_ready_check > current_time)
+        {
+            int seconds = (int)(leader->pcdata->last_ready_check - current_time);
+            char *unit = "second";
+            if (seconds >= 120)
+            {
+                seconds /= 60;
+                unit = "minute";
+            }
+
+            sprintf(buf, "Current Ready Check: %d %s%s remaining\n\r", seconds, unit, (seconds == 1) ? "" : "s");
+            send_to_char(buf, ch);
+            active = true;
+        }
+        else if (leader->pcdata->last_ready_check > 0)
+        {
+            send_to_char("Ready Check Results:\n\r", ch);
+        }
+        else
+        {
+            send_to_char("No readycheck is active.\n\r", ch);
+            return;
+        }
+
+        send_to_char("    [      PLAYER      ] [READY]\n\r", ch);
+        send_to_char("=================================\n\r", ch);
+
+        if (IS_VALID(group) && group->members)
+            iterator_start(&it, group->members);
+        else
+            iterator_start(&it, loaded_chars);
+
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            const char *answer;
+
+            if (!readycheck_member_matches(member, leader, group))
+                continue;
+
+            if (member->pcdata->readycheck_answer == TRISTATE_TRUE)
+            {
+                answer = "{G YES ";
+                yes++;
+            }
+            else if (member->pcdata->readycheck_answer == TRISTATE_FALSE)
+            {
+                answer = "{R NO  ";
+                no++;
+            }
+            else
+            {
+                answer = active ? "{x ??? " : "{D-{xA{WF{xK{D-";
+                unknown++;
+            }
+
+            sprintf(buf, "{W%2d{x) %-20s  %s{x\n\r", plr_no++, member->name, answer);
+            send_to_char(buf, ch);
+        }
+        iterator_stop(&it);
+
+        send_to_char("---------------------------------\n\r", ch);
+        sprintf(buf, "Yes: %s%d\n\rNo:  %s%d\n\r%s %d\n\r",
+            active ? "    " : "", yes,
+            active ? "    " : "", no,
+            active ? "Unknown:" : "AFK:", unknown);
+        send_to_char(buf, ch);
+        return;
+    }
+
+    if (!str_prefix(arg, "start"))
+    {
+        ITERATOR it;
+        CHAR_DATA *member;
+        int members = 0;
+        time_t expires;
+
+        if (ch != leader)
+        {
+            send_to_char("Only the group leader may initiate a readycheck.\n\r", ch);
+            return;
+        }
+
+        if (leader->pcdata->last_ready_check > current_time)
+        {
+            send_to_char("A readycheck is already active.\n\r", ch);
+            send_to_char("Use {Yreadycheck info{x for current status.\n\r", ch);
+            return;
+        }
+
+        if (IS_VALID(group) && group->members)
+            iterator_start(&it, group->members);
+        else
+            iterator_start(&it, loaded_chars);
+
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (readycheck_member_matches(member, leader, group))
+                members++;
+        }
+        iterator_stop(&it);
+
+        if (members < 2)
+        {
+            send_to_char("You need at least one other player in your group to run a readycheck.\n\r", ch);
+            return;
+        }
+
+        expires = current_time + DEFAULT_READY_CHECK;
+
+        if (IS_VALID(group) && group->members)
+            iterator_start(&it, group->members);
+        else
+            iterator_start(&it, loaded_chars);
+
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (!readycheck_member_matches(member, leader, group))
+                continue;
+
+            member->pcdata->last_ready_check = expires;
+            member->pcdata->readycheck_answer = TRISTATE_UNDEF;
+
+            if (member != leader)
+            {
+                send_to_char("Your group leader has initiated a readycheck.\n\r", member);
+                send_to_char("Please answer with either {Yreadycheck yes{x or {Yreadycheck no{x.\n\r", member);
+            }
+        }
+        iterator_stop(&it);
+
+        leader->pcdata->readycheck_answer = TRISTATE_TRUE;
+        send_to_char("You have initiated a readycheck.\n\r", leader);
+        return;
+    }
+
+    if (!str_prefix(arg, "yes") || !str_prefix(arg, "no"))
+    {
+        bool answer_yes = !str_prefix(arg, "yes");
+
+        if (!(leader->pcdata->last_ready_check > current_time))
+        {
+            send_to_char("There is no active readycheck.\n\r", ch);
+            return;
+        }
+
+        if (!readycheck_member_matches(ch, leader, group))
+        {
+            send_to_char("You are not part of this readycheck.\n\r", ch);
+            return;
+        }
+
+        if (ch->pcdata->readycheck_answer != TRISTATE_UNDEF)
+        {
+            send_to_char("You've already given your ready state.\n\r", ch);
+            return;
+        }
+
+        ch->pcdata->readycheck_answer = answer_yes ? TRISTATE_TRUE : TRISTATE_FALSE;
+        ch->pcdata->last_ready_check = 0;
+        send_to_char(answer_yes ? "You confirmed your READY CHECK - {GYES{x.\n\r"
+                                : "You confirmed your READY CHECK - {RNO{x.\n\r", ch);
+        return;
+    }
+
+    do_readycheck(ch, "");
+}
+
+void readycheck_update(CHAR_DATA *ch)
+{
+    CHAR_DATA *leader = get_player_leader(ch);
+    GROUP_DATA *group;
+    bool show = true;
+    bool complete = true;
+    ITERATOR it;
+    CHAR_DATA *member;
+
+    if (!IS_VALID(leader) || !leader->pcdata || leader != ch)
+        return;
+
+    if (leader->pcdata->last_ready_check <= 0)
+        return;
+
+    group = IS_VALID(leader->group) ? leader->group : NULL;
+
+    if (leader->pcdata->last_ready_check > current_time)
+    {
+        if (IS_VALID(group) && group->members)
+            iterator_start(&it, group->members);
+        else
+            iterator_start(&it, loaded_chars);
+
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (!readycheck_member_matches(member, leader, group) || member == leader)
+                continue;
+
+            if (member->pcdata->readycheck_answer == TRISTATE_FALSE)
+                complete = false;
+
+            if (member->pcdata->readycheck_answer == TRISTATE_UNDEF)
+            {
+                complete = false;
+                show = false;
+                break;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    if (!show)
+        return;
+
+    do_readycheck(leader, "info");
+
+    if (IS_VALID(group) && group->members)
+        iterator_start(&it, group->members);
+    else
+        iterator_start(&it, loaded_chars);
+
+    while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+        if (!readycheck_member_matches(member, leader, group))
+            continue;
+
+        if (member != leader)
+            do_readycheck(member, "info");
+
+        member->pcdata->last_ready_check = 0;
+        member->pcdata->readycheck_answer = TRISTATE_UNDEF;
+    }
+    iterator_stop(&it);
+
+    if (complete)
+    {
+        if (IS_VALID(group) && group->members)
+            iterator_start(&it, group->members);
+        else
+            iterator_start(&it, loaded_chars);
+
+        while ((member = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (!readycheck_member_matches(member, leader, group))
+                continue;
+
+            send_to_char("{GEveryone is ready.{x\n\r", member);
+        }
+        iterator_stop(&it);
+    }
+}
+
 DUNGEON_INDEX_LEVEL_DATA *load_dungeon_index_level(FILE *fp, int mode)
 {
     DUNGEON_INDEX_LEVEL_DATA *level;

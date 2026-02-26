@@ -2466,6 +2466,23 @@ void bust_a_prompt(CHAR_DATA *ch)
     if (count_note(ch, NOTE_CHANGES))
     send_to_char("{R[CHANGES]{x", ch);
 
+    if (group_has_pending_invite(ch))
+    send_to_char("{Y[INV]{x", ch);
+
+    if (group_has_pending_requests(ch))
+    send_to_char("{C[REQ]{x", ch);
+
+    if (!IS_NPC(ch) && ch->pcdata != NULL && ch->pcdata->last_ready_check > current_time)
+    send_to_char("{R[{YREADY{R}]{x", ch);
+
+    if (!IS_NPC(ch) && ch->pcdata != NULL
+    && ch->pcdata->pending_resurrect_offer_expires > current_time)
+    send_to_char("{M[REZ]{x", ch);
+
+    if (!IS_NPC(ch) && ch->pcdata != NULL
+    && ch->pcdata->pending_summon_offer_expires > current_time)
+    send_to_char("{C[SUM]{x", ch);
+
     if (ch->mail != NULL)
         send_to_char("{R[UNSENT MAIL]{x", ch);
 

@@ -529,6 +529,22 @@
       "type": 4
     },
     {
+      "addl_types": 16,
+      "command_flags": 0,
+      "comments": "",
+      "description": "",
+      "enabled": true,
+      "function": "do_readycheck",
+      "help_keywords": "READYCHECK",
+      "log": 0,
+      "name": "readycheck",
+      "position": 0,
+      "rank": 0,
+      "reason": "",
+      "summary": "Run and respond to a party ready check.",
+      "type": 2
+    },
+    {
       "addl_types": 4,
       "command_flags": 1,
       "comments": "",
@@ -798,6 +814,22 @@
       "rank": 0,
       "reason": "",
       "summary": "Resurrect another player.",
+      "type": 0
+    },
+    {
+      "addl_types": 0,
+      "command_flags": 0,
+      "comments": "",
+      "description": "",
+      "enabled": true,
+      "function": "do_summon",
+      "help_keywords": "SUMMON",
+      "log": 1,
+      "name": "summon",
+      "position": 4,
+      "rank": 0,
+      "reason": "",
+      "summary": "Respond to a summon offer.",
       "type": 0
     },
     {
