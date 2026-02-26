@@ -130,6 +130,7 @@ static const struct flag_type cedit_channel_flags[] = {
     { "ignore_quiet",    CHANNEL_FLAG_IGNORE_QUIET, true, NULL },
     { "guard_str_edit",  CHANNEL_FLAG_GUARD_STR_EDIT_CMDS, true, NULL },
     { "requires_target", CHANNEL_FLAG_REQUIRES_TARGET, true, NULL },
+    { "private",         CHANNEL_FLAG_PRIVATE,         true, NULL },
     { NULL,               0, false, NULL }
 };
 
