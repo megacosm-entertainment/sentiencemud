@@ -715,6 +715,32 @@ void do_history(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    {
+        REQUIREMENT_CONTEXT req_context;
+        bool can_subscribe;
+        bool can_moderate = IS_IMMORTAL(ch);
+        int j;
+
+        memset(&req_context, 0, sizeof(req_context));
+        req_context.actor = ch;
+        can_subscribe = requirements_evaluate_text(def->subscribe_requirements,
+                                                   &req_context,
+                                                   true);
+        if (!can_moderate) {
+            for (j = 0; j < def->mod_count; j++) {
+                if (!str_cmp(def->moderators[j], ch->name)) {
+                    can_moderate = true;
+                    break;
+                }
+            }
+        }
+
+        if (!can_subscribe && !can_moderate) {
+            send_to_char("No such channel.\n\r", ch);
+            return;
+        }
+    }
+
     argument = one_argument(argument, arg2);
     if (arg2[0] == '\0') {
         char buf[MSL];

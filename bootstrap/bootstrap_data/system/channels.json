@@ -360,6 +360,7 @@
       "scope": "direct_entity",
       "allow_player_flags": false,
       "persistent": false,
+      "channel_flags": 512,
       "filter_enabled": false,
       "filter_mode": "allow",
       "light_warn_threshold": 2,

@@ -1014,6 +1014,12 @@ if (ch->pk_question)
 
     if (found && !selected_command->enabled)
     {
+        /* Try the channel dispatcher first — a disabled command may have a
+         * live channel equivalent that should still work (e.g. 'tell' routed
+         * through the channel service after the legacy function is retired). */
+        if (dispatch_dynamic_channel_command(ch, command, argument))
+            return;
+
         sprintf(buf,"%s is currently disabled.\n\r", selected_command->name);
         send_to_char(buf,ch);
         if (!IS_NULLSTR(selected_command->reason))
