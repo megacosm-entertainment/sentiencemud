@@ -1365,8 +1365,9 @@ static bool channel_history_matches_context(const CHANNEL_HISTORY_RECORD *record
         if (!viewer)
             return false;
 
-        if (!channel_history_viewer_is_participant(record, viewer))
-            return false;
+        /* Private channels: participant check is the only gate — skip topic
+         * filter entirely so both sender and recipient see their shared history. */
+        return channel_history_viewer_is_participant(record, viewer);
     }
 
     if (!channel_requires_history_topic_filter(def))
@@ -3446,6 +3447,8 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
                                msg.reports_json,
                                appended_report_id,
                                sizeof(appended_report_id));
+        channel_history_set_participants(sender->id[0], sender->id[1],
+                                         recipient->id[0], recipient->id[1]);
         channel_deliver_tell_legacy(sender, recipient, delivery_text);
         return true;
     }
@@ -3487,6 +3490,8 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
                            msg.reports_json,
                            appended_report_id,
                            sizeof(appended_report_id));
+    channel_history_set_participants(sender->id[0], sender->id[1],
+                                     recipient->id[0], recipient->id[1]);
     channel_deliver_tell_legacy(sender, recipient, delivery_text);
     return true;
 }

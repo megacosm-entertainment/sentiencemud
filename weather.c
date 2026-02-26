@@ -32,6 +32,22 @@ static void weather_update_wilderness_storms(void);
 STORM_DATA* create_storm(AREA_DATA *pArea, int storm_type, int x, int y, int radius, float dx, float dy, int speed, int life);
 void remove_storm(AREA_DATA *pArea, STORM_DATA *storm);
 
+/* Send a weather echo only to awake characters who are outdoors. */
+static void weather_gecho(const char *message)
+{
+    DESCRIPTOR_DATA *d;
+    for (d = descriptor_list; d != NULL; d = d->next)
+    {
+        CHAR_DATA *ch;
+        if (!d->character || d->connected != CON_PLAYING)
+            continue;
+        ch = d->original ? d->original : d->character;
+        if (!ch->in_room || !IS_AWAKE(ch) || !IS_OUTSIDE(ch))
+            continue;
+        send_to_char(message, ch);
+    }
+}
+
 static int weather_clamp_mmhg(int mmhg)
 {
     if (mmhg < 960)
@@ -451,19 +467,19 @@ void update_weather(void)
     {
     default:
     case SKY_CLOUDLESS:
-        gecho("{YThe clouds part and the sky clears.{x\n\r");
+        weather_gecho("{YThe clouds part and the sky clears.{x\n\r");
         break;
     case SKY_CLOUDY:
-        gecho("{WClouds gather and dim the sky.{x\n\r");
+        weather_gecho("{WClouds gather and dim the sky.{x\n\r");
         break;
     case SKY_RAINING:
         if (time_info.month == 0 || time_info.month == 1 || time_info.month == 11)
-            gecho("{WCold winds gather and snow begins to fall.{x\n\r");
+            weather_gecho("{WCold winds gather and snow begins to fall.{x\n\r");
         else
-            gecho("{CThe clouds open and rain begins to fall.{x\n\r");
+            weather_gecho("{CThe clouds open and rain begins to fall.{x\n\r");
         break;
     case SKY_LIGHTNING:
-        gecho("{YLightning crackles across the sky as the storm intensifies.{x\n\r");
+        weather_gecho("{YLightning crackles across the sky as the storm intensifies.{x\n\r");
         break;
     }
 }
