@@ -50,6 +50,7 @@ typedef struct channel_history_record {
     char channel_id[32];
     char topic[128];
     char sender_name[64];
+    char recipient_name[64];
     char message_text[1024];
     time_t timestamp;
     unsigned long sender_id[2];
@@ -538,6 +539,7 @@ static void channel_history_copy_entry(CHANNEL_HISTORY_ENTRY *dst,
     strlcpy(dst->reports_json, src->reports_json, sizeof(dst->reports_json));
     strlcpy(dst->channel_id, src->channel_id, sizeof(dst->channel_id));
     strlcpy(dst->sender_name, src->sender_name, sizeof(dst->sender_name));
+    strlcpy(dst->recipient_name, src->recipient_name, sizeof(dst->recipient_name));
     strlcpy(dst->message_text, src->message_text, sizeof(dst->message_text));
     dst->timestamp = src->timestamp;
 }
@@ -607,6 +609,18 @@ static void channel_history_set_participants(unsigned long sender_id0,
     channel_history_ring[last].sender_id[1] = sender_id1;
     channel_history_ring[last].recipient_id[0] = recipient_id0;
     channel_history_ring[last].recipient_id[1] = recipient_id1;
+}
+
+static void channel_history_set_recipient_name(const char *name)
+{
+    int last;
+
+    if (channel_history_ring_count == 0 || IS_NULLSTR(name))
+        return;
+
+    last = (channel_history_ring_next - 1 + CHANNEL_HISTORY_RING_MAX) % CHANNEL_HISTORY_RING_MAX;
+    strlcpy(channel_history_ring[last].recipient_name, name,
+            sizeof(channel_history_ring[last].recipient_name));
 }
 
 static bool channel_history_match_channel(const CHANNEL_HISTORY_RECORD *record,
@@ -1970,6 +1984,49 @@ static void channel_send_formatted_to_sender(const char *channel_id,
     send_to_char(rendered, sender);
 }
 
+/**
+ * channel_send_directed_echo_to_sender - Echo a directed message back to the sender.
+ *
+ * Like channel_send_formatted_to_sender but passes the recipient's name as
+ * the first format argument (%1$s) so fmt_self strings can include "You tell
+ * <recipient>:" style output.  Falls back to a sensible default if fmt_self
+ * is unset.
+ */
+static void channel_send_directed_echo_to_sender(const char *channel_id,
+                                                 CHAR_DATA *sender,
+                                                 CHAR_DATA *recipient,
+                                                 const char *plain_text)
+{
+    const CHANNEL_DEF_DATA *def;
+    const char *fmt = "{RYou tell %1$s:{x %2$s";
+    const char *message_text;
+    char message_with_flag[2 * MSL];
+    char rendered[MAX_STRING_LENGTH];
+
+    if (!sender || !recipient || IS_NULLSTR(channel_id) || IS_NULLSTR(plain_text))
+        return;
+
+    def = channel_find_definition(channel_id);
+    if (def && !IS_NULLSTR(def->fmt_self))
+        fmt = def->fmt_self;
+
+    message_text = plain_text;
+    if (channel_should_include_sender_flag(channel_id, sender, sender)) {
+        snprintf(message_with_flag, sizeof(message_with_flag), "%s %s",
+                 sender->pcdata->flag, plain_text);
+        message_text = message_with_flag;
+    }
+
+    snprintf(rendered, sizeof(rendered), fmt,
+             channel_honors_pers(channel_id) ? pers(recipient, sender) : recipient->name,
+             message_text);
+
+    if (!strstr(rendered, "\n\r"))
+        strlcat(rendered, "\n\r", sizeof(rendered));
+
+    send_to_char(rendered, sender);
+}
+
 static void channel_format_for_recipient(const char *channel_id,
                                          CHAR_DATA *sender,
                                          CHAR_DATA *recipient,
@@ -2347,6 +2404,7 @@ static void channel_deliver_chtalk_legacy(CHAR_DATA *sender, const char *plain_t
 
 static void channel_deliver_tell_legacy(CHAR_DATA *sender,
                                         CHAR_DATA *recipient,
+                                        const char *channel_id,
                                         const char *plain_text)
 {
     char msg[2 * MSL];
@@ -2364,14 +2422,8 @@ static void channel_deliver_tell_legacy(CHAR_DATA *sender,
     if (!channel_policy_tell_delivery_allowed(sender, recipient, false, &tell_block))
         return;
 
-    if (!IS_NPC(sender) && sender->pcdata->flag && SHOW_CHANNEL_FLAG(recipient, FLAG_TELLS))
-        sprintf(msg, "{R%s tells you '%s {R%s{R'{x\n\r", sender->name, sender->pcdata->flag, display_text);
-    else if (IS_NPC(sender))
-        sprintf(msg, "{R%s tells you '%s'{x\n\r", pers(sender, recipient), display_text);
-    else
-        sprintf(msg, "{R%s tells you '%s'{x\n\r", sender->name, display_text);
-
-    msg[2] = UPPER(msg[2]);
+    channel_format_for_recipient(channel_id, sender, recipient, display_text,
+                                 msg, sizeof(msg));
 
     if (!IS_NPC(recipient) && recipient->desc == NULL && recipient->pcdata && recipient->pcdata->buffer) {
         add_buf(recipient->pcdata->buffer, msg);
@@ -3083,6 +3135,8 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
                            sizeof(appended_report_id));
     channel_history_set_participants(msg->sender_id0, msg->sender_id1,
                                      msg->recipient_id0, msg->recipient_id1);
+    if (!IS_NULLSTR(msg->recipient_name))
+        channel_history_set_recipient_name(msg->recipient_name);
 
     if (local_origin)
         return;
@@ -3097,7 +3151,7 @@ static void channel_service_receive_message(const CHANNEL_MESSAGE *msg)
         /* Directed delivery: find specific recipient and deliver only to them. */
         CHAR_DATA *recipient = channel_find_sender(msg->recipient_id0, msg->recipient_id1, NULL);
         if (recipient)
-            channel_deliver_tell_legacy(sender, recipient, msg->message_text);
+            channel_deliver_tell_legacy(sender, recipient, msg->channel_id, msg->message_text);
         return;
     }
 
@@ -3436,6 +3490,10 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
         return true;
     }
 
+    /* Sender echo and reply pointer — applied regardless of transport path. */
+    channel_send_directed_echo_to_sender(channel_id, sender, recipient, delivery_text);
+    sender->reply = recipient;
+
     /* Legacy or uninitialized: deliver directly without going through transport. */
     if (!channel_service_ready || channel_transport_backend_mode() == CHANNEL_BACKEND_LEGACY_ITERATIVE) {
         channel_history_append(channel_id,
@@ -3449,7 +3507,8 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
                                sizeof(appended_report_id));
         channel_history_set_participants(sender->id[0], sender->id[1],
                                          recipient->id[0], recipient->id[1]);
-        channel_deliver_tell_legacy(sender, recipient, delivery_text);
+        channel_history_set_recipient_name(recipient->name);
+        channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
 
@@ -3468,6 +3527,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.sender_id1 = sender->id[1];
     snprintf(recipient_uid, sizeof(recipient_uid), "%lu:%lu", recipient->id[0], recipient->id[1]);
     msg.recipient_uid = recipient_uid;
+    msg.recipient_name = recipient->name;
     msg.recipient_id0 = recipient->id[0];
     msg.recipient_id1 = recipient->id[1];
     if (!IS_NULLSTR(reports_json))
@@ -3476,7 +3536,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.timestamp = current_time;
 
     if (channel_transport_publish(topic, &msg)) {
-        channel_deliver_tell_legacy(sender, recipient, delivery_text);
+        channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
 
@@ -3492,7 +3552,8 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
                            sizeof(appended_report_id));
     channel_history_set_participants(sender->id[0], sender->id[1],
                                      recipient->id[0], recipient->id[1]);
-    channel_deliver_tell_legacy(sender, recipient, delivery_text);
+    channel_history_set_recipient_name(recipient->name);
+    channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
     return true;
 }
 

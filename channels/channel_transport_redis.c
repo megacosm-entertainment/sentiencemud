@@ -22,6 +22,7 @@ typedef struct redis_outbound_event {
     unsigned long sender_id0;
     unsigned long sender_id1;
     char recipient_uid[64];
+    char recipient_name[64];
     unsigned long recipient_id0;
     unsigned long recipient_id1;
     char message_text[MSL];
@@ -269,6 +270,8 @@ static bool publish_event_locked(const REDIS_OUTBOUND_EVENT *evt)
         json_object_set_new(payload, "recipient_uid", json_string(evt->recipient_uid));
         json_object_set_new(payload, "recipient_id0", json_integer((json_int_t)evt->recipient_id0));
         json_object_set_new(payload, "recipient_id1", json_integer((json_int_t)evt->recipient_id1));
+        if (evt->recipient_name[0])
+            json_object_set_new(payload, "recipient_name", json_string(evt->recipient_name));
     }
     if (!game_settings.channel_publish_compact)
         json_object_set_new(payload, "message_text", json_string(evt->message_text));
@@ -378,6 +381,10 @@ static bool decode_payload(const char *channel, const char *payload, REDIS_OUTBO
     if (json_is_integer(v))
         evt->recipient_id1 = (unsigned long)json_integer_value(v);
 
+    v = json_object_get(root, "recipient_name");
+    if (json_is_string(v))
+        strlcpy(evt->recipient_name, json_string_value(v), sizeof(evt->recipient_name));
+
     v = json_object_get(root, "message_text");
     if (json_is_string(v))
         strlcpy(evt->message_text, json_string_value(v), sizeof(evt->message_text));
@@ -460,6 +467,8 @@ static bool hydrate_event_from_history(REDIS_OUTBOUND_EVENT *evt)
             evt->sender_id1 = strtoul(val->str, NULL, 10);
         } else if (!str_cmp(key->str, "recipient_uid")) {
             strlcpy(evt->recipient_uid, val->str, sizeof(evt->recipient_uid));
+        } else if (!str_cmp(key->str, "recipient_name")) {
+            strlcpy(evt->recipient_name, val->str, sizeof(evt->recipient_name));
         } else if (!str_cmp(key->str, "recipient_id0")) {
             evt->recipient_id0 = strtoul(val->str, NULL, 10);
         } else if (!str_cmp(key->str, "recipient_id1")) {
@@ -728,6 +737,7 @@ static bool redis_transport_publish(const char *topic, const CHANNEL_MESSAGE *ms
     evt->sender_id0 = msg->sender_id0;
     evt->sender_id1 = msg->sender_id1;
     strlcpy(evt->recipient_uid, msg->recipient_uid ? msg->recipient_uid : "", sizeof(evt->recipient_uid));
+    strlcpy(evt->recipient_name, msg->recipient_name ? msg->recipient_name : "", sizeof(evt->recipient_name));
     evt->recipient_id0 = msg->recipient_id0;
     evt->recipient_id1 = msg->recipient_id1;
     strlcpy(evt->message_text, msg->message_text, sizeof(evt->message_text));
@@ -868,6 +878,7 @@ static int redis_transport_drain_inbound(int max_events)
         msg.sender_id0 = evt.sender_id0;
         msg.sender_id1 = evt.sender_id1;
         msg.recipient_uid = evt.recipient_uid[0] ? evt.recipient_uid : NULL;
+        msg.recipient_name = evt.recipient_name[0] ? evt.recipient_name : NULL;
         msg.recipient_id0 = evt.recipient_id0;
         msg.recipient_id1 = evt.recipient_id1;
         msg.message_text = evt.message_text;

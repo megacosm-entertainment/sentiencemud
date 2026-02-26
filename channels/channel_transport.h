@@ -27,6 +27,7 @@ typedef struct channel_message {
     unsigned long sender_id0;
     unsigned long sender_id1;
     const char *recipient_uid;    /* for DIRECT_ENTITY channels: "id0:id1"; NULL for broadcast */
+    const char *recipient_name;   /* display name of recipient; NULL for broadcast */
     unsigned long recipient_id0;
     unsigned long recipient_id1;
     const char *message_text;
