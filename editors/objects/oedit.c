@@ -1390,12 +1390,17 @@ OEDIT(oedit_waypoints)
             ITERATOR wit;
             WAYPOINT_DATA *wp;
             WILDS_DATA *wilds;
+            bool append_ok = true;
 
             BUFFER *buffer = new_buf();
 
-            add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
-            add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
-            add_buf(buffer, "{B======================================================================={x\n\r");
+            if (!add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r")
+                || !add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r")
+                || !add_buf(buffer, "{B======================================================================={x\n\r")) {
+                send_to_char("Waypoint list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             iterator_start(&wit, pObj->waypoints);
             while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
@@ -1411,12 +1416,22 @@ OEDIT(oedit_waypoints)
                     wwidth, wwidth, wname,
                     wp->y, wp->x, wp->name);
 
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf)) {
+                    append_ok = false;
+                    break;
+                }
             }
 
             iterator_stop(&wit);
 
-            add_buf(buffer, "\n\r");
+            if (append_ok && !add_buf(buffer, "\n\r"))
+                append_ok = false;
+
+            if (!append_ok) {
+                send_to_char("Waypoint list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             page_to_char(buffer->string, ch);
 

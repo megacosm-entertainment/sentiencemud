@@ -1501,8 +1501,11 @@ SCRIPTEDIT(scriptedit_compile)
         compiled_ok = compile_script(buffer, pCode, pCode->edit_src,
             olc_script_typeifc[pCode->type]);
 
-        if (compiled_ok)
-            add_buf(buffer, "Script saved...\n\r");
+        if (compiled_ok && !add_buf(buffer, "Script saved...\n\r")) {
+            send_to_char("Compile output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return false;
+        }
 
         scriptedit_set_log_text(&pCode->last_compile_log, buf_string(buffer));
         pCode->last_compile_success = compiled_ok;
@@ -2187,6 +2190,7 @@ void show_script_list(CHAR_DATA *ch, char *argument, int type)
     SCRIPT_DATA *prg;
     char buf[MSL], *noc;
     BUFFER *buffer;
+    bool append_ok = true;
     long min, max;
     AREA_DATA *area, *ad;
     SCRIPT_DATA *list_head = NULL;
@@ -2296,16 +2300,21 @@ void show_script_list(CHAR_DATA *ch, char *argument, int type)
         count++;
         if (!add_buf(buffer, buf) ||
             (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH)) {
+            append_ok = false;
             break;
         }
     }
 
     if (count == 1) {
-        add_buf(buffer, "No existing scripts in that range.\n\r");
+        if (!add_buf(buffer, "No existing scripts in that range.\n\r"))
+            append_ok = false;
     } else {
         send_to_char("{BCount  BW   Widevnum      Lines Depth   Status   Name\n\r", ch);
         send_to_char("{b----------------------------------------------------------------------------\n\r", ch);
     }
+
+    if (!append_ok)
+        send_to_char("Script list output exceeded buffer limits.\n\r", ch);
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);

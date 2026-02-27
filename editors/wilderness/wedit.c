@@ -1109,12 +1109,17 @@ WEDIT (wedit_region)
         if (!str_prefix(arg, "list"))
         {
             BUFFER *buffer = new_buf();
+            bool append_ok = true;
             int i = 0;
 
             sprintf(buf, "Default Region:  %s\n\r\n\r", flag_string(wilderness_regions, pWilds->defaultRegion));
-            add_buf(buffer, buf);
-            add_buf(buffer, "     [#] [uid]   [name]                  [boxes] [region]            [place]\n\r");
-            add_buf(buffer, "================================================================================\n\r");
+            if (!add_buf(buffer, buf)
+                || !add_buf(buffer, "     [#] [uid]   [name]                  [boxes] [region]            [place]\n\r")
+                || !add_buf(buffer, "================================================================================\n\r")) {
+                send_to_char("Region group list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             for (pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
             {
@@ -1128,11 +1133,20 @@ WEDIT (wedit_region)
                     wedit_region_box_count(pWilds, pRegion),
                     flag_string(wilderness_regions, pRegion->region),
                     flag_string(place_flags, pRegion->area_place_flags));
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf)) {
+                    append_ok = false;
+                    break;
+                }
             }
 
-            if (i < 1)
-                add_buf(buffer, "{DNo region groups defined.{x\n\r");
+            if (append_ok && i < 1)
+                append_ok = add_buf(buffer, "{DNo region groups defined.{x\n\r");
+
+            if (!append_ok) {
+                send_to_char("Region group list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             page_to_char(buf_string(buffer), ch);
             free_buf(buffer);
@@ -1220,16 +1234,27 @@ WEDIT (wedit_region)
             WILDS_REGION *box;
             ITERATOR sit;
             WILDS_REGION_SPAWN *spawn;
+            bool append_ok = true;
             int i = 0;
             int sidx = 0;
 
             sprintf(buf, "Region Group: %s  (uid %ld)\n\r", IS_NULLSTR(pRegion->name) ? "(unnamed)" : pRegion->name, pRegion->uid);
-            add_buf(buffer, buf);
+            if (!add_buf(buffer, buf))
+                append_ok = false;
             sprintf(buf, "Region Type:  %s\n\r", flag_string(wilderness_regions, pRegion->region));
-            add_buf(buffer, buf);
+            if (append_ok && !add_buf(buffer, buf))
+                append_ok = false;
             sprintf(buf, "Place Type:   %s\n\r\n\r", flag_string(place_flags, pRegion->area_place_flags));
-            add_buf(buffer, buf);
-            add_buf(buffer, "Mob Spawns:\n\r");
+            if (append_ok && !add_buf(buffer, buf))
+                append_ok = false;
+            if (append_ok && !add_buf(buffer, "Mob Spawns:\n\r"))
+                append_ok = false;
+
+            if (!append_ok) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             iterator_start(&sit, pRegion->spawn_mobs);
             while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&sit)) != NULL)
@@ -1241,16 +1266,34 @@ WEDIT (wedit_region)
                     spawn->chance,
                     spawn->cap,
                     IS_NULLSTR(req_text) ? "(none)" : req_text);
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf)) {
+                    append_ok = false;
+                    if (req_text)
+                        free(req_text);
+                    break;
+                }
                 if (req_text)
                     free(req_text);
             }
             iterator_stop(&sit);
 
-            if (sidx < 1)
-                add_buf(buffer, "  {D(none){x\n\r");
+            if (!append_ok) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
-            add_buf(buffer, "Object Spawns:\n\r");
+            if (sidx < 1 && !add_buf(buffer, "  {D(none){x\n\r")) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
+
+            if (!add_buf(buffer, "Object Spawns:\n\r")) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
             sidx = 0;
 
             iterator_start(&sit, pRegion->spawn_objs);
@@ -1263,18 +1306,36 @@ WEDIT (wedit_region)
                     spawn->chance,
                     spawn->cap,
                     IS_NULLSTR(req_text) ? "(none)" : req_text);
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf)) {
+                    append_ok = false;
+                    if (req_text)
+                        free(req_text);
+                    break;
+                }
                 if (req_text)
                     free(req_text);
             }
             iterator_stop(&sit);
 
-            if (sidx < 1)
-                add_buf(buffer, "  {D(none){x\n\r");
+            if (!append_ok) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
-            add_buf(buffer, "\n\r");
-            add_buf(buffer, "     [box] [start x] [start y] [end x] [end y]\n\r");
-            add_buf(buffer, "===============================================\n\r");
+            if (sidx < 1 && !add_buf(buffer, "  {D(none){x\n\r")) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
+
+            if (!add_buf(buffer, "\n\r")
+                || !add_buf(buffer, "     [box] [start x] [start y] [end x] [end y]\n\r")
+                || !add_buf(buffer, "===============================================\n\r")) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             for (box = pWilds->pRegion; box; box = box->next)
             {
@@ -1285,11 +1346,20 @@ WEDIT (wedit_region)
                     continue;
 
                 sprintf(buf, "%8d %9d %9d %7d %7d\n\r", ++i, box->startx, box->starty, box->endx, box->endy);
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf)) {
+                    append_ok = false;
+                    break;
+                }
             }
 
-            if (i < 1)
-                add_buf(buffer, "{D(no coordinate boxes yet){x\n\r");
+            if (append_ok && i < 1)
+                append_ok = add_buf(buffer, "{D(no coordinate boxes yet){x\n\r");
+
+            if (!append_ok) {
+                send_to_char("Region detail output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             page_to_char(buf_string(buffer), ch);
             free_buf(buffer);
@@ -1457,9 +1527,14 @@ WEDIT (wedit_region)
             {
                 BUFFER *buffer = new_buf();
                 ITERATOR it;
+                bool append_ok = true;
                 int i = 0;
 
-                add_buf(buffer, "Mob spawn entries:\n\r");
+                if (!add_buf(buffer, "Mob spawn entries:\n\r")) {
+                    send_to_char("Mob spawn list output exceeded buffer limits.\n\r", ch);
+                    free_buf(buffer);
+                    return false;
+                }
                 iterator_start(&it, pRegion->spawn_mobs);
                 while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
                 {
@@ -1473,14 +1548,25 @@ WEDIT (wedit_region)
                         spawn->chance,
                         spawn->cap,
                         IS_NULLSTR(req_text) ? "(none)" : req_text);
-                    add_buf(buffer, buf);
+                    if (!add_buf(buffer, buf)) {
+                        append_ok = false;
+                        if (req_text)
+                            free(req_text);
+                        break;
+                    }
                     if (req_text)
                         free(req_text);
                 }
                 iterator_stop(&it);
 
-                if (i < 1)
-                    add_buf(buffer, "  {D(none){x\n\r");
+                if (append_ok && i < 1)
+                    append_ok = add_buf(buffer, "  {D(none){x\n\r");
+
+                if (!append_ok) {
+                    send_to_char("Mob spawn list output exceeded buffer limits.\n\r", ch);
+                    free_buf(buffer);
+                    return false;
+                }
 
                 page_to_char(buf_string(buffer), ch);
                 free_buf(buffer);
@@ -1706,9 +1792,14 @@ WEDIT (wedit_region)
             {
                 BUFFER *buffer = new_buf();
                 ITERATOR it;
+                bool append_ok = true;
                 int i = 0;
 
-                add_buf(buffer, "Object spawn entries:\n\r");
+                if (!add_buf(buffer, "Object spawn entries:\n\r")) {
+                    send_to_char("Object spawn list output exceeded buffer limits.\n\r", ch);
+                    free_buf(buffer);
+                    return false;
+                }
                 iterator_start(&it, pRegion->spawn_objs);
                 while ((spawn = (WILDS_REGION_SPAWN *)iterator_nextdata(&it)) != NULL)
                 {
@@ -1722,14 +1813,25 @@ WEDIT (wedit_region)
                         spawn->chance,
                         spawn->cap,
                         IS_NULLSTR(req_text) ? "(none)" : req_text);
-                    add_buf(buffer, buf);
+                    if (!add_buf(buffer, buf)) {
+                        append_ok = false;
+                        if (req_text)
+                            free(req_text);
+                        break;
+                    }
                     if (req_text)
                         free(req_text);
                 }
                 iterator_stop(&it);
 
-                if (i < 1)
-                    add_buf(buffer, "  {D(none){x\n\r");
+                if (append_ok && i < 1)
+                    append_ok = add_buf(buffer, "  {D(none){x\n\r");
+
+                if (!append_ok) {
+                    send_to_char("Object spawn list output exceeded buffer limits.\n\r", ch);
+                    free_buf(buffer);
+                    return false;
+                }
 
                 page_to_char(buf_string(buffer), ch);
                 free_buf(buffer);
@@ -2079,12 +2181,17 @@ WEDIT (wedit_overlay)
     if (!str_prefix(arg, "list"))
     {
         BUFFER *out = new_buf();
+        bool append_ok = true;
         int count = 0;
 
         wilds_cleanup_expired_temporary_zones(pWilds);
-        add_buf(out, "[WEdit Overlay] Chunked runtime overlay records:\n\r");
-        add_buf(out, "chunk   zone_id  bounds (x1,y1)-(x2,y2)  tile  region                expires\n\r");
-        add_buf(out, "--------------------------------------------------------------------------------\n\r");
+        if (!add_buf(out, "[WEdit Overlay] Chunked runtime overlay records:\n\r")
+            || !add_buf(out, "chunk   zone_id  bounds (x1,y1)-(x2,y2)  tile  region                expires\n\r")
+            || !add_buf(out, "--------------------------------------------------------------------------------\n\r")) {
+            send_to_char("Overlay list output exceeded buffer limits.\n\r", ch);
+            free_buf(out);
+            return false;
+        }
 
         for (chunk = pWilds->runtime_chunks; chunk; chunk = chunk->next)
         {
@@ -2110,13 +2217,24 @@ WEDIT (wedit_overlay)
                     overlay->tile,
                     flag_string(wilderness_regions, overlay->region),
                     expires);
-                add_buf(out, line);
+                if (!add_buf(out, line)) {
+                    append_ok = false;
+                    break;
+                }
                 count++;
             }
+            if (!append_ok)
+                break;
         }
 
-        if (count == 0)
-            add_buf(out, "(none)\n\r");
+        if (append_ok && count == 0)
+            append_ok = add_buf(out, "(none)\n\r");
+
+        if (!append_ok) {
+            send_to_char("Overlay list output exceeded buffer limits.\n\r", ch);
+            free_buf(out);
+            return false;
+        }
 
         page_to_char(buf_string(out), ch);
         free_buf(out);
@@ -2409,12 +2527,21 @@ WEDIT ( wedit_terrain )
         BUFFER *output;
         char buf[MSL];
         int showname_width = wedit_terrain_showname_col_width(pWilds, 15, 48);
+        bool append_ok = true;
 
         output = new_buf();
-        add_buf(output, "[{WWedit{x] Full Terrain List:\n\r\n\r");
+        if (!add_buf(output, "[{WWedit{x] Full Terrain List:\n\r\n\r")) {
+            send_to_char("Terrain list output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
         sprintf(buf, "%-6s %-6s %-*s  %-15s  %-8s  %-9s  %s\n\r",
             "Token", "Ansi", showname_width, "Showname", "Sector", "Nonroom?", "WildColor", "Flags");
-        add_buf(output, buf);
+        if (!add_buf(output, buf)) {
+            send_to_char("Terrain list output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
 
         for(pTerrain=pWilds->pTerrain;pTerrain;pTerrain=pTerrain->next)
         {
@@ -2429,7 +2556,16 @@ WEDIT ( wedit_terrain )
                         "(none)",
                      bitmatrix_string(room_flagbank, pTerrain->template->room_flag));
                      //flag_string(room2_flags, pTerrain->template->room_flag[1]));
-            add_buf(output, buf);
+            if (!add_buf(output, buf)) {
+                append_ok = false;
+                break;
+            }
+        }
+
+        if (!append_ok) {
+            send_to_char("Terrain list output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
         }
 
         send_to_char(buf_string(output), ch);

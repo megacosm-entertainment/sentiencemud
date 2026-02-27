@@ -226,25 +226,41 @@ GREDIT(gredit_list)
 {
     SKILL_GROUP *group;
     BUFFER *buf;
+    bool append_ok = true;
     int count = 0;
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y%-30s %-6s{x\n\r", "Group Name", "Skills"));
-    add_buf(buf, formatf("{Y%-30s %-6s{x\n\r",
-            "------------------------------", "------"));
+    if (!add_buf(buf, formatf("{Y%-30s %-6s{x\n\r", "Group Name", "Skills"))
+        || !add_buf(buf, formatf("{Y%-30s %-6s{x\n\r",
+            "------------------------------", "------"))) {
+        send_to_char("Group list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
 
     for (group = skill_group_first(); group; group = group->next) {
         if (argument[0] && str_prefix(argument, group->name))
             continue;
 
-        add_buf(buf, formatf("%-30s %-6d\n\r",
+        if (!add_buf(buf, formatf("%-30s %-6d\n\r",
                 group->name,
-                group->contents ? list_size(group->contents) : 0));
+                group->contents ? list_size(group->contents) : 0))) {
+            append_ok = false;
+            break;
+        }
         count++;
     }
 
-    add_buf(buf, formatf("\n\r%d group%s listed.\n\r",
-            count, count == 1 ? "" : "s"));
+    if (append_ok && !add_buf(buf, formatf("\n\r%d group%s listed.\n\r",
+            count, count == 1 ? "" : "s")))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Group list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
+
     page_to_char(buf_string(buf), ch);
     free_buf(buf);
     return false;

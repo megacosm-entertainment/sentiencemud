@@ -803,11 +803,16 @@ SHEDIT( shedit_keys )
             ITERATOR it;
             OBJ_INDEX_DATA *key;
             BUFFER *buffer = new_buf();
+            bool append_ok = true;
             char buf[MSL];
             int count = 0;
 
-            add_buf(buffer, "    [  Vnum  ]  Name\n\r");
-            add_buf(buffer, "==============================================\n\r");
+            if (!add_buf(buffer, "    [  Vnum  ]  Name\n\r")
+                || !add_buf(buffer, "==============================================\n\r")) {
+                send_to_char("Special key list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             iterator_start(&it, ship->special_keys);
             while( (key = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
@@ -820,12 +825,24 @@ SHEDIT( shedit_keys )
                 }
 
                 sprintf(buf, "{W%3d  {G%8ld  {%c%s{x\n\r", ++count, key->vnum, key_color, key->short_descr);
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf))
+                {
+                    append_ok = false;
+                    break;
+                }
             }
             iterator_stop(&it);
 
-            add_buf(buffer, "==============================================\n\r");
-            add_buf(buffer, "{RRED{x = not a key.\n\r");
+            if (append_ok && (!add_buf(buffer, "==============================================\n\r")
+                || !add_buf(buffer, "{RRED{x = not a key.\n\r")))
+                append_ok = false;
+
+            if (!append_ok)
+            {
+                send_to_char("Special key list output exceeded buffer limits.\n\r", ch);
+                free_buf(buffer);
+                return false;
+            }
 
             if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
             {

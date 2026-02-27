@@ -33,6 +33,14 @@ PROJECT_INQUIRY_DATA	*project_inquiry_list; 	// List of inquiries.
                                         free_buf(buffer); \
                                         return;
 
+#define PROJECT_APPEND_OR_EXIT(TEXT, ERRMSG) do { \
+                                        if (!add_buf(buffer, (TEXT))) { \
+                                            send_to_char((ERRMSG), ch); \
+                                            free_buf(buffer); \
+                                            return; \
+                                        } \
+                                    } while(0)
+
 
 /* General-use project handler. Can be called by any immortal, although some functions
    are only accessible to imps or project leaders. */
@@ -85,8 +93,8 @@ void do_plist(CHAR_DATA *ch, char *argument)
     buffer = new_buf();
 
     sprintf(buf, "{G%-5s %-20.20s %-40.40s %-12s %-24s %-9s\n\r", "#", "Project name", "Summary", "Leader", "Status", "Completion");
-    add_buf(buffer, buf);
-    add_buf(buffer, "{g--------------------------------------------------------------------------------------------------------------------{x\n\r");
+    PROJECT_APPEND_OR_EXIT(buf, "Project list output exceeded buffer limits.\n\r");
+    PROJECT_APPEND_OR_EXIT("{g--------------------------------------------------------------------------------------------------------------------{x\n\r", "Project list output exceeded buffer limits.\n\r");
 
     i = 0;
     for (project = project_list; project != NULL; project = project->next)
@@ -126,13 +134,13 @@ void do_plist(CHAR_DATA *ch, char *argument)
         project->completed > 33 ? 'Y' :
         'R',
         project->completed);
-    add_buf(buffer, buf);
+    PROJECT_APPEND_OR_EXIT(buf, "Project list output exceeded buffer limits.\n\r");
     i++;
     }
 
     if (project_list == NULL)
-    add_buf(buffer, "No projects found.\n\r");
-    add_buf(buffer, "{g--------------------------------------------------------------------------------------------------------------------{x\n\r");
+        PROJECT_APPEND_OR_EXIT("No projects found.\n\r", "Project list output exceeded buffer limits.\n\r");
+    PROJECT_APPEND_OR_EXIT("{g--------------------------------------------------------------------------------------------------------------------{x\n\r", "Project list output exceeded buffer limits.\n\r");
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
@@ -152,11 +160,11 @@ void do_pshow(CHAR_DATA *ch, char *argument)
     buffer = new_buf();
 
     if (arg[0] == '\0')
-    add_buf(buffer, "Syntax:  project show [project #|project name]\n\r");
+        PROJECT_APPEND_OR_EXIT("Syntax:  project show [project #|project name]\n\r", "Project show output exceeded buffer limits.\n\r");
     else
     {
     if ((project = find_project(arg)) == NULL || !can_view_project(ch, project))
-        add_buf(buffer, "Project not found.\n\r");
+            PROJECT_APPEND_OR_EXIT("Project not found.\n\r", "Project show output exceeded buffer limits.\n\r");
     else
     {
         olc_show_item(ch, (void *)project, pedit_show, arg2);
@@ -239,7 +247,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     pinq = NULL;
 
     if (count_project_inquiries(ch) == 0)
-        add_buf(buffer, "No new inquiries.\n\r");
+        PROJECT_APPEND_OR_EXIT("No new inquiries.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
 
     show_oldest_unread_inquiry(ch);
 
@@ -248,13 +256,13 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-    add_buf(buffer, "Syntax:  project inquiry [project] [list|add [subject]|view #|edit #|reply #|open #]\n\r");
+    PROJECT_APPEND_OR_EXIT("Syntax:  project inquiry [project] [list|add [subject]|view #|edit #|reply #|open #]\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     EXIT_PROJECT_FUNCTION;
     }
 
     if ((project = find_project(arg)) == NULL || !has_access_project(ch, project))
     {
-    add_buf(buffer, "Project not found.\n\r");
+    PROJECT_APPEND_OR_EXIT("Project not found.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     EXIT_PROJECT_FUNCTION;
     }
 
@@ -292,22 +300,22 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     }
 
     ch->pcdata->inquiry_subject = pinq; //Set the "enter subject" prompt
-    add_buf(buffer, "Enter inquiry subject: ");
+    PROJECT_APPEND_OR_EXIT("Enter inquiry subject: ", "Project inquiry output exceeded buffer limits.\n\r");
     EXIT_PROJECT_FUNCTION;
     }
 
     if (arg3[0] == '\0')
     {
-    add_buf(buffer, "Syntax:  project inquiry read\n\r"
-                "         project inquiry [project] [list|add|view #|edit #|reply #]\n\r");
-    add_buf(buffer, "         project inquiry [project] [close #|open #|delete #]\n\r");
+    PROJECT_APPEND_OR_EXIT("Syntax:  project inquiry read\n\r"
+                "         project inquiry [project] [list|add|view #|edit #|reply #]\n\r", "Project inquiry output exceeded buffer limits.\n\r");
+    PROJECT_APPEND_OR_EXIT("         project inquiry [project] [close #|open #|delete #]\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     EXIT_PROJECT_FUNCTION;
     }
 
     /* All subcommands past this point require an inquiry argument, so let's find it */
     if ((pinq = find_project_inquiry(project, arg3)) == NULL)
     {
-    add_buf(buffer, "Project inquiry not found.\n\r");
+    PROJECT_APPEND_OR_EXIT("Project inquiry not found.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     EXIT_PROJECT_FUNCTION;
     }
 
@@ -321,7 +329,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     {
     if (str_cmp(ch->name, pinq->sender))
     {
-        add_buf(buffer, "Only the poster of an inquiry can edit it.\n\r");
+        PROJECT_APPEND_OR_EXIT("Only the poster of an inquiry can edit it.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
         EXIT_PROJECT_FUNCTION;
     }
 
@@ -335,7 +343,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     {
     if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
     {
-        add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
+        PROJECT_APPEND_OR_EXIT("Only the project leader or your group leader can close an inquiry on this project.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
         EXIT_PROJECT_FUNCTION;
     }
 
@@ -350,20 +358,20 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     {
     if (!pinq->closed)
     {
-        add_buf(buffer, "That inquiry isn't closed.\n\r");
+        PROJECT_APPEND_OR_EXIT("That inquiry isn't closed.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
         EXIT_PROJECT_FUNCTION;
     }
 
     if (ch->tot_level < MAX_LEVEL - 1 && str_cmp(ch->name, pinq->project->leader))
     {
-        add_buf(buffer, "Only the project leader or your group leader can close an inquiry on this project.\n\r");
+        PROJECT_APPEND_OR_EXIT("Only the project leader or your group leader can close an inquiry on this project.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
         EXIT_PROJECT_FUNCTION;
     }
 
     pinq->closed = 0;
     free_string(pinq->closed_by);
     pinq->closed_by = str_dup("N/A");
-    add_buf(buffer, "Inquiry opened.\n\r");
+    PROJECT_APPEND_OR_EXIT("Inquiry opened.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     projects_changed = true;
     EXIT_PROJECT_FUNCTION;
     }
@@ -377,7 +385,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     if (pinq->closed)
     {
         sprintf(buf, "That inquiry has been closed by %s.\n\r", pinq->closed_by);
-        add_buf(buffer, buf);
+        PROJECT_APPEND_OR_EXIT(buf, "Project inquiry output exceeded buffer limits.\n\r");
         EXIT_PROJECT_FUNCTION;
     }
 
@@ -398,7 +406,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     else
         pinq->replies = reply;
 
-    add_buf(buffer, "Posting reply.\n\r");
+    PROJECT_APPEND_OR_EXIT("Posting reply.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     string_append(ch, &reply->text);
 
     projects_changed = true;
@@ -409,13 +417,13 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
     {
     if (ch->tot_level < MAX_LEVEL)
     {
-        add_buf(buffer, "Only an implementor can delete project inquiries.\n\r");
+        PROJECT_APPEND_OR_EXIT("Only an implementor can delete project inquiries.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
         EXIT_PROJECT_FUNCTION;
     }
 
     extract_project_inquiry(pinq);
 
-    add_buf(buffer, "Inquiry deleted.\n\r");
+    PROJECT_APPEND_OR_EXIT("Inquiry deleted.\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     projects_changed = true;
     EXIT_PROJECT_FUNCTION;
     }
@@ -517,23 +525,23 @@ void show_project_inquiry(PROJECT_INQUIRY_DATA *pinq, CHAR_DATA *ch)
         pinq->sender,
         pinq->subject,
         (char *)ctime(&pinq->date), pinq->text);
-    add_buf(buffer, buf);
-    add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
+    PROJECT_APPEND_OR_EXIT(buf, "Project inquiry output exceeded buffer limits.\n\r");
+    PROJECT_APPEND_OR_EXIT("{G------------------------------------------------------------------------{x\n\r", "Project inquiry output exceeded buffer limits.\n\r");
 
     /* Show replies */
     for (i = 0, reply = pinq->replies; reply != NULL; reply = reply->next, i++) {
     sprintf(buf, "{g[{G%3d{g]{x %-12s: %-27.27s %20s{x\n\r",
         i, reply->sender, reply->subject, (char *) ctime(&reply->date));
-    add_buf(buffer, buf);
+    PROJECT_APPEND_OR_EXIT(buf, "Project inquiry output exceeded buffer limits.\n\r");
 
-    add_buf(buffer, reply->text);
-    add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
+    PROJECT_APPEND_OR_EXIT(reply->text, "Project inquiry output exceeded buffer limits.\n\r");
+    PROJECT_APPEND_OR_EXIT("{G------------------------------------------------------------------------{x\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     }
 
     if (pinq->closed) {
     sprintf(buf, "{GInquiry closed:{x %-31s %20s", pinq->closed_by, (char *) ctime(&pinq->closed));
-    add_buf(buffer, buf);
-    add_buf(buffer, "{G------------------------------------------------------------------------{x\n\r");
+    PROJECT_APPEND_OR_EXIT(buf, "Project inquiry output exceeded buffer limits.\n\r");
+    PROJECT_APPEND_OR_EXIT("{G------------------------------------------------------------------------{x\n\r", "Project inquiry output exceeded buffer limits.\n\r");
     }
 
     EXIT_PROJECT_FUNCTION;
@@ -706,10 +714,10 @@ void show_project_inquiries(PROJECT_DATA *project, CHAR_DATA *ch)
 
     sprintf(buf, "\n\r{G%-5s %-38.38s %-12s %-10s %-8s %-20s{x\n\r",
         "#", "Inquiry subject", "Sender", "Status", "Replies", "Last post");
-    add_buf(buffer, buf);
+    PROJECT_APPEND_OR_EXIT(buf, "Project inquiry list output exceeded buffer limits.\n\r");
 
     sprintf(buf, "{g------------------------------------------------------------------------------------------------------{x\n\r");
-    add_buf(buffer, buf);
+    PROJECT_APPEND_OR_EXIT(buf, "Project inquiry list output exceeded buffer limits.\n\r");
 
     for (i = 0, inquiry = project->inquiries; inquiry != NULL; inquiry = inquiry->next, i++) {
         last_post = (get_last_post(inquiry))->date;
@@ -720,13 +728,13 @@ void show_project_inquiries(PROJECT_DATA *project, CHAR_DATA *ch)
         inquiry->closed ? "Closed" : "Open",
         count_replies(inquiry),
         (char *) ctime(&last_post));
-    add_buf(buffer, buf);
+    PROJECT_APPEND_OR_EXIT(buf, "Project inquiry list output exceeded buffer limits.\n\r");
     }
 
     if (project->inquiries == NULL)
     {
     sprintf(buf, "No inquiries.\n\r");
-    add_buf(buffer, buf);
+    PROJECT_APPEND_OR_EXIT(buf, "Project inquiry list output exceeded buffer limits.\n\r");
     }
 
     page_to_char(buf_string(buffer), ch);

@@ -211,14 +211,19 @@ SOEDIT(soedit_list)
     ITERATOR it;
     SONG_DATA *song;
     BUFFER *buf;
+    bool append_ok = true;
     int count = 0;
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y%-5s %-25s %-5s %-5s %-5s %-15s{x\n\r",
-            "UID", "Name", "Level", "Mana", "Beats", "Target"));
-    add_buf(buf, formatf("{Y%-5s %-25s %-5s %-5s %-5s %-15s{x\n\r",
+    if (!add_buf(buf, formatf("{Y%-5s %-25s %-5s %-5s %-5s %-15s{x\n\r",
+            "UID", "Name", "Level", "Mana", "Beats", "Target"))
+        || !add_buf(buf, formatf("{Y%-5s %-25s %-5s %-5s %-5s %-15s{x\n\r",
             "-----", "-------------------------", "-----", "-----",
-            "-----", "---------------"));
+            "-----", "---------------"))) {
+        send_to_char("Song list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
 
     if (songs) {
         iterator_start(&it, songs);
@@ -226,20 +231,34 @@ SOEDIT(soedit_list)
             if (argument[0] && str_prefix(argument, song->name))
                 continue;
 
-            add_buf(buf, formatf("%-5d %-25s %-5d %-5d %-5d %-15s\n\r",
+            if (!add_buf(buf, formatf("%-5d %-25s %-5d %-5d %-5d %-15s\n\r",
                     song->uid,
                     song->name,
                     song->level,
                     song->mana,
                     song->beats,
-                    flag_string(song_target_types, song->target)));
+                    flag_string(song_target_types, song->target)))) {
+                append_ok = false;
+                break;
+            }
             count++;
         }
         iterator_stop(&it);
+
+        if (!append_ok) {
+            send_to_char("Song list output exceeded buffer limits.\n\r", ch);
+            free_buf(buf);
+            return false;
+        }
     }
 
-    add_buf(buf, formatf("\n\r%d song%s listed.\n\r",
-            count, count == 1 ? "" : "s"));
+    if (!add_buf(buf, formatf("\n\r%d song%s listed.\n\r",
+            count, count == 1 ? "" : "s"))) {
+        send_to_char("Song list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
+
     page_to_char(buf_string(buf), ch);
     free_buf(buf);
     return false;

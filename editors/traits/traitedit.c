@@ -533,11 +533,16 @@ TRAITEDIT(traitedit_list)
 {
     TRAIT_DEF *def;
     BUFFER *buffer;
+    bool append_ok = true;
     int count = 0;
 
     buffer = new_buf();
-    add_buf(buffer, "{R  #  ID                            Type     Category       Default{x\n\r");
-    add_buf(buffer, "{D --- ------------------------------ -------- -------------- -------{x\n\r");
+    if (!add_buf(buffer, "{R  #  ID                            Type     Category       Default{x\n\r")
+        || !add_buf(buffer, "{D --- ------------------------------ -------- -------------- -------{x\n\r")) {
+        send_to_char("Trait list output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
 
     for (def = trait_def_list; def; def = def->next) {
         const char *type_str = "???";
@@ -565,14 +570,25 @@ TRAITEDIT(traitedit_list)
                 break;
         }
 
-        add_buf(buffer, formatf(" {C%3d{x %-30s %-8s %-14s %s\n\r",
+        if (!add_buf(buffer, formatf(" {C%3d{x %-30s %-8s %-14s %s\n\r",
             def->index, def->id, type_str,
             IS_NULLSTR(def->category) ? "-" : def->category,
-            default_str));
+            default_str))) {
+            append_ok = false;
+            break;
+        }
         count++;
     }
 
-    add_buf(buffer, formatf("\n\r{x%d trait%s listed.\n\r", count, count == 1 ? "" : "s"));
+    if (append_ok && !add_buf(buffer, formatf("\n\r{x%d trait%s listed.\n\r", count, count == 1 ? "" : "s")))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Trait list output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
+
     page_to_char(buffer->string, ch);
     free_buf(buffer);
     return false;

@@ -488,6 +488,7 @@ RESERVED(reserved_listvnums)
 {
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
+    bool append_ok = true;
     int type = -1;
     int count = 0;
     int name_width = 23; // Default width
@@ -545,12 +546,14 @@ RESERVED(reserved_listvnums)
             wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (!add_buf(buffer, buf))
+        append_ok = false;
     
     /* Generate header line */
         sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-*s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
             name_width, "Name", "Type", wnum_width, "WNUM", "Remove", desc_width, "Description");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Repeat divider line */
         sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
@@ -559,7 +562,14 @@ RESERVED(reserved_listvnums)
             wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Reserved list output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -611,14 +621,18 @@ RESERVED(reserved_listvnums)
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
                 desc_width, desc_buf);
-            add_buf(buffer, buf);
+            if (!add_buf(buffer, buf)) {
+                append_ok = false;
+                break;
+            }
         }
         iterator_stop(&it);
     }
     
     if (count == 0) {
         sprintf(buf, "{Y| %-*s |{x\n\r", table_width - 4, "No reserved items found.");
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf))
+            append_ok = false;
     }
     
     /* Table footer */
@@ -628,10 +642,18 @@ RESERVED(reserved_listvnums)
             wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     sprintf(buf, "\n\r%d reserved items listed.\n\r", count);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Reserved list output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
@@ -1074,6 +1096,7 @@ RESERVED(reserved_search)
 {
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
+    bool append_ok = true;
     int count = 0;
     char search_str[MAX_INPUT_LENGTH];
     int name_width = 23; // Default width
@@ -1141,12 +1164,14 @@ RESERVED(reserved_search)
             wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (!add_buf(buffer, buf))
+        append_ok = false;
     
     /* Generate header line */
         sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-*s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
             name_width, "Name", "Type", wnum_width, "WNUM", "Remove", desc_width, "Description");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Repeat divider line */
         sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
@@ -1155,7 +1180,14 @@ RESERVED(reserved_search)
             wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Reserved search output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -1222,14 +1254,18 @@ RESERVED(reserved_search)
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
                 desc_width, desc_buf);
-            add_buf(buffer, buf);
+            if (!add_buf(buffer, buf)) {
+                append_ok = false;
+                break;
+            }
         }
         iterator_stop(&it);
     }
     
     if (count == 0) {
         sprintf(buf, "{Y| %-*s |{x\n\r", table_width - 4, "No matching reserved items found.");
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf))
+            append_ok = false;
     }
     
     /* Table footer */
@@ -1239,10 +1275,18 @@ RESERVED(reserved_search)
             6, "--------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     sprintf(buf, "\n\r%d reserved items matched your search.\n\r", count);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Reserved search output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
@@ -1267,10 +1311,15 @@ RESERVED(reserved_export)
 {
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
+    bool append_ok = true;
     
     buffer = new_buf();
     
-    add_buf(buffer, "/* Generated Reserved Items as Defines */\n\n");
+    if (!add_buf(buffer, "/* Generated Reserved Items as Defines */\n\n")) {
+        send_to_char("Reserved export output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -1292,7 +1341,10 @@ RESERVED(reserved_export)
                 
                 sprintf(buf, "\n/* %s reserved virtual numbers */\n", 
                     type_name ? type_name : "Unknown");
-                add_buf(buffer, buf);
+                if (!add_buf(buffer, buf)) {
+                    append_ok = false;
+                    break;
+                }
                 
                 last_type = reserved->type;
             }
@@ -1323,11 +1375,20 @@ RESERVED(reserved_export)
             }
             
             strcat(buf, "\n");
-            add_buf(buffer, buf);
+            if (!add_buf(buffer, buf)) {
+                append_ok = false;
+                break;
+            }
         }
         iterator_stop(&it);
     } else {
-        add_buf(buffer, "/* No reserved items found */\n");
+        append_ok = add_buf(buffer, "/* No reserved items found */\n");
+    }
+
+    if (!append_ok) {
+        send_to_char("Reserved export output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
     }
     
     page_to_char(buf_string(buffer), ch);
@@ -1396,6 +1457,7 @@ RESERVED(reserved_listid)
 {
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH*2];
+    bool append_ok = true;
     int count = 0;
     WNUM wnum;
     long target_auid = 0;
@@ -1510,7 +1572,8 @@ RESERVED(reserved_listid)
             type != -1 ? " of type " : "",
             type != -1 ? reserved_types_get_name(type) : "");
         }
-    add_buf(buffer, buf);
+    if (!add_buf(buffer, buf))
+        append_ok = false;
     
     /* Generate divider line based on column widths */
         sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
@@ -1519,12 +1582,14 @@ RESERVED(reserved_listid)
             wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Generate header line */
         sprintf(buf, "{Y| {W%-*s{x | {W%-10s{x | {W%-*s{x | {W%-7s{x | {W%-*s{x |{x\n\r",
             name_width, "Name", "Type", wnum_width, "WNUM", "Remove", desc_width, "Description");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Repeat divider line */
         sprintf(buf, "{Y+-%.*s-+-%.*s-+-%.*s-+-%.*s-+-%.*s-+{x\n\r",
@@ -1533,7 +1598,14 @@ RESERVED(reserved_listid)
             wnum_width, "--------------------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Reserved WNUM output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     if (reserved_vnums && list_size(reserved_vnums) > 0) {
         ITERATOR it;
@@ -1603,14 +1675,18 @@ RESERVED(reserved_listid)
                 reserved->removable ? 'G' : 'R',
                 reserved->removable ? "Yes" : "No",
                 desc_width, desc_buf);
-            add_buf(buffer, buf);
+            if (!add_buf(buffer, buf)) {
+                append_ok = false;
+                break;
+            }
         }
         iterator_stop(&it);
     }
     
     if (count == 0) {
         sprintf(buf, "{Y| %-*s |{x\n\r", table_width - 4, "No reserved items with that ID found.");
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf))
+            append_ok = false;
     }
     
     /* Table footer */
@@ -1620,7 +1696,8 @@ RESERVED(reserved_listid)
             6, "--------",
             7, "---------",
             desc_width, "-------------------------------------------------------------------");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     {
         char wnum_label[MSL];
@@ -1634,7 +1711,14 @@ RESERVED(reserved_listid)
 
         sprintf(buf, "\n\r%d reserved items found with WNUM %s.\n\r", count, wnum_label);
     }
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Reserved WNUM output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);

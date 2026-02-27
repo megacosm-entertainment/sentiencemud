@@ -984,6 +984,7 @@ GAMEEDIT(gameedit_history)
 {
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
+    bool append_ok = true;
     int i, limit;
     
     buffer = new_buf();
@@ -996,11 +997,14 @@ GAMEEDIT(gameedit_history)
     
     /* Table header */
     sprintf(buf, "{Y+-------+--------------------+-----------------+-------------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (!add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y| {WID{x    | {WAuthor{x            | {WChanges{x         | {WDate & Time{x                  |{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y+-------+--------------------+-----------------+-------------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Show changesets from newest to oldest */
     for (i = changeset_count - 1; i >= 0 && i >= changeset_count - limit; i--) {
@@ -1017,20 +1021,33 @@ GAMEEDIT(gameedit_history)
             changeset->author,
             list_size(changeset->changes),
             time_buf);
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf)) {
+            append_ok = false;
+            break;
+        }
     }
     
     /* Table footer */
     sprintf(buf, "{Y+-------+--------------------+-----------------+-------------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Instructions */
     sprintf(buf, "\n\rUse '{Wgameedit view <id>{x' to see details of a specific changeset.\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "Use '{Wgameedit comment <id>{x' to edit a changeset's comment.\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "Use '{Wgameedit rollback <id>{x' to revert to a previous changeset.\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Game setting history output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
 
     
     page_to_char(buf_string(buffer), ch);
@@ -1046,6 +1063,7 @@ GAMEEDIT(gameedit_view)
 {
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
+    bool append_ok = true;
     int i, id;
     GAME_SETTINGS_CHANGESET *changeset = NULL;
     ITERATOR it;
@@ -1075,11 +1093,14 @@ GAMEEDIT(gameedit_view)
     
     /* Changeset header */
     sprintf(buf, "{Y+----------------------------------------------------------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (!add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y| {WChangeset #{x%-67d |{x\n\r", changeset->id);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y+----------------------------------------------------------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Author and timestamp */
     char time_buf[64];
@@ -1087,23 +1108,37 @@ GAMEEDIT(gameedit_view)
     strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", time_info);
     
     sprintf(buf, "{Y| {WAuthor:{x %-68s |{x\n\r", changeset->author);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y| {WDate:{x %-70s |{x\n\r", time_buf);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y| {WComment:{x %-67s |{x\n\r", changeset->comment);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Change list header */
     sprintf(buf, "{Y+----------------------------------------------------------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y| {WChanges:{x %-68d |{x\n\r", list_size(changeset->changes));
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y| {WSetting{x              | {WOld Value{x              | {WNew Value{x              |{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Game setting view output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     /* List each change */
     iterator_start(&it, changeset->changes);
@@ -1163,19 +1198,31 @@ GAMEEDIT(gameedit_view)
         
         sprintf(buf, "{Y| {C%-22.22s{x | %-23.23s | %-23.23s |{x\n\r",
             history->setting->name, old_display, new_display);
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf)) {
+            append_ok = false;
+            break;
+        }
     }
     iterator_stop(&it);
     
     /* Footer */
     sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     
     /* Instructions */
     sprintf(buf, "Use '{Wgameedit comment %d{x' to edit this changeset's comment.\n\r", changeset->id);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "\n\rUse '{Wgameedit rollback %d{x' to revert to this changeset.\n\r", changeset->id);
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Game setting view output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
     
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
@@ -1192,26 +1239,41 @@ GAMEEDIT(gameedit_pending)
     char buf[MAX_STRING_LENGTH];
     ITERATOR it;
     GAME_SETTING_CHANGE *change;
+    bool append_ok = true;
 
     buffer = new_buf();
 
     if (!pending_changes || list_size(pending_changes) == 0) {
-        add_buf(buffer, "There are no pending game setting changes.\n\r");
+        if (!add_buf(buffer, "There are no pending game setting changes.\n\r")) {
+            send_to_char("Pending settings output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return false;
+        }
         page_to_char(buf_string(buffer), ch);
         free_buf(buffer);
         return true;
     }
 
     sprintf(buf, "{YPending Game Setting Changes (%d):{x\n\r", list_size(pending_changes));
-    add_buf(buffer, buf);
+    if (!add_buf(buffer, buf))
+        append_ok = false;
 
     // Table header
     sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y| {W%-22s{x | {W%-23s{x | {W%-23s{x |{x\n\r", "Setting Name", "Current Value", "Pending Value");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
     sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Pending settings output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
 
     iterator_start(&it, pending_changes);
     while ((change = (GAME_SETTING_CHANGE *)iterator_nextdata(&it))) {
@@ -1307,21 +1369,33 @@ GAMEEDIT(gameedit_pending)
                 setting->name,
                 width_current, display_current_val,
                 width_pending, display_pending_val);
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf)) {
+            append_ok = false;
+            break;
+        }
     }
     iterator_stop(&it);
 
     // Table footer
     sprintf(buf, "{Y+------------------------+-------------------------+-------------------------+{x\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
 
     if (requires_reboot()) {
         sprintf(buf, "\n\r{RWARNING: Some pending changes require a reboot to take effect.{x\n\r");
-        add_buf(buffer, buf);
+        if (append_ok && !add_buf(buffer, buf))
+            append_ok = false;
     }
     
     sprintf(buf, "\n\rUse '{Wgameedit confirm{x' to apply these changes or '{Wgameedit revert{x' to discard them.\n\r");
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Pending settings output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);

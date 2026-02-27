@@ -1450,6 +1450,7 @@ static void event_phase_steps_store(EVTEDIT_DATA *evt,
 {
     BUFFER *buffer;
     EVT_PHASE_DEF *tail = NULL;
+    bool append_ok = true;
     int i;
 
     if (!evt || count < 0)
@@ -1479,17 +1480,32 @@ static void event_phase_steps_store(EVTEDIT_DATA *evt,
     buffer = new_buf();
 
     for (i = 0; i < count; i++) {
-        add_buf(buffer, steps[i].name);
+        if (!add_buf(buffer, steps[i].name)) {
+            append_ok = false;
+            break;
+        }
         if (steps[i].minutes > 0)
-            add_buf(buffer, formatf("@%d", steps[i].minutes));
+            if (!add_buf(buffer, formatf("@%d", steps[i].minutes))) {
+                append_ok = false;
+                break;
+            }
         if (steps[i].script_vnum > 0)
-            add_buf(buffer, formatf("#%ld", steps[i].script_vnum));
+            if (!add_buf(buffer, formatf("#%ld", steps[i].script_vnum))) {
+                append_ok = false;
+                break;
+            }
         if (i + 1 < count)
-            add_buf(buffer, ",");
+            if (!add_buf(buffer, ",")) {
+                append_ok = false;
+                break;
+            }
     }
 
     free_string(evt->phase_plan);
-    evt->phase_plan = str_dup(buf_string(buffer));
+    if (append_ok)
+        evt->phase_plan = str_dup(buf_string(buffer));
+    else
+        evt->phase_plan = str_dup("");
     free_buf(buffer);
 
     event_stage_defs_free(&evt->stages, &evt->stage_count);
@@ -5026,6 +5042,7 @@ void do_epstat(CHAR_DATA *ch, char *argument)
     EVENT_PART *part;
     BUFFER *output;
     char buf[MSL];
+    bool append_ok = true;
     int shown_questers = 0;
 
     if (!epstat_parse_runtime_ref(argument, &event_uid, &instance_id)
@@ -5047,49 +5064,80 @@ void do_epstat(CHAR_DATA *ch, char *argument)
     output = new_buf();
 
     sprintf(buf, "Event Runtime: {W%ld#%u{x\n\r", event_uid, instance_id);
-    add_buf(output, buf);
+    if (!add_buf(output, buf))
+        append_ok = false;
 
     sprintf(buf, "Definition   : {W%s{x ({W%ld{x)\n\r", evt->name, evt->uid);
-    add_buf(output, buf);
+    if (append_ok && !add_buf(output, buf))
+        append_ok = false;
 
     sprintf(buf, "State        : {W%s{x  Type: {W%s{x  Scope: {W%s{x\n\r",
         epstat_event_state_name(inst->state),
         event_enum_name(evt_type_flags, evt->event_type),
         event_enum_name(evt_scope_flags, evt->scope_type));
-    add_buf(output, buf);
+    if (append_ok && !add_buf(output, buf))
+        append_ok = false;
 
     sprintf(buf, "Participants : {W%d{x\n\r", inst->participant_count);
-    add_buf(output, buf);
+    if (append_ok && !add_buf(output, buf))
+        append_ok = false;
 
     sprintf(buf, "Progress     : kills={W%d{x items={W%d{x goal={W%d{x\n\r",
         inst->progress_kills,
         inst->progress_items,
         (evt->event_type == EVT_TYPE_INVASION) ? inst->progress_goal : evt->completion_goal);
-    add_buf(output, buf);
+    if (append_ok && !add_buf(output, buf))
+        append_ok = false;
 
     sprintf(buf, "Phase        : {W%s{x%s\n\r",
         !IS_NULLSTR(inst->phase_name) ? inst->phase_name : (inst->leader_phase ? "leader" : "active"),
         inst->leader_phase ? " {Y(leader){x" : "");
-    add_buf(output, buf);
+    if (append_ok && !add_buf(output, buf))
+        append_ok = false;
 
     sprintf(buf, "Scope Anchor : area_uid={W%ld{x floating={W%s{x\n\r",
         inst->scope_area_uid,
         inst->scope_floating ? "yes" : "no");
-    add_buf(output, buf);
+    if (append_ok && !add_buf(output, buf))
+        append_ok = false;
 
-    add_buf(output, "\n\rIndex Variables:\n\r");
+    if (!append_ok) {
+        send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return;
+    }
+
+    if (!add_buf(output, "\n\rIndex Variables:\n\r")) {
+        send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return;
+    }
     if (evt->index_vars)
         olc_show_index_vars(output, evt->index_vars);
-    else
-        add_buf(output, "  (none)\n\r");
+    else if (!add_buf(output, "  (none)\n\r")) {
+        send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return;
+    }
 
-    add_buf(output, "\n\rRuntime Variables:\n\r");
+    if (!add_buf(output, "\n\rRuntime Variables:\n\r")) {
+        send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return;
+    }
     if (inst->runtime_vars)
         pstat_variable_list(output, inst->runtime_vars);
-    else
-        add_buf(output, "  (none)\n\r");
+    else if (!add_buf(output, "  (none)\n\r")) {
+        send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return;
+    }
 
-    add_buf(output, "\n\rParticipant Quests:\n\r");
+    if (!add_buf(output, "\n\rParticipant Quests:\n\r")) {
+        send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return;
+    }
     for (part = inst->participants; part; part = part->next) {
         CHAR_DATA *participant = part->ch;
         QUEST_DATA *run;
@@ -5117,7 +5165,11 @@ void do_epstat(CHAR_DATA *ch, char *argument)
             part->phases_completed,
             part->event_completed ? "yes" : "no",
             active_runs);
-        add_buf(output, buf);
+        if (!add_buf(output, buf)) {
+            send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return;
+        }
 
         for (run = participant->quest; run; run = run->next) {
             QUEST_INDEX_V2_DATA *index_v2;
@@ -5134,17 +5186,26 @@ void do_epstat(CHAR_DATA *ch, char *argument)
                 run->current_stage_id,
                 index_v2 ? widevnum_string(index_v2->area, index_v2->vnum, NULL) : "(none)",
                 (index_v2 && !IS_NULLSTR(index_v2->name)) ? formatf(" ({Y%s{x)", index_v2->name) : "");
-            add_buf(output, buf);
+            if (!add_buf(output, buf)) {
+                send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+                free_buf(output);
+                return;
+            }
         }
     }
 
-    if (shown_questers == 0)
-        add_buf(output, "  (no active quest runs found on participants)\n\r");
+    if (shown_questers == 0 && !add_buf(output, "  (no active quest runs found on participants)\n\r")) {
+        send_to_char("Event runtime output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return;
+    }
 
     if (!ch->lines && strlen(output->string) > MAX_STRING_LENGTH)
         send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
     else
         page_to_char(output->string, ch);
+
+    free_buf(output);
 }
 
 void evtedit(CHAR_DATA *ch, char *argument)

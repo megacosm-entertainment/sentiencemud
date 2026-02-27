@@ -370,32 +370,48 @@ CLSEDIT(clsedit_list)
 {
     CLASS_DATA *clazz;
     BUFFER *buf;
+    bool append_ok = true;
     int count = 0;
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
-            "UID", "Name", "Type", "Max", "HP", "Mana", "Flags"));
-    add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
+    if (!add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
+            "UID", "Name", "Type", "Max", "HP", "Mana", "Flags"))
+        || !add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
             "-----", "--------------------", "----------", "-----",
-            "-----", "------", "--------------------"));
+            "-----", "------", "--------------------"))) {
+        send_to_char("Class list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
 
     for (clazz = class_first(); clazz; clazz = clazz->next) {
         if (argument[0] && str_prefix(argument, clazz->name))
             continue;
 
-        add_buf(buf, formatf("%-5d %-20s %-10s %-5d %d-%-2d %-6s %s\n\r",
+        if (!add_buf(buf, formatf("%-5d %-20s %-10s %-5d %d-%-2d %-6s %s\n\r",
                 clazz->uid,
                 clazz->name,
                 flag_name(class_types, clazz->type),
                 clazz->max_level,
                 clazz->hp_min, clazz->hp_max,
                 clazz->gains_mana ? "{GYes{x" : "{DNo{x",
-                clazz->flags ? flag_string(class_flags, clazz->flags) : "none"));
+                clazz->flags ? flag_string(class_flags, clazz->flags) : "none"))) {
+            append_ok = false;
+            break;
+        }
         count++;
     }
 
-    add_buf(buf, formatf("\n\r%d %s listed.\n\r", count,
-            count == 1 ? "class" : "classes"));
+    if (append_ok && !add_buf(buf, formatf("\n\r%d %s listed.\n\r", count,
+            count == 1 ? "class" : "classes")))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Class list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
+
     page_to_char(buf_string(buf), ch);
     free_buf(buf);
     return false;
@@ -863,6 +879,7 @@ CLSEDIT(clsedit_rewards)
     BUFFER *buf;
     ITERATOR it;
     CLASS_REWARD *reward;
+    bool append_ok = true;
 
     EDIT_CLASS(ch, clazz);
 
@@ -872,27 +889,42 @@ CLSEDIT(clsedit_rewards)
     }
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y=== Rewards for %s ==={x\n\r\n\r", clazz->name));
-    add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
-            "Lvl", "Type", "Name", "Value", "Scope", "Flags"));
-    add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
+    if (!add_buf(buf, formatf("{Y=== Rewards for %s ==={x\n\r\n\r", clazz->name))
+        || !add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
+            "Lvl", "Type", "Name", "Value", "Scope", "Flags"))
+        || !add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
             "-----", "----------", "-------------------------",
-            "------", "--------", "--------------------"));
+            "------", "--------", "--------------------"))) {
+        send_to_char("Class reward output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
 
     iterator_start(&it, clazz->rewards);
     while ((reward = (CLASS_REWARD *)iterator_nextdata(&it))) {
-        add_buf(buf, formatf("%-5d %-10s %-25s %-6d %-8s %s\n\r",
+        if (!add_buf(buf, formatf("%-5d %-10s %-25s %-6d %-8s %s\n\r",
                 reward->level,
                 flag_name(reward_types, reward->type),
                 reward->name ? reward->name : "",
                 reward->value,
                 flag_name(reward_scopes, reward->scope),
-                reward->flags ? flag_string(reward_flags, reward->flags) : "none"));
+                reward->flags ? flag_string(reward_flags, reward->flags) : "none"))) {
+            append_ok = false;
+            break;
+        }
     }
     iterator_stop(&it);
 
-    add_buf(buf, formatf("\n\r%d total rewards.\n\r",
-            list_size(clazz->rewards)));
+    if (append_ok && !add_buf(buf, formatf("\n\r%d total rewards.\n\r",
+            list_size(clazz->rewards))))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Class reward output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
+
     page_to_char(buf_string(buf), ch);
     free_buf(buf);
     return false;
@@ -1133,10 +1165,15 @@ CLSEDIT(clsedit_trait)
     if (!str_prefix(arg1, "list")) {
         TRAIT_DEF *def;
         BUFFER *buf = new_buf();
+        bool append_ok = true;
 
-        add_buf(buf, "{Y=== Available Traits ==={x\n\r");
-        add_buf(buf, formatf("{Y%-25s %-8s %-30s{x\n\r",
-                "ID", "Type", "Description"));
+        if (!add_buf(buf, "{Y=== Available Traits ==={x\n\r")
+            || !add_buf(buf, formatf("{Y%-25s %-8s %-30s{x\n\r",
+                "ID", "Type", "Description"))) {
+            send_to_char("Class trait list output exceeded buffer limits.\n\r", ch);
+            free_buf(buf);
+            return false;
+        }
 
         for (def = trait_def_list; def; def = def->next) {
             const char *type_str = "?";
@@ -1145,9 +1182,18 @@ CLSEDIT(clsedit_trait)
                 case TRAIT_INTEGER:  type_str = "int";    break;
                 case TRAIT_STRING:   type_str = "string"; break;
             }
-            add_buf(buf, formatf("%-25s %-8s %s\n\r",
+            if (!add_buf(buf, formatf("%-25s %-8s %s\n\r",
                     def->id, type_str,
-                    def->description ? def->description : ""));
+                    def->description ? def->description : ""))) {
+                append_ok = false;
+                break;
+            }
+        }
+
+        if (!append_ok) {
+            send_to_char("Class trait list output exceeded buffer limits.\n\r", ch);
+            free_buf(buf);
+            return false;
         }
 
         page_to_char(buf_string(buf), ch);
