@@ -422,12 +422,14 @@ void advance_level(CHAR_DATA *ch, bool hide)
  * @param gain   Amount of XP to award
  * @param show   Whether to display the XP gain message
  */
-void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
+void gain_exp_typed(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, int xp_type, bool show)
 {
     char buf[MAX_STRING_LENGTH];
+    bool show_message = false;
 
     // Allow scripts to affect gaining experience, as well as blocking the use of the xp
     ch->tempstore[0] = gain;
+    ch->tempstore[1] = xp_type;
     if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL))
         return;
 
@@ -435,15 +437,18 @@ void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
     if( ch->tempstore[0] < gain )
         gain = ch->tempstore[0];
 
-    if (gain > 0 && show) {
-        sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
-        send_to_char(buf, ch);
-    }
+    show_message = (gain > 0 && show);
 
     if (IS_IMMORTAL(ch)) return;
 
     if(IS_NPC(ch)) {
         if(!IS_SET(ch->act[1],ACT2_CANLEVEL) || ch->maxexp < 1) return;
+
+        if (show_message) {
+            sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
+            send_to_char(buf, ch);
+        }
+
         ch->exp += gain;
 
         if(ch->exp >= ch->maxexp) {
@@ -455,16 +460,47 @@ void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
             }
         }
     } else {
-        /* Resolve target class */
-        if (!clazz)
-            clazz = get_current_class(ch);
+        CLASS_LEVEL *cl = NULL;
 
-        CLASS_LEVEL *cl = clazz ? get_class_level(ch, clazz) : NULL;
+        /* Resolve target class with typed XP routing support */
+        if (clazz) {
+            cl = get_class_level(ch, clazz);
+            if (cl && !class_accepts_xp_type(clazz, xp_type))
+                return;
+        } else {
+            CLASS_LEVEL *active = get_class_level(ch, NULL);
+
+            if (active && active->clazz && class_accepts_xp_type(active->clazz, xp_type)) {
+                cl = active;
+                clazz = active->clazz;
+            } else if (xp_type != XP_TYPE_UNTYPED && ch->pcdata && ch->pcdata->classes) {
+                ITERATOR it;
+                CLASS_LEVEL *candidate;
+
+                iterator_start(&it, ch->pcdata->classes);
+                while ((candidate = (CLASS_LEVEL *)iterator_nextdata(&it))) {
+                    if (candidate->clazz && class_accepts_xp_type(candidate->clazz, xp_type)) {
+                        cl = candidate;
+                        clazz = candidate->clazz;
+                        break;
+                    }
+                }
+                iterator_stop(&it);
+            } else if (active) {
+                cl = active;
+                clazz = active->clazz;
+            }
+        }
 
         if (!cl) {
             /* Fallback: no class system yet, use legacy ch->exp */
             if (ch->tot_level >= LEVEL_HERO)
                 return;
+
+            if (show_message) {
+                sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
+                send_to_char(buf, ch);
+            }
 
             ch->exp = UMIN(exp_per_level(ch, NULL, ch->pcdata->points), ch->exp + gain);
 
@@ -493,6 +529,11 @@ void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
         long maxexp = exp_per_level(ch, clazz, ch->pcdata->points);
         if (maxexp <= 0)
             return;
+
+        if (show_message) {
+            sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", gain);
+            send_to_char(buf, ch);
+        }
 
         cl->xp = cl->xp + gain;
 
@@ -547,6 +588,11 @@ void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
             save_char_obj(ch);
         }
     }
+}
+
+void gain_exp(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show)
+{
+    gain_exp_typed(ch, clazz, gain, XP_TYPE_UNTYPED, show);
 }
 
 

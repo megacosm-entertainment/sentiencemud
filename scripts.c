@@ -9944,7 +9944,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
             sprintf(buf,"{WYou have become better at %s!{x\n\r", token->name);
             send_to_char(buf,ch);
             token->value[TOKVAL_SPELL_RATING]++;
-            gain_exp(ch, NULL, 2 * diff, true);
+            gain_exp_typed(ch, NULL, 2 * diff, XP_TYPE_EXPLORATION, true);
         }
     } else {
         chance = URANGE(5, per/2, 30);
@@ -9954,7 +9954,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
             token->value[TOKVAL_SPELL_RATING] += number_range(1,3);
             if(token->value[TOKVAL_SPELL_RATING] >= max_rating)
                 token->value[TOKVAL_SPELL_RATING] = max_rating;
-            gain_exp(ch, NULL, 2 * diff, true);
+            gain_exp_typed(ch, NULL, 2 * diff, XP_TYPE_EXPLORATION, true);
         }
     }
 }

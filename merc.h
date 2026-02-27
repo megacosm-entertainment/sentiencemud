@@ -8250,6 +8250,8 @@ struct class_data
     /* Per-class XP curve (NULL = use global default curve) */
     long *              xp_table;           /* Array of XP-per-level, indexed 0..max_level-1 */
     int                 xp_table_size;      /* Number of entries in xp_table */
+    long                xp_accept_mask;     /* XP_MASK_* types this class can level from */
+    char *              xp_curve_id;        /* Optional named curve id from xp_curves.json */
 
     /* Lifecycle callbacks */
     CLASS_ENTER_FUN *   enter;              /* Called when player switches TO this class */
@@ -10780,6 +10782,7 @@ RID *	room_by_name	args( ( char *target, int level, bool error) );
 void	healing_locket_update args( ( CHAR_DATA *ch ) );
 void	advance_level	args( ( CHAR_DATA *ch, bool hide ) );
 void	gain_exp	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show ) );
+void	gain_exp_typed	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain, int xp_type, bool show ) );
 void	gain_condition	args( ( CHAR_DATA *ch, int iCond, int value ) );
 void	update_handler	args( ( void ) );
 void    pneuma_relic_update args( ( void ) );
