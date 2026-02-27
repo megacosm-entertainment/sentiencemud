@@ -938,6 +938,7 @@ void do_error(CHAR_DATA *ch, char *argument)
     char arg_filter[MIL];
     char arg_type[MIL];
     const char *type_filter_arg = NULL;
+    const char *base_command = NULL;
     bool location_only = false;
     bool area_only = false;
     AREA_DATA *filter_area = NULL;
@@ -952,6 +953,10 @@ void do_error(CHAR_DATA *ch, char *argument)
     if (!ch)
         return;
 
+    base_command = get_invoked_command_name(ch);
+    if (IS_NULLSTR(base_command))
+        base_command = "error";
+
     argument = one_argument(argument, arg_scope);
 
     if (!str_cmp(arg_scope, "area") || !str_cmp(arg_scope, "zone")) {
@@ -961,7 +966,7 @@ void do_error(CHAR_DATA *ch, char *argument)
             argument++;
 
         if (IS_NULLSTR(argument)) {
-            send_to_char("Syntax: error area <name|uid> [type]\n\r", ch);
+            printf_to_char(ch, "Syntax: %s area <name|uid> [type]\n\r", base_command);
             return;
         }
 
@@ -1004,7 +1009,7 @@ void do_error(CHAR_DATA *ch, char *argument)
         }
 
         if (IS_NULLSTR(arg_filter)) {
-            send_to_char("Syntax: error area <name|uid> [type]\n\r", ch);
+            printf_to_char(ch, "Syntax: %s area <name|uid> [type]\n\r", base_command);
             return;
         }
 
@@ -1031,7 +1036,7 @@ void do_error(CHAR_DATA *ch, char *argument)
         int h;
 
         if (!is_number(arg_filter)) {
-            send_to_char("Syntax: error view <id>\n\r", ch);
+            printf_to_char(ch, "Syntax: %s view <id>\n\r", base_command);
             return;
         }
 
@@ -1093,9 +1098,9 @@ void do_error(CHAR_DATA *ch, char *argument)
     }
 
     if (IS_NULLSTR(arg_scope)) {
-        send_to_char("Syntax: error <location|all> [type]\n\r", ch);
-        send_to_char("        error area <name|uid> [type]\n\r", ch);
-        send_to_char("        error view <id>\n\r", ch);
+        printf_to_char(ch, "Syntax: %s <location|all> [type]\n\r", base_command);
+        printf_to_char(ch, "        %s area <name|uid> [type]\n\r", base_command);
+        printf_to_char(ch, "        %s view <id>\n\r", base_command);
         send_to_char("Types: all, scripts, resets, spawn_mobile, place_object, put_in_container, give_to_mobile, equip_to_mobile, set_door_state, randomize_exits, mprog, oprog, rprog, tprog, aprog, iprog, dprog, qprog, eprog\n\r", ch);
         return;
     }
@@ -1109,8 +1114,8 @@ void do_error(CHAR_DATA *ch, char *argument)
     } else if (area_only) {
         ;
     } else {
-        send_to_char("Syntax: error <location|all> [type]\n\r", ch);
-        send_to_char("        error area <name|uid> [type]\n\r", ch);
+        printf_to_char(ch, "Syntax: %s <location|all> [type]\n\r", base_command);
+        printf_to_char(ch, "        %s area <name|uid> [type]\n\r", base_command);
         return;
     }
 
@@ -1175,12 +1180,15 @@ void do_error(CHAR_DATA *ch, char *argument)
 
         trigger_text = audit_caller_trigger_text(entry->caller);
 
+        snprintf(cmd1, sizeof(cmd1), "%s view %d", base_command, entry->id);
+        snprintf(label, sizeof(label), "[#%d]", entry->id);
+        mxp_command_link(ch->desc, buffer, cmd1, "View this error entry", label);
+
         if (trigger_text) {
             snprintf(line_buf, sizeof(line_buf),
-                "[#%d] %s | %s | %s %ld#%d line %d | local=%ld redis=%ld\n\r"
+            " %s | %s | %s %ld#%d line %d | local=%ld redis=%ld\n\r"
                 "     trigger: %s\n\r"
                 "     host: ",
-                entry->id,
                 time_buf,
                 entry->category == AUDIT_ERROR_RESET ? "reset" : "script",
                 entry->type,
@@ -1192,10 +1200,9 @@ void do_error(CHAR_DATA *ch, char *argument)
                 trigger_text);
         } else {
             snprintf(line_buf, sizeof(line_buf),
-                "[#%d] %s | %s | %s %ld#%d line %d | local=%ld redis=%ld\n\r"
+                " %s | %s | %s %ld#%d line %d | local=%ld redis=%ld\n\r"
                 "     caller: %s\n\r"
                 "     host: ",
-                entry->id,
                 time_buf,
                 entry->category == AUDIT_ERROR_RESET ? "reset" : "script",
                 entry->type,
@@ -1211,14 +1218,24 @@ void do_error(CHAR_DATA *ch, char *argument)
         host_area = get_area_from_uid(entry->host_area_uid);
         if (entry->host_kind == AUDIT_HOST_ROOM && host_area && entry->host_vnum > 0) {
             room = get_room_index(host_area, entry->host_vnum);
-            if (room)
-                mxp_room_link(ch->desc, buffer, room, "room");
+            if (room) {
+                snprintf(label, sizeof(label), "room (%ld#%ld, %s)",
+                    entry->host_area_uid,
+                    entry->host_vnum,
+                    room->name ? room->name : "(unnamed)");
+                mxp_room_link(ch->desc, buffer, room, label);
+            }
             else
                 add_buf(buffer, entry->host);
         } else if (entry->host_kind == AUDIT_HOST_MOB && host_area && entry->host_vnum > 0) {
             mob_index = get_mob_index(host_area, entry->host_vnum);
             if (mob_index) {
-                snprintf(label, sizeof(label), "mob");
+                snprintf(label, sizeof(label), "mob (%ld#%ld, %s)",
+                    entry->host_area_uid,
+                    entry->host_vnum,
+                    !IS_NULLSTR(mob_index->list_name) ? mob_index->list_name :
+                    (!IS_NULLSTR(mob_index->short_descr) ? mob_index->short_descr :
+                    (!IS_NULLSTR(mob_index->player_name) ? mob_index->player_name : "(unnamed)")));
                 snprintf(cmd1, sizeof(cmd1), "mshow %ld#%ld", entry->host_area_uid, entry->host_vnum);
                 snprintf(cmd2, sizeof(cmd2), "medit %ld#%ld", entry->host_area_uid, entry->host_vnum);
                 items[0].cmd = cmd1; items[0].hint = "Show mobile";
@@ -1227,18 +1244,29 @@ void do_error(CHAR_DATA *ch, char *argument)
             } else add_buf(buffer, entry->host);
         } else if (entry->host_kind == AUDIT_HOST_OBJ && host_area && entry->host_vnum > 0) {
             obj_index = get_obj_index(host_area, entry->host_vnum);
-            if (obj_index)
-                mxp_obj_vnum_link(ch->desc, buffer, obj_index, "object");
+            if (obj_index) {
+                snprintf(label, sizeof(label), "object (%ld#%ld, %s)",
+                    entry->host_area_uid,
+                    entry->host_vnum,
+                    !IS_NULLSTR(obj_index->list_name) ? obj_index->list_name :
+                    (!IS_NULLSTR(obj_index->short_descr) ? obj_index->short_descr :
+                    (!IS_NULLSTR(obj_index->name) ? obj_index->name : "(unnamed)")));
+                mxp_obj_vnum_link(ch->desc, buffer, obj_index, label);
+            }
             else
                 add_buf(buffer, entry->host);
         } else if (entry->host_kind == AUDIT_HOST_TOKEN && host_area && entry->host_vnum > 0) {
             token_index = get_token_index(host_area, entry->host_vnum);
             if (token_index) {
+                snprintf(label, sizeof(label), "token (%ld#%ld, %s)",
+                    entry->host_area_uid,
+                    entry->host_vnum,
+                    !IS_NULLSTR(token_index->name) ? token_index->name : "(unnamed)");
                 snprintf(cmd1, sizeof(cmd1), "tshow %ld#%ld", entry->host_area_uid, entry->host_vnum);
                 snprintf(cmd2, sizeof(cmd2), "tpedit %ld#%ld", entry->host_area_uid, entry->host_vnum);
                 items[0].cmd = cmd1; items[0].hint = "Show token";
                 items[1].cmd = cmd2; items[1].hint = "Edit token";
-                mxp_link_multi(ch->desc, buffer, "token", items, 2);
+                mxp_link_multi(ch->desc, buffer, label, items, 2);
             } else add_buf(buffer, entry->host);
         } else if (entry->host_kind == AUDIT_HOST_RESET) {
             add_buf(buffer, entry->host);
@@ -1250,13 +1278,19 @@ void do_error(CHAR_DATA *ch, char *argument)
         if (entry->has_room && !entry->is_wilds) {
             room_area = get_area_from_uid(entry->room_area_uid);
             room = room_area ? get_room_index(room_area, entry->room_vnum) : NULL;
-            if (room)
-                mxp_room_link(ch->desc, buffer, room, "room");
+            if (room) {
+                snprintf(label, sizeof(label), "room (%ld#%ld, %s)",
+                    entry->room_area_uid,
+                    entry->room_vnum,
+                    room->name ? room->name : "(unnamed)");
+                mxp_room_link(ch->desc, buffer, room, label);
+            }
             else
                 add_buf(buffer, entry->location);
         } else if (entry->has_room && entry->is_wilds) {
+            snprintf(label, sizeof(label), "wilds (%ld, %ld, %ld)", entry->wilds_uid, entry->wilds_x, entry->wilds_y);
             snprintf(cmd1, sizeof(cmd1), "goxy %ld %ld %ld", entry->wilds_x, entry->wilds_y, entry->wilds_uid);
-            mxp_command_link(ch->desc, buffer, cmd1, "Goto wilderness coordinates", "wilds");
+            mxp_command_link(ch->desc, buffer, cmd1, "Goto wilderness coordinates", label);
         } else {
             add_buf(buffer, entry->location);
         }

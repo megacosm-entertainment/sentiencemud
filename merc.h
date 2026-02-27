@@ -5567,6 +5567,7 @@ int temp_log_entry_id;
     char *temp_log_entry;  /* Temporary log entry being edited */
     char *temp_report_channel; /* Channel id targeted by history report editor */
     char *temp_report_message_id; /* Stable message/report id targeted by report editor */
+    char invoked_command[MAX_INPUT_LENGTH]; /* Base command token used for current interpret() dispatch */
 
 /*
     struct char_data_stats {
@@ -9673,6 +9674,9 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_ski
 
 /* alias.c */
 void 	substitute_alias args( (DESCRIPTOR_DATA *d, char *input) );
+
+/* interp.c */
+const char *get_invoked_command_name(const CHAR_DATA *ch);
 
 /* ban.c */
 bool check_ban	args( ( char *site, int type) );

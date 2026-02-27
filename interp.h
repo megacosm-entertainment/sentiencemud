@@ -51,6 +51,7 @@ typedef void DO_FUN(CHAR_DATA *ch, char *argument);
 
 /* wrapper function for safe command execution */
 void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
+const char *get_invoked_command_name(const CHAR_DATA *ch);
 
 void cmd_under_construction(CHAR_DATA *ch);
 

@@ -112,6 +112,14 @@ bool				logAll		= false;
 
 bool forced_command = false;	// 20070511NIB: Used to prevent forces to do any restricted command
 
+const char *get_invoked_command_name(const CHAR_DATA *ch)
+{
+    if (!ch || IS_NULLSTR(ch->invoked_command))
+        return "";
+
+    return ch->invoked_command;
+}
+
 static void __collect_verbs_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
     ITERATOR tit, pit;
@@ -510,6 +518,8 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 void interpret( CHAR_DATA *ch, char *argument )
 {
     char command[MAX_INPUT_LENGTH];
+    char invoked_command[MAX_INPUT_LENGTH];
+    char previous_invoked_command[MAX_INPUT_LENGTH];
     char logline[MAX_INPUT_LENGTH];
 //    int cmd;
     int trust;
@@ -1043,6 +1053,8 @@ if (ch->pk_question)
 /*	
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command != NULL && selected_command->is_ooc)))
 */
+
+    snprintf(invoked_command, sizeof(invoked_command), "%s", command);
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (found && IS_SET(selected_command->command_flags,CMD_IS_OOC))))
     {
         affect_strip(ch, skill_resolve_gsn("hide"));
@@ -1312,7 +1324,11 @@ if (ch->pk_question)
     }
 
     // Dispatch the command
+    snprintf(previous_invoked_command, sizeof(previous_invoked_command), "%s", ch->invoked_command);
+    snprintf(ch->invoked_command, sizeof(ch->invoked_command), "%s",
+        invoked_command[0] != '\0' ? invoked_command : selected_command->name);
     (*selected_command->function) ( ch, argument );
+    snprintf(ch->invoked_command, sizeof(ch->invoked_command), "%s", previous_invoked_command);
 
     tail_chain();
 }

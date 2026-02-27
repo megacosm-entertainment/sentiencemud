@@ -23,6 +23,12 @@ Commands are runtime-configured through `data/system/commands.json` (edited in-g
    - `CMakeLists.txt`
    - `Makefile`
 
+### Command naming and aliases (dynamic command systems)
+
+If your command prints syntax/help text or emits MXP links that include the command name, do not hardcode the literal command token. Use the invoked-command context API so output matches the actual base command used at runtime (including alias/rename scenarios).
+
+See: [Command Invocation Context Guide](COMMAND_INVOCATION_CONTEXT.md)
+
 ### Required runtime/data steps
 
 1. In-game: `cmdedit create yourcommand`
