@@ -6469,6 +6469,7 @@ struct evt_roster_entry {
     EVT_ROSTER_ENTRY *next;
     int kind;
     long vnum;
+    WNUM_LOAD wnum_load;    /* Persistent wide vnum: auid + local vnum */
     int count;
     int chance;
     int min_level;
@@ -6482,7 +6483,8 @@ struct evt_phase_def {
     EVT_PHASE_DEF *next;
     char *name;
     int16_t minutes;
-    long script_vnum;
+    long script_vnum;           /* Legacy bare vnum; use script_load going forward */
+    WNUM_LOAD script_load;
 };
 
 struct evt_stage_objective_def {
@@ -6490,7 +6492,8 @@ struct evt_stage_objective_def {
     char *name;
     int16_t objective_type;
     int16_t target_count;
-    long script_vnum;
+    long script_vnum;           /* Legacy bare vnum; use script_load going forward */
+    WNUM_LOAD script_load;
     char *data;
 };
 
@@ -6500,9 +6503,12 @@ struct evt_stage_def {
     int16_t transition_mode;
     int16_t objective_mode;
     int16_t duration_minutes;
-    long on_enter_script;
-    long on_tick_script;
-    long on_complete_script;
+    long on_enter_script;               /* Legacy; use enter_script_load going forward */
+    WNUM_LOAD enter_script_load;
+    long on_tick_script;                /* Legacy; use tick_script_load going forward */
+    WNUM_LOAD tick_script_load;
+    long on_complete_script;            /* Legacy; use complete_script_load going forward */
+    WNUM_LOAD complete_script_load;
     EVT_STAGE_OBJECTIVE_DEF *objectives;
     int16_t objective_count;
 };
@@ -6546,9 +6552,12 @@ struct event_index_data {
     int16_t phase_count;
     EVT_STAGE_DEF *stages;
     int16_t stage_count;
-    long reward_phase_script;
-    long reward_success_script;
-    long reward_failure_script;
+    long reward_phase_script;           /* Legacy; use reward_phase_load going forward */
+    WNUM_LOAD reward_phase_load;
+    long reward_success_script;         /* Legacy; use reward_success_load going forward */
+    WNUM_LOAD reward_success_load;
+    long reward_failure_script;         /* Legacy; use reward_failure_load going forward */
+    WNUM_LOAD reward_failure_load;
     bool enabled;
     long flags;
     LLIST **progs;

@@ -1870,10 +1870,13 @@ static json_t *json_area_serialize_event(EVENT_INDEX_DATA *event_index, AREA_DAT
     json_object_set_new(json, "phase_plan", json_string_safe(event_index->phase_plan));
     for (phase = event_index->phases; phase; phase = phase->next) {
         json_t *phase_json = json_object();
+        long ph_auid = phase->script_load.vnum > 0 ? phase->script_load.auid
+                     : (area ? area->uid : 0);
+        long ph_vnum = phase->script_load.vnum > 0 ? phase->script_load.vnum : phase->script_vnum;
 
         json_object_set_new(phase_json, "name", json_string_safe(phase->name));
         json_object_set_new(phase_json, "minutes", json_integer(phase->minutes));
-        json_object_set_new(phase_json, "script_vnum", json_integer(phase->script_vnum));
+        json_object_set_new(phase_json, "script_wnum", json_wnum_serialize(ph_auid, ph_vnum));
         json_array_append_new(phases, phase_json);
     }
     json_object_set_new(json, "phases", phases);
@@ -1882,22 +1885,31 @@ static json_t *json_area_serialize_event(EVENT_INDEX_DATA *event_index, AREA_DAT
         json_t *stage_json = json_object();
         EVT_STAGE_OBJECTIVE_DEF *objective;
         json_t *objectives = json_array();
+        long auid_ref = area ? area->uid : 0;
+        long enter_auid = stage->enter_script_load.vnum > 0 ? stage->enter_script_load.auid : auid_ref;
+        long enter_vnum = stage->enter_script_load.vnum > 0 ? stage->enter_script_load.vnum : stage->on_enter_script;
+        long tick_auid  = stage->tick_script_load.vnum > 0  ? stage->tick_script_load.auid  : auid_ref;
+        long tick_vnum  = stage->tick_script_load.vnum > 0  ? stage->tick_script_load.vnum  : stage->on_tick_script;
+        long comp_auid  = stage->complete_script_load.vnum > 0 ? stage->complete_script_load.auid : auid_ref;
+        long comp_vnum  = stage->complete_script_load.vnum > 0 ? stage->complete_script_load.vnum : stage->on_complete_script;
 
         json_object_set_new(stage_json, "name", json_string_safe(stage->name));
         json_object_set_new(stage_json, "transition_mode", json_integer(stage->transition_mode));
         json_object_set_new(stage_json, "objective_mode", json_integer(stage->objective_mode));
         json_object_set_new(stage_json, "duration_minutes", json_integer(stage->duration_minutes));
-        json_object_set_new(stage_json, "on_enter_script", json_integer(stage->on_enter_script));
-        json_object_set_new(stage_json, "on_tick_script", json_integer(stage->on_tick_script));
-        json_object_set_new(stage_json, "on_complete_script", json_integer(stage->on_complete_script));
+        json_object_set_new(stage_json, "on_enter_script", json_wnum_serialize(enter_auid, enter_vnum));
+        json_object_set_new(stage_json, "on_tick_script",  json_wnum_serialize(tick_auid,  tick_vnum));
+        json_object_set_new(stage_json, "on_complete_script", json_wnum_serialize(comp_auid, comp_vnum));
 
         for (objective = stage->objectives; objective; objective = objective->next) {
             json_t *objective_json = json_object();
+            long obj_auid = objective->script_load.vnum > 0 ? objective->script_load.auid : auid_ref;
+            long obj_vnum = objective->script_load.vnum > 0 ? objective->script_load.vnum : objective->script_vnum;
 
             json_object_set_new(objective_json, "name", json_string_safe(objective->name));
             json_object_set_new(objective_json, "objective_type", json_integer(objective->objective_type));
             json_object_set_new(objective_json, "target_count", json_integer(objective->target_count));
-            json_object_set_new(objective_json, "script_vnum", json_integer(objective->script_vnum));
+            json_object_set_new(objective_json, "script_wnum", json_wnum_serialize(obj_auid, obj_vnum));
             json_object_set_new(objective_json, "data", json_string_safe(objective->data));
             json_array_append_new(objectives, objective_json);
         }
@@ -1907,9 +1919,18 @@ static json_t *json_area_serialize_event(EVENT_INDEX_DATA *event_index, AREA_DAT
     }
     json_object_set_new(json, "stages", stages);
 
-    json_object_set_new(json, "reward_phase_script", json_integer(event_index->reward_phase_script));
-    json_object_set_new(json, "reward_success_script", json_integer(event_index->reward_success_script));
-    json_object_set_new(json, "reward_failure_script", json_integer(event_index->reward_failure_script));
+    {
+        long ref_auid = area ? area->uid : 0;
+        long rp_auid = event_index->reward_phase_load.vnum > 0 ? event_index->reward_phase_load.auid : ref_auid;
+        long rp_vnum = event_index->reward_phase_load.vnum > 0 ? event_index->reward_phase_load.vnum : event_index->reward_phase_script;
+        long rs_auid = event_index->reward_success_load.vnum > 0 ? event_index->reward_success_load.auid : ref_auid;
+        long rs_vnum = event_index->reward_success_load.vnum > 0 ? event_index->reward_success_load.vnum : event_index->reward_success_script;
+        long rf_auid = event_index->reward_failure_load.vnum > 0 ? event_index->reward_failure_load.auid : ref_auid;
+        long rf_vnum = event_index->reward_failure_load.vnum > 0 ? event_index->reward_failure_load.vnum : event_index->reward_failure_script;
+        json_object_set_new(json, "reward_phase_script",   json_wnum_serialize(rp_auid, rp_vnum));
+        json_object_set_new(json, "reward_success_script", json_wnum_serialize(rs_auid, rs_vnum));
+        json_object_set_new(json, "reward_failure_script", json_wnum_serialize(rf_auid, rf_vnum));
+    }
     json_object_set_new(json, "enabled", json_integer(event_index->enabled ? 1 : 0));
     json_object_set_new(json, "flags", json_integer(event_index->flags));
     json_object_set_new(json, "comments", json_string_safe(event_index->comments));
@@ -1925,9 +1946,11 @@ static json_t *json_area_serialize_event(EVENT_INDEX_DATA *event_index, AREA_DAT
 
     for (entry = event_index->roster; entry; entry = entry->next) {
         json_t *entry_json = json_object();
+        long save_auid = entry->wnum_load.auid > 0 ? entry->wnum_load.auid
+                       : (area ? area->uid : 0);
+        long save_vnum = entry->wnum_load.vnum > 0 ? entry->wnum_load.vnum : entry->vnum;
         json_object_set_new(entry_json, "kind", json_integer(entry->kind));
-        json_object_set_new(entry_json, "vnum", json_integer(entry->vnum));
-        json_object_set_new(entry_json, "wnum", json_string(widevnum_string(area, entry->vnum, area)));
+        json_object_set_new(entry_json, "wnum", json_wnum_serialize(save_auid, save_vnum));
         json_object_set_new(entry_json, "count", json_integer(entry->count));
         json_object_set_new(entry_json, "chance", json_integer(entry->chance));
         json_object_set_new(entry_json, "min_level", json_integer(entry->min_level));
@@ -1988,7 +2011,7 @@ static void json_event_free_stages(EVENT_INDEX_DATA *event_index)
 }
 
 static void json_event_add_phase(EVENT_INDEX_DATA *event_index,
-    const char *name, int minutes, long script_vnum)
+    const char *name, int minutes, WNUM_LOAD script_load)
 {
     EVT_PHASE_DEF *phase;
     EVT_PHASE_DEF *tail;
@@ -2000,7 +2023,8 @@ static void json_event_add_phase(EVENT_INDEX_DATA *event_index,
     memset(phase, 0, sizeof(*phase));
     phase->name = str_dup(name);
     phase->minutes = UMAX(0, minutes);
-    phase->script_vnum = UMAX(0, script_vnum);
+    phase->script_load = script_load;
+    phase->script_vnum = UMAX(0, script_load.vnum);
 
     if (!event_index->phases)
         event_index->phases = phase;
@@ -2015,8 +2039,8 @@ static void json_event_add_phase(EVENT_INDEX_DATA *event_index,
 }
 
 static EVT_STAGE_DEF *json_event_add_stage(EVENT_INDEX_DATA *event_index,
-    const char *name, int transition_mode, int objective_mode,
-    int duration_minutes, long on_enter_script, long on_tick_script, long on_complete_script)
+    const char *name, int transition_mode, int objective_mode, int duration_minutes,
+    WNUM_LOAD enter_load, WNUM_LOAD tick_load, WNUM_LOAD complete_load)
 {
     EVT_STAGE_DEF *stage;
     EVT_STAGE_DEF *tail;
@@ -2030,9 +2054,12 @@ static EVT_STAGE_DEF *json_event_add_stage(EVENT_INDEX_DATA *event_index,
     stage->transition_mode = transition_mode;
     stage->objective_mode = objective_mode;
     stage->duration_minutes = UMAX(0, duration_minutes);
-    stage->on_enter_script = UMAX(0, on_enter_script);
-    stage->on_tick_script = UMAX(0, on_tick_script);
-    stage->on_complete_script = UMAX(0, on_complete_script);
+    stage->enter_script_load = enter_load;
+    stage->on_enter_script = UMAX(0, enter_load.vnum);
+    stage->tick_script_load = tick_load;
+    stage->on_tick_script = UMAX(0, tick_load.vnum);
+    stage->complete_script_load = complete_load;
+    stage->on_complete_script = UMAX(0, complete_load.vnum);
 
     if (!event_index->stages)
         event_index->stages = stage;
@@ -2049,7 +2076,7 @@ static EVT_STAGE_DEF *json_event_add_stage(EVENT_INDEX_DATA *event_index,
 
 static void json_event_add_stage_objective(EVT_STAGE_DEF *stage,
     const char *name, int objective_type, int target_count,
-    long script_vnum, const char *data)
+    WNUM_LOAD script_load, const char *data)
 {
     EVT_STAGE_OBJECTIVE_DEF *objective;
     EVT_STAGE_OBJECTIVE_DEF *tail;
@@ -2062,7 +2089,8 @@ static void json_event_add_stage_objective(EVT_STAGE_DEF *stage,
     objective->name = str_dup(IS_NULLSTR(name) ? "objective" : name);
     objective->objective_type = objective_type;
     objective->target_count = UMAX(0, target_count);
-    objective->script_vnum = UMAX(0, script_vnum);
+    objective->script_load = script_load;
+    objective->script_vnum = UMAX(0, script_load.vnum);
     objective->data = str_dup(IS_NULLSTR(data) ? "" : data);
 
     if (!stage->objectives)
@@ -2128,8 +2156,10 @@ static void json_event_load_legacy_phase_plan(EVENT_INDEX_DATA *event_index, con
         while (!IS_NULLSTR(name_buf) && isspace((unsigned char)name_buf[strlen(name_buf) - 1]))
             name_buf[strlen(name_buf) - 1] = '\0';
 
-        if (!IS_NULLSTR(name_buf))
-            json_event_add_phase(event_index, name_buf, minutes, script_vnum);
+        if (!IS_NULLSTR(name_buf)) {
+            WNUM_LOAD sl = {0, script_vnum};
+            json_event_add_phase(event_index, name_buf, minutes, sl);
+        }
 
         while (*cursor && *cursor != ';' && *cursor != ',')
             cursor++;
@@ -2192,9 +2222,26 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
     event_index->phase_count = 0;
     event_index->stages = NULL;
     event_index->stage_count = 0;
-    event_index->reward_phase_script = json_get_int_default(json, "reward_phase_script", 0);
-    event_index->reward_success_script = json_get_int_default(json, "reward_success_script", 0);
-    event_index->reward_failure_script = json_get_int_default(json, "reward_failure_script", 0);
+    {
+        json_t *rp_j = json_object_get(json, "reward_phase_script");
+        json_t *rs_j = json_object_get(json, "reward_success_script");
+        json_t *rf_j = json_object_get(json, "reward_failure_script");
+        if (json_is_string(rp_j))
+            parse_widevnum_load(json_string_value(rp_j), &event_index->reward_phase_load);
+        else
+            event_index->reward_phase_load.vnum = json_is_integer(rp_j) ? (long)json_integer_value(rp_j) : 0;
+        if (json_is_string(rs_j))
+            parse_widevnum_load(json_string_value(rs_j), &event_index->reward_success_load);
+        else
+            event_index->reward_success_load.vnum = json_is_integer(rs_j) ? (long)json_integer_value(rs_j) : 0;
+        if (json_is_string(rf_j))
+            parse_widevnum_load(json_string_value(rf_j), &event_index->reward_failure_load);
+        else
+            event_index->reward_failure_load.vnum = json_is_integer(rf_j) ? (long)json_integer_value(rf_j) : 0;
+        event_index->reward_phase_script   = (long)event_index->reward_phase_load.vnum;
+        event_index->reward_success_script = (long)event_index->reward_success_load.vnum;
+        event_index->reward_failure_script = (long)event_index->reward_failure_load.vnum;
+    }
     event_index->enabled = json_get_bool_default(json, "enabled", true);
     event_index->flags = json_get_int_default(json, "flags", 0);
     event_index->comments = str_dup(json_get_string_default(json, "comments", ""));
@@ -2219,12 +2266,15 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
             memset(entry, 0, sizeof(*entry));
 
             entry->kind = json_get_int_default(entry_json, "kind", EVT_ROSTER_NPC);
-            entry->vnum = json_get_int_default(entry_json, "vnum", 0);
             wnum_json = json_object_get(entry_json, "wnum");
             if (json_is_string(wnum_json)) {
-                WNUM_LOAD wload;
-                if (parse_widevnum_load(json_string_value(wnum_json), &wload) && wload.vnum > 0)
-                    entry->vnum = wload.vnum;
+                if (parse_widevnum_load(json_string_value(wnum_json), &entry->wnum_load) && entry->wnum_load.vnum > 0)
+                    entry->vnum = entry->wnum_load.vnum;
+            } else {
+                /* Legacy integer fallback */
+                entry->vnum = json_get_int_default(entry_json, "vnum", 0);
+                entry->wnum_load.auid = 0;
+                entry->wnum_load.vnum = entry->vnum;
             }
             entry->count = json_get_int_default(entry_json, "count", 1);
             entry->chance = json_get_int_default(entry_json, "chance", 100);
@@ -2234,7 +2284,7 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
             entry->stage = UMAX(0, json_get_int_default(entry_json, "stage", 0));
             entry->requirements = str_dup(json_get_string_default(entry_json, "requirements", ""));
 
-            if (entry->vnum < 1) {
+            if (entry->wnum_load.vnum < 1) {
                 free_string(entry->requirements);
                 free_mem(entry, sizeof(*entry));
                 continue;
@@ -2258,19 +2308,24 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
             json_array_foreach(phases_json, phase_i, phase_json) {
                 const char *name;
                 int minutes;
-                long script_vnum;
+                WNUM_LOAD script_load = {0, 0};
+                json_t *sw;
 
                 if (!json_is_object(phase_json))
                     continue;
 
                 name = json_get_string_default(phase_json, "name", "");
                 minutes = json_get_int_default(phase_json, "minutes", 0);
-                script_vnum = json_get_int_default(phase_json, "script_vnum", 0);
+                sw = json_object_get(phase_json, "script_wnum");
+                if (json_is_string(sw))
+                    parse_widevnum_load(json_string_value(sw), &script_load);
+                else
+                    script_load.vnum = json_get_int_default(phase_json, "script_vnum", 0);
 
                 if (IS_NULLSTR(name))
                     continue;
 
-                json_event_add_phase(event_index, name, minutes, script_vnum);
+                json_event_add_phase(event_index, name, minutes, script_load);
             }
         }
     }
@@ -2291,9 +2346,10 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
                 int transition_mode;
                 int objective_mode;
                 int duration_minutes;
-                long on_enter_script;
-                long on_tick_script;
-                long on_complete_script;
+                WNUM_LOAD enter_load = {0, 0};
+                WNUM_LOAD tick_load  = {0, 0};
+                WNUM_LOAD comp_load  = {0, 0};
+                json_t *sv;
                 json_t *objectives_json;
 
                 if (!json_is_object(stage_json))
@@ -2303,18 +2359,23 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
                 transition_mode = json_get_int_default(stage_json, "transition_mode", EVT_STAGE_TRANSITION_ON_COMPLETE);
                 objective_mode = json_get_int_default(stage_json, "objective_mode", EVT_STAGE_OBJECTIVE_ALL);
                 duration_minutes = json_get_int_default(stage_json, "duration_minutes", 0);
-                on_enter_script = json_get_int_default(stage_json, "on_enter_script", 0);
-                on_tick_script = json_get_int_default(stage_json, "on_tick_script", 0);
-                on_complete_script = json_get_int_default(stage_json, "on_complete_script", 0);
+
+                sv = json_object_get(stage_json, "on_enter_script");
+                if (json_is_string(sv)) parse_widevnum_load(json_string_value(sv), &enter_load);
+                else enter_load.vnum = json_is_integer(sv) ? (long)json_integer_value(sv) : 0;
+
+                sv = json_object_get(stage_json, "on_tick_script");
+                if (json_is_string(sv)) parse_widevnum_load(json_string_value(sv), &tick_load);
+                else tick_load.vnum = json_is_integer(sv) ? (long)json_integer_value(sv) : 0;
+
+                sv = json_object_get(stage_json, "on_complete_script");
+                if (json_is_string(sv)) parse_widevnum_load(json_string_value(sv), &comp_load);
+                else comp_load.vnum = json_is_integer(sv) ? (long)json_integer_value(sv) : 0;
 
                 stage = json_event_add_stage(event_index,
                     IS_NULLSTR(name) ? "stage" : name,
-                    transition_mode,
-                    objective_mode,
-                    duration_minutes,
-                    on_enter_script,
-                    on_tick_script,
-                    on_complete_script);
+                    transition_mode, objective_mode, duration_minutes,
+                    enter_load, tick_load, comp_load);
                 if (!stage)
                     continue;
 
@@ -2331,7 +2392,8 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
                         const char *objective_data;
                         int objective_type;
                         int target_count;
-                        long script_vnum;
+                        WNUM_LOAD obj_load = {0, 0};
+                        json_t *osw;
 
                         if (!json_is_object(objective_json))
                             continue;
@@ -2340,14 +2402,15 @@ static EVENT_INDEX_DATA *json_area_deserialize_event(json_t *json, AREA_DATA *ar
                         objective_data = json_get_string_default(objective_json, "data", "");
                         objective_type = json_get_int_default(objective_json, "objective_type", EVT_STAGE_OBJECTIVE_CUSTOM);
                         target_count = json_get_int_default(objective_json, "target_count", 0);
-                        script_vnum = json_get_int_default(objective_json, "script_vnum", 0);
+                        osw = json_object_get(objective_json, "script_wnum");
+                        if (json_is_string(osw))
+                            parse_widevnum_load(json_string_value(osw), &obj_load);
+                        else
+                            obj_load.vnum = json_get_int_default(objective_json, "script_vnum", 0);
 
                         json_event_add_stage_objective(stage,
-                            objective_name,
-                            objective_type,
-                            target_count,
-                            script_vnum,
-                            objective_data);
+                            objective_name, objective_type, target_count,
+                            obj_load, objective_data);
                     }
                 }
             }

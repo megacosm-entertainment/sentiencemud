@@ -596,6 +596,7 @@ void fix_dungeonprogs(void);
 void fix_dungeon_rooms(void);
 void fix_dungeon_floors(void);
 void fix_blueprint_references(void);
+void fix_events(void);
 
 
 
@@ -1112,6 +1113,7 @@ void boot_db(void)
     fix_blueprint_references();
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Fixing dungeon floor references");
     fix_dungeon_floors();
+    fix_events();
 
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Loading persistance");
     if(!persist_load()) {
@@ -2722,6 +2724,55 @@ void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *pRefArea)
 	else
 		wnum->pArea = pRefArea;
 	wnum->vnum = load->vnum;
+}
+
+/**
+ * fix_events - Resolve widevnum references in event definitions after all areas are loaded
+ *
+ * Iterates all event indices and resolves each roster entry's WNUM_LOAD
+ * (auid + vnum) to ensure entry->vnum is set to the local vnum for the
+ * resolved area. Falls back to the event's own area when no area UID was
+ * stored (legacy data without an explicit area qualifier).
+ */
+void fix_events(void)
+{
+    AREA_DATA *pArea;
+    int iHash;
+
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving event widevnum references");
+
+    for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
+        EVENT_INDEX_DATA *event_index;
+
+        for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+            for (event_index = pArea->event_index_hash[iHash]; event_index != NULL; event_index = event_index->next_hash) {
+                EVT_ROSTER_ENTRY *entry;
+
+                for (entry = event_index->roster; entry != NULL; entry = entry->next) {
+                    AREA_DATA *target_area;
+
+                    if (entry->wnum_load.vnum <= 0)
+                        continue;
+
+                    target_area = entry->wnum_load.auid > 0
+                        ? get_area_from_uid(entry->wnum_load.auid)
+                        : pArea;
+
+                    if (!target_area) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Event '%s' (vnum %ld in %s): roster entry area uid %ld not found, "
+                            "falling back to event area",
+                            event_index->name ? event_index->name : "unnamed",
+                            event_index->vnum, pArea->name,
+                            entry->wnum_load.auid);
+                        target_area = pArea;
+                    }
+
+                    entry->vnum = entry->wnum_load.vnum;
+                }
+            }
+        }
+    }
 }
 
 /*
