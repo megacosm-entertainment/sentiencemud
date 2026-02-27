@@ -16,7 +16,7 @@
  ***************************************************************************/
 
 /***************************************************************************
-*	ROM 2.4 is copyright 1993-1998 Russ Taylor			   *
+*\tROM 2.4 is copyright 1993-1998 Russ Taylor			   *
 *	ROM has been brought to you by the ROM consortium		   *
 *	    Russ Taylor (rtaylor@hypercube.org)				   *
 *	    Gabrielle Taylor (gtaylor@hypercube.org)			   *
@@ -435,96 +435,428 @@ bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pDest)
     return true;
 }
 
-/**
- * move_char - Move a character in a given direction
- *
- * Core movement function handling all aspects of character movement:
- * - Validates exit exists and is accessible
- * - Checks movement restrictions (doors, terrain, flight, swimming)
- * - Calculates and deducts movement points
- * - Handles mount movement
- * - Displays leave/arrive messages
- * - Triggers TRIG_MOVE_CHAR, TRIG_EXIT, TRIG_ENTRY, TRIG_GREET scripts
- * - Checks environmental hazards (rocks, ice, flames, traps)
- * - Moves followers
- *
- * @param ch      Character attempting to move
- * @param door    Direction constant (DIR_NORTH, etc.)
- * @param follow  true if character is following someone (unused in function)
- *
- * Triggers: TRIG_MOVE_CHAR, TRIG_EXIT, TRIG_ENTRY, TRIG_GREET
- */
-void move_char(CHAR_DATA *ch, int door, bool follow)
+static bool move_char_validate_travel_mode(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room)
+{
+    if (room_in_sector(in_room, SECT_AIR) || room_in_sector(to_room, SECT_AIR)) {
+        if (MOUNTED(ch)) {
+            if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
+                send_to_char("Your mount can't fly.\n\r", ch);
+                return false;
+            }
+        } else {
+            if (!IS_AFFECTED(ch, AFF_FLYING) && !IS_IMMORTAL(ch)) {
+                send_to_char("You can't fly.\n\r", ch);
+                return false;
+            }
+        }
+    }
+
+    if ((room_in_sector(in_room, SECT_WATER_NOSWIM) || room_in_sector(to_room, SECT_WATER_NOSWIM)) &&
+        MOUNTED(ch) && !IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
+        send_to_char("You can't take your mount there.\n\r", ch);
+        return false;
+    }
+
+    if (room_in_sector(in_room, SECT_WATER_NOSWIM) && !IS_SET(ch->parts, PART_FINS) && !IS_IMMORTAL(ch)) {
+        if (IS_SET(in_room->room_flag[1], ROOM_CITYMOVE))
+            WAIT_STATE(ch, 4);
+        else
+            WAIT_STATE(ch, 8);
+    }
+
+    if ((!room_in_sector(in_room, SECT_WATER_NOSWIM) && room_in_sector(to_room, SECT_WATER_NOSWIM)) &&
+        !IS_AFFECTED(ch, AFF_FLYING)) {
+        act("You dive into the deep water and begin to swim.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n dives into the deep water and begins to swim.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+
+    if (room_in_sector(in_room, SECT_WATER_NOSWIM) && !room_in_sector(to_room, SECT_WATER_NOSWIM) &&
+        !IS_AFFECTED(ch, AFF_FLYING)) {
+        act("You can touch the ground here.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n stops swimming and stands.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+
+    return true;
+}
+
+static int move_char_calculate_base_move(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room)
+{
+    int m1, m2;
+
+    m1 = UMIN(SECT_MAX - 1, room_sector_type(in_room));
+    if (IS_SET(ch->parts, PART_FINS) && m1 == SECT_WATER_NOSWIM)
+        m1 = SECT_WATER_SWIM;
+    if (IS_SET(in_room->room_flag[1], ROOM_CITYMOVE) && sector_move_cost(m1) > sector_move_cost(SECT_CITY))
+        m1 = SECT_CITY;
+
+    m2 = UMIN(SECT_MAX - 1, room_sector_type(to_room));
+    if (IS_SET(ch->parts, PART_FINS) && m2 == SECT_WATER_NOSWIM)
+        m2 = SECT_WATER_SWIM;
+    if (IS_SET(to_room->room_flag[1], ROOM_CITYMOVE) && sector_move_cost(m2) > sector_move_cost(SECT_CITY))
+        m2 = SECT_CITY;
+
+    return (sector_move_cost(m1) + sector_move_cost(m2)) / 2;
+}
+
+static int move_char_apply_cost_modifiers(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room, int move)
+{
+    if (ch->pcdata->second_sub_class_warrior == CLASS_WARRIOR_CRUSADER && IN_WILDERNESS(ch))
+        move -= move / 4;
+
+    if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER)
+        move -= move / 4;
+
+    move += weather_movement_modifier(in_room, to_room, move);
+
+    if (!MOUNTED(ch)) {
+        if (IS_AFFECTED(ch, AFF_FLYING) || IS_AFFECTED(ch, AFF_HASTE))
+            move /= 2;
+        if (IS_AFFECTED(ch, AFF_SLOW))
+            move *= 2;
+    } else {
+        if (IS_AFFECTED(MOUNTED(ch), AFF_FLYING) || IS_AFFECTED(MOUNTED(ch), AFF_HASTE))
+            move /= 2;
+
+        if (IS_AFFECTED(MOUNTED(ch), AFF_SLOW))
+            move *= 2;
+    }
+
+    return move;
+}
+
+static bool move_char_check_exhaustion(CHAR_DATA *ch, int move)
+{
+    if (!MOUNTED(ch)) {
+        if (ch->move < move) {
+            send_to_char("You are too exhausted.\n\r", ch);
+            return false;
+        }
+    } else {
+        if (MOUNTED(ch)->move < move) {
+            send_to_char("Your mount is too exhausted.\n\r", ch);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static void move_char_echo_departure(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, int door)
+{
+    if (IS_AFFECTED(ch, AFF_SNEAK) || ch->invis_level >= 150)
+        return;
+
+    if (room_in_sector(in_room, SECT_WATER_NOSWIM)) {
+        act("{W$n swims $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+    } else if (PULLING_CART(ch)) {
+        act("{W$n leaves $T, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+    } else if (MOUNTED(ch)) {
+        char *mount_msg = !IS_AFFECTED(MOUNTED(ch), AFF_FLYING)
+            ? "{W$n leaves $T, riding on $N.{x"
+            : "{W$n soars $T, on $N.{x";
+        act(mount_msg, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+    } else {
+        if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
+            act("{W$n stumbles off drunkenly on $s way $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+        else
+            act("{W$n leaves $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+    }
+}
+
+static void move_char_echo_arrival(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room, int door, DUNGEON *in_dungeon, DUNGEON *to_dungeon)
+{
+    if (IS_AFFECTED(ch, AFF_SNEAK) || ch->invis_level >= LEVEL_HERO)
+        return;
+
+    if (IS_VALID(in_dungeon) && !IS_VALID(to_dungeon)) {
+        OBJ_DATA *portal = get_room_dungeon_portal(to_room, in_dungeon->index->vnum);
+
+        if (IS_VALID(portal)) {
+            if (!IS_NULLSTR(in_dungeon->index->zone_out_portal))
+                act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+            else
+                act("$n has arrived through $p.", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        } else if (MOUNTED(ch)) {
+            if (!IS_NULLSTR(in_dungeon->index->zone_out_mount))
+                act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+            else
+                act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        } else {
+            if (!IS_NULLSTR(in_dungeon->index->zone_out))
+                act(in_dungeon->index->zone_out, ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+            else
+                act("{W$n materializes.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        }
+    } else if (room_in_sector(in_room, SECT_WATER_NOSWIM)) {
+        act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
+    } else if (PULLING_CART(ch)) {
+        act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    } else if (!MOUNTED(ch)) {
+        if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
+            act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        else
+            act("{W$n has arrived.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    } else {
+        if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
+            act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        else
+            act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    }
+}
+
+static void move_char_handle_room_entry(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room, int door, bool area_changed, DUNGEON *in_dungeon, DUNGEON *to_dungeon)
+{
+    move_char_echo_arrival(ch, in_room, to_room, door, in_dungeon, to_dungeon);
+
+    move_cart(ch, to_room, true);
+
+    if (IS_OUTSIDE(ch) && race_get_trait_bool(ch->race, "sunlight_vulnerability") && number_percent() < 75)
+        hurt_vampires(ch);
+
+    do_function(ch, &do_look, "auto");
+
+    if (!IS_NPC(ch) && area_changed)
+        event_notify_active_events_for_char(ch, true);
+
+    check_see_hidden(ch);
+
+    if (!IS_WILDERNESS(ch->in_room))
+        check_traps(ch, true);
+}
+
+static void move_char_move_followers(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room, int door)
 {
     CHAR_DATA *fch;
     CHAR_DATA *fch_next;
-    ROOM_INDEX_DATA *in_room;
-    ROOM_INDEX_DATA *to_room;
-//	WILDS_DATA *in_wilds = NULL;
-/*	WILDS_DATA *to_wilds = NULL;
-    WILDS_TERRAIN *pTerrain; */
-    EXIT_DATA *pexit;
-/*	AREA_DATA *pArea = NULL;
-    int to_vroom_x = 0;
-    int to_vroom_y = 0; */
-    char buf[MAX_STRING_LENGTH];
-    int move;
-    bool area_changed = false;
 
-    /* Check door variable is valid */
-    if (door < 0 || door >= MAX_DIR) {
-        pbugf(LOG_ERROR, "Bad door %d.", door);
-        return;
-    }
+    for (fch = in_room->people; fch != NULL; fch = fch_next) {
+        fch_next = fch->next_in_room;
 
-    /* Check char's in_room index pointer is valid */
-    if (!ch->in_room) {
-        pbugf(LOG_ERROR, "move_char: ch->in_room was null for %s (%ld)", HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-        return;
-    }
+        if (fch->master == ch && IS_AFFECTED(fch, AFF_CHARM) && fch->position < POS_STANDING)
+            do_function(fch, &do_stand, "");
 
-    // Allow scripting to screw with the direction of travel
-    ch->tempstore[0] = door;
-    if( p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->tempstore[0]]) )
-        return;
-
-    ch->in_room->tempstore[0] = URANGE(0,ch->tempstore[0],(MAX_DIR-1));;
-    if( p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->in_room->tempstore[0]]) )
-        return;
-
-    door = URANGE(0,ch->in_room->tempstore[0],(MAX_DIR-1));
-
-
-    /* Exit trigger, if activated, bail out. Only PCs are triggered. */
-    if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG) ||
-            p_exit_trigger(ch, door, PRG_OPROG) || p_exit_trigger(ch, door, PRG_RPROG)))
-        return;
-
-    /* Check if char is "on" something. preventing movement */
-    if (ch->on) {
-        act("You must get off $p first.", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        return;
-    }
-
-    /* Ok, take a copy of the char's location pointers */
-    in_room = ch->in_room;
-
-    if (!(pexit = in_room->exit[door])) {
-        send_to_char("Alas, you cannot move that way.\n\r", ch);
-/*		wiznet("move_char()-> NULL pexit",NULL,NULL,WIZ_TESTING,0,0); */
-        return;
-    }
-
-    // Requires that you MUST see the exit in order to use it.
-    if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
-    {
-        // If they are not an immortal or have holylight off, they can't use the exit
-        if( !IS_IMMORTAL(ch) || !IS_SET(ch->act[0],PLR_HOLYLIGHT) )
-        {
-            send_to_char("Alas, you cannot move that way.\n\r", ch);
-            return;
+        if (fch->master == ch && fch->position == POS_STANDING && can_see_room(fch, to_room)) {
+            act("{WYou follow $N.{x", fch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            move_char(fch, door, true);
         }
     }
+}
+
+static void move_char_run_entry_triggers(CHAR_DATA *ch, DUNGEON *in_dungeon, DUNGEON *to_dungeon, INSTANCE *in_instance, INSTANCE *to_instance)
+{
+    if (IS_VALID(to_dungeon) && (in_dungeon != to_dungeon))
+        p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+
+    if (IS_VALID(to_instance) && to_instance != in_instance)
+        p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+
+    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+
+    if (!IS_NPC(ch)) {
+        p_greet_trigger(ch, PRG_MPROG);
+        p_greet_trigger(ch, PRG_OPROG);
+        p_greet_trigger(ch, PRG_RPROG);
+    }
+}
+
+static void move_char_run_post_entry_checks(CHAR_DATA *ch)
+{
+    if (!IS_DEAD(ch)) check_rocks(ch, true);
+    if (!IS_DEAD(ch)) check_ice(ch, true);
+    if (!IS_DEAD(ch)) check_room_flames(ch, true);
+    if (!IS_DEAD(ch)) check_ambush(ch);
+
+    if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, skill_resolve_gsn("riding")) > 0)
+        check_improve(ch, skill_resolve_gsn("riding"), true, 8);
+
+    if (!MOUNTED(ch) && get_skill(ch, skill_resolve_gsn("trackless step")) > 0 && number_percent() == 1)
+        check_improve(ch, skill_resolve_gsn("trackless step"), true, 8);
+
+    if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch)) {
+        ch->move += number_range(1, 3);
+        ch->move = UMIN(ch->move, ch->max_move);
+        ch->hit += number_range(1, 3);
+        ch->hit  = UMIN(ch->hit, ch->max_hit);
+    }
+
+    if (!IS_NPC(ch))
+        check_quest_rescue_mob(ch, true);
+}
+
+static void move_char_pay_movement_cost(CHAR_DATA *ch, int move)
+{
+    if (!MOUNTED(ch)) {
+        if (!IS_IMMORTAL(ch) && !is_float_user(ch))
+            ch->move -= move;
+    } else {
+        if (!IS_IMMORTAL(MOUNTED(ch)) && !is_float_user(MOUNTED(ch)))
+            MOUNTED(ch)->move -= move;
+    }
+}
+
+static bool move_char_handle_pre_transfer_interruptions(CHAR_DATA *ch)
+{
+    check_room_shield_source(ch, true);
+
+    if (!IS_DEAD(ch)) {
+        check_room_flames(ch, true);
+        if ((!IS_NPC(ch) && IS_DEAD(ch)) || (IS_NPC(ch) && ch->hit < 1))
+            return false;
+    }
+
+    if (ch->ambush) {
+        send_to_char("You stop your ambush.\n\r", ch);
+        free_ambush(ch->ambush);
+        ch->ambush = NULL;
+    }
+
+    if (ch->recite > 0) {
+        send_to_char("You stop reciting.\n\r", ch);
+        act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        ch->recite = 0;
+    }
+
+    return true;
+}
+
+static bool move_char_transfer_room(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room, bool *area_changed)
+{
+    if (area_changed == NULL)
+        return false;
+
+    char_from_room(ch);
+
+    *area_changed = in_room && to_room && in_room->area != to_room->area;
+
+    if (to_room->wilds)
+        char_to_vroom(ch, to_room->wilds, to_room->x, to_room->y);
+    else
+        char_to_room(ch, to_room);
+
+    return true;
+}
+
+static bool move_char_prepare_movement_cost(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, ROOM_INDEX_DATA *to_room, int *move)
+{
+    if (move == NULL)
+        return false;
+
+    *move = 0;
+    if (IS_NPC(ch))
+        return true;
+
+    if (!move_char_validate_travel_mode(ch, in_room, to_room))
+        return false;
+
+    *move = move_char_calculate_base_move(ch, in_room, to_room);
+    *move = move_char_apply_cost_modifiers(ch, in_room, to_room, *move);
+
+    return move_char_check_exhaustion(ch, *move);
+}
+
+static bool move_char_can_traverse(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *to_room)
+{
+    if (!can_move_room(ch, door, to_room)) {
+        if (ch->hunting)
+            ch->hunting = NULL;
+        return false;
+    }
+
+    return true;
+}
+
+static bool move_char_normalize_direction(CHAR_DATA *ch, int *door)
+{
+    if (door == NULL)
+        return false;
+
+    ch->tempstore[0] = *door;
+    if (p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->tempstore[0]]))
+        return false;
+
+    ch->in_room->tempstore[0] = URANGE(0, ch->tempstore[0], (MAX_DIR - 1));
+    if (p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->in_room->tempstore[0]]))
+        return false;
+
+    *door = URANGE(0, ch->in_room->tempstore[0], (MAX_DIR - 1));
+    return true;
+}
+
+static bool move_char_pre_move_checks(CHAR_DATA *ch, int door)
+{
+    if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG)
+        || p_exit_trigger(ch, door, PRG_OPROG)
+        || p_exit_trigger(ch, door, PRG_RPROG)))
+    {
+        return false;
+    }
+
+    if (ch->on) {
+        act("You must get off $p first.", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return false;
+    }
+
+    return true;
+}
+
+static bool move_char_validate_context(CHAR_DATA *ch, int door)
+{
+    if (door < 0 || door >= MAX_DIR) {
+        pbugf(LOG_ERROR, "Bad door %d.", door);
+        return false;
+    }
+
+    if (!ch->in_room) {
+        pbugf(LOG_ERROR, "move_char: ch->in_room was null for %s (%ld)", HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+        return false;
+    }
+
+    return true;
+}
+
+static EXIT_DATA *move_char_get_exit(CHAR_DATA *ch, int door)
+{
+    EXIT_DATA *pexit;
+
+    pexit = ch->in_room->exit[door];
+    if (!pexit) {
+        send_to_char("Alas, you cannot move that way.\n\r", ch);
+        return NULL;
+    }
+
+    return pexit;
+}
+
+static void move_char_reveal_hidden_exit(CHAR_DATA *ch, EXIT_DATA *pexit)
+{
+    if (IS_SET(pexit->exit_info, EX_HIDDEN)
+        && (ch->level <= LEVEL_IMMORTAL)
+        && !IS_AFFECTED(ch, AFF_PASS_DOOR))
+    {
+        send_to_char("{ROuch!{w You found a secret passage!{x\n\r", ch);
+        REMOVE_BIT(pexit->exit_info, EX_HIDDEN);
+    }
+}
+
+static bool move_char_can_use_hidden_exit(CHAR_DATA *ch, EXIT_DATA *pexit)
+{
+    if (IS_SET(pexit->exit_info, EX_HIDDEN)
+        && !IS_SET(pexit->exit_info, EX_FOUND)
+        && IS_SET(pexit->exit_info, EX_MUSTSEE))
+    {
+        if (!IS_IMMORTAL(ch) || !IS_SET(ch->act[0], PLR_HOLYLIGHT))
+        {
+            send_to_char("Alas, you cannot move that way.\n\r", ch);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static ROOM_INDEX_DATA *move_char_resolve_destination(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, EXIT_DATA *pexit, int door)
+{
+    ROOM_INDEX_DATA *to_room;
 
     if (IS_SET(pexit->exit_info, EX_VLINK)
         && in_room->wilds
@@ -578,7 +910,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
             : NULL;
         if (!to_room) {
             send_to_char("Alas, you cannot go that way.\n\r", ch);
-            return;
+            return NULL;
         }
 
         if (IS_VALID(to_room->instance_section)
@@ -587,15 +919,92 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
         {
             to_room->instance_section->instance->dungeon->entry_room = in_room;
         }
+
+        return to_room;
     }
-    else if(!(to_room = exit_destination(pexit))) {
-        send_to_char ("Alas, you cannot go that way.\n\r", ch);
-/*		wiznet("move_char()-> NULL to_room",NULL,NULL,WIZ_TESTING,0,0); */
+
+    to_room = exit_destination(pexit);
+    if (!to_room) {
+        send_to_char("Alas, you cannot go that way.\n\r", ch);
+        return NULL;
+    }
+
+    return to_room;
+}
+
+static ROOM_INDEX_DATA *move_char_get_visible_destination(CHAR_DATA *ch, ROOM_INDEX_DATA *in_room, EXIT_DATA *pexit, int door)
+{
+    ROOM_INDEX_DATA *to_room;
+
+    to_room = move_char_resolve_destination(ch, in_room, pexit, door);
+    if (!to_room)
+        return NULL;
+
+    if (!can_see_room(ch, to_room)) {
+        send_to_char("Alas, you cannot go that way.\n\r", ch);
+        return NULL;
+    }
+
+    return to_room;
+}
+
+/**
+ * move_char - Move a character in a given direction
+ *
+ * Core movement function handling all aspects of character movement:
+ * - Validates exit exists and is accessible
+ * - Checks movement restrictions (doors, terrain, flight, swimming)
+ * - Calculates and deducts movement points
+ * - Handles mount movement
+ * - Displays leave/arrive messages
+ * - Triggers TRIG_MOVE_CHAR, TRIG_EXIT, TRIG_ENTRY, TRIG_GREET scripts
+ * - Checks environmental hazards (rocks, ice, flames, traps)
+ * - Moves followers
+ *
+ * @param ch      Character attempting to move
+ * @param door    Direction constant (DIR_NORTH, etc.)
+ * @param follow  true if character is following someone (unused in function)
+ *
+ * Triggers: TRIG_MOVE_CHAR, TRIG_EXIT, TRIG_ENTRY, TRIG_GREET
+ */
+void move_char(CHAR_DATA *ch, int door, bool follow)
+{
+    ROOM_INDEX_DATA *in_room;
+    ROOM_INDEX_DATA *to_room;
+//	WILDS_DATA *in_wilds = NULL;
+/*	WILDS_DATA *to_wilds = NULL;
+    WILDS_TERRAIN *pTerrain; */
+    EXIT_DATA *pexit;
+/*	AREA_DATA *pArea = NULL;
+    int to_vroom_x = 0;
+    int to_vroom_y = 0; */
+    int move;
+    bool area_changed = false;
+
+    if (!move_char_validate_context(ch, door))
+        return;
+
+    if (!move_char_normalize_direction(ch, &door))
+        return;
+
+    if (!move_char_pre_move_checks(ch, door))
+        return;
+
+    /* Ok, take a copy of the char's location pointers */
+    in_room = ch->in_room;
+
+    pexit = move_char_get_exit(ch, door);
+    if (!pexit) {
+/*		wiznet("move_char()-> NULL pexit",NULL,NULL,WIZ_TESTING,0,0); */
         return;
     }
 
-    if(!can_see_room (ch, to_room)) {
-        send_to_char ("Alas, you cannot go that way.\n\r", ch);
+    if (!move_char_can_use_hidden_exit(ch, pexit))
+        return;
+
+    to_room = move_char_get_visible_destination(ch, in_room, pexit, door);
+    if (!to_room) {
+/*		wiznet("move_char()-> NULL to_room",NULL,NULL,WIZ_TESTING,0,0); */
         return;
     }
 
@@ -603,168 +1012,23 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
     drunk_walk(ch, door);
     */
 
-    if (IS_SET(pexit->exit_info, EX_HIDDEN) && (ch->level <= LEVEL_IMMORTAL) && (!IS_AFFECTED(ch, AFF_PASS_DOOR))) {
-        send_to_char("{ROuch!{w You found a secret passage!{x\n\r", ch);
-        REMOVE_BIT(pexit->exit_info, EX_HIDDEN);
-    }
+    move_char_reveal_hidden_exit(ch, pexit);
 
-    move = 0; /* for NPCs only */
-    if (!IS_NPC(ch)) {
-        if (room_in_sector(in_room, SECT_AIR) || room_in_sector(to_room, SECT_AIR)) {
-            if (MOUNTED(ch)) {
-                if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
-                    send_to_char("Your mount can't fly.\n\r", ch);
-                    return;
-                }
-            } else {
-                if (!IS_AFFECTED(ch, AFF_FLYING) && !IS_IMMORTAL(ch)) {
-                    send_to_char("You can't fly.\n\r", ch);
-                    return;
-                }
-            }
-        }
-
-        if ((room_in_sector(in_room, SECT_WATER_NOSWIM) || room_in_sector(to_room, SECT_WATER_NOSWIM)) &&
-            MOUNTED(ch) && !IS_AFFECTED(MOUNTED(ch), AFF_FLYING)) {
-            sprintf(buf,"You can't take your mount there.\n\r");
-            send_to_char(buf, ch);
-            return;
-        }
-
-        if (room_in_sector(in_room, SECT_WATER_NOSWIM) && !IS_SET(ch->parts, PART_FINS) && !IS_IMMORTAL(ch)) {
-            if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE))
-                WAIT_STATE(ch, 4);
-            else
-                WAIT_STATE(ch, 8);
-        }
-
-        if ((!room_in_sector(in_room, SECT_WATER_NOSWIM) && room_in_sector(to_room, SECT_WATER_NOSWIM)) &&
-            !IS_AFFECTED(ch,AFF_FLYING)) {
-            act("You dive into the deep water and begin to swim.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-            act("$n dives into the deep water and begins to swim.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        }
-
-        if (room_in_sector(in_room, SECT_WATER_NOSWIM) && !room_in_sector(to_room, SECT_WATER_NOSWIM) &&
-            !IS_AFFECTED(ch,AFF_FLYING)) {
-            act("You can touch the ground here.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-            act("$n stops swimming and stands.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        }
-
-        {	/* City-move will reduce movement, if greater, to city movement */
-            // FINS changed NOSWIM to SWIM
-            int m1, m2;
-
-            m1 = UMIN(SECT_MAX-1, room_sector_type(in_room));
-            if(IS_SET(ch->parts, PART_FINS) && m1 == SECT_WATER_NOSWIM) m1 = SECT_WATER_SWIM;
-            if(IS_SET(in_room->room_flag[1],ROOM_CITYMOVE) && sector_move_cost(m1) > sector_move_cost(SECT_CITY)) m1 = SECT_CITY;
-
-            m2 = UMIN(SECT_MAX-1, room_sector_type(to_room));
-            if(IS_SET(ch->parts, PART_FINS) && m2 == SECT_WATER_NOSWIM) m2 = SECT_WATER_SWIM;
-            if(IS_SET(to_room->room_flag[1],ROOM_CITYMOVE) && sector_move_cost(m2) > sector_move_cost(SECT_CITY)) m2 = SECT_CITY;
-
-
-            /* Average movement between different sector types */
-            move = (sector_move_cost(m1) + sector_move_cost(m2)) / 2;
-        }
-
-        /* If crusader, 25% less movement in the wilds */
-        if (ch->pcdata->second_sub_class_warrior == CLASS_WARRIOR_CRUSADER && IN_WILDERNESS(ch))
-            move -= move / 4;
-
-        if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER)
-            move -= move / 4;
-
-        move += weather_movement_modifier(in_room, to_room, move);
-
-        if (!MOUNTED(ch)) {
-            /* conditional effects */
-            if (IS_AFFECTED(ch,AFF_FLYING) || IS_AFFECTED(ch,AFF_HASTE))
-                move /= 2;
-            if (IS_AFFECTED(ch,AFF_SLOW))
-                move *= 2;
-
-            if (ch->move < move) {
-                send_to_char("You are too exhausted.\n\r", ch);
-                return;
-            }
-        } else {
-            if (IS_AFFECTED(MOUNTED(ch), AFF_FLYING) || IS_AFFECTED(MOUNTED(ch), AFF_HASTE))
-                move /= 2;
-
-            if (IS_AFFECTED(MOUNTED(ch), AFF_SLOW))
-                move *= 2;
-
-            if (MOUNTED(ch)->move < move) {
-                send_to_char("Your mount is too exhausted.\n\r", ch);
-                return;
-            }
-        }
-    }
-
-    if (!can_move_room(ch, door, to_room)) {
-        /* If they are hunting this means they have run into some obstacle so stop */
-        if (ch->hunting) ch->hunting = NULL;
+    if (!move_char_prepare_movement_cost(ch, in_room, to_room, &move))
         return;
-    }
 
-    if (!MOUNTED(ch)) {
-        if (!IS_IMMORTAL(ch) && !is_float_user(ch)) ch->move -= move;
-    } else {
-        if (!IS_IMMORTAL(MOUNTED(ch)) && !is_float_user(MOUNTED(ch))) MOUNTED(ch)->move -= move;
-    }
+    if (!move_char_can_traverse(ch, door, to_room))
+        return;
 
-    /* echo messages */
-    if (!IS_AFFECTED(ch, AFF_SNEAK) &&  ch->invis_level < 150) {
-        if (room_in_sector(in_room, SECT_WATER_NOSWIM))
-            act("{W$n swims $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
-        else if (PULLING_CART(ch))
-            act("{W$n leaves $T, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
-        else if (MOUNTED(ch)) {
-            if(!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
-                strcpy(buf, "{W$n leaves $T, riding on $N.{x");
-            else
-                strcpy(buf, "{W$n soars $T, on $N.{x");
-            act(buf, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
-        } else {
-            if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-                act("{W$n stumbles off drunkenly on $s way $T.{x", ch, NULL, NULL, NULL, NULL,NULL,dir_name[door],TO_ROOM, NULL, NULL);
-            else
-                act("{W$n leaves $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
-        }
-    }
+    move_char_pay_movement_cost(ch, move);
 
-    check_room_shield_source(ch, true);
+    move_char_echo_departure(ch, in_room, door);
 
-    if (!IS_DEAD(ch)) {
-        check_room_flames(ch, true);
-        if ((!IS_NPC(ch) && IS_DEAD(ch)) || (IS_NPC(ch) && ch->hit < 1))
-            return;
-    }
+    if (!move_char_handle_pre_transfer_interruptions(ch))
+        return;
 
-    /* moving your char negates your ambush */
-    if (ch->ambush) {
-        send_to_char("You stop your ambush.\n\r", ch);
-        free_ambush(ch->ambush);
-        ch->ambush = NULL;
-    }
-
-    /* Cancels your reciting too. This is incase move_char is called
-       from some other function and doesnt go through interpret(). */
-    if (ch->recite > 0) {
-        send_to_char("You stop reciting.\n\r", ch);
-        act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        ch->recite = 0;
-    }
-
-    char_from_room(ch);
-
-    area_changed = in_room && to_room && in_room->area != to_room->area;
-
-    /* VIZZWILDS */
-    if (to_room->wilds)
-        char_to_vroom (ch, to_room->wilds, to_room->x, to_room->y);
-    else
-        char_to_room(ch, to_room);
+    if (!move_char_transfer_room(ch, in_room, to_room, &area_changed))
+        return;
 
     DUNGEON *in_dungeon = get_room_dungeon(in_room);
     DUNGEON *to_dungeon = get_room_dungeon(to_room);
@@ -772,133 +1036,24 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
     INSTANCE *in_instance = get_room_instance(in_room);
     INSTANCE *to_instance = get_room_instance(to_room);
 
-    if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
-        if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
-        {
-            OBJ_DATA *portal = get_room_dungeon_portal(to_room, in_dungeon->index->vnum);
-
-            if( IS_VALID(portal) )
-            {
-                if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
-                {
-                    act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
-                }
-                else
-                {
-                    act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
-                }
-            }
-            else if(MOUNTED(ch))
-            {
-                if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
-                    act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-                else
-
-                    act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            }
-            else
-            {
-                if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-                    act(in_dungeon->index->zone_out, ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
-                else
-                    act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            }
-        }
-        else if (room_in_sector(in_room, SECT_WATER_NOSWIM))
-            act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM, NULL, NULL);
-        else if (PULLING_CART(ch))
-            act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        else if(!MOUNTED(ch)) {
-            if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
-                act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            else
-                act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        } else {
-            if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
-                act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            else
-            act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-        }
-    }
-
-    move_cart(ch,to_room,true);
-
-    /* fry vampires*/
-    if (IS_OUTSIDE(ch) && race_get_trait_bool(ch->race, "sunlight_vulnerability") && number_percent() < 75)
-        hurt_vampires(ch);
-
-    do_function(ch, &do_look, "auto");
-
-    if (!IS_NPC(ch) && area_changed)
-        event_notify_active_events_for_char(ch, true);
-
-    check_see_hidden(ch);
-
-    if (!IS_WILDERNESS(ch->in_room))
-        check_traps(ch, true);
+    move_char_handle_room_entry(ch, in_room, to_room, door, area_changed, in_dungeon, to_dungeon);
 
     if (in_room == to_room) /* no circular following */
         return;
 
-    for (fch = in_room->people; fch != NULL; fch = fch_next) {
-        fch_next = fch->next_in_room;
-
-        if (fch->master == ch && IS_AFFECTED(fch,AFF_CHARM) && fch->position < POS_STANDING)
-            do_function(fch, &do_stand, "");
-
-        if (fch->master == ch && fch->position == POS_STANDING && can_see_room(fch,to_room)) {
-            act("{WYou follow $N.{x", fch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-            move_char(fch, door, true);
-        }
-    }
-
-    if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
-    {
-        p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
-    }
-
-    if( IS_VALID(to_instance) && to_instance != in_instance )
-    {
-        p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
-    }
+    move_char_move_followers(ch, in_room, to_room, door);
 
     /*
     * If someone is following the char, these triggers get activated
     * for the followers before the char, but it's safer this way...
     */
-    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+    move_char_run_entry_triggers(ch, in_dungeon, to_dungeon, in_instance, to_instance);
 
-    if (!IS_NPC(ch)) {
-        p_greet_trigger(ch, PRG_MPROG);
-        p_greet_trigger(ch, PRG_OPROG);
-        p_greet_trigger(ch, PRG_RPROG);
-    }
-
-    if (!IS_DEAD(ch)) check_rocks(ch, true);
-    if (!IS_DEAD(ch)) check_ice(ch, true);
-    if (!IS_DEAD(ch)) check_room_flames(ch, true);
-    if (!IS_DEAD(ch)) check_ambush(ch);
+    move_char_run_post_entry_checks(ch);
 
     /* Enable this?
       if (IS_SET(ch->in_room->room_flag[1], ROOM_POST_OFFICE))
           check_new_mail(ch);*/
-
-    if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, skill_resolve_gsn("riding")) > 0)
-        check_improve(ch, skill_resolve_gsn("riding"), true, 8);
-
-    if (!MOUNTED(ch) && get_skill(ch, skill_resolve_gsn("trackless step")) > 0 && number_percent() == 1)
-        check_improve(ch, skill_resolve_gsn("trackless step"), true, 8);
-
-    /* Nature regen: regenerate in nature */
-    if (ch_has_trait(ch, "nature_regen") && is_in_nature(ch)) {
-        ch->move += number_range(1,3);
-        ch->move = UMIN(ch->move, ch->max_move);
-        ch->hit += number_range(1,3);
-        ch->hit  = UMIN(ch->hit, ch->max_hit);
-    }
-
-    if (!IS_NPC(ch))
-        check_quest_rescue_mob(ch, true);
 
 }
 
@@ -3328,6 +3483,321 @@ memset(&af,0,sizeof(af));
 }
 
 
+static bool do_hide_object_in_container(CHAR_DATA *ch, OBJ_DATA *obj, char *argument)
+{
+    OBJ_DATA *container;
+
+    if (IS_NULLSTR(argument))
+    {
+        act("Hide it in what?", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return true;
+    }
+
+    if ((container = get_obj_inv(ch, argument, false)) == NULL)
+    {
+        act("You don't have that item.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return true;
+    }
+
+    if (!can_put_obj(ch, obj, container, NULL, false))
+        return true;
+
+    if (p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL))
+        return true;
+
+    obj_from_char(obj);
+    obj_to_obj(obj, container);
+
+    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_HIDE, NULL);
+    return true;
+}
+
+static bool do_hide_object_on_victim(CHAR_DATA *ch, OBJ_DATA *obj, char *argument)
+{
+    CHAR_DATA *victim;
+    int sneak1;
+    int sneak2;
+
+    if (IS_NULLSTR(argument))
+    {
+        act("Hide it on whom?", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return true;
+    }
+
+    if ((victim = get_char_room(ch, NULL, argument)) == NULL)
+    {
+        act("They aren't here.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return true;
+    }
+
+    if (victim == ch)
+    {
+        send_to_char("You would you hide that on yourself?", ch);
+        return true;
+    }
+
+    if ((victim->carry_number + get_obj_number(obj)) > can_carry_n(victim))
+    {
+        act("$N can't carry that.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return true;
+    }
+
+    if ((get_carry_weight(victim) + get_obj_weight(obj)) > can_carry_w(victim))
+    {
+        act("$N can't carry that.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return true;
+    }
+
+    if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL))
+        return true;
+
+    act("You deftly hide $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+
+    sneak1 = get_skill(ch, skill_resolve_gsn("sneak")) * ch->tot_level;
+    if (IS_REMORT(ch)) sneak1 = 3 * sneak1 / 2;
+    if (IS_SAGE(ch)) sneak1 = 3 * sneak1 / 2;
+    if (number_percent() < get_skill(ch, skill_resolve_gsn("deception"))) sneak1 *= 2;
+
+    sneak2 = get_skill(victim, skill_resolve_gsn("sneak")) * victim->tot_level;
+    if (IS_REMORT(victim)) sneak2 = 3 * sneak2 / 2;
+    if (IS_SAGE(victim)) sneak2 = 3 * sneak2 / 2;
+    if (number_percent() < get_skill(victim, skill_resolve_gsn("deception"))) sneak2 *= 2;
+
+    if (IS_AWAKE(victim) || (IS_IMMORTAL(victim) && !IS_IMMORTAL(ch)))
+    {
+        if ((sneak1 < sneak2) && (!IS_IMMORTAL(ch) || IS_IMMORTAL(victim)))
+            act("$n hides something on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
+    }
+
+    obj_from_char(obj);
+    obj_to_char(obj, victim);
+
+    p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_HIDE, NULL);
+    return true;
+}
+
+static void do_hide_pick_room_hint(CHAR_DATA *ch, char *buf2, size_t buf2_size)
+{
+    int chance = 0;
+    char buf[MAX_STRING_LENGTH];
+
+    buf2[0] = '\0';
+
+    {
+        int hide_index = room_sector_type(ch->in_room);
+        int hide_count = sector_hide_msg_count(hide_index);
+
+        if (hide_count > 0) {
+            int target = number_range(1, hide_count);
+            int current = 0;
+
+            for (int i = 0; i < 8; i++) {
+                const char *hide_msg = sector_hide_msg(hide_index, i);
+                if (IS_NULLSTR(hide_msg))
+                    continue;
+
+                current++;
+                if (current == target) {
+                    snprintf(buf2, buf2_size, "%s", hide_msg);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (IS_NULLSTR(buf2))
+        chance = number_range(0, 4);
+
+    switch(room_sector_type(ch->in_room))
+    {
+        case SECT_INSIDE:
+        case SECT_CITY:
+            if (!IS_NULLSTR(buf2))
+                break;
+            if (chance == 0)
+                sprintf(buf2, "in the corner");
+            else if (chance == 1)
+                sprintf(buf2, "amidst the shadows");
+            else if (chance == 2)
+                sprintf(buf2, "beneath some forgotten trash");
+            else if (chance == 3)
+                sprintf(buf2, "in a poorly lit area");
+            else
+                sprintf(buf2, "from view");
+            break;
+        case SECT_FIELD:
+            if (!IS_NULLSTR(buf2))
+                break;
+            if (chance == 0)
+                sprintf(buf2, "among the grasses");
+            else if (chance == 1)
+                sprintf(buf2, "in a bed of flowers");
+            else if (chance == 2)
+                sprintf(buf2, "under a pile of stones");
+            else if (chance == 3)
+                sprintf(buf2, "in a small hole");
+            else
+                sprintf(buf2, "from sight");
+            break;
+        case SECT_FOREST:
+            if (!IS_NULLSTR(buf2))
+                break;
+            if (chance == 0)
+                sprintf(buf2, "inside a tree");
+            else if (chance == 1)
+                sprintf(buf2, "under a stump");
+            else if (chance == 2)
+                sprintf(buf2, "in the thick vegetation");
+            else if (chance == 3)
+                sprintf(buf2, "in the branches of a tree");
+            else
+                sprintf(buf, "from sight");
+            break;
+        case SECT_HILLS:
+            if (!IS_NULLSTR(buf2))
+                break;
+            if (chance == 0)
+                sprintf(buf2, "under a large rock");
+            else
+                sprintf(buf2, "from sight");
+            break;
+        case SECT_MOUNTAIN:
+            if (!IS_NULLSTR(buf2))
+                break;
+            sprintf(buf2, "in the deep mountain crags");
+            break;
+        case SECT_WATER_SWIM:
+            if (!IS_NULLSTR(buf2))
+                break;
+            sprintf(buf2, "in the sands beneath your feet");
+            break;
+        case SECT_TUNDRA:
+            if (!IS_NULLSTR(buf2))
+                break;
+            sprintf(buf2, "beneath a large pile of snow");
+            break;
+        case SECT_DESERT:
+            if (!IS_NULLSTR(buf2))
+                break;
+            sprintf(buf2, "under a pile of desert sand");
+            break;
+        case SECT_NETHERWORLD:
+            if (!IS_NULLSTR(buf2))
+                break;
+            sprintf(buf2, "beneath a pile of bones");
+            break;
+        case SECT_DOCK:
+            if (!IS_NULLSTR(buf2))
+                break;
+            sprintf(buf2, "under a couple of planks");
+            break;
+    }
+
+    if (IS_NULLSTR(buf2))
+        sprintf(buf2, "from view");
+}
+
+static bool do_hide_object_in_room(CHAR_DATA *ch, OBJ_DATA *obj)
+{
+    CHAR_DATA *others;
+    char buf2[MAX_STRING_LENGTH];
+
+    if (room_in_sector(ch->in_room, SECT_WATER_NOSWIM))
+    {
+        send_to_char("You would never see it again.\n\r", ch);
+        return true;
+    }
+
+    if (room_in_sector(ch->in_room, SECT_AIR))
+    {
+        send_to_char("Nowhere to hide it when you're floating...\n\r", ch);
+        return true;
+    }
+
+    do_hide_pick_room_hint(ch, buf2, sizeof(buf2));
+
+    act("You deftly hide $p $t.", ch, NULL, NULL, obj, NULL, buf2, NULL, TO_CHAR, NULL, NULL);
+    for (others = ch->in_room->people; others != NULL; others = others->next_in_room)
+    {
+        if (((get_skill(ch, skill_resolve_gsn("deception") > 0) && number_percent() < get_skill(ch, skill_resolve_gsn("deception"))) ||
+            (number_percent() < get_skill(ch, skill_resolve_gsn("hide")))) &&
+            ch != others &&
+            can_see_obj(others, obj))
+        {
+            act("You notice $N hide $p $t.", others, ch, NULL, obj, NULL, buf2, NULL, TO_CHAR, NULL, NULL);
+        }
+    }
+
+    obj_from_char(obj);
+    obj_to_room(obj, ch->in_room);
+
+    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDE, NULL);
+    return true;
+}
+
+static bool do_hide_object(CHAR_DATA *ch, char *argument)
+{
+    OBJ_DATA *obj;
+    char arg1[MIL];
+    char arg2[MIL];
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+
+    obj = get_obj_carry(ch, arg1, ch);
+    if (obj == NULL)
+    {
+        act("You don't have that item.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        return true;
+    }
+
+    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT)) {
+        send_to_char("You can't let go of it.\n\r", ch);
+        return true;
+    }
+
+    if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL))
+        return true;
+
+    if (!str_cmp(arg2, "in"))
+        do_hide_object_in_container(ch, obj, argument);
+    else if (!str_cmp(arg2, "on"))
+        do_hide_object_on_victim(ch, obj, argument);
+    else
+        do_hide_object_in_room(ch, obj);
+
+    SET_BIT(obj->extra[0], ITEM_HIDDEN);
+    return true;
+}
+
+static bool do_hide_self(CHAR_DATA *ch)
+{
+    if (IS_SET(ch->affected_by[0], AFF_HIDE))
+    {
+        send_to_char("You are already hidden.\n\r", ch);
+        return true;
+    }
+
+    if (MOUNTED(ch))
+    {
+        send_to_char("You can't hide while riding.\n\r", ch);
+        return true;
+    }
+
+    if (ch->fighting != NULL)
+    {
+        send_to_char("You can't hide while fighting.\n\r", ch);
+        return true;
+    }
+
+    if (p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL))
+        return true;
+
+    send_to_char("You attempt to hide.\n\r", ch);
+    HIDE_STATE(ch, skill_table[skill_resolve_gsn("hide")].beats);
+    return true;
+}
+
 /**
  * do_hide - Hide self or an object
  *
@@ -3346,311 +3816,15 @@ memset(&af,0,sizeof(af));
  */
 void do_hide(CHAR_DATA *ch, char *argument)
 {
-    OBJ_DATA *obj;
-
     if (check_social_status(ch))
         return;
 
-    /* take care of hide <obj> */
-    if (argument[0] != '\0')
-    {
-        char arg1[MIL];
-        char arg2[MIL];
-
-        argument = one_argument(argument, arg1);
-        argument = one_argument(argument, arg2);
-
-        if ((obj = get_obj_carry(ch, arg1, ch)) != NULL)
-        {
-            char buf[MAX_STRING_LENGTH];
-            char buf2[MAX_STRING_LENGTH];
-            int chance = 0;
-            CHAR_DATA *others;
-
-            if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra[1], ITEM_KEPT)) {
-                send_to_char("You can't let go of it.\n\r", ch);
-                return;
-            }
-
-            if( p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL) )
-                return;
-
-            if( !str_cmp(arg2, "in") )
-            {
-                // We are trying to hide something inside an object
-                OBJ_DATA *container;
-
-                if( IS_NULLSTR(argument) )
-                {
-                    act("Hide it in what?", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-                    return;
-                }
-
-                if( (container = get_obj_inv(ch, argument, false)) == NULL )
-                {
-                    act("You don't have that item.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-                    return;
-                }
-
-                if (!can_put_obj(ch, obj, container, NULL, false))
-                    return;
-
-                if( p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL) )
-                    return;
-
-                obj_from_char(obj);
-                obj_to_obj(obj, container);
-
-                p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_HIDE, NULL);
-            }
-            else if( !str_cmp(arg2, "on") )
-            {
-                CHAR_DATA *victim;
-
-                int sneak1;
-                int sneak2;
-
-                if( IS_NULLSTR(argument) )
-                {
-                    act("Hide it on whom?", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-                    return;
-                }
-
-                if( (victim = get_char_room(ch, NULL, argument)) == NULL )
-                {
-                    act("They aren't here.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-                    return;
-                }
-
-                if( victim == ch )
-                {
-                    send_to_char("You would you hide that on yourself?", ch);
-                    return;
-                }
-
-                if( (victim->carry_number + get_obj_number(obj)) > can_carry_n(victim))
-                {
-                    act("$N can't carry that.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-                    return;
-                }
-
-                if( (get_carry_weight(victim) + get_obj_weight(obj)) > can_carry_w(victim))
-                {
-                    act("$N can't carry that.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-                    return;
-                }
-
-                if( p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL) )
-                    return;
-
-                act("You deftly hide $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-
-                // Do a skill test
-                sneak1 = get_skill(ch, skill_resolve_gsn("sneak")) * ch->tot_level;
-                if( IS_REMORT(ch) ) sneak1 = 3 * sneak1 / 2;	// 50% boost
-                if( IS_SAGE(ch) ) sneak1 = 3 * sneak1 / 2;		// 50% boost
-                if( number_percent() < get_skill(ch, skill_resolve_gsn("deception")) ) sneak1 *= 2;
-
-                sneak2 = get_skill(victim, skill_resolve_gsn("sneak")) * victim->tot_level;
-                if( IS_REMORT(victim) ) sneak2 = 3 * sneak2 / 2;	// 50% boost
-                if( IS_SAGE(victim) ) sneak2 = 3 * sneak2 / 2;		// 50% boost
-                if( number_percent() < get_skill(victim, skill_resolve_gsn("deception")) ) sneak2 *= 2;
-
-                // Check if victim is awake or if the victim is immortal and hider is not
-                if( IS_AWAKE(victim) || (IS_IMMORTAL(victim) && !IS_IMMORTAL(ch)) )
-                {
-                    // Check if hider's sneak score is weaker and if the hider is a player or the victim is immortal
-                    if( (sneak1 < sneak2) && (!IS_IMMORTAL(ch) || IS_IMMORTAL(victim)) )
-                        act("$n hides something on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT, NULL, NULL);
-                }
-
-                obj_from_char(obj);
-                obj_to_char(obj,victim);
-
-                p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_HIDE, NULL);
-            }
-            else
-            {
-                if (room_in_sector(ch->in_room, SECT_WATER_NOSWIM))
-                {
-                    send_to_char("You would never see it again.\n\r", ch);
-                    return;
-                }
-
-                if (room_in_sector(ch->in_room, SECT_AIR))
-                {
-                    send_to_char("Nowhere to hide it when you're floating...\n\r", ch);
-                    return;
-                }
-
-                buf2[0] = '\0';
-
-                {
-                    int hide_index = room_sector_type(ch->in_room);
-                    int hide_count = sector_hide_msg_count(hide_index);
-
-                    if (hide_count > 0) {
-                        int target = number_range(1, hide_count);
-                        int current = 0;
-
-                        for (int i = 0; i < 8; i++) {
-                            const char *hide_msg = sector_hide_msg(hide_index, i);
-                            if (IS_NULLSTR(hide_msg))
-                                continue;
-
-                            current++;
-                            if (current == target) {
-                                snprintf(buf2, sizeof(buf2), "%s", hide_msg);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (IS_NULLSTR(buf2))
-                    chance = number_range (0, 4);
-
-                switch(room_sector_type(ch->in_room))
-                {
-                    case SECT_INSIDE:
-                case SECT_CITY:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    if (chance == 0)
-                        sprintf(buf2, "in the corner");
-                    else if (chance == 1)
-                        sprintf(buf2, "amidst the shadows");
-                    else if (chance == 2)
-                        sprintf(buf2, "beneath some forgotten trash");
-                    else if (chance == 3)
-                        sprintf(buf2, "in a poorly lit area");
-                    else
-                        sprintf(buf2, "from view");
-                    break;
-                case SECT_FIELD:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    if (chance == 0)
-                        sprintf(buf2, "among the grasses");
-                    else if (chance == 1)
-                        sprintf(buf2, "in a bed of flowers");
-                    else if (chance == 2)
-                        sprintf(buf2, "under a pile of stones");
-                    else if (chance == 3)
-                        sprintf(buf2, "in a small hole");
-                    else
-                        sprintf(buf2, "from sight");
-                    break;
-                case SECT_FOREST:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    if (chance == 0)
-                        sprintf(buf2, "inside a tree");
-                    else if (chance == 1)
-                        sprintf(buf2, "under a stump");
-                    else if (chance == 2)
-                        sprintf(buf2, "in the thick vegetation");
-                    else if (chance == 3)
-                        sprintf(buf2, "in the branches of a tree");
-                    else
-                        sprintf(buf, "from sight");
-                    break;
-                case SECT_HILLS:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    if (chance == 0)
-                        sprintf(buf2, "under a large rock");
-                    else
-                        sprintf(buf2, "from sight");
-                    break;
-                case SECT_MOUNTAIN:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    sprintf(buf2, "in the deep mountain crags");
-                    break;
-                case SECT_WATER_SWIM:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    sprintf(buf2, "in the sands beneath your feet");
-                    break;
-                case SECT_TUNDRA:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    sprintf(buf2, "beneath a large pile of snow");
-                    break;
-                case SECT_DESERT:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    sprintf(buf2, "under a pile of desert sand");
-                    break;
-                case SECT_NETHERWORLD:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    sprintf(buf2, "beneath a pile of bones");
-                    break;
-                case SECT_DOCK:
-                    if (!IS_NULLSTR(buf2))
-                        break;
-                    sprintf(buf2, "under a couple of planks");
-                    break;
-                }
-
-                if (IS_NULLSTR(buf2))
-                    sprintf(buf2, "from view");
-
-                act("You deftly hide $p $t.", ch, NULL, NULL, obj, NULL, buf2, NULL, TO_CHAR, NULL, NULL);
-                for (others = ch->in_room->people;
-                      others != NULL; others = others->next_in_room)
-                {
-                    if (((get_skill(ch, skill_resolve_gsn("deception") > 0) && number_percent() < get_skill(ch, skill_resolve_gsn("deception"))) ||
-                        ( number_percent() < get_skill(ch, skill_resolve_gsn("hide")))) &&
-                        ch != others &&
-                        can_see_obj(others, obj))
-                {
-                    act("You notice $N hide $p $t.", others, ch, NULL, obj, NULL, buf2, NULL, TO_CHAR, NULL, NULL);
-                }
-                }
-                obj_from_char(obj);
-                obj_to_room(obj, ch->in_room);
-
-                p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDE, NULL);
-            }
-            SET_BIT(obj->extra[0], ITEM_HIDDEN);
-            return;
-        }
-        else
-        {
-            act("You don't have that item.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-            return;
-        }
-    }
-
-    // Hiding self
-    if (IS_SET(ch->affected_by[0], AFF_HIDE))
-    {
-        send_to_char("You are already hidden.\n\r", ch);
+    if (argument[0] != '\0') {
+        do_hide_object(ch, argument);
         return;
     }
 
-    if (MOUNTED(ch))
-    {
-        send_to_char("You can't hide while riding.\n\r", ch);
-        return;
-    }
-
-    if (ch->fighting != NULL)
-    {
-        send_to_char("You can't hide while fighting.\n\r", ch);
-        return;
-    }
-
-    if( p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL) )
-        return;
-
-    send_to_char("You attempt to hide.\n\r", ch);
-
-    HIDE_STATE(ch, skill_table[skill_resolve_gsn("hide")].beats);
-    return;
+    do_hide_self(ch);
 }
 
 

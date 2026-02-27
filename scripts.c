@@ -8826,23 +8826,1999 @@ bool interrupt_script( CHAR_DATA *ch, bool silent )
     return ret;
 }
 
+static bool script_varseton_handle_basic_ops(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    const char *type_name, char *argument, char *rest, SCRIPT_PARAM *arg)
+{
+    if (!str_cmp(type_name, "appendline"))
+    {
+        BUFFER *buffer = new_buf();
+        expand_string(info, argument, buffer);
+        add_buf(buffer, "\n\r");
+
+        variables_append_string(vars, name, buf_string(buffer));
+        free_buf(buffer);
+        return true;
+    }
+
+    if (!str_cmp(type_name, "bool") || !str_cmp(type_name, "boolean")) {
+        switch(arg->type) {
+        case ENT_BOOLEAN: variables_set_boolean(vars, name, arg->d.boolean); break;
+        case ENT_NUMBER: variables_set_boolean(vars, name, (arg->d.num != 0)); break;
+        case ENT_STRING:
+            if (is_number(arg->d.str))
+                variables_set_boolean(vars, name, (atoi(arg->d.str) != 0));
+            else if (!str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "on"))
+                variables_set_boolean(vars, name, true);
+            else if (!str_cmp(arg->d.str, "false") || !str_cmp(arg->d.str, "no") || !str_cmp(arg->d.str, "off"))
+                variables_set_boolean(vars, name, false);
+            break;
+        }
+        return true;
+    }
+
+    if (!str_cmp(type_name, "integer") || !str_cmp(type_name, "number") || !str_cmp(type_name, "num")) {
+        switch(arg->type) {
+        case ENT_NUMBER: variables_set_integer(vars, name, arg->d.num); break;
+        case ENT_STRING:
+            if (is_number(arg->d.str))
+                variables_set_integer(vars, name, atoi(arg->d.str));
+            break;
+        }
+        return true;
+    }
+
+    if (!str_cmp(type_name, "rsg") || !str_cmp(type_name, "generator")) {
+        BUFFER *spec_buf = new_buf();
+        char generated[MSL];
+
+        expand_string(info, argument, spec_buf);
+        if (!rsg_generate_spec(buf_string(spec_buf), generated, sizeof(generated))) {
+            free_buf(spec_buf);
+            return true;
+        }
+
+        variables_set_string(vars, name, generated, false);
+        free_buf(spec_buf);
+        return true;
+    }
+
+    if (!str_cmp(type_name, "dec") || !str_cmp(type_name, "decrement")) {
+        pVARIABLE var = variable_get(*vars, name);
+        if (!var) return true;
+        if (var->type != VAR_INTEGER) return true;
+
+        switch(arg->type) {
+        case ENT_NUMBER: var->_.i -= arg->d.num; break;
+        case ENT_STRING:
+            if (is_number(arg->d.str))
+                var->_.i -= atoi(arg->d.str);
+            break;
+        }
+        return true;
+    }
+
+    if (!str_cmp(type_name, "inc") || !str_cmp(type_name, "increment")) {
+        pVARIABLE var = variable_get(*vars, name);
+        if (!var) return true;
+        if (var->type != VAR_INTEGER) return true;
+
+        switch(arg->type) {
+        case ENT_NUMBER: var->_.i += arg->d.num; break;
+        case ENT_STRING:
+            if (is_number(arg->d.str))
+                var->_.i += atoi(arg->d.str);
+            break;
+        }
+        return true;
+    }
+
+    if (!str_cmp(type_name, "string") || !str_cmp(type_name, "str")) {
+        char tmp[MSL], token[MIL], *p;
+        int i;
+
+        switch(arg->type) {
+        case ENT_NUMBER: sprintf(tmp, "%d", arg->d.num); break;
+        case ENT_STRING: strcpy(tmp, arg->d.str); break;
+        default: return true;
+        }
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return true;
+
+        switch(arg->type) {
+        case ENT_NONE:
+            variables_set_string(vars, name, tmp, false);
+            break;
+        case ENT_NUMBER:
+            p = tmp;
+            for (i = 0; i < arg->d.num && p && *p; i++)
+                p = one_argument(p, token);
+            if (arg->d.num > 0 && i == arg->d.num)
+                variables_set_string(vars, name, token, false);
+            break;
+        }
+        return true;
+    }
+
+    if (!str_cmp(type_name, "append")) {
+        char tmp[MSL], token[MIL], *p;
+        int i;
+
+        switch(arg->type) {
+        case ENT_NUMBER: sprintf(tmp, "%d", arg->d.num); break;
+        case ENT_STRING: strcpy(tmp, arg->d.str); break;
+        default: return true;
+        }
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return true;
+
+        switch(arg->type) {
+        case ENT_NONE:
+            variables_append_string(vars, name, tmp);
+            break;
+        case ENT_NUMBER:
+            p = tmp;
+            for (i = 0; i < arg->d.num && p && *p; i++)
+                p = one_argument(p, token);
+
+            if (arg->d.num > 0 && (i == arg->d.num))
+                variables_append_string(vars, name, token);
+            break;
+        }
+        return true;
+    }
+
+    if (!str_cmp(type_name, "EXPAND")) {
+        int length;
+        char *comp_str;
+        BUFFER *buffer;
+
+        if (arg->type != ENT_STRING)
+            return true;
+
+        comp_str = compile_string(arg->d.str, IFC_ANY, &length, false);
+        if (!comp_str)
+            return true;
+
+        buffer = new_buf();
+        expand_string(info, comp_str, buffer);
+        variables_set_string(vars, name, buf_string(buffer), false);
+
+        free_buf(buffer);
+        free_string(comp_str);
+        return true;
+    }
+
+    if (!str_cmp(type_name, "ARGREMOVE")) {
+        switch(arg->type) {
+        case ENT_NUMBER:
+            variables_argremove_string_index(vars, name, arg->d.num);
+            break;
+        case ENT_STRING:
+            variables_argremove_string_phrase(vars, name, arg->d.str);
+            break;
+        }
+        return true;
+    }
+
+    if (!str_cmp(type_name, "strformat")) {
+        variables_format_string(vars, name);
+        return true;
+    }
+
+    if (!str_cmp(type_name, "strformatp") || !str_cmp(type_name, "paraformat")) {
+        variables_format_paragraph(vars, name);
+        return true;
+    }
+
+    if (!str_cmp(type_name, "strreplace")) {
+        pVARIABLE var = variable_get(*vars, name);
+        char o[MSL];
+        char n[MSL];
+        char *rep;
+
+        if (!var) return true;
+        if (var->type != VAR_STRING && var->type != VAR_STRING_S) return true;
+        if (arg->type != ENT_STRING) return true;
+
+        strcpy(o, arg->d.str);
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return true;
+
+        if (arg->type != ENT_STRING)
+            return true;
+        strcpy(n, arg->d.str);
+
+        rep = string_replace_static(var->_.s, o, n);
+        if (rep == NULL)
+            return true;
+
+        variables_set_string(vars, name, rep, false);
+        return true;
+    }
+
+    return false;
+}
+
+static void script_varseton_handle_mobile_type(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    ROOM_INDEX_DATA *here, char *rest, SCRIPT_PARAM *arg)
+{
+    CHAR_DATA *vch = NULL;
+    CHAR_DATA *mobs = NULL;
+    CHAR_DATA *viewer = NULL;
+    char *str = NULL;
+    WNUM wnum = wnum_zero;
+
+    if (arg->type == ENT_BLLIST_MOB)
+    {
+        LLIST *blist = arg->d.blist;
+        BUFFER *buffer = NULL;
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        if (arg->type == ENT_NUMBER)
+        {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+            str = NULL;
+        }
+        else if (arg->type == ENT_STRING)
+        {
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                str = NULL;
+            else
+                str = arg->d.str;
+        }
+        else
+            return;
+
+        viewer = NULL;
+        if (*rest)
+        {
+            if (str)
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if (!(rest = expand_argument(info, rest, arg)))
+            {
+                if (buffer)
+                    free_buf(buffer);
+                return;
+            }
+
+            if (arg->type == ENT_MOBILE)
+                viewer = arg->d.mob;
+        }
+
+        vch = script_get_char_blist(info, blist, viewer, false, wnum, str);
+        variables_set_mobile(vars, name, vch);
+        if (buffer)
+            free_buf(buffer);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_WIDEVNUM:
+        here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+        mobs = here ? here->people : NULL;
+        break;
+    case ENT_NUMBER: {
+        WNUM room_wnum = { NULL, 0 };
+        char vnum_str[32];
+        AREA_DATA *context_area = here ? here->area : NULL;
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
+            here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            mobs = here ? here->people : NULL;
+        }
+        break;
+    }
+    case ENT_STRING:
+        if (is_number(arg->d.str))
+        {
+            WNUM room_wnum = { NULL, 0 };
+            AREA_DATA *context_area = here ? here->area : NULL;
+            if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
+                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                mobs = here ? here->people : NULL;
+            }
+        }
+        else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
+        {
+            if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+            vch = get_char_world(NULL,arg->d.str);
+        }
+        else if(!str_cmp(arg->d.str, "here"))
+        {
+            if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+            vch = get_char_room(NULL,here,arg->d.str);
+        }
+        else if(!str_cmp(arg->d.str, "vnum"))
+        {
+            if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
+
+            MOB_INDEX_DATA *mob_index = get_mob_index_from_info(info, arg->d.num);
+            if(!mob_index) return;
+
+            vch = get_char_world_index(NULL, mob_index);
+        }
+        break;
+    case ENT_MOBILE:
+        vch = arg->d.mob;
+        break;
+    case ENT_OLLIST_MOB:
+        mobs = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
+        break;
+    case ENT_ROOM:
+        mobs = arg->d.room ? arg->d.room->people : NULL;
+        break;
+    default: return;
+    }
+
+    if (mobs) {
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        BUFFER *buffer = NULL;
+        wnum = wnum_zero;
+        if (arg->type == ENT_NUMBER) {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        }
+        else if (arg->type == ENT_STRING) {
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                str = NULL;
+            else
+                str = arg->d.str;
+        } else
+            return;
+
+        viewer = NULL;
+        if (*rest)
+        {
+            if (str)
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if (!(rest = expand_argument(info, rest, arg)))
+            {
+                if (buffer)
+                    free_buf(buffer);
+                return;
+            }
+
+            if (arg->type == ENT_MOBILE)
+                viewer = arg->d.mob;
+        }
+
+        vch = script_get_char_list(info, mobs, viewer, false, wnum, str);
+        if (buffer)
+            free_buf(buffer);
+    }
+    variables_set_mobile(vars, name, vch);
+}
+
+static void script_varseton_handle_player_type(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    char *rest, SCRIPT_PARAM *arg)
+{
+    CHAR_DATA *vch = NULL;
+    CHAR_DATA *mobs = NULL;
+    CHAR_DATA *viewer = NULL;
+    char *str = NULL;
+
+    if (arg->type == ENT_BLLIST_MOB)
+    {
+        LLIST *blist = arg->d.blist;
+        BUFFER *buffer = NULL;
+
+        if (!(rest = expand_argument(info, rest, arg)))
+            return;
+
+        if (arg->type != ENT_STRING)
+            return;
+
+        str = arg->d.str;
+        viewer = NULL;
+        if (*rest)
+        {
+            buffer = arg->buffer;
+            arg->buffer = new_buf();
+
+            if (!(rest = expand_argument(info, rest, arg)))
+            {
+                if (buffer)
+                    free_buf(buffer);
+                return;
+            }
+
+            if (arg->type == ENT_MOBILE)
+                viewer = arg->d.mob;
+        }
+
+        vch = script_get_char_blist(info, blist, viewer, true, wnum_zero, str);
+        variables_set_mobile(vars, name, vch);
+        return;
+    }
+
+    switch(arg->type) {
+    case ENT_STRING:
+        vch = get_player(arg->d.str);
+        break;
+    case ENT_MOBILE:
+        vch = arg->d.mob && !IS_NPC(arg->d.mob) ? arg->d.mob : NULL;
+        break;
+    case ENT_OLLIST_MOB:
+        mobs = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
+        if(mobs) {
+            if(!expand_argument(info,rest,arg))
+                return;
+            if(arg->type == ENT_STRING && !is_number(arg->d.str))
+                str = arg->d.str;
+            else
+                mobs = NULL;
+        }
+        break;
+    default: return;
+    }
+
+    if(mobs)
+    {
+        BUFFER *buffer = NULL;
+        viewer = NULL;
+        if( *rest )
+        {
+            if( str )
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if(!(rest = expand_argument(info,rest,arg)))
+            {
+                if( buffer )
+                    free_buf(buffer);
+                return;
+            }
+
+            if( arg->type == ENT_MOBILE )
+                viewer = arg->d.mob;
+        }
+
+        vch = script_get_char_list(info, mobs, viewer, true, wnum_zero, str);
+
+        if( buffer )
+            free_buf(buffer);
+    }
+    variables_set_mobile(vars,name,vch);
+}
+
+static void script_varseton_handle_object_type(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    ROOM_INDEX_DATA *here, char *rest, SCRIPT_PARAM *arg)
+{
+    OBJ_DATA *obj = NULL;
+    OBJ_DATA *objs = NULL;
+    CHAR_DATA *viewer = NULL;
+    LLIST *objs_list = NULL;
+    char *str = NULL;
+    WNUM wnum = wnum_zero;
+
+    if( arg->type == ENT_BLLIST_OBJ)
+    {
+        LLIST *blist = arg->d.blist;
+        wnum = wnum_zero;
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        if( arg->type == ENT_NUMBER )
+        {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+            str = NULL;
+        }
+        else if( arg->type == ENT_STRING )
+        {
+            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+            {
+                str = NULL;
+            }
+            else
+            {
+                str = arg->d.str;
+            }
+        }
+        else
+            return;
+
+
+        BUFFER *buffer = NULL;
+        viewer = NULL;
+        if( *rest )
+        {
+            if( str )
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if(!(rest = expand_argument(info,rest,arg)))
+            {
+                if( buffer )
+                    free_buf(buffer);
+                return;
+            }
+
+            if( arg->type == ENT_MOBILE )
+                viewer = arg->d.mob;
+        }
+
+        obj = script_get_obj_blist(info, blist, viewer, wnum, str);
+        variables_set_object(vars,name,obj);
+
+        if( buffer )
+            free_buf(buffer);
+        return;
+    }
+
+
+    switch(arg->type) {
+    case ENT_WIDEVNUM:
+        here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+        objs = here ? here->contents : NULL;
+        break;
+    case ENT_NUMBER: {
+        WNUM room_wnum = { NULL, 0 };
+        char vnum_str[32];
+        AREA_DATA *context_area = here ? here->area : NULL;
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
+            here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+            objs = here ? here->contents : NULL;
+        }
+        break;
+    }
+    case ENT_STRING:
+        if(is_number(arg->d.str))
+        {
+            WNUM room_wnum = { NULL, 0 };
+            AREA_DATA *context_area = here ? here->area : NULL;
+            if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
+                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
+                objs = here ? here->contents : NULL;
+            }
+        }
+        else if(!str_cmp(arg->d.str, "here"))
+        {
+            if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+
+            obj = get_obj_here(NULL,here,arg->d.str);
+        }
+        else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
+        {
+            if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+
+            obj = get_obj_world(NULL, arg->d.str);
+        }
+        else if(!str_cmp(arg->d.str, "vnum"))
+        {
+            if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
+
+            OBJ_INDEX_DATA *obj_index = get_obj_index_from_info(info, arg->d.num);
+
+            obj = get_obj_world_index(NULL, obj_index, false);
+        }
+        break;
+    case ENT_OBJECT:
+        obj = arg->d.obj;
+        break;
+    case ENT_MOBILE:
+        if (arg->d.mob && arg->d.mob->lcarrying) {
+            objs_list = arg->d.mob->lcarrying;
+        } else {
+            objs = NULL;
+        }
+        break;
+    case ENT_OLLIST_OBJ:
+        if (arg->d.list.ptr.obj && is_llist(*arg->d.list.ptr.obj)) {
+            objs_list = (LLIST*)(*arg->d.list.ptr.obj);
+        } else {
+            objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
+        }
+        break;
+    case ENT_ROOM:
+        objs = arg->d.room ? arg->d.room->contents : NULL;
+        break;
+    default: return;
+    }
+
+    if(objs_list) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        wnum = wnum_zero;
+        if(arg->type == ENT_NUMBER) {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        }
+        else if(arg->type == ENT_STRING) {
+            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                str = NULL;
+            else
+                str = arg->d.str;
+        } else
+            return;
+
+        BUFFER *buffer = NULL;
+        viewer = NULL;
+        if( *rest )
+        {
+            if( str )
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if(!(rest = expand_argument(info,rest,arg)))
+            {
+                if( buffer )
+                    free_buf(buffer);
+                return;
+            }
+
+            if( arg->type == ENT_MOBILE )
+                viewer = arg->d.mob;
+        }
+
+        obj = script_get_obj_list(info, objs_list, viewer, 0, wnum, str);
+
+        if( buffer )
+            free_buf(buffer);
+    } else if(objs) {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        wnum = wnum_zero;
+        if(arg->type == ENT_NUMBER) {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        }
+        else if(arg->type == ENT_STRING) {
+            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                str = NULL;
+            else
+                str = arg->d.str;
+        } else
+            return;
+
+        BUFFER *buffer = NULL;
+        viewer = NULL;
+        if( *rest )
+        {
+            if( str )
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if(!(rest = expand_argument(info,rest,arg)))
+            {
+                if( buffer )
+                    free_buf(buffer);
+                return;
+            }
+
+            if( arg->type == ENT_MOBILE )
+                viewer = arg->d.mob;
+        }
+
+        obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
+
+        if( buffer )
+            free_buf(buffer);
+    }
+    variables_set_object(vars,name,obj);
+}
+
+static void script_varseton_handle_inventory_type(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    char *rest, SCRIPT_PARAM *arg, bool worn_only)
+{
+    OBJ_DATA *obj = NULL;
+    OBJ_DATA *objs = NULL;
+    CHAR_DATA *viewer = NULL;
+    LLIST *inventory_list = NULL;
+    char *str = NULL;
+    WNUM wnum = wnum_zero;
+
+    switch(arg->type) {
+    case ENT_NUMBER:
+    {
+        char vnum_str[32];
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        if (info->mob) {
+            inventory_list = worn_only ? info->mob->lworn : info->mob->lcarrying;
+            if (worn_only && !inventory_list)
+                objs = info->mob->carrying;
+        }
+        break;
+    }
+    case ENT_STRING:
+        if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+            str = NULL;
+        else
+            str = arg->d.str;
+        if (info->mob) {
+            inventory_list = worn_only ? info->mob->lworn : info->mob->lcarrying;
+            if (worn_only && !inventory_list)
+                objs = info->mob->carrying;
+        }
+        break;
+    case ENT_MOBILE:
+        if (arg->d.mob) {
+            inventory_list = worn_only ? arg->d.mob->lworn : arg->d.mob->lcarrying;
+            if (worn_only && !inventory_list)
+                objs = arg->d.mob->carrying;
+        }
+        break;
+    case ENT_OLLIST_OBJ:
+        if (arg->d.list.ptr.obj && is_llist(*arg->d.list.ptr.obj)) {
+            inventory_list = (LLIST *)(*arg->d.list.ptr.obj);
+        } else {
+            objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
+        }
+        break;
+    default:
+        return;
+    }
+
+    if(inventory_list || objs)
+    {
+        if(arg->type != ENT_NUMBER && arg->type != ENT_STRING)
+        {
+            if(!(rest = expand_argument(info,rest,arg)))
+                return;
+            if(arg->type == ENT_NUMBER) {
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+            }
+            else if(arg->type == ENT_STRING) {
+                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                    str = NULL;
+                else
+                    str = arg->d.str;
+            } else
+                return;
+        }
+
+        BUFFER *buffer = NULL;
+        viewer = NULL;
+        if( *rest )
+        {
+            if( str )
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if(!(rest = expand_argument(info,rest,arg)))
+            {
+                if( buffer )
+                    free_buf(buffer);
+                return;
+            }
+
+            if( arg->type == ENT_MOBILE )
+                viewer = arg->d.mob;
+        }
+
+        if (inventory_list) {
+            obj = script_get_obj_list(info, inventory_list, viewer, worn_only ? 1 : 2, wnum, str);
+        } else {
+            obj = script_get_obj_list(info, objs, viewer, worn_only ? 1 : 2, wnum, str);
+        }
+
+        if( buffer )
+            free_buf(buffer);
+    }
+    variables_set_object(vars,name,obj);
+}
+
+static void script_varseton_handle_content_type(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    char *rest, SCRIPT_PARAM *arg)
+{
+    OBJ_DATA *obj = NULL;
+    OBJ_DATA *objs = NULL;
+    OBJ_DATA *container = NULL;
+    CHAR_DATA *viewer = NULL;
+    LLIST *objs_list = NULL;
+    char *str = NULL;
+    WNUM wnum = wnum_zero;
+
+    switch(arg->type) {
+    case ENT_OLLIST_OBJ:
+        if (arg->d.list.ptr.obj && is_llist(*arg->d.list.ptr.obj)) {
+            objs_list = (LLIST *)(*arg->d.list.ptr.obj);
+        } else {
+            objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
+        }
+        break;
+    case ENT_OBJECT:
+        container = arg->d.obj;
+        if (container && is_llist(container->contains)) {
+            objs_list = (LLIST *)(container->contains);
+        } else {
+            objs = container ? container->contains : NULL;
+        }
+        break;
+    default:
+        return;
+    }
+
+    if(objs_list || objs)
+    {
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        if(arg->type == ENT_NUMBER) {
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
+        }
+        else if(arg->type == ENT_STRING) {
+            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+                str = NULL;
+            else
+                str = arg->d.str;
+        } else {
+            return;
+        }
+
+        BUFFER *buffer = NULL;
+        viewer = NULL;
+        if( *rest )
+        {
+            if( str )
+            {
+                buffer = arg->buffer;
+                arg->buffer = new_buf();
+            }
+
+            if(!(rest = expand_argument(info,rest,arg)))
+            {
+                if( buffer )
+                    free_buf(buffer);
+                return;
+            }
+
+            if( arg->type == ENT_MOBILE )
+                viewer = arg->d.mob;
+        }
+
+        if (objs_list) {
+            obj = script_get_obj_list(info, objs_list, viewer, 0, wnum, str);
+        } else {
+            obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
+        }
+
+        if( buffer )
+            free_buf(buffer);
+    }
+
+    variables_set_object(vars,name,obj);
+}
+
+static bool script_varseton_handle_entity_lookup_ops(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    const char *type_name, char *rest, SCRIPT_PARAM *arg)
+{
+    TOKEN_DATA *token = NULL;
+    TOKEN_DATA *tokens = NULL;
+    CHAR_DATA *vch = NULL;
+    OBJ_DATA *obj = NULL;
+    unsigned long id1;
+
+    if(!str_cmp(type_name, "token")) {
+        switch(arg->type) {
+        case ENT_MOBILE:   tokens = arg->d.mob ? arg->d.mob->tokens : NULL; break;
+        case ENT_OBJECT:   tokens = arg->d.obj ? arg->d.obj->tokens : NULL; break;
+        case ENT_ROOM:     tokens = arg->d.room ? arg->d.room->tokens : NULL; break;
+        case ENT_TOKEN:    token = arg->d.token; break;
+        case ENT_OLLIST_TOK: tokens = arg->d.list.ptr.tok ? *arg->d.list.ptr.tok : NULL; break;
+        default: return true;
+        }
+
+        if(tokens) token = token_find_match(info,tokens, rest, arg);
+        variables_set_token(vars,name,token);
+        return true;
+    }
+
+    if(!str_cmp(type_name, "DICE")) {
+        if(arg->type == ENT_DICE && arg->d.dice)
+            variables_set_dice(vars,name,arg->d.dice);
+        return true;
+    }
+
+    if(!str_cmp(type_name, "variable") || !str_cmp(type_name, "var")) {
+        pVARIABLE their_vars;
+        pVARIABLE their_var;
+
+        switch(arg->type) {
+        case ENT_MOBILE:   their_vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+        case ENT_OBJECT:   their_vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+        case ENT_ROOM:     their_vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+        case ENT_TOKEN:    their_vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
+        default: return true;
+        }
+
+        if(!their_vars)
+            return true;
+
+        if(!expand_argument(info,rest,arg))
+            return true;
+
+        if(arg->type != ENT_STRING)
+            return true;
+
+        their_var = variable_get(their_vars, arg->d.str);
+        variables_set_variable(vars,name,their_var);
+        return true;
+    }
+
+    if(!str_cmp(type_name, "idmobile")) {
+        if(arg->type != ENT_NUMBER)
+            return true;
+        id1 = arg->d.num;
+        if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
+            return true;
+        vch = idfind_mobile(id1,arg->d.num);
+        variables_set_mobile(vars,name,vch);
+        return true;
+    }
+
+    if(!str_cmp(type_name, "idobject")) {
+        if(arg->type != ENT_NUMBER)
+            return true;
+        id1 = arg->d.num;
+        if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
+            return true;
+        obj = idfind_object(id1,arg->d.num);
+        variables_set_object(vars,name,obj);
+        return true;
+    }
+
+    if(!str_cmp(type_name, "idplayer")) {
+        if(arg->type != ENT_NUMBER)
+            return true;
+        id1 = arg->d.num;
+        if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
+            return true;
+        vch = idfind_player(id1,arg->d.num);
+        variables_set_mobile(vars,name,vch);
+        return true;
+    }
+
+    return false;
+}
+
+static bool script_varseton_handle_skill_resource_ops(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    const char *type_name, ROOM_INDEX_DATA *here, char *rest, SCRIPT_PARAM *arg)
+{
+    CHAR_DATA *vch = NULL;
+
+    if(!str_cmp(type_name,"croom")) {
+        AREA_DATA *area = NULL;
+        unsigned long id1 = 0;
+
+        if(arg->type != ENT_NUMBER)
+            return true;
+
+        area = find_area_by_vnum(arg->d.num, NULL);
+        if (!area)
+            area = get_system_area_fallback();
+        here = get_room_index(area, arg->d.num);
+
+        if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+            return true;
+        id1 = arg->d.num;
+
+        if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
+            return true;
+
+        variables_set_room(vars,name,get_clone_room(here,id1,arg->d.num));
+        return true;
+    }
+
+    if(!str_cmp(type_name,"skill")) {
+        if(arg->type == ENT_STRING)
+            variables_set_skill(vars,name,skill_lookup(arg->d.str));
+        return true;
+    }
+
+    if(!str_cmp(type_name,"skillgroup") || !str_cmp(type_name,"skill_group")) {
+        if(arg->type == ENT_STRING)
+            variables_set_skill_group(vars, name, skill_group_find(arg->d.str));
+        else if(arg->type == ENT_SKILLGROUP)
+            variables_set_skill_group(vars, name, arg->d.skill_group);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"skillinfo")) {
+        if(arg->type != ENT_MOBILE)
+            return true;
+
+        vch = arg->d.mob;
+        if(!expand_argument(info,rest,arg))
+            return true;
+
+        if( arg->type == ENT_STRING )
+            variables_set_skillinfo(vars,name,vch,skill_lookup(arg->d.str), NULL);
+        else if( arg->type == ENT_TOKEN )
+            variables_set_skillinfo(vars,name,vch, 0, arg->d.token);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"song")) {
+        if(arg->type == ENT_STRING)
+            variables_set_song(vars, name, song_lookup(arg->d.str));
+        else if(arg->type == ENT_SONG)
+            variables_set_song(vars, name, arg->d.song);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"spell")) {
+        if(arg->type == ENT_SPELL)
+            variables_set_spell(vars, name, arg->d.spell);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"liquid")) {
+        if(arg->type == ENT_NUMBER) {
+            if (arg->d.num >= 0 && arg->d.num < liquid_count())
+                variables_set_liquid(vars, name, arg->d.num);
+        }
+        else if(arg->type == ENT_STRING) {
+            int liq = liquid_lookup(arg->d.str);
+            if (liq >= 0)
+                variables_set_liquid(vars, name, liq);
+        }
+        else if(arg->type == ENT_LIQUID)
+            variables_set_liquid(vars, name, arg->d.liquid);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"material")) {
+        if(arg->type == ENT_NUMBER) {
+            if (arg->d.num >= 0 && arg->d.num < material_count())
+                variables_set_material(vars, name, arg->d.num);
+        }
+        else if(arg->type == ENT_STRING) {
+            int mat = material_index_lookup(arg->d.str);
+            if (mat >= 0)
+                variables_set_material(vars, name, mat);
+        }
+        else if(arg->type == ENT_MATERIAL)
+            variables_set_material(vars, name, arg->d.material);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"lockstate") || !str_cmp(type_name,"lock_state")) {
+        if(arg->type == ENT_LOCK_STATE)
+            variables_set_lock_state(vars, name, arg->d.lock_state);
+        else if(arg->type == ENT_EXIT) {
+            if (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR && arg->d.door.r->exit[arg->d.door.door])
+                variables_set_lock_state(vars, name, &arg->d.door.r->exit[arg->d.door.door]->door.lock);
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static bool script_varseton_handle_index_ops(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    const char *type_name, SCRIPT_PARAM *arg)
+{
+    if(!str_cmp(type_name,"mobindex") || !str_cmp(type_name,"mob_index")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_mobindex(vars, name, get_mob_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_MOBINDEX:
+            variables_set_mobindex(vars, name, arg->d.mobindex);
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"objindex") || !str_cmp(type_name,"obj_index")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_objindex(vars, name, get_obj_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_OBJINDEX:
+            variables_set_objindex(vars, name, arg->d.objindex);
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"tokenindex") || !str_cmp(type_name,"tokindex") || !str_cmp(type_name,"token_index")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_tokenindex(vars, name, get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_TOKEN_INDEX:
+            variables_set_tokenindex(vars, name, arg->d.token_index);
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"blueprint") || !str_cmp(type_name,"bp")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_blueprint(vars, name, get_blueprint_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_BLUEPRINT:
+            variables_set_blueprint(vars, name, arg->d.blueprint);
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"bpsection") || !str_cmp(type_name,"blueprint_section")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_BLUEPRINT_SECTION:
+            variables_set_blueprint_section(vars, name, arg->d.blueprint_section);
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"dngindex") || !str_cmp(type_name,"dungeonindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_DUNGEONINDEX:
+            variables_set_dungeonindex(vars, name, arg->d.dungeon_index);
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"shipindex")) {
+        switch(arg->type) {
+        case ENT_WIDEVNUM:
+            variables_set_shipindex(vars, name, get_ship_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
+            break;
+        }
+        case ENT_SHIPINDEX:
+            variables_set_shipindex(vars, name, arg->d.ship_index);
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static bool script_varseton_handle_world_entity_ops(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    const char *type_name, char *rest, SCRIPT_PARAM *arg)
+{
+    if(!str_cmp(type_name,"area")) {
+        AREA_DATA *area;
+
+        switch(arg->type) {
+        case ENT_NUMBER:    area = get_area_from_uid(arg->d.num); break;
+        case ENT_STRING:    area = find_area(arg->d.str); break;
+        case ENT_ROOM:      area = arg->d.room ? arg->d.room->area : NULL; break;
+        case ENT_AREA:      area = arg->d.area; break;
+        default:            area = NULL; break;
+        }
+
+        if( area )
+            variables_set_area(vars,name,area);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"arearegion") || !str_cmp(type_name,"aregion")) {
+        if (arg->type == ENT_AREA) {
+            AREA_DATA *area = arg->d.area;
+            AREA_REGION *region = NULL;
+
+            if (!expand_argument(info, rest, arg) || arg->type != ENT_NUMBER)
+                return true;
+
+            region = get_area_region_by_uid(area, arg->d.num);
+            if (region)
+                variables_set_area_region(vars, name, region);
+        } else if (arg->type == ENT_AREA_REGION) {
+            variables_set_area_region(vars, name, arg->d.aregion);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"wilds")) {
+        WILDS_DATA *wilds = NULL;
+
+        switch(arg->type) {
+        case ENT_NUMBER:
+            wilds = get_wilds_from_uid(NULL, arg->d.num);
+            break;
+        case ENT_WILDS:
+            wilds = arg->d.wilds;
+            break;
+        case ENT_WILDS_ID:
+            wilds = get_wilds_from_uid(NULL, arg->d.wid);
+            break;
+        default:
+            wilds = NULL;
+            break;
+        }
+
+        if (wilds)
+            variables_set_wilds(vars, name, wilds);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"section") || !str_cmp(type_name,"sect")) {
+        if (arg->type == ENT_SECTION)
+            variables_set_instance_section(vars, name, arg->d.section);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"instance") || !str_cmp(type_name,"inst")) {
+        if (arg->type == ENT_INSTANCE)
+            variables_set_instance(vars, name, arg->d.instance);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"dungeon") || !str_cmp(type_name,"dung")) {
+        if (arg->type == ENT_DUNGEON)
+            variables_set_dungeon(vars, name, arg->d.dungeon);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"ship")) {
+        if (arg->type == ENT_SHIP)
+            variables_set_ship(vars, name, arg->d.ship);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"quest")) {
+        if (arg->type == ENT_QUEST)
+            variables_set_quest(vars, name, arg->d.quest);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"quest_stage") || !str_cmp(type_name,"qstage")) {
+        if (arg->type == ENT_QUEST_STAGE)
+            variables_set_quest_stage(vars, name, arg->d.quest_stage);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"quest_objective") || !str_cmp(type_name,"qobjective")) {
+        if (arg->type == ENT_QUEST_OBJECTIVE)
+            variables_set_quest_objective(vars, name, arg->d.quest_objective);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"class")) {
+        if (arg->type == ENT_STRING) {
+            CLASS_DATA *clazz = class_find(arg->d.str);
+            if (clazz)
+                variables_set_class(vars, name, clazz);
+        } else if (arg->type == ENT_CLASS) {
+            variables_set_class(vars, name, arg->d.clazz);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"classlevel") || !str_cmp(type_name,"class_level")) {
+        if (arg->type == ENT_CLASSLEVEL)
+            variables_set_classlevel(vars, name, arg->d.classlevel);
+        else if (arg->type == ENT_MOBILE) {
+            CHAR_DATA *class_mob = arg->d.mob;
+            CLASS_DATA *clazz = NULL;
+            CLASS_LEVEL *class_level = NULL;
+
+            if (!expand_argument(info, rest, arg))
+                return true;
+
+            if (arg->type == ENT_CLASS)
+                clazz = arg->d.clazz;
+            else if (arg->type == ENT_STRING)
+                clazz = class_find(arg->d.str);
+
+            if (!class_mob || !clazz)
+                return true;
+
+            class_level = get_class_level(class_mob, clazz);
+            if (class_level)
+                variables_set_classlevel(vars, name, class_level);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"book_page") || !str_cmp(type_name,"bookpage")) {
+        if (arg->type == ENT_BOOK_PAGE)
+            variables_set_book_page(vars, name, arg->d.book_page);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"food_buff") || !str_cmp(type_name,"foodbuff")) {
+        if (arg->type == ENT_FOOD_BUFF)
+            variables_set_food_buff(vars, name, arg->d.food_buff);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"waypoint")) {
+        if (arg->type == ENT_WAYPOINT)
+            variables_set_waypoint(vars, name, arg->d.waypoint);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"stock") || !str_cmp(type_name,"shop_stock")) {
+        if (arg->type == ENT_SHOP_STOCK)
+            variables_set_shop_stock(vars, name, arg->d.stock);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"trainer")) {
+        if (arg->type == ENT_TRAINER)
+            variables_set_trainer(vars, name, arg->d.trainer);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"trainer_entry") || !str_cmp(type_name,"tentry")) {
+        if (arg->type == ENT_TRAINER_ENTRY)
+            variables_set_trainer_entry(vars, name, arg->d.trainer_entry);
+        return true;
+    }
+
+    return false;
+}
+
+static bool script_varseton_handle_reputation_and_list_ops(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    const char *type_name, char *rest, SCRIPT_PARAM *arg)
+{
+    if(!str_cmp(type_name,"reputation_index") || !str_cmp(type_name,"repindex") || !str_cmp(type_name,"faction")) {
+        REPUTATION_INDEX_DATA *repIndex = NULL;
+
+        switch(arg->type) {
+        case ENT_REPUTATION_INDEX:
+            repIndex = arg->d.repIndex;
+            break;
+        case ENT_REPUTATION:
+            repIndex = arg->d.reputation ? arg->d.reputation->pIndexData : NULL;
+            break;
+        case ENT_WIDEVNUM:
+            repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            break;
+        case ENT_NUMBER:
+        {
+            WNUM index_wnum = wnum_zero;
+            char vnum_str[32];
+            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            break;
+        }
+        case ENT_STRING:
+        {
+            WNUM index_wnum = wnum_zero;
+            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            break;
+        }
+        default:
+            return true;
+        }
+
+        if (repIndex)
+            variables_set_reputation_index(vars, name, repIndex);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"reputation")) {
+        if (arg->type == ENT_REPUTATION) {
+            variables_set_reputation(vars, name, arg->d.reputation);
+        } else if (arg->type == ENT_MOBILE) {
+            CHAR_DATA *rep_mob = arg->d.mob;
+            REPUTATION_INDEX_DATA *repIndex = NULL;
+            REPUTATION_DATA *reputation = NULL;
+
+            if (!expand_argument(info, rest, arg))
+                return true;
+
+            if (arg->type == ENT_REPUTATION_INDEX)
+                repIndex = arg->d.repIndex;
+            else if (arg->type == ENT_WIDEVNUM)
+                repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
+            else if (arg->type == ENT_NUMBER) {
+                WNUM index_wnum = wnum_zero;
+                char vnum_str[32];
+                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+                if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
+                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            } else if (arg->type == ENT_STRING) {
+                WNUM index_wnum = wnum_zero;
+                if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
+                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
+            }
+
+            if (!rep_mob || !repIndex)
+                return true;
+
+            reputation = get_reputation_char(rep_mob, repIndex->area, repIndex->vnum, false, false);
+            if (reputation)
+                variables_set_reputation(vars, name, reputation);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"reputation_rank") || !str_cmp(type_name,"reprank")) {
+        if (arg->type == ENT_REPUTATION_RANK) {
+            variables_set_reputation_rank(vars, name, arg->d.repRank);
+        } else if (arg->type == ENT_REPUTATION) {
+            REPUTATION_INDEX_RANK_DATA *rank = NULL;
+            if (arg->d.reputation && arg->d.reputation->pIndexData)
+                rank = get_reputation_rank(arg->d.reputation->pIndexData, arg->d.reputation->current_rank);
+            if (rank)
+                variables_set_reputation_rank(vars, name, rank);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"race")) {
+        if (arg->type == ENT_STRING) {
+            RACE_DATA *race = race_lookup(arg->d.str);
+            if (!race)
+                race = race_lookup_name(arg->d.str);
+            if (race)
+                variables_set_race(vars, name, race);
+        } else if (arg->type == ENT_RACE) {
+            variables_set_race(vars, name, arg->d.race);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"moblist")) {
+        if( arg->type != ENT_STRING )
+            return true;
+
+        if( !str_cmp(arg->d.str, "add") ) {
+            if(!(rest = expand_argument(info,rest,arg)))
+                return true;
+
+            if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
+                variables_set_list_mob(vars,name,arg->d.mob,false);
+        } else if( !str_cmp(arg->d.str, "remove") ) {
+            if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+                return true;
+
+            pVARIABLE var = variable_get(*vars, name);
+
+            if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+                return true;
+
+            list_remnthlink(var->_.list, arg->d.num, false);
+        } else if( !str_cmp(arg->d.str, "clear") ) {
+            pVARIABLE var = variable_get(*vars, name);
+
+            if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+                return true;
+
+            list_clear(var->_.list);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"objlist")) {
+        if( arg->type != ENT_STRING )
+            return true;
+
+        if( !str_cmp(arg->d.str, "add") ) {
+            if(!(rest = expand_argument(info,rest,arg)))
+                return true;
+
+            if( arg->type == ENT_OBJECT && IS_VALID(arg->d.obj) )
+                variables_set_list_obj(vars,name,arg->d.obj,false);
+        } else if( !str_cmp(arg->d.str, "remove") ) {
+            if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+                return true;
+
+            pVARIABLE var = variable_get(*vars, name);
+
+            if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+                return true;
+
+            list_remnthlink(var->_.list, arg->d.num, false);
+        } else if( !str_cmp(arg->d.str, "clear") ) {
+            pVARIABLE var = variable_get(*vars, name);
+
+            if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+                return true;
+
+            list_clear(var->_.list);
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static bool script_varseton_handle_room_random_ops(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    const char *type_name, char *rest, SCRIPT_PARAM *arg)
+{
+    if(!str_cmp(type_name,"findpath")) {
+        ROOM_INDEX_DATA *start_room = NULL;
+        ROOM_INDEX_DATA *end_room = NULL;
+        int depth, in_zone, doors;
+        int dir;
+
+        switch(arg->type) {
+        case ENT_NUMBER:
+        {
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
+            if (!area)
+                area = get_system_area_fallback();
+            start_room = get_room_index(area, arg->d.num);
+            break;
+        }
+        case ENT_ROOM:
+            start_room = arg->d.room;
+            break;
+        case ENT_EXIT:
+            start_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL;
+            break;
+        default:
+            break;
+        }
+
+        if(!start_room || !(rest = expand_argument(info,rest,arg)))
+            return true;
+
+        switch(arg->type) {
+        case ENT_NUMBER:
+        {
+            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
+            if (!area)
+                area = get_system_area_fallback();
+            end_room = get_room_index(area, arg->d.num);
+            break;
+        }
+        case ENT_ROOM:
+            end_room = arg->d.room;
+            break;
+        case ENT_EXIT:
+            end_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL;
+            break;
+        default:
+            break;
+        }
+
+        if(!end_room || !(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+            return true;
+
+        depth = arg->d.num;
+
+        if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+            return true;
+
+        in_zone = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "local");
+
+        if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+            return true;
+
+        doors = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "doors");
+
+        dir = find_path(start_room->vnum, end_room->vnum, NULL, (doors ? -depth : depth), in_zone);
+        if( dir < 0 || dir >= MAX_DIR )
+            variables_set_exit(vars,name,NULL);
+        else
+            variables_set_exit(vars,name,start_room->exit[dir]);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"randmob")) {
+        CHAR_DATA *vch = NULL;
+
+        if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
+            return true;
+
+        vch = arg->d.mob;
+
+        if(!(rest = expand_argument(info,rest,arg)))
+            return true;
+
+        if( arg->type == ENT_STRING )
+        {
+            int continent = get_continent(arg->d.str);
+            if( continent < 0 )
+                continent = ANY_CONTINENT;
+
+            vch = get_random_mob(vch, continent);
+            if( vch != NULL )
+                variables_set_mobile(vars,name,vch);
+        }
+        else if( arg->type == ENT_AREA )
+        {
+            vch = get_random_mob_area(vch, arg->d.area);
+            if( vch != NULL )
+                variables_set_mobile(vars,name,vch);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"randroom")) {
+        ROOM_INDEX_DATA *loc = NULL;
+        CHAR_DATA *vch = NULL;
+
+        if (arg->type == ENT_AREA)
+        {
+            loc = get_random_room_area(vch, arg->d.area);
+            if( loc != NULL)
+                variables_set_room(vars,name,loc);
+        }
+        else if (arg->type == ENT_NULL)
+            vch = NULL;
+        else
+        {
+            if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
+                return true;
+
+            vch = arg->d.mob;
+        }
+
+        if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+            return true;
+
+        if( arg->type == ENT_STRING )
+        {
+            int continent = get_continent(arg->d.str);
+            if( continent < 0 )
+                continent = ANY_CONTINENT;
+
+            loc = get_random_room(vch, continent);
+            if( loc != NULL )
+                variables_set_room(vars,name,loc);
+        }
+        return true;
+    }
+
+    if(!str_cmp(type_name,"dungeonrand")) {
+        ROOM_INDEX_DATA *loc = NULL;
+
+        if( arg->type == ENT_DUNGEON )
+            loc = dungeon_random_room(NULL, arg->d.dungeon );
+        else if( arg->type == ENT_INSTANCE )
+        {
+            if( IS_VALID(arg->d.instance) && IS_VALID(arg->d.instance->dungeon) )
+                loc = dungeon_random_room(NULL, arg->d.instance->dungeon );
+        }
+        else if( arg->type == ENT_SECTION )
+        {
+            if( IS_VALID(arg->d.section) && IS_VALID(arg->d.section->instance) && IS_VALID(arg->d.section->instance->dungeon) )
+                loc = dungeon_random_room(NULL, arg->d.section->instance->dungeon );
+        }
+
+        if( loc != NULL )
+            variables_set_room(vars,name,loc);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"instancerand")) {
+        ROOM_INDEX_DATA *loc = NULL;
+
+        if( arg->type == ENT_INSTANCE )
+        {
+            if( IS_VALID(arg->d.instance) )
+                loc = instance_random_room(NULL, arg->d.instance );
+        }
+        else if( arg->type == ENT_SECTION )
+        {
+            if( IS_VALID(arg->d.section) && IS_VALID(arg->d.section->instance) )
+                loc = instance_random_room(NULL, arg->d.section->instance );
+        }
+
+        if( loc != NULL )
+            variables_set_room(vars,name,loc);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"sectionrand")) {
+        ROOM_INDEX_DATA *loc = NULL;
+
+        if( arg->type == ENT_SECTION )
+        {
+            if( IS_VALID(arg->d.section) )
+                loc = section_random_room(NULL, arg->d.section );
+        }
+
+        if( loc != NULL )
+            variables_set_room(vars,name,loc);
+        return true;
+    }
+
+    if(!str_cmp(type_name,"specialroom")) {
+        ROOM_INDEX_DATA *loc = NULL;
+
+        if( arg->type == ENT_DUNGEON )
+        {
+            DUNGEON *dungeon = arg->d.dungeon;
+
+            if(!(rest = expand_argument(info,rest,arg)))
+                return true;
+
+            if(arg->type == ENT_STRING)
+                loc = get_dungeon_special_room_byname(dungeon, arg->d.str);
+            else if(arg->type == ENT_NUMBER)
+                loc = get_dungeon_special_room(dungeon, arg->d.num);
+
+        }
+        else if( arg->type == ENT_INSTANCE )
+        {
+            INSTANCE *instance = arg->d.instance;
+
+            if(!(rest = expand_argument(info,rest,arg)))
+                return true;
+
+            if(arg->type == ENT_STRING)
+                loc = get_instance_special_room_byname(instance, arg->d.str);
+            else if(arg->type == ENT_NUMBER)
+                loc = get_instance_special_room(instance, arg->d.num);
+        }
+
+        if( loc != NULL )
+            variables_set_room(vars,name,loc);
+        return true;
+    }
+
+    return false;
+}
+
+static void script_varseton_handle_room_type(SCRIPT_VARINFO *info, ppVARIABLE vars, char *name,
+    ROOM_INDEX_DATA *here, char *rest, SCRIPT_PARAM *arg)
+{
+    ITERATOR it;
+    LLIST *blist = NULL;
+    int idx = 0;
+
+    switch(arg->type) {
+    case ENT_WIDEVNUM:
+        variables_set_room(vars,name,get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
+        break;
+    case ENT_NUMBER:
+    {
+        WNUM room_wnum = { NULL, 0 };
+        char vnum_str[32];
+        AREA_DATA *context_area = here ? here->area : NULL;
+        snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
+        if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea)
+            variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
+        break;
+    }
+    case ENT_STRING:
+        if (is_number(arg->d.str)) {
+            WNUM room_wnum = { NULL, 0 };
+            AREA_DATA *context_area = here ? here->area : NULL;
+            if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea)
+                variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
+        }
+        break;
+    case ENT_ROOM:
+        variables_set_room(vars,name,arg->d.room);
+        break;
+    case ENT_EXIT:
+        here = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL;
+        variables_set_room(vars,name,here);
+        break;
+    case ENT_BLLIST_ROOM:
+        blist = arg->d.blist;
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        idx = 0;
+        switch(arg->type) {
+        default: break;
+        case ENT_STRING:
+            if( !str_cmp(arg->d.str, "first"))
+                idx = 0;
+            else if( !str_cmp(arg->d.str, "last"))
+                idx = list_size(blist)-1;
+            else if( !str_cmp(arg->d.str, "random"))
+                idx = number_range(0, list_size(blist)-1);
+            break;
+
+        case ENT_NUMBER:
+            idx = arg->d.num;
+            break;
+        }
+
+        {
+            LLIST_ROOM_DATA *lroom;
+            iterator_start_nth(&it, blist, idx);
+            while((lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) && !lroom->room);
+            iterator_stop(&it);
+
+            if(lroom && lroom->room)
+                variables_set_room(vars,name,lroom->room);
+        }
+        break;
+    case ENT_PLLIST_ROOM:
+        blist = arg->d.blist;
+        if(!(rest = expand_argument(info,rest,arg)))
+            return;
+
+        idx = 0;
+        switch(arg->type) {
+        default: break;
+        case ENT_STRING:
+            if( !str_cmp(arg->d.str, "first"))
+                idx = 0;
+            else if( !str_cmp(arg->d.str, "last"))
+                idx = list_size(blist)-1;
+            else if( !str_cmp(arg->d.str, "random"))
+                idx = number_range(0, list_size(blist)-1);
+            break;
+
+        case ENT_NUMBER:
+            idx = arg->d.num;
+            break;
+        }
+
+        variables_set_room(vars, name, list_nthdata(blist, idx));
+        break;
+    }
+}
+
 
 void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRIPT_PARAM *arg)
 {
-    char buf[MIL], name[MIL], *rest, *str = NULL;
-    CHAR_DATA *vch = NULL, *mobs = NULL, *viewer = NULL;
-    OBJ_DATA *obj = NULL, *objs = NULL;
-    TOKEN_DATA *token = NULL, *tokens = NULL;
+    char buf[MIL], name[MIL], *rest;
     ROOM_INDEX_DATA *here = NULL;
     EXIT_DATA *ex = NULL;
-    LLIST *blist;
-    LLIST *objs_list = NULL;   // For LLIST objects
-    LLIST *carry_list = NULL;  // For lcarrying
-    LLIST *worn_list = NULL;   // For lworn
-    ITERATOR it;
-    WNUM wnum = wnum_zero;
-    int vnum = 0, i, idx;
-    unsigned long id1/*, id2*/;
+    int vnum = 0, i;
 
     if(!info) return;
 
@@ -8868,225 +10844,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     strncpy(buf, arg->d.str, MIL-1);
     if(!buf[0]) return;
 
-    // Appends a fully escaped string to the end of a variable along with an EOL.
-    // Format: APPENDLINE[ <string>]
-    if(!str_cmp(buf,"appendline"))
-    {
-        // Special handling to allow "varset <name> appendline" to put a line at the end
-        BUFFER *buffer = new_buf();
-        expand_string(info,argument,buffer);
-        add_buf(buffer,"\n\r");
-
-        variables_append_string(vars,name,buf_string(buffer));
-        free_buf(buffer);
-        return;
-    }
-
     if(!(rest = expand_argument(info,argument,arg)))
         return;
 
-    // Saves a boolean
-    // Format: BOOL <boolean>
-    // Format: BOOL <number>
-    // Format: BOOL <numerical string>
-    if(!str_cmp(buf,"bool") || !str_cmp(buf,"boolean")) {
-        switch(arg->type) {
-        case ENT_BOOLEAN: variables_set_boolean(vars,name,arg->d.boolean); break;
-        case ENT_NUMBER: variables_set_boolean(vars,name,(arg->d.num != 0)); break;
-        case ENT_STRING:
-            if(is_number(arg->d.str))
-                variables_set_boolean(vars,name,(atoi(arg->d.str) != 0));
-            else if(!str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "on"))
-                variables_set_boolean(vars,name,true);
-            else if(!str_cmp(arg->d.str, "false") || !str_cmp(arg->d.str, "no") || !str_cmp(arg->d.str, "off"))
-                variables_set_boolean(vars,name,false);
-
-            break;
-
-        }
-
-    // Saves a number
-    // Format: INTEGER <number>
-    // Format: INTEGER <numerical string>
-    } else if(!str_cmp(buf,"integer") || !str_cmp(buf,"number") || !str_cmp(buf,"num")) {
-        switch(arg->type) {
-        case ENT_NUMBER: variables_set_integer(vars,name,arg->d.num); break;
-        case ENT_STRING:
-            if(is_number(arg->d.str))
-                variables_set_integer(vars,name,atoi(arg->d.str));
-            break;
-        }
-
-    // Generates and stores an RSG value from a generator spec.
-    // Format: RSG <generator_spec>
-    // Example: varset myname rsg ^sith_names:pattern:2
-    } else if(!str_cmp(buf,"rsg") || !str_cmp(buf,"generator")) {
-        BUFFER *spec_buf = new_buf();
-        char generated[MSL];
-
-        expand_string(info, argument, spec_buf);
-        if (!rsg_generate_spec(buf_string(spec_buf), generated, sizeof(generated))) {
-            free_buf(spec_buf);
-            return;
-        }
-
-        variables_set_string(vars, name, generated, false);
-        free_buf(spec_buf);
-
-    // Decrements the variable, if it's a NUMBER by the specified decrement
-    // Format: DEC <step>
-    // Format: DECREMENT <step>
-    } else if(!str_cmp(buf,"dec") || !str_cmp(buf,"decrement")) {
-        pVARIABLE var = variable_get(*vars, name);
-        if(!var) return;
-
-        if(var->type != VAR_INTEGER) return;    // Must be a number!
-
-        switch(arg->type) {
-        case ENT_NUMBER: var->_.i -= arg->d.num; break;
-        case ENT_STRING:
-            if(is_number(arg->d.str))
-                var->_.i -= atoi(arg->d.str);
-            break;
-        }
-
-    // Increments the variable, if it's a NUMBER by the specified decrement
-    // Format: INC <step>
-    // Format: INCREMENT <step>
-    } else if(!str_cmp(buf,"inc") || !str_cmp(buf,"increment")) {
-        pVARIABLE var = variable_get(*vars, name);
-        if(!var) return;
-
-        if(var->type != VAR_INTEGER) return;    // Must be a number!
-
-        switch(arg->type) {
-        case ENT_NUMBER: var->_.i += arg->d.num; break;
-        case ENT_STRING:
-            if(is_number(arg->d.str))
-                var->_.i += atoi(arg->d.str);
-            break;
-        }
-    // Format: STRING <string>[ <word index>]
-    } else if(!str_cmp(buf,"string") || !str_cmp(buf,"str")) {
-        char tmp[MSL],*p;
-
-        switch(arg->type) {
-        case ENT_NUMBER:
-            sprintf(tmp,"%d",arg->d.num);
-            break;
-        case ENT_STRING:
-            strcpy(tmp,arg->d.str);
-            break;
-        default:return;
-        }
-
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        switch(arg->type) {
-        case ENT_NONE:
-            variables_set_string(vars,name,tmp,false);
-            break;
-
-        case ENT_NUMBER:
-            p = tmp;
-            for(i=0;i<arg->d.num && p && *p;i++)
-                p = one_argument(p,buf);
-            if(arg->d.num > 0 && i == arg->d.num)
-                variables_set_string(vars,name,buf,false);
-            break;
-        }
-
-    // Format: APPEND <string>[ <word index>]
-    } else if(!str_cmp(buf,"append")) {
-        char tmp[MSL], *p;
-
-        switch(arg->type) {
-        case ENT_NUMBER:    sprintf(tmp,"%d",arg->d.num); break;
-        case ENT_STRING:    strcpy(tmp,arg->d.str);     break;
-        default:return;
-        }
-
-        if(!(rest = expand_argument(info,rest,arg))) return;
-
-        switch(arg->type) {
-        case ENT_NONE:      variables_append_string(vars,name,tmp); break;
-        case ENT_NUMBER:
-            p = tmp;
-            for(i=0;i<arg->d.num && p && *p;i++) p = one_argument(p,buf);
-
-            if(arg->d.num > 0 && (i == arg->d.num)) variables_append_string(vars,name,buf);
-            break;
-        }
-
-    // Format: EXPAND <string>
-    } else if(!str_cmp(buf,"EXPAND")) {
-
-        if( arg->type != ENT_STRING ) return;
-
-        int length;
-        char *comp_str = compile_string(arg->d.str,IFC_ANY,&length,false);    // TODO: Check whether the doquotes needs to be true
-        if( !comp_str ) return;
-
-        BUFFER *buffer = new_buf();
-        expand_string(info, comp_str, buffer);
-        variables_set_string(vars,name,buf_string(buffer),false);
-
-        free_buf(buffer);
-        free_string(comp_str);
-
-    // Format: ARGREMOVE <word index>
-    // Format: ARGREMOVE <word to remove>
-    } else if(!str_cmp(buf,"ARGREMOVE")) {
-        switch(arg->type) {
-        case ENT_NUMBER:
-
-            variables_argremove_string_index(vars,name,arg->d.num);
-            break;
-        case ENT_STRING:
-
-            variables_argremove_string_phrase(vars,name,arg->d.str);
-            break;
-        }
-
-    // Format: STRFORMAT
-    // TO-DO: Add "STRFORMAT[ <width>]"
-    } else if(!str_cmp(buf,"strformat")) {
-        variables_format_string(vars,name);
-
-    // Format: STRFORMATP
-    // Format: PARAFORMAT
-    // TO-DO: Add "STRFORMATP[ <width>]"
-    } else if(!str_cmp(buf,"strformatp") || !str_cmp(buf,"paraformat")) {
-        variables_format_paragraph(vars,name);
-
-    // Format: STRREPLACE <OLD> <NEW>
-    } else if(!str_cmp(buf,"strreplace")) {
-        pVARIABLE var = variable_get(*vars, name);
-        if(!var) return;
-
-        if(var->type != VAR_STRING && var->type != VAR_STRING_S) return;
-
-        char o[MSL];
-        char n[MSL];
-        char *rep;
-
-        if( arg->type != ENT_STRING ) return;
-        strcpy(o, arg->d.str);
-
-        if(!(rest = expand_argument(info,rest,arg))) return;
-
-        if( arg->type != ENT_STRING ) return;
-        strcpy(n, arg->d.str);
-
-        rep = string_replace_static(var->_.s, o, n);
-        if( rep == NULL ) return;    // An error, ret COULD be empty after the replace, so IS_NULLSTR is not the right test
-
-        variables_set_string(vars,name,rep,false);
+    if (script_varseton_handle_basic_ops(info, vars, name, buf, argument, rest, arg))
+        return;
 
     // Copies an extra description
     // Format: ED <OBJECT or ROOM> <keyword>
-    } else if(!str_cmp(buf,"ed")) {
+    if(!str_cmp(buf,"ed")) {
         // ed $<object|room> <keyword>
         char *p = NULL;
         EXTRA_DESCR_DATA *desc;
@@ -9137,91 +10903,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: ROOM <ROOM-LIST> LAST - last room from the list
     // Format: ROOM <ROOM-LIST> RANDOM - random valid room from the list
     } else if(!str_cmp(buf,"room")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_room(vars,name,get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER: {
-            WNUM room_wnum = { NULL, 0 };
-            char vnum_str[32];
-            AREA_DATA *context_area = here ? here->area : NULL;
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea)
-                variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-            if (is_number(arg->d.str)) {
-                WNUM room_wnum = { NULL, 0 };
-                AREA_DATA *context_area = here ? here->area : NULL;
-                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea)
-                    variables_set_room(vars,name,get_room_index(room_wnum.pArea, room_wnum.vnum));
-            }
-            break;
-        case ENT_ROOM:
-            variables_set_room(vars,name,arg->d.room);
-            break;
-        case ENT_EXIT:
-            here = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL;
-            variables_set_room(vars,name,here);
-            break;
-        case ENT_BLLIST_ROOM:
-            blist = arg->d.blist;
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            idx = 0;
-            switch(arg->type) {
-            default: break;
-            case ENT_STRING:
-                if( !str_cmp(arg->d.str, "first"))
-                    idx = 0;
-                else if( !str_cmp(arg->d.str, "last"))
-                    idx = list_size(blist)-1;
-                else if( !str_cmp(arg->d.str, "random"))
-                    idx = number_range(0, list_size(blist)-1);
-                break;
-
-            case ENT_NUMBER:
-                idx = arg->d.num;
-                break;
-            }
-
-            {
-                LLIST_ROOM_DATA *lroom;
-                iterator_start_nth(&it, blist, idx);
-                while((lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) && !lroom->room);
-                iterator_stop(&it);
-
-                if(lroom && lroom->room)
-                    variables_set_room(vars,name,lroom->room);
-            }
-            break;
-        case ENT_PLLIST_ROOM:
-            blist = arg->d.blist;
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            idx = 0;
-            switch(arg->type) {
-            default: break;
-            case ENT_STRING:
-                if( !str_cmp(arg->d.str, "first"))
-                    idx = 0;
-                else if( !str_cmp(arg->d.str, "last"))
-                    idx = list_size(blist)-1;
-                else if( !str_cmp(arg->d.str, "random"))
-                    idx = number_range(0, list_size(blist)-1);
-                break;
-
-            case ENT_NUMBER:
-                idx = arg->d.num;
-                break;
-            }
-
-            variables_set_room(vars, name, list_nthdata(blist, idx));
-            break;
-        }
+        script_varseton_handle_room_type(info, vars, name, here, rest, arg);
 
     // Find the highest room at that coordinate
     // Format: HIGHROOM <MAP UID> <X> <Y> <Z> <GROUND>
@@ -9341,256 +11023,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: MOBILE HERE <NAME>[ <VIEWER>]
     // Format: MOBILE <MOBILE>
     } else if(!str_cmp(buf,"mobile") || !str_cmp(buf,"mob")) {
-        if( arg->type == ENT_BLLIST_MOB )
-        {
-            LLIST *blist = arg->d.blist;
-            BUFFER *buffer = NULL;
-            wnum = wnum_zero;
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            if( arg->type == ENT_NUMBER )
-            {
-                char vnum_str[32];
-                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-                str = NULL;
-            }
-            else if( arg->type == ENT_STRING )
-            {
-                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                {
-                    str = NULL;
-                }
-                else
-                {
-                    str = arg->d.str;
-                }
-            }
-            else
-                return;
-
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            vch = script_get_char_blist(info, blist, viewer, false, wnum, str);
-            variables_set_mobile(vars,name,vch);
-            if( buffer )
-                free_buf(buffer);
-            return;
-        }
-
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
-            mobs = here ? here->people : NULL;
-            break;
-        case ENT_NUMBER: {
-            WNUM room_wnum = { NULL, 0 };
-            char vnum_str[32];
-            AREA_DATA *context_area = here ? here->area : NULL;
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
-                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
-                mobs = here ? here->people : NULL;
-            }
-            break;
-        }
-        case ENT_STRING:
-            if(is_number(arg->d.str))
-            {
-                WNUM room_wnum = { NULL, 0 };
-                AREA_DATA *context_area = here ? here->area : NULL;
-                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
-                    here = get_room_index(room_wnum.pArea, room_wnum.vnum);
-                    mobs = here ? here->people : NULL;
-                }
-            }
-            else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
-            {
-                if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
-                vch = get_char_world(NULL,arg->d.str);
-            }
-            else if(!str_cmp(arg->d.str, "here"))
-            {
-                if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
-                vch = get_char_room(NULL,here,arg->d.str);
-            }
-            else if(!str_cmp(arg->d.str, "vnum"))
-            {
-                if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
-
-                MOB_INDEX_DATA *mob_index = get_mob_index_from_info(info, arg->d.num);
-                if(!mob_index) return;
-
-                vch = get_char_world_index(NULL, mob_index);
-            }
-            break;
-        case ENT_MOBILE:
-            vch = arg->d.mob;
-            break;
-        case ENT_OLLIST_MOB:
-            mobs = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
-            break;
-        case ENT_ROOM:
-            mobs = arg->d.room ? arg->d.room->people : NULL;
-            break;
-        default: return;
-        }
-
-        if(mobs) {
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            BUFFER *buffer = NULL;
-            wnum = wnum_zero;
-            if(arg->type == ENT_NUMBER) {
-                char vnum_str[32];
-                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-            }
-            else if(arg->type == ENT_STRING) {
-                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                    str = NULL;
-                else
-                {
-                    str = arg->d.str;
-
-                }
-            } else
-                return;
-
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            vch = script_get_char_list(info, mobs, viewer, false, wnum, str);
-            if( buffer )
-                free_buf(buffer);
-        }
-        variables_set_mobile(vars,name,vch);
+        script_varseton_handle_mobile_type(info, vars, name, here, rest, arg);
 
     // Format: PLAYER <ROOM VNUM or ROOM or MOBLIST> <NAME>[ <VIEWER>]
     // Format: PLAYER <NAME>
     // Format: PLAYER <PLAYER>
     } else if(!str_cmp(buf,"player")) {
-        if( arg->type == ENT_BLLIST_MOB )
-        {
-            LLIST *blist = arg->d.blist;
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            if( arg->type != ENT_STRING )
-                return;
-
-            BUFFER *buffer = NULL;
-            str = arg->d.str;
-            viewer = NULL;
-            if( *rest )
-            {
-                buffer = arg->buffer;
-                arg->buffer = new_buf();
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            vch = script_get_char_blist(info, blist, viewer, true, wnum_zero, str);
-            variables_set_mobile(vars,name,vch);
-            return;
-        }
-
-
-        switch(arg->type) {
-        case ENT_STRING:
-            vch = get_player(arg->d.str);
-            break;
-        case ENT_MOBILE:
-            vch = arg->d.mob && !IS_NPC(arg->d.mob) ? arg->d.mob : NULL;
-            break;
-        case ENT_OLLIST_MOB:
-            mobs = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
-            if(mobs) {
-                if(!expand_argument(info,rest,arg))
-                    return;
-                if(arg->type == ENT_STRING && !is_number(arg->d.str))
-                    str = arg->d.str;
-                else
-                    mobs = NULL;
-            }
-            break;
-        default: return;
-        }
-
-        if(mobs)
-        {
-            BUFFER *buffer = NULL;
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            vch = script_get_char_list(info, mobs, viewer, true, wnum_zero, str);
-
-            if( buffer )
-                free_buf(buffer);
-        }
-        variables_set_mobile(vars,name,vch);
+        script_varseton_handle_player_type(info, vars, name, rest, arg);
 
     // Format: OBJECT <ROOM VNUM or ROOM or MOBILE or OBJECT or OBJLIST> <VNUM or NAME>
     // Format: OBJECT HERE <NAME>
@@ -9598,1481 +11037,139 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
     // Format: OBJECT VNUM <VNUM>
     // Format: OBJECT <OBJECT>
     } else if(!str_cmp(buf,"object") || !str_cmp(buf,"obj")) {
-        if( arg->type == ENT_BLLIST_OBJ)
-        {
-            LLIST *blist = arg->d.blist;
-            wnum = wnum_zero;
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            if( arg->type == ENT_NUMBER )
-            {
-                char vnum_str[32];
-                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-                str = NULL;
-            }
-            else if( arg->type == ENT_STRING )
-            {
-                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                {
-                    str = NULL;
-                }
-                else
-                {
-                    str = arg->d.str;
-                }
-            }
-            else
-                return;
-
-
-            BUFFER *buffer = NULL;
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            obj = script_get_obj_blist(info, blist, viewer, wnum, str);
-            variables_set_object(vars,name,obj);
-
-            if( buffer )
-                free_buf(buffer);
-            return;
-        }
-
-
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            here = get_room_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
-            objs = here ? here->contents : NULL;
-            break;
-        case ENT_NUMBER: {
-            WNUM room_wnum = { NULL, 0 };
-            char vnum_str[32];
-            AREA_DATA *context_area = here ? here->area : NULL;
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, context_area, &room_wnum) && room_wnum.pArea) {
-                here = get_room_index(room_wnum.pArea, room_wnum.vnum);
-                objs = here ? here->contents : NULL;
-            }
-            break;
-        }
-        case ENT_STRING:
-            if(is_number(arg->d.str))
-            {
-                WNUM room_wnum = { NULL, 0 };
-                AREA_DATA *context_area = here ? here->area : NULL;
-                if (parse_widevnum(arg->d.str, context_area, &room_wnum) && room_wnum.pArea) {
-                    here = get_room_index(room_wnum.pArea, room_wnum.vnum);
-                    objs = here ? here->contents : NULL;
-                }
-            }
-            else if(!str_cmp(arg->d.str, "here"))
-            {
-                if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
-
-                obj = get_obj_here(NULL,here,arg->d.str);
-            }
-            else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
-            {
-                if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
-
-                obj = get_obj_world(NULL, arg->d.str);
-            }
-            else if(!str_cmp(arg->d.str, "vnum"))
-            {
-                if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
-
-                OBJ_INDEX_DATA *obj_index = get_obj_index_from_info(info, arg->d.num);
-
-                obj = get_obj_world_index(NULL, obj_index, false);
-            }
-            break;
-        case ENT_OBJECT:
-            obj = arg->d.obj;
-            break;
-        case ENT_MOBILE:
-            if (arg->d.mob && arg->d.mob->lcarrying) {
-                objs_list = arg->d.mob->lcarrying;
-            } else {
-                objs = NULL;
-            }
-            break;
-        case ENT_OLLIST_OBJ:
-            if (arg->d.list.ptr.obj && is_llist(*arg->d.list.ptr.obj)) {
-                objs_list = (LLIST*)(*arg->d.list.ptr.obj);  // Cast to correct type
-            } else {
-                objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
-            }
-            break;
-        case ENT_ROOM:
-            objs = arg->d.room ? arg->d.room->contents : NULL;
-            break;
-        default: return;
-        }
-
-        if(objs_list) {
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            wnum = wnum_zero;
-            if(arg->type == ENT_NUMBER) {
-                char vnum_str[32];
-                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-            }
-            else if(arg->type == ENT_STRING) {
-                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                    str = NULL;
-                else
-                    str = arg->d.str;
-            } else
-                return;
-
-            BUFFER *buffer = NULL;
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            obj = script_get_obj_list(info, objs_list, viewer, 0, wnum, str);
-
-            if( buffer )
-                free_buf(buffer);
-        } else if(objs) {
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            wnum = wnum_zero;
-            if(arg->type == ENT_NUMBER) {
-                char vnum_str[32];
-                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-            }
-            else if(arg->type == ENT_STRING) {
-                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                    str = NULL;
-                else
-                    str = arg->d.str;
-            } else
-                return;
-
-            BUFFER *buffer = NULL;
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
-
-            if( buffer )
-                free_buf(buffer);
-        }
-        variables_set_object(vars,name,obj);
+        script_varseton_handle_object_type(info, vars, name, here, rest, arg);
 
     // Format: CARRY <VNUM or NAME>
     // Format: CARRY <MOBILE> <VNUM or NAME>
     // Format: CARRY <OBJLIST> <VNUM or NAME>
     } else if(!str_cmp(buf,"carry")) {
-        wnum = wnum_zero;
-        switch(arg->type) {
-        case ENT_NUMBER:
-        {
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-            if (info->mob && info->mob->lcarrying) {
-                carry_list = info->mob->lcarrying;
-            } else {
-                objs = NULL;
-            }
-            break;
-        }
-        case ENT_STRING:
-            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                str = NULL;
-            else
-                str = arg->d.str;
-            if (info->mob && info->mob->lcarrying) {
-                carry_list = info->mob->lcarrying;
-            } else {
-                objs = NULL;
-            }
-            break;
-        case ENT_MOBILE:
-            if (arg->d.mob && arg->d.mob->lcarrying) {
-                carry_list = arg->d.mob->lcarrying;
-            } else {
-                objs = NULL;
-            }
-            break;
-        case ENT_OLLIST_OBJ:
-            if (arg->d.list.ptr.obj && is_llist(*arg->d.list.ptr.obj)) {
-                carry_list = (LLIST*)(*arg->d.list.ptr.obj);  // Cast to correct type
-            } else {
-                objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
-            }
-            break;
-        default: return;
-        }
-
-        if(carry_list || objs)
-        {
-            if(arg->type != ENT_NUMBER && arg->type != ENT_STRING)
-            {
-                if(!(rest = expand_argument(info,rest,arg)))
-                    return;
-                if(arg->type == ENT_NUMBER) {
-                    char vnum_str[32];
-                    snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                    parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-                }
-                else if(arg->type == ENT_STRING) {
-                    if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                        str = NULL;
-                    else
-                        str = arg->d.str;
-                } else
-                    return;
-            }
-
-            BUFFER *buffer = NULL;
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            if (carry_list) {
-                obj = script_get_obj_list(info, carry_list, viewer, 2, wnum, str);
-            } else {
-                obj = script_get_obj_list(info, objs, viewer, 2, wnum, str);
-            }
-
-            if( buffer )
-                free_buf(buffer);
-        }
-        variables_set_object(vars,name,obj);
+        script_varseton_handle_inventory_type(info, vars, name, rest, arg, false);
 
     // Format: WORN <VNUM or NAME>
     // Format: WORN <MOBILE or OBJLIST> <VNUM or NAME>
     } else if(!str_cmp(buf,"worn")) {
-        wnum = wnum_zero;
-        switch(arg->type) {
-        case ENT_NUMBER:
-        {
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-            if (info->mob && info->mob->lworn) {
-                worn_list = info->mob->lworn;
-            } else if (info->mob) {
-                objs = info->mob->carrying;
-            } else {
-                objs = NULL;
-            }
-            break;
-        }
-        case ENT_STRING:
-            if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                str = NULL;
-            else
-                str = arg->d.str;
-            if (info->mob && info->mob->lworn) {
-                worn_list = info->mob->lworn;
-            } else if (info->mob) {
-                objs = info->mob->carrying;
-            } else {
-                objs = NULL;
-            }
-            break;
-        case ENT_MOBILE:
-            if (arg->d.mob && arg->d.mob->lworn) {
-                worn_list = arg->d.mob->lworn;
-            } else if (arg->d.mob) {
-                objs = arg->d.mob->carrying;
-            } else {
-                objs = NULL;
-            }
-            break;
-        case ENT_OLLIST_OBJ:
-            if (arg->d.list.ptr.obj && is_llist(*arg->d.list.ptr.obj)) {
-                worn_list = (LLIST*)(*arg->d.list.ptr.obj);  // Cast to correct type
-            } else {
-                objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
-            }
-            break;
-        default: return;
-        }
-
-        if(worn_list || objs)
-        {
-            if(arg->type != ENT_NUMBER && arg->type != ENT_STRING)
-            {
-                if(!(rest = expand_argument(info,rest,arg)))
-                    return;
-                if(arg->type == ENT_NUMBER) {
-                    char vnum_str[32];
-                    snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                    parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-                }
-                else if(arg->type == ENT_STRING) {
-                    if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                        str = NULL;
-                    else
-                        str = arg->d.str;
-                } else
-                    return;
-            }
-
-            BUFFER *buffer = NULL;
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            if (worn_list) {
-                obj = script_get_obj_list(info, worn_list, viewer, 1, wnum, str);
-            } else {
-                obj = script_get_obj_list(info, objs, viewer, 1, wnum, str);
-            }
-
-            if( buffer )
-                free_buf(buffer);
-        }
-        variables_set_object(vars,name,obj);
+        script_varseton_handle_inventory_type(info, vars, name, rest, arg, true);
 
     // Format: CONTENT <OBJECT or OBJLIST> <VNUM or NAME>
     } else if(!str_cmp(buf,"content")) {
-        switch(arg->type) {
-        case ENT_OLLIST_OBJ:
-            if (arg->d.list.ptr.obj && is_llist(*arg->d.list.ptr.obj)) {
-                objs_list = (LLIST*)(*arg->d.list.ptr.obj);  // Cast to correct type
-            } else {
-                objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
-            }
-            break;
-        case ENT_OBJECT:
-            if (arg->d.obj && is_llist(arg->d.obj->contains)) {
-                objs_list = (LLIST*)(arg->d.obj->contains);  // Cast to correct type
-            } else {
-                objs = arg->d.obj ? arg->d.obj->contains : NULL;
-            }
-            break;
-        default: return;
-        }
-
-        if(objs_list || objs)
-        {
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-            wnum = wnum_zero;
-            if(arg->type == ENT_NUMBER) {
-                char vnum_str[32];
-                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &wnum);
-            }
-            else if(arg->type == ENT_STRING) {
-                if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
-                    str = NULL;
-                else
-                    str = arg->d.str;
-            } else
-                return;
-
-            BUFFER *buffer = NULL;
-            viewer = NULL;
-            if( *rest )
-            {
-                if( str )
-                {
-                    buffer = arg->buffer;
-                    arg->buffer = new_buf();
-                }
-
-                if(!(rest = expand_argument(info,rest,arg)))
-                {
-                    if( buffer )
-                        free_buf(buffer);
-                    return;
-                }
-
-                if( arg->type == ENT_MOBILE )
-                    viewer = arg->d.mob;
-            }
-
-            if (objs_list) {
-                obj = script_get_obj_list(info, objs_list, viewer, 0, wnum, str);
-            } else {
-                obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
-            }
-
-            if( buffer )
-                free_buf(buffer);
-        }
-
-        variables_set_object(vars,name,obj);
+        script_varseton_handle_content_type(info, vars, name, rest, arg);
 
     // Format: TOKEN <MOBILE or OBJECT or ROOM or TOKLIST> <Pattern>
     // Format: TOKEN <TOKEN>
-    } else if(!str_cmp(buf,"token")) {
-        switch(arg->type) {
-        case ENT_MOBILE:   tokens = arg->d.mob ? arg->d.mob->tokens : NULL; break;
-        case ENT_OBJECT:   tokens = arg->d.obj ? arg->d.obj->tokens : NULL; break;
-        case ENT_ROOM:     tokens = arg->d.room ? arg->d.room->tokens : NULL; break;
-        case ENT_TOKEN:    token = arg->d.token; break;
-        case ENT_OLLIST_TOK: tokens = arg->d.list.ptr.tok ? *arg->d.list.ptr.tok : NULL; break;
-        default: return;
-        }
-
-        if(tokens) token = token_find_match(info,tokens, rest, arg);
-        variables_set_token(vars,name,token);
-
     // Format: DICE <DICE>
-    } else if(!str_cmp(buf,"DICE")) {
-        switch(arg->type) {
-        case ENT_DICE:   if(arg->d.dice) variables_set_dice(vars,name,arg->d.dice);
-        default: return;
-        }
-
     // VARIABLE MOBILE NAME
     // VARIABLE OBJECT NAME
     // VARIABLE ROOM NAME
     // VARIABLE TOKEN NAME
-    } else if(!str_cmp(buf,"variable") || !str_cmp(buf,"var")) {
-        pVARIABLE their_vars, their_var;
-        switch(arg->type) {
-        case ENT_MOBILE:   their_vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
-        case ENT_OBJECT:   their_vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
-        case ENT_ROOM:     their_vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
-        case ENT_TOKEN:    their_vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
-        default: return;
-        }
-
-        if(!their_vars) return;
-
-        if(!expand_argument(info,rest,arg))
-            return;
-
-        if(arg->type != ENT_STRING) return;
-
-        their_var = variable_get(their_vars, arg->d.str);
-
-        variables_set_variable(vars,name,their_var);
-
-
     // Format: IDMOBILE <IDa> <IDb>
-    } else if(!str_cmp(buf,"idmobile")) {
-        switch(arg->type) {
-        case ENT_NUMBER:
-            id1 = arg->d.num;
-            if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
-                return;
-            vch = idfind_mobile(id1,arg->d.num);
-            break;
-        default: return;
-        }
-        variables_set_mobile(vars,name,vch);
-
     // Format: IDOBJECT <IDa> <IDb>
-    } else if(!str_cmp(buf,"idobject")) {
-        switch(arg->type) {
-        case ENT_NUMBER:
-            id1 = arg->d.num;
-            if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
-                return;
-            obj = idfind_object(id1,arg->d.num);
-            break;
-        default: return;
-        }
-        variables_set_object(vars,name,obj);
-
     // Format: IDPLAYER <IDa> <IDb>
-    } else if(!str_cmp(buf,"idplayer")) {
-        switch(arg->type) {
-        case ENT_NUMBER:
-            id1 = arg->d.num;
-            if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
-                return;
-            vch = idfind_player(id1,arg->d.num);
-            break;
-        default: return;
-        }
-        variables_set_mobile(vars,name,vch);
+    } else if (script_varseton_handle_entity_lookup_ops(info, vars, name, buf, rest, arg)) {
+        return;
 
     // Format: CROOM <ROOM VNUM> <IDa> <IDb>
-    } else if(!str_cmp(buf,"croom")) {
-        switch(arg->type) {
-        case ENT_NUMBER: 
-            AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-            if (!area) area = get_system_area_fallback();
-            here = get_room_index(area, arg->d.num);
-            if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
-                return;
-            id1 = arg->d.num;
-            if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
-                return;
-            variables_set_room(vars,name,get_clone_room(here,id1,arg->d.num));
-            break;
-        default: return;
-        }
-
     // Format: SKILL <NAME>
-    } else if(!str_cmp(buf,"skill")) {
-        switch(arg->type) {
-        case ENT_STRING:
-            variables_set_skill(vars,name,skill_lookup(arg->d.str));
-            break;
-        default: return;
-        }
-
     // Format: SKILLGROUP <name>
     // Format: SKILLGROUP <skillgroup>
-    } else if(!str_cmp(buf,"skillgroup") || !str_cmp(buf,"skill_group")) {
-        switch(arg->type) {
-        case ENT_STRING:
-            variables_set_skill_group(vars, name, skill_group_find(arg->d.str));
-            break;
-        case ENT_SKILLGROUP:
-            variables_set_skill_group(vars, name, arg->d.skill_group);
-            break;
-        default:
-            return;
-        }
-
     // Format: SKILLINFO <MOBILE> <NAME or TOKEN>
-    } else if(!str_cmp(buf,"skillinfo")) {
-        switch(arg->type) {
-        case ENT_MOBILE:
-            vch = arg->d.mob;
-            if(!expand_argument(info,rest,arg))
-                return;
-
-            if( arg->type == ENT_STRING )
-                variables_set_skillinfo(vars,name,vch,skill_lookup(arg->d.str), NULL);
-            else if( arg->type == ENT_TOKEN )
-                variables_set_skillinfo(vars,name,vch, 0, arg->d.token);
-            break;
-        default: return;
-        }
-
     // Format: SONG <NAME>
     // Format: SONG <SONG>
-    } else if(!str_cmp(buf,"song")) {
-        switch(arg->type) {
-        case ENT_STRING:
-            variables_set_song(vars, name, song_lookup(arg->d.str));
-            break;
-        case ENT_SONG:
-            variables_set_song(vars, name, arg->d.song);
-            break;
-        default:
-            return;
-        }
-
     // Format: SPELL <SPELL>
-    } else if(!str_cmp(buf,"spell")) {
-        switch(arg->type) {
-        case ENT_SPELL:
-            variables_set_spell(vars, name, arg->d.spell);
-            break;
-        default:
-            return;
-        }
-
     // Format: LIQUID <NUMBER|STRING|LIQUID>
-    } else if(!str_cmp(buf,"liquid")) {
-        switch(arg->type) {
-        case ENT_NUMBER:
-            if (arg->d.num >= 0 && arg->d.num < liquid_count())
-                variables_set_liquid(vars, name, arg->d.num);
-            break;
-        case ENT_STRING:
-        {
-            int liq = liquid_lookup(arg->d.str);
-            if (liq >= 0)
-                variables_set_liquid(vars, name, liq);
-            break;
-        }
-        case ENT_LIQUID:
-            variables_set_liquid(vars, name, arg->d.liquid);
-            break;
-        default:
-            return;
-        }
-
     // Format: MATERIAL <NUMBER|STRING|MATERIAL>
-    } else if(!str_cmp(buf,"material")) {
-        switch(arg->type) {
-        case ENT_NUMBER:
-            if (arg->d.num >= 0 && arg->d.num < material_count())
-                variables_set_material(vars, name, arg->d.num);
-            break;
-        case ENT_STRING:
-        {
-            int mat = material_index_lookup(arg->d.str);
-            if (mat >= 0)
-                variables_set_material(vars, name, mat);
-            break;
-        }
-        case ENT_MATERIAL:
-            variables_set_material(vars, name, arg->d.material);
-            break;
-        default:
-            return;
-        }
-
     // Format: LOCKSTATE <LOCK_STATE|EXIT>
     // Format: LOCK_STATE <LOCK_STATE|EXIT>
-    } else if(!str_cmp(buf,"lockstate") || !str_cmp(buf,"lock_state")) {
-        switch(arg->type) {
-        case ENT_LOCK_STATE:
-            variables_set_lock_state(vars, name, arg->d.lock_state);
-            break;
-        case ENT_EXIT:
-            if (arg->d.door.r && arg->d.door.door >= 0 && arg->d.door.door < MAX_DIR && arg->d.door.r->exit[arg->d.door.door])
-                variables_set_lock_state(vars, name, &arg->d.door.r->exit[arg->d.door.door]->door.lock);
-            break;
-        default:
-            return;
-        }
+    } else if (script_varseton_handle_skill_resource_ops(info, vars, name, buf, here, rest, arg)) {
+        return;
 
     // Format: MOBINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: MOBINDEX <MOBINDEX>
-    } else if(!str_cmp(buf,"mobindex") || !str_cmp(buf,"mob_index")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_mobindex(vars, name, get_mob_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_mobindex(vars, name, get_mob_index(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_MOBINDEX:
-            variables_set_mobindex(vars, name, arg->d.mobindex);
-            break;
-        default:
-            return;
-        }
-
     // Format: OBJINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: OBJINDEX <OBJINDEX>
-    } else if(!str_cmp(buf,"objindex") || !str_cmp(buf,"obj_index")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_objindex(vars, name, get_obj_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_objindex(vars, name, get_obj_index(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_OBJINDEX:
-            variables_set_objindex(vars, name, arg->d.objindex);
-            break;
-        default:
-            return;
-        }
-
     // Format: TOKENINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: TOKENINDEX <TOKEN_INDEX>
     // Format: TOKINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: TOKINDEX <TOKEN_INDEX>
-    } else if(!str_cmp(buf,"tokenindex") || !str_cmp(buf,"tokindex") || !str_cmp(buf,"token_index")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_tokenindex(vars, name, get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_tokenindex(vars, name, get_token_index(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_TOKEN_INDEX:
-            variables_set_tokenindex(vars, name, arg->d.token_index);
-            break;
-        default:
-            return;
-        }
-
     // Format: BLUEPRINT <WIDEVNUM|NUMBER|STRING>
     // Format: BLUEPRINT <BLUEPRINT>
-    } else if(!str_cmp(buf,"blueprint") || !str_cmp(buf,"bp")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_blueprint(vars, name, get_blueprint_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_blueprint(vars, name, get_blueprint_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_BLUEPRINT:
-            variables_set_blueprint(vars, name, arg->d.blueprint);
-            break;
-        default:
-            return;
-        }
-
     // Format: BPSECTION <WIDEVNUM|NUMBER|STRING>
     // Format: BPSECTION <BLUEPRINT_SECTION>
-    } else if(!str_cmp(buf,"bpsection") || !str_cmp(buf,"blueprint_section")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_blueprint_section(vars, name, get_blueprint_section_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_BLUEPRINT_SECTION:
-            variables_set_blueprint_section(vars, name, arg->d.blueprint_section);
-            break;
-        default:
-            return;
-        }
-
     // Format: DNGINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: DNGINDEX <DUNGEONINDEX>
-    } else if(!str_cmp(buf,"dngindex") || !str_cmp(buf,"dungeonindex")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_dungeonindex(vars, name, get_dungeon_index_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_DUNGEONINDEX:
-            variables_set_dungeonindex(vars, name, arg->d.dungeon_index);
-            break;
-        default:
-            return;
-        }
-
     // Format: SHIPINDEX <WIDEVNUM|NUMBER|STRING>
     // Format: SHIPINDEX <SHIPINDEX>
-    } else if(!str_cmp(buf,"shipindex")) {
-        switch(arg->type) {
-        case ENT_WIDEVNUM:
-            variables_set_shipindex(vars, name, get_ship_index_for_area(arg->d.wnum.pArea, arg->d.wnum.vnum));
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                variables_set_shipindex(vars, name, get_ship_index_for_area(index_wnum.pArea, index_wnum.vnum));
-            break;
-        }
-        case ENT_SHIPINDEX:
-            variables_set_shipindex(vars, name, arg->d.ship_index);
-            break;
-        default:
-            return;
-        }
+    } else if (script_varseton_handle_index_ops(info, vars, name, buf, arg)) {
+        return;
 
     // Format: FINDPATH <ROOM> <ROOM> <DEPTH> <IN-ZONE> <DOORS> - returns the EXIT entity
-    } else if(!str_cmp(buf,"findpath")) {
-        ROOM_INDEX_DATA *start_room = NULL, *end_room = NULL;
-        int depth, in_zone, doors;
-        int dir;
-
-        switch(arg->type) {
-        case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-                            if (!area) area = get_system_area_fallback();
-                            start_room = get_room_index(area, arg->d.num);
-                            break;
-                        }
-        case ENT_ROOM:      start_room = arg->d.room; break;
-        case ENT_EXIT:      start_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
-        }
-
-        if(!start_room || !(rest = expand_argument(info,rest,arg)))
-            return;
-
-        switch(arg->type) {
-                case ENT_NUMBER: {   AREA_DATA *area = find_area_by_vnum(arg->d.num, NULL);
-                            if (!area) area = get_system_area_fallback();
-                            end_room = get_room_index(area, arg->d.num);
-                            break;
-                }
-        case ENT_ROOM:      end_room = arg->d.room; break;
-        case ENT_EXIT:      end_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
-        }
-
-        if(!end_room || !(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
-            return;
-
-        depth = arg->d.num;
-
-        if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
-            return;
-
-        in_zone = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "local");
-
-        if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
-            return;
-
-        doors = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "doors");
-
-        dir = find_path(start_room->vnum, end_room->vnum, NULL, (doors ? -depth : depth), in_zone);
-        if( dir < 0 || dir >= MAX_DIR )
-            variables_set_exit(vars,name,NULL);
-        else
-            variables_set_exit(vars,name,start_room->exit[dir]);
+    // RANDMOB <player> <continent>
+    // RANDMOB <player> <area>
+    // RANDROOM <area|player|null> <continent>
+    // DUNGEONRAND $(SECTION|INSTANCE|DUNGEON)
+    // INSTANCERAND $(SECTION|INSTANCE)
+    // SECTIONRAND $(SECTION)
+    // SPECIALROOM $(INSTANCE|DUNGEON) [#.]KEYWORD
+    // SPECIALROOM $(INSTANCE|DUNGEON) INDEX
+    } else if (script_varseton_handle_room_random_ops(info, vars, name, buf, rest, arg)) {
+        return;
 
     // AREA uid
     // AREA name
     // AREA room
     // AREA area
-    } else if(!str_cmp(buf,"area")) {
-        AREA_DATA *area;
-
-        switch(arg->type) {
-        case ENT_NUMBER:    area = get_area_from_uid(arg->d.num); break;
-        case ENT_STRING:    area = find_area(arg->d.str); break;
-        case ENT_ROOM:      area = arg->d.room ? arg->d.room->area : NULL; break;
-        case ENT_AREA:      area = arg->d.area; break;
-        default:            area = NULL; break;
-        }
-
-        if( area )
-            variables_set_area(vars,name,area);
-
     // AREAREGION <area> <region uid>
     // AREAREGION <aregion>
     // AREGION <area> <region uid>
     // AREGION <aregion>
-    } else if(!str_cmp(buf,"arearegion") || !str_cmp(buf,"aregion")) {
-        if (arg->type == ENT_AREA) {
-            AREA_DATA *area = arg->d.area;
-            AREA_REGION *region = NULL;
-
-            if (!expand_argument(info, rest, arg) || arg->type != ENT_NUMBER)
-                return;
-
-            region = get_area_region_by_uid(area, arg->d.num);
-            if (region)
-                variables_set_area_region(vars, name, region);
-        } else if (arg->type == ENT_AREA_REGION) {
-            variables_set_area_region(vars, name, arg->d.aregion);
-        }
-
     // Format: WILDS <uid>
     // Format: WILDS <wilds>
     // Format: WILDS <wilds_id>
-    } else if(!str_cmp(buf,"wilds")) {
-        WILDS_DATA *wilds = NULL;
-
-        switch(arg->type) {
-        case ENT_NUMBER:
-            wilds = get_wilds_from_uid(NULL, arg->d.num);
-            break;
-        case ENT_WILDS:
-            wilds = arg->d.wilds;
-            break;
-        case ENT_WILDS_ID:
-            wilds = get_wilds_from_uid(NULL, arg->d.wid);
-            break;
-        default:
-            wilds = NULL;
-            break;
-        }
-
-        if (wilds)
-            variables_set_wilds(vars, name, wilds);
-
     // Format: SECTION <section>
     // Format: SECT <section>
-    } else if(!str_cmp(buf,"section") || !str_cmp(buf,"sect")) {
-        if (arg->type == ENT_SECTION)
-            variables_set_instance_section(vars, name, arg->d.section);
-
     // Format: INSTANCE <instance>
     // Format: INST <instance>
-    } else if(!str_cmp(buf,"instance") || !str_cmp(buf,"inst")) {
-        if (arg->type == ENT_INSTANCE)
-            variables_set_instance(vars, name, arg->d.instance);
-
     // Format: DUNGEON <dungeon>
     // Format: DUNG <dungeon>
-    } else if(!str_cmp(buf,"dungeon") || !str_cmp(buf,"dung")) {
-        if (arg->type == ENT_DUNGEON)
-            variables_set_dungeon(vars, name, arg->d.dungeon);
-
     // Format: SHIP <ship>
-    } else if(!str_cmp(buf,"ship")) {
-        if (arg->type == ENT_SHIP)
-            variables_set_ship(vars, name, arg->d.ship);
-
     // Format: QUEST <quest>
-    } else if(!str_cmp(buf,"quest")) {
-        if (arg->type == ENT_QUEST)
-            variables_set_quest(vars, name, arg->d.quest);
-
     // Format: QUEST_STAGE <quest_stage>
     // Format: QSTAGE <quest_stage>
-    } else if(!str_cmp(buf,"quest_stage") || !str_cmp(buf,"qstage")) {
-        if (arg->type == ENT_QUEST_STAGE)
-            variables_set_quest_stage(vars, name, arg->d.quest_stage);
-
     // Format: QUEST_OBJECTIVE <quest_objective>
     // Format: QOBJECTIVE <quest_objective>
-    } else if(!str_cmp(buf,"quest_objective") || !str_cmp(buf,"qobjective")) {
-        if (arg->type == ENT_QUEST_OBJECTIVE)
-            variables_set_quest_objective(vars, name, arg->d.quest_objective);
-
     // Format: CLASS <name>
     // Format: CLASS <class>
-    } else if(!str_cmp(buf,"class")) {
-        if (arg->type == ENT_STRING) {
-            CLASS_DATA *clazz = class_find(arg->d.str);
-            if (clazz)
-                variables_set_class(vars, name, clazz);
-        } else if (arg->type == ENT_CLASS) {
-            variables_set_class(vars, name, arg->d.clazz);
-        }
-
     // Format: CLASSLEVEL <classlevel>
     // Format: CLASSLEVEL <mobile> <class>
     // Format: CLASSLEVEL <mobile> <class-name>
-    } else if(!str_cmp(buf,"classlevel") || !str_cmp(buf,"class_level")) {
-        if (arg->type == ENT_CLASSLEVEL)
-            variables_set_classlevel(vars, name, arg->d.classlevel);
-        else if (arg->type == ENT_MOBILE) {
-            CHAR_DATA *class_mob = arg->d.mob;
-            CLASS_DATA *clazz = NULL;
-            CLASS_LEVEL *class_level = NULL;
-
-            if (!expand_argument(info, rest, arg))
-                return;
-
-            if (arg->type == ENT_CLASS)
-                clazz = arg->d.clazz;
-            else if (arg->type == ENT_STRING)
-                clazz = class_find(arg->d.str);
-
-            if (!class_mob || !clazz)
-                return;
-
-            class_level = get_class_level(class_mob, clazz);
-            if (class_level)
-                variables_set_classlevel(vars, name, class_level);
-        }
-
     // Format: BOOK_PAGE <book_page>
-    } else if(!str_cmp(buf,"book_page") || !str_cmp(buf,"bookpage")) {
-        if (arg->type == ENT_BOOK_PAGE)
-            variables_set_book_page(vars, name, arg->d.book_page);
-
     // Format: FOOD_BUFF <food_buff>
     // Format: FOOD_BUFF <obj_food_buff>
-    } else if(!str_cmp(buf,"food_buff") || !str_cmp(buf,"foodbuff")) {
-        if (arg->type == ENT_FOOD_BUFF)
-            variables_set_food_buff(vars, name, arg->d.food_buff);
-
     // Format: WAYPOINT <waypoint>
-    } else if(!str_cmp(buf,"waypoint")) {
-        if (arg->type == ENT_WAYPOINT)
-            variables_set_waypoint(vars, name, arg->d.waypoint);
-
     // Format: STOCK <stock>
     // Format: SHOP_STOCK <stock>
-    } else if(!str_cmp(buf,"stock") || !str_cmp(buf,"shop_stock")) {
-        if (arg->type == ENT_SHOP_STOCK)
-            variables_set_shop_stock(vars, name, arg->d.stock);
-
     // Format: TRAINER <trainer>
-    } else if(!str_cmp(buf,"trainer")) {
-        if (arg->type == ENT_TRAINER)
-            variables_set_trainer(vars, name, arg->d.trainer);
-
     // Format: TRAINER_ENTRY <trainer_entry>
     // Format: TENTRY <trainer_entry>
-    } else if(!str_cmp(buf,"trainer_entry") || !str_cmp(buf,"tentry")) {
-        if (arg->type == ENT_TRAINER_ENTRY)
-            variables_set_trainer_entry(vars, name, arg->d.trainer_entry);
+    } else if (script_varseton_handle_world_entity_ops(info, vars, name, buf, rest, arg)) {
+        return;
 
     // Format: REPUTATION_INDEX <widevnum|number|string|repindex|reputation>
     // Format: REPINDEX <widevnum|number|string|repindex|reputation>
     // Format: FACTION <widevnum|number|string|repindex|reputation>
-    } else if(!str_cmp(buf,"reputation_index") || !str_cmp(buf,"repindex") || !str_cmp(buf,"faction")) {
-        REPUTATION_INDEX_DATA *repIndex = NULL;
-        switch(arg->type) {
-        case ENT_REPUTATION_INDEX:
-            repIndex = arg->d.repIndex;
-            break;
-        case ENT_REPUTATION:
-            repIndex = arg->d.reputation ? arg->d.reputation->pIndexData : NULL;
-            break;
-        case ENT_WIDEVNUM:
-            repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
-            break;
-        case ENT_NUMBER:
-        {
-            WNUM index_wnum = wnum_zero;
-            char vnum_str[32];
-            snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-            if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
-            break;
-        }
-        case ENT_STRING:
-        {
-            WNUM index_wnum = wnum_zero;
-            if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
-            break;
-        }
-        default:
-            return;
-        }
-
-        if (repIndex)
-            variables_set_reputation_index(vars, name, repIndex);
-
     // Format: REPUTATION <reputation>
     // Format: REPUTATION <mobile> <repindex|widevnum|number|string>
-    } else if(!str_cmp(buf,"reputation")) {
-        if (arg->type == ENT_REPUTATION) {
-            variables_set_reputation(vars, name, arg->d.reputation);
-        } else if (arg->type == ENT_MOBILE) {
-            CHAR_DATA *rep_mob = arg->d.mob;
-            REPUTATION_INDEX_DATA *repIndex = NULL;
-            REPUTATION_DATA *reputation = NULL;
-
-            if (!expand_argument(info, rest, arg))
-                return;
-
-            if (arg->type == ENT_REPUTATION_INDEX)
-                repIndex = arg->d.repIndex;
-            else if (arg->type == ENT_WIDEVNUM)
-                repIndex = get_reputation_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
-            else if (arg->type == ENT_NUMBER) {
-                WNUM index_wnum = wnum_zero;
-                char vnum_str[32];
-                snprintf(vnum_str, sizeof(vnum_str), "%d", arg->d.num);
-                if (parse_widevnum(vnum_str, get_area_from_scriptinfo(info), &index_wnum))
-                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
-            } else if (arg->type == ENT_STRING) {
-                WNUM index_wnum = wnum_zero;
-                if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &index_wnum))
-                    repIndex = get_reputation_index(index_wnum.pArea, index_wnum.vnum);
-            }
-
-            if (!rep_mob || !repIndex)
-                return;
-
-            reputation = get_reputation_char(rep_mob, repIndex->area, repIndex->vnum, false, false);
-            if (reputation)
-                variables_set_reputation(vars, name, reputation);
-        }
-
     // Format: REPUTATION_RANK <reprank>
     // Format: REPUTATION_RANK <reputation>
-    } else if(!str_cmp(buf,"reputation_rank") || !str_cmp(buf,"reprank")) {
-        if (arg->type == ENT_REPUTATION_RANK) {
-            variables_set_reputation_rank(vars, name, arg->d.repRank);
-        } else if (arg->type == ENT_REPUTATION) {
-            REPUTATION_INDEX_RANK_DATA *rank = NULL;
-            if (arg->d.reputation && arg->d.reputation->pIndexData)
-                rank = get_reputation_rank(arg->d.reputation->pIndexData, arg->d.reputation->current_rank);
-            if (rank)
-                variables_set_reputation_rank(vars, name, rank);
-        }
-
     // Format: RACE <name>
     // Format: RACE <race>
-    } else if(!str_cmp(buf,"race")) {
-        if (arg->type == ENT_STRING) {
-            RACE_DATA *race = race_lookup(arg->d.str);
-            if (!race)
-                race = race_lookup_name(arg->d.str);
-            if (race)
-                variables_set_race(vars, name, race);
-        } else if (arg->type == ENT_RACE) {
-            variables_set_race(vars, name, arg->d.race);
-        }
-
     // MOBLIST add <mobile>
     // MOBLIST remove <index>
     // MOBLIST clear
-    } else if(!str_cmp(buf,"moblist")) {
-
-        if( arg->type != ENT_STRING )
-            return;
-
-
-        // MOBLIST add <mobile>
-        if( !str_cmp(arg->d.str, "add") ) {
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
-                variables_set_list_mob(vars,name,arg->d.mob,false);
-
-        // MOBLIST remove <index>
-        } else if( !str_cmp(arg->d.str, "remove") ) {
-            if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
-                return;
-
-            pVARIABLE var = variable_get(*vars, name);
-
-            if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
-                return;
-
-            list_remnthlink(var->_.list, arg->d.num, false);
-
-        // MOBLIST clear
-        } else if( !str_cmp(arg->d.str, "clear") ) {
-            pVARIABLE var = variable_get(*vars, name);
-
-            if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
-                return;
-
-            list_clear(var->_.list);
-        }
-
     // OBJLIST add <object>
     // OBJLIST remove <index>
     // OBJLIST clear
-    } else if(!str_cmp(buf,"objlist")) {
-        if( arg->type != ENT_STRING )
-            return;
-
-
-        // OBJLIST add <object>
-        if( !str_cmp(arg->d.str, "add") ) {
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            if( arg->type == ENT_OBJECT && IS_VALID(arg->d.obj) )
-                variables_set_list_obj(vars,name,arg->d.obj,false);
-
-        // OBJLIST remove <index>
-        } else if( !str_cmp(arg->d.str, "remove") ) {
-            if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
-                return;
-
-            pVARIABLE var = variable_get(*vars, name);
-
-            if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
-                return;
-
-            list_remnthlink(var->_.list, arg->d.num, false);
-
-        // OBJLIST clear
-        } else if( !str_cmp(arg->d.str, "clear") ) {
-            pVARIABLE var = variable_get(*vars, name);
-
-            if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
-                return;
-
-            list_clear(var->_.list);
-        }
-
-    // RANDMOB <player> <continent>
-    // RANDMOB <player> <area>
-    } else if(!str_cmp(buf,"randmob")) {
-        if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
-            return;
-
-        vch = arg->d.mob;
-
-        if(!(rest = expand_argument(info,rest,arg)))
-            return;
-
-        if( arg->type == ENT_STRING )
-        {
-            int continent = get_continent(arg->d.str);
-            if( continent < 0 )
-                continent = ANY_CONTINENT;
-
-            vch = get_random_mob(vch, continent);
-            if( vch != NULL )
-                variables_set_mobile(vars,name,vch);
-        }
-        else if( arg->type == ENT_AREA )
-        {
-            vch = get_random_mob_area(vch, arg->d.area);
-            if( vch != NULL )
-                variables_set_mobile(vars,name,vch);
-        }
-
-
-
-    // RANDROOM <area|player|null> <continent>
-    } else if(!str_cmp(buf,"randroom")) {
-        ROOM_INDEX_DATA *loc;
-
-        if (arg->type == ENT_AREA)
-        {
-            loc = get_random_room_area(vch, arg->d.area);
-            if( loc != NULL)
-            variables_set_room(vars,name,loc);
-        }
-        else
-        if (arg->type == ENT_NULL)
-            vch = NULL;
-        else
-        {
-            if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
-                return;
-
-            vch = arg->d.mob;
-        }
-
-        if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
-            return;
-
-        if( arg->type == ENT_STRING )
-        {
-        int continent = get_continent(arg->d.str);
-        if( continent < 0 )
-            continent = ANY_CONTINENT;
-
-        loc = get_random_room(vch, continent);
-        if( loc != NULL )
-            variables_set_room(vars,name,loc);
-        }
-
-    // DUNGEONRAND $(SECTION|INSTANCE|DUNGEON)
-    } else if(!str_cmp(buf,"dungeonrand")) {
-        ROOM_INDEX_DATA *loc = NULL;
-
-        if( arg->type == ENT_DUNGEON )
-            loc = dungeon_random_room(NULL, arg->d.dungeon );
-        else if( arg->type == ENT_INSTANCE )
-        {
-            if( IS_VALID(arg->d.instance) && IS_VALID(arg->d.instance->dungeon) )
-                loc = dungeon_random_room(NULL, arg->d.instance->dungeon );
-        }
-        else if( arg->type == ENT_SECTION )
-        {
-            if( IS_VALID(arg->d.section) && IS_VALID(arg->d.section->instance) && IS_VALID(arg->d.section->instance->dungeon) )
-                loc = dungeon_random_room(NULL, arg->d.section->instance->dungeon );
-        }
-
-        if( loc != NULL )
-            variables_set_room(vars,name,loc);
-
-    // INSTANCERAND $(SECTION|INSTANCE)
-    } else if(!str_cmp(buf,"instancerand")) {
-        ROOM_INDEX_DATA *loc = NULL;
-
-        if( arg->type == ENT_INSTANCE )
-        {
-            if( IS_VALID(arg->d.instance) )
-                loc = instance_random_room(NULL, arg->d.instance );
-        }
-        else if( arg->type == ENT_SECTION )
-        {
-            if( IS_VALID(arg->d.section) && IS_VALID(arg->d.section->instance) )
-                loc = instance_random_room(NULL, arg->d.section->instance );
-        }
-
-        if( loc != NULL )
-            variables_set_room(vars,name,loc);
-
-    // SECTIONRAND $(SECTION)
-    } else if(!str_cmp(buf,"sectionrand")) {
-        ROOM_INDEX_DATA *loc = NULL;
-
-        if( arg->type == ENT_SECTION )
-        {
-            if( IS_VALID(arg->d.section) )
-                loc = section_random_room(NULL, arg->d.section );
-        }
-
-        if( loc != NULL )
-            variables_set_room(vars,name,loc);
-
-    // SPECIALROOM $(INSTANCE|DUNGEON) [#.]KEYWORD
-    // SPECIALROOM $(INSTANCE|DUNGEON) INDEX
-    } else if(!str_cmp(buf,"specialroom")) {
-        ROOM_INDEX_DATA *loc = NULL;
-
-        if( arg->type == ENT_DUNGEON )
-        {
-            DUNGEON *dungeon = arg->d.dungeon;
-
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            if(arg->type == ENT_STRING)
-                loc = get_dungeon_special_room_byname(dungeon, arg->d.str);
-            else if(arg->type == ENT_NUMBER)
-                loc = get_dungeon_special_room(dungeon, arg->d.num);
-
-        }
-        else if( arg->type == ENT_INSTANCE )
-        {
-            INSTANCE *instance = arg->d.instance;
-
-            if(!(rest = expand_argument(info,rest,arg)))
-                return;
-
-            if(arg->type == ENT_STRING)
-                loc = get_instance_special_room_byname(instance, arg->d.str);
-            else if(arg->type == ENT_NUMBER)
-                loc = get_instance_special_room(instance, arg->d.num);
-        }
-
-        if( loc != NULL )
-            variables_set_room(vars,name,loc);
+    } else if (script_varseton_handle_reputation_and_list_ops(info, vars, name, buf, rest, arg)) {
+        return;
 
     } else
         return;
