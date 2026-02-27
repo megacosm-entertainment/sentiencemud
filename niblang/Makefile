@@ -75,6 +75,7 @@ clean:
 	@-rm -f $(YACCDIR)/*.*
 	@-rm -rf $(OBJDIR)
 	@-rm -rf $(YACCDIR)
+	@-rm -f $(EXE)
 
 depend:
 	@gcc -E -MM $(C_FILES) -I. > .depend
