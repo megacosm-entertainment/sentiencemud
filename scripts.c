@@ -21,6 +21,8 @@
 #include "recycle.h"
 #include "wilds.h"
 #include "skill_group.h"
+#include "mxp_links.h"
+#include "io/cache/redis_cache.h"
 //#define DEBUG_MODULE
 #include "debug.h"
 
@@ -39,6 +41,73 @@ SCRIPT_CB *script_call_stack = NULL;
 static SCRIPT_EXECUTE_CONTEXT script_exec_context = { NULL, NULL };
 
 #define SCRIPT_LOG_MAX_LEN 16384
+#define SCRIPT_RUNTIME_ERROR_MAX 50
+#define SCRIPT_RUNTIME_ERROR_TEXT_MAX 512
+#define AUDIT_HISTORY_MAX 64
+
+#define AUDIT_ERROR_SCRIPT 1
+#define AUDIT_ERROR_RESET  2
+
+typedef struct script_runtime_error_data SCRIPT_RUNTIME_ERROR;
+typedef struct audit_occurrence_data AUDIT_OCCURRENCE;
+
+struct audit_occurrence_data {
+    time_t when;
+    char caller[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+    char host[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+    char location[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+    char message[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+};
+
+struct script_runtime_error_data {
+    bool active;
+    int id;
+    unsigned long long last_touch;
+    char signature[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+    time_t when;
+    time_t first_when;
+    long local_count;
+    long redis_count;
+    int category;
+    int script_type;
+    long area_uid;
+    int script_vnum;
+    int line;
+    bool has_room;
+    bool is_wilds;
+    long room_area_uid;
+    long room_vnum;
+    long wilds_uid;
+    long wilds_x;
+    long wilds_y;
+    int host_kind;
+    long host_area_uid;
+    long host_vnum;
+    char reset_command;
+    char type[SCRIPT_RUNTIME_ERROR_TEXT_MAX / 8];
+    char caller[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+    char host[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+    char location[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+    char message[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+
+    int history_next;
+    int history_count;
+    AUDIT_OCCURRENCE history[AUDIT_HISTORY_MAX];
+};
+
+static SCRIPT_RUNTIME_ERROR script_runtime_errors[SCRIPT_RUNTIME_ERROR_MAX];
+static int script_runtime_error_next_id = 1;
+static unsigned long long script_runtime_error_touch = 0ULL;
+
+enum {
+    AUDIT_HOST_UNKNOWN = 0,
+    AUDIT_HOST_MOB,
+    AUDIT_HOST_OBJ,
+    AUDIT_HOST_ROOM,
+    AUDIT_HOST_TOKEN,
+    AUDIT_HOST_RESET,
+    AUDIT_HOST_AREA
+};
 
 ROOM_INDEX_DATA room_used_for_wilderness;
 ROOM_INDEX_DATA room_pointer_vlink;
@@ -46,6 +115,7 @@ ROOM_INDEX_DATA room_pointer_environment;
 
 bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock);
 bool is_stat( const struct flag_type *flag_table );
+static void script_append_runtime_logf(SCRIPT_DATA *script, int line, const char *fmt, ...);
 
 #define SCRIPT_ENTITY_HASH_SIZE 257
 #define SCRIPT_ENTITY_LIST_CACHE_MAX 256
@@ -99,6 +169,691 @@ struct script_lookup_profile_data {
 };
 
 static SCRIPT_LOOKUP_PROFILE script_lookup_profile = {0};
+
+static const char *script_type_name(int type)
+{
+    switch (type) {
+    case PRG_MPROG: return "mprog";
+    case PRG_OPROG: return "oprog";
+    case PRG_RPROG: return "rprog";
+    case PRG_TPROG: return "tprog";
+    case PRG_APROG: return "aprog";
+    case PRG_IPROG: return "iprog";
+    case PRG_DPROG: return "dprog";
+    case PRG_QPROG: return "qprog";
+    case PRG_EPROG: return "eprog";
+    default: return "unknown";
+    }
+}
+
+static const char *reset_command_name(char cmd)
+{
+    switch (cmd) {
+    case '*': return "comment";
+    case 'M': return "spawn_mobile";
+    case 'O': return "place_object";
+    case 'P': return "put_in_container";
+    case 'G': return "give_to_mobile";
+    case 'E': return "equip_to_mobile";
+    case 'D': return "set_door_state";
+    case 'R': return "randomize_exits";
+    case 'S': return "stop";
+    default: return "unknown";
+    }
+}
+
+static unsigned long audit_signature_hash(const char *text)
+{
+    unsigned long h = 5381;
+    const unsigned char *p = (const unsigned char *)text;
+
+    while (p && *p)
+        h = ((h << 5) + h) + *p++;
+
+    return h;
+}
+
+static SCRIPT_RUNTIME_ERROR *audit_find_entry_by_signature(const char *signature)
+{
+    int i;
+
+    if (IS_NULLSTR(signature))
+        return NULL;
+
+    for (i = 0; i < SCRIPT_RUNTIME_ERROR_MAX; i++) {
+        SCRIPT_RUNTIME_ERROR *entry = &script_runtime_errors[i];
+        if (entry->active && !str_cmp(entry->signature, signature))
+            return entry;
+    }
+
+    return NULL;
+}
+
+static SCRIPT_RUNTIME_ERROR *audit_find_entry_by_id(int id)
+{
+    int i;
+    for (i = 0; i < SCRIPT_RUNTIME_ERROR_MAX; i++) {
+        SCRIPT_RUNTIME_ERROR *entry = &script_runtime_errors[i];
+        if (entry->active && entry->id == id)
+            return entry;
+    }
+    return NULL;
+}
+
+static SCRIPT_RUNTIME_ERROR *audit_alloc_entry(void)
+{
+    int i;
+    SCRIPT_RUNTIME_ERROR *oldest = NULL;
+
+    for (i = 0; i < SCRIPT_RUNTIME_ERROR_MAX; i++) {
+        SCRIPT_RUNTIME_ERROR *entry = &script_runtime_errors[i];
+        if (!entry->active)
+            return entry;
+
+        if (!oldest || entry->last_touch < oldest->last_touch)
+            oldest = entry;
+    }
+
+    return oldest;
+}
+
+static int audit_entry_compare_touch_desc(const void *a, const void *b)
+{
+    SCRIPT_RUNTIME_ERROR * const *ea = (SCRIPT_RUNTIME_ERROR * const *)a;
+    SCRIPT_RUNTIME_ERROR * const *eb = (SCRIPT_RUNTIME_ERROR * const *)b;
+
+    if ((*ea)->last_touch < (*eb)->last_touch) return 1;
+    if ((*ea)->last_touch > (*eb)->last_touch) return -1;
+    return 0;
+}
+
+static int audit_collect_sorted_entries(SCRIPT_RUNTIME_ERROR **out, int max_out)
+{
+    int i;
+    int count = 0;
+
+    if (!out || max_out <= 0)
+        return 0;
+
+    for (i = 0; i < SCRIPT_RUNTIME_ERROR_MAX && count < max_out; i++) {
+        SCRIPT_RUNTIME_ERROR *entry = &script_runtime_errors[i];
+        if (entry->active)
+            out[count++] = entry;
+    }
+
+    if (count > 1)
+        qsort(out, count, sizeof(SCRIPT_RUNTIME_ERROR *), audit_entry_compare_touch_desc);
+
+    return count;
+}
+
+static void audit_entry_add_occurrence(SCRIPT_RUNTIME_ERROR *entry)
+{
+    AUDIT_OCCURRENCE *occ;
+
+    if (!entry)
+        return;
+
+    occ = &entry->history[entry->history_next];
+    memset(occ, 0, sizeof(*occ));
+    occ->when = entry->when;
+    snprintf(occ->caller, sizeof(occ->caller), "%s", entry->caller);
+    snprintf(occ->host, sizeof(occ->host), "%s", entry->host);
+    snprintf(occ->location, sizeof(occ->location), "%s", entry->location);
+    snprintf(occ->message, sizeof(occ->message), "%s", entry->message);
+
+    entry->history_next = (entry->history_next + 1) % AUDIT_HISTORY_MAX;
+    if (entry->history_count < AUDIT_HISTORY_MAX)
+        entry->history_count++;
+}
+
+static void audit_entry_update_redis_count(SCRIPT_RUNTIME_ERROR *entry)
+{
+    long redis_total;
+
+    if (!entry || IS_NULLSTR(entry->signature))
+        return;
+
+    if (redis_audit_error_increment(entry->signature)) {
+        redis_total = redis_audit_error_get_count(entry->signature);
+        if (redis_total >= 0)
+            entry->redis_count = redis_total;
+    }
+}
+
+static bool audit_entry_matches_current_location(const SCRIPT_RUNTIME_ERROR *entry, ROOM_INDEX_DATA *room)
+{
+    if (!entry || !room || !entry->has_room)
+        return false;
+
+    if (room->wilds) {
+        return entry->is_wilds
+            && entry->wilds_uid == room->wilds->uid
+            && entry->wilds_x == room->x
+            && entry->wilds_y == room->y;
+    }
+
+    return !entry->is_wilds
+        && entry->room_area_uid == (room->area ? room->area->uid : 0)
+        && entry->room_vnum == room->vnum;
+}
+
+static bool audit_entry_matches_area(const SCRIPT_RUNTIME_ERROR *entry, long area_uid)
+{
+    if (!entry || area_uid <= 0)
+        return false;
+
+    if (entry->area_uid == area_uid)
+        return true;
+
+    if (entry->host_area_uid == area_uid)
+        return true;
+
+    if (!entry->is_wilds && entry->room_area_uid == area_uid)
+        return true;
+
+    return false;
+}
+
+static bool audit_is_valid_type_filter(const char *type)
+{
+    if (IS_NULLSTR(type))
+        return false;
+
+    return !str_cmp(type, "all")
+        || !str_cmp(type, "scripts")
+        || !str_cmp(type, "resets")
+        || !str_cmp(type, "spawn_mobile")
+        || !str_cmp(type, "place_object")
+        || !str_cmp(type, "put_in_container")
+        || !str_cmp(type, "give_to_mobile")
+        || !str_cmp(type, "equip_to_mobile")
+        || !str_cmp(type, "set_door_state")
+        || !str_cmp(type, "randomize_exits")
+        || !str_cmp(type, "mprog")
+        || !str_cmp(type, "oprog")
+        || !str_cmp(type, "rprog")
+        || !str_cmp(type, "tprog")
+        || !str_cmp(type, "aprog")
+        || !str_cmp(type, "iprog")
+        || !str_cmp(type, "dprog")
+        || !str_cmp(type, "qprog")
+        || !str_cmp(type, "eprog");
+}
+
+static ROOM_INDEX_DATA *script_info_location(SCRIPT_VARINFO *info)
+{
+    if (!info)
+        return NULL;
+
+    if (info->location)
+        return info->location;
+    if (info->room)
+        return info->room;
+    if (info->mob)
+        return info->mob->in_room;
+    if (info->obj)
+        return obj_room(info->obj);
+    if (info->token)
+        return token_room(info->token);
+
+    return NULL;
+}
+
+static void script_build_runtime_context(
+    SCRIPT_VARINFO *info,
+    CHAR_DATA *mob,
+    OBJ_DATA *obj,
+    ROOM_INDEX_DATA *room,
+    TOKEN_DATA *token,
+    AREA_DATA *area,
+    INSTANCE *instance,
+    DUNGEON *dungeon,
+    CHAR_DATA *ch,
+    CHAR_DATA *vch,
+    CHAR_DATA *vch2,
+    CHAR_DATA *rch,
+    TOKEN_DATA *tok,
+    const char *phrase,
+    const char *trigger,
+    int trigger_type)
+{
+    if (!info)
+        return;
+
+    memset(info, 0, sizeof(*info));
+
+    info->mob = mob;
+    info->obj = obj;
+    info->room = room;
+    info->token = token;
+    info->area = area;
+    info->instance = instance;
+    info->dungeon = dungeon;
+    info->ch = ch;
+    info->vch = vch;
+    info->vch2 = vch2;
+    info->rch = rch;
+    info->tok = tok;
+    info->trigger_type = trigger_type;
+
+    if (!room && ch && ch->in_room)
+        info->location = ch->in_room;
+    else
+        info->location = room;
+
+    if (!IS_NULLSTR(phrase))
+        snprintf(info->phrase, sizeof(info->phrase), "%s", phrase);
+
+    if (!IS_NULLSTR(trigger))
+        snprintf(info->trigger, sizeof(info->trigger), "%s", trigger);
+}
+
+static void script_format_location(SCRIPT_VARINFO *info, char *buf, size_t buf_size)
+{
+    ROOM_INDEX_DATA *room;
+
+    if (!buf || buf_size == 0)
+        return;
+
+    room = script_info_location(info);
+    if (!room) {
+        snprintf(buf, buf_size, "unknown");
+        return;
+    }
+
+    if (room->wilds)
+        snprintf(buf, buf_size, "wilds:%s (%ld,%ld,%ld)",
+            room->wilds->name ? room->wilds->name : "(unknown)",
+            room->wilds->uid,
+            room->x,
+            room->y);
+    else
+        snprintf(buf, buf_size, "room:%ld#%ld (%s)",
+            room->area ? room->area->uid : 0,
+            room->vnum,
+            room->name ? room->name : "(unnamed)");
+}
+
+static void script_capture_location_fields(SCRIPT_VARINFO *info, SCRIPT_RUNTIME_ERROR *entry)
+{
+    ROOM_INDEX_DATA *room;
+
+    if (!entry)
+        return;
+
+    room = script_info_location(info);
+    if (!room)
+        return;
+
+    entry->has_room = true;
+    if (room->wilds) {
+        entry->is_wilds = true;
+        entry->wilds_uid = room->wilds->uid;
+        entry->wilds_x = room->x;
+        entry->wilds_y = room->y;
+    } else {
+        entry->is_wilds = false;
+        entry->room_area_uid = room->area ? room->area->uid : 0;
+        entry->room_vnum = room->vnum;
+    }
+}
+
+static void reset_capture_location_fields(ROOM_INDEX_DATA *room, SCRIPT_RUNTIME_ERROR *entry)
+{
+    if (!room || !entry)
+        return;
+
+    entry->has_room = true;
+    if (room->wilds) {
+        entry->is_wilds = true;
+        entry->wilds_uid = room->wilds->uid;
+        entry->wilds_x = room->x;
+        entry->wilds_y = room->y;
+    } else {
+        entry->is_wilds = false;
+        entry->room_area_uid = room->area ? room->area->uid : 0;
+        entry->room_vnum = room->vnum;
+    }
+}
+
+static void script_format_caller(SCRIPT_VARINFO *info, char *buf, size_t buf_size)
+{
+    if (!buf || buf_size == 0)
+        return;
+
+    if (!info) {
+        snprintf(buf, buf_size, "unknown");
+        return;
+    }
+
+    if (info->ch) {
+        if (IS_NPC(info->ch))
+            snprintf(buf, buf_size, "mob:%s (%ld)", HANDLE(info->ch), (long)VNUM(info->ch));
+        else
+            snprintf(buf, buf_size, "player:%s", HANDLE(info->ch));
+        return;
+    }
+
+    if (info->vch) {
+        if (IS_NPC(info->vch))
+            snprintf(buf, buf_size, "victim-mob:%s (%ld)", HANDLE(info->vch), (long)VNUM(info->vch));
+        else
+            snprintf(buf, buf_size, "victim-player:%s", HANDLE(info->vch));
+        return;
+    }
+
+    if (info->trigger_type > 0) {
+        const char *trigger_type_name = trigger_name(info->trigger_type);
+        bool valid_trigger_name = (trigger_type_name && str_cmp(trigger_type_name, "INVALID"));
+
+        if (!IS_NULLSTR(info->trigger)) {
+            if (valid_trigger_name)
+                snprintf(buf, buf_size, "trigger:%d %s (%s)", info->trigger_type, trigger_type_name, info->trigger);
+            else
+                snprintf(buf, buf_size, "trigger:%d (%s)", info->trigger_type, info->trigger);
+        } else {
+            if (valid_trigger_name)
+                snprintf(buf, buf_size, "trigger:%d %s", info->trigger_type, trigger_type_name);
+            else
+                snprintf(buf, buf_size, "trigger:%d", info->trigger_type);
+        }
+        return;
+    }
+
+    snprintf(buf, buf_size, "unknown");
+}
+
+static bool audit_caller_is_trigger(const char *caller)
+{
+    return caller && !str_prefix("trigger:", caller);
+}
+
+static const char *audit_caller_trigger_text(const char *caller)
+{
+    if (!audit_caller_is_trigger(caller))
+        return NULL;
+
+    caller += 8;
+    while (*caller && isspace(*caller))
+        caller++;
+
+    return caller;
+}
+
+static void script_format_host(SCRIPT_VARINFO *info, char *buf, size_t buf_size)
+{
+    if (!buf || buf_size == 0)
+        return;
+
+    if (!info) {
+        snprintf(buf, buf_size, "unknown");
+        return;
+    }
+
+    if (info->mob) {
+        snprintf(buf, buf_size, "mob:%s (%ld)", HANDLE(info->mob), (long)VNUM(info->mob));
+        return;
+    }
+
+    if (info->obj) {
+        snprintf(buf, buf_size, "obj:%s (%ld)",
+            info->obj->short_descr ? info->obj->short_descr : "(unnamed)",
+            (long)VNUM(info->obj));
+        return;
+    }
+
+    if (info->room) {
+        snprintf(buf, buf_size, "room:%ld#%ld", info->room->area ? info->room->area->uid : 0, info->room->vnum);
+        return;
+    }
+
+    if (info->token) {
+        snprintf(buf, buf_size, "token:%s (%ld)",
+            info->token->name ? info->token->name : "(unnamed)",
+            (long)VNUM(info->token));
+        return;
+    }
+
+    if (info->area) {
+        snprintf(buf, buf_size, "area:%s (%ld)",
+            info->area->name ? info->area->name : "(unnamed)",
+            info->area->uid);
+        return;
+    }
+
+    if (info->instance) {
+        snprintf(buf, buf_size, "instance");
+        return;
+    }
+
+    if (info->dungeon) {
+        snprintf(buf, buf_size, "dungeon:%s",
+            (info->dungeon->index && info->dungeon->index->name)
+                ? info->dungeon->index->name
+                : "(unnamed)");
+        return;
+    }
+
+    if (info->quest) {
+        snprintf(buf, buf_size, "quest");
+        return;
+    }
+
+    if (!IS_NULLSTR(info->phrase)) {
+        snprintf(buf, buf_size, "phrase:%s", info->phrase);
+        return;
+    }
+
+    if (script_info_location(info)) {
+        ROOM_INDEX_DATA *loc = script_info_location(info);
+
+        if (loc->wilds)
+            snprintf(buf, buf_size, "wilds:%ld (%ld,%ld)",
+                loc->wilds->uid,
+                loc->x,
+                loc->y);
+        else
+            snprintf(buf, buf_size, "room:%ld#%ld",
+                loc->area ? loc->area->uid : 0,
+                loc->vnum);
+        return;
+    }
+
+    snprintf(buf, buf_size, "unknown");
+}
+
+static void script_fill_host_ref(SCRIPT_RUNTIME_ERROR *entry, SCRIPT_VARINFO *info)
+{
+    if (!entry || !info)
+        return;
+
+    entry->host_kind = AUDIT_HOST_UNKNOWN;
+    entry->host_area_uid = 0;
+    entry->host_vnum = 0;
+
+    if (info->mob && info->mob->pIndexData) {
+        entry->host_kind = AUDIT_HOST_MOB;
+        entry->host_area_uid = info->mob->pIndexData->area ? info->mob->pIndexData->area->uid : 0;
+        entry->host_vnum = VNUM(info->mob);
+        return;
+    }
+
+    if (info->obj && info->obj->pIndexData) {
+        entry->host_kind = AUDIT_HOST_OBJ;
+        entry->host_area_uid = info->obj->pIndexData->area ? info->obj->pIndexData->area->uid : 0;
+        entry->host_vnum = info->obj->pIndexData->vnum;
+        return;
+    }
+
+    if (info->token && info->token->pIndexData) {
+        entry->host_kind = AUDIT_HOST_TOKEN;
+        entry->host_area_uid = info->token->pIndexData->area ? info->token->pIndexData->area->uid : 0;
+        entry->host_vnum = info->token->pIndexData->vnum;
+        return;
+    }
+
+    if (info->room) {
+        entry->host_kind = AUDIT_HOST_ROOM;
+        entry->host_area_uid = info->room->area ? info->room->area->uid : 0;
+        entry->host_vnum = info->room->vnum;
+        return;
+    }
+
+    if (info->area) {
+        entry->host_kind = AUDIT_HOST_AREA;
+        entry->host_area_uid = info->area->uid;
+        return;
+    }
+}
+
+static void audit_set_signature(SCRIPT_RUNTIME_ERROR *entry)
+{
+    char sig[SCRIPT_RUNTIME_ERROR_TEXT_MAX];
+
+    if (!entry)
+        return;
+
+    snprintf(sig, sizeof(sig), "%d|%s|%ld|%d|%d|%.160s",
+        entry->category,
+        entry->type,
+        entry->area_uid,
+        entry->script_vnum,
+        entry->line,
+        entry->message);
+    snprintf(entry->signature, sizeof(entry->signature), "%s", sig);
+}
+
+static SCRIPT_RUNTIME_ERROR *audit_record_event(SCRIPT_RUNTIME_ERROR *scratch)
+{
+    SCRIPT_RUNTIME_ERROR *entry;
+
+    if (!scratch)
+        return NULL;
+
+    audit_set_signature(scratch);
+    entry = audit_find_entry_by_signature(scratch->signature);
+
+    if (!entry) {
+        entry = audit_alloc_entry();
+        if (!entry)
+            return NULL;
+
+        memset(entry, 0, sizeof(*entry));
+        entry->active = true;
+        entry->id = script_runtime_error_next_id++;
+        entry->first_when = scratch->when;
+    }
+
+    entry->when = scratch->when;
+    entry->last_touch = ++script_runtime_error_touch;
+    entry->local_count++;
+    entry->category = scratch->category;
+    entry->script_type = scratch->script_type;
+    entry->area_uid = scratch->area_uid;
+    entry->script_vnum = scratch->script_vnum;
+    entry->line = scratch->line;
+    entry->has_room = scratch->has_room;
+    entry->is_wilds = scratch->is_wilds;
+    entry->room_area_uid = scratch->room_area_uid;
+    entry->room_vnum = scratch->room_vnum;
+    entry->wilds_uid = scratch->wilds_uid;
+    entry->wilds_x = scratch->wilds_x;
+    entry->wilds_y = scratch->wilds_y;
+    entry->host_kind = scratch->host_kind;
+    entry->host_area_uid = scratch->host_area_uid;
+    entry->host_vnum = scratch->host_vnum;
+    entry->reset_command = scratch->reset_command;
+
+    snprintf(entry->type, sizeof(entry->type), "%s", scratch->type);
+    snprintf(entry->caller, sizeof(entry->caller), "%s", scratch->caller);
+    snprintf(entry->host, sizeof(entry->host), "%s", scratch->host);
+    snprintf(entry->location, sizeof(entry->location), "%s", scratch->location);
+    snprintf(entry->message, sizeof(entry->message), "%s", scratch->message);
+    snprintf(entry->signature, sizeof(entry->signature), "%s", scratch->signature);
+
+    audit_entry_add_occurrence(entry);
+    audit_entry_update_redis_count(entry);
+    return entry;
+}
+
+static void script_runtime_error_push(SCRIPT_DATA *script, int line, const char *message, SCRIPT_VARINFO *info)
+{
+    SCRIPT_RUNTIME_ERROR scratch;
+
+    if (!script || IS_NULLSTR(message))
+        return;
+
+    memset(&scratch, 0, sizeof(scratch));
+    scratch.when = current_time;
+    scratch.category = AUDIT_ERROR_SCRIPT;
+    scratch.script_type = script->type;
+    scratch.area_uid = script->area ? script->area->uid : 0;
+    scratch.script_vnum = script->vnum;
+    scratch.line = line;
+    snprintf(scratch.type, sizeof(scratch.type), "%s", script_type_name(script->type));
+
+    script_format_caller(info, scratch.caller, sizeof(scratch.caller));
+    script_format_host(info, scratch.host, sizeof(scratch.host));
+    script_format_location(info, scratch.location, sizeof(scratch.location));
+    script_capture_location_fields(info, &scratch);
+    script_fill_host_ref(&scratch, info);
+    snprintf(scratch.message, sizeof(scratch.message), "%s", message);
+
+    (void)audit_record_event(&scratch);
+}
+
+void audit_log_reset_error(ROOM_INDEX_DATA *room, RESET_DATA *reset, const char *message)
+{
+    SCRIPT_RUNTIME_ERROR scratch;
+
+    if (IS_NULLSTR(message))
+        return;
+
+    memset(&scratch, 0, sizeof(scratch));
+    scratch.when = current_time;
+    scratch.category = AUDIT_ERROR_RESET;
+    scratch.script_type = 0;
+    scratch.area_uid = room && room->area ? room->area->uid : 0;
+    scratch.script_vnum = room ? room->vnum : 0;
+    scratch.line = 0;
+    scratch.host_kind = AUDIT_HOST_RESET;
+    scratch.reset_command = reset ? reset->command : '?';
+    snprintf(scratch.type, sizeof(scratch.type), "%s", reset_command_name(scratch.reset_command));
+    snprintf(scratch.caller, sizeof(scratch.caller), "reset_engine");
+    snprintf(scratch.host, sizeof(scratch.host), "reset:%s", reset_command_name(scratch.reset_command));
+
+    if (room) {
+        if (room->wilds)
+            snprintf(scratch.location, sizeof(scratch.location), "wilds:%s (%ld,%ld,%ld)",
+                room->wilds->name ? room->wilds->name : "(unknown)",
+                room->wilds->uid,
+                room->x,
+                room->y);
+        else
+            snprintf(scratch.location, sizeof(scratch.location), "room:%ld#%ld (%s)",
+                room->area ? room->area->uid : 0,
+                room->vnum,
+                room->name ? room->name : "(unnamed)");
+    } else {
+        snprintf(scratch.location, sizeof(scratch.location), "unknown");
+    }
+
+    reset_capture_location_fields(room, &scratch);
+    if (room && room->area) {
+        scratch.host_area_uid = room->area->uid;
+        scratch.host_vnum = room->vnum;
+    }
+
+    snprintf(scratch.message, sizeof(scratch.message), "%s", message);
+    (void)audit_record_event(&scratch);
+}
+
+static void script_log_runtime_error_context(SCRIPT_DATA *script, int line, const char *message, SCRIPT_VARINFO *info)
+{
+    script_append_runtime_logf(script, line, "%s", message ? message : "(null)");
+    script_runtime_error_push(script, line, message ? message : "(null)", info);
+}
 
 static void script_set_log_text(char **target, const char *text)
 {
@@ -169,7 +924,359 @@ static void script_append_runtime_logf(SCRIPT_DATA *script, int line, const char
 
 void script_log_runtime_error(SCRIPT_DATA *script, int line, const char *message)
 {
-    script_append_runtime_logf(script, line, "%s", message ? message : "(null)");
+    script_log_runtime_error_context(script, line, message, NULL);
+}
+
+void do_error(CHAR_DATA *ch, char *argument)
+{
+    BUFFER *buffer;
+    char line_buf[MSL];
+    char time_buf[64];
+    char area_parse[MSL];
+    char trailing_type[MIL];
+    char arg_scope[MIL];
+    char arg_filter[MIL];
+    char arg_type[MIL];
+    const char *type_filter_arg = NULL;
+    bool location_only = false;
+    bool area_only = false;
+    AREA_DATA *filter_area = NULL;
+    long filter_area_uid = 0;
+    bool filter_any_type = true;
+    int filter_category = 0;
+    int shown = 0;
+    SCRIPT_RUNTIME_ERROR *entries[SCRIPT_RUNTIME_ERROR_MAX];
+    int entry_count;
+    int i;
+
+    if (!ch)
+        return;
+
+    argument = one_argument(argument, arg_scope);
+
+    if (!str_cmp(arg_scope, "area") || !str_cmp(arg_scope, "zone")) {
+        area_only = true;
+
+        while (*argument && isspace(*argument))
+            argument++;
+
+        if (IS_NULLSTR(argument)) {
+            send_to_char("Syntax: error area <name|uid> [type]\n\r", ch);
+            return;
+        }
+
+        arg_filter[0] = '\0';
+        arg_type[0] = '\0';
+        trailing_type[0] = '\0';
+
+        if (*argument == '\'' || *argument == '"') {
+            argument = one_argument(argument, arg_filter);
+            argument = one_argument(argument, arg_type);
+        } else {
+            char *last_space;
+            char *tail;
+
+            snprintf(area_parse, sizeof(area_parse), "%s", argument);
+            last_space = strrchr(area_parse, ' ');
+
+            if (last_space) {
+                snprintf(trailing_type, sizeof(trailing_type), "%s", last_space + 1);
+
+                if (audit_is_valid_type_filter(trailing_type)) {
+                    *last_space = '\0';
+                    while (*area_parse && isspace(*area_parse))
+                        memmove(area_parse, area_parse + 1, strlen(area_parse));
+
+                    tail = area_parse + strlen(area_parse) - 1;
+                    while (tail >= area_parse && isspace(*tail)) {
+                        *tail = '\0';
+                        tail--;
+                    }
+
+                    snprintf(arg_filter, sizeof(arg_filter), "%.511s", area_parse);
+                    snprintf(arg_type, sizeof(arg_type), "%s", trailing_type);
+                } else {
+                    snprintf(arg_filter, sizeof(arg_filter), "%.511s", area_parse);
+                }
+            } else {
+                snprintf(arg_filter, sizeof(arg_filter), "%.511s", area_parse);
+            }
+        }
+
+        if (IS_NULLSTR(arg_filter)) {
+            send_to_char("Syntax: error area <name|uid> [type]\n\r", ch);
+            return;
+        }
+
+        if (is_number(arg_filter))
+            filter_area = get_area_from_uid(atol(arg_filter));
+        else
+            filter_area = find_area(arg_filter);
+
+        if (!filter_area) {
+            send_to_char("No area found with that name/uid.\n\r", ch);
+            return;
+        }
+
+        filter_area_uid = filter_area->uid;
+        type_filter_arg = arg_type;
+    } else {
+    argument = one_argument(argument, arg_filter);
+    argument = one_argument(argument, arg_type);
+    }
+
+    if (!str_cmp(arg_scope, "view")) {
+        SCRIPT_RUNTIME_ERROR *entry;
+        int view_id;
+        int h;
+
+        if (!is_number(arg_filter)) {
+            send_to_char("Syntax: error view <id>\n\r", ch);
+            return;
+        }
+
+        view_id = atoi(arg_filter);
+        entry = audit_find_entry_by_id(view_id);
+        if (!entry) {
+            send_to_char("No error found with that id.\n\r", ch);
+            return;
+        }
+
+        buffer = new_buf();
+        snprintf(line_buf, sizeof(line_buf),
+            "Error #%d | %s | local=%ld redis=%ld | sig=%08lx\n\r",
+            entry->id,
+            entry->type,
+            entry->local_count,
+            entry->redis_count,
+            audit_signature_hash(entry->signature));
+        add_buf(buffer, line_buf);
+        add_buf(buffer, "Occurrences (newest first):\n\r");
+
+        for (h = 0; h < entry->history_count; h++) {
+            int hid = (entry->history_next - 1 - h + AUDIT_HISTORY_MAX) % AUDIT_HISTORY_MAX;
+            AUDIT_OCCURRENCE *occ = &entry->history[hid];
+            struct tm *tm_info = localtime(&occ->when);
+            const char *trigger_text = audit_caller_trigger_text(occ->caller);
+            if (!(tm_info && strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S %Z", tm_info) > 0))
+                snprintf(time_buf, sizeof(time_buf), "%ld", (long)occ->when);
+
+            if (trigger_text) {
+                snprintf(line_buf, sizeof(line_buf),
+                    "[%2d] %s | trigger: %s | host: %s\n\r"
+                    "     location: %s\n\r"
+                    "     message: %s\n\r",
+                    h + 1,
+                    time_buf,
+                    trigger_text,
+                    occ->host,
+                    occ->location,
+                    occ->message);
+            } else {
+                snprintf(line_buf, sizeof(line_buf),
+                    "[%2d] %s | caller: %s | host: %s\n\r"
+                    "     location: %s\n\r"
+                    "     message: %s\n\r",
+                    h + 1,
+                    time_buf,
+                    occ->caller,
+                    occ->host,
+                    occ->location,
+                    occ->message);
+            }
+            add_buf(buffer, line_buf);
+        }
+
+        page_to_char(buffer->string, ch);
+        free_buf(buffer);
+        return;
+    }
+
+    if (IS_NULLSTR(arg_scope)) {
+        send_to_char("Syntax: error <location|all> [type]\n\r", ch);
+        send_to_char("        error area <name|uid> [type]\n\r", ch);
+        send_to_char("        error view <id>\n\r", ch);
+        send_to_char("Types: all, scripts, resets, spawn_mobile, place_object, put_in_container, give_to_mobile, equip_to_mobile, set_door_state, randomize_exits, mprog, oprog, rprog, tprog, aprog, iprog, dprog, qprog, eprog\n\r", ch);
+        return;
+    }
+
+    if (!str_cmp(arg_scope, "location")) {
+        location_only = true;
+        type_filter_arg = arg_filter;
+    } else if (!str_cmp(arg_scope, "all")) {
+        location_only = false;
+        type_filter_arg = arg_filter;
+    } else if (area_only) {
+        ;
+    } else {
+        send_to_char("Syntax: error <location|all> [type]\n\r", ch);
+        send_to_char("        error area <name|uid> [type]\n\r", ch);
+        return;
+    }
+
+    if (type_filter_arg && !IS_NULLSTR(type_filter_arg)) {
+        filter_any_type = false;
+
+        if (!str_cmp(type_filter_arg, "all"))
+            filter_any_type = true;
+        else if (!str_cmp(type_filter_arg, "scripts"))
+            filter_category = AUDIT_ERROR_SCRIPT;
+        else if (!str_cmp(type_filter_arg, "resets"))
+            filter_category = AUDIT_ERROR_RESET;
+    }
+
+    entry_count = audit_collect_sorted_entries(entries, SCRIPT_RUNTIME_ERROR_MAX);
+    if (entry_count == 0) {
+        send_to_char("No audit errors recorded.\n\r", ch);
+        return;
+    }
+
+    buffer = new_buf();
+    if (area_only)
+        snprintf(line_buf, sizeof(line_buf), "Recent audit errors in area %s (%ld) (newest first):\n\r",
+            filter_area->name ? filter_area->name : "(unnamed)",
+            filter_area_uid);
+    else
+        snprintf(line_buf, sizeof(line_buf), "Recent audit errors (newest first):\n\r");
+    add_buf(buffer, line_buf);
+
+    for (i = 0; i < entry_count; i++) {
+        SCRIPT_RUNTIME_ERROR *entry = entries[i];
+        struct tm *tm_info;
+        AREA_DATA *host_area;
+        AREA_DATA *room_area;
+        ROOM_INDEX_DATA *room;
+        MOB_INDEX_DATA *mob_index;
+        OBJ_INDEX_DATA *obj_index;
+        TOKEN_INDEX_DATA *token_index;
+        const char *trigger_text;
+        char label[MIL];
+        char cmd1[MIL], cmd2[MIL];
+        mxp_cmd_hint_t items[3];
+
+        if (location_only && !audit_entry_matches_current_location(entry, ch->in_room))
+            continue;
+
+        if (area_only && !audit_entry_matches_area(entry, filter_area_uid))
+            continue;
+
+        if (!filter_any_type) {
+            if (filter_category != 0) {
+                if (entry->category != filter_category)
+                    continue;
+            } else if (str_cmp(entry->type, type_filter_arg)) {
+                continue;
+            }
+        }
+
+        tm_info = localtime(&entry->when);
+        if (!(tm_info && strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S %Z", tm_info) > 0))
+            snprintf(time_buf, sizeof(time_buf), "%ld", (long)entry->when);
+
+        trigger_text = audit_caller_trigger_text(entry->caller);
+
+        if (trigger_text) {
+            snprintf(line_buf, sizeof(line_buf),
+                "[#%d] %s | %s | %s %ld#%d line %d | local=%ld redis=%ld\n\r"
+                "     trigger: %s\n\r"
+                "     host: ",
+                entry->id,
+                time_buf,
+                entry->category == AUDIT_ERROR_RESET ? "reset" : "script",
+                entry->type,
+                entry->area_uid,
+                entry->script_vnum,
+                entry->line,
+                entry->local_count,
+                entry->redis_count,
+                trigger_text);
+        } else {
+            snprintf(line_buf, sizeof(line_buf),
+                "[#%d] %s | %s | %s %ld#%d line %d | local=%ld redis=%ld\n\r"
+                "     caller: %s\n\r"
+                "     host: ",
+                entry->id,
+                time_buf,
+                entry->category == AUDIT_ERROR_RESET ? "reset" : "script",
+                entry->type,
+                entry->area_uid,
+                entry->script_vnum,
+                entry->line,
+                entry->local_count,
+                entry->redis_count,
+                entry->caller);
+        }
+        add_buf(buffer, line_buf);
+
+        host_area = get_area_from_uid(entry->host_area_uid);
+        if (entry->host_kind == AUDIT_HOST_ROOM && host_area && entry->host_vnum > 0) {
+            room = get_room_index(host_area, entry->host_vnum);
+            if (room)
+                mxp_room_link(ch->desc, buffer, room, "room");
+            else
+                add_buf(buffer, entry->host);
+        } else if (entry->host_kind == AUDIT_HOST_MOB && host_area && entry->host_vnum > 0) {
+            mob_index = get_mob_index(host_area, entry->host_vnum);
+            if (mob_index) {
+                snprintf(label, sizeof(label), "mob");
+                snprintf(cmd1, sizeof(cmd1), "mshow %ld#%ld", entry->host_area_uid, entry->host_vnum);
+                snprintf(cmd2, sizeof(cmd2), "medit %ld#%ld", entry->host_area_uid, entry->host_vnum);
+                items[0].cmd = cmd1; items[0].hint = "Show mobile";
+                items[1].cmd = cmd2; items[1].hint = "Edit mobile";
+                mxp_link_multi(ch->desc, buffer, label, items, 2);
+            } else add_buf(buffer, entry->host);
+        } else if (entry->host_kind == AUDIT_HOST_OBJ && host_area && entry->host_vnum > 0) {
+            obj_index = get_obj_index(host_area, entry->host_vnum);
+            if (obj_index)
+                mxp_obj_vnum_link(ch->desc, buffer, obj_index, "object");
+            else
+                add_buf(buffer, entry->host);
+        } else if (entry->host_kind == AUDIT_HOST_TOKEN && host_area && entry->host_vnum > 0) {
+            token_index = get_token_index(host_area, entry->host_vnum);
+            if (token_index) {
+                snprintf(cmd1, sizeof(cmd1), "tshow %ld#%ld", entry->host_area_uid, entry->host_vnum);
+                snprintf(cmd2, sizeof(cmd2), "tpedit %ld#%ld", entry->host_area_uid, entry->host_vnum);
+                items[0].cmd = cmd1; items[0].hint = "Show token";
+                items[1].cmd = cmd2; items[1].hint = "Edit token";
+                mxp_link_multi(ch->desc, buffer, "token", items, 2);
+            } else add_buf(buffer, entry->host);
+        } else if (entry->host_kind == AUDIT_HOST_RESET) {
+            add_buf(buffer, entry->host);
+        } else {
+            add_buf(buffer, entry->host);
+        }
+        add_buf(buffer, "\n\r     location: ");
+
+        if (entry->has_room && !entry->is_wilds) {
+            room_area = get_area_from_uid(entry->room_area_uid);
+            room = room_area ? get_room_index(room_area, entry->room_vnum) : NULL;
+            if (room)
+                mxp_room_link(ch->desc, buffer, room, "room");
+            else
+                add_buf(buffer, entry->location);
+        } else if (entry->has_room && entry->is_wilds) {
+            snprintf(cmd1, sizeof(cmd1), "goxy %ld %ld %ld", entry->wilds_x, entry->wilds_y, entry->wilds_uid);
+            mxp_command_link(ch->desc, buffer, cmd1, "Goto wilderness coordinates", "wilds");
+        } else {
+            add_buf(buffer, entry->location);
+        }
+
+        snprintf(line_buf, sizeof(line_buf), "\n\r     message: %s\n\r", entry->message);
+        add_buf(buffer, line_buf);
+        shown++;
+    }
+
+    if (shown == 0)
+        add_buf(buffer, "No entries matched the requested filter.\n\r");
+
+    page_to_char(buffer->string, ch);
+    free_buf(buffer);
+}
+
+void do_scripterrors(CHAR_DATA *ch, char *argument)
+{
+    (void)argument;
+    do_error(ch, "all scripts");
 }
 
 static unsigned long long script_profile_now_ns(void)
@@ -4532,6 +5639,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
 {
     char buf[MSL];
     SCRIPT_CB block;	// Control block
+    SCRIPT_VARINFO runtime_info;
     int saved_call_depth;	// Call depth copied
     int saved_security;	// Security copied
     bool saved_wiznet;
@@ -4541,21 +5649,31 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
 
     script_destructed = false;
 
+    script_build_runtime_context(
+        &runtime_info,
+        mob, obj, room, token,
+        area, instance, dungeon,
+        ch, vch, vch2, rch, tok,
+        phrase, trigger, trigger_type);
+
     if (!script || !script->code) {
-        script_append_runtime_logf(script, 0, "No script bytecode available for execution.");
+        script_log_runtime_error_context(script, 0,
+            formatf("No script bytecode available for execution (vnum %ld).", pvnum), &runtime_info);
         pbugf(LOG_SCRIPTS, "PROGs: No script to execute for vnum %d.", pvnum);
         return PRET_NOSCRIPT;
     }
 
     if (!script->src || script->src[0] == '\0') {
-        script_append_runtime_logf(script, 0, "No script source available for execution.");
+        script_log_runtime_error_context(script, 0,
+            formatf("No script source available for execution (vnum %ld).", pvnum), &runtime_info);
         pbugf(LOG_SCRIPTS, "PROGs: No script source to execute for vnum %d.", pvnum);
         return PRET_NOSCRIPT;
     }
 
     if (IS_VALID(mob) && !IS_NPC(mob) )
     {
-        script_append_runtime_logf(script, 0, "Attempted to run script with a player actor.");
+        script_log_runtime_error_context(script, 0,
+            formatf("Attempted to run script with a player actor (vnum %ld).", pvnum), &runtime_info);
         pbugf(LOG_SCRIPTS, "PROGs: Attempting to run a script with a player actor for vnum %d.", pvnum);
         return PRET_NOSCRIPT;
     }
@@ -4566,7 +5684,8 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
         (token && area) || (token && instance) || (token && dungeon) ||
         (area && instance) || (area && dungeon) ||
         (instance && dungeon)) {
-        script_append_runtime_logf(script, 0, "Script dispatch received multiple conflicting entity contexts.");
+        script_log_runtime_error_context(script, 0,
+            formatf("Script dispatch received multiple conflicting entity contexts (vnum %ld).", pvnum), &runtime_info);
         pbugf(LOG_SCRIPTS, "PROGs: program_flow received multiple prog types for vnum %d.", pvnum);
         return PRET_BADTYPE;
     }
@@ -12195,7 +13314,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
 {
     if (info && info->block && info->block->script)
-        script_log_runtime_error(info->block->script, info->block->line, message ? message : "(null)");
+        script_log_runtime_error_context(info->block->script, info->block->line, message ? message : "(null)", info);
 
     pbugf(LOG_SCRIPTS, "Script:%ld#%d:Line:%d:%s\n\r",
         info->block->script->area->uid, info->block->script->vnum,

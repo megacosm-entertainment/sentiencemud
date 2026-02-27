@@ -22,6 +22,17 @@ static bool redis_json_available = false;
 static REDIS_STATS stats = {0};
 static pthread_mutex_t redis_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static unsigned long redis_signature_hash(const char *text)
+{
+    unsigned long h = 5381;
+    const unsigned char *p = (const unsigned char *)text;
+
+    while (p && *p)
+        h = ((h << 5) + h) + *p++;
+
+    return h;
+}
+
 /***************************************************************************
  * Connection Management                                                   *
  ***************************************************************************/
@@ -1915,18 +1926,12 @@ bool redis_leaderboard_set_ratio_data(const char *player_name,
     snprintf(deaths_field, sizeof(deaths_field), "%s:deaths", player_name);
 
     pthread_mutex_lock(&redis_mutex);
-    reply = redisCommand(redis_ctx, "HSET leaderboard:ratio:data %s %d %s %d",
-                         kills_field, total_kills, deaths_field, total_deaths);
+    reply = redisCommand(redis_ctx,
+                         "HSET leaderboard:ratio:data %s %d %s %d",
+                         kills_field, total_kills,
+                         deaths_field, total_deaths);
 
     if (reply == NULL) {
-        stats.errors++;
-        pthread_mutex_unlock(&redis_mutex);
-        return false;
-    }
-
-    if (reply->type == REDIS_REPLY_ERROR) {
-        log_stringf("Redis: HSET ratio data error: %s", reply->str);
-        freeReplyObject(reply);
         stats.errors++;
         pthread_mutex_unlock(&redis_mutex);
         return false;
@@ -1939,11 +1944,10 @@ bool redis_leaderboard_set_ratio_data(const char *player_name,
 }
 
 /**
- * redis_leaderboard_get_ratio_data - Compute ratios from stored hash data
+ * redis_leaderboard_get_ratio_data - Compute ratio leaderboard from hash data
  *
- * Fetches HGETALL leaderboard:ratio:data, parses player:kills / player:deaths
- * pairs, computes win percentages, filters by threshold, sorts ascending,
- * returns top N worst ratios.
+ * Reads all kills/deaths from leaderboard:ratio:data and computes
+ * KDR = kills / max(1,deaths), then returns sorted ascending.
  */
 int redis_leaderboard_get_ratio_data(int max_entries, char **names,
                                       double *scores, int min_total_fights)
@@ -1973,11 +1977,6 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
 
     stats.hits++;
 
-    /*
-     * Parse field-value pairs from HGETALL.
-     * Fields are "PlayerName:kills" and "PlayerName:deaths".
-     * We build a temporary array of {name, kills, deaths} tuples.
-     */
     typedef struct {
         char name[256];
         int kills;
@@ -1986,7 +1985,6 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
         bool has_deaths;
     } ratio_entry_t;
 
-    /* Worst case: elements/2 fields, half of which are kills, half deaths */
     int max_players = (int)(reply->elements / 2);
     ratio_entry_t *entries = calloc(max_players, sizeof(ratio_entry_t));
     int num_players = 0;
@@ -2000,20 +1998,16 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
     for (size_t i = 0; i + 1 < reply->elements; i += 2) {
         const char *field = reply->element[i]->str;
         int value = atoi(reply->element[i + 1]->str);
-
-        /* Find the last ':' to split "Name:kills" or "Name:deaths" */
         const char *sep = strrchr(field, ':');
         if (!sep) continue;
 
         char player[256];
-        size_t name_len = sep - field;
+        size_t name_len = (size_t)(sep - field);
         if (name_len >= sizeof(player)) continue;
         memcpy(player, field, name_len);
         player[name_len] = '\0';
 
         const char *suffix = sep + 1;
-
-        /* Find or create entry for this player */
         int idx = -1;
         for (int j = 0; j < num_players; j++) {
             if (strcmp(entries[j].name, player) == 0) {
@@ -2038,7 +2032,6 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
     freeReplyObject(reply);
     pthread_mutex_unlock(&redis_mutex);
 
-    /* Compute ratios and filter */
     typedef struct {
         char name[256];
         double ratio;
@@ -2059,15 +2052,14 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
         if (total < min_total_fights) continue;
         if (entries[i].deaths == 0) continue;
 
-        double ratio = (double)entries[i].kills * 100.0 / (double)total;
+        results[num_results].ratio = (double)entries[i].kills * 100.0 / (double)total;
         strncpy(results[num_results].name, entries[i].name, sizeof(results[num_results].name) - 1);
-        results[num_results].ratio = ratio;
+        results[num_results].name[sizeof(results[num_results].name) - 1] = '\0';
         num_results++;
     }
 
     free(entries);
 
-    /* Sort ascending (worst ratio first) */
     for (int i = 0; i < num_results - 1; i++) {
         for (int j = i + 1; j < num_results; j++) {
             if (results[j].ratio < results[i].ratio) {
@@ -2078,7 +2070,6 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
         }
     }
 
-    /* Return top N */
     count = num_results < max_entries ? num_results : max_entries;
     for (int i = 0; i < count; i++) {
         names[i] = strdup(results[i].name);
@@ -2120,4 +2111,56 @@ long redis_leaderboard_count(const char *board_name)
     freeReplyObject(reply);
     pthread_mutex_unlock(&redis_mutex);
     return count;
+}
+
+bool redis_audit_error_increment(const char *signature)
+{
+    redisReply *reply;
+    char key[128];
+    unsigned long hash;
+
+    if (!redis_is_available() || IS_NULLSTR(signature))
+        return false;
+
+    hash = redis_signature_hash(signature);
+    snprintf(key, sizeof(key), "audit:error:%08lx:count", hash);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "INCR %s", key);
+    pthread_mutex_unlock(&redis_mutex);
+
+    if (!reply)
+        return false;
+
+    freeReplyObject(reply);
+    return true;
+}
+
+long redis_audit_error_get_count(const char *signature)
+{
+    redisReply *reply;
+    char key[128];
+    unsigned long hash;
+    long value = -1;
+
+    if (!redis_is_available() || IS_NULLSTR(signature))
+        return -1;
+
+    hash = redis_signature_hash(signature);
+    snprintf(key, sizeof(key), "audit:error:%08lx:count", hash);
+
+    pthread_mutex_lock(&redis_mutex);
+    reply = redisCommand(redis_ctx, "GET %s", key);
+    pthread_mutex_unlock(&redis_mutex);
+
+    if (!reply)
+        return -1;
+
+    if (reply->type == REDIS_REPLY_STRING || reply->type == REDIS_REPLY_INTEGER)
+        value = atol(reply->str ? reply->str : "0");
+    else if (reply->type == REDIS_REPLY_NIL)
+        value = 0;
+
+    freeReplyObject(reply);
+    return value;
 }

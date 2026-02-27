@@ -13165,42 +13165,33 @@ MOB_INDEX_DATA *get_reserved_mob_index(const char *name)
  */
 OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
 {
-    ITERATOR it;
     RESERVED_DATA *reserved;
-    WNUM wnum;
-    AREA_DATA *area;
+    AREA_DATA *reserved_area;
     OBJ_INDEX_DATA *obj;
+    WNUM resolved;
+    char vnum_str[32];
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
-        
-    iterator_start(&it, reserved_vnums);
-    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
-        if (reserved->type == RESERVED_OBJ && 
-            !str_cmp(name, reserved->name)) {
-            iterator_stop(&it);
-            wnum.pArea = get_area_index(reserved->wnum.auid);
-            wnum.vnum = reserved->wnum.vnum;
 
-            if (wnum.pArea) {
-                obj = get_obj_index(wnum.pArea, wnum.vnum);
-                if (obj)
-                    return obj;
-            }
+    reserved = find_reserved(name);
+    if (!reserved || reserved->type != RESERVED_OBJ)
+        return NULL;
 
-            for (area = area_first; area; area = area->next) {
-                obj = get_obj_index(area, wnum.vnum);
-                if (obj)
-                    return obj;
-            }
-
-            wnum.pArea = get_system_area_fallback();
-            if (wnum.pArea)
-                return get_obj_index(wnum.pArea, wnum.vnum);
-            return NULL;
-        }
+    if (reserved->wnum.auid <= 0 && reserved->wnum.vnum > 0) {
+        snprintf(vnum_str, sizeof(vnum_str), "%ld", reserved->wnum.vnum);
+        if (parse_widevnum(vnum_str, NULL, &resolved) && resolved.pArea)
+            reserved->wnum.auid = resolved.pArea->uid;
     }
-    iterator_stop(&it);
+
+    reserved_area = get_area_index(reserved->wnum.auid);
+    if (reserved_area) {
+        obj = get_obj_index(reserved_area, reserved->wnum.vnum);
+        if (obj)
+            return obj;
+    }
+
+    return get_obj_index_global(reserved->wnum.vnum);
     
     return NULL;
 }
@@ -13210,35 +13201,41 @@ OBJ_INDEX_DATA *get_reserved_obj_index(const char *name)
  */
 ROOM_INDEX_DATA *get_reserved_room_index(const char *name)
 {
-    ITERATOR it;
     RESERVED_DATA *reserved;
+    AREA_DATA *area;
+    ROOM_INDEX_DATA *room;
+    long vnum;
     
     if (!name || !*name || !reserved_vnums)
         return NULL;
-        
-    iterator_start(&it, reserved_vnums);
-    while ((reserved = (RESERVED_DATA *)iterator_nextdata(&it))) {
-        if (reserved->type == RESERVED_ROOM && 
-            !str_cmp(name, reserved->name)) {
-            iterator_stop(&it);
-            
-            // Search all areas for this room vnum
-            // Don't trust the stored area UID as it may be incorrect
-            AREA_DATA *area;
-            ROOM_INDEX_DATA *room;
-            
-            for (area = area_first; area; area = area->next) {
-                room = get_room_index(area, reserved->wnum.vnum);
-                if (room) {
-                    return room;
-                }
+
+    reserved = find_reserved(name);
+    if (!reserved || reserved->type != RESERVED_ROOM)
+        return NULL;
+
+    vnum = reserved->wnum.vnum;
+    if (vnum <= 0)
+        return NULL;
+
+    area = get_area_index(reserved->wnum.auid);
+    if (area) {
+        for (room = area->room_index_hash[vnum % MAX_KEY_HASH]; room != NULL; room = room->next) {
+            if (room->vnum == vnum)
+                return room;
+        }
+
+        reserved->wnum.auid = 0;
+    }
+
+    for (area = area_first; area; area = area->next) {
+        for (room = area->room_index_hash[vnum % MAX_KEY_HASH]; room != NULL; room = room->next) {
+            if (room->vnum == vnum) {
+                reserved->wnum.auid = area->uid;
+                return room;
             }
-            
-            return NULL;
         }
     }
-    iterator_stop(&it);
-    
+
     return NULL;
 }
 

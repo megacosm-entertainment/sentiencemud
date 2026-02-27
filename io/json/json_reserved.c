@@ -117,6 +117,8 @@ RESERVED_DATA *json_reserved_deserialize(json_t *json)
     char vnum_str[MAX_INPUT_LENGTH];
     WNUM wnum;
     bool areas_loaded;
+    AREA_DATA *scan_area;
+    bool resolved = false;
     
     if (!json || !json_is_object(json))
         return NULL;
@@ -214,19 +216,61 @@ RESERVED_DATA *json_reserved_deserialize(json_t *json)
             reserved->wnum.auid = 0;
             reserved->wnum.vnum = vnum;
         } else {
-            /* Only vnum provided - use parse_widevnum to find the area */
-            sprintf(vnum_str, "%ld", vnum);
-            if (parse_widevnum(vnum_str, NULL, &wnum)) {
-                reserved->wnum.auid = wnum.pArea ? wnum.pArea->uid : 0;
-                reserved->wnum.vnum = vnum;
-                plogf(LOG_INFO, "Reserved '%s': Found vnum %ld in area %ld", 
-                      reserved->name, vnum, reserved->wnum.auid);
+            reserved->wnum.vnum = vnum;
+            reserved->wnum.auid = 0;
+
+            for (scan_area = area_first; scan_area != NULL && !resolved; scan_area = scan_area->next) {
+                if (reserved->type == RESERVED_ROOM) {
+                    ROOM_INDEX_DATA *room;
+
+                    for (room = scan_area->room_index_hash[vnum % MAX_KEY_HASH]; room != NULL; room = room->next) {
+                        if (room->vnum == vnum) {
+                            reserved->wnum.auid = scan_area->uid;
+                            resolved = true;
+                            break;
+                        }
+                    }
+                } else if (reserved->type == RESERVED_OBJ) {
+                    OBJ_INDEX_DATA *obj;
+
+                    for (obj = scan_area->obj_index_hash[vnum % MAX_KEY_HASH]; obj != NULL; obj = obj->next) {
+                        if (obj->vnum == vnum) {
+                            reserved->wnum.auid = scan_area->uid;
+                            resolved = true;
+                            break;
+                        }
+                    }
+                } else if (reserved->type == RESERVED_MOB) {
+                    MOB_INDEX_DATA *mob;
+
+                    for (mob = scan_area->mob_index_hash[vnum % MAX_KEY_HASH]; mob != NULL; mob = mob->next) {
+                        if (mob->vnum == vnum) {
+                            reserved->wnum.auid = scan_area->uid;
+                            resolved = true;
+                            break;
+                        }
+                    }
+                } else if (reserved->type == RESERVED_TOKEN) {
+                    TOKEN_INDEX_DATA *token;
+
+                    for (token = scan_area->token_index_hash[vnum % MAX_KEY_HASH]; token != NULL; token = token->next) {
+                        if (token->vnum == vnum) {
+                            reserved->wnum.auid = scan_area->uid;
+                            resolved = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (resolved) {
+                plogf(LOG_INFO, "Reserved '%s': Found vnum %ld in area %ld",
+                    reserved->name, vnum, reserved->wnum.auid);
             } else {
-                /* Couldn't find area - store with area 0 */
-                reserved->wnum.auid = 0;
-                reserved->wnum.vnum = vnum;
-                plogf(LOG_WARN, "Reserved '%s': Vnum %ld not found in any area", 
-                      reserved->name, vnum);
+                plogf(LOG_WARN, "Reserved '%s': Vnum %ld not found for type '%s'",
+                    reserved->name,
+                    vnum,
+                    reserved_types_get_name(reserved->type));
             }
         }
     } else {

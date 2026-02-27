@@ -3578,6 +3578,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
         {
         default:
             log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: bad command %c.", pReset->command);
+            audit_log_reset_error(pRoom, pReset, formatf("Reset_room: bad command %c.", pReset->command));
             break;
 
         case 'M':
@@ -3590,12 +3591,14 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             if (!pMobIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'M': bad vnum %ld.", pReset->arg1.wnum.vnum);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'M': bad vnum %ld.", pReset->arg1.wnum.vnum));
                 continue;
             }
 
             if ((pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)) == NULL)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_area: 'R': bad vnum %ld.", pReset->arg3.value);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_area: 'R': bad vnum %ld.", pReset->arg3.value));
                 continue;
             }
 
@@ -3670,12 +3673,14 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             if (!pObjIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 1 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg1.wnum.vnum, pReset->arg1.wnum.vnum, pReset->arg2, pReset->arg3.value, pReset->arg4);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'O' 1 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg1.wnum.vnum, pReset->arg1.wnum.vnum, pReset->arg2, pReset->arg3.value, pReset->arg4));
                 continue;
             }
 
             if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)))
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'O' 2 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg3.value, pReset->arg1.wnum.vnum, pReset->arg2, pReset->arg3.value, pReset->arg4);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'O' 2 : bad vnum %ld (args: %ld %ld %ld %ld)", pReset->arg3.value, pReset->arg1.wnum.vnum, pReset->arg2, pReset->arg3.value, pReset->arg4));
                 continue;
             }
 
@@ -3731,6 +3736,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             if (!pObjIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg1.wnum.vnum);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'P': bad vnum %ld.", pReset->arg1.wnum.vnum));
                 continue;
             }
 
@@ -3741,6 +3747,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             if (!pObjToIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'P': bad vnum %ld.", pReset->arg3.wnum.vnum);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'P': bad vnum %ld.", pReset->arg3.wnum.vnum));
                 continue;
             }
 
@@ -3819,6 +3826,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             if (!pObjIndex)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1.wnum.vnum);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1.wnum.vnum));
                 continue;
             }
 
@@ -3828,6 +3836,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             if (!LastMob)
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'E' or 'G': null mob for vnum %ld.", pReset->arg1.wnum.vnum);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'E' or 'G': null mob for vnum %ld.", pReset->arg1.wnum.vnum));
                 last = false;
                 break;
             }
@@ -3876,6 +3885,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
             if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg1.value)))
             {
                 log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Reset_room: 'R': bad vnum %ld.", pReset->arg1.value);
+                audit_log_reset_error(pRoom, pReset, formatf("Reset_room: 'R': bad vnum %ld.", pReset->arg1.value));
                 continue;
             }
 
@@ -5192,7 +5202,12 @@ OBJ_INDEX_DATA *get_obj_index(AREA_DATA *pArea, long vnum)
 
     if (fBootDb)
     {
-    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_obj_index: bad vnum %ld.", vnum);
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+        "Get_obj_index: bad vnum %ld (widevnum %ld#%ld, area '%s').",
+        vnum,
+        pArea ? pArea->uid : 0,
+        vnum,
+        (pArea && pArea->name) ? pArea->name : "(unknown)");
     log_get_stacktrace(1);
     return NULL;
     }
@@ -5234,7 +5249,12 @@ ROOM_INDEX_DATA *get_room_index(AREA_DATA *pArea, long vnum)
 
     if (fBootDb)
     {
-    log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Get_room_index: bad vnum %ld.", vnum);
+    log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+        "Get_room_index: bad vnum %ld (widevnum %ld#%ld, area '%s').",
+        vnum,
+        pArea ? pArea->uid : 0,
+        vnum,
+        (pArea && pArea->name) ? pArea->name : "(unknown)");
         return NULL;
     }
 

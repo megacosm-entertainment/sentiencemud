@@ -11243,6 +11243,7 @@ extern int wear_params[MAX_WEAR][7];
 char *get_script_prompt_string(CHAR_DATA *ch, char *key);
 bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, int mana);
 void script_log_runtime_error(SCRIPT_DATA *script, int line, const char *message);
+void audit_log_reset_error(ROOM_INDEX_DATA *room, RESET_DATA *reset, const char *message);
 void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int multiplier );
 int sub_class_search(const char *name);
 
