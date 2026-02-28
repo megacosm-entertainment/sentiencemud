@@ -21,7 +21,7 @@
 1. **Authentication** — unified login across web and MUD
 2. **Forum** — community discussion, preserve historical phpBB data
 3. **Announcements / Game Info** — staff-editable content without code deployments
-4. **Web MUD Client** — connects via WSS (game server already supports `wss://`)
+4. **Web MUD Client** — full React game client over WSS; multi-panel UI driven by MXP and out-of-band JSON the game already emits; not a browser-wrapped terminal emulator
 5. **Seamless reconnect** — web client auto-reconnects after MUD restart, no password prompt
 
 ---
@@ -70,10 +70,56 @@ unlocked_races: array of strings
 See Identity Provider section below.
 
 ### Web MUD Client
-**xterm.js** — standard terminal emulator library for browser-based terminal apps
-- Handles ANSI color codes natively
-- WSS connection to game server (already supported)
-- Lives as a protected route inside the Next.js app
+A full React-based game client, not a browser-wrapped telnet terminal. The client lives as
+a protected route in the Next.js app and connects over WSS (already supported by the game).
+
+The game already emits two structured data streams alongside the text:
+- **MXP** — clickable links, send-on-click actions, element tagging in the text stream
+- **Out-of-band JSON** — structured game state (stats, inventory, map data, etc.)
+
+These drive a proper multi-panel UI:
+
+```
+┌─────────────────────────────────────────────┬──────────────────────┐
+│                                             │  HP / MP / MV bars   │
+│           Main text stream                 │  Status / effects    │
+│         (ANSI, MXP inline)                 ├──────────────────────┤
+│                                             │  Minimap / compass   │
+│                                             ├──────────────────────┤
+│                                             │  Inventory / gear    │
+├─────────────────────────────────────────────┼──────────────────────┤
+│  Input bar + command history                │  Hotbar / actions    │
+└─────────────────────────────────────────────┴──────────────────────┘
+```
+
+**Stream architecture:**
+
+```
+MUD (WSS)
+  └── protocol parser
+        ├── raw ANSI text  →  xterm.js pane  (narrative, combat output)
+        ├── MXP tags       →  React state    (clickable links, send-on-click)
+        └── out-of-band JSON → React state   (stats, map, inventory panels)
+```
+
+**xterm.js** handles only the ANSI text pane — it's good at rendering large volumes of
+colored text with scrollback. All other UI is React components fed by the JSON stream.
+
+**MXP** provides interactivity within the text stream: clickable room exits, item names
+that trigger examine/get, mob names that target attacks, etc. The parser strips MXP tags
+before they reach xterm.js and converts them to overlaid React click handlers.
+
+**Out-of-band JSON** drives everything outside the text pane. Since the game already
+sends this, the client work is primarily React layout + the protocol parser. No MUD-side
+changes needed for the initial client.
+
+**Possible panels (driven by what the game already emits):**
+- HP / MP / MV with color-coded bars
+- Status effects and buffs with timers
+- Minimap (if the game sends room/exit data)
+- Inventory and equipped gear
+- Hotbar of frequently used commands
+- Combat log (separate scroll pane from main text)
 
 ---
 
@@ -274,3 +320,6 @@ Argon2id hashes copy directly — no rehashing, no forced password resets.
 - [ ] Logto vs Zitadel: evaluate based on actual container RAM on the dedicated server
 - [ ] libpq integration in MUD for Phase 2 — assess scope against existing JSON load/save patterns
 - [ ] Staff account mapping: `staff_rank` in MUD → roles/permissions in Payload and NodeBB
+- [ ] Audit the full set of out-of-band JSON event types the game currently emits — this defines what panels the client can build on day one without MUD changes
+- [ ] MXP coverage audit — which elements are currently sent? Links, room exits, entity names? What would need to be added for hotbar / action affordances?
+- [ ] Protocol parser: build as a standalone JS/TS library (testable, potentially reusable for a native client later) or inline in the Next.js app?

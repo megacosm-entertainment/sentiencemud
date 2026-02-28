@@ -1,10 +1,9 @@
 {
     "name": "Sentience MUD Dev Environment",
-    "image": "ghcr.io/megacosm-entertainment/sentience_trixie:latest",
-    "remoteUser": "sentiencemud",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "mud",
     "workspaceFolder": "/sentience/src",
-    "workspaceMount": "source=${localWorkspaceFolder}/..,target=/sentience,type=bind",
-    "mounts": [],
+    "remoteUser": "sentiencemud",
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {
             "installZsh": true,
@@ -17,10 +16,6 @@
         "9010": { "label": "TLS" },
         "9020": { "label": "WebSocket" }
     },
-    "runArgs": [
-        "--cap-add=SYS_PTRACE",
-        "--security-opt", "seccomp=unconfined"
-    ],
     "customizations": {
         "vscode": {
             "extensions": [

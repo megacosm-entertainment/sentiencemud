@@ -1,0 +1,154 @@
+version: '3.8'
+
+# Network topology:
+#   web  — app services talk to each other and to nginx
+#   data — app services talk to databases; internal: true means no external routing
+#
+# Databases have no routable path to/from the internet.
+# Host port bindings on databases use 127.0.0.1 (localhost only) for dev tooling.
+
+networks:
+  web:
+  data:
+    internal: true
+
+services:
+
+  # ── MUD Game Server (devcontainer target) ─────────────────────────────────
+  mud:
+    image: ghcr.io/megacosm-entertainment/sentience_trixie:latest
+    networks: [web, data]
+    volumes:
+      - ../..:/sentience
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "9000:9000"
+      - "9010:9010"
+      - "9020:9020"
+    depends_on:
+      - redis
+      - postgres
+    command: sleep infinity
+
+  # ── Reverse Proxy ─────────────────────────────────────────────────────────
+  # Not started by default. Use `docker compose --profile proxy up` to include it.
+  # In production the host nginx handles reverse proxying; this is here for
+  # portability (fresh servers, local full-stack testing).
+  nginx:
+    image: nginx:alpine
+    profiles: [proxy]
+    networks: [web]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - payload
+      - nodebb
+      - logto
+      - mud
+
+  # ── Web App / CMS (Next.js + Payload) ─────────────────────────────────────
+  # TODO: replace with a real build once the web repo exists
+  payload:
+    image: node:22-alpine
+    networks: [web, data]
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/payload
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET}
+      NEXT_PUBLIC_SERVER_URL: ${PUBLIC_URL}
+    depends_on:
+      - postgres
+      - redis
+
+  # ── Forum (NodeBB) ────────────────────────────────────────────────────────
+  nodebb:
+    image: ghcr.io/nodebb/nodebb:latest
+    networks: [web, data]
+    ports:
+      - "127.0.0.1:4567:4567"
+    environment:
+      NODEBB_DB: mongo
+      NODEBB_DB_HOST: mongodb
+      NODEBB_DB_PORT: 27017
+      NODEBB_DB_NAME: nodebb
+      NODEBB_DB_USER: ${MONGO_USER}
+      NODEBB_DB_PASSWORD: ${MONGO_PASSWORD}
+      NODEBB_REDIS_HOST: redis
+      NODEBB_REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - nodebb_data:/usr/src/app/public/uploads
+    depends_on:
+      - mongodb
+      - redis
+
+  # ── Identity Provider (Logto) ─────────────────────────────────────────────
+  logto:
+    image: ghcr.io/logto-io/logto:latest
+    networks: [web, data]
+    ports:
+      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3002:3002"
+    environment:
+      DB_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/logto
+      ENDPOINT: ${LOGTO_ENDPOINT}
+      ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT}
+    entrypoint: sh -c "npx @logto/cli db seed -- --db-url $$DB_URL 2>/dev/null; node /etc/logto/node_modules/.bin/logto"
+    depends_on:
+      - postgres
+
+  # ── Databases ─────────────────────────────────────────────────────────────
+  # All databases are on the data network only (internal: true — no external routing).
+  # Ports are bound to 127.0.0.1 so dev tooling on the host can connect; containers
+  # on the web network cannot reach these services at all.
+
+  postgres:
+    image: postgres:16-alpine
+    networks: [data]
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sentience
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+
+  mongodb:
+    image: mongo:7
+    networks: [data]
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: nodebb
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    # Redis Stack 8.6.0 — matches game server (ReJSON, RediSearch, Bloom, TimeSeries).
+    # REDIS_ARGS is used instead of command: so the image entrypoint loads the .so modules.
+    image: redis/redis-stack-server:8.6.0
+    networks: [data]
+    ports:
+      - "127.0.0.1:6379:6379"
+    environment:
+      REDIS_ARGS: --requirepass ${REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  redis_data:
+  nodebb_data:
