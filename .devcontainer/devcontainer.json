@@ -37,7 +37,8 @@
                 "editor.insertSpaces": true,
                 "[c]": { "editor.tabSize": 4 },
                 "git.enableCommitSigning": true,
-                "remote.SSH.enableAgentForwarding": true
+                "remote.SSH.enableAgentForwarding": true,
+                "git.useConfigOnly": false
             }
         }
     },
