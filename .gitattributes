@@ -1,5 +1,5 @@
 # Normalize line endings to LF in the repository
-* text=auto
+* text=auto eol=lf
 
 # Source files - always LF in repo, convert to native on checkout
 *.c text eol=lf
