@@ -5,10 +5,14 @@
     "workspaceFolder": "/sentience/src",
     "workspaceMount": "source=${localWorkspaceFolder},target=/sentience/src,type=bind",
     "mounts": [
-        "source=${localWorkspaceFolder}/../,target=/sentience/,type=bind",
-        "source=${localEnv:HOME}${localEnv:USERPROFILE}/.gnupg,target=/home/sentiencemud/.gnupg,type=bind",
-        "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/sentiencemud/.ssh,type=bind"
+        "source=${localWorkspaceFolder}/../,target=/sentience/,type=bind"
     ],
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "configureZshAsDefaultShell": true
+        }
+    },
     "forwardPorts": [9000, 9010, 9020],
     "portsAttributes": {
         "9000": { "label": "Telnet" },
@@ -17,8 +21,7 @@
     },
     "runArgs": [
         "--cap-add=SYS_PTRACE",
-        "--security-opt", "seccomp=unconfined",
-        "--userns=keep-id"
+        "--security-opt", "seccomp=unconfined"
     ],
     "customizations": {
         "vscode": {
@@ -32,7 +35,9 @@
             "settings": {
                 "editor.tabSize": 4,
                 "editor.insertSpaces": true,
-                "[c]": { "editor.tabSize": 4 }
+                "[c]": { "editor.tabSize": 4 },
+                "git.enableCommitSigning": true,
+                "remote.SSH.enableAgentForwarding": true
             }
         }
     },
