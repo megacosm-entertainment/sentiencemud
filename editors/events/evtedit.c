@@ -1032,127 +1032,6 @@ static evt_progress_mode_t event_progress_mode(const EVTEDIT_DATA *evt)
     return EVT_PROGRESS_MODE_SHARED;
 }
 
-static void event_copy_trimmed(char *dst, size_t dst_size, const char *src)
-{
-    const char *start;
-    const char *end;
-    size_t len;
-
-    if (!dst || dst_size == 0) {
-        return;
-    }
-
-    dst[0] = '\0';
-
-    if (IS_NULLSTR(src))
-        return;
-
-    start = src;
-    while (*start && isspace((unsigned char)*start))
-        start++;
-
-    end = start + strlen(start);
-    while (end > start && isspace((unsigned char)*(end - 1)))
-        end--;
-
-    len = (size_t)(end - start);
-    if (len >= dst_size)
-        len = dst_size - 1;
-
-    if (len > 0)
-        memcpy(dst, start, len);
-    dst[len] = '\0';
-}
-
-static bool event_parse_phase_plan_step(const char *plan, int step_index,
-    char *phase_name, size_t phase_name_size, int *minutes_out, long *script_vnum_out)
-{
-    const char *cursor;
-    int index = 0;
-
-    if (!phase_name || phase_name_size == 0 || !minutes_out || !script_vnum_out)
-        return false;
-
-    phase_name[0] = '\0';
-    *minutes_out = 0;
-    *script_vnum_out = 0;
-
-    if (IS_NULLSTR(plan) || step_index < 0)
-        return false;
-
-    cursor = plan;
-    while (*cursor) {
-        char token[MIL];
-        char name_buf[MIL];
-        char *at;
-        char *hash;
-        int pos = 0;
-        char *minutes_str = NULL;
-        char *script_str = NULL;
-
-        while (*cursor && (isspace((unsigned char)*cursor) || *cursor == ';' || *cursor == ','))
-            cursor++;
-
-        if (!*cursor)
-            break;
-
-        while (*cursor && *cursor != ';' && *cursor != ',' && pos < MIL - 1)
-            token[pos++] = *cursor++;
-        token[pos] = '\0';
-
-        event_copy_trimmed(name_buf, sizeof(name_buf), token);
-
-        at = strchr(name_buf, '@');
-        hash = strchr(name_buf, '#');
-
-        if (at) {
-            *at = '\0';
-            minutes_str = at + 1;
-        }
-
-        if (hash) {
-            *hash = '\0';
-            script_str = hash + 1;
-        }
-
-        if (minutes_str) {
-            char minutes_buf[MIL];
-            event_copy_trimmed(minutes_buf, sizeof(minutes_buf), minutes_str);
-            if (!IS_NULLSTR(minutes_buf)) {
-                char *endptr = NULL;
-                long parsed = strtol(minutes_buf, &endptr, 10);
-                if (endptr != minutes_buf && parsed > 0)
-                    *minutes_out = (int)parsed;
-            }
-        }
-
-        if (script_str) {
-            char script_buf[MIL];
-            char *endptr = NULL;
-            long parsed;
-
-            event_copy_trimmed(script_buf, sizeof(script_buf), script_str);
-            parsed = strtol(script_buf, &endptr, 10);
-            if (endptr != script_buf && parsed > 0)
-                *script_vnum_out = parsed;
-        }
-
-        if (!IS_NULLSTR(name_buf)) {
-            if (index == step_index) {
-                strncpy(phase_name, name_buf, phase_name_size - 1);
-                phase_name[phase_name_size - 1] = '\0';
-                return true;
-            }
-            index++;
-        }
-
-        while (*cursor && *cursor != ';' && *cursor != ',')
-            cursor++;
-    }
-
-    return false;
-}
-
 static bool event_validate_phase_name(const char *name, char *error, size_t error_size)
 {
     const char *cursor;
@@ -1180,60 +1059,11 @@ static bool event_validate_phase_name(const char *name, char *error, size_t erro
     return true;
 }
 
-static int event_phase_steps_load(const char *plan,
-    EVT_PHASE_STEP_DEF *steps, int max_steps,
-    char *error, size_t error_size)
-{
-    int index = 0;
-
-    if (error && error_size > 0)
-        error[0] = '\0';
-
-    if (!steps || max_steps <= 0) {
-        if (error && error_size > 0)
-            snprintf(error, error_size, "Internal phase buffer unavailable.");
-        return -1;
-    }
-
-    if (IS_NULLSTR(plan))
-        return 0;
-
-    while (true) {
-        EVT_PHASE_STEP_DEF step;
-
-        memset(&step, 0, sizeof(step));
-        if (!event_parse_phase_plan_step(plan, index,
-                step.name, sizeof(step.name), &step.minutes, &step.script_vnum))
-            break;
-
-        if (index >= max_steps) {
-            if (error && error_size > 0)
-                snprintf(error, error_size,
-                    "Too many phase steps (maximum %d).", max_steps);
-            return -1;
-        }
-
-        if (!event_validate_phase_name(step.name, error, error_size))
-            return -1;
-
-        steps[index++] = step;
-    }
-
-    if (index <= 0) {
-        if (error && error_size > 0)
-            snprintf(error, error_size,
-                "Stored phases are invalid. Use phases clear, then rebuild with subcommands.");
-        return -1;
-    }
-
-    return index;
-}
-
 static int event_phase_steps_load_event(const EVTEDIT_DATA *evt,
     EVT_PHASE_STEP_DEF *steps, int max_steps,
     char *error, size_t error_size)
 {
-    const EVT_PHASE_DEF *phase;
+    const EVT_STAGE_DEF *stage;
     int index = 0;
 
     if (error && error_size > 0)
@@ -1248,29 +1078,29 @@ static int event_phase_steps_load_event(const EVTEDIT_DATA *evt,
     if (!evt)
         return 0;
 
-    if (evt->phases && evt->phase_count > 0) {
-        for (phase = evt->phases; phase; phase = phase->next) {
+    if (evt->stages && evt->stage_count > 0) {
+        for (stage = evt->stages; stage; stage = stage->next) {
             if (index >= max_steps) {
                 if (error && error_size > 0)
                     snprintf(error, error_size,
-                        "Too many phase steps (maximum %d).", max_steps);
+                        "Too many stage steps (maximum %d).", max_steps);
                 return -1;
             }
 
             memset(&steps[index], 0, sizeof(steps[index]));
             strlcpy(steps[index].name,
-                IS_NULLSTR(phase->name) ? "phase" : phase->name,
+                IS_NULLSTR(stage->name) ? "stage" : stage->name,
                 sizeof(steps[index].name));
-            steps[index].minutes = UMAX(0, phase->minutes);
-            steps[index].script_vnum = UMAX(0, phase->script_vnum);
-            steps[index].script_load = phase->script_load;
+            steps[index].minutes = UMAX(0, stage->duration_minutes);
+            steps[index].script_vnum = UMAX(0, stage->on_enter_script);
+            steps[index].script_load = stage->enter_script_load;
             index++;
         }
 
         return index;
     }
 
-    return event_phase_steps_load(evt->phase_plan, steps, max_steps, error, error_size);
+    return 0;
 }
 
 static bool event_phase_step_get(const EVTEDIT_DATA *evt, int phase_index,
@@ -1398,118 +1228,82 @@ static void event_stage_append_default_objective(EVTEDIT_DATA *evt, EVT_STAGE_DE
 
 static void event_stage_sync_from_phases(EVTEDIT_DATA *evt)
 {
-    EVT_PHASE_DEF *phase;
     EVT_STAGE_DEF *last_stage = NULL;
 
     if (!evt || evt->stage_count > 0)
         return;
 
-    if (!evt->phases || evt->phase_count <= 0) {
+    {
         WNUM_LOAD zero_load = {0, 0};
         last_stage = event_add_stage(evt, "active",
             EVT_STAGE_TRANSITION_ON_COMPLETE, 0, zero_load);
-        event_stage_append_default_objective(evt, last_stage);
-        return;
-    }
-
-    for (phase = evt->phases; phase; phase = phase->next) {
-        int transition_mode = phase->minutes > 0
-            ? EVT_STAGE_TRANSITION_ON_TIMER
-            : EVT_STAGE_TRANSITION_ON_COMPLETE;
-
-        last_stage = event_add_stage(evt,
-            IS_NULLSTR(phase->name) ? "stage" : phase->name,
-            transition_mode,
-            UMAX(0, phase->minutes),
-            phase->script_load);
     }
 
     event_stage_append_default_objective(evt, last_stage);
 }
 
-static void event_phase_sync_from_legacy(EVTEDIT_DATA *evt)
-{
-    EVT_PHASE_STEP_DEF steps[EVT_PHASEPLAN_MAX_STEPS];
-    char error[MSL];
-    int count;
-
-    if (!evt || evt->phases || evt->phase_count > 0 || IS_NULLSTR(evt->phase_plan))
-        return;
-
-    count = event_phase_steps_load_event(evt,
-        steps, EVT_PHASEPLAN_MAX_STEPS,
-        error, sizeof(error));
-    if (count <= 0)
-        return;
-
-    event_phase_steps_store(evt, steps, count);
-}
-
 static void event_phase_steps_store(EVTEDIT_DATA *evt,
     const EVT_PHASE_STEP_DEF *steps, int count)
 {
-    BUFFER *buffer;
-    EVT_PHASE_DEF *tail = NULL;
-    bool append_ok = true;
+    EVT_STAGE_DEF *stage;
+    EVT_STAGE_DEF *prev = NULL;
+    EVT_STAGE_DEF *last = NULL;
     int i;
 
-    if (!evt || count < 0)
+    if (!evt || !steps || count < 0)
         return;
 
-    event_phase_defs_free(&evt->phases, &evt->phase_count);
-
+    stage = evt->stages;
     for (i = 0; i < count; i++) {
-        EVT_PHASE_DEF *phase;
+        int transition_mode;
 
-        phase = alloc_mem(sizeof(*phase));
-        memset(phase, 0, sizeof(*phase));
-        phase->name = str_dup(IS_NULLSTR(steps[i].name) ? "phase" : steps[i].name);
-        phase->minutes = UMAX(0, steps[i].minutes);
-        phase->script_vnum = UMAX(0, steps[i].script_vnum);
-        phase->script_load = steps[i].script_load;
-
-        if (!evt->phases)
-            evt->phases = phase;
-        else
-            tail->next = phase;
-
-        tail = phase;
-        evt->phase_count++;
-    }
-
-    buffer = new_buf();
-
-    for (i = 0; i < count; i++) {
-        if (!add_buf(buffer, steps[i].name)) {
-            append_ok = false;
-            break;
+        if (stage) {
+            free_string(stage->name);
+            stage->name = str_dup(IS_NULLSTR(steps[i].name) ? "stage" : steps[i].name);
+            stage->duration_minutes = UMAX(0, steps[i].minutes);
+            stage->on_enter_script = UMAX(0, steps[i].script_vnum);
+            stage->enter_script_load = steps[i].script_load;
+            prev = stage;
+            stage = stage->next;
+            continue;
         }
-        if (steps[i].minutes > 0)
-            if (!add_buf(buffer, formatf("@%d", steps[i].minutes))) {
-                append_ok = false;
-                break;
-            }
-        if (steps[i].script_vnum > 0)
-            if (!add_buf(buffer, formatf("#%ld", steps[i].script_vnum))) {
-                append_ok = false;
-                break;
-            }
-        if (i + 1 < count)
-            if (!add_buf(buffer, ",")) {
-                append_ok = false;
-                break;
-            }
+
+        transition_mode = steps[i].minutes > 0
+            ? EVT_STAGE_TRANSITION_ON_TIMER
+            : EVT_STAGE_TRANSITION_ON_COMPLETE;
+
+        last = event_add_stage(evt,
+            IS_NULLSTR(steps[i].name) ? "stage" : steps[i].name,
+            transition_mode,
+            UMAX(0, steps[i].minutes),
+            steps[i].script_load);
+        if (last)
+            last->on_enter_script = UMAX(0, steps[i].script_vnum);
+        prev = last;
     }
 
-    free_string(evt->phase_plan);
-    if (append_ok)
-        evt->phase_plan = str_dup(buf_string(buffer));
-    else
-        evt->phase_plan = str_dup("");
-    free_buf(buffer);
+    while (stage) {
+        EVT_STAGE_DEF *next = stage->next;
+        free_string(stage->name);
+        event_stage_objectives_free(&stage->objectives, &stage->objective_count);
+        free_mem(stage, sizeof(*stage));
+        evt->stage_count = UMAX(0, evt->stage_count - 1);
+        stage = next;
+    }
 
-    event_stage_defs_free(&evt->stages, &evt->stage_count);
-    event_stage_sync_from_phases(evt);
+    if (prev)
+        prev->next = NULL;
+    else {
+        evt->stages = NULL;
+        evt->stage_count = 0;
+    }
+
+    last = event_stage_get_by_index(evt, evt->stage_count - 1);
+    event_stage_append_default_objective(evt, last);
+
+    event_phase_defs_free(&evt->phases, &evt->phase_count);
+    free_string(evt->phase_plan);
+    evt->phase_plan = str_dup("");
 }
 
 static bool event_parse_bracket_token(const char *token, int *min_level, int *max_level)
@@ -2894,7 +2688,7 @@ void event_runtime_update(void)
 
 static void event_runtime_activate_leader_phase(EVENT_INSTANCE *inst)
 {
-    EVT_PHASE_DEF *phase;
+    EVT_STAGE_DEF *stage;
     int phase_index;
 
     if (!inst || !inst->def || inst->state != EVTS_ACTIVE)
@@ -2904,11 +2698,11 @@ static void event_runtime_activate_leader_phase(EVENT_INSTANCE *inst)
         return;
 
     phase_index = 0;
-    for (phase = inst->def->phases; phase; phase = phase->next, phase_index++) {
-        if (!IS_NULLSTR(phase->name)
-            && (!str_cmp(phase->name, "leader") || !str_cmp(phase->name, "leader_phase"))) {
-            event_runtime_apply_phase_step(inst, phase_index, phase->name,
-                UMAX(0, phase->minutes), phase->script_load);
+    for (stage = inst->def->stages; stage; stage = stage->next, phase_index++) {
+        if (!IS_NULLSTR(stage->name)
+            && (!str_cmp(stage->name, "leader") || !str_cmp(stage->name, "leader_phase"))) {
+            event_runtime_apply_phase_step(inst, phase_index, stage->name,
+                UMAX(0, stage->duration_minutes), stage->enter_script_load);
             inst->leader_phase = true;
             return;
         }
@@ -3981,7 +3775,7 @@ bool event_runtime_set_phase(const char *event_token, const char *phase_name)
     EVTEDIT_DATA *evt;
     EVENT_INSTANCE *inst;
     int phase_index = 0;
-    EVT_PHASE_DEF *phase;
+    EVT_STAGE_DEF *stage;
 
     evt = event_lookup_definition(event_token);
     if (!evt)
@@ -3991,10 +3785,10 @@ bool event_runtime_set_phase(const char *event_token, const char *phase_name)
     if (!inst || inst->state != EVTS_ACTIVE)
         return false;
 
-    for (phase = evt->phases; phase; phase = phase->next) {
-        if (!IS_NULLSTR(phase_name) && !str_cmp(phase_name, phase->name)) {
-            event_runtime_apply_phase_step(inst, phase_index, phase->name,
-                UMAX(0, phase->minutes), phase->script_load);
+    for (stage = evt->stages; stage; stage = stage->next) {
+        if (!IS_NULLSTR(phase_name) && !str_cmp(phase_name, stage->name)) {
+            event_runtime_apply_phase_step(inst, phase_index, stage->name,
+                UMAX(0, stage->duration_minutes), stage->enter_script_load);
             return true;
         }
         phase_index++;
@@ -4191,10 +3985,7 @@ static void evtedit_ensure_loaded(void)
     for (area = area_first; area; area = area->next)
         for (hash = 0; hash < MAX_KEY_HASH; hash++)
             for (evt = area->event_index_hash[hash]; evt; evt = evt->next_hash)
-            {
-                event_phase_sync_from_legacy(evt);
                 event_stage_sync_from_phases(evt);
-            }
 
     evtedit_rebuild_global_index();
 }
@@ -4677,8 +4468,8 @@ void do_events(CHAR_DATA *ch, char *argument)
         printf_to_char(ch, "{WBrackets:{x mode=%s aggregation=%s\n\r",
             IS_NULLSTR(evt->bracket_mode) ? "(not set)" : evt->bracket_mode,
             IS_NULLSTR(evt->progress_aggregation) ? "(not set)" : evt->progress_aggregation);
-        if (evt->phase_count > 0)
-            printf_to_char(ch, "{WPhases:{x %d configured\n\r", evt->phase_count);
+        if (evt->stage_count > 0)
+            printf_to_char(ch, "{WStages:{x %d configured\n\r", evt->stage_count);
         if (evt->reward_phase_script > 0
             || evt->reward_success_script > 0
             || evt->reward_failure_script > 0)
@@ -6718,7 +6509,7 @@ EVTEDIT(evtedit_phaseplan)
     if (!evt)
         return false;
 
-    count = event_phase_steps_load(evt->phase_plan,
+    count = event_phase_steps_load_event(evt,
         steps, EVT_PHASEPLAN_MAX_STEPS,
         error, sizeof(error));
     if (count < 0) {
@@ -6726,8 +6517,6 @@ EVTEDIT(evtedit_phaseplan)
         send_to_char("\n\r", ch);
         return false;
     }
-
-    event_stage_sync_from_phases(evt);
 
     argument = one_argument(argument, cmd);
 
