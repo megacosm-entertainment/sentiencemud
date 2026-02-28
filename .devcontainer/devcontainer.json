@@ -3,10 +3,8 @@
     "image": "ghcr.io/megacosm-entertainment/sentience_trixie:latest",
     "remoteUser": "sentiencemud",
     "workspaceFolder": "/sentience/src",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/sentience/src,type=bind",
-    "mounts": [
-        "source=${localWorkspaceFolder}/../,target=/sentience/,type=bind"
-    ],
+    "workspaceMount": "source=${localWorkspaceFolder}/..,target=/sentience,type=bind",
+    "mounts": [],
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {
             "installZsh": true,

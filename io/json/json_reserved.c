@@ -65,18 +65,28 @@ json_t *json_reserved_serialize(RESERVED_DATA *reserved)
     area_uid = reserved->wnum.auid;
     if (area_uid == 0 && reserved->wnum.vnum > 0 && reserved->type != RESERVED_AREA) {
         AREA_DATA *area;
-        ROOM_INDEX_DATA *room;
-        
-        /* Search all areas for this vnum */
-        for (area = area_first; area; area = area->next) {
-            room = get_room_index(area, reserved->wnum.vnum);
-            if (room) {
+        bool found = false;
+
+        /* Search all areas for this vnum using the correct entity type */
+        for (area = area_first; area && !found; area = area->next) {
+            switch (reserved->type) {
+                case RESERVED_OBJ:
+                    found = (get_obj_index(area, reserved->wnum.vnum) != NULL);
+                    break;
+                case RESERVED_MOB:
+                    found = (get_mob_index(area, reserved->wnum.vnum) != NULL);
+                    break;
+                case RESERVED_ROOM:
+                    found = (get_room_index(area, reserved->wnum.vnum) != NULL);
+                    break;
+                default:
+                    break;
+            }
+            if (found) {
                 area_uid = area->uid;
-                /* Update the in-memory structure too */
                 reserved->wnum.auid = area_uid;
-                plogf(LOG_INFO, "Resolved reserved '%s' vnum %ld to area %ld", 
+                plogf(LOG_INFO, "Resolved reserved '%s' vnum %ld to area %ld",
                       reserved->name, reserved->wnum.vnum, area_uid);
-                break;
             }
         }
     }
