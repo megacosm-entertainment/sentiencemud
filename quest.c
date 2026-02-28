@@ -55,6 +55,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "requirements.h"
+#include "class_data.h"
 
 static bool check_quest_custom_task_run(CHAR_DATA *ch, QUEST_DATA *run, int task, bool show);
 static int quest_runtime_apply_objective_event(QUEST_DATA *run, int objective_type, WNUM target_wnum, int delta);
@@ -5050,7 +5051,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
             //sprintf(buf, "You gain %d experience points!\n\r", expreward);
             //send_to_char(buf, ch);
 
-            gain_exp(ch, NULL, expreward, true);
+            gain_exp_typed(ch, NULL, expreward, XP_TYPE_EXPLORATION, true);
         }
 /* Syn - disabling
   send_to_char("You receive 1 military quest point!\n\r", ch);

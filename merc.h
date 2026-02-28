@@ -5567,6 +5567,7 @@ int temp_log_entry_id;
     char *temp_log_entry;  /* Temporary log entry being edited */
     char *temp_report_channel; /* Channel id targeted by history report editor */
     char *temp_report_message_id; /* Stable message/report id targeted by report editor */
+    char invoked_command[MAX_INPUT_LENGTH]; /* Base command token used for current interpret() dispatch */
 
 /*
     struct char_data_stats {
@@ -6469,6 +6470,7 @@ struct evt_roster_entry {
     EVT_ROSTER_ENTRY *next;
     int kind;
     long vnum;
+    WNUM_LOAD wnum_load;    /* Persistent wide vnum: auid + local vnum */
     int count;
     int chance;
     int min_level;
@@ -6482,7 +6484,8 @@ struct evt_phase_def {
     EVT_PHASE_DEF *next;
     char *name;
     int16_t minutes;
-    long script_vnum;
+    long script_vnum;           /* Legacy bare vnum; use script_load going forward */
+    WNUM_LOAD script_load;
 };
 
 struct evt_stage_objective_def {
@@ -6490,7 +6493,8 @@ struct evt_stage_objective_def {
     char *name;
     int16_t objective_type;
     int16_t target_count;
-    long script_vnum;
+    long script_vnum;           /* Legacy bare vnum; use script_load going forward */
+    WNUM_LOAD script_load;
     char *data;
 };
 
@@ -6500,9 +6504,12 @@ struct evt_stage_def {
     int16_t transition_mode;
     int16_t objective_mode;
     int16_t duration_minutes;
-    long on_enter_script;
-    long on_tick_script;
-    long on_complete_script;
+    long on_enter_script;               /* Legacy; use enter_script_load going forward */
+    WNUM_LOAD enter_script_load;
+    long on_tick_script;                /* Legacy; use tick_script_load going forward */
+    WNUM_LOAD tick_script_load;
+    long on_complete_script;            /* Legacy; use complete_script_load going forward */
+    WNUM_LOAD complete_script_load;
     EVT_STAGE_OBJECTIVE_DEF *objectives;
     int16_t objective_count;
 };
@@ -6546,9 +6553,12 @@ struct event_index_data {
     int16_t phase_count;
     EVT_STAGE_DEF *stages;
     int16_t stage_count;
-    long reward_phase_script;
-    long reward_success_script;
-    long reward_failure_script;
+    long reward_phase_script;           /* Legacy; use reward_phase_load going forward */
+    WNUM_LOAD reward_phase_load;
+    long reward_success_script;         /* Legacy; use reward_success_load going forward */
+    WNUM_LOAD reward_success_load;
+    long reward_failure_script;         /* Legacy; use reward_failure_load going forward */
+    WNUM_LOAD reward_failure_load;
     bool enabled;
     long flags;
     LLIST **progs;
@@ -8240,6 +8250,8 @@ struct class_data
     /* Per-class XP curve (NULL = use global default curve) */
     long *              xp_table;           /* Array of XP-per-level, indexed 0..max_level-1 */
     int                 xp_table_size;      /* Number of entries in xp_table */
+    long                xp_accept_mask;     /* XP_MASK_* types this class can level from */
+    char *              xp_curve_id;        /* Optional named curve id from xp_curves.json */
 
     /* Lifecycle callbacks */
     CLASS_ENTER_FUN *   enter;              /* Called when player switches TO this class */
@@ -9665,6 +9677,9 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_ski
 /* alias.c */
 void 	substitute_alias args( (DESCRIPTOR_DATA *d, char *input) );
 
+/* interp.c */
+const char *get_invoked_command_name(const CHAR_DATA *ch);
+
 /* ban.c */
 bool check_ban	args( ( char *site, int type) );
 
@@ -10767,6 +10782,7 @@ RID *	room_by_name	args( ( char *target, int level, bool error) );
 void	healing_locket_update args( ( CHAR_DATA *ch ) );
 void	advance_level	args( ( CHAR_DATA *ch, bool hide ) );
 void	gain_exp	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain, bool show ) );
+void	gain_exp_typed	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, int gain, int xp_type, bool show ) );
 void	gain_condition	args( ( CHAR_DATA *ch, int iCond, int value ) );
 void	update_handler	args( ( void ) );
 void    pneuma_relic_update args( ( void ) );
@@ -11234,6 +11250,7 @@ extern int wear_params[MAX_WEAR][7];
 char *get_script_prompt_string(CHAR_DATA *ch, char *key);
 bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, int mana);
 void script_log_runtime_error(SCRIPT_DATA *script, int line, const char *message);
+void audit_log_reset_error(ROOM_INDEX_DATA *room, RESET_DATA *reset, const char *message);
 void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int multiplier );
 int sub_class_search(const char *name);
 

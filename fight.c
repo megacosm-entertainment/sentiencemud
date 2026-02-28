@@ -47,6 +47,7 @@
 #include "wilds.h"
 #include "traits.h"
 #include "skill_data.h"
+#include "class_data.h"
 #include "event_types.h"
 
 #define MAX_BACKSTAB_DAMAGE 15000
@@ -4231,7 +4232,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
                 pc_xp *= 1.05;
             }
 
-            gain_exp(gch, NULL, pc_xp, true);
+            gain_exp_typed(gch, NULL, pc_xp, XP_TYPE_COMBAT, true);
         }
 
         // Process worn objects for XP triggers

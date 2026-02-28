@@ -33,6 +33,7 @@ void do_help(CHAR_DATA *ch, char *argument)
     BUFFER *buffer;
     char buf[2*MSL], buf2[MSL];
     char *p;
+    bool append_ok;
     int index;
     int i;
 
@@ -46,6 +47,7 @@ void do_help(CHAR_DATA *ch, char *argument)
         lookup_help_exact(argument, get_staff_rank(ch), topHelpCat) == NULL) {
 
         buffer = new_buf();
+        append_ok = true;
 
         sprintf(buf2, "{R%s{x", hcat == topHelpCat ? "summary" : hcat->name);
 
@@ -72,7 +74,8 @@ void do_help(CHAR_DATA *ch, char *argument)
         }
 
         sprintf(buf, "{b[{W%s{b]{x\n\r", buf2);
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf))
+            append_ok = false;
 
         i = 1;
         for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
@@ -89,7 +92,8 @@ void do_help(CHAR_DATA *ch, char *argument)
 //				char buf3[sizeof(buf2)+50];
 
                 sprintf(buf, "{b[{BC{b]{W   \t<send href=\"help %s\">%.36s\t</send>%s %s", buf2, buf2, pad_string(buf2, 36, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
-                add_buf(buffer, buf);
+                if (append_ok && !add_buf(buffer, buf))
+                    append_ok = false;
                 i++;
             }
         }
@@ -97,13 +101,20 @@ void do_help(CHAR_DATA *ch, char *argument)
         for (help = hcat->inside_helps; help != NULL; help = help->next) {
             if (get_staff_rank(ch) >= help->min_rank) {
                 sprintf(buf, "{b[{B%-3d{b]{x \t<send href=\"help #%d\">%.20s\t</send>%s %s", help->index, help->index, help->keyword, pad_string(help->keyword, 20, NULL, NULL), i % 3 == 0 ? "\n\r" : "");
-                add_buf(buffer, buf);
+                if (append_ok && !add_buf(buffer, buf))
+                    append_ok = false;
                 i++;
             }
         }
 
-        if ((i - 1) % 3 != 0)
-            add_buf(buffer, "\n\r");
+        if (append_ok && (i - 1) % 3 != 0)
+            append_ok = add_buf(buffer, "\n\r");
+
+        if (!append_ok) {
+            send_to_char("Help category output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return;
+        }
 
         // Only output data and return if we've found some results
         if ((i - 1) > 0) {
@@ -177,23 +188,30 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
     char buf[MSL];
     BUFFER *buffer;
     STRING_DATA *topic;
+    bool append_ok = true;
     int i;
 
 
     buffer = new_buf();
 
     sprintf(buf, "{b[{B%-3d {W%-24s{b] ", help->index, help->keyword);
-    add_buf(buffer, buf);
+    if (!add_buf(buffer, buf))
+        append_ok = false;
 
     sprintf(buf, "Last updated: {x%s", help->modified == 0 ? "Unknown\n\r" : (char *) ctime(&help->modified));
-    add_buf(buffer, buf);
+    if (append_ok && !add_buf(buffer, buf))
+        append_ok = false;
 
-    add_buf(buffer, "{b-------------------------------------------------------------------------------{x\n\r");
-    add_buf(buffer, help->text);
-    add_buf(buffer, "{b-------------------------------------------------------------------------------{x\n\r");
+    if (append_ok && !add_buf(buffer, "{b-------------------------------------------------------------------------------{x\n\r"))
+        append_ok = false;
+    if (append_ok && !add_buf(buffer, help->text))
+        append_ok = false;
+    if (append_ok && !add_buf(buffer, "{b-------------------------------------------------------------------------------{x\n\r"))
+        append_ok = false;
 
     if (help->related_topics != NULL)
-    add_buf(buffer, "{bRelated topics:{x ");
+        if (append_ok && !add_buf(buffer, "{bRelated topics:{x "))
+            append_ok = false;
 
     i = 0;
     for (topic = help->related_topics; topic != NULL; topic = topic->next) {
@@ -201,19 +219,29 @@ void show_help_to_ch(CHAR_DATA *ch, HELP_DATA *help)
             sprintf(buf, "\t<send href=\"help #%d\">%s\t</send>{x", lookup_help_exact(topic->string,get_staff_rank(ch),topHelpCat)->index, topic->string);
         else
             sprintf(buf, "{R%s{X", topic->string);
-        add_buf(buffer, buf);
+        if (append_ok && !add_buf(buffer, buf))
+            append_ok = false;
 
         if (topic->next != NULL)
-            add_buf(buffer, "{B,{x ");
+            if (append_ok && !add_buf(buffer, "{B,{x "))
+                append_ok = false;
 
         i++;
 
         if (i % 7 == 0)
-            add_buf(buffer, "\n\r");
+            if (append_ok && !add_buf(buffer, "\n\r"))
+                append_ok = false;
     }
 
     if (i > 0 && i % 7 != 0)
-        add_buf(buffer, "\n\r");
+        if (append_ok && !add_buf(buffer, "\n\r"))
+            append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Help output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return;
+    }
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
@@ -342,7 +370,8 @@ void lookup_category_multiple(char *keyword, int viewer_level, HELP_CATEGORY *hc
             *p = UPPER(*p);
 
         sprintf(buf, "{b[{BC  {b] {W%s{x\n\r", buf2);
-        add_buf(buffer, buf);
+        if (!add_buf(buffer, buf))
+            return;
     }
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next)
@@ -366,7 +395,8 @@ void lookup_help_multiple(char *keyword, int viewer_level, HELP_CATEGORY *hcat, 
     &&  viewer_level >= help->hCat->min_level)
     {
             sprintf(buf, "{b[{B%-3d{b] \t<send href=\"help #%d\">{W%.24s\t</send>%s{x\n\r", help->index, help->index, help->keyword, pad_string(help->keyword, 24, NULL, NULL));
-        add_buf(buffer, buf);
+            if (!add_buf(buffer, buf))
+                return;
     }
     }
 }

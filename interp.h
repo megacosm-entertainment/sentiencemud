@@ -51,6 +51,7 @@ typedef void DO_FUN(CHAR_DATA *ch, char *argument);
 
 /* wrapper function for safe command execution */
 void do_function args((CHAR_DATA *ch, DO_FUN *do_fun, char *argument));
+const char *get_invoked_command_name(const CHAR_DATA *ch);
 
 void cmd_under_construction(CHAR_DATA *ch);
 
@@ -235,6 +236,7 @@ DECLARE_DO_FUN( do_dungeon  );
 DECLARE_DO_FUN(	do_east		);
 DECLARE_DO_FUN(	do_eat		);
 DECLARE_DO_FUN(	do_echo		);
+DECLARE_DO_FUN( do_error	);
 DECLARE_DO_FUN(	do_emote	);
 DECLARE_DO_FUN( do_enter	);
 DECLARE_DO_FUN( do_envenom	);
@@ -392,6 +394,7 @@ DECLARE_DO_FUN( do_pk		);
 DECLARE_DO_FUN( do_plant	);
 DECLARE_DO_FUN( do_play		);
 DECLARE_DO_FUN( do_pour		);
+DECLARE_DO_FUN( do_scripterrors );
 DECLARE_DO_FUN(	do_practice	);
 DECLARE_DO_FUN( do_project	);
 DECLARE_DO_FUN( do_prompt	);

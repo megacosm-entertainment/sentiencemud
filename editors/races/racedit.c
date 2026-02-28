@@ -1060,7 +1060,14 @@ RACEDIT(racedit_trait)
 
     if (!str_cmp(arg1, "list")) {
         BUFFER *buffer = new_buf();
-        add_buf(buffer, "{RAvailable Traits:{x\n\r");
+        bool append_ok = true;
+
+        if (!add_buf(buffer, "{RAvailable Traits:{x\n\r")) {
+            send_to_char("Trait list output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return false;
+        }
+
         for (def = trait_def_list; def; def = def->next) {
             const char *type_str = "???";
             switch (def->type) {
@@ -1068,10 +1075,20 @@ RACEDIT(racedit_trait)
                 case TRAIT_INTEGER: type_str = "int"; break;
                 case TRAIT_STRING:  type_str = "string"; break;
             }
-            add_buf(buffer, formatf("   {C%-30s{x [%s] %s\n\r",
+            if (!add_buf(buffer, formatf("   {C%-30s{x [%s] %s\n\r",
                 def->id, type_str,
-                !IS_NULLSTR(def->description) ? def->description : ""));
+                !IS_NULLSTR(def->description) ? def->description : ""))) {
+                append_ok = false;
+                break;
+            }
         }
+
+        if (!append_ok) {
+            send_to_char("Trait list output exceeded buffer limits.\n\r", ch);
+            free_buf(buffer);
+            return false;
+        }
+
         page_to_char(buffer->string, ch);
         free_buf(buffer);
         return false;
@@ -1176,29 +1193,45 @@ RACEDIT(racedit_list)
 {
     RACE_DATA *race;
     BUFFER *buffer;
+    bool append_ok = true;
     int count = 0;
 
     buffer = new_buf();
-    add_buf(buffer, "{R  UID  ID                Name                Playable  Starting  Remort  Path{x\n\r");
-    add_buf(buffer, "{D ---- ------------------- ------------------- --------- --------- ------- ------{x\n\r");
+    if (!add_buf(buffer, "{R  UID  ID                Name                Playable  Starting  Remort  Path{x\n\r")
+        || !add_buf(buffer, "{D ---- ------------------- ------------------- --------- --------- ------- ------{x\n\r")) {
+        send_to_char("Race list output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
 
     for (race = race_list; race; race = race->next) {
         if (argument[0] != '\0' && str_prefix(argument, race->id)
             && str_prefix(argument, race->name))
             continue;
 
-        add_buf(buffer, formatf(" {C%4d{x %-19s %-19s %-9s %-9s %-7s %s\n\r",
+        if (!add_buf(buffer, formatf(" {C%4d{x %-19s %-19s %-9s %-9s %-7s %s\n\r",
             race->uid,
             race->id,
             race->name,
             race->playable ? "{GYes{x" : "{DNo{x",
             race->starting ? "{GYes{x" : "{DNo{x",
             race_is_remort(race) ? "{YYes{x" : "{DNo{x",
-            race->path_race ? "{YYes{x" : "{DNo{x"));
+            race->path_race ? "{YYes{x" : "{DNo{x"))) {
+            append_ok = false;
+            break;
+        }
         count++;
     }
 
-    add_buf(buffer, formatf("\n\r{x%d race%s listed.\n\r", count, count == 1 ? "" : "s"));
+    if (append_ok && !add_buf(buffer, formatf("\n\r{x%d race%s listed.\n\r", count, count == 1 ? "" : "s")))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Race list output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
+
     page_to_char(buffer->string, ch);
     free_buf(buffer);
     return false;

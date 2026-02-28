@@ -800,18 +800,18 @@ void display_resets(CHAR_DATA *ch)
         // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
         if (!(pMobIndex = get_mob_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
-            sprintf(buf, "Load Mobile - Bad Mob %s\n\r", 
+            sprintf(buf, "{RBAD{x Load Mobile - Bad Mob %s\n\r", 
                 widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
-            continue;
+            break;
         }
 
         if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)))
         {
-            sprintf(buf, "Load Mobile - Bad Room %ld\n\r", 
+            sprintf(buf, "{RBAD{x Load Mobile - Bad Room %ld\n\r", 
                 pReset->arg3.value);
             strcat(final, buf);
-            continue;
+            break;
         }
 
         pMob = pMobIndex;
@@ -842,20 +842,20 @@ void display_resets(CHAR_DATA *ch)
         // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
         if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
-            sprintf(buf, "Load Object - Bad Object %s\n\r",
+            sprintf(buf, "{RBAD{x Load Object - Bad Object %s\n\r",
                 widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
-            continue;
+            break;
         }
 
         pObj       = pObjIndex;
 
         if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg3.value)))
         {
-            sprintf(buf, "Load Object - Bad Room %ld\n\r", 
+            sprintf(buf, "{RBAD{x Load Object - Bad Room %ld\n\r", 
                 pReset->arg3.value);
             strcat(final, buf);
-            continue;
+            break;
         }
 
           sprintf(buf, "O[%s] %-13.13s in room             "
@@ -871,20 +871,20 @@ void display_resets(CHAR_DATA *ch)
         // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
         if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
-            sprintf(buf, "Put Object - Bad Object %s\n\r",
+            sprintf(buf, "{RBAD{x Put Object - Bad Object %s\n\r",
                 widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
-            continue;
+            break;
         }
 
         pObj       = pObjIndex;
 
         if (!(pObjToIndex = get_obj_index(pReset->arg3.wnum.pArea ? pReset->arg3.wnum.pArea : pRoom->area, pReset->arg3.wnum.vnum)))
         {
-            sprintf(buf, "Put Object - Bad To Object %s\n\r",
+            sprintf(buf, "{RBAD{x Put Object - Bad To Object %s\n\r",
                 widevnum_string_wnum(pReset->arg3.wnum, pArea));
             strcat(final, buf);
-            continue;
+            break;
         }
 
         sprintf(buf,
@@ -906,10 +906,10 @@ void display_resets(CHAR_DATA *ch)
         // Support both legacy (pArea=NULL, use current area) and new (pArea set, cross-area)
         if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea ? pReset->arg1.wnum.pArea : pRoom->area, pReset->arg1.wnum.vnum)))
         {
-            sprintf(buf, "Give/Equip Object - Bad Object %s\n\r",
+            sprintf(buf, "{RBAD{x Give/Equip Object - Bad Object %s\n\r",
                 widevnum_string_wnum(pReset->arg1.wnum, pArea));
             strcat(final, buf);
-            continue;
+            break;
         }
         pObj       = pObjIndex;
 
@@ -968,10 +968,10 @@ void display_resets(CHAR_DATA *ch)
         {
         if (!(pRoomIndex = get_room_index(pRoom->area, pReset->arg1.value)))
         {
-            sprintf(buf, "Randomize Exits - Bad Room %ld\n\r",
+            sprintf(buf, "{RBAD{x Randomize Exits - Bad Room %ld\n\r",
             pReset->arg1.value);
             strcat(final, buf);
-            continue;
+            break;
         }
 
         sprintf(buf, "R[%s] Exits are randomized in %s\n\r",

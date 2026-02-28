@@ -43,6 +43,9 @@ static CLASS_HASH_ENTRY *class_hash_tbl[CLASS_HASH_SIZE];
 static CLASS_DATA **    class_uid_index = NULL;
 static int              max_class_uid = 0;
 
+/* XP curve loader (defined near XP section) */
+static void class_load_xp_curves(void);
+
 /***************************************************************************
  * Flag / Type Tables                                                      *
  ***************************************************************************/
@@ -170,6 +173,8 @@ CLASS_DATA *new_class_data(void)
     clazz->type = CLASS_TYPE_NONE;
     clazz->max_level = MAX_CLASS_LEVEL;
     clazz->primary_stat = STAT_STR;
+    clazz->xp_accept_mask = XP_MASK_ANY;
+    clazz->xp_curve_id = str_dup("");
     clazz->groups = list_create(false);
     clazz->rewards = list_create(false);
     clazz->titles = list_create(false);
@@ -198,8 +203,10 @@ void free_class_data(CLASS_DATA *data)
 
     free_string(data->name);
     free_string(data->description);
+    free_string(data->comments);
     free_string(data->enter_fun_name);
     free_string(data->leave_fun_name);
+    free_string(data->xp_curve_id);
 
     for (int i = 0; i < BODY_TYPE_MAX; i++) {
         free_string(data->display[i]);
@@ -1118,6 +1125,101 @@ static const char *class_type_to_string(int16_t type)
 }
 
 /**
+ * xp_type_to_string - Convert XP type to serialization/display string.
+ */
+const char *xp_type_to_string(int xp_type)
+{
+    switch (xp_type) {
+        case XP_TYPE_COMBAT: return "combat";
+        case XP_TYPE_CRAFTING: return "crafting";
+        case XP_TYPE_GATHERING: return "gathering";
+        case XP_TYPE_EXPLORATION: return "exploration";
+        default: return "untyped";
+    }
+}
+
+/**
+ * xp_type_from_string - Parse XP type string.
+ */
+int xp_type_from_string(const char *str)
+{
+    if (!str || !str[0])
+        return XP_TYPE_UNTYPED;
+
+    if (!str_cmp(str, "combat"))
+        return XP_TYPE_COMBAT;
+    if (!str_cmp(str, "crafting"))
+        return XP_TYPE_CRAFTING;
+    if (!str_cmp(str, "gathering"))
+        return XP_TYPE_GATHERING;
+    if (!str_cmp(str, "exploration") || !str_cmp(str, "explore"))
+        return XP_TYPE_EXPLORATION;
+
+    return XP_TYPE_UNTYPED;
+}
+
+/**
+ * class_default_xp_accept_mask - Default acceptance policy by class identity.
+ */
+long class_default_xp_accept_mask(CLASS_DATA *clazz)
+{
+    if (!clazz)
+        return XP_MASK_ANY;
+
+    switch (clazz->type) {
+        case CLASS_TYPE_CRAFTING:
+            return XP_MASK_CRAFTING;
+        case CLASS_TYPE_GATHERING:
+            return (XP_MASK_GATHERING | XP_MASK_EXPLORATION);
+        case CLASS_TYPE_EXPLORER:
+            return XP_MASK_EXPLORATION;
+        case CLASS_TYPE_MAGE:
+        case CLASS_TYPE_CLERIC:
+        case CLASS_TYPE_THIEF:
+        case CLASS_TYPE_WARRIOR:
+            return XP_MASK_COMBAT;
+        default:
+            break;
+    }
+
+    if (IS_SET(clazz->flags, CLASS_COMBATIVE))
+        return XP_MASK_COMBAT;
+
+    return XP_MASK_ANY;
+}
+
+/**
+ * class_accepts_xp_type - Check class policy for a typed XP award.
+ */
+bool class_accepts_xp_type(CLASS_DATA *clazz, int xp_type)
+{
+    long mask;
+
+    if (!clazz)
+        return false;
+
+    if (xp_type == XP_TYPE_UNTYPED)
+        return true;
+
+    mask = (clazz->xp_accept_mask != 0)
+        ? clazz->xp_accept_mask
+        : class_default_xp_accept_mask(clazz);
+
+    switch (xp_type) {
+        case XP_TYPE_COMBAT:
+            return IS_SET(mask, XP_MASK_COMBAT);
+        case XP_TYPE_CRAFTING:
+            return IS_SET(mask, XP_MASK_CRAFTING);
+        case XP_TYPE_GATHERING:
+            return IS_SET(mask, XP_MASK_GATHERING);
+        case XP_TYPE_EXPLORATION:
+            return IS_SET(mask, XP_MASK_EXPLORATION);
+        default:
+            return true;
+    }
+}
+
+/**
  * stat_from_string - Convert a stat name to STAT_* constant
  */
 static int16_t stat_from_string(const char *str)
@@ -1156,6 +1258,7 @@ static CLASS_DATA *class_load_json(const char *filename)
     CLASS_DATA *clazz;
     const char *str;
     size_t index;
+    bool xp_accept_found = false;
 
     root = json_load_file(filename, 0, &error);
     if (!root) {
@@ -1207,6 +1310,39 @@ static CLASS_DATA *class_load_json(const char *filename)
             else if (!str_cmp(str, "remort_only")) SET_BIT(clazz->flags, CLASS_REMORT_ONLY);
             else if (!str_cmp(str, "default"))  SET_BIT(clazz->flags, CLASS_DEFAULT);
         }
+    }
+
+    /* XP acceptance mask (optional) */
+    arr = json_object_get(root, "xp_accept");
+    if (arr && json_is_array(arr)) {
+        clazz->xp_accept_mask = 0;
+        xp_accept_found = true;
+        json_array_foreach(arr, index, val) {
+            str = json_string_value(val);
+            if (!str) continue;
+            if (!str_cmp(str, "combat"))
+                SET_BIT(clazz->xp_accept_mask, XP_MASK_COMBAT);
+            else if (!str_cmp(str, "crafting"))
+                SET_BIT(clazz->xp_accept_mask, XP_MASK_CRAFTING);
+            else if (!str_cmp(str, "gathering"))
+                SET_BIT(clazz->xp_accept_mask, XP_MASK_GATHERING);
+            else if (!str_cmp(str, "exploration") || !str_cmp(str, "explore"))
+                SET_BIT(clazz->xp_accept_mask, XP_MASK_EXPLORATION);
+            else if (!str_cmp(str, "non_combat") || !str_cmp(str, "non-combat"))
+                SET_BIT(clazz->xp_accept_mask, XP_MASK_NON_COMBAT);
+            else if (!str_cmp(str, "any") || !str_cmp(str, "all"))
+                clazz->xp_accept_mask = XP_MASK_ANY;
+        }
+    }
+
+    if (!xp_accept_found)
+        clazz->xp_accept_mask = class_default_xp_accept_mask(clazz);
+
+    /* Named XP curve id (optional) */
+    str = json_string_value(json_object_get(root, "xp_curve"));
+    if (str && str[0]) {
+        free_string(clazz->xp_curve_id);
+        clazz->xp_curve_id = str_dup(str);
     }
 
     /* Display names (body-type-aware) */
@@ -1528,6 +1664,21 @@ void save_class_data(CLASS_DATA *clazz)
         json_object_set_new(root, "xp_table", arr);
     }
 
+    /* XP acceptance policy */
+    arr = json_array();
+    if (IS_SET(clazz->xp_accept_mask, XP_MASK_COMBAT))
+        json_array_append_new(arr, json_string("combat"));
+    if (IS_SET(clazz->xp_accept_mask, XP_MASK_CRAFTING))
+        json_array_append_new(arr, json_string("crafting"));
+    if (IS_SET(clazz->xp_accept_mask, XP_MASK_GATHERING))
+        json_array_append_new(arr, json_string("gathering"));
+    if (IS_SET(clazz->xp_accept_mask, XP_MASK_EXPLORATION))
+        json_array_append_new(arr, json_string("exploration"));
+    json_object_set_new(root, "xp_accept", arr);
+
+    if (clazz->xp_curve_id && clazz->xp_curve_id[0])
+        json_object_set_new(root, "xp_curve", json_string(clazz->xp_curve_id));
+
     /* Groups */
     arr = json_array();
     if (clazz->groups && list_size(clazz->groups) > 0) {
@@ -1697,6 +1848,7 @@ static void class_copy_fields(CLASS_DATA *dst, CLASS_DATA *src)
     free_string(dst->comments);
     free_string(dst->enter_fun_name);
     free_string(dst->leave_fun_name);
+    free_string(dst->xp_curve_id);
 
     for (int i = 0; i < BODY_TYPE_MAX; i++) {
         free_string(dst->display[i]);
@@ -1753,6 +1905,8 @@ static void class_copy_fields(CLASS_DATA *dst, CLASS_DATA *src)
     dst->weapon = src->weapon;
     dst->xp_table = src->xp_table;
     dst->xp_table_size = src->xp_table_size;
+    dst->xp_accept_mask = src->xp_accept_mask;
+    dst->xp_curve_id = src->xp_curve_id;
     dst->enter_fun_name = src->enter_fun_name;
     dst->leave_fun_name = src->leave_fun_name;
     dst->enter = src->enter;
@@ -1777,6 +1931,7 @@ static void class_copy_fields(CLASS_DATA *dst, CLASS_DATA *src)
     src->name = NULL;
     src->description = NULL;
     src->comments = NULL;
+    src->xp_curve_id = NULL;
     src->enter_fun_name = NULL;
     src->leave_fun_name = NULL;
     src->groups = NULL;
@@ -1906,6 +2061,7 @@ void load_class_data(void)
     loaded = load_class_data_from_dir(CLASSES_DIR);
     if (loaded > 0) {
         log_stringf("load_class_data: Loaded %d classes from JSON", loaded);
+        class_load_xp_curves();
         return;
     }
 
@@ -1931,16 +2087,146 @@ void load_class_data(void)
             log_stringf("load_class_data: Loaded %d classes from bootstrap source %s",
                         loaded, fallback_dirs[i]);
             save_all_class_data();
+            class_load_xp_curves();
             return;
         }
     }
 
     perrf(LOG_INIT, "load_class_data: no class JSON files found in %s or bootstrap_data sources", CLASSES_DIR);
+    class_load_xp_curves();
 }
 
 /***************************************************************************
  * XP Curve — Per-class experience requirements                            *
  ***************************************************************************/
+
+typedef struct xp_curve_data XP_CURVE_DATA;
+struct xp_curve_data {
+    XP_CURVE_DATA *next;
+    char *name;
+    long *table;
+    int table_size;
+};
+
+static XP_CURVE_DATA *xp_curve_list = NULL;
+static XP_CURVE_DATA *xp_default_curve = NULL;
+
+static XP_CURVE_DATA *xp_curve_find(const char *name)
+{
+    XP_CURVE_DATA *curve;
+
+    if (!name || !name[0])
+        return NULL;
+
+    for (curve = xp_curve_list; curve; curve = curve->next) {
+        if (!str_cmp(curve->name, name))
+            return curve;
+    }
+
+    return NULL;
+}
+
+bool class_xp_curve_exists(const char *curve_id)
+{
+    if (!curve_id || !curve_id[0])
+        return false;
+
+    return xp_curve_find(curve_id) != NULL;
+}
+
+int class_xp_curve_count(void)
+{
+    XP_CURVE_DATA *curve;
+    int count = 0;
+
+    for (curve = xp_curve_list; curve; curve = curve->next)
+        count++;
+
+    return count;
+}
+
+const char *class_xp_curve_name(int index)
+{
+    XP_CURVE_DATA *curve;
+    int i = 0;
+
+    if (index < 0)
+        return NULL;
+
+    for (curve = xp_curve_list; curve; curve = curve->next) {
+        if (i == index)
+            return curve->name;
+        i++;
+    }
+
+    return NULL;
+}
+
+const char *class_default_xp_curve_name(void)
+{
+    return xp_default_curve ? xp_default_curve->name : NULL;
+}
+
+static void class_load_xp_curves(void)
+{
+    const char *path = DATA_DIR "system/xp_curves.json";
+    json_t *root;
+    json_t *curves;
+    json_error_t error;
+    const char *curve_name;
+    json_t *curve_arr;
+    const char *default_name;
+
+    root = json_load_file(path, 0, &error);
+    if (!root) {
+        log_stringf("class_load_xp_curves: no xp_curves.json (%s)", error.text);
+        return;
+    }
+
+    curves = json_object_get(root, "curves");
+    if (!curves || !json_is_object(curves)) {
+        log_string("class_load_xp_curves: missing 'curves' object");
+        json_decref(root);
+        return;
+    }
+
+    json_object_foreach(curves, curve_name, curve_arr) {
+        XP_CURVE_DATA *curve;
+        int count;
+
+        if (!json_is_array(curve_arr))
+            continue;
+
+        count = (int)json_array_size(curve_arr);
+        if (count <= 0)
+            continue;
+
+        curve = (XP_CURVE_DATA *)alloc_perm(sizeof(XP_CURVE_DATA));
+        memset(curve, 0, sizeof(XP_CURVE_DATA));
+        curve->name = str_dup(curve_name);
+        curve->table = (long *)alloc_perm(sizeof(long) * count);
+        curve->table_size = count;
+
+        for (int i = 0; i < count; i++) {
+            curve->table[i] = (long)json_integer_value(json_array_get(curve_arr, i));
+        }
+
+        curve->next = xp_curve_list;
+        xp_curve_list = curve;
+    }
+
+    default_name = json_string_value(json_object_get(root, "default_curve"));
+    if (default_name && default_name[0])
+        xp_default_curve = xp_curve_find(default_name);
+
+    if (!xp_default_curve)
+        xp_default_curve = xp_curve_list;
+
+    if (xp_default_curve)
+        log_stringf("class_load_xp_curves: loaded named XP curves (default=%s)", xp_default_curve->name);
+
+    json_decref(root);
+}
 
 /**
  * Default XP table used when a class has no custom xp_table.
@@ -2013,6 +2299,7 @@ long class_exp_per_level(CLASS_DATA *clazz, int level)
 {
     const long *table;
     int table_size;
+    XP_CURVE_DATA *curve = NULL;
 
     if (level < 1)
         return 0;
@@ -2025,12 +2312,28 @@ long class_exp_per_level(CLASS_DATA *clazz, int level)
             table = clazz->xp_table;
             table_size = clazz->xp_table_size;
         } else {
+            if (clazz->xp_curve_id && clazz->xp_curve_id[0])
+                curve = xp_curve_find(clazz->xp_curve_id);
+
+            if (!curve)
+                curve = xp_default_curve;
+
+            if (curve) {
+                table = curve->table;
+                table_size = curve->table_size;
+            } else {
+                table = default_xp_table;
+                table_size = default_xp_table_size;
+            }
+        }
+    } else {
+        if (xp_default_curve) {
+            table = xp_default_curve->table;
+            table_size = xp_default_curve->table_size;
+        } else {
             table = default_xp_table;
             table_size = default_xp_table_size;
         }
-    } else {
-        table = default_xp_table;
-        table_size = default_xp_table_size;
     }
 
     /* level is 1-based, table is 0-indexed */

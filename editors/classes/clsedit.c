@@ -50,6 +50,9 @@ DECLARE_OLC_FUN(clsedit_rewardflags);
 DECLARE_OLC_FUN(clsedit_title);
 DECLARE_OLC_FUN(clsedit_trait);
 DECLARE_OLC_FUN(clsedit_save);
+DECLARE_OLC_FUN(clsedit_xpaccept);
+DECLARE_OLC_FUN(clsedit_xpcurve);
+DECLARE_OLC_FUN(clsedit_xptable);
 
 /***************************************************************************
  * Command Table                                                           *
@@ -80,6 +83,9 @@ const struct olc_cmd_type clsedit_table[] =
     { "trait",          clsedit_trait        },
     { "type",           clsedit_type        },
     { "who",            clsedit_who         },
+    { "xpaccept",       clsedit_xpaccept    },
+    { "xpcurve",        clsedit_xpcurve     },
+    { "xptable",        clsedit_xptable     },
     { NULL,             0                   }
 };
 
@@ -96,6 +102,71 @@ static int clsedit_stat_lookup(const char *name)
             return i;
     }
     return -1;
+}
+
+static void clsedit_format_xp_accept_mask(long mask, char *out, size_t out_size)
+{
+    bool first = true;
+    size_t used = 0;
+
+    if (!out || out_size == 0)
+        return;
+
+    out[0] = '\0';
+
+    if (IS_SET(mask, XP_MASK_COMBAT) && used < out_size) {
+        snprintf(out + used, out_size - used, "%scombat", first ? "" : ", ");
+        used = strlen(out);
+        first = false;
+    }
+    if (IS_SET(mask, XP_MASK_CRAFTING) && used < out_size) {
+        snprintf(out + used, out_size - used, "%scrafting", first ? "" : ", ");
+        used = strlen(out);
+        first = false;
+    }
+    if (IS_SET(mask, XP_MASK_GATHERING) && used < out_size) {
+        snprintf(out + used, out_size - used, "%sgathering", first ? "" : ", ");
+        used = strlen(out);
+        first = false;
+    }
+    if (IS_SET(mask, XP_MASK_EXPLORATION) && used < out_size) {
+        snprintf(out + used, out_size - used, "%sexploration", first ? "" : ", ");
+        used = strlen(out);
+        first = false;
+    }
+
+    if (first)
+        snprintf(out, out_size, "none");
+}
+
+static long clsedit_xp_mask_from_token(const char *token, bool *ok)
+{
+    if (ok)
+        *ok = true;
+
+    if (!token || !token[0]) {
+        if (ok) *ok = false;
+        return 0;
+    }
+
+    if (!str_cmp(token, "combat"))
+        return XP_MASK_COMBAT;
+    if (!str_cmp(token, "crafting"))
+        return XP_MASK_CRAFTING;
+    if (!str_cmp(token, "gathering"))
+        return XP_MASK_GATHERING;
+    if (!str_cmp(token, "exploration") || !str_cmp(token, "explore"))
+        return XP_MASK_EXPLORATION;
+    if (!str_cmp(token, "noncombat") || !str_cmp(token, "non-combat"))
+        return XP_MASK_NON_COMBAT;
+    if (!str_cmp(token, "all") || !str_cmp(token, "any"))
+        return XP_MASK_ANY;
+    if (!str_cmp(token, "none"))
+        return 0;
+
+    if (ok)
+        *ok = false;
+    return 0;
 }
 
 /***************************************************************************
@@ -263,6 +334,34 @@ CLSEDIT(clsedit_show)
         "HP Max:", "hpmax", formatf("%d", clazz->hp_max));
     olc_display_bool(ctx, theme, "Gains Mana:", "mana", clazz->gains_mana);
 
+    /* XP curve */
+    if (clazz->xp_table && clazz->xp_table_size > 0) {
+        olc_display_string(ctx, theme, "XP Table:", "xptable",
+            formatf("custom (%d entries)", clazz->xp_table_size));
+    } else {
+        olc_display_string(ctx, theme, "XP Table:", "xptable",
+            "default curve");
+    }
+
+    {
+        long effective_mask = (clazz->xp_accept_mask != 0)
+            ? clazz->xp_accept_mask
+            : class_default_xp_accept_mask(clazz);
+        char accept_buf[128];
+        const char *default_curve = class_default_xp_curve_name();
+        const char *curve_name = (clazz->xp_curve_id && clazz->xp_curve_id[0])
+            ? clazz->xp_curve_id
+            : (default_curve ? default_curve : "built-in");
+
+        clsedit_format_xp_accept_mask(effective_mask, accept_buf, sizeof(accept_buf));
+        olc_display_string(ctx, theme, "XP Accept:", "xpaccept",
+            formatf("%s (%s)", accept_buf,
+                (clazz->xp_accept_mask != 0) ? "explicit" : "default"));
+        olc_display_string(ctx, theme, "XP Curve:", "xpcurve",
+            formatf("%s (%s)", curve_name,
+                (clazz->xp_curve_id && clazz->xp_curve_id[0]) ? "explicit" : "default"));
+    }
+
     /* Titles */
     if (clazz->titles && list_size(clazz->titles) > 0) {
         ITERATOR it;
@@ -370,32 +469,48 @@ CLSEDIT(clsedit_list)
 {
     CLASS_DATA *clazz;
     BUFFER *buf;
+    bool append_ok = true;
     int count = 0;
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
-            "UID", "Name", "Type", "Max", "HP", "Mana", "Flags"));
-    add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
+    if (!add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
+            "UID", "Name", "Type", "Max", "HP", "Mana", "Flags"))
+        || !add_buf(buf, formatf("{Y%-5s %-20s %-10s %-5s %-5s %-6s %-20s{x\n\r",
             "-----", "--------------------", "----------", "-----",
-            "-----", "------", "--------------------"));
+            "-----", "------", "--------------------"))) {
+        send_to_char("Class list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
 
     for (clazz = class_first(); clazz; clazz = clazz->next) {
         if (argument[0] && str_prefix(argument, clazz->name))
             continue;
 
-        add_buf(buf, formatf("%-5d %-20s %-10s %-5d %d-%-2d %-6s %s\n\r",
+        if (!add_buf(buf, formatf("%-5d %-20s %-10s %-5d %d-%-2d %-6s %s\n\r",
                 clazz->uid,
                 clazz->name,
                 flag_name(class_types, clazz->type),
                 clazz->max_level,
                 clazz->hp_min, clazz->hp_max,
                 clazz->gains_mana ? "{GYes{x" : "{DNo{x",
-                clazz->flags ? flag_string(class_flags, clazz->flags) : "none"));
+                clazz->flags ? flag_string(class_flags, clazz->flags) : "none"))) {
+            append_ok = false;
+            break;
+        }
         count++;
     }
 
-    add_buf(buf, formatf("\n\r%d %s listed.\n\r", count,
-            count == 1 ? "class" : "classes"));
+    if (append_ok && !add_buf(buf, formatf("\n\r%d %s listed.\n\r", count,
+            count == 1 ? "class" : "classes")))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Class list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
+
     page_to_char(buf_string(buf), ch);
     free_buf(buf);
     return false;
@@ -863,6 +978,7 @@ CLSEDIT(clsedit_rewards)
     BUFFER *buf;
     ITERATOR it;
     CLASS_REWARD *reward;
+    bool append_ok = true;
 
     EDIT_CLASS(ch, clazz);
 
@@ -872,27 +988,42 @@ CLSEDIT(clsedit_rewards)
     }
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y=== Rewards for %s ==={x\n\r\n\r", clazz->name));
-    add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
-            "Lvl", "Type", "Name", "Value", "Scope", "Flags"));
-    add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
+    if (!add_buf(buf, formatf("{Y=== Rewards for %s ==={x\n\r\n\r", clazz->name))
+        || !add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
+            "Lvl", "Type", "Name", "Value", "Scope", "Flags"))
+        || !add_buf(buf, formatf("{Y%-5s %-10s %-25s %-6s %-8s %-20s{x\n\r",
             "-----", "----------", "-------------------------",
-            "------", "--------", "--------------------"));
+            "------", "--------", "--------------------"))) {
+        send_to_char("Class reward output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
 
     iterator_start(&it, clazz->rewards);
     while ((reward = (CLASS_REWARD *)iterator_nextdata(&it))) {
-        add_buf(buf, formatf("%-5d %-10s %-25s %-6d %-8s %s\n\r",
+        if (!add_buf(buf, formatf("%-5d %-10s %-25s %-6d %-8s %s\n\r",
                 reward->level,
                 flag_name(reward_types, reward->type),
                 reward->name ? reward->name : "",
                 reward->value,
                 flag_name(reward_scopes, reward->scope),
-                reward->flags ? flag_string(reward_flags, reward->flags) : "none"));
+                reward->flags ? flag_string(reward_flags, reward->flags) : "none"))) {
+            append_ok = false;
+            break;
+        }
     }
     iterator_stop(&it);
 
-    add_buf(buf, formatf("\n\r%d total rewards.\n\r",
-            list_size(clazz->rewards)));
+    if (append_ok && !add_buf(buf, formatf("\n\r%d total rewards.\n\r",
+            list_size(clazz->rewards))))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Class reward output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
+
     page_to_char(buf_string(buf), ch);
     free_buf(buf);
     return false;
@@ -1133,10 +1264,15 @@ CLSEDIT(clsedit_trait)
     if (!str_prefix(arg1, "list")) {
         TRAIT_DEF *def;
         BUFFER *buf = new_buf();
+        bool append_ok = true;
 
-        add_buf(buf, "{Y=== Available Traits ==={x\n\r");
-        add_buf(buf, formatf("{Y%-25s %-8s %-30s{x\n\r",
-                "ID", "Type", "Description"));
+        if (!add_buf(buf, "{Y=== Available Traits ==={x\n\r")
+            || !add_buf(buf, formatf("{Y%-25s %-8s %-30s{x\n\r",
+                "ID", "Type", "Description"))) {
+            send_to_char("Class trait list output exceeded buffer limits.\n\r", ch);
+            free_buf(buf);
+            return false;
+        }
 
         for (def = trait_def_list; def; def = def->next) {
             const char *type_str = "?";
@@ -1145,9 +1281,18 @@ CLSEDIT(clsedit_trait)
                 case TRAIT_INTEGER:  type_str = "int";    break;
                 case TRAIT_STRING:   type_str = "string"; break;
             }
-            add_buf(buf, formatf("%-25s %-8s %s\n\r",
+            if (!add_buf(buf, formatf("%-25s %-8s %s\n\r",
                     def->id, type_str,
-                    def->description ? def->description : ""));
+                    def->description ? def->description : ""))) {
+                append_ok = false;
+                break;
+            }
+        }
+
+        if (!append_ok) {
+            send_to_char("Class trait list output exceeded buffer limits.\n\r", ch);
+            free_buf(buf);
+            return false;
         }
 
         page_to_char(buf_string(buf), ch);
@@ -1244,6 +1389,515 @@ CLSEDIT(clsedit_trait)
     send_to_char("Syntax: trait set <trait_id> <value>\n\r", ch);
     send_to_char("        trait clear <trait_id>\n\r", ch);
     send_to_char("        trait list\n\r", ch);
+    return false;
+}
+
+/**
+ * clsedit_xpaccept - Manage class XP acceptance routing policy
+ *
+ * Syntax:
+ *   xpaccept show
+ *   xpaccept list
+ *   xpaccept set <type...>
+ *   xpaccept add <type>
+ *   xpaccept remove <type>
+ *   xpaccept default
+ */
+CLSEDIT(clsedit_xpaccept)
+{
+    CLASS_DATA *clazz;
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    long effective_mask;
+    char mask_buf[128];
+
+    EDIT_CLASS(ch, clazz);
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+
+    if (arg1[0] == '\0' || !str_prefix(arg1, "show")) {
+        effective_mask = (clazz->xp_accept_mask != 0)
+            ? clazz->xp_accept_mask
+            : class_default_xp_accept_mask(clazz);
+        clsedit_format_xp_accept_mask(effective_mask, mask_buf, sizeof(mask_buf));
+
+        send_to_char(formatf("XP accept policy: %s (%s).\n\r",
+            mask_buf,
+            (clazz->xp_accept_mask != 0) ? "explicit override" : "default by class type"), ch);
+        return false;
+    }
+
+    if (!str_prefix(arg1, "list")) {
+        send_to_char("XP types: combat, crafting, gathering, exploration\n\r", ch);
+        send_to_char("Shortcuts: noncombat, all, none\n\r", ch);
+        return false;
+    }
+
+    if (!str_prefix(arg1, "default") || !str_prefix(arg1, "clear")) {
+        long old_effective = (clazz->xp_accept_mask != 0)
+            ? clazz->xp_accept_mask
+            : class_default_xp_accept_mask(clazz);
+        char old_buf[128];
+
+        clsedit_format_xp_accept_mask(old_effective, old_buf, sizeof(old_buf));
+        clazz->xp_accept_mask = 0;
+        clsedit_record(clazz, ch, "xpaccept", old_buf, "default");
+        send_to_char("XP accept policy reset to class default behavior.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "set")) {
+        long new_mask = 0;
+        char token[MAX_INPUT_LENGTH];
+        char old_buf[128];
+        char new_buf[128];
+        bool ok;
+
+        if (arg2[0] == '\0') {
+            send_to_char("Syntax: xpaccept set <type...>\n\r", ch);
+            return false;
+        }
+
+        do {
+            long bit = clsedit_xp_mask_from_token(arg2, &ok);
+            if (!ok) {
+                send_to_char(formatf("Unknown XP type '%s'. Use 'xpaccept list'.\n\r", arg2), ch);
+                return false;
+            }
+            new_mask |= bit;
+            argument = one_argument(argument, token);
+            snprintf(arg2, sizeof(arg2), "%s", token);
+        } while (arg2[0] != '\0');
+
+        clsedit_format_xp_accept_mask(
+            (clazz->xp_accept_mask != 0) ? clazz->xp_accept_mask : class_default_xp_accept_mask(clazz),
+            old_buf, sizeof(old_buf));
+        clsedit_format_xp_accept_mask(new_mask, new_buf, sizeof(new_buf));
+
+        clazz->xp_accept_mask = new_mask;
+        clsedit_record(clazz, ch, "xpaccept", old_buf, new_buf);
+        send_to_char(formatf("XP accept policy set to: %s\n\r", new_buf), ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "add") || !str_prefix(arg1, "remove")) {
+        long bit;
+        bool ok;
+        char old_buf[128];
+        char new_buf[128];
+        long effective;
+
+        if (arg2[0] == '\0') {
+            send_to_char(formatf("Syntax: xpaccept %s <type>\n\r",
+                !str_prefix(arg1, "add") ? "add" : "remove"), ch);
+            return false;
+        }
+
+        bit = clsedit_xp_mask_from_token(arg2, &ok);
+        if (!ok || bit == 0 || bit == XP_MASK_ANY) {
+            send_to_char("Use a specific type: combat, crafting, gathering, exploration.\n\r", ch);
+            return false;
+        }
+
+        effective = (clazz->xp_accept_mask != 0)
+            ? clazz->xp_accept_mask
+            : class_default_xp_accept_mask(clazz);
+
+        clsedit_format_xp_accept_mask(effective, old_buf, sizeof(old_buf));
+
+        if (!str_prefix(arg1, "add"))
+            SET_BIT(effective, bit);
+        else
+            REMOVE_BIT(effective, bit);
+
+        clazz->xp_accept_mask = effective;
+        clsedit_format_xp_accept_mask(effective, new_buf, sizeof(new_buf));
+        clsedit_record(clazz, ch, "xpaccept", old_buf, new_buf);
+        send_to_char(formatf("XP accept policy is now: %s\n\r", new_buf), ch);
+        return true;
+    }
+
+    send_to_char("Syntax: xpaccept show\n\r", ch);
+    send_to_char("        xpaccept list\n\r", ch);
+    send_to_char("        xpaccept set <type...>\n\r", ch);
+    send_to_char("        xpaccept add <type>\n\r", ch);
+    send_to_char("        xpaccept remove <type>\n\r", ch);
+    send_to_char("        xpaccept default\n\r", ch);
+    return false;
+}
+
+/**
+ * clsedit_xpcurve - Manage class named XP curve selection
+ *
+ * Syntax:
+ *   xpcurve show
+ *   xpcurve list
+ *   xpcurve set <curve_id>
+ *   xpcurve clear
+ */
+CLSEDIT(clsedit_xpcurve)
+{
+    CLASS_DATA *clazz;
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    const char *default_curve;
+
+    EDIT_CLASS(ch, clazz);
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    default_curve = class_default_xp_curve_name();
+
+    if (arg1[0] == '\0' || !str_prefix(arg1, "show")) {
+        const char *curve_name = (clazz->xp_curve_id && clazz->xp_curve_id[0])
+            ? clazz->xp_curve_id
+            : (default_curve ? default_curve : "built-in");
+        send_to_char(formatf("XP curve: %s (%s).\n\r",
+            curve_name,
+            (clazz->xp_curve_id && clazz->xp_curve_id[0])
+                ? "explicit override"
+                : "default"), ch);
+        return false;
+    }
+
+    if (!str_prefix(arg1, "list")) {
+        int count = class_xp_curve_count();
+
+        send_to_char("Named XP curves:\n\r", ch);
+        if (count <= 0) {
+            send_to_char("  (none loaded; using built-in fallback table)\n\r", ch);
+            return false;
+        }
+
+        for (int i = 0; i < count; i++) {
+            const char *name = class_xp_curve_name(i);
+            if (!name)
+                continue;
+            send_to_char(formatf("  %s%s\n\r", name,
+                (default_curve && !str_cmp(name, default_curve)) ? " {Y(default){x" : ""), ch);
+        }
+        return false;
+    }
+
+    if (!str_prefix(arg1, "clear") || !str_prefix(arg1, "default")) {
+        char old_curve[MAX_INPUT_LENGTH];
+
+        snprintf(old_curve, sizeof(old_curve), "%s",
+            (clazz->xp_curve_id && clazz->xp_curve_id[0]) ? clazz->xp_curve_id : "default");
+
+        free_string(clazz->xp_curve_id);
+        clazz->xp_curve_id = str_dup("");
+        clsedit_record(clazz, ch, "xpcurve", old_curve, "default");
+        send_to_char("XP curve reset to default.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "set")) {
+        char old_curve[MAX_INPUT_LENGTH];
+
+        if (arg2[0] == '\0') {
+            send_to_char("Syntax: xpcurve set <curve_id>\n\r", ch);
+            return false;
+        }
+
+        if (!class_xp_curve_exists(arg2)) {
+            send_to_char("Unknown curve ID. Use 'xpcurve list' to see available curves.\n\r", ch);
+            return false;
+        }
+
+        snprintf(old_curve, sizeof(old_curve), "%s",
+            (clazz->xp_curve_id && clazz->xp_curve_id[0]) ? clazz->xp_curve_id : "default");
+        free_string(clazz->xp_curve_id);
+        clazz->xp_curve_id = str_dup(arg2);
+        clsedit_record(clazz, ch, "xpcurve", old_curve, arg2);
+        send_to_char(formatf("XP curve set to '%s'.\n\r", arg2), ch);
+        return true;
+    }
+
+    send_to_char("Syntax: xpcurve show\n\r", ch);
+    send_to_char("        xpcurve list\n\r", ch);
+    send_to_char("        xpcurve set <curve_id>\n\r", ch);
+    send_to_char("        xpcurve clear\n\r", ch);
+    return false;
+}
+
+/**
+ * clsedit_xptable - Manage per-class XP table overrides
+ *
+ * Syntax:
+ *   xptable                 - show active XP values for this class
+ *   xptable show            - same as above
+ *   xptable clear           - remove custom XP table (use default curve)
+ *   xptable set <level> <xp> - set XP required to go level -> level+1
+ *   xptable calc linear <base> <step>
+ *   xptable calc geometric <base> <percent>
+ *   xptable calc quadratic <base> <step> <curve>
+ *
+ * Notes:
+ *   Levels are 1-based and valid range is 1..(max_level-1).
+ *   geometric percent is per-level multiplier in percent (e.g., 115 = +15% each level).
+ */
+CLSEDIT(clsedit_xptable)
+{
+    CLASS_DATA *clazz;
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    const long *table;
+    int table_size = 0;
+
+    EDIT_CLASS(ch, clazz);
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+
+    if (arg1[0] == '\0' || !str_prefix(arg1, "show")) {
+        BUFFER *buf = new_buf();
+        bool append_ok = true;
+        int max_entries = UMAX(0, clazz->max_level - 1);
+
+        if (clazz->xp_table && clazz->xp_table_size > 0) {
+            table = clazz->xp_table;
+            table_size = clazz->xp_table_size;
+        } else {
+            table = class_default_xp_table(&table_size);
+        }
+
+        if (!add_buf(buf, formatf("{Y=== XP Table for %s ==={x\n\r", clazz->name))
+            || !add_buf(buf, formatf("Source: %s\n\r",
+                (clazz->xp_table && clazz->xp_table_size > 0) ? "custom" : "default"))
+            || !add_buf(buf, "Format: level -> XP required for next level\n\r\n\r")) {
+            send_to_char("XP table output exceeded buffer limits.\n\r", ch);
+            free_buf(buf);
+            return false;
+        }
+
+        if (max_entries <= 0) {
+            if (!add_buf(buf, "No level transitions (max_level <= 1).\n\r"))
+                append_ok = false;
+        } else {
+            for (int level = 1; level <= max_entries; level++) {
+                long xp = (level - 1 < table_size) ? table[level - 1] : 0;
+                if (!add_buf(buf, formatf("%3d -> %ld\n\r", level, xp))) {
+                    append_ok = false;
+                    break;
+                }
+            }
+        }
+
+        if (!append_ok) {
+            send_to_char("XP table output exceeded buffer limits.\n\r", ch);
+            free_buf(buf);
+            return false;
+        }
+
+        page_to_char(buf_string(buf), ch);
+        free_buf(buf);
+        return false;
+    }
+
+    if (!str_prefix(arg1, "clear")) {
+        if (!clazz->xp_table || clazz->xp_table_size <= 0) {
+            send_to_char("This class already uses the default XP curve.\n\r", ch);
+            return false;
+        }
+
+        clsedit_record(clazz, ch, "xptable",
+            formatf("custom (%d entries)", clazz->xp_table_size), "default");
+        clazz->xp_table = NULL;
+        clazz->xp_table_size = 0;
+        send_to_char("Custom XP table cleared. Class now uses the default curve.\n\r", ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "set")) {
+        int level;
+        long xp;
+        int required_entries;
+        long *new_table;
+        const long *base_table;
+        int base_size = 0;
+
+        if (arg2[0] == '\0' || arg3[0] == '\0' || !is_number(arg2) || !is_number(arg3)) {
+            send_to_char("Syntax: xptable set <level> <xp>\n\r", ch);
+            return false;
+        }
+
+        level = atoi(arg2);
+        xp = atol(arg3);
+
+        required_entries = UMAX(0, clazz->max_level - 1);
+        if (required_entries <= 0) {
+            send_to_char("Cannot set XP table: class max_level is too low.\n\r", ch);
+            return false;
+        }
+
+        if (level < 1 || level > required_entries) {
+            send_to_char(formatf("Level must be between 1 and %d for this class.\n\r", required_entries), ch);
+            return false;
+        }
+
+        if (xp < 1) {
+            send_to_char("XP value must be at least 1.\n\r", ch);
+            return false;
+        }
+
+        if (clazz->xp_table && clazz->xp_table_size > 0) {
+            base_table = clazz->xp_table;
+            base_size = clazz->xp_table_size;
+        } else {
+            base_table = class_default_xp_table(&base_size);
+        }
+
+        new_table = (long *)alloc_perm(sizeof(long) * required_entries);
+        if (!new_table) {
+            send_to_char("Memory allocation failed while updating XP table.\n\r", ch);
+            return false;
+        }
+
+        for (int i = 0; i < required_entries; i++) {
+            new_table[i] = (i < base_size) ? base_table[i] : 0;
+        }
+
+        new_table[level - 1] = xp;
+
+        clazz->xp_table = new_table;
+        clazz->xp_table_size = required_entries;
+
+        clsedit_record(clazz, ch, "xptable_set",
+            formatf("level %d = %ld", level,
+                (level - 1 < base_size) ? base_table[level - 1] : 0),
+            formatf("level %d = %ld", level, xp));
+
+        send_to_char(formatf("XP table updated: level %d now requires %ld XP.\n\r", level, xp), ch);
+        return true;
+    }
+
+    if (!str_prefix(arg1, "calc")) {
+        int required_entries;
+        long *new_table;
+
+        required_entries = UMAX(0, clazz->max_level - 1);
+        if (required_entries <= 0) {
+            send_to_char("Cannot generate XP table: class max_level is too low.\n\r", ch);
+            return false;
+        }
+
+        if (arg2[0] == '\0') {
+            send_to_char("Syntax: xptable calc linear <base> <step>\n\r", ch);
+            send_to_char("        xptable calc geometric <base> <percent>\n\r", ch);
+            send_to_char("        xptable calc quadratic <base> <step> <curve>\n\r", ch);
+            return false;
+        }
+
+        new_table = (long *)alloc_perm(sizeof(long) * required_entries);
+        if (!new_table) {
+            send_to_char("Memory allocation failed while generating XP table.\n\r", ch);
+            return false;
+        }
+
+        if (!str_prefix(arg2, "linear")) {
+            long base, step;
+            if (arg3[0] == '\0' || argument[0] == '\0' || !is_number(arg3) || !is_number(argument)) {
+                send_to_char("Syntax: xptable calc linear <base> <step>\n\r", ch);
+                return false;
+            }
+
+            base = atol(arg3);
+            step = atol(argument);
+            if (base < 1 || step < 0) {
+                send_to_char("linear requires: base >= 1 and step >= 0.\n\r", ch);
+                return false;
+            }
+
+            for (int i = 0; i < required_entries; i++) {
+                long xp = base + (step * i);
+                new_table[i] = UMAX(1, xp);
+            }
+
+            clazz->xp_table = new_table;
+            clazz->xp_table_size = required_entries;
+            clsedit_record(clazz, ch, "xptable_calc", "(generated)",
+                formatf("linear base=%ld step=%ld", base, step));
+            send_to_char(formatf("XP table generated with linear curve (base=%ld, step=%ld).\n\r", base, step), ch);
+            return true;
+        }
+
+        if (!str_prefix(arg2, "geometric")) {
+            long base, percent;
+            long current;
+            if (arg3[0] == '\0' || argument[0] == '\0' || !is_number(arg3) || !is_number(argument)) {
+                send_to_char("Syntax: xptable calc geometric <base> <percent>\n\r", ch);
+                return false;
+            }
+
+            base = atol(arg3);
+            percent = atol(argument);
+            if (base < 1 || percent < 100) {
+                send_to_char("geometric requires: base >= 1 and percent >= 100.\n\r", ch);
+                return false;
+            }
+
+            current = base;
+            for (int i = 0; i < required_entries; i++) {
+                new_table[i] = UMAX(1, current);
+                current = UMAX(1, (current * percent) / 100);
+            }
+
+            clazz->xp_table = new_table;
+            clazz->xp_table_size = required_entries;
+            clsedit_record(clazz, ch, "xptable_calc", "(generated)",
+                formatf("geometric base=%ld percent=%ld", base, percent));
+            send_to_char(formatf("XP table generated with geometric curve (base=%ld, percent=%ld).\n\r", base, percent), ch);
+            return true;
+        }
+
+        if (!str_prefix(arg2, "quadratic")) {
+            char arg4[MAX_INPUT_LENGTH];
+            long base, step, curve;
+
+            argument = one_argument(argument, arg4);
+            if (arg3[0] == '\0' || arg4[0] == '\0'
+                || !is_number(arg3) || !is_number(arg4) || !is_number(argument)) {
+                send_to_char("Syntax: xptable calc quadratic <base> <step> <curve>\n\r", ch);
+                return false;
+            }
+
+            base = atol(arg3);
+            step = atol(arg4);
+            curve = atol(argument);
+
+            if (base < 1 || step < 0 || curve < 0) {
+                send_to_char("quadratic requires: base >= 1, step >= 0, curve >= 0.\n\r", ch);
+                return false;
+            }
+
+            for (int i = 0; i < required_entries; i++) {
+                long xp = base + (step * i) + (curve * i * i);
+                new_table[i] = UMAX(1, xp);
+            }
+
+            clazz->xp_table = new_table;
+            clazz->xp_table_size = required_entries;
+            clsedit_record(clazz, ch, "xptable_calc", "(generated)",
+                formatf("quadratic base=%ld step=%ld curve=%ld", base, step, curve));
+            send_to_char(formatf("XP table generated with quadratic curve (base=%ld, step=%ld, curve=%ld).\n\r", base, step, curve), ch);
+            return true;
+        }
+
+        send_to_char("Unknown curve type. Use: linear, geometric, quadratic.\n\r", ch);
+        return false;
+    }
+
+    send_to_char("Syntax: xptable\n\r", ch);
+    send_to_char("        xptable show\n\r", ch);
+    send_to_char("        xptable set <level> <xp>\n\r", ch);
+    send_to_char("        xptable calc linear <base> <step>\n\r", ch);
+    send_to_char("        xptable calc geometric <base> <percent>\n\r", ch);
+    send_to_char("        xptable calc quadratic <base> <step> <curve>\n\r", ch);
+    send_to_char("        xptable clear\n\r", ch);
     return false;
 }
 

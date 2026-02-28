@@ -274,6 +274,7 @@ SKEDIT(skedit_list)
 {
     SKILL_DATA *skill;
     BUFFER *buf;
+    bool append_ok = true;
     int count = 0;
     bool filter_spells = false;
     bool filter_skills = false;
@@ -284,11 +285,15 @@ SKEDIT(skedit_list)
     else if (!str_cmp(arg, "skills")) filter_skills = true;
 
     buf = new_buf();
-    add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s{x\n\r",
-            "UID", "Name", "Type", "Mana", "Beats"));
-    add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s{x\n\r",
+    if (!add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s{x\n\r",
+            "UID", "Name", "Type", "Mana", "Beats"))
+        || !add_buf(buf, formatf("{Y%-5s %-30s %-6s %-5s %-5s{x\n\r",
             "-----", "------------------------------", "------",
-            "-----", "-----"));
+            "-----", "-----"))) {
+        send_to_char("Skill list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
 
     for (skill = skill_first(); skill; skill = skill->next) {
         if (filter_spells && !skill->isspell) continue;
@@ -297,17 +302,28 @@ SKEDIT(skedit_list)
             && str_prefix(arg, skill->name))
             continue;
 
-        add_buf(buf, formatf("%-5d %-30s %-6s %-5d %-5d\n\r",
+        if (!add_buf(buf, formatf("%-5d %-30s %-6s %-5d %-5d\n\r",
                 skill->uid,
                 skill->name,
                 skill->isspell ? "spell" : "skill",
                 skill->min_mana,
-                skill->beats));
+                skill->beats))) {
+            append_ok = false;
+            break;
+        }
         count++;
     }
 
-    add_buf(buf, formatf("\n\r%d %s listed.\n\r", count,
-            count == 1 ? "entry" : "entries"));
+    if (append_ok && !add_buf(buf, formatf("\n\r%d %s listed.\n\r", count,
+            count == 1 ? "entry" : "entries")))
+        append_ok = false;
+
+    if (!append_ok) {
+        send_to_char("Skill list output exceeded buffer limits.\n\r", ch);
+        free_buf(buf);
+        return false;
+    }
+
     page_to_char(buf_string(buf), ch);
     free_buf(buf);
     return false;

@@ -1945,13 +1945,22 @@ REDIT(redit_region)
         AREA_REGION *r;
         BUFFER *output = new_buf();
         ITERATOR it;
+        bool append_ok = true;
         int idx = 0;
 
-        add_buf(output, "Area regions (* = this room's region):\n\r");
+        if (!add_buf(output, "Area regions (* = this room's region):\n\r")) {
+            send_to_char("Region list output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
         sprintf(buf, "  %s  default  %s\n\r",
             (current == &room->area->region) ? "*" : " ",
             room->area->region.name ? room->area->region.name : "(default)");
-        add_buf(output, buf);
+        if (!add_buf(output, buf)) {
+            send_to_char("Region list output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
 
         iterator_start(&it, room->area->regions);
         while ((r = (AREA_REGION *)iterator_nextdata(&it)))
@@ -1960,12 +1969,21 @@ REDIT(redit_region)
                 (current == r) ? "*" : " ",
                 ++idx,
                 r->name ? r->name : "(unnamed)");
-            add_buf(output, buf);
+            if (!add_buf(output, buf)) {
+                append_ok = false;
+                break;
+            }
         }
         iterator_stop(&it);
 
-        if (idx == 0)
-            add_buf(output, "     (No custom regions — use 'aedit regions add <name>')\n\r");
+        if (append_ok && idx == 0)
+            append_ok = add_buf(output, "     (No custom regions — use 'aedit regions add <name>')\n\r");
+
+        if (!append_ok) {
+            send_to_char("Region list output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
 
         page_to_char(buf_string(output), ch);
         free_buf(output);

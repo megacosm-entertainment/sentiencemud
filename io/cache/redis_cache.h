@@ -255,6 +255,17 @@ int redis_leaderboard_get_ratio_data(int max_entries, char **names,
 long redis_leaderboard_count(const char *board_name);
 
 /***************************************************************************
+ * Audit Error Counters                                                    *
+ **************************************************************************/
+
+// Increment persistent count for an audit error signature
+bool redis_audit_error_increment(const char *signature);
+
+// Retrieve persistent count for an audit error signature
+// Returns -1 on error/unavailable
+long redis_audit_error_get_count(const char *signature);
+
+/***************************************************************************
  * Diagnostics & Monitoring                                               *
  ***************************************************************************/
 

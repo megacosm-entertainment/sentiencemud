@@ -22,6 +22,7 @@ Use this directory for stable operational and engineering references such as sub
 
 - [RSGEdit Usage and Integration Guide](RSGEDIT_USAGE.md)
 - [Adding Skills, Spells, and Commands](SKILL_SPELL_COMMAND_GUIDE.md)
+- [Command Invocation Context Guide](COMMAND_INVOCATION_CONTEXT.md)
 - [Wilds Systems Scripting Guide](WILDS_SYSTEMS_SCRIPTING_GUIDE.md)
 
 ## Scope Rules

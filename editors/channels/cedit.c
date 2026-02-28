@@ -429,13 +429,29 @@ static bool cedit_aliases(CHAR_DATA *ch, char *argument)
 
     if (IS_NULLSTR(arg1) || !str_cmp(arg1, "list")) {
         BUFFER *output = new_buf();
+        bool append_ok = true;
 
-        add_buf(output, "Channel aliases:\n\r");
+        if (!add_buf(output, "Channel aliases:\n\r")) {
+            send_to_char("Channel alias output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
+
         if (channel->alias_count < 1) {
-            add_buf(output, "  (none)\n\r");
+            append_ok = add_buf(output, "  (none)\n\r");
         } else {
-            for (i = 0; i < channel->alias_count; i++)
-                add_buf(output, formatf("  %2d) %s\n\r", i + 1, channel->aliases[i]));
+            for (i = 0; i < channel->alias_count; i++) {
+                if (!add_buf(output, formatf("  %2d) %s\n\r", i + 1, channel->aliases[i]))) {
+                    append_ok = false;
+                    break;
+                }
+            }
+        }
+
+        if (!append_ok) {
+            send_to_char("Channel alias output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
         }
 
         page_to_char(buf_string(output), ch);
@@ -953,13 +969,26 @@ static bool cedit_modlist(CHAR_DATA *ch, char *argument)
     (void)argument;
 
     output = new_buf();
-    add_buf(output, "Moderators:\n\r");
+    if (!add_buf(output, "Moderators:\n\r")) {
+        send_to_char("Moderator list output exceeded buffer limits.\n\r", ch);
+        free_buf(output);
+        return false;
+    }
 
     if (channel->mod_count == 0) {
-        add_buf(output, "  (none)\n\r");
+        if (!add_buf(output, "  (none)\n\r")) {
+            send_to_char("Moderator list output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
     } else {
-        for (i = 0; i < channel->mod_count; i++)
-            add_buf(output, formatf("  %2d) %s\n\r", i + 1, channel->moderators[i]));
+        for (i = 0; i < channel->mod_count; i++) {
+            if (!add_buf(output, formatf("  %2d) %s\n\r", i + 1, channel->moderators[i]))) {
+                send_to_char("Moderator list output exceeded buffer limits.\n\r", ch);
+                free_buf(output);
+                return false;
+            }
+        }
     }
 
     page_to_char(buf_string(output), ch);
@@ -1114,11 +1143,15 @@ static bool cedit_requirements(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg1, "show")) {
         BUFFER *output = new_buf();
 
-        add_buf(output, "Requirement Specs:\n\r");
-        add_buf(output, formatf("  Publish  : %s\n\r",
-                                channel->publish_requirements[0] ? channel->publish_requirements : "(none)"));
-        add_buf(output, formatf("  Subscribe: %s\n\r",
-                                channel->subscribe_requirements[0] ? channel->subscribe_requirements : "(none)"));
+        if (!add_buf(output, "Requirement Specs:\n\r")
+            || !add_buf(output, formatf("  Publish  : %s\n\r",
+                                channel->publish_requirements[0] ? channel->publish_requirements : "(none)"))
+            || !add_buf(output, formatf("  Subscribe: %s\n\r",
+                                channel->subscribe_requirements[0] ? channel->subscribe_requirements : "(none)"))) {
+            send_to_char("Requirement output exceeded buffer limits.\n\r", ch);
+            free_buf(output);
+            return false;
+        }
 
         page_to_char(buf_string(output), ch);
         free_buf(output);

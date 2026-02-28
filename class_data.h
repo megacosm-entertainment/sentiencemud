@@ -69,6 +69,22 @@ typedef struct class_title CLASS_TITLE;
 #define REWARD_SCOPE_ALWAYS     3      /* Always available regardless of active class */
 #define MAX_REWARD_SCOPE        4
 
+/* XP type categories used by typed gain routing */
+#define XP_TYPE_UNTYPED         0
+#define XP_TYPE_COMBAT          1
+#define XP_TYPE_CRAFTING        2
+#define XP_TYPE_GATHERING       3
+#define XP_TYPE_EXPLORATION     4
+#define MAX_XP_TYPE             5
+
+/* Class acceptance mask bits */
+#define XP_MASK_COMBAT          (1L << 0)
+#define XP_MASK_CRAFTING        (1L << 1)
+#define XP_MASK_GATHERING       (1L << 2)
+#define XP_MASK_EXPLORATION     (1L << 3)
+#define XP_MASK_NON_COMBAT      (XP_MASK_CRAFTING | XP_MASK_GATHERING | XP_MASK_EXPLORATION)
+#define XP_MASK_ANY             (XP_MASK_COMBAT | XP_MASK_NON_COMBAT)
+
 /***************************************************************************
  * Callback typedefs                                                       *
  ***************************************************************************/
@@ -121,6 +137,14 @@ void            insert_class_level(CHAR_DATA *ch, CLASS_LEVEL *cl);
 bool            is_current_class_combat(CHAR_DATA *ch);
 long            class_exp_per_level(CLASS_DATA *clazz, int level);
 const long *    class_default_xp_table(int *out_size);
+bool            class_accepts_xp_type(CLASS_DATA *clazz, int xp_type);
+long            class_default_xp_accept_mask(CLASS_DATA *clazz);
+bool            class_xp_curve_exists(const char *curve_id);
+int             class_xp_curve_count(void);
+const char *    class_xp_curve_name(int index);
+const char *    class_default_xp_curve_name(void);
+const char *    xp_type_to_string(int xp_type);
+int             xp_type_from_string(const char *str);
 
 /***************************************************************************
  * Compatibility / Migration API                                           *

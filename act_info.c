@@ -55,6 +55,7 @@
 #include "traits.h"
 #include "skill_data.h"
 #include "class_data.h"
+#include "utils/tablefmt.h"
 
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
@@ -657,6 +658,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     int iShow;
     int count, max;
     bool fCombine;
+    bool append_ok;
     OBJ_DATA *mist = NULL, *mobj = NULL;
 
     if (ch->desc == NULL)
@@ -678,9 +680,15 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     count++;
     prgpstrShow = alloc_mem(count * sizeof(char *));
     prgnShow = alloc_mem(count * sizeof(int));
+    if (count > 0)
+    {
+    memset(prgpstrShow, 0, count * sizeof(char *));
+    memset(prgnShow, 0, count * sizeof(int));
+    }
     nShow = 0;
     max = -1;
     mist = NULL;
+    append_ok = true;
 
     /* Figure out if there is a mist-type item in the room, which blocks objects from view. */
     if (list != NULL && list->carried_by == NULL && list->in_room != NULL) {
@@ -746,10 +754,14 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
         if (!add_buf(output, buf))
         {
         perrf(LOG_ERROR, "Corpse addbuf failed.");
-        return;
+        append_ok = false;
+        break;
         }
     }
     }
+
+    if (!append_ok)
+    goto show_list_cleanup;
 
     /*
      * Output the formatted list.
@@ -766,20 +778,34 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
         if (!add_buf(output, buf))
         {
         perrf(LOG_ERROR, "Addbuf, combine failed");
-        return;
+        append_ok = false;
+        break;
         }
     } else {
         if (!add_buf(output, "     "))
         {
         perrf(LOG_ERROR, "Addbuf, combine failed");
-        return;
+        append_ok = false;
+        break;
         }
     }
 
-    add_buf(output, "{x");
-    add_buf(output, prgpstrShow[iShow]);
-    add_buf(output, "\n\r{x");
+    if (!add_buf(output, "{x")
+    ||  !add_buf(output, prgpstrShow[iShow])
+    ||  !add_buf(output, "\n\r{x"))
+    {
+        perrf(LOG_ERROR, "Addbuf, item line failed");
+        append_ok = false;
+        break;
+    }
     free_string(prgpstrShow[iShow]);
+    prgpstrShow[iShow] = NULL;
+    }
+
+    if (!append_ok)
+    {
+    send_to_char("Object list output exceeded buffer limits.\n\r", ch);
+    goto show_list_cleanup;
     }
 
     if (fShowNothing && nShow == 0)
@@ -793,6 +819,12 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     /*
      * Clean up.
      */
+show_list_cleanup:
+    for (iShow = 0; iShow < nShow; iShow++)
+    {
+    if (prgpstrShow[iShow] != NULL)
+        free_string(prgpstrShow[iShow]);
+    }
     free_buf(output);
     free_mem(prgpstrShow, count * sizeof(char *));
     free_mem(prgnShow, count * sizeof(int));
@@ -868,6 +900,294 @@ static const char *show_room_display_name(ROOM_INDEX_DATA *room, char *out, size
     return out;
 }
 
+static void append_quest_target_marker(char *buf, CHAR_DATA *victim, CHAR_DATA *ch)
+{
+    QUEST_PART_DATA *part;
+    bool marked;
+
+    if (!IS_QUESTING(ch) || !IS_NPC(victim))
+    return;
+
+    marked = false;
+
+    for (part = ch->quest->parts; part != NULL && !marked; part = part->next)
+    {
+    if (part->mob_load.vnum != -1 && !part->complete)
+    {
+        if (!part->mob_wnum.pArea && part->mob_load.vnum > 0)
+        {
+        WNUM wnum;
+        if (resolve_widevnum(part->mob_load.vnum, NULL, &wnum))
+            part->mob_wnum = wnum;
+        else
+        {
+            AREA_DATA *fallback = get_system_area_fallback();
+            resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
+        }
+        }
+
+        if (wnum_match_mob(part->mob_wnum, victim))
+        {
+        strcat(buf, "{R[X] {G");
+        marked = true;
+        }
+    }
+    }
+
+    if (!marked)
+    {
+    QUEST_DATA *run;
+    for (run = ch->quest; run != NULL && !marked; run = run->next)
+    {
+        QUEST_STAGE_INDEX_V2_DATA *stage;
+        QUEST_OBJECTIVE_INDEX_V2_DATA *obj;
+
+        if (run->run_status != QUEST_RUN_STATUS_ACTIVE)
+        continue;
+
+        stage = quest_runtime_get_current_stage(run);
+        if (!stage)
+        continue;
+
+        for (obj = stage->objectives; obj != NULL && !marked; obj = obj->next)
+        {
+        if (obj->objective_type != QUEST_OBJECTIVE_KILL
+            && obj->objective_type != QUEST_OBJECTIVE_ESCORT
+            && obj->objective_type != QUEST_OBJECTIVE_RESCUE)
+            continue;
+
+        if (!obj->target_wnum.pArea && obj->target_load.vnum > 0)
+        {
+            AREA_DATA *fallback = get_system_area_fallback();
+            resolve_wnum_load(&obj->target_load, &obj->target_wnum, fallback);
+        }
+
+        if (obj->target_wnum.pArea && wnum_match_mob(obj->target_wnum, victim))
+        {
+            strcat(buf, "{R[!] {G");
+            marked = true;
+        }
+        }
+    }
+    }
+}
+
+static void append_victim_position_text(char *buf, char *message, CHAR_DATA *victim, CHAR_DATA *ch)
+{
+    switch (victim->position)
+    {
+    case POS_DEAD:
+    strcat(buf, " is {RDEAD!!{x");
+    break;
+    case POS_MORTAL:
+    strcat(buf, " is mortally wounded.{x");
+    break;
+    case POS_INCAP:
+    strcat(buf, " is incapacitated.{x");
+    break;
+    case POS_STUNNED:
+    strcat(buf, " is lying here stunned.{x");
+    break;
+    case POS_SLEEPING:
+    if (victim->on != NULL)
+    {
+        if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_AT))
+        {
+        sprintf(message, " is sleeping at %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_ON))
+        {
+        sprintf(message, " is sleeping on %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else
+        {
+        sprintf(message, " is sleeping in %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+    }
+    else
+    strcat(buf, " is sleeping here.");
+
+    if (IS_NPC(victim))
+        strcat(buf, "\n\r");
+    break;
+    case POS_RESTING:
+    if (victim->on != NULL)
+    {
+        if (IS_SET(FURNITURE(victim->on)->flags, REST_AT))
+        {
+        sprintf(message, " is resting at %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, REST_ON))
+        {
+        sprintf(message, " is resting on %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else
+        {
+        sprintf(message, " is resting in %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+    }
+    else
+    {
+        strcat(buf, " is resting here.");
+    }
+
+    if (IS_NPC(victim))
+    {
+        strcat(buf , "\n\r");
+    }
+    break;
+    case POS_SITTING:
+    if (victim->on != NULL)
+    {
+        if (IS_SET(FURNITURE(victim->on)->flags, SIT_AT))
+        {
+        sprintf(message, " is sitting at %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, SIT_ON))
+        {
+        sprintf(message, " is sitting on %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else
+        {
+        sprintf(message, " is sitting in %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+    }
+    else
+    {
+        strcat(buf, " is sitting here.");
+    }
+
+    if (IS_NPC(victim))
+    {
+        strcat(buf, "\n\r");
+    }
+    break;
+    case POS_STANDING:
+    if (victim->on != NULL)
+    {
+        if (IS_SET(FURNITURE(victim->on)->flags, STAND_AT))
+        {
+        sprintf(message, " is standing at %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else if (IS_SET(FURNITURE(victim->on)->flags, STAND_ON))
+        {
+        sprintf(message, " is standing on %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+        else
+        {
+        sprintf(message, " is standing in %s.", victim->on->short_descr);
+        strcat(buf, message);
+        }
+    }
+    else if (MOUNTED(victim))
+    {
+        strcat(buf, " {Gis here, riding ");
+        strcat(buf, MOUNTED(victim)->short_descr);
+        strcat(buf, ".");
+    }
+    else if (PULLING_CART(victim))
+    {
+        strcat(buf, " {Gis here, pulling ");
+        strcat(buf, PULLING_CART(victim)->short_descr);
+        strcat(buf, ".");
+    }
+    else if (!IS_NPC(victim)
+           && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim))
+               || can_see_shift(ch, victim)))
+    {
+        strcat(buf, (IS_DEAD(victim)) ? " {Dis here.{x" : " {Gis here.{x");
+    }
+    break;
+    case POS_FIGHTING:
+    strcat(buf, " {Gis here, fighting ");
+    if (victim->fighting == NULL)
+    {
+        strcat(buf, "thin air??");
+    }
+    else if (victim->fighting == ch)
+    {
+        strcat(buf, "YOU!");
+    }
+    else if (victim->in_room == victim->fighting->in_room)
+    {
+        strcat(buf, pers(victim->fighting, ch));
+        strcat(buf, ".");
+    }
+    else
+    {
+        strcat(buf, "someone who left??");
+    }
+    if (IS_NPC(victim))
+    {
+        strcat(buf, "\n\r");
+    }
+    break;
+    }
+}
+
+static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CHAR_DATA *ch)
+{
+    if (!IS_NPC(victim)
+    && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
+    (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
+    {
+    if (victim->alignment == 1000)
+    {
+        sprintf(buf2, "\n\r{W%s is bathed in a holy white aura.{x", pers(victim, ch));
+        buf2[4] = UPPER(buf2[4]);
+        strcat(buf, buf2);
+    }
+
+    if (victim->alignment == -1000)
+    {
+        sprintf(buf2, "\n\r{R%s is surrounded with the burning fires of hell.{x", pers(victim, ch));
+        buf2[4] = UPPER(buf2[4]);
+        strcat(buf, buf2);
+    }
+
+    if (IS_AFFECTED(victim, AFF_SANCTUARY))
+    {
+        sprintf(buf2, "\n\r{W%s is surrounded with an aura of sanctuary.{x", pers(victim, ch));
+        buf2[4] = UPPER(buf2[4]);
+        strcat(buf, buf2);
+    }
+    }
+    else
+    {
+    if (victim->alignment == 1000)
+    {
+        sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r", pers(victim, ch));
+        buf2[2] = UPPER(buf2[2]);
+        strcat(buf, buf2);
+    }
+
+    if (victim->alignment == -1000)
+    {
+        sprintf(buf2, "{R%s is surrounded with the burning fires of hell.{x\n\r", pers(victim, ch));
+        buf2[2] = UPPER(buf2[2]);
+        strcat(buf, buf2);
+    }
+
+    if (IS_AFFECTED(victim, AFF_SANCTUARY))
+    {
+        sprintf(buf2, "{W%s is surrounded with an aura of sanctuary.{x\n\r", pers(victim, ch));
+        buf2[2] = UPPER(buf2[2]);
+        strcat(buf, buf2);
+    }
+    }
+}
+
 /**
  * show_char_to_char_0 - Display a character's room description to viewer
  *
@@ -936,66 +1256,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     else
         strcat(buf, "{G");
 
-    if (IS_QUESTING(ch) && IS_NPC(victim))
-    {
-        QUEST_PART_DATA *part;
-        bool marked = false;
-
-        /* v1 quest kill indicator */
-        for (part = ch->quest->parts; part != NULL && !marked; part = part->next)
-        {
-        if (part->mob_load.vnum != -1 && !part->complete)
-        {
-                if (!part->mob_wnum.pArea && part->mob_load.vnum > 0) {
-                    WNUM wnum;
-                    if (resolve_widevnum(part->mob_load.vnum, NULL, &wnum))
-                        part->mob_wnum = wnum;
-                    else {
-                        AREA_DATA *fallback = get_system_area_fallback();
-                        resolve_wnum_load(&part->mob_load, &part->mob_wnum, fallback);
-                    }
-                }
-                if (wnum_match_mob(part->mob_wnum, victim))
-                {
-                strcat(buf, "{R[X] {G");
-                marked = true;
-            break;
-        }
-        }
-        }
-
-        /* v2 quest kill/escort/rescue objective indicator */
-        if (!marked)
-        {
-            QUEST_DATA *run;
-            for (run = ch->quest; run != NULL && !marked; run = run->next)
-            {
-                QUEST_STAGE_INDEX_V2_DATA *stage;
-                QUEST_OBJECTIVE_INDEX_V2_DATA *obj;
-                if (run->run_status != QUEST_RUN_STATUS_ACTIVE) continue;
-                stage = quest_runtime_get_current_stage(run);
-                if (!stage) continue;
-                for (obj = stage->objectives; obj != NULL && !marked; obj = obj->next)
-                {
-                    if (obj->objective_type != QUEST_OBJECTIVE_KILL
-                    &&  obj->objective_type != QUEST_OBJECTIVE_ESCORT
-                    &&  obj->objective_type != QUEST_OBJECTIVE_RESCUE)
-                        continue;
-
-                    if (!obj->target_wnum.pArea && obj->target_load.vnum > 0) {
-                        AREA_DATA *fallback = get_system_area_fallback();
-                        resolve_wnum_load(&obj->target_load, &obj->target_wnum, fallback);
-                    }
-
-                    if (obj->target_wnum.pArea && wnum_match_mob(obj->target_wnum, victim))
-                    {
-                        strcat(buf, "{R[!] {G");
-                        marked = true;
-                    }
-                }
-            }
-        }
-    }
+    append_quest_target_marker(buf, victim, ch);
 
     /* print name */
     if (IS_NPC(victim)
@@ -1025,238 +1286,9 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
           strcat(buf, victim->pcdata->title);
     }
 
-    switch (victim->position)
-    {
-    case POS_DEAD:
-        strcat(buf, " is {RDEAD!!{x");
-        break;
-    case POS_MORTAL:
-        strcat(buf, " is mortally wounded.{x");
-        break;
-    case POS_INCAP:
-        strcat(buf, " is incapacitated.{x");
-        break;
-    case POS_STUNNED:
-        strcat(buf, " is lying here stunned.{x");
-        break;
-    case POS_SLEEPING:
-        if (victim->on != NULL)
-        {
-        if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_AT))
-        {
-            sprintf(message, " is sleeping at %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else if (IS_SET(FURNITURE(victim->on)->flags, SLEEP_ON))
-        {
-            sprintf(message, " is sleeping on %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else
-        {
-            sprintf(message, " is sleeping in %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        }
-        else
-        strcat(buf, " is sleeping here.");
+    append_victim_position_text(buf, message, victim, ch);
 
-        if (IS_NPC(victim))
-        strcat(buf, "\n\r");
-
-        break;
-    case POS_RESTING:
-        if (victim->on != NULL)
-        {
-        if (IS_SET(FURNITURE(victim->on)->flags, REST_AT))
-        {
-            sprintf(message, " is resting at %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else if (IS_SET(FURNITURE(victim->on)->flags, REST_ON))
-        {
-            sprintf(message, " is resting on %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else
-        {
-            sprintf(message, " is resting in %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        }
-        else
-        {
-        strcat(buf, " is resting here.");
-        }
-
-        if (IS_NPC(victim))
-        {
-        strcat(buf , "\n\r");
-        }
-        break;
-    case POS_SITTING:
-        if (victim->on != NULL)
-        {
-        if (IS_SET(FURNITURE(victim->on)->flags, SIT_AT))
-        {
-            sprintf(message, " is sitting at %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else if (IS_SET(FURNITURE(victim->on)->flags, SIT_ON))
-        {
-            sprintf(message, " is sitting on %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else
-        {
-            sprintf(message, " is sitting in %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        }
-        else
-        {
-        strcat(buf, " is sitting here.");
-        }
-
-        if (IS_NPC(victim))
-        {
-        strcat(buf, "\n\r");
-        }
-        break;
-    case POS_STANDING:
-        if (victim->on != NULL)
-        {
-        if (IS_SET(FURNITURE(victim->on)->flags, STAND_AT))
-        {
-            sprintf(message, " is standing at %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else if (IS_SET(FURNITURE(victim->on)->flags, STAND_ON))
-        {
-            sprintf(message, " is standing on %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        else
-        {
-            sprintf(message, " is standing in %s.",
-                victim->on->short_descr);
-            strcat(buf, message);
-        }
-        }
-        else if (MOUNTED(victim))
-        {
-        strcat(buf, " {Gis here, riding ");
-        strcat(buf, MOUNTED(victim)->short_descr);
-        strcat(buf, ".");
-        }
-        else if (PULLING_CART(victim))
-        {
-        strcat(buf, " {Gis here, pulling ");
-        strcat(buf, PULLING_CART(victim)->short_descr);
-        strcat(buf, ".");
-        }
-        else if (!IS_NPC(victim)
-           && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim))
-               || can_see_shift(ch, victim)))
-        {
-        strcat(buf, (IS_DEAD(victim)) ? " {Dis here.{x" : " {Gis here.{x");
-        }
-        break;
-    case POS_FIGHTING:
-        strcat(buf, " {Gis here, fighting ");
-        if (victim->fighting == NULL)
-        {
-        strcat(buf, "thin air??");
-        }
-        else if (victim->fighting == ch)
-        {
-        strcat(buf, "YOU!");
-        }
-        else if (victim->in_room == victim->fighting->in_room)
-        {
-        strcat(buf, pers(victim->fighting, ch));
-        strcat(buf, ".");
-        }
-        else
-        {
-        strcat(buf, "someone who left??");
-        }
-        if (IS_NPC(victim))
-        {
-        strcat(buf, "\n\r");
-        }
-        break;
-    }
-
-    if (!IS_NPC(victim)
-    && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
-    (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
-    {
-        if (victim->alignment == 1000)
-        {
-             sprintf(buf2, "\n\r{W%s is bathed in a holy white aura.{x",
-        pers(victim, ch));
-        buf2[4] = UPPER(buf2[4]);
-        strcat(buf, buf2);
-    }
-
-    if (victim->alignment == -1000)
-    {
-        sprintf(buf2,
-        "\n\r{R%s is surrounded with the burning fires of hell.{x",
-        pers(victim, ch));
-        buf2[4] = UPPER(buf2[4]);
-        strcat(buf, buf2);
-    }
-
-    if (IS_AFFECTED(victim, AFF_SANCTUARY))
-    {
-         sprintf(buf2,
-        "\n\r{W%s is surrounded with an aura of sanctuary.{x",
-               pers(victim, ch));
-        buf2[4] = UPPER(buf2[4]);
-          strcat(buf, buf2);
-    }
-    }
-    else
-    {
-        if (victim->alignment == 1000)
-    {
-        sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r",
-        pers(victim, ch));
-        buf2[2] = UPPER(buf2[2]);
-        strcat(buf, buf2);
-    }
-
-    if (victim->alignment == -1000)
-    {
-        sprintf(buf2,
-        "{R%s is surrounded with the burning fires of hell.{x\n\r",
-        pers(victim, ch));
-        buf2[2] = UPPER(buf2[2]);
-        strcat(buf, buf2);
-    }
-
-    if (IS_AFFECTED(victim, AFF_SANCTUARY))
-    {
-        sprintf(buf2,
-        "{W%s is surrounded with an aura of sanctuary.{x\n\r",
-        pers(victim, ch));
-        buf2[2] = UPPER(buf2[2]);
-        strcat(buf, buf2);
-    }
-    }
+    append_victim_aura_text(buf, buf2, victim, ch);
 
     if (!IS_NPC(victim)
     && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
@@ -1987,16 +2019,43 @@ void do_areas(CHAR_DATA *ch, char *argument)
 {
 {
     char buf[MAX_STRING_LENGTH];
+    char area_name[MAX_STRING_LENGTH];
+    char level_range[64];
+    const char *row_cells[3];
+    const char *summary_fmt;
     AREA_DATA *pArea;
     BUFFER *buffer;
+    tablefmt_style_t style;
+    tablefmt_column_t cols[3];
     int place_type = 0;
     int areas_found = 0;
+    bool append_ok = true;
 
     buffer = new_buf();
 
-    sprintf(buf, "[%-26.26s] (%7s)  [%-8s]\n\r",
-       "Area Name", "Level Range", "Locked?");
-    add_buf(buffer, buf);
+        style = tablefmt_style_default();
+        cols[0].width = 26;
+        cols[0].wrap = true;
+        cols[0].align = TABLEFMT_ALIGN_LEFT;
+        cols[1].width = 11;
+        cols[1].wrap = false;
+        cols[1].align = TABLEFMT_ALIGN_LEFT;
+        cols[2].width = 8;
+        cols[2].wrap = false;
+        cols[2].align = TABLEFMT_ALIGN_LEFT;
+
+        row_cells[0] = "Area Name";
+        row_cells[1] = "Lvl Range";
+        row_cells[2] = "Locked?";
+
+        if (!tablefmt_add_hr(buffer, cols, 3, &style)
+        ||  !tablefmt_add_row(buffer, cols, 3, row_cells, &style)
+        ||  !tablefmt_add_hr(buffer, cols, 3, &style))
+     {
+     send_to_char("Area listing output exceeded buffer limits.\n\r", ch);
+     free_buf(buffer);
+     return;
+     }
 
     if (argument[0] != '\0'
     && (place_type = flag_value(place_flags, argument)) == NO_FLAG)
@@ -2012,27 +2071,64 @@ void do_areas(CHAR_DATA *ch, char *argument)
     {
         if (pArea->open && pArea->place_flags != PLACE_NOWHERE)
         {
-            sprintf(buf, "{X%-26.26s%s  {D ({x%-5d{D-{x%5d{D){X %s{x \n\r",
-             pArea->name,
-             "{x",
-             pArea->min_level,
-             pArea->max_level,
-            is_area_unlocked(ch, pArea) ? "{G Unlocked": "{R LOCKED");
-            add_buf(buffer, buf);
+            snprintf(area_name, sizeof(area_name), "{X%s{x", pArea->name);
+            snprintf(level_range, sizeof(level_range), "{D({x%-5d{D-{x%5d{D){x",
+                pArea->min_level,
+                pArea->max_level);
+
+            row_cells[0] = area_name;
+            row_cells[1] = level_range;
+            row_cells[2] = is_area_unlocked(ch, pArea) ? "{GUnlocked{x" : "{RLOCKED{x";
+
+            if (!tablefmt_add_row(buffer, cols, 3, row_cells, &style))
+            {
+            append_ok = false;
+            break;
+            }
             areas_found++;
         }
     }
+
+    if (!append_ok)
+    break;
     }
 
+    if (!append_ok)
+    {
+        send_to_char("Area listing output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return;
+    }
+
+    if (!tablefmt_add_hr(buffer, cols, 3, &style))
+    {
+        send_to_char("Area listing output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return;
+    }
+
+    summary_fmt = (areas_found > 0)
+        ? "%d areas found for this location.\n\r"
+        : "No open areas found for this location.\n\r";
     if (areas_found > 0)
     {
-        sprintf(buf, "%d areas found for this location.\n\r", areas_found);
-        add_buf(buffer, buf);
+        snprintf(buf, sizeof(buf), summary_fmt, areas_found);
+        if (!add_buf(buffer, buf))
+        {
+        send_to_char("Area listing output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return;
+        }
     }
     else
     {
-        sprintf(buf, "No open areas found for this location.\n\r");
-        add_buf(buffer, buf);
+        snprintf(buf, sizeof(buf), "%s", summary_fmt);
+        if (!add_buf(buffer, buf))
+        {
+        send_to_char("Area listing output exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return;
+        }
     }
 
     page_to_char(buf_string(buffer), ch);
@@ -3631,6 +3727,59 @@ void do_worth(CHAR_DATA * ch, char *argument)
     return;
 }
 
+static void score_build_ac_bar(char *out, int ac_value)
+{
+    int ac = ac_value;
+
+    sprintf(out, "{x");
+    if (ac < -100)
+    ac = -100;
+
+    while (ac <= 100)
+    {
+    if (ac > 80)
+        strcat(out, "{b");
+    else if (ac > 50)
+        strcat(out, "{B");
+    else if (ac > 10)
+        strcat(out, "{Y");
+    else if (ac > -60)
+        strcat(out, "{R");
+    else
+        strcat(out, "{W");
+
+    strcat(out, "*{x");
+    ac += 10;
+    }
+}
+
+static void score_send_ac_line(CHAR_DATA *ch, const char *label, int ac_value)
+{
+    char buf[2 * MAX_STRING_LENGTH];
+    char tbuf[MAX_STRING_LENGTH];
+
+    score_build_ac_bar(tbuf, ac_value);
+    sprintf(buf, "| {B%s{C%3d{B: {Y%s{x", label, ac_value, tbuf);
+    (void)tablefmt_pad_visible(buf, sizeof(buf), 75);
+    send_to_char(buf, ch);
+    send_to_char("{C|\n\r", ch);
+}
+
+static void score_send_border(CHAR_DATA *ch)
+{
+    char buf[2 * MAX_STRING_LENGTH];
+
+    if (!tablefmt_build_border(buf, sizeof(buf), "{C|", "-+", 37, "|\n\r"))
+    return;
+
+    send_to_char(buf, ch);
+}
+
+static void score_pad_to(char *buf, size_t buf_size, int width)
+{
+    (void)tablefmt_pad_visible(buf, buf_size, width);
+}
+
 /**
  * do_score - Display comprehensive character statistics
  *
@@ -3656,12 +3805,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
     int i;
-    char tbuf[MAX_STRING_LENGTH];
     char aura_buf[MAX_STRING_LENGTH];
-    int pierce_s;
-    int bash_s;
-    int slash_s;
-    int exotic_s;
     int aura_count = 0;
     ITERATOR aurait;
     AURA_DATA *aura;
@@ -3677,12 +3821,8 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
 
     /* LINE 1 *** */
-    sprintf(buf, "\n\r{C|");
-    for (i = 0; i < 37; i++)
-    strcat(buf, "-+");
-
-    strcat(buf, "|\n\r");
-    send_to_char(buf, ch);
+    send_to_char("\n\r", ch);
+    score_send_border(ch);
 
     /* LINE 2 *** */
     {
@@ -3698,8 +3838,7 @@ void do_score(CHAR_DATA * ch, char *argument)
             class_disp);
     }
 
-    for (i = fstr_len(buf); i < 75; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 75);
 
     strcat(buf, "{C|\n\r");
     send_to_char(buf, ch);
@@ -3707,31 +3846,22 @@ void do_score(CHAR_DATA * ch, char *argument)
        send_to_char(tbuf, ch); */
 
     /* LINE 3 *** */
-    sprintf(buf, "{C|");
-    for (i = 0; i < 37; i++)
-    {
-    strcat(buf, "-+");
-    }
-    strcat(buf, "|\n\r");
-    send_to_char(buf, ch);
+    score_send_border(ch);
 
     /* LINE 4 *** */
 
     sprintf(buf, "| {BHP:   {x%ld{B/{x%ld", ch->hit, ch->max_hit);
 
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     sprintf(buf, "{BStr: {x%d{B/{x%d",
         get_curr_stat(ch, STAT_STR), ch->perm_stat[STAT_STR]);
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     sprintf(buf, "{BPracs: {x%d", ch->practice);
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     send_to_char("{C|\n\r", ch);
@@ -3739,19 +3869,16 @@ void do_score(CHAR_DATA * ch, char *argument)
     /* LINE 5 *** */
     sprintf(buf, "| {BMana: {x%ld{B/{x%ld", ch->mana, ch->max_mana);
 
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     sprintf(buf, "{BInt: {x%d{B/{x%d",
         get_curr_stat(ch, STAT_INT), ch->perm_stat[STAT_INT]);
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     sprintf(buf, "{BTrains: {x%d", ch->train);
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     send_to_char("{C|\n\r", ch);
@@ -3759,19 +3886,16 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     sprintf(buf, "| {BMove: {x%ld{B/{x%ld", ch->move, ch->max_move);
 
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     sprintf(buf, "{BWis: {x%d{B/{x%d",
         get_curr_stat(ch, STAT_WIS), ch->perm_stat[STAT_WIS]);
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     sprintf(buf, "{BLevel: {x%d (%d)", ch->level, ch->tot_level);
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
 
@@ -3782,8 +3906,7 @@ void do_score(CHAR_DATA * ch, char *argument)
         sprintf(buf, "| {BAge: {XAgeless{X");
     else
         sprintf(buf, "| {BAge: {x%d", get_age(ch));
-    for (i = fstr_len(buf); i < 25; i++)
-    strcat(buf, " ");
+    score_pad_to(buf, sizeof(buf), 25);
     send_to_char(buf, ch);
 
     sprintf(buf, "{BDex: {x%d{B/{x%d",
@@ -3910,8 +4033,7 @@ void do_score(CHAR_DATA * ch, char *argument)
             else
                 snprintf(buf, sizeof(buf), "{C| {BAura:{x %s", aura_buf);
 
-            for (i = fstr_len(buf); i < 75; i++)
-                strcat(buf, " ");
+            score_pad_to(buf, sizeof(buf), 75);
             strcat(buf, "{C|\n\r");
             send_to_char(buf, ch);
 
@@ -3921,131 +4043,13 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
 
     /* LINE 9 *** */
-    pierce_s = GET_AC(ch, AC_PIERCE);
-    bash_s = GET_AC(ch, AC_BASH);
-    slash_s = GET_AC(ch, AC_SLASH);
-    exotic_s = GET_AC(ch, AC_EXOTIC);
-
-    /* PIERCE */
-    sprintf(tbuf, "{x");
-    if (pierce_s < -100)
-    pierce_s = -100;
-
-    while (pierce_s <= 100)
-    {
-    if (pierce_s > 80)
-        strcat(tbuf, "{b");
-    else if (pierce_s > 50)
-        strcat(tbuf, "{B");
-    else if (pierce_s > 10)
-        strcat(tbuf, "{Y");
-    else if (pierce_s > -60)
-        strcat(tbuf, "{R");
-    else
-        strcat(tbuf, "{W");
-
-    strcat(tbuf, "*{x");
-    pierce_s += 10;
-    }
-    sprintf(buf, "| {BPiercing {C%3d{B: {Y%-39s{x", GET_AC(ch, AC_PIERCE),
-        tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
-    strcat(buf, " ");
-    send_to_char(buf, ch);
-    send_to_char("{C|\n\r", ch);
-
-
-    /* BASH */
-    sprintf(tbuf,"{x");
-    if (bash_s < -100)
-    bash_s = -100;
-    while (bash_s <= 100)
-    {
-    if (bash_s > 80)
-        strcat(tbuf, "{b");
-    else if (bash_s > 50)
-        strcat(tbuf, "{B");
-    else if (bash_s > 10)
-        strcat(tbuf, "{Y");
-    else if (bash_s > -60)
-        strcat(tbuf, "{R");
-    else
-        strcat(tbuf, "{W");
-
-    strcat(tbuf, "*{x");
-    bash_s += 10;
-    }
-    sprintf(buf, "| {BBashing  {C%3d{B: {Y%s{x", GET_AC(ch, AC_BASH),
-        tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
-    strcat(buf, " ");
-    send_to_char(buf, ch);
-    send_to_char("{C|\n\r", ch);
-
-    /* SLASH */
-    sprintf(tbuf,"{x");
-    if (slash_s < -100)
-    slash_s = -100;
-    while (slash_s <= 100)
-    {
-    if (slash_s > 80)
-        strcat(tbuf, "{b");
-    else if (slash_s > 50)
-        strcat(tbuf, "{B");
-    else if (slash_s > 10)
-        strcat(tbuf, "{Y");
-    else if (slash_s > -60)
-        strcat(tbuf, "{R");
-    else
-        strcat(tbuf, "{W");
-
-    strcat(tbuf, "*{x");
-    slash_s += 10;
-    }
-    sprintf(buf, "| {BSlashing {C%3d{B: {Y%s{x", GET_AC(ch, AC_SLASH),
-        tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
-    strcat(buf, " ");
-    send_to_char(buf, ch);
-    send_to_char("{C|\n\r", ch);
-
-    /* EXOTIC */
-    sprintf(tbuf,"{x");
-    if (exotic_s < -100)
-    exotic_s = -100;
-    while (exotic_s <= 100)
-    {
-    if (exotic_s > 80)
-        strcat(tbuf, "{b");
-    else if (exotic_s > 50)
-        strcat(tbuf, "{B");
-    else if (exotic_s > 10)
-        strcat(tbuf, "{Y");
-    else if (exotic_s > -60)
-        strcat(tbuf, "{R");
-    else
-        strcat(tbuf, "{W");
-
-    strcat(tbuf, "*{x");
-    exotic_s += 10;
-
-    }
-
-    sprintf(buf, "| {BExotic   {C%3d{B: {Y%s{x", GET_AC(ch, AC_EXOTIC),
-        tbuf);
-    for (i = fstr_len(buf); i < 75; i++)
-    strcat(buf, " ");
-    send_to_char(buf, ch);
-    send_to_char("{C|\n\r", ch);
+    score_send_ac_line(ch, "Piercing ", GET_AC(ch, AC_PIERCE));
+    score_send_ac_line(ch, "Bashing  ", GET_AC(ch, AC_BASH));
+    score_send_ac_line(ch, "Slashing ", GET_AC(ch, AC_SLASH));
+    score_send_ac_line(ch, "Exotic   ", GET_AC(ch, AC_EXOTIC));
 
     /* CLOSING LINE */
-    sprintf(buf, "{C|");
-    for (i = 0; i < 37; i++)
-    {
-    strcat(buf, "-+");
-    }
-    strcat(buf, "|\n\r");
-    send_to_char(buf, ch);
+    score_send_border(ch);
 
     /* if (!IS_NPC(ch) && ch->tot_level >= LEVEL_IMMORTAL && ch->pcdata->immortal)
     {
@@ -5099,11 +5103,17 @@ void do_weather(CHAR_DATA *ch, char *argument)
  */
 void do_who_new(CHAR_DATA * ch, char *argument)
 {
-    char buf[2*MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
     char buf2[MAX_STRING_LENGTH];
-    char arg[MAX_STRING_LENGTH];
-    char arg2[MAX_STRING_LENGTH];
     char level[MSL];
+    char name_cell[MSL];
+    char status_buf[MSL];
+    char level_cell[64];
+    char info_cell[MSL];
+    const char *row_cells[4];
+    tablefmt_style_t style;
+    tablefmt_column_t cols[4];
     BUFFER *output;
     DESCRIPTOR_DATA *d;
     int iLevelLower;
@@ -5111,9 +5121,6 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 
     int nMatch;
     int nMatch2;
-    int line_counter = 0;
-    int buf_size;
-    int racelen,classlen;
     char *area_type;
     CHURCH_DATA *church = NULL;
     CHAR_DATA *wch;
@@ -5169,8 +5176,20 @@ iterator_stop(&it);
     }
     }
 
-    buf[0] = '\0';
     output = new_buf();
+    bool append_ok = true;
+
+    style = tablefmt_style_default();
+    style.cell_left = "";
+    style.cell_sep = " ";
+    style.cell_right = "";
+    style.padding = 0;
+
+    cols[0].width = 7;   cols[0].wrap = false; cols[0].align = TABLEFMT_ALIGN_LEFT;
+    cols[1].width = 34;  cols[1].wrap = false; cols[1].align = TABLEFMT_ALIGN_LEFT;
+    cols[2].width = 12;  cols[2].wrap = false; cols[2].align = TABLEFMT_ALIGN_LEFT;
+    cols[3].width = 32;  cols[3].wrap = true;  cols[3].align = TABLEFMT_ALIGN_LEFT;
+
     for (d = descriptor_list; d != NULL; d = d->next)
     {
         wch = (d->original != NULL) ? d->original : d->character;
@@ -5203,13 +5222,11 @@ iterator_stop(&it);
         CLASS_DATA *who_class = get_current_class(wch);
         strcpy(classstr, who_class ? class_who_ch(who_class, wch) : "Adventurer");
     }
-    classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
 
     if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
         strcpy(racestr, "       ");
     else
         strcpy(racestr, wch->race->who_name);
-    racelen = 7 + strlen(racestr) - strlen_no_colours(racestr);
 
     nMatch++;
 
@@ -5217,71 +5234,89 @@ iterator_stop(&it);
 
     /* @SYN070509 Get rid of imm level. */
     if (IS_IMMORTAL(wch))
-        sprintf(level, "{WIMM{x");
+    {
+        snprintf(level, sizeof(level), "{WIMM{x");
+    }
     else {
         int who_level = (wch->pcdata && wch->pcdata->current_class)
                         ? wch->pcdata->current_class->level
                         : wch->tot_level;
-        sprintf(level, "{G%-3d", who_level);
+        snprintf(level, sizeof(level), "{G%-3d", who_level);
     }
 
-    sprintf(buf,
-        "{B[{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] "
-    "%s%s%s%s{G%-12s{x",
-    level,
-        racelen,racelen,racestr,
-        classlen,classlen,classstr,
-        area_type,
-        (IS_DEAD(wch)) ?
-            "{D(Dead) {x" : "",
-        wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
-        wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
-        IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
-        wch->name);
-
-    free_string(area_type);
-    add_buf(output, buf);
+    status_buf[0] = '\0';
 
     if (wch->church != NULL)
     {
-        buf_size = 50 - fstr_len(&buf[0]);
-
-        for (line_counter = 0; line_counter < buf_size; line_counter++)
-        add_buf(output, " ");
-
-        add_buf(output, "{Y[{x");
-        add_buf(output, wch->church->flag);
-        add_buf(output, "{Y]{x");
+        strlcat(status_buf, "{Y[{x", sizeof(status_buf));
+        strlcat(status_buf, wch->church->flag, sizeof(status_buf));
+        strlcat(status_buf, "{Y]{x", sizeof(status_buf));
     }
-    else
-        add_buf(output, "");
 
     if (IS_SET(wch->act[0],PLR_HELPER))
-        add_buf(output, " {W[H]{X");
+        strlcat(status_buf, " {W[H]{X", sizeof(status_buf));
 
     if (IS_SET(wch->comm, COMM_AFK))
-        add_buf(output, " {M[AFK]{x");
+        strlcat(status_buf, " {M[AFK]{x", sizeof(status_buf));
 
     if (IS_SET(wch->comm, COMM_QUIET))
-        add_buf(output, " {R[Q]{x");
+        strlcat(status_buf, " {R[Q]{x", sizeof(status_buf));
 
     if (IS_SET(wch->act[0], PLR_PK)
     ||  (wch->church != NULL && wch->church->pk == true))
-        add_buf(output, " {R[PK]{x");
+        strlcat(status_buf, " {R[PK]{x", sizeof(status_buf));
 
     if (IS_SET(wch->act[0], PLR_BUILDING))
-        add_buf(output, " {r[Building]{x");
+        strlcat(status_buf, " {r[Building]{x", sizeof(status_buf));
 
-    add_buf(output, "\n\r");
+    if (IS_DEAD(wch))
+        strlcat(status_buf, " {D(Dead){x", sizeof(status_buf));
+
+    if (wch->incog_level > LEVEL_HERO)
+        strlcat(status_buf, " {D(Incog){x", sizeof(status_buf));
+
+    if (wch->invis_level > LEVEL_HERO)
+        strlcat(status_buf, " {W(Wizi){x", sizeof(status_buf));
+
+    if (IS_SET(wch->act[0], PLR_BOTTER))
+        strlcat(status_buf, " {G[BOTTER]{x", sizeof(status_buf));
+
+    snprintf(level_cell, sizeof(level_cell), "[{M%.10s{x]", level);
+    snprintf(info_cell, sizeof(info_cell), "[ {Y%.32s{x {R%.32s{x {C%.16s{x ]", racestr, classstr, area_type);
+    snprintf(name_cell, sizeof(name_cell), "{G%s{x", wch->name);
+
+    row_cells[0] = level_cell;
+    row_cells[1] = info_cell;
+    row_cells[2] = name_cell;
+    row_cells[3] = status_buf;
+
+    if (!tablefmt_add_row(output, cols, 4, row_cells, &style))
+        append_ok = false;
+
+    free_string(area_type);
+
+    if (!append_ok)
+        break;
     }
 
-    if( nMatch != nMatch2 ) {
+    if (append_ok && nMatch != nMatch2) {
         sprintf(buf2, "\n\rPlayers found: %d\n\r", nMatch);
-        add_buf(output, buf2);
+        if (!add_buf(output, buf2))
+        append_ok = false;
     }
+
+    if (append_ok)
+    {
     sprintf(buf2, "Players online: %d\n\r", nMatch2);
-    add_buf(output, buf2);
+    if (!add_buf(output, buf2))
+        append_ok = false;
+    }
+
+    if (!append_ok)
+    send_to_char("Who output exceeded buffer limits.\n\r", ch);
+    else
     page_to_char(buf_string(output), ch);
+
     free_buf(output);
 }
 
@@ -5303,6 +5338,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
     char buf[3*MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *d;
     bool found = false;
+    bool append_ok = true;
     int i;
     char idle_time[MSL];
 
@@ -5315,6 +5351,14 @@ void do_whois(CHAR_DATA * ch, char *argument)
     }
 
     output = new_buf();
+
+#define WHOIS_APPEND_OR_FAIL(text) \
+    do { \
+        if (!add_buf(output, (text))) { \
+            append_ok = false; \
+            break; \
+        } \
+    } while (0)
 
     for (d = descriptor_list; d != NULL; d = d->next)
     {
@@ -5361,7 +5405,10 @@ void do_whois(CHAR_DATA * ch, char *argument)
     buf[0] = '\0';
     for (i = 0; i < 32; i++)
           strcat(buf, "{Y-{y+");
-        add_buf(output, buf);
+        WHOIS_APPEND_OR_FAIL(buf);
+
+    if (!append_ok)
+        break;
 
     if (wch->timer > 0)
     {
@@ -5397,16 +5444,26 @@ void do_whois(CHAR_DATA * ch, char *argument)
              idle_time
             );
 
-    add_buf(output, buf);
+    WHOIS_APPEND_OR_FAIL(buf);
+
+    if (!append_ok)
+        break;
 
     if (wch->description != NULL)
-      add_buf(output, wch->description);
+    {
+      WHOIS_APPEND_OR_FAIL(wch->description);
+      if (!append_ok)
+          break;
+    }
 
     sprintf(buf, "\n\r");
     for (i = 0; i < 32; i++)
           strcat(buf, "{Y-{y+");
     strcat(buf, "{x\n\r");
-        add_buf(output, buf);
+        WHOIS_APPEND_OR_FAIL(buf);
+
+    if (!append_ok)
+        break;
 
     break;
     }
@@ -5414,26 +5471,23 @@ void do_whois(CHAR_DATA * ch, char *argument)
 
     if (!found)
     {
+    free_buf(output);
     send_to_char("No one of that name is playing.\n\r", ch);
+#undef WHOIS_APPEND_OR_FAIL
+    return;
+    }
+
+    if (!append_ok)
+    {
+    send_to_char("Whois output exceeded buffer limits.\n\r", ch);
+    free_buf(output);
+#undef WHOIS_APPEND_OR_FAIL
     return;
     }
 
     page_to_char(buf_string(output), ch);
     free_buf(output);
-}
-
-
-/* MOVED: unsorted */
-void format_page(int16_t n, char *a, CHAR_DATA * ch)
-{
-    int16_t counter;
-
-    if (n - fstr_len(a) <= 0)
-    return;
-
-    for (counter = 0; counter < n - fstr_len(a); counter++)
-    send_to_char(" ", ch);
-
+#undef WHOIS_APPEND_OR_FAIL
 }
 
 

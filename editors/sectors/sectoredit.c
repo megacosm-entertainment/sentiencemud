@@ -284,6 +284,8 @@ static void sectoredit_show_hidemsgs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, voi
     int index;
     int i;
     BUFFER *meta;
+    bool append_ok = true;
+    const char *meta_text;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
 
     (void)ch;
@@ -294,12 +296,17 @@ static void sectoredit_show_hidemsgs_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, voi
 
     meta = new_buf();
     for (i = 0; i < SECTOR_MAX_HIDE_MSGS; i++) {
-        add_buf(meta, formatf("%2d) %s\n\r", i + 1,
-            IS_NULLSTR(sector_hide_msg(index, i)) ? "{D(empty){X" : sector_hide_msg(index, i)));
+        if (!add_buf(meta, formatf("%2d) %s\n\r", i + 1,
+            IS_NULLSTR(sector_hide_msg(index, i)) ? "{D(empty){X" : sector_hide_msg(index, i)))) {
+            append_ok = false;
+            break;
+        }
     }
 
+    meta_text = append_ok ? buf_string(meta) : "{ROutput exceeded buffer limits.{X\n\r";
+
     olc_display_section(ctx, theme, "Hide Messages");
-    olc_display_text(ctx, theme, "Messages:", "hidemsgs", buf_string(meta));
+    olc_display_text(ctx, theme, "Messages:", "hidemsgs", meta_text);
     free_buf(meta);
 }
 
@@ -308,6 +315,8 @@ static void sectoredit_show_affinity_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, voi
     int index;
     int i;
     BUFFER *meta;
+    bool append_ok = true;
+    const char *meta_text;
     const OLC_EDITOR_THEME *theme = olc_get_theme(&sectoredit_def);
 
     (void)ch;
@@ -320,16 +329,24 @@ static void sectoredit_show_affinity_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, voi
     for (i = 0; i < SECTOR_MAX_AFFINITIES; i++) {
         int catalyst = sector_affinity_catalyst(index, i);
         if (catalyst <= CATALYST_NONE || catalyst >= CATALYST_MAX) {
-            add_buf(meta, formatf("%2d) {D(empty){X\n\r", i + 1));
+            if (!add_buf(meta, formatf("%2d) {D(empty){X\n\r", i + 1))) {
+                append_ok = false;
+                break;
+            }
         } else {
-            add_buf(meta, formatf("%2d) %-14s %d\n\r", i + 1,
+            if (!add_buf(meta, formatf("%2d) %-14s %d\n\r", i + 1,
                 flag_string(catalyst_types, catalyst),
-                sector_affinity_value(index, i)));
+                sector_affinity_value(index, i)))) {
+                append_ok = false;
+                break;
+            }
         }
     }
 
+    meta_text = append_ok ? buf_string(meta) : "{ROutput exceeded buffer limits.{X\n\r";
+
     olc_display_section(ctx, theme, "Affinities");
-    olc_display_text(ctx, theme, "Entries:", "affinity", buf_string(meta));
+    olc_display_text(ctx, theme, "Entries:", "affinity", meta_text);
     free_buf(meta);
 }
 

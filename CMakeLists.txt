@@ -290,6 +290,7 @@ set(SOURCE_FILES
     stats.c
     string.c
     utils/buffer.c
+    utils/tablefmt.c
     storage.c
     tables.c
     tls.c

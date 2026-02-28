@@ -694,6 +694,7 @@ RSGEDIT(rsgedit_list)
 {
     BUFFER *buffer;
     RANDOM_STRING *rsg;
+    bool append_ok = true;
 
     if (!rsg_list) {
         send_to_char("No random string generators exist yet.\n\r", ch);
@@ -701,11 +702,25 @@ RSGEDIT(rsgedit_list)
     }
 
     buffer = new_buf();
-    add_buf(buffer, "{WUID   Name{X\n\r");
-    add_buf(buffer, "{D----- ------------------------------{X\n\r");
+    if (!add_buf(buffer, "{WUID   Name{X\n\r")
+        || !add_buf(buffer, "{D----- ------------------------------{X\n\r")) {
+        send_to_char("Random string generator list exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
 
-    for (rsg = rsg_list; rsg; rsg = rsg->next)
-        add_buf(buffer, formatf("{W%-5ld {x%s{X\n\r", rsg->uid, rsg->name));
+    for (rsg = rsg_list; rsg; rsg = rsg->next) {
+        if (!add_buf(buffer, formatf("{W%-5ld {x%s{X\n\r", rsg->uid, rsg->name))) {
+            append_ok = false;
+            break;
+        }
+    }
+
+    if (!append_ok) {
+        send_to_char("Random string generator list exceeded buffer limits.\n\r", ch);
+        free_buf(buffer);
+        return false;
+    }
 
     page_to_char(buf_string(buffer), ch);
     free_buf(buffer);
