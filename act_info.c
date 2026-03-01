@@ -5223,6 +5223,17 @@ iterator_stop(&it);
         strcpy(classstr, who_class ? class_who_ch(who_class, wch) : "Adventurer");
     }
 
+    {
+        int vis = strlen_no_colours(classstr);
+        if (vis < 12) {
+            size_t raw = strlen(classstr);
+            int pad = 12 - vis;
+            for (int i = 0; i < pad; i++)
+                classstr[raw + i] = ' ';
+            classstr[raw + pad] = '\0';
+        }
+    }
+
     if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])
         strcpy(racestr, "       ");
     else
