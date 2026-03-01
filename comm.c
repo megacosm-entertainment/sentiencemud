@@ -2070,7 +2070,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 
     if (d->inbuf[i] == '\b' && k > 0)
         --k;
-    else if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
+    else // if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
         d->incomm[k++] = d->inbuf[i];
     /*    else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
