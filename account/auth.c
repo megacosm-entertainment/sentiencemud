@@ -397,6 +397,9 @@ bool verify_mfa_code(const char *code, AUTH_DATA *auth)
     if (!code || !auth)
         return false;
 
+    if (!auth->mfa_enabled)
+        return false;
+
     /* Determine which key to use - pending key if in setup, otherwise active key */
     const char *key_to_use = NULL;
 
@@ -407,6 +410,12 @@ bool verify_mfa_code(const char *code, AUTH_DATA *auth)
     } else {
         return false; /* No MFA key available */
     }
+
+    if (!key_to_use)
+        return false;
+
+    if (IS_NULLSTR(key_to_use))
+        return false;
 
     /* Use existing validate_totp_code function which handles decryption */
     return validate_totp_code(key_to_use, code);

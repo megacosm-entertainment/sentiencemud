@@ -225,6 +225,12 @@
         "description": "Core regression tests",
         "suites": ["area_loading", "database_integrity", "skill_data", "class_data", "item_type_system", "lookup_tables", "script_engine_tests"],
         "stop_on_first_failure": false
+      },
+      "combat_bench": {
+        "description": "Synthetic combat telemetry baseline benchmarks",
+        "suites": ["combat_telemetry"],
+        "stop_on_first_failure": true,
+        "require_coverage": false
       }
     }
   }

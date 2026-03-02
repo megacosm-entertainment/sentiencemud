@@ -115,6 +115,21 @@ bool validate_totp_code(const char *key, const char *code)
     char current_totp[MIL];
     char previous_totp[MIL];
     char *current_code, *previous_code;
+    bool has_secret_chars = false;
+
+    if (!key || !code)
+        return false;
+
+    if (IS_NULLSTR(key) || IS_NULLSTR(code))
+        return false;
+
+    if (strlen(code) != 6)
+        return false;
+
+    for (const char *p = code; *p; p++) {
+        if (!isdigit((unsigned char)*p))
+            return false;
+    }
     
     // Check if the key is encrypted
     char *plaintext_key = NULL;
@@ -123,7 +138,38 @@ bool validate_totp_code(const char *key, const char *code)
     if (is_encrypted) {
         // Decrypt the key before validation
         plaintext_key = decrypt_string_versioned(key);
+        if (IS_NULLSTR(plaintext_key)) {
+            if (plaintext_key)
+                free_string(plaintext_key);
+            return false;
+        }
         key = plaintext_key;
+    }
+
+    if (!key || key[0] == '\0') {
+        if (is_encrypted && plaintext_key)
+            free_string(plaintext_key);
+        return false;
+    }
+
+    // libcotp does not defensively handle bad secrets; reject malformed inputs here.
+    for (const unsigned char *p = (const unsigned char *)key; *p; p++) {
+        if (isspace(*p) || *p == '-')
+            continue;
+
+        if (!(isalpha(*p) || (*p >= '2' && *p <= '7') || *p == '=')) {
+            if (is_encrypted && plaintext_key)
+                free_string(plaintext_key);
+            return false;
+        }
+
+        has_secret_chars = true;
+    }
+
+    if (!has_secret_chars) {
+        if (is_encrypted && plaintext_key)
+            free_string(plaintext_key);
+        return false;
     }
     
     // Get current and previous tokens (30-second window)
@@ -137,8 +183,8 @@ bool validate_totp_code(const char *key, const char *code)
     }
     
     // Store the tokens in our buffer
-    sprintf(current_totp, "%s", current_code);
-    sprintf(previous_totp, "%s", previous_code);
+    snprintf(current_totp, sizeof(current_totp), "%s", current_code);
+    snprintf(previous_totp, sizeof(previous_totp), "%s", previous_code);
     
     // Check if the provided code matches either the current or previous token
     bool valid = (!str_cmp(code, current_totp) || !str_cmp(code, previous_totp));
@@ -149,7 +195,7 @@ bool validate_totp_code(const char *key, const char *code)
         char next_totp[MIL];
         char *next_code = get_totp_at(key, current_time + 30, 6, 30, SHA1, &err);
         if (next_code) {
-            sprintf(next_totp, "%s", next_code);
+            snprintf(next_totp, sizeof(next_totp), "%s", next_code);
             valid = !str_cmp(code, next_totp);
         }
     }

@@ -90,6 +90,19 @@
       "heal_rate": 0,
       "mana_rate": 0,
       "move_rate": 0
+    },
+    {
+      "vnum": 2,
+      "name": "Bootstrap Combat Ring",
+      "description": "A deterministic non-safe combat fixture room for CI telemetry tests.\\n\\r",
+      "flags": [
+        "indoors"
+      ],
+      "flags2": [],
+      "sector": "inside",
+      "heal_rate": 0,
+      "mana_rate": 0,
+      "move_rate": 0
     }
   ],
   "mobiles": [
@@ -244,6 +257,56 @@
         "holy",
         "wood"
       ],
+      "start_pos": 8,
+      "default_pos": 8,
+      "wealth": 0,
+      "body_type": 0,
+      "parts": 3213311,
+      "size": 2,
+      "movement": 2610,
+      "material": "unknown",
+      "verb_preference": 0
+    },
+    {
+      "vnum": 103,
+      "name": "bootstrap combat dummy",
+      "short_descr": "a bootstrap combat dummy",
+      "long_descr": "A bootstrap combat dummy waits here.\\n\\r",
+      "description": "A deterministic fixture NPC used for combat telemetry branch validation.\\n\\r",
+      "owner": "(no owner)",
+      "imp_sig": "(none)",
+      "creator_sig": "(none)",
+      "script_keywords": "none",
+      "race": "human",
+      "act_flags": [
+        "npc",
+        "sentinel"
+      ],
+      "affected_by": [],
+      "level": 40,
+      "alignment": 0,
+      "hitroll": 0,
+      "hit_dice": {
+        "number": 40,
+        "size": 40,
+        "bonus": 4000
+      },
+      "mana_dice": {
+        "number": 0,
+        "size": 0,
+        "bonus": 0
+      },
+      "damage_dice": {
+        "number": 8,
+        "size": 8,
+        "bonus": 80
+      },
+      "dam_type": 3,
+      "attacks": 0,
+      "off_flags": [],
+      "imm_flags": [],
+      "res_flags": [],
+      "vuln_flags": [],
       "start_pos": 8,
       "default_pos": 8,
       "wealth": 0,

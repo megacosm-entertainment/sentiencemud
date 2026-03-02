@@ -1,0 +1,57 @@
+{
+  "type": "test_suite",
+  "test_suite": "combat_telemetry",
+  "description": "Synthetic combat telemetry baseline tests for damage branch behavior",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "combat_damage_npc_branch",
+      "description": "Validate NPC-branch damage reduction curve (IS_NPC attacker path)",
+      "dependencies": [],
+      "test_type": "combat_damage_npc_branch_test",
+      "input": {
+        "raw_damage": 200,
+        "fixture_area_name": "Bootstrap Tests",
+        "fixture_room_vnum": 2,
+        "fixture_npc_vnum": 103
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "combat_damage_pc_branch",
+      "description": "Validate PC-vs-PC damage reduction curve including level-delta adjustment",
+      "dependencies": [],
+      "test_type": "combat_damage_pc_branch_test",
+      "input": {
+        "raw_damage": 200,
+        "attacker_level": 80,
+        "victim_level": 55,
+        "fixture_area_name": "Bootstrap Tests",
+        "fixture_room_vnum": 2
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "combat_damage_mixed_equivalence",
+      "description": "Validate mixed NPC/PC branch equivalence regardless of which side is flagged NPC",
+      "dependencies": [],
+      "test_type": "combat_damage_mixed_equivalence_test",
+      "input": {
+        "raw_damage": 200,
+        "fixture_area_name": "Bootstrap Tests",
+        "fixture_room_vnum": 2,
+        "fixture_npc_vnum": 103
+      },
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}
