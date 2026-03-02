@@ -25,7 +25,6 @@
         "vscode": {
             "extensions": [
                 "ms-vscode.cpptools",
-                "ms-vscode.cmake-tools",
                 "cweijan.vscode-redis-client",
                 "eamodio.gitlens",
                 "Doppler.doppler-vscode"
@@ -36,7 +35,8 @@
                 "[c]": { "editor.tabSize": 4 },
                 "git.enableCommitSigning": true,
                 "remote.SSH.enableAgentForwarding": true,
-                "git.useConfigOnly": false
+                "git.useConfigOnly": false,
+                "terminal.integrated.cwd": "/sentience/src"
             }
         }
     },

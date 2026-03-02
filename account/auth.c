@@ -186,6 +186,11 @@ AUTH_DATA *get_auth_data(CHAR_DATA *ch, ACCOUNT_DATA *acct)
     /* No character - account-only auth */
     if (!ch || IS_NPC(ch)) {
         if (acct) {
+            if (!IS_NULLSTR(acct->mfa_key) && !acct->mfa_enabled) {
+                acct->mfa_enabled = true;
+                save_account(acct);
+            }
+
             auth->source = AUTH_SOURCE_ACCOUNT;
             populate_from_account(auth, acct);
         }
@@ -195,6 +200,11 @@ AUTH_DATA *get_auth_data(CHAR_DATA *ch, ACCOUNT_DATA *acct)
     /* Check if character is linked to an account */
     if (IS_NULLSTR(ch->pcdata->account_name) || !acct) {
         /* Unlinked character - auth stored in PC_DATA */
+        if (!IS_NULLSTR(ch->pcdata->mfa_key) && !ch->pcdata->mfa_enabled) {
+            ch->pcdata->mfa_enabled = true;
+            save_char_obj(ch);
+        }
+
         auth->source = AUTH_SOURCE_CHARACTER;
         populate_from_pcdata(auth, ch->pcdata);
         return auth;
@@ -205,9 +215,24 @@ AUTH_DATA *get_auth_data(CHAR_DATA *ch, ACCOUNT_DATA *acct)
 
     if (!found || !acct_char) {
         /* Character should be linked but not found in account - use account auth */
+        if (!IS_NULLSTR(acct->mfa_key) && !acct->mfa_enabled) {
+            acct->mfa_enabled = true;
+            save_account(acct);
+        }
+
         auth->source = AUTH_SOURCE_ACCOUNT;
         populate_from_account(auth, acct);
         return auth;
+    }
+
+    if (!IS_NULLSTR(acct->mfa_key) && !acct->mfa_enabled) {
+        acct->mfa_enabled = true;
+        save_account(acct);
+    }
+
+    if (!IS_NULLSTR(acct_char->mfa_key) && !acct_char->mfa_enabled) {
+        acct_char->mfa_enabled = true;
+        save_account(acct);
     }
 
     /* Check for character-level auth override */
@@ -395,9 +420,6 @@ bool validate_password_strength(const char *password, char *error_msg, int error
 bool verify_mfa_code(const char *code, AUTH_DATA *auth)
 {
     if (!code || !auth)
-        return false;
-
-    if (!auth->mfa_enabled)
         return false;
 
     /* Determine which key to use - pending key if in setup, otherwise active key */
