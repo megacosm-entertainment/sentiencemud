@@ -274,6 +274,7 @@ C_FILES = \
     string.c \
     utils/buffer.c \
     utils/tablefmt.c \
+    utils/utf8.c \
     storage.c \
     tables.c \
     tls.c \
