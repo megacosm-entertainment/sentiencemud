@@ -4023,8 +4023,10 @@ void act_new(char *format, CHAR_DATA *ch,
     to = vch->in_room->people;
     }
 
-    for (; to ; to = to->next_in_room)
+    CHAR_DATA *to_next;
+    for (; to ; to = to_next)
     {
+    to_next = to->next_in_room;
     if ((!IS_NPC(to) && !to->desc )
     ||   (!IS_SWITCHED(to) && IS_NPC(to) && !HAS_TRIGGER_MOB(to, TRIG_ACT))
     ||    to->position < min_pos)

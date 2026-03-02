@@ -427,6 +427,8 @@ This creates an interesting cost dynamic: letting a henchman die too often eats 
 
 | Document | Relationship |
 |----------|-------------|
+| `PLAN_COMBAT_ENTITY.md` | Provides participant/engagement/threat context that Tier 2-4 companion AI needs for target selection, pursuit, and multi-room behavior |
+| `PLAN_DATA_DRIVEN_TABLES.md` | Attack-pattern tables provide the data-driven skill/behavior execution layer for companion role packages and tactical preferences |
 | `PLAN_group_analysis.md` | Strong dependency for full party/group features, but **not a blocker** for quest/mission foundation delivery (character-scope-first) |
 | `PLAN_MODULE_SYSTEM.md` | Party system is a natural module candidate (`sentience_party`); companion serialization follows module-owned persistence |
 | `PLAN_SKILL_REFACTOR.md` | Tier 2-3 companions need the skill system to be data-driven (JSON skills) so their skill subsets can be configured |

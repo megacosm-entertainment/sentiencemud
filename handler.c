@@ -2097,7 +2097,11 @@ void char_from_room(CHAR_DATA *ch)
         }
 
         if (prev == NULL)
-            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_from_room: ch not found.");
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                "Char_from_room: %s not found in room %ld people list! "
+                "Character may have been in multiple rooms or removed twice.",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                ch->in_room ? ch->in_room->vnum : 0);
     }
 
     list_remlink(ch->in_room->lpeople, ch, false);
@@ -2152,6 +2156,31 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
         char_to_room(ch,room);
 
     return;
+    }
+
+    /* Safety check: if the character is already on a room's people list,
+     * remove them first. This prevents dual-room corruption where a
+     * character ends up on two rooms' people lists simultaneously.
+     * This can happen when char_to_room is called without char_from_room
+     * (e.g., during login when in_room is pre-set from save data, or
+     * via char_to_vroom which bypasses char_from_room). */
+    if (ch->in_room != NULL)
+    {
+        /* Check if ch is actually linked into the old room's people list */
+        CHAR_DATA *scan;
+        bool on_list = false;
+        for (scan = ch->in_room->people; scan; scan = scan->next_in_room)
+        {
+            if (scan == ch) { on_list = true; break; }
+        }
+        if (on_list)
+        {
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                "Char_to_room: %s already on people list of room %ld, removing first.",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                ch->in_room->vnum);
+            char_from_room(ch);
+        }
     }
 
     if (MOUNTED(ch) && MOUNTED(ch)->in_room == ch->in_room
@@ -2897,6 +2926,26 @@ void obj_from_room(OBJ_DATA *obj)
  */
 void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 {
+    /* Safety check: if the object is already in a room's contents list,
+     * remove it first. This prevents dual-room corruption where an
+     * object ends up on two rooms' contents lists simultaneously. */
+    if (obj->in_room != NULL)
+    {
+        OBJ_DATA *scan;
+        bool on_list = false;
+        for (scan = obj->in_room->contents; scan; scan = scan->next_content)
+        {
+            if (scan == obj) { on_list = true; break; }
+        }
+        if (on_list)
+        {
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                "obj_to_room: obj '%s' (vnum %ld) already on contents list of room %ld, removing first.",
+                obj->short_descr, obj->pIndexData->vnum, obj->in_room->vnum);
+            obj_from_room(obj);
+        }
+    }
+
     obj->next_content		= pRoomIndex->contents;
     pRoomIndex->contents	= obj;
     obj->in_room		= pRoomIndex;
@@ -2941,6 +2990,25 @@ void obj_to_vroom(OBJ_DATA *obj, WILDS_DATA *pWilds, int x, int y)
     if (!pWildsRoom)
         pWildsRoom = create_wilds_vroom(pWilds, x, y);
     if (pWildsRoom) {
+        /* Safety check: if the object is already in a room's contents list,
+         * remove it first to prevent dual-room corruption. */
+        if (obj->in_room != NULL)
+        {
+            OBJ_DATA *scan;
+            bool on_list = false;
+            for (scan = obj->in_room->contents; scan; scan = scan->next_content)
+            {
+                if (scan == obj) { on_list = true; break; }
+            }
+            if (on_list)
+            {
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                    "obj_to_vroom: obj '%s' (vnum %ld) already on contents list of room %ld, removing first.",
+                    obj->short_descr, obj->pIndexData->vnum, obj->in_room->vnum);
+                obj_from_room(obj);
+            }
+        }
+
         obj->in_wilds = pWilds;
         obj->in_room = pWildsRoom;
         obj->carried_by = NULL;
@@ -3237,7 +3305,6 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     ROOM_INDEX_DATA *clone, *next_clone;
     CHAR_DATA *wch;
     DESCRIPTOR_DATA *d;
-    char buf[MAX_STRING_LENGTH];
     ITERATOR it;
 
     if (ch->gc || list_hasdata(gc_mobiles, ch))
@@ -3245,8 +3312,12 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "extract_char: %s had null ch->in_room",
-             IS_NPC(ch) ? ch->short_descr : ch->name);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+            "extract_char: %s had null ch->in_room (NPC=%d, valid=%d). "
+            "Character may have already been extracted or was never placed in a room.",
+            IS_NPC(ch) ? ch->short_descr : ch->name,
+            IS_NPC(ch) ? 1 : 0,
+            IS_VALID(ch) ? 1 : 0);
     return;
     }
 
@@ -8200,7 +8271,9 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,in
 
     if(!room) room = ch->in_room;
 
-    for(obj = room->contents; obj && total < amount; obj = obj->next_content) {
+    OBJ_DATA *obj_next;
+    for(obj = room->contents; obj && total < amount; obj = obj_next) {
+        obj_next = obj->next_content;
         total2 = use_catalyst_obj(ch,room,obj,type,amount - total,min_strength,max_strength,active,show);
         if(total2 < 0) return -1;
 

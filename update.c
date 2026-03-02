@@ -2092,11 +2092,12 @@ void char_update(void)
             // Slayers have a bad habit of attacking things.
             if (IS_SHIFTED_SLAYER(ch) && number_percent() < 25 && ch->fighting == NULL)
             {
-                CHAR_DATA *player;
+                CHAR_DATA *player, *player_next;
 
                 // Find someone to SLAUGHTER
-                for (player = ch->in_room->people; player != NULL; player = player->next_in_room)
+                for (player = ch->in_room->people; player != NULL; player = player_next)
                 {
+                    player_next = player->next_in_room;
                     if (player->fighting == NULL && !is_safe(ch, player,false) && player->alignment < 150 && !is_same_group(player,ch) && !IS_IMMORTAL(player))
                         break;
                 }
@@ -2126,7 +2127,7 @@ void char_update(void)
                             send_to_char(buf, ch);
 
                             damage(ch, ch, obj->level, TYPE_UNDEFINED, DAM_NONE, false);
-                            list_remlink(ch->lcarrying, obj, false);
+                            obj_from_char(obj);
                             obj_to_room(obj, ch->in_room);
                         }
                     }
@@ -2858,10 +2859,12 @@ void aggr_update(void)
     &&  wch->in_room->contents != NULL)
     {
         int i;
+        OBJ_DATA *obj_next;
 
             i = 0;
-        for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
+        for (obj = wch->in_room->contents; obj != NULL; obj = obj_next)
         {
+        obj_next = obj->next_content;
         if (is_name("corpse", obj->name))
             i++;
 
@@ -3030,8 +3033,10 @@ void aggr_update(void)
          || IS_SET(wch->in_room->room_flag[0], ROOM_CPK))
             || is_pk(wch)))
     {
-        for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)
+        OBJ_DATA *obj_next_hazard;
+        for (obj = wch->in_room->contents; obj != NULL; obj = obj_next_hazard)
         {
+        obj_next_hazard = obj->next_content;
         // Room flames (inferno)
         if (obj->item_type == ITEM_ROOM_FLAME && !IS_SET(wch->in_room->room_flag[0], ROOM_SAFE))
         {
@@ -3158,9 +3163,14 @@ void aggr_update(void)
             {
             CHAR_DATA *victim, *vnext;
 
-            for (victim = wch->in_room->people; victim != NULL; victim = vnext)
+            ROOM_INDEX_DATA *flee_room = wch->in_room;
+            for (victim = flee_room->people; victim != NULL; victim = vnext)
             {
                 vnext = victim->next_in_room;
+
+                /* Skip characters that were extracted during this loop */
+                if (victim->gc || victim->in_room != flee_room)
+                    continue;
 
                 if (IS_NPC(victim))
                 {
@@ -4180,9 +4190,14 @@ void scare_update(CHAR_DATA *ch)
     return;
     }
 
-    for (victim = ch->in_room->people; victim != NULL; victim = vnext)
+    ROOM_INDEX_DATA *scare_room = ch->in_room;
+    for (victim = scare_room->people; victim != NULL; victim = vnext)
     {
     vnext = victim->next_in_room;
+
+    /* Skip characters that were extracted during this loop */
+    if (victim->gc || victim->in_room != scare_room)
+        continue;
 
         // Certain NPCs are protected
     if (IS_NPC(victim))

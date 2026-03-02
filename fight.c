@@ -3573,6 +3573,13 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
             return;
         }
 
+        /* Suppress MOBtrigger while spoofing in_room to adjacent rooms.
+         * Without this, act() can fire TRIG_ACT scripts on adjacent mobs
+         * which in turn could call mptransfer/extract_char/etc., corrupting
+         * the room's people linked list since ch is not really on it. */
+        bool old_MOBtrigger = MOBtrigger;
+        MOBtrigger = false;
+
         for (door = 0; door <= 9; door++) {
             EXIT_DATA *pexit;
 
@@ -3583,6 +3590,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
             }
         }
 
+        MOBtrigger = old_MOBtrigger;
         ch->in_room = was_in_room;
     }
 }

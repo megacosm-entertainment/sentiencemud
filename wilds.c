@@ -4107,6 +4107,27 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     char_to_vroom(MOUNTED(ch), pWilds, x, y);
 
 
+    /* Safety: if the character is already on a room's people list, remove
+     * them first. char_to_vroom bypasses char_from_room, so without this
+     * guard a character could end up on two rooms' people lists. */
+    if (ch->in_room != NULL)
+    {
+        CHAR_DATA *scan;
+        bool on_list = false;
+        for (scan = ch->in_room->people; scan; scan = scan->next_in_room)
+        {
+            if (scan == ch) { on_list = true; break; }
+        }
+        if (on_list)
+        {
+            pbugf(LOG_ERROR,
+                "char_to_vroom: %s already on people list of room %ld, removing first.",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                ch->in_room->vnum);
+            char_from_room(ch);
+        }
+    }
+
     ch->in_wilds = pWilds;
     ch->at_wilds_x = x;
     ch->at_wilds_y = y;

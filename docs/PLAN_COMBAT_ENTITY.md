@@ -68,6 +68,100 @@ Engagements are not strictly single-room. A participant may deliberately reposit
 
 A participant who moves to an adjacent room with no valid actions from that position has effectively disengaged, not repositioned. The system determines this automatically — if no valid targets are reachable from the new room, the participant's `active` flag is cleared and the pursuit window opens.
 
+### Ranged Combat Integration (Migration from `shoot.c`)
+
+Current ranged flow is implemented as a delayed channel (`ch->ranged` with
+`ranged_end()`), independent of engagement initiative. This must be absorbed
+into `COMBAT_DATA` turn/action semantics.
+
+#### Current Gaps to Close
+
+- Ranged windup/resolve is pulse-driven outside combat initiative ordering.
+- Target lock is name-based (`projectile_victim`), not participant identity.
+- Direction/range search currently relocates the attacker during lookups
+    (`char_from_room`/`char_to_room`), which is fragile and expensive.
+- Multi-room ranged does not share the same reachability authority as
+    engagement logic.
+- Legacy code has duplication and drift (`ranged` countdown in both `comm.c`
+    and `update.c`) and known correctness issues (e.g. throw-path traversal and
+    blocker checks implemented in ad-hoc paths).
+
+#### Target Model Under COMBAT_DATA
+
+Ranged actions become first-class engagement actions:
+
+1. **Aim start** records a combat target handle (`combat_id`, target
+     `participant_id`, and origin room snapshot), not a raw name.
+2. **Aim channel** consumes action budget/time in the participant's engagement.
+3. **Resolve step** validates target identity + current reachability using the
+     same engagement range rules as other actions.
+4. If primary target is invalid, retargeting uses threat + companion tactical
+     filters (where applicable), or the action is cancelled.
+
+#### Reachability Rules (Shared Authority)
+
+- Same room: all ranged profiles allowed.
+- Adjacent room: ranged/spell profiles allowed per engagement range policy.
+- Beyond allowed range: no fire; participant either repositions or disengages.
+
+Ranged commands must call the same reachability evaluator used by
+`combat_resolve_target()` so melee/ranged/casting cannot diverge in edge cases.
+
+### Positioning Model: Front / Middle / Back (No Facing)
+
+To align with existing group-row gameplay and avoid facing complexity, each
+participant in an active engagement has a discrete row position:
+
+- `ROW_FRONT`
+- `ROW_MIDDLE`
+- `ROW_BACK`
+
+Row is engagement-scoped state (not room-global), so a participant can occupy
+different tactical positions in different simultaneous engagements.
+
+#### Row-Based Action Gates
+
+- **Melee**: requires same room and target in reachable melee row (typically
+    front vs front; selective reach abilities may include middle).
+- **Reach/polearm**: same room, can target one row deeper than base melee.
+- **Ranged/throw/spell**: same room all rows, plus adjacent-room targets if
+    engagement range policy permits.
+- **Shield/intercept/guard**: primarily front-row effects unless ability says
+    otherwise.
+
+#### Movement Between Rows
+
+- Row change is an explicit combat action (costs action budget), not free.
+- Forced movement effects (bash/push/pull) may change row and can break channels
+    (including ranged aim).
+- No facing: orientation is abstracted away; only row + room + reachability are
+    evaluated.
+
+#### Weapon Range Integration
+
+Weapon profiles should define tactical range class used by the shared
+reachability evaluator:
+
+- `RANGE_MELEE`
+- `RANGE_REACH`
+- `RANGE_RANGED_SHORT`
+- `RANGE_RANGED_LONG`
+
+This range class combines with row + room distance to determine legal targets.
+`shoot.c` migration should map existing weapon range values into these runtime
+classes (compatibility layer first, then full data-driven profiles).
+
+#### Short-Term Hardening Before Full Migration
+
+While legacy `shoot.c` remains active, apply low-risk stabilization:
+
+- Single owner for ranged countdown/update (remove duplicate tick paths).
+- Replace room-hopping target search with pure room-walk helpers.
+- Replace name-only projectile lock with stable target identity where possible.
+- Normalize blocker/shield/cover checks into one reusable resolver.
+- Add combat telemetry events for `aim_start`, `aim_interrupt`,
+    `projectile_travel`, `projectile_hit`, `projectile_miss`.
+
 ---
 
 ## Data Structures
@@ -237,6 +331,11 @@ NPCs select targets by querying their threat table for the highest-threat living
 - Adjacent room (ranged/spell capable NPCs only)
 
 NPCs may switch targets freely each round based on current threat rankings. This is what enables adds to hunt down the ranged caster in another room.
+
+For companion NPCs (Tier 2-4 in `PLAN_PARTY_SYSTEM.md`), this selection is
+filtered by tactical settings (stance, guard/focus target, target priority)
+before final threat ranking, so party AI intent constrains target choice without
+breaking core reachability/engagement rules.
 
 ### Player Target Switching
 
@@ -423,7 +522,8 @@ for each COMBAT_DATA in active_combats:
             if !participant->active: continue
             if participant->acted_this_round: continue
 
-            multi_hit(ch, ch->fighting, TYPE_UNDEFINED)
+            combat_resolve_target(ch, participant->engagement)      /* validates reachability, threat retarget */
+            combat_execute_turn_actions(ch)                          /* attack_table path or legacy multi_hit */
             check_assist(ch, ch->fighting)
             fire_combat_triggers(ch)
             participant->acted_this_round = true
@@ -563,6 +663,7 @@ What can `TRIG_COMBAT_RESET` modify? Full HP/mana/move reset, position reset, af
 | Document | Relationship |
 |---|---|
 | `PLAN_COMBAT_LOOP_AND_DAMAGE_REWORK.md` | This implements Phase 4 (Encounter and Threat Foundation); telemetry structure feeds Phase 0 |
+| `PLAN_DATA_DRIVEN_TABLES.md` | Attack-pattern execution consumes engagement reachability/targeting from COMBAT_DATA; cooldowns persist across engagements within a combat |
 | `PLAN_CORE_SYSTEMS_INTEGRATION.md` | Required before Gate III (Identity Activation) — companion behavior profiles need a combat context |
 | `PLAN_PARTY_SYSTEM.md` | Tier 2+ companion AI needs `COMBAT_DATA` for targeting and behavior decisions |
 | `PLAN_CASTING_SYSTEM_REWORK.md` | Channel/interrupt semantics operate inside an engagement; engagement state informs interruption timing |
