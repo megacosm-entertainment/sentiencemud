@@ -114,8 +114,11 @@ bool validate_totp_code(const char *key, const char *code)
     time_t current_time = time(NULL);
     char current_totp[MIL];
     char previous_totp[MIL];
+    char normalized_key[MIL];
     char *current_code, *previous_code;
     bool has_secret_chars = false;
+    size_t normalized_len = 0;
+    const char *original_key = key;
 
     if (!key || !code)
         return false;
@@ -138,12 +141,14 @@ bool validate_totp_code(const char *key, const char *code)
     if (is_encrypted) {
         // Decrypt the key before validation
         plaintext_key = decrypt_string_versioned(key);
-        if (IS_NULLSTR(plaintext_key)) {
+        if (!IS_NULLSTR(plaintext_key)) {
+            key = plaintext_key;
+        } else {
             if (plaintext_key)
                 free_string(plaintext_key);
-            return false;
+            plaintext_key = NULL;
+            key = original_key;
         }
-        key = plaintext_key;
     }
 
     if (!key || key[0] == '\0') {
@@ -153,6 +158,7 @@ bool validate_totp_code(const char *key, const char *code)
     }
 
     // libcotp does not defensively handle bad secrets; reject malformed inputs here.
+    // Also normalize key format so grouped/lowercase secrets still validate.
     for (const unsigned char *p = (const unsigned char *)key; *p; p++) {
         if (isspace(*p) || *p == '-')
             continue;
@@ -163,6 +169,13 @@ bool validate_totp_code(const char *key, const char *code)
             return false;
         }
 
+        if (normalized_len >= sizeof(normalized_key) - 1) {
+            if (is_encrypted && plaintext_key)
+                free_string(plaintext_key);
+            return false;
+        }
+
+        normalized_key[normalized_len++] = isalpha(*p) ? toupper(*p) : *p;
         has_secret_chars = true;
     }
 
@@ -171,10 +184,12 @@ bool validate_totp_code(const char *key, const char *code)
             free_string(plaintext_key);
         return false;
     }
+
+    normalized_key[normalized_len] = '\0';
     
     // Get current and previous tokens (30-second window)
-    current_code = get_totp_at(key, current_time, 6, 30, SHA1, &err);
-    previous_code = get_totp_at(key, current_time - 30, 6, 30, SHA1, &err);
+    current_code = get_totp_at(normalized_key, current_time, 6, 30, SHA1, &err);
+    previous_code = get_totp_at(normalized_key, current_time - 30, 6, 30, SHA1, &err);
     
     if (!current_code || !previous_code) {
         if (is_encrypted && plaintext_key)
@@ -193,7 +208,7 @@ bool validate_totp_code(const char *key, const char *code)
     // (handling the case where user's clock is slightly ahead)
     if (!valid) {
         char next_totp[MIL];
-        char *next_code = get_totp_at(key, current_time + 30, 6, 30, SHA1, &err);
+        char *next_code = get_totp_at(normalized_key, current_time + 30, 6, 30, SHA1, &err);
         if (next_code) {
             snprintf(next_totp, sizeof(next_totp), "%s", next_code);
             valid = !str_cmp(code, next_totp);
