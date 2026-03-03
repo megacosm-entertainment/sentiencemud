@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 #include "merc.h"
 #include "wilds.h"
@@ -165,7 +166,7 @@ bool wilderness_mods_load(WILDS_DATA *pWilds)
         return false;
     }
 
-    stored_checksum = json_string_value(json_object_get(root, "base_map_checksum"));
+    stored_checksum = json_get_string(root, "base_map_checksum", "");
     wilderness_mods_base_checksum(pWilds, current_checksum);
     if (!IS_NULLSTR(stored_checksum) && !IS_NULLSTR(current_checksum)
     && str_cmp(stored_checksum, current_checksum) != 0)

@@ -21,6 +21,7 @@
 #include "tables.h"
 #include "song_data.h"
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 /***************************************************************************
  * Song Flags                                                              *
@@ -232,7 +233,7 @@ static SONG_DATA *load_song_from_json(json_t *obj)
     if (!json_is_object(obj))
         return NULL;
 
-    str = json_string_value(json_object_get(obj, "name"));
+    str = json_get_string(obj, "name", "");
     if (!str || !str[0]) {
         log_string("load_song_from_json: song missing 'name' field");
         return NULL;
@@ -253,16 +254,16 @@ static SONG_DATA *load_song_from_json(json_t *obj)
     val = json_object_get(obj, "beats");
     song->beats = val ? (int16_t)json_integer_value(val) : 0;
 
-    str = json_string_value(json_object_get(obj, "target"));
+    str = json_get_string(obj, "target", "");
     song->target = target_from_string(str);
 
-    str = json_string_value(json_object_get(obj, "spell1"));
+    str = json_get_string(obj, "spell1", "");
     song->spell1 = (str && str[0]) ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(obj, "spell2"));
+    str = json_get_string(obj, "spell2", "");
     song->spell2 = (str && str[0]) ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(obj, "spell3"));
+    str = json_get_string(obj, "spell3", "");
     song->spell3 = (str && str[0]) ? str_dup(str) : NULL;
 
     val = json_object_get(obj, "flags");
@@ -305,7 +306,7 @@ bool load_songs(void)
     }
 
     /* Validate format */
-    const char *fmt = json_string_value(json_object_get(root, "_format"));
+    const char *fmt = json_get_string(root, "_format", "");
     if (!fmt || str_cmp(fmt, "song_data")) {
         log_stringf("load_songs: invalid format '%s' in %s", fmt ? fmt : "(null)", songs_file);
         json_decref(root);

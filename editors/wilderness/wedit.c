@@ -439,6 +439,14 @@ void do_wedit(CHAR_DATA *ch, char *argument)
             pWilds->staticmap = calloc(sizeof(char), lMapsize);
             pWilds->map = calloc(sizeof(char), lMapsize);
 
+            if (!pWilds->staticmap || !pWilds->map) {
+                send_to_char("Wedit: memory allocation failed.\n\r", ch);
+                free(pWilds->staticmap);
+                free(pWilds->map);
+                free_wilds(pWilds);
+                return;
+            }
+
             pMap = pWilds->map;
             pStaticMap = pWilds->staticmap;
 
@@ -521,6 +529,15 @@ WEDIT ( wedit_create )
     lMapsize = pWilds->map_size_x * pWilds->map_size_y;
     pWilds->staticmap = calloc(sizeof(char), lMapsize);
     pWilds->map = calloc(sizeof(char), lMapsize);
+
+    if (!pWilds->staticmap || !pWilds->map) {
+        send_to_char("Wedit: memory allocation failed.\n\r", ch);
+        free(pWilds->staticmap);
+        free(pWilds->map);
+        free_wilds(pWilds);
+        return false;
+    }
+
     pWilds->uid = ++gconfig.next_wilds_uid;
     gconfig_write();
 

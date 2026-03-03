@@ -3726,7 +3726,10 @@ void page_to_char_bw(const char *txt, CHAR_DATA *ch)
     return;
     }
 
+    if (ch->desc->showstr_head)
+        free(ch->desc->showstr_head);
     ch->desc->showstr_head = malloc(strlen(txt) + 1);
+    if (!ch->desc->showstr_head) return;
     strcpy(ch->desc->showstr_head,txt);
     ch->desc->showstr_point = ch->desc->showstr_head;
     show_string(ch->desc,"");
@@ -3755,7 +3758,10 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
     return;
     }
 
+    if (ch->desc->showstr_head)
+        free(ch->desc->showstr_head);
     ch->desc->showstr_head = malloc(strlen(txt) + 1);
+    if (!ch->desc->showstr_head) return;
     strcpy(ch->desc->showstr_head,txt);
     ch->desc->showstr_point = ch->desc->showstr_head;
 
@@ -3897,6 +3903,7 @@ void show_string(struct descriptor_data *d, char *input)
 
     int len = strlen(d->showstr_point);
     buffer = malloc(len + 1);
+    if (!buffer) return;
 
     if (d->character)
         show_lines = d->character->lines;

@@ -842,8 +842,8 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     char race_buf[50];
     char class_buf[50];
     ACCOUNT_CHARACTER *ch_entry;
-    char *default_char = IS_NULLSTR(acct->default_character) ? NULL : acct->default_character;
-    ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
+    char *default_char;
+    ACCOUNT_CHARACTER *recent_char;
     
     d->mfa_verified = false;
 
@@ -858,6 +858,9 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         close_socket(d);
         return;
     }
+
+    default_char = IS_NULLSTR(acct->default_character) ? NULL : acct->default_character;
+    recent_char = find_most_recent_character(acct);
     
     write_to_buffer(d, "\n\r{B=={W[ {YSENTIENCE ACCOUNT MENU {W]{B=={x\n\r\n\r", 0);
     
@@ -4665,12 +4668,12 @@ bool account_has_immortal(ACCOUNT_DATA *acct)
     bool has_immortal = false;
     DESCRIPTOR_DATA temp_d;
     
+    if (!acct || !acct->characters)
+        return false;
+
     // If the account can create staff, treat as staff-capable
     if (IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF))
         return true;
-
-    if (!acct || !acct->characters)
-        return false;
     
     iterator_start(&it, acct->characters);
     while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {

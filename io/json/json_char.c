@@ -170,17 +170,17 @@ CHAR_INFO_CACHE *json_to_char_info(json_t *json)
     }
 
     // Basic info
-    str = json_string_value(json_object_get(json, "name"));
+    str = json_get_string(json, "name", "");
     info->name = str ? strdup(str) : strdup("Unknown");
 
     info->level = json_integer_value(json_object_get(json, "level"));
     info->tot_level = json_integer_value(json_object_get(json, "tot_level"));
     info->remorts = json_integer_value(json_object_get(json, "remorts"));
 
-    str = json_string_value(json_object_get(json, "race"));
+    str = json_get_string(json, "race", "");
     info->race = str ? strdup(str) : strdup("human");
 
-    str = json_string_value(json_object_get(json, "title"));
+    str = json_get_string(json, "title", "");
     info->title = str ? strdup(str) : strdup("");
 
     // Classes
@@ -2276,16 +2276,16 @@ CHAR_INFO_CACHE *json_read_char_info_lightweight(const char *filename)
     }
 
     // Basic identification
-    str = json_string_value(json_object_get(character, "name"));
+    str = json_get_string(character, "name", "");
     info->name = str ? strdup(str) : strdup("Unknown");
 
     info->level = json_integer_value(json_object_get(character, "level"));
     info->tot_level = json_integer_value(json_object_get(character, "tot_level"));
 
-    str = json_string_value(json_object_get(character, "race"));
+    str = json_get_string(character, "race", "");
     info->race = str ? strdup(str) : strdup("human");
 
-    str = json_string_value(json_object_get(character, "title"));
+    str = json_get_string(character, "title", "");
     info->title = str ? strdup(str) : strdup("");
 
     // Quick stats
@@ -2634,8 +2634,8 @@ OBJ_DATA *json_to_obj(json_t *json_obj, CHAR_DATA *ch)
     if (value && json_is_array(value)) {
         json_array_foreach(value, index, array_elem) {
             EXTRA_DESCR_DATA *ed = new_extra_descr();
-            ed->keyword = str_dup(json_string_value(json_object_get(array_elem, "keyword")));
-            ed->description = str_dup(json_string_value(json_object_get(array_elem, "description")));
+            ed->keyword = str_dup(json_get_string(array_elem, "keyword", ""));
+            ed->description = str_dup(json_get_string(array_elem, "description", ""));
             ed->next = obj->extra_descr;
             obj->extra_descr = ed;
         }
@@ -2869,7 +2869,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         // Account linkage
         json_t *account = json_object_get(metadata, "account");
         if (account) {
-            str = json_string_value(json_object_get(account, "name"));
+            str = json_get_string(account, "name", "");
             if (str) {
                 free_string(ch->pcdata->account_name);
                 ch->pcdata->account_name = str_dup(str);
@@ -2894,12 +2894,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     ch->level = json_integer_value(json_object_get(character, "level"));
     ch->tot_level = json_integer_value(json_object_get(character, "tot_level"));
 
-    str = json_string_value(json_object_get(character, "race"));
+    str = json_get_string(character, "race", "");
     if (str) {
         ch->race = race_lookup(str);
     }
 
-    str = json_string_value(json_object_get(character, "original_race"));
+    str = json_get_string(character, "original_race", "");
     if (str) {
         ch->orace = race_lookup(str);
     }
@@ -3107,13 +3107,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     ch->silver = json_integer_value(json_object_get(character, "silver"));
     ch->exp = json_integer_value(json_object_get(character, "experience"));
 
-    str = json_string_value(json_object_get(character, "title"));
+    str = json_get_string(character, "title", "");
     if (str) {
         free_string(ch->pcdata->title);
         ch->pcdata->title = str_dup(str);
     }
 
-    str = json_string_value(json_object_get(character, "description"));
+    str = json_get_string(character, "description", "");
     if (str) {
         free_string(ch->description);
         ch->description = str_dup(str);
@@ -3420,7 +3420,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                     value = json_object_get(history_elem, "abandoned_at");
                     if (value) history->abandoned_at = (time_t)json_integer_value(value);
 
-                    str = json_string_value(json_object_get(history_elem, "name"));
+                    str = json_get_string(history_elem, "name", "");
                     if (str)
                     {
                         free_string(history->name);
@@ -3441,7 +3441,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "scroll_lines");
         if (value) ch->lines = json_integer_value(value);
 
-        str = json_string_value(json_object_get(character, "prompt"));
+        str = json_get_string(character, "prompt", "");
         if (str) {
             free_string(ch->prompt);
             ch->prompt = str_dup(str);
@@ -3457,27 +3457,27 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         }
 
         // Pronouns
-        str = json_string_value(json_object_get(character, "pronoun_he_she"));
+        str = json_get_string(character, "pronoun_he_she", "");
         if (str) {
             free_string(ch->pronoun_he_she);
             ch->pronoun_he_she = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_him_her"));
+        str = json_get_string(character, "pronoun_him_her", "");
         if (str) {
             free_string(ch->pronoun_him_her);
             ch->pronoun_him_her = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_his_her"));
+        str = json_get_string(character, "pronoun_his_her", "");
         if (str) {
             free_string(ch->pronoun_his_her);
             ch->pronoun_his_her = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_his_hers"));
+        str = json_get_string(character, "pronoun_his_hers", "");
         if (str) {
             free_string(ch->pronoun_his_hers);
             ch->pronoun_his_hers = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "pronoun_himself_herself"));
+        str = json_get_string(character, "pronoun_himself_herself", "");
         if (str) {
             free_string(ch->pronoun_himself_herself);
             ch->pronoun_himself_herself = str_dup(str);
@@ -3555,13 +3555,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) ch->wiznet = json_integer_value(value);
 
         // Church membership
-        str = json_string_value(json_object_get(character, "church"));
+        str = json_get_string(character, "church", "");
         if (str) {
             ch->church = get_church_by_name(str);
         }
 
         // Immortal imm_flag (custom who-tag)
-        str = json_string_value(json_object_get(character, "imm_flag"));
+        str = json_get_string(character, "imm_flag", "");
         if (str && ch->pcdata->immortal) {
             free_string(ch->pcdata->immortal->imm_flag);
             ch->pcdata->immortal->imm_flag = str_dup(str);
@@ -3608,28 +3608,28 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         if (value) ch->pcdata->move_before = json_integer_value(value);
 
         // Last area string
-        str = json_string_value(json_object_get(character, "last_area"));
+        str = json_get_string(character, "last_area", "");
         if (str) {
             free_string(ch->pcdata->last_area);
             ch->pcdata->last_area = str_dup(str);
         }
 
         // AFK message
-        str = json_string_value(json_object_get(character, "afk_message"));
+        str = json_get_string(character, "afk_message", "");
         if (str) {
             free_string(ch->pcdata->afk_message);
             ch->pcdata->afk_message = str_dup(str);
         }
 
         // Player flag
-        str = json_string_value(json_object_get(character, "player_flag"));
+        str = json_get_string(character, "player_flag", "");
         if (str) {
             free_string(ch->pcdata->flag);
             ch->pcdata->flag = str_dup(str);
         }
 
         // Character-level auth data (for unlinked characters or mid-migration)
-        str = json_string_value(json_object_get(character, "char_password"));
+        str = json_get_string(character, "char_password", "");
         if (str) {
             free_string(ch->pcdata->pwd);
             ch->pcdata->pwd = str_dup(str);
@@ -3637,13 +3637,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "char_password_version");
         if (value) ch->pcdata->pwd_vers = json_integer_value(value);
 
-        str = json_string_value(json_object_get(character, "char_old_password"));
+        str = json_get_string(character, "char_old_password", "");
         if (str) {
             free_string(ch->pcdata->old_pwd);
             ch->pcdata->old_pwd = str_dup(str);
         }
 
-        str = json_string_value(json_object_get(character, "char_reset_code"));
+        str = json_get_string(character, "char_reset_code", "");
         if (str) {
             free_string(ch->pcdata->reset_code);
             ch->pcdata->reset_code = str_dup(str);
@@ -3653,7 +3653,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         value = json_object_get(character, "char_reset_state");
         if (value) ch->pcdata->reset_state = json_integer_value(value);
 
-        str = json_string_value(json_object_get(character, "char_mfa_key"));
+        str = json_get_string(character, "char_mfa_key", "");
         if (str) {
             free_string(ch->pcdata->mfa_key);
             ch->pcdata->mfa_key = str_dup(str);
@@ -3661,7 +3661,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         ch->pcdata->mfa_enabled = json_is_true(json_object_get(character, "char_mfa_enabled"));
         ch->pcdata->mfa_pending = json_is_true(json_object_get(character, "char_mfa_pending"));
 
-        str = json_string_value(json_object_get(character, "char_mfa_pending_key"));
+        str = json_get_string(character, "char_mfa_pending_key", "");
         if (str) {
             free_string(ch->pcdata->mfa_pending_key);
             ch->pcdata->mfa_pending_key = str_dup(str);
@@ -3676,7 +3676,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 json_t *relem;
                 json_array_foreach(recovery, ridx, relem) {
                     if (ri >= MFA_RECOVERY_CODES) break;
-                    str = json_string_value(json_object_get(relem, "code"));
+                    str = json_get_string(relem, "code", "");
                     if (str) {
                         free_string(ch->pcdata->recovery_codes[ri]);
                         ch->pcdata->recovery_codes[ri] = str_dup(str);
@@ -3688,19 +3688,19 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         }
 
         // Character-level email fields
-        str = json_string_value(json_object_get(character, "char_email"));
+        str = json_get_string(character, "char_email", "");
         if (str) {
             free_string(ch->pcdata->email);
             ch->pcdata->email = str_dup(str);
         }
         ch->pcdata->email_verified = json_is_true(json_object_get(character, "char_email_verified"));
 
-        str = json_string_value(json_object_get(character, "char_pending_email"));
+        str = json_get_string(character, "char_pending_email", "");
         if (str) {
             free_string(ch->pcdata->pending_email);
             ch->pcdata->pending_email = str_dup(str);
         }
-        str = json_string_value(json_object_get(character, "char_email_verification_code"));
+        str = json_get_string(character, "char_email_verification_code", "");
         if (str) {
             free_string(ch->pcdata->email_verification_code);
             ch->pcdata->email_verification_code = str_dup(str);
@@ -3714,11 +3714,11 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         json_t *ignoring = json_object_get(character, "ignoring");
         if (ignoring && json_is_array(ignoring)) {
             json_array_foreach(ignoring, index, array_elem) {
-                const char *ignore_name = json_string_value(json_object_get(array_elem, "name"));
+                const char *ignore_name = json_get_string(array_elem, "name", "");
                 if (ignore_name) {
                     IGNORE_DATA *ignore = new_ignore();
                     ignore->name = str_dup(ignore_name);
-                    const char *ignore_reason = json_string_value(json_object_get(array_elem, "reason"));
+                    const char *ignore_reason = json_get_string(array_elem, "reason", "");
                     if (ignore_reason) {
                         ignore->reason = str_dup(ignore_reason);
                     }
@@ -4093,7 +4093,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                     if (!binding_elem || !json_is_object(binding_elem))
                         continue;
 
-                    binding_name = json_string_value(json_object_get(binding_elem, "name"));
+                    binding_name = json_get_string(binding_elem, "name", "");
                     if (IS_NULLSTR(binding_name))
                         continue;
 
@@ -4469,10 +4469,10 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             char source = SKILLSRC_NORMAL;
             long flags = SKILL_AUTOMATIC;
             if (json_is_object(skill_value)) {
-                const char *source_str = json_string_value(json_object_get(skill_value, "source"));
+                const char *source_str = json_get_string(skill_value, "source", "");
                 source = json_parse_skill_source(source_str);
 
-                const char *flags_str = json_string_value(json_object_get(skill_value, "flags"));
+                const char *flags_str = json_get_string(skill_value, "flags", "");
                 if (flags_str) {
                     flags = flag_value(skill_flags, (char *)flags_str);
                     if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
@@ -4568,7 +4568,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
             /* Try name-based resolution first, fall back to integer id */
-            const char *gname = json_string_value(json_object_get(array_elem, "name"));
+            const char *gname = json_get_string(array_elem, "name", "");
             int gn = -1;
 
             if (gname && gname[0])
@@ -4605,7 +4605,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
 
             // Resolve by name first (resilient to skill reordering)
-            str = json_string_value(json_object_get(array_elem, "type_name"));
+            str = json_get_string(array_elem, "type_name", "");
             if (str && str[0]) {
                 SKILL_DATA *sk = skill_find(str);
                 if (sk) {
@@ -4638,7 +4638,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 paf->bitvector2 = json_integer_value(value);
             }
 
-            str = json_string_value(json_object_get(array_elem, "custom_name"));
+            str = json_get_string(array_elem, "custom_name", "");
             if (str) {
                 paf->custom_name = str_dup(str);
             }
@@ -4713,13 +4713,13 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 break;
             }
 
-            str = json_string_value(json_object_get(array_elem, "alias"));
+            str = json_get_string(array_elem, "alias", "");
             if (str) {
                 free_string(ch->pcdata->alias[pos]);
                 ch->pcdata->alias[pos] = str_dup(str);
             }
 
-            str = json_string_value(json_object_get(array_elem, "substitution"));
+            str = json_get_string(array_elem, "substitution", "");
             if (str) {
                 free_string(ch->pcdata->alias_sub[pos]);
                 ch->pcdata->alias_sub[pos] = str_dup(str);
@@ -4804,7 +4804,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                 if (value)
                     clazz = class_find_uid((int16_t)json_integer_value(value));
                 if (!clazz) {
-                    str = json_string_value(json_object_get(array_elem, "name"));
+                    str = json_get_string(array_elem, "name", "");
                     if (str)
                         clazz = class_find_exact(str);
                 }
@@ -4820,7 +4820,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                     value = json_object_get(array_elem, "xp");
                     if (value) cl->xp = json_integer_value(value);
 
-                    str = json_string_value(json_object_get(array_elem, "active_title"));
+                    str = json_get_string(array_elem, "active_title", "");
                     if (str && str[0])
                         cl->active_title = str_dup(str);
 
@@ -5026,10 +5026,10 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             char source = SKILLSRC_NORMAL;
             long flags = SKILL_AUTOMATIC;
             if (json_is_object(skill_value)) {
-                const char *source_str = json_string_value(json_object_get(skill_value, "source"));
+                const char *source_str = json_get_string(skill_value, "source", "");
                 source = json_parse_skill_source(source_str);
 
-                const char *flags_str = json_string_value(json_object_get(skill_value, "flags"));
+                const char *flags_str = json_get_string(skill_value, "flags", "");
                 if (flags_str) {
                     flags = flag_value(skill_flags, (char *)flags_str);
                     if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
@@ -5100,7 +5100,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
             /* Try name-based resolution first, fall back to integer id */
-            const char *gname = json_string_value(json_object_get(array_elem, "name"));
+            const char *gname = json_get_string(array_elem, "name", "");
             int gn = -1;
 
             if (gname && gname[0])
@@ -5137,7 +5137,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
             paf->type = json_integer_value(json_object_get(array_elem, "type"));
 
             // Resolve by name first (resilient to skill reordering)
-            str = json_string_value(json_object_get(array_elem, "type_name"));
+            str = json_get_string(array_elem, "type_name", "");
             if (str && str[0]) {
                 SKILL_DATA *sk = skill_find(str);
                 if (sk) {
@@ -5170,7 +5170,7 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 paf->bitvector2 = json_integer_value(value);
             }
 
-            str = json_string_value(json_object_get(array_elem, "custom_name"));
+            str = json_get_string(array_elem, "custom_name", "");
             if (str) {
                 paf->custom_name = str_dup(str);
             }
@@ -5247,13 +5247,13 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                 break;
             }
 
-            str = json_string_value(json_object_get(array_elem, "alias"));
+            str = json_get_string(array_elem, "alias", "");
             if (str) {
                 free_string(ch->pcdata->alias[pos]);
                 ch->pcdata->alias[pos] = str_dup(str);
             }
 
-            str = json_string_value(json_object_get(array_elem, "substitution"));
+            str = json_get_string(array_elem, "substitution", "");
             if (str) {
                 free_string(ch->pcdata->alias_sub[pos]);
                 ch->pcdata->alias_sub[pos] = str_dup(str);

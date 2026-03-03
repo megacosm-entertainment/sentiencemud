@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 #include "merc.h"
 #include "wilds.h"
@@ -153,15 +154,15 @@ bool wilderness_wterr_load(WILDS_DATA *pWilds)
 
             wilderness_wterr_set_string(&terrain->showchar,
                 json_is_string(json_object_get(entry, "showchar"))
-                    ? json_string_value(json_object_get(entry, "showchar"))
+                    ? json_get_string(entry, "showchar", "")
                     : "");
             wilderness_wterr_set_string(&terrain->showname,
                 json_is_string(json_object_get(entry, "showname"))
-                    ? json_string_value(json_object_get(entry, "showname"))
+                    ? json_get_string(entry, "showname", "")
                     : "");
             wilderness_wterr_set_string(&terrain->briefdesc,
                 json_is_string(json_object_get(entry, "briefdesc"))
-                    ? json_string_value(json_object_get(entry, "briefdesc"))
+                    ? json_get_string(entry, "briefdesc", "")
                     : "");
 
             terrain->nonroom = json_is_true(json_object_get(entry, "nonroom"));

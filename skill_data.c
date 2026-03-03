@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 #include "merc.h"
 #include "magic.h"
 #include "skill_data.h"
@@ -475,7 +476,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Validate format */
-    str = json_string_value(json_object_get(root, "_format"));
+    str = json_get_string(root, "_format", "");
     if (!str || str_cmp(str, "skill_data")) {
         log_stringf("skill_load_json: Invalid format in %s", filename);
         json_decref(root);
@@ -485,28 +486,28 @@ static SKILL_DATA *skill_load_json(const char *filename)
     skill = new_skill_data();
 
     /* Identity */
-    str = json_string_value(json_object_get(root, "name"));
+    str = json_get_string(root, "name", "");
     skill->name = str_dup(str ? str : "unknown");
 
     val = json_object_get(root, "uid");
     skill->uid = val ? (int16_t)json_integer_value(val) : -1;
 
-    str = json_string_value(json_object_get(root, "type"));
+    str = json_get_string(root, "type", "");
     skill->isspell = (str && !str_cmp(str, "spell"));
 
-    str = json_string_value(json_object_get(root, "display"));
+    str = json_get_string(root, "display", "");
     skill->display = str_dup(str ? str : skill->name);
 
-    str = json_string_value(json_object_get(root, "summary"));
+    str = json_get_string(root, "summary", "");
     skill->summary = str ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(root, "description"));
+    str = json_get_string(root, "description", "");
     skill->description = str ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(root, "comments"));
+    str = json_get_string(root, "comments", "");
     skill->comments = str ? str_dup(str) : NULL;
 
-    str = json_string_value(json_object_get(root, "help_keyword"));
+    str = json_get_string(root, "help_keyword", "");
     skill->help_keyword = str ? str_dup(str) : NULL;
 
     /* Flags */
@@ -525,7 +526,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Invocation */
-    str = json_string_value(json_object_get(root, "spell_function"));
+    str = json_get_string(root, "spell_function", "");
     if (str && str[0]) {
         skill->spell_fun_name = str_dup(str);
         skill->spell_fun = spell_fun_lookup(str);
@@ -535,7 +536,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Target type */
-    str = json_string_value(json_object_get(root, "target"));
+    str = json_get_string(root, "target", "");
     if (str) {
         if (!str_cmp(str, "ignore"))              skill->target = TAR_IGNORE;
         else if (!str_cmp(str, "offensive"))      skill->target = TAR_CHAR_OFFENSIVE;
@@ -547,7 +548,7 @@ static SKILL_DATA *skill_load_json(const char *filename)
     }
 
     /* Position */
-    str = json_string_value(json_object_get(root, "minimum_position"));
+    str = json_get_string(root, "minimum_position", "");
     if (str) {
         if (!str_cmp(str, "dead"))           skill->minimum_position = POS_DEAD;
         else if (!str_cmp(str, "mortal"))    skill->minimum_position = POS_MORTAL;
@@ -569,20 +570,20 @@ static SKILL_DATA *skill_load_json(const char *filename)
     skill->beats = val ? (int16_t)json_integer_value(val) : 0;
 
     /* Messages */
-    str = json_string_value(json_object_get(root, "noun_damage"));
+    str = json_get_string(root, "noun_damage", "");
     skill->noun_damage = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "msg_off"));
+    str = json_get_string(root, "msg_off", "");
     skill->msg_off = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "msg_obj"));
+    str = json_get_string(root, "msg_obj", "");
     skill->msg_obj = str_dup(str ? str : "");
 
-    str = json_string_value(json_object_get(root, "msg_disp"));
+    str = json_get_string(root, "msg_disp", "");
     skill->msg_disp = str_dup(str ? str : "");
 
     /* Race restriction */
-    str = json_string_value(json_object_get(root, "race"));
+    str = json_get_string(root, "race", "");
     if (str && str[0]) {
         skill->race_name = str_dup(str);
         skill->race = race_lookup(str);

@@ -8214,13 +8214,14 @@ void do_accset(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg2, "flag")) {
         char flag_buf[MAX_INPUT_LENGTH];
         char *flag_name;
+        char *saveptr;
         bool found_flag = false;
 
         // Make a copy of arg3 to tokenize
         strncpy(flag_buf, arg3, sizeof(flag_buf));
         flag_buf[sizeof(flag_buf)-1] = '\0';
 
-        flag_name = strtok(flag_buf, " ");
+        flag_name = strtok_r(flag_buf, " ", &saveptr);
         while (flag_name != NULL) {
             long flagval;
             if ((flagval = flag_value(acct_flags, flag_name)) == NO_FLAG) {
@@ -8232,7 +8233,7 @@ void do_accset(CHAR_DATA *ch, char *argument)
                 TOGGLE_BIT(account->acct_flags, flagval);
                 found_flag = true;
             }
-            flag_name = strtok(NULL, " ");
+            flag_name = strtok_r(NULL, " ", &saveptr);
         }
 
         if (found_flag)

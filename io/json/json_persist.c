@@ -1306,8 +1306,8 @@ OBJ_DATA *json_persist_json_to_object(json_t *json)
     if (array && json_is_array(array)) {
         json_array_foreach(array, index, elem) {
             EXTRA_DESCR_DATA *ed = new_extra_descr();
-            ed->keyword = str_dup(json_string_value(json_object_get(elem, "keyword")));
-            ed->description = str_dup(json_string_value(json_object_get(elem, "description")));
+            ed->keyword = str_dup(json_get_string(elem, "keyword", ""));
+            ed->description = str_dup(json_get_string(elem, "description", ""));
             ed->next = obj->extra_descr;
             obj->extra_descr = ed;
         }
@@ -1831,7 +1831,7 @@ CHAR_DATA *json_persist_json_to_mobile(json_t *json)
     array = json_object_get(json, "toxins");
     if (array && json_is_array(array)) {
         json_array_foreach(array, index, elem) {
-            const char *tname = json_string_value(json_object_get(elem, "name"));
+            const char *tname = json_get_string(elem, "name", "");
             int tval = json_integer_value(json_object_get(elem, "value"));
             if (tname) {
                 for (i = 0; i < MAX_TOXIN; i++) {

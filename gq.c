@@ -411,7 +411,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf, "Added mob %s (vnum %s), object %s (vnum %s), class %d.\n\r",
-        get_mob_index(mob_wnum.pArea, mob_wnum.vnum)->short_descr,
+        get_mob_index(mob_wnum.pArea, mob_wnum.vnum) ? get_mob_index(mob_wnum.pArea, mob_wnum.vnum)->short_descr : "(invalid)",
         widevnum_string_wnum(mob_wnum, NULL),
         (obj_wnum.vnum > 0 && get_obj_index(obj_wnum.pArea, obj_wnum.vnum)) ? get_obj_index(obj_wnum.pArea, obj_wnum.vnum)->short_descr : "none",
         (obj_wnum.vnum > 0) ? widevnum_string_wnum(obj_wnum, NULL) : "none",
@@ -511,7 +511,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
     if (!gq_mob->vnum_wnum.pArea && gq_mob->vnum_load.vnum > 0)
         gq_resolve_wnum_load(&gq_mob->vnum_load, &gq_mob->vnum_wnum);
     sprintf(buf, "Removed %s (vnum %s)\n\r",
-        get_mob_index(gq_mob->vnum_wnum.pArea, gq_mob->vnum_wnum.vnum)->short_descr,
+        get_mob_index(gq_mob->vnum_wnum.pArea, gq_mob->vnum_wnum.vnum) ? get_mob_index(gq_mob->vnum_wnum.pArea, gq_mob->vnum_wnum.vnum)->short_descr : "(invalid)",
         widevnum_string_wnum(gq_mob->vnum_wnum, NULL));
     send_to_char(buf, ch);
 
@@ -649,7 +649,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf, "Added %s (vnum %s), qp %d, prac %d, exp %ld, silver %d, gold %d, repop of %d%%, max amount %d.\n\r",
-        get_obj_index(obj_wnum.pArea, obj_wnum.vnum)->short_descr,
+        get_obj_index(obj_wnum.pArea, obj_wnum.vnum) ? get_obj_index(obj_wnum.pArea, obj_wnum.vnum)->short_descr : "(invalid)",
         widevnum_string_wnum(obj_wnum, NULL),
         qp,
         prac,
@@ -699,7 +699,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
     if (!gq_obj->vnum_wnum.pArea && gq_obj->vnum_load.vnum > 0)
         gq_resolve_wnum_load(&gq_obj->vnum_load, &gq_obj->vnum_wnum);
     sprintf(buf, "Removed %s (vnum %s)\n\r",
-        get_obj_index(gq_obj->vnum_wnum.pArea, gq_obj->vnum_wnum.vnum)->short_descr,
+        get_obj_index(gq_obj->vnum_wnum.pArea, gq_obj->vnum_wnum.vnum) ? get_obj_index(gq_obj->vnum_wnum.pArea, gq_obj->vnum_wnum.vnum)->short_descr : "(invalid)",
         widevnum_string_wnum(gq_obj->vnum_wnum, NULL));
     send_to_char(buf, ch);
 

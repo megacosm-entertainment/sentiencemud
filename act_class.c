@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 #include "merc.h"
 #include "interp.h"
@@ -74,7 +75,7 @@ static bool has_reward_been_applied(CLASS_LEVEL *cl, int level, int type, const 
 
         int e_level = (int)json_integer_value(json_object_get(entry, "level"));
         int e_type  = (int)json_integer_value(json_object_get(entry, "type"));
-        const char *e_name = json_string_value(json_object_get(entry, "name"));
+        const char *e_name = json_get_string(entry, "name", "");
 
         if (e_level == level && e_type == type) {
             if (!name || !name[0]) {
@@ -397,9 +398,9 @@ static void apply_single_reward(CHAR_DATA *ch, CLASS_DATA *clazz, CLASS_LEVEL *c
                 if (reward->data) {
                     json_t *disp = json_object_get(reward->data, "display");
                     if (disp) {
-                        title_name = json_string_value(json_object_get(disp, "neutral"));
+                        title_name = json_get_string(disp, "neutral", "");
                         if (!title_name)
-                            title_name = json_string_value(json_object_get(disp, "male"));
+                            title_name = json_get_string(disp, "male", "");
                     }
                 }
                 if (title_name) {

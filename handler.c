@@ -8999,11 +8999,13 @@ void list_remref(LLIST *lp)
         --lp->ref;
         list_cull(lp);
 
-        if(lp->ref < 1 && !lp->valid) {
-            list_purge(lp);
-            free(lp);
-        } else if(lp->ref < 1 && lp->purge) {
-            list_destroy(lp);
+        if(lp->ref < 1) {
+            if (!lp->valid) {
+                list_purge(lp);
+                free(lp);
+            } else if (lp->purge) {
+                list_destroy(lp);
+            }
         }
     }
 }
@@ -10979,8 +10981,7 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *
 
 // Define a structure to hold email-related data
 struct EmailData {
-    CHAR_DATA *ch;
-    ACCOUNT_DATA *acct;
+    char *recipient_name;
     char *email;
     char *subject;
     char *message;
@@ -10992,10 +10993,62 @@ struct EmailData {
 void *send_email_thread(void *arg) {
     struct EmailData *emailData = (struct EmailData *)arg;
 
-    send_email_ex(emailData->ch, emailData->acct, emailData->email, emailData->subject, emailData->message, 
-                  emailData->attachment_filename, emailData->attachment_mime_type);
+    // Build a temporary pseudo-call using only copied string data
+    {
+        char subj_buf[256];
+        char body_buf[MSL*2];
+        char body_buf_html[MSL*5];
 
-    // Clean up and exit the thread
+        extern GAME_SETTINGS_DATA game_settings;
+
+        quickmail_initialize();
+
+        if (emailData->subject[0] != '\0')
+            sprintf(subj_buf, "%s", emailData->subject);
+        else
+            sprintf(subj_buf, "Email from SentienceMUD");
+
+        quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
+
+        quickmail_add_to(mailobj, emailData->email);
+
+        quickmail_add_header(mailobj, "Importance: Low");
+        quickmail_add_header(mailobj, "X-Priority: 5");
+        quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
+
+        sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff",
+                emailData->recipient_name, emailData->message);
+
+        char *src = body_buf;
+        char *dst = body_buf_html;
+        while (*src) {
+            if (*src == '\n') {
+                strcpy(dst, "<br/>");
+                dst += 5;
+            } else {
+                *dst++ = *src;
+            }
+            src++;
+        }
+        *dst = '\0';
+
+        quickmail_set_body(mailobj, body_buf);
+        quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
+
+        if (emailData->attachment_filename && emailData->attachment_mime_type) {
+            quickmail_add_attachment_file(mailobj, emailData->attachment_filename, emailData->attachment_mime_type);
+        }
+
+        const char* errmsg;
+        if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
+            fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
+        quickmail_destroy(mailobj);
+        quickmail_cleanup();
+    }
+
+    // Clean up all duplicated strings and exit the thread
+    free(emailData->recipient_name);
+    free(emailData->email);
     free(emailData->subject);
     free(emailData->message);
     if (emailData->attachment_filename)
@@ -11015,19 +11068,40 @@ void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *s
         fprintf(stderr, "Error allocating memory for email data\n");
         return;
     }
-    
-    emailData->ch = ch;
-    emailData->acct = acct;
-    emailData->email = email;
-    emailData->subject = strdup(subject); // Duplicate the subject string
+
+    // Copy the recipient name — do NOT pass live game object pointers to a thread
+    if (ch)
+        emailData->recipient_name = strdup(ch->name ? ch->name : "Adventurer");
+    else if (acct)
+        emailData->recipient_name = strdup(acct->username ? acct->username : "Adventurer");
+    else
+        emailData->recipient_name = strdup("Adventurer");
+
+    if (!emailData->recipient_name) {
+        free(emailData);
+        return;
+    }
+
+    emailData->email = strdup(email);
+    if (!emailData->email) {
+        free(emailData->recipient_name);
+        free(emailData);
+        return;
+    }
+
+    emailData->subject = strdup(subject);
     if (!emailData->subject) {
+        free(emailData->email);
+        free(emailData->recipient_name);
         free(emailData);
         return;
     }
     
-    emailData->message = strdup(message); // Duplicate the message string
+    emailData->message = strdup(message);
     if (!emailData->message) {
         free(emailData->subject);
+        free(emailData->email);
+        free(emailData->recipient_name);
         free(emailData);
         return;
     }
@@ -11040,6 +11114,8 @@ void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *s
     if (pthread_create(&emailThread, NULL, send_email_thread, emailData) != 0) {
         fprintf(stderr, "Error creating email thread\n");
         // Clean up on error
+        free(emailData->recipient_name);
+        free(emailData->email);
         free(emailData->subject);
         free(emailData->message);
         if (emailData->attachment_filename)

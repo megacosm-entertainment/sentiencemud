@@ -22,6 +22,7 @@
 #include "../recycle.h"
 #include "../log.h"
 #include "penalty.h"
+#include "../io/json/json_common.h"
 
 /***************************************************************************
  * Type Name Tables                                                        *
@@ -1135,25 +1136,25 @@ bool json_to_penalties(json_t *array, PENALTY_DATA **list)
     json_array_foreach(array, index, elem) {
         PENALTY_DATA *p = new_penalty();
 
-        str = json_string_value(json_object_get(elem, "type"));
+        str = json_get_string(elem, "type", "");
         if (str) p->type = penalty_type_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "scope"));
+        str = json_get_string(elem, "scope", "");
         if (str) p->scope = penalty_scope_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "reason"));
+        str = json_get_string(elem, "reason", "");
         if (str) { free_string(p->reason); p->reason = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "applied_by"));
+        str = json_get_string(elem, "applied_by", "");
         if (str) { free_string(p->applied_by); p->applied_by = str_dup(str); }
 
         p->applied_at = json_integer_value(json_object_get(elem, "applied_at"));
         p->expires_at = json_integer_value(json_object_get(elem, "expires_at"));
 
-        str = json_string_value(json_object_get(elem, "target_name"));
+        str = json_get_string(elem, "target_name", "");
         if (str) { free_string(p->target_name); p->target_name = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "extra"));
+        str = json_get_string(elem, "extra", "");
         if (str) { free_string(p->extra); p->extra = str_dup(str); }
 
         /* Append in order */
@@ -1234,16 +1235,16 @@ bool json_to_bonuses(json_t *array, BONUS_DATA **list)
     json_array_foreach(array, index, elem) {
         BONUS_DATA *b = new_bonus();
 
-        str = json_string_value(json_object_get(elem, "type"));
+        str = json_get_string(elem, "type", "");
         if (str) b->type = bonus_type_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "scope"));
+        str = json_get_string(elem, "scope", "");
         if (str) b->scope = bonus_scope_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "reason"));
+        str = json_get_string(elem, "reason", "");
         if (str) { free_string(b->reason); b->reason = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "granted_by"));
+        str = json_get_string(elem, "granted_by", "");
         if (str) { free_string(b->granted_by); b->granted_by = str_dup(str); }
 
         b->granted_at = json_integer_value(json_object_get(elem, "granted_at"));
@@ -1251,10 +1252,10 @@ bool json_to_bonuses(json_t *array, BONUS_DATA **list)
         b->value      = (int)json_integer_value(json_object_get(elem, "value"));
         b->flags      = (long)json_integer_value(json_object_get(elem, "flags"));
 
-        str = json_string_value(json_object_get(elem, "target_name"));
+        str = json_get_string(elem, "target_name", "");
         if (str) { free_string(b->target_name); b->target_name = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "extra"));
+        str = json_get_string(elem, "extra", "");
         if (str) { free_string(b->extra); b->extra = str_dup(str); }
 
         /* Append in order */

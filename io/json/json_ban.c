@@ -115,7 +115,7 @@ bool json_load_bans(const char *path)
 
         pban = new_ban();
 
-        name = json_string_value(json_object_get(value, "name"));
+        name = json_get_string(value, "name", "");
         pban->name = str_dup(name ? name : "");
         pban->level = (int16_t)json_integer_value(
             json_object_get(value, "level"));

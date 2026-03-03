@@ -6511,7 +6511,12 @@ void *alloc_mem(int sMem)
 
     return pMem;
 #else
-    return calloc(1,sMem);
+    void *pMem = calloc(1, sMem);
+    if (!pMem) {
+        perror("alloc_mem");
+        abort();
+    }
+    return pMem;
 #endif
 }
 
@@ -6600,7 +6605,12 @@ void *alloc_perm(long sMem)
     sAllocPerm += sMem;
     return pMem;
 #else
-    return calloc(1,sMem);
+    void *pMem = calloc(1, sMem);
+    if (!pMem) {
+        perror("alloc_perm");
+        abort();
+    }
+    return pMem;
 #endif
 }
 

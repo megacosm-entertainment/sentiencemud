@@ -2801,7 +2801,7 @@ DECL_IFC_FUN(ifc_bodytypevalue)
 
     if (ISARG_MOB(0)) {
         target_mob = ARG_MOB(0);
-        if (argc < 2 || !ISARG_NUM(1)) return false;
+        if (!target_mob || argc < 2 || !ISARG_NUM(1)) return false;
         *ret = (target_mob->body_type == (body_type_t)ARG_NUM(1));
     } else if (ISARG_NUM(0)) {
         if (!target_mob) return false;

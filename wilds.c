@@ -2788,16 +2788,36 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     const int row_size = (col_size * cols);
 
     char **map_str = malloc(rows * sizeof(char *));
-    for( int r = 0; r < rows; r++)
+    if (!map_str) return;
+    for( int r = 0; r < rows; r++) {
         map_str[r] = malloc(row_size);
+        if (!map_str[r]) {
+            for (int j = 0; j < r; j++) free(map_str[j]);
+            free(map_str);
+            return;
+        }
+    }
 
     char **olc_str = NULL;
 
     if( olc )
     {
         olc_str = malloc(rows * sizeof(char *));
-        for( int r = 0; r < rows; r++)
+        if (!olc_str) {
+            for (int r = 0; r < rows; r++) free(map_str[r]);
+            free(map_str);
+            return;
+        }
+        for( int r = 0; r < rows; r++) {
             olc_str[r] = malloc(cols + 1);
+            if (!olc_str[r]) {
+                for (int j = 0; j < r; j++) free(olc_str[j]);
+                free(olc_str);
+                for (int j = 0; j < rows; j++) free(map_str[j]);
+                free(map_str);
+                return;
+            }
+        }
     }
 
     // Create map data
