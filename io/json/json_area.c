@@ -3559,7 +3559,7 @@ AREA_DATA *json_area_load(const char *filename)
         }
     }
     
-    /* Deserialize blueprint sections */
+    /* Deserialize blueprint sections (skip duplicates by vnum) */
     json_t *sections = json_object_get(root, "blueprint_sections");
     if (sections && json_is_array(sections)) {
         size_t index;
@@ -3567,10 +3567,25 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(sections, index, section_json) {
             BLUEPRINT_SECTION *section = json_area_deserialize_blueprint_section(section_json, area);
             if (section && section->vnum) {
-                /* Add to area's blueprint section hash table */
                 int hash = section->vnum % MAX_KEY_HASH;
-                section->next = area->blueprint_section_hash[hash];
-                area->blueprint_section_hash[hash] = section;
+
+                /* Check for duplicate vnum in this area's hash */
+                bool duplicate = false;
+                for (BLUEPRINT_SECTION *existing = area->blueprint_section_hash[hash]; existing; existing = existing->next) {
+                    if (existing->vnum == section->vnum) {
+                        duplicate = true;
+                        break;
+                    }
+                }
+
+                if (!duplicate) {
+                    section->next = area->blueprint_section_hash[hash];
+                    area->blueprint_section_hash[hash] = section;
+                } else {
+                    log_message_f(LOG_LEVEL_INFO, LOG_INIT,
+                        "Skipping duplicate blueprint section vnum %ld in area '%s'",
+                        section->vnum, area->name);
+                }
             }
         }
     }
@@ -4126,12 +4141,15 @@ bool json_area_save(AREA_DATA *area)
     else
         json_decref(blueprints);
     
-    /* Serialize blueprint sections */
+    /* Serialize blueprint sections (deduplicated by vnum) */
     json_t *blueprint_sections = json_array();
     // Always iterate through all hash buckets to catch widevnum entities
     for (int j = 0; j < MAX_KEY_HASH; j++) {
         for (BLUEPRINT_SECTION *section = area->blueprint_section_hash[j]; section; section = section->next) {
             if (section->vnum && section->area == area) {
+                /* Skip if we already serialized this vnum */
+                if (json_script_array_has_vnum(blueprint_sections, section->vnum))
+                    continue;
                 json_t *section_json = json_area_serialize_blueprint_section(section, area);
                 if (section_json) {
                     json_array_append_new(blueprint_sections, section_json);
