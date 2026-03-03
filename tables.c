@@ -3649,6 +3649,10 @@ const struct do_func_type do_func_table[] =
         { "do_events", do_events },
         { "do_cedit", do_cedit },
         { "do_rview", do_rview },
+        { "do_standing", do_standing },
+        { "do_smedit" , do_smedit },
+        { "do_recho", do_recho },
+
         { NULL, NULL }
 };
 
