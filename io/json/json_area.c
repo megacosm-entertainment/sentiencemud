@@ -437,6 +437,8 @@ static json_t *wilds_to_json(WILDS_DATA *wilds) {
     json_object_set_new(json, "wildgen_tile_height", json_integer(wilds->wildgen_tile_height));
     json_object_set_new(json, "wildgen_terrain_base", json_string_safe(wilds->wildgen_terrain_base));
     json_object_set_new(json, "wildgen_elevation_base", json_string_safe(wilds->wildgen_elevation_base));
+    json_object_set_new(json, "wildgen_bitdepth", json_integer(wilds->wildgen_bitdepth));
+    json_object_set_new(json, "default_elevation", json_integer(wilds->default_elevation));
 
     json_object_set_new(json, "wilderness_storage_mode", json_string("external_v1"));
     json_object_set_new(json, "legacy_embedded_map", json_false());
@@ -474,6 +476,10 @@ static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
     wilds->wildgen_terrain_base = str_dup(json_get_string_default(json, "wildgen_terrain_base", ""));
     free_string(wilds->wildgen_elevation_base);
     wilds->wildgen_elevation_base = str_dup(json_get_string_default(json, "wildgen_elevation_base", ""));
+    wilds->wildgen_bitdepth = json_get_int_default(json, "wildgen_bitdepth", 0);
+    if (wilds->wildgen_bitdepth != 8 && wilds->wildgen_bitdepth != 16)
+        wilds->wildgen_bitdepth = 0;
+    wilds->default_elevation = json_get_int_default(json, "default_elevation", 0);
 
     // Allocate staticmap/map buffers. Embedded staticmap is legacy migration input only.
     const char *json_map = json_get_string_default(json, "staticmap", "");

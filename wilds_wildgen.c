@@ -23,9 +23,9 @@ typedef struct wilds_wildgen_status_rec WILDS_WILDGEN_STATUS_REC;
 
 struct wilds_wildgen_color_map
 {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
+    uint16_t r;
+    uint16_t g;
+    uint16_t b;
     char tile;
 };
 
@@ -43,6 +43,7 @@ struct wilds_wildgen_job
     int expected_tile_width;
     int expected_tile_height;
     bool validate_elevation_grid;
+    int source_bit_depth;   /* effective bit depth: 8 or 16 */
     char source_name[MIL];
     char elevation_source_name[MIL];
     char png_path[MSL];
@@ -95,6 +96,144 @@ static WILDS_WILDGEN_JOB *wildgen_queue_head = NULL;
 static WILDS_WILDGEN_JOB *wildgen_queue_tail = NULL;
 static WILDS_WILDGEN_RESULT *wildgen_result_head = NULL;
 static WILDS_WILDGEN_RESULT *wildgen_result_tail = NULL;
+
+/**
+ * wildgen_probe_png_info - Read PNG header (IHDR) to get dimensions and bit depth
+ *
+ * Opens the file, reads only the IHDR chunk, and returns the image dimensions
+ * and native bit depth without loading any pixel data. Useful for choosing
+ * between 8-bit and 16-bit reader functions.
+ *
+ * @param path          Filesystem path to the PNG file
+ * @param out_width     Receives image width in pixels (may be NULL)
+ * @param out_height    Receives image height in pixels (may be NULL)
+ * @param out_bit_depth Receives native bit depth (1, 2, 4, 8, or 16) (may be NULL)
+ * @param err           Error message buffer (populated on failure)
+ * @param err_size      Size of error buffer
+ * @return              true on success, false on failure
+ */
+static bool wildgen_probe_png_info(const char *path,
+    int *out_width, int *out_height, int *out_bit_depth,
+    char *err, size_t err_size)
+{
+    FILE *fp;
+    png_structp png_ptr;
+    png_infop info_ptr;
+    png_uint_32 width, height;
+    int bit_depth, color_type;
+
+    fp = fopen(path, "rb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open PNG '%s': %s", path, strerror(errno));
+        return false;
+    }
+
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG read struct for '%s'", path);
+        return false;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return false;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "PNG header read error processing '%s'", path);
+        return false;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_read_info(png_ptr, info_ptr);
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
+
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+
+    if (out_width)
+        *out_width = (int)width;
+    if (out_height)
+        *out_height = (int)height;
+    if (out_bit_depth)
+        *out_bit_depth = bit_depth;
+
+    return true;
+}
+
+/**
+ * wildgen_auto_allocate_map - Auto-allocate wilderness map buffers from PNG dimensions
+ *
+ * If the wilderness has no map allocated (map_size_x < 1 or map_size_y < 1),
+ * allocates staticmap and map buffers at the given dimensions, filled with
+ * the default terrain character. This allows wildgen import to create the
+ * map on the fly without requiring a prior 'wedit create X Y'.
+ *
+ * @param pWilds    Wilderness to allocate map for
+ * @param width     Map width (from PNG dimensions)
+ * @param height    Map height (from PNG dimensions)
+ * @param err       Error message buffer (populated on failure)
+ * @param err_size  Size of error buffer
+ * @return          true if map was allocated (or already existed), false on error
+ */
+static bool wildgen_auto_allocate_map(WILDS_DATA *pWilds, int width, int height,
+    char *err, size_t err_size)
+{
+    size_t map_size;
+
+    if (!pWilds || width < 1 || height < 1)
+    {
+        snprintf(err, err_size, "Invalid wilderness or dimensions for map allocation");
+        return false;
+    }
+
+    /* Map already exists at the right size */
+    if (pWilds->map_size_x == width && pWilds->map_size_y == height
+        && pWilds->staticmap && pWilds->map)
+        return true;
+
+    /* Map exists at a different size - caller should handle this */
+    if (pWilds->map_size_x > 0 && pWilds->map_size_y > 0)
+    {
+        snprintf(err, err_size,
+            "PNG dimensions %dx%d do not match existing wilderness map %dx%d",
+            width, height, pWilds->map_size_x, pWilds->map_size_y);
+        return false;
+    }
+
+    map_size = (size_t)width * (size_t)height;
+
+    pWilds->staticmap = calloc(1, map_size);
+    pWilds->map = calloc(1, map_size);
+
+    if (!pWilds->staticmap || !pWilds->map)
+    {
+        free(pWilds->staticmap);
+        free(pWilds->map);
+        pWilds->staticmap = NULL;
+        pWilds->map = NULL;
+        snprintf(err, err_size, "Out of memory allocating %dx%d map (%zu bytes)",
+            width, height, map_size);
+        return false;
+    }
+
+    memset(pWilds->staticmap, pWilds->cDefaultTerrain, map_size);
+    memset(pWilds->map, pWilds->cDefaultTerrain, map_size);
+    pWilds->map_size_x = width;
+    pWilds->map_size_y = height;
+
+    return true;
+}
 
 /**
  * wildgen_read_png_rgb - Read a PNG file into an 8-bit RGB pixel buffer via libpng
@@ -567,6 +706,96 @@ static unsigned char *wildgen_read_png_gray16(const char *path,
 }
 
 /**
+ * wildgen_write_png_gray - Write an 8-bit grayscale pixel buffer to a PNG file
+ *
+ * Creates a PNG file with 8-bit grayscale color type. The pixel buffer must
+ * contain width*height bytes (one byte per pixel).
+ *
+ * @param path       Filesystem path to write
+ * @param pixels     Pixel buffer (width*height bytes, 8-bit gray)
+ * @param width      Image width in pixels
+ * @param height     Image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           true on success, false on failure
+ */
+static bool wildgen_write_png_gray(const char *path,
+    const unsigned char *pixels, int width, int height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    bool success = false;
+    int y;
+
+    fp = fopen(path, "wb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open '%s' for writing: %s", path, strerror(errno));
+        return false;
+    }
+
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG write struct for '%s'", path);
+        return false;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_write_struct(&png_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return false;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (row_pointers) free(row_pointers);
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "PNG write error processing '%s'", path);
+        return false;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_set_IHDR(png_ptr, info_ptr,
+        (png_uint_32)width, (png_uint_32)height,
+        8, PNG_COLOR_TYPE_GRAY,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png_ptr, info_ptr);
+
+    row_pointers = malloc(sizeof(png_bytep) * (size_t)height);
+    if (!row_pointers)
+    {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory writing PNG '%s'", path);
+        return false;
+    }
+
+    for (y = 0; y < height; y++)
+        row_pointers[y] = (png_bytep)(pixels + ((size_t)y * (size_t)width));
+
+    png_write_image(png_ptr, row_pointers);
+    png_write_end(png_ptr, NULL);
+    success = true;
+
+    free(row_pointers);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+    fclose(fp);
+
+    return success;
+}
+
+/**
  * wildgen_write_png_gray16 - Write a 16-bit grayscale pixel buffer to a PNG file
  *
  * Creates a PNG file with 16-bit grayscale color type. The pixel buffer must
@@ -645,6 +874,96 @@ static bool wildgen_write_png_gray16(const char *path,
 
     for (y = 0; y < height; y++)
         row_pointers[y] = (png_bytep)(pixels + ((size_t)y * (size_t)width * 2));
+
+    png_write_image(png_ptr, row_pointers);
+    png_write_end(png_ptr, NULL);
+    success = true;
+
+    free(row_pointers);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+    fclose(fp);
+
+    return success;
+}
+
+/**
+ * wildgen_write_png_rgb - Write an 8-bit RGB pixel buffer to a PNG file
+ *
+ * Creates a PNG file with 8-bit RGB color type. The pixel buffer must
+ * contain width*height*3 bytes (R, G, B per pixel).
+ *
+ * @param path       Filesystem path to write
+ * @param pixels     Pixel buffer (width*height*3 bytes, 8-bit RGB)
+ * @param width      Image width in pixels
+ * @param height     Image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           true on success, false on failure
+ */
+static bool wildgen_write_png_rgb(const char *path,
+    const unsigned char *pixels, int width, int height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    bool success = false;
+    int y;
+
+    fp = fopen(path, "wb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open '%s' for writing: %s", path, strerror(errno));
+        return false;
+    }
+
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG write struct for '%s'", path);
+        return false;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_write_struct(&png_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return false;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (row_pointers) free(row_pointers);
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "PNG write error processing '%s'", path);
+        return false;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_set_IHDR(png_ptr, info_ptr,
+        (png_uint_32)width, (png_uint_32)height,
+        8, PNG_COLOR_TYPE_RGB,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png_ptr, info_ptr);
+
+    row_pointers = malloc(sizeof(png_bytep) * (size_t)height);
+    if (!row_pointers)
+    {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory writing PNG '%s'", path);
+        return false;
+    }
+
+    for (y = 0; y < height; y++)
+        row_pointers[y] = (png_bytep)(pixels + ((size_t)y * (size_t)width * 3));
 
     png_write_image(png_ptr, row_pointers);
     png_write_end(png_ptr, NULL);
@@ -748,6 +1067,28 @@ static bool wildgen_write_png_rgb16(const char *path,
     return success;
 }
 
+/**
+ * wildgen_resolve_bit_depth - Determine effective bit depth for a PNG
+ *
+ * Returns the effective bit depth to use: if the wildgen config forces
+ * 8 or 16, that is returned; otherwise the PNG's native bit depth is
+ * used (8 for anything <= 8, 16 for 16-bit sources).
+ *
+ * @param native_depth   The PNG file's IHDR bit depth
+ * @param config_depth   The wildgen_bitdepth config (0=auto, 8, or 16)
+ * @return               8 or 16
+ */
+static int wildgen_resolve_bit_depth(int native_depth, int config_depth)
+{
+    if (config_depth == 16)
+        return 16;
+    if (config_depth == 8)
+        return 8;
+
+    /* auto: use 16 only if the source is natively 16-bit */
+    return (native_depth >= 16) ? 16 : 8;
+}
+
 static WILDS_WILDGEN_STATUS_REC *wildgen_status_head = NULL;
 
 static const char *wildgen_state_name(int state)
@@ -808,7 +1149,7 @@ static void wildgen_set_status(long wilds_uid, int state, long job_id, const cha
         rec->message[0] = '\0';
 }
 
-static char wildgen_lookup_tile(const WILDS_WILDGEN_JOB *job, unsigned char r, unsigned char g, unsigned char b)
+static char wildgen_lookup_tile(const WILDS_WILDGEN_JOB *job, uint16_t r, uint16_t g, uint16_t b)
 {
     int i;
 
@@ -1055,8 +1396,40 @@ static bool wildgen_build_grid_path(WILDS_DATA *pWilds, const char *base_name,
     return wildgen_build_image_path(pWilds, file_name, resolved_path, resolved_size, err_buf, err_buf_size);
 }
 
+/**
+ * wildgen_extract_rgb16 - Extract a pixel as uint16_t R/G/B from either 8-bit or 16-bit buffer
+ *
+ * For 8-bit buffers (bpp=3): reads 3 bytes, upscales each via (v<<8)|v.
+ * For 16-bit buffers (bpp=6): reads 6 bytes, extracts big-endian uint16 pairs.
+ *
+ * @param pixels  Pixel buffer
+ * @param index   Pixel index (0-based, not byte offset)
+ * @param bpp     Bytes per pixel (3 for 8-bit RGB, 6 for 16-bit RGB)
+ * @param r       Receives red channel as uint16_t
+ * @param g       Receives green channel as uint16_t
+ * @param b       Receives blue channel as uint16_t
+ */
+static inline void wildgen_extract_rgb16(const unsigned char *pixels, size_t index,
+    int bpp, uint16_t *r, uint16_t *g, uint16_t *b)
+{
+    if (bpp == 6)
+    {
+        size_t off = index * 6;
+        *r = (uint16_t)(pixels[off + 0] << 8 | pixels[off + 1]);
+        *g = (uint16_t)(pixels[off + 2] << 8 | pixels[off + 3]);
+        *b = (uint16_t)(pixels[off + 4] << 8 | pixels[off + 5]);
+    }
+    else
+    {
+        size_t off = index * 3;
+        *r = (uint16_t)(pixels[off + 0] << 8 | pixels[off + 0]);
+        *g = (uint16_t)(pixels[off + 1] << 8 | pixels[off + 1]);
+        *b = (uint16_t)(pixels[off + 2] << 8 | pixels[off + 2]);
+    }
+}
+
 static bool wildgen_convert_pixels_to_tiles(const WILDS_WILDGEN_JOB *job,
-    const unsigned char *pixels, int width, int height,
+    const unsigned char *pixels, int width, int height, int bytes_per_pixel,
     char *tiles, int *unknown_pixels)
 {
     size_t total = (size_t)width * (size_t)height;
@@ -1065,10 +1438,11 @@ static bool wildgen_convert_pixels_to_tiles(const WILDS_WILDGEN_JOB *job,
 
     for (i = 0; i < total; i++)
     {
-        unsigned char r = pixels[i * 3 + 0];
-        unsigned char g = pixels[i * 3 + 1];
-        unsigned char b = pixels[i * 3 + 2];
-        char tile = wildgen_lookup_tile(job, r, g, b);
+        uint16_t r, g, b;
+        char tile;
+
+        wildgen_extract_rgb16(pixels, i, bytes_per_pixel, &r, &g, &b);
+        tile = wildgen_lookup_tile(job, r, g, b);
 
         if (tile == job->default_tile)
         {
@@ -1111,9 +1485,9 @@ static int wildgen_collect_colors(WILDS_DATA *pWilds, WILDS_WILDGEN_COLOR_MAP *c
         if (count >= max_colors)
             break;
 
-        colors[count].r = terrain->wildgen_r;
-        colors[count].g = terrain->wildgen_g;
-        colors[count].b = terrain->wildgen_b;
+        colors[count].r = ((uint16_t)terrain->wildgen_r << 8) | (uint16_t)terrain->wildgen_r;
+        colors[count].g = ((uint16_t)terrain->wildgen_g << 8) | (uint16_t)terrain->wildgen_g;
+        colors[count].b = ((uint16_t)terrain->wildgen_b << 8) | (uint16_t)terrain->wildgen_b;
         colors[count].tile = terrain->mapchar;
         count++;
     }
@@ -1126,9 +1500,9 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
     typedef struct unmatched_rgb_count UNMATCHED_RGB_COUNT;
     struct unmatched_rgb_count
     {
-        unsigned char r;
-        unsigned char g;
-        unsigned char b;
+        uint16_t r;
+        uint16_t g;
+        uint16_t b;
         size_t count;
     };
 
@@ -1140,6 +1514,9 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
     int color_count;
     int width = 0;
     int height = 0;
+    int bit_depth = 8;
+    int bpp = 3;
+    bool is_16bit = false;
     int unmatched_unique = 0;
     int top_k;
     bool unmatched_overflow = false;
@@ -1175,7 +1552,22 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
     {
         char load_err[MSL];
         load_err[0] = '\0';
-        pixels = wildgen_read_png_rgb(resolved_path, &width, &height, load_err, sizeof(load_err));
+
+        if (!wildgen_probe_png_info(resolved_path, NULL, NULL, &bit_depth, load_err, sizeof(load_err)))
+        {
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "%s", load_err);
+            return false;
+        }
+
+        is_16bit = (bit_depth == 16);
+        bpp = is_16bit ? 6 : 3;
+
+        if (is_16bit)
+            pixels = wildgen_read_png_rgb16(resolved_path, &width, &height, load_err, sizeof(load_err));
+        else
+            pixels = wildgen_read_png_rgb(resolved_path, &width, &height, load_err, sizeof(load_err));
+
         if (!pixels)
         {
             if (out_buf && out_buf_size > 0)
@@ -1200,11 +1592,11 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
 
     for (i = 0; i < total; i++)
     {
-        unsigned char r = pixels[i * 3 + 0];
-        unsigned char g = pixels[i * 3 + 1];
-        unsigned char b = pixels[i * 3 + 2];
+        uint16_t r, g, b;
         bool known = false;
         int c;
+
+        wildgen_extract_rgb16(pixels, i, bpp, &r, &g, &b);
 
         for (c = 0; c < color_count; c++)
         {
@@ -1316,29 +1708,53 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
 
                     if (nearest_idx >= 0)
                     {
-                        top_offset += snprintf(top_buf + top_offset,
-                            sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
-                            "%s#%02X%02X%02X:%zu->#%02X%02X%02X('%c')",
-                            rank == 0 ? "" : ", ",
-                            unmatched_colors[best_idx].r,
-                            unmatched_colors[best_idx].g,
-                            unmatched_colors[best_idx].b,
-                            unmatched_colors[best_idx].count,
-                            colors[nearest_idx].r,
-                            colors[nearest_idx].g,
-                            colors[nearest_idx].b,
-                            colors[nearest_idx].tile);
+                        if (is_16bit)
+                            top_offset += snprintf(top_buf + top_offset,
+                                sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
+                                "%s#%04X%04X%04X:%zu->#%04X%04X%04X('%c')",
+                                rank == 0 ? "" : ", ",
+                                unmatched_colors[best_idx].r,
+                                unmatched_colors[best_idx].g,
+                                unmatched_colors[best_idx].b,
+                                unmatched_colors[best_idx].count,
+                                colors[nearest_idx].r,
+                                colors[nearest_idx].g,
+                                colors[nearest_idx].b,
+                                colors[nearest_idx].tile);
+                        else
+                            top_offset += snprintf(top_buf + top_offset,
+                                sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
+                                "%s#%02X%02X%02X:%zu->#%02X%02X%02X('%c')",
+                                rank == 0 ? "" : ", ",
+                                unmatched_colors[best_idx].r >> 8,
+                                unmatched_colors[best_idx].g >> 8,
+                                unmatched_colors[best_idx].b >> 8,
+                                unmatched_colors[best_idx].count,
+                                colors[nearest_idx].r >> 8,
+                                colors[nearest_idx].g >> 8,
+                                colors[nearest_idx].b >> 8,
+                                colors[nearest_idx].tile);
                     }
                     else
                     {
-                        top_offset += snprintf(top_buf + top_offset,
-                            sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
-                            "%s#%02X%02X%02X:%zu",
-                            rank == 0 ? "" : ", ",
-                            unmatched_colors[best_idx].r,
-                            unmatched_colors[best_idx].g,
-                            unmatched_colors[best_idx].b,
-                            unmatched_colors[best_idx].count);
+                        if (is_16bit)
+                            top_offset += snprintf(top_buf + top_offset,
+                                sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
+                                "%s#%04X%04X%04X:%zu",
+                                rank == 0 ? "" : ", ",
+                                unmatched_colors[best_idx].r,
+                                unmatched_colors[best_idx].g,
+                                unmatched_colors[best_idx].b,
+                                unmatched_colors[best_idx].count);
+                        else
+                            top_offset += snprintf(top_buf + top_offset,
+                                sizeof(top_buf) > top_offset ? sizeof(top_buf) - top_offset : 0,
+                                "%s#%02X%02X%02X:%zu",
+                                rank == 0 ? "" : ", ",
+                                unmatched_colors[best_idx].r >> 8,
+                                unmatched_colors[best_idx].g >> 8,
+                                unmatched_colors[best_idx].b >> 8,
+                                unmatched_colors[best_idx].count);
                     }
                 }
 
@@ -1384,14 +1800,12 @@ static bool wildgen_export_image_internal(WILDS_DATA *pWilds, const char *png_pa
     bool default_has_color = false;
     const char *source_map;
     char resolved_path[MSL];
-    FILE *fp = NULL;
-    png_structp png_ptr = NULL;
-    png_infop info_ptr = NULL;
     unsigned char *pixels = NULL;
-    png_bytep *rows = NULL;
     WILDS_TERRAIN *terrain;
     int width;
     int height;
+    int write_depth;
+    int bpp;
     int x, y;
     size_t total;
     size_t unknown_tiles = 0;
@@ -1465,133 +1879,190 @@ static bool wildgen_export_image_internal(WILDS_DATA *pWilds, const char *png_pa
     height = pWilds->map_size_y;
     total = (size_t)width * (size_t)height;
 
-    do
+    /* Determine export bit depth from config: 0=auto means 8 for export since
+     * terrain colors are defined as 8-bit values */
+    write_depth = (pWilds->wildgen_bitdepth == 16) ? 16 : 8;
+    bpp = (write_depth == 16) ? 6 : 3;
+
+    pixels = malloc(total * (size_t)bpp);
+    if (!pixels)
     {
-        pixels = malloc(total * 3);
-        if (!pixels)
-        {
-            if (out_buf && out_buf_size > 0)
-                snprintf(out_buf, out_buf_size, "Out of memory preparing exported PNG buffer");
-            break;
-        }
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Out of memory preparing exported PNG buffer");
+        return false;
+    }
 
-        for (y = 0; y < height; y++)
+    for (y = 0; y < height; y++)
+    {
+        for (x = 0; x < width; x++)
         {
-            for (x = 0; x < width; x++)
+            size_t map_idx = (size_t)y * (size_t)width + (size_t)x;
+            size_t pix_idx = map_idx * (size_t)bpp;
+            unsigned char tile = (unsigned char)source_map[map_idx];
+            unsigned char cr, cg, cb;
+
+            if (tile_has_color[tile])
             {
-                size_t map_idx = (size_t)y * (size_t)width + (size_t)x;
-                size_t pix_idx = map_idx * 3;
-                unsigned char tile = (unsigned char)source_map[map_idx];
+                cr = tile_r[tile];
+                cg = tile_g[tile];
+                cb = tile_b[tile];
+            }
+            else if (default_has_color)
+            {
+                cr = default_r;
+                cg = default_g;
+                cb = default_b;
+                unknown_tiles++;
+            }
+            else
+            {
+                cr = 0;
+                cg = 0;
+                cb = 0;
+                unknown_tiles++;
+            }
 
-                if (tile_has_color[tile])
-                {
-                    pixels[pix_idx + 0] = tile_r[tile];
-                    pixels[pix_idx + 1] = tile_g[tile];
-                    pixels[pix_idx + 2] = tile_b[tile];
-                }
-                else if (default_has_color)
-                {
-                    pixels[pix_idx + 0] = default_r;
-                    pixels[pix_idx + 1] = default_g;
-                    pixels[pix_idx + 2] = default_b;
-                    unknown_tiles++;
-                }
-                else
-                {
-                    pixels[pix_idx + 0] = 0;
-                    pixels[pix_idx + 1] = 0;
-                    pixels[pix_idx + 2] = 0;
-                    unknown_tiles++;
-                }
+            if (write_depth == 16)
+            {
+                /* Upscale 8-bit to 16-bit: (v<<8)|v maps 0->0, 255->65535 */
+                pixels[pix_idx + 0] = cr;
+                pixels[pix_idx + 1] = cr;
+                pixels[pix_idx + 2] = cg;
+                pixels[pix_idx + 3] = cg;
+                pixels[pix_idx + 4] = cb;
+                pixels[pix_idx + 5] = cb;
+            }
+            else
+            {
+                pixels[pix_idx + 0] = cr;
+                pixels[pix_idx + 1] = cg;
+                pixels[pix_idx + 2] = cb;
             }
         }
-
-        fp = fopen(resolved_path, "wb");
-        if (!fp)
-        {
-            if (out_buf && out_buf_size > 0)
-                snprintf(out_buf, out_buf_size, "Failed to open export path '%s': %s", resolved_path, strerror(errno));
-            break;
-        }
-
-        png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-        if (!png_ptr)
-        {
-            if (out_buf && out_buf_size > 0)
-                snprintf(out_buf, out_buf_size, "Failed to initialize PNG writer");
-            break;
-        }
-
-        info_ptr = png_create_info_struct(png_ptr);
-        if (!info_ptr)
-        {
-            if (out_buf && out_buf_size > 0)
-                snprintf(out_buf, out_buf_size, "Failed to initialize PNG info struct");
-            break;
-        }
-
-        if (setjmp(png_jmpbuf(png_ptr)))
-        {
-            if (out_buf && out_buf_size > 0)
-                snprintf(out_buf, out_buf_size, "PNG export failed while writing '%s'", resolved_path);
-            break;
-        }
-
-        png_init_io(png_ptr, fp);
-        png_set_IHDR(png_ptr,
-            info_ptr,
-            (png_uint_32)width,
-            (png_uint_32)height,
-            8,
-            PNG_COLOR_TYPE_RGB,
-            PNG_INTERLACE_NONE,
-            PNG_COMPRESSION_TYPE_DEFAULT,
-            PNG_FILTER_TYPE_DEFAULT);
-        png_write_info(png_ptr, info_ptr);
-
-        rows = malloc(sizeof(png_bytep) * (size_t)height);
-        if (!rows)
-        {
-            if (out_buf && out_buf_size > 0)
-                snprintf(out_buf, out_buf_size, "Out of memory preparing PNG rows");
-            break;
-        }
-
-        for (y = 0; y < height; y++)
-            rows[y] = pixels + ((size_t)y * (size_t)width * 3);
-
-        png_write_image(png_ptr, rows);
-        png_write_end(png_ptr, NULL);
-
-        if (out_buf && out_buf_size > 0)
-        {
-            double pct = total > 0 ? ((double)unknown_tiles * 100.0 / (double)total) : 0.0;
-            snprintf(out_buf, out_buf_size,
-                "Wildgen export (%s) wrote %dx%d PNG to %s (tiles without explicit color: %zu, %.2f%%)",
-                use_effective_map ? "effective map" : "static map",
-                width,
-                height,
-                png_path,
-                unknown_tiles,
-                pct);
-        }
-
-        success = true;
     }
-    while (false);
 
-    if (rows)
-        free(rows);
+    if (write_depth == 16)
+        success = wildgen_write_png_rgb16(resolved_path, pixels, width, height, out_buf, out_buf_size);
+    else
+        success = wildgen_write_png_rgb(resolved_path, pixels, width, height, out_buf, out_buf_size);
 
-    if (png_ptr || info_ptr)
-        png_destroy_write_struct(&png_ptr, &info_ptr);
+    if (success && out_buf && out_buf_size > 0)
+    {
+        double pct = total > 0 ? ((double)unknown_tiles * 100.0 / (double)total) : 0.0;
+        snprintf(out_buf, out_buf_size,
+            "Wildgen export (%s) wrote %dx%d %d-bit PNG to %s (tiles without explicit color: %zu, %.2f%%)",
+            use_effective_map ? "effective map" : "static map",
+            width,
+            height,
+            write_depth,
+            png_path,
+            unknown_tiles,
+            pct);
+    }
 
-    if (fp)
-        fclose(fp);
+    free(pixels);
+    return success;
+}
 
-    if (pixels)
-        free(pixels);
+/**
+ * wildgen_export_elevation_internal - Export wilderness elevation as a grayscale PNG
+ *
+ * Generates a grayscale PNG from the wilderness map. Each tile is mapped to a
+ * grayscale value based on its terrain type's configured elevation, or the
+ * wilderness default_elevation if no per-terrain elevation is set.
+ *
+ * In the current implementation, all pixels are set to the wilderness
+ * default_elevation value since per-terrain elevation is not yet defined.
+ * 8-bit exports clamp the value to 0-255; 16-bit exports use the full range.
+ *
+ * @param pWilds            Wilderness to export
+ * @param png_path          Output PNG filename
+ * @param out_buf           Status/error message buffer
+ * @param out_buf_size      Size of message buffer
+ * @return                  true on success, false on failure
+ */
+static bool wildgen_export_elevation_internal(WILDS_DATA *pWilds, const char *png_path,
+    char *out_buf, size_t out_buf_size)
+{
+    char resolved_path[MSL];
+    unsigned char *pixels = NULL;
+    int width;
+    int height;
+    int write_depth;
+    int bytes_per_pixel;
+    size_t total;
+    bool success = false;
 
+    if (out_buf && out_buf_size > 0)
+        out_buf[0] = '\0';
+
+    if (!pWilds || IS_NULLSTR(png_path))
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Usage: wildgen export elevation <png_filename.png>");
+        return false;
+    }
+
+    if (pWilds->map_size_x < 1 || pWilds->map_size_y < 1)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Wilderness dimensions are invalid");
+        return false;
+    }
+
+    if (!wildgen_build_image_path(pWilds, png_path, resolved_path, sizeof(resolved_path), out_buf, out_buf_size))
+        return false;
+
+    width = pWilds->map_size_x;
+    height = pWilds->map_size_y;
+    total = (size_t)width * (size_t)height;
+
+    /* Determine export bit depth: 16-bit if forced, otherwise 8-bit */
+    write_depth = (pWilds->wildgen_bitdepth == 16) ? 16 : 8;
+    bytes_per_pixel = (write_depth == 16) ? 2 : 1;
+
+    pixels = malloc(total * (size_t)bytes_per_pixel);
+    if (!pixels)
+    {
+        if (out_buf && out_buf_size > 0)
+            snprintf(out_buf, out_buf_size, "Out of memory preparing elevation PNG buffer");
+        return false;
+    }
+
+    if (write_depth == 16)
+    {
+        /* Fill with 16-bit big-endian default elevation value */
+        int elev = URANGE(0, pWilds->default_elevation, 65535);
+        unsigned char hi = (unsigned char)((elev >> 8) & 0xFF);
+        unsigned char lo = (unsigned char)(elev & 0xFF);
+        size_t i;
+
+        for (i = 0; i < total; i++)
+        {
+            pixels[i * 2 + 0] = hi;
+            pixels[i * 2 + 1] = lo;
+        }
+
+        success = wildgen_write_png_gray16(resolved_path, pixels, width, height, out_buf, out_buf_size);
+    }
+    else
+    {
+        /* Fill with 8-bit clamped default elevation value */
+        unsigned char elev = (unsigned char)URANGE(0, pWilds->default_elevation, 255);
+
+        memset(pixels, elev, total);
+
+        success = wildgen_write_png_gray(resolved_path, pixels, width, height, out_buf, out_buf_size);
+    }
+
+    if (success && out_buf && out_buf_size > 0)
+    {
+        snprintf(out_buf, out_buf_size,
+            "Wildgen elevation export wrote %dx%d %d-bit grayscale PNG to %s (base elevation: %d)",
+            width, height, write_depth, png_path, pWilds->default_elevation);
+    }
+
+    free(pixels);
     return success;
 }
 
@@ -1605,12 +2076,17 @@ bool wilds_wildgen_export_effective_image(WILDS_DATA *pWilds, const char *png_pa
     return wildgen_export_image_internal(pWilds, png_path, true, out_buf, out_buf_size);
 }
 
+bool wilds_wildgen_export_elevation(WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size)
+{
+    return wildgen_export_elevation_internal(pWilds, png_path, out_buf, out_buf_size);
+}
+
 static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILDS_WILDGEN_JOB *job, char *err, size_t err_size)
 {
     int block_w = 0;
     int block_h = 0;
     int row, col;
-    int min_elev = 255;
+    int min_elev = 65535;
     int max_elev = 0;
 
     if (!job->validate_elevation_grid)
@@ -1639,6 +2115,7 @@ static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILD
             unsigned char *pixels;
             int width = 0;
             int height = 0;
+            int elev_bit_depth = 8;
             size_t total;
             size_t i;
 
@@ -1650,7 +2127,14 @@ static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILD
             if (!wildgen_verify_png_signature(elev_path, err, err_size))
                 return false;
 
-            pixels = wildgen_read_png_gray(elev_path, &width, &height, err, err_size);
+            if (!wildgen_probe_png_info(elev_path, NULL, NULL, &elev_bit_depth, err, err_size))
+                return false;
+
+            if (elev_bit_depth == 16)
+                pixels = wildgen_read_png_gray16(elev_path, &width, &height, err, err_size);
+            else
+                pixels = wildgen_read_png_gray(elev_path, &width, &height, err, err_size);
+
             if (!pixels)
                 return false;
 
@@ -1663,11 +2147,23 @@ static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILD
             }
 
             total = (size_t)width * (size_t)height;
-            for (i = 0; i < total; i++)
+            if (elev_bit_depth == 16)
             {
-                int v = pixels[i];
-                if (v < min_elev) min_elev = v;
-                if (v > max_elev) max_elev = v;
+                for (i = 0; i < total; i++)
+                {
+                    int v = (int)(pixels[i * 2] << 8 | pixels[i * 2 + 1]);
+                    if (v < min_elev) min_elev = v;
+                    if (v > max_elev) max_elev = v;
+                }
+            }
+            else
+            {
+                for (i = 0; i < total; i++)
+                {
+                    int v = pixels[i];
+                    if (v < min_elev) min_elev = v;
+                    if (v > max_elev) max_elev = v;
+                }
             }
 
             free(pixels);
@@ -1755,10 +2251,17 @@ static void *wildgen_worker_func(void *arg)
 
         if (!job->use_grid)
         {
-            pixels = wildgen_read_png_rgb(job->png_path, &width, &height, message, sizeof(message));
+            bool is_16bit = (job->source_bit_depth == 16);
+            int bpp = is_16bit ? 6 : 3;
+
+            if (is_16bit)
+                pixels = wildgen_read_png_rgb16(job->png_path, &width, &height, message, sizeof(message));
+            else
+                pixels = wildgen_read_png_rgb(job->png_path, &width, &height, message, sizeof(message));
+
             if (!pixels)
             {
-                /* message already populated by wildgen_read_png_rgb */
+                /* message already populated by reader */
             }
             else if (width != job->map_size_x || height != job->map_size_y)
             {
@@ -1776,7 +2279,7 @@ static void *wildgen_worker_func(void *arg)
                 }
                 else
                 {
-                    wildgen_convert_pixels_to_tiles(job, pixels, width, height, tiles, &unknown_pixels);
+                    wildgen_convert_pixels_to_tiles(job, pixels, width, height, bpp, tiles, &unknown_pixels);
                     snprintf(message, sizeof(message),
                         "Converted %zu pixels (%d unmatched colors used default tile '%c')",
                         total, unknown_pixels, job->default_tile);
@@ -1786,6 +2289,8 @@ static void *wildgen_worker_func(void *arg)
         }
         else
         {
+            bool is_16bit = (job->source_bit_depth == 16);
+            int bpp = is_16bit ? 6 : 3;
             int block_w;
             int block_h;
             int row;
@@ -1847,7 +2352,10 @@ static void *wildgen_worker_func(void *arg)
                                 if (!wildgen_verify_png_signature(part_path, message, sizeof(message)))
                                     break;
 
-                                pixels = wildgen_read_png_rgb(part_path, &pw, &ph, message, sizeof(message));
+                                if (is_16bit)
+                                    pixels = wildgen_read_png_rgb16(part_path, &pw, &ph, message, sizeof(message));
+                                else
+                                    pixels = wildgen_read_png_rgb(part_path, &pw, &ph, message, sizeof(message));
                                 if (!pixels)
                                     break;
 
@@ -1864,19 +2372,22 @@ static void *wildgen_worker_func(void *arg)
                                 for (y = 0; y < (size_t)ph; y++)
                                 {
                                     char *dest = tiles + ((size_t)(row * block_h + (int)y) * (size_t)width) + (size_t)(col * block_w);
-                                    const unsigned char *src = pixels + (y * (size_t)pw * 3);
+                                    const unsigned char *src = pixels + (y * (size_t)pw * (size_t)bpp);
                                     int x;
                                     for (x = 0; x < pw; x++)
                                     {
-                                        int idx = x * 3;
-                                        char tile = wildgen_lookup_tile(job, src[idx], src[idx + 1], src[idx + 2]);
+                                        uint16_t pr, pg, pb;
+                                        char tile;
+
+                                        wildgen_extract_rgb16(src, (size_t)x, bpp, &pr, &pg, &pb);
+                                        tile = wildgen_lookup_tile(job, pr, pg, pb);
                                         if (tile == job->default_tile)
                                         {
                                             int known = 0;
                                             int c;
                                             for (c = 0; c < job->color_count; c++)
                                             {
-                                                if (job->colors[c].r == src[idx] && job->colors[c].g == src[idx + 1] && job->colors[c].b == src[idx + 2])
+                                                if (job->colors[c].r == pr && job->colors[c].g == pg && job->colors[c].b == pb)
                                                 {
                                                     known = 1;
                                                     break;
@@ -2035,6 +2546,9 @@ bool wilds_wildgen_enqueue(WILDS_DATA *pWilds, const char *png_path, char *err_b
 {
     WILDS_WILDGEN_JOB *job;
     WILDS_WILDGEN_STATUS_REC *status;
+    int png_width = 0;
+    int png_height = 0;
+    int png_bit_depth = 8;
 
     if (err_buf && err_buf_size > 0)
         err_buf[0] = '\0';
@@ -2061,16 +2575,6 @@ bool wilds_wildgen_enqueue(WILDS_DATA *pWilds, const char *png_path, char *err_b
         return false;
     }
 
-    job->wilds_uid = pWilds->uid;
-    job->map_size_x = pWilds->map_size_x;
-    job->map_size_y = pWilds->map_size_y;
-    job->default_tile = pWilds->cDefaultTerrain;
-    job->use_grid = false;
-    job->grid_rows = 1;
-    job->grid_cols = 1;
-    job->expected_tile_width = 0;
-    job->expected_tile_height = 0;
-    job->validate_elevation_grid = false;
     snprintf(job->source_name, sizeof(job->source_name), "%s", png_path);
 
     if (!wildgen_build_image_path(pWilds, png_path, job->png_path, sizeof(job->png_path), err_buf, err_buf_size))
@@ -2084,6 +2588,44 @@ bool wilds_wildgen_enqueue(WILDS_DATA *pWilds, const char *png_path, char *err_b
         free(job);
         return false;
     }
+
+    /* Probe PNG dimensions and bit depth before committing */
+    if (!wildgen_probe_png_info(job->png_path, &png_width, &png_height, &png_bit_depth, err_buf, err_buf_size))
+    {
+        free(job);
+        return false;
+    }
+
+    /* Auto-allocate map if wilderness has no map yet */
+    if (pWilds->map_size_x < 1 || pWilds->map_size_y < 1)
+    {
+        if (!wildgen_auto_allocate_map(pWilds, png_width, png_height, err_buf, err_buf_size))
+        {
+            free(job);
+            return false;
+        }
+    }
+    else if (png_width != pWilds->map_size_x || png_height != pWilds->map_size_y)
+    {
+        free(job);
+        if (err_buf && err_buf_size > 0)
+            snprintf(err_buf, err_buf_size,
+                "PNG dimensions %dx%d do not match wilderness map %dx%d",
+                png_width, png_height, pWilds->map_size_x, pWilds->map_size_y);
+        return false;
+    }
+
+    job->wilds_uid = pWilds->uid;
+    job->map_size_x = pWilds->map_size_x;
+    job->map_size_y = pWilds->map_size_y;
+    job->default_tile = pWilds->cDefaultTerrain;
+    job->use_grid = false;
+    job->grid_rows = 1;
+    job->grid_cols = 1;
+    job->expected_tile_width = 0;
+    job->expected_tile_height = 0;
+    job->validate_elevation_grid = false;
+    job->source_bit_depth = wildgen_resolve_bit_depth(png_bit_depth, pWilds->wildgen_bitdepth);
 
     job->color_count = wildgen_collect_colors(pWilds, job->colors, (int)(sizeof(job->colors) / sizeof(job->colors[0])));
 
@@ -2130,6 +2672,7 @@ bool wilds_wildgen_enqueue_grid(WILDS_DATA *pWilds, const char *terrain_base, in
     WILDS_WILDGEN_JOB *job;
     WILDS_WILDGEN_STATUS_REC *status;
     char sample_path[MSL];
+    int png_bit_depth = 8;
 
     if (err_buf && err_buf_size > 0)
         err_buf[0] = '\0';
@@ -2156,10 +2699,6 @@ bool wilds_wildgen_enqueue_grid(WILDS_DATA *pWilds, const char *terrain_base, in
         return false;
     }
 
-    job->wilds_uid = pWilds->uid;
-    job->map_size_x = pWilds->map_size_x;
-    job->map_size_y = pWilds->map_size_y;
-    job->default_tile = pWilds->cDefaultTerrain;
     job->use_grid = true;
     job->grid_rows = rows;
     job->grid_cols = cols;
@@ -2174,6 +2713,40 @@ bool wilds_wildgen_enqueue_grid(WILDS_DATA *pWilds, const char *terrain_base, in
         return false;
     }
 
+    /* Probe first tile's bit depth to determine 8-bit vs 16-bit processing */
+    {
+        int tile_width = 0;
+        int tile_height = 0;
+
+        if (!wildgen_probe_png_info(sample_path, &tile_width, &tile_height, &png_bit_depth, err_buf, err_buf_size))
+        {
+            free(job);
+            return false;
+        }
+
+        /* Auto-allocate map if wilderness has no map yet, computing from tile * grid */
+        if (pWilds->map_size_x < 1 || pWilds->map_size_y < 1)
+        {
+            int total_width = tile_width * cols;
+            int total_height = tile_height * rows;
+
+            if (!wildgen_auto_allocate_map(pWilds, total_width, total_height, err_buf, err_buf_size))
+            {
+                free(job);
+                return false;
+            }
+
+            /* Auto-set tile size from probed dimensions */
+            if (pWilds->wildgen_tile_width < 1 || pWilds->wildgen_tile_height < 1)
+            {
+                pWilds->wildgen_tile_width = tile_width;
+                pWilds->wildgen_tile_height = tile_height;
+                job->expected_tile_width = tile_width;
+                job->expected_tile_height = tile_height;
+            }
+        }
+    }
+
     if (!IS_NULLSTR(elevation_base))
     {
         job->validate_elevation_grid = true;
@@ -2186,6 +2759,12 @@ bool wilds_wildgen_enqueue_grid(WILDS_DATA *pWilds, const char *terrain_base, in
             return false;
         }
     }
+
+    job->wilds_uid = pWilds->uid;
+    job->map_size_x = pWilds->map_size_x;
+    job->map_size_y = pWilds->map_size_y;
+    job->default_tile = pWilds->cDefaultTerrain;
+    job->source_bit_depth = wildgen_resolve_bit_depth(png_bit_depth, pWilds->wildgen_bitdepth);
 
     job->color_count = wildgen_collect_colors(pWilds, job->colors, (int)(sizeof(job->colors) / sizeof(job->colors[0])));
 

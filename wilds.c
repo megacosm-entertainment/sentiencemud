@@ -1402,7 +1402,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     if (pWilds->defaultPlaceFlags == NO_FLAG)
                         pWilds->defaultPlaceFlags = PLACE_NOWHERE;
                 }
-
                 break;
 
             case 'N':
@@ -1448,7 +1447,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     free_string(pWilds->wildgen_elevation_base);
                     pWilds->wildgen_elevation_base = fread_string(fp);
                 }
-
                 break;
 
             case 'U':
@@ -4009,6 +4007,8 @@ WILDS_DATA *new_wilds (void)
     pWilds->wildgen_tile_height = 0;
     pWilds->wildgen_terrain_base = str_dup("");
     pWilds->wildgen_elevation_base = str_dup("");
+    pWilds->wildgen_bitdepth = 0;
+    pWilds->default_elevation = 0;
     VALIDATE (pWilds);
 
     return pWilds;
