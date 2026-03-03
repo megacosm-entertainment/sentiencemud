@@ -359,6 +359,9 @@ static bool wildgen_build_grid_path(WILDS_DATA *pWilds, const char *base_name,
     char *resolved_path, size_t resolved_size, char *err_buf, size_t err_buf_size)
 {
     char file_name[MIL];
+    char suffix[64];
+    int suffix_len = 0;
+    size_t base_len;
 
     if (!wildgen_is_safe_stem(base_name))
     {
@@ -370,17 +373,34 @@ static bool wildgen_build_grid_path(WILDS_DATA *pWilds, const char *base_name,
     if (rows > 1)
     {
         if (cols > 1)
-            snprintf(file_name, sizeof(file_name), "%s_%d_%d.png", base_name, row, col);
+            suffix_len = snprintf(suffix, sizeof(suffix), "_%d_%d.png", row, col);
         else
-            snprintf(file_name, sizeof(file_name), "%s_%d.png", base_name, row);
+            suffix_len = snprintf(suffix, sizeof(suffix), "_%d.png", row);
     }
     else
     {
         if (cols > 1)
-            snprintf(file_name, sizeof(file_name), "%s_%d.png", base_name, col);
+            suffix_len = snprintf(suffix, sizeof(suffix), "_%d.png", col);
         else
-            snprintf(file_name, sizeof(file_name), "%s.png", base_name);
+            suffix_len = snprintf(suffix, sizeof(suffix), ".png");
     }
+
+    if (suffix_len < 0 || suffix_len >= (int)sizeof(suffix))
+    {
+        if (err_buf && err_buf_size > 0)
+            snprintf(err_buf, err_buf_size, "Grid filename suffix is invalid");
+        return false;
+    }
+
+    base_len = strlcpy(file_name, base_name, sizeof(file_name));
+    if (base_len >= sizeof(file_name) || (base_len + (size_t)suffix_len) >= sizeof(file_name))
+    {
+        if (err_buf && err_buf_size > 0)
+            snprintf(err_buf, err_buf_size, "Grid filename is too long");
+        return false;
+    }
+
+    strlcat(file_name, suffix, sizeof(file_name));
 
     return wildgen_build_image_path(pWilds, file_name, resolved_path, resolved_size, err_buf, err_buf_size);
 }
@@ -982,7 +1002,8 @@ static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILD
             pixels = stbi_load(elev_path, &width, &height, &channels, 1);
             if (!pixels)
             {
-                snprintf(err, err_size, "Failed to read elevation tile %s", elev_path);
+                strlcpy(err, "Failed to read elevation tile ", err_size);
+                strlcat(err, elev_path, err_size);
                 return false;
             }
 

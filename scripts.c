@@ -519,8 +519,12 @@ static void reset_capture_location_fields(ROOM_INDEX_DATA *room, SCRIPT_RUNTIME_
 
 static void script_format_caller(SCRIPT_VARINFO *info, char *buf, size_t buf_size)
 {
+    char trigger_preview[256];
+
     if (!buf || buf_size == 0)
         return;
+
+    trigger_preview[0] = '\0';
 
     if (!info) {
         snprintf(buf, buf_size, "unknown");
@@ -548,10 +552,11 @@ static void script_format_caller(SCRIPT_VARINFO *info, char *buf, size_t buf_siz
         bool valid_trigger_name = (trigger_type_name && str_cmp(trigger_type_name, "INVALID"));
 
         if (!IS_NULLSTR(info->trigger)) {
+            snprintf(trigger_preview, sizeof(trigger_preview), "%.240s", info->trigger);
             if (valid_trigger_name)
-                snprintf(buf, buf_size, "trigger:%d %s (%s)", info->trigger_type, trigger_type_name, info->trigger);
+                snprintf(buf, buf_size, "trigger:%d %s (%s)", info->trigger_type, trigger_type_name, trigger_preview);
             else
-                snprintf(buf, buf_size, "trigger:%d (%s)", info->trigger_type, info->trigger);
+                snprintf(buf, buf_size, "trigger:%d (%s)", info->trigger_type, trigger_preview);
         } else {
             if (valid_trigger_name)
                 snprintf(buf, buf_size, "trigger:%d %s", info->trigger_type, trigger_type_name);
@@ -583,8 +588,12 @@ static const char *audit_caller_trigger_text(const char *caller)
 
 static void script_format_host(SCRIPT_VARINFO *info, char *buf, size_t buf_size)
 {
+    char phrase_preview[256];
+
     if (!buf || buf_size == 0)
         return;
+
+    phrase_preview[0] = '\0';
 
     if (!info) {
         snprintf(buf, buf_size, "unknown");
@@ -641,7 +650,8 @@ static void script_format_host(SCRIPT_VARINFO *info, char *buf, size_t buf_size)
     }
 
     if (!IS_NULLSTR(info->phrase)) {
-        snprintf(buf, buf_size, "phrase:%s", info->phrase);
+        snprintf(phrase_preview, sizeof(phrase_preview), "%.248s", info->phrase);
+        snprintf(buf, buf_size, "phrase:%s", phrase_preview);
         return;
     }
 

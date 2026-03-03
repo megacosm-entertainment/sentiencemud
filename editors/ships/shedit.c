@@ -426,7 +426,7 @@ SHEDIT( shedit_show )
                             stop->room_ref.load.auid, stop->room_ref.load.vnum);
                 }
 
-                char arr_buf[8], dep_buf[8], dwell_buf[8];
+                char arr_buf[12], dep_buf[12], dwell_buf[12];
                 if (stop->arrive_hour >= 0)
                     snprintf(arr_buf, sizeof(arr_buf), "%d", stop->arrive_hour);
                 else
