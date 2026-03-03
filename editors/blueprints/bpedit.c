@@ -218,7 +218,7 @@ BPEDIT( bpedit_show )
     OLC_LAYOUT_CTX *ctx = olc_display_new(ch, theme);
 
     char id_buf[64];
-    sprintf(id_buf, "%ld", bp->vnum);
+    snprintf(id_buf, sizeof(id_buf), "%s", widevnum_string_blueprint(bp, bp->area));
     olc_display_header(ctx, "BPEdit", bp->name, id_buf, &bpedit_def);
 
     /* Dispatch to active tab's show function */
@@ -251,7 +251,7 @@ static void bpedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
     const OLC_EDITOR_THEME *theme = bpedit_def.theme;
     char buf[MSL];
 
-    sprintf(buf, "[%5ld] %s", bp->vnum, bp->name);
+    sprintf(buf, "[%s] %s", widevnum_string_blueprint(bp, bp->area), bp->name);
     olc_display_string(ctx, theme, "Name:", "name", buf);
 
     if (bp->repop > 0)
@@ -309,7 +309,7 @@ static void bpedit_show_sections_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
         while ((section_ref = (BLUEPRINT_SECTION_REF *)iterator_nextdata(&sit)))
         {
             if (section_ref->section) {
-                sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, section_ref->section->vnum,
+                sprintf(buf, "{W%4d  {G%8s{x   %-30.30s{x\n\r", ++line, widevnum_string_blueprint_section(section_ref->section, bp->area),
                     section_ref->section->name ? section_ref->section->name : "(unnamed)");
             } else {
                 sprintf(buf, "{W%4d  {G%8ld#%ld{x   {R(section not found){x\n\r", ++line,
@@ -370,7 +370,7 @@ static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
             }
             else
             {
-                snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%s) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, widevnum_string_room(room, bp->area), room->name, section->vnum, section->name);
+                snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%s) {Y%s{x in (%s) {Y%s{x\n\r", ++line, special->name, widevnum_string_room(room, bp->area), room->name, widevnum_string_blueprint_section(section, bp->area), section->name);
             }
             if (!bpedit_add_or_fail(ch, ctx->buffer, buf,
                     "Blueprint layout output exceeded buffer limits.\n\r"))
@@ -435,7 +435,7 @@ static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         BLUEPRINT_SECTION *bs = bs_ref ? bs_ref->section : NULL;
 
         if (bs)
-            sprintf(buf, "%d [%ld] %-.30s", bp->_static.recall, bs->vnum, bs->name);
+            sprintf(buf, "%d [%s] %-.30s", bp->_static.recall, widevnum_string_blueprint_section(bs, bp->area), bs->name);
         else
             sprintf(buf, "%d [---] {Dinvalid{x", bp->_static.recall);
         olc_display_string(ctx, theme, "Recall:", "recall", buf);
@@ -469,13 +469,13 @@ static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
                     {
                         const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
                         if (room_str)
-                            sprintf(buf, "[%d] %d [%ld] %s (%s:%s)", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
+                            sprintf(buf, "[%d] %d [%s] %s (%s:%s)", bxindex++, bex->section, widevnum_string_blueprint_section(bs, bp->area), section_name, room_str, dir_name[bl->door]);
                         else
-                            sprintf(buf, "[%d] %d [%ld] %s (%ld:%s)", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
+                            sprintf(buf, "[%d] %d [%s] %s (%ld#%ld:%s)", bxindex++, bex->section, widevnum_string_blueprint_section(bs, bp->area), section_name, bl->room_ref.load.auid, bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
                     else
                     {
-                        sprintf(buf, "[%d] %d [%ld] %s ({Dinvalid{x)", bxindex++, bex->section, bs->vnum, section_name);
+                        sprintf(buf, "[%d] %d [%s] %s ({Dinvalid{x)", bxindex++, bex->section, widevnum_string_blueprint_section(bs, bp->area), section_name);
                     }
                 }
                 else
@@ -516,13 +516,13 @@ static void bpedit_show_layout_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
                     {
                         const char *room_str = bl->room ? widevnum_string_room(bl->room, bp->area) : NULL;
                         if (room_str)
-                            sprintf(buf, "[%d] %d [%ld] %s (%s:%s)", bxindex++, bex->section, bs->vnum, section_name, room_str, dir_name[bl->door]);
+                            sprintf(buf, "[%d] %d [%s] %s (%s:%s)", bxindex++, bex->section, widevnum_string_blueprint_section(bs, bp->area), section_name, room_str, dir_name[bl->door]);
                         else
-                            sprintf(buf, "[%d] %d [%ld] %s (%ld:%s)", bxindex++, bex->section, bs->vnum, section_name, bl->room_ref.load.vnum, dir_name[bl->door]);
+                            sprintf(buf, "[%d] %d [%s] %s (%ld#%ld:%s)", bxindex++, bex->section, widevnum_string_blueprint_section(bs, bp->area), section_name, bl->room_ref.load.auid, bl->room_ref.load.vnum, dir_name[bl->door]);
                     }
                     else
                     {
-                        sprintf(buf, "[%d] %d [%ld] %s ({Dinvalid{x)", bxindex++, bex->section, bs->vnum, section_name);
+                        sprintf(buf, "[%d] %d [%s] %s ({Dinvalid{x)", bxindex++, bex->section, widevnum_string_blueprint_section(bs, bp->area), section_name);
                     }
                 }
                 else

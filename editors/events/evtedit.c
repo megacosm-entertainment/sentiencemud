@@ -5231,12 +5231,15 @@ static void evtedit_show_schedule_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx,
         IS_NULLSTR(evt->progress_aggregation) ? "" : evt->progress_aggregation);
     olc_display_number(ctx, theme, "Stages:", "stages list",
         evt->stage_count);
-    olc_display_number(ctx, theme, "Reward Phase Script:", "rewardphase",
-        evt->reward_phase_script);
-    olc_display_number(ctx, theme, "Reward Success Script:", "rewardsuccess",
-        evt->reward_success_script);
-    olc_display_number(ctx, theme, "Reward Fail Script:", "rewardfail",
-        evt->reward_failure_script);
+    olc_display_string(ctx, theme, "Reward Phase Script:", "rewardphase",
+        evt->reward_phase_script > 0
+            ? widevnum_string(evt->area, evt->reward_phase_script, NULL) : "(none)");
+    olc_display_string(ctx, theme, "Reward Success Script:", "rewardsuccess",
+        evt->reward_success_script > 0
+            ? widevnum_string(evt->area, evt->reward_success_script, NULL) : "(none)");
+    olc_display_string(ctx, theme, "Reward Fail Script:", "rewardfail",
+        evt->reward_failure_script > 0
+            ? widevnum_string(evt->area, evt->reward_failure_script, NULL) : "(none)");
 }
 
 static void evtedit_show_stages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, void *pEdit)
@@ -5273,21 +5276,25 @@ static void evtedit_show_stages_tab(CHAR_DATA *ch, struct olc_layout_ctx *ctx, v
             event_stage_objective_mode_name(stage->objective_mode),
             stage->duration_minutes);
         olc_display_infof(ctx, theme,
-            "    hooks: enter={M%ld{x tick={M%ld{x complete={M%ld{x objectives={C%d{x",
-            stage->on_enter_script,
-            stage->on_tick_script,
-            stage->on_complete_script,
+            "    hooks: enter={M%s{x tick={M%s{x complete={M%s{x objectives={C%d{x",
+            stage->on_enter_script > 0
+                ? widevnum_string(evt->area, stage->on_enter_script, NULL) : "0",
+            stage->on_tick_script > 0
+                ? widevnum_string(evt->area, stage->on_tick_script, NULL) : "0",
+            stage->on_complete_script > 0
+                ? widevnum_string(evt->area, stage->on_complete_script, NULL) : "0",
             stage->objective_count);
 
         oidx = 1;
         for (objective = stage->objectives; objective; objective = objective->next, oidx++) {
             olc_display_infof(ctx, theme,
-                "      %d) type={Y%s{x target={C%d{x name={M%s{x script={G%ld{x",
+                "      %d) type={Y%s{x target={C%d{x name={M%s{x script={G%s{x",
                 oidx,
                 event_stage_objective_type_name(objective->objective_type),
                 objective->target_count,
                 IS_NULLSTR(objective->name) ? "" : objective->name,
-                objective->script_vnum);
+                objective->script_vnum > 0
+                    ? widevnum_string(evt->area, objective->script_vnum, NULL) : "0");
         }
     }
 }

@@ -289,7 +289,7 @@ static void oedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         theme->label,
         theme->value,
         !pObj->area ? "No Area" : pObj->area->name);
-    olc_display_number(ctx, theme, "Vnum:", NULL, pObj->vnum);
+    olc_display_string(ctx, theme, "Vnum:", NULL, widevnum_string_object(pObj, pObj->area));
 
     /* Primary type + secondary types */
     snprintf(buf, sizeof(buf), "%s", flag_string(type_flags, pObj->item_type));
@@ -367,8 +367,9 @@ static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
             ? get_obj_index(pObj->lock->key_wnum.pArea, pObj->lock->key_wnum.vnum) : NULL;
 
         olc_display_section(ctx, theme, "Lock State");
-        olc_display_vnum(ctx, theme, "Key:", "lock key",
-            pObj->lock->key_wnum.vnum,
+        olc_display_widevnum(ctx, theme, "Key:", "lock key",
+            lock_key ? widevnum_string_object(lock_key, pObj->area)
+                     : (pObj->lock->key_wnum.vnum > 0 ? formatf("%ld", pObj->lock->key_wnum.vnum) : NULL),
             lock_key ? lock_key->short_descr : NULL);
         olc_display_flags(ctx, theme, "Flags:", "lock flags", lock_flags, pObj->lock->flags);
         olc_display_percent(ctx, theme, "Pick Chance:", "lock pick", pObj->lock->pick_chance, 1);
@@ -679,7 +680,7 @@ OEDIT(oedit_show)
     ctx = olc_display_new(ch, theme);
 
     olc_display_header(ctx, "OEdit", pObj->short_descr,
-        formatf("%ld", pObj->vnum), &oedit_def);
+        formatf("%s", widevnum_string_object(pObj, pObj->area)), &oedit_def);
 
     /* Dispatch to active tab's show function */
     tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);

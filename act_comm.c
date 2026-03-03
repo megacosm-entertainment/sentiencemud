@@ -152,6 +152,46 @@ static const CHANNEL_DEF_DATA *history_find_channel(const char *name_or_command,
     return match;
 }
 
+/**
+ * channel_command_has_exact_match - Check if input exactly matches a channel.
+ *
+ * Returns true when the input is an exact match for a channel id, command,
+ * or alias.  Prefix matches are intentionally excluded so that short
+ * abbreviations like 's' (intended for 'south') are not hijacked by a
+ * channel whose id or command merely starts with the same letter.
+ *
+ * @param input  The command word typed by the player
+ * @return       true if any channel definition has an exact match
+ */
+bool channel_command_has_exact_match(const char *input)
+{
+    int i;
+    int j;
+
+    if (IS_NULLSTR(input))
+        return false;
+
+    for (i = 0; i < channel_registry_count(); i++) {
+        const CHANNEL_DEF_DATA *def = channel_registry_get(i);
+
+        if (!def)
+            continue;
+
+        if (!str_cmp(input, def->id))
+            return true;
+
+        if (!IS_NULLSTR(def->command) && !str_cmp(input, def->command))
+            return true;
+
+        for (j = 0; j < def->alias_count; j++) {
+            if (!IS_NULLSTR(def->aliases[j]) && !str_cmp(input, def->aliases[j]))
+                return true;
+        }
+    }
+
+    return false;
+}
+
 static const CHANNEL_DEF_DATA *resolve_channel_command(const char *input,
                                                        bool *out_ambiguous)
 {

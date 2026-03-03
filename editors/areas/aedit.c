@@ -337,7 +337,7 @@ static void aedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
                 sprintf(recall_buf, "Wilds ??? [%lu]", pArea->recall.wuid);
         } else if (pArea->recall.id[0] > 0
             && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
-            sprintf(recall_buf, "Room [%ld] %s", pArea->recall.id[0], recall->name);
+            sprintf(recall_buf, "Room [%s] %s", widevnum_string_room(recall, pArea), recall->name);
         } else {
             sprintf(recall_buf, "(none)");
         }
@@ -346,8 +346,10 @@ static void aedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     {
         ROOM_INDEX_DATA *landing = get_room_index(pArea, pArea->airship_land_load.vnum);
-        olc_display_vnum(ctx, theme, "AirshipLand:", "airshipland",
-            pArea->airship_land_load.vnum, landing ? landing->name : NULL);
+        olc_display_widevnum(ctx, theme, "AirshipLand:", "airshipland",
+            landing ? widevnum_string_room(landing, pArea) :
+                (pArea->airship_land_load.vnum > 0 ? formatf("%ld", pArea->airship_land_load.vnum) : NULL),
+            landing ? landing->name : NULL);
     }
 
     olc_display_section(ctx, theme, "Wilderness Map Locations");
@@ -382,9 +384,11 @@ static void aedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         olc_display_table_begin(ctx, theme, NULL, trade_cols, 7);
 
         for (temp = pArea->trade_list; temp != NULL; temp = temp->next) {
+            OBJ_INDEX_DATA *trade_obj = get_obj_index(pArea, temp->obj_load.vnum);
             const char *vals[7] = {
                 trade_table[temp->trade_type].name,
-                formatf("%ld", temp->obj_load.vnum),
+                trade_obj ? widevnum_string_object(trade_obj, pArea)
+                          : formatf("%ld", temp->obj_load.vnum),
                 formatf("%ld", temp->replenish_time),
                 formatf("%ld", temp->replenish_amount),
                 formatf("%ld", temp->max_qty),
@@ -470,14 +474,15 @@ static void aedit_show_dependencies_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void
         for (dependency = pArea->dependencies; dependency != NULL; dependency = dependency->next) {
             const char *vals[3] = {
                 dependency->reference_type,
-                formatf("%s %ld %s",
+                formatf("%s %ld#%ld %s",
                     dependency->source_type,
+                    pArea->uid,
                     dependency->source_vnum,
                     IS_NULLSTR(dependency->source_name) ? "" : dependency->source_name),
-                formatf("[%ld] %s :: %s %ld %s",
-                    dependency->target_area_uid,
+                formatf("%s :: %s %ld#%ld %s",
                     IS_NULLSTR(dependency->target_area_name) ? "(unknown area)" : dependency->target_area_name,
                     IS_NULLSTR(dependency->target_type) ? "entity" : dependency->target_type,
+                    dependency->target_area_uid,
                     dependency->target_vnum,
                     IS_NULLSTR(dependency->target_name) ? "" : dependency->target_name),
             };
@@ -637,8 +642,8 @@ AEDIT(aedit_airshipland)
     }
 
     pArea->airship_land_load.vnum = room_wnum.vnum;
-    sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
-        pArea->name, room_wnum.vnum, pRoom->name);
+    sprintf(buf, "Set airship land spot of %s to %s - %s\n\r",
+        pArea->name, widevnum_string_room(pRoom, pArea), pRoom->name);
     send_to_char(buf, ch);
     return true;
 }

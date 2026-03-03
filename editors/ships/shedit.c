@@ -264,7 +264,7 @@ SHEDIT( shedit_show )
     ctx = olc_display_new(ch, theme);
 
     olc_display_header(ctx, "SHEdit", ship->name,
-        formatf("#%ld", ship->vnum), &shedit_def);
+        formatf("%s", widevnum_string_ship(ship, ship->area)), &shedit_def);
 
     olc_display_string(ctx, theme, "Name:", "name", ship->name);
     olc_display_type(ctx, theme, "Class:", "class",
@@ -286,16 +286,16 @@ SHEDIT( shedit_show )
     olc_display_section(ctx, theme, "References");
 
     if (IS_VALID(ship->blueprint))
-        olc_display_vnum(ctx, theme, "Blueprint:", "blueprint",
-            ship->blueprint->vnum, ship->blueprint->name);
+        olc_display_widevnum(ctx, theme, "Blueprint:", "blueprint",
+            widevnum_string_blueprint(ship->blueprint, ship->area), ship->blueprint->name);
     else
         olc_display_string(ctx, theme, "Blueprint:", "blueprint", NULL);
 
     {
         OBJ_INDEX_DATA *obj = ship->ship_object;
         if (obj)
-            olc_display_vnum(ctx, theme, "Ship Object:", "object",
-                obj->vnum, obj->short_descr);
+            olc_display_widevnum(ctx, theme, "Ship Object:", "object",
+                widevnum_string_object(obj, ship->area), obj->short_descr);
         else
             olc_display_string(ctx, theme, "Ship Object:", "object", NULL);
     }
@@ -351,8 +351,8 @@ SHEDIT( shedit_show )
     /* Crew Mobs */
     olc_display_section(ctx, theme, "Crew Mobs");
     if (ship->captain) {
-        olc_display_vnum(ctx, theme, "Captain:", "captain",
-            ship->captain->vnum, ship->captain->short_descr);
+        olc_display_widevnum(ctx, theme, "Captain:", "captain",
+            widevnum_string_mobile(ship->captain, ship->area), ship->captain->short_descr);
     } else {
         olc_display_string(ctx, theme, "Captain:", "captain", NULL);
     }
@@ -368,9 +368,10 @@ SHEDIT( shedit_show )
         iterator_start(&cd_it, ship->crew_defs);
         while ((cd = (SHIP_CREW_DEF *)iterator_nextdata(&cd_it))) {
             cd_num++;
-            olc_display_infof(ctx, theme, "  {G%3d  {W%-8ld {Y%-30s {Cx%d{x",
+            olc_display_infof(ctx, theme, "  {G%3d  {W%-8s {Y%-30s {Cx%d{x",
                 cd_num,
-                cd->mob ? cd->mob->vnum : cd->mob_ref.vnum,
+                cd->mob ? widevnum_string_mobile(cd->mob, ship->area)
+                        : formatf("%ld", cd->mob_ref.vnum),
                 cd->mob ? cd->mob->short_descr : "(unresolved)",
                 cd->count);
         }
@@ -388,8 +389,8 @@ SHEDIT( shedit_show )
 
         iterator_start(&it, ship->special_keys);
         while ((key = (OBJ_INDEX_DATA *)iterator_nextdata(&it))) {
-            olc_display_infof(ctx, theme, "{W%3d  {G%8ld  %s%s{x",
-                ++count, key->vnum,
+            olc_display_infof(ctx, theme, "{W%3d  {G%8s  %s%s{x",
+                ++count, widevnum_string_object(key, ship->area),
                 key->item_type != ITEM_KEY ? "{R" : "{Y",
                 key->short_descr);
         }
@@ -419,8 +420,8 @@ SHEDIT( shedit_show )
                         stop->wilds_uid, stop->loc_x, stop->loc_y);
                 } else {
                     if (stop->dock_room)
-                        snprintf(loc_buf, sizeof(loc_buf), "[%ld] %.20s",
-                            stop->dock_room->vnum, stop->dock_room->name);
+                        snprintf(loc_buf, sizeof(loc_buf), "%s %.20s",
+                            widevnum_string_room(stop->dock_room, ship->area), stop->dock_room->name);
                     else
                         snprintf(loc_buf, sizeof(loc_buf), "%ld#%ld",
                             stop->room_ref.load.auid, stop->room_ref.load.vnum);
@@ -967,7 +968,7 @@ SHEDIT( shedit_keys )
                     key_color = 'R';
                 }
 
-                sprintf(buf, "{W%3d  {G%8ld  {%c%s{x\n\r", ++count, key->vnum, key_color, key->short_descr);
+                sprintf(buf, "{W%3d  {G%8s  {%c%s{x\n\r", ++count, widevnum_string_object(key, ship->area), key_color, key->short_descr);
                 if (!add_buf(buffer, buf))
                 {
                     append_ok = false;
@@ -1121,7 +1122,7 @@ SHEDIT( shedit_captain )
 
     ship->captain = mob;
     ship->captain_ref.vnum = mob_wnum.vnum;
-    send_to_char(formatf("Captain set to [%ld] %s.\n\r", mob->vnum, mob->short_descr), ch);
+    send_to_char(formatf("Captain set to [%s] %s.\n\r", widevnum_string_mobile(mob, ship->area), mob->short_descr), ch);
     return true;
 }
 
@@ -1196,8 +1197,8 @@ SHEDIT( shedit_crewmob )
         cd->count = count;
         list_appendlink(ship->crew_defs, cd);
 
-        send_to_char(formatf("Crew mob added: [%ld] %s x%d.\n\r",
-            mob->vnum, mob->short_descr, count), ch);
+        send_to_char(formatf("Crew mob added: [%s] %s x%d.\n\r",
+            widevnum_string_mobile(mob, ship->area), mob->short_descr, count), ch);
         return true;
     }
 
@@ -1277,8 +1278,8 @@ SHEDIT( shedit_crewmob )
 
         target->mob = mob;
         target->mob_ref.vnum = mob_wnum.vnum;
-        send_to_char(formatf("Crew mob changed to [%ld] %s.\n\r",
-            mob->vnum, mob->short_descr), ch);
+        send_to_char(formatf("Crew mob changed to [%s] %s.\n\r",
+            widevnum_string_mobile(mob, ship->area), mob->short_descr), ch);
         return true;
     }
 
@@ -1538,7 +1539,7 @@ SHEDIT( shedit_faction )
 
     ship->faction = rep;
     ship->faction_ref.vnum = rep_wnum.vnum;
-    send_to_char(formatf("Faction set to [%ld] %s.\n\r", rep->vnum, rep->name), ch);
+    send_to_char(formatf("Faction set to [%s] %s.\n\r", widevnum_string(rep->area, rep->vnum, ship->area), rep->name), ch);
     return true;
 }
 
@@ -1809,8 +1810,8 @@ SHEDIT( shedit_schedule )
         target->room_ref.load.auid = room_wnum.pArea->uid;
         target->room_ref.load.vnum = room_wnum.vnum;
         target->dock_room = room;
-        send_to_char(formatf("Stop %d set to room [%ld] %s.\n\r",
-            target_id, room->vnum, room->name), ch);
+        send_to_char(formatf("Stop %d set to room [%s] %s.\n\r",
+            target_id, widevnum_string_room(room, ship->area), room->name), ch);
         return true;
     }
 

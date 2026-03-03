@@ -1018,11 +1018,14 @@ if (ch->pk_question)
     }
     iterator_stop(&it);
 
-    /* If the command was found by prefix match only (not an exact match), give
-     * the channel dispatcher priority.  This prevents commands like 'tells'
-     * from stealing input meant for a deleted-but-dispatched 'tell' channel
-     * command, since "tell" is a valid prefix of "tells". */
-    if (found && str_cmp(command, selected_command->name)) {
+    /* If the command was found by prefix match only (not an exact match),
+     * give the channel dispatcher priority — but ONLY when the channel
+     * itself has an exact match for the typed word.  This prevents short
+     * abbreviations like 's' (south) from being hijacked by a channel
+     * whose name merely prefix-matches (e.g. 'say'), while still letting
+     * an exact channel name like 'tell' override 'tells' in the cmd table. */
+    if (found && str_cmp(command, selected_command->name)
+        && channel_command_has_exact_match(command)) {
         if (dispatch_dynamic_channel_command(ch, command, argument))
             return;
     }

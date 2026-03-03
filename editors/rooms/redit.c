@@ -253,7 +253,7 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
             "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'",
             pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     } else {
-        olc_display_number(ctx, theme, "Vnum:", NULL, pRoom->vnum);
+        olc_display_string(ctx, theme, "Vnum:", NULL, widevnum_string_room(pRoom, pRoom->area));
         olc_display_string(ctx, theme, "Sector:", "sector",
             sector_name(room_rs_sector_type(pRoom)));
         if (pRoom->viewwilds)
@@ -358,11 +358,9 @@ static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
 
         if (pRoom->wilds) {
             if (IS_SET(pexit->exit_info, EX_VLINK))
-                sprintf(buf, "-{W%-9s{x to {W%6ld{x, Area Uid ({W%ld{x), '{W%s{x'\n\r",
+                sprintf(buf, "-{W%-9s{x to {W%s{x\n\r",
                     capitalize(dir_name[door]),
-                    pexit->u1.to_room ? pexit->u1.to_room->vnum : 0,
-                    pexit->u1.to_room ? pexit->u1.to_room->area->uid : 0,
-                    pexit->u1.to_room ? pexit->u1.to_room->area->name : "{RERROR");
+                    pexit->u1.to_room ? widevnum_string_room(pexit->u1.to_room, NULL) : "0");
             else
                 sprintf(buf, "-{W%-9s{x to ({W%d{x,{W%d{x).\n\r",
                     capitalize(dir_name[door]),
@@ -381,9 +379,9 @@ static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
                     pArea ? pArea->uid : 0,
                     pArea ? pArea->name : "(null)");
             } else {
-                sprintf(buf, "-{W%-9s{x to {W%6ld{x\n\r",
+                sprintf(buf, "-{W%-9s{x to {W%s{x\n\r",
                     capitalize(dir_name[door]),
-                    pexit->u1.to_room ? pexit->u1.to_room->vnum : 0);
+                    pexit->u1.to_room ? widevnum_string_room(pexit->u1.to_room, NULL) : "0");
             }
         }
         add_buf(ctx->buffer, buf);
@@ -433,13 +431,19 @@ static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
         add_buf(ctx->buffer, buf);
 
         if (IS_SET(pexit->rs_flags, EX_ISDOOR)) {
+            const char *key_str = "0";
+            if (pexit->door.lock.key_wnum.pArea && pexit->door.lock.key_wnum.vnum > 0) {
+                OBJ_INDEX_DATA *key_obj = get_obj_index(pexit->door.lock.key_wnum.pArea, pexit->door.lock.key_wnum.vnum);
+                key_str = key_obj ? widevnum_string_object(key_obj, NULL)
+                                  : formatf("%ld#%ld", pexit->door.lock.key_wnum.pArea->uid, pexit->door.lock.key_wnum.vnum);
+            }
             sprintf(buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x]"
-                         "  Lock Flags: [{W%s{x]  Key vnum: [{W%ld{x]"
+                         "  Lock Flags: [{W%s{x]  Key: [{W%s{x]"
                          " Pick chance: [{W%d%%{x]\n\r",
                 pexit->door.material,
                 pexit->door.strength,
                 flag_string(lock_flags, pexit->door.lock.flags),
-                pexit->door.lock.key_wnum.vnum,
+                key_str,
                 pexit->door.lock.pick_chance);
             add_buf(ctx->buffer, buf);
         } else {
@@ -625,7 +629,7 @@ REDIT(redit_show)
     ctx = olc_display_new(ch, theme);
 
     olc_display_header(ctx, "REdit", pRoom->name,
-        formatf("%ld", pRoom->vnum), &redit_def);
+        formatf("%s", widevnum_string_room(pRoom, pRoom->area)), &redit_def);
 
     /* Dispatch to active tab's show function */
     tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);

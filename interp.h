@@ -701,5 +701,6 @@ DECLARE_DO_FUN( do_prefs );
 DECLARE_DO_FUN( do_raceunlock );
 
 bool dispatch_dynamic_channel_command(CHAR_DATA *ch, const char *command, char *argument);
+bool channel_command_has_exact_match(const char *input);
 
 #endif /* __INTERP_H__ */
