@@ -1,6 +1,6 @@
 /***************************************************************************
  *                                                                         *
- *    In-engine threaded wildgen import using stb_image                    *
+ *    In-engine threaded wildgen import using libpng                       *
  *                                                                         *
  ***************************************************************************/
 
@@ -11,9 +11,6 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <errno.h>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
 
 #include "merc.h"
 #include "wilds.h"
@@ -98,6 +95,659 @@ static WILDS_WILDGEN_JOB *wildgen_queue_head = NULL;
 static WILDS_WILDGEN_JOB *wildgen_queue_tail = NULL;
 static WILDS_WILDGEN_RESULT *wildgen_result_head = NULL;
 static WILDS_WILDGEN_RESULT *wildgen_result_tail = NULL;
+
+/**
+ * wildgen_read_png_rgb - Read a PNG file into an 8-bit RGB pixel buffer via libpng
+ *
+ * Opens the file, validates the PNG header, and reads pixel data into a
+ * malloc'd buffer of width*height*3 bytes (RGB). Handles palette, grayscale,
+ * alpha, and 16-bit source images by applying appropriate libpng transforms
+ * to normalize to 8-bit RGB output.
+ *
+ * @param path       Filesystem path to the PNG file
+ * @param out_width  Receives image width in pixels
+ * @param out_height Receives image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           malloc'd pixel buffer (caller frees with free()), or NULL on failure
+ */
+static unsigned char *wildgen_read_png_rgb(const char *path,
+    int *out_width, int *out_height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    unsigned char *pixels = NULL;
+    png_uint_32 width, height;
+    int bit_depth, color_type;
+    int y;
+
+    fp = fopen(path, "rb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open PNG '%s': %s", path, strerror(errno));
+        return NULL;
+    }
+
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG read struct for '%s'", path);
+        return NULL;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return NULL;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (pixels) free(pixels);
+        if (row_pointers) free(row_pointers);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "PNG read error processing '%s'", path);
+        return NULL;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_read_info(png_ptr, info_ptr);
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
+
+    /* Normalize to 8-bit RGB regardless of source format */
+    if (color_type == PNG_COLOR_TYPE_PALETTE)
+        png_set_palette_to_rgb(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
+        png_set_expand_gray_1_2_4_to_8(png_ptr);
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(png_ptr);
+    if (bit_depth == 16)
+        png_set_strip_16(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_gray_to_rgb(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_RGBA || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_strip_alpha(png_ptr);
+
+    png_read_update_info(png_ptr, info_ptr);
+
+    pixels = malloc((size_t)width * (size_t)height * 3);
+    if (!pixels)
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    row_pointers = malloc(sizeof(png_bytep) * height);
+    if (!row_pointers)
+    {
+        free(pixels);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    for (y = 0; y < (int)height; y++)
+        row_pointers[y] = pixels + ((size_t)y * (size_t)width * 3);
+
+    png_read_image(png_ptr, row_pointers);
+    png_read_end(png_ptr, NULL);
+
+    free(row_pointers);
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+
+    *out_width = (int)width;
+    *out_height = (int)height;
+    return pixels;
+}
+
+/**
+ * wildgen_read_png_rgb16 - Read a PNG file into a 16-bit RGB pixel buffer via libpng
+ *
+ * Opens the file, validates the PNG header, and reads pixel data into a
+ * malloc'd buffer of width*height*6 bytes (3 channels x 2 bytes, big-endian).
+ * Handles palette, grayscale, alpha, and 8-bit source images by applying
+ * appropriate libpng transforms to normalize to 16-bit RGB output.
+ *
+ * Pixel data is stored in network byte order (big-endian) as libpng produces.
+ * Use (buf[i*2] << 8 | buf[i*2+1]) to extract host-order uint16 values.
+ *
+ * @param path       Filesystem path to the PNG file
+ * @param out_width  Receives image width in pixels
+ * @param out_height Receives image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           malloc'd pixel buffer (caller frees with free()), or NULL on failure
+ */
+static unsigned char *wildgen_read_png_rgb16(const char *path,
+    int *out_width, int *out_height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    unsigned char *pixels = NULL;
+    png_uint_32 width, height;
+    int bit_depth, color_type;
+    int y;
+
+    fp = fopen(path, "rb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open PNG '%s': %s", path, strerror(errno));
+        return NULL;
+    }
+
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG read struct for '%s'", path);
+        return NULL;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return NULL;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (pixels) free(pixels);
+        if (row_pointers) free(row_pointers);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "PNG read error processing '%s'", path);
+        return NULL;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_read_info(png_ptr, info_ptr);
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
+
+    /* Normalize to 16-bit RGB regardless of source format */
+    if (color_type == PNG_COLOR_TYPE_PALETTE)
+        png_set_palette_to_rgb(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
+        png_set_expand_gray_1_2_4_to_8(png_ptr);
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(png_ptr);
+    if (bit_depth < 16)
+        png_set_expand_16(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_gray_to_rgb(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_RGBA || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_strip_alpha(png_ptr);
+
+    png_read_update_info(png_ptr, info_ptr);
+
+    pixels = malloc((size_t)width * (size_t)height * 6);
+    if (!pixels)
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    row_pointers = malloc(sizeof(png_bytep) * height);
+    if (!row_pointers)
+    {
+        free(pixels);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    for (y = 0; y < (int)height; y++)
+        row_pointers[y] = pixels + ((size_t)y * (size_t)width * 6);
+
+    png_read_image(png_ptr, row_pointers);
+    png_read_end(png_ptr, NULL);
+
+    free(row_pointers);
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+
+    *out_width = (int)width;
+    *out_height = (int)height;
+    return pixels;
+}
+
+/**
+ * wildgen_read_png_gray - Read a PNG file into an 8-bit grayscale pixel buffer via libpng
+ *
+ * Opens the file, validates the PNG header, and reads pixel data into a
+ * malloc'd buffer of width*height bytes (single channel). Handles palette,
+ * RGB, alpha, and 16-bit source images by applying appropriate libpng
+ * transforms to normalize to 8-bit grayscale output.
+ *
+ * @param path       Filesystem path to the PNG file
+ * @param out_width  Receives image width in pixels
+ * @param out_height Receives image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           malloc'd pixel buffer (caller frees with free()), or NULL on failure
+ */
+static unsigned char *wildgen_read_png_gray(const char *path,
+    int *out_width, int *out_height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    unsigned char *pixels = NULL;
+    png_uint_32 width, height;
+    int bit_depth, color_type;
+    int y;
+
+    fp = fopen(path, "rb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open PNG '%s': %s", path, strerror(errno));
+        return NULL;
+    }
+
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG read struct for '%s'", path);
+        return NULL;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return NULL;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (pixels) free(pixels);
+        if (row_pointers) free(row_pointers);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "PNG read error processing '%s'", path);
+        return NULL;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_read_info(png_ptr, info_ptr);
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
+
+    /* Normalize to 8-bit grayscale regardless of source format */
+    if (color_type == PNG_COLOR_TYPE_PALETTE)
+        png_set_palette_to_rgb(png_ptr);
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(png_ptr);
+    if (bit_depth == 16)
+        png_set_strip_16(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_RGB || color_type == PNG_COLOR_TYPE_RGB_ALPHA ||
+        color_type == PNG_COLOR_TYPE_PALETTE)
+        png_set_rgb_to_gray_fixed(png_ptr, 1, -1, -1);
+    if (color_type == PNG_COLOR_TYPE_RGBA || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_strip_alpha(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
+        png_set_expand_gray_1_2_4_to_8(png_ptr);
+
+    png_read_update_info(png_ptr, info_ptr);
+
+    pixels = malloc((size_t)width * (size_t)height);
+    if (!pixels)
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    row_pointers = malloc(sizeof(png_bytep) * height);
+    if (!row_pointers)
+    {
+        free(pixels);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    for (y = 0; y < (int)height; y++)
+        row_pointers[y] = pixels + ((size_t)y * (size_t)width);
+
+    png_read_image(png_ptr, row_pointers);
+    png_read_end(png_ptr, NULL);
+
+    free(row_pointers);
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+
+    *out_width = (int)width;
+    *out_height = (int)height;
+    return pixels;
+}
+
+/**
+ * wildgen_read_png_gray16 - Read a PNG file into a 16-bit grayscale pixel buffer via libpng
+ *
+ * Opens the file, validates the PNG header, and reads pixel data into a
+ * malloc'd buffer of width*height*2 bytes (single channel, big-endian).
+ * Handles palette, RGB, alpha, and 8-bit source images by applying
+ * appropriate libpng transforms to normalize to 16-bit grayscale output.
+ *
+ * Pixel data is stored in network byte order (big-endian) as libpng produces.
+ * Use (buf[i*2] << 8 | buf[i*2+1]) to extract host-order uint16 values.
+ *
+ * @param path       Filesystem path to the PNG file
+ * @param out_width  Receives image width in pixels
+ * @param out_height Receives image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           malloc'd pixel buffer (caller frees with free()), or NULL on failure
+ */
+static unsigned char *wildgen_read_png_gray16(const char *path,
+    int *out_width, int *out_height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    unsigned char *pixels = NULL;
+    png_uint_32 width, height;
+    int bit_depth, color_type;
+    int y;
+
+    fp = fopen(path, "rb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open PNG '%s': %s", path, strerror(errno));
+        return NULL;
+    }
+
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG read struct for '%s'", path);
+        return NULL;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return NULL;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (pixels) free(pixels);
+        if (row_pointers) free(row_pointers);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "PNG read error processing '%s'", path);
+        return NULL;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_read_info(png_ptr, info_ptr);
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, NULL, NULL, NULL);
+
+    /* Normalize to 16-bit grayscale regardless of source format */
+    if (color_type == PNG_COLOR_TYPE_PALETTE)
+        png_set_palette_to_rgb(png_ptr);
+    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(png_ptr);
+    if (bit_depth < 16)
+        png_set_expand_16(png_ptr);
+    if (color_type == PNG_COLOR_TYPE_RGB || color_type == PNG_COLOR_TYPE_RGB_ALPHA ||
+        color_type == PNG_COLOR_TYPE_PALETTE)
+        png_set_rgb_to_gray_fixed(png_ptr, 1, -1, -1);
+    if (color_type == PNG_COLOR_TYPE_RGBA || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        png_set_strip_alpha(png_ptr);
+
+    png_read_update_info(png_ptr, info_ptr);
+
+    pixels = malloc((size_t)width * (size_t)height * 2);
+    if (!pixels)
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    row_pointers = malloc(sizeof(png_bytep) * height);
+    if (!row_pointers)
+    {
+        free(pixels);
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory loading PNG '%s' (%ux%u)", path, width, height);
+        return NULL;
+    }
+
+    for (y = 0; y < (int)height; y++)
+        row_pointers[y] = pixels + ((size_t)y * (size_t)width * 2);
+
+    png_read_image(png_ptr, row_pointers);
+    png_read_end(png_ptr, NULL);
+
+    free(row_pointers);
+    png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+    fclose(fp);
+
+    *out_width = (int)width;
+    *out_height = (int)height;
+    return pixels;
+}
+
+/**
+ * wildgen_write_png_gray16 - Write a 16-bit grayscale pixel buffer to a PNG file
+ *
+ * Creates a PNG file with 16-bit grayscale color type. The pixel buffer must
+ * contain width*height*2 bytes in big-endian (network byte order) as libpng
+ * expects.
+ *
+ * @param path       Filesystem path to write
+ * @param pixels     Pixel buffer (width*height*2 bytes, big-endian 16-bit gray)
+ * @param width      Image width in pixels
+ * @param height     Image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           true on success, false on failure
+ */
+static bool wildgen_write_png_gray16(const char *path,
+    const unsigned char *pixels, int width, int height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    bool success = false;
+    int y;
+
+    fp = fopen(path, "wb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open '%s' for writing: %s", path, strerror(errno));
+        return false;
+    }
+
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG write struct for '%s'", path);
+        return false;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_write_struct(&png_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return false;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (row_pointers) free(row_pointers);
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "PNG write error processing '%s'", path);
+        return false;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_set_IHDR(png_ptr, info_ptr,
+        (png_uint_32)width, (png_uint_32)height,
+        16, PNG_COLOR_TYPE_GRAY,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png_ptr, info_ptr);
+
+    row_pointers = malloc(sizeof(png_bytep) * (size_t)height);
+    if (!row_pointers)
+    {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory writing PNG '%s'", path);
+        return false;
+    }
+
+    for (y = 0; y < height; y++)
+        row_pointers[y] = (png_bytep)(pixels + ((size_t)y * (size_t)width * 2));
+
+    png_write_image(png_ptr, row_pointers);
+    png_write_end(png_ptr, NULL);
+    success = true;
+
+    free(row_pointers);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+    fclose(fp);
+
+    return success;
+}
+
+/**
+ * wildgen_write_png_rgb16 - Write a 16-bit RGB pixel buffer to a PNG file
+ *
+ * Creates a PNG file with 16-bit RGB color type. The pixel buffer must
+ * contain width*height*6 bytes (3 channels x 2 bytes) in big-endian
+ * (network byte order) as libpng expects.
+ *
+ * @param path       Filesystem path to write
+ * @param pixels     Pixel buffer (width*height*6 bytes, big-endian 16-bit RGB)
+ * @param width      Image width in pixels
+ * @param height     Image height in pixels
+ * @param err        Error message buffer (populated on failure)
+ * @param err_size   Size of error buffer
+ * @return           true on success, false on failure
+ */
+static bool wildgen_write_png_rgb16(const char *path,
+    const unsigned char *pixels, int width, int height,
+    char *err, size_t err_size)
+{
+    FILE *fp = NULL;
+    png_structp png_ptr = NULL;
+    png_infop info_ptr = NULL;
+    png_bytep *row_pointers = NULL;
+    bool success = false;
+    int y;
+
+    fp = fopen(path, "wb");
+    if (!fp)
+    {
+        snprintf(err, err_size, "Failed to open '%s' for writing: %s", path, strerror(errno));
+        return false;
+    }
+
+    png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr)
+    {
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG write struct for '%s'", path);
+        return false;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (!info_ptr)
+    {
+        png_destroy_write_struct(&png_ptr, NULL);
+        fclose(fp);
+        snprintf(err, err_size, "Failed to create PNG info struct for '%s'", path);
+        return false;
+    }
+
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
+        if (row_pointers) free(row_pointers);
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "PNG write error processing '%s'", path);
+        return false;
+    }
+
+    png_init_io(png_ptr, fp);
+    png_set_IHDR(png_ptr, info_ptr,
+        (png_uint_32)width, (png_uint_32)height,
+        16, PNG_COLOR_TYPE_RGB,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT);
+    png_write_info(png_ptr, info_ptr);
+
+    row_pointers = malloc(sizeof(png_bytep) * (size_t)height);
+    if (!row_pointers)
+    {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        snprintf(err, err_size, "Out of memory writing PNG '%s'", path);
+        return false;
+    }
+
+    for (y = 0; y < height; y++)
+        row_pointers[y] = (png_bytep)(pixels + ((size_t)y * (size_t)width * 6));
+
+    png_write_image(png_ptr, row_pointers);
+    png_write_end(png_ptr, NULL);
+    success = true;
+
+    free(row_pointers);
+    png_destroy_write_struct(&png_ptr, &info_ptr);
+    fclose(fp);
+
+    return success;
+}
+
 static WILDS_WILDGEN_STATUS_REC *wildgen_status_head = NULL;
 
 static const char *wildgen_state_name(int state)
@@ -490,7 +1140,6 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
     int color_count;
     int width = 0;
     int height = 0;
-    int channels = 0;
     int unmatched_unique = 0;
     int top_k;
     bool unmatched_overflow = false;
@@ -523,18 +1172,21 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
         return false;
     }
 
-    pixels = stbi_load(resolved_path, &width, &height, &channels, 3);
-    if (!pixels)
     {
-        if (out_buf && out_buf_size > 0)
-            snprintf(out_buf, out_buf_size, "Failed to load PNG '%s': %s", png_path,
-                stbi_failure_reason() ? stbi_failure_reason() : "unknown error");
-        return false;
+        char load_err[MSL];
+        load_err[0] = '\0';
+        pixels = wildgen_read_png_rgb(resolved_path, &width, &height, load_err, sizeof(load_err));
+        if (!pixels)
+        {
+            if (out_buf && out_buf_size > 0)
+                snprintf(out_buf, out_buf_size, "%s", load_err);
+            return false;
+        }
     }
 
     if (width != pWilds->map_size_x || height != pWilds->map_size_y)
     {
-        stbi_image_free(pixels);
+        free(pixels);
         if (out_buf && out_buf_size > 0)
             snprintf(out_buf, out_buf_size,
                 "Check failed: PNG dimensions %dx%d do not match wilds %dx%d",
@@ -600,7 +1252,7 @@ bool wilds_wildgen_check_image(WILDS_DATA *pWilds, const char *png_path, char *o
         }
     }
 
-    stbi_image_free(pixels);
+    free(pixels);
 
     if (out_buf && out_buf_size > 0)
     {
@@ -987,7 +1639,6 @@ static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILD
             unsigned char *pixels;
             int width = 0;
             int height = 0;
-            int channels = 0;
             size_t total;
             size_t i;
 
@@ -999,17 +1650,13 @@ static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILD
             if (!wildgen_verify_png_signature(elev_path, err, err_size))
                 return false;
 
-            pixels = stbi_load(elev_path, &width, &height, &channels, 1);
+            pixels = wildgen_read_png_gray(elev_path, &width, &height, err, err_size);
             if (!pixels)
-            {
-                strlcpy(err, "Failed to read elevation tile ", err_size);
-                strlcat(err, elev_path, err_size);
                 return false;
-            }
 
             if (width != block_w || height != block_h)
             {
-                stbi_image_free(pixels);
+                free(pixels);
                 snprintf(err, err_size, "Elevation tile dimensions mismatch at (%d,%d): got %dx%d expected %dx%d",
                     row, col, width, height, block_w, block_h);
                 return false;
@@ -1023,7 +1670,7 @@ static bool wildgen_validate_elevation_grid(const WILDS_DATA *pWilds, const WILD
                 if (v > max_elev) max_elev = v;
             }
 
-            stbi_image_free(pixels);
+            free(pixels);
         }
     }
 
@@ -1061,7 +1708,6 @@ static void *wildgen_worker_func(void *arg)
         char *tiles = NULL;
         int width = 0;
         int height = 0;
-        int channels = 0;
         int unknown_pixels = 0;
         bool success = false;
         WILDS_DATA *job_wilds = NULL;
@@ -1082,7 +1728,7 @@ static void *wildgen_worker_func(void *arg)
         if (!wildgen_queue_head)
             wildgen_queue_tail = NULL;
 
-        wildgen_set_status(job->wilds_uid, WILDGEN_STATE_RUNNING, job->job_id, "Decoding PNG with stb_image");
+        wildgen_set_status(job->wilds_uid, WILDGEN_STATE_RUNNING, job->job_id, "Decoding PNG with libpng");
         pthread_mutex_unlock(&wildgen_mutex);
 
         job_wilds = get_wilds_from_uid(NULL, job->wilds_uid);
@@ -1109,11 +1755,10 @@ static void *wildgen_worker_func(void *arg)
 
         if (!job->use_grid)
         {
-            pixels = stbi_load(job->png_path, &width, &height, &channels, 3);
+            pixels = wildgen_read_png_rgb(job->png_path, &width, &height, message, sizeof(message));
             if (!pixels)
             {
-                snprintf(message, sizeof(message), "Failed to load PNG '%s': %s", job->source_name,
-                    stbi_failure_reason() ? stbi_failure_reason() : "unknown error");
+                /* message already populated by wildgen_read_png_rgb */
             }
             else if (width != job->map_size_x || height != job->map_size_y)
             {
@@ -1191,7 +1836,6 @@ static void *wildgen_worker_func(void *arg)
                                 char part_path[MSL];
                                 int pw = 0;
                                 int ph = 0;
-                                int pch = 0;
                                 int part_unknown = 0;
                                 size_t y;
 
@@ -1203,16 +1847,13 @@ static void *wildgen_worker_func(void *arg)
                                 if (!wildgen_verify_png_signature(part_path, message, sizeof(message)))
                                     break;
 
-                                pixels = stbi_load(part_path, &pw, &ph, &pch, 3);
+                                pixels = wildgen_read_png_rgb(part_path, &pw, &ph, message, sizeof(message));
                                 if (!pixels)
-                                {
-                                    snprintf(message, sizeof(message), "Failed to load grid PNG '%.256s'", part_path);
                                     break;
-                                }
 
                                 if (pw != block_w || ph != block_h)
                                 {
-                                    stbi_image_free(pixels);
+                                    free(pixels);
                                     pixels = NULL;
                                     snprintf(message, sizeof(message),
                                         "Grid image has %dx%d, expected %dx%d",
@@ -1249,7 +1890,7 @@ static void *wildgen_worker_func(void *arg)
                                 }
 
                                 validated_unknown += part_unknown;
-                                stbi_image_free(pixels);
+                                free(pixels);
                                 pixels = NULL;
                             }
 
@@ -1287,7 +1928,7 @@ static void *wildgen_worker_func(void *arg)
         }
 
         if (pixels)
-            stbi_image_free(pixels);
+            free(pixels);
 
         result = calloc(1, sizeof(*result));
         if (result)

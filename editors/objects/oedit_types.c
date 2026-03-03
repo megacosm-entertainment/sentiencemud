@@ -2831,6 +2831,65 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
         add_buf(buffer, buf);
     }
 
+    if (IS_SHIP_MODULE(pObj)) {
+        SHIP_MODULE_DATA *d = SHIP_MODULE_TYPE(pObj);
+        sprintf(buf,
+            "\n\r{WShip Module:{x\n\r"
+            "  {Gtype          {x [%s]\n\r"
+            "  {Gsize          {x [%s]\n\r"
+            "  {Gweight        {x [%d]\n\r"
+            "  {Gdomain        {x [%s]\n\r"
+            "  {Gflags         {x [%s]\n\r",
+            flag_string(hardpoint_types, d->type),
+            flag_string(hardpoint_sizes, d->size),
+            d->weight,
+            flag_string(domain_flags, d->domain_flags),
+            flag_string(module_flags, d->flags));
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GBonuses:{x\n\r"
+            "    {Ghitbonus      {x [%d]  {Garmorbonus   {x [%d]\n\r"
+            "    {Gspeedbonus    {x [%d%%] {Gturningbonus {x [%d]\n\r"
+            "    {Gcargoweight   {x [%d]  {Gcargocapacity{x [%d]\n\r"
+            "    {Gcrewbonus     {x [%d]\n\r",
+            d->hit_bonus, d->armor_bonus,
+            d->speed_bonus, d->turning_bonus,
+            d->cargo_weight_bonus, d->cargo_capacity_bonus,
+            d->crew_bonus);
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GWeapon:{x\n\r"
+            "    {Gdamage       {x [%d]  {Grange        {x [%d]\n\r"
+            "    {Greload       {x [%d]  {Gdamagetype   {x [%d]\n\r"
+            "    {Gweapflags    {x [%s]\n\r",
+            d->damage, d->range,
+            d->reload_time, d->damage_type,
+            flag_string(weapon_module_flags, d->weapon_flags));
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GCrew Requirements:{x\n\r"
+            "    {Goperators    {x [%d]\n\r"
+            "    {Ggunning      {x [%d]  {Gmechanics    {x [%d]\n\r"
+            "    {Gscouting     {x [%d]  {Gnavigation   {x [%d]\n\r"
+            "    {Goarring      {x [%d]  {Gleadership   {x [%d]\n\r",
+            d->operators,
+            d->req_gunning, d->req_mechanics,
+            d->req_scouting, d->req_navigation,
+            d->req_oarring, d->req_leadership);
+        add_buf(buffer, buf);
+
+        sprintf(buf,
+            "  {GAmmo:{x\n\r"
+            "    {Gammo         {x [%s]\n\r"
+            "    {Gammoshot     {x [%d]\n\r",
+            d->ammo ? d->ammo->short_descr : "(none)",
+            d->ammo_per_shot);
+        add_buf(buffer, buf);
+    }
+
     if (IS_TATTOO(pObj)) {
         sprintf(buf,
             "\n\r{WTattoo:{x\n\r"
