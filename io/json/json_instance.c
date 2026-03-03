@@ -27,6 +27,7 @@
 #include "../../tables.h"
 #include "../../recycle.h"
 #include "../../scripts.h"
+#include "json_char.h"
 #include "json_common.h"
 #include "json_instance.h"
 #include "../../wilds.h"
@@ -556,18 +557,20 @@ json_t *ship_to_json(SHIP_DATA *ship)
     
     /* TODO: Add steering, crew, objects, etc. */
 
-    /* Installed modules */
+    /* Installed modules — stashed OBJ_DATA saved as full objects */
     if (ship->modules && list_size(ship->modules) > 0) {
         json_t *modules = json_array();
         ITERATOR it;
         SHIP_MODULE *mod;
         iterator_start(&it, ship->modules);
         while ((mod = (SHIP_MODULE *)iterator_nextdata(&it)) != NULL) {
-            if (!IS_VALID(mod) || !mod->index) continue;
+            if (!IS_VALID(mod) || !mod->obj) continue;
             json_t *mod_json = json_object();
-            /* Module template reference (widevnum) */
-            AREA_DATA *mod_area = mod->index->area ? mod->index->area : get_system_area_fallback();
-            json_object_set_new(mod_json, "index_wnum", wnum_to_json(mod_area, mod->index->vnum));
+            /* Serialize the full stashed object (preserves tokens, enchantments, etc.) */
+            json_t *obj_json = obj_to_json(mod->obj, 0);
+            if (obj_json)
+                json_object_set_new(mod_json, "object", obj_json);
+            /* Runtime module state */
             json_object_set_new(mod_json, "slot_id", json_integer(mod->slot_id));
             json_object_set_new(mod_json, "condition", json_integer(mod->condition));
             json_object_set_new(mod_json, "max_condition", json_integer(mod->max_condition));
@@ -662,30 +665,45 @@ SHIP_DATA *json_to_ship(json_t *json)
     value = json_object_get(json, "oars");
     if (value) ship->oars = json_integer_value(value);
     
-    /* Load installed modules */
+    /* Load installed modules — objects restored from full JSON */
     value = json_object_get(json, "modules");
     if (value && json_is_array(value)) {
         size_t mod_idx;
         json_t *mod_json;
         json_array_foreach(value, mod_idx, mod_json) {
-            json_t *wnum_val = json_object_get(mod_json, "index_wnum");
-            WNUM wnum = parse_wnum_from_json(wnum_val);
-            SHIP_MODULE_INDEX *mod_index = NULL;
-
-            if (wnum.pArea) {
-                int hash = wnum.vnum % MAX_KEY_HASH;
-                for (SHIP_MODULE_INDEX *m = wnum.pArea->ship_module_index_hash[hash]; m; m = m->next) {
-                    if (m->vnum == wnum.vnum) { mod_index = m; break; }
+            /* Restore the stashed OBJ_DATA from saved JSON */
+            json_t *obj_json = json_object_get(mod_json, "object");
+            OBJ_DATA *obj = json_to_obj(obj_json, NULL);
+            if (!obj) {
+                /* Legacy fallback: old format used index_wnum */
+                json_t *wnum_val = json_object_get(mod_json, "index_wnum");
+                if (wnum_val) {
+                    WNUM wnum = parse_wnum_from_json(wnum_val);
+                    OBJ_INDEX_DATA *pObjIndex = NULL;
+                    if (wnum.pArea)
+                        pObjIndex = get_obj_index(wnum.pArea, wnum.vnum);
+                    if (!pObjIndex) {
+                        log_stringf("json_to_ship: Module object vnum %ld not found, skipping", wnum.vnum);
+                        continue;
+                    }
+                    obj = create_object(pObjIndex, 0, false);
+                    if (!obj) continue;
+                }
+                if (!obj) {
+                    log_stringf("json_to_ship: Module has no object data, skipping");
+                    continue;
                 }
             }
 
-            if (!mod_index) {
-                log_stringf("json_to_ship: Module index %ld not found, skipping", wnum.vnum);
+            if (!IS_SHIP_MODULE(obj)) {
+                log_stringf("json_to_ship: Object vnum %ld is not a ship module, skipping",
+                    obj->pIndexData->vnum);
+                extract_obj(obj);
                 continue;
             }
 
             SHIP_MODULE *mod = new_ship_module();
-            mod->index = mod_index;
+            mod->obj = obj;
             mod->slot_id = json_get_int_default(mod_json, "slot_id", 0);
             mod->condition = json_get_int_default(mod_json, "condition", 100);
             mod->max_condition = json_get_int_default(mod_json, "max_condition", 100);

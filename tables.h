@@ -347,6 +347,7 @@ extern	const struct flag_type hardpoint_sizes[];
 extern	const struct flag_type domain_flags[];
 extern	const struct flag_type hardpoint_flags[];
 extern	const struct flag_type module_flags[];
+extern	const struct flag_type weapon_module_flags[];
 
 extern	const	struct	flag_type	stock_types[];
 extern	const	struct	flag_type	prog_entity_flags[];

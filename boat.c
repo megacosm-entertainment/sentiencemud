@@ -1587,49 +1587,6 @@ SHIP_INDEX_DATA *get_ship_index_for_area(AREA_DATA *area, long vnum)
     return NULL;
 }
 
-/**
- * get_ship_module_index - Look up a module template by VNUM (searches all areas)
- *
- * @param vnum  VNUM to search for
- * @return      SHIP_MODULE_INDEX if found, NULL otherwise
- */
-SHIP_MODULE_INDEX *get_ship_module_index(long vnum)
-{
-    AREA_DATA *area;
-    int iHash = vnum % MAX_KEY_HASH;
-
-    for (area = area_first; area != NULL; area = area->next)
-    {
-        for (SHIP_MODULE_INDEX *mod = area->ship_module_index_hash[iHash]; mod; mod = mod->next)
-        {
-            if (mod->vnum == vnum)
-                return mod;
-        }
-    }
-
-    return NULL;
-}
-
-/**
- * get_ship_module_index_for_area - Look up a module template within a specific area
- *
- * @param area  Area to search in
- * @param vnum  VNUM to search for
- * @return      SHIP_MODULE_INDEX if found in area, NULL otherwise
- */
-SHIP_MODULE_INDEX *get_ship_module_index_for_area(AREA_DATA *area, long vnum)
-{
-    if (!area) return NULL;
-
-    int iHash = vnum % MAX_KEY_HASH;
-    for (SHIP_MODULE_INDEX *mod = area->ship_module_index_hash[iHash]; mod; mod = mod->next)
-    {
-        if (mod->vnum == vnum)
-            return mod;
-    }
-
-    return NULL;
-}
 
 /////////////////////////////////////////////////////////////////
 //
@@ -5218,9 +5175,9 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
         SHIP_MODULE *mod;
         iterator_start(&it, orig_ship->modules);
         while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
-            if (mod->index && mod->index->type == HARDPOINT_WEAPON &&
+            if (mod->obj && SHIP_MOD_DATA(mod)->type == HARDPOINT_WEAPON &&
                 mod->operational && mod->reload_countdown <= 0) {
-                mod->reload_countdown = mod->index->reload_time;
+                mod->reload_countdown = SHIP_MOD_DATA(mod)->reload_time;
             }
         }
         iterator_stop(&it);
@@ -8441,7 +8398,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
             SHIP_MODULE *mod;
             iterator_start(&it, ship->modules);
             while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
-                if (!mod->index) continue;
+                if (!mod->obj) continue;
 
                 int assigned = mod->assigned_crew ? list_size(mod->assigned_crew) : 0;
                 const char *status;
@@ -8456,8 +8413,8 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
                 sprintf(buf, " {W%3d  {Y%-25s  {W%d{x/{W%d{x        %s\n\r",
                     mod->slot_id,
-                    mod->index->name ? mod->index->name : "(unnamed)",
-                    assigned, mod->index->operators,
+                    SHIP_MOD_NAME(mod),
+                    assigned, SHIP_MOD_DATA(mod)->operators,
                     status);
                 add_buf(buffer, buf);
 
@@ -8610,7 +8567,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
                     sprintf(buf, "{CAssigned to module slot {W%d{C ({Y%s{C - %s).{x\n\r",
                         mod->slot_id,
                         hp && hp->name ? hp->name : "unnamed",
-                        mod->index ? mod->index->name : "unknown");
+                        SHIP_MOD_NAME(mod));
                     send_to_char(buf, ch);
                 }
             }
@@ -8862,7 +8819,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
             int slot_id = atoi(mod_arg);
             SHIP_MODULE *mod = ship_get_module_in_slot(ship, slot_id);
-            if (!mod || !mod->index) {
+            if (!mod || !mod->obj) {
                 send_to_char("No module is installed in that slot.\n\r", ch);
                 return;
             }
@@ -8872,10 +8829,10 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            if (mod->index->operators > 0 &&
-                list_size(mod->assigned_crew) >= mod->index->operators) {
+            if (SHIP_MOD_DATA(mod)->operators > 0 &&
+                list_size(mod->assigned_crew) >= SHIP_MOD_DATA(mod)->operators) {
                 send_to_char(formatf("That module already has its full complement of %d operators.\n\r",
-                    mod->index->operators), ch);
+                    SHIP_MOD_DATA(mod)->operators), ch);
                 return;
             }
 
@@ -8886,7 +8843,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
             send_to_char(formatf("Crew member assigned to module slot %d (%s - %s).%s\n\r",
                 slot_id,
                 hp && hp->name ? hp->name : "unnamed",
-                mod->index->name,
+                SHIP_MOD_NAME(mod),
                 mod->operational ? " {GModule is now operational.{x" : ""), ch);
             return;
         }
@@ -8987,7 +8944,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
             int slot_id = atoi(arg3);
 
             SHIP_MODULE *mod = ship_get_module_in_slot(ship, slot_id);
-            if (!mod || !mod->index) {
+            if (!mod || !mod->obj) {
                 send_to_char("No module is installed in that slot.\n\r", ch);
                 return;
             }
@@ -9651,9 +9608,6 @@ void do_shlist(CHAR_DATA *ch, char *argument)
 /* do_shedit() moved to editors/ships/shedit.c */
 /* do_shshow() moved to editors/ships/shedit.c */
 
-/* smedit() moved to editors/ships/smedit.c */
-/* do_smedit() moved to editors/ships/smedit.c */
-
 
 /***************************************************************************
  * Module System — Core Logic                                              *
@@ -9674,7 +9628,7 @@ void do_shlist(CHAR_DATA *ch, char *argument)
  */
 bool ship_module_is_operational(SHIP_MODULE *mod)
 {
-    if (!IS_VALID(mod) || !mod->index)
+    if (!IS_VALID(mod) || !mod->obj)
         return (mod->operational = false);
 
     if (!mod->active || mod->condition <= 0)
@@ -9682,11 +9636,11 @@ bool ship_module_is_operational(SHIP_MODULE *mod)
 
     /* Check crew count */
     int crew_count = mod->assigned_crew ? list_size(mod->assigned_crew) : 0;
-    if (crew_count < mod->index->operators)
+    if (crew_count < SHIP_MOD_DATA(mod)->operators)
         return (mod->operational = false);
 
     /* Check crew skill thresholds */
-    if (mod->index->operators > 0 && mod->assigned_crew) {
+    if (SHIP_MOD_DATA(mod)->operators > 0 && mod->assigned_crew) {
         ITERATOR it;
         CHAR_DATA *crew;
         iterator_start(&it, mod->assigned_crew);
@@ -9696,33 +9650,33 @@ bool ship_module_is_operational(SHIP_MODULE *mod)
                 return (mod->operational = false);
             }
 
-            if (mod->index->req_gunning > 0 &&
-                crew->crew->gunning < mod->index->req_gunning) {
+            if (SHIP_MOD_DATA(mod)->req_gunning > 0 &&
+                crew->crew->gunning < SHIP_MOD_DATA(mod)->req_gunning) {
                 iterator_stop(&it);
                 return (mod->operational = false);
             }
-            if (mod->index->req_mechanics > 0 &&
-                crew->crew->mechanics < mod->index->req_mechanics) {
+            if (SHIP_MOD_DATA(mod)->req_mechanics > 0 &&
+                crew->crew->mechanics < SHIP_MOD_DATA(mod)->req_mechanics) {
                 iterator_stop(&it);
                 return (mod->operational = false);
             }
-            if (mod->index->req_scouting > 0 &&
-                crew->crew->scouting < mod->index->req_scouting) {
+            if (SHIP_MOD_DATA(mod)->req_scouting > 0 &&
+                crew->crew->scouting < SHIP_MOD_DATA(mod)->req_scouting) {
                 iterator_stop(&it);
                 return (mod->operational = false);
             }
-            if (mod->index->req_navigation > 0 &&
-                crew->crew->navigation < mod->index->req_navigation) {
+            if (SHIP_MOD_DATA(mod)->req_navigation > 0 &&
+                crew->crew->navigation < SHIP_MOD_DATA(mod)->req_navigation) {
                 iterator_stop(&it);
                 return (mod->operational = false);
             }
-            if (mod->index->req_oarring > 0 &&
-                crew->crew->oarring < mod->index->req_oarring) {
+            if (SHIP_MOD_DATA(mod)->req_oarring > 0 &&
+                crew->crew->oarring < SHIP_MOD_DATA(mod)->req_oarring) {
                 iterator_stop(&it);
                 return (mod->operational = false);
             }
-            if (mod->index->req_leadership > 0 &&
-                crew->crew->leadership < mod->index->req_leadership) {
+            if (SHIP_MOD_DATA(mod)->req_leadership > 0 &&
+                crew->crew->leadership < SHIP_MOD_DATA(mod)->req_leadership) {
                 iterator_stop(&it);
                 return (mod->operational = false);
             }
@@ -9766,8 +9720,8 @@ void ship_recalc_modules(SHIP_DATA *ship)
         iterator_start(&it, ship->modules);
         while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
             ship_module_is_operational(mod);
-            if (mod->index)
-                total_weight += mod->index->weight;
+            if (mod->obj)
+                total_weight += SHIP_MOD_DATA(mod)->weight;
         }
         iterator_stop(&it);
     }
@@ -9780,12 +9734,12 @@ void ship_recalc_modules(SHIP_DATA *ship)
         SHIP_MODULE *mod;
         iterator_start(&it, ship->modules);
         while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
-            if (!mod->operational || !mod->index)
+            if (!mod->operational || !mod->obj)
                 continue;
 
-            base_hit   += mod->index->hit_bonus;
-            base_armor += mod->index->armor_bonus;
-            base_max_crew += mod->index->crew_bonus;
+            base_hit   += SHIP_MOD_DATA(mod)->hit_bonus;
+            base_armor += SHIP_MOD_DATA(mod)->armor_bonus;
+            base_max_crew += SHIP_MOD_DATA(mod)->crew_bonus;
         }
         iterator_stop(&it);
     }
@@ -9816,8 +9770,8 @@ int ship_get_effective_speed(SHIP_DATA *ship)
     SHIP_MODULE *mod;
     iterator_start(&it, ship->modules);
     while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
-        if (mod->operational && mod->index)
-            bonus += mod->index->speed_bonus;
+        if (mod->operational && mod->obj)
+            bonus += SHIP_MOD_DATA(mod)->speed_bonus;
     }
     iterator_stop(&it);
 
@@ -9841,8 +9795,8 @@ int ship_get_effective_turning(SHIP_DATA *ship)
     SHIP_MODULE *mod;
     iterator_start(&it, ship->modules);
     while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
-        if (mod->operational && mod->index)
-            bonus += mod->index->turning_bonus;
+        if (mod->operational && mod->obj)
+            bonus += SHIP_MOD_DATA(mod)->turning_bonus;
     }
     iterator_stop(&it);
 
@@ -9948,7 +9902,7 @@ void do_ship_modules(CHAR_DATA *ch, char *argument)
         const char *type_str = flag_string(hardpoint_types, hp->type);
         const char *size_str = flag_string(hardpoint_sizes, hp->size);
 
-        if (mod && mod->index) {
+        if (mod && mod->obj) {
             const char *status;
             if (!mod->active)
                 status = "{DDisabled{x";
@@ -9963,7 +9917,7 @@ void do_ship_modules(CHAR_DATA *ch, char *argument)
                 hp->slot_id,
                 hp->name ? hp->name : "(unnamed)",
                 type_str, size_str,
-                mod->index->name ? mod->index->name : "(unnamed)",
+                SHIP_MOD_NAME(mod),
                 mod->max_condition > 0 ? (mod->condition * 100) / mod->max_condition : 0,
                 status);
         } else {
@@ -9999,7 +9953,7 @@ void do_ship_modules(CHAR_DATA *ch, char *argument)
 void do_ship_install(CHAR_DATA *ch, char *argument)
 {
     SHIP_DATA *ship = get_room_ship(ch->in_room);
-    char arg_vnum[MIL], arg_slot[MIL];
+    char arg_name[MIL], arg_slot[MIL];
 
     if (!IS_VALID(ship)) {
         send_to_char("You aren't on a vessel.\n\r", ch);
@@ -10017,30 +9971,27 @@ void do_ship_install(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    argument = one_argument(argument, arg_vnum);
+    argument = one_argument(argument, arg_name);
     argument = one_argument(argument, arg_slot);
 
-    if (arg_vnum[0] == '\0' || arg_slot[0] == '\0') {
-        send_to_char("Syntax: ship install <module_vnum> <slot#>\n\r", ch);
+    if (arg_name[0] == '\0' || arg_slot[0] == '\0') {
+        send_to_char("Syntax: ship install <module_keyword> <slot#>\n\r", ch);
         return;
     }
 
-    /* Parse module vnum */
-    WNUM mod_wnum;
-    if (!parse_widevnum(arg_vnum, ch->in_room->area, &mod_wnum)) {
-        send_to_char("Invalid module vnum format.\n\r", ch);
+    /* Find the module object in player inventory */
+    OBJ_DATA *obj = get_obj_carry(ch, arg_name, ch);
+    if (!obj) {
+        send_to_char("You aren't carrying that.\n\r", ch);
         return;
     }
 
-    SHIP_MODULE_INDEX *mod_idx = get_ship_module_index_for_area(mod_wnum.pArea, mod_wnum.vnum);
-    if (!mod_idx) {
-        /* Try global search as fallback */
-        mod_idx = get_ship_module_index(mod_wnum.vnum);
-    }
-    if (!mod_idx) {
-        send_to_char("That module template does not exist.\n\r", ch);
+    if (!IS_SHIP_MODULE(obj->pIndexData)) {
+        send_to_char("That is not a ship module.\n\r", ch);
         return;
     }
+
+    SHIP_MODULE_DATA *mod_data = SHIP_MODULE_TYPE(obj->pIndexData);
 
     if (!is_number(arg_slot)) {
         send_to_char("Slot must be a number.\n\r", ch);
@@ -10055,24 +10006,24 @@ void do_ship_install(CHAR_DATA *ch, char *argument)
     }
 
     /* Type must match */
-    if (mod_idx->type != hp->type) {
+    if (mod_data->type != hp->type) {
         send_to_char(formatf("Module type (%s) does not match hardpoint type (%s).\n\r",
-            flag_string(hardpoint_types, mod_idx->type),
+            flag_string(hardpoint_types, mod_data->type),
             flag_string(hardpoint_types, hp->type)), ch);
         return;
     }
 
     /* Size must fit */
-    if (mod_idx->size > hp->size) {
+    if (mod_data->size > hp->size) {
         send_to_char(formatf("Module is too large (%s) for this slot (%s).\n\r",
-            flag_string(hardpoint_sizes, mod_idx->size),
+            flag_string(hardpoint_sizes, mod_data->size),
             flag_string(hardpoint_sizes, hp->size)), ch);
         return;
     }
 
     /* Domain compatibility */
-    if (hp->domain_flags && mod_idx->domain_flags &&
-        !(hp->domain_flags & mod_idx->domain_flags)) {
+    if (hp->domain_flags && mod_data->domain_flags &&
+        !(hp->domain_flags & mod_data->domain_flags)) {
         send_to_char("This module is not compatible with this slot's domain.\n\r", ch);
         return;
     }
@@ -10084,23 +10035,26 @@ void do_ship_install(CHAR_DATA *ch, char *argument)
     }
 
     /* Weight budget check */
-    if (ship->total_module_weight + mod_idx->weight > ship->index->max_module_weight) {
+    if (ship->total_module_weight + mod_data->weight > ship->index->max_module_weight) {
         send_to_char(formatf("Not enough weight budget. Module: %d, Available: %d.\n\r",
-            mod_idx->weight,
+            mod_data->weight,
             ship->index->max_module_weight - ship->total_module_weight), ch);
         return;
     }
 
+    /* Stash the object: remove from inventory but keep alive */
+    obj_from_char(obj);
+
     /* Create and install the module */
     SHIP_MODULE *mod = new_ship_module();
-    mod->index = mod_idx;
+    mod->obj = obj;
     mod->slot_id = (int16_t)slot_id;
-    mod->condition = 100;
+    mod->condition = obj->condition;
     mod->max_condition = 100;
     mod->active = true;
 
     /* Set initial ammo if weapon with ammo */
-    if (mod_idx->ammo && IS_SET(mod_idx->flags, MODULE_REQUIRES_AMMO)) {
+    if (mod_data->ammo && IS_SET(mod_data->flags, MODULE_REQUIRES_AMMO)) {
         mod->ammo_count = 0; /* Player must load ammo separately */
     }
 
@@ -10109,7 +10063,8 @@ void do_ship_install(CHAR_DATA *ch, char *argument)
     ship_recalc_modules(ship);
 
     send_to_char(formatf("{G%s{x installed in slot {W%d{x ({Y%s{x).\n\r",
-        mod_idx->name, slot_id, hp->name ? hp->name : "unnamed"), ch);
+        obj->pIndexData->short_descr, slot_id,
+        hp->name ? hp->name : "unnamed"), ch);
 }
 
 /**
@@ -10155,11 +10110,22 @@ void do_ship_uninstall(CHAR_DATA *ch, char *argument)
 
     SHIP_HARDPOINT_DEF *hp = ship_get_hardpoint(ship->index, slot_id);
 
-    const char *mod_name = (mod->index && mod->index->name) ? mod->index->name : "module";
+    const char *mod_name = SHIP_MOD_NAME(mod);
+
+    /* Persist condition back to the object before returning it */
+    if (mod->obj) {
+        mod->obj->condition = (int16_t)mod->condition;
+    }
 
     /* Remove crew assignments */
     if (mod->assigned_crew && list_size(mod->assigned_crew) > 0) {
         list_clear(mod->assigned_crew);
+    }
+
+    /* Unstash: return the module object to the player's inventory */
+    if (mod->obj) {
+        obj_to_char(mod->obj, ch);
+        mod->obj = NULL;	/* detach before freeing the runtime struct */
     }
 
     list_remlink(ship->modules, mod, true);
@@ -10205,7 +10171,7 @@ void do_ship_repair(CHAR_DATA *ch, char *argument)
 
     int slot_id = atoi(argument);
     SHIP_MODULE *mod = ship_get_module_in_slot(ship, slot_id);
-    if (!mod || !mod->index) {
+    if (!mod || !mod->obj) {
         send_to_char("No module is installed in that slot.\n\r", ch);
         return;
     }
@@ -10245,7 +10211,7 @@ void do_ship_repair(CHAR_DATA *ch, char *argument)
     ship_recalc_modules(ship);
 
     send_to_char(formatf("{G%s{x repaired to {W%d%%{x condition.\n\r",
-        mod->index->name,
+        SHIP_MOD_NAME(mod),
         mod->max_condition > 0 ? (mod->condition * 100) / mod->max_condition : 0), ch);
 }
 
@@ -10311,7 +10277,7 @@ void do_ship_status(CHAR_DATA *ch, char *argument)
         iterator_start(&it, ship->modules);
         while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
             if (mod->operational) operational++;
-            if (mod->index && mod->index->type == HARDPOINT_WEAPON) {
+            if (mod->obj && SHIP_MOD_DATA(mod)->type == HARDPOINT_WEAPON) {
                 weapons++;
                 if (mod->operational && mod->reload_countdown <= 0)
                     weapons_ready++;
@@ -10402,10 +10368,10 @@ static int ship_get_max_weapon_range(SHIP_DATA *ship)
 
     iterator_start(&it, ship->modules);
     while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
-        if (!mod->index || mod->index->type != HARDPOINT_WEAPON) continue;
+        if (!mod->obj || SHIP_MOD_DATA(mod)->type != HARDPOINT_WEAPON) continue;
         if (!mod->operational) continue;
-        if (mod->index->range > max_range)
-            max_range = mod->index->range;
+        if (SHIP_MOD_DATA(mod)->range > max_range)
+            max_range = SHIP_MOD_DATA(mod)->range;
     }
     iterator_stop(&it);
 
@@ -10454,10 +10420,10 @@ void boat_damage(SHIP_DATA *ship, long amount, int type)
                 mod->condition = 0;
                 mod->operational = false;
                 boat_echo(ship, formatf("{R** Module '%s' in slot %d has been destroyed! **{x",
-                    mod->index ? mod->index->name : "unknown", mod->slot_id));
+                    SHIP_MOD_NAME(mod), mod->slot_id));
             } else {
                 boat_echo(ship, formatf("{Y** Module '%s' in slot %d damaged! (%d%% condition) **{x",
-                    mod->index ? mod->index->name : "unknown", mod->slot_id,
+                    SHIP_MOD_NAME(mod), mod->slot_id,
                     mod->max_condition > 0 ? (mod->condition * 100) / mod->max_condition : 0));
             }
             ship_recalc_modules(ship);
@@ -10538,7 +10504,7 @@ static void ship_apply_threshold_effects(SHIP_DATA *ship)
                 mod->active = false;
                 mod->operational = false;
                 boat_echo(ship, formatf("{R** Critical failure: '%s' has gone offline! **{x",
-                    mod->index ? mod->index->name : "a module"));
+                    SHIP_MOD_NAME(mod)));
                 ship_recalc_modules(ship);
             }
         }
@@ -10763,9 +10729,9 @@ static void ship_coast_guard_alert(CHAR_DATA *ch, SHIP_DATA *attacker, SHIP_DATA
                 SHIP_MODULE *mod;
                 iterator_start(&mod_it, guard->modules);
                 while ((mod = (SHIP_MODULE *)iterator_nextdata(&mod_it))) {
-                    if (mod->index && mod->index->type == HARDPOINT_WEAPON &&
+                    if (mod->obj && SHIP_MOD_DATA(mod)->type == HARDPOINT_WEAPON &&
                         mod->operational && mod->reload_countdown <= 0) {
-                        mod->reload_countdown = mod->index->reload_time;
+                        mod->reload_countdown = SHIP_MOD_DATA(mod)->reload_time;
                     }
                 }
                 iterator_stop(&mod_it);
@@ -10843,15 +10809,18 @@ static void ship_destruction_sequence(SHIP_DATA *ship)
  */
 static void boat_fire_weapon(SHIP_DATA *attacker, SHIP_DATA *target, SHIP_MODULE *weapon)
 {
-    if (!IS_VALID(attacker) || !IS_VALID(target) || !weapon || !weapon->index)
+    if (!IS_VALID(attacker) || !IS_VALID(target) || !weapon || !weapon->obj)
         return;
 
-    SHIP_MODULE_INDEX *wpn = weapon->index;
+    SHIP_MODULE_DATA *wpn = SHIP_MOD_DATA(weapon);
+    if (!wpn) return;
+
+    const char *wpn_name = SHIP_MOD_NAME(weapon);
 
     /* Consume ammo if required */
     if (IS_SET(wpn->flags, MODULE_REQUIRES_AMMO)) {
         if (weapon->ammo_count < wpn->ammo_per_shot) {
-            boat_echo(attacker, formatf("{Y** %s: Out of ammunition! **{x", wpn->name));
+            boat_echo(attacker, formatf("{Y** %s: Out of ammunition! **{x", wpn_name));
             return;
         }
         weapon->ammo_count -= wpn->ammo_per_shot;
@@ -10881,7 +10850,7 @@ static void boat_fire_weapon(SHIP_DATA *attacker, SHIP_DATA *target, SHIP_MODULE
     /* Roll */
     int roll = number_percent();
     if (roll > hit_chance) {
-        boat_echo(attacker, formatf("{C%s fires — misses!{x", wpn->name));
+        boat_echo(attacker, formatf("{C%s fires — misses!{x", wpn_name));
         boat_echo(target, formatf("{CA volley from %s — splashes harmlessly!{x",
             attacker->ship_name ? attacker->ship_name : "an enemy vessel"));
     } else {
@@ -10902,10 +10871,10 @@ static void boat_fire_weapon(SHIP_DATA *attacker, SHIP_DATA *target, SHIP_MODULE
         int damage_type = IS_SET(wpn->weapon_flags, MODULE_FIRE_DAMAGE) ?
             SHIP_DAMAGE_FIRE : SHIP_DAMAGE_GRIND;
 
-        boat_echo(attacker, formatf("{G%s fires — HIT! (%d damage){x", wpn->name, damage));
+        boat_echo(attacker, formatf("{G%s fires — HIT! (%d damage){x", wpn_name, damage));
         boat_echo(target, formatf("{R** %s struck by %s from %s! **{x",
             target->ship_name ? target->ship_name : "Your vessel",
-            wpn->name,
+            wpn_name,
             attacker->ship_name ? attacker->ship_name : "an enemy vessel"));
 
         boat_damage(target, damage, damage_type);
@@ -10921,7 +10890,7 @@ static void boat_fire_weapon(SHIP_DATA *attacker, SHIP_DATA *target, SHIP_MODULE
                 if (hit_mod->condition <= 0) {
                     hit_mod->operational = false;
                     boat_echo(target, formatf("{R** Module '%s' destroyed by blast! **{x",
-                        hit_mod->index ? hit_mod->index->name : "unknown"));
+                        SHIP_MOD_NAME(hit_mod)));
                 }
                 ship_recalc_modules(target);
             }
@@ -11099,11 +11068,11 @@ void ship_combat_update(SHIP_DATA *ship)
 
         iterator_start(&it, ship->modules);
         while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
-            if (!mod->index || mod->index->type != HARDPOINT_WEAPON) continue;
+            if (!mod->obj || SHIP_MOD_DATA(mod)->type != HARDPOINT_WEAPON) continue;
             if (!mod->operational) continue;
 
             /* Check individual weapon range */
-            if (dist > mod->index->range) continue;
+            if (dist > SHIP_MOD_DATA(mod)->range) continue;
 
             if (mod->reload_countdown > 0) {
                 mod->reload_countdown--;
@@ -11340,10 +11309,10 @@ void ship_auto_assign_crew(SHIP_DATA *ship)
     /* A crew member is "unassigned" if they appear in no module's assigned_crew */
     iterator_start(&mod_it, ship->modules);
     while ((mod = (SHIP_MODULE *)iterator_nextdata(&mod_it)) != NULL) {
-        if (!IS_VALID(mod) || !mod->index || !mod->active)
+        if (!IS_VALID(mod) || !mod->obj || !mod->active)
             continue;
 
-        int needed = mod->index->operators;
+        int needed = SHIP_MOD_DATA(mod)->operators;
         int have = mod->assigned_crew ? list_size(mod->assigned_crew) : 0;
 
         if (have >= needed)
@@ -11377,24 +11346,24 @@ void ship_auto_assign_crew(SHIP_DATA *ship)
 
             /* For NPC crew without SHIP_CREW_DATA, assume qualified */
             bool qualified = true;
-            if (crew->crew && mod->index) {
-                if (mod->index->req_gunning > 0 &&
-                    crew->crew->gunning < mod->index->req_gunning)
+            if (crew->crew && mod->obj) {
+                if (SHIP_MOD_DATA(mod)->req_gunning > 0 &&
+                    crew->crew->gunning < SHIP_MOD_DATA(mod)->req_gunning)
                     qualified = false;
-                if (mod->index->req_mechanics > 0 &&
-                    crew->crew->mechanics < mod->index->req_mechanics)
+                if (SHIP_MOD_DATA(mod)->req_mechanics > 0 &&
+                    crew->crew->mechanics < SHIP_MOD_DATA(mod)->req_mechanics)
                     qualified = false;
-                if (mod->index->req_scouting > 0 &&
-                    crew->crew->scouting < mod->index->req_scouting)
+                if (SHIP_MOD_DATA(mod)->req_scouting > 0 &&
+                    crew->crew->scouting < SHIP_MOD_DATA(mod)->req_scouting)
                     qualified = false;
-                if (mod->index->req_navigation > 0 &&
-                    crew->crew->navigation < mod->index->req_navigation)
+                if (SHIP_MOD_DATA(mod)->req_navigation > 0 &&
+                    crew->crew->navigation < SHIP_MOD_DATA(mod)->req_navigation)
                     qualified = false;
-                if (mod->index->req_oarring > 0 &&
-                    crew->crew->oarring < mod->index->req_oarring)
+                if (SHIP_MOD_DATA(mod)->req_oarring > 0 &&
+                    crew->crew->oarring < SHIP_MOD_DATA(mod)->req_oarring)
                     qualified = false;
-                if (mod->index->req_leadership > 0 &&
-                    crew->crew->leadership < mod->index->req_leadership)
+                if (SHIP_MOD_DATA(mod)->req_leadership > 0 &&
+                    crew->crew->leadership < SHIP_MOD_DATA(mod)->req_leadership)
                     qualified = false;
             }
 

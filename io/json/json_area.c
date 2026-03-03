@@ -29,8 +29,6 @@ json_t *json_area_serialize_blueprint_section(BLUEPRINT_SECTION *section, AREA_D
 json_t *json_area_serialize_blueprint(BLUEPRINT *blueprint, AREA_DATA *area);
 json_t *json_area_serialize_dungeon(DUNGEON_INDEX_DATA *dungeon, AREA_DATA *area);
 json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area);
-static json_t *json_area_serialize_ship_module_index(SHIP_MODULE_INDEX *mod, AREA_DATA *area);
-static SHIP_MODULE_INDEX *json_area_deserialize_ship_module_index(json_t *json, AREA_DATA *area);
 static json_t *json_area_serialize_reputation(REPUTATION_INDEX_DATA *reputation, AREA_DATA *area);
 static REPUTATION_INDEX_DATA *json_area_deserialize_reputation(json_t *json, AREA_DATA *area);
 static json_t *json_area_serialize_quest_v2(QUEST_INDEX_V2_DATA *quest_index_v2, AREA_DATA *area);
@@ -3622,22 +3620,6 @@ AREA_DATA *json_area_load(const char *filename)
         }
     }
     
-    /* Deserialize ship module indexes (templates) */
-    json_t *ship_modules = json_object_get(root, "ship_modules");
-    if (ship_modules && json_is_array(ship_modules)) {
-        size_t index;
-        json_t *mod_json;
-        json_array_foreach(ship_modules, index, mod_json) {
-            SHIP_MODULE_INDEX *mod = json_area_deserialize_ship_module_index(mod_json, area);
-            if (mod && mod->vnum) {
-                /* Add to area's module index hash table */
-                int hash = mod->vnum % MAX_KEY_HASH;
-                mod->next = area->ship_module_index_hash[hash];
-                area->ship_module_index_hash[hash] = mod;
-            }
-        }
-    }
-    
     /* NOW fix up resets - all mobs and objects must exist first */
     /* Resets were deferred during room deserialization */
     if (rooms && json_is_array(rooms)) {
@@ -4200,23 +4182,6 @@ bool json_area_save(AREA_DATA *area)
         json_object_set_new(root, "ships", ships);
     else
         json_decref(ships);
-    
-    /* Serialize ship module indexes (templates) */
-    json_t *ship_modules = json_array();
-    for (int j = 0; j < MAX_KEY_HASH; j++) {
-        for (SHIP_MODULE_INDEX *mod = area->ship_module_index_hash[j]; mod; mod = mod->next) {
-            if (mod->vnum && mod->area == area) {
-                json_t *mod_json = json_area_serialize_ship_module_index(mod, area);
-                if (mod_json) {
-                    json_array_append_new(ship_modules, mod_json);
-                }
-            }
-        }
-    }
-    if (json_array_size(ship_modules) > 0)
-        json_object_set_new(root, "ship_modules", ship_modules);
-    else
-        json_decref(ship_modules);
     
     /* Serialize scripts */
     /* Save all 8 types of scripts: mobprogs, oprogs, rprogs, tprogs, aprogs, iprogs, dprogs, qprogs */
@@ -8146,142 +8111,6 @@ json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area)
     }
 
     return json;
-}
-
-/**
- * json_area_serialize_ship_module_index - Serialize a SHIP_MODULE_INDEX to JSON
- *
- * Converts a module template into a JSON object for area file storage.
- *
- * @param mod   Module index template to serialize
- * @param area  Owning area (for widevnum references)
- * @return      JSON object, or NULL on failure
- */
-static json_t *json_area_serialize_ship_module_index(SHIP_MODULE_INDEX *mod, AREA_DATA *area)
-{
-    if (!mod) return NULL;
-
-    json_t *json = json_object();
-    if (!json) return NULL;
-
-    /* Identity */
-    json_object_set_new(json, "vnum", json_integer(mod->vnum));
-    json_object_set_new(json, "name", json_string(mod->name ? mod->name : ""));
-    json_object_set_new(json, "description", json_string(mod->description ? mod->description : ""));
-
-    /* Slot compatibility */
-    json_object_set_new(json, "type", json_integer(mod->type));
-    json_object_set_new(json, "size", json_integer(mod->size));
-    json_object_set_new(json, "weight", json_integer(mod->weight));
-    json_object_set_new(json, "domain_flags", json_integer(mod->domain_flags));
-    json_object_set_new(json, "flags", json_integer(mod->flags));
-
-    /* Stat bonuses */
-    if (mod->hit_bonus) json_object_set_new(json, "hit_bonus", json_integer(mod->hit_bonus));
-    if (mod->armor_bonus) json_object_set_new(json, "armor_bonus", json_integer(mod->armor_bonus));
-    if (mod->speed_bonus) json_object_set_new(json, "speed_bonus", json_integer(mod->speed_bonus));
-    if (mod->turning_bonus) json_object_set_new(json, "turning_bonus", json_integer(mod->turning_bonus));
-    if (mod->cargo_weight_bonus) json_object_set_new(json, "cargo_weight_bonus", json_integer(mod->cargo_weight_bonus));
-    if (mod->cargo_capacity_bonus) json_object_set_new(json, "cargo_capacity_bonus", json_integer(mod->cargo_capacity_bonus));
-    if (mod->crew_bonus) json_object_set_new(json, "crew_bonus", json_integer(mod->crew_bonus));
-
-    /* Weapon stats (only written if type is weapon) */
-    if (mod->type == HARDPOINT_WEAPON) {
-        json_object_set_new(json, "damage", json_integer(mod->damage));
-        json_object_set_new(json, "range", json_integer(mod->range));
-        json_object_set_new(json, "reload_time", json_integer(mod->reload_time));
-        json_object_set_new(json, "damage_type", json_integer(mod->damage_type));
-        if (mod->weapon_flags) json_object_set_new(json, "weapon_flags", json_integer(mod->weapon_flags));
-    }
-
-    /* Crew requirements */
-    json_object_set_new(json, "operators", json_integer(mod->operators));
-    if (mod->req_gunning) json_object_set_new(json, "req_gunning", json_integer(mod->req_gunning));
-    if (mod->req_mechanics) json_object_set_new(json, "req_mechanics", json_integer(mod->req_mechanics));
-    if (mod->req_scouting) json_object_set_new(json, "req_scouting", json_integer(mod->req_scouting));
-    if (mod->req_navigation) json_object_set_new(json, "req_navigation", json_integer(mod->req_navigation));
-    if (mod->req_oarring) json_object_set_new(json, "req_oarring", json_integer(mod->req_oarring));
-    if (mod->req_leadership) json_object_set_new(json, "req_leadership", json_integer(mod->req_leadership));
-
-    /* Ammo reference */
-    if (mod->ammo) {
-        json_object_set_new(json, "ammo", json_string(widevnum_string_object(mod->ammo, NULL)));
-        json_object_set_new(json, "ammo_per_shot", json_integer(mod->ammo_per_shot));
-    }
-
-    return json;
-}
-
-/**
- * json_area_deserialize_ship_module_index - Deserialize a SHIP_MODULE_INDEX from JSON
- *
- * Creates a new module template from a JSON object read from an area file.
- *
- * @param json  JSON object to parse
- * @param area  Owning area (for widevnum resolution)
- * @return      New SHIP_MODULE_INDEX, or NULL on failure
- */
-static SHIP_MODULE_INDEX *json_area_deserialize_ship_module_index(json_t *json, AREA_DATA *area)
-{
-    if (!json || !area) return NULL;
-
-    SHIP_MODULE_INDEX *mod = new_ship_module_index();
-    if (!mod) return NULL;
-
-    mod->area = area;
-
-    /* Identity */
-    mod->vnum = json_get_int_default(json, "vnum", 0);
-    free_string(mod->name);
-    mod->name = str_dup(json_get_string_default(json, "name", ""));
-    free_string(mod->description);
-    mod->description = str_dup(json_get_string_default(json, "description", ""));
-
-    /* Slot compatibility */
-    mod->type = json_get_int_default(json, "type", HARDPOINT_WEAPON);
-    mod->size = json_get_int_default(json, "size", HARDPOINT_SIZE_SMALL);
-    mod->weight = json_get_int_default(json, "weight", 0);
-    mod->domain_flags = json_get_int_default(json, "domain_flags", DOMAIN_ALL);
-    mod->flags = json_get_int_default(json, "flags", 0);
-
-    /* Stat bonuses */
-    mod->hit_bonus = json_get_int_default(json, "hit_bonus", 0);
-    mod->armor_bonus = json_get_int_default(json, "armor_bonus", 0);
-    mod->speed_bonus = json_get_int_default(json, "speed_bonus", 0);
-    mod->turning_bonus = json_get_int_default(json, "turning_bonus", 0);
-    mod->cargo_weight_bonus = json_get_int_default(json, "cargo_weight_bonus", 0);
-    mod->cargo_capacity_bonus = json_get_int_default(json, "cargo_capacity_bonus", 0);
-    mod->crew_bonus = json_get_int_default(json, "crew_bonus", 0);
-
-    /* Weapon stats */
-    mod->damage = json_get_int_default(json, "damage", 0);
-    mod->range = json_get_int_default(json, "range", 0);
-    mod->reload_time = json_get_int_default(json, "reload_time", 4);
-    mod->damage_type = json_get_int_default(json, "damage_type", 0);
-    mod->weapon_flags = json_get_int_default(json, "weapon_flags", 0);
-
-    /* Crew requirements */
-    mod->operators = json_get_int_default(json, "operators", 1);
-    mod->req_gunning = json_get_int_default(json, "req_gunning", 0);
-    mod->req_mechanics = json_get_int_default(json, "req_mechanics", 0);
-    mod->req_scouting = json_get_int_default(json, "req_scouting", 0);
-    mod->req_navigation = json_get_int_default(json, "req_navigation", 0);
-    mod->req_oarring = json_get_int_default(json, "req_oarring", 0);
-    mod->req_leadership = json_get_int_default(json, "req_leadership", 0);
-
-    /* Ammo reference */
-    json_t *ammo_ref = json_object_get(json, "ammo");
-    if (ammo_ref && json_is_string(ammo_ref)) {
-        WNUM_LOAD wload;
-        if (parse_widevnum_load(json_string_value(ammo_ref), &wload)) {
-            mod->ammo_ref.load.auid = wload.auid;
-            mod->ammo_ref.load.vnum = wload.vnum;
-        }
-    }
-    mod->ammo = NULL;  /* Will be resolved in fix pass */
-    mod->ammo_per_shot = json_get_int_default(json, "ammo_per_shot", 0);
-
-    return mod;
 }
 
 /*

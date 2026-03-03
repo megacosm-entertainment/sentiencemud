@@ -158,7 +158,6 @@ set(SOURCE_FILES
     editors/sectors/sectoredit.c
     editors/scripting/olc_mpcode.c
     editors/ships/shedit.c
-    editors/ships/smedit.c
     editors/socials/socialedit.c
     editors/tokens/tedit.c
     editors/wilderness/wedit.c

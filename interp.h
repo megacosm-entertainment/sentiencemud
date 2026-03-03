@@ -129,7 +129,7 @@ DECLARE_DO_FUN( do_announcements);
 DECLARE_DO_FUN( do_arealinks    );
 DECLARE_DO_FUN(	do_areas	);
 DECLARE_DO_FUN( do_areset 	);
-DECLARE_DO_FUN( do_astat	);
+DECLARE_DO_FUN( do_astat	); // Stat area
 DECLARE_DO_FUN( do_asave	);
 DECLARE_DO_FUN( do_asave_new	);
 DECLARE_DO_FUN( do_asearch	);
@@ -650,7 +650,6 @@ DECLARE_DO_FUN(	do_qpedit	);
 DECLARE_DO_FUN(	do_epedit	);
 
 DECLARE_DO_FUN(	do_shedit	);
-DECLARE_DO_FUN(	do_smedit	);
 DECLARE_DO_FUN(	do_shlist	);
 DECLARE_DO_FUN(	do_shshow	);
 

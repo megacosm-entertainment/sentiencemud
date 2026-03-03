@@ -150,7 +150,6 @@ char *editor_name_table[] = {
     "CEdit",        // 43 ED_CEDIT
     "ChReport",     // 44 ED_CHREPORT
     "EpEdit",       // 45 ED_EPCODE
-    "SMEdit",       // 46 ED_SHIPMODULE
 };
 
 int editor_max_tabs_table[] = {
@@ -200,7 +199,6 @@ int editor_max_tabs_table[] = {
     0,		// CEdit
     0,		// ChReport
     0,		// EpEdit
-    0,		// SMEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -241,7 +239,6 @@ const struct editor_cmd_type editor_table[] =
     { "reputation", do_repedit   },
     { "event",      do_evtedit   },
     { "channel",    do_cedit     },
-    { "shipmodule", do_smedit    },
     { NULL,			0,			}
 };
 
@@ -440,13 +437,6 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     case ED_SHIP:
         pShip = (SHIP_INDEX_DATA *)ch->desc->pEdit;
         sprintf(buf, "%s", pShip ? widevnum_string_ship(pShip, NULL) : "0");
-        break;
-
-    case ED_SHIPMODULE:
-        {
-            SHIP_MODULE_INDEX *pMod = (SHIP_MODULE_INDEX *)ch->desc->pEdit;
-            sprintf(buf, "%s", pMod ? widevnum_string_ship_module(pMod, NULL) : "0");
-        }
         break;
 
     case ED_TOKEN:

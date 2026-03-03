@@ -429,7 +429,6 @@ typedef struct	ship_crew_index_data	SHIP_CREW_INDEX_DATA;
 typedef struct	ship_crew_data		SHIP_CREW_DATA;
 typedef struct	ship_crew_def		SHIP_CREW_DEF;
 typedef struct	ship_hardpoint_def	SHIP_HARDPOINT_DEF;
-typedef struct	ship_module_index	SHIP_MODULE_INDEX;
 typedef struct	ship_module		SHIP_MODULE;
 typedef struct	ship_schedule_stop	SHIP_SCHEDULE_STOP;
 typedef struct	ship_index_data		SHIP_INDEX_DATA;
@@ -3315,6 +3314,7 @@ struct affliction_type {
 #define ITEM_DRYING_CLOTH		82		// Used to dry plants for smoking!
 #define ITEM_NEEDLE				83		// Used to sew things
 #define ITEM_BODY_PART			84
+#define ITEM_SHIP_MODULE		88
 
 /*
  * Extra flags.
@@ -6108,6 +6108,7 @@ struct	obj_index_data
     INK_DATA *       _ink;
     INSTRUMENT_DATA *_instrument;
     ITEM_SHIP_DATA * _item_ship;
+    SHIP_MODULE_DATA * _ship_module;
     JEWELRY_DATA *   _jewelry;
     LIGHT_DATA *     _light;
     MAP_DATA *       _map;
@@ -6277,6 +6278,7 @@ struct	obj_data
     INK_DATA *       _ink;
     INSTRUMENT_DATA *_instrument;
     ITEM_SHIP_DATA * _item_ship;
+    SHIP_MODULE_DATA * _ship_module;
     JEWELRY_DATA *   _jewelry;
     LIGHT_DATA *     _light;
     MAP_DATA *       _map;
@@ -6712,7 +6714,6 @@ struct	area_data
     BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
     DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
-    SHIP_MODULE_INDEX *ship_module_index_hash[MAX_KEY_HASH];
     REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
     QUEST_INDEX_V2_DATA *quest_index_v2_hash[MAX_KEY_HASH];
     EVENT_INDEX_DATA *event_index_hash[MAX_KEY_HASH];
@@ -7234,77 +7235,21 @@ struct ship_hardpoint_def
 };
 
 /**
- * ship_module_index - Template definition for an installable ship module
- *
- * Modules are fitted into compatible hardpoint slots to modify ship stats,
- * add weapons, or provide utility. Each module defines crew skill requirements
- * for operation.
- */
-struct ship_module_index
-{
-    SHIP_MODULE_INDEX *next;
-    bool valid;
-
-    long vnum;
-    AREA_DATA *area;
-
-    char *name;
-    char *description;
-
-    int type;					// Must match hardpoint type
-    int size;					// Must be <= hardpoint size
-    int weight;					// Contributes to hull module weight budget
-    long domain_flags;			// DOMAIN_AQUATIC | DOMAIN_AERIAL | etc.
-
-    /* Stat bonuses (applied additively to ship base stats) */
-    int hit_bonus;				// Extra hull HP
-    int armor_bonus;			// Extra damage reduction
-    int speed_bonus;			// Movement speed modifier (percent)
-    int turning_bonus;			// Turning speed modifier (degrees)
-    int cargo_weight_bonus;		// Extra weight capacity
-    int cargo_capacity_bonus;	// Extra item capacity
-    int crew_bonus;				// Extra crew capacity
-
-    /* Weapon stats (HARDPOINT_WEAPON only) */
-    int damage;					// Base damage per volley
-    int range;					// Max range in wilderness tiles
-    int reload_time;			// Ticks between volleys
-    int damage_type;			// SHIP_DAMAGE_GRIND, SHIP_DAMAGE_FIRE, etc.
-    long weapon_flags;			// MODULE_AOE, MODULE_ANTI_CREW, etc.
-
-    /* Crew requirements */
-    int16_t operators;			// How many crew members needed to operate
-    int16_t req_gunning;		// Minimum gunning skill (0 = no req)
-    int16_t req_mechanics;		// Minimum mechanics skill
-    int16_t req_scouting;		// Minimum scouting skill
-    int16_t req_navigation;		// Minimum navigation skill
-    int16_t req_oarring;		// Minimum oarring skill
-    int16_t req_leadership;		// Minimum leadership skill
-
-    /* Ammo (optional, for weapons) */
-    union {
-        WNUM_LOAD load;
-        long vnum;
-    } ammo_ref;
-    OBJ_INDEX_DATA *ammo;		// Required ammo object (NULL = unlimited)
-    int ammo_per_shot;			// Ammo consumed per volley
-
-    long flags;					// MODULE_REQUIRES_AMMO, MODULE_PASSIVE, etc.
-};
-
-/**
  * ship_module - Runtime instance of an installed module on a ship
  *
  * Tracks condition, ammo, reload state, and assigned crew operators.
  * A module is operational only when it has enough qualified crew assigned
  * and its condition is above zero.
+ *
+ * The module object is "stashed" (removed from the world but not freed)
+ * while installed. On uninstall it is returned to the player's inventory.
  */
 struct ship_module
 {
     SHIP_MODULE *next;
     bool valid;
 
-    SHIP_MODULE_INDEX *index;	// Module template
+    OBJ_DATA *obj;				// The installed module object (stashed, not in world)
     int16_t slot_id;			// Which hardpoint this is installed in
 
     int condition;				// Current HP (degrades in combat, repairable)
@@ -7317,6 +7262,19 @@ struct ship_module
     bool active;				// Enabled/disabled by player
     bool operational;			// Derived: enough qualified crew + condition > 0
 };
+
+/*
+ * Convenience: access the SHIP_MODULE_DATA type struct from an installed
+ * module's stashed object.  Equivalent to: mod->obj->pIndexData->_ship_module
+ */
+#define SHIP_MOD_DATA(mod) (SHIP_MODULE_TYPE((mod)->obj->pIndexData))
+
+/*
+ * Convenience: get the display name of an installed module.
+ * Falls back to "module" if the object or its index is missing.
+ */
+#define SHIP_MOD_NAME(mod) \
+    ((mod)->obj && (mod)->obj->pIndexData ? (mod)->obj->pIndexData->short_descr : "module")
 
 struct ship_crew_data
 {
@@ -10230,10 +10188,6 @@ int     ship_get_effective_turning args( ( SHIP_DATA *ship ) );
 SHIP_MODULE *ship_get_module_in_slot args( ( SHIP_DATA *ship, int slot_id ) );
 SHIP_HARDPOINT_DEF *ship_get_hardpoint args( ( SHIP_INDEX_DATA *idx, int slot_id ) );
 void    ship_combat_update args( ( SHIP_DATA *ship ) );
-SHIP_MODULE_INDEX *get_ship_module_index args( ( long vnum ) );
-SHIP_MODULE_INDEX *get_ship_module_index_for_area args( ( AREA_DATA *area, long vnum ) );
-void    load_ship_modules args( ( void ) );
-bool    save_ship_modules args( ( void ) );
 
 /* recycle.c */
 EXTRA_DESCR_DATA *new_extra_descr(void);
@@ -10287,7 +10241,6 @@ ROOM_INDEX_DATA *new_room_index( void );
 SHIP_CREW_DATA *new_ship_crew args( ( void ) );
 SHIP_CREW_DEF *new_ship_crew_def args( ( void ) );
 SHIP_HARDPOINT_DEF *new_ship_hardpoint_def args( ( void ) );
-SHIP_MODULE_INDEX *new_ship_module_index args( ( void ) );
 SHIP_MODULE *new_ship_module args( ( void ) );
 SHOP_DATA *new_shop( void );
 SPELL_DATA *new_spell(void);
@@ -10341,7 +10294,6 @@ void free_npc_ship_data( NPC_SHIP_DATA *npc );
 void free_ship_crew( SHIP_CREW_DATA *crew );
 void free_ship_crew_def( SHIP_CREW_DEF *cd );
 void free_ship_hardpoint_def( SHIP_HARDPOINT_DEF *hp );
-void free_ship_module_index( SHIP_MODULE_INDEX *mod );
 void free_ship_module( SHIP_MODULE *mod );
 void free_shop( SHOP_DATA *pShop );
 void free_spell(SPELL_DATA *spell);
@@ -10754,7 +10706,6 @@ const char *widevnum_string_blueprint(BLUEPRINT *bp, AREA_DATA *pRefArea);
 const char *widevnum_string_blueprint_section(BLUEPRINT_SECTION *bs, AREA_DATA *pRefArea);
 const char *widevnum_string_dungeon(DUNGEON_INDEX_DATA *dng, AREA_DATA *pRefArea);
 const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea);
-const char *widevnum_string_ship_module(SHIP_MODULE_INDEX *mod, AREA_DATA *pRefArea);
 const char *widevnum_string_event(EVENT_INDEX_DATA *event, AREA_DATA *pRefArea);
 
 void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);

@@ -1347,6 +1347,7 @@ const struct flag_type type_flags[] =
     {	"drying_cloth",	ITEM_DRYING_CLOTH,	true	},
     {	"needle",		ITEM_NEEDLE,		true	},
     {	"body_part",	ITEM_BODY_PART,		true	},
+    {	"shipmodule",	ITEM_SHIP_MODULE,	true	},
     {	NULL,			0,			0	}
 };
 
@@ -3048,6 +3049,11 @@ const struct flag_type module_flags[] =
 {
     { "requires_ammo",	MODULE_REQUIRES_AMMO,	true	},
     { "passive",		MODULE_PASSIVE,			true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type weapon_module_flags[] =
+{
     { "aoe",			MODULE_AOE,				true	},
     { "anti_crew",		MODULE_ANTI_CREW,		true	},
     { "fire_damage",	MODULE_FIRE_DAMAGE,		true	},
@@ -3650,7 +3656,6 @@ const struct do_func_type do_func_table[] =
         { "do_cedit", do_cedit },
         { "do_rview", do_rview },
         { "do_standing", do_standing },
-        { "do_smedit" , do_smedit },
         { "do_recho", do_recho },
 
         { NULL, NULL }

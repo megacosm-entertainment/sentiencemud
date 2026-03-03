@@ -114,7 +114,6 @@ SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
 SHIP_HARDPOINT_DEF *ship_hardpoint_def_free;
 SHIP_CREW_DEF *ship_crew_def_free;
-SHIP_MODULE_INDEX *ship_module_index_free;
 SHIP_MODULE *ship_module_free;
 SHIP_SCHEDULE_STOP *ship_schedule_stop_free;
 CHURCH_LOG_ENTRY *church_log_entry_free;
@@ -3581,52 +3580,6 @@ void free_ship_hardpoint_def( SHIP_HARDPOINT_DEF *hp )
     INVALIDATE(hp);
     hp->next = ship_hardpoint_def_free;
     ship_hardpoint_def_free = hp;
-}
-
-/**
- * new_ship_module_index - Allocate a new module template
- *
- * @return  New SHIP_MODULE_INDEX with defaults
- */
-SHIP_MODULE_INDEX *new_ship_module_index( void )
-{
-    SHIP_MODULE_INDEX *mod;
-
-    if( ship_module_index_free )
-    {
-        mod = ship_module_index_free;
-        ship_module_index_free = ship_module_index_free->next;
-    }
-    else
-    {
-        mod = alloc_perm(sizeof(SHIP_MODULE_INDEX));
-    }
-
-    memset(mod, 0, sizeof(SHIP_MODULE_INDEX));
-
-    mod->name = &str_empty[0];
-    mod->description = &str_empty[0];
-    mod->type = HARDPOINT_WEAPON;
-    mod->size = HARDPOINT_SIZE_SMALL;
-    mod->domain_flags = DOMAIN_ALL;
-    mod->operators = 1;
-    mod->reload_time = 4;
-
-    return mod;
-}
-
-/**
- * free_ship_module_index - Free a module template
- *
- * @param mod  Module template to free
- */
-void free_ship_module_index( SHIP_MODULE_INDEX *mod )
-{
-    free_string(mod->name);
-    free_string(mod->description);
-
-    mod->next = ship_module_index_free;
-    ship_module_index_free = mod;
 }
 
 /**

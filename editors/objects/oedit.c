@@ -156,6 +156,7 @@ const struct olc_cmd_type oedit_table[] =
     { "seed",           oedit_seed          },
     { "sextant",        oedit_sextant       },
     { "ship",           oedit_ship          },
+    { "shipmodule",     oedit_shipmodule    },
     { "tattoo",         oedit_tattoo        },
     { "telescope",      oedit_telescope     },
     { "tool",           oedit_tool          },
