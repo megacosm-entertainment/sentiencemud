@@ -71,6 +71,7 @@ static void ship_combat_rep_attack(CHAR_DATA *ch, SHIP_DATA *attacker, SHIP_DATA
 static void ship_combat_rep_sink(SHIP_DATA *destroyed);
 static bool npc_ship_is_valid_target(SHIP_DATA *hunter, SHIP_DATA *candidate);
 static void ship_coast_guard_alert(CHAR_DATA *ch, SHIP_DATA *attacker, SHIP_DATA *target);
+static void ship_schedule_tick(SHIP_DATA *ship);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
@@ -492,6 +493,10 @@ static void ship_npc_autopilot_tick(SHIP_DATA *ship)
     int heading;
 
     if (!ship_is_npc_autonomous_candidate(ship))
+        return;
+
+    /* Transport ships are driven by ship_schedule_tick, not autopilot */
+    if (IS_SET(ship->ship_flags, SHIP_TRANSPORT))
         return;
 
     room = obj_room(ship->ship);
@@ -11630,6 +11635,361 @@ static SHIP_DATA *npc_ship_scan_for_target(SHIP_DATA *ship)
     return best;
 }
 
+/***************************************************************************
+ * Transport Schedule System                                               *
+ ***************************************************************************/
+
+/**
+ * ship_schedule_find_stop - Look up a stop by index in the schedule list
+ *
+ * @param ship   Ship index with schedule_stops list
+ * @param idx    0-based index
+ * @return       Pointer to stop, or NULL if out of range
+ */
+static SHIP_SCHEDULE_STOP *ship_schedule_find_stop(SHIP_INDEX_DATA *idx, int stop_idx)
+{
+    if (!idx || !idx->schedule_stops)
+        return NULL;
+
+    return (SHIP_SCHEDULE_STOP *)list_nthdata(idx->schedule_stops, stop_idx + 1);
+}
+
+/**
+ * ship_schedule_create_dock_exit - Create a temporary exit from dock to ship
+ *
+ * Creates a one-way exit from the dock room (or wilderness vroom) into
+ * the ship's instance entrance room upon docking.
+ *
+ * For DOCK_EXIT_ROOM: creates exit on dock_room in direction dock_exit_dir
+ * For DOCK_EXIT_VLINK: handled externally (vlinks are managed differently)
+ * For DOCK_EXIT_INSTANCE: syncs instance entrance to dock location
+ *
+ * @param ship   Ship data
+ * @param stop   Schedule stop being docked at
+ */
+static void ship_schedule_create_dock_exit(SHIP_DATA *ship, SHIP_SCHEDULE_STOP *stop)
+{
+    if (!ship || !stop || stop->dock_exit_type == DOCK_EXIT_NONE)
+        return;
+
+    if (stop->dock_exit_dir < 0 || stop->dock_exit_dir >= MAX_DIR)
+        return;
+
+    ROOM_INDEX_DATA *entry_room = NULL;
+    if (IS_VALID(ship->instance) && ship->instance->entrance)
+        entry_room = ship->instance->entrance;
+
+    if (!entry_room)
+        return;
+
+    switch (stop->dock_exit_type) {
+        case DOCK_EXIT_ROOM: {
+            /* Create a temporary exit from the dock room into the ship */
+            ROOM_INDEX_DATA *dock = stop->dock_room;
+            if (!dock)
+                return;
+
+            /* Don't overwrite an existing exit */
+            if (dock->exit[stop->dock_exit_dir] != NULL)
+                return;
+
+            EXIT_DATA *ex = new_exit();
+            ex->u1.to_room = entry_room;
+            ex->from_room = dock;
+            ex->orig_door = stop->dock_exit_dir;
+            free_string(ex->keyword);
+            ex->keyword = str_dup("gangway plank");
+            free_string(ex->short_desc);
+            ex->short_desc = str_dup("the gangway");
+
+            dock->exit[stop->dock_exit_dir] = ex;
+            ship->schedule_dock_exit = ex;
+            ship->schedule_dock_from = dock;
+            break;
+        }
+
+        case DOCK_EXIT_INSTANCE: {
+            /* Sync instance entrance location to the stop */
+            if (stop->location_type == STOP_LOC_ROOM && stop->dock_room) {
+                /* For zone-room stops, set entrance environ to dock room */
+                ship->instance->environ = stop->dock_room;
+            } else if (stop->location_type == STOP_LOC_WILDERNESS) {
+                WILDS_DATA *wilds = get_wilds_from_uid(NULL, stop->wilds_uid);
+                if (wilds && ship->instance->entrance) {
+                    ship->instance->entrance->wilds = wilds;
+                    ship->instance->entrance->x = stop->loc_x;
+                    ship->instance->entrance->y = stop->loc_y;
+                }
+            }
+            break;
+        }
+
+        case DOCK_EXIT_VLINK:
+            /* VLinks are static/persistent — not dynamically created here.
+             * The schedule stop should align with an existing vlink at the
+             * wilderness coords. Future: could create temporary vlinks. */
+            break;
+    }
+}
+
+/**
+ * ship_schedule_remove_dock_exit - Remove the temporary dock exit
+ *
+ * Cleans up exits created by ship_schedule_create_dock_exit when the
+ * ship departs from a stop.
+ *
+ * @param ship  Ship data with dock exit references
+ */
+static void ship_schedule_remove_dock_exit(SHIP_DATA *ship)
+{
+    if (!ship)
+        return;
+
+    if (ship->schedule_dock_exit && ship->schedule_dock_from) {
+        int dir = ship->schedule_dock_exit->orig_door;
+        if (dir >= 0 && dir < MAX_DIR
+            && ship->schedule_dock_from->exit[dir] == ship->schedule_dock_exit) {
+            free_exit(ship->schedule_dock_exit);
+            ship->schedule_dock_from->exit[dir] = NULL;
+        }
+    }
+
+    ship->schedule_dock_exit = NULL;
+    ship->schedule_dock_from = NULL;
+}
+
+/**
+ * ship_schedule_tick - Per-tick update for transport schedule ships
+ *
+ * Manages the schedule state machine:
+ *
+ * IDLE     -> Look at clock, pick first/next stop, begin traveling
+ * TRAVELING -> Ship is navigating via seek_point; check if arrived
+ * ARRIVING  -> Arrived at stop, create dock exits → DOCKED
+ * DOCKED    -> Count down dwell timer or wait for depart_hour → DEPARTING
+ * DEPARTING -> Remove dock exits, advance to next stop → TRAVELING
+ *
+ * Called from npc_ship_state_update when state is NPC_SHIP_STATE_TRANSPORT.
+ *
+ * @param ship  Ship with SHIP_TRANSPORT flag and schedule_stops
+ */
+static void ship_schedule_tick(SHIP_DATA *ship)
+{
+    SHIP_INDEX_DATA *idx;
+    int num_stops;
+
+    if (!ship || !ship->index)
+        return;
+
+    idx = ship->index;
+
+    if (!idx->schedule_stops)
+        return;
+
+    num_stops = list_size(idx->schedule_stops);
+    if (num_stops == 0)
+        return;
+
+    switch (ship->schedule_state) {
+        case SCHEDULE_STATE_IDLE: {
+            /* Initialize: pick the first stop and start traveling */
+            ship->schedule_stop_idx = 0;
+            ship->schedule_current_stop = ship_schedule_find_stop(idx, 0);
+            if (!ship->schedule_current_stop) {
+                return;  /* No valid stops */
+            }
+            ship->schedule_state = SCHEDULE_STATE_TRAVELING;
+
+            /* Set navigation target */
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+            if (stop->location_type == STOP_LOC_WILDERNESS) {
+                WILDS_DATA *wilds = get_wilds_from_uid(NULL, stop->wilds_uid);
+                if (wilds) {
+                    ship_npc_set_seek_goal(ship, wilds, stop->loc_x, stop->loc_y);
+                    ship->seek_navigator = false;
+
+                    if (ship->ship_power <= SHIP_SPEED_STOPPED) {
+                        ship->ship_power = SHIP_SPEED_FULL_SPEED;
+                        ship_set_move_steps(ship);
+                        if (ship->ship_move <= 0)
+                            ship->ship_move = UMAX(1, idx->move_delay);
+                    }
+                }
+            }
+            /* For STOP_LOC_ROOM: airship-style, would teleport or fly.
+             * For now, room-based stops should also have wilds coords
+             * as approach points, or be handled by landing logic. */
+            break;
+        }
+
+        case SCHEDULE_STATE_TRAVELING: {
+            /* Check if we've arrived at the target stop */
+            ROOM_INDEX_DATA *room = ship->ship ? obj_room(ship->ship) : NULL;
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+
+            if (!room || !stop)
+                break;
+
+            if (stop->location_type == STOP_LOC_WILDERNESS && IS_WILDERNESS(room)) {
+                int dx = room->x - stop->loc_x;
+                int dy = room->y - stop->loc_y;
+                int distSq = dx * dx + dy * dy;
+
+                if (distSq <= 6) {
+                    /* Arrived! */
+                    ship->schedule_state = SCHEDULE_STATE_ARRIVING;
+                }
+            } else if (stop->location_type == STOP_LOC_ROOM && stop->dock_room) {
+                /* For room-type stops on airships, check if we've stopped */
+                /* (Airship landing is handled by direct placement) */
+                ship->schedule_state = SCHEDULE_STATE_ARRIVING;
+            }
+
+            /* Ensure ship keeps moving toward target */
+            if (ship->ship_power <= SHIP_SPEED_STOPPED
+                && ship->schedule_state == SCHEDULE_STATE_TRAVELING) {
+                if (ship->ship_type == SHIP_AIR_SHIP && ship->ship_power == SHIP_SPEED_LANDED)
+                    ship->ship_power = SHIP_SPEED_HALF_SPEED;
+                else
+                    ship->ship_power = SHIP_SPEED_FULL_SPEED;
+
+                ship_set_move_steps(ship);
+                if (ship->ship_move <= 0)
+                    ship->ship_move = UMAX(1, idx->move_delay);
+            }
+            break;
+        }
+
+        case SCHEDULE_STATE_ARRIVING: {
+            /* Stop the ship and open dock exits */
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+            if (!stop)
+                break;
+
+            /* Stop ship at dock */
+            if (ship->ship_type == SHIP_AIR_SHIP)
+                ship->ship_power = SHIP_SPEED_LANDED;
+            else
+                ship->ship_power = SHIP_SPEED_STOPPED;
+
+            ship->steering.turning_dir = 0;
+            ship->move_steps = 0;
+            ship->ship_move = 0;
+
+            /* Clear navigation target */
+            memset(&ship->seek_point, 0, sizeof(ship->seek_point));
+
+            /* Create dock exits */
+            ship_schedule_create_dock_exit(ship, stop);
+
+            /* Initialize dwell timer */
+            ship->schedule_dwell = stop->dwell_ticks;
+
+            /* Announce arrival */
+            if (stop->name[0] != '\0')
+                boat_echo(ship, formatf("{YThe vessel has arrived at %s.{x", stop->name));
+            else
+                boat_echo(ship, "{YThe vessel has arrived at its destination.{x");
+
+            ship->schedule_state = SCHEDULE_STATE_DOCKED;
+            break;
+        }
+
+        case SCHEDULE_STATE_DOCKED: {
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+            if (!stop)
+                break;
+
+            /* Check departure conditions */
+            bool should_depart = false;
+
+            /* Hour-based departure */
+            if (stop->depart_hour >= 0) {
+                if (time_info.hour == stop->depart_hour)
+                    should_depart = true;
+            }
+
+            /* Dwell-based departure */
+            if (stop->dwell_ticks > 0) {
+                ship->schedule_dwell--;
+                if (ship->schedule_dwell <= 0)
+                    should_depart = true;
+            }
+
+            if (should_depart)
+                ship->schedule_state = SCHEDULE_STATE_DEPARTING;
+            break;
+        }
+
+        case SCHEDULE_STATE_DEPARTING: {
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+
+            /* Announce departure */
+            if (stop && stop->name[0] != '\0')
+                boat_echo(ship, formatf("{YThe vessel departs from %s.{x", stop->name));
+            else
+                boat_echo(ship, "{YThe vessel departs.{x");
+
+            /* Remove dock exits */
+            ship_schedule_remove_dock_exit(ship);
+
+            /* Advance to next stop */
+            int next_idx = ship->schedule_stop_idx + 1;
+
+            if (next_idx >= num_stops) {
+                if (idx->schedule_loop) {
+                    next_idx = 0;
+                } else {
+                    /* Ping-pong: reverse the schedule.
+                     * For simplicity, wrap to last stop and go backward.
+                     * We'll handle reverse by just resetting to 0 for now
+                     * (a full reverse would require tracking direction). */
+                    next_idx = 0;
+                }
+            }
+
+            ship->schedule_stop_idx = next_idx;
+            ship->schedule_current_stop = ship_schedule_find_stop(idx, next_idx);
+
+            if (!ship->schedule_current_stop) {
+                ship->schedule_state = SCHEDULE_STATE_IDLE;
+                break;
+            }
+
+            /* Navigate to next stop */
+            SHIP_SCHEDULE_STOP *next_stop = ship->schedule_current_stop;
+            if (next_stop->location_type == STOP_LOC_WILDERNESS) {
+                WILDS_DATA *wilds = get_wilds_from_uid(NULL, next_stop->wilds_uid);
+                if (wilds) {
+                    ship_npc_set_seek_goal(ship, wilds,
+                        next_stop->loc_x, next_stop->loc_y);
+                    ship->seek_navigator = false;
+                }
+            }
+
+            /* Start moving */
+            if (ship->ship_type == SHIP_AIR_SHIP)
+                ship->ship_power = SHIP_SPEED_HALF_SPEED;
+            else
+                ship->ship_power = SHIP_SPEED_FULL_SPEED;
+
+            ship_set_move_steps(ship);
+            if (ship->ship_move <= 0)
+                ship->ship_move = UMAX(1, idx->move_delay);
+
+            if (ship->steering.heading < 0) {
+                int heading = number_range(0, 359);
+                ship->steering.heading = heading;
+                ship->steering.heading_target = heading;
+                steering_calc_heading(ship);
+            }
+
+            ship->schedule_state = SCHEDULE_STATE_TRAVELING;
+            break;
+        }
+    }
+}
+
 /**
  * npc_ship_state_update - Per-ship NPC AI state machine tick
  *
@@ -11657,6 +12017,17 @@ void npc_ship_state_update(SHIP_DATA *ship)
 
     npc = ship->npc_ship;
     npc_type = ship->index->npc_type;
+
+    /* Transport ships use the schedule system exclusively */
+    if (IS_SET(ship->ship_flags, SHIP_TRANSPORT)
+        && ship->index->schedule_stops
+        && list_size(ship->index->schedule_stops) > 0) {
+        /* Auto-initialize transport state on first tick */
+        if (npc->state != NPC_SHIP_STATE_TRANSPORT)
+            npc->state = NPC_SHIP_STATE_TRANSPORT;
+        ship_schedule_tick(ship);
+        return;
+    }
 
     /* Flee check: if health drops below threshold, enter flee state */
     if (ship->hit > 0 && ship->index->hit > 0) {

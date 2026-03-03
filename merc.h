@@ -431,6 +431,7 @@ typedef struct	ship_crew_def		SHIP_CREW_DEF;
 typedef struct	ship_hardpoint_def	SHIP_HARDPOINT_DEF;
 typedef struct	ship_module_index	SHIP_MODULE_INDEX;
 typedef struct	ship_module		SHIP_MODULE;
+typedef struct	ship_schedule_stop	SHIP_SCHEDULE_STOP;
 typedef struct	ship_index_data		SHIP_INDEX_DATA;
 typedef struct	ship_data		SHIP_DATA;
 typedef struct	shop_stock_data	SHOP_STOCK_DATA;
@@ -7065,6 +7066,31 @@ struct rep_type
 #define SHIP_SINKING				(C)		// Ship is in sinking/destruction countdown
 #define SHIP_ON_FIRE				(D)		// Ship has active fires
 #define SHIP_DISABLED				(E)		// Ship propulsion disabled
+#define SHIP_TRANSPORT				(F)		// Ship follows a transport schedule
+
+/* Transport schedule constants */
+#define SHIP_SCHEDULE_MAX_STOPS		20		// Max stops per transport schedule
+#define SHIP_SCHEDULE_DWELL_DEFAULT	4		// Default dwell ticks at a stop
+
+/* Schedule stop location types */
+#define STOP_LOC_WILDERNESS			0		// Dock at wilderness coords
+#define STOP_LOC_ROOM				1		// Dock at a zone room (airship style)
+
+/* Schedule stop dock exit types */
+#define DOCK_EXIT_NONE				0		// No exit created
+#define DOCK_EXIT_VLINK				1		// Create temporary wilderness vlink
+#define DOCK_EXIT_ROOM				2		// Create temporary room exit
+#define DOCK_EXIT_INSTANCE			3		// Sync instance entrance
+
+/* Schedule runtime states */
+#define SCHEDULE_STATE_IDLE			0		// Not running
+#define SCHEDULE_STATE_TRAVELING	1		// En route to next stop
+#define SCHEDULE_STATE_ARRIVING		2		// Arrived, opening dock exits
+#define SCHEDULE_STATE_DOCKED		3		// Docked, exits open, waiting
+#define SCHEDULE_STATE_DEPARTING	4		// Closing exits, about to leave
+
+/* NPC ship state for transport */
+#define NPC_SHIP_STATE_TRANSPORT	6		// Following transport schedule
 
 /* Reports / Leaderboards */
 #define REPORT_TOP_PLAYER_KILLERS      0
@@ -7101,6 +7127,40 @@ struct ship_route_data
     char *name;
 
     LLIST *waypoints;
+};
+
+struct ship_schedule_stop
+{
+    SHIP_SCHEDULE_STOP *next;
+    bool valid;
+
+    int16_t stop_id;                // 1-based sequential ID within the schedule
+
+    char *name;                     // Display name ("Port Seralia", "Athemia Docks", etc.)
+
+    /* Location — wilderness coord or zone room */
+    int location_type;              // STOP_LOC_WILDERNESS or STOP_LOC_ROOM
+
+    /* Wilderness location (when location_type == STOP_LOC_WILDERNESS) */
+    long wilds_uid;                 // Wilderness UID
+    int loc_x;                      // X coordinate
+    int loc_y;                      // Y coordinate
+
+    /* Zone room location (when location_type == STOP_LOC_ROOM) */
+    union {
+        WNUM_LOAD load;             // During load: area_uid + vnum
+        long vnum;                  // Legacy: bare vnum
+    } room_ref;
+    ROOM_INDEX_DATA *dock_room;     // Resolved zone room pointer
+
+    /* Schedule timing */
+    int arrive_hour;                // Game hour to target arrival (-1 = arrive by navigation)
+    int depart_hour;                // Game hour to depart (-1 = depart after dwell_ticks)
+    int dwell_ticks;                // Ticks to remain docked (0 = use hour-based schedule only)
+
+    /* Dock exit configuration */
+    int dock_exit_dir;              // Exit direction to create (0-5, -1 = none)
+    int dock_exit_type;             // DOCK_EXIT_NONE, _VLINK, _ROOM, _INSTANCE
 };
 
 struct ship_crew_index_data
@@ -7415,6 +7475,10 @@ struct ship_index_data
     REPUTATION_INDEX_DATA *faction;  // Resolved primary faction (NULL = none)
     int16_t faction_rank;            // Ship's effective rank in that faction
 
+    /* Transport schedule — ordered list of stops for NPC transport ships */
+    LLIST *schedule_stops;           // List of SHIP_SCHEDULE_STOP entries
+    bool schedule_loop;              // true = loop back to first stop; false = reverse
+
     union {
         WNUM_LOAD load;     // During load: area_uid + vnum
         long vnum;          // Legacy: bare vnum
@@ -7534,6 +7598,14 @@ struct ship_data
     bool				pk;
 
     int					ship_move;
+
+    /* Transport schedule runtime state */
+    int                 schedule_state;         // SCHEDULE_STATE_* — current phase
+    int                 schedule_stop_idx;      // Index of current/target stop (0-based)
+    int                 schedule_dwell;         // Ticks remaining at dock
+    SHIP_SCHEDULE_STOP *schedule_current_stop;  // Pointer to current stop (convenience)
+    EXIT_DATA          *schedule_dock_exit;     // Temporary exit created for docking (NULL if none)
+    ROOM_INDEX_DATA    *schedule_dock_from;     // Room the dock exit was placed in (for cleanup)
 };
 
 /*

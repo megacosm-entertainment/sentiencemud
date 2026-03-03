@@ -3613,6 +3613,32 @@ void fix_blueprint_references(void)
                             ship->faction_ref.load.vnum);
                     }
                 }
+
+                /* Resolve schedule stop room references */
+                if (ship->schedule_stops && list_size(ship->schedule_stops) > 0) {
+                    ITERATOR sch_it;
+                    SHIP_SCHEDULE_STOP *stop;
+                    iterator_start(&sch_it, ship->schedule_stops);
+                    while ((stop = (SHIP_SCHEDULE_STOP *)iterator_nextdata(&sch_it))) {
+                        if (stop->location_type == STOP_LOC_ROOM
+                            && stop->room_ref.load.vnum > 0
+                            && !stop->dock_room) {
+                            AREA_DATA *stop_area = get_area_from_uid(stop->room_ref.load.auid);
+                            if (stop_area)
+                                stop->dock_room = get_room_index(stop_area, stop->room_ref.load.vnum);
+                            if (!stop->dock_room) {
+                                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                    "Ship '%s' (vnum %ld): schedule stop '%s' room %ld#%ld not found",
+                                    ship->name ? ship->name : "unnamed",
+                                    ship->vnum,
+                                    stop->name ? stop->name : "unnamed",
+                                    stop->room_ref.load.auid,
+                                    stop->room_ref.load.vnum);
+                            }
+                        }
+                    }
+                    iterator_stop(&sch_it);
+                }
                 
             }
         }

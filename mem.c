@@ -116,6 +116,7 @@ SHIP_HARDPOINT_DEF *ship_hardpoint_def_free;
 SHIP_CREW_DEF *ship_crew_def_free;
 SHIP_MODULE_INDEX *ship_module_index_free;
 SHIP_MODULE *ship_module_free;
+SHIP_SCHEDULE_STOP *ship_schedule_stop_free;
 CHURCH_LOG_ENTRY *church_log_entry_free;
 
 
@@ -168,6 +169,11 @@ static void delete_ship_hardpoint_def(void *ptr)
 static void delete_ship_crew_def(void *ptr)
 {
     free_ship_crew_def((SHIP_CREW_DEF *)ptr);
+}
+
+static void delete_ship_schedule_stop(void *ptr)
+{
+    free_ship_schedule_stop((SHIP_SCHEDULE_STOP *)ptr);
 }
 
 
@@ -3251,6 +3257,9 @@ SHIP_INDEX_DATA *new_ship_index()
     ship->faction = NULL;
     ship->faction_rank = 0;
 
+    ship->schedule_stops = list_createx(false, NULL, delete_ship_schedule_stop);
+    ship->schedule_loop = true;
+
     return ship;
 }
 
@@ -3262,6 +3271,7 @@ void free_ship_index(SHIP_INDEX_DATA *ship)
     list_destroy(ship->special_keys);
     list_destroy(ship->hardpoints);
     list_destroy(ship->crew_defs);
+    list_destroy(ship->schedule_stops);
 
     ship->next = ship_index_free;
     ship_index_free = ship;
@@ -6114,6 +6124,47 @@ void free_ship_route(SHIP_ROUTE *route)
     INVALIDATE(route);
     route->next = ship_route_free;
     ship_route_free = route;
+}
+
+SHIP_SCHEDULE_STOP *new_ship_schedule_stop(void)
+{
+    SHIP_SCHEDULE_STOP *stop;
+
+    if (ship_schedule_stop_free) {
+        stop = ship_schedule_stop_free;
+        ship_schedule_stop_free = ship_schedule_stop_free->next;
+    } else {
+        stop = alloc_mem(sizeof(SHIP_SCHEDULE_STOP));
+    }
+
+    memset(stop, 0, sizeof(SHIP_SCHEDULE_STOP));
+
+    stop->name          = &str_empty[0];
+    stop->stop_id       = 0;
+    stop->location_type = STOP_LOC_WILDERNESS;
+    stop->wilds_uid     = 0;
+    stop->loc_x         = 0;
+    stop->loc_y         = 0;
+    stop->dock_room     = NULL;
+    stop->arrive_hour   = -1;
+    stop->depart_hour   = -1;
+    stop->dwell_ticks   = SHIP_SCHEDULE_DWELL_DEFAULT;
+    stop->dock_exit_dir = -1;
+    stop->dock_exit_type = DOCK_EXIT_NONE;
+
+    VALIDATE(stop);
+    return stop;
+}
+
+void free_ship_schedule_stop(SHIP_SCHEDULE_STOP *stop)
+{
+    if (!IS_VALID(stop)) return;
+
+    free_string(stop->name);
+
+    INVALIDATE(stop);
+    stop->next = ship_schedule_stop_free;
+    ship_schedule_stop_free = stop;
 }
 
 SHIP_CREW_INDEX_DATA *ship_crew_index_free;

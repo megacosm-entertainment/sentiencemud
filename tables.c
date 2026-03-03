@@ -2981,6 +2981,7 @@ const struct flag_type ship_flags[] =
     { "sinking",		SHIP_SINKING,			true	},
     { "on_fire",		SHIP_ON_FIRE,			true	},
     { "disabled",		SHIP_DISABLED,			true	},
+    { "transport",		SHIP_TRANSPORT,			true	},
     { NULL,				0,						false	}
 };
 
@@ -2992,6 +2993,22 @@ const struct flag_type npc_ship_types[] =
     { "adventurer",		NPC_SHIP_ADVENTURER,	true	},
     { "trader",			NPC_SHIP_TRADER,		true	},
     { "air_ship",		NPC_SHIP_AIR_SHIP,		true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type schedule_loc_types[] =
+{
+    { "wilderness",		STOP_LOC_WILDERNESS,	true	},
+    { "room",			STOP_LOC_ROOM,			true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type dock_exit_types[] =
+{
+    { "none",			DOCK_EXIT_NONE,			true	},
+    { "vlink",			DOCK_EXIT_VLINK,		true	},
+    { "room",			DOCK_EXIT_ROOM,			true	},
+    { "instance",		DOCK_EXIT_INSTANCE,		true	},
     { NULL,				0,						false	}
 };
 

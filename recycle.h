@@ -220,6 +220,9 @@ WAYPOINT_DATA *clone_waypoint(WAYPOINT_DATA *waypoint);
 SHIP_ROUTE *new_ship_route();
 void free_ship_route(SHIP_ROUTE *route);
 
+SHIP_SCHEDULE_STOP *new_ship_schedule_stop(void);
+void free_ship_schedule_stop(SHIP_SCHEDULE_STOP *stop);
+
 SHIP_CREW_INDEX_DATA *new_ship_crew_index();
 void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 

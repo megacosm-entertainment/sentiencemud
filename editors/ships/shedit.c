@@ -41,6 +41,7 @@ SHEDIT( shedit_crewmob );
 SHEDIT( shedit_faction );
 SHEDIT( shedit_factionrank );
 SHEDIT( shedit_npctype );
+SHEDIT( shedit_schedule );
 
 /***************************************************************************
  * Permission & Change Tracking                                            *
@@ -109,6 +110,7 @@ const struct olc_cmd_type shedit_table[] =
     { "npctype",    shedit_npctype  },
     { "oars",       shedit_oars     },
     { "object",     shedit_object   },
+    { "schedule",   shedit_schedule },
     { "show",       shedit_show     },
     { "turning",    shedit_turning  },
     { "weight",     shedit_weight   },
@@ -394,6 +396,63 @@ SHEDIT( shedit_show )
         iterator_stop(&it);
     } else {
         olc_display_infof(ctx, theme, "  None");
+    }
+
+    /* Transport Schedule */
+    if (IS_SET(ship->flags, SHIP_TRANSPORT) && ship->schedule_stops) {
+        extern char *const dir_name[];
+        olc_display_section(ctx, theme, "Transport Schedule");
+        olc_display_infof(ctx, theme, "  {xLoop: %s{x", ship->schedule_loop ? "{GYes" : "{RNo (ping-pong)");
+
+        if (list_size(ship->schedule_stops) > 0) {
+            ITERATOR sch_it;
+            SHIP_SCHEDULE_STOP *stop;
+
+            olc_display_infof(ctx, theme, "  {W%-3s %-20s %-12s %-16s %-6s %-6s %-8s %-5s %-8s{x",
+                "ID", "Name", "Type", "Location", "Arr", "Dep", "Dwell", "Dir", "Dock");
+
+            iterator_start(&sch_it, ship->schedule_stops);
+            while ((stop = (SHIP_SCHEDULE_STOP *)iterator_nextdata(&sch_it))) {
+                char loc_buf[64];
+                if (stop->location_type == STOP_LOC_WILDERNESS) {
+                    snprintf(loc_buf, sizeof(loc_buf), "W%ld:%d,%d",
+                        stop->wilds_uid, stop->loc_x, stop->loc_y);
+                } else {
+                    if (stop->dock_room)
+                        snprintf(loc_buf, sizeof(loc_buf), "[%ld] %.20s",
+                            stop->dock_room->vnum, stop->dock_room->name);
+                    else
+                        snprintf(loc_buf, sizeof(loc_buf), "%ld#%ld",
+                            stop->room_ref.load.auid, stop->room_ref.load.vnum);
+                }
+
+                char arr_buf[8], dep_buf[8], dwell_buf[8];
+                if (stop->arrive_hour >= 0)
+                    snprintf(arr_buf, sizeof(arr_buf), "%d", stop->arrive_hour);
+                else
+                    snprintf(arr_buf, sizeof(arr_buf), "-");
+                if (stop->depart_hour >= 0)
+                    snprintf(dep_buf, sizeof(dep_buf), "%d", stop->depart_hour);
+                else
+                    snprintf(dep_buf, sizeof(dep_buf), "-");
+                snprintf(dwell_buf, sizeof(dwell_buf), "%d", stop->dwell_ticks);
+
+                const char *dir_str = (stop->dock_exit_dir >= 0 && stop->dock_exit_dir < MAX_DIR)
+                    ? dir_name[stop->dock_exit_dir] : "none";
+
+                olc_display_infof(ctx, theme, "  {G%3d {Y%-20.20s {C%-12s {W%-16s {x%-6s %-6s %-8s {M%-5s {x%s",
+                    stop->stop_id,
+                    stop->name,
+                    flag_string(schedule_loc_types, stop->location_type),
+                    loc_buf,
+                    arr_buf, dep_buf, dwell_buf,
+                    dir_str,
+                    flag_string(dock_exit_types, stop->dock_exit_type));
+            }
+            iterator_stop(&sch_it);
+        } else {
+            olc_display_infof(ctx, theme, "  No stops defined.");
+        }
     }
 
     olc_display_footer(ctx, theme);
@@ -1518,4 +1577,328 @@ SHEDIT( shedit_factionrank )
     ship->faction_rank = (int16_t)value;
     send_to_char(formatf("Faction rank set to %d.\n\r", ship->faction_rank), ch);
     return true;
+}
+
+/**
+ * shedit_schedule - Manage transport schedule stops
+ *
+ * Allows adding, removing, and editing stops on a transport ship's
+ * schedule. The ship must have the SHIP_TRANSPORT flag set.
+ *
+ * Subcommands:
+ *   schedule loop <yes|no>                     - Toggle loop vs ping-pong
+ *   schedule add <name>                        - Add a new stop with a name
+ *   schedule remove <#>                        - Remove a stop by ID
+ *   schedule <#> name <new name>               - Rename a stop
+ *   schedule <#> wilds <uid> <x> <y>           - Set wilderness location
+ *   schedule <#> room <widevnum>               - Set zone room location
+ *   schedule <#> arrive <hour|-1>              - Set arrival hour (-1 = none)
+ *   schedule <#> depart <hour|-1>              - Set departure hour (-1 = none)
+ *   schedule <#> dwell <ticks>                 - Set dwell time in ticks
+ *   schedule <#> exitdir <direction|none>      - Set dock exit direction
+ *   schedule <#> exittype <none|vlink|room|instance> - Set dock exit type
+ */
+SHEDIT( shedit_schedule )
+{
+    SHIP_INDEX_DATA *ship;
+    char arg[MIL];
+    extern char *const dir_name[];
+
+    EDIT_SHIP(ch, ship);
+
+    if (!IS_SET(ship->flags, SHIP_TRANSPORT)) {
+        send_to_char("This ship does not have the 'transport' flag set.\n\r", ch);
+        return false;
+    }
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  schedule loop <yes|no>\n\r", ch);
+        send_to_char("         schedule add <name>\n\r", ch);
+        send_to_char("         schedule remove <#>\n\r", ch);
+        send_to_char("         schedule <#> name <new name>\n\r", ch);
+        send_to_char("         schedule <#> wilds <uid> <x> <y>\n\r", ch);
+        send_to_char("         schedule <#> room <widevnum>\n\r", ch);
+        send_to_char("         schedule <#> arrive <hour|-1>\n\r", ch);
+        send_to_char("         schedule <#> depart <hour|-1>\n\r", ch);
+        send_to_char("         schedule <#> dwell <ticks>\n\r", ch);
+        send_to_char("         schedule <#> exitdir <direction|none>\n\r", ch);
+        send_to_char("         schedule <#> exittype <none|vlink|room|instance>\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    /* schedule loop <yes|no> */
+    if (!str_cmp(arg, "loop")) {
+        if (!str_cmp(argument, "yes") || !str_cmp(argument, "true")) {
+            ship->schedule_loop = true;
+            send_to_char("Schedule will loop back to start.\n\r", ch);
+            return true;
+        } else if (!str_cmp(argument, "no") || !str_cmp(argument, "false")) {
+            ship->schedule_loop = false;
+            send_to_char("Schedule will ping-pong (reverse at endpoints).\n\r", ch);
+            return true;
+        }
+        send_to_char("Syntax: schedule loop <yes|no>\n\r", ch);
+        return false;
+    }
+
+    /* schedule add <name> */
+    if (!str_cmp(arg, "add")) {
+        if (argument[0] == '\0') {
+            send_to_char("Syntax: schedule add <name>\n\r", ch);
+            return false;
+        }
+
+        if (list_size(ship->schedule_stops) >= SHIP_SCHEDULE_MAX_STOPS) {
+            send_to_char(formatf("Maximum of %d stops reached.\n\r",
+                SHIP_SCHEDULE_MAX_STOPS), ch);
+            return false;
+        }
+
+        /* Find next available stop_id */
+        int16_t next_id = 1;
+        {
+            ITERATOR it;
+            SHIP_SCHEDULE_STOP *s;
+            iterator_start(&it, ship->schedule_stops);
+            while ((s = (SHIP_SCHEDULE_STOP *)iterator_nextdata(&it))) {
+                if (s->stop_id >= next_id)
+                    next_id = s->stop_id + 1;
+            }
+            iterator_stop(&it);
+        }
+
+        SHIP_SCHEDULE_STOP *stop = new_ship_schedule_stop();
+        stop->stop_id = next_id;
+        free_string(stop->name);
+        stop->name = str_dup(argument);
+        list_appendlink(ship->schedule_stops, stop);
+
+        send_to_char(formatf("Stop %d '%s' added. Set location with: schedule %d wilds/room ...\n\r",
+            stop->stop_id, stop->name, stop->stop_id), ch);
+        return true;
+    }
+
+    /* schedule remove <#> */
+    if (!str_cmp(arg, "remove")) {
+        if (!is_number(argument)) {
+            send_to_char("Syntax: schedule remove <stop_id>\n\r", ch);
+            return false;
+        }
+
+        int target_id = atoi(argument);
+        ITERATOR it;
+        SHIP_SCHEDULE_STOP *s;
+        int idx = 0;
+        bool found = false;
+        iterator_start(&it, ship->schedule_stops);
+        while ((s = (SHIP_SCHEDULE_STOP *)iterator_nextdata(&it))) {
+            idx++;
+            if (s->stop_id == target_id) {
+                list_remnthlink(ship->schedule_stops, idx, true);
+                send_to_char(formatf("Stop %d removed.\n\r", target_id), ch);
+                found = true;
+                break;
+            }
+        }
+        iterator_stop(&it);
+
+        if (!found) {
+            send_to_char("No stop with that ID found.\n\r", ch);
+            return false;
+        }
+        return true;
+    }
+
+    /* schedule <#> <field> <value> */
+    if (!is_number(arg)) {
+        send_to_char("Expected 'loop', 'add', 'remove', or a stop ID.\n\r", ch);
+        return false;
+    }
+
+    int target_id = atoi(arg);
+    SHIP_SCHEDULE_STOP *target = NULL;
+    {
+        ITERATOR it;
+        SHIP_SCHEDULE_STOP *s;
+        iterator_start(&it, ship->schedule_stops);
+        while ((s = (SHIP_SCHEDULE_STOP *)iterator_nextdata(&it))) {
+            if (s->stop_id == target_id) {
+                target = s;
+                break;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    if (!target) {
+        send_to_char("No stop with that ID found.\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    /* schedule <#> name <new name> */
+    if (!str_cmp(arg, "name")) {
+        if (argument[0] == '\0') {
+            send_to_char("Syntax: schedule <#> name <new name>\n\r", ch);
+            return false;
+        }
+        free_string(target->name);
+        target->name = str_dup(argument);
+        send_to_char(formatf("Stop %d renamed to '%s'.\n\r", target_id, target->name), ch);
+        return true;
+    }
+
+    /* schedule <#> wilds <uid> <x> <y> */
+    if (!str_cmp(arg, "wilds")) {
+        char uid_arg[MIL], x_arg[MIL], y_arg[MIL];
+        argument = one_argument(argument, uid_arg);
+        argument = one_argument(argument, x_arg);
+        one_argument(argument, y_arg);
+
+        if (uid_arg[0] == '\0' || x_arg[0] == '\0' || y_arg[0] == '\0'
+            || !is_number(uid_arg) || !is_number(x_arg) || !is_number(y_arg)) {
+            send_to_char("Syntax: schedule <#> wilds <uid> <x> <y>\n\r", ch);
+            return false;
+        }
+
+        long uid = atol(uid_arg);
+        int x = atoi(x_arg);
+        int y = atoi(y_arg);
+
+        /* Validate the wilderness exists */
+        WILDS_DATA *wilds = get_wilds_from_uid(NULL, uid);
+        if (!wilds) {
+            send_to_char("That wilderness UID does not exist.\n\r", ch);
+            return false;
+        }
+
+        target->location_type = STOP_LOC_WILDERNESS;
+        target->wilds_uid = uid;
+        target->loc_x = x;
+        target->loc_y = y;
+        target->dock_room = NULL;
+        send_to_char(formatf("Stop %d set to wilderness %ld at (%d, %d).\n\r",
+            target_id, uid, x, y), ch);
+        return true;
+    }
+
+    /* schedule <#> room <widevnum> */
+    if (!str_cmp(arg, "room")) {
+        if (argument[0] == '\0') {
+            send_to_char("Syntax: schedule <#> room <widevnum>\n\r", ch);
+            return false;
+        }
+
+        WNUM room_wnum;
+        AREA_DATA *context = olc_relative_widevnum_context(ship->area, argument);
+        if (!parse_widevnum(argument, context, &room_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+
+        ROOM_INDEX_DATA *room = get_room_index(room_wnum.pArea, room_wnum.vnum);
+        if (!room) {
+            send_to_char("That room does not exist.\n\r", ch);
+            return false;
+        }
+
+        target->location_type = STOP_LOC_ROOM;
+        target->room_ref.load.auid = room_wnum.pArea->uid;
+        target->room_ref.load.vnum = room_wnum.vnum;
+        target->dock_room = room;
+        send_to_char(formatf("Stop %d set to room [%ld] %s.\n\r",
+            target_id, room->vnum, room->name), ch);
+        return true;
+    }
+
+    /* schedule <#> arrive <hour|-1> */
+    if (!str_cmp(arg, "arrive")) {
+        if (!is_number(argument) && str_cmp(argument, "-1")) {
+            send_to_char("Syntax: schedule <#> arrive <0-23|-1>\n\r", ch);
+            return false;
+        }
+        int hour = atoi(argument);
+        if (hour < -1 || hour > 23) {
+            send_to_char("Hour must be -1 (none) or 0-23.\n\r", ch);
+            return false;
+        }
+        target->arrive_hour = hour;
+        if (hour == -1)
+            send_to_char(formatf("Stop %d: arrival hour cleared.\n\r", target_id), ch);
+        else
+            send_to_char(formatf("Stop %d: arrival hour set to %d.\n\r", target_id, hour), ch);
+        return true;
+    }
+
+    /* schedule <#> depart <hour|-1> */
+    if (!str_cmp(arg, "depart")) {
+        if (!is_number(argument) && str_cmp(argument, "-1")) {
+            send_to_char("Syntax: schedule <#> depart <0-23|-1>\n\r", ch);
+            return false;
+        }
+        int hour = atoi(argument);
+        if (hour < -1 || hour > 23) {
+            send_to_char("Hour must be -1 (none) or 0-23.\n\r", ch);
+            return false;
+        }
+        target->depart_hour = hour;
+        if (hour == -1)
+            send_to_char(formatf("Stop %d: departure hour cleared.\n\r", target_id), ch);
+        else
+            send_to_char(formatf("Stop %d: departure hour set to %d.\n\r", target_id, hour), ch);
+        return true;
+    }
+
+    /* schedule <#> dwell <ticks> */
+    if (!str_cmp(arg, "dwell")) {
+        if (!is_number(argument)) {
+            send_to_char("Syntax: schedule <#> dwell <ticks>\n\r", ch);
+            return false;
+        }
+        int ticks = atoi(argument);
+        if (ticks < 0 || ticks > 200) {
+            send_to_char("Dwell ticks must be 0-200.\n\r", ch);
+            return false;
+        }
+        target->dwell_ticks = ticks;
+        send_to_char(formatf("Stop %d: dwell time set to %d ticks.\n\r", target_id, ticks), ch);
+        return true;
+    }
+
+    /* schedule <#> exitdir <direction|none> */
+    if (!str_cmp(arg, "exitdir")) {
+        if (!str_cmp(argument, "none") || !str_cmp(argument, "-1")) {
+            target->dock_exit_dir = -1;
+            send_to_char(formatf("Stop %d: dock exit direction cleared.\n\r", target_id), ch);
+            return true;
+        }
+        int dir = parse_direction(argument);
+        if (dir < 0) {
+            send_to_char("Invalid direction. Use: north south east west up down or none.\n\r", ch);
+            return false;
+        }
+        target->dock_exit_dir = dir;
+        send_to_char(formatf("Stop %d: dock exit direction set to %s.\n\r",
+            target_id, dir_name[dir]), ch);
+        return true;
+    }
+
+    /* schedule <#> exittype <none|vlink|room|instance> */
+    if (!str_cmp(arg, "exittype")) {
+        int value = flag_value(dock_exit_types, argument);
+        if (value == NO_FLAG) {
+            send_to_char("Valid types: none, vlink, room, instance.\n\r", ch);
+            return false;
+        }
+        target->dock_exit_type = value;
+        send_to_char(formatf("Stop %d: dock exit type set to '%s'.\n\r",
+            target_id, flag_string(dock_exit_types, value)), ch);
+        return true;
+    }
+
+    send_to_char("Unknown schedule field. Use: name, wilds, room, arrive, depart, dwell, exitdir, exittype\n\r", ch);
+    return false;
 }

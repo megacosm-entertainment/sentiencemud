@@ -2925,6 +2925,56 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
     ship->faction = NULL;  /* Will be resolved in fix pass */
     ship->faction_rank = json_get_int_default(json, "faction_rank", 0);
 
+    /* Transport schedule */
+    ship->schedule_loop = json_get_bool_default(json, "schedule_loop", true);
+    json_t *sched_arr = json_object_get(json, "schedule_stops");
+    if (sched_arr && json_is_array(sched_arr)) {
+        size_t si;
+        json_t *stop_json;
+        json_array_foreach(sched_arr, si, stop_json) {
+            SHIP_SCHEDULE_STOP *stop = new_ship_schedule_stop();
+
+            stop->stop_id = (int16_t)json_get_int_default(stop_json, "id", (int)(si + 1));
+            free_string(stop->name);
+            stop->name = str_dup(json_get_string(stop_json, "name", ""));
+
+            const char *loc_type_str = json_get_string(stop_json, "location_type", "wilderness");
+            if (loc_type_str && !str_cmp(loc_type_str, "room"))
+                stop->location_type = STOP_LOC_ROOM;
+            else
+                stop->location_type = STOP_LOC_WILDERNESS;
+
+            if (stop->location_type == STOP_LOC_WILDERNESS) {
+                stop->wilds_uid = json_get_int_default(stop_json, "wilds_uid", 0);
+                stop->loc_x = json_get_int_default(stop_json, "x", 0);
+                stop->loc_y = json_get_int_default(stop_json, "y", 0);
+            } else {
+                json_t *room_ref_json = json_object_get(stop_json, "room");
+                if (room_ref_json && json_is_string(room_ref_json)) {
+                    WNUM_LOAD wload;
+                    if (parse_widevnum_load(json_string_value(room_ref_json), &wload)) {
+                        stop->room_ref.load.auid = wload.auid;
+                        stop->room_ref.load.vnum = wload.vnum;
+                    }
+                } else if (room_ref_json && json_is_integer(room_ref_json)) {
+                    stop->room_ref.load.auid = area->uid;
+                    stop->room_ref.load.vnum = json_integer_value(room_ref_json);
+                }
+                stop->dock_room = NULL;  /* Will be resolved in fix pass */
+            }
+
+            stop->arrive_hour = json_get_int_default(stop_json, "arrive_hour", -1);
+            stop->depart_hour = json_get_int_default(stop_json, "depart_hour", -1);
+            stop->dwell_ticks = json_get_int_default(stop_json, "dwell_ticks",
+                SHIP_SCHEDULE_DWELL_DEFAULT);
+
+            stop->dock_exit_dir = json_get_int_default(stop_json, "exit_dir", -1);
+            stop->dock_exit_type = json_get_int_default(stop_json, "exit_type", DOCK_EXIT_NONE);
+
+            list_appendlink(ship->schedule_stops, stop);
+        }
+    }
+
     return ship;
 }
 
@@ -8022,6 +8072,59 @@ json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area)
         json_object_set_new(json, "faction", json_string(widevnum_string_wnum(fwnum, NULL)));
         if (ship->faction_rank != 0)
             json_object_set_new(json, "faction_rank", json_integer(ship->faction_rank));
+    }
+
+    /* Transport schedule stops */
+    if (IS_SET(ship->flags, SHIP_TRANSPORT) && ship->schedule_stops
+        && list_size(ship->schedule_stops) > 0) {
+
+        if (!ship->schedule_loop)
+            json_object_set_new(json, "schedule_loop", json_false());
+
+        json_t *sched_arr = json_array();
+        ITERATOR sit;
+        SHIP_SCHEDULE_STOP *stop;
+        iterator_start(&sit, ship->schedule_stops);
+        while ((stop = (SHIP_SCHEDULE_STOP *)iterator_nextdata(&sit))) {
+            json_t *sj = json_object();
+
+            json_object_set_new(sj, "id", json_integer(stop->stop_id));
+            if (stop->name[0] != '\0')
+                json_object_set_new(sj, "name", json_string(stop->name));
+
+            if (stop->location_type == STOP_LOC_ROOM) {
+                json_object_set_new(sj, "location_type", json_string("room"));
+                if (stop->dock_room) {
+                    WNUM rwnum = { .pArea = stop->dock_room->area, .vnum = stop->dock_room->vnum };
+                    json_object_set_new(sj, "room", json_string(widevnum_string_wnum(rwnum, NULL)));
+                } else if (stop->room_ref.load.vnum != 0) {
+                    char ref_buf[64];
+                    snprintf(ref_buf, sizeof(ref_buf), "%ld#%ld",
+                        stop->room_ref.load.auid, stop->room_ref.load.vnum);
+                    json_object_set_new(sj, "room", json_string(ref_buf));
+                }
+            } else {
+                json_object_set_new(sj, "location_type", json_string("wilderness"));
+                json_object_set_new(sj, "wilds_uid", json_integer(stop->wilds_uid));
+                json_object_set_new(sj, "x", json_integer(stop->loc_x));
+                json_object_set_new(sj, "y", json_integer(stop->loc_y));
+            }
+
+            if (stop->arrive_hour >= 0)
+                json_object_set_new(sj, "arrive_hour", json_integer(stop->arrive_hour));
+            if (stop->depart_hour >= 0)
+                json_object_set_new(sj, "depart_hour", json_integer(stop->depart_hour));
+            if (stop->dwell_ticks != SHIP_SCHEDULE_DWELL_DEFAULT)
+                json_object_set_new(sj, "dwell_ticks", json_integer(stop->dwell_ticks));
+            if (stop->dock_exit_dir >= 0)
+                json_object_set_new(sj, "exit_dir", json_integer(stop->dock_exit_dir));
+            if (stop->dock_exit_type != DOCK_EXIT_NONE)
+                json_object_set_new(sj, "exit_type", json_integer(stop->dock_exit_type));
+
+            json_array_append_new(sched_arr, sj);
+        }
+        iterator_stop(&sit);
+        json_object_set_new(json, "schedule_stops", sched_arr);
     }
 
     return json;
