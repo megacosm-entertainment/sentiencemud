@@ -11084,81 +11084,15 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 /**
  * do_sload - Load an NPC ship (DISABLED)
  *
- * Was intended to load an NPC ship by vnum into a specified room.
- * Currently disabled via #if 0 preprocessor block. Would have supported
- * loading ships including special handling for airships.
+ * Superseded by 'ships load' which auto-detects NPC templates via
+ * the SHIP_AUTONOMOUS_NPC flag and performs full NPC setup.
  *
  * @param ch        Staff member using the command
- * @param argument  "shipvnum roomvnum"
- *
- * Triggers: None (ship loading - disabled)
+ * @param argument  Unused
  */
 void do_sload(CHAR_DATA *ch, char *argument)
 {
-#if 0
-/*
-    char arg1[MAX_INPUT_LENGTH] ,arg2[MAX_INPUT_LENGTH];
-    ROOM_INDEX_DATA *pRoom;
-    NPC_SHIP_INDEX_DATA *pShip;
-    NPC_SHIP_DATA *pNpcShip;
-    long room_vnum;
-    long ship_vnum;
-
-    argument = one_argument(argument, arg1);
-    one_argument(argument, arg2);
-
-    if (arg1[0] == '\0' || !is_number(arg1))
-    {
-    send_to_char("Syntax: load ship <vnum> <room vnum>.\n\r", ch);
-    return;
-    }
-
-    ship_vnum = atol(arg1);
-
-    if (arg2[0] != '\0')
-    {
-    if (!is_number(arg2))
-        {
-      send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-      return;
-    }
-        room_vnum = atol(arg2);
-        if ((pRoom = get_room_index(room_vnum)) == NULL)
-    {
-      send_to_char("Could not find room vnum.\n\r",ch);
-        return;
-    }
-    }
-    else {
-      send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-      return;
-    }
-
-    if ((pShip = get_npc_ship_index(ship_vnum)) == NULL)
-    {
-    send_to_char("No ship has that vnum.\n\r", ch);
-    return;
-    }
-
-    pNpcShip = create_npc_sailing_boat(ship_vnum);
-
-     If the npc airship then set airship
-    if (pShip->npc_type == NPC_SHIP_AIR_SHIP)
-    {
-        plith_airship = pNpcShip;
-    }
-
-    obj_to_room(pNpcShip->ship->ship, pRoom);
-
-    if (pNpcShip->ship->ship->in_room == NULL)
-    {
-        gecho("NULL already");
-    }
-
-    send_to_char("Ship created.\n\r", ch);
-    return;
-*/
-#endif
+    send_to_char("Use 'ships load <vnum>' instead. NPC ships are auto-detected from the template.\n\r", ch);
 }
 
 

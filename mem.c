@@ -112,6 +112,10 @@ SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
+SHIP_HARDPOINT_DEF *ship_hardpoint_def_free;
+SHIP_CREW_DEF *ship_crew_def_free;
+SHIP_MODULE_INDEX *ship_module_index_free;
+SHIP_MODULE *ship_module_free;
 CHURCH_LOG_ENTRY *church_log_entry_free;
 
 
@@ -149,6 +153,21 @@ LLIST *new_waypoints_list()
 static void delete_ship_route(void *ptr)
 {
     free_ship_route((SHIP_ROUTE *)ptr);
+}
+
+static void delete_ship_module(void *ptr)
+{
+    free_ship_module((SHIP_MODULE *)ptr);
+}
+
+static void delete_ship_hardpoint_def(void *ptr)
+{
+    free_ship_hardpoint_def((SHIP_HARDPOINT_DEF *)ptr);
+}
+
+static void delete_ship_crew_def(void *ptr)
+{
+    free_ship_crew_def((SHIP_CREW_DEF *)ptr);
 }
 
 
@@ -1821,6 +1840,8 @@ AREA_DATA *new_area( void )
     pArea->notes    = &str_empty[0];
 
     pArea->points		= NULL;
+    pArea->dependencies      = NULL;
+    pArea->dependency_count  = 0;
 
     pArea->progs	    	=   new_prog_data();
     pArea->progs->progs	    =	NULL;
@@ -1868,6 +1889,7 @@ void free_area( AREA_DATA *pArea )
     free_string( pArea->map);
     free_string( pArea->comments);
     free_string( pArea->description);
+    area_dependency_clear(pArea);
     list_destroy(pArea->room_list);
     list_destroy(pArea->regions);
 
@@ -3221,6 +3243,14 @@ SHIP_INDEX_DATA *new_ship_index()
 
     ship->special_keys = list_create(false);
 
+    ship->hardpoints = list_createx(false, NULL, delete_ship_hardpoint_def);
+
+    ship->crew_defs = list_createx(false, NULL, delete_ship_crew_def);
+    ship->captain = NULL;
+    ship->npc_type = NPC_SHIP_COAST_GUARD;
+    ship->faction = NULL;
+    ship->faction_rank = 0;
+
     return ship;
 }
 
@@ -3230,6 +3260,8 @@ void free_ship_index(SHIP_INDEX_DATA *ship)
     free_string(ship->description);
 
     list_destroy(ship->special_keys);
+    list_destroy(ship->hardpoints);
+    list_destroy(ship->crew_defs);
 
     ship->next = ship_index_free;
     ship_index_free = ship;
@@ -3264,6 +3296,7 @@ SHIP_DATA *new_ship()
     ship->waypoints = new_waypoints_list();
     ship->route_waypoints = list_createx(false, NULL, delete_waypoint);
     ship->routes = list_createx(false, NULL, delete_ship_route);
+    ship->modules = list_createx(false, NULL, delete_ship_module);
 
     VALIDATE(ship);
     return ship;
@@ -3283,6 +3316,7 @@ void free_ship(SHIP_DATA *ship)
     iterator_stop(&ship->route_it);
     list_destroy(ship->route_waypoints);
     list_destroy(ship->routes);
+    list_destroy(ship->modules);
 
     variable_clearfield(VAR_SHIP, ship);
 
@@ -3329,6 +3363,73 @@ void free_npc_ship_index( NPC_SHIP_INDEX_DATA *npc_ship )
     npc_ship->next     =   npc_ship_index_free;
     npc_ship_index_free =   npc_ship;
     return;
+}
+
+/**
+ * new_npc_ship_data - Allocate a runtime NPC ship data struct
+ *
+ * @return  New NPC_SHIP_DATA with zeroed fields
+ */
+NPC_SHIP_DATA *new_npc_ship_data( void )
+{
+    NPC_SHIP_DATA *npc;
+
+    npc = alloc_mem(sizeof(NPC_SHIP_DATA));
+    memset(npc, 0, sizeof(NPC_SHIP_DATA));
+    npc->state = NPC_SHIP_STATE_STOPPED;
+
+    return npc;
+}
+
+/**
+ * free_npc_ship_data - Free a runtime NPC ship data struct
+ *
+ * @param npc  NPC ship data to free
+ */
+void free_npc_ship_data( NPC_SHIP_DATA *npc )
+{
+    if (!npc) return;
+    free_mem(npc, sizeof(NPC_SHIP_DATA));
+}
+
+/**
+ * new_ship_crew_def - Allocate a new crew mob definition
+ *
+ * @return  New SHIP_CREW_DEF with defaults
+ */
+SHIP_CREW_DEF *new_ship_crew_def( void )
+{
+    SHIP_CREW_DEF *cd;
+
+    if (ship_crew_def_free)
+    {
+        cd = ship_crew_def_free;
+        ship_crew_def_free = ship_crew_def_free->next;
+    }
+    else
+    {
+        cd = alloc_perm(sizeof(SHIP_CREW_DEF));
+    }
+
+    memset(cd, 0, sizeof(SHIP_CREW_DEF));
+    cd->count = 1;
+
+    VALIDATE(cd);
+    return cd;
+}
+
+/**
+ * free_ship_crew_def - Free a crew mob definition
+ *
+ * @param cd  Crew definition to free
+ */
+void free_ship_crew_def( SHIP_CREW_DEF *cd )
+{
+    if (!IS_VALID(cd)) return;
+
+    INVALIDATE(cd);
+    cd->next = ship_crew_def_free;
+    ship_crew_def_free = cd;
 }
 
 
@@ -3422,6 +3523,147 @@ void free_ship_crew( SHIP_CREW_DATA *crew )
     crew->next = ship_crew_free;
     ship_crew_free = crew;
     return;
+}
+
+
+/**
+ * new_ship_hardpoint_def - Allocate a new hardpoint slot definition
+ *
+ * @return  New SHIP_HARDPOINT_DEF with defaults
+ */
+SHIP_HARDPOINT_DEF *new_ship_hardpoint_def( void )
+{
+    SHIP_HARDPOINT_DEF *hp;
+
+    if( ship_hardpoint_def_free )
+    {
+        hp = ship_hardpoint_def_free;
+        ship_hardpoint_def_free = ship_hardpoint_def_free->next;
+    }
+    else
+    {
+        hp = alloc_perm(sizeof(SHIP_HARDPOINT_DEF));
+    }
+
+    memset(hp, 0, sizeof(SHIP_HARDPOINT_DEF));
+
+    hp->name = &str_empty[0];
+    hp->slot_id = 0;
+    hp->type = HARDPOINT_WEAPON;
+    hp->size = HARDPOINT_SIZE_SMALL;
+    hp->domain_flags = DOMAIN_ALL;
+
+    VALIDATE(hp);
+    return hp;
+}
+
+/**
+ * free_ship_hardpoint_def - Free a hardpoint slot definition
+ *
+ * @param hp  Hardpoint definition to free
+ */
+void free_ship_hardpoint_def( SHIP_HARDPOINT_DEF *hp )
+{
+    if( !IS_VALID(hp) ) return;
+
+    free_string(hp->name);
+
+    INVALIDATE(hp);
+    hp->next = ship_hardpoint_def_free;
+    ship_hardpoint_def_free = hp;
+}
+
+/**
+ * new_ship_module_index - Allocate a new module template
+ *
+ * @return  New SHIP_MODULE_INDEX with defaults
+ */
+SHIP_MODULE_INDEX *new_ship_module_index( void )
+{
+    SHIP_MODULE_INDEX *mod;
+
+    if( ship_module_index_free )
+    {
+        mod = ship_module_index_free;
+        ship_module_index_free = ship_module_index_free->next;
+    }
+    else
+    {
+        mod = alloc_perm(sizeof(SHIP_MODULE_INDEX));
+    }
+
+    memset(mod, 0, sizeof(SHIP_MODULE_INDEX));
+
+    mod->name = &str_empty[0];
+    mod->description = &str_empty[0];
+    mod->type = HARDPOINT_WEAPON;
+    mod->size = HARDPOINT_SIZE_SMALL;
+    mod->domain_flags = DOMAIN_ALL;
+    mod->operators = 1;
+    mod->reload_time = 4;
+
+    return mod;
+}
+
+/**
+ * free_ship_module_index - Free a module template
+ *
+ * @param mod  Module template to free
+ */
+void free_ship_module_index( SHIP_MODULE_INDEX *mod )
+{
+    free_string(mod->name);
+    free_string(mod->description);
+
+    mod->next = ship_module_index_free;
+    ship_module_index_free = mod;
+}
+
+/**
+ * new_ship_module - Allocate a new installed module instance
+ *
+ * @return  New SHIP_MODULE with defaults
+ */
+SHIP_MODULE *new_ship_module( void )
+{
+    SHIP_MODULE *mod;
+
+    if( ship_module_free )
+    {
+        mod = ship_module_free;
+        ship_module_free = ship_module_free->next;
+    }
+    else
+    {
+        mod = alloc_mem(sizeof(SHIP_MODULE));
+    }
+
+    memset(mod, 0, sizeof(SHIP_MODULE));
+
+    mod->condition = 100;
+    mod->max_condition = 100;
+    mod->active = true;
+    mod->operational = false;
+    mod->assigned_crew = list_create(false);
+
+    VALIDATE(mod);
+    return mod;
+}
+
+/**
+ * free_ship_module - Free an installed module instance
+ *
+ * @param mod  Module instance to free
+ */
+void free_ship_module( SHIP_MODULE *mod )
+{
+    if( !IS_VALID(mod) ) return;
+
+    list_destroy(mod->assigned_crew);
+
+    INVALIDATE(mod);
+    mod->next = ship_module_free;
+    ship_module_free = mod;
 }
 
 

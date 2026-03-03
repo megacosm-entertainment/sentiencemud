@@ -339,6 +339,12 @@ extern	const struct flag_type transfer_modes[];
 
 extern	const struct flag_type ship_class_types[];
 extern	const struct flag_type ship_flags[];
+extern	const struct flag_type npc_ship_types[];
+extern	const struct flag_type hardpoint_types[];
+extern	const struct flag_type hardpoint_sizes[];
+extern	const struct flag_type domain_flags[];
+extern	const struct flag_type hardpoint_flags[];
+extern	const struct flag_type module_flags[];
 
 extern	const	struct	flag_type	stock_types[];
 extern	const	struct	flag_type	prog_entity_flags[];

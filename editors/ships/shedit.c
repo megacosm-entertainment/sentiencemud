@@ -35,6 +35,13 @@ extern long top_ship_index_vnum;
 extern void list_ship_indexes(CHAR_DATA *ch, char *argument);
 extern bool can_edit_ships(CHAR_DATA *ch);
 
+/* Forward declarations for commands defined below the command table */
+SHEDIT( shedit_captain );
+SHEDIT( shedit_crewmob );
+SHEDIT( shedit_faction );
+SHEDIT( shedit_factionrank );
+SHEDIT( shedit_npctype );
+
 /***************************************************************************
  * Permission & Change Tracking                                            *
  ***************************************************************************/
@@ -80,18 +87,26 @@ const struct olc_cmd_type shedit_table[] =
     { "armor",      shedit_armor    },
     { "blueprint",  shedit_blueprint},
     { "capacity",   shedit_capacity },
+    { "captain",    shedit_captain  },
     { "class",      shedit_class    },
     { "commands",   show_commands   },
     { "create",     shedit_create   },
     { "crew",       shedit_crew     },
+    { "crewmob",    shedit_crewmob  },
     { "desc",       shedit_desc     },
+    { "faction",    shedit_faction  },
+    { "factionrank",shedit_factionrank },
     { "flags",      shedit_flags    },
+
     { "guns",       shedit_guns     },
+    { "hardpoint",  shedit_hardpoint},
     { "hit",        shedit_hit      },
     { "keys",       shedit_keys     },
     { "list",       shedit_list     },
+    { "moduleweight", shedit_moduleweight },
     { "move",       shedit_move     },
     { "name",       shedit_name     },
+    { "npctype",    shedit_npctype  },
     { "oars",       shedit_oars     },
     { "object",     shedit_object   },
     { "show",       shedit_show     },
@@ -254,6 +269,17 @@ SHEDIT( shedit_show )
         ship_class_types, ship->ship_class);
     olc_display_flags(ctx, theme, "Flags:", "flags",
         ship_flags, (long)ship->flags);
+    if (IS_SET(ship->flags, SHIP_AUTONOMOUS_NPC)) {
+        olc_display_type(ctx, theme, "NPC Type:", "npctype",
+            npc_ship_types, ship->npc_type);
+        if (ship->faction)
+            olc_display_infof(ctx, theme, "{xFaction:     {C%-6s {Y%s {x(rank {W%d{x)",
+                "faction",
+                ship->faction->name,
+                ship->faction_rank);
+        else
+            olc_display_string(ctx, theme, "Faction:", "faction", NULL);
+    }
 
     olc_display_section(ctx, theme, "References");
 
@@ -292,6 +318,64 @@ SHEDIT( shedit_show )
     olc_display_number(ctx, theme, "Capacity:", "capacity", ship->capacity);
 
     olc_display_text(ctx, theme, "Description:", "desc", ship->description);
+
+    /* Hardpoints */
+    olc_display_section(ctx, theme, "Hardpoints");
+    olc_display_number(ctx, theme, "Module Weight Budget:", "moduleweight", ship->max_module_weight);
+    if (ship->hardpoints && list_size(ship->hardpoints) > 0) {
+        ITERATOR hp_it;
+        SHIP_HARDPOINT_DEF *hp;
+        int hp_num = 0;
+
+        olc_display_infof(ctx, theme, "  {W%-4s %-20s %-10s %-8s %-20s %s{x",
+            "Slot", "Name", "Type", "Size", "Domain", "Flags");
+
+        iterator_start(&hp_it, ship->hardpoints);
+        while ((hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&hp_it))) {
+            hp_num++;
+            olc_display_infof(ctx, theme, "  {G%3d  {Y%-20s {C%-10s {M%-8s {W%-20s {x%s",
+                hp->slot_id,
+                hp->name ? hp->name : "(unnamed)",
+                flag_string(hardpoint_types, hp->type),
+                flag_string(hardpoint_sizes, hp->size),
+                flag_string(domain_flags, hp->domain_flags),
+                flag_string(hardpoint_flags, hp->flags));
+        }
+        iterator_stop(&hp_it);
+    } else {
+        olc_display_infof(ctx, theme, "  None");
+    }
+
+    /* Crew Mobs */
+    olc_display_section(ctx, theme, "Crew Mobs");
+    if (ship->captain) {
+        olc_display_vnum(ctx, theme, "Captain:", "captain",
+            ship->captain->vnum, ship->captain->short_descr);
+    } else {
+        olc_display_string(ctx, theme, "Captain:", "captain", NULL);
+    }
+
+    if (ship->crew_defs && list_size(ship->crew_defs) > 0) {
+        ITERATOR cd_it;
+        SHIP_CREW_DEF *cd;
+        int cd_num = 0;
+
+        olc_display_infof(ctx, theme, "  {W%-4s %-8s %-30s %s{x",
+            "#", "Vnum", "Name", "Count");
+
+        iterator_start(&cd_it, ship->crew_defs);
+        while ((cd = (SHIP_CREW_DEF *)iterator_nextdata(&cd_it))) {
+            cd_num++;
+            olc_display_infof(ctx, theme, "  {G%3d  {W%-8ld {Y%-30s {Cx%d{x",
+                cd_num,
+                cd->mob ? cd->mob->vnum : cd->mob_ref.vnum,
+                cd->mob ? cd->mob->short_descr : "(unresolved)",
+                cd->count);
+        }
+        iterator_stop(&cd_it);
+    } else {
+        olc_display_infof(ctx, theme, "  None");
+    }
 
     /* Special Keys */
     olc_display_section(ctx, theme, "Special Keys");
@@ -920,4 +1004,518 @@ SHEDIT( shedit_keys )
     shedit_keys(ch, "");
     return false;
 
+}
+
+/**
+ * shedit_moduleweight - Set the ship's module weight budget
+ *
+ * The total weight of all installed modules cannot exceed this value.
+ * Set to 0 to disable module installation.
+ *
+ * Syntax: moduleweight <value>
+ */
+SHEDIT( shedit_moduleweight )
+{
+    SHIP_INDEX_DATA *ship;
+    EDIT_SHIP(ch, ship);
+    return olc_cmd_number(ch, argument, "Module Weight Budget", NULL,
+        &ship->max_module_weight, 0, SHIP_MAX_MODULE_WEIGHT, NULL, NULL);
+}
+
+/**
+ * shedit_captain - Set or clear the default captain mob for this ship hull
+ *
+ * Syntax: captain <mob widevnum>  - Set the default captain
+ *         captain none            - Clear the captain
+ */
+SHEDIT( shedit_captain )
+{
+    SHIP_INDEX_DATA *ship;
+
+    EDIT_SHIP(ch, ship);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  captain <mob widevnum>\n\r", ch);
+        send_to_char("         captain none\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "none") || !str_cmp(argument, "clear")) {
+        ship->captain = NULL;
+        memset(&ship->captain_ref, 0, sizeof(ship->captain_ref));
+        send_to_char("Captain cleared.\n\r", ch);
+        return true;
+    }
+
+    WNUM mob_wnum;
+    AREA_DATA *context = olc_relative_widevnum_context(ship->area, argument);
+    if (!parse_widevnum(argument, context, &mob_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    MOB_INDEX_DATA *mob = get_mob_index(mob_wnum.pArea, mob_wnum.vnum);
+    if (!mob) {
+        send_to_char("That mobile does not exist.\n\r", ch);
+        return false;
+    }
+
+    ship->captain = mob;
+    ship->captain_ref.vnum = mob_wnum.vnum;
+    send_to_char(formatf("Captain set to [%ld] %s.\n\r", mob->vnum, mob->short_descr), ch);
+    return true;
+}
+
+/**
+ * shedit_crewmob - Manage crew mob definitions on a ship hull
+ *
+ * Associates mob templates with counts to define which NPCs populate
+ * the ship as crew. Used for NPC ships and for permanent "ghost crew".
+ *
+ * Subcommands:
+ *   crewmob add <mob widevnum> [count]  - Add a crew mob entry
+ *   crewmob remove <#>                  - Remove a crew mob entry by index
+ *   crewmob <#> count <value>           - Change count for an entry
+ *   crewmob <#> mob <mob widevnum>      - Change mob for an entry
+ */
+SHEDIT( shedit_crewmob )
+{
+    SHIP_INDEX_DATA *ship;
+    char arg[MIL];
+
+    EDIT_SHIP(ch, ship);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  crewmob add <mob widevnum> [count]\n\r", ch);
+        send_to_char("         crewmob remove <#>\n\r", ch);
+        send_to_char("         crewmob <#> count <value>\n\r", ch);
+        send_to_char("         crewmob <#> mob <mob widevnum>\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    /* crewmob add <mob widevnum> [count] */
+    if (!str_cmp(arg, "add")) {
+        char mob_arg[MIL];
+        argument = one_argument(argument, mob_arg);
+
+        if (mob_arg[0] == '\0') {
+            send_to_char("Syntax:  crewmob add <mob widevnum> [count]\n\r", ch);
+            return false;
+        }
+
+        WNUM mob_wnum;
+        AREA_DATA *context = olc_relative_widevnum_context(ship->area, mob_arg);
+        if (!parse_widevnum(mob_arg, context, &mob_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+
+        MOB_INDEX_DATA *mob = get_mob_index(mob_wnum.pArea, mob_wnum.vnum);
+        if (!mob) {
+            send_to_char("That mobile does not exist.\n\r", ch);
+            return false;
+        }
+
+        int count = 1;
+        if (argument[0] != '\0') {
+            if (!is_number(argument)) {
+                send_to_char("Count must be a number.\n\r", ch);
+                return false;
+            }
+            count = atoi(argument);
+            if (count < 1 || count > 100) {
+                send_to_char("Count must be between 1 and 100.\n\r", ch);
+                return false;
+            }
+        }
+
+        SHIP_CREW_DEF *cd = new_ship_crew_def();
+        cd->mob = mob;
+        cd->mob_ref.vnum = mob_wnum.vnum;
+        cd->count = count;
+        list_appendlink(ship->crew_defs, cd);
+
+        send_to_char(formatf("Crew mob added: [%ld] %s x%d.\n\r",
+            mob->vnum, mob->short_descr, count), ch);
+        return true;
+    }
+
+    /* crewmob remove <#> */
+    if (!str_cmp(arg, "remove")) {
+        if (!is_number(argument)) {
+            send_to_char("Syntax:  crewmob remove <#>\n\r", ch);
+            return false;
+        }
+
+        int index = atoi(argument);
+        if (index < 1 || index > list_size(ship->crew_defs)) {
+            send_to_char("Index out of range.\n\r", ch);
+            return false;
+        }
+
+        list_remnthlink(ship->crew_defs, index, true);
+        send_to_char("Crew mob entry removed.\n\r", ch);
+        return true;
+    }
+
+    /* crewmob <#> <field> <value> */
+    if (!is_number(arg)) {
+        send_to_char("Expected 'add', 'remove', or an entry number.\n\r", ch);
+        return false;
+    }
+
+    int index = atoi(arg);
+    if (index < 1 || index > list_size(ship->crew_defs)) {
+        send_to_char("Index out of range.\n\r", ch);
+        return false;
+    }
+
+    SHIP_CREW_DEF *target = (SHIP_CREW_DEF *)list_nthdata(ship->crew_defs, index);
+    if (!target) {
+        send_to_char("Crew mob entry not found.\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    /* crewmob <#> count <value> */
+    if (!str_cmp(arg, "count")) {
+        if (!is_number(argument)) {
+            send_to_char("Syntax:  crewmob <#> count <value>\n\r", ch);
+            return false;
+        }
+        int count = atoi(argument);
+        if (count < 1 || count > 100) {
+            send_to_char("Count must be between 1 and 100.\n\r", ch);
+            return false;
+        }
+        target->count = count;
+        send_to_char(formatf("Crew mob count set to %d.\n\r", count), ch);
+        return true;
+    }
+
+    /* crewmob <#> mob <mob widevnum> */
+    if (!str_cmp(arg, "mob")) {
+        if (argument[0] == '\0') {
+            send_to_char("Syntax:  crewmob <#> mob <mob widevnum>\n\r", ch);
+            return false;
+        }
+
+        WNUM mob_wnum;
+        AREA_DATA *context = olc_relative_widevnum_context(ship->area, argument);
+        if (!parse_widevnum(argument, context, &mob_wnum)) {
+            send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+            return false;
+        }
+
+        MOB_INDEX_DATA *mob = get_mob_index(mob_wnum.pArea, mob_wnum.vnum);
+        if (!mob) {
+            send_to_char("That mobile does not exist.\n\r", ch);
+            return false;
+        }
+
+        target->mob = mob;
+        target->mob_ref.vnum = mob_wnum.vnum;
+        send_to_char(formatf("Crew mob changed to [%ld] %s.\n\r",
+            mob->vnum, mob->short_descr), ch);
+        return true;
+    }
+
+    send_to_char("Unknown crewmob field. Use: count, mob\n\r", ch);
+    return false;
+}
+
+/**
+ * shedit_hardpoint - Manage hardpoint slots on a ship hull
+ *
+ * Subcommands:
+ *   hardpoint add <name>                    - Add a new hardpoint slot
+ *   hardpoint remove <slot#>                - Remove a hardpoint by slot number
+ *   hardpoint <slot#> name <new name>       - Rename a hardpoint
+ *   hardpoint <slot#> type <type>           - Set type (weapon/defense/utility/propulsion)
+ *   hardpoint <slot#> size <size>           - Set size (small/medium/large)
+ *   hardpoint <slot#> domain <flags>        - Set domain flags (aquatic/aerial/terrestrial)
+ *   hardpoint <slot#> flags <flags>         - Toggle hardpoint flags (required/locked)
+ */
+SHEDIT( shedit_hardpoint )
+{
+    SHIP_INDEX_DATA *ship;
+    char arg[MIL];
+
+    EDIT_SHIP(ch, ship);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  hardpoint add <name>\n\r", ch);
+        send_to_char("         hardpoint remove <slot#>\n\r", ch);
+        send_to_char("         hardpoint <slot#> name <new name>\n\r", ch);
+        send_to_char("         hardpoint <slot#> type <weapon|defense|utility|propulsion>\n\r", ch);
+        send_to_char("         hardpoint <slot#> size <small|medium|large>\n\r", ch);
+        send_to_char("         hardpoint <slot#> domain <aquatic|aerial|terrestrial>\n\r", ch);
+        send_to_char("         hardpoint <slot#> flags <required|locked>\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    /* hardpoint add <name> */
+    if (!str_cmp(arg, "add")) {
+        if (argument[0] == '\0') {
+            send_to_char("Syntax:  hardpoint add <name>\n\r", ch);
+            return false;
+        }
+
+        /* Find next available slot ID */
+        int16_t next_slot = 1;
+        if (ship->hardpoints) {
+            ITERATOR it;
+            SHIP_HARDPOINT_DEF *hp;
+            iterator_start(&it, ship->hardpoints);
+            while ((hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&it)) != NULL) {
+                if (hp->slot_id >= next_slot)
+                    next_slot = hp->slot_id + 1;
+            }
+            iterator_stop(&it);
+        }
+
+        SHIP_HARDPOINT_DEF *hp = new_ship_hardpoint_def();
+        hp->slot_id = next_slot;
+        free_string(hp->name);
+        hp->name = str_dup(argument);
+        list_appendlink(ship->hardpoints, hp);
+
+        send_to_char(formatf("Hardpoint slot %d '%s' added.\n\r", hp->slot_id, hp->name), ch);
+        return true;
+    }
+
+    /* hardpoint remove <slot#> */
+    if (!str_cmp(arg, "remove")) {
+        if (!is_number(argument)) {
+            send_to_char("Syntax:  hardpoint remove <slot#>\n\r", ch);
+            return false;
+        }
+
+        int slot = atoi(argument);
+        ITERATOR it;
+        SHIP_HARDPOINT_DEF *hp;
+        bool found = false;
+
+        iterator_start(&it, ship->hardpoints);
+        while ((hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&it)) != NULL) {
+            if (hp->slot_id == slot) {
+                iterator_remcurrent(&it);
+                free_ship_hardpoint_def(hp);
+                found = true;
+                break;
+            }
+        }
+        iterator_stop(&it);
+
+        if (!found) {
+            send_to_char("No hardpoint with that slot number.\n\r", ch);
+            return false;
+        }
+
+        send_to_char(formatf("Hardpoint slot %d removed.\n\r", slot), ch);
+        return true;
+    }
+
+    /* hardpoint <slot#> <field> <value> */
+    if (!is_number(arg)) {
+        send_to_char("Expected 'add', 'remove', or a slot number.\n\r", ch);
+        return false;
+    }
+
+    int slot = atoi(arg);
+    SHIP_HARDPOINT_DEF *target = NULL;
+
+    {
+        ITERATOR it;
+        SHIP_HARDPOINT_DEF *hp;
+        iterator_start(&it, ship->hardpoints);
+        while ((hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&it)) != NULL) {
+            if (hp->slot_id == slot) {
+                target = hp;
+                break;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    if (!target) {
+        send_to_char("No hardpoint with that slot number.\n\r", ch);
+        return false;
+    }
+
+    argument = one_argument(argument, arg);
+
+    /* hardpoint <slot#> name <new name> */
+    if (!str_cmp(arg, "name")) {
+        if (argument[0] == '\0') {
+            send_to_char("Syntax:  hardpoint <slot#> name <new name>\n\r", ch);
+            return false;
+        }
+        free_string(target->name);
+        target->name = str_dup(argument);
+        send_to_char("Hardpoint name set.\n\r", ch);
+        return true;
+    }
+
+    /* hardpoint <slot#> type <type> */
+    if (!str_cmp(arg, "type")) {
+        int value = flag_value(hardpoint_types, argument);
+        if (value == NO_FLAG) {
+            send_to_char("Invalid type. Use: weapon, defense, utility, propulsion\n\r", ch);
+            return false;
+        }
+        target->type = value;
+        send_to_char("Hardpoint type set.\n\r", ch);
+        return true;
+    }
+
+    /* hardpoint <slot#> size <size> */
+    if (!str_cmp(arg, "size")) {
+        int value = flag_value(hardpoint_sizes, argument);
+        if (value == NO_FLAG) {
+            send_to_char("Invalid size. Use: small, medium, large\n\r", ch);
+            return false;
+        }
+        target->size = value;
+        send_to_char("Hardpoint size set.\n\r", ch);
+        return true;
+    }
+
+    /* hardpoint <slot#> domain <flags> */
+    if (!str_cmp(arg, "domain")) {
+        int value = flag_value(domain_flags, argument);
+        if (value == NO_FLAG) {
+            send_to_char("Invalid domain. Use: aquatic, aerial, terrestrial\n\r", ch);
+            return false;
+        }
+        target->domain_flags ^= value;
+        send_to_char(formatf("Hardpoint domain flags: %s\n\r",
+            flag_string(domain_flags, target->domain_flags)), ch);
+        return true;
+    }
+
+    /* hardpoint <slot#> flags <flags> */
+    if (!str_cmp(arg, "flags")) {
+        int value = flag_value(hardpoint_flags, argument);
+        if (value == NO_FLAG) {
+            send_to_char("Invalid flag. Use: required, locked\n\r", ch);
+            return false;
+        }
+        target->flags ^= value;
+        send_to_char(formatf("Hardpoint flags: %s\n\r",
+            flag_string(hardpoint_flags, target->flags)), ch);
+        return true;
+    }
+
+    send_to_char("Unknown hardpoint field. Use: name, type, size, domain, flags\n\r", ch);
+    return false;
+}
+
+/**
+ * shedit_npctype - Set the NPC behavior type for this ship template
+ *
+ * Controls what AI behavior an NPC ship will exhibit when created from
+ * this template (e.g., coast guard patrols, pirates attack, traders flee).
+ * Only meaningful when the 'npc' ship flag is set.
+ *
+ * Syntax: npctype <type>
+ */
+SHEDIT( shedit_npctype )
+{
+    SHIP_INDEX_DATA *ship;
+    EDIT_SHIP(ch, ship);
+    return olc_cmd_type_set(ch, argument, "NPC Type",
+        "Syntax: npctype <type>\n\rType '? npcshiptype' for a list.",
+        &ship->npc_type, npc_ship_types, NULL, NULL);
+}
+
+/**
+ * shedit_faction - Set or clear the faction allegiance for this NPC ship
+ *
+ * Links the ship to a REPUTATION_INDEX_DATA faction.  When players attack
+ * or sink this ship, reputation changes are applied against this faction.
+ * Only meaningful when the 'npc' ship flag is set.
+ *
+ * Syntax: faction <reputation widevnum>
+ *         faction none
+ */
+SHEDIT( shedit_faction )
+{
+    SHIP_INDEX_DATA *ship;
+
+    EDIT_SHIP(ch, ship);
+
+    if (argument[0] == '\0') {
+        send_to_char("Syntax:  faction <reputation widevnum>\n\r", ch);
+        send_to_char("         faction none\n\r", ch);
+        return false;
+    }
+
+    if (!str_cmp(argument, "none") || !str_cmp(argument, "clear")) {
+        ship->faction = NULL;
+        memset(&ship->faction_ref, 0, sizeof(ship->faction_ref));
+        ship->faction_rank = 0;
+        send_to_char("Faction cleared.\n\r", ch);
+        return true;
+    }
+
+    WNUM rep_wnum;
+    AREA_DATA *context = olc_relative_widevnum_context(ship->area, argument);
+    if (!parse_widevnum(argument, context, &rep_wnum)) {
+        send_to_char("Invalid widevnum format. Use: vnum, #vnum or area#vnum\n\r", ch);
+        return false;
+    }
+
+    REPUTATION_INDEX_DATA *rep = get_reputation_index(rep_wnum.pArea, rep_wnum.vnum);
+    if (!rep) {
+        send_to_char("That reputation faction does not exist.\n\r", ch);
+        return false;
+    }
+
+    ship->faction = rep;
+    ship->faction_ref.vnum = rep_wnum.vnum;
+    send_to_char(formatf("Faction set to [%ld] %s.\n\r", rep->vnum, rep->name), ch);
+    return true;
+}
+
+/**
+ * shedit_factionrank - Set the faction rank for this NPC ship
+ *
+ * Determines the ship's effective standing within its faction, used for
+ * display and for scaling reputation changes on combat interactions.
+ * Only meaningful when a faction is set.
+ *
+ * Syntax: factionrank <rank_number>
+ */
+SHEDIT( shedit_factionrank )
+{
+    SHIP_INDEX_DATA *ship;
+    int value;
+
+    EDIT_SHIP(ch, ship);
+
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax: factionrank <rank_number>\n\r", ch);
+        return false;
+    }
+
+    if (!ship->faction) {
+        send_to_char("Set a faction first with 'faction <widevnum>'.\n\r", ch);
+        return false;
+    }
+
+    value = atoi(argument);
+    if (value < 0) {
+        send_to_char("Faction rank must be non-negative.\n\r", ch);
+        return false;
+    }
+
+    ship->faction_rank = (int16_t)value;
+    send_to_char(formatf("Faction rank set to %d.\n\r", ship->faction_rank), ch);
+    return true;
 }

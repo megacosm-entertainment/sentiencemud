@@ -597,6 +597,7 @@ void fix_dungeon_rooms(void);
 void fix_dungeon_floors(void);
 void fix_blueprint_references(void);
 void fix_events(void);
+void area_dependencies_rebuild_all(void);
 
 
 
@@ -718,6 +719,407 @@ void fixup_area_reset_references(void)
     if (failed > 0) {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to resolve %d cross-area reset references", failed);
     }
+}
+
+void area_dependency_clear(AREA_DATA *area)
+{
+    AREA_DEPENDENCY *dependency;
+    AREA_DEPENDENCY *next;
+
+    if (!area)
+        return;
+
+    for (dependency = area->dependencies; dependency != NULL; dependency = next)
+    {
+        next = dependency->next;
+        free_string(dependency->source_type);
+        free_string(dependency->source_name);
+        free_string(dependency->reference_type);
+        free_string(dependency->target_area_name);
+        free_string(dependency->target_type);
+        free_string(dependency->target_name);
+        free_mem(dependency, sizeof(*dependency));
+    }
+
+    area->dependencies = NULL;
+    area->dependency_count = 0;
+}
+
+void area_dependency_add(AREA_DATA *area, const char *source_type, long source_vnum,
+    const char *source_name, const char *reference_type, long target_area_uid,
+    const char *target_area_name, const char *target_type, long target_vnum,
+    const char *target_name)
+{
+    AREA_DEPENDENCY *dependency;
+
+    if (!area || target_area_uid <= 0 || target_vnum <= 0)
+        return;
+
+    dependency = alloc_mem(sizeof(*dependency));
+    if (!dependency)
+        return;
+
+    dependency->next = area->dependencies;
+    dependency->source_type = str_dup(source_type ? source_type : "unknown");
+    dependency->source_vnum = source_vnum;
+    dependency->source_name = str_dup(source_name ? source_name : "");
+    dependency->reference_type = str_dup(reference_type ? reference_type : "reference");
+    dependency->target_area_uid = target_area_uid;
+    dependency->target_area_name = str_dup(target_area_name ? target_area_name : "");
+    dependency->target_type = str_dup(target_type ? target_type : "entity");
+    dependency->target_vnum = target_vnum;
+    dependency->target_name = str_dup(target_name ? target_name : "");
+
+    area->dependencies = dependency;
+    area->dependency_count++;
+}
+
+static void area_dependency_add_resolved(AREA_DATA *source_area, const char *source_type,
+    long source_vnum, const char *source_name, const char *reference_type,
+    AREA_DATA *target_area, const char *target_type, long target_vnum,
+    const char *target_name)
+{
+    if (!source_area || !target_area)
+        return;
+
+    if (target_area->uid <= 0 || target_area->uid == source_area->uid)
+        return;
+
+    area_dependency_add(source_area, source_type, source_vnum, source_name,
+        reference_type, target_area->uid, target_area->name,
+        target_type, target_vnum, target_name);
+}
+
+static void area_dependency_scan_prog_bank(AREA_DATA *source_area, const char *source_type,
+    long source_vnum, const char *source_name, LLIST **progs)
+{
+    int slot;
+
+    if (!source_area || !progs)
+        return;
+
+    for (slot = 0; slot < TRIGSLOT_MAX; slot++)
+    {
+        ITERATOR it;
+        PROG_LIST *trigger;
+
+        if (!progs[slot])
+            continue;
+
+        iterator_start(&it, progs[slot]);
+        while ((trigger = (PROG_LIST *)iterator_nextdata(&it)) != NULL)
+        {
+            AREA_DATA *target_area = NULL;
+            SCRIPT_DATA *script = trigger->script;
+            long target_vnum = 0;
+
+            if (script && script->area)
+            {
+                target_area = script->area;
+                target_vnum = script->vnum;
+            }
+            else if (trigger->script_is_widevnum && trigger->script_load.auid > 0)
+            {
+                target_area = get_area_from_uid(trigger->script_load.auid);
+                target_vnum = trigger->script_load.vnum;
+            }
+            else
+            {
+                WNUM script_wnum;
+                if (resolve_widevnum(trigger->vnum, source_area, &script_wnum))
+                {
+                    target_area = script_wnum.pArea;
+                    target_vnum = script_wnum.vnum;
+                }
+            }
+
+            if (!target_area || target_vnum <= 0)
+                continue;
+
+            area_dependency_add_resolved(source_area, source_type, source_vnum,
+                source_name, "script_trigger", target_area, "script",
+                target_vnum, script ? script->name : "");
+        }
+        iterator_stop(&it);
+    }
+}
+
+void area_dependencies_rebuild_for_area(AREA_DATA *area)
+{
+    int hash_index;
+
+    if (!area)
+        return;
+
+    area_dependency_clear(area);
+
+    if (area->post_office_wnum.vnum > 0)
+    {
+        AREA_DATA *target_area = area->post_office_wnum.pArea ? area->post_office_wnum.pArea : area;
+        ROOM_INDEX_DATA *target_room = target_area ? get_room_index(target_area, area->post_office_wnum.vnum) : NULL;
+
+        area_dependency_add_resolved(area, "area", area->uid, area->name,
+            "post_office", target_area, "room", area->post_office_wnum.vnum,
+            target_room ? target_room->name : "");
+    }
+
+    if (area->airship_land_wnum.vnum > 0)
+    {
+        AREA_DATA *target_area = area->airship_land_wnum.pArea;
+        ROOM_INDEX_DATA *target_room = target_area ? get_room_index(target_area, area->airship_land_wnum.vnum) : NULL;
+
+        if (!target_area)
+            target_area = find_area_by_vnum(area->airship_land_wnum.vnum, NULL);
+
+        area_dependency_add_resolved(area, "area", area->uid, area->name,
+            "airship_land", target_area, "room", area->airship_land_wnum.vnum,
+            target_room ? target_room->name : "");
+    }
+
+    area_dependency_scan_prog_bank(area, "area", area->uid, area->name,
+        area->progs ? area->progs->progs : NULL);
+
+    for (TRADE_ITEM *trade = area->trade_list; trade != NULL; trade = trade->next)
+    {
+        AREA_DATA *target_area;
+        OBJ_INDEX_DATA *target_obj;
+
+        if (trade->obj_wnum.vnum <= 0)
+            continue;
+
+        target_area = trade->obj_wnum.pArea ? trade->obj_wnum.pArea : area;
+        target_obj = target_area ? get_obj_index(target_area, trade->obj_wnum.vnum) : NULL;
+
+        area_dependency_add_resolved(area, "trade", trade->obj_wnum.vnum,
+            trade_table[trade->trade_type].name, "trade_item", target_area,
+            "object", trade->obj_wnum.vnum, target_obj ? target_obj->short_descr : "");
+    }
+
+    for (hash_index = 0; hash_index < MAX_KEY_HASH; hash_index++)
+    {
+        ROOM_INDEX_DATA *room;
+        MOB_INDEX_DATA *mob;
+        OBJ_INDEX_DATA *obj;
+        TOKEN_INDEX_DATA *token;
+        BLUEPRINT *blueprint;
+        DUNGEON_INDEX_DATA *dungeon_index;
+
+        for (room = area->room_index_hash[hash_index]; room != NULL; room = room->next)
+        {
+            int door;
+
+            if (room->parent_wnum.vnum > 0)
+            {
+                AREA_DATA *parent_area = room->parent_wnum.pArea;
+                ROOM_INDEX_DATA *parent_room = parent_area ? get_room_index(parent_area, room->parent_wnum.vnum) : NULL;
+
+                area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                    "parent_room", parent_area, "room", room->parent_wnum.vnum,
+                    parent_room ? parent_room->name : "");
+            }
+
+            for (RESET_DATA *reset = room->reset_first; reset != NULL; reset = reset->next)
+            {
+                switch (reset->command)
+                {
+                    case 'M':
+                    {
+                        AREA_DATA *target_area = reset->arg1.wnum.pArea ? reset->arg1.wnum.pArea : area;
+                        MOB_INDEX_DATA *target_mob = get_mob_index(target_area, reset->arg1.wnum.vnum);
+
+                        area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                            "reset:M", target_area, "mobile", reset->arg1.wnum.vnum,
+                            target_mob ? target_mob->short_descr : "");
+                        break;
+                    }
+
+                    case 'O':
+                    case 'G':
+                    case 'E':
+                    {
+                        AREA_DATA *target_area = reset->arg1.wnum.pArea ? reset->arg1.wnum.pArea : area;
+                        OBJ_INDEX_DATA *target_obj = get_obj_index(target_area, reset->arg1.wnum.vnum);
+
+                        area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                            formatf("reset:%c", reset->command), target_area, "object",
+                            reset->arg1.wnum.vnum, target_obj ? target_obj->short_descr : "");
+                        break;
+                    }
+
+                    case 'P':
+                    {
+                        AREA_DATA *target_obj_area = reset->arg1.wnum.pArea ? reset->arg1.wnum.pArea : area;
+                        AREA_DATA *target_container_area = reset->arg3.wnum.pArea ? reset->arg3.wnum.pArea : area;
+                        OBJ_INDEX_DATA *target_obj = get_obj_index(target_obj_area, reset->arg1.wnum.vnum);
+                        OBJ_INDEX_DATA *target_container = get_obj_index(target_container_area, reset->arg3.wnum.vnum);
+
+                        area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                            "reset:P_object", target_obj_area, "object", reset->arg1.wnum.vnum,
+                            target_obj ? target_obj->short_descr : "");
+
+                        area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                            "reset:P_container", target_container_area, "object", reset->arg3.wnum.vnum,
+                            target_container ? target_container->short_descr : "");
+                        break;
+                    }
+                }
+            }
+
+            for (door = 0; door <= 9; door++)
+            {
+                EXIT_DATA *exit_data = room->exit[door];
+
+                if (!exit_data)
+                    continue;
+
+                if (exit_data->u1.to_room && exit_data->u1.to_room->area)
+                {
+                    area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                        formatf("exit:%s", dir_name[door]), exit_data->u1.to_room->area,
+                        "room", exit_data->u1.to_room->vnum,
+                        exit_data->u1.to_room->name);
+                }
+
+                if (exit_data->door.lock.key_wnum.vnum > 0)
+                {
+                    AREA_DATA *key_area = exit_data->door.lock.key_wnum.pArea ? exit_data->door.lock.key_wnum.pArea : area;
+                    OBJ_INDEX_DATA *key_obj = get_obj_index(key_area, exit_data->door.lock.key_wnum.vnum);
+
+                    area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                        "exit_key", key_area, "object", exit_data->door.lock.key_wnum.vnum,
+                        key_obj ? key_obj->short_descr : "");
+                }
+
+                if (exit_data->door.rs_lock.key_wnum.vnum > 0)
+                {
+                    AREA_DATA *key_area = exit_data->door.rs_lock.key_wnum.pArea ? exit_data->door.rs_lock.key_wnum.pArea : area;
+                    OBJ_INDEX_DATA *key_obj = get_obj_index(key_area, exit_data->door.rs_lock.key_wnum.vnum);
+
+                    area_dependency_add_resolved(area, "room", room->vnum, room->name,
+                        "exit_rs_key", key_area, "object", exit_data->door.rs_lock.key_wnum.vnum,
+                        key_obj ? key_obj->short_descr : "");
+                }
+            }
+
+            area_dependency_scan_prog_bank(area, "room", room->vnum, room->name,
+                room->progs ? room->progs->progs : NULL);
+        }
+
+        for (mob = area->mob_index_hash[hash_index]; mob != NULL; mob = mob->next)
+        {
+            if (mob->parent_wnum.vnum > 0)
+            {
+                AREA_DATA *parent_area = mob->parent_wnum.pArea;
+                MOB_INDEX_DATA *parent_mob = parent_area ? get_mob_index(parent_area, mob->parent_wnum.vnum) : NULL;
+
+                area_dependency_add_resolved(area, "mobile", mob->vnum, mob->short_descr,
+                    "parent_mobile", parent_area, "mobile", mob->parent_wnum.vnum,
+                    parent_mob ? parent_mob->short_descr : "");
+            }
+
+            if (mob->corpse_wnum.vnum > 0)
+            {
+                AREA_DATA *corpse_area = mob->corpse_wnum.pArea ? mob->corpse_wnum.pArea : area;
+                OBJ_INDEX_DATA *corpse_obj = get_obj_index(corpse_area, mob->corpse_wnum.vnum);
+
+                area_dependency_add_resolved(area, "mobile", mob->vnum, mob->short_descr,
+                    "corpse_object", corpse_area, "object", mob->corpse_wnum.vnum,
+                    corpse_obj ? corpse_obj->short_descr : "");
+            }
+
+            if (mob->zombie_wnum.vnum > 0)
+            {
+                AREA_DATA *zombie_area = mob->zombie_wnum.pArea ? mob->zombie_wnum.pArea : area;
+                OBJ_INDEX_DATA *zombie_obj = get_obj_index(zombie_area, mob->zombie_wnum.vnum);
+
+                area_dependency_add_resolved(area, "mobile", mob->vnum, mob->short_descr,
+                    "zombie_object", zombie_area, "object", mob->zombie_wnum.vnum,
+                    zombie_obj ? zombie_obj->short_descr : "");
+            }
+
+            area_dependency_scan_prog_bank(area, "mobile", mob->vnum, mob->short_descr,
+                mob->progs);
+        }
+
+        for (obj = area->obj_index_hash[hash_index]; obj != NULL; obj = obj->next)
+        {
+            if (obj->parent_wnum.vnum > 0)
+            {
+                AREA_DATA *parent_area = obj->parent_wnum.pArea;
+                OBJ_INDEX_DATA *parent_obj = parent_area ? get_obj_index(parent_area, obj->parent_wnum.vnum) : NULL;
+
+                area_dependency_add_resolved(area, "object", obj->vnum, obj->short_descr,
+                    "parent_object", parent_area, "object", obj->parent_wnum.vnum,
+                    parent_obj ? parent_obj->short_descr : "");
+            }
+
+            if (obj->lock && obj->lock->key_wnum.vnum > 0)
+            {
+                AREA_DATA *key_area = obj->lock->key_wnum.pArea ? obj->lock->key_wnum.pArea : area;
+                OBJ_INDEX_DATA *key_obj = get_obj_index(key_area, obj->lock->key_wnum.vnum);
+
+                area_dependency_add_resolved(area, "object", obj->vnum, obj->short_descr,
+                    "object_key", key_area, "object", obj->lock->key_wnum.vnum,
+                    key_obj ? key_obj->short_descr : "");
+            }
+
+            if (obj->item_type == ITEM_PORTAL)
+            {
+                long dest_vnum = obj->_portal ? PORTAL(obj)->params[0] : legacy_obj_index_value_get(obj, 3);
+                long dest_area_uid = obj->_portal ? PORTAL(obj)->params[4] : legacy_obj_index_value_get(obj, 4);
+                long portal_flags = obj->_portal ? PORTAL(obj)->flags : legacy_obj_index_value_get(obj, 2);
+
+                if (dest_vnum > 0 && !IS_SET(portal_flags, GATE_DUNGEON))
+                {
+                    AREA_DATA *dest_area = dest_area_uid > 0
+                        ? get_area_from_uid(dest_area_uid)
+                        : find_area_by_vnum(dest_vnum, area);
+                    ROOM_INDEX_DATA *dest_room = dest_area ? get_room_index(dest_area, dest_vnum) : NULL;
+
+                    area_dependency_add_resolved(area, "object", obj->vnum, obj->short_descr,
+                        "portal_destination", dest_area, "room", dest_vnum,
+                        dest_room ? dest_room->name : "");
+                }
+            }
+
+            area_dependency_scan_prog_bank(area, "object", obj->vnum, obj->short_descr,
+                obj->progs);
+        }
+
+        for (token = area->token_index_hash[hash_index]; token != NULL; token = token->next)
+        {
+            area_dependency_scan_prog_bank(area, "token", token->vnum, token->name,
+                token->progs);
+        }
+
+        for (blueprint = area->blueprint_hash[hash_index]; blueprint != NULL; blueprint = blueprint->next)
+        {
+            area_dependency_scan_prog_bank(area, "blueprint", blueprint->vnum,
+                blueprint->name, blueprint->progs);
+        }
+
+        for (dungeon_index = area->dungeon_index_hash[hash_index]; dungeon_index != NULL; dungeon_index = dungeon_index->next)
+        {
+            area_dependency_scan_prog_bank(area, "dungeon", dungeon_index->vnum,
+                dungeon_index->name, dungeon_index->progs);
+        }
+    }
+}
+
+void area_dependencies_rebuild_all(void)
+{
+    AREA_DATA *area;
+    long total_records = 0;
+
+    for (area = area_first; area != NULL; area = area->next)
+    {
+        area_dependencies_rebuild_for_area(area);
+        total_records += area->dependency_count;
+    }
+
+    log_message_f(LOG_LEVEL_INFO, LOG_INIT,
+        "Built area dependency map (%ld total cross-area references)",
+        total_records);
 }
 
 
@@ -1127,6 +1529,8 @@ void boot_db(void)
     /* Fixup cross-area reset references after all areas are loaded but BEFORE area_update */
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Resolving cross-area reset references");
     fixup_area_reset_references();
+    log_message(LOG_LEVEL_INFO, LOG_INIT, "Building cross-area dependency map");
+    area_dependencies_rebuild_all();
 
     fBootDb	= false;
     log_message(LOG_LEVEL_INFO, LOG_INIT, "Doing area_update");
@@ -3131,6 +3535,82 @@ void fix_blueprint_references(void)
                             pArea->name,
                             ship->ship_object_ref.load.auid,
                             ship->ship_object_ref.load.vnum);
+                    }
+                }
+
+                /* Resolve captain mob reference using WNUM_LOAD */
+                if (ship->captain_ref.load.vnum > 0 && !ship->captain)
+                {
+                    AREA_DATA *target_area = get_area_from_uid(ship->captain_ref.load.auid);
+
+                    if (target_area)
+                        ship->captain = get_mob_index(target_area, ship->captain_ref.load.vnum);
+
+                    if (!ship->captain)
+                        ship->captain = get_mob_index_global(ship->captain_ref.load.vnum);
+
+                    if (!ship->captain)
+                    {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Ship '%s' (vnum %ld in %s): captain mob %lu#%ld not found",
+                            ship->name ? ship->name : "unnamed",
+                            ship->vnum,
+                            pArea->name,
+                            ship->captain_ref.load.auid,
+                            ship->captain_ref.load.vnum);
+                    }
+                }
+
+                /* Resolve crew mob definition references */
+                if (ship->crew_defs && list_size(ship->crew_defs) > 0)
+                {
+                    ITERATOR cd_it;
+                    SHIP_CREW_DEF *cd;
+                    iterator_start(&cd_it, ship->crew_defs);
+                    while ((cd = (SHIP_CREW_DEF *)iterator_nextdata(&cd_it)) != NULL)
+                    {
+                        if (cd->mob_ref.load.vnum > 0 && !cd->mob)
+                        {
+                            AREA_DATA *target_area = get_area_from_uid(cd->mob_ref.load.auid);
+
+                            if (target_area)
+                                cd->mob = get_mob_index(target_area, cd->mob_ref.load.vnum);
+
+                            if (!cd->mob)
+                                cd->mob = get_mob_index_global(cd->mob_ref.load.vnum);
+
+                            if (!cd->mob)
+                            {
+                                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                                    "Ship '%s' (vnum %ld in %s): crew mob %lu#%ld not found",
+                                    ship->name ? ship->name : "unnamed",
+                                    ship->vnum,
+                                    pArea->name,
+                                    cd->mob_ref.load.auid,
+                                    cd->mob_ref.load.vnum);
+                            }
+                        }
+                    }
+                    iterator_stop(&cd_it);
+                }
+
+                /* Resolve faction reputation reference */
+                if (ship->faction_ref.load.vnum > 0 && !ship->faction)
+                {
+                    AREA_DATA *target_area = get_area_from_uid(ship->faction_ref.load.auid);
+
+                    if (target_area)
+                        ship->faction = get_reputation_index(target_area, ship->faction_ref.load.vnum);
+
+                    if (!ship->faction)
+                    {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
+                            "Ship '%s' (vnum %ld in %s): faction reputation %lu#%ld not found",
+                            ship->name ? ship->name : "unnamed",
+                            ship->vnum,
+                            pArea->name,
+                            ship->faction_ref.load.auid,
+                            ship->faction_ref.load.vnum);
                     }
                 }
                 

@@ -555,6 +555,32 @@ json_t *ship_to_json(SHIP_DATA *ship)
     }
     
     /* TODO: Add steering, crew, objects, etc. */
+
+    /* Installed modules */
+    if (ship->modules && list_size(ship->modules) > 0) {
+        json_t *modules = json_array();
+        ITERATOR it;
+        SHIP_MODULE *mod;
+        iterator_start(&it, ship->modules);
+        while ((mod = (SHIP_MODULE *)iterator_nextdata(&it)) != NULL) {
+            if (!IS_VALID(mod) || !mod->index) continue;
+            json_t *mod_json = json_object();
+            /* Module template reference (widevnum) */
+            AREA_DATA *mod_area = mod->index->area ? mod->index->area : get_system_area_fallback();
+            json_object_set_new(mod_json, "index_wnum", wnum_to_json(mod_area, mod->index->vnum));
+            json_object_set_new(mod_json, "slot_id", json_integer(mod->slot_id));
+            json_object_set_new(mod_json, "condition", json_integer(mod->condition));
+            json_object_set_new(mod_json, "max_condition", json_integer(mod->max_condition));
+            json_object_set_new(mod_json, "ammo_count", json_integer(mod->ammo_count));
+            json_object_set_new(mod_json, "active", json_boolean(mod->active));
+            json_array_append_new(modules, mod_json);
+        }
+        iterator_stop(&it);
+        if (json_array_size(modules) > 0)
+            json_object_set_new(json, "modules", modules);
+        else
+            json_decref(modules);
+    }
     
     return json;
 }
@@ -635,6 +661,40 @@ SHIP_DATA *json_to_ship(json_t *json)
     
     value = json_object_get(json, "oars");
     if (value) ship->oars = json_integer_value(value);
+    
+    /* Load installed modules */
+    value = json_object_get(json, "modules");
+    if (value && json_is_array(value)) {
+        size_t mod_idx;
+        json_t *mod_json;
+        json_array_foreach(value, mod_idx, mod_json) {
+            json_t *wnum_val = json_object_get(mod_json, "index_wnum");
+            WNUM wnum = parse_wnum_from_json(wnum_val);
+            SHIP_MODULE_INDEX *mod_index = NULL;
+
+            if (wnum.pArea) {
+                int hash = wnum.vnum % MAX_KEY_HASH;
+                for (SHIP_MODULE_INDEX *m = wnum.pArea->ship_module_index_hash[hash]; m; m = m->next) {
+                    if (m->vnum == wnum.vnum) { mod_index = m; break; }
+                }
+            }
+
+            if (!mod_index) {
+                log_stringf("json_to_ship: Module index %ld not found, skipping", wnum.vnum);
+                continue;
+            }
+
+            SHIP_MODULE *mod = new_ship_module();
+            mod->index = mod_index;
+            mod->slot_id = json_get_int_default(mod_json, "slot_id", 0);
+            mod->condition = json_get_int_default(mod_json, "condition", 100);
+            mod->max_condition = json_get_int_default(mod_json, "max_condition", 100);
+            mod->ammo_count = json_get_int_default(mod_json, "ammo_count", 0);
+            mod->active = json_get_bool_default(mod_json, "active", true);
+            mod->operational = false;  /* Will be derived at runtime */
+            list_appendlink(ship->modules, mod);
+        }
+    }
     
     /* Load instance with full room state (NPCs, objects, etc.) */
     value = json_object_get(json, "instance");

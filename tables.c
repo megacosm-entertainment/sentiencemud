@@ -2970,12 +2970,71 @@ const struct flag_type ship_class_types[] =
 {
     { "sailboat",		SHIP_SAILING_BOAT,		true	},
     { "airship",		SHIP_AIR_SHIP,			true	},
+    { "landvessel",		SHIP_LAND_VESSEL,		true	},
     { NULL,				0,						false	}
 };
 
 const struct flag_type ship_flags[] =
 {
     { "protected",		SHIP_PROTECTED,			true	},
+    { "npc",			SHIP_AUTONOMOUS_NPC,	true	},
+    { "sinking",		SHIP_SINKING,			true	},
+    { "on_fire",		SHIP_ON_FIRE,			true	},
+    { "disabled",		SHIP_DISABLED,			true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type npc_ship_types[] =
+{
+    { "coast_guard",	NPC_SHIP_COAST_GUARD,	true	},
+    { "pirate",			NPC_SHIP_PIRATE,		true	},
+    { "bounty_hunter",	NPC_SHIP_BOUNTY_HUNTER,	true	},
+    { "adventurer",		NPC_SHIP_ADVENTURER,	true	},
+    { "trader",			NPC_SHIP_TRADER,		true	},
+    { "air_ship",		NPC_SHIP_AIR_SHIP,		true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type hardpoint_types[] =
+{
+    { "weapon",			HARDPOINT_WEAPON,		true	},
+    { "defense",		HARDPOINT_DEFENSE,		true	},
+    { "utility",		HARDPOINT_UTILITY,		true	},
+    { "propulsion",		HARDPOINT_PROPULSION,	true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type hardpoint_sizes[] =
+{
+    { "small",			HARDPOINT_SIZE_SMALL,	true	},
+    { "medium",			HARDPOINT_SIZE_MEDIUM,	true	},
+    { "large",			HARDPOINT_SIZE_LARGE,	true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type domain_flags[] =
+{
+    { "aquatic",		DOMAIN_AQUATIC,			true	},
+    { "aerial",			DOMAIN_AERIAL,			true	},
+    { "terrestrial",	DOMAIN_TERRESTRIAL,		true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type hardpoint_flags[] =
+{
+    { "required",		HARDPOINT_REQUIRED,		true	},
+    { "locked",			HARDPOINT_LOCKED,		true	},
+    { NULL,				0,						false	}
+};
+
+const struct flag_type module_flags[] =
+{
+    { "requires_ammo",	MODULE_REQUIRES_AMMO,	true	},
+    { "passive",		MODULE_PASSIVE,			true	},
+    { "aoe",			MODULE_AOE,				true	},
+    { "anti_crew",		MODULE_ANTI_CREW,		true	},
+    { "fire_damage",	MODULE_FIRE_DAMAGE,		true	},
+    { "board_defense",	MODULE_BOARDING_DEFENSE,true	},
     { NULL,				0,						false	}
 };
 
@@ -3420,6 +3479,7 @@ const struct do_func_type do_func_table[] =
         { "do_zecho",                   do_zecho },
         { "do_zot",                     do_zot },
         { "do_aedit",                   do_aedit },
+        { "do_ashow",                   do_ashow },
         { "do_alist",                   do_alist },
         { "do_asave_new",                       do_asave_new },
         { "do_asearch",                 do_asearch },

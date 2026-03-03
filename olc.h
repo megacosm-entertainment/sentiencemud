@@ -79,6 +79,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_QUEST         41
 #define ED_CEDIT         43
 #define ED_CHREPORT      44
+#define ED_SHIPMODULE    46
 
 
 
@@ -90,6 +91,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define QEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define REDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define SHEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define SMEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define TEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define PEDIT(fun)		bool fun( CHAR_DATA *ch, char *argument )
 /* VIZZWILDS */
@@ -189,6 +191,7 @@ extern const struct olc_cmd_type	hedit_table[];
  * Editor Commands.
  */
 DECLARE_DO_FUN( do_aedit        );
+DECLARE_DO_FUN( do_ashow        );
 DECLARE_DO_FUN( do_hedit        );
 DECLARE_DO_FUN( do_medit        );
 DECLARE_DO_FUN( do_mpedit	);
@@ -197,6 +200,7 @@ DECLARE_DO_FUN( do_opedit       );
 DECLARE_DO_FUN( do_redit        );
 DECLARE_DO_FUN( do_rpedit       );
 DECLARE_DO_FUN( do_shedit       );
+DECLARE_DO_FUN( do_smedit       );
 DECLARE_DO_FUN( do_tedit       );
 DECLARE_DO_FUN( do_tpedit       );
 DECLARE_DO_FUN( do_pedit       );
@@ -525,6 +529,33 @@ DECLARE_OLC_FUN( shedit_armor		);
 DECLARE_OLC_FUN( shedit_keys		);
 DECLARE_OLC_FUN( shedit_turning		);
 DECLARE_OLC_FUN( shedit_oars		);
+DECLARE_OLC_FUN( shedit_hardpoint	);
+DECLARE_OLC_FUN( shedit_moduleweight );
+
+/* Ship Module Template Editor */
+DECLARE_OLC_FUN( smedit_show        );
+DECLARE_OLC_FUN( smedit_create      );
+DECLARE_OLC_FUN( smedit_list        );
+DECLARE_OLC_FUN( smedit_name        );
+DECLARE_OLC_FUN( smedit_desc        );
+DECLARE_OLC_FUN( smedit_type        );
+DECLARE_OLC_FUN( smedit_size        );
+DECLARE_OLC_FUN( smedit_weight      );
+DECLARE_OLC_FUN( smedit_domain      );
+DECLARE_OLC_FUN( smedit_flags       );
+DECLARE_OLC_FUN( smedit_hit         );
+DECLARE_OLC_FUN( smedit_armor       );
+DECLARE_OLC_FUN( smedit_speed       );
+DECLARE_OLC_FUN( smedit_turning     );
+DECLARE_OLC_FUN( smedit_cargo       );
+DECLARE_OLC_FUN( smedit_crew        );
+DECLARE_OLC_FUN( smedit_damage      );
+DECLARE_OLC_FUN( smedit_range       );
+DECLARE_OLC_FUN( smedit_reload      );
+DECLARE_OLC_FUN( smedit_weapflags   );
+DECLARE_OLC_FUN( smedit_operators   );
+DECLARE_OLC_FUN( smedit_skills      );
+DECLARE_OLC_FUN( smedit_ammo        );
 
 /* Help Editor */
 DECLARE_OLC_FUN( hedit_show    		);
@@ -856,6 +887,7 @@ DECLARE_OLC_FUN( medit_trainer );
 #define EDIT_DUNGEON(ch, dng)	( dng = (DUNGEON_INDEX_DATA *)ch->desc->pEdit )
 
 #define EDIT_SHIP(ch, ship)     ( ship = (SHIP_INDEX_DATA *)ch->desc->pEdit )
+#define EDIT_SHIPMODULE(ch, mod) ( mod = (SHIP_MODULE_INDEX *)ch->desc->pEdit )
 #define EDIT_CMD(ch, command)   ( command = (CMD_DATA *)ch->desc->pEdit )
 #define EDIT_SOCIAL(ch, social)  (social = (struct social_type *)ch->desc->pEdit)
 #define EDIT_RACE(ch, race)      (race = (RACE_DATA *)ch->desc->pEdit)

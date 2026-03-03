@@ -14063,6 +14063,13 @@ const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea)
     return "0#0";
 }
 
+const char *widevnum_string_ship_module(SHIP_MODULE_INDEX *mod, AREA_DATA *pRefArea)
+{
+    if (mod && mod->area)
+        return widevnum_string(mod->area, mod->vnum, pRefArea);
+    return "0#0";
+}
+
 const char *widevnum_string_event(EVENT_INDEX_DATA *event, AREA_DATA *pRefArea)
 {
     if (event && event->area)

@@ -49,7 +49,6 @@ void aggr_update	args((void));
 void msdp_update	args((void));
 void gmcp_update	args((void));
 void ship_update     args((void));
-void npc_ship_state_update     args((void));
 void who_list	args((void));
 void quest_update    args((void));
 void remove_port     args((long vnum_boat_dock, int door));

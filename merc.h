@@ -361,6 +361,7 @@ typedef struct	affect_data		AFFECT_DATA;
 typedef struct	catalyst_data		CATALYST_DATA;
 typedef struct	aura_data		AURA_DATA;
 typedef struct	area_data		AREA_DATA;
+typedef struct  area_dependency_data AREA_DEPENDENCY;
 typedef struct area_region_data AREA_REGION;
 typedef struct	auction_data		AUCTION_DATA;
 typedef struct	auto_war		AUTO_WAR;
@@ -426,6 +427,10 @@ typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
 typedef struct	ship_crew_index_data	SHIP_CREW_INDEX_DATA;
 typedef struct	ship_crew_data		SHIP_CREW_DATA;
+typedef struct	ship_crew_def		SHIP_CREW_DEF;
+typedef struct	ship_hardpoint_def	SHIP_HARDPOINT_DEF;
+typedef struct	ship_module_index	SHIP_MODULE_INDEX;
+typedef struct	ship_module		SHIP_MODULE;
 typedef struct	ship_index_data		SHIP_INDEX_DATA;
 typedef struct	ship_data		SHIP_DATA;
 typedef struct	shop_stock_data	SHOP_STOCK_DATA;
@@ -6706,6 +6711,7 @@ struct	area_data
     BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
     DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
     SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+    SHIP_MODULE_INDEX *ship_module_index_hash[MAX_KEY_HASH];
     REPUTATION_INDEX_DATA *reputation_index_hash[MAX_KEY_HASH];
     QUEST_INDEX_V2_DATA *quest_index_v2_hash[MAX_KEY_HASH];
     EVENT_INDEX_DATA *event_index_hash[MAX_KEY_HASH];
@@ -6842,8 +6848,25 @@ struct	area_data
                                 //		Can only be returned if resulting point reduction on the bucket doesn't cause the used number to exceed the total.
                                 //		Only the imp-boost can do this.
 
+    AREA_DEPENDENCY *dependencies;
+    long dependency_count;
+
     PROG_DATA *		progs;
     pVARIABLE		index_vars;
+};
+
+struct area_dependency_data
+{
+    AREA_DEPENDENCY *next;
+    char *source_type;
+    long source_vnum;
+    char *source_name;
+    char *reference_type;
+    long target_area_uid;
+    char *target_area_name;
+    char *target_type;
+    long target_vnum;
+    char *target_name;
 };
 
 struct storm_data
@@ -6952,12 +6975,50 @@ struct rep_type
 };
 
 #define SHIP_SAILING_BOAT			0
-//#define SHIP_CARGO_SHIP				1
-//#define SHIP_ADVENTURER_SHIP		2
-//#define SHIP_GALLEON_SHIP			3
-//#define SHIP_FRIGATE_SHIP			4
-//#define SHIP_WAR_GALLEON_SHIP		5
 #define SHIP_AIR_SHIP				1
+#define SHIP_LAND_VESSEL			2
+
+/* Ship domain compatibility flags (bitmask for modules/hardpoints) */
+#define DOMAIN_AQUATIC				(A)
+#define DOMAIN_AERIAL				(B)
+#define DOMAIN_TERRESTRIAL			(C)
+#define DOMAIN_ALL					(DOMAIN_AQUATIC | DOMAIN_AERIAL | DOMAIN_TERRESTRIAL)
+
+/* Hardpoint types */
+#define HARDPOINT_WEAPON			0
+#define HARDPOINT_DEFENSE			1
+#define HARDPOINT_UTILITY			2
+#define HARDPOINT_PROPULSION		3
+#define HARDPOINT_MAX				4
+
+/* Hardpoint sizes */
+#define HARDPOINT_SIZE_SMALL		1
+#define HARDPOINT_SIZE_MEDIUM		2
+#define HARDPOINT_SIZE_LARGE		3
+
+/* Hardpoint definition flags */
+#define HARDPOINT_REQUIRED			(A)		// Slot must be filled
+#define HARDPOINT_LOCKED			(B)		// Cannot be changed once installed
+
+/* Module flags */
+#define MODULE_REQUIRES_AMMO		(A)
+#define MODULE_PASSIVE				(B)		// No crew needed, always active
+#define MODULE_AOE					(C)		// Area of effect weapon
+#define MODULE_ANTI_CREW			(D)		// Targets crew specifically
+#define MODULE_FIRE_DAMAGE			(E)		// Causes ongoing fire
+#define MODULE_BOARDING_DEFENSE		(F)		// Helps defend against boarding
+
+/* Ship combat constants */
+#define SHIP_COMBAT_HIT_BASE		70		// Base hit chance %
+#define SHIP_COMBAT_RANGE_PENALTY	5		// -% per tile beyond half max range
+#define SHIP_COMBAT_SKILL_BONUS		3		// +% per gunning skill point
+#define SHIP_DAMAGE_THRESHOLD_MINOR	75		// % HP: minor effects
+#define SHIP_DAMAGE_THRESHOLD_MAJOR	50		// % HP: speed halved, fires
+#define SHIP_DAMAGE_THRESHOLD_CRIT	25		// % HP: critical failures
+#define SHIP_MODULE_HIT_CHANCE		15		// % chance per hit to damage a module
+#define SHIP_CREW_HIT_CHANCE		5		// % chance per anti-crew hit
+#define SHIP_SINK_COUNTDOWN			5		// Ticks to sink after 0 HP
+#define SHIP_COMBAT_DETECTION_RANGE	15		// Tiles within which factions witness combat
 
 
 #define NPC_SHIP_RATING_UNKNOWN        0
@@ -7000,7 +7061,10 @@ struct rep_type
 #define NPC_SHIP_STATE_CHASING         5
 
 #define SHIP_PROTECTED				(A)		// Ship cannot be attacked
-#define SHIP_AUTONOMOUS_NPC      (B)     // Ambient NPC-controlled roaming ship
+#define SHIP_AUTONOMOUS_NPC			(B)		// Ambient NPC-controlled roaming ship
+#define SHIP_SINKING				(C)		// Ship is in sinking/destruction countdown
+#define SHIP_ON_FIRE				(D)		// Ship has active fires
+#define SHIP_DISABLED				(E)		// Ship propulsion disabled
 
 /* Reports / Leaderboards */
 #define REPORT_TOP_PLAYER_KILLERS      0
@@ -7066,6 +7130,132 @@ struct ship_crew_index_data
                             //  - Higher ratings means quicker response times between issuing a command and its execution.
                             //  - Is also needed when having a ship manned by an NPC captain owned that is part of a player's armada
 
+};
+
+/**
+ * ship_crew_def - Template definition for a crew mob on a ship hull
+ *
+ * Associates a mob widevnum with a count, defining which NPCs should
+ * populate the ship as crew. Used for NPC ships (pirate crews, traders)
+ * and for "ghost crew" or permanent crew on player ships.
+ */
+struct ship_crew_def
+{
+    SHIP_CREW_DEF *next;
+    bool valid;
+
+    union {
+        WNUM_LOAD load;     // During load: area_uid + vnum
+        long vnum;          // Legacy: bare vnum
+    } mob_ref;
+    MOB_INDEX_DATA *mob;    // Resolved pointer
+
+    int count;              // How many of this mob to spawn
+};
+
+/**
+ * ship_hardpoint_def - Template definition of a hardpoint slot on a ship hull
+ *
+ * Defines a slot where a module can be installed. Each hardpoint has a type
+ * (weapon, defense, utility, propulsion), size (small/medium/large), and
+ * domain compatibility flags (aquatic, aerial, terrestrial).
+ */
+struct ship_hardpoint_def
+{
+    SHIP_HARDPOINT_DEF *next;
+    bool valid;
+
+    int16_t slot_id;			// Unique slot number on this hull (1-based)
+    char *name;					// Display name: "Port Cannon Bay", etc.
+    int type;					// HARDPOINT_WEAPON, _DEFENSE, _UTILITY, _PROPULSION
+    int size;					// HARDPOINT_SIZE_SMALL, _MEDIUM, _LARGE
+    long domain_flags;			// DOMAIN_AQUATIC | DOMAIN_AERIAL | DOMAIN_TERRESTRIAL
+    long flags;					// HARDPOINT_REQUIRED, HARDPOINT_LOCKED, etc.
+};
+
+/**
+ * ship_module_index - Template definition for an installable ship module
+ *
+ * Modules are fitted into compatible hardpoint slots to modify ship stats,
+ * add weapons, or provide utility. Each module defines crew skill requirements
+ * for operation.
+ */
+struct ship_module_index
+{
+    SHIP_MODULE_INDEX *next;
+    bool valid;
+
+    long vnum;
+    AREA_DATA *area;
+
+    char *name;
+    char *description;
+
+    int type;					// Must match hardpoint type
+    int size;					// Must be <= hardpoint size
+    int weight;					// Contributes to hull module weight budget
+    long domain_flags;			// DOMAIN_AQUATIC | DOMAIN_AERIAL | etc.
+
+    /* Stat bonuses (applied additively to ship base stats) */
+    int hit_bonus;				// Extra hull HP
+    int armor_bonus;			// Extra damage reduction
+    int speed_bonus;			// Movement speed modifier (percent)
+    int turning_bonus;			// Turning speed modifier (degrees)
+    int cargo_weight_bonus;		// Extra weight capacity
+    int cargo_capacity_bonus;	// Extra item capacity
+    int crew_bonus;				// Extra crew capacity
+
+    /* Weapon stats (HARDPOINT_WEAPON only) */
+    int damage;					// Base damage per volley
+    int range;					// Max range in wilderness tiles
+    int reload_time;			// Ticks between volleys
+    int damage_type;			// SHIP_DAMAGE_GRIND, SHIP_DAMAGE_FIRE, etc.
+    long weapon_flags;			// MODULE_AOE, MODULE_ANTI_CREW, etc.
+
+    /* Crew requirements */
+    int16_t operators;			// How many crew members needed to operate
+    int16_t req_gunning;		// Minimum gunning skill (0 = no req)
+    int16_t req_mechanics;		// Minimum mechanics skill
+    int16_t req_scouting;		// Minimum scouting skill
+    int16_t req_navigation;		// Minimum navigation skill
+    int16_t req_oarring;		// Minimum oarring skill
+    int16_t req_leadership;		// Minimum leadership skill
+
+    /* Ammo (optional, for weapons) */
+    union {
+        WNUM_LOAD load;
+        long vnum;
+    } ammo_ref;
+    OBJ_INDEX_DATA *ammo;		// Required ammo object (NULL = unlimited)
+    int ammo_per_shot;			// Ammo consumed per volley
+
+    long flags;					// MODULE_REQUIRES_AMMO, MODULE_PASSIVE, etc.
+};
+
+/**
+ * ship_module - Runtime instance of an installed module on a ship
+ *
+ * Tracks condition, ammo, reload state, and assigned crew operators.
+ * A module is operational only when it has enough qualified crew assigned
+ * and its condition is above zero.
+ */
+struct ship_module
+{
+    SHIP_MODULE *next;
+    bool valid;
+
+    SHIP_MODULE_INDEX *index;	// Module template
+    int16_t slot_id;			// Which hardpoint this is installed in
+
+    int condition;				// Current HP (degrades in combat, repairable)
+    int max_condition;			// Initial = 100
+
+    int ammo_count;				// Current ammo remaining
+    int reload_countdown;		// Ticks until ready to fire again
+
+    LLIST *assigned_crew;		// Crew members operating this module
+    bool active;				// Enabled/disabled by player
+    bool operational;			// Derived: enough qualified crew + condition > 0
 };
 
 struct ship_crew_data
@@ -7148,6 +7338,7 @@ typedef struct leaderboard_data {
 #define SHIP_MAX_WEIGHT		10000
 #define SHIP_MAX_CAPACITY	100
 #define SHIP_MAX_ARMOR		1000
+#define SHIP_MAX_MODULE_WEIGHT	50000		// Maximum module weight budget
 
 
 struct npc_ship_data
@@ -7201,6 +7392,28 @@ struct ship_index_data
     int oars;			// Number of oar positions
 
     LLIST *special_keys;		// Various key object indexes used by the ship
+
+    LLIST *hardpoints;			// List of SHIP_HARDPOINT_DEF slots
+    int max_module_weight;		// Total weight budget for all installed modules
+
+    /* Crew definitions — mobs to spawn as crew on this hull */
+    LLIST *crew_defs;			// List of SHIP_CREW_DEF entries (mob + count)
+
+    union {
+        WNUM_LOAD load;     // During load: area_uid + vnum
+        long vnum;          // Legacy: bare vnum
+    } captain_ref;
+    MOB_INDEX_DATA *captain;    // Resolved captain mob (NULL = no default captain)
+
+    int npc_type;               // NPC behavior type (NPC_SHIP_COAST_GUARD, etc.)
+
+    /* Faction allegiance for NPC ships — drives reputation changes in combat */
+    union {
+        WNUM_LOAD load;     // During load: area_uid + vnum
+        long vnum;          // Legacy: bare vnum
+    } faction_ref;
+    REPUTATION_INDEX_DATA *faction;  // Resolved primary faction (NULL = none)
+    int16_t faction_rank;            // Ship's effective rank in that faction
 
     union {
         WNUM_LOAD load;     // During load: area_uid + vnum
@@ -7314,6 +7527,9 @@ struct ship_data
     OBJ_DATA			*cannons_obj;
 
     LLIST				*special_keys;
+
+    LLIST				*modules;			// List of installed SHIP_MODULE
+    int					total_module_weight;	// Cached sum of installed module weights
 
     bool				pk;
 
@@ -9730,6 +9946,13 @@ void	reset_room	args( ( ROOM_INDEX_DATA *pRoom, bool force ) );
 char *	print_flags	args( ( long flag ));
 void	boot_db		args( ( void ) );
 void	area_update	args( ( bool fBoot ) );
+void area_dependency_clear args( ( AREA_DATA *area ) );
+void area_dependency_add args(( AREA_DATA *area, const char *source_type, long source_vnum,
+    const char *source_name, const char *reference_type, long target_area_uid,
+    const char *target_area_name, const char *target_type, long target_vnum,
+    const char *target_name ));
+void area_dependencies_rebuild_for_area args( ( AREA_DATA *area ) );
+void area_dependencies_rebuild_all args( ( void ) );
 void    check_objects   args( ( void ) );
 void    check_mobs      args( ( void ) );
 CD *	create_mobile	args( ( MOB_INDEX_DATA *pMobIndex, bool persistLoad ) );
@@ -9910,7 +10133,10 @@ void    transfer_cargo args( ( SHIP_DATA *source, SHIP_DATA *destination ) );
 void    add_move_waypoint args( ( SHIP_DATA *ship, int x, int y ) );
 void    clear_waypoints args( ( SHIP_DATA *ship ) );
 SD      *create_new_sailing_boat args( (char *owner_name, int ship_type) );
-NSD     *create_npc_sailing_boat args( (long vnum) );
+NSD     *create_npc_sailing_boat args( (SHIP_INDEX_DATA *ship_index) );
+int     ship_populate_crew args( ( SHIP_DATA *ship ) );
+void    ship_auto_assign_crew args( ( SHIP_DATA *ship ) );
+void    npc_ship_state_update args( ( SHIP_DATA *ship ) );
 void    boat_move   args( ( CHAR_DATA *ch ) );
 void    boat_echo       args( ( SHIP_DATA *ship, char *str ) );
 void    boat_damage     args( ( SHIP_DATA *ship, long amount, int type) );
@@ -9925,6 +10151,17 @@ void    make_ship_crew_return_to_ship args(( SHIP_DATA *boarding_ship ));
 int16_t  get_rating args( ( int ships_destroyed ) );
 int16_t  get_player_reputation args( ( int reputation_points ) );
 CHAR_DATA *get_captain args( ( SHIP_DATA *ship ) );
+void    ship_recalc_modules args( ( SHIP_DATA *ship ) );
+bool    ship_module_is_operational args( ( SHIP_MODULE *mod ) );
+int     ship_get_effective_speed args( ( SHIP_DATA *ship ) );
+int     ship_get_effective_turning args( ( SHIP_DATA *ship ) );
+SHIP_MODULE *ship_get_module_in_slot args( ( SHIP_DATA *ship, int slot_id ) );
+SHIP_HARDPOINT_DEF *ship_get_hardpoint args( ( SHIP_INDEX_DATA *idx, int slot_id ) );
+void    ship_combat_update args( ( SHIP_DATA *ship ) );
+SHIP_MODULE_INDEX *get_ship_module_index args( ( long vnum ) );
+SHIP_MODULE_INDEX *get_ship_module_index_for_area args( ( AREA_DATA *area, long vnum ) );
+void    load_ship_modules args( ( void ) );
+bool    save_ship_modules args( ( void ) );
 
 /* recycle.c */
 EXTRA_DESCR_DATA *new_extra_descr(void);
@@ -9954,6 +10191,7 @@ IGNORE_DATA *new_ignore( void );
 MAIL_DATA *new_mail( void );
 MOB_INDEX_DATA *new_mob_index( void );
 NPC_SHIP_INDEX_DATA *new_npc_ship_index args ( ( void ) );
+NPC_SHIP_DATA *new_npc_ship_data args ( ( void ) );
 OBJ_INDEX_DATA *new_obj_index( void );
 PROG_DATA *new_prog_data(void);
 LLIST **new_prog_bank(void);
@@ -9975,6 +10213,10 @@ QUESTOR_DATA *new_questor_data( void );
 RESET_DATA *new_reset_data( void );
 ROOM_INDEX_DATA *new_room_index( void );
 SHIP_CREW_DATA *new_ship_crew args( ( void ) );
+SHIP_CREW_DEF *new_ship_crew_def args( ( void ) );
+SHIP_HARDPOINT_DEF *new_ship_hardpoint_def args( ( void ) );
+SHIP_MODULE_INDEX *new_ship_module_index args( ( void ) );
+SHIP_MODULE *new_ship_module args( ( void ) );
 SHOP_DATA *new_shop( void );
 SPELL_DATA *new_spell(void);
 STRING_DATA *new_string_data( void );
@@ -10023,7 +10265,12 @@ void free_quest_list( QUEST_LIST *quest_list );
 void free_quest_v2_list( QUEST_V2_LIST *quest_v2_list );
 void free_quest_part( QUEST_PART_DATA *pPart );
 void free_reset_data( RESET_DATA *pReset );
+void free_npc_ship_data( NPC_SHIP_DATA *npc );
 void free_ship_crew( SHIP_CREW_DATA *crew );
+void free_ship_crew_def( SHIP_CREW_DEF *cd );
+void free_ship_hardpoint_def( SHIP_HARDPOINT_DEF *hp );
+void free_ship_module_index( SHIP_MODULE_INDEX *mod );
+void free_ship_module( SHIP_MODULE *mod );
 void free_shop( SHOP_DATA *pShop );
 void free_spell(SPELL_DATA *spell);
 void free_string_data( STRING_DATA *string );
@@ -10435,6 +10682,7 @@ const char *widevnum_string_blueprint(BLUEPRINT *bp, AREA_DATA *pRefArea);
 const char *widevnum_string_blueprint_section(BLUEPRINT_SECTION *bs, AREA_DATA *pRefArea);
 const char *widevnum_string_dungeon(DUNGEON_INDEX_DATA *dng, AREA_DATA *pRefArea);
 const char *widevnum_string_ship(SHIP_INDEX_DATA *ship, AREA_DATA *pRefArea);
+const char *widevnum_string_ship_module(SHIP_MODULE_INDEX *mod, AREA_DATA *pRefArea);
 const char *widevnum_string_event(EVENT_INDEX_DATA *event, AREA_DATA *pRefArea);
 
 void display_pronoun_examples(CHAR_DATA *ch_viewer, const char *subj, const char *obj, const char *poss_adj, const char *poss_pron, const char *refl, verb_form_preference_t vpref);

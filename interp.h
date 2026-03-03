@@ -114,6 +114,7 @@ DECLARE_DO_FUN( do_event        );
 DECLARE_DO_FUN( do_events       );
 DECLARE_DO_FUN( do_aload	);
 DECLARE_DO_FUN( do_aedit	);
+DECLARE_DO_FUN( do_ashow	);
 DECLARE_DO_FUN( do_affects	);
 DECLARE_DO_FUN( do_affstat	);
 DECLARE_DO_FUN( do_afk		);
@@ -649,6 +650,7 @@ DECLARE_DO_FUN(	do_qpedit	);
 DECLARE_DO_FUN(	do_epedit	);
 
 DECLARE_DO_FUN(	do_shedit	);
+DECLARE_DO_FUN(	do_smedit	);
 DECLARE_DO_FUN(	do_shlist	);
 DECLARE_DO_FUN(	do_shshow	);
 
