@@ -274,6 +274,7 @@ ENT_FIELD entity_string[] = {
 
 ENT_FIELD entity_mobile[] = {
     {"affects",			ENTITY_MOB_AFFECTS,			ENT_OLLIST_AFF	},
+    {"auras",           ENTITY_MOB_AURAS,             ENT_ILLIST_AURA_STR },
     {"area",			ENTITY_MOB_AREA,			ENT_AREA	},
     {"bedroll",			ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
     {"bodytype_val",		ENTITY_MOB_BODY_TYPE_VALUE, ENT_NUMBER },
@@ -1898,6 +1899,8 @@ IFCHECK_DATA ifcheck_table[] = {
     { "affected2",			IFC_ANY,	"ES",	false,	ifc_affected2,			"ifcheck affected2" },
     { "affectedname",		IFC_ANY,	"ES",	false,	ifc_affectedname,		"ifcheck affectedname" },
     { "affectedspell",		IFC_ANY,	"ES",	false,	ifc_affectedspell,		"ifcheck affectedspell" },
+    { "aura",               IFC_ANY,	"ES",	false,	ifc_aura,				"ifcheck aura" },
+    { "hasaura",            IFC_ANY,	"ES",	false,	ifc_aura,				"ifcheck hasaura" },
     { "affectgroup",		IFC_ANY,	"ES",	true,	ifc_affectgroup,		"ifcheck affectgroup" },
     { "affectlocation",		IFC_ANY,	"ES",	true,	ifc_affectlocation,		"ifcheck affectlocation" },
     { "affectmodifier",		IFC_ANY,	"ES",	true,	ifc_affectmodifier,		"ifcheck affectmodifier" },

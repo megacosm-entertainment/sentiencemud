@@ -1138,6 +1138,10 @@ static void append_victim_position_text(char *buf, char *message, CHAR_DATA *vic
 
 static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CHAR_DATA *ch)
 {
+    int aura_count = 0;
+    ITERATOR aurait;
+    AURA_DATA *aura;
+
     if (!IS_NPC(victim)
     && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
     (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
@@ -1162,6 +1166,32 @@ static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CH
         buf2[4] = UPPER(buf2[4]);
         strcat(buf, buf2);
     }
+
+    if (victim->auras != NULL)
+    {
+        iterator_start(&aurait, victim->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            size_t len;
+
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            if (IS_NULLSTR(aura->long_descr))
+                continue;
+
+            snprintf(buf2, MAX_STRING_LENGTH, "\n\r%s",
+                string_replace_static(aura->long_descr, "%s", pers(victim, ch)));
+
+            len = strlen(buf2);
+            if (len < 2 || strcmp(buf2 + len - 2, "\n\r"))
+                strcat(buf2, "\n\r");
+
+            strcat(buf, buf2);
+            aura_count++;
+        }
+        iterator_stop(&aurait);
+    }
     }
     else
     {
@@ -1184,6 +1214,32 @@ static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CH
         sprintf(buf2, "{W%s is surrounded with an aura of sanctuary.{x\n\r", pers(victim, ch));
         buf2[2] = UPPER(buf2[2]);
         strcat(buf, buf2);
+    }
+
+    if (victim->auras != NULL)
+    {
+        iterator_start(&aurait, victim->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            size_t len;
+
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            if (IS_NULLSTR(aura->long_descr))
+                continue;
+
+            snprintf(buf2, MAX_STRING_LENGTH, "%s",
+                string_replace_static(aura->long_descr, "%s", pers(victim, ch)));
+
+            len = strlen(buf2);
+            if (len < 2 || strcmp(buf2 + len - 2, "\n\r"))
+                strcat(buf2, "\n\r");
+
+            strcat(buf, buf2);
+            aura_count++;
+        }
+        iterator_stop(&aurait);
     }
     }
 }

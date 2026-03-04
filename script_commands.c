@@ -11914,6 +11914,7 @@ SCRIPT_CMD(scriptcmd_addaura)
     CHAR_DATA *ch;
     BUFFER *name = NULL;
     BUFFER *desc = NULL;
+    char *placeholder;
 
     SETRETURN(0);
 
@@ -11943,6 +11944,21 @@ SCRIPT_CMD(scriptcmd_addaura)
         return;
     }
 
+    if (IS_NULLSTR(name->string) || IS_NULLSTR(desc->string))
+    {
+        free_buf(name);
+        free_buf(desc);
+        return;
+    }
+
+    placeholder = strstr(desc->string, "%s");
+    if (!placeholder || strstr(placeholder + 2, "%s"))
+    {
+        free_buf(name);
+        free_buf(desc);
+        return;
+    }
+
     add_aura_to_char(ch, name->string, desc->string);
 
     free_buf(name);
@@ -11956,6 +11972,7 @@ SCRIPT_CMD(scriptcmd_remaura)
 {
     char *rest = argument;
     CHAR_DATA *ch;
+    BUFFER *name = NULL;
 
     SETRETURN(0);
 
@@ -11964,7 +11981,25 @@ SCRIPT_CMD(scriptcmd_remaura)
 
     PARSE_ARGTYPE(STRING);
 
-    remove_aura_from_char(ch, arg->d.str);
+    name = new_buf();
+    if (!name)
+        return;
+
+    if (!add_buf(name, arg->d.str))
+    {
+        free_buf(name);
+        return;
+    }
+
+    if (IS_NULLSTR(name->string))
+    {
+        free_buf(name);
+        return;
+    }
+
+    remove_aura_from_char(ch, name->string);
+
+    free_buf(name);
 
     SETRETURN(1);
 }

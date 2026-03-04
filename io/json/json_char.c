@@ -1053,6 +1053,32 @@ static json_t *affects_to_json(CHAR_DATA *ch)
     return affects;
 }
 
+static json_t *auras_to_json(CHAR_DATA *ch)
+{
+    json_t *auras = json_array();
+
+    if (!ch->auras || list_size(ch->auras) < 1)
+        return auras;
+
+    ITERATOR it;
+    AURA_DATA *aura;
+
+    iterator_start(&it, ch->auras);
+    while ((aura = (AURA_DATA *)iterator_nextdata(&it)))
+    {
+        if (IS_NULLSTR(aura->name) || IS_NULLSTR(aura->long_descr))
+            continue;
+
+        json_t *entry = json_object();
+        json_object_set_new(entry, "name", json_string(aura->name));
+        json_object_set_new(entry, "long_descr", json_string(aura->long_descr));
+        json_array_append_new(auras, entry);
+    }
+    iterator_stop(&it);
+
+    return auras;
+}
+
 /***************************************************************************
  * Full Character Serialization - WITH ALL FLAGS AND COMPLETE DATA        *
  ***************************************************************************/
@@ -1959,7 +1985,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
 
 json_t *char_to_json(CHAR_DATA *ch)
 {
-    json_t *root, *inventory, *equipment, *locker, *stache, *skills, *groups, *affects, *tokens, *aliases;
+    json_t *root, *inventory, *equipment, *locker, *stache, *skills, *groups, *affects, *auras, *tokens, *aliases;
 
     if (!ch || IS_NPC(ch)) {
         return NULL;
@@ -2051,6 +2077,14 @@ json_t *char_to_json(CHAR_DATA *ch)
         json_object_set_new(root, "affects", affects);
     } else {
         json_decref(affects);
+    }
+
+    // Auras section
+    auras = auras_to_json(ch);
+    if (json_array_size(auras) > 0) {
+        json_object_set_new(root, "auras", auras);
+    } else {
+        json_decref(auras);
     }
 
     // Songs section (bard songs learned)
@@ -4645,6 +4679,20 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
 
             paf->next = ch->affected;
             ch->affected = paf;
+        }
+    }
+
+    // Read auras section
+    json_t *auras_array = json_object_get(root, "auras");
+    if (auras_array && json_is_array(auras_array)) {
+        json_array_foreach(auras_array, index, array_elem) {
+            const char *aura_name = json_get_string(array_elem, "name", "");
+            const char *aura_long_descr = json_get_string(array_elem, "long_descr", "");
+
+            if (IS_NULLSTR(aura_name) || IS_NULLSTR(aura_long_descr))
+                continue;
+
+            add_aura_to_char(ch, (char *)aura_name, (char *)aura_long_descr);
         }
     }
 

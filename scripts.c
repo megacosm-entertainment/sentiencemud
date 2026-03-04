@@ -2726,10 +2726,13 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
             case ENT_PLLIST_FOOD_BUFF:
             case ENT_PLLIST_REPUTATION_RANK:
             case ENT_ILLIST_VARIABLE:
+            case ENT_ILLIST_AURA_STR:
             case ENT_ILLIST_REPUTATION:
             case ENT_ILLIST_REPUTATION_INDEX:
             case ENT_ILLIST_SKILLGROUPS:
                 iterator_stop(&block->loops[i].d.l.list.it);
+                if (block->loops[i].d.l.type == ENT_ILLIST_AURA_STR)
+                    list_destroy(block->loops[i].d.l.list.lp);
                 break;
 
             case ENT_ILLIST_QUEST_STAGES:
@@ -3355,6 +3358,30 @@ DECL_OPC_FUN(opc_list)
             }
 
             block->loops[lp].d.l.type = ENT_PLLIST_STR;
+
+                    case ENT_ILLIST_AURA_STR:
+                        if(!arg->d.blist || !arg->d.blist->valid)
+                        {
+                            free_script_param(arg);
+                            return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                        }
+
+                        block->loops[lp].d.l.type = ENT_ILLIST_AURA_STR;
+                        block->loops[lp].d.l.list.lp = arg->d.blist;
+                        iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+                        block->loops[lp].d.l.owner = NULL;
+                        block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+                        str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+                        if( !str ) {
+                            iterator_stop(&block->loops[lp].d.l.list.it);
+                            free_script_param(arg);
+                            return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+                        }
+
+                        variables_set_string(block->info.var,block->loops[lp].var_name,str,false);
+                        break;
             block->loops[lp].d.l.list.lp = arg->d.blist;
             iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
             block->loops[lp].d.l.owner = NULL;
@@ -4599,6 +4626,17 @@ DECL_OPC_FUN(opc_list)
                 */
 
             // Set the variable
+            variables_set_string(block->info.var,block->loops[lp].var_name,str?str:&str_empty[0],false);
+
+            if( !str ) {
+                iterator_stop(&block->loops[lp].d.l.list.it);
+                return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,true);
+            }
+
+            break;
+
+        case ENT_ILLIST_AURA_STR:
+            str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
             variables_set_string(block->info.var,block->loops[lp].var_name,str?str:&str_empty[0],false);
 
             if( !str ) {

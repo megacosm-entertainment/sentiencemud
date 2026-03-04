@@ -350,6 +350,13 @@ DECL_IFC_FUN(ifc_affectedspell)
     return true;
 }
 
+// Checks if the mobile has a generic aura by aura name key
+DECL_IFC_FUN(ifc_aura)
+{
+    *ret = (ISARG_MOB(0) && ISARG_STR(1) && find_aura_char(ARG_MOB(0), ARG_STR(1)) != NULL);
+    return true;
+}
+
 
 // Gets the player's age
 DECL_IFC_FUN(ifc_age)
