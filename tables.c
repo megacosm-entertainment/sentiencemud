@@ -3798,6 +3798,7 @@ const struct game_setting_type game_settings_table[] = {
     { "channel_publish_compact", &game_settings.channel_publish_compact, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Publish compact channel events that hydrate from history stream", true, false, false },
     { "note_boot_errors",   &game_settings.note_boot_errors, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Sends notes with boot errors to 'coder' and 'head coder'", true, true, false },
     { "character_delete",    &game_settings.character_delete_delay_days, SETTING_TYPE_INT, SETTING_CAT_GLOBAL, "Number of days before a character is purged when flagged for deletion.", true, false, false },
+    { "utf8_restrict_keywords",     &game_settings.utf8_restrict_keywords,      SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL,   "Whether to restrict keyword fields to ASCII-only", true, false, false },
 
 
 

@@ -1890,7 +1890,7 @@ OEDIT(oedit_name)
     OBJ_INDEX_DATA *pObj;
     EDIT_OBJ(ch, pObj);
     bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pObj->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (changed)
         oedit_rebuild_auto_tags(pObj);
     return changed;

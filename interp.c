@@ -2133,3 +2133,45 @@ void cmd_under_construction(CHAR_DATA *ch)
     send_to_char("Command is under construction.  Please be patient until it is ready.\n\r\n\r", ch);
     send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r", ch);
 }
+
+// TODO: Assess where this needs to be located
+// Determine if the provided string can be used in a name.
+bool can_be_name(const char *str, NAME_VALIDATION_RESULT *nvr)
+{
+    if (!str || !nvr) return false;
+
+    memset(nvr, 0, sizeof(*nvr));
+    nvr->result = NV_OK;
+
+    const char *p = str;
+    size_t pos = 0;
+    while(*p)
+    {
+        unichar_t code = utf8_getchar(p);
+
+        // TODO: Add proper language support and use of game settings
+        // Currently will only check for ASCII codes.
+        if (code > 0x7f && game_settings.utf8_restrict_keywords)
+        {
+            nvr->result = NV_INVALID_CODE;  // Only done if enabled
+            nvr->str = p;
+            nvr->bad_ch = pos;
+            nvr->bad_code = code;
+            return true;
+        }
+
+        if (code < 0)
+        {
+            nvr->result = NV_BAD_STRING;
+            nvr->str = p;
+            nvr->bad_ch = pos;
+            nvr->bad_code = 0;
+            return true;
+        }
+
+        pos++;
+        p = utf8_nextchar(p);
+    }
+
+    return true;
+}

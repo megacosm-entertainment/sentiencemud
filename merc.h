@@ -1430,6 +1430,9 @@ struct game_settings_data
     char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
     int max_logfile_size;         // What size do we start rotating logs at (in MB)?
 
+    // TODO: update to be an array of strings eventually.
+    bool utf8_restrict_keywords;    // Whether or not to restrict the keywords to ascii
+
     /* Channel Transport Settings */
     char *channel_backend;        // Channel backend mode: legacy_iterative|local|auto|redis
     bool channel_publish_compact; // Publish compact realtime payloads (history refs), hydrate via stream lookup on receive

@@ -788,6 +788,11 @@ CMDEDIT( cmdedit_name )
         return false;
     }
 
+
+    // Validate the input can be a name
+    if (!olc_validate_name(ch, argument))
+        return false;
+
     CMD_DATA *other = get_cmd_data(argument);
     if (other && other != command)
     {

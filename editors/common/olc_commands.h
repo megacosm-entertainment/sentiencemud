@@ -66,6 +66,9 @@ typedef void (*olc_cmd_record_fn)(void *ctx, CHAR_DATA *ch,
 /** On clear, set field to NULL instead of &str_empty[0]. */
 #define OLC_STR_CLEAR_NULL      0x02
 
+/** Verify the new string conforms to the game setting for name restrictions */
+#define OLC_STR_UTF8_RESTRICT   0x04
+
 /* =========================================================================
  * Common Command Helpers
  * ========================================================================= */

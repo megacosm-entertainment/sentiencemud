@@ -3051,58 +3051,71 @@ bool check_parse_name(char *name)
     DESCRIPTOR_DATA *d, *dnext;
     int count = 0;
 
+    NAME_VALIDATION_RESULT nvr;
+    nvr.result = NV_MAX;
+
+    if (!can_be_name(name, &nvr) || nvr.result != NV_OK)
+    {
+        return false;
+    }
+
     /*
      * Reserved words.
      */
-    if (is_exact_name(name,
-    "sentience all auto her his immortal its self somebody someone something the you your loner"))
+    if (is_exact_name(name, "sentience all auto her his immortal its self somebody someone something the you your loner"))
     {
-    return false;
+        return false;
     }
 
     /*
      * Length restrictions.
      */
-    if (strlen(name) <  3)
-    return false;
+    if (utf8_strlen(name) <  3)
+        return false;
 
-    if (strlen(name) > 12)
-    return false;
+    if (utf8_strlen(name) > 12)
+        return false;
 
     /*
-     * Alphanumerics only.
      * Lock out IllIll twits.
      */
     {
-    char *pc;
-    bool fIll,adjcaps = false,cleancaps = false;
-     int total_caps = 0;
+        const char *pc;
+        bool fIll,adjcaps = false,cleancaps = false;
+        int total_caps = 0;
 
-    fIll = true;
-    for (pc = name; *pc != '\0'; pc++)
-    {
-        if (!ISALPHA(*pc))
-        return false;
-
-        if (ISUPPER(*pc)) /* ugly anti-caps hack */
+        fIll = true;
+        for (pc = name; *pc != '\0'; pc = utf8_nextchar(pc))
         {
-        if (adjcaps)
-            cleancaps = true;
-        total_caps++;
-        adjcaps = true;
+            unichar_t ch = utf8_getchar(pc);
+            if (ch < 0) // Invalid UTF-8 code
+                return false;
+
+            /*
+             * TODO: Need to add in character filtering so any "letter", not just ASCII letters, pass.
+             */
+            // if (!ISALPHA(ch))
+            //     return false;
+
+            if (ISUPPER(ch)) /* ugly anti-caps hack */
+            {
+                if (adjcaps)
+                    cleancaps = true;
+                total_caps++;
+                adjcaps = true;
+            }
+            else
+                adjcaps = false;
+
+            if (LOWER(ch) != 'i' && LOWER(ch) != 'l')
+                fIll = false;
         }
-        else
-        adjcaps = false;
 
-        if (LOWER(*pc) != 'i' && LOWER(*pc) != 'l')
-        fIll = false;
-    }
+        if (fIll)
+            return false;
 
-    if (fIll)
-        return false;
-
-    if (cleancaps || (total_caps > (strlen(name)) / 2 && strlen(name) < 3))
-        return false;
+        if (cleancaps || (total_caps > (strlen(name)) / 2 && strlen(name) < 3))
+            return false;
     }
 
    /*

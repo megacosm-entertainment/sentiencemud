@@ -45,6 +45,9 @@
 
 #define UTF8_REPLACEMENT        (0xFFFD)    // Standard replacement character when dealing with invalid encodings
 
+// These Unicodes are not valid codes in UTF-8 as they are reserved for UTF-16 surrogates
+#define IS_SURROGATE(c)     ((c) >= 0xD800 && (c) <= 0xDFFF)
+
 // Determines the number of UTF8 bytes needed for the unicode character
 size_t utf8_bytes(unichar_t ch)
 {
@@ -63,7 +66,8 @@ char *utf8_getbytes(unichar_t ch)
 	if (++i > 3) i = 0;
 	register char *b = &bytes[i][0];
 
-    if (ch > UTF8_4BYTE_END)
+    // Check for invalid codes
+    if (ch < 0 || ch > UTF8_4BYTE_END || IS_SURROGATE(ch))
     {
         ch = UTF8_REPLACEMENT;
     }
@@ -121,14 +125,14 @@ char *utf8_skip(register const char *str, register size_t len)
 
 unichar_t utf8_getchar(const char *str)
 {
-    unichar_t code = UTF8_REPLACEMENT;
+    unichar_t code = -1;
 	// 2-byte UTF-8
     if (IS_2BYTE(str))
     {
         code = ((((unichar_t)*str) & UTF8_BYTE2_MASK) << UTF8_BYTE2_SHIFT) |
                ((unichar_t)*(str+1) & UTF8_CONTINUE_MASK);
         if (code < UTF8_2BYTE_START)    // Overlong encoding
-            code = UTF8_REPLACEMENT;
+            code = -1;
     }
     
 	// 3-byte UTF-8
@@ -138,7 +142,10 @@ unichar_t utf8_getchar(const char *str)
                ((((unichar_t)*(str+1)) & UTF8_CONTINUE_MASK) << UTF8_BYTE2_SHIFT) |
                ((unichar_t)*(str+2) & UTF8_CONTINUE_MASK);
         if (code < UTF8_3BYTE_START)    // Overlong encoding
-            code = UTF8_REPLACEMENT;
+            code = -1;
+        
+        else if (IS_SURROGATE(code))    // Code ranges not valid in UTF-8 as they are reserved for UTF-16
+            code = -1;
     }
 
 	// 4-byte UTF-8
@@ -149,9 +156,9 @@ unichar_t utf8_getchar(const char *str)
                ((((unichar_t)*(str+2)) & UTF8_CONTINUE_MASK) << UTF8_BYTE2_SHIFT) |
                ((unichar_t)*(str+3) & UTF8_CONTINUE_MASK);
         if (code < UTF8_4BYTE_START)    // Overlong encoding
-            code = UTF8_REPLACEMENT;
+            code = -1;
         else if (code > UTF8_4BYTE_END) // Invalid code
-            code = UTF8_REPLACEMENT;
+            code = -1;
     }
 	// ASCII
     else
@@ -319,7 +326,7 @@ bool utf8_str_suffix(const char *astr, const char *bstr)
 	return true;
 }
 
-/** Determines number of byte needed to skip the given number of UTF-8 encoded characters.
+/** Determines number of bytes needed to skip the given number of UTF-8 encoded characters.
  * 
  * @param str String to scan.
  * @param len Number of UTF-8 characters to skip.  Returns number of characters skipped.
