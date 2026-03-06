@@ -760,66 +760,66 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     }
     }
 
-    if (!append_ok)
-    goto show_list_cleanup;
-
+    if (append_ok)
+    {
     /*
      * Output the formatted list.
      */
     for (iShow = 0; iShow < nShow; iShow++)
     {
-    if (prgpstrShow[iShow][0] == '\0') {
+        if (prgpstrShow[iShow][0] == '\0') {
         free_string(prgpstrShow[iShow]);
         continue;
-    }
+        }
 
-    if (prgnShow[iShow] != 1) {
+        if (prgnShow[iShow] != 1) {
         sprintf(buf, "{Y({G%2d{Y) {x", prgnShow[iShow]);
         if (!add_buf(output, buf))
         {
-        perrf(LOG_ERROR, "Addbuf, combine failed");
-        append_ok = false;
-        break;
+            perrf(LOG_ERROR, "Addbuf, combine failed");
+            append_ok = false;
+            break;
         }
-    } else {
+        } else {
         if (!add_buf(output, "     "))
         {
-        perrf(LOG_ERROR, "Addbuf, combine failed");
-        append_ok = false;
-        break;
+            perrf(LOG_ERROR, "Addbuf, combine failed");
+            append_ok = false;
+            break;
         }
-    }
+        }
 
-    if (!add_buf(output, "{x")
-    ||  !add_buf(output, prgpstrShow[iShow])
-    ||  !add_buf(output, "\n\r{x"))
-    {
+        if (!add_buf(output, "{x")
+        ||  !add_buf(output, prgpstrShow[iShow])
+        ||  !add_buf(output, "\n\r{x"))
+        {
         perrf(LOG_ERROR, "Addbuf, item line failed");
         append_ok = false;
         break;
+        }
+        free_string(prgpstrShow[iShow]);
+        prgpstrShow[iShow] = NULL;
     }
-    free_string(prgpstrShow[iShow]);
-    prgpstrShow[iShow] = NULL;
     }
 
     if (!append_ok)
     {
     send_to_char("Object list output exceeded buffer limits.\n\r", ch);
-    goto show_list_cleanup;
     }
-
+    else
+    {
     if (fShowNothing && nShow == 0)
     {
-    /* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
-    send_to_char("     ", ch);
-    send_to_char("Nothing.\n\r", ch);
+        /* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
+        send_to_char("     ", ch);
+        send_to_char("Nothing.\n\r", ch);
     }
     page_to_char(buf_string(output), ch);
+    }
 
     /*
      * Clean up.
      */
-show_list_cleanup:
     for (iShow = 0; iShow < nShow; iShow++)
     {
     if (prgpstrShow[iShow] != NULL)
