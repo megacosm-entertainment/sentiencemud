@@ -4,18 +4,45 @@
     "service": "mud",
     "workspaceFolder": "/sentience/src",
     "remoteUser": "sentiencemud",
+
+    // ── Cross-platform notes ───────────────────────────────────────────────
+    // Docker Desktop (Mac/Windows): works out of the box.
+    // Docker Engine on Linux: works out of the box.
+    // Podman (rootless, Linux):
+    //   1. Point VSCode at the Podman socket:
+    //        VSCode setting: "docker.dockerPath": "podman"
+    //        or: export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock
+    //   2. SELinux (Fedora/RHEL): add SELINUX_LABEL=:z to your Doppler/env before starting.
+    //   3. UID mapping: if files appear owned by root, add to your VSCode settings:
+    //        "dev.containers.dockerPath": "podman"
+    //      and ensure the sentience_trixie image user UID matches your host UID,
+    //      or run: podman unshare chown -R $(id -u) /sentience
+
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {
             "installZsh": true,
             "configureZshAsDefaultShell": true
         }
     },
-    "forwardPorts": [9000, 9010, 9020],
+
+    "forwardPorts": [
+        9000, 9010, 9020,
+        3000, 3001, 3002,
+        4567,
+        9200, 5601
+    ],
     "portsAttributes": {
-        "9000": { "label": "Telnet" },
-        "9010": { "label": "TLS" },
-        "9020": { "label": "WebSocket" }
+        "9000": { "label": "MUD Telnet" },
+        "9010": { "label": "MUD TLS" },
+        "9020": { "label": "MUD WebSocket" },
+        "3000": { "label": "Payload CMS" },
+        "3001": { "label": "Logto" },
+        "3002": { "label": "Logto Admin" },
+        "4567": { "label": "NodeBB Forum" },
+        "9200": { "label": "OpenSearch API" },
+        "5601": { "label": "OpenSearch Dashboards" }
     },
+
     "customizations": {
         "vscode": {
             "extensions": [
@@ -35,8 +62,10 @@
             }
         }
     },
+
     "remoteEnv": {
         "DOPPLER_TOKEN": "${localEnv:DOPPLER_TOKEN}"
     },
+
     "postCreateCommand": "cd /sentience/src/.deps && ./build_deps.sh"
 }

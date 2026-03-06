@@ -1,16 +1,46 @@
-version: '3.8'
-
-# Network topology:
-#   web  — app services talk to each other and to nginx
-#   data — app services talk to databases; internal: true means no external routing
+# Sentience MUD — Development Environment
 #
-# Databases have no routable path to/from the internet.
-# Host port bindings on databases use 127.0.0.1 (localhost only) for dev tooling.
+# All secrets are injected by Doppler. Never create a local .env file.
+# Usage:
+#   doppler run -- docker compose up -d                        # all services
+#   doppler run -- docker compose --profile proxy up -d        # + nginx reverse proxy
+#
+# Cross-platform notes:
+#   Docker Desktop (Mac/Windows) — works out of the box.
+#   Docker Engine on Linux       — works out of the box.
+#   Podman (rootless, Linux)     — set DOCKER_HOST to the Podman socket before running:
+#                                    export DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock
+#                                  SELinux systems (Fedora/RHEL): set SELINUX_LABEL=:z in your shell.
+#
+# vm.max_map_count (OpenSearch):
+#   Docker Desktop — pre-configured in the VM, no action needed.
+#   Linux hosts    — run once: sudo sysctl -w vm.max_map_count=262144
+#                    To persist: echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
+#
+# First-install behaviour:
+#   Data directories (MONGODB_DATA_PATH, REDIS_DATA_PATH, POSTGRES_DATA_PATH,
+#   OPENSEARCH_DATA_PATH) may be empty on first boot — each database initialises
+#   its own storage automatically.
+#
+#   App directories (PAYLOAD_APP_PATH, NODEBB_APP_PATH) must be populated before
+#   their services can start. Two one-shot init containers handle this:
+#     • payload-init  — scaffolds a new Payload app via create-payload-app (first boot only)
+#     • nodebb-init   — copies the NodeBB application out of the image into NODEBB_APP_PATH
+#   Both are idempotent: they skip if the target already has a package.json.
+#   On subsequent `docker compose up` the containers exit immediately (already populated).
 
 networks:
   web:
+  nginx-proxy:
+    external: true
   data:
     internal: true
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
 
@@ -19,7 +49,7 @@ services:
     image: ghcr.io/megacosm-entertainment/sentience_trixie:latest
     networks: [web, data]
     volumes:
-      - ../..:/sentience
+      - ../..:/sentience${SELINUX_LABEL:-}
     cap_add:
       - SYS_PTRACE
     security_opt:
@@ -29,16 +59,17 @@ services:
       - "9010:9010"
       - "9020:9020"
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     command: sleep infinity
+    logging: *default-logging
 
   # ── Reverse Proxy ─────────────────────────────────────────────────────────
-  # Not started by default. Use `docker compose --profile proxy up` to include it.
-  # In production the host nginx handles reverse proxying; this is here for
-  # portability (fresh servers, local full-stack testing).
+  # Start with: doppler run -- docker compose --profile proxy up -d
   nginx:
-    image: nginx:alpine
+    image: docker.io/library/nginx:alpine
     profiles: [proxy]
     networks: [web]
     ports:
@@ -52,103 +83,378 @@ services:
       - nodebb
       - logto
       - mud
+    logging: *default-logging
+
+  # ── Payload App Initializer ────────────────────────────────────────────────
+  # One-shot: clones the Payload website template via git sparse-checkout into
+  # PAYLOAD_APP_PATH on first boot. Idempotent: skips if package.json exists.
+  payload-init:
+    image: docker.io/library/node:22-alpine
+    volumes:
+      - ${PAYLOAD_APP_PATH}:/target${SELINUX_LABEL:-}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        if [ -f /target/package.json ]; then
+          echo "[payload-init] Already initialized, skipping."
+          exit 0
+        fi
+        echo "[payload-init] Fetching Payload website template..."
+        # degit can't fetch monorepo subdirectories; use git sparse-checkout instead.
+        # --filter=blob:none + sparse-checkout means only templates/website is downloaded.
+        apk add --no-cache git >/dev/null 2>&1
+        git clone --depth=1 --filter=blob:none --sparse \
+          https://github.com/payloadcms/payload.git /tmp/payload-repo
+        git -C /tmp/payload-repo sparse-checkout set templates/website
+        # The monorepo template uses workspace:* for internal packages, which npm rejects
+        # outside a pnpm workspace. Replace with * so npm resolves the latest published versions.
+        sed -i 's|"workspace:[^"]*"|"*"|g' \
+          /tmp/payload-repo/templates/website/package.json
+        # ── Convert template from MongoDB (default) to PostgreSQL ──
+        # Replace the db-mongodb dependency with db-postgres in package.json
+        sed -i 's|"@payloadcms/db-mongodb"|"@payloadcms/db-postgres"|g' \
+          /tmp/payload-repo/templates/website/package.json
+        # Rewrite payload.config.ts: swap adapter import and replace the
+        # flat mongooseAdapter({ url: ... }) with the nested
+        # postgresAdapter({ pool: { connectionString: ... } }) structure.
+        CFG=/tmp/payload-repo/templates/website/src/payload.config.ts
+        sed -i "s|import { mongooseAdapter } from '@payloadcms/db-mongodb'|import { postgresAdapter } from '@payloadcms/db-postgres'|g" "$$CFG"
+        # Replace the entire db block (mongooseAdapter with flat url) with
+        # postgresAdapter using the required pool wrapper.  Works regardless
+        # of whether the template uses DATABASE_URI or DATABASE_URL.
+        sed -i '/db: mongooseAdapter({/,/}),/{
+          s|db: mongooseAdapter({|db: postgresAdapter({\n    pool: {|
+          s|url: process\.env\.\(DATABASE[A-Z_]*\).*|connectionString: process.env.DATABASE_URL \|\| '"'"''"'"',\n    },|
+          /^[[:space:]]*}),/s|.*|}),|
+        }' "$$CFG"
+        # Fix .env.example to default to postgres instead of mongodb
+        if [ -f /tmp/payload-repo/templates/website/.env.example ]; then
+          sed -i 's|mongodb://127.0.0.1/.*|postgresql://127.0.0.1:5432/payload|g' \
+            /tmp/payload-repo/templates/website/.env.example
+        fi
+        cp -r /tmp/payload-repo/templates/website/. /target/
+        rm -rf /tmp/payload-repo
+        echo "[payload-init] Done (configured for PostgreSQL)."
+    restart: "no"
 
   # ── Web App / CMS (Next.js + Payload) ─────────────────────────────────────
-  # TODO: replace with a real build once the web repo exists
+  # App files live at PAYLOAD_APP_PATH (populated by payload-init on first boot).
+  # node_modules is kept in a named volume so the host filesystem stays clean and
+  # npm install is not re-run from scratch on every container recreate.
   payload:
-    image: node:22-alpine
-    networks: [web, data]
+    image: docker.io/library/node:22-alpine
+    networks: [web, data, nginx-proxy]
+    working_dir: /app
     ports:
       - "127.0.0.1:3000:3000"
     environment:
-      DATABASE_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/payload
+      DATABASE_URL: ${PAYLOAD_DATABASE_URI}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       PAYLOAD_SECRET: ${PAYLOAD_SECRET}
-      NEXT_PUBLIC_SERVER_URL: ${PUBLIC_URL}
+      NEXT_PUBLIC_SERVER_URL: ${PAYLOAD_PUBLIC_URL}
+      NODE_ENV: development
+      VIRTUAL_HOST: ${PAYLOAD_VIRTUAL_HOST}
+      VIRTUAL_PORT: "3000"
+      LETSENCRYPT_HOST: ${PAYLOAD_LETSENCRYPT_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      - ${PAYLOAD_APP_PATH}:/app${SELINUX_LABEL:-}
+      # node_modules in a named volume avoids polluting the host app dir and
+      # survives container recreates without a full reinstall.
+      - payload_node_modules:/app/node_modules
+    command: sh -c "npm install && npm run dev"
     depends_on:
-      - postgres
-      - redis
+      payload-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/health 2>/dev/null || wget -q -O- http://localhost:3000/ 2>/dev/null | grep -q html"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ── NodeBB App Initializer ─────────────────────────────────────────────────
+  # One-shot: copies the full NodeBB application out of the image into NODEBB_APP_PATH
+  # if that directory is empty. NodeBB cannot start with an empty app directory.
+  # Idempotent: skips if NODEBB_APP_PATH already has content.
+  nodebb-init:
+    image: ghcr.io/nodebb/nodebb:latest
+    volumes:
+      - ${NODEBB_APP_PATH}:/target${SELINUX_LABEL:-}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ -f /target/package.json ]; then
+          echo "[nodebb-init] package.json already present, skipping copy."
+        else
+          echo "[nodebb-init] Copying NodeBB application into ${NODEBB_APP_PATH}..."
+          cp -r /usr/src/nodebb/. /target/
+          echo "[nodebb-init] Done."
+        fi
+    restart: "no"
 
   # ── Forum (NodeBB) ────────────────────────────────────────────────────────
+  # App files live at NODEBB_APP_PATH (populated by nodebb-init on first boot).
+  # Uploads live at NODEBB_UPLOADS_PATH (NodeBB creates the directory structure).
+  # On first start with an empty MongoDB, NodeBB auto-installs using NODEBB_ADMIN_* vars.
+  # config.json is written to NODEBB_APP_PATH and persists across container recreates.
   nodebb:
     image: ghcr.io/nodebb/nodebb:latest
-    networks: [web, data]
+    networks: [web, data, nginx-proxy]
     ports:
       - "127.0.0.1:4567:4567"
     environment:
+      NODEBB_URL: ${NODEBB_URL}
       NODEBB_DB: mongo
       NODEBB_DB_HOST: mongodb
-      NODEBB_DB_PORT: 27017
-      NODEBB_DB_NAME: nodebb
+      NODEBB_DB_PORT: "27017"
+      NODEBB_DB_NAME: ${NODEBB_DB_NAME}
       NODEBB_DB_USER: ${MONGO_USER}
       NODEBB_DB_PASSWORD: ${MONGO_PASSWORD}
       NODEBB_REDIS_HOST: redis
       NODEBB_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Auto-install on first run (ignored if config.json already exists in NODEBB_APP_PATH)
+      NODEBB_ADMIN_USERNAME: ${NODEBB_ADMIN_USERNAME}
+      NODEBB_ADMIN_EMAIL: ${NODEBB_ADMIN_EMAIL}
+      NODEBB_ADMIN_PASSWORD: ${NODEBB_ADMIN_PASSWORD}
+      VIRTUAL_HOST: ${NODEBB_VIRTUAL_HOST}
+      VIRTUAL_PORT: "4567"
+      LETSENCRYPT_HOST: ${NODEBB_LETSENCRYPT_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     volumes:
-      - nodebb_data:/usr/src/app/public/uploads
+      - ${NODEBB_APP_PATH}:/usr/src/nodebb${SELINUX_LABEL:-}
+      - ${NODEBB_UPLOADS_PATH}:/usr/src/nodebb/public/uploads${SELINUX_LABEL:-}
     depends_on:
-      - mongodb
-      - redis
+      nodebb-init:
+        condition: service_completed_successfully
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:4567/api/config 2>/dev/null | grep -q version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ── Logto DB Initializer ───────────────────────────────────────────────────
+  # One-shot: seeds the Logto database and deploys pending schema alterations.
+  # db seed is NOT idempotent — error is suppressed when db is already seeded.
+  # db alteration deploy IS idempotent — safe to run every time.
+  logto-init:
+    image: ghcr.io/logto-io/logto:latest
+    networks: [data]
+    environment:
+      DB_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${LOGTO_DB_NAME}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        seed_rc=0
+        seed_out=$$(npx @logto/cli db seed -- --db-url "$$DB_URL" 2>&1) || seed_rc=$$?
+        if [ $$seed_rc -ne 0 ]; then
+          if echo "$$seed_out" | grep -q 'already exists'; then
+            echo 'Logto: database already seeded, skipping.'
+          else
+            echo "$$seed_out" >&2
+            exit 1
+          fi
+        fi
+        npx @logto/cli db alteration deploy latest -- --db-url "$$DB_URL"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   # ── Identity Provider (Logto) ─────────────────────────────────────────────
+  # Uses the image's own default CMD so internal worker paths resolve correctly.
+  # All Logto state lives in Postgres (LOGTO_DB_NAME); no separate data directory needed.
   logto:
     image: ghcr.io/logto-io/logto:latest
-    networks: [web, data]
+    networks: [web, data, nginx-proxy]
     ports:
       - "127.0.0.1:3001:3001"
-      - "127.0.0.1:3002:3002"
     environment:
-      DB_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/logto
+      DB_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${LOGTO_DB_NAME}
       ENDPOINT: ${LOGTO_ENDPOINT}
       ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT}
-    entrypoint: sh -c "npx @logto/cli db seed -- --db-url $$DB_URL 2>/dev/null; node /etc/logto/node_modules/.bin/logto"
+      TRUST_PROXY_HEADER: "true"
+      VIRTUAL_HOST: ${LOGTO_VIRTUAL_HOST}
+      VIRTUAL_PORT: "3001"
+      LETSENCRYPT_HOST: ${LOGTO_LETSENCRYPT_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
     depends_on:
-      - postgres
+      logto-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:3001/api/status 2>/dev/null | grep -q ok || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ── Search Engine (OpenSearch) ─────────────────────────────────────────────
+  # Security plugin disabled for dev simplicity. Enable in production.
+  # Linux hosts: sudo sysctl -w vm.max_map_count=262144 (see header comment)
+  # OPENSEARCH_DATA_PATH must be writable by UID 1000 (opensearch user).
+  # On Linux: sudo chown -R 1000:1000 $OPENSEARCH_DATA_PATH
+  opensearch:
+    image: docker.io/opensearchproject/opensearch:2
+    networks: [data]
+    ports:
+      - "127.0.0.1:9200:9200"
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - bootstrap.memory_lock=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ${OPENSEARCH_DATA_PATH}:/usr/share/opensearch/data${SELINUX_LABEL:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ── OpenSearch Index Initializer ───────────────────────────────────────────
+  # One-shot: creates index templates after OpenSearch is healthy.
+  # Idempotent: PUT is an upsert for index templates.
+  opensearch-init:
+    image: docker.io/curlimages/curl:latest
+    networks: [data]
+    volumes:
+      - ./scripts/opensearch-init.sh:/opensearch-init.sh:ro${SELINUX_LABEL:-}
+    entrypoint: ["/bin/sh", "/opensearch-init.sh"]
+    environment:
+      OPENSEARCH_URL: http://opensearch:9200
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: "no"
+
+  # ── OpenSearch Dashboards ──────────────────────────────────────────────────
+  opensearch-dashboards:
+    image: docker.io/opensearchproject/opensearch-dashboards:2
+    networks: [web, data, nginx-proxy]
+    ports:
+      - "127.0.0.1:5601:5601"
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+      VIRTUAL_HOST: ${DASHBOARDS_VIRTUAL_HOST}
+      VIRTUAL_PORT: "5601"
+      LETSENCRYPT_HOST: ${DASHBOARDS_LETSENCRYPT_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q available || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    logging: *default-logging
 
   # ── Databases ─────────────────────────────────────────────────────────────
-  # All databases are on the data network only (internal: true — no external routing).
-  # Ports are bound to 127.0.0.1 so dev tooling on the host can connect; containers
-  # on the web network cannot reach these services at all.
+  # All on the data network (internal: true — no external routing).
+  # Host port bindings use 127.0.0.1 so dev tooling on the host can connect;
+  # services on the web network cannot reach these directly.
+  #
+  # All data directories are bind-mounted from host paths defined in Doppler.
+  # Empty directories on first boot are handled automatically by each database engine.
 
   postgres:
-    image: postgres:16-alpine
+    image: docker.io/library/postgres:16-alpine
     networks: [data]
     ports:
       - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: sentience
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data${SELINUX_LABEL:-}
+      # Init scripts run only when the data directory is first initialised (empty).
+      # Creates PAYLOAD_DB_NAME and LOGTO_DB_NAME databases alongside POSTGRES_DB.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro${SELINUX_LABEL:-}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *default-logging
 
   mongodb:
-    image: mongo:7
+    image: docker.io/library/mongo:7
     networks: [data]
     ports:
       - "127.0.0.1:27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: nodebb
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
     volumes:
-      - mongodb_data:/data/db
+      - ${MONGODB_DATA_PATH}:/data/db${SELINUX_LABEL:-}
+      # Init script grants the root user explicit readWrite+dbAdmin on the NodeBB database.
+      - ./mongodb/init:/docker-entrypoint-initdb.d:ro${SELINUX_LABEL:-}
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --eval 'db.adminCommand(\"ping\").ok' admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *default-logging
 
   redis:
-    # Redis Stack 8.6.0 — matches game server (ReJSON, RediSearch, Bloom, TimeSeries).
-    # REDIS_ARGS is used instead of command: so the image entrypoint loads the .so modules.
-    image: redis/redis-stack-server:8.6.0
+    # Redis 8 — ReJSON, RediSearch, Bloom, and TimeSeries are built-in (no Stack image needed).
+    image: docker.io/library/redis:8-alpine
     networks: [data]
     ports:
       - "127.0.0.1:6379:6379"
     environment:
-      REDIS_ARGS: --requirepass ${REDIS_PASSWORD} --appendonly yes
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: >
+      sh -c "redis-server --requirepass $$REDIS_PASSWORD --appendonly yes"
     volumes:
-      - redis_data:/data
+      - ${REDIS_DATA_PATH}:/data${SELINUX_LABEL:-}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *default-logging
 
 volumes:
-  postgres_data:
-  mongodb_data:
-  redis_data:
-  nodebb_data:
+  # node_modules is kept in a named volume so npm install output doesn't land
+  # in the host app directory and survive container recreates without a full reinstall.
+  payload_node_modules:
