@@ -91,12 +91,23 @@ bool array_insert(ARRAY *arr, size_t index, void *data);
 bool array_remove(ARRAY *arr, size_t index);
 
 /* =========================================================================
- * Typed array constructors
+ * Typed array constructors and methods
  * ======================================================================= */
 
 ARRAY *new_int_array(size_t length);
+bool int_array_set(ARRAY *arr, size_t index, int data);
+bool int_array_append(ARRAY *arr, int data);
+bool int_array_insert(ARRAY *arr, size_t index, int data);
+
 ARRAY *new_float_array(size_t length);
+bool float_array_set(ARRAY *arr, size_t index, double data);
+bool float_array_append(ARRAY *arr, double data);
+bool float_array_insert(ARRAY *arr, size_t index, double data);
+
 ARRAY *new_string_array(size_t length);
+bool string_array_set(ARRAY *arr, size_t index, const char *data);
+bool string_array_append(ARRAY *arr, const char *data);
+bool string_array_insert(ARRAY *arr, size_t index, const char *data);
 
 /* =========================================================================
  * Split: parse a formatted string into a typed array

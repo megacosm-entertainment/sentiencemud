@@ -313,6 +313,10 @@ ARRAY *new_int_array(size_t length)
     return new_arrayx(length, sizeof(int), NULL, __int_array_copier);
 }
 
+bool int_array_set(ARRAY *arr, size_t index, int data)      { return array_set(arr, index, &data); }
+bool int_array_append(ARRAY *arr, int data)                 { return array_append(arr, &data); }
+bool int_array_insert(ARRAY *arr, size_t index, int data)   { return array_insert(arr, index, &data); }
+
 static void __float_array_copier(void *ptr, void *src)
 {
     if (ptr && src)
@@ -325,6 +329,11 @@ ARRAY *new_float_array(size_t length)
 {
     return new_arrayx(length, sizeof(double), NULL, __float_array_copier);
 }
+
+bool float_array_set(ARRAY *arr, size_t index, double data)      { return array_set(arr, index, &data); }
+bool float_array_append(ARRAY *arr, double data)                 { return array_append(arr, &data); }
+bool float_array_insert(ARRAY *arr, size_t index, double data)   { return array_insert(arr, index, &data); }
+
 
 static void __string_array_deleter(void *data)
 {
@@ -348,6 +357,9 @@ ARRAY *new_string_array(size_t length)
     return new_arrayx(length, sizeof(char *), __string_array_deleter, __string_array_copier);
 }
 
+bool string_array_set(ARRAY *arr, size_t index, const char *data)      { return array_set(arr, index, &data); }
+bool string_array_append(ARRAY *arr, const char *data)                 { return array_append(arr, &data); }
+bool string_array_insert(ARRAY *arr, size_t index, const char *data)   { return array_insert(arr, index, &data); }
 
 
 /* =========================================================================
@@ -964,15 +976,15 @@ ARRAY *split_float_array(const char *input)
  *
  * Calls stringer(element) for each element, assembles [t0,t1,...,tN].
  * Each token returned by stringer must be heap-allocated; array_join
- * free()s them after use.
+ * free()s them after use.  Returns an empty array on error.
  * ---------------------------------------------------------------------- */
 char *array_join(ARRAY *arr, ARRAY_STRINGER_FUNC *stringer)
 {
-    if (!arr || !arr->ptr || arr->length == 0 || !stringer) return NULL;
+    if (!arr || !arr->ptr || arr->length == 0 || !stringer) return str_dup("[]");
 
     /* ---- Stringify each element, accumulate total byte length ---- */
     char **tokens = malloc(arr->length * sizeof(char *));
-    if (!tokens) return NULL;
+    if (!tokens) return str_dup("[]");
 
     size_t total = 2;               /* '[' and ']'  */
     if (arr->length > 1)
@@ -986,7 +998,7 @@ char *array_join(ARRAY *arr, ARRAY_STRINGER_FUNC *stringer)
         {
             for (size_t j = 0; j < i; j++) free(tokens[j]);
             free(tokens);
-            return NULL;
+            return str_dup("[]");
         }
         total += strlen(tokens[i]);
     }
@@ -997,7 +1009,7 @@ char *array_join(ARRAY *arr, ARRAY_STRINGER_FUNC *stringer)
     {
         for (size_t i = 0; i < arr->length; i++) free(tokens[i]);
         free(tokens);
-        return NULL;
+        return str_dup("[]");
     }
 
     char *dst = out;

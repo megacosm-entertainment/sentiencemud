@@ -3798,7 +3798,7 @@ const struct game_setting_type game_settings_table[] = {
     { "channel_publish_compact", &game_settings.channel_publish_compact, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Publish compact channel events that hydrate from history stream", true, false, false },
     { "note_boot_errors",   &game_settings.note_boot_errors, SETTING_TYPE_BOOL, SETTING_CAT_GLOBAL, "Sends notes with boot errors to 'coder' and 'head coder'", true, true, false },
     { "character_delete",    &game_settings.character_delete_delay_days, SETTING_TYPE_INT, SETTING_CAT_GLOBAL, "Number of days before a character is purged when flagged for deletion.", true, false, false },
-
+    { "allowed_languages",  &game_settings.allowed_languages, SETTING_TYPE_STRING_ARRAY, SETTING_CAT_GLOBAL, "List of allowed languages for restricted fields.", true, true, false},
 
 
     /* MSSP Settings */

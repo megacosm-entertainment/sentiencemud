@@ -162,6 +162,51 @@ static bool apply_override(const char *env_name, const char *value, const char *
             log_stringf("  Override (%s): %s = %.2f", source, setting->name, *ptr);
             break;
         }
+
+        case SETTING_TYPE_INT_ARRAY: {
+            ARRAY **ptr = (ARRAY **)setting->ptr;
+            ARRAY *arr = split_int_array(value);
+            if (arr)
+            {
+                free_array(*ptr);
+                *ptr = arr;
+
+                char *joined = join_int_array(*ptr);
+                log_stringf("  Override (%s): %s = %s", source, setting->name, joined);
+                free(joined);
+                break;
+            }
+        }
+
+        case SETTING_TYPE_FLOAT_ARRAY: {
+            ARRAY **ptr = (ARRAY **)setting->ptr;
+            ARRAY *arr = split_float_array(value);
+            if (arr)
+            {
+                free_array(*ptr);
+                *ptr = arr;
+
+                char *joined = join_float_array(*ptr);
+                log_stringf("  Override (%s): %s = %s", source, setting->name, joined);
+                free(joined);
+                break;
+            }
+        }
+
+        case SETTING_TYPE_STRING_ARRAY: {
+            ARRAY **ptr = (ARRAY **)setting->ptr;
+            ARRAY *arr = split_string_array(value);
+            if (arr)
+            {
+                free_array(*ptr);
+                *ptr = arr;
+
+                char *joined = join_string_array(*ptr);
+                log_stringf("  Override (%s): %s = %s", source, setting->name, joined);
+                free(joined);
+                break;
+            }
+        }
     }
 
     return true;
@@ -421,20 +466,23 @@ json_t *game_settings_to_json(void)
             }
 
             case SETTING_TYPE_INT_ARRAY: {
-                ARRAY *arr = (ARRAY *)setting->ptr;
-                value = array_to_json(arr, __array_int_to_json);
+                ARRAY **parr = (ARRAY **)setting->ptr;
+                if (parr && *parr)
+                    value = array_to_json(*parr, __array_int_to_json);
                 break;
             }
 
             case SETTING_TYPE_FLOAT_ARRAY: {
-                ARRAY *arr = (ARRAY *)setting->ptr;
-                value = array_to_json(arr, __array_float_to_json);
+                ARRAY **parr = (ARRAY **)setting->ptr;
+                if (parr && *parr)
+                    value = array_to_json(*parr, __array_float_to_json);
                 break;
             }
 
             case SETTING_TYPE_STRING_ARRAY: {
-                ARRAY *arr = (ARRAY *)setting->ptr;
-                value = array_to_json(arr, __array_string_to_json);
+                ARRAY **parr = (ARRAY **)setting->ptr;
+                if (parr && *parr)
+                    value = array_to_json(*parr, __array_string_to_json);
                 break;
             }
         }
@@ -645,7 +693,12 @@ bool json_to_game_settings(json_t *root)
                 ARRAY  **ptr = (ARRAY **)setting->ptr;
                 if (json_is_array(value))
                 {
-                    *ptr = json_to_int_array(value);
+                    ARRAY *arr = json_to_int_array(value);
+                    if (arr)
+                    {
+                        free_array(*ptr);
+                        *ptr = arr;
+                    }
                 }
                 break;
             }
@@ -654,7 +707,12 @@ bool json_to_game_settings(json_t *root)
                 ARRAY  **ptr = (ARRAY **)setting->ptr;
                 if (json_is_array(value))
                 {
-                    *ptr = json_to_float_array(value);
+                    ARRAY *arr = json_to_float_array(value);
+                    if (arr)
+                    {
+                        free_array(*ptr);
+                        *ptr = arr;
+                    }
                 }
                 break;
             }
@@ -663,7 +721,12 @@ bool json_to_game_settings(json_t *root)
                 ARRAY  **ptr = (ARRAY **)setting->ptr;
                 if (json_is_array(value))
                 {
-                    *ptr = json_to_string_array(value);
+                    ARRAY *arr = json_to_string_array(value);
+                    if (arr)
+                    {
+                        if (*ptr) free_array(*ptr);
+                        *ptr = arr;
+                    }
                 }
                 break;
             }
@@ -705,6 +768,11 @@ static void init_game_settings_defaults(void)
     game_settings.new_char_lock_msg = str_empty;
     game_settings.logall = false;
     game_settings.note_boot_errors = false;
+    game_settings.allowed_languages = new_string_array(0);
+    if (game_settings.allowed_languages)
+    {
+        string_array_append(game_settings.allowed_languages, "en_us");
+    }
 
     /* Auth */
     game_settings.require_uniq_pass_staff = false;
