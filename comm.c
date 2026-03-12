@@ -204,6 +204,160 @@ time_t last_ssl_error = 0;              /**< Timestamp of last SSL error */
 LLIST *ssl_ctx_cleanup_queue = NULL;    /**< Queue of old SSL contexts awaiting cleanup */
 bool it_debug = false;                  /**< Integration test debug mode */
 /** @} */
+
+#define WS_RESUME_TOKEN_LEN 40
+#define WS_RESUME_TTL_SECONDS 180
+
+typedef struct websocket_resume_session_data {
+    char token[WS_RESUME_TOKEN_LEN + 1];
+    unsigned long player_id0;
+    unsigned long player_id1;
+    time_t expires_at;
+    struct websocket_resume_session_data *next;
+} websocket_resume_session_t;
+
+static websocket_resume_session_t *ws_resume_sessions = NULL;
+
+static bool descriptor_is_websocket(const DESCRIPTOR_DATA *d)
+{
+    return d && d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS;
+}
+
+static void ws_resume_purge_expired(void)
+{
+    websocket_resume_session_t *cur = ws_resume_sessions;
+    websocket_resume_session_t *prev = NULL;
+
+    while (cur) {
+        websocket_resume_session_t *next = cur->next;
+        if (cur->expires_at <= current_time) {
+            if (prev)
+                prev->next = next;
+            else
+                ws_resume_sessions = next;
+            free(cur);
+        } else {
+            prev = cur;
+        }
+        cur = next;
+    }
+}
+
+static void ws_resume_drop_for_player(unsigned long id0, unsigned long id1)
+{
+    websocket_resume_session_t *cur = ws_resume_sessions;
+    websocket_resume_session_t *prev = NULL;
+
+    while (cur) {
+        websocket_resume_session_t *next = cur->next;
+        if (cur->player_id0 == id0 && cur->player_id1 == id1) {
+            if (prev)
+                prev->next = next;
+            else
+                ws_resume_sessions = next;
+            free(cur);
+        } else {
+            prev = cur;
+        }
+        cur = next;
+    }
+}
+
+static void ws_resume_make_token(char out_token[WS_RESUME_TOKEN_LEN + 1])
+{
+    static const char alphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    size_t i;
+    int alpha_len = (int)(sizeof(alphabet) - 1);
+
+    for (i = 0; i < WS_RESUME_TOKEN_LEN; i++) {
+        out_token[i] = alphabet[number_range(0, alpha_len - 1)];
+    }
+    out_token[WS_RESUME_TOKEN_LEN] = '\0';
+}
+
+void websocket_resume_issue(DESCRIPTOR_DATA *d)
+{
+    websocket_resume_session_t *session;
+    char token[WS_RESUME_TOKEN_LEN + 1];
+    char buf[128];
+    CHAR_DATA *ch;
+
+    if (!descriptor_is_websocket(d) || !d->character || IS_NPC(d->character))
+        return;
+
+    ch = d->character;
+
+    ws_resume_purge_expired();
+    ws_resume_drop_for_player(ch->id[0], ch->id[1]);
+    ws_resume_make_token(token);
+
+    session = malloc(sizeof(*session));
+    if (!session) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "websocket_resume_issue: out of memory");
+        return;
+    }
+
+    memset(session, 0, sizeof(*session));
+    strncpy(session->token, token, WS_RESUME_TOKEN_LEN);
+    session->player_id0 = ch->id[0];
+    session->player_id1 = ch->id[1];
+    session->expires_at = current_time + WS_RESUME_TTL_SECONDS;
+    session->next = ws_resume_sessions;
+    ws_resume_sessions = session;
+
+    snprintf(buf, sizeof(buf), "##RESUME %s\n\r", token);
+    write_to_buffer(d, buf, 0);
+}
+
+bool websocket_resume_try(DESCRIPTOR_DATA *d, const char *token)
+{
+    websocket_resume_session_t *cur;
+    websocket_resume_session_t *prev;
+    CHAR_DATA *ch;
+
+    if (!descriptor_is_websocket(d) || IS_NULLSTR(token))
+        return false;
+
+    ws_resume_purge_expired();
+
+    prev = NULL;
+    cur = ws_resume_sessions;
+    while (cur) {
+        if (!str_cmp(cur->token, token))
+            break;
+        prev = cur;
+        cur = cur->next;
+    }
+
+    if (!cur)
+        return false;
+
+    ch = idfind_player(cur->player_id0, cur->player_id1);
+
+    if (prev)
+        prev->next = cur->next;
+    else
+        ws_resume_sessions = cur->next;
+    free(cur);
+
+    if (!ch || IS_NPC(ch) || ch->desc != NULL || ch->in_room == NULL)
+        return false;
+
+    write_to_buffer(d, "##RESUME_OK\n\r", 0);
+
+    d->character = ch;
+    ch->desc = d;
+    d->connected = CON_PLAYING;
+    d->reconnecting = false;
+    d->reconnect_ch = NULL;
+
+    reconnect_char(d);
+    do_function(ch, &do_look, "auto");
+    websocket_resume_issue(d);
+    return true;
+}
+
 /*
  * OS-dependent local functions.
  */
@@ -1418,7 +1572,10 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
                         }
                         else
                         {
-                            write_to_buffer(d, "By what name do you wish to be known? ", 0);
+                            if (descriptor_is_websocket(d))
+                                write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
+                            else
+                                write_to_buffer(d, "By what name do you wish to be known? ", 0);
                         }
                     }
 
@@ -1811,7 +1968,10 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
         }
         else
         {
-            write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+            if (descriptor_is_websocket(dnew))
+                write_to_buffer(dnew, "Account name (or RESUME <token>): ", 0);
+            else
+                write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
         }
     }
 }
@@ -3435,6 +3595,7 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     // Show room to player
     do_function(ch, &do_look, "auto");
     event_notify_active_events_for_char(ch, true);
+    websocket_resume_issue(d);
 }
 
 /**
@@ -3511,6 +3672,9 @@ if (ch && ch->desc) {
     
     // Add connection to tracking
     connection_add(d);
+
+    // Issue/rotate websocket resume token after successful relink.
+    websocket_resume_issue(d);
 }
 
 /**

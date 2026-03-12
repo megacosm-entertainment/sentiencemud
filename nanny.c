@@ -61,6 +61,23 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
     char buf[MAX_STRING_LENGTH];
     bool found;
 
+    while (ISSPACE(*argument))
+        argument++;
+
+    // WebSocket session resume command: RESUME <token>
+    if (!str_prefix("RESUME ", argument)) {
+        const char *token = argument + 7;
+        while (ISSPACE(*token))
+            token++;
+
+        if (websocket_resume_try(d, token))
+            return;
+
+        write_to_buffer(d, "##RESUME_FAIL invalid_or_expired\n\r", 0);
+        write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
+        return;
+    }
+
     if (!argument[0]) {
         close_socket(d);
         return;
@@ -2807,6 +2824,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
             // Update connection tracking
             connection_add(d);
+            websocket_resume_issue(d);
 
             // Update protocol
             MXPSendTag(d, "<VERSION>");
@@ -3000,6 +3018,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     
     // Add connection to tracking list
     connection_add(d);
+    websocket_resume_issue(d);
     
     // Final login processing
     {

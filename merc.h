@@ -10942,6 +10942,8 @@ void hash_recovery_codes_in_place(char **codes, int count);
 bool check_recovery_code(CHAR_DATA *ch, const char *code);
 bool check_account_recovery_code(ACCOUNT_DATA *acct, const char *code);
 void display_account_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_DATA *acct);
+bool websocket_resume_try(DESCRIPTOR_DATA *d, const char *token);
+void websocket_resume_issue(DESCRIPTOR_DATA *d);
 char *generate_totp_qr_url(char *buffer, size_t length, const char *name, const char *key);
 void delayed_unlink(const char *filename);
 bool validate_totp_code(const char *key, const char *code);
