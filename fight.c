@@ -54,12 +54,59 @@
 #define MAX_FLEE_ATTEMPTS 10
 
 /**
+ * pick_dam_verb - Select damage verb strings and punctuation from a damage amount.
+ *
+ * Single canonical table shared by dam_message() and emit_combat_damage_event()
+ * so neither duplicates the thresholds.
+ *
+ * @param dam       Damage dealt (negative = miss)
+ * @param victim_hp Current victim HP (before deduction); must be > 0
+ * @param out_vs    Receives the first-person/singular verb (e.g. "wound")
+ * @param out_vp    Receives the third-person-singular verb (e.g. "wounds")
+ * @param out_punct Receives '.' (light hit) or '!' (heavy hit)
+ */
+static void pick_dam_verb(int dam, int victim_hp,
+                          const char **out_vs, const char **out_vp,
+                          char *out_punct)
+{
+    const char *vs, *vp;
+    float pct = (victim_hp > 0) ? (float)dam / (float)victim_hp * 100.0f : 0.f;
+
+    if      (dam <   0) { vs = "miss";              vp = "misses"; }
+    else if (dam ==  0) { vs = "do nothing to";     vp = "does nothing to"; }
+    else if (pct <=  .5f) { vs = "scratch";         vp = "scratches"; }
+    else if (pct <=  .8f) { vs = "graze";           vp = "grazes"; }
+    else if (pct <=  1.f) { vs = "hit";             vp = "hits"; }
+    else if (pct <=  2.f) { vs = "injure";          vp = "injures"; }
+    else if (pct <=  3.f) { vs = "wound";           vp = "wounds"; }
+    else if (pct <=  5.f) { vs = "maul";            vp = "mauls"; }
+    else if (pct <=  6.f) { vs = "{cdecimate{x";   vp = "decimates"; }
+    else if (pct <=  8.f) { vs = "{gdevastate{x";  vp = "devastates"; }
+    else if (pct <= 10.f) { vs = "{gmaim{x";       vp = "maims"; }
+    else if (pct <= 15.f) { vs = "{BM{bU{BT{bI{BL{bA{BT{bE{x";        vp = "{BM{bU{BT{bI{BL{bA{BT{bE{BS{x"; }
+    else if (pct <= 18.f) { vs = "{BD{CI{BS{CE{BM{CB{BO{CW{BE{CL{x";  vp = "{BD{CI{BS{CE{BM{CB{BO{CW{BE{CL{BS{x"; }
+    else if (pct <= 20.f) { vs = "{BD{CI{WSMEMB{CE{BR{x";             vp = "{BD{CI{WSMEMBE{CR{BS{x"; }
+    else if (pct <= 22.f) { vs = "{RMASSACRE{x";                       vp = "{RMASSACRES{x"; }
+    else if (pct <= 25.f) { vs = "{RM{rA{RN{rG{RL{rE{x";              vp = "{RM{rA{RN{rG{RL{rE{RS{x"; }
+    else if (pct <= 28.f) { vs = "{r**{R* {BDEMOLISH {R*{r**{x";      vp = "{r**{R* {BDEMOLISHES {R*{r**{x"; }
+    else if (pct <= 30.f) { vs = "{r**{R* {CDESTROY {R*{r**{x";       vp = "{r**{R* {CDESTROYS {R*{r**{x"; }
+    else if (pct <= 32.f) { vs = "{r=={R= {WOBLITERATE {R={r=={x";    vp = "{r=={R= {WOBLITERATES {R={r=={x"; }
+    else if (pct <= 35.f) { vs = "{c>>{C> {WANNIHILATE {C<{c<<{x";    vp = "{c>>{C> {WANNIHILATES {C<{c<<{x"; }
+    else if (pct <= 40.f) { vs = "{D<{w<{W< {RERADICATE {W>{w>{D>{x"; vp = "{D<{w<{W< {RERADICATES {W>{w>{D>{x"; }
+    else { vs = "do {YU{GN{CS{WP{BE{MA{GK{CA{RB{YL{WE {Gt{Ch{Mi{Bn{Wg{Ys{G to{x";
+           vp = "does {YU{GN{CS{WP{BE{MA{GK{CA{RB{YL{WE {Gt{Ch{Mi{Bn{Wg{Ys{G to{x"; }
+
+    *out_vs    = vs;
+    *out_vp    = vp;
+    *out_punct = (pct <= 8.f) ? '.' : '!';
+}
+
+/**
  * emit_combat_damage_event - Emit a structured LOG_COMBAT event for a landed hit
  *
  * Called from damage_new() after final damage is determined and before HP is
- * deducted.  Populates extra_json with zone, room, weapon, and damage-type data
- * so downstream consumers (Redis Stream → OpenSearch) can power dashboards
- * tracking weapon popularity, damage distributions, etc.
+ * deducted.  Populates extra_json with zone, room, weapon, damage-type data,
+ * and a plain-text damage message mirroring what players see (sans colour).
  *
  * @param ch        Attacker
  * @param victim    Victim
@@ -72,7 +119,7 @@ static void emit_combat_damage_event(CHAR_DATA *ch, CHAR_DATA *victim,
                                      int dam, int dt, int dam_type,
                                      OBJ_DATA *weapon)
 {
-    char extra[512];
+    char extra[768];
     int  pos = 0;
 
     /* look up human-readable damage class name */
@@ -109,15 +156,38 @@ static void emit_combat_damage_event(CHAR_DATA *ch, CHAR_DATA *victim,
         weap_class = flag_name(weapon_class, WEAPON(weapon)->weapon_class);
     }
 
-    /* build extra_json inline — small fixed-size buffer, no heap alloc needed */
+    /* Build a plain damage message — pick_dam_verb() owns the one canonical
+     * verb table; STRIP_COLOUR removes any colour codes. */
+    char dam_str[128] = "";
+    if (victim->hit > 0) {
+        const char *vs_unused, *vp;
+        char        punct;
+        pick_dam_verb(dam, victim->hit, &vs_unused, &vp, &punct);
+
+        const char *aname = IS_NPC(ch)     ? HANDLE(ch)     : ch->name;
+        const char *vname = IS_NPC(victim) ? HANDLE(victim) : victim->name;
+        char coloured[128];
+        if (dt == TYPE_HIT)
+            snprintf(coloured, sizeof(coloured), "%s %s %s%c",
+                     aname, vp, (ch == victim) ? "itself" : vname, punct);
+        else
+            snprintf(coloured, sizeof(coloured), "%s's %s %s %s%c",
+                     aname, attack_name, vp,
+                     (ch == victim) ? "itself" : vname, punct);
+        STRIP_COLOUR(coloured, dam_str);
+    }
+
+    /* build extra_json inline — fixed-size buffer, no heap alloc needed */
     pos += snprintf(extra + pos, sizeof(extra) - pos,
         "{\"zone\":\"%s\",\"room_wvnum\":\"%s\",\"room_name\":\"%s\","
         "\"attack_type\":\"%s\",\"dam_type\":\"%s\","
-        "\"attacker_is_npc\":%s,\"victim_is_npc\":%s",
+        "\"attacker_is_npc\":%s,\"victim_is_npc\":%s,"
+        "\"dam_message\":\"%s\"",
         zone_name, room_wvnum, room_name,
         attack_name, dam_type_name,
         IS_NPC(ch)     ? "true" : "false",
-        IS_NPC(victim) ? "true" : "false");
+        IS_NPC(victim) ? "true" : "false",
+        dam_str);
 
     if (weap_class)
         pos += snprintf(extra + pos, sizeof(extra) - pos,
@@ -4494,7 +4564,6 @@ void dam_message(CHAR_DATA *ch, CHAR_DATA *victim, int dam,int dt,bool immune)
     const char *attack;
     CHAR_DATA *gch;
     char punct;
-    float percent;
 //	char msg[MSL];
 
 //	sprintf(msg, "dam_message: '%s' vs '%s', dam = %d, dt = %d, immune = %s",
@@ -4506,40 +4575,7 @@ void dam_message(CHAR_DATA *ch, CHAR_DATA *victim, int dam,int dt,bool immune)
     if (ch == NULL || victim == NULL)
         return;
 
-    percent = (float) dam / victim->hit;
-    percent *= 100;
-
-
-    if (dam <   0) { vs = "miss";	vp = "misses";		}
-    else if (dam == 0) { vs = "do nothing to";	vp = "does nothing to";		}
-    else if (percent <=  .5) { vs = "scratch";	vp = "scratches";	}
-    else if (percent <=  .8) { vs = "graze";	vp = "grazes";		}
-    else if (percent <=   1) { vs = "hit";	vp = "hits";		}
-    else if (percent <=   2) { vs = "injure";	vp = "injures";		}
-    else if (percent <=   3) { vs = "wound";	vp = "wounds";		}
-    else if (percent <=   5) { vs = "maul";       vp = "mauls";		}
-    else if (percent <=   6) { vs = "{cdecimate{x";	vp = "decimates";	}
-    else if (percent <=   8) { vs = "{gdevastate{x";	vp = "devastates";	}
-    else if (percent <=  10) { vs = "{gmaim{x";	vp = "maims";		}
-    else if (percent <=  15) { vs = "{BM{bU{BT{bI{BL{bA{BT{bE{x";	vp = "{BM{bU{BT{bI{BL{bA{BT{bE{BS{x";	}
-    else if (percent <=  18) { vs = "{BD{CI{BS{CE{BM{CB{BO{CW{BE{CL{x";	vp = "{BD{CI{BS{CE{BM{CB{BO{CW{BE{CL{BS{x";	}
-    else if (percent <=  20) { vs = "{BD{CI{WSMEMB{CE{BR{x";	vp = "{BD{CI{WSMEMBE{CR{BS{x";	}
-    else if (percent <=  22) { vs = "{RMASSACRE{x";	vp = "{RMASSACRES{x";	}
-    else if (percent <=  25) { vs = "{RM{rA{RN{rG{RL{rE{x";	vp = "{RM{rA{RN{rG{RL{rE{RS{x";		}
-    else if (percent <=  28) { vs = "{r**{R* {BDEMOLISH {R*{r**{x";
-        vp = "{r**{R* {BDEMOLISHES {R*{r**{x";			}
-    else if (percent <=  30) { vs = "{r**{R* {CDESTROY {R*{r**{x";
-        vp = "{r**{R* {CDESTROYS {R*{r**{x";			}
-    else if (percent <=  32)  { vs = "{r=={R= {WOBLITERATE {R={r=={x";
-        vp = "{r=={R= {WOBLITERATES {R={r=={x";		}
-    else if (percent <=  35)  { vs = "{c>>{C> {WANNIHILATE {C<{c<<{x";
-        vp = "{c>>{C> {WANNIHILATES {C<{c<<{x";		}
-    else if (percent <=  40)  { vs = "{D<{w<{W< {RERADICATE {W>{w>{D>{x";
-        vp = "{D<{w<{W< {RERADICATES {W>{w>{D>{x";			}
-    else                   { vs = "do {YU{GN{CS{WP{BE{MA{GK{CA{RB{YL{WE {Gt{Ch{Mi{Bn{Wg{Ys{G to{x";
-        vp = "does {YU{GN{CS{WP{BE{MA{GK{CA{RB{YL{WE {Gt{Ch{Mi{Bn{Wg{Ys{G to{x";		}
-
-    punct   = (percent <= 8) ? '.' : '!';
+    pick_dam_verb(dam, victim->hit, &vs, &vp, &punct);
 
     if (dt == TYPE_HIT)
     {
