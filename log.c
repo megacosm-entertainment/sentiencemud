@@ -10,8 +10,11 @@
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <jansson.h>
+#include <hiredis/hiredis.h>
 #include "merc.h"
 #include "zlog.h"
+#include "io/cache/redis_cache.h"
 
 #ifdef MUD_DEBUG
 #include <backtrace.h>
@@ -152,6 +155,95 @@ const char *log_category_for_domain(event_domain_t domain) {
     }
 }
 
+static const char *event_severity_to_string(event_severity_t severity) {
+    switch (severity) {
+        case EVENT_SEV_INFO:     return "INFO";
+        case EVENT_SEV_WARN:     return "WARN";
+        case EVENT_SEV_ERROR:    return "ERROR";
+        case EVENT_SEV_DEBUG:    return "DEBUG";
+        case EVENT_SEV_CRITICAL: return "CRITICAL";
+        case EVENT_SEV_BUG:      return "BUG";
+        default:                 return "INFO";
+    }
+}
+
+/**
+ * log_serialize_event - Serialize a log_event_t to a JSON string per LOGGING_SCHEMA.md
+ *
+ * Builds a JSON object matching the defined schema. The context object is
+ * omitted (null) if event->context is NULL. Fields with zero int64 values
+ * are serialized as JSON null per the nullable convention.
+ *
+ * @param event  The event to serialize. Must not be NULL.
+ * @return       Heap-allocated JSON string (caller must free), or NULL on failure.
+ */
+static char *log_serialize_event(const log_event_t *event) {
+    char iso[48];
+    struct timespec ts;
+    struct tm tm_info;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    gmtime_r(&ts.tv_sec, &tm_info);
+    char ts_buf[32];
+    strftime(ts_buf, sizeof(ts_buf), "%Y-%m-%dT%H:%M:%S", &tm_info);
+    snprintf(iso, sizeof(iso), "%s.%03ldZ", ts_buf, ts.tv_nsec / 1000000L);
+
+    const char *server_id = (game_settings.mssp_hostname && game_settings.mssp_hostname[0])
+        ? game_settings.mssp_hostname : "unknown";
+
+    json_t *root = json_object();
+    if (!root) return NULL;
+
+    /* metadata */
+    json_t *metadata = json_object();
+    json_object_set_new(metadata, "timestamp",  json_string(iso));
+    json_object_set_new(metadata, "server_id",  json_string(server_id));
+    json_object_set_new(metadata, "version",    json_integer(1));
+    json_object_set_new(root, "metadata", metadata);
+
+    /* source */
+    json_t *source = json_object();
+    json_object_set_new(source, "file",     json_string(event->source_file ? event->source_file : "unknown"));
+    json_object_set_new(source, "line",     json_integer(event->source_line));
+    json_object_set_new(source, "function", json_string(event->source_func ? event->source_func : "unknown"));
+    json_object_set_new(root, "source", source);
+
+    /* message */
+    json_t *message = json_object();
+    json_object_set_new(message, "level",    json_string(event_severity_to_string(event->severity)));
+    json_object_set_new(message, "category", json_string(event->category ? event->category : LOG_INFO));
+    json_object_set_new(message, "text",     json_string(event->plain_message ? event->plain_message : ""));
+    json_object_set_new(root, "message", message);
+
+    /* context (optional) */
+    const log_context_t *ctx = event->context;
+    if (ctx) {
+        json_t *context = json_object();
+        json_object_set_new(context, "actor_type",  ctx->actor_type  ? json_string(ctx->actor_type)  : json_null());
+        json_object_set_new(context, "actor_id",    ctx->actor_id    ? json_string(ctx->actor_id)    : json_null());
+        json_object_set_new(context, "action",      ctx->action      ? json_string(ctx->action)      : json_null());
+        json_object_set_new(context, "target_type", ctx->target_type ? json_string(ctx->target_type) : json_null());
+        json_object_set_new(context, "target_id",   ctx->target_id   ? json_string(ctx->target_id)   : json_null());
+        json_object_set_new(context, "value",       ctx->value       ? json_integer(ctx->value)      : json_null());
+        json_object_set_new(context, "duration_ms", ctx->duration_ms ? json_integer(ctx->duration_ms): json_null());
+
+        if (ctx->extra_json) {
+            json_error_t err;
+            json_t *extra = json_loads(ctx->extra_json, 0, &err);
+            json_object_set_new(context, "extra", extra ? extra : json_null());
+        } else {
+            json_object_set_new(context, "extra", json_null());
+        }
+        json_object_set_new(root, "context", context);
+    } else {
+        json_object_set_new(root, "context", json_null());
+    }
+
+    char *result = json_dumps(root, JSON_COMPACT);
+    json_decref(root);
+    return result;
+}
+
 static int event_severity_to_zlevel(event_severity_t severity) {
     switch (severity) {
         case EVENT_SEV_INFO:
@@ -227,7 +319,27 @@ void log_emit_event(const log_event_t *event, void *public_recipient) {
     long line = event->source_line;
     int zlevel = event_severity_to_zlevel(event->severity);
 
-    zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
+    if (!event->skip_flat_file)
+        if (!event->skip_flat_file)
+        if (!event->skip_flat_file)
+        zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
+
+    /* Redis Stream dispatch — fire-and-forget, falls back silently to zlog-only */
+    if (game_settings.log_stream_enabled && redis_is_available()) {
+        char *json_str = log_serialize_event(event);
+        if (json_str) {
+            redisContext *rc = redis_get_connection();
+            if (rc) {
+                redisReply *reply = (redisReply *)redisCommand(rc,
+                    "XADD %s MAXLEN ~ %d * json %s",
+                    game_settings.log_stream_key,
+                    game_settings.log_stream_maxlen,
+                    json_str);
+                if (reply) freeReplyObject(reply);
+            }
+            free(json_str);
+        }
+    }
 }
 
 void log_emit_event_f(const log_event_t *base_event, void *public_recipient, const char *plain_fmt, ...) {

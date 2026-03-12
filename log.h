@@ -77,6 +77,7 @@ typedef struct {
     const char *source_file;
     long source_line;
     const char *source_func;
+    bool skip_flat_file;  // When true, suppress zlog write (stream-only); zero-init = false
 } log_event_t;
 
 // Log categories - mapped to zlog categories
@@ -104,6 +105,68 @@ void log_set_unit_test_only(bool enabled);
 const char *log_category_for_domain(event_domain_t domain);
 void log_emit_event(const log_event_t *event, void *public_recipient);
 void log_emit_event_f(const log_event_t *base_event, void *public_recipient, const char *plain_fmt, ...);
+
+// Convenience macros for structured context — opt-in for new call sites.
+// All existing call sites (plog, plogf, log_string, bug, etc.) are unchanged.
+
+// Security/authentication event with actor identity
+#define log_security_actor(actor_type, actor_id, msg) \
+    do { \
+        log_context_t _lctx = { \
+            .actor_type = (actor_type), .actor_id = (actor_id), .action = "security" \
+        }; \
+        log_event_t _lev = { \
+            .severity = EVENT_SEV_INFO, .category = LOG_SECURITY, \
+            .plain_message = (msg), .context = &_lctx, \
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__ \
+        }; \
+        log_emit_event(&_lev, NULL); \
+    } while(0)
+
+// Combat hit with attacker/victim/damage
+#define log_combat_hit(attacker, victim, damage) \
+    do { \
+        log_context_t _lctx = { \
+            .actor_type = "char", .actor_id = (attacker), .action = "hit", \
+            .target_type = "char", .target_id = (victim), .value = (damage) \
+        }; \
+        log_event_t _lev = { \
+            .severity = EVENT_SEV_INFO, .category = LOG_COMBAT, \
+            .plain_message = "Combat hit", .context = &_lctx, \
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__ \
+        }; \
+        log_emit_event(&_lev, NULL); \
+    } while(0)
+
+// Performance warning with component and duration
+#define log_perf(component, duration_ms_val, msg) \
+    do { \
+        log_context_t _lctx = { \
+            .actor_type = "system", .actor_id = (component), \
+            .duration_ms = (duration_ms_val) \
+        }; \
+        log_event_t _lev = { \
+            .severity = EVENT_SEV_WARN, .category = LOG_DEBUG, \
+            .plain_message = (msg), .context = &_lctx, \
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__ \
+        }; \
+        log_emit_event(&_lev, NULL); \
+    } while(0)
+
+// Character action with optional target and extra JSON
+#define log_char_action(action_str, char_name, target_name, extra) \
+    do { \
+        log_context_t _lctx = { \
+            .actor_type = "char", .actor_id = (char_name), .action = (action_str), \
+            .target_type = "char", .target_id = (target_name), .extra_json = (extra) \
+        }; \
+        log_event_t _lev = { \
+            .severity = EVENT_SEV_INFO, .category = LOG_INFO, \
+            .plain_message = (action_str), .context = &_lctx, \
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__ \
+        }; \
+        log_emit_event(&_lev, NULL); \
+    } while(0)
 
 // Logging functions - now macros to capture caller info
 #define log_message(level, category, message) \

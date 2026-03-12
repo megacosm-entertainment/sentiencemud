@@ -53,6 +53,104 @@
 #define MAX_BACKSTAB_DAMAGE 15000
 #define MAX_FLEE_ATTEMPTS 10
 
+/**
+ * emit_combat_damage_event - Emit a structured LOG_COMBAT event for a landed hit
+ *
+ * Called from damage_new() after final damage is determined and before HP is
+ * deducted.  Populates extra_json with zone, room, weapon, and damage-type data
+ * so downstream consumers (Redis Stream → OpenSearch) can power dashboards
+ * tracking weapon popularity, damage distributions, etc.
+ *
+ * @param ch        Attacker
+ * @param victim    Victim
+ * @param dam       Final damage (post-immunity/resist/vuln, post-triggers)
+ * @param dt        Damage token — index into attack_table (TYPE_HIT-relative)
+ * @param dam_type  DAM_* constant
+ * @param weapon    Wielded weapon OBJ_DATA, or NULL for unarmed/spell
+ */
+static void emit_combat_damage_event(CHAR_DATA *ch, CHAR_DATA *victim,
+                                     int dam, int dt, int dam_type,
+                                     OBJ_DATA *weapon)
+{
+    char extra[512];
+    int  pos = 0;
+
+    /* look up human-readable damage class name */
+    const char *dam_type_name = "unknown";
+    for (int i = 0; damage_classes[i].name != NULL; i++) {
+        if (damage_classes[i].bit == dam_type) {
+            dam_type_name = damage_classes[i].name;
+            break;
+        }
+    }
+
+    /* look up attack-table name (weapon swing verb) */
+    const char *attack_name = "hit";
+    int attack_idx = dt - TYPE_HIT;
+    if (attack_idx >= 0 && attack_idx < MAX_DAMAGE_MESSAGE)
+        attack_name = attack_table[attack_idx].name;
+
+    /* location — use widevnum strings (area_uid#vnum) for cross-zone stability */
+    const char *zone_name   = (ch->in_room && ch->in_room->area)
+                              ? ch->in_room->area->name : "unknown";
+    const char *room_wvnum  = ch->in_room
+                              ? widevnum_string_room(ch->in_room, NULL) : "0#0";
+    const char *room_name   = (ch->in_room && !IS_NULLSTR(ch->in_room->name))
+                              ? ch->in_room->name : "unknown";
+
+    /* weapon — widevnum of the index (obj instance vnums are meaningless here) */
+    const char *weap_wvnum  = NULL;
+    const char *weap_name   = NULL;
+    const char *weap_class  = NULL;
+
+    if (weapon && weapon->item_type == ITEM_WEAPON && weapon->pIndexData) {
+        weap_wvnum = widevnum_string_object(weapon->pIndexData, NULL);
+        weap_name  = IS_NULLSTR(weapon->short_descr) ? NULL : weapon->short_descr;
+        weap_class = flag_name(weapon_class, WEAPON(weapon)->weapon_class);
+    }
+
+    /* build extra_json inline — small fixed-size buffer, no heap alloc needed */
+    pos += snprintf(extra + pos, sizeof(extra) - pos,
+        "{\"zone\":\"%s\",\"room_wvnum\":\"%s\",\"room_name\":\"%s\","
+        "\"attack_type\":\"%s\",\"dam_type\":\"%s\","
+        "\"attacker_is_npc\":%s,\"victim_is_npc\":%s",
+        zone_name, room_wvnum, room_name,
+        attack_name, dam_type_name,
+        IS_NPC(ch)     ? "true" : "false",
+        IS_NPC(victim) ? "true" : "false");
+
+    if (weap_class)
+        pos += snprintf(extra + pos, sizeof(extra) - pos,
+            ",\"weapon_wvnum\":\"%s\",\"weapon_class\":\"%s\",\"weapon_name\":\"%s\"",
+            weap_wvnum,
+            weap_class,
+            weap_name ? weap_name : "");
+
+    if (pos < (int)sizeof(extra) - 1)
+        snprintf(extra + pos, sizeof(extra) - pos, "}");
+
+    log_context_t ctx = {
+        .actor_type  = IS_NPC(ch)     ? "npc"  : "player",
+        .actor_id    = ch->name,
+        .action      = "combat_hit",
+        .target_type = IS_NPC(victim) ? "npc"  : "player",
+        .target_id   = victim->name,
+        .value       = (int64_t)dam,
+        .extra_json  = extra,
+    };
+    log_event_t ev = {
+        .severity      = EVENT_SEV_INFO,
+        .category      = LOG_COMBAT,
+        .plain_message = "combat_hit",
+        .context       = &ctx,
+        .source_file   = __FILE__,
+        .source_line   = __LINE__,
+        .source_func   = __func__,
+        .skip_flat_file = true,   /* high-frequency — stream only, no flat file */
+    };
+    log_emit_event(&ev, NULL);
+}
+
 static const char *offer_room_display_name(ROOM_INDEX_DATA *room, char *out, size_t out_size)
 {
     const char *base_name;
@@ -1675,6 +1773,8 @@ if (victim->lworn) {
         sprintf(buf, "damage right before hurting: negative dam, ch %s, damage %d, dt %d, dam_type %d, victim %s", HANDLE(ch), dam, dt, dam_type, HANDLE(victim));
         log_string(buf);
     }
+
+    emit_combat_damage_event(ch, victim, dam, dt, dam_type, weapon);
 
     victim->hit -= dam;
 

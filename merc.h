@@ -1447,6 +1447,11 @@ struct game_settings_data
     int redis_timeout_sec;        // Redis connection timeout in seconds
     int redis_timeout_usec;       // Redis connection timeout microseconds
 
+    /* Log Stream Settings */
+    bool log_stream_enabled;      // Push structured JSON logs to Redis Stream
+    char *log_stream_key;         // Redis Stream key (default: sentience:log:stream)
+    int log_stream_maxlen;        // Stream MAXLEN ~ cap (default: 100000)
+
     bool note_boot_errors;
     int character_delete_delay_days; // How long until a character is deleted after being marked for deletion?
     int org_disable_pk_pneuma_cost; // How much does it cost to disable PK in an org?

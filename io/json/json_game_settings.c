@@ -671,6 +671,11 @@ static void init_game_settings_defaults(void)
     game_settings.redis_timeout_sec = 1;
     game_settings.redis_timeout_usec = 500000;
 
+    /* Log Stream Settings */
+    game_settings.log_stream_enabled = false;
+    game_settings.log_stream_key = str_dup("sentience:log:stream");
+    game_settings.log_stream_maxlen = 100000;
+
     /* Debug/Logging Settings */
     game_settings.crash_dump_dir = str_empty;
 

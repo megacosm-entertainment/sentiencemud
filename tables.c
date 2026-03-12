@@ -3959,6 +3959,9 @@ const struct game_setting_type game_settings_table[] = {
     { "redis_password",       &game_settings.redis_password,       SETTING_TYPE_STRING, SETTING_CAT_REDIS,    "Redis authentication password",                              true,  false, true },
     { "redis_timeout_sec",    &game_settings.redis_timeout_sec,    SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (seconds)",                         true,  false, false },
     { "redis_timeout_usec",   &game_settings.redis_timeout_usec,   SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Redis connection timeout (microseconds)",                    true,  false, false },
+    { "log_stream_enabled",   &game_settings.log_stream_enabled,   SETTING_TYPE_BOOL,   SETTING_CAT_REDIS,    "Push structured JSON logs to Redis Stream",                  true,  false, false },
+    { "log_stream_key",       &game_settings.log_stream_key,       SETTING_TYPE_STRING, SETTING_CAT_REDIS,    "Redis Stream key for log aggregation",                       true,  false, false },
+    { "log_stream_maxlen",    &game_settings.log_stream_maxlen,    SETTING_TYPE_INT,    SETTING_CAT_REDIS,    "Max Redis Stream length (MAXLEN ~)",                         true,  false, false },
 
     /* Debug/Logging Settings */
     { "crash_dump_dir",       &game_settings.crash_dump_dir,       SETTING_TYPE_STRING, SETTING_CAT_DEBUG,    "Directory for crash dumps and core files",                   true,  false, false },
