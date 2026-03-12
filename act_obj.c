@@ -39,6 +39,38 @@
 #include <time.h>
 #include <math.h>
 #include "merc.h"
+
+static void emit_obj_staff_event(const char *plain_message,
+                                 const char *staff_message,
+                                 CHAR_DATA *actor,
+                                 const char *action)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_ADMIN,
+        .plain_message = plain_message ? plain_message : "object action",
+        .staff_message = staff_message,
+        .wiznet_flag = WIZ_IMMLOG,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
 #include "magic.h"
 #include "interp.h"
 #include "recycle.h"
@@ -1476,7 +1508,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
             if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                 sprintf(buf, "%s drops %s.", ch->name, cart->short_descr);
                 plog(LOG_ADMIN, buf);
-                wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+                emit_obj_staff_event(buf, buf, ch, "drop");
             }
 
             p_percent_trigger(NULL, cart, NULL, NULL, ch, NULL, NULL, cart, NULL, TRIG_DROP, NULL);
@@ -1531,7 +1563,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
         if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
             sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
             plog(LOG_ADMIN, buf);
-            wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+            emit_obj_staff_event(buf, buf, ch, "drop");
         }
 
         p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL);
@@ -1614,7 +1646,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
                     if (IS_IMMORTAL(ch) && !IS_NPC(ch)) {
                         sprintf(buf, "%s drops %s.", ch->name, obj->short_descr);
                         plog(LOG_ADMIN, buf);
-                        wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+                        emit_obj_staff_event(buf, buf, ch, "drop");
                     }
 
                     p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL);
@@ -1814,7 +1846,7 @@ void do_give(CHAR_DATA *ch, char *argument)
                 ch->name, IS_NPC(victim) ? victim->short_descr : victim->name,
                 amount, gold ? "gold" : "silver");
             plog(LOG_ADMIN, buf);
-            wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+                emit_obj_staff_event(buf, buf, ch, "give_money");
         }
 
         return;
@@ -1982,7 +2014,7 @@ void do_give(CHAR_DATA *ch, char *argument)
             obj->short_descr,
             IS_NPC(victim) ? victim->short_descr : victim->name);
         plog(LOG_ADMIN, buf);
-        wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+        emit_obj_staff_event(buf, buf, ch, "give_item");
     }
 
     /* Give trigger */

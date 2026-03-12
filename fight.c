@@ -201,10 +201,16 @@ static void emit_combat_damage_event(CHAR_DATA *ch, CHAR_DATA *victim,
 
     log_context_t ctx = {
         .actor_type  = IS_NPC(ch)     ? "npc"  : "player",
-        .actor_id    = ch->name,
+        .actor_name  = IS_NPC(ch)     ? ch->short_descr : ch->name,
+        .actor_uid   = { ch->id[0], ch->id[1] },
+        .actor_wnum  = (IS_NPC(ch) && ch->pIndexData)
+                       ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
         .action      = "combat_hit",
         .target_type = IS_NPC(victim) ? "npc"  : "player",
-        .target_id   = victim->name,
+        .target_name = IS_NPC(victim) ? victim->short_descr : victim->name,
+        .target_uid  = { victim->id[0], victim->id[1] },
+        .target_wnum = (IS_NPC(victim) && victim->pIndexData)
+                       ? widevnum_string_mobile(victim->pIndexData, NULL) : NULL,
         .value       = (int64_t)dam,
         .extra_json  = extra,
     };
@@ -219,6 +225,58 @@ static void emit_combat_damage_event(CHAR_DATA *ch, CHAR_DATA *victim,
         .skip_flat_file = true,   /* high-frequency — stream only, no flat file */
     };
     log_emit_event(&ev, NULL);
+}
+
+static void emit_fight_wiz_event(const char *plain_message,
+                                 const char *staff_message,
+                                 CHAR_DATA *actor,
+                                 CHAR_DATA *target,
+                                 long wiz_flag,
+                                 int wiz_min_rank,
+                                 const char *action,
+                                 const char *category)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor || target) {
+        if (actor) {
+            ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+            ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+            ctx.actor_uid[0] = actor->id[0];
+            ctx.actor_uid[1] = actor->id[1];
+            ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                           ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        } else {
+            ctx.actor_type = "system";
+            ctx.actor_name = "combat";
+        }
+
+        if (target) {
+            ctx.target_type = IS_NPC(target) ? "npc" : "player";
+            ctx.target_name = IS_NPC(target) ? target->short_descr : target->name;
+            ctx.target_uid[0] = target->id[0];
+            ctx.target_uid[1] = target->id[1];
+            ctx.target_wnum = (IS_NPC(target) && target->pIndexData)
+                            ? widevnum_string_mobile(target->pIndexData, NULL) : NULL;
+        }
+
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = category ? category : LOG_COMBAT,
+        .plain_message = plain_message ? plain_message : "fight event",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .wiznet_min_rank = wiz_min_rank,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
 }
 
 static const char *offer_room_display_name(ROOM_INDEX_DATA *room, char *out, size_t out_size)
@@ -1931,7 +1989,12 @@ if (victim->lworn) {
                 (IS_NPC(victim) ? victim->short_descr : victim->name),
                 ch->in_wilds->name, ch->in_room->name, ch->in_room->x, ch->in_room->y);
 
-        wiznet(log_buf,NULL,NULL,(IS_NPC(victim))?WIZ_MOBDEATHS:WIZ_DEATHS,0,0);
+        emit_fight_wiz_event(log_buf, log_buf,
+                     ch, victim,
+                     (IS_NPC(victim)) ? WIZ_MOBDEATHS : WIZ_DEATHS,
+                     0,
+                     "combat_kill",
+                     LOG_COMBAT);
 
         victim->death_type = victim->set_death_type;
         if(victim->death_type == DEATHTYPE_ALIVE)
@@ -3912,7 +3975,12 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
         (has_head?"HEAD":"HEADLESS"),
         (messages?"MESSAGES":"SILENT"),
         corpse_type);
-    wiznet(buf,NULL,NULL,(IS_NPC(victim))?WIZ_MOBDEATHS:WIZ_DEATHS,0,MAX_LEVEL);
+    emit_fight_wiz_event(buf, buf,
+                         NULL, victim,
+                         (IS_NPC(victim)) ? WIZ_MOBDEATHS : WIZ_DEATHS,
+                         MAX_LEVEL,
+                         "raw_kill",
+                         LOG_COMBAT);
 
     /* If someone has died then unbanish them */
     victim->maze_time_left = 0;
@@ -7123,7 +7191,12 @@ void do_slay(CHAR_DATA *ch, char *argument)
     sprintf(buf, "%s slayed %s!", ch->name, IS_NPC(victim) ? victim->short_descr : victim->name);
     raw_kill(victim, false, true, corpse_type);
 
-    wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+    emit_fight_wiz_event(buf, buf,
+                         ch, victim,
+                         WIZ_IMMLOG,
+                         0,
+                         "slay",
+                         LOG_ADMIN);
     log_string(buf);
 }
 

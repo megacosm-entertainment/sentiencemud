@@ -71,13 +71,50 @@
 #include <zlib.h>
 
 #include "log.h"
+#include "merc.h"
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+static void emit_comm_wiz_event(const char *plain_message,
+                                const char *staff_message,
+                                CHAR_DATA *actor,
+                                long wiz_flag,
+                                long wiz_skip,
+                                int wiz_min_rank,
+                                const char *action,
+                                const char *category)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = category ? category : LOG_INFO,
+        .plain_message = plain_message ? plain_message : "comm wiznet event",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .wiznet_skip_flag = wiz_skip,
+        .wiznet_min_rank = wiz_min_rank,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
 
 #include "strings.h"
-#include "merc.h"
 #include "interp.h"
 #include "recycle.h"
 #include "scripts.h"
@@ -1747,11 +1784,11 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
     // For WebSocket connections, defer greeting until after WebSocket handshake completes
     // For telnet/TLS, send greeting immediately
     if (conn->type != CONN_TYPE_WEBSOCKET_TLS) {
-        ProtocolNegotiate(dnew);
-
-        // Negotiate protocol capabilities through new protocol layer
+        // Negotiate via protocol layer when available; fall back to legacy.
         if (dnew->proto) {
             protocol_negotiate(dnew->proto);
+        } else {
+            ProtocolNegotiate(dnew);
         }
 
         write_to_buffer(dnew, compress_will, 0);
@@ -1812,7 +1849,8 @@ void close_socket(DESCRIPTOR_DATA *dclose)
         {
             if (ch->invis_level < STAFF_IMMORTAL)
                 act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
+            emit_comm_wiz_event("link lost", "$N has lost $S link.",
+                                ch, WIZ_LINKS, 0, 0, "link_lost", LOG_SECURITY);
 
             ch->desc = NULL;
         }
@@ -2018,7 +2056,11 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 
     if (iStart > 0) {
         read_buf[iStart] = '\0';
-        ProtocolInput(d, read_buf, iStart, d->inbuf);
+        if (d->proto) {
+            protocol_process_input(d->proto, read_buf, iStart, d->inbuf, sizeof(d->inbuf));
+        } else {
+            ProtocolInput(d, read_buf, iStart, d->inbuf);
+        }
     }
     return true;
 }
@@ -2132,14 +2174,19 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
         {
         log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s input spamming!", d->host);
 
-        wiznet("Spam spam spam $N spam spam spam!",
-               d->character,NULL,WIZ_SPAM,0,get_staff_rank(d->character));
+        emit_comm_wiz_event("input spam detected", "Spam spam spam $N spam spam spam!",
+                            d->character, WIZ_SPAM, 0, get_staff_rank(d->character),
+                            "input_spam", LOG_SECURITY);
         if (d->incomm[0] == '!')
-            wiznet(d->inlast,d->character,NULL,WIZ_SPAM,0,
-            get_staff_rank(d->character));
+            emit_comm_wiz_event(d->inlast, d->inlast,
+                                d->character, WIZ_SPAM, 0,
+                                get_staff_rank(d->character),
+                                "input_spam_payload", LOG_SECURITY);
         else
-            wiznet(d->incomm,d->character,NULL,WIZ_SPAM,0,
-            get_staff_rank(d->character));
+            emit_comm_wiz_event(d->incomm, d->incomm,
+                                d->character, WIZ_SPAM, 0,
+                                get_staff_rank(d->character),
+                                "input_spam_payload", LOG_SECURITY);
 
         d->repeat = 0;
 
@@ -2189,6 +2236,10 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 {
     extern bool merc_down;
+    bool has_telnet_iac = false;
+
+    if (d->proto)
+        has_telnet_iac = protocol_has_capability(d->proto, PROTO_CAP_TELNET_IAC);
 
     if (d->pProtocol->WriteOOB)
     {
@@ -2199,14 +2250,14 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
         if (d->showstr_point)
         {
             write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
-            if (!d->pProtocol->bSGA)
+            if (!d->pProtocol->bSGA && has_telnet_iac)
                 write_to_buffer(d, GoAheadStr, 0);
 
         }
         else if (fPrompt && d->pString && d->connected == CON_PLAYING)
         {
             write_to_buffer(d, "> ", 2);
-            if (!d->pProtocol->bSGA)
+            if (!d->pProtocol->bSGA && has_telnet_iac)
                 write_to_buffer(d, GoAheadStr, 0);
         }
         else if (fPrompt && d->connected == CON_PLAYING)
@@ -2268,10 +2319,10 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
             if (IS_SET(ch->comm, COMM_PROMPT))
                 bust_a_prompt(d->character);
 
-            if (!d->pProtocol->bSGA)
+            if (!d->pProtocol->bSGA && has_telnet_iac)
                 write_to_buffer(d, GoAheadStr, 0);
 
-            if (IS_SET(ch->comm, COMM_TELNET_GA))
+            if (IS_SET(ch->comm, COMM_TELNET_GA) && has_telnet_iac)
                 write_to_buffer(d, go_ahead_str, 0);
         }
 else if (fPrompt && !d->showstr_point && !d->pString)
@@ -2360,7 +2411,7 @@ else if (fPrompt && !d->showstr_point && !d->pString)
     }
     
     // Add telnet GA for relevant states
-    if (d->connected != CON_PLAYING && 
+    if (has_telnet_iac && d->connected != CON_PLAYING && 
         d->connected != CON_READ_MOTD &&
         d->connected != CON_READ_IMOTD) {
         write_to_buffer(d, go_ahead_str, 0);
@@ -2778,7 +2829,11 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
 {
     if( d->muted > 0 ) return;
 
-    txt = ProtocolOutput(d,txt,&length);
+    if (d->proto) {
+        txt = protocol_process_output(d->proto, txt, &length);
+    } else {
+        txt = ProtocolOutput(d, txt, &length);
+    }
     if (d->pProtocol->WriteOOB > 0)
         --d->pProtocol->WriteOOB;
     /*
@@ -3156,7 +3211,9 @@ bool check_parse_name(char *name)
         if (count)
     {
             sprintf(log_buf,"Double newbie alert (%s)",name);
-            wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,0);
+            emit_comm_wiz_event(log_buf, log_buf, NULL,
+                                WIZ_LOGINS, 0, 0,
+                                "double_newbie_alert", LOG_SECURITY);
 
             return false;
         }
@@ -3369,7 +3426,8 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     
     // Log the reconnection
     log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", ch->name, d->host);
-    wiznet("$N has reconnected.", ch, NULL, WIZ_LINKS, 0, 0);
+    emit_comm_wiz_event("character reconnected", "$N has reconnected.",
+                        ch, WIZ_LINKS, 0, 0, "reconnect", LOG_SECURITY);
     
     // Update protocol
     MXPSendTag(d, "<VERSION>");
@@ -3445,7 +3503,8 @@ if (ch && ch->desc) {
     
     // Log the reconnection
     log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", ch->name, d->host);
-    wiznet("$N has relinked.", ch, NULL, WIZ_LINKS, 0, 0);
+    emit_comm_wiz_event("character relinked", "$N has relinked.",
+                        ch, WIZ_LINKS, 0, 0, "relink", LOG_SECURITY);
     
     // Update protocol settings
     MXPSendTag(d, "<VERSION>");

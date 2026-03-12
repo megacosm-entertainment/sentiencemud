@@ -40,6 +40,46 @@ bool script_force_execute = false;	// Executes the script even if disabled
 SCRIPT_CB *script_call_stack = NULL;
 static SCRIPT_EXECUTE_CONTEXT script_exec_context = { NULL, NULL };
 
+static void emit_script_staff_event_at(const char *plain_message,
+                                       const char *staff_message,
+                                       const char *action,
+                                       SCRIPT_DATA *script,
+                                       const char *file,
+                                       long line,
+                                       const char *func)
+{
+    char extra[128];
+    log_context_t ctx = {
+        .actor_type = "system",
+        .actor_name = "script_engine",
+        .action = action,
+    };
+
+    if (script) {
+        snprintf(extra, sizeof(extra), "{\"script_vnum\":%ld,\"script_lines\":%d}",
+                 (long)script->vnum, script->lines);
+        ctx.extra_json = extra;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_SCRIPTS,
+        .plain_message = plain_message ? plain_message : "script_wiznet_event",
+        .staff_message = staff_message,
+        .wiznet_flag = WIZ_SCRIPTS,
+        .context = &ctx,
+        .source_file = file,
+        .source_line = line,
+        .source_func = func,
+    };
+
+    log_emit_event(&ev, NULL);
+}
+
+#define emit_script_staff_event(plain_msg, staff_msg, action_str, script_ptr) \
+    emit_script_staff_event_at((plain_msg), (staff_msg), (action_str), (script_ptr), \
+                               __FILE__, __LINE__, __func__)
+
 #define SCRIPT_LOG_MAX_LEN 16384
 #define SCRIPT_RUNTIME_ERROR_MAX 50
 #define SCRIPT_RUNTIME_ERROR_TEXT_MAX 512
@@ -2458,7 +2498,8 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 
         if(wiznet_script) {
             sprintf(buf2,"Doing ifcheck: %d, '%s'", param, ifc->name);
-            wiznet(buf2,NULL,NULL,WIZ_SCRIPTS,0,0);
+            emit_script_staff_event(buf2, buf2, "ifcheck",
+                                    (info && info->block) ? info->block->script : NULL);
         }
 
         text = ifcheck_get_value(info,ifc,rest,&lhs,&valid);
@@ -2582,7 +2623,7 @@ bool opc_skip_to_label(SCRIPT_CB *block,int op,int id,bool dir)
 
     if(wiznet_script) {
         sprintf(buf,"Skipping to %s with ID %d.", opcode_names[op], id);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        emit_script_staff_event(buf, buf, "skip_to_label", block->script);
     }
 
     if(dir) {	// Forward, after the loop
@@ -2626,7 +2667,7 @@ bool opc_skip_to_level(SCRIPT_CB *block,int op,int level)
 
     if(wiznet_script) {
         sprintf(buf,"Skipping to %s with Level %d.", opcode_names[op], level);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        emit_script_staff_event(buf, buf, "skip_to_level", block->script);
     }
 
     for(line = block->line; line < last; line++) {
@@ -5679,7 +5720,7 @@ bool echo_line(SCRIPT_CB *block)
     DBG3MSG4("Executing: Line=%d, Opcode=%d(%s), Level=%d\n", block->line+1,block->cur_line->opcode,opcode_names[block->cur_line->opcode],block->cur_line->level);
     if(wiznet_script) {
         sprintf(buf,"Executing: Line=%d, Opcode=%d(%s), Level=%d", block->line+1,block->cur_line->opcode,opcode_names[block->cur_line->opcode],block->cur_line->level);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        emit_script_staff_event(buf, buf, "execute_line", block->script);
     }
     return true;
 }
@@ -5703,11 +5744,11 @@ void script_dump_wiznet(SCRIPT_DATA *script)
     int i;
     char buf[MSL];
     sprintf(buf,"vnum = %d, lines = %d", script->vnum, script->lines);
-    wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+    emit_script_staff_event(buf, buf, "script_dump", script);
     if(script->code) {
         for(i=0; i < script->lines; i++) {
             sprintf(buf,"Line %d: Opcode=%d(%s), Level=%d", i+1,script->code[i].opcode,opcode_names[script->code[i].opcode],script->code[i].level);
-            wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+            emit_script_staff_event(buf, buf, "script_dump", script);
         }
     }
 }
@@ -5873,7 +5914,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
             token ? (int)VNUM(token) : -1,
             ch ? HANDLE(ch) : "(ch)",
             ch ? (int)VNUM(ch) : -1);
-        wiznet(buf, NULL, NULL,WIZ_SCRIPTS,0,0);
+        emit_script_staff_event(buf, buf, "execute_script", script);
         script_dump_wiznet(script);
     }
 
@@ -5933,7 +5974,8 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
     script_call_stack = &block;
 
     DBG3MSG0("Starting script...\n");
-    if(wiznet_script) wiznet("Starting script...",NULL,NULL,WIZ_SCRIPTS,0,0);
+    if(wiznet_script) emit_script_staff_event("Starting script...", "Starting script...",
+                                              "execute_script_start", script);
 
     // Run script
     // Until the number of lines of the script has been reached or
@@ -5951,7 +5993,10 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
     if(IS_SET(block.flags,SCRIPTEXEC_HALT)) script_destructed = true;
 
     DBG3MSG0("Completed script...\n");
-    if(wiznet_script) wiznet((script_destructed?"Script halted due to entity destruction...":"Completed script..."),NULL,NULL,WIZ_SCRIPTS,0,0);
+    if(wiznet_script) emit_script_staff_event(
+        (script_destructed ? "Script halted due to entity destruction..." : "Completed script..."),
+        (script_destructed ? "Script halted due to entity destruction..." : "Completed script..."),
+        "execute_script_end", script);
 
     wiznet_script = saved_wiznet;
 
@@ -8056,7 +8101,7 @@ int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DA
         char buf[MIL];
 
         sprintf(buf, "SPELLCAST: %s", argument);
-        wiznet(buf, NULL, NULL, WIZ_SCRIPTS, 0, 0);
+        emit_script_staff_event(buf, buf, "spellcast_trigger", NULL);
     }
 
     return test_string_trigger(argument, "*", match_exact_name, type, mob, obj, room, ch, victim, victim2, obj1, obj2);

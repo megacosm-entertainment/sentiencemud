@@ -2208,7 +2208,25 @@ static bool backup_old_pfile(const char *filename, const char *char_name)
         dst = fopen(backup_path, "w");
         if (!dst) {
             fclose(src);
-            log_stringf("json_write_char: Failed to create backup %s", backup_path);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "json_write_char: Failed to create backup %s", backup_path);
+                log_context_t ctx = {
+                    .actor_type = "player",
+                    .actor_name = char_name,
+                    .action = "json_backup_create_failed",
+                    .target_type = "storage",
+                    .target_name = backup_path,
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_ERROR,
+                    .category = LOG_ERROR,
+                    .plain_message = msg,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
+            }
             return false;
         }
 
@@ -2244,7 +2262,28 @@ bool json_write_char(CHAR_DATA *ch, const char *filename)
     // Serialize to JSON
     root = char_to_json(ch);
     if (!root) {
-        log_stringf("json_write_char: Failed to serialize %s", ch->name);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "json_write_char: Failed to serialize %s", ch->name);
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "json_serialize_failed",
+                .target_type = "storage",
+                .target_name = "json",
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_ERROR,
+                .category = LOG_ERROR,
+                .plain_message = msg,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
+        }
         return false;
     }
 
@@ -2254,13 +2293,55 @@ bool json_write_char(CHAR_DATA *ch, const char *filename)
     json_decref(root);
 
     if (result != 0) {
-        log_stringf("json_write_char: Failed to write %s", tmp_filename);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "json_write_char: Failed to write %s", tmp_filename);
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "json_write_failed",
+                .target_type = "storage",
+                .target_name = tmp_filename,
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_ERROR,
+                .category = LOG_ERROR,
+                .plain_message = msg,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
+        }
         return false;
     }
 
     // Atomic rename
     if (rename(tmp_filename, filename) != 0) {
-        log_stringf("json_write_char: Failed to rename %s to %s", tmp_filename, filename);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "json_write_char: Failed to rename %s to %s", tmp_filename, filename);
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "json_rename_failed",
+                .target_type = "storage",
+                .target_name = filename,
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_ERROR,
+                .category = LOG_ERROR,
+                .plain_message = msg,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
+        }
         unlink(tmp_filename);
         return false;
     }

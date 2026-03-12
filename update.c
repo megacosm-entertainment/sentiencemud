@@ -24,6 +24,40 @@
 #include "channel_service.h"
 #include "wilderness_storage.h"
 
+static void emit_update_wiz_event(const char *plain_message,
+                                  const char *staff_message,
+                                  CHAR_DATA *actor,
+                                  long wiz_flag,
+                                  const char *action,
+                                  const char *category)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = category ? category : LOG_INFO,
+        .plain_message = plain_message ? plain_message : "update event",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
+
 extern void persist_save(void);
 
 // Global variables
@@ -228,7 +262,8 @@ void update_handler(void)
     // TICK
     if (--pulse_point <= 0)
     {
-    wiznet("TICK!", NULL, NULL, WIZ_TICKS, 0, 0);
+    emit_update_wiz_event("tick", "TICK!", NULL, WIZ_TICKS,
+                          "tick", LOG_INFO);
     pulse_point = PULSE_TICK;
 
     if (number_percent() < 20)
@@ -576,7 +611,8 @@ void gain_exp_typed(CHAR_DATA *ch, CLASS_DATA *clazz, int gain, int xp_type, boo
             }
 
             sprintf(buf, "$N has attained level %d as %s!", cl->level, clazz->name);
-            wiznet(buf, ch, NULL, WIZ_LEVELS, 0, 0);
+            emit_update_wiz_event(buf, buf, ch, WIZ_LEVELS,
+                                  "level_gain", LOG_INFO);
             advance_level(ch, false);
 
             /* Apply class rewards for the new level */
@@ -2372,7 +2408,8 @@ void char_update(void)
             if ((current_time - ch->pcdata->immortal->last_olc_command)/60 >= MAX_BUILDER_IDLE_MINUTES) {
                 sprintf(buf, "%d minutes have passed for %s without any OLC commands; toggling off builder flag.\n\r",
                     MAX_BUILDER_IDLE_MINUTES, ch->name);
-                wiznet(buf, NULL, NULL, WIZ_BUILDING, 0, 0);
+                emit_update_wiz_event(buf, buf, ch, WIZ_BUILDING,
+                                      "builder_idle_timeout", LOG_ADMIN);
                 REMOVE_BIT(ch->act[0], PLR_BUILDING);
             } else  // Increment #minutes built by 1
                 ch->pcdata->immortal->builder->minutes++;

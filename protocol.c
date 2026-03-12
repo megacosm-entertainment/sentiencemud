@@ -33,10 +33,29 @@
  ******************************************************************************/
 #include "strings.h"
 #include "merc.h"
+#include "connection.h"
+
+static bool descriptor_uses_telnet_iac(descriptor_t *apDescriptor)
+{
+   if (!apDescriptor || !apDescriptor->conn)
+      return true;
+
+   return apDescriptor->conn->type != CONN_TYPE_WEBSOCKET_TLS;
+}
 
 
 static void Write( descriptor_t *apDescriptor, const char *apData )
 {
+   if ( apDescriptor == NULL )
+      return;
+
+   /* WebSocket payloads must never include telnet IAC control sequences. */
+   if ( !descriptor_uses_telnet_iac(apDescriptor) && apData != NULL &&
+        ((unsigned char)apData[0] == (unsigned char)IAC) )
+   {
+      return;
+   }
+
    if ( apDescriptor != NULL && !apDescriptor->fcommand )
    {
       if ( apDescriptor->pProtocol->WriteOOB > 0 || 
@@ -1138,12 +1157,18 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
  */
 void ProtocolNegotiate( descriptor_t *apDescriptor )
 {
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+      return;
+
    ConfirmNegotiation(apDescriptor, eNEGOTIATED_TTYPE, true, true);
 }
 
 /* Tells the client to switch echo on or off. */
 void ProtocolNoEcho( descriptor_t *apDescriptor, bool abOn )
 {
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+      return;
+
    ConfirmNegotiation(apDescriptor, eNEGOTIATED_ECHO, abOn, true);
 }
 

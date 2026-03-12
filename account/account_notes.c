@@ -923,7 +923,26 @@ void notify_staff_of_notes(DESCRIPTOR_DATA *d)
         strcat(buf, char_buf);
     }
 
-    wiznet(buf, ch, NULL, WIZ_LOGINS, 0, 0);
+    {
+        log_context_t ctx = {
+            .actor_type = IS_NPC(ch) ? "npc" : "player",
+            .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+            .actor_uid = { ch->id[0], ch->id[1] },
+            .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                          ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+            .action = "staff_notes_alert",
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "staff notes alert",
+            .staff_message = buf,
+            .wiznet_flag = WIZ_LOGINS,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, ch);
+    }
 }
 
 /***************************************************************************

@@ -14810,7 +14810,15 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
         if(script_security < min_sec) {
             sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-            wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+            log_event_t ev = {
+                .severity = EVENT_SEV_WARN,
+                .category = LOG_SCRIPTS,
+                .plain_message = buf,
+                .staff_message = buf,
+                .wiznet_flag = WIZ_SCRIPTS,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
             pbug(LOG_SCRIPTS, buf);
             return;
         }
@@ -14865,7 +14873,15 @@ SCRIPT_CMD(scriptcmd_alterroom)
 
     if(script_security < min_sec) {
         sprintf(buf,"AlterRoom - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_WARN,
+            .category = LOG_SCRIPTS,
+            .plain_message = buf,
+            .staff_message = buf,
+            .wiznet_flag = WIZ_SCRIPTS,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
         pbug(LOG_SCRIPTS, buf);
         return;
     }
@@ -15583,7 +15599,15 @@ SCRIPT_CMD(scriptcmd_wiznet)
     // Broadcast the message
     if(buffer->string)
     {
-        wiznet(buffer->string, NULL, NULL, wiznet_flag, 0, 0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SCRIPTS,
+            .plain_message = buffer->string,
+            .staff_message = buffer->string,
+            .wiznet_flag = wiznet_flag,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
     }
     free_buf(buffer);
 }

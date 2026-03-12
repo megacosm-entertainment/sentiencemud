@@ -176,7 +176,26 @@ void do_help(CHAR_DATA *ch, char *argument)
         act("No help or category found with keyword $t.", ch, NULL, NULL, NULL, NULL, argument, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "%s attempted to get help for '%s' but no helpfile was found.", ch->name, argument);
         log_string(buf);
-        wiznet(buf, ch, NULL, WIZ_HELPS, 0, 0);
+        {
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "help_lookup_miss",
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_INFO,
+                .category = LOG_ADMIN,
+                .plain_message = buf,
+                .staff_message = buf,
+                .wiznet_flag = WIZ_HELPS,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, ch);
+        }
     }
     else
         show_help_to_ch(ch, help);

@@ -1230,7 +1230,27 @@ if (ch->pk_question)
             }
 
             *ps = 0;
-            wiznet( s, ch, NULL, WIZ_SECURE, 0, get_staff_rank(ch));
+            {
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(ch) ? "npc" : "player",
+                    .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                    .actor_uid = { ch->id[0], ch->id[1] },
+                    .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                  ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                    .action = "command_log",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = s,
+                    .staff_message = s,
+                    .wiznet_flag = WIZ_SECURE,
+                    .wiznet_min_rank = get_staff_rank(ch),
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, ch);
+            }
             if ( logline[0] != '\0' )
                 log_string( log_buf );
         }
@@ -1262,7 +1282,26 @@ if (ch->pk_question)
         else
             sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
         log_string(buf);
-        wiznet(buf, ch, NULL, WIZ_VERBS, 0, 0);
+        {
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "unknown_command",
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_INFO,
+                .category = LOG_ADMIN,
+                .plain_message = buf,
+                .staff_message = buf,
+                .wiznet_flag = WIZ_VERBS,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, ch);
+        }
         return;
     }
 

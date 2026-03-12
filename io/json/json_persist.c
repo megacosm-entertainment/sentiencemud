@@ -32,6 +32,29 @@
 
 #define OLC_HISTORY_DIR "data/history"
 
+static void emit_json_persist_event(event_severity_t severity,
+                                    const char *category,
+                                    const char *message,
+                                    const char *action,
+                                    const char *target)
+{
+    log_context_t ctx = {
+        .actor_type = "system",
+        .actor_name = "json_persist",
+        .action = action,
+        .target_type = target ? "storage" : NULL,
+        .target_name = target,
+    };
+    log_event_t ev = {
+        .severity = severity,
+        .category = category ? category : LOG_ERROR,
+        .plain_message = message,
+        .context = &ctx,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+    log_emit_event(&ev, NULL);
+}
+
 /***************************************************************************
  * External References                                                     *
  ***************************************************************************/
@@ -100,30 +123,42 @@ bool json_persist_init(void)
     /* Create main persist directory */
     ret = mkdir(persist_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   persist_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 persist_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", persist_dir);
         return false;
     }
 
     /* Create subdirectories */
     ret = mkdir(rooms_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   rooms_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 rooms_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", rooms_dir);
         return false;
     }
 
     ret = mkdir(mobiles_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   mobiles_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 mobiles_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", mobiles_dir);
         return false;
     }
 
     ret = mkdir(objects_dir, 0755);
     if (ret != 0 && errno != EEXIST) {
-        log_stringf("json_persist_init: Failed to create %s: %s",
-                   objects_dir, strerror(errno));
+        char msg[MSL];
+        snprintf(msg, sizeof(msg), "json_persist_init: Failed to create %s: %s",
+                 objects_dir, strerror(errno));
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_init_mkdir_failed", objects_dir);
         return false;
     }
 
@@ -1386,8 +1421,12 @@ bool json_persist_save_object(OBJ_DATA *obj)
 
     json = json_persist_object_to_json(obj);
     if (!json) {
-        log_stringf("json_persist_save_object: failed to serialize object %lu_%lu",
-                   obj->id[0], obj->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_object: failed to serialize object %lu_%lu",
+                 obj->id[0], obj->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_object_serialize_failed", path);
         return false;
     }
 
@@ -2091,8 +2130,12 @@ bool json_persist_save_mobile(CHAR_DATA *ch)
 
     json = json_persist_mobile_to_json(ch);
     if (!json) {
-        log_stringf("json_persist_save_mobile: failed to serialize mobile %lu_%lu",
-                   ch->id[0], ch->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_mobile: failed to serialize mobile %lu_%lu",
+                 ch->id[0], ch->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_mobile_serialize_failed", path);
         return false;
     }
 
@@ -2572,8 +2615,11 @@ bool json_persist_save_room(ROOM_INDEX_DATA *room)
     json = json_persist_room_to_json(room);
     if (!json) {
         char room_id[256];
+        char msg[MSL];
         json_persist_room_id(room, room_id, sizeof(room_id));
-        log_stringf("json_persist_save_room: failed to serialize room %s", room_id);
+        snprintf(msg, sizeof(msg), "json_persist_save_room: failed to serialize room %s", room_id);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_room_serialize_failed", path);
         return false;
     }
 
@@ -3326,6 +3372,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
         fp = fopen(tmp_path, "w");
         if (!fp) {
             log_stringf("persist_worker: Failed to open temp file %s for writing: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: Failed to open temp file %s for writing: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_open_temp_failed", tmp_path);
+            }
             free(json_str);
             return false;
         }
@@ -3333,6 +3386,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
         written = fwrite(json_str, 1, json_len, fp);
         if (written != json_len) {
             log_stringf("persist_worker: Short write to %s (%zu/%zu): %s", tmp_path, written, json_len, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: Short write to %s (%zu/%zu): %s", tmp_path, written, json_len, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_short_write", tmp_path);
+            }
             fclose(fp);
             unlink(tmp_path);
             free(json_str);
@@ -3341,6 +3401,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (fflush(fp) != 0) {
             log_stringf("persist_worker: fflush failed for %s: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: fflush failed for %s: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_fflush_failed", tmp_path);
+            }
             fclose(fp);
             unlink(tmp_path);
             free(json_str);
@@ -3349,6 +3416,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (fsync(fileno(fp)) != 0) {
             log_stringf("persist_worker: fsync failed for %s: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: fsync failed for %s: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_fsync_failed", tmp_path);
+            }
             fclose(fp);
             unlink(tmp_path);
             free(json_str);
@@ -3357,6 +3431,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (fclose(fp) != 0) {
             log_stringf("persist_worker: fclose failed for %s: %s", tmp_path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: fclose failed for %s: %s", tmp_path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_fclose_failed", tmp_path);
+            }
             unlink(tmp_path);
             free(json_str);
             return false;
@@ -3364,6 +3445,13 @@ static bool write_dirty_key_to_disk(const char *key, bool *retryable)
 
         if (rename(tmp_path, path) != 0) {
             log_stringf("persist_worker: rename(%s -> %s) failed: %s", tmp_path, path, strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg),
+                         "persist_worker: rename(%s -> %s) failed: %s", tmp_path, path, strerror(errno));
+                emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                        "persist_worker_rename_failed", path);
+            }
             unlink(tmp_path);
             free(json_str);
             return false;
@@ -3509,8 +3597,12 @@ bool json_persist_save_object_cached(OBJ_DATA *obj)
 
     json = json_persist_object_to_json(obj);
     if (!json) {
-        log_stringf("json_persist_save_object_cached: failed to serialize object %lu_%lu",
-                   obj->id[0], obj->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_object_cached: failed to serialize object %lu_%lu",
+                 obj->id[0], obj->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_object_cached_serialize_failed", "redis");
         return false;
     }
 
@@ -3518,8 +3610,12 @@ bool json_persist_save_object_cached(OBJ_DATA *obj)
     json_decref(json);
 
     if (!json_str) {
-        log_stringf("json_persist_save_object_cached: json_dumps failed for object %lu_%lu",
-                   obj->id[0], obj->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_object_cached: json_dumps failed for object %lu_%lu",
+                 obj->id[0], obj->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_object_cached_dump_failed", "redis");
         return false;
     }
 
@@ -3547,8 +3643,12 @@ bool json_persist_save_mobile_cached(CHAR_DATA *ch)
 
     json = json_persist_mobile_to_json(ch);
     if (!json) {
-        log_stringf("json_persist_save_mobile_cached: failed to serialize mobile %lu_%lu",
-                   ch->id[0], ch->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_mobile_cached: failed to serialize mobile %lu_%lu",
+                 ch->id[0], ch->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_mobile_cached_serialize_failed", "redis");
         return false;
     }
 
@@ -3556,8 +3656,12 @@ bool json_persist_save_mobile_cached(CHAR_DATA *ch)
     json_decref(json);
 
     if (!json_str) {
-        log_stringf("json_persist_save_mobile_cached: json_dumps failed for mobile %lu_%lu",
-                   ch->id[0], ch->id[1]);
+        char msg[MSL];
+        snprintf(msg, sizeof(msg),
+                 "json_persist_save_mobile_cached: json_dumps failed for mobile %lu_%lu",
+                 ch->id[0], ch->id[1]);
+        emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                "persist_save_mobile_cached_dump_failed", "redis");
         return false;
     }
 
@@ -3586,7 +3690,13 @@ bool json_persist_save_room_cached(ROOM_INDEX_DATA *room)
     json = json_persist_room_to_json(room);
     if (!json) {
         json_persist_room_id(room, room_id, sizeof(room_id));
-        log_stringf("json_persist_save_room_cached: failed to serialize room %s", room_id);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg),
+                     "json_persist_save_room_cached: failed to serialize room %s", room_id);
+            emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                    "persist_save_room_cached_serialize_failed", "redis");
+        }
         return false;
     }
 
@@ -3595,7 +3705,13 @@ bool json_persist_save_room_cached(ROOM_INDEX_DATA *room)
 
     if (!json_str) {
         json_persist_room_id(room, room_id, sizeof(room_id));
-        log_stringf("json_persist_save_room_cached: json_dumps failed for room %s", room_id);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg),
+                     "json_persist_save_room_cached: json_dumps failed for room %s", room_id);
+            emit_json_persist_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                    "persist_save_room_cached_dump_failed", "redis");
+        }
         return false;
     }
 

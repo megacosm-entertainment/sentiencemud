@@ -98,7 +98,15 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
             
         log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "Wizlocked: %s tried to connect from %s.", argument, d->host);
         sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-        wiznet(buf, NULL, NULL, WIZ_LOGINS, 0, 0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = buf,
+            .staff_message = buf,
+            .wiznet_flag = WIZ_LOGINS,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
         close_socket(d);
         return;
     }
@@ -1828,7 +1836,24 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 
                 log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "The game is wizlocked, %s tried to connect from %s.", argument, d->host);
                 sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-                wiznet(buf, ch, NULL, WIZ_LOGINS, 0, 0);
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(ch) ? "npc" : "player",
+                    .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                    .actor_uid = { ch->id[0], ch->id[1] },
+                    .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                  ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                    .action = "login_wizlocked",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = buf,
+                    .staff_message = buf,
+                    .wiznet_flag = WIZ_LOGINS,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, ch);
                 close_socket(d);
                 return;
             }
@@ -2258,7 +2283,26 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
         
     }
 
-    wiznet("Newbie alert!  $N sighted.", ch, NULL, WIZ_NEWBIE, 0, 0);
+    {
+        log_context_t ctx = {
+            .actor_type = IS_NPC(ch) ? "npc" : "player",
+            .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+            .actor_uid = { ch->id[0], ch->id[1] },
+            .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                          ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+            .action = "newbie_character_creation",
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "newbie alert",
+            .staff_message = "Newbie alert!  $N sighted.",
+            .wiznet_flag = WIZ_NEWBIE,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, ch);
+    }
 
     /* Show available races (starting + account-unlocked) */
     send_to_char("\n\r{YThe following races are available to you:{x\n\r", ch);
@@ -2740,7 +2784,26 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
             // Log the reconnection
             log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", existing->name, d->host);
-            wiznet("$N has relinked.", existing, NULL, WIZ_LINKS, 0, 0);
+            {
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(existing) ? "npc" : "player",
+                    .actor_name = IS_NPC(existing) ? existing->short_descr : existing->name,
+                    .actor_uid = { existing->id[0], existing->id[1] },
+                    .actor_wnum = (IS_NPC(existing) && existing->pIndexData)
+                                  ? widevnum_string_mobile(existing->pIndexData, NULL) : NULL,
+                    .action = "relink",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = "character relinked",
+                    .staff_message = "$N has relinked.",
+                    .wiznet_flag = WIZ_LINKS,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, existing);
+            }
 
             // Update connection tracking
             connection_add(d);
@@ -2939,7 +3002,27 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     connection_add(d);
     
     // Final login processing
-    wiznet("$N has entered the game.", d->character, NULL, WIZ_LOGINS, 0, 0);
+    {
+        CHAR_DATA *wch = d->character;
+        log_context_t ctx = {
+            .actor_type = IS_NPC(wch) ? "npc" : "player",
+            .actor_name = IS_NPC(wch) ? wch->short_descr : wch->name,
+            .actor_uid = { wch->id[0], wch->id[1] },
+            .actor_wnum = (IS_NPC(wch) && wch->pIndexData)
+                          ? widevnum_string_mobile(wch->pIndexData, NULL) : NULL,
+            .action = "enter_game",
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "character entered game",
+            .staff_message = "$N has entered the game.",
+            .wiznet_flag = WIZ_LOGINS,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, wch);
+    }
     notify_staff_of_notes(d);
     do_function(ch, &do_look, "auto");
     do_function(ch, &do_unread, "");

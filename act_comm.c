@@ -38,8 +38,43 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <ctype.h>
 #include "merc.h"
+
+static void emit_comm_staff_event(const char *plain_message,
+                                  const char *staff_message,
+                                  CHAR_DATA *actor,
+                                  long wiz_flag,
+                                  int wiz_min_rank,
+                                  const char *action)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_SECURITY,
+        .plain_message = plain_message ? plain_message : "comm action",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .wiznet_min_rank = wiz_min_rank,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
+#include <ctype.h>
 #include "interp.h"
 #include "olc.h"
 #include "recycle.h"
@@ -520,7 +555,9 @@ void do_delete(CHAR_DATA *ch, char *argument)
             player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
             snprintf(strsave, sizeof(strsave), "%s%c/%s", player_dir, tolower(ch->name[0]), capitalize(ch->name));
             redis_leaderboard_remove_all(ch->name);
-            wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,0);
+            emit_comm_staff_event("character deleted",
+                                  "$N turns $Mself into line noise.",
+                                  ch, 0, 0, "delete");
             stop_fighting(ch,true);
             do_function(ch, &do_quit, NULL);
             unlink(strsave);
@@ -537,7 +574,9 @@ void do_delete(CHAR_DATA *ch, char *argument)
     send_to_char("{RWARNING: this command is irreversible.{x\n\r",ch);
     send_to_char("Typing delete with an argument will undo delete status.\n\r", ch);
     ch->pcdata->confirm_delete = true;
-    wiznet("$N is contemplating deletion.",ch,NULL,0,0,get_staff_rank(ch));
+    emit_comm_staff_event("character contemplating deletion",
+                          "$N is contemplating deletion.",
+                          ch, 0, get_staff_rank(ch), "delete_confirm");
 }
 
 /**
@@ -1990,8 +2029,9 @@ void do_quit(CHAR_DATA *ch, char *argument)
     sprintf(log_buf, "%s has quit.", ch->name);
 
     plog(LOG_INFO, log_buf);
-    wiznet("$N rejoins the real world.",
-    ch, NULL, WIZ_LOGINS, 0, get_staff_rank(ch));
+    emit_comm_staff_event("character quit",
+                          "$N rejoins the real world.",
+                          ch, WIZ_LOGINS, get_staff_rank(ch), "quit");
 
     /* save wearing info */
     save_last_wear(ch);
@@ -2216,7 +2256,9 @@ void do_logout(CHAR_DATA *ch, char *argument)
 
     plogf(LOG_INFO, "%s has logged out to character selection.", ch->name);
 
-    wiznet("$N returns to character selection.", ch, NULL, WIZ_LOGINS, 0, get_staff_rank(ch));
+    emit_comm_staff_event("character logout to selection",
+                          "$N returns to character selection.",
+                          ch, WIZ_LOGINS, get_staff_rank(ch), "logout");
 
     /* save wearing info */
     save_last_wear(ch);

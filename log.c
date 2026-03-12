@@ -395,10 +395,28 @@ static char *log_serialize_event(const log_event_t *event) {
     if (ctx) {
         json_t *context = json_object();
         json_object_set_new(context, "actor_type",  ctx->actor_type  ? json_string(ctx->actor_type)  : json_null());
-        json_object_set_new(context, "actor_id",    ctx->actor_id    ? json_string(ctx->actor_id)    : json_null());
+        json_object_set_new(context, "actor_name",  ctx->actor_name  ? json_string(ctx->actor_name)  : json_null());
+        if (ctx->actor_uid[0] || ctx->actor_uid[1]) {
+            json_t *auid = json_array();
+            json_array_append_new(auid, json_integer((json_int_t)ctx->actor_uid[0]));
+            json_array_append_new(auid, json_integer((json_int_t)ctx->actor_uid[1]));
+            json_object_set_new(context, "actor_uid", auid);
+        } else {
+            json_object_set_new(context, "actor_uid", json_null());
+        }
+        json_object_set_new(context, "actor_wnum",  ctx->actor_wnum  ? json_string(ctx->actor_wnum)  : json_null());
         json_object_set_new(context, "action",      ctx->action      ? json_string(ctx->action)      : json_null());
         json_object_set_new(context, "target_type", ctx->target_type ? json_string(ctx->target_type) : json_null());
-        json_object_set_new(context, "target_id",   ctx->target_id   ? json_string(ctx->target_id)   : json_null());
+        json_object_set_new(context, "target_name", ctx->target_name ? json_string(ctx->target_name) : json_null());
+        if (ctx->target_uid[0] || ctx->target_uid[1]) {
+            json_t *tuid = json_array();
+            json_array_append_new(tuid, json_integer((json_int_t)ctx->target_uid[0]));
+            json_array_append_new(tuid, json_integer((json_int_t)ctx->target_uid[1]));
+            json_object_set_new(context, "target_uid", tuid);
+        } else {
+            json_object_set_new(context, "target_uid", json_null());
+        }
+        json_object_set_new(context, "target_wnum",  ctx->target_wnum ? json_string(ctx->target_wnum) : json_null());
         json_object_set_new(context, "value",       ctx->value       ? json_integer(ctx->value)      : json_null());
         json_object_set_new(context, "duration_ms", ctx->duration_ms ? json_integer(ctx->duration_ms): json_null());
 
@@ -472,7 +490,7 @@ void log_emit_event(const log_event_t *event, void *public_recipient) {
         wiznet(
             (char *)event->staff_message,
             recipient,
-            NULL,
+            (OBJ_DATA *)event->wiznet_obj,
             event->wiznet_flag,
             event->wiznet_skip_flag,
             event->wiznet_min_rank

@@ -317,10 +317,34 @@ void save_char_obj(CHAR_DATA *ch)
                         }
                     }
                 } else {
-                    log_stringf("save_char_obj: Character %s has account identifiers but account could not be found by name ('%s') or ID (%lu %lu).",
-                        ch->name,
-                        ch->pcdata->account_name ? ch->pcdata->account_name : "NULL",
-                        ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+                    char msg[MSL];
+                    char extra[256];
+                    snprintf(msg, sizeof(msg),
+                             "save_char_obj: Character %s has account identifiers but account could not be found by name ('%s') or ID (%lu %lu).",
+                             ch->name,
+                             ch->pcdata->account_name ? ch->pcdata->account_name : "NULL",
+                             ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+                    snprintf(extra, sizeof(extra),
+                             "{\"account_name\":\"%s\",\"account_uid\":[%lu,%lu]}",
+                             ch->pcdata->account_name ? ch->pcdata->account_name : "",
+                             ch->pcdata->account_id[0], ch->pcdata->account_id[1]);
+                    log_context_t ctx = {
+                        .actor_type = IS_NPC(ch) ? "npc" : "player",
+                        .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                        .actor_uid = { ch->id[0], ch->id[1] },
+                        .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                      ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                        .action = "save_account_link_missing",
+                        .extra_json = extra,
+                    };
+                    log_event_t ev = {
+                        .severity = EVENT_SEV_WARN,
+                        .category = LOG_ERROR,
+                        .plain_message = msg,
+                        .context = &ctx,
+                        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                    };
+                    log_emit_event(&ev, NULL);
                 }
             }
         }
@@ -379,7 +403,26 @@ void save_char_obj(CHAR_DATA *ch)
                 log_stringf("PERFORMANCE save_char_obj %s: json_dump_file took %ldms", ch->name, section_ms);
 
             if (result != 0) {
-                log_stringf("save_char_obj: Failed to write JSON for %s", ch->name);
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "save_char_obj: Failed to write JSON for %s", ch->name);
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(ch) ? "npc" : "player",
+                    .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                    .actor_uid = { ch->id[0], ch->id[1] },
+                    .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                  ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                    .action = "save_json_write_failed",
+                    .target_type = "storage",
+                    .target_name = "disk",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_ERROR,
+                    .category = LOG_ERROR,
+                    .plain_message = msg,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
                 pbugf(LOG_ERROR, "save_char_obj: JSON write failed and old pfile format disabled!");
             }
 
@@ -395,7 +438,26 @@ void save_char_obj(CHAR_DATA *ch)
             // Cleanup
             json_decref(char_json);
         } else {
-            log_stringf("save_char_obj: Failed to serialize JSON for %s", ch->name);
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "save_char_obj: Failed to serialize JSON for %s", ch->name);
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "save_json_serialize_failed",
+                .target_type = "storage",
+                .target_name = "json",
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_ERROR,
+                .category = LOG_ERROR,
+                .plain_message = msg,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, NULL);
         }
     }
 
@@ -1099,12 +1161,44 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
         if (load_full) {
             found = json_read_char_from_json(ch, cached_json);
             if (!found) {
-                log_stringf("load_char_obj: Failed to load cached JSON for %s, falling back to disk", name);
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "load_char_obj: Failed to load cached JSON for %s, falling back to disk", name);
+                log_context_t ctx = {
+                    .actor_type = "player",
+                    .actor_name = name,
+                    .action = "load_cache_fallback",
+                    .target_type = "storage",
+                    .target_name = "redis",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_WARN,
+                    .category = LOG_ERROR,
+                    .plain_message = msg,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
             }
         } else {
             found = json_read_char_basic_from_json(ch, cached_json);
             if (!found) {
-                log_stringf("load_char_obj_basic: Failed to load cached JSON for %s, falling back to disk", name);
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "load_char_obj_basic: Failed to load cached JSON for %s, falling back to disk", name);
+                log_context_t ctx = {
+                    .actor_type = "player",
+                    .actor_name = name,
+                    .action = "load_cache_fallback_basic",
+                    .target_type = "storage",
+                    .target_name = "redis",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_WARN,
+                    .category = LOG_ERROR,
+                    .plain_message = msg,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
             }
         }
         json_decref(cached_json);
@@ -1122,12 +1216,44 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
         found = true;
         if (load_full) {
             if (!json_read_char(ch, strsave)) {
-                log_stringf("load_char_obj: Failed to load JSON character %s", name);
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "load_char_obj: Failed to load JSON character %s", name);
+                log_context_t ctx = {
+                    .actor_type = "player",
+                    .actor_name = name,
+                    .action = "load_json_failed",
+                    .target_type = "storage",
+                    .target_name = "disk",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_ERROR,
+                    .category = LOG_ERROR,
+                    .plain_message = msg,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
                 found = false;
             }
         } else {
             if (!json_read_char_basic(ch, strsave)) {
-                log_stringf("load_char_obj_basic: Failed to load JSON character %s", name);
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "load_char_obj_basic: Failed to load JSON character %s", name);
+                log_context_t ctx = {
+                    .actor_type = "player",
+                    .actor_name = name,
+                    .action = "load_json_failed_basic",
+                    .target_type = "storage",
+                    .target_name = "disk",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_ERROR,
+                    .category = LOG_ERROR,
+                    .plain_message = msg,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
                 found = false;
             }
         }
@@ -4217,7 +4343,15 @@ void write_permanent_objs()
     pbugf(LOG_ERROR, "perm_objs_new.dat: Couldn't open file.");
     else
     {
-        wiznet("writing permanent objects...", NULL, NULL, WIZ_TESTING, 0, 0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_DEBUG,
+            .plain_message = "writing permanent objects...",
+            .staff_message = "writing permanent objects...",
+            .wiznet_flag = WIZ_TESTING,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
 
     // save relics
     if (pneuma_relic != NULL && !is_in_treasure_room(pneuma_relic))

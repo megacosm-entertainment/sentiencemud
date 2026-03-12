@@ -2472,7 +2472,34 @@ static void channel_notify_staff_report(const char *channel_id,
                                 reporter_name,
                                 detail_text);
 
-    wiznet(buf, NULL, NULL, WIZ_SECURE, 0, STAFF_IMMORTAL);
+    {
+        char extra[256];
+        snprintf(extra, sizeof(extra),
+                 "{\"queue\":\"%s\",\"channel\":\"%s\",\"report_id\":\"%s\",\"reason\":\"%s\",\"reporter\":\"%s\"}",
+                 IS_NULLSTR(queue_name) ? "(default)" : queue_name,
+                 IS_NULLSTR(channel_id) ? "(unknown)" : channel_id,
+                 IS_NULLSTR(report_id) ? "(none)" : report_id,
+                 IS_NULLSTR(reason) ? "none" : reason,
+                 IS_NULLSTR(reporter_name) ? "(unknown)" : reporter_name);
+
+        log_context_t ctx = {
+            .actor_type = "system",
+            .actor_name = "channel_service",
+            .action = "channel_report",
+            .extra_json = extra,
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "channel staff report",
+            .staff_message = buf,
+            .wiznet_flag = WIZ_SECURE,
+            .wiznet_min_rank = STAFF_IMMORTAL,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
+    }
 }
 
 int channel_service_staff_report_recent(CHANNEL_STAFF_REPORT_ENTRY *out_entries,

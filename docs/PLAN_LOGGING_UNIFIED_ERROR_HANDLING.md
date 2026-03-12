@@ -5,20 +5,97 @@
 
 ## Why this plan exists
 
-Sentience currently has three overlapping logging styles:
+Sentience has accumulated **five layers of logging wrappers** over the years. The dispatcher (`log_emit_event`) already has full fan-out capability but is buried under a stack of intermediaries that lose caller context, duplicate format logic, and make it impossible to enrich any event with structured data after the fact.
 
-1. Legacy `sprintf` -> `log_string` / `log_stringf` / `bug`
-2. zlog wrappers (`log_message`, `log_message_f`) and convenience macros (`plogf`, `pbugf`, etc.)
-3. Direct command feedback (`send_to_char`, `act`) with no corresponding structured event
+### Current wrapper chain
 
-This causes drift between player-facing errors, operator-facing logs, and future aggregator payloads.
+```
+CALL SITE
+  │
+  ├─ log_string(str)            [db.c]       loses caller file/line
+  │    └─ plog(LOG_INFO, str)   [merc.h]
+  ├─ log_stringf(fmt,...)       [db.c]       loses caller file/line
+  │    └─ plog(LOG_INFO, buf)   [merc.h]
+  ├─ bug(fmt,...)               [db.c]       loses caller file/line + fpArea cruft
+  │    └─ pbug(LOG_ERROR, buf)  [merc.h]
+  │
+  ├─ plogf/pwarnf/pbugf/...     [merc.h macros]            ← Layer 3
+  │    └─ log_message_f(...)    [log.h macro]              ← Layer 2 (captures __FILE__/__LINE__)
+  │         └─ _log_message_f() [log.c function]           ← Layer 1 (vsnprintf → log_event_t)
+  │              └─ log_emit_event()  ← THE DISPATCHER
+  │
+  └─ wiznet()                   [comm.c]     completely side-band, bypasses dispatcher
+```
 
-The target state is **one canonical error/event pipeline** that can emit all of the following from one call site:
+### What the dispatcher already does
+
+`log_emit_event()` in `log.c` already fans out to all four sinks:
+
+1. `send_to_char()` — if `public_message` and `recipient` are set
+2. `wiznet()` — if `staff_message` and `wiznet_flag` are set
+3. `zlog` → flat file — if `log_flat_file_enabled && !skip_flat_file`
+4. Redis Stream (async) — if `log_stream_enabled`
+
+The dispatcher is correct. The problem is everything above it.
+
+### Target state
+
+```
+CALL SITE
+  │
+  ├─ log_emit_event(&ev, ch)    ← full-fidelity; all fields explicit
+  └─ plogf/pwarnf/pbugf/...    ← macros that build log_event_t inline
+                                   and call log_emit_event() DIRECTLY
+                                   (no _log_message, no log_message_f)
+
+DELETED — db.c functions (lose caller context, all levels):
+  log_string()   log_stringf()
+  bug()
+
+DELETED — log.c internal functions (all levels):
+  _log_message()        _log_message_f()
+  _log_stacktrace()     _log_stacktrace_f()
+
+DELETED — log.h macros (all levels — these become direct log_emit_event wrappers):
+  log_message()         log_message_f()
+
+DELETED — merc.h macros (all levels — call sites updated to log_emit_event):
+  plog()   plogf()
+  pwarn()  pwarnf()
+  perr()   perrf()
+  pbug()   pbugf()
+  pdebug() pdebugf()
+
+MIGRATED:
+  wiznet() call sites  →  log_emit_event() with staff_message + wiznet_flag
+  send_to_char() error messages  →  log_emit_event() with public_message
+```
+
+### Replacement macros (new merc.h)
+
+The `p*` / `p*f` macros are replaced by thin macros that build a `log_event_t`
+and call `log_emit_event()` directly — no intermediate functions:
+
+```c
+// Plain message, no context — drop-in for the current p* macros
+#define plogf(cat, fmt, ...) \
+    do { char _pbuf[2*MSL]; snprintf(_pbuf, sizeof(_pbuf), fmt, ##__VA_ARGS__); \
+         log_emit_event(&(log_event_t){ .severity=EVENT_SEV_INFO, .category=(cat), \
+             .plain_message=_pbuf, .source_file=__FILE__, \
+             .source_line=__LINE__, .source_func=__func__ }, NULL); } while(0)
+// pwarnf / perrf / pbugf / pdebugf follow the same shape with different severity
+```
+
+Call sites that only need plain-message logging are updated to these new macros
+with no other changes (mechanical, grep-drivable). Call sites with enough context
+to be enriched are updated to `log_emit_event()` directly.
+
+The target state is **one canonical event pipeline** that emits all of the following from one call site:
 
 - Player-facing message (safe and concise)
 - Staff-facing message (wiznet broadcast, rank/flag filtered)
-- Structured JSON context (for Redis/HTTP aggregator flow)
-- Plaintext fallback string (for zlog/local files and degraded modes)
+- Structured JSON context (for Redis Stream → OpenSearch)
+- Plaintext fallback (for zlog/local files and degraded modes)
 
 ---
 
@@ -72,10 +149,14 @@ typedef enum {
 typedef struct {
     /* Existing schema-aligned context (LOGGING_SCHEMA.md) */
     const char *actor_type;
-    const char *actor_id;
+    const char *actor_name;
+    unsigned long actor_uid[2];
+    const char *actor_wnum;
     const char *action;
     const char *target_type;
-    const char *target_id;
+    const char *target_name;
+    unsigned long target_uid[2];
+    const char *target_wnum;
     int64_t value;
     int64_t duration_ms;
     const char *extra_json; /* optional JSON object string */
@@ -190,10 +271,10 @@ Example (target style):
 if (arg[0] == '\0') {
     log_context_t ctx = {
         .actor_type = "char",
-        .actor_id = ch->name,
+        .actor_name = ch->name,
         .action = "combine",
         .target_type = "command",
-        .target_id = "combine",
+        .target_name = "combine",
         .extra_json = "{\"missing_arg\":\"item1\"}"
     };
 

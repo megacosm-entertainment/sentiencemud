@@ -66,6 +66,31 @@
 #include "item_types.h"
 #include "channel_registry.h"
 
+static void emit_db_wiz_event(const char *plain_message,
+                              const char *staff_message,
+                              long wiz_flag,
+                              const char *action,
+                              const char *category)
+{
+    log_context_t ctx = {
+        .actor_type = "system",
+        .actor_name = "db",
+        .action = action,
+    };
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = category ? category : LOG_INFO,
+        .plain_message = plain_message ? plain_message : "db event",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .context = &ctx,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, NULL);
+}
+
 #ifndef ENABLE_LEGACY_AREA_READ
 /* Keep enabled by default until remaining legacy maze .are zones
  * are rebuilt/migrated into the dungeon system. */
@@ -3865,7 +3890,7 @@ void area_update(bool fBoot)
             plogf(LOG_INFO, "Resetting area %s.", pArea->name);
             reset_area(pArea);
             sprintf(buf,"%s has just been reset.",pArea->name);
-            wiznet(buf,NULL,NULL,WIZ_RESETS,0,0);
+            emit_db_wiz_event(buf, buf, WIZ_RESETS, "area_reset", LOG_INFO);
             pArea->age = 0;
 
             if (pArea->nplayer == 0)
@@ -4115,7 +4140,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom, bool force)
 
                 char buf[MSL];
                 sprintf(buf, "reset_room(M): %ld -> %ld = %d / %ld", pRoom->vnum, pMobIndex->vnum, count, pReset->arg2);
-                wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+                emit_db_wiz_event(buf, buf, WIZ_TESTING, "reset_room_mob_cap", LOG_DEBUG);
 
                 if( count >= pReset->arg2 )
                 {

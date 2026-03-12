@@ -57,6 +57,40 @@ const char *bonus_type_names[] = {
     NULL
 };
 
+static void emit_penalty_staff_event(const char *plain_message,
+                                     const char *staff_message,
+                                     CHAR_DATA *actor,
+                                     const char *action)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_SECURITY,
+        .plain_message = plain_message ? plain_message : "penalty staff event",
+        .staff_message = staff_message,
+        .wiznet_flag = WIZ_PENALTIES,
+        .wiznet_skip_flag = WIZ_SECURE,
+        .wiznet_min_rank = 0,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
+
 const char *penalty_scope_names[] = {
     "account",      /* PENALTY_SCOPE_ACCOUNT   */
     "character",    /* PENALTY_SCOPE_CHARACTER  */
@@ -1562,7 +1596,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
         snprintf(buf, sizeof(buf),
             "$N removed %s penalty from account %s",
             penalty_type_name(p->type), account->username);
-        wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+        emit_penalty_staff_event(buf, buf, ch, "penalty_remove");
 
         snprintf(buf, sizeof(buf),
             "Removed %s penalty (#%d) from account {W%s{x.\n\r",
@@ -1704,7 +1738,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
                 "$N applied %s penalty (%s) to account %s: %s",
                 penalty_type_name(type), dur_buf,
                 account->username, argument);
-            wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+            emit_penalty_staff_event(buf, buf, ch, "penalty_add");
         }
         return;
     }
@@ -1961,7 +1995,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
         snprintf(buf, sizeof(buf),
             "$N removed %s bonus (%d) from account %s",
             bonus_type_name(b->type), b->value, account->username);
-        wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+        emit_penalty_staff_event(buf, buf, ch, "bonus_remove");
 
         snprintf(buf, sizeof(buf),
             "Removed %s bonus (#%d, value %d) from account {W%s{x.\n\r",
@@ -2102,7 +2136,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
                 "$N granted %s bonus (%d, %s) to account %s: %s",
                 bonus_type_name(type), value, dur_buf,
                 account->username, reason_buf);
-            wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+            emit_penalty_staff_event(buf, buf, ch, "bonus_add");
         }
         return;
     }

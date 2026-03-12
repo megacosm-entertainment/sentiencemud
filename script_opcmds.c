@@ -2963,7 +2963,15 @@ SCRIPT_CMD(do_opalterexit)
 
     if(script_security < min_sec) {
         sprintf(buf,"OpAlterExit - Attempting to alter '%s' with security %d.\n\r", field, script_security);
-        wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+        log_event_t ev = {
+            .severity = EVENT_SEV_WARN,
+            .category = LOG_SCRIPTS,
+            .plain_message = buf,
+            .staff_message = buf,
+            .wiznet_flag = WIZ_SCRIPTS,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
         pbugf(LOG_SCRIPTS, "OpAlterExit - Attempting to alter '%s' with security %d from vnum %ld.", field, script_security, VNUM(info->obj));
         return;
     }

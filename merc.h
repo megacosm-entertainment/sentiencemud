@@ -9949,16 +9949,68 @@ char *stptok            args( (const char *s, char *tok, size_t toklen, char *br
 void	send_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	page_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	update_pc_timers( CHAR_DATA *ch );
-#define plogf(category, format, ...) log_message_f(LOG_LEVEL_INFO, category, format, ##__VA_ARGS__)
-#define pwarnf(category, format, ...) log_message_f(LOG_LEVEL_WARN, category, format, ##__VA_ARGS__)
-#define perrf(category, format, ...) log_message_f(LOG_LEVEL_ERROR, category, format, ##__VA_ARGS__)
-#define pbugf(category, format, ...) log_message_f(LOG_LEVEL_BUG, category, format, ##__VA_ARGS__)
-#define pdebugf(category, format, ...) log_message_f(LOG_LEVEL_DEBUG, category, format, ##__VA_ARGS__)
-#define plog(category, message) log_message(LOG_LEVEL_INFO, category, message)
-#define pwarn(category, message) log_message(LOG_LEVEL_WARN, category, message)
-#define perr(category, message) log_message(LOG_LEVEL_ERROR, category, message)
-#define pbug(category, message) log_message(LOG_LEVEL_BUG, category, message)
-#define pdebug(category, message) log_message(LOG_LEVEL_DEBUG, category, message)
+/* Single-hop log macros — build log_event_t inline, call log_emit_event() directly.
+ * No intermediate wrapper functions; __FILE__/__LINE__/__func__ resolve at call site. */
+static inline const char *plogf_render(char *buf, size_t buf_size, const char *fmt, ...)
+{
+    va_list ap;
+
+    if (!buf || buf_size == 0)
+        return "";
+
+    if (!fmt) {
+        snprintf(buf, buf_size, "%s", "(null log format)");
+        return buf;
+    }
+
+    va_start(ap, fmt);
+    vsnprintf(buf, buf_size, fmt, ap);
+    va_end(ap);
+    return buf;
+}
+
+#define _PLOGF_EMIT(sev, cat, fmt, ...) \
+    do { \
+        char _pbuf[2*MSL]; \
+        plogf_render(_pbuf, sizeof(_pbuf), (fmt), ##__VA_ARGS__); \
+        log_emit_event(&(log_event_t){ \
+            .severity=(sev), .category=(cat), \
+            .plain_message=_pbuf, \
+            .source_file=__FILE__, .source_line=__LINE__, .source_func=__func__ \
+        }, NULL); \
+    } while(0)
+
+#define plogf(category, format, ...)   _PLOGF_EMIT(EVENT_SEV_INFO,     category, format, ##__VA_ARGS__)
+#define pwarnf(category, format, ...)  _PLOGF_EMIT(EVENT_SEV_WARN,     category, format, ##__VA_ARGS__)
+#define perrf(category, format, ...)   _PLOGF_EMIT(EVENT_SEV_ERROR,    category, format, ##__VA_ARGS__)
+#define pbugf(category, format, ...)   _PLOGF_EMIT(EVENT_SEV_BUG,      category, format, ##__VA_ARGS__)
+#define pdebugf(category, format, ...) _PLOGF_EMIT(EVENT_SEV_DEBUG,    category, format, ##__VA_ARGS__)
+
+#define plog(cat_arg, msg_arg) \
+    log_emit_event(&(log_event_t){ \
+        .severity=EVENT_SEV_INFO,  .category=(cat_arg), .plain_message=(msg_arg), \
+        .source_file=__FILE__, .source_line=__LINE__, .source_func=__func__ \
+    }, NULL)
+#define pwarn(cat_arg, msg_arg) \
+    log_emit_event(&(log_event_t){ \
+        .severity=EVENT_SEV_WARN,  .category=(cat_arg), .plain_message=(msg_arg), \
+        .source_file=__FILE__, .source_line=__LINE__, .source_func=__func__ \
+    }, NULL)
+#define perr(cat_arg, msg_arg) \
+    log_emit_event(&(log_event_t){ \
+        .severity=EVENT_SEV_ERROR, .category=(cat_arg), .plain_message=(msg_arg), \
+        .source_file=__FILE__, .source_line=__LINE__, .source_func=__func__ \
+    }, NULL)
+#define pbug(cat_arg, msg_arg) \
+    log_emit_event(&(log_event_t){ \
+        .severity=EVENT_SEV_BUG,   .category=(cat_arg), .plain_message=(msg_arg), \
+        .source_file=__FILE__, .source_line=__LINE__, .source_func=__func__ \
+    }, NULL)
+#define pdebug(cat_arg, msg_arg) \
+    log_emit_event(&(log_event_t){ \
+        .severity=EVENT_SEV_DEBUG, .category=(cat_arg), .plain_message=(msg_arg), \
+        .source_file=__FILE__, .source_line=__LINE__, .source_func=__func__ \
+    }, NULL)
 void complete_reconnect(DESCRIPTOR_DATA *d);
 
 

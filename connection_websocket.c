@@ -67,6 +67,34 @@
 #include "connection.h"
 #include "merc.h"
 
+static void emit_ws_event(event_severity_t severity,
+                          const char *message,
+                          const char *action,
+                          int fd,
+                          const char *extra_json)
+{
+    char target[32];
+    log_context_t ctx = {
+        .actor_type = "system",
+        .actor_name = "websocket",
+        .action = action,
+        .target_type = "connection",
+        .extra_json = extra_json,
+    };
+    if (fd >= 0) {
+        snprintf(target, sizeof(target), "fd:%d", fd);
+        ctx.target_name = target;
+    }
+    log_event_t ev = {
+        .severity = severity,
+        .category = LOG_ERROR,
+        .plain_message = message,
+        .context = &ctx,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+    log_emit_event(&ev, NULL);
+}
+
 /** @brief External SSL context from tls.c */
 extern SSL_CTX *ctx;
 
@@ -247,6 +275,9 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
     key_start = strstr(state->handshake_buffer, "Sec-WebSocket-Key:");
     if (!key_start) {
         log_string("WebSocket handshake: No Sec-WebSocket-Key header");
+        emit_ws_event(EVENT_SEV_WARN,
+                      "WebSocket handshake: No Sec-WebSocket-Key header",
+                      "ws_handshake_missing_key", ws_conn->base.fd, NULL);
         return false;
     }
 
@@ -256,12 +287,18 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
     key_end = strstr(key_start, "\r\n");
     if (!key_end) {
         log_string("WebSocket handshake: Malformed Sec-WebSocket-Key");
+        emit_ws_event(EVENT_SEV_WARN,
+                      "WebSocket handshake: Malformed Sec-WebSocket-Key",
+                      "ws_handshake_bad_key", ws_conn->base.fd, NULL);
         return false;
     }
 
     int key_len = key_end - key_start;
     if (key_len <= 0 || key_len >= sizeof(client_key) || key_len > 64) {
         log_string("WebSocket handshake: Key too long");
+        emit_ws_event(EVENT_SEV_WARN,
+                      "WebSocket handshake: Key too long",
+                      "ws_handshake_key_too_long", ws_conn->base.fd, NULL);
         return false;
     }
 
@@ -272,6 +309,9 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
     accept_key = generate_accept_key(client_key);
     if (!accept_key) {
         log_string("WebSocket handshake: Failed to generate accept key");
+        emit_ws_event(EVENT_SEV_ERROR,
+                      "WebSocket handshake: Failed to generate accept key",
+                      "ws_handshake_accept_key_failed", ws_conn->base.fd, NULL);
         return false;
     }
 
@@ -295,6 +335,14 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
         if (nwritten <= 0) {
             int ssl_error = SSL_get_error(ssl, nwritten);
             log_stringf("WebSocket handshake: SSL_write() failed, error %d", ssl_error);
+            {
+                char msg[MSL];
+                char extra[64];
+                snprintf(msg, sizeof(msg), "WebSocket handshake: SSL_write() failed, error %d", ssl_error);
+                snprintf(extra, sizeof(extra), "{\"ssl_error\":%d}", ssl_error);
+                emit_ws_event(EVENT_SEV_ERROR, msg,
+                              "ws_handshake_write_failed", ws_conn->base.fd, extra);
+            }
             ERR_print_errors_fp(stderr);
             return false;
         }
@@ -303,6 +351,12 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
         nwritten = write(ws_conn->base.fd, response, strlen(response));
         if (nwritten < 0) {
             log_stringf("WebSocket handshake: write() failed: %s", strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "WebSocket handshake: write() failed: %s", strerror(errno));
+                emit_ws_event(EVENT_SEV_ERROR, msg,
+                              "ws_handshake_write_failed", ws_conn->base.fd, NULL);
+            }
             return false;
         }
     }
@@ -555,6 +609,12 @@ static bool ws_read(connection_t *conn, char *buf, int size, int *bytes_read)
             } else {
                 // Error
                 log_stringf("ws_read: read() failed: %s", strerror(errno));
+                {
+                    char msg[MSL];
+                    snprintf(msg, sizeof(msg), "ws_read: read() failed: %s", strerror(errno));
+                    emit_ws_event(EVENT_SEV_ERROR, msg,
+                                  "ws_read_failed", conn->fd, NULL);
+                }
                 return false;
             }
         }
@@ -628,12 +688,21 @@ static bool ws_write(connection_t *conn, const char *buf, int size, int *bytes_w
             return true;
         }
         log_stringf("ws_write: write(header) failed: %s", strerror(errno));
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "ws_write: write(header) failed: %s", strerror(errno));
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "ws_write_header_failed", conn->fd, NULL);
+        }
         return false;
     }
 
     if (nwritten != header_len) {
         // Partial header write - this is problematic
         log_string("ws_write: Partial header write");
+        emit_ws_event(EVENT_SEV_ERROR,
+                      "ws_write: Partial header write",
+                      "ws_write_partial_header", conn->fd, NULL);
         return false;
     }
 
@@ -643,9 +712,18 @@ static bool ws_write(connection_t *conn, const char *buf, int size, int *bytes_w
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             // Would block - header was sent but not payload (problematic)
             log_string("ws_write: Payload blocked after header sent");
+            emit_ws_event(EVENT_SEV_WARN,
+                          "ws_write: Payload blocked after header sent",
+                          "ws_write_payload_blocked", conn->fd, NULL);
             return false;
         }
         log_stringf("ws_write: write(payload) failed: %s", strerror(errno));
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "ws_write: write(payload) failed: %s", strerror(errno));
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "ws_write_payload_failed", conn->fd, NULL);
+        }
         return false;
     }
 
@@ -701,6 +779,12 @@ static bool ws_process_handshake(connection_t *conn)
         }
         // Error
         log_stringf("ws_process_handshake: read() failed: %s", strerror(errno));
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "ws_process_handshake: read() failed: %s", strerror(errno));
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "ws_handshake_read_failed", conn->fd, NULL);
+        }
         return false;
     }
 }
@@ -811,6 +895,9 @@ connection_t* connection_websocket_tls_create(int fd, struct descriptor_data *de
     ws_conn = (connection_websocket_t*)calloc(1, sizeof(connection_websocket_t));
     if (!ws_conn) {
         log_string("connection_websocket_tls_create: Out of memory");
+        emit_ws_event(EVENT_SEV_ERROR,
+                      "connection_websocket_tls_create: Out of memory",
+                      "wss_create_alloc_failed", fd, NULL);
         return NULL;
     }
 
@@ -818,6 +905,9 @@ connection_t* connection_websocket_tls_create(int fd, struct descriptor_data *de
     state = (ws_state_t*)calloc(1, sizeof(ws_state_t));
     if (!state) {
         log_string("connection_websocket_tls_create: Out of memory for state");
+        emit_ws_event(EVENT_SEV_ERROR,
+                      "connection_websocket_tls_create: Out of memory for state",
+                      "wss_create_state_alloc_failed", fd, NULL);
         free(ws_conn);
         return NULL;
     }
@@ -833,6 +923,9 @@ connection_t* connection_websocket_tls_create(int fd, struct descriptor_data *de
     ssl = SSL_new(ctx);
     if (!ssl) {
         log_string("connection_websocket_tls_create: SSL_new() failed");
+        emit_ws_event(EVENT_SEV_ERROR,
+                      "connection_websocket_tls_create: SSL_new() failed",
+                      "wss_ssl_new_failed", fd, NULL);
         ERR_print_errors_fp(stderr);
         free(state);
         free(ws_conn);
@@ -842,6 +935,9 @@ connection_t* connection_websocket_tls_create(int fd, struct descriptor_data *de
     // Attach socket to SSL
     if (SSL_set_fd(ssl, fd) != 1) {
         log_string("connection_websocket_tls_create: SSL_set_fd() failed");
+        emit_ws_event(EVENT_SEV_ERROR,
+                      "connection_websocket_tls_create: SSL_set_fd() failed",
+                      "wss_ssl_set_fd_failed", fd, NULL);
         ERR_print_errors_fp(stderr);
         SSL_free(ssl);
         free(state);
@@ -908,6 +1004,12 @@ static bool wss_process_handshake(connection_t *conn)
         if (ret == 1) {
             // TLS handshake complete! Now ready for WebSocket upgrade
             log_stringf("WebSocket TLS handshake completed (fd %d), awaiting WebSocket upgrade", conn->fd);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "WebSocket TLS handshake completed (fd %d), awaiting WebSocket upgrade", conn->fd);
+                emit_ws_event(EVENT_SEV_INFO, msg,
+                              "wss_tls_handshake_complete", conn->fd, NULL);
+            }
             state->handshake_state = WS_HANDSHAKE_TLS_COMPLETE;
             return false;  // Still need WebSocket upgrade
         }
@@ -920,6 +1022,14 @@ static bool wss_process_handshake(connection_t *conn)
 
         // TLS handshake failed
         log_stringf("WebSocket TLS handshake failed: SSL_accept returned %d, error %d", ret, ssl_error);
+        {
+            char msg[MSL];
+            char extra[96];
+            snprintf(msg, sizeof(msg), "WebSocket TLS handshake failed: SSL_accept returned %d, error %d", ret, ssl_error);
+            snprintf(extra, sizeof(extra), "{\"ssl_ret\":%d,\"ssl_error\":%d}", ret, ssl_error);
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "wss_tls_handshake_failed", conn->fd, extra);
+        }
         ERR_print_errors_fp(stderr);
         conn->state = CONN_STATE_CLOSED;
         return false;
@@ -951,11 +1061,22 @@ static bool wss_process_handshake(connection_t *conn)
         if (ssl_error == SSL_ERROR_ZERO_RETURN) {
             // Connection closed
             log_string("WebSocket TLS: Connection closed during upgrade");
+            emit_ws_event(EVENT_SEV_WARN,
+                          "WebSocket TLS: Connection closed during upgrade",
+                          "wss_upgrade_closed", conn->fd, NULL);
             conn->state = CONN_STATE_CLOSED;
             return false;
         }
         // Error
         log_stringf("wss_process_handshake: SSL_read() failed, error %d", ssl_error);
+        {
+            char msg[MSL];
+            char extra[64];
+            snprintf(msg, sizeof(msg), "wss_process_handshake: SSL_read() failed, error %d", ssl_error);
+            snprintf(extra, sizeof(extra), "{\"ssl_error\":%d}", ssl_error);
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "wss_upgrade_read_failed", conn->fd, extra);
+        }
         ERR_print_errors_fp(stderr);
         conn->state = CONN_STATE_CLOSED;
         return false;
@@ -1013,6 +1134,14 @@ static bool wss_read(connection_t *conn, char *buf, int size, int *bytes_read)
         }
         // Error
         log_stringf("wss_read: SSL_read() failed, error %d", ssl_error);
+        {
+            char msg[MSL];
+            char extra[64];
+            snprintf(msg, sizeof(msg), "wss_read: SSL_read() failed, error %d", ssl_error);
+            snprintf(extra, sizeof(extra), "{\"ssl_error\":%d}", ssl_error);
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "wss_read_failed", conn->fd, extra);
+        }
         return false;
     }
 }
@@ -1081,12 +1210,23 @@ static bool wss_write(connection_t *conn, const char *buf, int size, int *bytes_
             return true;  // Would block
         }
         log_stringf("wss_write: SSL_write(header) failed, error %d", ssl_error);
+        {
+            char msg[MSL];
+            char extra[64];
+            snprintf(msg, sizeof(msg), "wss_write: SSL_write(header) failed, error %d", ssl_error);
+            snprintf(extra, sizeof(extra), "{\"ssl_error\":%d}", ssl_error);
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "wss_write_header_failed", conn->fd, extra);
+        }
         return false;
     }
 
     if (nwritten != header_len) {
         // Partial header write - this is problematic
         log_string("wss_write: Partial header write");
+        emit_ws_event(EVENT_SEV_ERROR,
+                      "wss_write: Partial header write",
+                      "wss_write_partial_header", conn->fd, NULL);
         return false;
     }
 
@@ -1097,9 +1237,20 @@ static bool wss_write(connection_t *conn, const char *buf, int size, int *bytes_
         if (ssl_error == SSL_ERROR_WANT_WRITE) {
             // Header was sent but not payload (problematic)
             log_string("wss_write: Payload blocked after header sent");
+            emit_ws_event(EVENT_SEV_WARN,
+                          "wss_write: Payload blocked after header sent",
+                          "wss_write_payload_blocked", conn->fd, NULL);
             return false;
         }
         log_stringf("wss_write: SSL_write(payload) failed, error %d", ssl_error);
+        {
+            char msg[MSL];
+            char extra[64];
+            snprintf(msg, sizeof(msg), "wss_write: SSL_write(payload) failed, error %d", ssl_error);
+            snprintf(extra, sizeof(extra), "{\"ssl_error\":%d}", ssl_error);
+            emit_ws_event(EVENT_SEV_ERROR, msg,
+                          "wss_write_payload_failed", conn->fd, extra);
+        }
         return false;
     }
 

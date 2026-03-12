@@ -328,7 +328,27 @@ void do_raceunlock(CHAR_DATA *ch, char *argument)
             snprintf(buf, sizeof(buf),
                      "$N unlocked race '%s' for account %s",
                      race->name, account->username);
-            wiznet(buf, ch, NULL, WIZ_SECURE, 0, get_mob_level(ch));
+            {
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(ch) ? "npc" : "player",
+                    .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                    .actor_uid = { ch->id[0], ch->id[1] },
+                    .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                  ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                    .action = "raceunlock_add",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = buf,
+                    .staff_message = buf,
+                    .wiznet_flag = WIZ_SECURE,
+                    .wiznet_min_rank = get_mob_level(ch),
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, ch);
+            }
         } else {
             send_to_char("That race is already unlocked on that account.\n\r", ch);
         }
@@ -354,7 +374,27 @@ void do_raceunlock(CHAR_DATA *ch, char *argument)
             snprintf(buf, sizeof(buf),
                      "$N revoked race '%s' unlock from account %s",
                      arg_race, account->username);
-            wiznet(buf, ch, NULL, WIZ_SECURE, 0, get_mob_level(ch));
+            {
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(ch) ? "npc" : "player",
+                    .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                    .actor_uid = { ch->id[0], ch->id[1] },
+                    .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                  ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                    .action = "raceunlock_remove",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = buf,
+                    .staff_message = buf,
+                    .wiznet_flag = WIZ_SECURE,
+                    .wiznet_min_rank = get_mob_level(ch),
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, ch);
+            }
         } else {
             send_to_char("That race is not unlocked on that account.\n\r", ch);
         }

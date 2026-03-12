@@ -2182,7 +2182,15 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
             while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
             {
                 sprintf(buf, "dungeon list: %ld, %s", dungeon->index->vnum, dungeon->index->name);
-                wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_DEBUG,
+                    .plain_message = buf,
+                    .staff_message = buf,
+                    .wiznet_flag = WIZ_TESTING,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, NULL);
 
                 char plr_str[21];
                 char idle_str[21];
