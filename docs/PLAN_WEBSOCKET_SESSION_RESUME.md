@@ -32,6 +32,8 @@ Rules:
 - New issue rotates/replaces previous token.
 - Token is one-time on successful resume attempt.
 - Expired tokens are purged opportunistically.
+- For actively connected WebSocket players, token expiry is refreshed/retained;
+  TTL effectively starts when the socket disconnects.
 
 ### Token issuance
 
@@ -39,11 +41,11 @@ Issue a resume token when a WebSocket descriptor enters/returns to play state.
 
 Transport to client:
 
-- Plain control line in normal output stream:
-  - ##RESUME <token>
-- Explicit resume ACK control lines:
-  - ##RESUME_OK
-  - ##RESUME_FAIL <reason>
+- GMCP-style control message in WebSocket stream:
+  - Core.Resume {"event":"token","token":"...","ttl":180}
+- Explicit resume ACK control messages:
+  - Core.Resume {"event":"ok"}
+  - Core.Resume {"event":"fail","reason":"invalid_or_expired"}
 
 ### Resume handshake
 
@@ -86,16 +88,16 @@ The browser client should:
 2. Store token in localStorage (or sessionStorage if preferred).
 3. On socket open, if token exists, send RESUME <token> first.
 4. If resume fails, fall back to normal login UX.
-5. On receiving a newer ##RESUME token, replace stored token.
+5. On receiving a newer Core.Resume token event, replace stored token.
 6. Clear token on explicit logout/quit flow.
 
 ## Wire Examples
 
 Server -> client:
 
-##RESUME d6v4Q6F6I4Qh0wHegLJ6v0m6XWf3D0w4qA6E8nH3
-##RESUME_OK
-##RESUME_FAIL invalid_or_expired
+Core.Resume {"event":"token","token":"d6v4Q6F6I4Qh0wHegLJ6v0m6XWf3D0w4qA6E8nH3","ttl":180}
+Core.Resume {"event":"ok"}
+Core.Resume {"event":"fail","reason":"invalid_or_expired"}
 
 Client -> server (first message after connect):
 

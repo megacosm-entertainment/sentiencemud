@@ -231,6 +231,16 @@ static void ws_resume_purge_expired(void)
     while (cur) {
         websocket_resume_session_t *next = cur->next;
         if (cur->expires_at <= current_time) {
+            CHAR_DATA *owner = idfind_player(cur->player_id0, cur->player_id1);
+
+            if (owner && owner->desc && descriptor_is_websocket(owner->desc)) {
+                // Keep active websocket sessions resumable; arm TTL from disconnect.
+                cur->expires_at = current_time + WS_RESUME_TTL_SECONDS;
+                prev = cur;
+                cur = next;
+                continue;
+            }
+
             if (prev)
                 prev->next = next;
             else
@@ -240,6 +250,21 @@ static void ws_resume_purge_expired(void)
             prev = cur;
         }
         cur = next;
+    }
+}
+
+static void ws_resume_arm_on_disconnect(CHAR_DATA *ch)
+{
+    websocket_resume_session_t *cur;
+
+    if (!ch || IS_NPC(ch))
+        return;
+
+    for (cur = ws_resume_sessions; cur; cur = cur->next) {
+        if (cur->player_id0 == ch->id[0] && cur->player_id1 == ch->id[1]) {
+            cur->expires_at = current_time + WS_RESUME_TTL_SECONDS;
+            return;
+        }
     }
 }
 
@@ -306,7 +331,9 @@ void websocket_resume_issue(DESCRIPTOR_DATA *d)
     session->next = ws_resume_sessions;
     ws_resume_sessions = session;
 
-    snprintf(buf, sizeof(buf), "##RESUME %s\n\r", token);
+    snprintf(buf, sizeof(buf),
+             "Core.Resume {\"event\":\"token\",\"token\":\"%s\",\"ttl\":%d}\n\r",
+             token, WS_RESUME_TTL_SECONDS);
     write_to_buffer(d, buf, 0);
 }
 
@@ -344,7 +371,7 @@ bool websocket_resume_try(DESCRIPTOR_DATA *d, const char *token)
     if (!ch || IS_NPC(ch) || ch->desc != NULL || ch->in_room == NULL)
         return false;
 
-    write_to_buffer(d, "##RESUME_OK\n\r", 0);
+    write_to_buffer(d, "Core.Resume {\"event\":\"ok\"}\n\r", 0);
 
     d->character = ch;
     ch->desc = d;
@@ -2007,6 +2034,9 @@ void close_socket(DESCRIPTOR_DATA *dclose)
         /* cut down on wiznet spam when rebooting */
         if (dclose->connected == CON_PLAYING && !merc_down)
         {
+            if (descriptor_is_websocket(dclose))
+                ws_resume_arm_on_disconnect(ch);
+
             if (ch->invis_level < STAFF_IMMORTAL)
                 act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             emit_comm_wiz_event("link lost", "$N has lost $S link.",

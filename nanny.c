@@ -73,7 +73,10 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
         if (websocket_resume_try(d, token))
             return;
 
-        write_to_buffer(d, "##RESUME_FAIL invalid_or_expired\n\r", 0);
+        if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS)
+            write_to_buffer(d, "Core.Resume {\"event\":\"fail\",\"reason\":\"invalid_or_expired\"}\n\r", 0);
+        else
+            write_to_buffer(d, "Session resume failed or expired.\n\r", 0);
         write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
         return;
     }
