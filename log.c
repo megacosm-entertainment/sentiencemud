@@ -322,7 +322,8 @@ void log_emit_event(const log_event_t *event, void *public_recipient) {
     if (game_settings.log_flat_file_enabled && !event->skip_flat_file)
         zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
 
-    /* Redis Stream dispatch — fire-and-forget, falls back silently to zlog-only */
+    /* Redis Stream dispatch — fire-and-forget, falls back silently to zlog-only.
+     * XADD with MAXLEN ~ caps the stream to log_stream_maxlen entries. */
     if (game_settings.log_stream_enabled && redis_is_available()) {
         char *json_str = log_serialize_event(event);
         if (json_str) {
