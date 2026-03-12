@@ -299,7 +299,7 @@ void websocket_resume_issue(DESCRIPTOR_DATA *d)
     }
 
     memset(session, 0, sizeof(*session));
-    strncpy(session->token, token, WS_RESUME_TOKEN_LEN);
+    memcpy(session->token, token, WS_RESUME_TOKEN_LEN + 1);
     session->player_id0 = ch->id[0];
     session->player_id1 = ch->id[1];
     session->expires_at = current_time + WS_RESUME_TTL_SECONDS;
