@@ -319,9 +319,7 @@ void log_emit_event(const log_event_t *event, void *public_recipient) {
     long line = event->source_line;
     int zlevel = event_severity_to_zlevel(event->severity);
 
-    if (!event->skip_flat_file)
-        if (!event->skip_flat_file)
-        if (!event->skip_flat_file)
+    if (game_settings.log_flat_file_enabled && !event->skip_flat_file)
         zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
 
     /* Redis Stream dispatch — fire-and-forget, falls back silently to zlog-only */

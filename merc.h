@@ -1448,6 +1448,7 @@ struct game_settings_data
     int redis_timeout_usec;       // Redis connection timeout microseconds
 
     /* Log Stream Settings */
+    bool log_flat_file_enabled;   // Write logs to flat files via zlog (disable when stream shipping is the sole sink)
     bool log_stream_enabled;      // Push structured JSON logs to Redis Stream
     char *log_stream_key;         // Redis Stream key (default: sentience:log:stream)
     int log_stream_maxlen;        // Stream MAXLEN ~ cap (default: 100000)
