@@ -69,6 +69,8 @@
 #include "connection.h"
 #include "protocol_layer.h"
 
+#include "utils/array.h"
+
 /* Forward declarations needed by reserved.h */
 struct area_data;
 typedef struct area_data AREA_DATA;
@@ -330,6 +332,10 @@ struct script_type {
 #define SETTING_TYPE_STRING 2
 #define SETTING_TYPE_EXTSTR 3
 #define SETTING_TYPE_FLOAT 4
+#define SETTING_TYPE_INT_ARRAY 5
+#define SETTING_TYPE_STRING_ARRAY 6
+#define SETTING_TYPE_FLOAT_ARRAY 7
+
 
 /* Setting category constants */
 #define SETTING_CAT_CORE 1
@@ -904,6 +910,7 @@ struct list_link_skill_data {
     unsigned long tid[2];
 };
 
+
 struct dice_data {
     int number;
     int size;
@@ -1429,6 +1436,7 @@ struct game_settings_data
     bool enable_insecure_warning; // Show a warning for insecure connections?
     char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
     int max_logfile_size;         // What size do we start rotating logs at (in MB)?
+    ARRAY *allowed_languages;     // What languages are allowed in the game
 
     // TODO: update to be an array of strings eventually.
     bool utf8_restrict_keywords;    // Whether or not to restrict the keywords to ascii

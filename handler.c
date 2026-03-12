@@ -12828,7 +12828,7 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
 
 
 
-
+// QUERY: This isn't used anywhere?
 // For game setting lookup
 char *get_game_setting_value(char *setting_name, bool *sensitive)
 {
@@ -14297,3 +14297,4 @@ void char_set_race(CHAR_DATA *ch, RACE_DATA *new_race, long flags)
                        new_race->name ? new_race->name : "unknown");
     }
 }
+

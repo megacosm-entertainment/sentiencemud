@@ -272,6 +272,7 @@ C_FILES = \
     staff.c \
     stats.c \
     string.c \
+    utils/array.c \
     utils/buffer.c \
     utils/tablefmt.c \
     utils/utf8.c \
