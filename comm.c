@@ -921,6 +921,14 @@ int main(int argc, char **argv)
             if (!json_persist_worker_start()) {
                 log_message(LOG_LEVEL_WARN, LOG_WARN, "Persist worker failed to start - using synchronous writes");
             }
+
+            // Start async log stream worker (writes structured JSON events to Redis Stream)
+            if (game_settings.log_stream_enabled) {
+                if (!log_stream_init()) {
+                    log_message(LOG_LEVEL_WARN, LOG_WARN, "Log stream worker failed to start - stream logging disabled");
+                    game_settings.log_stream_enabled = false;
+                }
+            }
         }
 
         // Initialize async cache system for background dump/load operations
@@ -1033,6 +1041,9 @@ int main(int argc, char **argv)
 
     // Shutdown channel service transport layer
     channel_service_shutdown();
+
+    // Flush and stop log stream worker before Redis goes away
+    log_stream_shutdown();
 
     // Shutdown Redis connection
     redis_shutdown();

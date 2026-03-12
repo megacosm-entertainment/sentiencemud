@@ -101,6 +101,8 @@ typedef struct {
 // Initialization and shutdown
 int log_init(const char *config_path);
 void log_shutdown(void);
+bool log_stream_init(void);
+void log_stream_shutdown(void);
 void log_set_unit_test_only(bool enabled);
 const char *log_category_for_domain(event_domain_t domain);
 void log_emit_event(const log_event_t *event, void *public_recipient);

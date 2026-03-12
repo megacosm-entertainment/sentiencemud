@@ -184,6 +184,34 @@ redisContext *redis_get_connection(void)
     return redis_ctx;
 }
 
+redisContext *redis_new_context(void)
+{
+    const char *host = game_settings.redis_host ? game_settings.redis_host : "127.0.0.1";
+    int         port = game_settings.redis_port  > 0 ? game_settings.redis_port  : 6379;
+    struct timeval timeout;
+    timeout.tv_sec  = game_settings.redis_timeout_sec  > 0 ? game_settings.redis_timeout_sec  : 1;
+    timeout.tv_usec = game_settings.redis_timeout_usec >= 0 ? game_settings.redis_timeout_usec : 500000;
+
+    redisContext *ctx = redisConnectWithTimeout(host, port, timeout);
+    if (!ctx || ctx->err) {
+        if (ctx) redisFree(ctx);
+        return NULL;
+    }
+
+    const char *password = game_settings.redis_password;
+    if (password && password[0] != '\0') {
+        redisReply *reply = (redisReply *)redisCommand(ctx, "AUTH %s", password);
+        if (!reply || reply->type == REDIS_REPLY_ERROR) {
+            if (reply) freeReplyObject(reply);
+            redisFree(ctx);
+            return NULL;
+        }
+        freeReplyObject(reply);
+    }
+
+    return ctx;
+}
+
 void redis_release_connection(redisContext *c)
 {
     // In single-threaded mode, this is a no-op

@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/resource.h>
 #include <sys/prctl.h>
 #include <sys/wait.h>
@@ -100,6 +101,137 @@ static struct backtrace_state *get_backtrace_state(void) {
 
 static bool log_initialized = false;
 
+/* ---------------------------------------------------------------------------
+ * Log stream queue — decouples game thread from Redis I/O.
+ *
+ * The game thread calls log_stream_enqueue() which just copies the JSON
+ * string pointer into a ring buffer and signals a condition variable.
+ * It never blocks beyond a mutex lock.  If the queue is full the entry is
+ * dropped (backpressure) rather than stalling the game loop.
+ *
+ * The worker thread owns its own redisContext exclusively — no sharing with
+ * the persist worker or any other thread.
+ * -------------------------------------------------------------------------*/
+
+#define LOG_QUEUE_CAPACITY 8192   /* must be power of 2 */
+#define LOG_QUEUE_MASK     (LOG_QUEUE_CAPACITY - 1)
+
+typedef struct {
+    char               *entries[LOG_QUEUE_CAPACITY];
+    unsigned int        head;    /* worker reads from here */
+    unsigned int        tail;    /* producer writes here  */
+    pthread_mutex_t     mutex;
+    pthread_cond_t      cond;
+    bool                running;
+} log_stream_queue_t;
+
+static log_stream_queue_t  lsq = {
+    .mutex   = PTHREAD_MUTEX_INITIALIZER,
+    .cond    = PTHREAD_COND_INITIALIZER,
+    .running = false,
+};
+static pthread_t           log_stream_thread;
+
+/* Enqueue a heap-allocated JSON string.  Ownership transfers to queue on
+ * success; caller must NOT free on success.  On queue-full the string is
+ * freed here (drop) so the caller never leaks. */
+static void log_stream_enqueue(char *json_str)
+{
+    pthread_mutex_lock(&lsq.mutex);
+    unsigned int next_tail = (lsq.tail + 1) & LOG_QUEUE_MASK;
+    if (next_tail == lsq.head) {
+        /* Queue full — drop entry to avoid blocking game thread */
+        pthread_mutex_unlock(&lsq.mutex);
+        free(json_str);
+        return;
+    }
+    lsq.entries[lsq.tail] = json_str;
+    lsq.tail = next_tail;
+    pthread_cond_signal(&lsq.cond);
+    pthread_mutex_unlock(&lsq.mutex);
+}
+
+static void *log_stream_worker(void *arg)
+{
+    (void)arg;
+    prctl(PR_SET_NAME, "log-stream", 0, 0, 0);
+
+    redisContext *ctx = NULL;
+
+    pthread_mutex_lock(&lsq.mutex);
+    while (lsq.running) {
+        /* Wait until there's work or we're asked to stop */
+        while (lsq.head == lsq.tail && lsq.running)
+            pthread_cond_wait(&lsq.cond, &lsq.mutex);
+
+        /* Drain the queue while holding the mutex only to dequeue, then
+         * release before doing Redis I/O so producers never contend. */
+        while (lsq.head != lsq.tail) {
+            char *json_str = lsq.entries[lsq.head];
+            lsq.head = (lsq.head + 1) & LOG_QUEUE_MASK;
+            pthread_mutex_unlock(&lsq.mutex);
+
+            /* Ensure we have a live connection */
+            if (!ctx) {
+                ctx = redis_new_context();
+                /* If we can't connect right now, drop this entry and
+                 * back off briefly to avoid a tight reconnect loop. */
+                if (!ctx) {
+                    free(json_str);
+                    pthread_mutex_lock(&lsq.mutex);
+                    /* brief sleep without holding mutex */
+                    struct timespec ts = { .tv_sec = 1, .tv_nsec = 0 };
+                    pthread_mutex_unlock(&lsq.mutex);
+                    nanosleep(&ts, NULL);
+                    pthread_mutex_lock(&lsq.mutex);
+                    continue;
+                }
+            }
+
+            redisReply *reply = (redisReply *)redisCommand(ctx,
+                "XADD %s MAXLEN ~ %d * json %s",
+                game_settings.log_stream_key,
+                game_settings.log_stream_maxlen,
+                json_str);
+            free(json_str);
+
+            if (!reply || ctx->err) {
+                /* Lost connection — free context, will reconnect on next entry */
+                if (reply) freeReplyObject(reply);
+                redisFree(ctx);
+                ctx = NULL;
+            } else {
+                freeReplyObject(reply);
+            }
+
+            pthread_mutex_lock(&lsq.mutex);
+        }
+    }
+
+    /* Drain remaining entries on shutdown */
+    while (lsq.head != lsq.tail) {
+        char *json_str = lsq.entries[lsq.head];
+        lsq.head = (lsq.head + 1) & LOG_QUEUE_MASK;
+        if (ctx) {
+            pthread_mutex_unlock(&lsq.mutex);
+            redisReply *reply = (redisReply *)redisCommand(ctx,
+                "XADD %s MAXLEN ~ %d * json %s",
+                game_settings.log_stream_key,
+                game_settings.log_stream_maxlen,
+                json_str);
+            if (reply) freeReplyObject(reply);
+            free(json_str);
+            pthread_mutex_lock(&lsq.mutex);
+        } else {
+            free(json_str);
+        }
+    }
+    pthread_mutex_unlock(&lsq.mutex);
+
+    if (ctx) redisFree(ctx);
+    return NULL;
+}
+
 int log_init(const char *config_path) {
     if (log_initialized) {
         return 0;
@@ -122,6 +254,49 @@ void log_shutdown(void) {
 
     zlog_fini();
     log_initialized = false;
+}
+
+/**
+ * log_stream_init - Start the async Redis Stream worker thread.
+ *
+ * Must be called after game settings and Redis are initialized.
+ * Safe to call even when log_stream_enabled is false (no-ops cleanly).
+ *
+ * @return  true on success, false if pthread_create fails
+ */
+bool log_stream_init(void)
+{
+    if (lsq.running)
+        return true;  /* already started */
+
+    lsq.head    = 0;
+    lsq.tail    = 0;
+    lsq.running = true;
+
+    if (pthread_create(&log_stream_thread, NULL, log_stream_worker, NULL) != 0) {
+        lsq.running = false;
+        return false;
+    }
+    return true;
+}
+
+/**
+ * log_stream_shutdown - Signal and join the async Redis Stream worker thread.
+ *
+ * Must be called before redis_shutdown() so the worker can flush its queue.
+ * Blocks until the worker thread exits.
+ */
+void log_stream_shutdown(void)
+{
+    if (!lsq.running)
+        return;
+
+    pthread_mutex_lock(&lsq.mutex);
+    lsq.running = false;
+    pthread_cond_signal(&lsq.cond);
+    pthread_mutex_unlock(&lsq.mutex);
+
+    pthread_join(log_stream_thread, NULL);
 }
 
 static bool log_unit_tests_only = false;
@@ -322,22 +497,11 @@ void log_emit_event(const log_event_t *event, void *public_recipient) {
     if (game_settings.log_flat_file_enabled && !event->skip_flat_file)
         zlog(c, file, strlen(file), func, strlen(func), line, zlevel, "%s", event->plain_message);
 
-    /* Redis Stream dispatch — fire-and-forget, falls back silently to zlog-only.
-     * XADD with MAXLEN ~ caps the stream to log_stream_maxlen entries. */
-    if (game_settings.log_stream_enabled && redis_is_available()) {
+    /* Enqueue for async Redis Stream dispatch — never blocks the game thread */
+    if (game_settings.log_stream_enabled && lsq.running) {
         char *json_str = log_serialize_event(event);
-        if (json_str) {
-            redisContext *rc = redis_get_connection();
-            if (rc) {
-                redisReply *reply = (redisReply *)redisCommand(rc,
-                    "XADD %s MAXLEN ~ %d * json %s",
-                    game_settings.log_stream_key,
-                    game_settings.log_stream_maxlen,
-                    json_str);
-                if (reply) freeReplyObject(reply);
-            }
-            free(json_str);
-        }
+        if (json_str)
+            log_stream_enqueue(json_str);  /* ownership transferred */
     }
 }
 
