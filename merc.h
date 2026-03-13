@@ -2041,6 +2041,9 @@ struct	descriptor_data
     bool creating_staff_character;
     bool reconnecting;
     bool healthcheck;
+    bool ws_resume_pending;
+    unsigned long ws_resume_request_id;
+    time_t ws_resume_pending_since;
     char * new_password_buffer;
     CHAR_DATA *reconnect_ch; /* Character being reconnected to */
     ACCOUNT_CHARACTER *selected_char; /* Character selected from account menu (lightweight) */

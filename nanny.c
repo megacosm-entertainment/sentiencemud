@@ -61,6 +61,9 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
     char buf[MAX_STRING_LENGTH];
     bool found;
 
+    if (d->ws_resume_pending)
+        return;
+
     while (ISSPACE(*argument))
         argument++;
 

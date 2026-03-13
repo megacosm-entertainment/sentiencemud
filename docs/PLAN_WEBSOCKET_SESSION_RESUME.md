@@ -12,6 +12,13 @@ Phase 1 in this plan covers in-memory, single-process session resume.
 - No cross-process failover yet.
 - Resume token TTL is short (minutes), intended for quick browser refresh recovery.
 
+Current implementation now includes Redis-backed persistence in addition to in-memory fast path,
+so resume survives process restart/reboot as long as Redis is available.
+Redis token consume lookup is handled asynchronously via a worker thread so the
+main game loop does not block; only the requesting descriptor is marked pending.
+Redis store/drop/ttl-arm operations are also queued to the same worker thread,
+removing remaining synchronous resume Redis calls from the main loop path.
+
 ## Current Constraints
 
 - Existing reconnect logic already supports linkdead characters.
@@ -26,6 +33,11 @@ Maintain a short-lived in-memory map:
 
 - token -> player id (id[0], id[1]), expires_at
 
+Maintain mirrored Redis indexes (hash-only token storage):
+
+- ws:resume:player:<id0>:<id1> -> <token_hash>
+- ws:resume:token:<token_hash> -> "<id0>:<id1>"
+
 Rules:
 
 - One active resume token per player.
@@ -34,6 +46,8 @@ Rules:
 - Expired tokens are purged opportunistically.
 - For actively connected WebSocket players, token expiry is refreshed/retained;
   TTL effectively starts when the socket disconnects.
+- Server stores only a hash of the token, never the plaintext token.
+- Redis also stores only token hashes (never plaintext tokens).
 
 ### Token issuance
 
@@ -63,9 +77,9 @@ Server behavior:
 
 ## Security and Risk Notes
 
-- Token currently stored in memory as plaintext for Phase 1 simplicity.
+- Server stores only SHA-256 token hashes in memory and Redis.
 - TTL is short and token is one-use on success.
-- Future phases should hash stored tokens and move to Redis.
+- Pending async auth requests are bounded by a timeout to avoid indefinite waits.
 
 ## Phase 2 (Planned)
 
@@ -79,6 +93,12 @@ Server behavior:
 - OAuth-backed game session minting with backend mediation.
 - Resume token bound to backend-authenticated account session.
 - Multi-server shared session state.
+
+## Patch B Foundation (Implemented)
+
+- Async auth worker now uses typed jobs/results instead of resume-only payloads.
+- Added reserved OAuth job type scaffold for future backend token verification.
+- Added pending-auth timeout/cancel plumbing for descriptor-scoped async auth.
 
 ## WebSocket Client Requirements
 

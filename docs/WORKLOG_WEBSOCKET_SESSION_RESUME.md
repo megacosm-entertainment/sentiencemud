@@ -20,6 +20,26 @@
 - Removed user-facing resume failure prose in login flow; failure is now machine-readable control output.
 - Adjusted token expiry behavior so active websocket sessions keep/refresh resume entries;
   TTL is effectively enforced from disconnect time.
+- Fixed resume token ownership for switched immortals by issuing/arming tokens from
+  session owner (descriptor original character when present).
+- Removed duplicate token re-issue in websocket resume path to avoid immediate
+  rotate-twice behavior on a single resume.
+- Hardened token storage by persisting only SHA-256 token hashes in server memory;
+  raw resume tokens are no longer stored server-side.
+- Added Redis-backed resume persistence with mirrored indexes:
+  - ws:resume:player:<id0>:<id1> -> token_hash
+  - ws:resume:token:<token_hash> -> "id0:id1"
+- Resume lookup now falls back to Redis when in-memory session cache misses,
+  enabling reconnect after server restart.
+- Moved Redis token consume lookup to an async worker queue in comm.c; the
+  main loop remains responsive and only the requesting descriptor waits.
+- Moved remaining resume Redis operations (store/drop/ttl-arm) to the same
+  async worker queue, removing synchronous resume Redis writes from main-thread
+  descriptor/game-loop paths.
+- Generalized async worker payloads to typed auth jobs/results (Patch B
+  foundation), with reserved OAuth verification job type scaffold.
+- Added timeout handling for descriptor-scoped pending async auth requests to
+  prevent indefinite pending state.
 
 ### Notes
 
@@ -30,6 +50,6 @@
 
 ### Follow-up
 
-- Add Redis-backed session storage for process restarts/failover.
-- Store token hashes instead of plaintext.
-- Bind session token to account/session context from web backend auth.
+- Implement OAuth verification jobs on top of typed async auth worker scaffold.
+- Add explicit cancellation tokens/list for pending jobs if we need hard cancel
+  semantics beyond descriptor-close/request-id invalidation.
