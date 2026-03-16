@@ -1,7 +1,11 @@
 # Plan: Crafting, Gathering, and Exploration Systems (Net-New)
 
-**Date:** February 24, 2026
+**Date:** February 24, 2026 (Updated March 15, 2026)
 **Status:** New Systems Design / Directional Plan
+
+**Detailed mechanics documents:**
+- `PLAN_CRAFTING_MECHANICS.md` — Synthesis loop, actions, CP system, HQ output
+- `PLAN_GATHERING_MECHANICS.md` — Node types, GP system, gathering skills, tool tiers
 
 ---
 
@@ -67,13 +71,40 @@ Goals:
   - Equipment mods/upgrades (bounded, budget-aware)
   - Utility deployables (camp, ward, traversal, ritual prep)
 
-## C) Class Integration (Crafter / Gatherer / Explorer)
+## C) Class Integration (Crafter / Gatherer / Explorer Archetypes)
 
-- **Crafter:** synthesis, quality control, adaptation recipes, support infrastructure.
-- **Gatherer:** acquisition, refinement prep, scarcity handling, efficient logistics.
+Crafter, Gatherer, and Explorer are **archetypes** (`archetype_id` in `CLASS_DATA`), not classes
+themselves. Individual jobs sit under each archetype and level independently.
+
+### Gatherer Archetype — Jobs
+
+| Job | Domain |
+|---|---|
+| Miner | Ore, stone, gems, crystals |
+| Botanist | Wood, plants, fibers, resins |
+| Fisher | Fish, shells, sea plants, deep-water reagents |
+
+### Crafter Archetype — Jobs
+
+| Job | Output focus | Gear coverage |
+|---|---|---|
+| Blacksmith | Melee weapons, heavy armor | Primary competitive |
+| Weaver | Light/medium armor, cloaks | Primary competitive |
+| Carpenter | Ranged/magic weapons, shields, deployables | Competitive + utility |
+| Alchemist | Potions, poisons, consumables, augment materia | Consumable + support |
+| Jeweler *(optional)* | Rings, earrings, trinkets | Competitive for accessory slots |
+
+### Explorer Archetype
+
+Explorer provides scouting, routing, and hazard mitigation that amplifies both Gatherer and
+Crafter efficiency rather than having its own production domain. See Explorer Class Coverage below.
+
+Party contribution channels:
+- **Crafter:** synthesis, quality control, adaptation recipes, infrastructure.
+- **Gatherer:** acquisition, refinement prep, scarcity handling, logistics.
 - **Explorer:** discovery, route/region bonuses, rare source access, hazard mitigation.
 
-These classes should provide distinct party value channels in both preparation and active expedition cycles.
+These archetypes provide distinct party value channels in both preparation and active expedition cycles.
 
 ### Explorer Class Coverage (Explicit)
 
@@ -183,6 +214,24 @@ Mitigation:
 - Outputs support strategy and preparation without overriding combat/casting core loops.
 - Economy remains stable under normal and high-engagement play patterns.
 - Explorer gameplay is a distinct, active loop (survey/route/discovery/expedition support), not a passive stat bonus bucket.
+
+---
+
+## Material Tiers (Summary)
+
+Five tiers aligned with content and class level brackets. Full detail in `PLAN_GATHERING_MECHANICS.md`.
+
+| Tier | Class level | Examples |
+|---|---|---|
+| 1 — Common | 1-20 | Iron Ore, Oak Log, Sardine |
+| 2 — Refined | 21-40 | Mythril Ore, Mahogany, Carp |
+| 3 — Rare | 41-60 | Darksteel Ore, Ancient Wood, Deepwater Bass |
+| 4 — Exotic | 61-80 | Adamantite, Ironwood, Stormfish |
+| 5 — Legendary | 81-100 | Aurite Crystal, World-Tree Heartwood, Abyssal Shark |
+
+Raw materials refine into processed materials (ore → ingot, log → lumber) as a discrete step.
+Gatherer classes can self-refine at base efficiency; Crafter classes get better yield and
+occasional special outputs when performing the same refinement.
 
 ---
 
