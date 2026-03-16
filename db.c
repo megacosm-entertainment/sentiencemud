@@ -2273,6 +2273,137 @@ static void apply_mob_parent_inheritance(MOB_INDEX_DATA *mob, MOB_INDEX_DATA **s
         mob->act[1] = parent->act[1];
     }
 
+    if (!str_cmp(mob->player_name, "no name")) {
+        free_string(mob->player_name);
+        mob->player_name = str_dup(parent->player_name);
+    }
+    if (!str_cmp(mob->short_descr, "(no short description)")) {
+        free_string(mob->short_descr);
+        mob->short_descr = str_dup(parent->short_descr);
+    }
+    if (!str_cmp(mob->long_descr, "(no long description)\n\r")) {
+        free_string(mob->long_descr);
+        mob->long_descr = str_dup(parent->long_descr);
+    }
+    if (IS_NULLSTR(mob->description)) {
+        free_string(mob->description);
+        mob->description = str_dup(parent->description);
+    }
+
+    if (mob->affected_by[0] == 0 && mob->affected_by[1] == 0)
+    {
+        mob->affected_by[0] = parent->affected_by[0];
+        mob->affected_by[1] = parent->affected_by[1];
+    }
+
+    if (mob->alignment == 0)
+        mob->alignment = parent->alignment;
+    if (mob->level == 0)
+        mob->level = parent->level;
+    if (mob->hitroll == 0)
+        mob->hitroll = parent->hitroll;
+
+    if (mob->hit.number == 0 && mob->hit.size == 0 && mob->hit.bonus == 0)
+        mob->hit = parent->hit;
+    if (mob->mana.number == 0 && mob->mana.size == 0 && mob->mana.bonus == 0)
+        mob->mana = parent->mana;
+    if (mob->damage.number == 0 && mob->damage.size == 0 && mob->damage.bonus == 0)
+        mob->damage = parent->damage;
+
+    if (mob->ac[AC_PIERCE] == 0 && mob->ac[AC_BASH] == 0
+    && mob->ac[AC_SLASH] == 0 && mob->ac[AC_EXOTIC] == 0)
+    {
+        mob->ac[AC_PIERCE] = parent->ac[AC_PIERCE];
+        mob->ac[AC_BASH] = parent->ac[AC_BASH];
+        mob->ac[AC_SLASH] = parent->ac[AC_SLASH];
+        mob->ac[AC_EXOTIC] = parent->ac[AC_EXOTIC];
+    }
+
+    if (mob->dam_type == 0)
+        mob->dam_type = parent->dam_type;
+    if (mob->off_flags == 0)
+        mob->off_flags = parent->off_flags;
+    if (mob->imm_flags == 0)
+        mob->imm_flags = parent->imm_flags;
+    if (mob->res_flags == 0)
+        mob->res_flags = parent->res_flags;
+    if (mob->vuln_flags == 0)
+        mob->vuln_flags = parent->vuln_flags;
+
+    if (mob->start_pos == POS_STANDING)
+        mob->start_pos = parent->start_pos;
+    if (mob->default_pos == POS_STANDING)
+        mob->default_pos = parent->default_pos;
+
+    if (mob->wealth == 0)
+        mob->wealth = parent->wealth;
+    if (mob->form == 0)
+        mob->form = parent->form;
+    if (mob->parts == 0)
+        mob->parts = parent->parts;
+    if (mob->move == 0)
+        mob->move = parent->move;
+    if (mob->attacks == 0)
+        mob->attacks = parent->attacks;
+
+    if (!str_cmp(mob->material, "unknown")) {
+        free_string(mob->material);
+        mob->material = str_dup(parent->material);
+    }
+    if (!str_cmp(mob->owner, "(no owner)")) {
+        free_string(mob->owner);
+        mob->owner = str_dup(parent->owner);
+    }
+    if (!str_cmp(mob->skeywds, "none")) {
+        free_string(mob->skeywds);
+        mob->skeywds = str_dup(parent->skeywds);
+    }
+
+    if (IS_NULLSTR(mob->list_name)) {
+        free_string(mob->list_name);
+        mob->list_name = str_dup(parent->list_name);
+    }
+    if (IS_NULLSTR(mob->list_keywords)) {
+        free_string(mob->list_keywords);
+        mob->list_keywords = str_dup(parent->list_keywords);
+    }
+    if (IS_NULLSTR(mob->tags)) {
+        free_string(mob->tags);
+        mob->tags = str_dup(parent->tags);
+    }
+    if (IS_NULLSTR(mob->auto_tags)) {
+        free_string(mob->auto_tags);
+        mob->auto_tags = str_dup(parent->auto_tags);
+    }
+
+    if (mob->body_type == BODY_TYPE_NEUTRAL)
+        mob->body_type = parent->body_type;
+    if (IS_NULLSTR(mob->pronoun_he_she)) {
+        free_string(mob->pronoun_he_she);
+        mob->pronoun_he_she = str_dup(parent->pronoun_he_she);
+    }
+    if (IS_NULLSTR(mob->pronoun_him_her)) {
+        free_string(mob->pronoun_him_her);
+        mob->pronoun_him_her = str_dup(parent->pronoun_him_her);
+    }
+    if (IS_NULLSTR(mob->pronoun_his_her)) {
+        free_string(mob->pronoun_his_her);
+        mob->pronoun_his_her = str_dup(parent->pronoun_his_her);
+    }
+    if (IS_NULLSTR(mob->pronoun_his_hers)) {
+        free_string(mob->pronoun_his_hers);
+        mob->pronoun_his_hers = str_dup(parent->pronoun_his_hers);
+    }
+    if (IS_NULLSTR(mob->pronoun_himself_herself)) {
+        free_string(mob->pronoun_himself_herself);
+        mob->pronoun_himself_herself = str_dup(parent->pronoun_himself_herself);
+    }
+    if (mob->verb_preference == VERB_FORM_DEFAULT)
+        mob->verb_preference = parent->verb_preference;
+
+    if (mob->size == SIZE_MEDIUM)
+        mob->size = parent->size;
+
     if (!mob->progs && parent->progs)
         mob->progs = new_prog_bank();
     if (!has_any_prog_bank(mob->progs) && has_any_prog_bank(parent->progs))

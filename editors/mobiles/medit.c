@@ -1456,7 +1456,7 @@ MEDIT(medit_parent)
     pMob->parent = parent;
     pMob->parent_inherited = false;
 
-    send_to_char("Parent mobile set. Inheritance is resolved at load time.\n\r", ch);
+    send_to_char("Parent mobile set. Inheritance applied immediately.\n\r", ch);
     return true;
 }
 

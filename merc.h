@@ -10044,6 +10044,7 @@ void area_dependency_add args(( AREA_DATA *area, const char *source_type, long s
     const char *target_name ));
 void area_dependencies_rebuild_for_area args( ( AREA_DATA *area ) );
 void area_dependencies_rebuild_all args( ( void ) );
+void fix_index_inheritance args( ( void ) );
 void    check_objects   args( ( void ) );
 void    check_mobs      args( ( void ) );
 CD *	create_mobile	args( ( MOB_INDEX_DATA *pMobIndex, bool persistLoad ) );

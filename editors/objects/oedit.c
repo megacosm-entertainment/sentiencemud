@@ -2000,7 +2000,7 @@ OEDIT(oedit_parent)
     pObj->parent = parent;
     pObj->parent_inherited = false;
 
-    send_to_char("Parent object set. Inheritance is resolved at load time.\n\r", ch);
+    send_to_char("Parent object set. Inheritance applied immediately.\n\r", ch);
     return true;
 }
 

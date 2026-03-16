@@ -1672,7 +1672,7 @@ REDIT(redit_parent)
     pRoom->parent = parent;
     pRoom->parent_inherited = false;
 
-    send_to_char("Parent room set. Inheritance is resolved at load time.\n\r", ch);
+    send_to_char("Parent room set. Inheritance applied immediately.\n\r", ch);
     return true;
 }
 
