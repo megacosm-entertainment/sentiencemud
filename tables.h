@@ -186,6 +186,8 @@ struct con_state_info {
     const char *name;
 };
 
+typedef void (*GAME_SETTINGS_ONCHANGE_FUNC) (); // Callback function used to post-process setting change.
+
 /* Game settings table structure */
 struct game_setting_type {
     char *name;              /* Setting name */
@@ -196,6 +198,7 @@ struct game_setting_type {
     bool olc_settable;       /* Can be modified through OLC */
     bool requires_reboot;    /* Requires reboot to take effect */
     bool sensitive;		 /* Sensitive setting */
+    GAME_SETTINGS_ONCHANGE_FUNC on_change;  /* On Change callback, NULL is do-nothing. */
 };
 
 typedef struct church_log_meta_category {
@@ -366,4 +369,5 @@ extern const struct flag_type armor_types[];
 extern const struct flag_type cart_flags[];
 extern const struct flag_type light_flags[];
 extern const struct flag_type scroll_flags[];
+
 #endif

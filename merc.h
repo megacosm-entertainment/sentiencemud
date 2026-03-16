@@ -1436,10 +1436,8 @@ struct game_settings_data
     bool enable_insecure_warning; // Show a warning for insecure connections?
     char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
     int max_logfile_size;         // What size do we start rotating logs at (in MB)?
+    char *default_language;       // Default language (iso name)
     ARRAY *allowed_languages;     // What languages are allowed in the game
-
-    // TODO: update to be an array of strings eventually.
-    bool utf8_restrict_keywords;    // Whether or not to restrict the keywords to ascii
 
     /* Channel Transport Settings */
     char *channel_backend;        // Channel backend mode: legacy_iterative|local|auto|redis
@@ -4060,6 +4058,7 @@ enum {
 #define PLR_AUTOAFK         (M)
 #define PLR_HIDE_IDLE       (N)
 #define PLR_SHOW_TIMESTAMPS (O)
+#define PLR_SHOW_RESTRINGS  (R)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)

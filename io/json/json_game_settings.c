@@ -768,12 +768,12 @@ static void init_game_settings_defaults(void)
     game_settings.new_char_lock_msg = str_empty;
     game_settings.logall = false;
     game_settings.note_boot_errors = false;
-    game_settings.utf8_restrict_keywords = true;
     game_settings.allowed_languages = new_string_array(0);
     if (game_settings.allowed_languages)
     {
-        string_array_append(game_settings.allowed_languages, "en_us");
+        string_array_append(game_settings.allowed_languages, "en");
     }
+    game_settings.default_language = str_dup("en");
 
     /* Auth */
     game_settings.require_uniq_pass_staff = false;

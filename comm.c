@@ -3764,8 +3764,8 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 
     if (ch->lines == 0)
     {
-    send_to_char(txt,ch);
-    return;
+        send_to_char(txt,ch);
+        return;
     }
 
     ch->desc->showstr_head = malloc(strlen(txt) + 1);
@@ -3899,9 +3899,9 @@ void show_string(struct descriptor_data *d, char *input)
         if (d->showstr_head)
         {
             free(d->showstr_head);
-            d->showstr_head = 0;
+            d->showstr_head = NULL;
         }
-        d->showstr_point  = 0;
+        d->showstr_point  = NULL;
         return;
     }
 

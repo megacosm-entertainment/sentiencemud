@@ -1182,6 +1182,7 @@ static bool load_char_obj_internal(DESCRIPTOR_DATA *d, const char *name, bool lo
                 if (obj == NULL)
                     continue;
 
+                // TODO: Deprecate
                 if (ch->version < VERSION_PLAYER_006) {
                     if (obj->pIndexData == get_reserved_obj_index("obj_scroll"))
                         if (!strcmp(obj->name, "scroll")) {

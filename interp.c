@@ -48,6 +48,7 @@
 #include "class_data.h"
 #include "channel_registry.h"
 #include "channel_service.h"
+#include "utils/localization.h"
 
 static bool dynamic_channel_is_ooc_command(const char *command)
 {
@@ -2143,34 +2144,38 @@ bool can_be_name(const char *str, NAME_VALIDATION_RESULT *nvr)
     memset(nvr, 0, sizeof(*nvr));
     nvr->result = NV_OK;
 
-    const char *p = str;
-    size_t pos = 0;
-    while(*p)
+    size_t bad_position;
+    size_t bad_offset;
+    LOCALIZATION_ERROR err = localization_validate_string(str, &bad_position, &bad_offset);
+    switch(err)
     {
-        unichar_t code = utf8_getchar(p);
-
-        // TODO: Add proper language support and use of game settings
-        // Currently will only check for ASCII codes.
-        if (code > 0x7f && game_settings.utf8_restrict_keywords)
+    case LOC_OK:
+        break;
+    case LOC_ERR_FORBIDDEN_CODEPOINT:
         {
-            nvr->result = NV_INVALID_CODE;  // Only done if enabled
-            nvr->str = p;
-            nvr->bad_ch = pos;
-            nvr->bad_code = code;
-            return true;
+            nvr->result = NV_INVALID_CODE;
+            nvr->str = str;
+            nvr->bad_ch = bad_position;
+            nvr->bad_code = utf8_getchar(str + bad_offset);
+            break;
         }
-
-        if (code < 0)
+    
+    case LOC_ERR_INVALID_UTF8:
         {
             nvr->result = NV_BAD_STRING;
-            nvr->str = p;
-            nvr->bad_ch = pos;
+            nvr->str = str;
+            nvr->bad_ch = bad_position;
             nvr->bad_code = 0;
-            return true;
+            break;
         }
-
-        pos++;
-        p = utf8_nextchar(p);
+    default:
+        {
+            nvr->result = NV_BAD_STRING;
+            nvr->str = str;
+            nvr->bad_ch = (size_t)-1;
+            nvr->bad_code = 0;
+            break;
+        }
     }
 
     return true;

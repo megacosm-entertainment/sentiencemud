@@ -617,6 +617,9 @@ GAMEEDIT(gameedit_confirm)
         
         if (change->setting->requires_reboot)
             reboot_needed = true;
+        // If the settings doesn't require a reboot, see if it has an on_change
+        else if (change->setting->on_change)
+            (*change->setting->on_change)();
     }
     iterator_stop(&it);
     

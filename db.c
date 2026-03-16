@@ -65,6 +65,7 @@
 #include "song_data.h"
 #include "item_types.h"
 #include "channel_registry.h"
+#include "io/json/json_localization.h"
 
 #ifndef ENABLE_LEGACY_AREA_READ
 /* Keep enabled by default until remaining legacy maze .are zones
@@ -844,6 +845,12 @@ void boot_db(void)
         if (!reserved_vnums) {
             fprintf(stderr, "Error: Failed to create reserved_vnums list.\n");
         }
+    }
+
+    if (!load_localizations())
+    {
+        // Error already reported
+        exit(1);
     }
 
     load_reserved();
