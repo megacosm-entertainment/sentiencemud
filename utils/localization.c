@@ -24,6 +24,7 @@ LOCALIZATION_DATA *new_localization_data(void)
         loc->filename = str_empty;
         loc->name = str_empty;
         loc->iso_name = str_empty;
+        loc->translations = strdict_new(0);
     }
 
     return loc;
@@ -47,12 +48,7 @@ void free_localization_data(LOCALIZATION_DATA *loc)
 
         if (loc->translations)
         {
-            for(uint32_t i = 0;loc->translations[i].phrase;i++)
-            {
-                free_string(loc->translations[i].phrase);
-                free_string(loc->translations[i].translation);
-            }
-            free(loc->translations);
+            strdict_free(loc->translations);
         }
 
         free(loc);
@@ -444,15 +440,10 @@ LOCALIZATION_ERROR localization_short_to_keywords(const char *str, char **out_ke
  * Translations Functionality                                           *
  ************************************************************************/
 
-static const char *_translate_phrase(LOCALIZATION_DATA *loc, register const char *input)
+static inline const char *_translate_phrase(LOCALIZATION_DATA *loc, register const char *input)
 {
     if(loc && loc->translations) {
-        
-        for(register TRANSLATION *trans = loc->translations; trans->phrase; trans++)
-        {
-            if (!str_cmp(input, trans->phrase))
-                return trans->translation;
-        }
+        return strdict_get(loc->translations, input);
     }
 
     return NULL;
@@ -486,6 +477,247 @@ const char *localization_translate(LOCALIZATION_DATA *loc, const char *input)
     return input;
 }
 
+enum trans_arg_enum {
+    TARG_NULL = 0,      // Indicates unset in the array
+    TARG_INT,
+    TARG_LONG,
+    TARG_DOUBLE,
+    TARG_STRING
+};
+
+struct trans_arg_type {
+    enum trans_arg_enum type;
+    union {
+        int i;
+        long l;
+        double d;
+        char *s;
+    } _;
+};
+
+static void __trans_arg_array_copier(void *ptr, void *src)
+{
+    if (ptr && src)
+    {
+        *((struct trans_arg_type *)ptr) = *((struct trans_arg_type *)src);
+    }
+}
+
+const char *localization_translatef(LOCALIZATION_DATA *loc, const char *input, ...)
+{
+    static char _buf[4][MSL];
+    static int _i = 0;
+    va_list args;
+
+    const char *format = localization_translate(loc, input);    // Get the format string
+    ARRAY *types = new_int_array(0);
+    if (!types) return format;    // Something went wrong, leave it unprocessed
+
+    // Determine the required arguments
+    const char *p = format;
+    va_start(args, input);
+
+    // Since it's only interested in looking for %-codes which will be in ASCII only,
+    //   it can just look at it bytewise
+    while(*p)
+    {
+        if (*p++ == '%')
+        {
+            // Skip %%
+            if (*p == '%')
+            {
+                ++p;
+                continue;
+            }
+
+            // Determine the argument order (1-N)
+            size_t c = 0;
+            while(isdigit(*p))
+            {
+                c = (10 * c) + (size_t)(*p - '0');
+                p++;
+            }
+
+            if (c < 1) {
+                va_end(args);
+                free_array(types);
+                return format;
+            }
+
+            // Determine the argument type
+            int type;
+            switch(UPPER(*p))
+            {
+                case 'I':   type = TARG_INT; break;
+                case 'L':   type = TARG_LONG; break;
+                case 'D':   type = TARG_DOUBLE; break;
+                case 'S':   type = TARG_STRING; break;
+                default:
+                    va_end(args);
+                    free_array(types);
+                    return format;
+            }
+            p++;
+
+            // Skip optional formatting
+            while(*p && *p != '%') p++;
+
+            if (*p++ != '%')
+            {
+                va_end(args);
+                free_array(types);
+                return format;
+            }
+
+            // Enlarge the array if necessary
+            if (c > types->length)
+                array_set_length(types, c);
+
+            int *slot = (int *)array_get(types, c - 1);
+            if (slot && *slot == TARG_NULL)
+                *slot = type;
+
+        }
+    }
+    va_end(args);
+
+    // Verify we don't have any "holes" (everything from $1* to $N* is filled in)
+    for(size_t i = 0; i < types->length; i++)
+    {
+        int *slot = (int *)array_get(types, i);
+        if (slot && *slot == TARG_NULL)
+        {
+            free_array(types);
+            return format;
+        }
+    }
+
+    // Actually pull all the arguments off the stack so we can reference them in any order
+    ARRAY *params = new_arrayx(types->length, sizeof(struct trans_arg_type), NULL, __trans_arg_array_copier);
+    if (!params)
+    {
+        free_array(types);
+        return format;
+    }
+
+    // Pull all of the arguments
+    va_start(args, input);
+
+    for(size_t i = 0; i < types->length; i++) {
+        int *slot = array_get(types, i);
+        if (slot) {
+            struct trans_arg_type t;
+            t.type = *slot;
+
+            switch(*slot)
+            {
+                case TARG_INT:      t._.i = va_arg(args, int); break;
+                case TARG_LONG:     t._.l = va_arg(args, long); break;
+                case TARG_DOUBLE:   t._.d = va_arg(args, double); break;
+                case TARG_STRING:   t._.s = va_arg(args, char *); break;
+                default:
+                    free_array(params);
+                    free_array(types);
+                    return format;
+            }
+
+            array_set(params, i, &t);
+        }
+    }
+
+    va_end(args);
+    free_array(types);
+
+    _i = (_i + 1) & 3;
+    char *buf = _buf[_i];
+    p = format;
+    size_t len = sizeof(_buf[0]) - 1;
+    while(*p)
+    {
+        if (*p == '%')
+        {
+            p++;
+
+            // Convert %% into % in the final string
+            if (*p == '%')
+            {
+                *buf++ = '%';
+                p++;
+                continue;
+            }
+
+            // Determine the argument order (1-N)
+            size_t c = 0;
+            while(isdigit(*p))
+            {
+                c = (10 * c) + (size_t)(*p - '0');
+                p++;
+            }
+
+            if (c < 1) {
+                free_array(params);
+                return format;
+            }
+
+            // Determine the argument type
+            int type;
+            switch(UPPER(*p))
+            {
+                case 'I':   type = TARG_INT; break;
+                case 'L':   type = TARG_LONG; break;
+                case 'D':   type = TARG_DOUBLE; break;
+                case 'S':   type = TARG_STRING; break;
+                default:
+                    free_array(params);
+                    return format;
+            }
+            p++;
+
+            char opt[MIL];
+            char *o = opt;      
+            // Collect formatting (if any)
+            while(*p && *p != '%')
+                *o++ = *p++;
+            *o = '\0';
+
+            if (*p++ != '%')
+            {
+                free_array(params);
+                return format;
+            }
+
+            struct trans_arg_type *slot = (struct trans_arg_type *)array_get(params, c - 1);
+            if (slot && slot->type == type)
+            {
+                size_t j = 0;
+                switch(slot->type)
+                {
+                    case TARG_INT:      j = snprintf(buf, len, formatf("%%%sd", opt), slot->_.i);    break;
+                    case TARG_LONG:     j = snprintf(buf, len, formatf("%%%sld", opt), slot->_.l);   break;
+                    case TARG_DOUBLE:   j = snprintf(buf, len, formatf("%%%slf", opt), slot->_.d);   break;
+                    case TARG_STRING:   j = snprintf(buf, len, formatf("%%%ss", opt), slot->_.s);    break;
+                    default:            /* Nothing */   break;
+                }
+                len -= j;
+                buf += j;
+            }
+        }
+        else
+        {
+            if (len > 0) {
+                *buf++ = *p;
+                len--;
+            }
+            p++;
+        }
+    }
+    *buf = '\0';
+
+    free_array(params);
+    return _buf[_i];
+}
+
+
 
 const char *localization_error_string(LOCALIZATION_ERROR err)
 {
@@ -502,3 +734,23 @@ const char *localization_error_string(LOCALIZATION_ERROR err)
         default:                        return "Unknown error";
     }
 }
+
+#ifdef MUD_DEBUG
+void localization_dump_translations(LOCALIZATION_DATA *loc)
+{
+    if (loc && loc->translations)
+    {
+        const char *key;
+        const char *val;
+
+        plogf(LOG_INFO, "Translations for %s", loc->name);
+        plog(LOG_INFO, "=======================================");
+        STRING_DICT_ITER di = strdict_iter(loc->translations);
+        while(strdict_next(&di, &key, &val))
+        {
+            plogf(LOG_INFO, "\"%s\" -> \"%s\"", key, val);
+        }
+        plog(LOG_INFO, "=======================================");
+    }
+}
+#endif

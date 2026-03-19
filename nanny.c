@@ -31,6 +31,7 @@
 #include "class_data.h"
 #include "skill_group.h"
 #include "traits.h"
+#include "utils/localization.h"
 
 /*
  * NANNY SYSTEM - LOGIN AND CHARACTER CREATION
@@ -81,24 +82,28 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
     
     // Try to load the account
     found = load_account(d, argument);
+    if (found && IS_VALID(d->account))
+        d->lang = d->account->lang;
+    else
+        d->lang = default_localization;
     
     // Check if they're banned
     if (check_ban(d->host, BAN_PERMIT)) {
-        write_to_buffer(d, "Your site has been banned from Sentience.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.login.site_ban"), 0);
         close_socket(d);
         return;
     }
-    
+
     // Check wizlock if they don't have any immortal characters
     if (game_settings.wizlock && !account_has_immortal(d->account)) {
         if (!IS_NULLSTR(game_settings.wizlock_msg))
             write_to_buffer(d, game_settings.wizlock_msg, 0);
         else
-            write_to_buffer(d, "The game is wizlocked.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.login.wizlock"), 0);
             
-        log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-        sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-        wiznet(buf, NULL, NULL, WIZ_LOGINS, 0, 0);
+        log_message(LOG_LEVEL_INFO, LOG_SECURITY, LTDF("log.msg.wizlock", argument, d->host));
+        // TODO: create a wiznet that can localize to the individual receivers' language setting
+        wiznet(LTDF("wiznet.msg.wizlock", argument, d->host), NULL, NULL, WIZ_LOGINS, 0, 0);
         close_socket(d);
         return;
     }
@@ -108,7 +113,7 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
         if (DEV_SKIP_PASSWORD) {
             // Log and proceed as if password was accepted
             ProtocolNoEcho(d, false);
-            log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "Account %s@%s has connected (dev server, password skipped).", d->account->username, d->host);
+            log_message(LOG_LEVEL_INFO, LOG_SECURITY, LTDF("log.msg.dev_skip_pwd", d->account->username, d->host));
 
             if (DEV_SKIP_MFA) {
                 d->connected = CON_ACCOUNT_MENU;
@@ -141,15 +146,15 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
             if (game_settings.new_acct_lock_msg && game_settings.new_acct_lock_msg[0])
                 write_to_buffer(d, game_settings.new_acct_lock_msg, 0);
             else
-                write_to_buffer(d, "New accounts are not being accepted at this time.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.newlock"), 0);
                 
-            write_to_buffer(d, "The game is newlocked.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.login.newlock"), 0);
             close_socket(d);
             return;
         }
 
         if (check_ban(d->host, BAN_NEWBIES)) {
-            write_to_buffer(d, "New accounts are not allowed from your site.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.account.new_ban"), 0);
             close_socket(d);
             return;
         }
@@ -854,25 +859,29 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     int regular_count = 0;
 
     if (!acct) {
-        write_to_buffer(d, "\n\r{RERROR: Account data missing. Please reconnect or contact staff.{x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{R%s{x\n\r", LT(d, "error.msg.account.missing")), 0);
         close_socket(d);
         return;
     }
     
-    write_to_buffer(d, "\n\r{B=={W[ {YSENTIENCE ACCOUNT MENU {W]{B=={x\n\r\n\r", 0);
+    write_to_buffer(d, formatf("\n\r{B=={W[ {Y%s{W ]{B=={x\n\r\n\r", LT(d, "menu.account.header")), 0);
     
-    sprintf(buf, "Account: {C%s{x\n\r", acct->username);
+    snprintf(buf, MSL-1, "%s: {C%s{x\n\r", LT(d, "label.account"), acct->username);
     write_to_buffer(d, buf, 0);
-    if (game_settings.enable_email){
-    if (game_settings.require_email_verif && !acct->email_verified && !IS_NULLSTR(acct->pending_email)) {
-        sprintf(buf, "Email: {C%s{x (pending: {Y%s{x)\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email, acct->pending_email);
-    } else if (game_settings.require_email_verif && !acct->email_verified && IS_NULLSTR(acct->pending_email)) {
-        sprintf(buf, "Email: {YPending verification{x\n\r\n\r");
-    } else {
-        sprintf(buf, "Email: {C%s{x\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email);
+    if (game_settings.enable_email) {
+        if (game_settings.require_email_verif && !acct->email_verified && !IS_NULLSTR(acct->pending_email)) {
+
+            snprintf(buf, MSL-1, "%s: {C%s{x (pending: {Y%s{x)\n\r\n\r",
+                LT(d, "label.email"),
+                IS_NULLSTR(acct->email) ? LT(d, "menu.account.email.pending.not_set") : acct->email,
+                LTF(d, "menu.account.email.pending", acct->pending_email));
+        } else if (game_settings.require_email_verif && !acct->email_verified && IS_NULLSTR(acct->pending_email)) {
+            snprintf(buf, MSL-1, "%s: {Y%s{x\n\r\n\r", LT(d, "label.email"), LT(d, "error.msg.account.email.pending_verification"));
+        } else {
+            snprintf(buf, MSL-1, "%s: {C%s{x\n\r\n\r", LT(d, "label.email"), IS_NULLSTR(acct->email) ? LT(d, "error.msg.account.email.not_set") : acct->email);
+        }
+        write_to_buffer(d, buf, 0);
     }
-    write_to_buffer(d, buf, 0);
-}
 
     /* Account status summary line */
     {
@@ -2252,6 +2261,7 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
         ch->pcdata->account_name = str_dup(d->account->username);
         ch->pcdata->account_id[0] = d->account->id[0];
         ch->pcdata->account_id[1] = d->account->id[1];
+        ch->pcdata->lang = d->account->lang;
         
     }
 
@@ -2725,6 +2735,8 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
             // Set as playing
             d->connected = CON_PLAYING;
+            if (!IS_NPC(d->character))
+                d->lang = d->character->pcdata->lang;   // Update to the character specific language
 
             // Send reconnection message and place in room
             send_to_char("Reconnecting. Type replay to see missed tells.\n\r", existing);
@@ -4145,6 +4157,9 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
+
+    if (!IS_NPC(ch))
+        d->lang = ch->pcdata->lang;
 
     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: %s preparing to enter game", ch->name);
 

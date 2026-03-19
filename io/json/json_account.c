@@ -25,6 +25,8 @@
 #include "json_account.h"
 #include "json_char.h"  // For obj_to_json() reuse
 
+extern LOCALIZATION_DATA *default_localization;
+
 /***************************************************************************
  * External Flag Tables                                                    *
  ***************************************************************************/
@@ -198,6 +200,11 @@ static json_t *account_basic_to_json(ACCOUNT_DATA *account)
     // Email verification rate-limiting timestamp
     if (account->email_verification_last_sent > 0) {
         json_object_set_new(basic, "email_verification_last_sent", json_integer(account->email_verification_last_sent));
+    }
+
+    // Language preference
+    if (account->lang != NULL) {
+        json_object_set_new(basic, "language", json_string(account->lang->iso_name));
     }
 
     return basic;
@@ -758,6 +765,12 @@ bool json_read_account(ACCOUNT_DATA *account, const char *filename)
     // Email verification rate-limiting timestamp
     value = json_object_get(account_obj, "email_verification_last_sent");
     if (value) account->email_verification_last_sent = json_integer_value(value);
+
+    value = json_object_get(account_obj, "language");
+    if (value) {
+        account->lang = localization_lookup(json_string_value(value));
+        if (!account->lang) account->lang = default_localization;
+    }
 
     // Read characters section
     characters = json_object_get(root, "characters");

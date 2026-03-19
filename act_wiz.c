@@ -1549,7 +1549,7 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
  * @param flag_skip  Wiznet flag that blocks receiving message
  * @param min_level  Minimum staff rank required to see message
  */
-void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
+void wiznet(const char *string, CHAR_DATA *ch, OBJ_DATA *obj,
         long flag, long flag_skip, int min_level)
 {
     DESCRIPTOR_DATA *d;

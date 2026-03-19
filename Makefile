@@ -276,6 +276,7 @@ C_FILES = \
     utils/array.c \
     utils/buffer.c \
     utils/localization.c \
+    utils/strdict.c \
     utils/tablefmt.c \
     utils/utf8.c \
     storage.c \

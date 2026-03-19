@@ -388,59 +388,55 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 
     xbuf[0] = xbuf2[0] = xbuf3[0] = 0;
 
-    for (rdesc = oldstring; *rdesc; rdesc++) {
-        if (*rdesc=='\n') {
+    for (rdesc = oldstring; *rdesc; rdesc = utf8_nextchar(rdesc)) {
+        unichar_t cp = utf8_getchar(rdesc);
+        size_t b = utf8_bytes(cp);
+
+        if (cp=='\n') {
             xbuf2[i++] = '\n';
 
-        } else if (*rdesc=='\r')
+        } else if (cp=='\r')
             ;
-        else if (*rdesc==' ') {
+        else if (cp==' ') {
             if (xbuf2[i-1] != ' ' && xbuf2[i-1] != '\n') xbuf2[i++]=' ';
-        } else if (*rdesc==')') {
+        } else if (cp==')') {
             if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
                 (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
-                xbuf2[i-2]=*rdesc;
+                xbuf2[i-2]=')';
                 xbuf2[i-1]=' ';
                 xbuf2[i]=' ';
                 i++;
             } else
-                xbuf2[i++]=*rdesc;
-        } else if ((*rdesc=='.' || *rdesc=='?' || *rdesc=='!') && *(rdesc+1) == ' ') {
+                xbuf2[i++]=')';
+        } else if ((cp=='.' || cp=='?' || cp=='!') && *(rdesc+1) == ' ') {
+            // *rdesc is already established ASCII so treat it as one byte.
+            // *(redsc+1) is already established to be a space, so don't test it again
             if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
                 (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
                 xbuf2[i-2]=*rdesc;
-                if (*(rdesc+1) != '\"') {
-                    xbuf2[i-1]=' ';
-                    xbuf2[i++]=' ';
-                } else {
-                    xbuf2[i-1]='\"';
-                    xbuf2[i]=' ';
-                    xbuf2[i+1]=' ';
-                    i+=2;
-                    rdesc++;
-                }
+                xbuf2[i-1]=' ';
+                xbuf2[i++]=' ';
             } else {
                 xbuf2[i]=*rdesc;
-                if (*(rdesc+1) != '\"') {
-                    xbuf2[i+1]=' ';
-                    xbuf2[i+2]=' ';
-                    i += 3;
-                } else {
-                    xbuf2[i+1]='\"';
-                    xbuf2[i+2]=' ';
-                    xbuf2[i+3]=' ';
-                    i += 4;
-                    rdesc++;
-                }
+                xbuf2[i+1]=' ';
+                xbuf2[i+2]=' ';
+                i += 3;
             }
             cap = true;
         } else {
-            xbuf2[i]=*rdesc;
             if (cap) {
                 cap = false;
-                xbuf2[i] = UPPER(xbuf2[i]);
+                cp = utf8_toupper(cp);
+                b = utf8_bytes(cp);
+                char *bytes = utf8_getbytes(cp);
+                for(size_t j = 0; j < b; j++)
+                    xbuf2[i+j]=bytes[j];
+                i+=b;
+            } else {
+                for(size_t j = 0; j < b; j++)
+                    xbuf2[i+j]=*(rdesc + j);
+                i+=b;
             }
-            i++;
         }
     }
     xbuf2[i]=0;
@@ -449,6 +445,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
     char *wdesc = xbuf3;
     for(rdesc = xbuf2; *rdesc; rdesc++)
     {
+        // Since we are only checking for ASCII, not worrying about codepoints here
         if( *rdesc == '\n' )
         {
             if( rdesc[1] == '\n' )
@@ -486,35 +483,64 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
             continue;
         }
 
+        
         // Check if we are the end of the line
-        for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
+        char *p = rdesc;
+        for (i=0; i<len && *p && *p != '\n'; i++, p = utf8_nextchar(p));
 
         // If the current line will fit completely, break
         if (i<len)
         {
-            strncat(xbuf,rdesc,i);
+            strncat(xbuf,rdesc,(size_t)(p - rdesc));
             strcat(xbuf,"\n\r");
 
-            rdesc += i;
+            rdesc = p;
         }
         else
         {
-            int j;
+            int j = len - 1;
             // Find a line break
-            for (j = len; --j > 0 && *(rdesc+j)!=' ';);
+            char *p = utf8_skip(rdesc, j);
+            for (; j > 0 && p >= rdesc && *p!=' '; j--, p = utf8_prevchar(p));
 
             // Found a line break
             if (j > 0) {
-                strncat(xbuf,rdesc,j);
-                strcat(xbuf,"\n\r");
-                rdesc += j+1;
+                size_t l = j;
+                size_t sk;
+                if (utf8_skip_len(rdesc, &l, &sk))
+                {
+                    strncat(xbuf,rdesc,sk);
+                    strcat(xbuf,"\n\r");
+                    rdesc += sk;
+                }
+                else
+                {
+                    // There was a problem in the UTF8 encoding somewhere in the string?
+                    strncat(xbuf,rdesc,j);
+                    strcat(xbuf,"\n\r");
+                    rdesc += j;
+                }
                 while (*rdesc == ' ') rdesc++;
             // The entire line has no breaks
             } else {
                 pbugf(LOG_ERROR, "No spaces");
-                strncat(xbuf,rdesc,len);
-                strcat(xbuf,"-\n\r");
-                rdesc += len;
+                size_t l = len - 2;
+                size_t sk;
+                if (utf8_skip_len(rdesc, &l, &sk))
+                {
+                    strncat(xbuf,rdesc,sk);
+                    strcat(xbuf,"-\n\r");
+                    rdesc += sk;
+                }
+                else
+                {
+                    size_t l = len-2;
+                    if (l >= sizeof(xbuf))
+                        l = sizeof(xbuf) - 1;
+                    strncat(xbuf,rdesc,l);
+                    strcat(xbuf,"-\n\r");
+                    rdesc += len - 2;
+                }
             }
 
             if( *rdesc == '\n' ) rdesc++;
@@ -552,6 +578,66 @@ char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
 
     xbuf[0] = xbuf2[0] = 0;
 
+
+    for(rdesc = oldstring; *rdesc; rdesc = utf8_nextchar(rdesc)) {
+        unichar_t cp = utf8_getchar(rdesc);
+        size_t b = utf8_bytes(cp);
+
+        if (cp == '\n') {
+            // Collapse the newline
+            if (xbuf2[i-1] != ' ') xbuf2[i++] = ' ';
+        } else if (cp == '\r')
+            ;   // Ignore
+        else if (cp == ' ') {
+            // Remove all extraneous spaces.
+            if (xbuf2[i-1] != ' ') xbuf2[i++] = ' ';
+        } else if(cp == ')') {
+            // Move closing parentheses to before the spaces
+            if (xbuf2[i-1] == ' ' && xbuf[i-2] == ' ' &&
+                    (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+                xbuf2[i-2] = ')';
+                xbuf2[i-1] = ' ';
+                xbuf2[i++] = ' ';
+            }
+            else
+                xbuf2[i++] = ')';
+        // Check if there is a EOS character with a space afterward.
+        } else if ((cp == '.' || cp == '?' || cp == '!') && *(rdesc+1) == ' ') {
+            // *rdesc is established as being an ASCII character so we can assume it is one byte.
+            // The code used to check if *(rdesc+1) was a double quote, but it is already established as being a space
+            if (xbuf2[i-1] == ' ' && xbuf2[i-2] == ' ' && 
+                (xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+                xbuf2[i-2] = *rdesc;
+                xbuf2[i-1]=' ';
+                xbuf2[i++]=' ';
+            } else {
+                xbuf2[i] = *rdesc;
+                xbuf2[i+1]=' ';
+                xbuf2[i+2]=' ';
+                i+=3;
+            }
+            cap = true;
+        } else {
+            if (cap) {
+                cap = false;
+                cp = utf8_toupper(cp);
+                b = utf8_bytes(cp);
+                char *bytes = utf8_getbytes(cp);
+                for(size_t j = 0; j < b; j++)
+                    xbuf2[i+j]=bytes[j];
+                i+=b;
+            } else {
+                for(size_t j = 0; j < b; j++)
+                    xbuf2[i+j]=*(rdesc + j);
+                i+=b;
+            }
+        }
+    }
+    xbuf2[i]=0;
+
+    rdesc=xbuf2;
+
+#if 0
     // This collapses the string into one line
     for (rdesc = oldstring; *rdesc; rdesc++) {
         if (*rdesc=='\n') {
@@ -609,11 +695,13 @@ char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
     xbuf2[i]=0;
 
     rdesc=xbuf2;
+#endif
 
     xbuf[0]=0;
     lines = 0;
     leni = 0;
 
+    // Breaks the single line into its component lines based upon the "width" given.
     for (; ;) {
         // Get the line length for this line
         if((leni+1) < lenc && lines >= lens[leni+1][0])
@@ -621,32 +709,59 @@ char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
         len = lens[leni][1];
 
         // Check if we are the end of the line
-        for (i=0; i<len && *(rdesc+i); i++);
+        char *p = rdesc;
+        for (i=0; i<len && *p; i++, p = utf8_nextchar(p));
         // If the current line will fit completely, break
         if (i<len) break;
 
         // Find a line break
-        for (i=len-(xbuf[0]?0:3) ; --i > 0 && *(rdesc+i)!=' ';);
+        i = len-(xbuf[0]?0:3) - 1;
+        p = utf8_skip(rdesc, i);
+        for (; i > 0 && p && p >= rdesc && *p != ' '; i--, p = utf8_prevchar(p));
 
         // Found a line break
         if (i > 0) {
-            strncat(xbuf,rdesc,i);
-            strcat(xbuf,"\n\r");
-            rdesc += i+1;
+            size_t l = i+1;
+            size_t sk;
+            if (utf8_skip_len(rdesc, &l, &sk))
+            {
+                strncat(xbuf,rdesc,sk);
+                strcat(xbuf,"\n\r");
+                rdesc += sk;
+            }
+            else
+            {
+                // There was a problem in the UTF8 encoding somewhere in the string?
+                strncat(xbuf,rdesc,i);
+                strcat(xbuf,"\n\r");
+                rdesc += i;
+            }
             while (*rdesc == ' ') rdesc++;
         // The entire line has no breaks
         } else {
             pbugf(LOG_ERROR, "No spaces");
-            strncat(xbuf,rdesc,len-2);
-            strcat(xbuf,"-\n\r");
-            rdesc += len - 2;
+            size_t l = len - 2;
+            size_t sk;
+            if (utf8_skip_len(rdesc, &l, &sk))
+            {
+                strncat(xbuf,rdesc,sk);
+                strcat(xbuf,"-\n\r");
+                rdesc += sk;
+            }
+            else
+            {
+                strncat(xbuf,rdesc,len-2);
+                strcat(xbuf,"-\n\r");
+                rdesc += len - 2;
+            }
         }
     }
 
+    // Process the remaining part of the string
     // Strip off excess whitespace
-    while (*(rdesc+i) && (*(rdesc+i)==' '||
-        *(rdesc+i)=='\n'|| *(rdesc+i)=='\r')) i--;
-
+    i = strlen(rdesc) - 1;
+    while (*(rdesc+i) &&
+           (*(rdesc+i)==' '|| *(rdesc+i)=='\n'|| *(rdesc+i)=='\r')) i--;
     *(rdesc+i+1)=0;
     strcat(xbuf,rdesc);
     i = strlen(xbuf);

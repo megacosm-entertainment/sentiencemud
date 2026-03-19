@@ -119,17 +119,16 @@ static LOCALIZATION_DATA *localization_load_json(const char *filename)
         if (arr && json_is_array(arr)) {
             len = json_array_size(arr);
 
-            loc->translations = calloc(len + 1, sizeof(TRANSLATION));
-            index = 0;
             for(size_t i = 0; i < len && (val = json_array_get(arr, i)); i++) {
                 if (json_is_array(val)) {
                     json_t *ph = json_array_get(val, 0);
                     json_t *tr = json_array_get(val, 1);
 
                     if (json_is_string(ph) && json_is_string(tr)) {
-                        loc->translations[index].phrase = str_dup(json_string_value(ph));
-                        loc->translations[index].translation = str_dup(json_string_value(tr));
-                        index++;
+                        const char *_ph = json_string_value(ph);
+
+                        if (!IS_NULLSTR(_ph))
+                            strdict_set(loc->translations, _ph, json_string_value(tr));
                     }
                 }
             }
@@ -160,12 +159,7 @@ static void localization_copy_fields(LOCALIZATION_DATA *dst, LOCALIZATION_DATA *
 
     if (dst->translations)
     {
-        for(uint32_t i = 0;dst->translations[i].phrase;i++)
-        {
-            free_string(dst->translations[i].phrase);
-            free_string(dst->translations[i].translation);
-        }
-        free(dst->translations);
+        strdict_free(dst->translations);
     }
 
     dst->filename = src->filename;
@@ -276,6 +270,9 @@ bool load_localizations(void)
             loc->next = NULL;
 
             localizations_count++;
+#ifdef MUD_DEBUG
+            localization_dump_translations(loc);
+#endif
         }
     }
     closedir(dir);

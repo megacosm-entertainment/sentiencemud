@@ -3353,6 +3353,8 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     
     // Set playing state
     d->connected = CON_PLAYING;
+    if(!IS_NPC(ch))
+        d->lang = ch->pcdata->lang;
     
     // Notify player of reconnection
     send_to_char("\n\r{GReconnecting to game...{x\n\r", ch);
@@ -3992,7 +3994,7 @@ void show_string(struct descriptor_data *d, char *input)
  * @param min_pos    Minimum position to receive message
  * @param char_func  Filter function for TO_FUNC/TO_NOTFUNC (optional)
  */
-void act_new(char *format, CHAR_DATA *ch,
+void act_new(const char *format, CHAR_DATA *ch,
         CHAR_DATA *vch, CHAR_DATA *vch2,
         const char *ch_verb, const char *vch_verb, /* These are already const char* */
         OBJ_DATA *obj1, OBJ_DATA *obj2,

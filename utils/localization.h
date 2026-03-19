@@ -4,9 +4,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdarg.h>
 
 #include "array.h"
 #include "utf8.h"
+#include "strdict.h"
 
 typedef struct utf8_codepoint_range_type CODEPOINT_RANGE;
 typedef struct language_translation_type TRANSLATION;
@@ -44,7 +46,7 @@ struct language_localization_type {
     CODEPOINT_RANGE *codepoint_ranges;
     size_t codepoint_ranges_count;
     char **filter_words;                // NULL string terminated array
-    TRANSLATION *translations;          // NULL phrase terminated array
+    STRING_DICT *translations;          // Translation dictionary
 };
 
 LOCALIZATION_DATA *new_localization_data(void);
@@ -57,9 +59,28 @@ LOCALIZATION_ERROR localization_validate_string(const char *str, size_t *bad_pos
 LOCALIZATION_ERROR localization_extract_keywords(const char *str, char *output, size_t max_output, size_t *out_count, size_t *output_needed);
 LOCALIZATION_ERROR localization_short_to_keywords(const char *str, char **out_keywords, char **out_invalid);
 
-const char *localization_translate(LOCALIZATION_DATA *loc, const char *input);
 
 const char *localization_error_string(LOCALIZATION_ERROR err);
+
+const char *localization_translate(LOCALIZATION_DATA *loc, const char *input);
+const char *localization_translatef(LOCALIZATION_DATA *loc, const char *input, ...);
+
+// Macros to help with typing out the translations
+#define LT(d,i)         localization_translate((d)->lang, (i))
+#define LTF(d,i,...)    localization_translatef((d)->lang, (i), __VA_ARGS__)
+
+#define LTNL(d,i)       formatf("%s\n\r", localization_translate((d)->lang, (i)))
+#define LTFNL(d,i,...)  formatf("%s\n\r", localization_translatef((d)->lang, (i), __VA_ARGS__))
+
+#define LTD(i)          localization_translate(default_localization, (i))
+#define LTDF(i,...)     localization_translatef(default_localization, (i), __VA_ARGS__)
+
+#define LTDNL(i)        formatf("%s\n\r", localization_translate(default_localization, (i)))
+#define LTDFNL(i,...)   formatf("%s\n\r", localization_translatef(default_localization, (i), __VA_ARGS__))
+
+#ifdef MUD_DEBUG
+void localization_dump_translations(LOCALIZATION_DATA *loc);
+#endif
 
 extern LOCALIZATION_DATA *default_localization;
 

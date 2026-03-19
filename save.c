@@ -6075,6 +6075,7 @@ bool load_account(DESCRIPTOR_DATA *d, char *name)
     account->email_verification_code = str_dup("");
     account->email_verification_time = 0;
     account->email_verification_last_sent = 0;
+    account->lang = default_localization;
 
     found = false;
     if (fpReserve != NULL) {
