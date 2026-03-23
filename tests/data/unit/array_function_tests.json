@@ -1,0 +1,114 @@
+{
+  "type": "test_suite",
+  "test_suite": "array_function_tests",
+  "description": "Unit tests for dynamic array functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "dynarr_int_array_basic",
+      "description": "Basic int array operations - create, append, get, length",
+      "test_type": "dynarr_int_array_basic",
+      "input": {
+        "scenario": "int_array_basic",
+        "initial_length": 5,
+        "test_values": [1, 2, 3, 42, -5]
+      }
+    },
+    {
+      "name": "dynarr_string_array_basic",
+      "description": "Basic string array operations - create, append, verify content",
+      "test_type": "dynarr_string_array_basic",
+      "input": {
+        "scenario": "string_array_basic",
+        "initial_length": 3,
+        "test_strings": ["hello", "world", "test"]
+      }
+    },
+    {
+      "name": "dynarr_array_insert_remove",
+      "description": "Insert at various positions and remove, verify order preserved",
+      "test_type": "dynarr_array_insert_remove",
+      "input": {
+        "scenario": "insert_remove",
+        "initial_values": [1, 3, 5],
+        "insert_index": 1,
+        "insert_value": 2,
+        "remove_index": 2
+      }
+    },
+    {
+      "name": "dynarr_array_split_join",
+      "description": "Split string into array and join back - roundtrip test",
+      "test_type": "dynarr_array_split_join",
+      "input": {
+        "scenario": "split_join",
+        "test_string": "apple",
+        "expected_elements": 1
+      }
+    },
+    {
+      "name": "dynarr_int_split_join",
+      "description": "Split string into int array and join back",
+      "test_type": "dynarr_int_split_join",
+      "input": {
+        "scenario": "int_split_join",
+        "test_string": "1,42,-3",
+        "expected_values": [1, 42, -3]
+      }
+    },
+    {
+      "name": "dynarr_array_stack_ops",
+      "description": "Stack operations - push/pop/peek with int array, verify LIFO",
+      "test_type": "dynarr_array_stack_ops",
+      "input": {
+        "scenario": "stack_ops",
+        "push_values": [10, 20, 30],
+        "expected_pop_order": [30, 20, 10]
+      }
+    },
+    {
+      "name": "dynarr_array_queue_ops",
+      "description": "Queue operations - enqueue/dequeue/peek with int array, verify FIFO",
+      "test_type": "dynarr_array_queue_ops",
+      "input": {
+        "scenario": "queue_ops",
+        "enqueue_values": [10, 20, 30],
+        "expected_dequeue_order": [10, 20, 30]
+      }
+    },
+    {
+      "name": "dynarr_array_concat_slice",
+      "description": "Concatenate two arrays and slice a range, verify contents",
+      "test_type": "dynarr_array_concat_slice",
+      "input": {
+        "scenario": "concat_slice",
+        "array_a": [1, 2, 3],
+        "array_b": [4, 5, 6],
+        "slice_start": 1,
+        "slice_end": 4
+      }
+    },
+    {
+      "name": "dynarr_array_empty_edge",
+      "description": "Empty array operations, NULL handling, out-of-bounds access",
+      "test_type": "dynarr_array_empty_edge",
+      "input": {
+        "scenario": "empty_edge",
+        "test_index": 10
+      }
+    },
+    {
+      "name": "dynarr_array_copy",
+      "description": "Copy array, verify contents match, modify copy doesn't affect original",
+      "test_type": "dynarr_array_copy",
+      "input": {
+        "scenario": "array_copy",
+        "original_values": [100, 200, 300],
+        "modify_index": 1,
+        "modify_value": 999
+      }
+    }
+  ]
+}
