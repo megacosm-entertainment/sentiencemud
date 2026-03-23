@@ -7,6 +7,7 @@
 #include "../../log.h"
 #include "../../tables.h"
 #include "../../wilds.h"
+#include "../../requirements.h"
 
 bool string_argremove_index(char *src, int argindex, char *buf);
 bool string_argremove_phrase(char *src, char *phrase, char *buf);
@@ -3168,6 +3169,187 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
                 }
                 return TEST_FAILURE;
             }
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_is_hidden") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            bool expected = test_json_get_bool(test_case, "expected");
+            bool actual = requirements_is_hidden(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_is_hidden('%s') returned %s, expected %s",
+                             input ? input : "(null)",
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_is_hidden('%s') -> %s",
+                             input ? input : "(null)",
+                             actual ? "true" : "false");
+            }
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_get_player_string") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *actual = requirements_get_player_string(input);
+
+            if ((actual == NULL && expected != NULL) ||
+                (actual != NULL && expected == NULL) ||
+                (actual != NULL && expected != NULL && strcmp(actual, expected) != 0)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_get_player_string('%s') returned '%s', expected '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)",
+                             expected ? expected : "(null)");
+                if (actual) free(actual);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_get_player_string('%s') -> '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)");
+            }
+
+            if (actual) free(actual);
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_text_to_json") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *type = test_json_get_string(test_case, "type");
+            char err_buf[1024];
+            char *actual_json_str = requirements_text_to_json(input, err_buf, sizeof(err_buf));
+
+            // Handle null input case
+            if (input == NULL) {
+                if (actual_json_str != NULL) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "requirements_text_to_json(NULL) returned non-null result");
+                    free(actual_json_str);
+                    return TEST_FAILURE;
+                }
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                                 "✓ requirements_text_to_json(NULL) -> NULL");
+                }
+                continue;
+            }
+
+            // For empty string or invalid input, expect NULL
+            if (strlen(input) == 0) {
+                if (actual_json_str != NULL) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "requirements_text_to_json('') should return NULL but returned '%s'",
+                                 actual_json_str);
+                    free(actual_json_str);
+                    return TEST_FAILURE;
+                }
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                                 "✓ requirements_text_to_json('') -> NULL");
+                }
+                continue;
+            }
+
+            if (!actual_json_str) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_text_to_json('%s') failed: %s",
+                             input, err_buf);
+                return TEST_FAILURE;
+            }
+
+            // For json_conversion type, check that the result contains expected fields
+            if (type && strcmp(type, "json_conversion") == 0) {
+                json_t *expected_json = json_object_get(test_case, "expected_json_contains");
+                if (expected_json) {
+                    json_error_t jerr;
+                    json_t *actual_json = json_loads(actual_json_str, 0, &jerr);
+                    if (!actual_json) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                     "requirements_text_to_json('%s') produced invalid JSON: %s",
+                                     input, actual_json_str);
+                        free(actual_json_str);
+                        return TEST_FAILURE;
+                    }
+
+                    // Check that all expected fields are present with correct values
+                    const char *key;
+                    json_t *value;
+                    json_object_foreach(expected_json, key, value) {
+                        json_t *actual_value = json_object_get(actual_json, key);
+                        if (!actual_value || !json_equal(value, actual_value)) {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                         "requirements_text_to_json('%s'): expected field '%s' mismatch",
+                                         input, key);
+                            json_decref(actual_json);
+                            free(actual_json_str);
+                            return TEST_FAILURE;
+                        }
+                    }
+                    json_decref(actual_json);
+                }
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_text_to_json('%s') -> valid JSON",
+                             input);
+            }
+
+            free(actual_json_str);
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_json_to_text") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *actual = requirements_json_to_text(input);
+
+            if ((actual == NULL && expected != NULL) ||
+                (actual != NULL && expected == NULL) ||
+                (actual != NULL && expected != NULL && strcmp(actual, expected) != 0)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_json_to_text('%s') returned '%s', expected '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)",
+                             expected ? expected : "(null)");
+                if (actual) free(actual);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_json_to_text('%s') -> '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)");
+            }
+
+            if (actual) free(actual);
         }
         return TEST_SUCCESS;
     }
