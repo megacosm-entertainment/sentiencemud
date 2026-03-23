@@ -22,6 +22,7 @@ test_result_t run_wnum_test_case(test_case_t *test);
 test_result_t run_pure_function_test_case(test_case_t *test);
 test_result_t run_buffer_function_test_case(test_case_t *test);
 test_result_t run_memory_util_test_case(test_case_t *test);
+test_result_t run_utf8_test_case(test_case_t *test);
 test_result_t run_string_editor_test_case(test_case_t *test);
 
 test_result_t run_reset_test_case(test_case_t *test);
@@ -49,6 +50,8 @@ test_result_t run_reputation_system_test_case(test_case_t *test);
 test_result_t run_olc_framework_test_case(test_case_t *test);
 test_result_t run_wilderness_system_test_case(test_case_t *test);
 test_result_t run_update_cycle_test_case(test_case_t *test);
+test_result_t run_array_test_case(test_case_t *test);
+test_result_t run_strdict_test_case(test_case_t *test);
 
 #endif /* BUILD_TESTS */
 
