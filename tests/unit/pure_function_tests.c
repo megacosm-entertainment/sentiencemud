@@ -2818,6 +2818,204 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
         return TEST_SUCCESS;
     }
 
+    if (strcmp(func_name, "position_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "position_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = position_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "position_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ position_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "sex_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "sex_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = sex_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "sex_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ sex_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "size_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "size_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = size_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "size_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ size_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "item_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "item_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = item_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "item_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ item_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "toxin_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "toxin_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = toxin_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "toxin_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ toxin_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "damage_class_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "damage_class_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = damage_class_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "damage_class_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ damage_class_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
     log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Unsupported pure function: %s", func_name);
     return TEST_SKIP;
 }

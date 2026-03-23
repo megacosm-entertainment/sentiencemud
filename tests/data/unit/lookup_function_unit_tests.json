@@ -1,0 +1,464 @@
+{
+  "type": "test_suite",
+  "test_suite": "lookup_function_unit_tests",
+  "description": "Unit tests for static lookup functions in lookup.c",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "position_lookup",
+      "description": "Test position_lookup function with valid and invalid inputs",
+      "test_type": "pure_function_test", 
+      "input": {
+        "function": "position_lookup",
+        "test_cases": [
+          {
+            "input": "dead",
+            "expected": 0
+          },
+          {
+            "input": "mort", 
+            "expected": 1
+          },
+          {
+            "input": "incap",
+            "expected": 2
+          },
+          {
+            "input": "stun",
+            "expected": 3
+          },
+          {
+            "input": "sleep",
+            "expected": 4
+          },
+          {
+            "input": "rest",
+            "expected": 5
+          },
+          {
+            "input": "sit",
+            "expected": 6
+          },
+          {
+            "input": "fight",
+            "expected": 7
+          },
+          {
+            "input": "stand",
+            "expected": 8
+          },
+          {
+            "input": "sleeping",
+            "expected": 4
+          },
+          {
+            "input": "standing",
+            "expected": 8
+          },
+          {
+            "input": "de",
+            "expected": 0
+          },
+          {
+            "input": "invalid",
+            "expected": -1
+          },
+          {
+            "input": "",
+            "expected": -1
+          },
+          {
+            "input": "xyz",
+            "expected": -1
+          }
+        ]
+      },
+      "expected_output": {
+        "test_result": "success"
+      }
+    },
+    {
+      "name": "sex_lookup",
+      "description": "Test sex_lookup function with valid and invalid inputs",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "sex_lookup",
+        "test_cases": [
+          {
+            "input": "none",
+            "expected": 0
+          },
+          {
+            "input": "male",
+            "expected": 1
+          },
+          {
+            "input": "female",
+            "expected": 2
+          },
+          {
+            "input": "either",
+            "expected": 3
+          },
+          {
+            "input": "m",
+            "expected": 1
+          },
+          {
+            "input": "f",
+            "expected": 2
+          },
+          {
+            "input": "n",
+            "expected": 0
+          },
+          {
+            "input": "invalid",
+            "expected": -1
+          },
+          {
+            "input": "",
+            "expected": -1
+          },
+          {
+            "input": "xyz",
+            "expected": -1
+          }
+        ]
+      },
+      "expected_output": {
+        "test_result": "success"
+      }
+    },
+    {
+      "name": "size_lookup",
+      "description": "Test size_lookup function with valid and invalid inputs",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "size_lookup",
+        "test_cases": [
+          {
+            "input": "tiny",
+            "expected": 0
+          },
+          {
+            "input": "small",
+            "expected": 1
+          },
+          {
+            "input": "medium",
+            "expected": 2
+          },
+          {
+            "input": "large",
+            "expected": 3
+          },
+          {
+            "input": "huge",
+            "expected": 4
+          },
+          {
+            "input": "giant",
+            "expected": 5
+          },
+          {
+            "input": "t",
+            "expected": 0
+          },
+          {
+            "input": "med",
+            "expected": 2
+          },
+          {
+            "input": "g",
+            "expected": 5
+          },
+          {
+            "input": "invalid",
+            "expected": -1
+          },
+          {
+            "input": "",
+            "expected": -1
+          },
+          {
+            "input": "xyz",
+            "expected": -1
+          }
+        ]
+      },
+      "expected_output": {
+        "test_result": "success"
+      }
+    },
+    {
+      "name": "item_lookup",
+      "description": "Test item_lookup function with valid and invalid inputs",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "item_lookup",
+        "test_cases": [
+          {
+            "input": "light",
+            "expected": 1
+          },
+          {
+            "input": "scroll",
+            "expected": 2
+          },
+          {
+            "input": "wand",
+            "expected": 3
+          },
+          {
+            "input": "staff",
+            "expected": 4
+          },
+          {
+            "input": "weapon",
+            "expected": 5
+          },
+          {
+            "input": "treasure",
+            "expected": 8
+          },
+          {
+            "input": "armour",
+            "expected": 9
+          },
+          {
+            "input": "potion",
+            "expected": 10
+          },
+          {
+            "input": "clothing",
+            "expected": 11
+          },
+          {
+            "input": "furniture",
+            "expected": 12
+          },
+          {
+            "input": "trash",
+            "expected": 13
+          },
+          {
+            "input": "container",
+            "expected": 15
+          },
+          {
+            "input": "drink",
+            "expected": 17
+          },
+          {
+            "input": "key",
+            "expected": 18
+          },
+          {
+            "input": "food",
+            "expected": 19
+          },
+          {
+            "input": "money",
+            "expected": 20
+          },
+          {
+            "input": "boat",
+            "expected": 22
+          },
+          {
+            "input": "l",
+            "expected": 1
+          },
+          {
+            "input": "w",
+            "expected": 3
+          },
+          {
+            "input": "arm",
+            "expected": 9
+          },
+          {
+            "input": "invalid",
+            "expected": -1
+          },
+          {
+            "input": "",
+            "expected": -1
+          },
+          {
+            "input": "xyz",
+            "expected": -1
+          }
+        ]
+      },
+      "expected_output": {
+        "test_result": "success"
+      }
+    },
+    {
+      "name": "toxin_lookup",
+      "description": "Test toxin_lookup function with valid and invalid inputs",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "toxin_lookup",
+        "test_cases": [
+          {
+            "input": "paralysis",
+            "expected": 0
+          },
+          {
+            "input": "weakness",
+            "expected": 1
+          },
+          {
+            "input": "neurotoxin",
+            "expected": 2
+          },
+          {
+            "input": "venom",
+            "expected": 3
+          },
+          {
+            "input": "par",
+            "expected": 0
+          },
+          {
+            "input": "w",
+            "expected": 1
+          },
+          {
+            "input": "n",
+            "expected": 2
+          },
+          {
+            "input": "v",
+            "expected": 3
+          },
+          {
+            "input": "invalid",
+            "expected": -1
+          },
+          {
+            "input": "",
+            "expected": 0
+          },
+          {
+            "input": "xyz",
+            "expected": -1
+          }
+        ]
+      },
+      "expected_output": {
+        "test_result": "success"
+      }
+    },
+    {
+      "name": "damage_class_lookup",
+      "description": "Test damage_class_lookup function with valid and invalid inputs",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "damage_class_lookup",
+        "test_cases": [
+          {
+            "input": "",
+            "expected": 0
+          },
+          {
+            "input": "bash",
+            "expected": 1
+          },
+          {
+            "input": "pierce",
+            "expected": 2
+          },
+          {
+            "input": "slash",
+            "expected": 3
+          },
+          {
+            "input": "fire",
+            "expected": 4
+          },
+          {
+            "input": "cold",
+            "expected": 5
+          },
+          {
+            "input": "lightning",
+            "expected": 6
+          },
+          {
+            "input": "acid",
+            "expected": 7
+          },
+          {
+            "input": "poison",
+            "expected": 8
+          },
+          {
+            "input": "negative",
+            "expected": 9
+          },
+          {
+            "input": "holy",
+            "expected": 10
+          },
+          {
+            "input": "energy",
+            "expected": 11
+          },
+          {
+            "input": "mental",
+            "expected": 12
+          },
+          {
+            "input": "disease",
+            "expected": 13
+          },
+          {
+            "input": "drowning",
+            "expected": 14
+          },
+          {
+            "input": "light",
+            "expected": 15
+          },
+          {
+            "input": "other",
+            "expected": 1
+          },
+          {
+            "input": "harm",
+            "expected": 1
+          },
+          {
+            "input": "charm",
+            "expected": 18
+          },
+          {
+            "input": "sound",
+            "expected": 19
+          },
+          {
+            "input": "b",
+            "expected": 1
+          },
+          {
+            "input": "invalid",
+            "expected": 1
+          },
+          {
+            "input": "xyz",
+            "expected": 1
+          }
+        ]
+      },
+      "expected_output": {
+        "test_result": "success"
+      }
+    }
+  ]
+}
