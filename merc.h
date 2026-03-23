@@ -11387,7 +11387,6 @@ IMMORTAL_DATA *find_immortal(char *argument);
 void do_staffdelete(CHAR_DATA *ch, char *argument);
 void do_staffsupervisor(CHAR_DATA *ch, char *argument);
 void do_pwmigrate(CHAR_DATA *ch, char *argument);
-void do_migrate(CHAR_DATA *ch, char *argument);
 void do_cryptorotate(CHAR_DATA *ch, char *argument);
 bool derive_key_from_passphrase(const char *passphrase, int version, const char *salt_base, unsigned char *key_out);
 void remove_immortal(IMMORTAL_DATA *immortal);

@@ -590,7 +590,7 @@ DECLARE_DO_FUN(	do_wimpy	);
 DECLARE_DO_FUN(	do_wizhelp	);
 DECLARE_DO_FUN( do_wizlist	);
 DECLARE_DO_FUN(	do_wizlock	);
-DECLARE_DO_FUN(	do_migratefiles	);
+
 DECLARE_DO_FUN( do_wiznet	);
 DECLARE_DO_FUN( do_wlist	);		// Wilderness List
 DECLARE_DO_FUN( do_worth	);

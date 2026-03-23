@@ -3497,7 +3497,6 @@ const struct do_func_type do_func_table[] =
         { "do_wizhelp",                 do_wizhelp },
         { "do_invis",                   do_invis },
         { "do_wizlock",                 do_wizlock },
-{ "do_migratefiles",            do_migratefiles },
         { "do_wiznet",                  do_wiznet },
         { "do_zecho",                   do_zecho },
         { "do_zot",                     do_zot },
@@ -3602,7 +3601,7 @@ const struct do_func_type do_func_table[] =
         { "do_testemail",                do_testemail },
         { "do_pwreset",                 do_pwreset  },
         { "do_pwmigrate",               do_pwmigrate },
-        { "do_migrate",                 do_migrate },
+
         { "do_lvlaudit",                do_lvlaudit },
         { "do_mfareset",                do_mfareset },
         { "do_logout",                do_logout },
