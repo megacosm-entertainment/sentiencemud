@@ -1,0 +1,31 @@
+{
+  "type": "test_suite",
+  "test_suite": "combat_math_tests",
+  "description": "Tests for combat mathematical functions",
+  "version": "1.0", 
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "cmbtmath_damage_verb_simple",
+      "description": "Simple damage verb test",
+      "dependencies": [],
+      "test_type": "cmbtmath_damage_verb_simple",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "cmbtmath_catalyst_simple", 
+      "description": "Simple catalyst mapping test",
+      "dependencies": [],
+      "test_type": "cmbtmath_catalyst_simple",
+      "input": {},
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

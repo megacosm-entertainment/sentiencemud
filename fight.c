@@ -53,6 +53,12 @@
 #define MAX_BACKSTAB_DAMAGE 15000
 #define MAX_FLEE_ATTEMPTS 10
 
+#ifdef BUILD_TESTS
+// Export static functions for testing
+void pick_dam_verb_test(int dam, int victim_hp, const char **out_vs, const char **out_vp, char *out_punct);
+int catalyst_from_damage_type_test(int dam_type);
+#endif
+
 /**
  * pick_dam_verb - Select damage verb strings and punctuation from a damage amount.
  *
@@ -8630,3 +8636,16 @@ CHAR_DATA* create_player_hunter(long vnum, CHAR_DATA *target)
 
         return challenger;
 }
+
+#ifdef BUILD_TESTS
+// Test wrapper functions to expose static functions
+void pick_dam_verb_test(int dam, int victim_hp, const char **out_vs, const char **out_vp, char *out_punct)
+{
+    pick_dam_verb(dam, victim_hp, out_vs, out_vp, out_punct);
+}
+
+int catalyst_from_damage_type_test(int dam_type)
+{
+    return catalyst_from_damage_type(dam_type);
+}
+#endif

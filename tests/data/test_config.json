@@ -18,7 +18,8 @@
       "system_area",
       "command_table_tests",
       "constants_tables",
-      "handler_function_tests"
+      "handler_function_tests",
+      "combat_math_tests"
     ],
     "quick_test_suites": [
       "area_loading",
@@ -255,7 +256,7 @@
       },
       "combat_bench": {
         "description": "Synthetic combat telemetry baseline benchmarks",
-        "suites": ["combat_telemetry"],
+        "suites": ["combat_telemetry", "combat_math_tests"],
         "stop_on_first_failure": true,
         "require_coverage": false
       }

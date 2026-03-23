@@ -333,6 +333,7 @@ if(BUILD_TESTS)
         tests/integration/script_engine_tests.c
         tests/integration/channel_pubsub_tests.c
         tests/integration/combat_telemetry_tests.c
+        tests/integration/combat_math_tests.c
         tests/integration/song_data_tests.c
         tests/integration/skill_group_tests.c
         tests/integration/trait_system_tests.c
