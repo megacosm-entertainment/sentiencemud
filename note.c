@@ -724,144 +724,16 @@ void save_notes(int type)
 
 void load_notes(void)
 {
-    if (!json_load_notes(NOTE_NOTE)) {
-        load_thread(NOTE_FILE, &note_list, NOTE_NOTE, 14*24*60*60);
-        json_save_notes(NOTE_NOTE);
-    }
+    if (!json_load_notes(NOTE_NOTE))
+        pbugf(LOG_ERROR, "load_notes: failed to load notes from JSON");
 
-    if (!json_load_notes(NOTE_NEWS)) {
-        load_thread(NEWS_FILE, &news_list, NOTE_NEWS, 0);
-        json_save_notes(NOTE_NEWS);
-    }
+    if (!json_load_notes(NOTE_NEWS))
+        pbugf(LOG_ERROR, "load_notes: failed to load news from JSON");
 
-    if (!json_load_notes(NOTE_CHANGES)) {
-        load_thread(CHANGES_FILE, &changes_list, NOTE_CHANGES, 0);
-        json_save_notes(NOTE_CHANGES);
-    }
+    if (!json_load_notes(NOTE_CHANGES))
+        pbugf(LOG_ERROR, "load_notes: failed to load changes from JSON");
 }
 
-
-void load_thread(char *name, NOTE_DATA **list, int type, time_t free_time)
-{
-    FILE *fp;
-    NOTE_DATA *pnotelast;
-
-    if ((fp = fopen(name, "r")) == NULL)
-    return;
-
-    pnotelast = NULL;
-    for (; ;)
-    {
-    NOTE_DATA *pnote;
-    char letter;
-
-    do
-    {
-        letter = getc(fp);
-            if (feof(fp))
-            {
-                fclose(fp);
-                return;
-            }
-        }
-        while (ISSPACE(letter));
-        ungetc(letter, fp);
-
-        pnote           = alloc_perm(sizeof(*pnote));
-        memset(pnote, 0, sizeof(*pnote)); // Ensure all fields are zeroed
-
-
-        if (str_cmp(fread_word(fp), "sender"))
-            break;
-        pnote->sender   = fread_string(fp);
-
-        if (str_cmp(fread_word(fp), "date"))
-            break;
-        pnote->date     = fread_string(fp);
-
-        if (str_cmp(fread_word(fp), "stamp"))
-            break;
-        pnote->date_stamp = fread_number(fp);
-
-        if (str_cmp(fread_word(fp), "to"))
-            break;
-        pnote->to_list  = fread_string(fp);
-
-        if (str_cmp(fread_word(fp), "subject"))
-            break;
-        pnote->subject  = fread_string(fp);
-
-        // New fields (optional for backward compatibility)
-        // Each field only reads the next word if the current one matched,
-        // so unrecognized words cascade forward to the next check.
-        char *word = fread_word(fp);
-
-        if (!str_cmp(word, "RecipientType")) {
-            pnote->recipient_type = fread_number(fp);
-            word = fread_word(fp);
-        } else {
-            pnote->recipient_type = NOTE_RECIPIENT_CHARACTER;
-        }
-
-        if (!str_cmp(word, "ToCharacters")) {
-            pnote->to_characters = fread_string(fp);
-            word = fread_word(fp);
-        } else {
-            pnote->to_characters = str_dup("");
-        }
-
-        if (!str_cmp(word, "ToAccounts")) {
-            pnote->to_accounts = fread_string(fp);
-            word = fread_word(fp);
-        } else {
-            pnote->to_accounts = str_dup("");
-        }
-
-        if (!str_cmp(word, "ToChurches")) {
-            pnote->to_churches = fread_string(fp);
-            word = fread_word(fp);
-        } else {
-            pnote->to_churches = str_dup("");
-        }
-
-        if (!str_cmp(word, "ToStaffRanks")) {
-            pnote->to_staff_ranks = fread_string(fp);
-            word = fread_word(fp);
-        } else {
-            pnote->to_staff_ranks = str_dup("");
-        }
-
-        if (!str_cmp(word, "ToStaffDuties")) {
-            pnote->to_staff_duties = fread_string(fp);
-            word = fread_word(fp);
-        } else {
-            pnote->to_staff_duties = str_dup("");
-        }
-
-        // word should now be "text"
-        if (str_cmp(word, "text"))
-            break;
-        pnote->text     = fread_string(fp);
-
-        if (free_time && pnote->date_stamp < current_time - free_time)
-        {
-        free_note(pnote);
-            continue;
-        }
-
-    pnote->type = type;
-
-        if (*list == NULL)
-            *list = pnote;
-        else
-            pnotelast->next = pnote;
-
-        pnotelast = pnote;
-    }
-
-fclose(fp);
-return;
-}
 
 
 void append_note(NOTE_DATA *pnote)

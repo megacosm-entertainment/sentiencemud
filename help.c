@@ -830,63 +830,27 @@ void save_helpfiles_new()
 // Read the helpfiles
 void read_helpfiles_new()
 {
-    FILE *fp;
-    char *word;
-    char help_file_buf[MAX_INPUT_LENGTH];
-    const char *help_file = resolve_game_path(HELP_FILE, help_file_buf, sizeof(help_file_buf));
-
     if (read_helpfiles_json())
         return;
 
-    if ((fp = fopen(help_file, "r")) == NULL) {
-        pbugf(LOG_ERROR, "read_helpfiles_new: couldn't open file for reading");
-        fp = fopen(help_file, "w");
-        if (fp != NULL) {
-            fprintf(fp, "#HELPCATEGORY ~\n");
-            fprintf(fp, "Description This is the category which holds all of the other categories.\n~");
-            fprintf(fp, "MinLevel 0\n");
-            fprintf(fp, "Creator System~\n");
-        fprintf(fp, "Created %ld\n", (long int)current_time);
-            fprintf(fp, "ModifiedBy Nobody~\n");
-            fprintf(fp, "Modified 0\n");
-            fprintf(fp, "Security 9\n");
-            fprintf(fp, "#-HELPCATEGORY\n");
-            fclose(fp);
-        }
-    }
-
-    fp = fopen(help_file, "r");
-    if (fp == NULL) {
-        topHelpCat = new_help_category();
-        free_string(topHelpCat->name);
-        topHelpCat->name = str_dup("");
-        free_string(topHelpCat->description);
-        topHelpCat->description = str_dup("This is the category which holds all of the other categories.\n\r");
-        free_string(topHelpCat->builders);
-        topHelpCat->builders = str_dup("None");
-        free_string(topHelpCat->creator);
-        topHelpCat->creator = str_dup("System");
-        free_string(topHelpCat->modified_by);
-        topHelpCat->modified_by = str_dup("Nobody");
-        topHelpCat->created = current_time;
-        topHelpCat->modified = 0;
-        topHelpCat->security = 9;
-        topHelpCat->min_rank = 0;
-        save_helpfiles_json();
-        return;
-    }
-
-    word = fread_word(fp);
-
-    if (!str_cmp(word, "#HELPCATEGORY"))  {
-        topHelpCat = read_help_category_new(fp);
-        fclose(fp);
-        save_helpfiles_json();
-    } else {
-        fclose(fp);
-        pbugf(LOG_ERROR, "read_helpfiles_new: bad format");
-        exit(1);
-    }
+    // JSON load failed — create a default top-level category
+    topHelpCat = new_help_category();
+    free_string(topHelpCat->name);
+    topHelpCat->name = str_dup("");
+    free_string(topHelpCat->description);
+    topHelpCat->description = str_dup("This is the category which holds all of the other categories.\n\r");
+    free_string(topHelpCat->builders);
+    topHelpCat->builders = str_dup("None");
+    free_string(topHelpCat->creator);
+    topHelpCat->creator = str_dup("System");
+    free_string(topHelpCat->modified_by);
+    topHelpCat->modified_by = str_dup("Nobody");
+    topHelpCat->created = current_time;
+    topHelpCat->modified = 0;
+    topHelpCat->security = 9;
+    topHelpCat->min_rank = 0;
+    pbugf(LOG_ERROR, "read_helpfiles_new: failed to load helpfiles from JSON, created defaults");
+    save_helpfiles_json();
 }
 
 
@@ -941,181 +905,7 @@ void save_help_new(FILE *fp, HELP_DATA *help)
 }
 
 
-// Read a help category and its contents
-HELP_CATEGORY *read_help_category_new(FILE *fp)
-{
-    HELP_CATEGORY *hcat;
-    HELP_CATEGORY *hcatNest;
-    HELP_CATEGORY *hcatTmp;
-    HELP_DATA *help;
-    char *word;
-
-    hcat = new_help_category();
-    hcat->name = fread_string(fp);
-
-    while (str_cmp((word = fread_word(fp)), "#-HELPCATEGORY"))
-    {
-    fMatch = false;
-
-    switch (word[0])
-    {
-        case '#':
-            if (!str_cmp(word, "#HELPCATEGORY"))
-        {
-            hcatNest = read_help_category_new(fp);
-
-            hcatNest->next = NULL;
-
-            if (hcat->inside_cats == NULL)
-            hcat->inside_cats = hcatNest;
-            else {
-            for (hcatTmp = hcat->inside_cats; hcatTmp->next != NULL; hcatTmp = hcatTmp->next)
-                ;
-
-            hcatTmp->next = hcatNest;
-            }
-
-            hcatNest->up = hcat;
-
-            fMatch = true;
-        }
-
-        if (!str_cmp(word, "#HELP")) {
-            help = read_help_new(fp);
-
-            help->next = NULL;
-            if (hcat->inside_helps == NULL)
-            hcat->inside_helps = help;
-            else
-            insert_help(help, &hcat->inside_helps);
-
-            help->hCat = hcat;
-
-            if (!str_cmp(help->keyword, "greeting"))
-            help_greeting = help->text;
-
-            fMatch = true;
-        }
-
-        break;
-
-        case 'B':
-            KEYS("Builders",	hcat->builders,		fread_string(fp));
-        break;
-
-        case 'C':
-            KEYS("Creator",	hcat->creator,		fread_string(fp));
-        KEY("Created",		hcat->created,		fread_number(fp));
-        break;
-
-        case 'D':
-            KEYS("Description",	hcat->description,	fread_string(fp));
-        break;
-
-        case 'M':
-        KEY("MinLevel",	hcat->min_level,	fread_number(fp));
-        KEY("Modified",	hcat->modified,		fread_number(fp));
-        KEYS("ModifiedBy",	hcat->modified_by,	fread_string(fp));
-        break;
-
-        case 'R':
-        KEY("Rank",		hcat->min_rank,		fread_number(fp));
-        break;
-
-        case 'S':
-        KEY("Security",	hcat->security,		fread_number(fp));
-        break;
-    }
-
-    if (!fMatch) {
-        pbugf(LOG_ERROR, "read_help_category_new: no match for word %s", word);
-    }
-    }
-
-
-    normalize_help_category(hcat);
-
-    return hcat;
-}
-
-
-// Read a helpfile
-HELP_DATA *read_help_new(FILE *fp)
-{
-    HELP_DATA *help;
-    char *word;
-
-    help = new_help();
-    help->keyword = fread_string(fp);
-
-    while (str_cmp((word = fread_word(fp)), "#-HELP"))
-    {
-    fMatch = false;
-
-    switch (word[0])
-    {
-        case 'B':
-            KEYS("Builders",	help->builders,		fread_string(fp));
-        break;
-
-        case 'C':
-            KEYS("Creator",	help->creator,		fread_string(fp));
-        KEY("Created",		help->created,		fread_number(fp));
-        break;
-
-        case 'M':
-            KEY("MinLevel",	help->min_level,	fread_number(fp));
-        KEY("Modified",	help->modified,		fread_number(fp));
-        KEYS("ModifiedBy",	help->modified_by,	fread_string(fp));
-        break;
-
-            case 'R':
-            KEY("Rank",		help->min_rank,		fread_number(fp));
-        if (!str_cmp(word, "RelatedTopic")) {
-            STRING_DATA *topic, *topic_tmp;
-
-                    topic = new_string_data();
-
-            fMatch = true;
-
-            topic->string = fread_string(fp);
-
-            if (help->related_topics == NULL) {
-            topic->next = help->related_topics;
-            help->related_topics = topic;
-            } else {
-            for (topic_tmp = help->related_topics; topic_tmp->next != NULL; topic_tmp = topic_tmp->next)
-                ;
-
-            topic_tmp->next = topic;
-            topic->next = NULL;
-            }
-        }
-
-        case 'S':
-        KEY("Security",	help->security,		fread_number(fp));
-        break;
-
-        case 'T':
-        if (!str_cmp(word, "Text")) {
-            fMatch = true;
-
-            help->text = fread_string(fp);
-        }
-
-        break;
-    }
-
-    if (!fMatch) {
-        pbugf(LOG_ERROR, "read_help_new: no match for word %s", word);
-    
-    }
-    }
-
-    // Fix up problems here. Mostly from old helpfiles being converted.
-    normalize_help(help);
-
-    return help;
-}
+/* Legacy readers read_help_category_new() and read_help_new() removed —
+   JSON is now the sole help file format. */
 
 

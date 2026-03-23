@@ -47,8 +47,6 @@ void save_helpfiles_new();
 void read_helpfiles_new();
 void save_help_category_new( FILE *fp, HELP_CATEGORY *hCat );
 void save_help_new( FILE *fp, HELP_DATA *help );
-HELP_CATEGORY *read_help_category_new( FILE *fp );
-HELP_DATA *read_help_new( FILE *fp );
 
 /* wilderness */
 void read_virtual_rooms( FILE *fp, AREA_DATA *area );

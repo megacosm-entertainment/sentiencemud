@@ -10792,8 +10792,6 @@ void save_helpfiles_new();
 void read_helpfiles_new();
 void save_help_category_new( FILE *fp, HELP_CATEGORY *hCat );
 void save_help_new( FILE *fp, HELP_DATA *help );
-HELP_CATEGORY *read_help_category_new( FILE *fp );
-HELP_DATA *read_help_new( FILE *fp );
 
 /* interp.c */
 bool check_social( CHAR_DATA *ch, char *command, char *argument );
@@ -11224,7 +11222,7 @@ int count_spool(CHAR_DATA *ch, NOTE_DATA *spool);
 void save_notes(int type);
 void load_notes(void);
 void parse_note(CHAR_DATA *ch, char *argument, int type);
-void load_thread(char *name, NOTE_DATA **list, int type, time_t free_time);
+
 void append_note(NOTE_DATA *pnote);
 bool is_note_to( CHAR_DATA *ch, NOTE_DATA *pnote );
 void note_attach( CHAR_DATA *ch, int type );

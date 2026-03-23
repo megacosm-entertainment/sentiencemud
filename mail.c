@@ -698,102 +698,11 @@ void write_mail(void)
 }
 
 
-/* load mail.dat into memory - now tries JSON first */
+/* load mail into memory from JSON */
 void read_mail(void)
 {
-    /* Try JSON first */
-    if (load_mail_json()) {
-        return;
-    }
-    
-    /* Fallback to legacy .dat format */
-    FILE *fp;
-    MAIL_DATA *mail;
-    MAIL_DATA *mail_tmp;
-    OBJ_DATA *obj;
-    char *word;
-    OBJ_DATA *listObjNest[MAX_NEST];
-    char mail_path_buf[MAX_INPUT_LENGTH];
-    const char *mail_path = resolve_game_path(MAIL_FILE, mail_path_buf, sizeof(mail_path_buf));
-
-    fp = fopen(mail_path, "r");
-    if (fp == NULL)
-    {
-    pbugf(LOG_ERROR, "Couldn't read mail.dat (%s)", mail_path);
-    exit(1);
-    }
-
-    for (; ;)
-    {
-    word = fread_word(fp);
-    if (!str_cmp(word, "#MAIL"))
-    {
-        mail = new_mail();
-
-        // read in objects
-        for (; ;)
-        {
-        word = fread_word(fp);
-        if (!str_cmp(word, "#O"  ))
-        {
-            obj = fread_obj_new(fp);
-            listObjNest[obj->nest] = obj;
-            if (obj->nest == 0)
-            obj_to_mail(obj, mail);
-            else
-                obj_to_obj(obj, listObjNest[obj->nest - 1]);
-            continue;
-        }
-        else
-        if (!str_cmp(word, "Sender"))
-            mail->sender = fread_string(fp);
-        else
-        if (!str_cmp(word, "Recipient"))
-            mail->recipient = fread_string(fp);
-        else
-        if (!str_cmp(word, "Sent"))
-            mail->sent_date = fread_number(fp);
-        else
-            if (!str_cmp(word, "Message"))
-            mail->message = fread_string(fp);
-        else
-        if (!str_cmp(word, "Status"))
-            mail->status = fread_number(fp);
-        else
-        if (!str_cmp(word, "PickedUp"))
-            mail->picked_up = fread_number(fp) ? true : false;
-        else
-        if (!str_cmp(word, "Scripted"))
-            mail->scripted = fread_number(fp) ? true : false;
-        else
-        if (!str_cmp(word, "OriginatingScript"))
-            mail->originating_script = fread_number(fp);
-        else
-        if (!str_cmp(word, "OrigScriptType"))
-            mail->orig_script_type = fread_number(fp);
-        else
-        if (!str_cmp(word, "#END"))
-            break;
-        }
-
-        for (mail_tmp = mail_list; mail_tmp != NULL; mail_tmp = mail_tmp->next)
-        {
-            if (mail_tmp->next == NULL)
-            break;
-        }
-
-        mail->next = NULL;
-        if (mail_list == NULL)
-            mail_list = mail;
-        else
-            mail_tmp->next = mail;
-    }
-    else
-    if (!str_cmp(word, "#ENDMAIL"))
-        break;
-    }
-
-    fclose(fp);
+    if (!load_mail_json())
+        pbugf(LOG_ERROR, "read_mail: failed to load mail from JSON");
 }
 
 
