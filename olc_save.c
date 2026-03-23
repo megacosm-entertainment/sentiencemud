@@ -381,19 +381,7 @@ void save_area_list()
 void save_area_new(AREA_DATA *area)
 {
     char buf[2*MAX_STRING_LENGTH];
-    FILE *fp;
     char filename[MSL];
-    OLC_POINT_BOOST *boost;
-    bool use_json = true;  // Old-format writes are disabled; keep only for legacy read support.
-
-/*
-    // 20140521 NIB - allowing these to be saved
-    if (!str_cmp(area->name, "Netherworld")
-    || !str_cmp(area->name, "Eden")) {
-    log_string("save_area_new: not saving wilderness file");
-    return;
-    }
-    */
 
     if (IS_SET(area->area_flags, AREA_TESTPORT) && is_test_port)
     {
@@ -408,8 +396,6 @@ void save_area_new(AREA_DATA *area)
     char *basename = area->file_name;
     char *dot = strrchr(basename, '.');
     if (dot) {
-        // filename buffer is MSL (4096), need room for "area/" (5) + ".json" (5) = 10 bytes
-        // So base can be at most MSL - 10 - 1 (null terminator) = 4085 bytes
         char base[MSL - 10];
         size_t name_len = (dot - basename < sizeof(base)-1) ? (dot - basename) : (sizeof(base)-1);
         strncpy(base, basename, name_len);
@@ -420,13 +406,9 @@ void save_area_new(AREA_DATA *area)
     }
     }
 
-    // Use JSON format for modern areas
-    if (use_json) {
     sprintf(buf, "save_area_new: saving area %s to JSON file %s", area->name, filename);
     log_string(buf);
     
-    // For JSON, need to strip the .json extension and use area name
-    // json_area_save() will add JSON_AREA_DIR and handle extension
     char area_file[MSL];
     char *basename = area->file_name;
     char *dot = strrchr(basename, '.');
@@ -449,133 +431,6 @@ void save_area_new(AREA_DATA *area)
     // Restore original filename
     free_string(area->file_name);
     area->file_name = old_filename;
-    return;
-    }
-
-    // Old .are format writer retained only for migration/read compatibility.
-    // Runtime saves no longer use this path.
-    if ((fp = fopen(filename, "w")) == NULL) {
-        pbugf(LOG_ERROR, "save_area_new: couldn't open file %s", filename);
-        return;
-    }
-
-    sprintf(buf, "save_area_new: saving area %s to file %s", area->name, area->file_name);
-    log_string(buf);
-
-    fprintf(fp, "#AREA %s~\n", 		area->name);
-        if (!IS_NULLSTR(area->tags))
-            fprintf(fp, "Tags %s~\n", fix_string(area->tags));
-        if (!IS_NULLSTR(area->auto_tags))
-            fprintf(fp, "AutoTags %s~\n", fix_string(area->auto_tags));
-    fprintf(fp, "FileName %s~\n",	area->file_name);
-    fprintf(fp, "Uid %ld\n",		area->uid);
-    fprintf(fp, "AreaWho %d\n", 	area->area_who);
-    fprintf(fp, "PlaceType %ld\n", 	area->place_flags);
-    fprintf(fp, "AreaFlags %ld\n", 	area->area_flags);
-    fprintf(fp, "Builders %s~\n",      	fix_string(area->builders));
-    fprintf(fp, "VNUMs %ld %ld\n",     	area->min_vnum, area->max_vnum);
-    fprintf(fp, "Levels %d %d\n", area->min_level, area->max_level);
-    fprintf(fp, "WildsVnum %ld\n",	area->wilds_uid);
-    fprintf(fp, "XCoord %d\n", 		area->x);
-    fprintf(fp, "YCoord %d\n", 		area->y);
-    fprintf(fp, "XLand %d\n",	 	area->land_x);
-    fprintf(fp, "YLand %d\n", 		area->land_y);
-    fprintf(fp, "Credits %s~\n",	area->credits);
-    fprintf(fp, "Security %d\n",       	area->security);
-    if(area->recall.wuid)
-    fprintf(fp, "RecallW %lu %lu %lu %lu\n", 	area->recall.wuid, area->recall.id[0], area->recall.id[1], area->recall.id[2]);
-    else
-    fprintf(fp, "Recall %ld\n", 	area->recall.id[0]);
-    fprintf(fp, "Open %d\n", 	  	area->open);
-    fprintf(fp, "Repop %d\n",		area->repop);
-    if (area->post_office_load.vnum > 0) {
-        long post_auid = area->post_office_load.auid > 0
-            ? area->post_office_load.auid
-            : (area->uid > 0 ? area->uid : 0);
-
-        if (post_auid > 0)
-            fprintf(fp, "PostOfficeW %ld %ld\n", post_auid, area->post_office_load.vnum);
-        else
-            fprintf(fp, "PostOffice %ld\n", area->post_office_load.vnum);
-    } else {
-        fprintf(fp, "PostOffice %ld\n", area->post_office_load.vnum);
-    }
-
-    if (area->airship_land_load.vnum > 0) {
-        long airship_auid = area->airship_land_load.auid;
-        if (airship_auid <= 0) {
-            AREA_DATA *airship_area = find_area_by_vnum(area->airship_land_load.vnum, NULL);
-            airship_auid = airship_area ? airship_area->uid : 0;
-        }
-
-        if (airship_auid > 0)
-            fprintf(fp, "AirshipLandW %ld %ld\n", airship_auid, area->airship_land_load.vnum);
-        else
-            fprintf(fp, "AirshipLand %ld\n", area->airship_land_load.vnum);
-    } else {
-        fprintf(fp, "AirshipLand %ld\n", area->airship_land_load.vnum);
-    }
-    fprintf(fp, "Description %s~\n", fix_string(area->description));
-    if(area->comments)
-        fprintf(fp, "Comments %s~\n", fix_string(area->comments));
-    if(area->notes)
-        fprintf(fp, "Notes %s~\n", fix_string(area->notes));
-    // Save the current versions of everything
-    fprintf(fp, "VersArea %d\n",	VERSION_AREA);
-    fprintf(fp, "VersMobile %d\n",	VERSION_MOBILE);
-    fprintf(fp, "VersObject %d\n",	VERSION_OBJECT);
-    fprintf(fp, "VersRoom %d\n",	VERSION_ROOM);
-    fprintf(fp, "VersToken %d\n",	VERSION_TOKEN);
-    fprintf(fp, "VersScript %d\n",	VERSION_SCRIPT);
-    fprintf(fp, "VersWilds %d\n",	VERSION_WILDS);
-
-    for(boost = area->points; boost; boost = boost->next)
-        fprintf(fp, "OlcPointBoost %d %d %d %d\n",
-            boost->category,
-            boost->usage,
-            boost->imp,
-            boost->area);
-
-    if(area->progs->progs) {
-        ITERATOR it;
-        PROG_LIST *trigger;
-        for(int i = 0; i < TRIGSLOT_MAX; i++) if(list_size(area->progs->progs[i]) > 0) {
-            iterator_start(&it, area->progs->progs[i]);
-            while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
-                fprintf(fp, "AreaProg %ld %s~ %s~\n", trigger->vnum, trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));
-            iterator_stop(&it);
-        }
-    }
-
-    olc_save_index_vars(fp, area->index_vars, area);
-
-    /* Whisp - write this function */
-    save_area_trade(fp, area);
-
-    if (!IS_SET(area->area_flags, AREA_NO_ROOMS)/*str_prefix("Maze-Level", area->name) && str_cmp("Geldoff's Maze", area->name)*/)
-    save_rooms_new(fp, area);
-
-// VIZZWILDS
-    if (area->wilds)
-    {
-        save_wilds(fp, area);
-    }
-
-    save_mobiles_new(fp, area);
-    save_objects_new(fp, area);
-    save_scripts_new(fp, area);
-    save_tokens(fp, area);
-    save_reputation_indexes(fp, area);
-
-
-
-/*    if (str_prefix("Maze-Level", area->name) && str_cmp("Geldoff's Maze", area->name)
-    && str_cmp("Netherworld", area->name)
-    &&  str_cmp("Eden", area->name))*/
-    fprintf(fp, "#-AREA\n\n");
-
-    fclose(fp);
-    log_string("save_area_new: finished");
 }
 
 

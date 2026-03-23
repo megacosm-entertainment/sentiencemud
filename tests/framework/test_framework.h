@@ -189,7 +189,7 @@ json_t *load_json_file(const char *filepath);
 #define TEST_ASSERT_TRUE(expr) do { \
     if (!(expr)) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_TRUE failed: (%s) at %s:%d", #expr, __FILE__, __LINE__); \
+            "ASSERT_TRUE failed: (%s)", #expr); \
         return TEST_FAILURE; \
     } \
 } while (0)
@@ -197,75 +197,75 @@ json_t *load_json_file(const char *filepath);
 #define TEST_ASSERT_FALSE(expr) do { \
     if ((expr)) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_FALSE failed: (%s) was true at %s:%d", #expr, __FILE__, __LINE__); \
+            "ASSERT_FALSE failed: (%s) was true", #expr); \
         return TEST_FAILURE; \
     } \
 } while (0)
 
 #define TEST_ASSERT_INT_EQ(expected, actual) do { \
-    long _exp = (long)(expected); \
-    long _act = (long)(actual); \
-    if (_exp != _act) { \
+    long _ta_exp = (long)(expected); \
+    long _ta_act = (long)(actual); \
+    if (_ta_exp != _ta_act) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_INT_EQ failed: expected %ld, got %ld at %s:%d", \
-            _exp, _act, __FILE__, __LINE__); \
+            "ASSERT_INT_EQ failed: expected %ld, got %ld", \
+            _ta_exp, _ta_act); \
         return TEST_FAILURE; \
     } \
 } while (0)
 
 #define TEST_ASSERT_INT_NEQ(expected, actual) do { \
-    long _exp = (long)(expected); \
-    long _act = (long)(actual); \
-    if (_exp == _act) { \
+    long _ta_exp = (long)(expected); \
+    long _ta_act = (long)(actual); \
+    if (_ta_exp == _ta_act) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_INT_NEQ failed: both values are %ld at %s:%d", \
-            _exp, __FILE__, __LINE__); \
+            "ASSERT_INT_NEQ failed: both values are %ld", \
+            _ta_exp); \
         return TEST_FAILURE; \
     } \
 } while (0)
 
 #define TEST_ASSERT_INT_GT(val, threshold) do { \
-    long _v = (long)(val); \
-    long _t = (long)(threshold); \
-    if (_v <= _t) { \
+    long _ta_v = (long)(val); \
+    long _ta_t = (long)(threshold); \
+    if (_ta_v <= _ta_t) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_INT_GT failed: %ld is not > %ld at %s:%d", \
-            _v, _t, __FILE__, __LINE__); \
+            "ASSERT_INT_GT failed: %ld is not > %ld", \
+            _ta_v, _ta_t); \
         return TEST_FAILURE; \
     } \
 } while (0)
 
 #define TEST_ASSERT_INT_GTE(val, threshold) do { \
-    long _v = (long)(val); \
-    long _t = (long)(threshold); \
-    if (_v < _t) { \
+    long _ta_v = (long)(val); \
+    long _ta_t = (long)(threshold); \
+    if (_ta_v < _ta_t) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_INT_GTE failed: %ld is not >= %ld at %s:%d", \
-            _v, _t, __FILE__, __LINE__); \
+            "ASSERT_INT_GTE failed: %ld is not >= %ld", \
+            _ta_v, _ta_t); \
         return TEST_FAILURE; \
     } \
 } while (0)
 
 #define TEST_ASSERT_STR_EQ(expected, actual) do { \
-    const char *_exp = (expected); \
-    const char *_act = (actual); \
-    if ((_exp == NULL && _act != NULL) || (_exp != NULL && _act == NULL) || \
-        (_exp != NULL && _act != NULL && strcmp(_exp, _act) != 0)) { \
+    const char *_ta_exp = (expected); \
+    const char *_ta_act = (actual); \
+    if ((_ta_exp == NULL && _ta_act != NULL) || (_ta_exp != NULL && _ta_act == NULL) || \
+        (_ta_exp != NULL && _ta_act != NULL && strcmp(_ta_exp, _ta_act) != 0)) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_STR_EQ failed: expected \"%s\", got \"%s\" at %s:%d", \
-            _exp ? _exp : "(null)", _act ? _act : "(null)", __FILE__, __LINE__); \
+            "ASSERT_STR_EQ failed: expected \"%s\", got \"%s\"", \
+            _ta_exp ? _ta_exp : "(null)", _ta_act ? _ta_act : "(null)"); \
         return TEST_FAILURE; \
     } \
 } while (0)
 
 #define TEST_ASSERT_STR_NEQ(expected, actual) do { \
-    const char *_exp = (expected); \
-    const char *_act = (actual); \
-    if ((_exp == NULL && _act == NULL) || \
-        (_exp != NULL && _act != NULL && strcmp(_exp, _act) == 0)) { \
+    const char *_ta_exp = (expected); \
+    const char *_ta_act = (actual); \
+    if ((_ta_exp == NULL && _ta_act == NULL) || \
+        (_ta_exp != NULL && _ta_act != NULL && strcmp(_ta_exp, _ta_act) == 0)) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_STR_NEQ failed: both are \"%s\" at %s:%d", \
-            _exp ? _exp : "(null)", __FILE__, __LINE__); \
+            "ASSERT_STR_NEQ failed: both are \"%s\"", \
+            _ta_exp ? _ta_exp : "(null)"); \
         return TEST_FAILURE; \
     } \
 } while (0)
@@ -273,7 +273,7 @@ json_t *load_json_file(const char *filepath);
 #define TEST_ASSERT_NULL(ptr) do { \
     if ((ptr) != NULL) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_NULL failed: (%s) was not NULL at %s:%d", #ptr, __FILE__, __LINE__); \
+            "ASSERT_NULL failed: (%s) was not NULL", #ptr); \
         return TEST_FAILURE; \
     } \
 } while (0)
@@ -281,7 +281,7 @@ json_t *load_json_file(const char *filepath);
 #define TEST_ASSERT_NOT_NULL(ptr) do { \
     if ((ptr) == NULL) { \
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
-            "ASSERT_NOT_NULL failed: (%s) was NULL at %s:%d", #ptr, __FILE__, __LINE__); \
+            "ASSERT_NOT_NULL failed: (%s) was NULL", #ptr); \
         return TEST_FAILURE; \
     } \
 } while (0)
