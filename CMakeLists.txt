@@ -340,6 +340,7 @@ if(BUILD_TESTS)
         tests/integration/command_table_tests.c
         tests/integration/constants_tables_tests.c
         tests/integration/handler_function_tests.c
+        tests/integration/quest_system_tests.c
     )
 endif()
 
