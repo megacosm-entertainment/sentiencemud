@@ -40,6 +40,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../../utils/localization.h"
 
 extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
@@ -1892,7 +1893,7 @@ OEDIT(oedit_name)
     OBJ_INDEX_DATA *pObj;
     EDIT_OBJ(ch, pObj);
     bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pObj->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (changed)
         oedit_rebuild_auto_tags(pObj);
     return changed;
@@ -2045,9 +2046,24 @@ OEDIT(oedit_short)
 
     if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
-    free_string(pObj->name);
-    pObj->name = short_to_name(pObj->short_descr);
-    send_to_char("Name keywords set.\n\r", ch);
+        char *keywords = NULL;
+        char *invalid = NULL;
+        LOCALIZATION_ERROR err = localization_short_to_keywords(pObj->short_descr, &keywords, &invalid);
+        if (err != LOC_OK || IS_NULLSTR(keywords)) {
+            send_to_char("{RNone of the short description could be applied to the name.{x\n\r", ch);
+            if (keywords) free(keywords); // Since it can't be used
+        } else {
+            free_string(pObj->name);
+            pObj->name = keywords;
+            send_to_char("Name keywords set.\n\r", ch);
+
+            // If there were any invalid words, tell the builder, in case they want to redo the whole name field
+            if (!IS_NULLSTR(invalid))
+            {
+                send_to_char(formatf("{RCould not apply the following words from the short to the name:{x\n\r{W%s{x\n\r",invalid), ch);
+            }
+        }
+        if (invalid) free(invalid);
     }
     oedit_rebuild_auto_tags(pObj);
     return true;

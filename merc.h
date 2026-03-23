@@ -68,8 +68,9 @@
 #include "protocol.h"
 #include "connection.h"
 #include "protocol_layer.h"
-
 #include "utils/array.h"
+#include "utils/utf8.h"
+#include "utils/localization.h"
 
 /* Forward declarations needed by reserved.h */
 struct area_data;
@@ -1441,6 +1442,7 @@ struct game_settings_data
     bool enable_insecure_warning; // Show a warning for insecure connections?
     char *insecure_warning_msg;   // What message do we display for insecure users? (requires insecure_warning)
     int max_logfile_size;         // What size do we start rotating logs at (in MB)?
+    char *default_language;       // Default language (iso name)
     ARRAY *allowed_languages;     // What languages are allowed in the game
 
     /* Channel Transport Settings */
@@ -1989,6 +1991,7 @@ struct	descriptor_data
 {
     DESCRIPTOR_DATA *	next;
     ACCOUNT_DATA * account;
+    LOCALIZATION_DATA *lang;        // What language is being used?
     DESCRIPTOR_DATA *	snoop_by;
     CHAR_DATA *		character;
     CHAR_DATA *		original;
@@ -4072,6 +4075,7 @@ enum {
 #define PLR_AUTOAFK         (M)
 #define PLR_HIDE_IDLE       (N)
 #define PLR_SHOW_TIMESTAMPS (O)
+#define PLR_SHOW_RESTRINGS  (R)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)
@@ -5737,6 +5741,8 @@ struct account_data
     time_t vault_rent; // Time of last vault rent
     LLIST *lvault;     // List of items in the vault
 
+    LOCALIZATION_DATA *lang;
+
     int refcount; // Reference count for the account (active logins)
 };
 
@@ -5805,6 +5811,7 @@ struct	pc_data
     OBJ_DATA *		corpse;
     COMMAND_DATA *	commands;
     IMMORTAL_DATA *	immortal; 	/* Encapsulates imm-staff data. NULL for mortals. */
+    LOCALIZATION_DATA *lang;
     bool		valid;
     char *		pwd;
     char *		old_pwd;
@@ -9935,7 +9942,7 @@ int game_settings_read(void);
 int game_settings_write(void);
 void do_chset( CHAR_DATA *ch, char *argument );
 void save_shares	args( ( void ) );
-void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int rank );
+void wiznet(const char *string, CHAR_DATA *ch, OBJ_DATA *obj, long flag, long flag_skip, int rank );
 
 /* alias.c */
 void 	substitute_alias args( (DESCRIPTOR_DATA *d, char *input) );
@@ -9953,7 +9960,7 @@ void close_socket( DESCRIPTOR_DATA *dclose );
 void write_to_buffer( DESCRIPTOR_DATA *d, const char *txt, int length );
 void send_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
 void page_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
-void act_new ( char *format, CHAR_DATA *ch, CHAR_DATA *vch, CHAR_DATA *vch2, const char *ch_verb, const char *vch_verb, OBJ_DATA *obj, OBJ_DATA *obj2, void *arg1, void *arg2, int type, int min_pos, CHAR_TEST char_func);
+void act_new ( const char *format, CHAR_DATA *ch, CHAR_DATA *vch, CHAR_DATA *vch2, const char *ch_verb, const char *vch_verb, OBJ_DATA *obj, OBJ_DATA *obj2, void *arg1, void *arg2, int type, int min_pos, CHAR_TEST char_func);
 char *stptok            args( (const char *s, char *tok, size_t toklen, char *brk));
 //int	colour		args( ( char type, CHAR_DATA *ch, char *string ) );
 //void	colourconv	args( ( char *buffer, const char *txt, CHAR_DATA *ch ) );

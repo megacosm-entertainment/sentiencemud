@@ -1109,17 +1109,24 @@ static json_t *char_metadata_to_json(CHAR_DATA *ch)
     }
     json_object_set_new(meta, "last_saved", json_integer(current_time));
 
-    // Account linkage
-    if (ch->pcdata && ch->pcdata->account_name) {
-        json_t *account = json_object();
-        json_object_set_new(account, "name", json_string(ch->pcdata->account_name));
+    if (ch->pcdata) {
+        // Account linkage
+        if (ch->pcdata->account_name) {
+            json_t *account = json_object();
+            json_object_set_new(account, "name", json_string(ch->pcdata->account_name));
 
-        json_t *account_id = json_array();
-        json_array_append_new(account_id, json_integer(ch->pcdata->account_id[0]));
-        json_array_append_new(account_id, json_integer(ch->pcdata->account_id[1]));
-        json_object_set_new(account, "id", account_id);
+            json_t *account_id = json_array();
+            json_array_append_new(account_id, json_integer(ch->pcdata->account_id[0]));
+            json_array_append_new(account_id, json_integer(ch->pcdata->account_id[1]));
+            json_object_set_new(account, "id", account_id);
 
-        json_object_set_new(meta, "account", account);
+            json_object_set_new(meta, "account", account);
+        }
+
+        if (ch->pcdata->lang != NULL)
+        {
+            json_object_set_new(meta, "language", json_string(ch->pcdata->lang->iso_name));
+        }
     }
 
     return meta;

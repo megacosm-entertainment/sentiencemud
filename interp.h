@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "utils/utf8.h"     // For unichar_t
+
 #ifndef args
 #define args(list) list
 #endif
@@ -98,6 +100,24 @@ struct	cmd_type
     int16_t              show;      /* show? */
     bool		is_ooc;		// Command is purely OOC - certain things won't break when doing these commands
 };
+
+/*
+ * Enumeration for string validation for keywords. 
+ */
+typedef enum name_validate_enum {
+    NV_OK = 0,          // String can be used as a name.
+    NV_BAD_STRING,      // String contains erroneous UTF-8 codes.
+    NV_INVALID_CODE,    // String contains an invalid UTF-8 code for name.
+    NV_MAX
+} NAME_VALIDATION_ENUM;
+
+typedef struct name_validation_result {
+    NAME_VALIDATION_ENUM result;            // Whether the name validated
+    const char *str;                        // Pointer in the string that has the problem.
+    size_t bad_ch;                          // Which byte was bad in the string
+    unichar_t bad_code;                     // What UTF-8 code was bad.
+} NAME_VALIDATION_RESULT;
+
 
 /*
  * Command functions.
@@ -701,5 +721,8 @@ DECLARE_DO_FUN( do_raceunlock );
 
 bool dispatch_dynamic_channel_command(CHAR_DATA *ch, const char *command, char *argument);
 bool channel_command_has_exact_match(const char *input);
+
+bool can_be_name(const char *str, NAME_VALIDATION_RESULT *nvr);
+
 
 #endif /* __INTERP_H__ */

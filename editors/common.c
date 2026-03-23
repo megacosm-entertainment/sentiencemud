@@ -33,6 +33,7 @@
 #include "../scripts.h"
 #include "../wilds.h"
 #include "common.h"
+#include "../utils/utf8.h"
 #define TABLE_MAX_VISIBLE_WIDTH 80
 #define TABLE_BORDER_COLOUR "{G" // Example color for borders
 #define TABLE_LABEL_COLOUR "{Y"
@@ -984,4 +985,22 @@ void olc_process_command_tabbed(
 
     // Not a tab command, process normally
     process_olc_command(ch, argument, olc_table, show_func, mark_changed_func);
+}
+
+bool olc_validate_name(CHAR_DATA *ch, const char *str)
+{
+    NAME_VALIDATION_RESULT nvr;
+    nvr.result = NV_MAX;
+
+    if (!can_be_name(str, &nvr) || nvr.result != NV_OK) {
+        if (nvr.result == NV_BAD_STRING)
+            send_to_char(formatf("Input contains an invalid UTF-8 character at position %ld.\n\r", nvr.bad_ch), ch);
+        else if (nvr.result == NV_INVALID_CODE)
+            send_to_char(formatf("Input contains a UTF-8 character (U+%X), at position %ld, that isn't allowed in names.\n\r", nvr.bad_code, nvr.bad_ch), ch);
+        else
+            send_to_char("Unexpected error encountered while validating the input\n\r", ch);
+        return false;
+    }
+
+    return true;
 }

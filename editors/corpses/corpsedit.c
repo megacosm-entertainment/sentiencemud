@@ -320,7 +320,7 @@ CORPSEDIT(corpsedit_name)
         return false;
 
     changed = olc_cmd_string(ch, argument, "name", "name <format>",
-        &corpse->name, OLC_STR_DEFAULT, NULL, NULL);
+        &corpse->name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (!changed)
         return false;
 

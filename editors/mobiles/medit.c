@@ -1302,9 +1302,14 @@ MEDIT(medit_name)
 
     if (argument[0] == '\0')
     {
-    send_to_char("Syntax:  name [string]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  name <text**>\n\r"
+                     "** - <text> must conform to naming restrictions.\n\r", ch);
+        return false;
     }
+
+    // Validate the input can be a name
+    if (!olc_validate_name(ch, argument))
+        return false;
 
     player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     snprintf(name, sizeof(name), "%s%c/%s", player_dir, tolower(argument[0]), capitalize(argument));

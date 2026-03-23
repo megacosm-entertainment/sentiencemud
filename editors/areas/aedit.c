@@ -1241,7 +1241,7 @@ AEDIT(aedit_name)
     AREA_DATA *pArea;
     EDIT_AREA(ch, pArea);
     bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pArea->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (changed)
         aedit_rebuild_auto_tags(pArea);
     return changed;

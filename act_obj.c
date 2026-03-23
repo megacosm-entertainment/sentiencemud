@@ -78,6 +78,7 @@ static void emit_obj_staff_event(const char *plain_message,
 #include "traits.h"
 #include "skill_data.h"
 #include "requirements.h"
+#include "utils/localization.h"
 
 /**
  * obj_has_money - Check if a container has money visible to character
@@ -2360,7 +2361,8 @@ void do_restring(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0' || arg2[0] == '\0' || (argument[0] == '\0' && str_cmp(arg2, "desc")))
     {
-        send_to_char("Syntax: restring item short <new name>\n\r", ch);
+        send_to_char("Syntax: restring item name  <new name>\n\r", ch);
+        send_to_char("        restring item short <new name>\n\r", ch);
         send_to_char("        restring item long  <new name>\n\r", ch);
         send_to_char("        restring item desc  (for the description)\n\r", ch);
         return;
@@ -2381,7 +2383,7 @@ void do_restring(CHAR_DATA *ch, char *argument)
     if (IS_SET(obj->extra[0], ITEM_NORESTRING) || CAN_WEAR(obj, ITEM_WEAR_TABARD))
     {
         // Allow color changes to SHORTS on NORESTRING.
-        if( str_cmp(arg2, "short") || str_cmp_nocolour(obj->short_descr, argument)) {
+        if(str_cmp(arg2, "short") || str_cmp_nocolour(obj->short_descr, argument)) {
             act("{R$N tells you, 'Sorry, but you can't restring $p.'{x", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
             return;
         }
@@ -2444,18 +2446,128 @@ void do_restring(CHAR_DATA *ch, char *argument)
             obj->short_descr);
         send_to_char(buf, ch);
 
+        // NORESTRING objects PRESERVE the name.
+        if (!norestring) {
+            char *keywords = NULL;
+            char *invalid = NULL;
+            LOCALIZATION_ERROR err = localization_short_to_keywords(obj->short_descr, &keywords, &invalid);
+            if (err == LOC_OK)
+            {
+                if (IS_NULLSTR(keywords))
+                {
+                    send_to_char("{RNone of the short description could be applied to the name.{x\n\r"
+                                 "Please use {Yrestring item name  <new name>{x to set the name.\n\r",
+                                 ch);
+                    if (keywords) free(keywords); // Since it can't be used
+                }
+                else
+                {
+                    if (obj->old_name == NULL)
+                        obj->old_name = obj->name;
+                    else
+                        free_string(obj->name);	// The object has already been restrung
+
+                    obj->name = keywords;
+
+                    // If there were any invalid words, tell the player, in case they want to redo the whole name field
+                    if (!IS_NULLSTR(invalid))
+                    {
+                        sprintf(buf, "{RCould not apply the following words from the short to the name:{x\n\r{W%s{x\n\r",
+                            invalid);
+                        send_to_char(buf, ch);
+                    }
+
+                }
+
+            } else {
+                send_to_char("{RNone of the short description could be applied to the name.{x\n\r"
+                                "Please use {Yrestring item name  <new name>{x to set the name.\n\r",
+                                ch);
+                if (keywords) free(keywords); // Since it can't be used
+            }
+            if (invalid) free(invalid);
+        }
+
         do_say(mob, "Nice doin' business with ya bub.");
 
         deduct_cost(ch, cost);
+        return;
+    }
 
-        // NORESTRING objects PRESERVE the name.
-        if (!norestring) {
-            if (obj->old_name == NULL)
-                obj->old_name = obj->name;
-            else
-                free_string(obj->name);	// The object has already been restrung
+    if (!str_cmp("name", arg2))
+    {
+        act("You give $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n gives $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        act("$n spins a 360 on $s heel.", mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-            obj->name = short_to_name(obj->short_descr);
+        char *temp_str = nocolour(argument);
+        if (str_cmp(argument, temp_str))
+        {
+            free_string(temp_str);
+            act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+            act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+            do_say(mob, "Don' be flashy in da name, bub.");
+            send_to_char("{RPlease don't use colors in names.{x\n\r", ch);
+            return;
+        }
+        free_string(temp_str);
+
+        size_t bad_position;
+        LOCALIZATION_ERROR err = localization_validate_string(argument, &bad_position, NULL);
+        switch(err)
+        {
+        case LOC_OK:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                if (obj->old_name == NULL)
+                    obj->old_name = obj->name;
+                else
+                    free_string(obj->name);	// The object has already been restrung
+
+                obj->name = str_dup(argument);
+
+                sprintf(buf, "The name has been changed to {G%s{x.\n\r", obj->name);
+                send_to_char(buf, ch);
+
+                do_say(mob, "Nice doin' business with ya bub.");
+
+                deduct_cost(ch, cost);
+                break;
+            }
+
+        case LOC_ERR_FORBIDDEN_CODEPOINT:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                do_say(mob, "Somethin' wrong with wha ya want, bub.");
+                send_to_char(formatf("{RForbidden character at position {W%ld{R.{x\n\r", bad_position), ch);
+                break;
+            }
+
+        case LOC_ERR_INVALID_UTF8:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                do_say(mob, "Somethin' wrong with wha ya want, bub.");
+                send_to_char(formatf("{RErroneous character at position {W%ld{R.{x\n\r", bad_position), ch);
+                break;
+            }
+
+        default:
+            {
+                act("$N gives you $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                act("$N gives $n $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+
+                do_say(mob, "Somethin' wrong with wha ya want, bub.");
+                send_to_char("{RError logged for investigation.  Thank you for your patience.{x\n\r", ch);
+                pbugf(LOG_ERROR, "Encountered error '%s' when restringing name with argument '%s'", localization_error_string(err), argument);
+                break;
+            }
         }
         return;
     }

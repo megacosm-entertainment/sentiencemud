@@ -415,28 +415,37 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
         strcat(buf, "{y(Buried){w ");
     if (fShort)
     {
-    if (obj->short_descr != NULL)
-        strcat(buf, obj->short_descr);
-    strcat(buf, " ");
+        if (obj->short_descr != NULL)
+            strcat(buf, obj->short_descr);
+        if (obj->item_type == ITEM_WEAPON)
+        {
+            if (obj->condition == 0)
+                strcat(buf, " {y(Broken){x");
+        }
+        else
+        {
+            strcat(buf, object_damage_table[URANGE
+                (0, 9 - (int) (((float) obj->condition)/10),9)].name);
+        }
 
-    if (obj->item_type == ITEM_WEAPON)
-    {
-        if (obj->condition == 0)
-        strcat(buf, "{y(Broken){x");
-    }
-    else
-    {
-        strcat(buf, object_damage_table[URANGE
-            (0, 9 - (int) (((float) obj->condition)/10),9)].name);
-    }
+        /* Show trade class if a commodity */
+        if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
+        {
+            strcat(buf, " {Y(");
+            strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
+            strcat(buf, "){x");
+        }
 
-    /* Show trade class if a commodity */
-    if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
-    {
-        strcat(buf, "{Y(");
-        strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
-        strcat(buf, "){x");
-    }
+        if (!IS_NPC(ch) && IS_SET(ch->act[1], PLR_SHOW_RESTRINGS))
+        {
+            // If either is changed, show it.
+            if (obj->old_name != NULL || obj->old_short_descr != NULL)
+            {
+                strcat(buf, " {W(");
+                strcat(buf, obj->name);
+                strcat(buf, "){x");
+            }
+        }
     }
     else
     {

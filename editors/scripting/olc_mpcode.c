@@ -1385,7 +1385,7 @@ SCRIPTEDIT(scriptedit_name)
     EDIT_SCRIPT(ch, pCode);
 
     return olc_cmd_string(ch, argument, "name", NULL,
-        &pCode->name, 0, NULL, NULL);
+        &pCode->name, OLC_STR_UTF8_RESTRICT, NULL, NULL);
 }
 
 /**

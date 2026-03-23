@@ -2853,7 +2853,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 
     if (d->inbuf[i] == '\b' && k > 0)
         --k;
-    else if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
+    else // if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
         d->incomm[k++] = d->inbuf[i];
     /*    else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
@@ -3847,58 +3847,71 @@ bool check_parse_name(char *name)
     DESCRIPTOR_DATA *d, *dnext;
     int count = 0;
 
+    NAME_VALIDATION_RESULT nvr;
+    nvr.result = NV_MAX;
+
+    if (!can_be_name(name, &nvr) || nvr.result != NV_OK)
+    {
+        return false;
+    }
+
     /*
      * Reserved words.
      */
-    if (is_exact_name(name,
-    "sentience all auto her his immortal its self somebody someone something the you your loner"))
+    if (is_exact_name(name, "sentience all auto her his immortal its self somebody someone something the you your loner"))
     {
-    return false;
+        return false;
     }
 
     /*
      * Length restrictions.
      */
-    if (strlen(name) <  3)
-    return false;
+    if (utf8_strlen(name) <  3)
+        return false;
 
-    if (strlen(name) > 12)
-    return false;
+    if (utf8_strlen(name) > 12)
+        return false;
 
     /*
-     * Alphanumerics only.
      * Lock out IllIll twits.
      */
     {
-    char *pc;
-    bool fIll,adjcaps = false,cleancaps = false;
-     int total_caps = 0;
+        const char *pc;
+        bool fIll,adjcaps = false,cleancaps = false;
+        int total_caps = 0;
 
-    fIll = true;
-    for (pc = name; *pc != '\0'; pc++)
-    {
-        if (!ISALPHA(*pc))
-        return false;
-
-        if (ISUPPER(*pc)) /* ugly anti-caps hack */
+        fIll = true;
+        for (pc = name; *pc != '\0'; pc = utf8_nextchar(pc))
         {
-        if (adjcaps)
-            cleancaps = true;
-        total_caps++;
-        adjcaps = true;
+            unichar_t ch = utf8_getchar(pc);
+            if (ch < 0) // Invalid UTF-8 code
+                return false;
+
+            /*
+             * TODO: Need to add in character filtering so any "letter", not just ASCII letters, pass.
+             */
+            // if (!ISALPHA(ch))
+            //     return false;
+
+            if (ISUPPER(ch)) /* ugly anti-caps hack */
+            {
+                if (adjcaps)
+                    cleancaps = true;
+                total_caps++;
+                adjcaps = true;
+            }
+            else
+                adjcaps = false;
+
+            if (LOWER(ch) != 'i' && LOWER(ch) != 'l')
+                fIll = false;
         }
-        else
-        adjcaps = false;
 
-        if (LOWER(*pc) != 'i' && LOWER(*pc) != 'l')
-        fIll = false;
-    }
+        if (fIll)
+            return false;
 
-    if (fIll)
-        return false;
-
-    if (cleancaps || (total_caps > (strlen(name)) / 2 && strlen(name) < 3))
-        return false;
+        if (cleancaps || (total_caps > (strlen(name)) / 2 && strlen(name) < 3))
+            return false;
     }
 
    /*
@@ -4138,6 +4151,8 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     
     // Set playing state
     d->connected = CON_PLAYING;
+    if(!IS_NPC(ch))
+        d->lang = ch->pcdata->lang;
     
     // Notify player of reconnection
     send_to_char("\n\r{GReconnecting to game...{x\n\r", ch);
@@ -4558,8 +4573,8 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 
     if (ch->lines == 0)
     {
-    send_to_char(txt,ch);
-    return;
+        send_to_char(txt,ch);
+        return;
     }
 
     if (ch->desc->showstr_head)
@@ -4696,9 +4711,9 @@ void show_string(struct descriptor_data *d, char *input)
         if (d->showstr_head)
         {
             free(d->showstr_head);
-            d->showstr_head = 0;
+            d->showstr_head = NULL;
         }
-        d->showstr_point  = 0;
+        d->showstr_point  = NULL;
         return;
     }
 
@@ -4790,7 +4805,7 @@ void show_string(struct descriptor_data *d, char *input)
  * @param min_pos    Minimum position to receive message
  * @param char_func  Filter function for TO_FUNC/TO_NOTFUNC (optional)
  */
-void act_new(char *format, CHAR_DATA *ch,
+void act_new(const char *format, CHAR_DATA *ch,
         CHAR_DATA *vch, CHAR_DATA *vch2,
         const char *ch_verb, const char *vch_verb, /* These are already const char* */
         OBJ_DATA *obj1, OBJ_DATA *obj2,

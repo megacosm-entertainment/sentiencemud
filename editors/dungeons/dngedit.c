@@ -1227,7 +1227,7 @@ DNGEDIT( dngedit_name )
     EDIT_DUNGEON(ch, dng);
 
     return olc_cmd_string(ch, argument, "Name", NULL, &dng->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
 }
 
 DNGEDIT( dngedit_repop )

@@ -229,6 +229,7 @@ C_FILES = \
     io/json/json_game_settings.c \
     io/json/json_gq.c \
     io/json/json_instance.c \
+    io/json/json_localization.c \
     io/json/json_mail.c \
     io/json/json_note.c \
     io/json/json_obj_types.c \
@@ -273,7 +274,10 @@ C_FILES = \
     string.c \
     utils/array.c \
     utils/buffer.c \
+    utils/localization.c \
+    utils/strdict.c \
     utils/tablefmt.c \
+    utils/utf8.c \
     storage.c \
     tables.c \
     tls.c \

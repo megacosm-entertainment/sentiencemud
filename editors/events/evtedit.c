@@ -5423,7 +5423,7 @@ EVTEDIT(evtedit_name)
     }
 
     if (!olc_cmd_string(ch, argument, "name", "name <new name>",
-            &evt->name, OLC_STR_DEFAULT, NULL, NULL))
+            &evt->name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL))
         return false;
 
     return evtedit_save_after_change(ch);

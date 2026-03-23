@@ -65,6 +65,7 @@
 #include "song_data.h"
 #include "item_types.h"
 #include "channel_registry.h"
+#include "io/json/json_localization.h"
 
 static void emit_db_wiz_event(const char *plain_message,
                               const char *staff_message,
@@ -1265,6 +1266,12 @@ void boot_db(void)
         if (!reserved_vnums) {
             fprintf(stderr, "Error: Failed to create reserved_vnums list.\n");
         }
+    }
+
+    if (!load_localizations())
+    {
+        // Error already reported
+        exit(1);
     }
 
     load_reserved();
@@ -6817,24 +6824,25 @@ void smash_tilde(char *str)
 
 
 /* @@@NIB : 20070123 : Returns < 0 if A < B, > 0 if A > B, 0 if A = B*/
-int str_cmp(const char *astr, const char *bstr)
+int str_cmp(register const char *astr, register const char *bstr)
 {
-    char ch;
     if (astr == NULL)
     {
-    log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null astr.");
-    return -1;
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null astr.");
+        return -1;
     }
 
     if (bstr == NULL)
     {
-    log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null bstr.");
-    return 1;
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null bstr.");
+        return 1;
     }
 
-    for (; *astr || *bstr; astr++, bstr++) {
-    if ((ch = (LOWER(*astr) - LOWER(*bstr))))
-        return ch;
+    for (; *astr || *bstr; astr = utf8_nextchar(astr), bstr = utf8_nextchar(bstr)) {
+        unichar_t a = utf8_tolower(utf8_getchar(astr));
+        unichar_t b = utf8_tolower(utf8_getchar(bstr));
+        if (a != b)
+            return a - b;
     }
 
     return 0;
@@ -6844,27 +6852,28 @@ int str_cmp(const char *astr, const char *bstr)
 int str_cmp_nocolour(const char *astr, const char *bstr)
 {
     char *ncastr, *ncbstr, *nca, *ncb;
-    char ch;
     if (astr == NULL)
     {
-    log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null astr.");
-    return -1;
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null astr.");
+        return -1;
     }
 
     if (bstr == NULL)
     {
-    log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null bstr.");
-    return 1;
+        log_message(LOG_LEVEL_BUG, LOG_ERROR, "Str_cmp: null bstr.");
+        return 1;
     }
 
     nca = ncastr = nocolour(astr);
     ncb = ncbstr = nocolour(bstr);
 
-    for (; *ncastr || *ncbstr; ncastr++, ncbstr++) {
-        if ((ch = (LOWER(*ncastr) - LOWER(*ncbstr)))) {
+    for (; *ncastr || *ncbstr; ncastr = utf8_nextchar(ncastr), ncbstr = utf8_nextchar(ncbstr)) {
+        unichar_t a = utf8_tolower(utf8_getchar(ncastr));
+        unichar_t b = utf8_tolower(utf8_getchar(ncbstr));
+        if (a != b) {
             free_string(nca);
             free_string(ncb);
-            return ch;
+            return a - b;
         }
     }
 
@@ -6978,14 +6987,30 @@ void str_upper(register char *src,register char *dest)
  */
 char *capitalize(const char *str)
 {
-    static char strcap[MAX_STRING_LENGTH];
-    int i;
+    static char strcap[4][MSL];
+    static int i = 0;
+    unichar_t cp;
 
-    for (i = 0; str[i] != '\0'; i++)
-    strcap[i] = LOWER(str[i]);
-    strcap[i] = '\0';
-    strcap[0] = UPPER(strcap[0]);
-    return strcap;
+    i = (i + 1) & 3;
+
+    register char *w = strcap[i];
+    if (*str)
+    {
+        // Make the first character uppercase
+        cp = utf8_getchar(str);
+        w = utf8_put(w, utf8_toupper(cp));
+        str = utf8_nextchar(str);
+
+        // Make the rest lowercase
+        while(*str)
+        {
+            cp = utf8_getchar(str);
+            w = utf8_put(w, utf8_tolower(cp));
+            str = utf8_nextchar(str);
+        }
+    }
+    *w = '\0';
+    return strcap[i];
 }
 
 

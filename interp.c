@@ -48,6 +48,7 @@
 #include "class_data.h"
 #include "channel_registry.h"
 #include "channel_service.h"
+#include "utils/localization.h"
 
 static bool dynamic_channel_is_ooc_command(const char *command)
 {
@@ -2174,4 +2175,50 @@ void cmd_under_construction(CHAR_DATA *ch)
     send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r\n\r", ch);
     send_to_char("Command is under construction.  Please be patient until it is ready.\n\r\n\r", ch);
     send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r", ch);
+}
+
+// TODO: Assess where this needs to be located
+// Determine if the provided string can be used in a name.
+bool can_be_name(const char *str, NAME_VALIDATION_RESULT *nvr)
+{
+    if (!str || !nvr) return false;
+
+    memset(nvr, 0, sizeof(*nvr));
+    nvr->result = NV_OK;
+
+    size_t bad_position;
+    size_t bad_offset;
+    LOCALIZATION_ERROR err = localization_validate_string(str, &bad_position, &bad_offset);
+    switch(err)
+    {
+    case LOC_OK:
+        break;
+    case LOC_ERR_FORBIDDEN_CODEPOINT:
+        {
+            nvr->result = NV_INVALID_CODE;
+            nvr->str = str;
+            nvr->bad_ch = bad_position;
+            nvr->bad_code = utf8_getchar(str + bad_offset);
+            break;
+        }
+    
+    case LOC_ERR_INVALID_UTF8:
+        {
+            nvr->result = NV_BAD_STRING;
+            nvr->str = str;
+            nvr->bad_ch = bad_position;
+            nvr->bad_code = 0;
+            break;
+        }
+    default:
+        {
+            nvr->result = NV_BAD_STRING;
+            nvr->str = str;
+            nvr->bad_ch = (size_t)-1;
+            nvr->bad_code = 0;
+            break;
+        }
+    }
+
+    return true;
 }

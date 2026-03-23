@@ -920,7 +920,7 @@ WEDIT (wedit_name)
     EDIT_WILDS (ch, pWilds);
 
     return olc_cmd_string(ch, argument, "Name", "name <string>",
-                          &pWilds->name, OLC_STR_DEFAULT, NULL, NULL);
+                          &pWilds->name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
 }
 
 static bool wedit_region_same_group(WILDS_REGION *a, WILDS_REGION *b)

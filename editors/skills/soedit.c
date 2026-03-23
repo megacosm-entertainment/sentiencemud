@@ -269,7 +269,7 @@ SOEDIT(soedit_name)
     SONG_DATA *song;
     EDIT_SONG(ch, song);
     return olc_cmd_string(ch, argument, "Name", NULL, &song->name,
-        OLC_STR_DEFAULT, song, soedit_record_cb);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, song, soedit_record_cb);
 }
 
 SOEDIT(soedit_level)

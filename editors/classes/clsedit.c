@@ -574,6 +574,10 @@ CLSEDIT(clsedit_name)
         return false;
     }
 
+    // Validate the input can be a name
+    if (!olc_validate_name(ch, argument))
+        return false;
+
     if (class_find_exact(argument) && class_find_exact(argument) != clazz) {
         send_to_char("A class with that name already exists.\n\r", ch);
         return false;

@@ -546,7 +546,7 @@ SHEDIT( shedit_name )
     SHIP_INDEX_DATA *ship;
     EDIT_SHIP(ch, ship);
     return olc_cmd_string(ch, argument, "Name", NULL, &ship->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
 }
 
 /**

@@ -2341,7 +2341,7 @@ iterator_stop(&it);
             d->account = account;
             d->connected = CON_ACCOUNT_MENU;
             d->incomm[0] = '\0';
-
+            d->lang = account->lang;    // Go back to the account's language setting
             
             d->showstr_head	= NULL;
             d->showstr_point = NULL;
@@ -2360,7 +2360,7 @@ iterator_stop(&it);
             display_account_menu(d);
         } else {
             // If we somehow lost the account reference, close the connection
-            write_to_buffer(d, "\n\rError returning to account menu. Disconnecting...\n\r", 0);
+            write_to_buffer(d, formatf("\n\r%s\n\r", localization_translate(default_localization, "error.msg.logout.no_account")), 0);
             close_socket(d);
         }
     }
