@@ -44,6 +44,7 @@ test_result_t run_command_table_test_case(test_case_t *test);
 test_result_t run_handler_function_test_case(test_case_t *test);
 test_result_t run_combat_math_test_case(test_case_t *test);
 test_result_t run_quest_system_test_case(test_case_t *test);
+test_result_t run_reputation_system_test_case(test_case_t *test);
 
 #endif /* BUILD_TESTS */
 

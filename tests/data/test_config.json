@@ -20,7 +20,8 @@
       "constants_tables",
       "handler_function_tests",
       "combat_math_tests",
-      "quest_system"
+      "quest_system",
+      "reputation_system"
     ],
     "quick_test_suites": [
       "area_loading",
@@ -101,6 +102,7 @@
       "command_table_tests",
       "handler_function_tests",
       "quest_system",
+      "reputation_system",
       "json_area_serialization",
       "chat_rooms_json",
       "church_json",

@@ -100,6 +100,7 @@ static const test_handler_entry_t handler_table[] = {
     { "flag_table_",                     run_lookup_table_test_case,        MATCH_SUBSTR },
     { "handler_",                        run_handler_function_test_case,    MATCH_SUBSTR },
     { "qsys_",                           run_quest_system_test_case,        MATCH_SUBSTR },
+    { "repsys_",                         run_reputation_system_test_case,  MATCH_SUBSTR },
 
     /* Sentinel — must be last */
     { NULL, NULL, MATCH_EXACT }
