@@ -21,7 +21,8 @@
       "handler_function_tests",
       "combat_math_tests",
       "quest_system",
-      "reputation_system"
+      "reputation_system",
+      "olc_framework"
     ],
     "quick_test_suites": [
       "area_loading",
@@ -103,6 +104,7 @@
       "handler_function_tests",
       "quest_system",
       "reputation_system",
+      "olc_framework",
       "json_area_serialization",
       "chat_rooms_json",
       "church_json",
@@ -131,7 +133,7 @@
     "test_profiles": {
       "development": {
         "description": "Fast tests for development workflow",
-        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "color_article_helpers_unit_tests", "color_code_helpers_unit_tests", "color_trunc_pad_helpers_unit_tests", "color_string_manipulation_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "sha256_unit_tests", "bit_operations_unit_tests", "memory_util_unit_tests", "lookup_function_unit_tests", "requirements_pure_function_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests", "command_table_tests", "constants_tables", "handler_function_tests", "quest_system"],
+        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "color_article_helpers_unit_tests", "color_code_helpers_unit_tests", "color_trunc_pad_helpers_unit_tests", "color_string_manipulation_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "sha256_unit_tests", "bit_operations_unit_tests", "memory_util_unit_tests", "lookup_function_unit_tests", "requirements_pure_function_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests", "command_table_tests", "constants_tables", "handler_function_tests", "quest_system", "olc_framework"],
         "stop_on_first_failure": true
       },
       "ci": {

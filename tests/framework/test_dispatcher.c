@@ -101,6 +101,7 @@ static const test_handler_entry_t handler_table[] = {
     { "handler_",                        run_handler_function_test_case,    MATCH_SUBSTR },
     { "qsys_",                           run_quest_system_test_case,        MATCH_SUBSTR },
     { "repsys_",                         run_reputation_system_test_case,  MATCH_SUBSTR },
+    { "olcfw_",                          run_olc_framework_test_case,       MATCH_SUBSTR },
 
     /* Sentinel — must be last */
     { NULL, NULL, MATCH_EXACT }
