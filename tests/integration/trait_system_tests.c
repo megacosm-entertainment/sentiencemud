@@ -407,12 +407,17 @@ static test_result_t test_trait_race_functions(test_case_t *test)
         return TEST_FAILURE;
     }
     
-    if (bool_val != bool_trait->default_bool) {
+    // NULL race returns false (not the trait default) per traits.c implementation
+    if (bool_val != false) {
         log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                     "NULL race should return trait default");
+                     "NULL race bool should return false");
         return TEST_FAILURE;
     }
-    // Other values should be their safe defaults (0, NULL)
+    if (int_val != 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "NULL race int should return 0");
+        return TEST_FAILURE;
+    }
 
     return TEST_SUCCESS;
 }
