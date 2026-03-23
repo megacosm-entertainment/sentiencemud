@@ -323,7 +323,8 @@ ifdef BUILD_TESTS
                tests/integration/handler_function_tests.c \
                tests/integration/quest_system_tests.c \
                tests/integration/reputation_system_tests.c \
-               tests/integration/olc_framework_tests.c
+               tests/integration/olc_framework_tests.c \
+               tests/integration/wilderness_system_tests.c
 endif
 
 O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))
