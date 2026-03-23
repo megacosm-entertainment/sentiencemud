@@ -1,0 +1,269 @@
+{
+  "type": "test_suite",
+  "test_suite": "constants_tables",
+  "description": "Constants and tables data integrity validation",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 60,
+  "tests": [
+    {
+      "name": "position_table_nonempty",
+      "description": "Verify position_table has at least one entry",
+      "dependencies": [],
+      "test_type": "const_table_nonempty_test",
+      "input": {
+        "table_name": "position_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "sex_table_nonempty",
+      "description": "Verify sex_table has at least one entry",
+      "dependencies": [],
+      "test_type": "const_table_nonempty_test",
+      "input": {
+        "table_name": "sex_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "size_table_nonempty",
+      "description": "Verify size_table has at least one entry",
+      "dependencies": [],
+      "test_type": "const_table_nonempty_test",
+      "input": {
+        "table_name": "size_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "position_table_standing_exists",
+      "description": "Verify 'standing' entry exists in position_table",
+      "dependencies": [],
+      "test_type": "const_table_entry_exists_test",
+      "input": {
+        "table_name": "position_table",
+        "entry_name": "standing"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "position_table_sleeping_exists",
+      "description": "Verify 'sleeping' entry exists in position_table",
+      "dependencies": [],
+      "test_type": "const_table_entry_exists_test",
+      "input": {
+        "table_name": "position_table",
+        "entry_name": "sleeping"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "sex_table_male_exists",
+      "description": "Verify 'male' entry exists in sex_table",
+      "dependencies": [],
+      "test_type": "const_table_entry_exists_test",
+      "input": {
+        "table_name": "sex_table",
+        "entry_name": "male"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "sex_table_female_exists",
+      "description": "Verify 'female' entry exists in sex_table",
+      "dependencies": [],
+      "test_type": "const_table_entry_exists_test",
+      "input": {
+        "table_name": "sex_table",
+        "entry_name": "female"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "size_table_medium_exists",
+      "description": "Verify 'medium' entry exists in size_table",
+      "dependencies": [],
+      "test_type": "const_table_entry_exists_test",
+      "input": {
+        "table_name": "size_table",
+        "entry_name": "medium"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "position_table_unique_names",
+      "description": "Verify position_table has no duplicate names",
+      "dependencies": [],
+      "test_type": "const_table_unique_names_test",
+      "input": {
+        "table_name": "position_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "sex_table_unique_names",
+      "description": "Verify sex_table has no duplicate names",
+      "dependencies": [],
+      "test_type": "const_table_unique_names_test",
+      "input": {
+        "table_name": "sex_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "size_table_unique_names",
+      "description": "Verify size_table has no duplicate names",
+      "dependencies": [],
+      "test_type": "const_table_unique_names_test",
+      "input": {
+        "table_name": "size_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "position_table_null_sentinel",
+      "description": "Verify position_table is NULL-terminated",
+      "dependencies": [],
+      "test_type": "const_table_sentinel_test",
+      "input": {
+        "table_name": "position_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "sex_table_null_sentinel",
+      "description": "Verify sex_table is NULL-terminated",
+      "dependencies": [],
+      "test_type": "const_table_sentinel_test",
+      "input": {
+        "table_name": "sex_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "size_table_null_sentinel",
+      "description": "Verify size_table is NULL-terminated",
+      "dependencies": [],
+      "test_type": "const_table_sentinel_test",
+      "input": {
+        "table_name": "size_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "act_flags_nonempty",
+      "description": "Verify act_flags table has at least one entry",
+      "dependencies": [],
+      "test_type": "const_table_nonempty_test",
+      "input": {
+        "table_name": "act_flags"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "act_flags_npc_exists",
+      "description": "Verify 'npc' flag exists in act_flags",
+      "dependencies": [],
+      "test_type": "const_table_entry_exists_test",
+      "input": {
+        "table_name": "act_flags",
+        "entry_name": "npc"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "act_flags_unique_names",
+      "description": "Verify act_flags has no duplicate names",
+      "dependencies": [],
+      "test_type": "const_table_unique_names_test",
+      "input": {
+        "table_name": "act_flags"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "act_flags_null_sentinel",
+      "description": "Verify act_flags is NULL-terminated",
+      "dependencies": [],
+      "test_type": "const_table_sentinel_test",
+      "input": {
+        "table_name": "act_flags"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "do_func_table_nonempty",
+      "description": "Verify do_func_table has at least one entry",
+      "dependencies": [],
+      "test_type": "const_table_nonempty_test",
+      "input": {
+        "table_name": "do_func_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "do_func_table_null_sentinel",
+      "description": "Verify do_func_table is NULL-terminated",
+      "dependencies": [],
+      "test_type": "const_table_sentinel_test",
+      "input": {
+        "table_name": "do_func_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    },
+    {
+      "name": "do_func_table_unique_names",
+      "description": "Verify do_func_table has no duplicate function names",
+      "dependencies": [],
+      "test_type": "const_table_unique_names_test",
+      "input": {
+        "table_name": "do_func_table"
+      },
+      "expected_output": {
+        "success": true
+      }
+    }
+  ]
+}

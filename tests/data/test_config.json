@@ -15,7 +15,8 @@
       "skill_group_data",
       "trait_system",
       "reserved_wnum",
-      "system_area"
+      "system_area",
+      "constants_tables"
     ],
     "quick_test_suites": [
       "area_loading",
@@ -116,7 +117,7 @@
     "test_profiles": {
       "development": {
         "description": "Fast tests for development workflow",
-        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "sha256_unit_tests", "bit_operations_unit_tests", "memory_util_unit_tests", "lookup_function_unit_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests"],
+        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "sha256_unit_tests", "bit_operations_unit_tests", "memory_util_unit_tests", "lookup_function_unit_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests", "constants_tables"],
         "stop_on_first_failure": true
       },
       "ci": {
