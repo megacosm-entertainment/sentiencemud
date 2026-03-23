@@ -5,6 +5,19 @@
 
 #include "test_framework.h"
 
+/* Match modes for the handler dispatch table. */
+typedef enum {
+    MATCH_EXACT,    /* strcmp: test_type must match pattern exactly */
+    MATCH_SUBSTR    /* strstr: test_type must contain pattern as a substring */
+} test_match_mode_t;
+
+/* Entry in the handler dispatch table. */
+typedef struct {
+    const char *pattern;
+    test_result_t (*handler)(test_case_t *);
+    test_match_mode_t match_mode;
+} test_handler_entry_t;
+
 test_result_t run_wnum_test_case(test_case_t *test);
 test_result_t run_pure_function_test_case(test_case_t *test);
 test_result_t run_buffer_function_test_case(test_case_t *test);
