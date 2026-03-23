@@ -168,6 +168,125 @@
         "success": true,
         "directories_accessible": true
       }
+    },
+    {
+      "name": "blueprint_validation",
+      "description": "Test blueprint section link validation",
+      "dependencies": ["blueprint_area_lookup"],
+      "test_type": "blueprint_validation_test",
+      "input": {
+        "test_valid_links": true,
+        "test_invalid_links": true,
+        "check_room_resolution": true
+      },
+      "expected_output": {
+        "success": true,
+        "valid_links_pass": true,
+        "invalid_links_fail": true
+      }
+    },
+    {
+      "name": "dungeon_level_generation",
+      "description": "Test dungeon level static and weighted generation modes",
+      "dependencies": ["dungeon_index_area_lookup"],
+      "test_type": "dungeon_level_test",
+      "input": {
+        "test_static_mode": true,
+        "test_weighted_mode": true,
+        "check_level_connections": true
+      },
+      "expected_output": {
+        "success": true,
+        "static_levels_created": true,
+        "weighted_levels_created": true
+      }
+    },
+    {
+      "name": "instance_maze_generation",
+      "description": "Test blueprint section maze generation algorithm",
+      "dependencies": ["blueprint_area_lookup"],
+      "test_type": "instance_maze_test",
+      "input": {
+        "test_dfs_carving": true,
+        "test_fixed_rooms": true,
+        "check_connectivity": true
+      },
+      "expected_output": {
+        "success": true,
+        "maze_carved": true,
+        "fixed_rooms_placed": true,
+        "exits_connected": true
+      }
+    },
+    {
+      "name": "instance_lifecycle",
+      "description": "Test instance creation, update, idle check and extraction",
+      "dependencies": ["blueprint_area_lookup"],
+      "test_type": "instance_lifecycle_test",
+      "input": {
+        "test_creation": true,
+        "test_updates": true,
+        "test_idle_detection": true,
+        "test_extraction": true
+      },
+      "expected_output": {
+        "success": true,
+        "instance_created": true,
+        "updates_processed": true,
+        "idle_detected": true,
+        "instance_extracted": true
+      }
+    },
+    {
+      "name": "dungeon_special_exits",
+      "description": "Test dungeon special exit connection and validation",
+      "dependencies": ["dungeon_index_area_lookup"],
+      "test_type": "dungeon_special_exits_test",
+      "input": {
+        "test_static_exits": true,
+        "test_weighted_exits": true,
+        "test_twoway_connections": true
+      },
+      "expected_output": {
+        "success": true,
+        "static_exits_work": true,
+        "weighted_exits_work": true,
+        "twoway_connected": true
+      }
+    },
+    {
+      "name": "blueprint_static_generation",
+      "description": "Test static blueprint instance generation",
+      "dependencies": ["blueprint_area_lookup"],
+      "test_type": "blueprint_static_test",
+      "input": {
+        "test_section_placement": true,
+        "test_link_connections": true,
+        "check_room_creation": true
+      },
+      "expected_output": {
+        "success": true,
+        "sections_placed": true,
+        "links_connected": true,
+        "rooms_created": true
+      }
+    },
+    {
+      "name": "instance_mob_obj_tracking",
+      "description": "Test instance and section mob/object counting",
+      "dependencies": ["instance_serialize"],
+      "test_type": "instance_tracking_test",
+      "input": {
+        "test_mob_counts": true,
+        "test_obj_counts": true,
+        "test_section_counts": true
+      },
+      "expected_output": {
+        "success": true,
+        "mob_counts_accurate": true,
+        "obj_counts_accurate": true,
+        "section_counts_accurate": true
+      }
     }
   ]
 }
