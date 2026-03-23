@@ -64,6 +64,7 @@
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/sslerr.h>
 #include "connection.h"
 #include "merc.h"
 
@@ -93,6 +94,45 @@ static void emit_ws_event(event_severity_t severity,
         .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
     };
     log_emit_event(&ev, NULL);
+}
+
+/**
+ * ws_tls_disconnect_is_expected - Detect normal client/probe disconnects
+ *
+ * During TLS/WebSocket handshakes, scanners and health checks commonly
+ * disconnect before completing negotiation. These cases are not actionable
+ * server errors and should be logged at debug at most.
+ */
+static bool ws_tls_disconnect_is_expected(int ssl_error)
+{
+    if (ssl_error == SSL_ERROR_ZERO_RETURN) {
+        return true;
+    }
+
+    if (ssl_error == SSL_ERROR_SYSCALL) {
+        if (errno == 0 ||
+            errno == EPIPE ||
+            errno == ECONNRESET ||
+            errno == ECONNABORTED ||
+            errno == ETIMEDOUT ||
+            errno == ENOTCONN) {
+            return true;
+        }
+    }
+
+    if (ssl_error == SSL_ERROR_SSL) {
+        unsigned long err = ERR_peek_last_error();
+        if (err != 0) {
+            int reason = ERR_GET_REASON(err);
+#ifdef SSL_R_UNEXPECTED_EOF_WHILE_READING
+            if (reason == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
+                return true;
+            }
+#endif
+        }
+    }
+
+    return false;
 }
 
 /** @brief External SSL context from tls.c */
@@ -152,6 +192,105 @@ typedef struct connection_websocket {
     connection_t base;       /**< Base connection (must be first) */
     ws_state_t *ws_state;    /**< WebSocket protocol state */
 } connection_websocket_t;
+
+typedef enum {
+    WS_NOISE_TLS_ACCEPT_DISCONNECT,
+    WS_NOISE_UPGRADE_PEER_CLOSE,
+    WS_NOISE_UPGRADE_EARLY_DISCONNECT,
+    WS_NOISE_HANDSHAKE_RESPONSE_DISCONNECT,
+    WS_NOISE_MISSING_KEY,
+    WS_NOISE_MALFORMED_KEY
+} ws_noise_reason_t;
+
+typedef struct {
+    unsigned long tls_accept_disconnects;
+    unsigned long upgrade_peer_closes;
+    unsigned long upgrade_early_disconnects;
+    unsigned long response_write_disconnects;
+    unsigned long missing_key_requests;
+    unsigned long malformed_key_requests;
+    time_t window_start;
+    time_t next_emit;
+} ws_noise_stats_t;
+
+#define WS_NOISE_ROLLUP_INTERVAL 60
+
+static ws_noise_stats_t ws_noise_stats;
+
+/**
+ * ws_noise_maybe_emit_rollup - Emit periodic summary for expected handshake noise
+ */
+static void ws_noise_maybe_emit_rollup(void)
+{
+    unsigned long total;
+
+    if (ws_noise_stats.next_emit == 0) {
+        ws_noise_stats.window_start = current_time;
+        ws_noise_stats.next_emit = current_time + WS_NOISE_ROLLUP_INTERVAL;
+        return;
+    }
+
+    if (current_time < ws_noise_stats.next_emit) {
+        return;
+    }
+
+    total = ws_noise_stats.tls_accept_disconnects +
+            ws_noise_stats.upgrade_peer_closes +
+            ws_noise_stats.upgrade_early_disconnects +
+            ws_noise_stats.response_write_disconnects +
+            ws_noise_stats.missing_key_requests +
+            ws_noise_stats.malformed_key_requests;
+
+    if (total > 0) {
+        log_message_f(LOG_LEVEL_INFO, LOG_INFO,
+                      "WebSocket handshake noise (%lds): tls_accept_disconnect=%lu, upgrade_peer_close=%lu, upgrade_early_disconnect=%lu, response_write_disconnect=%lu, missing_key=%lu, malformed_key=%lu",
+                      (long)(current_time - ws_noise_stats.window_start),
+                      ws_noise_stats.tls_accept_disconnects,
+                      ws_noise_stats.upgrade_peer_closes,
+                      ws_noise_stats.upgrade_early_disconnects,
+                      ws_noise_stats.response_write_disconnects,
+                      ws_noise_stats.missing_key_requests,
+                      ws_noise_stats.malformed_key_requests);
+    }
+
+    ws_noise_stats.tls_accept_disconnects = 0;
+    ws_noise_stats.upgrade_peer_closes = 0;
+    ws_noise_stats.upgrade_early_disconnects = 0;
+    ws_noise_stats.response_write_disconnects = 0;
+    ws_noise_stats.missing_key_requests = 0;
+    ws_noise_stats.malformed_key_requests = 0;
+    ws_noise_stats.window_start = current_time;
+    ws_noise_stats.next_emit = current_time + WS_NOISE_ROLLUP_INTERVAL;
+}
+
+/**
+ * ws_noise_record - Increment expected handshake noise counters
+ */
+static void ws_noise_record(ws_noise_reason_t reason)
+{
+    ws_noise_maybe_emit_rollup();
+
+    switch (reason) {
+        case WS_NOISE_TLS_ACCEPT_DISCONNECT:
+            ws_noise_stats.tls_accept_disconnects++;
+            break;
+        case WS_NOISE_UPGRADE_PEER_CLOSE:
+            ws_noise_stats.upgrade_peer_closes++;
+            break;
+        case WS_NOISE_UPGRADE_EARLY_DISCONNECT:
+            ws_noise_stats.upgrade_early_disconnects++;
+            break;
+        case WS_NOISE_HANDSHAKE_RESPONSE_DISCONNECT:
+            ws_noise_stats.response_write_disconnects++;
+            break;
+        case WS_NOISE_MISSING_KEY:
+            ws_noise_stats.missing_key_requests++;
+            break;
+        case WS_NOISE_MALFORMED_KEY:
+            ws_noise_stats.malformed_key_requests++;
+            break;
+    }
+}
 
 /*
  * Forward declarations
@@ -274,10 +413,12 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
     // Find Sec-WebSocket-Key header
     key_start = strstr(state->handshake_buffer, "Sec-WebSocket-Key:");
     if (!key_start) {
-        log_string("WebSocket handshake: No Sec-WebSocket-Key header");
-        emit_ws_event(EVENT_SEV_WARN,
-                      "WebSocket handshake: No Sec-WebSocket-Key header",
-                      "ws_handshake_missing_key", ws_conn->base.fd, NULL);
+        ws_noise_record(WS_NOISE_MISSING_KEY);
+        if (game_settings.dev_server) {
+            log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                          "WebSocket handshake: missing Sec-WebSocket-Key (fd %d)",
+                          ws_conn->base.fd);
+        }
         return false;
     }
 
@@ -286,10 +427,12 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
 
     key_end = strstr(key_start, "\r\n");
     if (!key_end) {
-        log_string("WebSocket handshake: Malformed Sec-WebSocket-Key");
-        emit_ws_event(EVENT_SEV_WARN,
-                      "WebSocket handshake: Malformed Sec-WebSocket-Key",
-                      "ws_handshake_bad_key", ws_conn->base.fd, NULL);
+        ws_noise_record(WS_NOISE_MALFORMED_KEY);
+        if (game_settings.dev_server) {
+            log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                          "WebSocket handshake: malformed Sec-WebSocket-Key (fd %d)",
+                          ws_conn->base.fd);
+        }
         return false;
     }
 
@@ -334,6 +477,16 @@ static bool process_ws_handshake(connection_websocket_t *ws_conn)
         nwritten = SSL_write(ssl, response, strlen(response));
         if (nwritten <= 0) {
             int ssl_error = SSL_get_error(ssl, nwritten);
+            if (ws_tls_disconnect_is_expected(ssl_error)) {
+                ws_noise_record(WS_NOISE_HANDSHAKE_RESPONSE_DISCONNECT);
+                if (game_settings.dev_server) {
+                    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                                  "WebSocket handshake interrupted by peer disconnect (fd %d, ssl_error %d)",
+                                  ws_conn->base.fd, ssl_error);
+                }
+                ws_conn->base.state = CONN_STATE_CLOSED;
+                return false;
+            }
             log_stringf("WebSocket handshake: SSL_write() failed, error %d", ssl_error);
             {
                 char msg[MSL];
@@ -1020,6 +1173,18 @@ static bool wss_process_handshake(connection_t *conn)
             return false;
         }
 
+        if (ws_tls_disconnect_is_expected(ssl_error)) {
+            ws_noise_record(WS_NOISE_TLS_ACCEPT_DISCONNECT);
+            if (game_settings.dev_server) {
+                log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                              "WebSocket TLS handshake ended early (fd %d, ssl_error %d)",
+                              conn->fd, ssl_error);
+            }
+            conn->state = CONN_STATE_CLOSED;
+            state->handshake_state = WS_HANDSHAKE_FAILED;
+            return false;
+        }
+
         // TLS handshake failed
         log_stringf("WebSocket TLS handshake failed: SSL_accept returned %d, error %d", ret, ssl_error);
         {
@@ -1060,13 +1225,28 @@ static bool wss_process_handshake(connection_t *conn)
         }
         if (ssl_error == SSL_ERROR_ZERO_RETURN) {
             // Connection closed
-            log_string("WebSocket TLS: Connection closed during upgrade");
-            emit_ws_event(EVENT_SEV_WARN,
-                          "WebSocket TLS: Connection closed during upgrade",
-                          "wss_upgrade_closed", conn->fd, NULL);
+            ws_noise_record(WS_NOISE_UPGRADE_PEER_CLOSE);
+            if (game_settings.dev_server) {
+                log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                              "WebSocket TLS: peer closed during upgrade (fd %d)", conn->fd);
+            }
             conn->state = CONN_STATE_CLOSED;
+            state->handshake_state = WS_HANDSHAKE_FAILED;
             return false;
         }
+
+        if (ws_tls_disconnect_is_expected(ssl_error)) {
+            ws_noise_record(WS_NOISE_UPGRADE_EARLY_DISCONNECT);
+            if (game_settings.dev_server) {
+                log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                              "WebSocket TLS upgrade ended early (fd %d, ssl_error %d)",
+                              conn->fd, ssl_error);
+            }
+            conn->state = CONN_STATE_CLOSED;
+            state->handshake_state = WS_HANDSHAKE_FAILED;
+            return false;
+        }
+
         // Error
         log_stringf("wss_process_handshake: SSL_read() failed, error %d", ssl_error);
         {

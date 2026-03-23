@@ -2125,10 +2125,12 @@ WEDIT (wedit_region)
     send_to_char("        region <name|idx|uid> name <new name>\n\r", ch);
     send_to_char("        region <name|idx|uid> region <region>\n\r", ch);
     send_to_char("        region <name|idx|uid> placetype <placetype|none>\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnmob <wnum|none> [chance] [cap]\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnmobreq <requirements|none>\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnobj <wnum|none> [chance] [cap]\n\r", ch);
-    send_to_char("        region <name|idx|uid> spawnobjreq <requirements|none>\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmob list\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmob add <wnum> [chance] [cap] [req]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnmob <idx> <show|remove|wnum|chance|cap|req> [value]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobj list\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobj add <wnum> [chance] [cap] [req]\n\r", ch);
+    send_to_char("        region <name|idx|uid> spawnobj <idx> <show|remove|wnum|chance|cap|req> [value]\n\r", ch);
     send_to_char("        region <name|idx|uid> coords add <startx> <starty> <endx> <endy>\n\r", ch);
     send_to_char("        region <name|idx|uid> coords delete <box#>\n\r", ch);
     send_to_char("        region <name|idx|uid> add show\n\r", ch);

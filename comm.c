@@ -2099,8 +2099,11 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
 
             // Check for handshake timeouts (5 seconds to prevent slowloris attacks)
             if (current_time - d->conn->last_activity > 5) {
-                log_message_f(LOG_LEVEL_WARN, LOG_WARN, "Closing stalled %s handshake connection",
-                           connection_get_protocol_name(d->conn));
+                if (game_settings.dev_server) {
+                    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                                  "Closing stalled %s handshake connection",
+                                  connection_get_protocol_name(d->conn));
+                }
                 close_socket(d);
                 continue;
             }
@@ -2148,8 +2151,10 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
                 } else {
                     // Check if handshake failed (vs still in progress)
                     if (d->conn->state != CONN_STATE_CONNECTING) {
-                        log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s handshake failed",
-                                   connection_get_protocol_name(d->conn));
+                        if (d->conn->state != CONN_STATE_CLOSED && d->conn->state != CONN_STATE_CLOSING) {
+                            log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s handshake failed",
+                                          connection_get_protocol_name(d->conn));
+                        }
                         close_socket(d);
                         continue;
                     }
@@ -2282,16 +2287,7 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
          */
         for (d = descriptor_list; d != NULL; d = d_next) {
             d_next = d->next;
-            
-            // Close connections with stalled handshakes (5 seconds to prevent slowloris)
-            if (d->conn && d->conn->handshake_in_progress &&
-                current_time - d->conn->last_activity > 5) {
-                log_message_f(LOG_LEVEL_WARN, LOG_WARN, "Closing stalled %s handshake connection",
-                           connection_get_protocol_name(d->conn));
-                close_socket(d);
-                continue;
-            }
-            
+
             // Only timeout normal connections if not fully logged in
             if ((d->connected == CON_GET_ACCOUNT_NAME || d->connected == CON_GET_OLD_PASSWORD) && 
                 current_time - d->last_activity > 120 && 
