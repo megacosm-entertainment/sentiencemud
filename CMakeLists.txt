@@ -327,6 +327,7 @@ if(BUILD_TESTS)
         tests/integration/instance_tests.c  # Re-enabled with proper blueprint and dungeon tests
         tests/integration/chat_rooms_tests.c
         tests/integration/skill_data_tests.c
+        tests/integration/spell_data_tests.c
         tests/integration/class_data_tests.c
         tests/integration/item_type_tests.c
         tests/integration/lookup_table_tests.c

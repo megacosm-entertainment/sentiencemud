@@ -30,6 +30,7 @@ test_result_t run_church_test_case(test_case_t *test);
 // test_result_t run_instance_test_case(test_case_t *test);  // Temporarily disabled
 test_result_t run_chat_room_test_case(test_case_t *test);
 test_result_t run_skill_data_test_case(test_case_t *test);
+test_result_t run_spell_data_test_case(test_case_t *test);
 test_result_t run_class_data_test_case(test_case_t *test);
 test_result_t run_item_type_test_case(test_case_t *test);
 test_result_t run_lookup_table_test_case(test_case_t *test);

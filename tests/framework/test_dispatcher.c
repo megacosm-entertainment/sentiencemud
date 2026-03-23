@@ -86,6 +86,7 @@ static const test_handler_entry_t handler_table[] = {
     { "skill_group_",                    run_skill_group_test_case,         MATCH_SUBSTR },
     { "skill_",                          run_skill_data_test_case,          MATCH_SUBSTR },
     { "spell_fun_",                      run_skill_data_test_case,          MATCH_SUBSTR },
+    { "spelldt_",                        run_spell_data_test_case,          MATCH_SUBSTR },
     { "class_",                          run_class_data_test_case,          MATCH_SUBSTR },
     { "item_type_",                      run_item_type_test_case,           MATCH_SUBSTR },
     { "song_",                           run_song_data_test_case,           MATCH_SUBSTR },
