@@ -33,10 +33,10 @@ cd /sentience
 Sentience uses a JSON-driven testing framework where test definitions are stored as JSON files and dispatched to C test handlers. The framework has zero production overhead (protected by `#ifdef BUILD_TESTS`) and supports both unit and integration testing.
 
 **Current Test Coverage:**
-- **50 test files** (26 unit, 24 integration)  
-- **31 integration suites** testing game systems
-- **19 unit test suites** testing core utilities
-- **305 total tests** across all suites
+- **67 test definition files** (27 unit, 34 integration, 6 framework)  
+- **34 integration suites** testing game systems
+- **27 unit test suites** testing core utilities
+- **432 total tests** across all suites
 
 ## Test Profiles
 
