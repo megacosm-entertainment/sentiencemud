@@ -50,11 +50,6 @@ extern ROOM_INDEX_DATA *json_persist_json_to_room(json_t *json);
 extern json_t *json_persist_scriptdata_to_json(PROG_DATA *progs);
 extern void json_persist_json_to_scriptdata(json_t *json, PROG_DATA **progs);
 
-/* Existing persist functions for objects/mobiles */
-extern void persist_save_object(FILE *fp, OBJ_DATA *obj);
-extern OBJ_DATA *persist_load_object(FILE *fp);
-extern void persist_save_mobile(FILE *fp, CHAR_DATA *mob);
-extern CHAR_DATA *persist_load_mobile(FILE *fp);
 
 /***************************************************************************
  * Constants                                                               *

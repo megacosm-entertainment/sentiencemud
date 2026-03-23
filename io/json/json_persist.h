@@ -173,12 +173,6 @@ bool json_persist_load_all(void);
  * Migration Utilities                                                     *
  ***************************************************************************/
 
-/* Migrate persist.dat to JSON files (one-time operation) */
-bool json_persist_migrate_from_dat(void);
-
-/* Check if migration is needed */
-bool json_persist_needs_migration(void);
-
 /***************************************************************************
  * Phase 2: Background Worker                                              *
  ***************************************************************************/

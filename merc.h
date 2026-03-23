@@ -11875,7 +11875,6 @@ bool can_room_update(ROOM_INDEX_DATA *room);
 extern  bool			ships_changed;
 
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
-ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
 
 void resolve_dungeons_player(CHAR_DATA *ch);
 void resolve_instances();
@@ -11903,7 +11902,6 @@ bool save_ships();
 SHIP_INDEX_DATA *get_ship_index(long vnum);
 SHIP_INDEX_DATA *get_ship_index_for_area(AREA_DATA *area, long vnum);
 bool can_edit_ships(CHAR_DATA *ch);
-SHIP_DATA *ship_load(FILE *fp);
 bool ship_save(FILE *fp, SHIP_DATA *ship);
 
 SHIP_DATA *create_ship(WNUM wnum);

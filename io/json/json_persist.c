@@ -99,11 +99,6 @@ static const char *persist_json_objects_path(char *buf, size_t bufsize)
     return resolve_game_path(PERSIST_JSON_OBJECTS, buf, bufsize);
 }
 
-static const char *persist_dat_path(char *buf, size_t bufsize)
-{
-    return resolve_game_path(PERSIST_FILE, buf, bufsize);
-}
-
 /***************************************************************************
  * Initialization                                                          *
  ***************************************************************************/
@@ -3081,44 +3076,7 @@ bool json_persist_load_all(void)
  * Migration Utilities                                                     *
  ***************************************************************************/
 
-bool json_persist_needs_migration(void)
-{
-    FILE *fp;
-    DIR *dir;
-    char persist_file_buf[MAX_INPUT_LENGTH];
-    char objects_dir_buf[MAX_INPUT_LENGTH];
-    const char *persist_file = persist_dat_path(persist_file_buf, sizeof(persist_file_buf));
-    const char *objects_dir = persist_json_objects_path(objects_dir_buf, sizeof(objects_dir_buf));
-
-    /* Check if persist.dat exists */
-    fp = fopen(persist_file, "r");
-    if (!fp) {
-        return false;  /* No old file to migrate */
-    }
-    fclose(fp);
-
-    /* Check if JSON persist directory has content */
-    dir = opendir(objects_dir);
-    if (dir) {
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] != '.') {
-                closedir(dir);
-                return false;  /* Already has JSON files */
-            }
-        }
-        closedir(dir);
-    }
-
-    return true;  /* Has persist.dat but no JSON files */
-}
-
-bool json_persist_migrate_from_dat(void)
-{
-    /* TODO: Implement migration from persist.dat */
-    log_string("json_persist_migrate_from_dat: Not yet implemented");
-    return false;
-}
+/* Legacy migration functions removed - JSON is now the sole persist format */
 
 /***************************************************************************
  * Phase 2: Background Dirty Queue Worker                                  *
