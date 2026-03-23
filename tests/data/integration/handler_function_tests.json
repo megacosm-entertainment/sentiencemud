@@ -1,0 +1,81 @@
+{
+  "type": "test_suite",
+  "test_suite": "handler_function_tests",
+  "description": "Handler function integration tests - utility functions for characters, objects, affects, and rooms",
+  "version": "1.0", 
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "handler_lookups_test",
+      "description": "Test weapon, class, skill and other lookup functions",
+      "test_type": "handler_wpn_lookup",
+      "dependencies": [],
+      "expected_outcome": "all lookups return correct values for valid inputs"
+    },
+    {
+      "name": "handler_string_matching_test", 
+      "description": "Test is_name and is_exact_name functions",
+      "test_type": "handler_string_test",
+      "dependencies": [],
+      "expected_outcome": "string matching works correctly for partial and exact names"
+    },
+    {
+      "name": "handler_stats_attributes_test",
+      "description": "Test stat getters, setters and modifiers with fake player",
+      "test_type": "handler_stat_test",
+      "dependencies": [],
+      "expected_outcome": "stat calculations work correctly with exponential scaling"
+    },
+    {
+      "name": "handler_skills_weapons_test",
+      "description": "Test weapon skill and weapon sn functions",
+      "test_type": "handler_wpn_skill",
+      "dependencies": [],
+      "expected_outcome": "weapon skills return correct values for equipped weapons"
+    },
+    {
+      "name": "handler_counting_test",
+      "description": "Test count_users and other counting functions", 
+      "test_type": "handler_count_test",
+      "dependencies": [],
+      "expected_outcome": "counting functions return accurate counts"
+    },
+    {
+      "name": "handler_object_weight_test",
+      "description": "Test object weight and value calculation functions",
+      "test_type": "handler_weight_test", 
+      "dependencies": [],
+      "expected_outcome": "weight calculations handle containers and nested items correctly"
+    },
+    {
+      "name": "handler_affect_queries_test",
+      "description": "Test affect_find, is_affected and related affect query functions",
+      "test_type": "handler_affect_test",
+      "dependencies": [],
+      "expected_outcome": "affect queries work correctly with test affects on fake player"
+    },
+    {
+      "name": "handler_visibility_test",
+      "description": "Test can_see functions with NULL descriptor handling", 
+      "test_type": "handler_visibility_test",
+      "dependencies": [],
+      "expected_outcome": "visibility functions handle NULL descriptors gracefully"
+    },
+    {
+      "name": "handler_character_status_test",
+      "description": "Test character status check functions",
+      "test_type": "handler_status_test", 
+      "dependencies": [],
+      "expected_outcome": "character status functions return correct boolean values"
+    },
+    {
+      "name": "handler_pronouns_test",
+      "description": "Test pronoun and body type functions",
+      "test_type": "handler_pronoun_test",
+      "dependencies": [],
+      "expected_outcome": "pronouns return correct strings for different character sexes"
+    }
+  ]
+}
