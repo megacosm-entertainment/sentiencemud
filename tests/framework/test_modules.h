@@ -21,6 +21,7 @@ typedef struct {
 test_result_t run_wnum_test_case(test_case_t *test);
 test_result_t run_pure_function_test_case(test_case_t *test);
 test_result_t run_buffer_function_test_case(test_case_t *test);
+test_result_t run_memory_util_test_case(test_case_t *test);
 test_result_t run_string_editor_test_case(test_case_t *test);
 
 test_result_t run_reset_test_case(test_case_t *test);

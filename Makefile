@@ -298,6 +298,7 @@ ifdef BUILD_TESTS
                tests/unit/buffer_function_cases_core.c \
                tests/unit/buffer_function_cases_permutations.c \
                tests/unit/buffer_function_tests.c \
+               tests/unit/memory_util_tests.c \
                tests/unit/pure_function_tests.c \
                tests/integration/wnum_tests.c \
                tests/integration/string_editor_tests.c \

@@ -313,6 +313,7 @@ if(BUILD_TESTS)
         tests/unit/buffer_function_cases_core.c
         tests/unit/buffer_function_cases_permutations.c
         tests/unit/buffer_function_tests.c
+        tests/unit/memory_util_tests.c
         tests/framework/test_framework.c
         tests/framework/test_loader.c
         tests/framework/test_dispatcher.c

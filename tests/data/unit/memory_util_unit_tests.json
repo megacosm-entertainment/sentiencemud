@@ -1,0 +1,114 @@
+{
+  "type": "test_suite",
+  "test_suite": "memory_util_unit_tests",
+  "description": "Unit tests for memory allocation and management utilities",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "alloc_mem_basic",
+      "description": "Basic alloc_mem/free_mem cycle",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "alloc_free_basic",
+        "alloc_size": 256
+      }
+    },
+    {
+      "name": "alloc_mem_zero_size",
+      "description": "Zero size allocation behavior",
+      "test_type": "memory_util_test", 
+      "input": {
+        "scenario": "alloc_zero_size"
+      }
+    },
+    {
+      "name": "alloc_mem_large",
+      "description": "Large allocation test",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "alloc_free_basic",
+        "alloc_size": 8192
+      }
+    },
+    {
+      "name": "alloc_perm_basic",
+      "description": "Permanent allocation test",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "alloc_perm_basic",
+        "alloc_size": 512
+      }
+    },
+    {
+      "name": "str_dup_basic",
+      "description": "String duplication with valid string",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "str_dup_basic",
+        "test_string": "Hello, World!"
+      }
+    },
+    {
+      "name": "str_dup_empty",
+      "description": "String duplication with empty string",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "str_dup_empty"
+      }
+    },
+    {
+      "name": "str_dup_null",
+      "description": "String duplication with null string",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "str_dup_null"
+      }
+    },
+    {
+      "name": "buffer_basic_operations",
+      "description": "Basic buffer new/free cycle",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "buffer_basic"
+      }
+    },
+    {
+      "name": "buffer_string_operations",
+      "description": "Buffer string operations test",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "buffer_string_ops",
+        "test_string": "Test buffer content"
+      }
+    },
+    {
+      "name": "buffer_size_operations",
+      "description": "Buffer with custom size",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "buffer_custom_size",
+        "buffer_size": 2048
+      }
+    },
+    {
+      "name": "multiple_allocations",
+      "description": "Multiple simultaneous allocations",
+      "test_type": "memory_util_test", 
+      "input": {
+        "scenario": "multiple_alloc",
+        "alloc_count": 5,
+        "alloc_size": 128
+      }
+    },
+    {
+      "name": "mixed_memory_operations",
+      "description": "Mixed alloc_mem and alloc_perm operations",
+      "test_type": "memory_util_test",
+      "input": {
+        "scenario": "mixed_operations"
+      }
+    }
+  ]
+}
