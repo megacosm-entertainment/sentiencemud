@@ -1547,6 +1547,40 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
         return TEST_SUCCESS;
     }
 
+    if (strcmp(func_name, "one_argument_norm") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *argument_in = test_json_get_string(test_case, "argument");
+            const char *expected_first = test_json_get_string(test_case, "expected_first");
+            const char *expected_rest = test_json_get_string(test_case, "expected_rest");
+            char argument_buf[MAX_STRING_LENGTH];
+            char first[MAX_INPUT_LENGTH];
+
+            if (!argument_in || !expected_first || !expected_rest) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "one_argument_norm test case missing argument/expected_first/expected_rest");
+                return TEST_ERROR;
+            }
+
+            snprintf(argument_buf, sizeof(argument_buf), "%s", argument_in);
+            char *rest = one_argument_norm(argument_buf, first);
+
+            if (str_cmp(first, expected_first) != 0 || str_cmp(rest, expected_rest) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "one_argument_norm('%s') returned first='%s', rest='%s'; expected first='%s', rest='%s'",
+                             argument_in,
+                             first,
+                             rest,
+                             expected_first,
+                             expected_rest);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
     if (strcmp(func_name, "smash_tilde") == 0) {
         size_t index;
         json_t *test_case;
@@ -1653,6 +1687,35 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
             if (actual_not_equal != expected_not_equal) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                              "str_cmp('%s','%s') returned %s, expected %s",
+                             left,
+                             right,
+                             actual_not_equal ? "true" : "false",
+                             expected_not_equal ? "true" : "false");
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "str_cmp_nocolour") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *left = test_json_get_string(test_case, "left");
+            const char *right = test_json_get_string(test_case, "right");
+            bool expected_not_equal = test_json_get_bool(test_case, "expected_not_equal");
+
+            if (!left || !right) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "str_cmp_nocolour test case missing left/right");
+                return TEST_ERROR;
+            }
+
+            bool actual_not_equal = str_cmp_nocolour(left, right);
+            if (actual_not_equal != expected_not_equal) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "str_cmp_nocolour('%s','%s') returned %s, expected %s",
                              left,
                              right,
                              actual_not_equal ? "true" : "false",
