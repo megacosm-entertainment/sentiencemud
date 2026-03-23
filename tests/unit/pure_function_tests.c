@@ -16,6 +16,12 @@ char *olc_getline(char *str, char *buf);
 char *numlineas(char *string);
 bool is_valid_colour_code(const char *code);
 
+// Forward declarations for color string manipulation functions
+int strlen_no_colours(const char *str);
+char *nocolour(const char *string);
+int get_colour_width(char *text);
+int str_cmp_nocolour(const char *astr, const char *bstr);
+
 // Forward declaration for SHA256 function
 extern char *sha256_crypt(const char *pwd);
 
@@ -1702,25 +1708,48 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
         size_t index;
         json_t *test_case;
         json_array_foreach(test_cases, index, test_case) {
-            const char *left = test_json_get_string(test_case, "left");
-            const char *right = test_json_get_string(test_case, "right");
-            bool expected_not_equal = test_json_get_bool(test_case, "expected_not_equal");
+            const char *astr = test_json_get_string(test_case, "astr");
+            const char *bstr = test_json_get_string(test_case, "bstr");
+            
+            if (astr && bstr) {
+                // New format with astr/bstr and expected integer result
+                int expected = test_json_get_int(test_case, "expected");
+                int result = str_cmp_nocolour(astr, bstr);
 
-            if (!left || !right) {
-                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                           "str_cmp_nocolour test case missing left/right");
-                return TEST_ERROR;
-            }
+                // Normalize result to -1, 0, or 1 like expected values
+                if (result < 0) result = -1;
+                else if (result > 0) result = 1;
 
-            bool actual_not_equal = str_cmp_nocolour(left, right);
-            if (actual_not_equal != expected_not_equal) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                             "str_cmp_nocolour('%s','%s') returned %s, expected %s",
-                             left,
-                             right,
-                             actual_not_equal ? "true" : "false",
-                             expected_not_equal ? "true" : "false");
-                return TEST_FAILURE;
+                if (result != expected) {
+                    if (test->verbose_output) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                     "str_cmp_nocolour(\"%s\", \"%s\") = %d, expected %d",
+                                     astr, bstr, result, expected);
+                    }
+                    return TEST_FAILURE;
+                }
+            } else {
+                // Legacy format with left/right and expected_not_equal
+                const char *left = test_json_get_string(test_case, "left");
+                const char *right = test_json_get_string(test_case, "right");
+                bool expected_not_equal = test_json_get_bool(test_case, "expected_not_equal");
+
+                if (!left || !right) {
+                    log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                               "str_cmp_nocolour test case missing left/right");
+                    return TEST_ERROR;
+                }
+
+                bool actual_not_equal = str_cmp_nocolour(left, right);
+                if (actual_not_equal != expected_not_equal) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "str_cmp_nocolour('%s','%s') returned %s, expected %s",
+                                 left,
+                                 right,
+                                 actual_not_equal ? "true" : "false",
+                                 expected_not_equal ? "true" : "false");
+                    return TEST_FAILURE;
+                }
             }
         }
 
@@ -3076,6 +3105,70 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
             }
         }
 
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "strlen_no_colours") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int result = strlen_no_colours(input);
+
+            if (result != expected) {
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "strlen_no_colours(\"%s\") = %d, expected %d",
+                                 input ? input : "(null)", result, expected);
+                }
+                return TEST_FAILURE;
+            }
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "nocolour") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *result = nocolour(input);
+
+            if (!result || strcmp(result, expected) != 0) {
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "nocolour(\"%s\") = \"%s\", expected \"%s\"",
+                                 input ? input : "(null)",
+                                 result ? result : "(null)",
+                                 expected ? expected : "(null)");
+                }
+                if (result) free_string(result);
+                return TEST_FAILURE;
+            }
+            if (result) free_string(result);
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_colour_width") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int result = get_colour_width((char *)input);
+
+            if (result != expected) {
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "get_colour_width(\"%s\") = %d, expected %d",
+                                 input ? input : "(null)", result, expected);
+                }
+                return TEST_FAILURE;
+            }
+        }
         return TEST_SUCCESS;
     }
 

@@ -1,0 +1,92 @@
+{
+  "type": "test_suite",
+  "test_suite": "color_string_manipulation_unit_tests",
+  "description": "Pure-function unit tests for color string manipulation and comparison functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "strlen_no_colours_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "strlen_no_colours",
+        "test_cases": [
+          { "input": "hello", "expected": 5 },
+          { "input": "{Rhello{x", "expected": 5 },
+          { "input": "{[F123]world{[B050]", "expected": 5 },
+          { "input": "", "expected": 0 },
+          { "input": "{Y", "expected": 0 },
+          { "input": "{{hello", "expected": 6 },
+          { "input": "a{Rb{[F123]c{x", "expected": 3 },
+          { "input": "mixed {Y color {x codes {[B555] here", "expected": 25 }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "nocolour_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "nocolour",
+        "test_cases": [
+          { "input": "hello", "expected": "hello" },
+          { "input": "{Rhello{x", "expected": "hello" },
+          { "input": "{[F123]world{[B050]", "expected": "world" },
+          { "input": "", "expected": "" },
+          { "input": "{Y", "expected": "" },
+          { "input": "{{hello", "expected": "{hello" },
+          { "input": "a{Rb{[F123]c{x", "expected": "abc" },
+          { "input": "mixed {Y color {x codes {[B555] here", "expected": "mixed  color  codes  here" }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "get_colour_width_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "get_colour_width",
+        "test_cases": [
+          { "input": "hello", "expected": 0 },
+          { "input": "{Rhello{x", "expected": 4 },
+          { "input": "{[F123]world{[B050]", "expected": 14 },
+          { "input": "", "expected": 0 },
+          { "input": "{Y", "expected": 2 },
+          { "input": "{{hello", "expected": 1 },
+          { "input": "a{Rb{[F123]c{x", "expected": 11 },
+          { "input": "mixed {Y color {x codes {[B555] here", "expected": 11 }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "str_cmp_nocolour_core_cases",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "str_cmp_nocolour",
+        "test_cases": [
+          { "astr": "hello", "bstr": "hello", "expected": 0 },
+          { "astr": "{Rhello{x", "bstr": "hello", "expected": 0 },
+          { "astr": "hello", "bstr": "{Yhello{x", "expected": 0 },
+          { "astr": "{Rhello{x", "bstr": "{Yhello{x", "expected": 0 },
+          { "astr": "apple", "bstr": "banana", "expected": -1 },
+          { "astr": "{Rapple{x", "bstr": "{Ybanana{x", "expected": -1 },
+          { "astr": "zebra", "bstr": "apple", "expected": 1 },
+          { "astr": "{[F123]zebra{x", "bstr": "{[B050]apple{x", "expected": 1 },
+          { "astr": "", "bstr": "", "expected": 0 },
+          { "astr": "{R{x", "bstr": "", "expected": 0 }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

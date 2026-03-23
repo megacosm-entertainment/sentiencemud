@@ -23,7 +23,10 @@ bool is_buffer_core_scenario(const char *scenario)
         strcmp(scenario, "exact_limit_fill_then_fail") == 0 ||
         strcmp(scenario, "overflow_clear_recover") == 0 ||
         strcmp(scenario, "null_argument_guards") == 0 ||
-        strcmp(scenario, "freed_buffer_guards") == 0
+        strcmp(scenario, "freed_buffer_guards") == 0 ||
+        strcmp(scenario, "bprintf_format_edge_cases") == 0 ||
+        strcmp(scenario, "large_single_char_sequence") == 0 ||
+        strcmp(scenario, "capacity_vs_len_consistency") == 0
     );
 }
 
@@ -588,6 +591,133 @@ test_result_t run_buffer_core_scenario(const char *scenario, json_t *test_case)
         if (buf_string(buffer) == NULL || str_cmp(buf_string(buffer), "") != 0) {
             log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                        "freed buffer string accessor expected empty non-NULL string");
+            return TEST_FAILURE;
+        }
+
+        free_buf(buffer);
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(scenario, "bprintf_format_edge_cases") == 0) {
+        BUFFER *buffer = new_buf();
+
+        if (!buffer) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "bprintf_format_edge_cases setup failed");
+            return TEST_FAILURE;
+        }
+
+        // Test various format specifiers
+        if (!bprintf(buffer, "%d %s %c", 42, "world", '!')) {
+            free_buf(buffer);
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "bprintf format failed");
+            return TEST_FAILURE;
+        }
+
+        if (str_cmp(buf_string(buffer), "42 world !") != 0) {
+            free_buf(buffer);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "bprintf format mismatch: got '%s'", buf_string(buffer));
+            return TEST_FAILURE;
+        }
+
+        clear_buf(buffer);
+
+        // Test non-empty format to avoid zero-length warning
+        if (!bprintf(buffer, "static")) {
+            free_buf(buffer);
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "bprintf static format failed");
+            return TEST_FAILURE;
+        }
+
+        if (str_cmp(buf_string(buffer), "static") != 0) {
+            free_buf(buffer);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "bprintf static format mismatch: got '%s'", buf_string(buffer));
+            return TEST_FAILURE;
+        }
+
+        free_buf(buffer);
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(scenario, "large_single_char_sequence") == 0) {
+        BUFFER *buffer = new_buf();
+        int i;
+
+        if (!buffer) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "large_single_char_sequence setup failed");
+            return TEST_FAILURE;
+        }
+
+        // Add 2000 characters one at a time to test growth
+        for (i = 0; i < 2000; i++) {
+            if (!add_buf_char(buffer, (char)('A' + (i % 26)))) {
+                free_buf(buffer);
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "large_single_char_sequence failed at char %d", i);
+                return TEST_FAILURE;
+            }
+        }
+
+        if (buf_len(buffer) != 2000) {
+            free_buf(buffer);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "large_single_char_sequence length mismatch: %zu", buf_len(buffer));
+            return TEST_FAILURE;
+        }
+
+        if (buf_capacity(buffer) < 2000) {
+            free_buf(buffer);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "large_single_char_sequence capacity too small: %zu", buf_capacity(buffer));
+            return TEST_FAILURE;
+        }
+
+        free_buf(buffer);
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(scenario, "capacity_vs_len_consistency") == 0) {
+        BUFFER *buffer = new_buf_size(128);
+        size_t initial_capacity;
+
+        if (!buffer) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "capacity_vs_len_consistency setup failed");
+            return TEST_FAILURE;
+        }
+
+        initial_capacity = buf_capacity(buffer);
+
+        // Test that capacity remains consistent during operations
+        if (!add_buf(buffer, "test") || buf_capacity(buffer) != initial_capacity) {
+            free_buf(buffer);
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "capacity changed unexpectedly after small add");
+            return TEST_FAILURE;
+        }
+
+        // Test that len + remaining == capacity - 1 (for null terminator)
+        if (buf_len(buffer) + buf_remaining(buffer) + 1 != buf_capacity(buffer)) {
+            free_buf(buffer);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "capacity consistency failed: len=%zu + remaining=%zu + 1 != capacity=%zu",
+                         buf_len(buffer), buf_remaining(buffer), buf_capacity(buffer));
+            return TEST_FAILURE;
+        }
+
+        clear_buf(buffer);
+
+        // Test after clear
+        if (buf_len(buffer) + buf_remaining(buffer) + 1 != buf_capacity(buffer)) {
+            free_buf(buffer);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "capacity consistency failed after clear: len=%zu + remaining=%zu + 1 != capacity=%zu",
+                         buf_len(buffer), buf_remaining(buffer), buf_capacity(buffer));
             return TEST_FAILURE;
         }
 

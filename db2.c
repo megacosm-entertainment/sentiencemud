@@ -833,7 +833,6 @@ char *nocolour( const char *string )
             if( string[i+1] == COLOUR_CHAR )		// Double {{ becomes { when processed, but still counts as two
             {
                 buf[n++] = COLOUR_CHAR;
-                buf[n++] = COLOUR_CHAR;
             }
 
             i+=2;
