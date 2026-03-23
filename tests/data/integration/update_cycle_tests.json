@@ -1,0 +1,252 @@
+{
+  "type": "test_suite",
+  "test_suite": "update_cycle",
+  "description": "Update cycle calculation tests - regeneration math, decay timers, and time logic",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "hit_gain_npc_calculations",
+      "description": "Test hit point regeneration calculations for NPCs",
+      "dependencies": [],
+      "test_type": "updcyc_hit_gain",
+      "input": {
+        "test_cases": [
+          {
+            "description": "Basic NPC level 10",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_RESTING",
+            "affected": [],
+            "expected_base": 15
+          },
+          {
+            "description": "NPC with regeneration",
+            "is_npc": true,
+            "level": 5,
+            "position": "POS_RESTING",
+            "affected": ["AFF_REGENERATION"],
+            "expected_base": 20
+          },
+          {
+            "description": "Fighting NPC",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_FIGHTING",
+            "affected": [],
+            "expected_base": 5
+          },
+          {
+            "description": "Sleeping NPC",
+            "is_npc": true,
+            "level": 8,
+            "position": "POS_SLEEPING",
+            "affected": [],
+            "expected_base": 19
+          }
+        ]
+      },
+      "expected_output": {
+        "all_calculations_correct": true,
+        "test_count": 4
+      }
+    },
+    {
+      "name": "mana_gain_npc_calculations", 
+      "description": "Test mana regeneration calculations for NPCs",
+      "dependencies": [],
+      "test_type": "updcyc_mana_gain",
+      "input": {
+        "test_cases": [
+          {
+            "description": "Basic NPC level 10",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_RESTING",
+            "affected": [],
+            "expected_base": 15
+          },
+          {
+            "description": "Fighting NPC",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_FIGHTING",
+            "affected": [],
+            "expected_base": 5
+          },
+          {
+            "description": "Sleeping NPC",
+            "is_npc": true,
+            "level": 8,
+            "position": "POS_SLEEPING",
+            "affected": [],
+            "expected_base": 19
+          }
+        ]
+      },
+      "expected_output": {
+        "all_calculations_correct": true,
+        "test_count": 3
+      }
+    },
+    {
+      "name": "move_gain_npc_calculations",
+      "description": "Test movement regeneration calculations for NPCs",
+      "dependencies": [],
+      "test_type": "updcyc_move_gain",
+      "input": {
+        "test_cases": [
+          {
+            "description": "Basic NPC level 10",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_RESTING",
+            "affected": [],
+            "expected_base": 10
+          },
+          {
+            "description": "Fighting NPC",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_FIGHTING",
+            "affected": [],
+            "expected_base": 3
+          },
+          {
+            "description": "Sleeping NPC",
+            "is_npc": true,
+            "level": 8,
+            "position": "POS_SLEEPING",
+            "affected": [],
+            "expected_base": 12
+          }
+        ]
+      },
+      "expected_output": {
+        "all_calculations_correct": true,
+        "test_count": 3
+      }
+    },
+    {
+      "name": "toxin_gain_npc_calculations",
+      "description": "Test toxin regeneration calculations for NPCs", 
+      "dependencies": [],
+      "test_type": "updcyc_toxin_gain",
+      "input": {
+        "test_cases": [
+          {
+            "description": "Basic NPC level 10",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_RESTING",
+            "affected": [],
+            "expected_base": 15
+          },
+          {
+            "description": "NPC with regeneration",
+            "is_npc": true,
+            "level": 5,
+            "position": "POS_RESTING",
+            "affected": ["AFF_REGENERATION"],
+            "expected_base": 20
+          },
+          {
+            "description": "Poisoned NPC",
+            "is_npc": true,
+            "level": 10,
+            "position": "POS_RESTING",
+            "affected": ["AFF_POISON"],
+            "expected_base": 3
+          }
+        ]
+      },
+      "expected_output": {
+        "all_calculations_correct": true,
+        "test_count": 3
+      }
+    },
+    {
+      "name": "time_calculations",
+      "description": "Test game time calculation logic",
+      "dependencies": [],
+      "test_type": "updcyc_time_calc",
+      "input": {
+        "test_cases": [
+          {
+            "description": "Day rollover at hour 24",
+            "hour": 24,
+            "day": 5,
+            "month": 3,
+            "year": 100,
+            "expected_hour": 0,
+            "expected_day": 6,
+            "expected_month": 3,
+            "expected_year": 100
+          },
+          {
+            "description": "Month rollover at day 35",
+            "hour": 12,
+            "day": 35,
+            "month": 8,
+            "year": 100,
+            "expected_hour": 12,
+            "expected_day": 0,
+            "expected_month": 9,
+            "expected_year": 100
+          },
+          {
+            "description": "Year rollover at month 12",
+            "hour": 18,
+            "day": 20,
+            "month": 12,
+            "year": 99,
+            "expected_hour": 18,
+            "expected_day": 20,
+            "expected_month": 0,
+            "expected_year": 100
+          }
+        ]
+      },
+      "expected_output": {
+        "all_calculations_correct": true,
+        "test_count": 3
+      }
+    },
+    {
+      "name": "sunlight_transitions",
+      "description": "Test sunlight state transitions based on time",
+      "dependencies": [],
+      "test_type": "updcyc_sunlight",
+      "input": {
+        "test_cases": [
+          {
+            "description": "Dawn at hour 5",
+            "hour": 5,
+            "expected_sunlight": "SUN_RISE"
+          },
+          {
+            "description": "Full daylight at hour 6", 
+            "hour": 6,
+            "expected_sunlight": "SUN_LIGHT"
+          },
+          {
+            "description": "Sunset at hour 19",
+            "hour": 19,
+            "expected_sunlight": "SUN_SET"
+          },
+          {
+            "description": "Nighttime at hour 20",
+            "hour": 20,
+            "expected_sunlight": "SUN_DARK"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_calculations_correct": true,
+        "test_count": 4
+      }
+    }
+  ]
+}

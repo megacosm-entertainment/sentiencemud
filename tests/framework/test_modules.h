@@ -27,7 +27,7 @@ test_result_t run_string_editor_test_case(test_case_t *test);
 test_result_t run_reset_test_case(test_case_t *test);
 test_result_t run_shop_stock_test_case(test_case_t *test);
 test_result_t run_church_test_case(test_case_t *test);
-test_result_t run_instance_test_case(test_case_t *test);
+// test_result_t run_instance_test_case(test_case_t *test);  // Temporarily disabled
 test_result_t run_chat_room_test_case(test_case_t *test);
 test_result_t run_skill_data_test_case(test_case_t *test);
 test_result_t run_class_data_test_case(test_case_t *test);
@@ -47,6 +47,7 @@ test_result_t run_quest_system_test_case(test_case_t *test);
 test_result_t run_reputation_system_test_case(test_case_t *test);
 test_result_t run_olc_framework_test_case(test_case_t *test);
 test_result_t run_wilderness_system_test_case(test_case_t *test);
+test_result_t run_update_cycle_test_case(test_case_t *test);
 
 #endif /* BUILD_TESTS */
 

@@ -324,7 +324,7 @@ if(BUILD_TESTS)
         tests/integration/reset_tests.c
         tests/integration/shop_stock_tests.c
         tests/integration/church_tests.c
-        tests/integration/instance_tests.c
+        tests/integration/instance_tests.c  # Re-enabled with proper blueprint and dungeon tests
         tests/integration/chat_rooms_tests.c
         tests/integration/skill_data_tests.c
         tests/integration/class_data_tests.c
@@ -344,6 +344,7 @@ if(BUILD_TESTS)
         tests/integration/reputation_system_tests.c
         tests/integration/olc_framework_tests.c
         tests/integration/wilderness_system_tests.c
+        tests/integration/update_cycle_tests.c
     )
 endif()
 
