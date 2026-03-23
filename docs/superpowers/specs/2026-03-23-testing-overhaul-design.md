@@ -20,9 +20,9 @@ The existing framework is solid and will be retained. The JSON-driven test defin
 
 ## Approach: Audit-First Pipeline
 
-1. Full codebase audit → 2. Fresh documentation → 3. Framework improvements → 4. Write tests
+1. Full codebase audit → 2. Framework improvements → 3. Fresh documentation → 4. Write tests
 
-The audit is the foundation that informs everything else.
+The audit is the foundation that informs everything else. Framework improvements come before documentation so the docs can reference the new assertion macros and registration patterns.
 
 ---
 
