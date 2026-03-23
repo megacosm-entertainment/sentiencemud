@@ -189,7 +189,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     }
 */
     if (d->login_attempts >= game_settings.max_login_attempts) {
-        write_to_buffer(d, "Too many login attempts. Goodbye.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.account.too_many_attempts"), 0);
         close_socket(d);
         return;
     }
@@ -197,13 +197,12 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     // Handle password reset request
     if (game_settings.enable_email && !strcmp(argument, "resetpassword")) {
         if (acct->reset_state == RESET_PENDING) {
-            write_to_buffer(d, "Reset is already pending. Check your email for the code.\n\r", 0);
-            write_to_buffer(d, "Password or Reset Code: ", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.account.reset_pwd.pending"), 0);
+            write_to_buffer(d, formatf("%s: ", LT(d, "prompt.account.password.reset")), 0);
             return;
         } else {
             if (IS_NULLSTR(acct->email)) {
-                write_to_buffer(d, "You must have an email address set to reset your password.\n\r", 0);
-                write_to_buffer(d, "Please reach out to staff for assistance.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.reset_pwd.need_email"), 0);
                 // d->connected = CON_GET_ACCOUNT_PASSWORD; // Already in this state
                 return;
             } else {
@@ -219,9 +218,9 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
         if (!IS_NULLSTR(acct->reset_code) && !strcmp(argument, acct->reset_code)) {
             if ((current_time - acct->reset_time) > 86400) { // 24 hours
                 if (game_settings.enable_email)
-                    write_to_buffer(d, "Reset code has expired. Please try resetting again.\n\r", 0);
+                    write_to_buffer(d, LTNL(d, "error.msg.account.reset_pwd.expired"), 0);
                 else
-                    write_to_buffer(d, "Reset code has expired. Please contact staff for assistance.\n\r", 0);
+                    write_to_buffer(d, LTNL(d, "error.msg.account.reset_pwd.expired.email_disabled"), 0);
                 
                 acct->reset_state = NO_RESET;
                 free_string(acct->reset_code);
@@ -239,7 +238,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
             if (acct->old_passwd) free_string(acct->old_passwd);
             acct->old_passwd = str_dup(acct->passwd);
             
-            write_to_buffer(d, "Reset code accepted. You are required to set a new password.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "msg.account.reset_pwd.code_accepted"), 0);
             d->connected = CON_CHANGE_ACCOUNT_PASSWORD;
             return;
         }
@@ -257,9 +256,9 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
         }
 
         if (!password_ok) { // If neither reset code nor password matched
-            write_to_buffer(d, "Wrong password or reset code.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.account.reset_pwd.wrong_code"), 0);
             d->login_attempts++;
-            write_to_buffer(d, "Password or Reset Code: ", 0);
+            write_to_buffer(d, formatf("%s: ", LT(d, "prompt.account.password.reset")), 0);
             return;
         }
         // If password_ok is true here, it means they entered their current password
@@ -287,9 +286,9 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
             acct->username, d->host);
         
         if (game_settings.enable_email)
-            write_to_buffer(d, "Wrong password. Please try again, or use 'resetpassword' to reset.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.account.wrong_pwd"), 0);
         else
-            write_to_buffer(d, "Wrong password. Please try again or reach out to staff for assistance.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.account.wrong_pwd.email_disabled"), 0);
         
         d->login_attempts++;
         return;
@@ -323,15 +322,14 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
 
     // Check if they need to provide email
     if (IS_NULLSTR(acct->email) && game_settings.enable_email) { // Added game_settings.enable_email check
-        write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
-            "It will not be distributed to any third parties or abused in any way.\n\r", 0);
+        write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.need_email")), 0);
         d->connected = CON_GET_ACCOUNT_EMAIL;
         return;
     }
 
     // Password update needed?
     if (acct->passwd_version < 1 && !DEV_SKIP_PASSWORD) {
-        write_to_buffer(d, "\n\rYou are required to set a new password. Please do so now.\n\r", 0);
+        write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.need_pwd")), 0);
         if (acct->old_passwd) free_string(acct->old_passwd);
         acct->old_passwd = str_dup(acct->passwd);
         ProtocolNoEcho(d, true);
@@ -352,7 +350,7 @@ void login_get_account_password(DESCRIPTOR_DATA *d, char *argument)
     // Check for account-level deny penalty
     if (has_penalty(acct, PENALTY_DENY, NULL)) {
         log_message_f(LOG_LEVEL_WARN, LOG_SECURITY, "Denying account %s@%s (account penalty).", acct->username, d->host);
-        write_to_buffer(d, "This account has been denied access.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.account.denied"), 0);
         close_socket(d);
         return;
     }
@@ -378,20 +376,21 @@ void login_confirm_account_name(DESCRIPTOR_DATA *d, char *argument)
     case 'N':
         free_account(acct);
         d->account = NULL;
+        d->lang = default_localization;
         d->connected = CON_GET_ACCOUNT_NAME;
-    if (!IS_NULLSTR(game_settings.login_string))
-    {
-        write_to_buffer(d, game_settings.login_string, 0);
-        write_to_buffer(d, "\n\r", 0);
-    }
-    else
-    {
-        write_to_buffer(d, "\n\rBy what name do you wish to be known? ", 0);
-    }
+        if (!IS_NULLSTR(game_settings.login_string))
+        {
+            write_to_buffer(d, game_settings.login_string, 0);
+            write_to_buffer(d, "\n\r", 0);
+        }
+        else
+        {
+            write_to_buffer(d, formatf("\n\r%s ", LT(d, "prompt.account.confirm.name")), 0);
+        }
         break;
         
     default:
-        write_to_buffer(d, "Please answer (Y/N): ", 0);
+        write_to_buffer(d, formatf("%s: ", LT(d, "prompt.account.confirm.name.bad_response")), 0);
         break;
     }
 }
@@ -414,8 +413,7 @@ void login_new_account_password(DESCRIPTOR_DATA *d, char *argument)
     // NEW CHECK: Validate uniqueness across staff characters
     if (game_settings.require_uniq_pass_staff && 
         !validate_password_uniqueness(acct, argument, false, NULL, false)) {
-        write_to_buffer(d, "This password matches one of your staff character passwords.\n\r", 0);
-        write_to_buffer(d, "Account passwords must be unique from staff character passwords. Please try again.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.account.match_staff_pwd"), 0);
         d->connected = CON_NEW_ACCOUNT_PASSWORD;
         return;
     }
@@ -440,7 +438,7 @@ void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
     write_to_buffer(d, "\n\r", 2);
     
     if (!d->new_password_buffer) {
-        write_to_buffer(d, "An error occurred. Please try setting your password again.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.account.password_buffer"), 0);
         // Go back to password entry
         if (acct) { // If account context exists
              d->connected = CON_NEW_ACCOUNT_PASSWORD;
@@ -451,7 +449,7 @@ void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
     }
     
     if (strcmp(argument, d->new_password_buffer) != 0) {
-        write_to_buffer(d, "Passwords don't match.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.password.mismatch"), 0);
         free_string(d->new_password_buffer);
         d->new_password_buffer = NULL;
         d->connected = CON_NEW_ACCOUNT_PASSWORD;
@@ -460,7 +458,7 @@ void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
     
     // Passwords match, now set it encrypted
     if (!set_encrypted_password(&acct->passwd, &acct->passwd_version, d->new_password_buffer)) {
-        write_to_buffer(d, "Error setting password. Please try again or contact staff.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.password.failed_encryption"), 0);
         free_string(d->new_password_buffer);
         d->new_password_buffer = NULL;
         d->connected = CON_NEW_ACCOUNT_PASSWORD; // Go back to re-enter
@@ -472,8 +470,7 @@ void login_confirm_account_password(DESCRIPTOR_DATA *d, char *argument)
     d->new_password_buffer = NULL;
     ProtocolNoEcho(d, false);
     
-    write_to_buffer(d, "\n\rPlease enter a valid e-mail address at which we can reach you.\n\r"
-                "It will not be distributed to any third parties or abused in any way.\n\r", 0);
+    write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.need_email")), 0);
     d->connected = CON_GET_ACCOUNT_EMAIL;
 }
 
@@ -486,7 +483,7 @@ void login_get_account_email(DESCRIPTOR_DATA *d, char *argument)
     ACCOUNT_DATA *acct = d->account;
     
     if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
-        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.email.invalid"), 0);
         return;
     }
     
@@ -506,7 +503,7 @@ void login_get_account_email(DESCRIPTOR_DATA *d, char *argument)
         list_addlink(loaded_accounts, acct);
 
     // Always show the account menu after email is provided, whether this is a new account or not
-    write_to_buffer(d, "\n\rAccount successfully created! You can now create characters and manage your account.\n\r", 0);
+    write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.created")), 0);
     display_account_menu(d);
     d->connected = CON_ACCOUNT_MENU;
 }
@@ -525,8 +522,8 @@ void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
     ACCOUNT_DATA *acct = d->account;
 
     if (argument[0] == '\0' || !strstr(argument, "@") || !strstr(argument, ".")) {
-        write_to_buffer(d, "That's not a valid email address.\n\r", 0);
-        write_to_buffer(d, "Enter your e-mail address (or 'cancel' to cancel): ", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.email.invalid"), 0);
+        write_to_buffer(d, formatf("%s: ", LT(d, "prompt.account.email")), 0);
         return;
     }
     if (!str_cmp(argument, "cancel")) {
@@ -539,7 +536,7 @@ void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
         free_string(acct->email);
         acct->email = str_dup(argument);
         acct->email_verified = true;
-        write_to_buffer(d, "\n\rEmail address updated.\n\r", 0);
+        write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.email.updated")), 0);
         save_account(acct);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
@@ -547,7 +544,7 @@ void login_change_account_email(DESCRIPTOR_DATA *d, char *argument)
     }
     // Verification required
     if (!IS_NULLSTR(acct->pending_email) && !str_cmp(argument, acct->pending_email)) {
-        write_to_buffer(d, "That email is already pending verification.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "msg.account.email.already_pending"), 0);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
@@ -565,7 +562,7 @@ if (!str_cmp(argument, acct->email)) {
     acct->email_verification_code = str_dup("");
     acct->email_verification_time = 0;
     acct->email_verification_last_sent = 0;
-    write_to_buffer(d, "\n\rEmail address is unchanged and now verified.\n\r", 0);
+    write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.email.unchanged")), 0);
     save_account(acct);
     display_account_menu(d);
     d->connected = CON_ACCOUNT_MENU;
@@ -580,15 +577,16 @@ if (!str_cmp(argument, acct->email)) {
     acct->email_verification_last_sent = current_time;
     // Notify old email
     if (!IS_NULLSTR(acct->email)) {
-        send_email_async(NULL, acct->email, "Sentience: Email Change Requested",
-            "A request was made to change your account email. If this was not you, contact support.", NULL, NULL);
+        send_email_async(NULL, acct->email, (char *)LT(d, "email.email_change.subject"),
+            (char *)LT(d, "email.email_change.message"), NULL, NULL);
     }
     // Send code to new email
-    char body[256];
-    sprintf(body, "Your verification code is: %s\nThis code will expire in 72 hours.", code);
-    send_email_async(NULL, acct->pending_email, "Sentience: Verify Your New Email Address", body, NULL, NULL);
+    // QUERY: is the 72 hours used somewhere?  This feels like a BMN (buried magical number)
+    send_email_async(NULL, acct->pending_email,
+        (char *)LT(d, "email.email_verify.subject"),
+        (char *)LTF(d, "email.email_verify.message", code, 72), NULL, NULL);
     save_account(acct);
-    write_to_buffer(d, "\n\rA verification code has been sent to your new email address.\n\r", 0);
+    write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.email.verify_code_sent")), 0);
     d->connected = CON_VERIFY_ACCOUNT_EMAIL_CHANGE;
 }
 
@@ -600,14 +598,14 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument)
 {
     ACCOUNT_DATA *acct = d->account;
     if (IS_NULLSTR(acct->pending_email) || IS_NULLSTR(acct->email_verification_code)) {
-        write_to_buffer(d, "No email change is pending.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.account.email.no_change_pending"), 0);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
     }
     // Expiry check (72 hours)
     if ((current_time - acct->email_verification_time) > (72 * 3600)) {
-        write_to_buffer(d, "Verification code expired. Please start the process again.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.account.email.verify.expired"), 0);
         free_string(acct->pending_email);
         acct->pending_email = str_dup("");
         free_string(acct->email_verification_code);
@@ -619,7 +617,7 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument)
         return;
     }
     if (!str_cmp(argument, "cancel") || argument[0] == '\0') {
-        write_to_buffer(d, "\n\rEmail verification cancelled.\n\r", 0);
+        write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "error.msg.account.email.verify.canceled")), 0);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
@@ -636,7 +634,7 @@ void login_verify_account_email_change(DESCRIPTOR_DATA *d, char *argument)
         acct->email_verification_time = 0;
         acct->email_verification_last_sent = 0;
         save_account(acct);
-        write_to_buffer(d, "\n\rYour email address has been updated and verified.\n\r", 0);
+        write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.email.verified")), 0);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
     } else {
@@ -658,7 +656,7 @@ void login_verify_account_password(DESCRIPTOR_DATA *d, char *argument)
     free_auth_data(auth);
 
     if (pwd_result == PWD_INVALID) {
-        write_to_buffer(d, "Incorrect password.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.account.verify_pwd.incorrect"), 0);
         ProtocolNoEcho(d, false);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
@@ -689,13 +687,13 @@ void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
         mark_recovery_code_used(argument, auth, acct, NULL);
         save_account(acct);
         valid = true;
-        write_to_buffer(d, "\n\r{YRecovery code accepted. This code cannot be used again.{x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{Y%s{x\n\r", LT(d, "msg.account.mfa.accepted")), 0);
     }
 
     free_auth_data(auth);
 
     if (!str_cmp(argument, "cancel")) {
-        write_to_buffer(d, "\n\rReturning to account menu.\n\r", 0);
+        write_to_buffer(d, formatf("\n\r%s\n\r", LT(d, "msg.account.return.menu")), 0);
         display_account_menu(d);
         d->connected = CON_ACCOUNT_MENU;
         return;
@@ -706,7 +704,7 @@ void login_account_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument) {
         display_account_mfa_menu(d, "");
         d->connected = CON_ACCOUNT_MFA_MENU;
     } else {
-        write_to_buffer(d, "Invalid MFA or recovery code. Try again (or 'cancel'): ", 0);
+        write_to_buffer(d, formatf("%s: ", LT(d, "prompt.account.mfa.invalid_recovery")), 0);
     }
 }
 
@@ -841,11 +839,11 @@ void display_account_menu(DESCRIPTOR_DATA *d)
 {
     ACCOUNT_DATA *acct = d->account;
     char buf[MAX_STRING_LENGTH];
-    char name_buf[50];
-    char rank_buf[50];
-    char level_buf[50];
-    char race_buf[50];
-    char class_buf[50];
+    char name_buf[MIL];
+    char rank_buf[MIL];
+    char level_buf[MIL];
+    char race_buf[MIL];
+    char class_buf[MIL];
     ACCOUNT_CHARACTER *ch_entry;
     char *default_char = IS_NULLSTR(acct->default_character) ? NULL : acct->default_character;
     ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
@@ -901,20 +899,17 @@ void display_account_menu(DESCRIPTOR_DATA *d)
         status[0] = '\0';
 
         if (active_penalties > 0) {
-            sprintf(buf, "{R%d penalt%s{x", active_penalties,
-                active_penalties == 1 ? "y" : "ies");
+            sprintf(buf, "{R%s{x", LTF(d, (active_penalties == 1 ? "menu.account.penalty" : "menu.account.penalties"), active_penalties));
             strcat(status, buf);
         }
         if (active_bonuses > 0) {
             if (status[0] != '\0') strcat(status, " | ");
-            sprintf(buf, "{G%d bonus%s{x", active_bonuses,
-                active_bonuses == 1 ? "" : "es");
+            sprintf(buf, "{G%s{x", LTF(d, (active_bonuses == 1 ? "menu.account.bonus" : "menu.account.bonuses"), active_bonuses));
             strcat(status, buf);
         }
         if (unlocks > 0) {
             if (status[0] != '\0') strcat(status, " | ");
-            sprintf(buf, "{C%d race unlock%s{x", unlocks,
-                unlocks == 1 ? "" : "s");
+            sprintf(buf, "{C%s{x", LTF(d, (unlocks == 1 ? "menu.account.race_unlock" : "menu.account.race_unlocks"), unlocks));
             strcat(status, buf);
         }
 
@@ -923,8 +918,7 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             int acct_notes = account_note_count(acct->staff_notes);
             if (acct_notes > 0) {
                 if (status[0] != '\0') strcat(status, " | ");
-                sprintf(buf, "{Y%d staff note%s{x", acct_notes,
-                    acct_notes == 1 ? "" : "s");
+                sprintf(buf, "{C%s{x", LTF(d, (acct_notes == 1 ? "menu.account.staff_note" : "menu.account.staff_notes"), acct_notes));
                 strcat(status, buf);
             }
         }
@@ -941,12 +935,19 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     
     // Display staff characters first
     if (staff_count > 0) {
-        write_to_buffer(d, "{B=={W[ {YSTAFF CHARACTERS {W]{B=={x\n\r", 0);
-        
-        sprintf(buf, "{D%-4s %-16s %-15s %-30s{x\n\r", 
-                "Num", "Name", "Rank", "Location");
-        write_to_buffer(d, buf, 0);
+        write_to_buffer(d, formatf("{B=={W[ {Y%s{W ]{B=={x\n\r", LT(d, "menu.account.header.staff")), 0);
 
+        // TODO: UTF8 tabulation
+        const char *column1 = LT(d, "menu.account.header.staff.num");
+        const char *column2 = LT(d, "menu.account.header.staff.name");
+        const char *column3 = LT(d, "menu.account.header.staff.rank");
+        const char *column4 = LT(d, "menu.account.header.staff.location");
+        snprintf(buf, sizeof(buf)-1, "{D%s%s %s%s %s%s %s{x\n\r", 
+                column1,pad_string(column1,4,NULL," "),
+                column2,pad_string(column2,16,NULL," "),
+                column3,pad_string(column3,15,NULL," "),
+                column4);
+        write_to_buffer(d, buf, 0);
 
         sprintf(buf, "{D%s{x\n\r", pad_string("", 70, NULL, "-"));
         write_to_buffer(d, buf, 0);
@@ -955,26 +956,22 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             ch_entry = staff_chars[i];
             const char *staff_rank_str = flag_string(staff_ranks, ch_entry->staff_rank);
             
-        CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
-        const char *loc_str;
-        if (live_ch && live_ch->in_room) {
-            loc_str = format_location_string(
-            live_ch->in_room ? live_ch->in_room : NULL
-            );
-        } else {
-            loc_str = str_dup(
-                ch_entry->last_area
-            );
-    }
+            CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
+            const char *loc_str;
+            if (live_ch && live_ch->in_room) {
+                loc_str = format_location_string(
+                    live_ch->in_room ? live_ch->in_room : NULL
+                );
+            } else {
+                loc_str = str_dup(ch_entry->last_area);
+            }
             sprintf(name_buf, "{W%s%s{x", ch_entry->name, ch_entry->deleted ? " {R(D){X" : "");
-            sprintf(rank_buf, "{R%s{x", staff_rank_str ? capitalize(staff_rank_str) : "IMM");
+            sprintf(rank_buf, "{R%s{x", staff_rank_str ? capitalize(staff_rank_str) : LT(d, "rank.staff.immortal.short"));
             
             sprintf(buf, "{G[%2d]{x %s%s %s%s {Y%s{x\n\r",
                     i + 1,
-                    name_buf,
-                    pad_string(name_buf, 16, NULL, " "),
-                    rank_buf,
-                    pad_string(rank_buf, 15, NULL, " "),
+                    name_buf,pad_string(name_buf, 16, NULL, " "),
+                    rank_buf,pad_string(rank_buf, 15, NULL, " "),
                     loc_str);
             write_to_buffer(d, buf, 0);
         }
@@ -982,10 +979,21 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     
     // Display regular characters
     if (regular_count > 0) {
-        write_to_buffer(d, "\n\r{B=={W[ {YREGULAR CHARACTERS {W]{B=={x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{B=={W[ {Y%s{W ]{B=={x\n\r", LT(d, "menu.account.header.characters")), 0);
         
-        sprintf(buf, "{D%-4s %-16s %-7s %-12s %-12s %-25s{x\n\r", 
-                "Num", "Name", "Level", "Race", "Class", "Location");
+        const char *column1 = LT(d, "menu.account.header.characters.num");
+        const char *column2 = LT(d, "menu.account.header.characters.name");
+        const char *column3 = LT(d, "menu.account.header.characters.level");
+        const char *column4 = LT(d, "menu.account.header.characters.race");
+        const char *column5 = LT(d, "menu.account.header.characters.class");
+        const char *column6 = LT(d, "menu.account.header.characters.location");
+        snprintf(buf, sizeof(buf)-1, "{D%s%s %s%s %s%s %s%s %s%s %s{x\n\r", 
+                column1,pad_string(column1,4,NULL," "),
+                column2,pad_string(column2,16,NULL," "),
+                column3,pad_string(column3,7,NULL," "),
+                column4,pad_string(column4,12,NULL," "),
+                column5,pad_string(column5,12,NULL," "),
+                column6);
         write_to_buffer(d, buf, 0);
 
         
@@ -998,13 +1006,9 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             CHAR_DATA *live_ch = get_char_world(NULL, ch_entry->name);
             const char *loc_str;
             if (live_ch && live_ch->in_room) {
-                loc_str = format_location_string(
-                    live_ch->in_room ? live_ch->in_room : NULL
-                );
+                loc_str = format_location_string(live_ch->in_room ? live_ch->in_room : NULL);
             } else {
-                loc_str = str_dup(
-                    ch_entry->last_area
-                );
+                loc_str = str_dup(ch_entry->last_area);
             }
             
             sprintf(name_buf, "{W%s%s{x", ch_entry->name, ch_entry->deleted ? " {R(D){X" : "");
@@ -1013,49 +1017,46 @@ void display_account_menu(DESCRIPTOR_DATA *d)
                     ch_entry->current_level > 0 ? ch_entry->current_level : ch_entry->tot_level,
                     ch_entry->tot_level);
             
-            sprintf(race_buf, "{W%s{x", 
-                    ch_entry->race_name ? capitalize(ch_entry->race_name) : "Unknown");
-            sprintf(class_buf, "{W%s{x", 
-                    ch_entry->class_name ? capitalize(ch_entry->class_name) : "Adventurer");
+            snprintf(race_buf, sizeof(race_buf)-1, "{W%s{x", 
+                    capitalize(LT(d, ch_entry->race_name ? ch_entry->race_name : "menu.account.characters.race.unknown")));
+            snprintf(class_buf, sizeof(class_buf)-1, "{W%s{x", 
+                    capitalize(LT(d, ch_entry->class_name ? ch_entry->class_name : "menu.account.characters.class.unknown")));
             
             sprintf(buf, "{G[%2d]{x %s%s %s%s %s%s %s%s {Y%s{x\n\r",
                     i + staff_count + 1,
-                    name_buf,
-                    pad_string(name_buf, 16, NULL, " "),
-                    level_buf,
-                    pad_string(level_buf, 7, NULL, " "),
-                    race_buf,
-                    pad_string(race_buf, 12, NULL, " "),
-                    class_buf,
-                    pad_string(class_buf, 12, NULL, " "),
+                    name_buf,pad_string(name_buf, 16, NULL, " "),
+                    level_buf,pad_string(level_buf, 7, NULL, " "),
+                    race_buf,pad_string(race_buf, 12, NULL, " "),
+                    class_buf,pad_string(class_buf, 12, NULL, " "),
                     loc_str);
             write_to_buffer(d, buf, 0);
         }
     }
     
     if (staff_count == 0 && regular_count == 0) {
-        write_to_buffer(d, "   {RNo characters found.{x\n\r", 0);
+        write_to_buffer(d, formatf("   {R%s{x\n\r", LT(d, "menu.account.characters.none")), 0);
     }
     
     // Display active account penalties
     if (acct->penalties) {
-        write_to_buffer(d, "\n\r{RActive Penalties:{x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{R%s:{x\n\r", LT(d, "menu.account.header.penalties")), 0);
         PENALTY_DATA *pen;
         for (pen = acct->penalties; pen; pen = pen->next) {
             if (is_penalty_expired(pen))
                 continue;
             char dur[64];
             if (pen->expires_at == 0)
-                sprintf(dur, "{RPermanent{x");
+                sprintf(dur, formatf("{R%s{x", LT(d, "time.permanent")));
             else {
-                penalty_format_duration(pen->expires_at - current_time, dur, sizeof(dur));
+                penalty_format_duration(d, pen->expires_at - current_time, dur, sizeof(dur));
             }
+            const char *penalty_type_str = LT(d, penalty_type_name_localized(pen->type));
             if (pen->scope == PENALTY_SCOPE_CHARACTER && !IS_NULLSTR(pen->target_name)) {
-                sprintf(buf, "   {R*{x %-14s ({Y%s{x) - %s\n\r",
-                    penalty_type_name(pen->type), pen->target_name, dur);
+                sprintf(buf, "   {R*{x %s%s ({Y%s{x) - %s\n\r",
+                    penalty_type_str, pad_string(penalty_type_str, 14, NULL, " "), pen->target_name, dur);
             } else {
-                sprintf(buf, "   {R*{x %-14s ({Caccount{x) - %s\n\r",
-                    penalty_type_name(pen->type), dur);
+                sprintf(buf, "   {R*{x %s%s ({C%s{x) - %s\n\r",
+                    penalty_type_str, pad_string(penalty_type_str, 14, NULL, " "), LT(d, "menu.account.penalty.scope.account"), dur);
             }
             write_to_buffer(d, buf, 0);
         }
@@ -1063,26 +1064,27 @@ void display_account_menu(DESCRIPTOR_DATA *d)
 
     // Display active account bonuses
     if (acct->bonuses) {
-        write_to_buffer(d, "\n\r{GActive Bonuses:{x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{G%s:{x\n\r", LT(d, "menu.account.header.bonuses")), 0);
         BONUS_DATA *bon;
         for (bon = acct->bonuses; bon; bon = bon->next) {
             if (is_bonus_expired(bon))
                 continue;
             char dur[64];
             if (bon->expires_at == 0)
-                sprintf(dur, "{GPermanent{x");
+                sprintf(dur, formatf("{R%s{x", LT(d, "time.permanent")));   // Bonus, penalty.. what's the difference? >.> - NIB
             else {
-                penalty_format_duration(bon->expires_at - current_time, dur, sizeof(dur));
+                penalty_format_duration(d, bon->expires_at - current_time, dur, sizeof(dur));
             }
             char scope_str[64];
             if (bon->scope == BONUS_SCOPE_UNASSIGNED)
-                sprintf(scope_str, "{Yunassigned{x");
+                sprintf(scope_str, formatf("{Y%s{x", LT(d, "scope.bonus.unassigned")));
             else if (bon->scope == BONUS_SCOPE_CHARACTER && !IS_NULLSTR(bon->target_name))
                 sprintf(scope_str, "{Y%s{x", bon->target_name);
             else
-                sprintf(scope_str, "{Caccount{x");
-            sprintf(buf, "   {G+{x %-10s %+d%% (%s) - %s\n\r",
-                bonus_type_name(bon->type), bon->value, scope_str, dur);
+                sprintf(scope_str, formatf("{C%s{x", LT(d, "scope.bonus.account")));
+            const char *bonus_type_str = LT(d, bonus_type_name_localized(bon->type));
+            sprintf(buf, "   {G+{x %s%s %+d%% (%s) - %s\n\r",
+                bonus_type_str, pad_string(bonus_type_str, 10, NULL, " "), bon->value, scope_str, dur);
             write_to_buffer(d, buf, 0);
         }
     }
@@ -1094,9 +1096,9 @@ void display_account_menu(DESCRIPTOR_DATA *d)
 
     int total_count = staff_count + regular_count;
     if (total_count == 1) {
-        write_to_buffer(d, "{G1{x) Select character\n\r", 0);
+        write_to_buffer(d, formatf("{G1{x) %s\n\r", LT(d, "menu.account.option.select.one")), 0);
     } else if (total_count > 1) {
-        sprintf(buf, "{G1-%d{x) Select a character\n\r", total_count);
+        sprintf(buf, "{G1-%d{x) %s\n\r", total_count, LT(d, "menu.account.option.select"));
         write_to_buffer(d, buf, 0);
     }
 
@@ -1106,54 +1108,53 @@ void display_account_menu(DESCRIPTOR_DATA *d)
             can_create_char = false;
     }
     if (can_create_char) {
-        write_to_buffer(d, "{GC{x) Create a new character\n\r", 0);
+        write_to_buffer(d, formatf("{GC{x) %s\n\r", LT(d, "menu.account.option.create")), 0);
     }
 
     if (acct->acct_flags & IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF)) {
         int staff_limit = acct->staff_limit;
         int staff_count = account_count_staff_characters(acct);
         if (staff_limit == 0 || staff_count < staff_limit) {
-            write_to_buffer(d, "{GI{x) Create a new staff character\n\r", 0);
+            write_to_buffer(d, formatf("{GI{x) %s\n\r", LT(d, "menu.account.option.create.staff")), 0);
         }
     }
     
     if (can_link_characters(acct)) {
-        write_to_buffer(d, "{GL{x) Link existing character\n\r", 0);
+        write_to_buffer(d, formatf("{GL{x) %s\n\r", LT(d, "menu.account.option.link")), 0);
     }
 
     if (game_settings.vault_enabled) {
-        write_to_buffer(d, "{GS{x) Shared Storage (Vault) Info\n\r", 0);
+        write_to_buffer(d, formatf("{GS{x) %s\n\r", LT(d, "menu.account.option.vault")), 0);
     }
     if (game_settings.enable_email){
 
     
-    write_to_buffer(d, "{GE{x) Change email address\n\r", 0);
+    write_to_buffer(d, formatf("{GE{x) %s\n\r", LT(d, "menu.account.option.email.change")), 0);
     if (game_settings.require_email_verif && !acct->email_verified) {
-    write_to_buffer(d, "{GV{x) Verify email address\n\r", 0);
+    write_to_buffer(d, formatf("{GV{x) %s\n\r", LT(d, "menu.account.option.email.verify")), 0);
     if (!IS_NULLSTR(acct->pending_email))
-        write_to_buffer(d, "{GR{x) Resend verification email\n\r", 0);
+        write_to_buffer(d, formatf("{GR{x) %s\n\r", LT(d, "menu.account.option.email.resend")), 0);
     }
 }
     if (!DEV_SKIP_PASSWORD)
-    write_to_buffer(d, "{GP{x) Change password\n\r", 0);
+        write_to_buffer(d, formatf("{GP{x) %s\n\r", LT(d, "menu.account.option.password")), 0);
     
     if (!DEV_SKIP_MFA)
-    write_to_buffer(d, "{GM{x) MFA settings\n\r", 0);
+        write_to_buffer(d, formatf("{GM{x) %s\n\r", LT(d, "menu.account.option.mfa")), 0);
 
-    write_to_buffer(d, "{GA{x) Account preferences\n\r", 0);
+    write_to_buffer(d, formatf("{GA{x) %s\n\r", LT(d, "menu.account.option.preferences")), 0);
 
     if (default_char != NULL) {
-        sprintf(buf, "{GY{x) Log in with default character ({C%s{x)\n\r", default_char);
+        sprintf(buf, "{GY{x) %s ({C%s{x)\n\r", LT(d, "menu.account.option.login.default"), default_char);
         write_to_buffer(d, buf, 0);
     }
 
     if (recent_char != NULL && !is_character_online(recent_char->name)) {
-        sprintf(buf, "{GZ{x) Log in with last played character ({C%s{x)\n\r", recent_char->name);
+        sprintf(buf, "{GZ{x) %s ({C%s{x)\n\r", LT(d, "menu.account.option.login.last"), recent_char->name);
         write_to_buffer(d, buf, 0);
     }
         
-    write_to_buffer(d, "{GQ{x) Quit\n\r\n\r", 0);
-
+    write_to_buffer(d, formatf("{GQ{x) %s\n\r", LT(d, "menu.account.option.quit")), 0);
 }
 
 // This handles the selections in the account menu.
@@ -1163,8 +1164,10 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
     char arg[MAX_INPUT_LENGTH];
 
     /* Handle single-letter menu options */
-    if (argument[0] != '\0' && argument[1] == '\0' && !isdigit(argument[0])) {
-        switch (toupper(argument[0])) {
+    unichar_t cp = utf8_getchar(argument);
+    // Single utf8 character input
+    if (cp != '\0' && argument[utf8_bytes(cp)] == '\0' && !utf8_isdigit(cp)) {
+        switch (utf8_toupper(cp)) {
             case 'C': handle_account_create_character(d); return;
             case 'I': handle_account_create_staff(d);     return;
             case 'L': handle_account_link_character(d);    return;
@@ -1179,26 +1182,26 @@ void login_account_menu(DESCRIPTOR_DATA *d, char *argument)
             case 'Y': handle_account_default_character(d); return;
             case 'Z': handle_account_recent_character(d);  return;
             default:
-                write_to_buffer(d, "Invalid choice.\n\r", 0);
+                write_to_buffer(d, LTNL(d,"error.msg.invalid.choice"), 0);
                 display_account_menu(d);
                 return;
         }
     }
 
     /* Handle numeric or alpha character selection */
-    if (isdigit(argument[0])) {
+    if (utf8_isdigit(cp)) {
         handle_account_select_by_number(d, atoi(argument));
         return;
     }
 
-    if (isalpha(argument[0])) {
+    if (utf8_isalpha(cp)) {
         one_argument(argument, arg);
         handle_account_select_by_name(d, arg);
         return;
     }
 
     /* Nothing matched */
-    write_to_buffer(d, "Invalid choice.\n\r", 0);
+    write_to_buffer(d, LTNL(d,"error.msg.invalid.choice"), 0);
     display_account_menu(d);
 }
 
@@ -1222,49 +1225,55 @@ void display_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
         return;
     }
 
-    write_to_buffer(d, "\n\r{B=={W[ {YMFA SETTINGS {W]{B=={x\n\r", 0);
-    sprintf(buf, "MFA is currently: %s\n\r",
-        mfa_enabled ? "{GENABLED{x" : (mfa_pending ? "{YSETUP IN PROGRESS{x" : "{ROFF{x"));
+    write_to_buffer(d, formatf("\n\r{B=={W[ {Y%s{W ]{B=={x\n\r", LT(d, "menu.account.header.mfa")), 0);
+    sprintf(buf, "%s: %s\n\r",
+        LT(d, "menu.account.mfa.currently"),
+        LT(d, 
+        mfa_enabled ? "menu.account.mfa.enabled" : (mfa_pending ? "menu.account.mfa.pending" : "menu.account.mfa.disabled")));
     write_to_buffer(d, buf, 0);
 
     // --- Setup Section ---
     if (!mfa_enabled && !mfa_pending)
-        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GS{x) Set up MFA\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{C%s{x\n\r{GS{x) %s\n\r",
+            LT(d, "menu.account.header.mfa.setup"),
+            LT(d, "menu.account.mfa.setup")), 0);
     else if (mfa_pending)
-        write_to_buffer(d, "\n\r{CSetup:{x\n\r{GC{x) Confirm MFA setup\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{C%s{x\n\r{GS{x) %s\n\r",
+            LT(d, "menu.account.header.mfa.setup"),
+            LT(d, "menu.account.mfa.confirm")), 0);
 
     // --- QR Code Section ---
     bool show_qr_section = has_secret;
     if (show_qr_section) {
-        write_to_buffer(d, "\n\r{CQR Code:{x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{C%s:{x\n\r", LT(d, "menu.account.header.mfa.qr")), 0);
         if (has_secret)
-            write_to_buffer(d, "{GD{x) Display QR code in terminal\n\r", 0);
+            write_to_buffer(d, formatf("{GD{x) %s\n\r", LT(d, "menu.account.mfa.qr.secret")), 0);
         if (has_secret && has_email)
-            write_to_buffer(d, "{GQ{x) Email QR code\n\r", 0);
+            write_to_buffer(d, formatf("{GQ{x) %s\n\r", LT(d, "menu.account.mfa.qr.email")), 0);
     }
 
     // --- Recovery Codes Section ---
     bool show_recovery_section = (mfa_enabled || mfa_pending) && has_recovery;
     if (show_recovery_section) {
-        write_to_buffer(d, "\n\r{CRecovery Codes:{x\n\r", 0);
-        write_to_buffer(d, "{GV{x) Show recovery codes\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{C%s:{x\n\r", LT(d, "menu.account.header.mfa.recovery")), 0);
+        write_to_buffer(d, formatf("{GV{x) %s\n\r", LT(d, "menu.account.mfa.recovery.show")), 0);
         if (has_email)
-            write_to_buffer(d, "{GE{x) Email recovery codes\n\r", 0);
+            write_to_buffer(d, formatf("{GE{x) %s\n\r", LT(d, "menu.account.mfa.recovery.email")), 0);
     }
 
     // --- Actions Section ---
     bool show_actions = (mfa_enabled || mfa_pending);
     if (show_actions) {
-        write_to_buffer(d, "\n\r{CActions:{x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{C%s:{x\n\r", LT(d, "menu.account.header.mfa.actions")), 0);
         if (mfa_enabled || mfa_pending)
-            write_to_buffer(d, "{GX{x) Disable MFA\n\r", 0);
+            write_to_buffer(d, LTMENU(d, "menu.account.mfa.actions.disable", "X"), 0);
         // Only show generate/regenerate if not pending
         if (mfa_enabled) {
-            write_to_buffer(d, has_recovery ? "{GG{x) Regenerate recovery codes\n\r" : "{GG{x) Generate recovery codes\n\r", 0);
+            write_to_buffer(d, LTMENU(d, has_recovery ? "menu.account.mfa.actions.regenerate" : "menu.account.mfa.actions.generate", "G"), 0);
         }
     }
 
-    write_to_buffer(d, "\n\r{GB{x) Back to account menu\n\r", 0);
+    write_to_buffer(d, formatf("\n\r{GB{x) %s\n\r", LT(d, "menu.account.mfa.actions.back")), 0);
     d->connected = CON_ACCOUNT_MFA_MENU;
 }
 
@@ -1284,25 +1293,25 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
     switch (toupper(argument[0])) {
         case 'S': // Set up MFA
             if (mfa_enabled || mfa_pending) {
-                write_to_buffer(d, "MFA is already enabled or setup is in progress.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.already_enabled"), 0);
                 display_account_mfa_menu(d, "");
                 return;
             }
             
             // Call setup_mfa_for_char instead of manually creating keys
             if (!setup_mfa_for_account(d, false)) {
-                write_to_buffer(d, "Error setting up MFA. Please try again.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.failed"), 0);
                 display_account_mfa_menu(d, "");
                 return;
             }
             
             // Display the character MFA menu again with updated status
             display_account_mfa_menu(d, "");
-            
             break;
+
         case 'C': // Confirm MFA setup
             if (!mfa_pending) {
-                write_to_buffer(d, "No MFA setup in progress.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.none"), 0);
                 display_account_mfa_menu(d, "");
                 return;
             }
@@ -1310,19 +1319,19 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
             break;
         case 'Q': // Email QR code
             if (!has_secret) {
-                write_to_buffer(d, "No MFA secret available to email a QR code.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.email.secret"), 0);
             } else if (!has_email) {
-                write_to_buffer(d, "No email address set for this account.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.email.none"), 0);
             } else {
                 send_qr_email_for_account(acct, acct->email, 
                     mfa_pending ? acct->mfa_pending_key : acct->mfa_key);
-                write_to_buffer(d, "QR code emailed.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "msg.account.mfa.qr.emailed"), 0);
             }
             display_account_mfa_menu(d, "");
             break;
         case 'D': // Display QR code in terminal
             if (!has_secret) {
-                write_to_buffer(d, "No MFA secret available to display a QR code.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.secret"), 0);
                 display_account_mfa_menu(d, "");
                 return;
             } else {
@@ -1338,16 +1347,16 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
             break;
         case 'X': // Disable MFA
             if (!mfa_enabled && !mfa_pending) {
-                write_to_buffer(d, "MFA is not enabled or pending for this account.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.already_disabled"), 0);
                 display_account_mfa_menu(d, "");
                 return;
             }
-            write_to_buffer(d, "Are you sure you want to disable MFA? (Y/N): ", 0);
+            write_to_buffer(d, formatf("%s: ", LT(d, "prompt.account.mfa.disable")), 0);
             d->connected = CON_ACCOUNT_MFA_DISABLE_CONFIRM;
             break;
         case 'V': // Show recovery codes
             if (!(mfa_enabled || mfa_pending) || !has_recovery) {
-                write_to_buffer(d, "No recovery codes available to display.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.recovery.none"), 0);
                 display_account_mfa_menu(d, "");
                 return;
             }
@@ -1356,24 +1365,24 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
             break;
         case 'E': // Email recovery codes
             if (!(mfa_enabled || mfa_pending) || !has_recovery) {
-                write_to_buffer(d, "No recovery codes available to email.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.recovery.email"), 0);
             } else if (!has_email) {
-                write_to_buffer(d, "No email address set for this account.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.email.none"), 0);
             } else {
                 send_recovery_codes_email_for_account(acct, acct->email);
-                write_to_buffer(d, "Recovery codes emailed.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "msg.account.mfa.recovery.emailed"), 0);
             }
             display_account_mfa_menu(d, "");
             break;
         case 'G': // Generate/Regenerate recovery codes
             if (!(mfa_enabled || mfa_pending)) {
-                write_to_buffer(d, "MFA must be enabled or pending to generate recovery codes.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.mfa.recovery.disabled"), 0);
                 display_account_mfa_menu(d, "");
                 return;
             }
             generate_recovery_codes(acct->recovery_codes, acct->recovery_used, MFA_RECOVERY_CODES);
             save_account(acct);
-            write_to_buffer(d, has_recovery ? "Recovery codes regenerated.\n\r" : "Recovery codes generated.\n\r", 0);
+            write_to_buffer(d, LTNL(d, has_recovery ? "msg.account.mfa.recovery.regen" : "msg.account.mfa.recovery.gen"), 0);
             display_account_recovery_codes(d, acct);
             display_account_mfa_menu(d, "");
             break;
@@ -1382,7 +1391,7 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
             d->connected = CON_ACCOUNT_MENU;
             break;
         default:
-            write_to_buffer(d, "Invalid or unavailable choice.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.invalid.choice"), 0);
             display_account_mfa_menu(d, "");
             break;
     }
@@ -3502,7 +3511,7 @@ void display_character_menu(DESCRIPTOR_DATA *d)
             if (pen->expires_at == 0)
                 sprintf(dur, "{RPermanent{x");
             else
-                penalty_format_duration(pen->expires_at - current_time, dur, sizeof(dur));
+                penalty_format_duration(d, pen->expires_at - current_time, dur, sizeof(dur));
             sprintf(buf, "   {R*{x %-14s (%s) - %s\n\r",
                 penalty_type_name(pen->type),
                 pen->scope == PENALTY_SCOPE_ACCOUNT ? "{Caccount{x" : "{Ycharacter{x",
@@ -3530,7 +3539,7 @@ void display_character_menu(DESCRIPTOR_DATA *d)
             if (bon->expires_at == 0)
                 sprintf(dur, "{GPermanent{x");
             else
-                penalty_format_duration(bon->expires_at - current_time, dur, sizeof(dur));
+                penalty_format_duration(d, bon->expires_at - current_time, dur, sizeof(dur));
             char scope_str[64];
             if (bon->scope == BONUS_SCOPE_UNASSIGNED)
                 sprintf(scope_str, "{Yunassigned{x");

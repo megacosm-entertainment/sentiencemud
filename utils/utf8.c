@@ -274,6 +274,38 @@ size_t utf8_strlen(register const char *str)
 	return len;
 }
 
+size_t utf8_strlen_nocolour(register const char *str)
+{
+	if (!str) return 0;
+
+	register size_t len = 0;
+	while(*str)
+	{
+        if (*str == COLOUR_CHAR)
+        {
+            if (*(str+1) == COLOUR_CHAR)
+            {
+                // Escape the '{'
+                str+=2;
+                len++;
+            }
+            else
+            {
+                size_t code_len = get_colour_code_length_at_start(str);
+                if (code_len > 0)
+                    str += code_len; // Skip the entire color code
+                else
+                    str++;  // Just ignore the color code character
+            }
+        } else {
+            str = utf8_nextchar(str);
+            len++;
+        }
+	}
+
+	return len;
+}
+
 /** Determines if string A equals, case-insensitively, to string B, being UTF-8 aware.
  * 
  * @param astr String A
@@ -1894,5 +1926,88 @@ unichar_t utf8_tolower(register unichar_t cp)
     return cp;
 }
 
+/**
+ * Determines if the Unicode codepoint is a numerical digit.
+ * Determine if this needs to be extended to account for other codepoints
+ */
+bool utf8_isdigit(unichar_t ch)
+{
+    return (ch >= '0' && ch <= '9');
+}
 
+// These codes are pulled from the capitalization table and merged into inclusive ranges.
+static CODEPOINT_RANGE utf8_alphabetical[] = {
+    { 0x00041, 0x0005A },
+    { 0x00061, 0x0007A },
+    { 0x000C0, 0x000DE },
+    { 0x000E0, 0x000FF },
+    { 0x00100, 0x0017E },
+    { 0x00180, 0x0018C },
+    { 0x0018E, 0x0019A },
+    { 0x0019C, 0x001A9 },
+    { 0x001AC, 0x001B9 },
+    { 0x001BC, 0x001BD },
+    { 0x001BF, 0x001BF },
+    { 0x001C4, 0x001C4 },
+    { 0x001C6, 0x001C7 },
+    { 0x001C9, 0x001CA },
+    { 0x001CC, 0x001EF },
+    { 0x001F1, 0x001F1 },
+    { 0x001F3, 0x00220 },
+    { 0x00222, 0x00233 },
+    { 0x0023A, 0x0023E },
+    { 0x00241, 0x0024F },
+    { 0x00253, 0x00254 },
+    { 0x00256, 0x00257 },
+    { 0x00259, 0x00259 },
+    { 0x0025B, 0x0025B },
+    { 0x00260, 0x00260 },
+    { 0x00263, 0x00263 },
+    { 0x00268, 0x00269 },
+    { 0x0026F, 0x0026F },
+    { 0x00272, 0x00272 },
+    { 0x00275, 0x00275 },
+    { 0x00280, 0x00280 },
+    { 0x00283, 0x00283 },
+    { 0x00288, 0x00288 },
+    { 0x0028A, 0x0028B },
+    { 0x00292, 0x00292 },
+    { 0x00370, 0x00377 },
+    { 0x0037B, 0x0037D },
+    { 0x0037F, 0x0037F },
+    { 0x00386, 0x00386 },
+    { 0x00388, 0x0038A },
+    { 0x0038C, 0x0038C },
+    { 0x0038E, 0x0038F },
+    { 0x00391, 0x0039F },
+    { 0x003A0, 0x003A1 },
+    { 0x003A3, 0x003AF },
+    { 0x003B1, 0x003C1 },
+    { 0x003C3, 0x003CF },
+    { 0x003D7, 0x003EF },
+    { 0x003F2, 0x003F2 },
+    { 0x003F4, 0x003F4 },
+    { 0x003F7, 0x003FB },
+    { 0x003FD, 0x00481 },
+    { 0x00484, 0x0052F },
+    { 0x00531, 0x00556 },
+    { 0x00561, 0x00586 },
+    { 0x02C65, 0x02C66 },
 
+    // Continue with the Armenian characters (948)
+
+//    { 0x00000, 0x00000 },
+    { 0, 0 }
+};
+
+/**
+ * Determines if the Unicode codepoint is in the Latin alphabet.
+ * Needs to extend to handle all of the accented characters
+ */
+bool utf8_isalpha(register unichar_t ch)
+{
+    for(register CODEPOINT_RANGE *range = utf8_alphabetical; range->lo; range++)
+        if (ch >= range->lo && ch <= range->hi)
+            return true;
+    return false;
+}

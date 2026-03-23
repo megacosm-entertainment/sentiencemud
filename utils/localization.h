@@ -10,7 +10,6 @@
 #include "utf8.h"
 #include "strdict.h"
 
-typedef struct utf8_codepoint_range_type CODEPOINT_RANGE;
 typedef struct language_translation_type TRANSLATION;
 typedef struct language_localization_type LOCALIZATION_DATA;
 
@@ -25,11 +24,6 @@ typedef enum localization_error_enum {
     LOC_ERR_ALLOC               = -7,
     LOC_ERR_EMPTY_RESULT        = -8
 } LOCALIZATION_ERROR;
-
-struct utf8_codepoint_range_type {
-    unichar_t lo;
-    unichar_t hi;
-};
 
 struct language_translation_type {
     char *phrase;               // e.g: "editor.label.name"
@@ -66,17 +60,19 @@ const char *localization_translate(LOCALIZATION_DATA *loc, const char *input);
 const char *localization_translatef(LOCALIZATION_DATA *loc, const char *input, ...);
 
 // Macros to help with typing out the translations
-#define LT(d,i)         localization_translate((d)->lang, (i))
-#define LTF(d,i,...)    localization_translatef((d)->lang, (i), __VA_ARGS__)
+#define LT(d,i)         localization_translate(((d) ? (d)->lang : default_localization), (i))
+#define LTF(d,i,...)    localization_translatef(((d) ? (d)->lang : default_localization), (i), __VA_ARGS__)
 
-#define LTNL(d,i)       formatf("%s\n\r", localization_translate((d)->lang, (i)))
-#define LTFNL(d,i,...)  formatf("%s\n\r", localization_translatef((d)->lang, (i), __VA_ARGS__))
+#define LTNL(d,i)       formatf("%s\n\r", localization_translate(((d) ? (d)->lang : default_localization), (i)))
+#define LTFNL(d,i,...)  formatf("%s\n\r", localization_translatef(((d) ? (d)->lang : default_localization), (i), __VA_ARGS__))
 
 #define LTD(i)          localization_translate(default_localization, (i))
 #define LTDF(i,...)     localization_translatef(default_localization, (i), __VA_ARGS__)
 
 #define LTDNL(i)        formatf("%s\n\r", localization_translate(default_localization, (i)))
 #define LTDFNL(i,...)   formatf("%s\n\r", localization_translatef(default_localization, (i), __VA_ARGS__))
+
+#define LTMENU(d,i,k)   formatf("{G" k "{x) %s\n\r", localization_translate(((d) ? (d)->lang : default_localization), (i)))
 
 #ifdef MUD_DEBUG
 void localization_dump_translations(LOCALIZATION_DATA *loc);

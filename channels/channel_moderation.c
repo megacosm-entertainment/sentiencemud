@@ -229,7 +229,7 @@ void do_chanmute(CHAR_DATA *ch, char *argument)
                 TO_VICT, POS_DEAD, NULL);
     } else {
         char dur_buf[64];
-        penalty_format_duration(expires_at - current_time, dur_buf, sizeof(dur_buf));
+        penalty_format_duration(ch->desc, expires_at - current_time, dur_buf, sizeof(dur_buf));
         act_new("You muted $N on $t for $T.",
                 ch, victim, NULL, NULL, NULL, NULL, NULL,
                 (void *)chanmod_channel_label(channel_extra), dur_buf,
@@ -534,7 +534,7 @@ void do_chanpenalties(CHAR_DATA *ch, char *argument)
         else if (expired)
             strlcpy(exp_buf, "expired", sizeof(exp_buf));
         else
-            penalty_format_duration(p->expires_at - current_time, exp_buf, sizeof(exp_buf));
+            penalty_format_duration(ch->desc, p->expires_at - current_time, exp_buf, sizeof(exp_buf));
 
         add_buf(output, formatf("  {Y[%3d]{x %-12s %-16s %-12s %s\n\r",
                 ++index,

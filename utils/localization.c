@@ -505,7 +505,7 @@ static void __trans_arg_array_copier(void *ptr, void *src)
 
 const char *localization_translatef(LOCALIZATION_DATA *loc, const char *input, ...)
 {
-    static char _buf[4][MSL];
+    static char _buf[8][MSL];
     static int _i = 0;
     va_list args;
 
@@ -628,7 +628,7 @@ const char *localization_translatef(LOCALIZATION_DATA *loc, const char *input, .
     va_end(args);
     free_array(types);
 
-    _i = (_i + 1) & 3;
+    _i = (_i + 1) & 7;
     char *buf = _buf[_i];
     p = format;
     size_t len = sizeof(_buf[0]) - 1;

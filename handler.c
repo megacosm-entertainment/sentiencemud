@@ -5208,26 +5208,36 @@ bool is_global_mob(CHAR_DATA *mob)
 }
 
 // Create a pad function that accepts a string, a length, a colour, and a character to pad with. It should return just the padding for the given string, up to the length supplied.
-char *pad_string(char *string, int length, char *colour, char *character)
+// Changed
+char *pad_string(const char *string, int length, char *colour, char *character)
 {
+    static char _buf[8][MSL];
+    static int _i = 0;
     int i, pad_length;
-    char buf[MAX_STRING_LENGTH];
+    char *buf;
 
+    _i = (_i + 1) & 7;
+    buf = _buf[_i];
+    
     if (colour == NULL)
         colour = "{X";
 
     if (character == NULL)
         character = " ";
 
-    pad_length = length - strlen_no_colours(string);
+    int lennc = (int)utf8_strlen_nocolour(string);
+    if (lennc < length)
+        pad_length = length - lennc;
+    else
+        pad_length = 0;
 
     for (i = 0; i < pad_length; i++)
     {
-    buf[i] = character[0];
+        buf[i] = character[0];
     }
     buf[i] = '\0';
 
-    return str_dup(buf);
+    return _buf[_i];
 }
 
 /* send a line of length 'length' to a character, allow custom colour and character */
