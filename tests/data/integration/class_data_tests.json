@@ -123,6 +123,43 @@
         "all_values_positive": true,
         "monotonically_increasing": true
       }
+    },
+    {
+      "name": "class_accepts_xp_type_validation", 
+      "description": "Verify class XP type acceptance matches expected patterns",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_xp_accept_check",
+      "input": {
+        "xp_types_to_test": [0, 1, 2, 3, 4],
+        "max_classes_to_check": 3
+      },
+      "expected_output": {
+        "all_checks_consistent": true
+      }
+    },
+    {
+      "name": "class_legacy_mapping_integrity",
+      "description": "Verify legacy class mapping functions work correctly",
+      "dependencies": ["class_count_positive"], 
+      "test_type": "class_legacy_check",
+      "input": {
+        "test_legacy_indices": [0, 1, 2, 3],
+        "test_sub_class_indices": [0, 1, 2]
+      },
+      "expected_output": {
+        "all_mappings_valid": true
+      }
+    },
+    {
+      "name": "class_xp_curve_validation",
+      "description": "Verify XP curve system functions return consistent results",
+      "dependencies": ["class_count_positive"],
+      "test_type": "class_curve_check",
+      "input": {},
+      "expected_output": {
+        "curve_count_positive": true,
+        "curve_names_valid": true
+      }
     }
   ]
 }

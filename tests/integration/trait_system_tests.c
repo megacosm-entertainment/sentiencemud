@@ -20,6 +20,8 @@ static test_result_t test_trait_def_count(test_case_t *test);
 static test_result_t test_trait_def_lookup(test_case_t *test);
 static test_result_t test_trait_def_integrity(test_case_t *test);
 static test_result_t test_trait_type_coverage(test_case_t *test);
+static test_result_t test_trait_values_functionality(test_case_t *test);
+static test_result_t test_trait_race_functions(test_case_t *test);
 
 /**
  * Main test dispatcher for trait system tests
@@ -39,6 +41,12 @@ test_result_t run_trait_system_test_case(test_case_t *test)
     }
     else if (strcmp(test->test_type, "trait_type_coverage_test") == 0) {
         result = test_trait_type_coverage(test);
+    }
+    else if (strcmp(test->test_type, "trait_values_check") == 0) {
+        result = test_trait_values_functionality(test);
+    }
+    else if (strcmp(test->test_type, "trait_race_check") == 0) {
+        result = test_trait_race_functions(test);
     }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -302,6 +310,110 @@ static test_result_t test_trait_type_coverage(test_case_t *test)
                  has_bool ? "yes" : "no",
                  has_int ? "yes" : "no",
                  has_string ? "yes" : "no");
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test trait value manipulation functions
+ */
+static test_result_t test_trait_values_functionality(test_case_t *test)
+{
+    (void)test;
+    
+    if (trait_def_count <= 0) {
+        return TEST_SKIP;
+    }
+
+    TRAIT_VALUE *test_values = trait_values_alloc();
+    if (test_values == NULL) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "trait_values_alloc should not return NULL");
+        return TEST_FAILURE;
+    }
+
+    // Find the first boolean trait to test with
+    TRAIT_DEF *bool_trait = NULL;
+    TRAIT_DEF *int_trait = NULL;
+    
+    for (TRAIT_DEF *def = trait_def_list; def; def = def->next) {
+        if (!def->valid) continue;
+        if (!bool_trait && def->type == TRAIT_BOOLEAN) {
+            bool_trait = def;
+        }
+        if (!int_trait && def->type == TRAIT_INTEGER) {
+            int_trait = def;
+        }
+        if (bool_trait && int_trait) break;
+    }
+
+    if (bool_trait) {
+        // Test that default value is set correctly 
+        bool initial = test_values[bool_trait->index].bool_val;
+        if (initial != bool_trait->default_bool) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Initial value should match default");
+            return TEST_FAILURE;
+        }
+    }
+
+    if (int_trait) {
+        // Test that default value is set correctly
+        int initial = test_values[int_trait->index].int_val;
+        if (initial != int_trait->default_int) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Initial value should match default");
+            return TEST_FAILURE;
+        }
+    }
+
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test race trait functions with safe defaults
+ */
+static test_result_t test_trait_race_functions(test_case_t *test)
+{
+    (void)test;
+    
+    if (trait_def_count <= 0) {
+        return TEST_SKIP;
+    }
+
+    // Find the first boolean trait to test with
+    TRAIT_DEF *bool_trait = NULL;
+    for (TRAIT_DEF *def = trait_def_list; def; def = def->next) {
+        if (!def->valid) continue;
+        if (def->type == TRAIT_BOOLEAN) {
+            bool_trait = def;
+            break;
+        }
+    }
+
+    if (!bool_trait) {
+        return TEST_SKIP;  // No boolean traits to test
+    }
+
+    // Test with NULL race - should return defaults safely
+    bool has_trait = race_has_trait(NULL, bool_trait->id);
+    bool bool_val = race_get_trait_bool(NULL, bool_trait->id);
+    int int_val = race_get_trait_int(NULL, bool_trait->id);  
+    const char *str_val = race_get_trait_string(NULL, bool_trait->id);
+
+    // These should all work without crashing and return reasonable defaults
+    if (has_trait) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "NULL race should not have any traits");
+        return TEST_FAILURE;
+    }
+    
+    if (bool_val != bool_trait->default_bool) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "NULL race should return trait default");
+        return TEST_FAILURE;
+    }
+    // Other values should be their safe defaults (0, NULL)
+
     return TEST_SUCCESS;
 }
 

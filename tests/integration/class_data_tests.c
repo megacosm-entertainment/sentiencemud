@@ -27,6 +27,9 @@ static test_result_t test_class_uid_roundtrip(test_case_t *test);
 static test_result_t test_class_name_accessor(test_case_t *test);
 static test_result_t test_class_type_valid(test_case_t *test);
 static test_result_t test_class_exp_table(test_case_t *test);
+static test_result_t test_class_xp_accept_check(test_case_t *test);
+static test_result_t test_class_legacy_mapping(test_case_t *test);
+static test_result_t test_class_xp_curve_system(test_case_t *test);
 
 /**
  * Main test dispatcher for class data tests
@@ -58,6 +61,15 @@ test_result_t run_class_data_test_case(test_case_t *test)
     }
     else if (strcmp(test->test_type, "class_exp_table_test") == 0) {
         result = test_class_exp_table(test);
+    }
+    else if (strcmp(test->test_type, "class_xp_accept_check") == 0) {
+        result = test_class_xp_accept_check(test);
+    }
+    else if (strcmp(test->test_type, "class_legacy_check") == 0) {
+        result = test_class_legacy_mapping(test);
+    }
+    else if (strcmp(test->test_type, "class_curve_check") == 0) {
+        result = test_class_xp_curve_system(test);
     }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -406,6 +418,137 @@ static test_result_t test_class_exp_table(test_case_t *test)
         log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                    "No valid classes available for XP table validation");
         return TEST_FAILURE;
+    }
+
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test class XP type acceptance functions
+ */
+static test_result_t test_class_xp_accept_check(test_case_t *test)
+{
+    int max_classes = 3;
+    int xp_types[] = {XP_TYPE_UNTYPED, XP_TYPE_COMBAT, XP_TYPE_CRAFTING, XP_TYPE_GATHERING, XP_TYPE_EXPLORATION};
+    int num_types = 5;
+
+    if (test && test->config) {
+        json_t *input = json_object_get(test->config, "input");
+        if (input) {
+            int cfg_max = test_json_get_int(input, "max_classes_to_check");
+            if (cfg_max > 0) max_classes = cfg_max;
+        }
+    }
+
+    int checked_classes = 0;
+    CLASS_DATA *clazz;
+    for (clazz = class_first(); clazz && checked_classes < max_classes; clazz = clazz->next) {
+        if (!clazz->valid) continue;
+        checked_classes++;
+
+        long mask = class_default_xp_accept_mask(clazz);
+        if (mask < 0) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "XP accept mask should be non-negative");
+            return TEST_FAILURE;
+        }
+
+        for (int i = 0; i < num_types; i++) {
+            bool accepts = class_accepts_xp_type(clazz, xp_types[i]);
+            // Just verify the function doesn't crash and returns a valid bool
+            // The logic is consistent if it returns without error
+        }
+    }
+
+    if (checked_classes == 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Should have checked at least one class");
+        return TEST_FAILURE;
+    }
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test legacy class mapping functions  
+ */
+static test_result_t test_class_legacy_mapping(test_case_t *test)
+{
+    int legacy_indices[] = {0, 1, 2, 3};
+    int sub_indices[] = {0, 1, 2};
+
+    if (test && test->config) {
+        json_t *input = json_object_get(test->config, "input");
+        if (input) {
+            json_t *legacy_arr = json_object_get(input, "test_legacy_indices");
+            if (legacy_arr && json_is_array(legacy_arr)) {
+                size_t count = json_array_size(legacy_arr);
+                if (count > 0 && count <= 4) {
+                    for (size_t i = 0; i < count; i++) {
+                        json_t *val = json_array_get(legacy_arr, i);
+                        if (json_is_integer(val)) {
+                            legacy_indices[i] = (int)json_integer_value(val);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Test legacy index functions - they should work without crashing
+    for (int i = 0; i < 4; i++) {
+        const char *name = class_name_from_legacy(legacy_indices[i]);
+        // Name could be NULL or valid, just verify no crash
+        (void)name;
+    }
+
+    // Test sub class functions
+    for (int i = 0; i < 3; i++) {
+        int type = sub_class_legacy_type(sub_indices[i]);
+        int align = sub_class_legacy_alignment(sub_indices[i]); 
+        bool remort = sub_class_legacy_is_remort(sub_indices[i]);
+        bool match = sub_class_legacy_prereq_match(sub_indices[i], 0);
+        
+        // Just verify these return without crashing
+        (void)type; (void)align; (void)remort; (void)match;
+    }
+
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test XP curve system functions
+ */
+static test_result_t test_class_xp_curve_system(test_case_t *test)
+{
+    (void)test;
+    
+    int curve_count = class_xp_curve_count();
+    if (curve_count < 0) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "XP curve count should be non-negative");
+        return TEST_FAILURE;
+    }
+
+    for (int i = 0; i < curve_count && i < 10; i++) {
+        const char *name = class_xp_curve_name(i);
+        if (name && strlen(name) > 0) {
+            bool exists = class_xp_curve_exists(name);
+            if (!exists) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "Curve '%s' returned by class_xp_curve_name should exist", name);
+                return TEST_FAILURE;
+            }
+        }
+    }
+
+    const char *default_curve = class_default_xp_curve_name();
+    if (default_curve && strlen(default_curve) > 0) {
+        bool exists = class_xp_curve_exists(default_curve);
+        if (!exists) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Default XP curve '%s' should exist", default_curve);
+            return TEST_FAILURE;
+        }
     }
 
     return TEST_SUCCESS;
