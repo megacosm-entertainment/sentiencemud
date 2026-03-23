@@ -179,6 +179,113 @@ json_t *load_json_file(const char *filepath);
 #define test_json_get_int(obj, key)    ((int)json_get_int((obj), (key), 0))
 #define test_json_get_bool(obj, key)   json_get_bool((obj), (key), false)
 
+/*
+ * Assertion macros for test handlers.
+ *
+ * Each macro logs a descriptive failure message and returns TEST_FAILURE.
+ * Use inside functions that return test_result_t.
+ */
+
+#define TEST_ASSERT_TRUE(expr) do { \
+    if (!(expr)) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_TRUE failed: (%s) at %s:%d", #expr, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_FALSE(expr) do { \
+    if ((expr)) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_FALSE failed: (%s) was true at %s:%d", #expr, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_INT_EQ(expected, actual) do { \
+    long _exp = (long)(expected); \
+    long _act = (long)(actual); \
+    if (_exp != _act) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_INT_EQ failed: expected %ld, got %ld at %s:%d", \
+            _exp, _act, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_INT_NEQ(expected, actual) do { \
+    long _exp = (long)(expected); \
+    long _act = (long)(actual); \
+    if (_exp == _act) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_INT_NEQ failed: both values are %ld at %s:%d", \
+            _exp, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_INT_GT(val, threshold) do { \
+    long _v = (long)(val); \
+    long _t = (long)(threshold); \
+    if (_v <= _t) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_INT_GT failed: %ld is not > %ld at %s:%d", \
+            _v, _t, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_INT_GTE(val, threshold) do { \
+    long _v = (long)(val); \
+    long _t = (long)(threshold); \
+    if (_v < _t) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_INT_GTE failed: %ld is not >= %ld at %s:%d", \
+            _v, _t, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_STR_EQ(expected, actual) do { \
+    const char *_exp = (expected); \
+    const char *_act = (actual); \
+    if ((_exp == NULL && _act != NULL) || (_exp != NULL && _act == NULL) || \
+        (_exp != NULL && _act != NULL && strcmp(_exp, _act) != 0)) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_STR_EQ failed: expected \"%s\", got \"%s\" at %s:%d", \
+            _exp ? _exp : "(null)", _act ? _act : "(null)", __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_STR_NEQ(expected, actual) do { \
+    const char *_exp = (expected); \
+    const char *_act = (actual); \
+    if ((_exp == NULL && _act == NULL) || \
+        (_exp != NULL && _act != NULL && strcmp(_exp, _act) == 0)) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_STR_NEQ failed: both are \"%s\" at %s:%d", \
+            _exp ? _exp : "(null)", __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_NULL(ptr) do { \
+    if ((ptr) != NULL) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_NULL failed: (%s) was not NULL at %s:%d", #ptr, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
+#define TEST_ASSERT_NOT_NULL(ptr) do { \
+    if ((ptr) == NULL) { \
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, \
+            "ASSERT_NOT_NULL failed: (%s) was NULL at %s:%d", #ptr, __FILE__, __LINE__); \
+        return TEST_FAILURE; \
+    } \
+} while (0)
+
 #endif // BUILD_TESTS
 
 #endif // TEST_FRAMEWORK_H
