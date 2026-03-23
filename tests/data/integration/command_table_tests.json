@@ -1,0 +1,67 @@
+{
+  "type": "test_suite",
+  "test_suite": "command_table_tests",
+  "description": "MUD command table integrity and lookup validation",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": [],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "command_table_count_test",
+      "description": "Verify command table has at least 50 commands",
+      "dependencies": [],
+      "test_type": "command_table_count_test",
+      "input": {
+        "minimum_commands": 50
+      },
+      "expected_output": {
+        "count_sufficient": true
+      }
+    },
+    {
+      "name": "command_table_integrity_test",
+      "description": "Verify all command entries have valid name and function pointer",
+      "dependencies": [],
+      "test_type": "command_table_integrity_test",
+      "input": {},
+      "expected_output": {
+        "all_entries_valid": true,
+        "no_null_names": true
+      }
+    },
+    {
+      "name": "command_table_lookup_test",
+      "description": "Verify known commands resolve and nonexistent commands don't",
+      "dependencies": [],
+      "test_type": "command_table_lookup_test",
+      "input": {
+        "test_cases": [
+          {"command": "look", "should_exist": true},
+          {"command": "get", "should_exist": true},
+          {"command": "say", "should_exist": true},
+          {"command": "kill", "should_exist": true},
+          {"command": "score", "should_exist": true},
+          {"command": "who", "should_exist": true},
+          {"command": "quit", "should_exist": true},
+          {"command": "boguscommand123", "should_exist": false},
+          {"command": "nonexistentcmd", "should_exist": false}
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "command_table_unique_test",
+      "description": "Verify no duplicate command names in the table",
+      "dependencies": [],
+      "test_type": "command_table_unique_test",
+      "input": {},
+      "expected_output": {
+        "all_names_unique": true,
+        "duplicate_count": 0
+      }
+    }
+  ]
+}

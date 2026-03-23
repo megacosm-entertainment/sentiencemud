@@ -40,6 +40,7 @@ test_result_t run_script_engine_test_case(test_case_t *test);
 test_result_t run_channel_pubsub_test_case(test_case_t *test);
 test_result_t run_combat_telemetry_test_case(test_case_t *test);
 test_result_t run_constants_tables_test_case(test_case_t *test);
+test_result_t run_command_table_test_case(test_case_t *test);
 
 #endif /* BUILD_TESTS */
 

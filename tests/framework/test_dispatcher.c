@@ -93,6 +93,7 @@ static const test_handler_entry_t handler_table[] = {
     { "script_engine_",                  run_script_engine_test_case,       MATCH_SUBSTR },
     { "channel_",                        run_channel_pubsub_test_case,      MATCH_SUBSTR },
     { "combat_",                         run_combat_telemetry_test_case,    MATCH_SUBSTR },
+    { "command_table_",                  run_command_table_test_case,       MATCH_SUBSTR },
     { "const_table_",                    run_constants_tables_test_case,    MATCH_SUBSTR },
     { "_lookup_test",                    run_lookup_table_test_case,        MATCH_SUBSTR },
     { "flag_table_",                     run_lookup_table_test_case,        MATCH_SUBSTR },
