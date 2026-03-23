@@ -16,6 +16,9 @@ char *olc_getline(char *str, char *buf);
 char *numlineas(char *string);
 bool is_valid_colour_code(const char *code);
 
+// Forward declaration for SHA256 function
+extern char *sha256_crypt(const char *pwd);
+
 static const struct flag_type *resolve_flag_table_for_test(const char *table_name) {
     if (!table_name) {
         return NULL;
@@ -2562,6 +2565,44 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
 
             free(wilds.staticmap);
             free(wilds.map);
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "sha256") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_string = test_json_get_string(test_case, "input_string");
+            const char *expected_hash = test_json_get_string(test_case, "expected_hash");
+
+            if (!input_string || !expected_hash) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "sha256 test case missing input_string or expected_hash");
+                return TEST_ERROR;
+            }
+
+            char *actual_hash = sha256_crypt(input_string);
+            if (!actual_hash) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "sha256_crypt('%s') returned NULL",
+                             input_string);
+                return TEST_ERROR;
+            }
+
+            if (strcmp(actual_hash, expected_hash) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "sha256_crypt('%s') returned '%s', expected '%s'",
+                             input_string, actual_hash, expected_hash);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ sha256('%s') -> %s",
+                             input_string, actual_hash);
+            }
         }
 
         return TEST_SUCCESS;

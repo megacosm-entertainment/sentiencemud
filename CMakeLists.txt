@@ -278,6 +278,7 @@ set(SOURCE_FILES
     scripts.c
     sectors_runtime.c
     secret.c
+    sha256.c
     shoot.c
     skill_data.c
     skill_group.c

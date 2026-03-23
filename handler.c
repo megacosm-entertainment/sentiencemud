@@ -11156,39 +11156,6 @@ void generate_reset_code(char* str, int str_len) {
     *str = '\0'; // Add the null character at the end
 }
 
-char *sha256_crypt(const char *pwd) {
-    EVP_MD_CTX *context = EVP_MD_CTX_new();
-    static char output[65];
-    unsigned char sha256sum[32];
-    unsigned int j;
-
-    if (context == NULL) {
-        return NULL; // Handle error
-    }
-
-    if (EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
-        EVP_MD_CTX_free(context);
-        return NULL; // Handle error
-    }
-
-    if (EVP_DigestUpdate(context, pwd, strlen(pwd)) != 1) {
-        EVP_MD_CTX_free(context);
-        return NULL; // Handle error
-    }
-
-    if (EVP_DigestFinal_ex(context, sha256sum, NULL) != 1) {
-        EVP_MD_CTX_free(context);
-        return NULL; // Handle error
-    }
-
-    for (j = 0; j < 32; ++j) {
-        snprintf(output + j * 2, 3, "%02x", sha256sum[j]);
-    }
-
-    EVP_MD_CTX_free(context);
-    return output;
-}
-
 char *tmp_sprintf(const char *fmt, ...)
 {
     static char buf[MAX_STRING_LENGTH];
@@ -12096,6 +12063,8 @@ bool set_encrypted_password(char **target_password_field, int *target_version_fi
 
 // Checks a plaintext password against a stored hash using tiered methods.
 password_check_status check_encrypted_password(const char *plaintext_password, const char *stored_hash, int stored_version) {
+    extern char *sha256_crypt(const char *pwd);  // Forward declaration for SHA256 function
+    
     if (!plaintext_password || !stored_hash || stored_hash[0] == '\0') {
         return PWD_CHECK_FAIL; // Cannot check against empty stored hash
     }

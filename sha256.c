@@ -333,7 +333,7 @@ char *sha256_crypt( const char *pwd )
 
    for( j = 0; j < 32; ++j )
    {
-      snprintf( output + j * 2, 65, "%02x", sha256sum[j] );
+      snprintf( output + j * 2, 3, "%02x", sha256sum[j] );
    }
    return output;
 }
