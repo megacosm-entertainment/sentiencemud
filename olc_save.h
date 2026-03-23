@@ -27,7 +27,6 @@ void save_tokens(FILE *fp, AREA_DATA *area);
 void save_token(FILE *fp, TOKEN_INDEX_DATA *token);
 
 /* read areas */
-AREA_DATA *read_area_new( FILE *fp );
 ROOM_INDEX_DATA *read_room_new( FILE *fp, AREA_DATA *area, int roomtype );
 MOB_INDEX_DATA *read_mobile_new( FILE *fp, AREA_DATA *area );
 OBJ_INDEX_DATA *read_object_new( FILE *fp, AREA_DATA *area );

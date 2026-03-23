@@ -37,11 +37,10 @@ CUR_BUILD_DATE := "$(shell sh date.sh)"
 GIT_URL := "$(shell sh giturl.sh)"
 
 # Legacy reader toggles (default ON). Override for removal testing, e.g.:
-#   make ENABLE_LEGACY_AREA_READ=0 ENABLE_LEGACY_PFILE_READ=0
-ENABLE_LEGACY_AREA_READ ?= 1
+#   make ENABLE_LEGACY_PFILE_READ=0
 ENABLE_LEGACY_PFILE_READ ?= 1
 
-C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DENABLE_LEGACY_AREA_READ=$(ENABLE_LEGACY_AREA_READ) -DENABLE_LEGACY_PFILE_READ=$(ENABLE_LEGACY_PFILE_READ) -DMUD_DEBUG -DCHANNEL_FILTER_USE_PCRE2 -MMD -MP $(INCLUDES)
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DENABLE_LEGACY_PFILE_READ=$(ENABLE_LEGACY_PFILE_READ) -DMUD_DEBUG -DCHANNEL_FILTER_USE_PCRE2 -MMD -MP $(INCLUDES)
 # -rdynamic exports symbols for stack trace support (backtrace_symbols)
 L_FLAGS = $(PROF) -rdynamic $(LIB_PATHS) $(LIBS)
 

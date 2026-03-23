@@ -12407,29 +12407,31 @@ void do_token(CHAR_DATA *ch, char *argument)
 /**
  * do_aload - Load an area file into memory at runtime
  *
- * Loads an area from an .are file without requiring a server reboot.
- * Uses the same loading function as boot_db. Useful for importing areas
- * built on testport to the live server. Currently only supports loading
+ * Loads an area from a JSON file without requiring a server reboot.
+ * Uses json_area_load(), the same loader as boot_db. Useful for importing
+ * areas built on testport to the live server. Currently only supports loading
  * new areas; replacing existing areas is not yet implemented.
  * WARNING: Can cause significant performance impact during load.
  *
  * @param ch        Staff member using the command
- * @param argument  Filename of the area to load
+ * @param argument  Stem name of the area to load (e.g., "limbo")
  *
  * Triggers: None (area loading utility)
  */
 void do_aload(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
-    FILE *fp;
     AREA_DATA *area;
     LLIST_AREA_DATA *link;
 
     argument = one_argument(argument, arg);
 
-    /* Check to see if the area is loaded in already. If it is, free it
-       from memory and reload it. Make sure to update all object and mob
-       pIndexData pointers and room area pointers. */
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: aload <area stem name>\n\r", ch);
+        return;
+    }
+
+    /* Check to see if the area is loaded in already. */
     for (area = area_first; area != NULL; area = area->next) {
     if (!str_cmp(area->file_name, argument))
         break;
@@ -12437,13 +12439,17 @@ void do_aload(CHAR_DATA *ch, char *argument)
 
     /* The simpler case - the area is not a current area. */
     if (area == NULL) {
-    if ((fp = fopen(arg, "r")) == NULL) {
-        send_to_char("Area file not found.\n\r", ch);
+    char json_filename[MSL + 10];
+    snprintf(json_filename, sizeof(json_filename), "%s.json", arg);
+
+    area = json_area_load(json_filename);
+    if (!area) {
+        send_to_char("Failed to load area from JSON file.\n\r", ch);
         return;
     }
 
     link = (LLIST_AREA_DATA *)alloc_mem(sizeof(LLIST_AREA_DATA));
-    if( list_appendlink(loaded_areas, link) && (area = read_area_new(fp))) {
+    if (list_appendlink(loaded_areas, link)) {
         area->next = NULL;
 
         area_last->next = area;
@@ -12454,9 +12460,9 @@ void do_aload(CHAR_DATA *ch, char *argument)
         link->uid = area->uid;
 
         act("Loaded area $T.", ch, NULL, NULL, NULL, NULL, NULL, area->name, TO_CHAR, NULL, NULL);
-    } else
-        free_mem( link, sizeof(LLIST_AREA_DATA));
-    fclose(fp);
+    } else {
+        free_mem(link, sizeof(LLIST_AREA_DATA));
+    }
     } else {
     /* Syn - will add in replacement of current area when I have time. */
     send_to_char("Area already exists.\n\r", ch);

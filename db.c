@@ -91,11 +91,7 @@ static void emit_db_wiz_event(const char *plain_message,
     log_emit_event(&ev, NULL);
 }
 
-#ifndef ENABLE_LEGACY_AREA_READ
-/* Keep enabled by default until remaining legacy maze .are zones
- * are rebuilt/migrated into the dungeon system. */
-#define ENABLE_LEGACY_AREA_READ 1
-#endif
+
 
 /*
 #if !defined(OLD_RAND)
@@ -1367,7 +1363,6 @@ void boot_db(void)
         {
             AREA_DATA *area = NULL;
             LLIST_AREA_DATA *link;
-            bool loaded_from_json = false;
 
             strcpy(strArea, fread_word(fpList));
             if (strArea[0] == '$')
@@ -1401,59 +1396,18 @@ void boot_db(void)
                 log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading area from JSON: %s", json_fullpath);
                 area = json_area_load(json_filename);
                 if (area) {
-                    loaded_from_json = true;
                     log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Successfully loaded JSON area: %s", json_filename);
                 } else {
                     log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                        "Failed to load JSON area %s, falling back to .are format", json_fullpath);
+                        "Failed to load JSON area: %s", json_fullpath);
                 }
-            }
-
-            /* Fall back to .are format if JSON didn't work */
-            if (!loaded_from_json) {
-#if ENABLE_LEGACY_AREA_READ
-                char area_path[MAX_STRING_LENGTH * 3];
-                char legacy_filename[MAX_STRING_LENGTH + 10];
-                const char *legacy_target = NULL;
-                size_t prefix_len = strlen(area_dir_path);
-                int max_tail = (prefix_len < sizeof(area_path))
-                    ? (int)(sizeof(area_path) - prefix_len - 1)
-                    : 0;
-
-                snprintf(area_path, sizeof(area_path), "%s%.*s", area_dir_path, max_tail, strArea);
-                if (access(area_path, F_OK) == 0) {
-                    legacy_target = strArea;
-                } else {
-                    snprintf(legacy_filename, sizeof(legacy_filename), "%s.are", stem);
-                    snprintf(area_path, sizeof(area_path), "%s%.*s", area_dir_path, max_tail, legacy_filename);
-                    if (access(area_path, F_OK) == 0)
-                        legacy_target = legacy_filename;
-                }
-
-                if (!legacy_target) {
-                    log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                        "Unable to resolve area '%s' to a readable file (tried %s and %s.are)",
-                        strArea, strArea, stem);
-                    exit(2);
-                }
-
-                snprintf(area_path, sizeof(area_path), "%s%.*s", area_dir_path, max_tail, legacy_target);
-                if ((fpArea = fopen(area_path, "r")) == NULL) {
-                    perror(area_path);
-                    exit(2);        // NIBS: changed this so we know it exited because of this
-                }
-
-                log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Loading areafile from .are format: '%s'", legacy_target);
-                area = read_area_new(fpArea);
-                fclose(fpArea);
-#else
+            } else {
                 log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
-                    "Legacy .are reader disabled, cannot load area %s without JSON", strArea);
-#endif
+                    "JSON area file not found: %s", json_fullpath);
             }
 
             if (!area) {
-                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to load area %s in any format", strArea);
+                log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "Failed to load area: %s", strArea);
                 exit(2);
             }
 
