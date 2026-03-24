@@ -1299,8 +1299,7 @@ void boot_db(void)
     // Load races from JSON files (new race system)
     load_races();
 
-    // Load skills from JSON files (new skill system)
-    // On first run, bootstraps from legacy skill_table[] and saves JSON files.
+    // Load skills from JSON files.
     load_skill_data();
 
     // Load skill groups from data/skill_groups/ JSON files.

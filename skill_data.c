@@ -2,8 +2,7 @@
  *  Skill Data System - Implementation                                     *
  *                                                                         *
  *  Data-driven skill/spell backend. Loads skill definitions from JSON     *
- *  files in data/skills/, or bootstraps from the legacy skill_table[]     *
- *  on first run.                                                          *
+ *  files in data/skills/.                                                 *
  *                                                                         *
  *  Provides O(1) hash table lookup by name and UID index for fast access. *
  ***************************************************************************/
@@ -348,6 +347,18 @@ SKILL_DATA *skill_find_uid(int16_t uid)
 const char *skill_name(SKILL_DATA *skill)
 {
     return skill ? skill->name : "none";
+}
+
+/**
+ * skill_name_by_uid - Get a skill name by UID, or "" if not found
+ *
+ * Used by the SKILL_NAME() macro for backward compatibility with code
+ * that references skills by numeric index.
+ */
+const char *skill_name_by_uid(int16_t uid)
+{
+    SKILL_DATA *sk = skill_find_uid(uid);
+    return sk ? sk->name : "";
 }
 
 /**
@@ -815,113 +826,14 @@ void save_all_skill_data(void)
 }
 
 /***************************************************************************
- * Bootstrap from Legacy skill_table[]                                     *
- ***************************************************************************/
-
-/**
- * bootstrap_skills_from_table - One-time migration from const.c skill_table
- *
- * Reads the existing skill_table[] array and creates SKILL_DATA entries
- * with UIDs matching the original array indices (so saved sn values
- * continue to work). Then saves all skills to JSON files.
- */
-static void bootstrap_skills_from_table(void)
-{
-    int sn;
-    int count = 0;
-
-    log_string("Bootstrapping skill data from legacy skill_table[]...");
-
-    for (sn = 0; sn < MAX_SKILL; sn++) {
-        if (skill_table[sn].name == NULL || skill_table[sn].name[0] == '\0')
-            break;
-
-        /* Skip "reserved" entry */
-        if (sn == 0 && !str_cmp(skill_table[sn].name, "reserved"))
-            continue;
-
-        SKILL_DATA *skill = new_skill_data();
-
-        skill->name = str_dup(skill_table[sn].name);
-        skill->display = str_dup(skill_table[sn].name);
-        skill->uid = (int16_t)sn;
-
-        /* Determine if spell or skill */
-        skill->isspell = (skill_table[sn].spell_fun != NULL
-                       && skill_table[sn].spell_fun != spell_null);
-
-        /* Copy class levels (legacy arrays) */
-        for (int c = 0; c < MAX_CLASS; c++) {
-            skill->skill_level[c] = skill_table[sn].skill_level[c];
-            skill->rating[c] = skill_table[sn].rating[c];
-        }
-
-        /* Spell function */
-        skill->spell_fun = skill_table[sn].spell_fun;
-        if (skill->spell_fun && skill->spell_fun != spell_null) {
-            const char *fname = spell_fun_name(skill->spell_fun);
-            if (fname)
-                skill->spell_fun_name = str_dup(fname);
-            else
-                log_stringf("bootstrap: No function name for spell '%s' (sn=%d)", skill->name, sn);
-        }
-
-        /* Copy remaining fields */
-        skill->target = skill_table[sn].target;
-        skill->minimum_position = skill_table[sn].minimum_position;
-        skill->min_mana = skill_table[sn].min_mana;
-        skill->beats = skill_table[sn].beats;
-        skill->noun_damage = str_dup(skill_table[sn].noun_damage ? skill_table[sn].noun_damage : "");
-        skill->msg_off = str_dup(skill_table[sn].msg_off ? skill_table[sn].msg_off : "");
-        skill->msg_obj = str_dup(skill_table[sn].msg_obj ? skill_table[sn].msg_obj : "");
-        skill->msg_disp = str_dup(skill_table[sn].msg_disp ? skill_table[sn].msg_disp : "");
-
-        /* Race restriction */
-        if (skill_table[sn].race >= 0) {
-            SET_BIT(skill->flags, SKILLFLAG_RACIAL);
-            /* We'll resolve the race pointer during post-boot */
-        }
-
-        /* Inks */
-        for (int i = 0; i < 3; i++) {
-            skill->inks[i][0] = skill_table[sn].inks[i][0];
-            skill->inks[i][1] = skill_table[sn].inks[i][1];
-        }
-
-        /* Insert into sorted list */
-        skill_insert_sorted(skill);
-        count++;
-    }
-
-    skill_total = count;
-    log_stringf("Bootstrapped %d skills from legacy skill_table.", count);
-
-    /* Build hash table and UID index */
-    max_skill_uid = MAX_SKILL;  /* Use MAX_SKILL as upper bound */
-    skill_uid_index = (SKILL_DATA **)alloc_perm(sizeof(SKILL_DATA *) * (max_skill_uid + 1));
-    memset(skill_uid_index, 0, sizeof(SKILL_DATA *) * (max_skill_uid + 1));
-
-    for (SKILL_DATA *sk = skill_list; sk; sk = sk->next) {
-        skill_hash_insert(sk);
-        if (sk->uid >= 0 && sk->uid <= max_skill_uid)
-            skill_uid_index[sk->uid] = sk;
-
-    }
-
-    /* Save all to JSON for subsequent boots */
-    save_all_skill_data();
-}
-
-/***************************************************************************
  * Boot Loading                                                            *
  ***************************************************************************/
 
 /**
- * load_skill_data - Load all skills from JSON files, or bootstrap from skill_table
+ * load_skill_data - Load all skills from JSON files
  *
- * Called from boot_db(). On first run (no JSON files exist), bootstraps
- * from the legacy skill_table[] array and saves JSON files. On subsequent
- * boots, loads directly from JSON.
+ * Called from boot_db(). Skills are loaded from individual JSON files
+ * in data/skills/. Requires JSON skill files to exist.
  */
 void load_skill_data(void)
 {
@@ -957,11 +869,10 @@ void load_skill_data(void)
         closedir(dir);
     }
 
-    /* If no JSON files, bootstrap from legacy skill_table */
     if (!has_json) {
-        log_string("No skill JSON files found. Bootstrapping from skill_table[]...");
-        bootstrap_skills_from_table();
-        return;
+        log_string("FATAL: No skill JSON files found in " SKILLS_DIR);
+        log_string("Skills must be defined as JSON files in data/skills/.");
+        exit(1);
     }
 
     /* Load from JSON files */

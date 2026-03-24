@@ -1058,8 +1058,8 @@ struct olc_point_area_data {
 };
 
 
-
-#define SKILL_NAME(sn) (((sn) > 0 && (sn) < MAX_SKILL) ? skill_table[(sn)].name : "")
+const char *skill_name_by_uid(int16_t uid);
+#define SKILL_NAME(sn) skill_name_by_uid((int16_t)(sn))
 
 /*
  * This is used for fight.c in defences. The game will only look at a max
@@ -8328,41 +8328,13 @@ extern long gc_max_time;
 
 
 /*
- * Skills include spells as a particular case.
- */
-typedef struct skill_type skill_t;
-
-struct	skill_type
-{
-    char *	name;			/* Name of skill		*/
-    int16_t	skill_level[MAX_CLASS];	/* Level needed by class	*/
-    int16_t	rating[MAX_CLASS];	/* How hard it is to learn	*/
-    SPELL_FUN *	spell_fun;		/* Spell pointer (for spells)	*/
-    int16_t	target;			/* Legal targets		*/
-    int16_t	minimum_position;	/* Position for caster / user	*/
-    /* int16_t	slot;		 	Syn- reusing this as a racial skill toggle. */
-    int 	race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
-                       This doesn't apply for skills that can be gotten from classes, like archery. */
-
-    int16_t	min_mana;		/* Minimum mana used		*/
-    int16_t	beats;			/* Waiting time after use	*/
-    char *	noun_damage;		/* Damage message		*/
-    char *	msg_off;		/* Wear off message		*/
-    char *	msg_obj;		/* Wear off message for obects	*/
-    char *	msg_disp;
-    int		inks[3][2];
-};
-
-/*
- * SKILL_DATA — New data-driven skill definition.
+ * SKILL_DATA — Data-driven skill definition.
  *
- * Replaces entries in the legacy skill_table[] array. Skills are loaded
- * from individual JSON files in data/skills/ and accessed via hash table
- * lookups (skill_find/skill_search) instead of gsn_* global indices.
+ * Skills are loaded from individual JSON files in data/skills/ and accessed
+ * via hash table lookups (skill_find/skill_search) instead of gsn_* globals.
  *
- * During the migration period, SKILL_DATA coexists with skill_table[].
- * The bootstrap process assigns uid values matching the original skill_table
- * array indices, so existing saved data (which uses sn) continues to work.
+ * UIDs match the original skill_table array indices, so existing saved data
+ * (which uses sn) continues to work.
  */
 #define MAX_SKILL_VALUES        8
 
@@ -8562,7 +8534,7 @@ int	get_weapon_skill	( CHAR_DATA *ch, int sn );
 int	get_adept_level		( CHAR_DATA *ch, int sn );
 int	mana_cost		( CHAR_DATA *ch, int min_mana, int level );
 int	skill_lookup		( const char *name );
-const skill_t *skill_type_lookup( const char *name );
+
 SKILL_DATA *skill_find		( const char *name );
 int16_t	skill_resolve_gsn	( const char *name );
 int16_t	skill_sn		( SKILL_DATA *skill );
@@ -9508,7 +9480,6 @@ extern	const	struct	wiznet_type	wiznet_table	[];
 extern	const	struct	attack_type	attack_table	[];
 //extern  const   struct  cmd_type    cmd_table   [];
 extern  const	struct	spec_type	spec_table	[];
-extern	const	struct	skill_type	skill_table	[MAX_SKILL];
 extern          int                     mob_skill_table [MAX_MOB_SKILL_LEVEL];
 extern  const   struct  church_command_type church_command_table [];
 extern          struct social_type      social_table	[MAX_SOCIALS];

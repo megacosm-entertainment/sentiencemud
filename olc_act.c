@@ -195,7 +195,7 @@ const struct olc_help_type help_table[] =
     {	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
     {	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
     {	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
-    {	"spells",				STRUCT_SKILL,		skill_table,				"Names of current spells."	},
+    {	"spells",				STRUCT_SKILL,		NULL,						"Names of current spells."	},
     {	"tokenflags",			STRUCT_FLAGS,		token_flags,				"Token flags."	},
     {	"tprog",				STRUCT_TRIGGERS,	trigger_table,				"TokenProgram types."	},
     {	"type",					STRUCT_FLAGS,		type_flags,					"Types of objects."	},

@@ -49,16 +49,6 @@
 #include "scripts.h"
 #include "skill_data.h"
 
-/*
- * Lookup a skill by name and return a pointer to the skill_type.
- */
-const skill_t *skill_type_lookup(const char *name)
-{
-    SKILL_DATA *sk = skill_search(name);
-    return sk ? &skill_table[sk->uid] : NULL;
-}
-
-
 // Lookup a skill by name.
 int skill_lookup(const char *name)
 {
