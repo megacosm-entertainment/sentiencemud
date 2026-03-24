@@ -1936,6 +1936,26 @@ void fix_area_fields(void)
                         rep->reputation = NULL;
                     }
                 }
+
+                for (MOB_FACTION_DATA *fac = mob->factions; fac != NULL; fac = fac->next)
+                {
+                    if (fac->faction_load.vnum > 0)
+                    {
+                        fac->faction = get_reputation_index_auid(fac->faction_load.auid, fac->faction_load.vnum);
+                        if (!IS_VALID(fac->faction))
+                        {
+                            pbugf(LOG_ERROR,
+                                  "fix_area_fields: mob %s has invalid faction %ld#%ld",
+                                  widevnum_string(mob->area, mob->vnum, NULL),
+                                  fac->faction_load.auid,
+                                  fac->faction_load.vnum);
+                        }
+                    }
+                    else
+                    {
+                        fac->faction = NULL;
+                    }
+                }
             }
         }
 
@@ -5262,6 +5282,15 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         }
     }
 
+    // Populate faction membership list from prototype
+    for (MOB_FACTION_DATA *fac = pMobIndex->factions; fac != NULL; fac = fac->next)
+    {
+        if (IS_VALID(fac->faction))
+        {
+            list_appendlink(mob->factions, fac->faction);
+        }
+    }
+
     return mob;
 }
 
@@ -5360,6 +5389,19 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 
     if(parent->persist && !clone->persist)
         persist_addmobile(clone);
+
+    // Copy faction membership from parent (may differ from prototype)
+    list_clear(clone->factions);
+    {
+        ITERATOR it;
+        REPUTATION_INDEX_DATA *repIndex;
+        iterator_start(&it, parent->factions);
+        while ((repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            list_appendlink(clone->factions, repIndex);
+        }
+        iterator_stop(&it);
+    }
 
     return clone;
 }
