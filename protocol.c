@@ -27,6 +27,7 @@
 #include <ctype.h>
 
 #include "protocol.h"
+#include "gmcp_sentience.h"
 
 /******************************************************************************
  The following section is for Diku/Merc derivatives.  Replace as needed.
@@ -492,6 +493,10 @@ protocol_t *ProtocolCreate( void )
 
    for ( i = 0; i < GMCP_PACKAGE_MAX; i++ )
       pProtocol->bGMCPUpdatePackage[i] = 0;
+
+   /* Sentience GMCP cache */
+   pProtocol->sentience_dirty = 0;
+   sentience_gmcp_cache_reset(&pProtocol->sentience_cache);
    /*************** END GMCP ***************/
 
    return pProtocol;
@@ -3362,6 +3367,7 @@ const struct gmcp_support_struct bGMCPSupportTable[GMCP_SUPPORT_MAX+1] =
 {
    { GMCP_SUPPORT_CHAR,			"Char"						},
    { GMCP_SUPPORT_ROOM,			"Room"						},
+   { GMCP_SUPPORT_SENTIENCE,		"Sentience"					},
 
    { GMCP_SUPPORT_MAX,				NULL						}
 };

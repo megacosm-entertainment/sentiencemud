@@ -23,6 +23,7 @@
 #include "io/json/json_olc.h"
 #include "channel_service.h"
 #include "wilderness_storage.h"
+#include "gmcp_sentience.h"
 
 static void emit_update_wiz_event(const char *plain_message,
                                   const char *staff_message,
@@ -4773,6 +4774,9 @@ void gmcp_update( void )
 
             UpdateGMCPString( d, GMCP_AFFECT, buf );
         }
+
+        /* Send Sentience.* packages for clients that support them */
+        sentience_gmcp_update( d );
 
         SendUpdatedGMCP( d );
     }

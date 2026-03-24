@@ -113,6 +113,7 @@ C_FILES = \
     protocol_layer.c \
     protocol_telnet.c \
     protocol_websocket.c \
+    gmcp_sentience.c \
     db.c \
     db2.c \
     drunk.c \
@@ -307,6 +308,7 @@ ifdef BUILD_TESTS
                tests/unit/utf8_function_tests.c \
                tests/unit/array_function_tests.c \
                tests/unit/strdict_function_tests.c \
+               tests/unit/gmcp_sentience_tests.c \
                tests/unit/pure_function_tests.c \
                tests/integration/wnum_tests.c \
                tests/integration/string_editor_tests.c \

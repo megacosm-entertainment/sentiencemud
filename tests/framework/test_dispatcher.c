@@ -62,6 +62,7 @@ static const test_handler_entry_t handler_table[] = {
     { "utf8_",                           run_utf8_test_case,                MATCH_SUBSTR },
     { "dynarr_",                         run_array_test_case,               MATCH_SUBSTR },
     { "strdict_",                        run_strdict_test_case,             MATCH_SUBSTR },
+    { "gmcp_sentience_",                 run_gmcp_sentience_test_case,      MATCH_SUBSTR },
 
     /* Integration test handlers — exact matches first */
     { "reset_cross_area_creation",       run_reset_test_case,               MATCH_EXACT  },
