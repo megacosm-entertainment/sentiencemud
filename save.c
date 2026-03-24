@@ -2861,6 +2861,7 @@ void fix_object(OBJ_DATA *obj)
                 af->location = APPLY_HITROLL;
                 af->modifier = af_hr_mod;
                 af->type = sn_ench;
+                af->skill = skill_find_uid(sn_ench);
                 affect_to_obj(obj, af);
 
                 // DR mods
@@ -2871,6 +2872,7 @@ void fix_object(OBJ_DATA *obj)
                 af->location = APPLY_DAMROLL;
                 af->modifier = af_dr_mod;
                 af->type = sn_ench;
+                af->skill = skill_find_uid(sn_ench);
                 affect_to_obj(obj, af);
             }
         }

@@ -3193,7 +3193,12 @@ AFFECT_DATA *read_obj_affect_new(FILE *fp)
             break;
 
             case 'T':
-            KEY("Type",		af->type,	fread_number(fp));
+            if (!str_cmp(word, "Type")) {
+                af->type = fread_number(fp);
+                af->skill = skill_find_uid(af->type);
+                fMatch = true;
+                break;
+            }
         break;
     }
 

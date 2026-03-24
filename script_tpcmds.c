@@ -2877,6 +2877,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     af.group	= group;
     af.where     = where;
     af.type      = -1;
+    af.skill     = NULL;
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;

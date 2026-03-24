@@ -6787,6 +6787,7 @@ AFFECT_DATA *json_area_deserialize_affect(json_t *json)
     af->modifier = json_get_int_default(json, "modifier", 0);
     af->level = json_get_int_default(json, "level", 0);
     af->type = json_get_int_default(json, "type", 0);
+    af->skill = skill_find_uid(af->type);
     af->duration = json_get_int_default(json, "duration", 0);
     af->bitvector = json_get_int_default(json, "bitvector", 0);
     af->bitvector2 = json_get_int_default(json, "bitvector2", 0);
