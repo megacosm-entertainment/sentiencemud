@@ -2651,7 +2651,10 @@ void do_pick(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    WAIT_STATE(ch, skill_table[pick_sn].beats);
+    {
+        SKILL_DATA *sk = skill_find_uid(pick_sn);
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
 
     if (!ch_has_trait(ch, "lockpick_mastery"))
     {
@@ -3795,7 +3798,10 @@ static bool do_hide_self(CHAR_DATA *ch)
         return true;
 
     send_to_char("You attempt to hide.\n\r", ch);
-    HIDE_STATE(ch, skill_table[skill_resolve_gsn("hide")].beats);
+    {
+        SKILL_DATA *sk = skill_find("hide");
+        if (sk) HIDE_STATE(ch, sk->beats);
+    }
     return true;
 }
 

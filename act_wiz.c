@@ -63,6 +63,7 @@
 #include "class_data.h"
 #include "io/json/json_olc.h"
 #include "connection.h"
+#include "skill_data.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -4286,7 +4287,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
     {
         sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
                      paf->level,
-                     skill_table[(int) paf->type].name,
+                     skill_name(skill_find_uid(paf->type)),
                      affect_loc_name(paf->location),
                      paf->modifier,
                      paf->duration,
@@ -8562,15 +8563,16 @@ void do_sset(CHAR_DATA *ch, char *argument)
         {
             SKILL_ENTRY *entry;
 
-            if (skill_table[sn].name != NULL && str_cmp(skill_table[sn].name, "none")) {
+            SKILL_DATA *sk = skill_find_uid(sn);
+            if (sk && sk->name != NULL && str_cmp(sk->name, "none")) {
                 if( value == 0 ) {
-                    if( skill_table[sn].spell_fun == spell_null )
+                    if( sk->spell_fun == spell_null )
                         skill_entry_removeskill(victim,sn, NULL);
                     else
                         skill_entry_removespell(victim,sn, NULL);
                 } else {
                     if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-                        if( skill_table[sn].spell_fun == spell_null ) {
+                        if( sk->spell_fun == spell_null ) {
                             skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                         } else {
                             skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
@@ -8588,14 +8590,15 @@ void do_sset(CHAR_DATA *ch, char *argument)
     else {
         SKILL_ENTRY *entry;
 
+        SKILL_DATA *sk = skill_find_uid(sn);
         if( value == 0 ) {
-            if( skill_table[sn].spell_fun == spell_null )
+            if( sk && sk->spell_fun == spell_null )
                 skill_entry_removeskill(victim,sn, NULL);
             else
                 skill_entry_removespell(victim,sn, NULL);
         } else {
             if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-                if( skill_table[sn].spell_fun == spell_null ) {
+                if( sk && sk->spell_fun == spell_null ) {
                     skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 } else {
                     skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
@@ -8610,7 +8613,7 @@ void do_sset(CHAR_DATA *ch, char *argument)
     }
 
     if (!fAll)
-    sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill_table[sn].name, value);
+    sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill_name(skill_find_uid(sn)), value);
     else
     sprintf(buf, "Set all of %s's skills to %d%%\n\r", victim->name, value);
 
@@ -12612,7 +12615,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         (herb_immunity == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(imm_flags, herb_immunity),
         (herb_resistance == obj->pIndexData->value[5]) ? "B" : "Y", flag_string(res_flags, herb_resistance),
         (herb_vulnerability == obj->pIndexData->value[6]) ? "B" : "Y", flag_string(vuln_flags, herb_vulnerability),
-        (herb_spell == obj->pIndexData->value[7]) ? "B" : "Y", skill_table[herb_spell].name);
+        (herb_spell == obj->pIndexData->value[7]) ? "B" : "Y", skill_name(skill_find_uid(herb_spell)));
 
         add_buf(buffer, buf);
         break;

@@ -15,6 +15,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "event_types.h"
+#include "skill_data.h"
 
 
 /**
@@ -1295,24 +1296,25 @@ void do_ink(CHAR_DATA *ch, char *argument)
 
         sn[i] = find_spell(ch, arg);
 
-        if ((sn[i]) < 1 || skill_table[sn[i]].spell_fun == spell_null || !get_skill(ch, sn[i]))
+        SKILL_DATA *sk = skill_find_uid(sn[i]);
+        if ((sn[i]) < 1 || !sk || sk->spell_fun == spell_null || !get_skill(ch, sn[i]))
         {
             send_to_char("You don't know any spells of that name.\n\r", ch);
             return;
         }
 
-        if (skill_table[sn[i]].target != TAR_CHAR_DEFENSIVE &&
-            skill_table[sn[i]].target != TAR_CHAR_SELF &&
-            skill_table[sn[i]].target != TAR_OBJ_CHAR_DEF &&
-            skill_table[sn[i]].target != TAR_CHAR_OFFENSIVE &&
-            skill_table[sn[i]].target != TAR_OBJ_CHAR_OFF) {
+        if (sk->target != TAR_CHAR_DEFENSIVE &&
+            sk->target != TAR_CHAR_SELF &&
+            sk->target != TAR_OBJ_CHAR_DEF &&
+            sk->target != TAR_CHAR_OFFENSIVE &&
+            sk->target != TAR_OBJ_CHAR_OFF) {
             send_to_char("You may only tattoo spells which you can cast on people.\n\r", ch);
             return;
         }
 
         found = false;
         for(j=0;j<3;j++)
-            if(skill_table[sn[i]].inks[j][0] > CATALYST_NONE && skill_table[sn[i]].inks[j][1] > 0) {need[skill_table[sn[i]].inks[j][0]]+= skill_table[sn[i]].inks[j][1]; found = true; }
+            if(sk->inks[j][0] > CATALYST_NONE && sk->inks[j][1] > 0) {need[sk->inks[j][0]]+= sk->inks[j][1]; found = true; }
 
         if(!found) {
             send_to_char("You can't tattoo those spells.\n\r", ch);
@@ -1415,9 +1417,12 @@ void ink_end(CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t 
     return;
     }
 
-    if (!sn2) { sprintf(tattoo_name, "%s", skill_table[sn].name); n = 1; }
-    else if (!sn3) { sprintf(tattoo_name, "%s, %s", skill_table[sn].name, skill_table[sn2].name); n = 2; }
-    else { sprintf(tattoo_name, "%s, %s, %s", skill_table[sn].name, skill_table[sn2].name, skill_table[sn3].name); n = 3; }
+    SKILL_DATA *sk1 = skill_find_uid(sn);
+    SKILL_DATA *sk2 = sn2 ? skill_find_uid(sn2) : NULL;
+    SKILL_DATA *sk3 = sn3 ? skill_find_uid(sn3) : NULL;
+    if (!sn2) { sprintf(tattoo_name, "%s", skill_name(sk1)); n = 1; }
+    else if (!sn3) { sprintf(tattoo_name, "%s, %s", skill_name(sk1), skill_name(sk2)); n = 2; }
+    else { sprintf(tattoo_name, "%s, %s, %s", skill_name(sk1), skill_name(sk2), skill_name(sk3)); n = 3; }
 
     if(victim != ch) {
         sprintf(buf, "You coalesce the ink into a tattoo of %s onto $N's skin.", tattoo_name);
