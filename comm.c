@@ -1945,14 +1945,12 @@ int init_tls_socket(int port)
     exit(1);
     }
 
-    // Initialize SSL library
+    // Initialize SSL library (idempotent)
     init_openssl_library();
 
-    // Create SSL context
-    ctx = create_context();
-
-    // Configure SSL context
-    configure_context(ctx);
+    // Create SSL context only once; both TLS and WSS ports share it
+    if (!ctx)
+        ctx = create_context();
 
     return fd;
 }
