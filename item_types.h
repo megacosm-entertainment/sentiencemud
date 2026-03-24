@@ -727,6 +727,7 @@ struct obj_corpse_data
     int  resurrection;   /* Resurrection chance (0-100%) */
     int  animation;      /* Animation chance (0-100%) */
     long body_parts;     /* part_flags */
+    long flags;          /* corpse_object_flags */
     long mobile_vnum;    /* Source mobile vnum */
     long mobile_area_uid;/* Source mobile area UID (0 = resolve globally) */
 };

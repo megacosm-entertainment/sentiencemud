@@ -9424,16 +9424,16 @@ struct log_entry_data
 #define CAN_WEAR(obj, part)	(IS_SET((obj)->wear_flags,  (part)))
 #define IS_OBJ_STAT(obj, stat)	(IS_SET((obj)->extra[0],(stat)))
 #define IS_OBJ2_STAT(obj,stat)  (IS_SET((obj)->extra[1],(stat)))
-#define IS_WEAPON_STAT(obj,stat)(IS_SET((obj)->value[4],(stat)))
-#define WEIGHT_MULT(obj)	((obj)->item_type == ITEM_CONTAINER ? \
-    (obj)->value[4] : 100)
-#define CORPSE_TYPE(obj)	((obj)->value[0])
-#define CORPSE_RESURRECT(obj)	((obj)->value[1])
-#define CORPSE_ANIMATE(obj)	((obj)->value[2])
-#define CORPSE_PARTS(obj)	((obj)->value[3])
-#define CORPSE_FLAGS(obj)	((obj)->value[4])
-#define CORPSE_MOBILE(obj)	((obj)->value[5])
-#define CORPSE_MOBILE_AUID(obj)	((obj)->value[6])
+#define IS_WEAPON_STAT(obj,stat)(IS_WEAPON(obj) && IS_SET(WEAPON(obj)->flags,(stat)))
+#define WEIGHT_MULT(obj)	(IS_CONTAINER(obj) ? \
+    CONTAINER(obj)->weight_multiplier : 100)
+#define CORPSE_TYPE(obj)	(CORPSE(obj)->corpse_type)
+#define CORPSE_RESURRECT(obj)	(CORPSE(obj)->resurrection)
+#define CORPSE_ANIMATE(obj)	(CORPSE(obj)->animation)
+#define CORPSE_PARTS(obj)	(CORPSE(obj)->body_parts)
+#define CORPSE_FLAGS(obj)	(CORPSE(obj)->flags)
+#define CORPSE_MOBILE(obj)	(CORPSE(obj)->mobile_vnum)
+#define CORPSE_MOBILE_AUID(obj)	(CORPSE(obj)->mobile_area_uid)
 
 /*
  * Description macros.

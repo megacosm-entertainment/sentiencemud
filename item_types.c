@@ -958,20 +958,24 @@ void obj_copy_type_data_from_index(OBJ_DATA *dst, OBJ_INDEX_DATA *src)
         \
         case ITEM_CORPSE_NPC: \
             ALLOC_TYPE(O, _corpse, new_corpse_data, ITEM_CORPSE_NPC); \
-            (O)->_corpse->corpse_type  = (int)(O)->value[0]; \
-            (O)->_corpse->resurrection = (int)(O)->value[1]; \
-            (O)->_corpse->animation    = (int)(O)->value[2]; \
-            (O)->_corpse->body_parts   = (O)->value[3]; \
-            (O)->_corpse->mobile_vnum  = (O)->value[5]; \
+            (O)->_corpse->corpse_type     = (int)(O)->value[0]; \
+            (O)->_corpse->resurrection    = (int)(O)->value[1]; \
+            (O)->_corpse->animation       = (int)(O)->value[2]; \
+            (O)->_corpse->body_parts      = (O)->value[3]; \
+            (O)->_corpse->flags           = (O)->value[4]; \
+            (O)->_corpse->mobile_vnum     = (O)->value[5]; \
+            (O)->_corpse->mobile_area_uid = (O)->value[6]; \
             break; \
         \
         case ITEM_CORPSE_PC: \
             ALLOC_TYPE(O, _corpse, new_corpse_data, ITEM_CORPSE_PC); \
-            (O)->_corpse->corpse_type  = (int)(O)->value[0]; \
-            (O)->_corpse->resurrection = (int)(O)->value[1]; \
-            (O)->_corpse->animation    = (int)(O)->value[2]; \
-            (O)->_corpse->body_parts   = (O)->value[3]; \
-            (O)->_corpse->mobile_vnum  = (O)->value[5]; \
+            (O)->_corpse->corpse_type     = (int)(O)->value[0]; \
+            (O)->_corpse->resurrection    = (int)(O)->value[1]; \
+            (O)->_corpse->animation       = (int)(O)->value[2]; \
+            (O)->_corpse->body_parts      = (O)->value[3]; \
+            (O)->_corpse->flags           = (O)->value[4]; \
+            (O)->_corpse->mobile_vnum     = (O)->value[5]; \
+            (O)->_corpse->mobile_area_uid = (O)->value[6]; \
             break; \
         \
         case ITEM_FOUNTAIN: \
