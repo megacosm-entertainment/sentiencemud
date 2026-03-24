@@ -995,7 +995,7 @@ void do_standing(CHAR_DATA *ch, char *argument)
         if (pen->expires_at == 0)
             sprintf(dur, "{RPermanent{x");
         else
-            penalty_format_duration(pen->expires_at - current_time, dur, sizeof(dur));
+            penalty_format_duration(ch->desc, pen->expires_at - current_time, dur, sizeof(dur));
 
         if (pen->scope == PENALTY_SCOPE_CHARACTER && !IS_NULLSTR(pen->target_name)) {
             sprintf(buf, "   {R*{x %-14s ({Y%s{x) - %s\n\r",
@@ -1023,7 +1023,7 @@ void do_standing(CHAR_DATA *ch, char *argument)
         if (bon->expires_at == 0)
             sprintf(dur, "{GPermanent{x");
         else
-            penalty_format_duration(bon->expires_at - current_time, dur, sizeof(dur));
+            penalty_format_duration(ch->desc, bon->expires_at - current_time, dur, sizeof(dur));
 
         char scope_str[64];
         if (bon->scope == BONUS_SCOPE_CHARACTER && !IS_NULLSTR(bon->target_name))

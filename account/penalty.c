@@ -45,6 +45,24 @@ const char *penalty_type_names[] = {
     NULL
 };
 
+const char *penalty_type_localized[] = {
+    "type.penalty.deny",         /* PENALTY_DENY        */
+    "type.penalty.freeze",       /* PENALTY_FREEZE      */
+    "type.penalty.log",          /* PENALTY_LOG         */
+    "type.penalty.nochannels",   /* PENALTY_NOCHANNELS  */
+    "type.penalty.notell",       /* PENALTY_NOTELL      */
+    "type.penalty.nochat",       /* PENALTY_NOCHAT      */
+    "type.penalty.noemote",      /* PENALTY_NOEMOTE     */
+    "type.penalty.ban.ip",       /* PENALTY_BAN_IP      */
+    "type.penalty.ban.email",    /* PENALTY_BAN_EMAIL   */
+    "type.penalty.ban.host",     /* PENALTY_BAN_HOST    */
+    "type.penalty.restrict",     /* PENALTY_RESTRICT    */
+    "type.penalty.chanmute",     /* PENALTY_CHAN_MUTE   */
+    "type.penalty.chanwarn",     /* PENALTY_CHAN_WARN   */
+    NULL
+};
+
+
 const char *bonus_type_names[] = {
     "xp",           /* BONUS_XP            */
     "gold",         /* BONUS_GOLD          */
@@ -91,9 +109,27 @@ static void emit_penalty_staff_event(const char *plain_message,
     log_emit_event(&ev, actor);
 }
 
+const char *bonus_type_localized[] = {
+    "type.bonus.xp",           /* BONUS_XP            */
+    "type.bonus.gold",         /* BONUS_GOLD          */
+    "type.bonus.charslots",    /* BONUS_CHAR_SLOTS    */
+    "type.bonus.staffslots",   /* BONUS_STAFF_SLOTS   */
+    "type.bonus.qp",           /* BONUS_QP            */
+    "type.bonus.train",        /* BONUS_TRAIN         */
+    "type.bonus.custom",       /* BONUS_CUSTOM        */
+    "type.bonus.freelevels",   /* BONUS_FREE_LEVELS   */
+    NULL
+};
+
 const char *penalty_scope_names[] = {
     "account",      /* PENALTY_SCOPE_ACCOUNT   */
     "character",    /* PENALTY_SCOPE_CHARACTER  */
+    NULL
+};
+
+const char *penalty_scope_localized[] = {
+    "scope.penalty.account",      /* PENALTY_SCOPE_ACCOUNT   */
+    "scope.penalty.character",    /* PENALTY_SCOPE_CHARACTER  */
     NULL
 };
 
@@ -101,6 +137,13 @@ const char *bonus_scope_names[] = {
     "account",      /* BONUS_SCOPE_ACCOUNT     */
     "character",    /* BONUS_SCOPE_CHARACTER    */
     "unassigned",   /* BONUS_SCOPE_UNASSIGNED   */
+    NULL
+};
+
+const char *bonus_scope_localized[] = {
+    "scope.bonus.account",      /* BONUS_SCOPE_ACCOUNT     */
+    "scope.bonus.character",    /* BONUS_SCOPE_CHARACTER    */
+    "scope.bonus.unassigned",   /* BONUS_SCOPE_UNASSIGNED   */
     NULL
 };
 
@@ -251,6 +294,19 @@ const char *penalty_type_name(int type)
 }
 
 /**
+ * penalty_type_name_localized - Convert a type constant to its display name
+ *
+ * @param type  Type constant
+ * @return      Name string, or "unknown" if out of range
+ */
+const char *penalty_type_name_localized(int type)
+{
+    if (type < 0 || type >= PENALTY_MAX)
+        return "type.penalty.unknown";
+    return penalty_type_localized[type];
+}
+
+/**
  * penalty_scope_lookup - Convert a scope name to its numeric constant
  *
  * @param name  Scope name (e.g., "account", "character")
@@ -278,6 +334,19 @@ const char *penalty_scope_name(int scope)
     if (scope < 0 || scope > PENALTY_SCOPE_CHARACTER)
         return "unknown";
     return penalty_scope_names[scope];
+}
+
+/**
+ * penalty_scope_name_localized - Convert a scope constant to its localized name
+ *
+ * @param scope  Scope constant
+ * @return       Name string, or "unknown" if out of range
+ */
+const char *penalty_scope_name_localized(int scope)
+{
+    if (scope < 0 || scope > PENALTY_SCOPE_CHARACTER)
+        return "scope.penalty.unknown";
+    return penalty_scope_localized[scope];
 }
 
 /**
@@ -311,6 +380,19 @@ const char *bonus_type_name(int type)
 }
 
 /**
+ * bonus_type_name_localized - Convert a bonus type constant to its display name
+ *
+ * @param type  Type constant
+ * @return      Name string, or "unknown" if out of range
+ */
+const char *bonus_type_name_localized(int type)
+{
+    if (type < 0 || type >= BONUS_MAX)
+        return "type.bonus.unknown";
+    return bonus_type_localized[type];
+}
+
+/**
  * bonus_scope_lookup - Convert a bonus scope name to its numeric constant
  *
  * @param name  Scope name
@@ -338,6 +420,19 @@ const char *bonus_scope_name(int scope)
     if (scope < 0 || scope > BONUS_SCOPE_UNASSIGNED)
         return "unknown";
     return bonus_scope_names[scope];
+}
+
+/**
+ * bonus_scope_name_localized - Convert a bonus scope constant to its display name
+ *
+ * @param scope  Scope constant
+ * @return       Name string, or "unknown" if out of range
+ */
+const char *bonus_scope_name_localized(int scope)
+{
+    if (scope < 0 || scope > BONUS_SCOPE_UNASSIGNED)
+        return "scope.bonus.unknown";
+    return bonus_scope_localized[scope];
 }
 
 /***************************************************************************
@@ -395,15 +490,16 @@ time_t parse_duration(const char *str)
 /**
  * penalty_format_duration - Format seconds into a human-readable duration string
  *
+ * @param d        Who is looking at it (for localization)
  * @param seconds  Duration in seconds (0 = permanent)
  * @param buf      Output buffer
  * @param buflen   Size of output buffer
  * @return         Pointer to buf
  */
-const char *penalty_format_duration(time_t seconds, char *buf, size_t buflen)
+const char *penalty_format_duration(DESCRIPTOR_DATA *d, time_t seconds, char *buf, size_t buflen)
 {
     if (seconds <= 0) {
-        snprintf(buf, buflen, "permanent");
+        snprintf(buf, buflen, capitalize(LT(d, "time.permanent")));
         return buf;
     }
 
@@ -419,24 +515,24 @@ const char *penalty_format_duration(time_t seconds, char *buf, size_t buflen)
     buf[0] = '\0';
 
     if (days > 0) {
-        written = snprintf(p, remaining, "%dd", days);
+        written = snprintf(p, remaining, "%s", LTF(d, "time.days", days));
         p += written; remaining -= written;
     }
     if (hours > 0 && remaining > 0) {
-        written = snprintf(p, remaining, "%dh", hours);
+        written = snprintf(p, remaining, "%s", LTF(d, "time.hours", hours));
         p += written; remaining -= written;
     }
     if (minutes > 0 && remaining > 0) {
-        written = snprintf(p, remaining, "%dm", minutes);
+        written = snprintf(p, remaining, "%s", LTF(d, "time.minutes", minutes));
         p += written; remaining -= written;
     }
     if (secs > 0 && remaining > 0 && days == 0) {
-        snprintf(p, remaining, "%ds", secs);
+        snprintf(p, remaining, "%s", LTF(d, "time.seconds", secs));
     }
 
     /* Edge case: everything was zero */
     if (buf[0] == '\0') {
-        snprintf(buf, buflen, "0s");
+        snprintf(buf, buflen, capitalize(LT(d, "time.now")));
     }
 
     return buf;
@@ -1496,7 +1592,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
                 if (remaining <= 0)
                     snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
                 else
-                    penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                    penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
             }
 
             snprintf(buf, sizeof(buf),
@@ -1543,7 +1639,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
             if (remaining <= 0)
                 snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
             else
-                penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
         }
 
         snprintf(buf, sizeof(buf),
@@ -1720,7 +1816,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
             if (expires_at == 0)
                 snprintf(dur_buf, sizeof(dur_buf), "permanent");
             else
-                penalty_format_duration(expires_at - current_time,
+                penalty_format_duration(ch->desc, expires_at - current_time,
                     dur_buf, sizeof(dur_buf));
 
             snprintf(buf, sizeof(buf),
@@ -1880,7 +1976,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
                 if (remaining <= 0)
                     snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
                 else
-                    penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                    penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
             }
 
             const char *scope_str;
@@ -1934,7 +2030,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
             if (remaining <= 0)
                 snprintf(dur_buf, sizeof(dur_buf), "{Dexpired{x");
             else
-                penalty_format_duration(remaining, dur_buf, sizeof(dur_buf));
+                penalty_format_duration(ch->desc, remaining, dur_buf, sizeof(dur_buf));
         }
 
         snprintf(buf, sizeof(buf),
@@ -2122,7 +2218,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
             if (expires_at == 0)
                 snprintf(dur_buf, sizeof(dur_buf), "permanent");
             else
-                penalty_format_duration(expires_at - current_time,
+                penalty_format_duration(ch->desc, expires_at - current_time,
                     dur_buf, sizeof(dur_buf));
 
             snprintf(buf, sizeof(buf),

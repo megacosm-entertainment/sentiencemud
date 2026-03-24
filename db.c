@@ -6987,11 +6987,11 @@ void str_upper(register char *src,register char *dest)
  */
 char *capitalize(const char *str)
 {
-    static char strcap[4][MSL];
+    static char strcap[8][MSL];
     static int i = 0;
     unichar_t cp;
 
-    i = (i + 1) & 3;
+    i = (i + 1) & 7;
 
     register char *w = strcap[i];
     if (*str)
