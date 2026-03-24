@@ -169,6 +169,17 @@
         "entry_ref_valid": true,
         "exit_ref_valid": true
       }
+    },
+    {
+      "name": "blueprint_comprehensive_validation",
+      "description": "Test comprehensive blueprint validation including data integrity checks",
+      "dependencies": [],
+      "test_type": "blueprint_data_integrity_test",
+      "input": {},
+      "expected_output": {
+        "success": true,
+        "data_integrity_verified": true
+      }
     }
   ]
 }

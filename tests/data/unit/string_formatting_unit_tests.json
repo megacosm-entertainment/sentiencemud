@@ -27,6 +27,21 @@
             "input": "a sentence. next sentence",
             "expected_contains": "A sentence.  Next sentence",
             "expect_trailing_crlf": true
+          },
+          {
+            "input": "caf\u00e9 latte",
+            "expected_contains": "Caf\u00e9 latte",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "\u00e9l\u00e8ve studieux",
+            "expected_contains": "l\u00e8ve studieux",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "hello w\u00f6rld. g\u00fcten tag",
+            "expected_contains": "Hello w\u00f6rld.",
+            "expect_trailing_crlf": true
           }
         ]
       },
@@ -54,6 +69,21 @@
           {
             "input": "spacing   test",
             "expected_contains": "Spacing test",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "caf\u00e9 au lait",
+            "expected_contains": "Caf\u00e9 au lait",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "stra\u00dfe und pl\u00e4tze. n\u00e4chste zeile",
+            "expected_contains": "Stra\u00dfe und pl\u00e4tze.",
+            "expect_trailing_crlf": true
+          },
+          {
+            "input": "first \u00fc paragraph\n\r\n\rsecond \u00f1 paragraph",
+            "expected_contains": "First \u00fc paragraph",
             "expect_trailing_crlf": true
           }
         ]

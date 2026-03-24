@@ -112,14 +112,18 @@ void _hash_enter(struct hash_header *ht,int key,void *data)
     int			i;
 
     temp		= (struct hash_link *)malloc(sizeof(struct hash_link));
+  if(!temp) return;
   temp->key	= key;
   temp->next	= ht->buckets[HASH_KEY(ht,key)];
   temp->data	= data;
   ht->buckets[HASH_KEY(ht,key)] = temp;
   if(ht->klistlen>=ht->klistsize)
     {
-      ht->keylist = (void*)realloc(ht->keylist,sizeof(*ht->keylist)*
-                   (ht->klistsize*=2));
+      int new_size = ht->klistsize * 2;
+      void *new_keylist = realloc(ht->keylist, sizeof(*ht->keylist) * new_size);
+      if(!new_keylist) return;
+      ht->keylist = new_keylist;
+      ht->klistsize = new_size;
     }
   for(i=ht->klistlen;i>=0;i--)
     {

@@ -543,7 +543,7 @@ MATEDIT(matedit_name)
     }
 
     changed = olc_cmd_string(ch, argument, "name", "name <new name>",
-        &mat->name, OLC_STR_DEFAULT, NULL, NULL);
+        &mat->name, OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (!changed)
         return false;
 

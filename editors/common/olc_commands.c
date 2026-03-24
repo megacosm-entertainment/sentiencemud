@@ -6,6 +6,7 @@
  */
 
 #include "olc_commands.h"
+#include "../common.h"
 
 #include <limits.h>
 
@@ -35,8 +36,17 @@ bool olc_cmd_string(CHAR_DATA *ch, char *argument, const char *label,
         if (syntax) {
             send_to_char(syntax, ch);
         } else if (str_flags & OLC_STR_CLEARABLE) {
-            send_to_char(formatf("Syntax: %s <text>\n\r"
-                                 "        %s clear\n\r", label, label), ch);
+            if (str_flags & OLC_STR_UTF8_RESTRICT) {
+                send_to_char(formatf("Syntax: %s <text**>\n\r"
+                                     "        %s clear\n\r"
+                                     "** - <text> must conform to naming restrictions.\n\r", label, label), ch);
+            } else {
+                send_to_char(formatf("Syntax: %s <text>\n\r"
+                                     "        %s clear\n\r", label, label), ch);
+            }
+        } else if (str_flags & OLC_STR_UTF8_RESTRICT) {
+            send_to_char(formatf("Syntax: %s <text**>\n\r"
+                                 "** - <text> must conform to naming restrictions.\n\r", label), ch);
         } else {
             send_to_char(formatf("Syntax: %s <text>\n\r", label), ch);
         }
@@ -50,6 +60,15 @@ bool olc_cmd_string(CHAR_DATA *ch, char *argument, const char *label,
         *field_ptr = (str_flags & OLC_STR_CLEAR_NULL) ? NULL : &str_empty[0];
         send_to_char(formatf("%s cleared.\n\r", label), ch);
         return true;
+    }
+
+    if ((str_flags & OLC_STR_UTF8_RESTRICT)) {
+
+        // Validate the input can be a name
+        if (!olc_validate_name(ch, argument))
+            return false;
+
+        // Name has been validated according to game settings.
     }
 
     /* Set new value */

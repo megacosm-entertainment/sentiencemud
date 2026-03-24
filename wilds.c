@@ -1402,7 +1402,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     if (pWilds->defaultPlaceFlags == NO_FLAG)
                         pWilds->defaultPlaceFlags = PLACE_NOWHERE;
                 }
-
                 break;
 
             case 'N':
@@ -1448,7 +1447,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     free_string(pWilds->wildgen_elevation_base);
                     pWilds->wildgen_elevation_base = fread_string(fp);
                 }
-
                 break;
 
             case 'U':
@@ -2788,16 +2786,36 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     const int row_size = (col_size * cols);
 
     char **map_str = malloc(rows * sizeof(char *));
-    for( int r = 0; r < rows; r++)
+    if (!map_str) return;
+    for( int r = 0; r < rows; r++) {
         map_str[r] = malloc(row_size);
+        if (!map_str[r]) {
+            for (int j = 0; j < r; j++) free(map_str[j]);
+            free(map_str);
+            return;
+        }
+    }
 
     char **olc_str = NULL;
 
     if( olc )
     {
         olc_str = malloc(rows * sizeof(char *));
-        for( int r = 0; r < rows; r++)
+        if (!olc_str) {
+            for (int r = 0; r < rows; r++) free(map_str[r]);
+            free(map_str);
+            return;
+        }
+        for( int r = 0; r < rows; r++) {
             olc_str[r] = malloc(cols + 1);
+            if (!olc_str[r]) {
+                for (int j = 0; j < r; j++) free(olc_str[j]);
+                free(olc_str);
+                for (int j = 0; j < rows; j++) free(map_str[j]);
+                free(map_str);
+                return;
+            }
+        }
     }
 
     // Create map data
@@ -3989,6 +4007,8 @@ WILDS_DATA *new_wilds (void)
     pWilds->wildgen_tile_height = 0;
     pWilds->wildgen_terrain_base = str_dup("");
     pWilds->wildgen_elevation_base = str_dup("");
+    pWilds->wildgen_bitdepth = 0;
+    pWilds->default_elevation = 0;
     VALIDATE (pWilds);
 
     return pWilds;
@@ -4106,6 +4126,27 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     && MOUNTED(ch)->in_room == NULL)
     char_to_vroom(MOUNTED(ch), pWilds, x, y);
 
+
+    /* Safety: if the character is already on a room's people list, remove
+     * them first. char_to_vroom bypasses char_from_room, so without this
+     * guard a character could end up on two rooms' people lists. */
+    if (ch->in_room != NULL)
+    {
+        CHAR_DATA *scan;
+        bool on_list = false;
+        for (scan = ch->in_room->people; scan; scan = scan->next_in_room)
+        {
+            if (scan == ch) { on_list = true; break; }
+        }
+        if (on_list)
+        {
+            pbugf(LOG_ERROR,
+                "char_to_vroom: %s already on people list of room %ld, removing first.",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                ch->in_room->vnum);
+            char_from_room(ch);
+        }
+    }
 
     ch->in_wilds = pWilds;
     ch->at_wilds_x = x;

@@ -1231,13 +1231,14 @@ bool check_ice(CHAR_DATA *ch, bool show)
  */
 bool check_room_flames(CHAR_DATA *ch, bool show)
 {
-    OBJ_DATA *obj;
+    OBJ_DATA *obj, *obj_next;
 
     if (ch->in_room == NULL)
         return false;
 
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+    for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
     {
+        obj_next = obj->next_content;
         if (obj->item_type == ITEM_ROOM_FLAME)
         {
             if (!IS_DEAD(ch) &&

@@ -285,6 +285,10 @@ SOCEDIT(socialedit_name)
         send_to_char("Syntax: name <social name>\n\r", ch);
         return false;
     }
+
+    // Validate the input can be a name
+    if (!olc_validate_name(ch, argument))
+        return false;
     
     /* Check if social name already exists */
     for (int i = 0; i < social_count; i++) {

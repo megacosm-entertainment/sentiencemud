@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <jansson.h>
+#include "../io/json/json_common.h"
 
 #include "../merc.h"
 #include "channel_registry.h"
@@ -401,15 +402,15 @@ bool channel_registry_load(const char *filepath)
 
         memset(&def, 0, sizeof(def));
 
-        s = json_string_value(json_object_get(entry, "id"));
+        s = json_get_string(entry, "id", "");
         if (!s || !s[0])
             continue;
         strlcpy(def.id, s, sizeof(def.id));
 
-        s = json_string_value(json_object_get(entry, "name"));
+        s = json_get_string(entry, "name", "");
         strlcpy(def.name, s ? s : def.id, sizeof(def.name));
 
-        s = json_string_value(json_object_get(entry, "command"));
+        s = json_get_string(entry, "command", "");
         strlcpy(def.command, s ? s : def.id, sizeof(def.command));
 
         v = json_object_get(entry, "aliases");
@@ -428,7 +429,7 @@ bool channel_registry_load(const char *filepath)
             }
         }
 
-        s = json_string_value(json_object_get(entry, "scope"));
+        s = json_get_string(entry, "scope", "");
         def.scope = channel_scope_from_name(s, NULL);
 
         v = json_object_get(entry, "allow_player_flags");
@@ -437,14 +438,14 @@ bool channel_registry_load(const char *filepath)
         v = json_object_get(entry, "persistent");
         def.persistent = v ? json_boolean_value(v) : false;
 
-        s = json_string_value(json_object_get(entry, "topic_pattern"));
+        s = json_get_string(entry, "topic_pattern", "");
         if (s) strlcpy(def.topic_pattern, s, sizeof(def.topic_pattern));
 
         v = json_object_get(entry, "modifiers");
         if (v && json_is_integer(v))
             def.modifiers = (long)json_integer_value(v);
 
-        s = json_string_value(json_object_get(entry, "modifier_order"));
+        s = json_get_string(entry, "modifier_order", "");
         if (s)
             strlcpy(def.modifier_order, s, sizeof(def.modifier_order));
 
@@ -456,7 +457,7 @@ bool channel_registry_load(const char *filepath)
         if (v && json_is_boolean(v))
             def.filter_enabled = json_boolean_value(v);
 
-        s = json_string_value(json_object_get(entry, "filter_mode"));
+        s = json_get_string(entry, "filter_mode", "");
         def.filter_mode = channel_filter_mode_from_name(s, NULL);
 
         channel_filter_store_json_value(json_object_get(entry, "filter_simple"),
@@ -495,19 +496,19 @@ bool channel_registry_load(const char *filepath)
         if (v && json_is_boolean(v))
             def.review_enabled = json_boolean_value(v);
 
-        s = json_string_value(json_object_get(entry, "review_stream"));
+        s = json_get_string(entry, "review_stream", "");
         if (s)
             strlcpy(def.review_stream, s, sizeof(def.review_stream));
 
-        s = json_string_value(json_object_get(entry, "fmt_self"));
+        s = json_get_string(entry, "fmt_self", "");
         if (s)
             strlcpy(def.fmt_self, s, sizeof(def.fmt_self));
 
-        s = json_string_value(json_object_get(entry, "fmt_receiver"));
+        s = json_get_string(entry, "fmt_receiver", "");
         if (s)
             strlcpy(def.fmt_receiver, s, sizeof(def.fmt_receiver));
 
-        s = json_string_value(json_object_get(entry, "fmt_notvict"));
+        s = json_get_string(entry, "fmt_notvict", "");
         if (s)
             strlcpy(def.fmt_notvict, s, sizeof(def.fmt_notvict));
 
@@ -526,15 +527,15 @@ bool channel_registry_load(const char *filepath)
                                               def.subscribe_requirements,
                                               sizeof(def.subscribe_requirements));
 
-        s = json_string_value(json_object_get(entry, "comments"));
+        s = json_get_string(entry, "comments", "");
         if (s)
             strlcpy(def.comments, s, sizeof(def.comments));
 
-        s = json_string_value(json_object_get(entry, "help_keywords"));
+        s = json_get_string(entry, "help_keywords", "");
         if (s)
             strlcpy(def.help_keywords, s, sizeof(def.help_keywords));
 
-        s = json_string_value(json_object_get(entry, "summary"));
+        s = json_get_string(entry, "summary", "");
         if (s)
             strlcpy(def.summary, s, sizeof(def.summary));
 

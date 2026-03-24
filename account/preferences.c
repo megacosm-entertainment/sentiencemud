@@ -17,6 +17,7 @@
 #include "../interp.h"
 #include "../tables.h"
 #include "../io/json/json_game_settings.h"
+#include "../io/json/json_common.h"
 #include "preferences.h"
 
 /***************************************************************************
@@ -1372,9 +1373,9 @@ bool json_to_prefs(json_t *array, PREF_ENTRY **list)
     json_t *elem;
 
     json_array_foreach(array, index, elem) {
-        const char *key = json_string_value(json_object_get(elem, "key"));
-        const char *cat = json_string_value(json_object_get(elem, "category"));
-        const char *typ = json_string_value(json_object_get(elem, "type"));
+        const char *key = json_get_string(elem, "key", "");
+        const char *cat = json_get_string(elem, "category", "");
+        const char *typ = json_get_string(elem, "type", "");
 
         if (!key || !cat || !typ)
             continue;

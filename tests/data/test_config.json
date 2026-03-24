@@ -6,7 +6,9 @@
     "default_test_suites": [
       "area_loading",
       "database_integrity",
+      "utf8_function_tests",
       "skill_data",
+      "spell_data_integrity",
       "class_data",
       "item_type_system",
       "lookup_tables",
@@ -15,12 +17,25 @@
       "skill_group_data",
       "trait_system",
       "reserved_wnum",
-      "system_area"
+      "system_area",
+      "command_table_tests",
+      "constants_tables",
+      "handler_function_tests",
+      "combat_math_tests",
+      "quest_system",
+      "reputation_system",
+      "olc_framework",
+      "wilderness_system",
+      "update_cycle"
     ],
     "quick_test_suites": [
       "area_loading",
+      "utf8_function_tests",
       "skill_data",
-      "class_data"
+      "spell_data_integrity",
+      "class_data",
+      "array_function_tests",
+      "strdict_function_tests"
     ],
     "full_test_suites": [
       "area_loading",
@@ -38,6 +53,10 @@
       "wnum_parsing_unit_tests",
       "buffer_core_unit_tests",
       "buffer_permutation_unit_tests",
+      "sha256_unit_tests",
+      "bit_operations_unit_tests",
+      "memory_util_unit_tests",
+      "lookup_function_unit_tests",
       "skill_data",
       "class_data",
       "item_type_system",
@@ -62,10 +81,21 @@
       "string_transform_unit_tests",
       "string_edit_helpers_unit_tests",
       "string_editor_state_unit_tests",
+      "color_article_helpers_unit_tests",
+      "color_code_helpers_unit_tests",
+      "color_trunc_pad_helpers_unit_tests",
+      "color_string_manipulation_unit_tests",
       "wilderness_resolver_unit_tests",
       "wnum_parsing_unit_tests",
       "buffer_core_unit_tests",
-      "buffer_permutation_unit_tests"
+      "buffer_permutation_unit_tests",
+      "sha256_unit_tests",
+      "memory_util_unit_tests",
+      "lookup_function_unit_tests",
+      "requirements_pure_function_tests",
+      "utf8_function_tests",
+      "array_function_tests",
+      "strdict_function_tests"
     ],
     "integration_only_suites": [
       "area_loading",
@@ -74,6 +104,7 @@
       "wnum_parsing",
       "reserved_wnum",
       "skill_data",
+      "spell_data_integrity",
       "class_data",
       "item_type_system",
       "lookup_tables",
@@ -81,6 +112,13 @@
       "song_data",
       "skill_group_data",
       "trait_system",
+      "command_table_tests",
+      "handler_function_tests",
+      "quest_system",
+      "reputation_system",
+      "olc_framework",
+      "wilderness_system",
+      "update_cycle",
       "json_area_serialization",
       "chat_rooms_json",
       "church_json",
@@ -109,12 +147,12 @@
     "test_profiles": {
       "development": {
         "description": "Fast tests for development workflow",
-        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "skill_data", "class_data", "lookup_tables", "script_engine_tests"],
+        "suites": ["area_loading", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "color_article_helpers_unit_tests", "color_code_helpers_unit_tests", "color_trunc_pad_helpers_unit_tests", "color_string_manipulation_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "sha256_unit_tests", "bit_operations_unit_tests", "memory_util_unit_tests", "lookup_function_unit_tests", "requirements_pure_function_tests", "utf8_function_tests", "skill_data", "spell_data_integrity", "class_data", "lookup_tables", "script_engine_tests", "command_table_tests", "constants_tables", "handler_function_tests", "quest_system", "olc_framework", "wilderness_system", "update_cycle"],
         "stop_on_first_failure": true
       },
       "ci": {
         "description": "Complete test suite for CI/CD",
-        "suites": ["area_loading", "database_integrity", "system_area", "wnum_parsing", "reserved_wnum", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "skill_data", "class_data", "item_type_system", "lookup_tables", "script_engine_tests", "song_data", "skill_group_data", "trait_system", "json_area_serialization", "chat_rooms_json", "church_json", "channel_pubsub", "blueprint_area_scope", "instance_persist", "shop_stock_cross_area_tests", "reset_cross_area_tests"],
+        "suites": ["area_loading", "database_integrity", "system_area", "wnum_parsing", "reserved_wnum", "core_string_unit_tests", "string_predicates_unit_tests", "string_formatting_unit_tests", "string_transform_unit_tests", "string_edit_helpers_unit_tests", "string_editor_state_unit_tests", "color_article_helpers_unit_tests", "color_code_helpers_unit_tests", "color_trunc_pad_helpers_unit_tests", "color_string_manipulation_unit_tests", "wilderness_resolver_unit_tests", "wnum_parsing_unit_tests", "buffer_core_unit_tests", "buffer_permutation_unit_tests", "sha256_unit_tests", "bit_operations_unit_tests", "memory_util_unit_tests", "skill_data", "spell_data_integrity", "class_data", "item_type_system", "lookup_tables", "script_engine_tests", "song_data", "skill_group_data", "trait_system", "quest_system", "json_area_serialization", "chat_rooms_json", "church_json", "channel_pubsub", "blueprint_area_scope", "instance_persist", "shop_stock_cross_area_tests", "reset_cross_area_tests"],
         "stop_on_first_failure": false,
         "require_coverage": true
       },
@@ -133,10 +171,17 @@
           "string_transform_unit_tests",
           "string_edit_helpers_unit_tests",
           "string_editor_state_unit_tests",
+          "color_article_helpers_unit_tests",
+          "color_code_helpers_unit_tests",
+          "color_trunc_pad_helpers_unit_tests",
+          "color_string_manipulation_unit_tests",
           "wilderness_resolver_unit_tests",
           "wnum_parsing_unit_tests",
           "buffer_core_unit_tests",
           "buffer_permutation_unit_tests",
+          "sha256_unit_tests",
+          "bit_operations_unit_tests",
+          "memory_util_unit_tests",
           "class_data",
           "item_type_system",
           "lookup_tables",
@@ -144,6 +189,7 @@
           "trait_system",
           "skill_group_data",
           "skill_data",
+          "quest_system",
           "json_area_serialization",
           "chat_rooms_json",
           "church_json",
@@ -186,7 +232,11 @@
           "wnum_parsing_unit_tests",
           "buffer_core_unit_tests",
           "buffer_permutation_unit_tests",
+          "sha256_unit_tests",
+          "bit_operations_unit_tests",
+          "memory_util_unit_tests",
           "skill_data",
+          "spell_data_integrity",
           "class_data",
           "item_type_system",
           "lookup_tables",
@@ -194,6 +244,7 @@
           "song_data",
           "skill_group_data",
           "trait_system",
+          "quest_system",
           "json_area_serialization",
           "chat_rooms_json",
           "church_json",
@@ -223,8 +274,14 @@
       },
       "regression": {
         "description": "Core regression tests",
-        "suites": ["area_loading", "database_integrity", "skill_data", "class_data", "item_type_system", "lookup_tables", "script_engine_tests"],
+        "suites": ["area_loading", "database_integrity", "skill_data", "spell_data_integrity", "class_data", "item_type_system", "lookup_tables", "script_engine_tests", "quest_system"],
         "stop_on_first_failure": false
+      },
+      "combat_bench": {
+        "description": "Synthetic combat telemetry baseline benchmarks",
+        "suites": ["combat_telemetry", "combat_math_tests"],
+        "stop_on_first_failure": true,
+        "require_coverage": false
       }
     }
   }

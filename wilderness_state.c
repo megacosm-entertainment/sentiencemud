@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 
 #include <jansson.h>
+#include "io/json/json_common.h"
 
 #include "merc.h"
 #include "wilds.h"
@@ -430,7 +431,7 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
         return false;
     }
 
-    stored_checksum = json_string_value(json_object_get(root, "base_map_checksum"));
+    stored_checksum = json_get_string(root, "base_map_checksum", "");
     wilderness_state_base_checksum(pWilds, current_checksum);
     if (!IS_NULLSTR(stored_checksum) && !IS_NULLSTR(current_checksum)
     && str_cmp(stored_checksum, current_checksum) != 0)
@@ -494,7 +495,7 @@ bool wilderness_state_load(WILDS_DATA *pWilds)
             node->record.created_at = (time_t)json_integer_value(json_object_get(entry, "created_at"));
             node->record.expires_at = (time_t)json_integer_value(json_object_get(entry, "expires_at"));
             node->tile = json_is_string(json_object_get(entry, "tile"))
-                ? json_string_value(json_object_get(entry, "tile"))[0]
+                ? json_get_string(entry, "tile", "")[0]
                 : '\0';
             node->region = (int)json_integer_value(json_object_get(entry, "region"));
             node->x2 = (int)json_integer_value(json_object_get(entry, "x2"));

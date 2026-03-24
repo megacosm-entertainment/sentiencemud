@@ -83,6 +83,34 @@
         "has_boolean_traits": true,
         "has_integer_traits": true
       }
+    },
+    {
+      "name": "trait_value_functions_validation",
+      "description": "Verify trait value manipulation functions work properly",
+      "dependencies": ["trait_definitions_loaded"],
+      "test_type": "trait_values_check",
+      "input": {
+        "test_trait_set_operations": true,
+        "test_trait_clear_operations": true
+      },
+      "expected_output": {
+        "set_operations_work": true,
+        "clear_operations_work": true
+      }
+    },
+    {
+      "name": "trait_race_functionality",
+      "description": "Verify race trait query functions work correctly",
+      "dependencies": ["trait_definitions_loaded"],
+      "test_type": "trait_race_check", 
+      "input": {
+        "test_default_values": true,
+        "test_has_trait_logic": true
+      },
+      "expected_output": {
+        "race_queries_work": true,
+        "default_handling_correct": true
+      }
     }
   ]
 }

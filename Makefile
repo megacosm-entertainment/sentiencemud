@@ -37,11 +37,10 @@ CUR_BUILD_DATE := "$(shell sh date.sh)"
 GIT_URL := "$(shell sh giturl.sh)"
 
 # Legacy reader toggles (default ON). Override for removal testing, e.g.:
-#   make ENABLE_LEGACY_AREA_READ=0 ENABLE_LEGACY_PFILE_READ=0
-ENABLE_LEGACY_AREA_READ ?= 1
+#   make ENABLE_LEGACY_PFILE_READ=0
 ENABLE_LEGACY_PFILE_READ ?= 1
 
-C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DENABLE_LEGACY_AREA_READ=$(ENABLE_LEGACY_AREA_READ) -DENABLE_LEGACY_PFILE_READ=$(ENABLE_LEGACY_PFILE_READ) -DMUD_DEBUG -DCHANNEL_FILTER_USE_PCRE2 -MMD -MP $(INCLUDES)
+C_FLAGS = $(PROF) -std=c23 -fcommon -DMALLOC_STDLIB -fstack-protector -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DCOMMIT=\"$(GIT_URL)\" -DENABLE_LEGACY_PFILE_READ=$(ENABLE_LEGACY_PFILE_READ) -DMUD_DEBUG -DCHANNEL_FILTER_USE_PCRE2 -MMD -MP $(INCLUDES)
 # -rdynamic exports symbols for stack trace support (backtrace_symbols)
 L_FLAGS = $(PROF) -rdynamic $(LIB_PATHS) $(LIBS)
 
@@ -230,6 +229,7 @@ C_FILES = \
     io/json/json_game_settings.c \
     io/json/json_gq.c \
     io/json/json_instance.c \
+    io/json/json_localization.c \
     io/json/json_mail.c \
     io/json/json_note.c \
     io/json/json_obj_types.c \
@@ -248,7 +248,6 @@ C_FILES = \
     io/json/json_socials.c \
     io/json/json_staff.c \
     save.c \
-    pfile_migrate.c \
     scan.c \
     script_commands.c \
     script_comp.c \
@@ -263,6 +262,7 @@ C_FILES = \
     scripts.c \
     sectors_runtime.c \
     secret.c \
+    sha256.c \
     shoot.c \
     skill_data.c \
     skill_group.c \
@@ -272,8 +272,12 @@ C_FILES = \
     staff.c \
     stats.c \
     string.c \
+    utils/array.c \
     utils/buffer.c \
+    utils/localization.c \
+    utils/strdict.c \
     utils/tablefmt.c \
+    utils/utf8.c \
     storage.c \
     tables.c \
     tls.c \
@@ -299,6 +303,10 @@ ifdef BUILD_TESTS
                tests/unit/buffer_function_cases_core.c \
                tests/unit/buffer_function_cases_permutations.c \
                tests/unit/buffer_function_tests.c \
+               tests/unit/memory_util_tests.c \
+               tests/unit/utf8_function_tests.c \
+               tests/unit/array_function_tests.c \
+               tests/unit/strdict_function_tests.c \
                tests/unit/pure_function_tests.c \
                tests/integration/wnum_tests.c \
                tests/integration/string_editor_tests.c \
@@ -308,14 +316,25 @@ ifdef BUILD_TESTS
                tests/integration/instance_tests.c \
                tests/integration/chat_rooms_tests.c \
                tests/integration/skill_data_tests.c \
+               tests/integration/spell_data_tests.c \
                tests/integration/class_data_tests.c \
                tests/integration/item_type_tests.c \
                tests/integration/lookup_table_tests.c \
                tests/integration/script_engine_tests.c \
                tests/integration/channel_pubsub_tests.c \
+               tests/integration/combat_telemetry_tests.c \
+               tests/integration/combat_math_tests.c \
                tests/integration/song_data_tests.c \
                tests/integration/skill_group_tests.c \
-               tests/integration/trait_system_tests.c
+               tests/integration/trait_system_tests.c \
+               tests/integration/command_table_tests.c \
+               tests/integration/constants_tables_tests.c \
+               tests/integration/handler_function_tests.c \
+               tests/integration/quest_system_tests.c \
+               tests/integration/reputation_system_tests.c \
+               tests/integration/olc_framework_tests.c \
+               tests/integration/wilderness_system_tests.c \
+               tests/integration/update_cycle_tests.c
 endif
 
 O_FILES = $(patsubst %.c,$(OBJDIR)/%.o,$(C_FILES))

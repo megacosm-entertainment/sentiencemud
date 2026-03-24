@@ -33,10 +33,29 @@
  ******************************************************************************/
 #include "strings.h"
 #include "merc.h"
+#include "connection.h"
+
+static bool descriptor_uses_telnet_iac(descriptor_t *apDescriptor)
+{
+   if (!apDescriptor || !apDescriptor->conn)
+      return true;
+
+   return apDescriptor->conn->type != CONN_TYPE_WEBSOCKET_TLS;
+}
 
 
 static void Write( descriptor_t *apDescriptor, const char *apData )
 {
+   if ( apDescriptor == NULL )
+      return;
+
+   /* WebSocket payloads must never include telnet IAC control sequences. */
+   if ( !descriptor_uses_telnet_iac(apDescriptor) && apData != NULL &&
+        ((unsigned char)apData[0] == (unsigned char)IAC) )
+   {
+      return;
+   }
+
    if ( apDescriptor != NULL && !apDescriptor->fcommand )
    {
       if ( apDescriptor->pProtocol->WriteOOB > 0 || 
@@ -395,6 +414,9 @@ protocol_t *ProtocolCreate( void )
    }
 
    pProtocol = malloc(sizeof(protocol_t));
+   if ( pProtocol == NULL )
+      return NULL;
+   memset(pProtocol, 0, sizeof(protocol_t));
    pProtocol->WriteOOB = 0;
    for ( i = eNEGOTIATED_TTYPE; i < eNEGOTIATED_MAX; ++i )
       pProtocol->Negotiated[i] = false;
@@ -419,10 +441,25 @@ protocol_t *ProtocolCreate( void )
    pProtocol->pMXPVersion = AllocString("Unknown");
    pProtocol->pLastTTYPE = NULL;
    pProtocol->pVariables = malloc(sizeof(MSDP_t*)*eMSDP_MAX);
+   if ( pProtocol->pVariables == NULL )
+   {
+      free(pProtocol);
+      return NULL;
+   }
 
    for ( i = eMSDP_NONE+1; i < eMSDP_MAX; ++i )
    {
       pProtocol->pVariables[i] = malloc(sizeof(MSDP_t));
+      if ( pProtocol->pVariables[i] == NULL )
+      {
+         /* Clean up previously allocated variables */
+         int j;
+         for ( j = eMSDP_NONE+1; j < i; ++j )
+            free(pProtocol->pVariables[j]);
+         free(pProtocol->pVariables);
+         free(pProtocol);
+         return NULL;
+      }
       pProtocol->pVariables[i]->bReport = false;
       pProtocol->pVariables[i]->bDirty = false;
       pProtocol->pVariables[i]->ValueInt = 0;
@@ -1120,12 +1157,18 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
  */
 void ProtocolNegotiate( descriptor_t *apDescriptor )
 {
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+      return;
+
    ConfirmNegotiation(apDescriptor, eNEGOTIATED_TTYPE, true, true);
 }
 
 /* Tells the client to switch echo on or off. */
 void ProtocolNoEcho( descriptor_t *apDescriptor, bool abOn )
 {
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+      return;
+
    ConfirmNegotiation(apDescriptor, eNEGOTIATED_ECHO, abOn, true);
 }
 
@@ -1546,6 +1589,8 @@ void MSDPSetTable( descriptor_t *apDescriptor, variable_t aMSDP, const char *apV
          const char MsdpTableStop[]  = { (char)MSDP_TABLE_CLOSE, '\0' };
 
          char *pTable = malloc(strlen(apValue) + 3); /* 3: START, STOP, NUL */
+         if ( pTable == NULL )
+            return;
 
          strcpy(pTable, MsdpTableStart);
          strcat(pTable, apValue);
@@ -1624,6 +1669,8 @@ void MSDPSetArray( descriptor_t *apDescriptor, variable_t aMSDP, const char *apV
          const char MsdpArrayStop[]  = { (char)MSDP_ARRAY_CLOSE, '\0' };
 
          char *pArray = malloc(strlen(apValue) + 3); /* 3: START, STOP, NUL */
+         if ( pArray == NULL )
+            return;
 
          strcpy(pArray, MsdpArrayStart);
          strcat(pArray, apValue);
@@ -2403,7 +2450,8 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
                const char *pStartPos = strstr( pClientName, "-" );
 
                /* Store the TTYPE */
-               free(pProtocol->pLastTTYPE);
+               if (pProtocol->pLastTTYPE)
+                  free(pProtocol->pLastTTYPE);
                pProtocol->pLastTTYPE = AllocString(pClientName);
 
                /* Look for 256 colour support */

@@ -1331,7 +1331,8 @@ static bool cedit_modorder(CHAR_DATA *ch, char *argument)
     normalized[0] = '\0';
     strlcpy(work, argument, sizeof(work));
 
-    token = strtok(work, ", ");
+    char *saveptr;
+    token = strtok_r(work, ", ", &saveptr);
     while (token) {
         long bit = channel_modifier_flag_from_name(token);
 
@@ -1351,7 +1352,7 @@ static bool cedit_modorder(CHAR_DATA *ch, char *argument)
             strlcat(normalized, ",", sizeof(normalized));
         strlcat(normalized, token, sizeof(normalized));
 
-        token = strtok(NULL, ", ");
+        token = strtok_r(NULL, ", ", &saveptr);
     }
 
     if (normalized[0] == '\0') {

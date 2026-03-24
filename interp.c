@@ -48,6 +48,7 @@
 #include "class_data.h"
 #include "channel_registry.h"
 #include "channel_service.h"
+#include "utils/localization.h"
 
 static bool dynamic_channel_is_ooc_command(const char *command)
 {
@@ -1018,11 +1019,14 @@ if (ch->pk_question)
     }
     iterator_stop(&it);
 
-    /* If the command was found by prefix match only (not an exact match), give
-     * the channel dispatcher priority.  This prevents commands like 'tells'
-     * from stealing input meant for a deleted-but-dispatched 'tell' channel
-     * command, since "tell" is a valid prefix of "tells". */
-    if (found && str_cmp(command, selected_command->name)) {
+    /* If the command was found by prefix match only (not an exact match),
+     * give the channel dispatcher priority — but ONLY when the channel
+     * itself has an exact match for the typed word.  This prevents short
+     * abbreviations like 's' (south) from being hijacked by a channel
+     * whose name merely prefix-matches (e.g. 'say'), while still letting
+     * an exact channel name like 'tell' override 'tells' in the cmd table. */
+    if (found && str_cmp(command, selected_command->name)
+        && channel_command_has_exact_match(command)) {
         if (dispatch_dynamic_channel_command(ch, command, argument))
             return;
     }
@@ -1227,7 +1231,27 @@ if (ch->pk_question)
             }
 
             *ps = 0;
-            wiznet( s, ch, NULL, WIZ_SECURE, 0, get_staff_rank(ch));
+            {
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(ch) ? "npc" : "player",
+                    .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                    .actor_uid = { ch->id[0], ch->id[1] },
+                    .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                  ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                    .action = "command_log",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = s,
+                    .staff_message = s,
+                    .wiznet_flag = WIZ_SECURE,
+                    .wiznet_min_rank = get_staff_rank(ch),
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, ch);
+            }
             if ( logline[0] != '\0' )
                 log_string( log_buf );
         }
@@ -1259,7 +1283,26 @@ if (ch->pk_question)
         else
             sprintf(buf, "%s tried to use the command '%s' but it didn't exist.", ch->name, command);
         log_string(buf);
-        wiznet(buf, ch, NULL, WIZ_VERBS, 0, 0);
+        {
+            log_context_t ctx = {
+                .actor_type = IS_NPC(ch) ? "npc" : "player",
+                .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                .actor_uid = { ch->id[0], ch->id[1] },
+                .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                              ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                .action = "unknown_command",
+            };
+            log_event_t ev = {
+                .severity = EVENT_SEV_INFO,
+                .category = LOG_ADMIN,
+                .plain_message = buf,
+                .staff_message = buf,
+                .wiznet_flag = WIZ_VERBS,
+                .context = &ctx,
+                .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+            };
+            log_emit_event(&ev, ch);
+        }
         return;
     }
 
@@ -2132,4 +2175,50 @@ void cmd_under_construction(CHAR_DATA *ch)
     send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r\n\r", ch);
     send_to_char("Command is under construction.  Please be patient until it is ready.\n\r\n\r", ch);
     send_to_char("{D*{Y*{D*{Y*{D*{Y[{R UNDER CONSTRUCTION {Y]{D*{Y*{D*{Y*{D*{x\n\r", ch);
+}
+
+// TODO: Assess where this needs to be located
+// Determine if the provided string can be used in a name.
+bool can_be_name(const char *str, NAME_VALIDATION_RESULT *nvr)
+{
+    if (!str || !nvr) return false;
+
+    memset(nvr, 0, sizeof(*nvr));
+    nvr->result = NV_OK;
+
+    size_t bad_position;
+    size_t bad_offset;
+    LOCALIZATION_ERROR err = localization_validate_string(str, &bad_position, &bad_offset);
+    switch(err)
+    {
+    case LOC_OK:
+        break;
+    case LOC_ERR_FORBIDDEN_CODEPOINT:
+        {
+            nvr->result = NV_INVALID_CODE;
+            nvr->str = str;
+            nvr->bad_ch = bad_position;
+            nvr->bad_code = utf8_getchar(str + bad_offset);
+            break;
+        }
+    
+    case LOC_ERR_INVALID_UTF8:
+        {
+            nvr->result = NV_BAD_STRING;
+            nvr->str = str;
+            nvr->bad_ch = bad_position;
+            nvr->bad_code = 0;
+            break;
+        }
+    default:
+        {
+            nvr->result = NV_BAD_STRING;
+            nvr->str = str;
+            nvr->bad_ch = (size_t)-1;
+            nvr->bad_code = 0;
+            break;
+        }
+    }
+
+    return true;
 }

@@ -259,7 +259,7 @@ TRAITEDIT(traitedit_name)
     TRAIT_DEF *def;
     EDIT_TRAIT(ch, def);
     return olc_cmd_string(ch, argument, "Name", NULL, &def->name,
-        OLC_STR_DEFAULT, def, traitedit_record_cb);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, def, traitedit_record_cb);
 }
 
 

@@ -616,6 +616,74 @@ static ITEM_SHIP_DATA *item_ship_from_json(json_t *j)
     return d;
 }
 
+/* ==================== SHIP MODULE ==================== */
+
+static json_t *ship_module_to_json(SHIP_MODULE_DATA *d)
+{
+    json_t *j = json_object();
+    JSET_INT(j, "type", d->type);
+    JSET_INT(j, "size", d->size);
+    JSET_INT(j, "weight", d->weight);
+    JSET_LONG(j, "domain_flags", d->domain_flags);
+    JSET_INT(j, "hit_bonus", d->hit_bonus);
+    JSET_INT(j, "armor_bonus", d->armor_bonus);
+    JSET_INT(j, "speed_bonus", d->speed_bonus);
+    JSET_INT(j, "turning_bonus", d->turning_bonus);
+    JSET_INT(j, "cargo_weight_bonus", d->cargo_weight_bonus);
+    JSET_INT(j, "cargo_capacity_bonus", d->cargo_capacity_bonus);
+    JSET_INT(j, "crew_bonus", d->crew_bonus);
+    JSET_INT(j, "damage", d->damage);
+    JSET_INT(j, "range", d->range);
+    JSET_INT(j, "reload_time", d->reload_time);
+    JSET_INT(j, "damage_type", d->damage_type);
+    JSET_LONG(j, "weapon_flags", d->weapon_flags);
+    JSET_INT(j, "operators", d->operators);
+    JSET_INT(j, "req_gunning", d->req_gunning);
+    JSET_INT(j, "req_mechanics", d->req_mechanics);
+    JSET_INT(j, "req_scouting", d->req_scouting);
+    JSET_INT(j, "req_navigation", d->req_navigation);
+    JSET_INT(j, "req_oarring", d->req_oarring);
+    JSET_INT(j, "req_leadership", d->req_leadership);
+    JSET_LONG(j, "ammo_vnum", d->ammo_ref.load.vnum);
+    JSET_LONG(j, "ammo_area_uid", d->ammo_ref.load.auid);
+    JSET_INT(j, "ammo_per_shot", d->ammo_per_shot);
+    JSET_LONG(j, "flags", d->flags);
+    return j;
+}
+
+static SHIP_MODULE_DATA *ship_module_from_json(json_t *j)
+{
+    SHIP_MODULE_DATA *d = new_ship_module_data();
+    d->type                = JGET_INT(j, "type", 0);
+    d->size                = JGET_INT(j, "size", 0);
+    d->weight              = JGET_INT(j, "weight", 0);
+    d->domain_flags        = JGET_LONG(j, "domain_flags", 0);
+    d->hit_bonus           = JGET_INT(j, "hit_bonus", 0);
+    d->armor_bonus         = JGET_INT(j, "armor_bonus", 0);
+    d->speed_bonus         = JGET_INT(j, "speed_bonus", 0);
+    d->turning_bonus       = JGET_INT(j, "turning_bonus", 0);
+    d->cargo_weight_bonus  = JGET_INT(j, "cargo_weight_bonus", 0);
+    d->cargo_capacity_bonus = JGET_INT(j, "cargo_capacity_bonus", 0);
+    d->crew_bonus          = JGET_INT(j, "crew_bonus", 0);
+    d->damage              = JGET_INT(j, "damage", 0);
+    d->range               = JGET_INT(j, "range", 0);
+    d->reload_time         = JGET_INT(j, "reload_time", 0);
+    d->damage_type         = JGET_INT(j, "damage_type", 0);
+    d->weapon_flags        = JGET_LONG(j, "weapon_flags", 0);
+    d->operators           = JGET_INT16(j, "operators");
+    d->req_gunning         = JGET_INT16(j, "req_gunning");
+    d->req_mechanics       = JGET_INT16(j, "req_mechanics");
+    d->req_scouting        = JGET_INT16(j, "req_scouting");
+    d->req_navigation      = JGET_INT16(j, "req_navigation");
+    d->req_oarring         = JGET_INT16(j, "req_oarring");
+    d->req_leadership      = JGET_INT16(j, "req_leadership");
+    d->ammo_ref.load.vnum  = JGET_LONG(j, "ammo_vnum", 0);
+    d->ammo_ref.load.auid  = JGET_LONG(j, "ammo_area_uid", 0);
+    d->ammo_per_shot       = JGET_INT(j, "ammo_per_shot", 0);
+    d->flags               = JGET_LONG(j, "flags", 0);
+    return d;
+}
+
 /* ==================== JEWELRY ==================== */
 
 static json_t *jewelry_to_json(JEWELRY_DATA *d)
@@ -1036,6 +1104,7 @@ static WEAPON_CONTAINER_DATA *weapon_container_from_json(json_t *j)
     if (IS_INK(O))       { json_object_set_new(j, "ink",       ink_to_json(INK(O)));         has_data = true; } \
     if (IS_INSTRUMENT(O)){ json_object_set_new(j, "instrument",instrument_to_json(INSTRUMENT(O))); has_data = true; } \
     if (IS_SHIP_TYPE(O)) { json_object_set_new(j, "ship",      item_ship_to_json(SHIP_TYPE(O))); has_data = true; } \
+    if (IS_SHIP_MODULE(O)){ json_object_set_new(j, "ship_module",ship_module_to_json(SHIP_MODULE_TYPE(O))); has_data = true; } \
     if (IS_JEWELRY(O))   { json_object_set_new(j, "jewelry",   jewelry_to_json(JEWELRY(O))); has_data = true; } \
     if (IS_LIGHT(O))     { json_object_set_new(j, "light",     light_to_json(LIGHT(O)));     has_data = true; } \
     if (IS_MAP(O))       { json_object_set_new(j, "map",       map_to_json(MAP(O)));         has_data = true; } \
@@ -1101,6 +1170,7 @@ json_t *obj_index_type_data_to_json(OBJ_INDEX_DATA *obj)
     LOAD_TYPE(O, j, "ink",             _ink,             ink_from_json,             free_ink_data,             ITEM_INK); \
     LOAD_TYPE(O, j, "instrument",      _instrument,      instrument_from_json,      free_instrument_data,      ITEM_INSTRUMENT); \
     LOAD_TYPE(O, j, "ship",            _item_ship,       item_ship_from_json,       free_item_ship_data,       ITEM_SHIP); \
+    LOAD_TYPE(O, j, "ship_module",     _ship_module,     ship_module_from_json,     free_ship_module_data,     ITEM_SHIP_MODULE); \
     LOAD_TYPE(O, j, "jewelry",         _jewelry,         jewelry_from_json,         free_jewelry_data,         ITEM_JEWELRY); \
     LOAD_TYPE(O, j, "light",           _light,           light_from_json,           free_light_data,           ITEM_LIGHT); \
     LOAD_TYPE(O, j, "map",             _map,             map_from_json,             free_map_data,             ITEM_MAP); \

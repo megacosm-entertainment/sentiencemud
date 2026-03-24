@@ -208,7 +208,7 @@ BSEDIT( bsedit_show )
     OLC_LAYOUT_CTX *ctx = olc_display_new(ch, theme);
 
     char id_buf[64];
-    sprintf(id_buf, "%ld", bs->vnum);
+    snprintf(id_buf, sizeof(id_buf), "%s", widevnum_string_blueprint_section(bs, bs->area));
     olc_display_header(ctx, "BSEdit", bs->name, id_buf, &bsedit_def);
 
     /* Dispatch to active tab's show function */
@@ -241,7 +241,7 @@ static void bsedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
     const OLC_EDITOR_THEME *theme = bsedit_def.theme;
     char buf[MSL];
 
-    sprintf(buf, "[%5ld] %s", bs->vnum, bs->name);
+    sprintf(buf, "[%s] %s", widevnum_string_blueprint_section(bs, bs->area), bs->name);
     olc_display_string(ctx, theme, "Name:", "name", buf);
 
     olc_display_string(ctx, theme, "Type:", "type", flag_string(blueprint_section_types, bs->type));
@@ -249,12 +249,12 @@ static void bsedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pE
 
     if (bs->recall_room)
     {
-        sprintf(buf, "[%5ld] %s", bs->recall_room->vnum, bs->recall_room->name);
+        sprintf(buf, "[%s] %s", widevnum_string_room(bs->recall_room, bs->area), bs->recall_room->name);
         olc_display_string(ctx, theme, "Recall:", "recall", buf);
     }
     else if (bs->recall_ref.load.vnum > 0)
     {
-        sprintf(buf, "[%5ld] (unresolved)", bs->recall_ref.load.vnum);
+        sprintf(buf, "[%ld#%ld] (unresolved)", bs->recall_ref.load.auid, bs->recall_ref.load.vnum);
         olc_display_string(ctx, theme, "Recall:", "recall", buf);
     }
     else
@@ -294,9 +294,10 @@ static void bsedit_show_links_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdi
             char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
             char excolor = bl->ex ? 'W' : 'D';
 
-            sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r",
+            sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%s{Y]{x %s\n\r",
                 bli, bl->name, excolor, door,
-                bl->room ? bl->room->vnum : bl->room_ref.load.vnum,
+                bl->room ? widevnum_string_room(bl->room, bs->area)
+                         : formatf("%ld#%ld", bl->room_ref.load.auid, bl->room_ref.load.vnum),
                 room ? room->name : "nowhere");
             if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
                     "Blueprint section links output exceeded buffer limits.\n\r"))
@@ -340,13 +341,14 @@ static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
         while ((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
         {
             ++idx;
-            sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Exits: {W%s{x  Room: {W%ld{x %s\n\r",
+            sprintf(buf, "  {Y[{W%3d{Y]{x Weight: {W%3d{x  Exits: {W%s{x  Room: {W%s{x %s\n\r",
                 idx, mwr->weight,
                 mwr->exit_count == 0 ? "Any" :
                 mwr->exit_count == 1 ? " 1 " :
                 mwr->exit_count == 2 ? " 2 " :
                 mwr->exit_count == 3 ? " 3 " : " 4 ",
-                mwr->room ? mwr->room->vnum : mwr->room_ref.load.vnum,
+                mwr->room ? widevnum_string_room(mwr->room, bs->area)
+                          : formatf("%ld#%ld", mwr->room_ref.load.auid, mwr->room_ref.load.vnum),
                 mwr->room ? mwr->room->name : "(unresolved)");
             if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
                     "Blueprint maze output exceeded buffer limits.\n\r"))
@@ -372,7 +374,15 @@ static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
                         return;
                 }
                 if (mwr->exit_template.lock.key_wnum.vnum > 0) {
-                    sprintf(buf, " key={W%ld{x", mwr->exit_template.lock.key_wnum.vnum);
+                    const char *key_disp = "0";
+                    if (mwr->exit_template.lock.key_wnum.pArea) {
+                        OBJ_INDEX_DATA *key_obj = get_obj_index(mwr->exit_template.lock.key_wnum.pArea, mwr->exit_template.lock.key_wnum.vnum);
+                        key_disp = key_obj ? widevnum_string_object(key_obj, bs->area)
+                                           : formatf("%ld#%ld", mwr->exit_template.lock.key_wnum.pArea->uid, mwr->exit_template.lock.key_wnum.vnum);
+                    } else {
+                        key_disp = formatf("%ld", mwr->exit_template.lock.key_wnum.vnum);
+                    }
+                    sprintf(buf, " key={W%s{x", key_disp);
                     if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
                             "Blueprint maze output exceeded buffer limits.\n\r"))
                         return;
@@ -416,9 +426,10 @@ static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
         while ((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
         {
             ++idx;
-            sprintf(buf, "  {Y[{W%3d{Y]{x Pos: ({W%d{x,{W%d{x)  Room: {W%ld{x %s  Connected: %s\n\r",
+            sprintf(buf, "  {Y[{W%3d{Y]{x Pos: ({W%d{x,{W%d{x)  Room: {W%s{x %s  Connected: %s\n\r",
                 idx, mfr->x, mfr->y,
-                mfr->room ? mfr->room->vnum : mfr->room_ref.load.vnum,
+                mfr->room ? widevnum_string_room(mfr->room, bs->area)
+                           : formatf("%ld#%ld", mfr->room_ref.load.auid, mfr->room_ref.load.vnum),
                 mfr->room ? mfr->room->name : "(unresolved)",
                 mfr->connected ? "{GYes{x" : "{RNo{x");
             if (!bsedit_add_or_fail(ch, ctx->buffer, buf,
@@ -439,18 +450,18 @@ static void bsedit_show_maze_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
         olc_display_section(ctx, theme, "Maze Map");
 
         if (mmd->obj) {
-            sprintf(buf, "{W[%ld]{x %s", mmd->obj->vnum, mmd->obj->short_descr);
+            sprintf(buf, "{W[%s]{x %s", widevnum_string_object(mmd->obj, bs->area), mmd->obj->short_descr);
         } else if (mmd->obj_ref.load.vnum > 0) {
-            sprintf(buf, "{W[%ld]{x (unresolved)", mmd->obj_ref.load.vnum);
+            sprintf(buf, "{W[%ld#%ld]{x (unresolved)", mmd->obj_ref.load.auid, mmd->obj_ref.load.vnum);
         } else {
             sprintf(buf, "{Dnone{x");
         }
         olc_display_string(ctx, theme, "  Object:", NULL, buf);
 
         if (mmd->mob) {
-            sprintf(buf, "{W[%ld]{x %s", mmd->mob->vnum, mmd->mob->short_descr);
+            sprintf(buf, "{W[%s]{x %s", widevnum_string_mobile(mmd->mob, bs->area), mmd->mob->short_descr);
         } else if (mmd->mob_ref.load.vnum > 0) {
-            sprintf(buf, "{W[%ld]{x (unresolved)", mmd->mob_ref.load.vnum);
+            sprintf(buf, "{W[%ld#%ld]{x (unresolved)", mmd->mob_ref.load.auid, mmd->mob_ref.load.vnum);
         } else {
             sprintf(buf, "{Dnone (map placed in first room){x");
         }
@@ -560,7 +571,7 @@ BSEDIT( bsedit_name )
     EDIT_BPSECT(ch, bs);
 
     return olc_cmd_string(ch, argument, "Name", NULL, &bs->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
 }
 
 BSEDIT( bsedit_description )
@@ -1287,8 +1298,8 @@ BSEDIT( bsedit_maze )
             bs->total_maze_weight += weight;
 
             char buf[MSL];
-            sprintf(buf, "Template added: Room %ld (%s) with weight %d, exits %s.\n\r",
-                room->vnum, room->name, weight,
+            sprintf(buf, "Template added: Room %s (%s) with weight %d, exits %s.\n\r",
+                widevnum_string_room(room, bs->area), room->name, weight,
                 exit_count == 0 ? "any" :
                 exit_count == 1 ? "1 (dead end)" :
                 exit_count == 2 ? "2 (tunnel)" :
@@ -1410,7 +1421,7 @@ BSEDIT( bsedit_maze )
                 mwr->exit_template.lock.key_load.vnum = key_wnum.vnum;
                 mwr->exit_template.lock.key_wnum = key_wnum;
                 char buf[MSL];
-                sprintf(buf, "Exit template key set to %ld (%s).\n\r", key_obj->vnum, key_obj->short_descr);
+                sprintf(buf, "Exit template key set to %s (%s).\n\r", widevnum_string_object(key_obj, bs->area), key_obj->short_descr);
                 send_to_char(buf, ch);
                 return true;
             }
@@ -1562,8 +1573,8 @@ BSEDIT( bsedit_maze )
             list_appendlink(bs->maze_fixed_rooms, mfr);
 
             char buf[MSL];
-            sprintf(buf, "Fixed room added at (%d,%d): Room %ld (%s), connected: %s.\n\r",
-                x, y, room->vnum, room->name, connected ? "yes" : "no");
+            sprintf(buf, "Fixed room added at (%d,%d): Room %s (%s), connected: %s.\n\r",
+                x, y, widevnum_string_room(room, bs->area), room->name, connected ? "yes" : "no");
             send_to_char(buf, ch);
             return true;
         }
@@ -1627,7 +1638,7 @@ BSEDIT( bsedit_maze )
             bs->map_data->obj = pObj;
 
             char buf[MSL];
-            sprintf(buf, "Map object set to [%ld] %s.\n\r", pObj->vnum, pObj->short_descr);
+            sprintf(buf, "Map object set to [%s] %s.\n\r", widevnum_string_object(pObj, bs->area), pObj->short_descr);
             send_to_char(buf, ch);
             return true;
         }
@@ -1662,7 +1673,7 @@ BSEDIT( bsedit_maze )
             bs->map_data->mob = pMob;
 
             char buf[MSL];
-            sprintf(buf, "Map carrier mob set to [%ld] %s.\n\r", pMob->vnum, pMob->short_descr);
+            sprintf(buf, "Map carrier mob set to [%s] %s.\n\r", widevnum_string_mobile(pMob, bs->area), pMob->short_descr);
             send_to_char(buf, ch);
             return true;
         }

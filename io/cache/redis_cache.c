@@ -33,6 +33,31 @@ static unsigned long redis_signature_hash(const char *text)
     return h;
 }
 
+static void emit_redis_event(event_severity_t severity,
+                             const char *category,
+                             const char *message,
+                             const char *action,
+                             const char *target,
+                             const char *extra_json)
+{
+    log_context_t ctx = {
+        .actor_type = "system",
+        .actor_name = "redis",
+        .action = action,
+        .target_type = target ? "service" : NULL,
+        .target_name = target,
+        .extra_json = extra_json,
+    };
+    log_event_t ev = {
+        .severity = severity,
+        .category = category ? category : LOG_ERROR,
+        .plain_message = message,
+        .context = &ctx,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+    log_emit_event(&ev, NULL);
+}
+
 /***************************************************************************
  * Connection Management                                                   *
  ***************************************************************************/
@@ -66,12 +91,25 @@ bool redis_init(void)
     redis_ctx = redisConnectWithTimeout(redis_host, redis_port, timeout);
 
     if (redis_ctx == NULL || redis_ctx->err) {
+        char target[128];
+        snprintf(target, sizeof(target), "%s:%d", redis_host, redis_port);
         if (redis_ctx) {
             log_stringf("Redis: Connection error: %s", redis_ctx->errstr);
+            {
+                char msg[MSL];
+                char extra[128];
+                snprintf(msg, sizeof(msg), "Redis: Connection error: %s", redis_ctx->errstr);
+                snprintf(extra, sizeof(extra), "{\"host\":\"%s\",\"port\":%d}", redis_host, redis_port);
+                emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                 "redis_connect_failed", target, extra);
+            }
             redisFree(redis_ctx);
             redis_ctx = NULL;
         } else {
             log_string("Redis: Failed to allocate redis context");
+            emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR,
+                             "Redis: Failed to allocate redis context",
+                             "redis_connect_alloc_failed", target, NULL);
         }
         redis_available = false;
         return false;
@@ -89,6 +127,9 @@ bool redis_init(void)
 
         if (reply == NULL) {
             log_string("Redis: AUTH command failed - connection error");
+            emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR,
+                             "Redis: AUTH command failed - connection error",
+                             "redis_auth_command_failed", redis_host, NULL);
             redisFree(redis_ctx);
             redis_ctx = NULL;
             redis_available = false;
@@ -97,6 +138,12 @@ bool redis_init(void)
 
         if (reply->type == REDIS_REPLY_ERROR) {
             log_stringf("Redis: AUTH failed: %s", reply->str);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "Redis: AUTH failed: %s", reply->str ? reply->str : "(null)");
+                emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                 "redis_auth_failed", redis_host, NULL);
+            }
             freeReplyObject(reply);
             redisFree(redis_ctx);
             redis_ctx = NULL;
@@ -118,6 +165,9 @@ bool redis_init(void)
     pthread_mutex_unlock(&redis_mutex);
     if (reply == NULL) {
         log_string("Redis: PING failed");
+        emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR,
+                         "Redis: PING failed",
+                         "redis_ping_failed", redis_host, NULL);
         redisFree(redis_ctx);
         redis_ctx = NULL;
         redis_available = false;
@@ -182,6 +232,34 @@ void redis_shutdown(void)
 redisContext *redis_get_connection(void)
 {
     return redis_ctx;
+}
+
+redisContext *redis_new_context(void)
+{
+    const char *host = game_settings.redis_host ? game_settings.redis_host : "127.0.0.1";
+    int         port = game_settings.redis_port  > 0 ? game_settings.redis_port  : 6379;
+    struct timeval timeout;
+    timeout.tv_sec  = game_settings.redis_timeout_sec  > 0 ? game_settings.redis_timeout_sec  : 1;
+    timeout.tv_usec = game_settings.redis_timeout_usec >= 0 ? game_settings.redis_timeout_usec : 500000;
+
+    redisContext *ctx = redisConnectWithTimeout(host, port, timeout);
+    if (!ctx || ctx->err) {
+        if (ctx) redisFree(ctx);
+        return NULL;
+    }
+
+    const char *password = game_settings.redis_password;
+    if (password && password[0] != '\0') {
+        redisReply *reply = (redisReply *)redisCommand(ctx, "AUTH %s", password);
+        if (!reply || reply->type == REDIS_REPLY_ERROR) {
+            if (reply) freeReplyObject(reply);
+            redisFree(ctx);
+            return NULL;
+        }
+        freeReplyObject(reply);
+    }
+
+    return ctx;
 }
 
 void redis_release_connection(redisContext *c)
@@ -358,6 +436,12 @@ bool redis_cache_char_info(CHAR_DATA *ch)
 
     if (reply == NULL) {
         log_stringf("Redis: Failed to cache info for %s", ch->name);
+        {
+            char msg[MSL];
+            snprintf(msg, sizeof(msg), "Redis: Failed to cache info for %s", ch->name);
+            emit_redis_event(EVENT_SEV_WARN, LOG_ERROR, msg,
+                             "redis_cache_info_failed", ch->name, NULL);
+        }
         stats.errors++;
         free_char_info_cache(info);
         pthread_mutex_unlock(&redis_mutex);
@@ -714,6 +798,12 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
         json_str = json_dumps(char_json, JSON_COMPACT);
         if (!json_str) {
             log_stringf("Redis: Failed to serialize JSON for %s", ch->name);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "Redis: Failed to serialize JSON for %s", ch->name);
+                emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                 "redis_char_full_serialize_failed", ch->name, NULL);
+            }
             stats.errors++;
             pthread_mutex_unlock(&redis_mutex);
             return false;
@@ -725,9 +815,21 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
         if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
             if (reply) {
                 log_stringf("Redis: JSON.SET failed for %s: %s", ch->name, reply->str);
+                {
+                    char msg[MSL];
+                    snprintf(msg, sizeof(msg), "Redis: JSON.SET failed for %s: %s", ch->name, reply->str ? reply->str : "(null)");
+                    emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                     "redis_json_set_failed", ch->name, NULL);
+                }
                 freeReplyObject(reply);
             } else {
                 log_stringf("Redis: JSON.SET connection error for %s", ch->name);
+                {
+                    char msg[MSL];
+                    snprintf(msg, sizeof(msg), "Redis: JSON.SET connection error for %s", ch->name);
+                    emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                     "redis_json_set_conn_failed", ch->name, NULL);
+                }
             }
             stats.errors++;
             pthread_mutex_unlock(&redis_mutex);
@@ -740,6 +842,12 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
         json_str = json_dumps(char_json, JSON_COMPACT);
         if (!json_str) {
             log_stringf("Redis: Failed to serialize JSON for %s", ch->name);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "Redis: Failed to serialize JSON for %s", ch->name);
+                emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                 "redis_char_full_serialize_failed", ch->name, NULL);
+            }
             stats.errors++;
             pthread_mutex_unlock(&redis_mutex);
             return false;
@@ -751,9 +859,21 @@ bool redis_cache_char_full(CHAR_DATA *ch, json_t *char_json)
         if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
             if (reply) {
                 log_stringf("Redis: SET failed for %s: %s", ch->name, reply->str);
+                {
+                    char msg[MSL];
+                    snprintf(msg, sizeof(msg), "Redis: SET failed for %s: %s", ch->name, reply->str ? reply->str : "(null)");
+                    emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                     "redis_set_failed", ch->name, NULL);
+                }
                 freeReplyObject(reply);
             } else {
                 log_stringf("Redis: SET connection error for %s", ch->name);
+                {
+                    char msg[MSL];
+                    snprintf(msg, sizeof(msg), "Redis: SET connection error for %s", ch->name);
+                    emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                     "redis_set_conn_failed", ch->name, NULL);
+                }
             }
             stats.errors++;
             pthread_mutex_unlock(&redis_mutex);
@@ -883,6 +1003,12 @@ bool redis_update_char_gold(const char *name, long gold)
     if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
         if (reply) {
             log_stringf("Redis: Failed to update gold for %s: %s", name, reply->str);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "Redis: Failed to update gold for %s: %s", name, reply->str ? reply->str : "(null)");
+                emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                 "redis_update_gold_failed", name, NULL);
+            }
             freeReplyObject(reply);
         }
         stats.errors++;
@@ -914,6 +1040,12 @@ bool redis_update_char_exp(const char *name, long exp)
     if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
         if (reply) {
             log_stringf("Redis: Failed to update exp for %s: %s", name, reply->str);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "Redis: Failed to update exp for %s: %s", name, reply->str ? reply->str : "(null)");
+                emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                 "redis_update_exp_failed", name, NULL);
+            }
             freeReplyObject(reply);
         }
         stats.errors++;
@@ -945,6 +1077,12 @@ bool redis_update_char_position(const char *name, int room_vnum)
     if (reply == NULL || reply->type == REDIS_REPLY_ERROR) {
         if (reply) {
             log_stringf("Redis: Failed to update position for %s: %s", name, reply->str);
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "Redis: Failed to update position for %s: %s", name, reply->str ? reply->str : "(null)");
+                emit_redis_event(EVENT_SEV_ERROR, LOG_ERROR, msg,
+                                 "redis_update_position_failed", name, NULL);
+            }
             freeReplyObject(reply);
         }
         stats.errors++;

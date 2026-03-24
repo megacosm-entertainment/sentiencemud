@@ -11,7 +11,7 @@
   - [ ] Actor profile schema defined and versioned
   - [ ] Class-role matrix finalized for Mage/Warrior/Cleric/Thief/Crafter/Gatherer/Explorer
   - [ ] Legacy translation layer active for core combat/casting stats
-  - [ ] Telemetry baseline dashboards in place
+  - [ ] Telemetry baseline dashboards in place (synthetic-first, live-augmented)
 
 - [ ] **Gate II: Runtime Alignment**
   - [ ] Combat pacing model passes target TTK bands
@@ -66,6 +66,9 @@
 - [ ] Build test matrix (PvE solo, party PvE, PvP, mixed utility-party)
 - [ ] Define pass/fail thresholds per gate
 - [ ] Add regression report template
+- [ ] Add deterministic scenario packs (fixed seeds/loadouts) for combat/casting comparisons
+- [ ] Add scripted bot-run harness for repeated benchmark sweeps
+- [ ] Define live-validation overlay criteria for post-dormancy population recovery
 
 ### WP-2: Data Model Convergence
 - [ ] Finalize shared stat and effect vocabulary

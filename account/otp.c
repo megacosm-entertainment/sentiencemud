@@ -114,7 +114,25 @@ bool validate_totp_code(const char *key, const char *code)
     time_t current_time = time(NULL);
     char current_totp[MIL];
     char previous_totp[MIL];
+    char normalized_key[MIL];
     char *current_code, *previous_code;
+    bool has_secret_chars = false;
+    size_t normalized_len = 0;
+    const char *original_key = key;
+
+    if (!key || !code)
+        return false;
+
+    if (IS_NULLSTR(key) || IS_NULLSTR(code))
+        return false;
+
+    if (strlen(code) != 6)
+        return false;
+
+    for (const char *p = code; *p; p++) {
+        if (!isdigit((unsigned char)*p))
+            return false;
+    }
     
     // Check if the key is encrypted
     char *plaintext_key = NULL;
@@ -123,12 +141,55 @@ bool validate_totp_code(const char *key, const char *code)
     if (is_encrypted) {
         // Decrypt the key before validation
         plaintext_key = decrypt_string_versioned(key);
-        key = plaintext_key;
+        if (!IS_NULLSTR(plaintext_key)) {
+            key = plaintext_key;
+        } else {
+            if (plaintext_key)
+                free_string(plaintext_key);
+            plaintext_key = NULL;
+            key = original_key;
+        }
     }
+
+    if (!key || key[0] == '\0') {
+        if (is_encrypted && plaintext_key)
+            free_string(plaintext_key);
+        return false;
+    }
+
+    // libcotp does not defensively handle bad secrets; reject malformed inputs here.
+    // Also normalize key format so grouped/lowercase secrets still validate.
+    for (const unsigned char *p = (const unsigned char *)key; *p; p++) {
+        if (isspace(*p) || *p == '-')
+            continue;
+
+        if (!(isalpha(*p) || (*p >= '2' && *p <= '7') || *p == '=')) {
+            if (is_encrypted && plaintext_key)
+                free_string(plaintext_key);
+            return false;
+        }
+
+        if (normalized_len >= sizeof(normalized_key) - 1) {
+            if (is_encrypted && plaintext_key)
+                free_string(plaintext_key);
+            return false;
+        }
+
+        normalized_key[normalized_len++] = isalpha(*p) ? toupper(*p) : *p;
+        has_secret_chars = true;
+    }
+
+    if (!has_secret_chars) {
+        if (is_encrypted && plaintext_key)
+            free_string(plaintext_key);
+        return false;
+    }
+
+    normalized_key[normalized_len] = '\0';
     
     // Get current and previous tokens (30-second window)
-    current_code = get_totp_at(key, current_time, 6, 30, SHA1, &err);
-    previous_code = get_totp_at(key, current_time - 30, 6, 30, SHA1, &err);
+    current_code = get_totp_at(normalized_key, current_time, 6, 30, SHA1, &err);
+    previous_code = get_totp_at(normalized_key, current_time - 30, 6, 30, SHA1, &err);
     
     if (!current_code || !previous_code) {
         if (is_encrypted && plaintext_key)
@@ -137,8 +198,8 @@ bool validate_totp_code(const char *key, const char *code)
     }
     
     // Store the tokens in our buffer
-    sprintf(current_totp, "%s", current_code);
-    sprintf(previous_totp, "%s", previous_code);
+    snprintf(current_totp, sizeof(current_totp), "%s", current_code);
+    snprintf(previous_totp, sizeof(previous_totp), "%s", previous_code);
     
     // Check if the provided code matches either the current or previous token
     bool valid = (!str_cmp(code, current_totp) || !str_cmp(code, previous_totp));
@@ -147,9 +208,9 @@ bool validate_totp_code(const char *key, const char *code)
     // (handling the case where user's clock is slightly ahead)
     if (!valid) {
         char next_totp[MIL];
-        char *next_code = get_totp_at(key, current_time + 30, 6, 30, SHA1, &err);
+        char *next_code = get_totp_at(normalized_key, current_time + 30, 6, 30, SHA1, &err);
         if (next_code) {
-            sprintf(next_totp, "%s", next_code);
+            snprintf(next_totp, sizeof(next_totp), "%s", next_code);
             valid = !str_cmp(code, next_totp);
         }
     }
@@ -318,8 +379,20 @@ void save_qr_code_as_png(QRcode *qrcode, const char *filename, int scale)
     png_write_info(png_ptr, info_ptr);
     
     png_bytep *row_pointers = malloc(sizeof(png_bytep) * width);
+    if (!row_pointers) {
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        return;
+    }
     for (int i = 0; i < width; i++) {
         row_pointers[i] = malloc(width * 3);
+        if (!row_pointers[i]) {
+            for (int j = 0; j < i; j++) free(row_pointers[j]);
+            free(row_pointers);
+            png_destroy_write_struct(&png_ptr, &info_ptr);
+            fclose(fp);
+            return;
+        }
     }
     
     for (int y = 0; y < qrcode->width; y++) {

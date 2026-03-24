@@ -51,6 +51,23 @@
         ]
       },
       "expected_output": { "all_cases_pass": true }
+    },
+    {
+      "name": "str_cmp_nocolour_semantics",
+      "description": "Validates case-insensitive equality with ANSI color codes stripped",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "str_cmp_nocolour",
+        "test_cases": [
+          { "left": "hello", "right": "hello", "expected_not_equal": false },
+          { "left": "{Rhello{x", "right": "hello", "expected_not_equal": false },
+          { "left": "{W{BHELLO{x", "right": "hello", "expected_not_equal": false },
+          { "left": "{Rhello{x", "right": "{Yhello{x", "expected_not_equal": false },
+          { "left": "{Rhello{x", "right": "world", "expected_not_equal": true },
+          { "left": "", "right": "", "expected_not_equal": false }
+        ]
+      },
+      "expected_output": { "all_cases_pass": true }
     }
   ]
 }

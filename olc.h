@@ -189,6 +189,7 @@ extern const struct olc_cmd_type	hedit_table[];
  * Editor Commands.
  */
 DECLARE_DO_FUN( do_aedit        );
+DECLARE_DO_FUN( do_ashow        );
 DECLARE_DO_FUN( do_hedit        );
 DECLARE_DO_FUN( do_medit        );
 DECLARE_DO_FUN( do_mpedit	);
@@ -401,6 +402,7 @@ DECLARE_OLC_FUN( oedit_scroll		);
 DECLARE_OLC_FUN( oedit_seed		);
 DECLARE_OLC_FUN( oedit_sextant		);
 DECLARE_OLC_FUN( oedit_ship		);
+DECLARE_OLC_FUN( oedit_shipmodule	);
 DECLARE_OLC_FUN( oedit_tattoo		);
 DECLARE_OLC_FUN( oedit_telescope	);
 DECLARE_OLC_FUN( oedit_tool		);
@@ -525,6 +527,8 @@ DECLARE_OLC_FUN( shedit_armor		);
 DECLARE_OLC_FUN( shedit_keys		);
 DECLARE_OLC_FUN( shedit_turning		);
 DECLARE_OLC_FUN( shedit_oars		);
+DECLARE_OLC_FUN( shedit_hardpoint	);
+DECLARE_OLC_FUN( shedit_moduleweight );
 
 /* Help Editor */
 DECLARE_OLC_FUN( hedit_show    		);

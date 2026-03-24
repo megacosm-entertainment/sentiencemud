@@ -437,6 +437,8 @@ static json_t *wilds_to_json(WILDS_DATA *wilds) {
     json_object_set_new(json, "wildgen_tile_height", json_integer(wilds->wildgen_tile_height));
     json_object_set_new(json, "wildgen_terrain_base", json_string_safe(wilds->wildgen_terrain_base));
     json_object_set_new(json, "wildgen_elevation_base", json_string_safe(wilds->wildgen_elevation_base));
+    json_object_set_new(json, "wildgen_bitdepth", json_integer(wilds->wildgen_bitdepth));
+    json_object_set_new(json, "default_elevation", json_integer(wilds->default_elevation));
 
     json_object_set_new(json, "wilderness_storage_mode", json_string("external_v1"));
     json_object_set_new(json, "legacy_embedded_map", json_false());
@@ -474,6 +476,10 @@ static WILDS_DATA *json_to_wilds(json_t *json, AREA_DATA *area) {
     wilds->wildgen_terrain_base = str_dup(json_get_string_default(json, "wildgen_terrain_base", ""));
     free_string(wilds->wildgen_elevation_base);
     wilds->wildgen_elevation_base = str_dup(json_get_string_default(json, "wildgen_elevation_base", ""));
+    wilds->wildgen_bitdepth = json_get_int_default(json, "wildgen_bitdepth", 0);
+    if (wilds->wildgen_bitdepth != 8 && wilds->wildgen_bitdepth != 16)
+        wilds->wildgen_bitdepth = 0;
+    wilds->default_elevation = json_get_int_default(json, "default_elevation", 0);
 
     // Allocate staticmap/map buffers. Embedded staticmap is legacy migration input only.
     const char *json_map = json_get_string_default(json, "staticmap", "");
@@ -739,6 +745,8 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_t *regions = json_array();
     long min_vnum;
     long max_vnum;
+
+    area_dependencies_rebuild_for_area(area);
     
     /* Basic info */
     json_object_set_new(root, "uid", json_integer(area->uid));
@@ -770,6 +778,29 @@ json_t *json_area_serialize_metadata(AREA_DATA *area)
     json_object_set_new(levels, "min", json_integer(area->low_range));
     json_object_set_new(levels, "max", json_integer(area->high_range));
     json_object_set_new(metadata, "levels", levels);
+
+    {
+        json_t *dependencies = json_array();
+        AREA_DEPENDENCY *dependency;
+
+        for (dependency = area->dependencies; dependency != NULL; dependency = dependency->next)
+        {
+            json_t *entry = json_object();
+            json_object_set_new(entry, "source_type", json_string_safe(dependency->source_type));
+            json_object_set_new(entry, "source_vnum", json_integer(dependency->source_vnum));
+            json_object_set_new(entry, "source_name", json_string_safe(dependency->source_name));
+            json_object_set_new(entry, "reference_type", json_string_safe(dependency->reference_type));
+            json_object_set_new(entry, "target_area_uid", json_integer(dependency->target_area_uid));
+            json_object_set_new(entry, "target_area_name", json_string_safe(dependency->target_area_name));
+            json_object_set_new(entry, "target_type", json_string_safe(dependency->target_type));
+            json_object_set_new(entry, "target_vnum", json_integer(dependency->target_vnum));
+            json_object_set_new(entry, "target_name", json_string_safe(dependency->target_name));
+            json_array_append_new(dependencies, entry);
+        }
+
+        json_object_set_new(metadata, "dependencies", dependencies);
+    }
+
     json_object_set_new(root, "metadata", metadata);
     
     /* Flags */
@@ -931,6 +962,32 @@ bool json_area_deserialize_metadata(json_t *json, AREA_DATA *area)
         if (levels) {
             area->low_range = json_get_int_default(levels, "min", 0);
             area->high_range = json_get_int_default(levels, "max", 0);
+        }
+
+        area_dependency_clear(area);
+        {
+            json_t *dependencies = json_object_get(metadata, "dependencies");
+            if (json_is_array(dependencies))
+            {
+                size_t dependency_index;
+                json_t *entry;
+
+                json_array_foreach(dependencies, dependency_index, entry)
+                {
+                    area_dependency_add(
+                        area,
+                        json_get_string_default(entry, "source_type", "unknown"),
+                        json_get_int_default(entry, "source_vnum", 0),
+                        json_get_string_default(entry, "source_name", ""),
+                        json_get_string_default(entry, "reference_type", "reference"),
+                        json_get_int_default(entry, "target_area_uid", 0),
+                        json_get_string_default(entry, "target_area_name", ""),
+                        json_get_string_default(entry, "target_type", "entity"),
+                        json_get_int_default(entry, "target_vnum", 0),
+                        json_get_string_default(entry, "target_name", "")
+                    );
+                }
+            }
         }
     }
     
@@ -2672,19 +2729,21 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
 {
     if (!json || !area) return NULL;
     
-    SHIP_INDEX_DATA *ship = alloc_perm(sizeof(SHIP_INDEX_DATA));
+    SHIP_INDEX_DATA *ship = new_ship_index();
     if (!ship) return NULL;
     
     ship->area = area;
     
-    // Basic info
+    /* Basic info - free defaults set by new_ship_index() before overwriting */
     ship->vnum = json_get_int_default(json, "vnum", 0);
+    free_string(ship->name);
     ship->name = str_dup(json_get_string_default(json, "name", ""));
+    free_string(ship->description);
     ship->description = str_dup(json_get_string_default(json, "description", ""));
     ship->ship_class = json_get_int_default(json, "ship_class", 0);
     ship->flags = json_get_int_default(json, "flags", 0);
     
-    // Blueprint reference - use parse_widevnum for consistency
+    /* Blueprint reference - use parse_widevnum for consistency */
     json_t *blueprint_ref = json_object_get(json, "blueprint");
     if (blueprint_ref) {
         if (json_is_string(blueprint_ref)) {
@@ -2699,9 +2758,9 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
             ship->blueprint_ref.load.vnum = json_integer_value(blueprint_ref);
         }
     }
-    ship->blueprint = NULL;  // Will be resolved in fix pass
+    ship->blueprint = NULL;  /* Will be resolved in fix pass */
 
-    // Ship object reference - use parse_widevnum for consistency
+    /* Ship object reference - use parse_widevnum for consistency */
     json_t *ship_object_ref = json_object_get(json, "ship_object");
     if (ship_object_ref) {
         if (json_is_string(ship_object_ref)) {
@@ -2716,9 +2775,9 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
             ship->ship_object_ref.load.vnum = json_integer_value(ship_object_ref);
         }
     }
-    ship->ship_object = NULL;  // Will be resolved in fix pass
+    ship->ship_object = NULL;  /* Will be resolved in fix pass */
     
-    // Stats
+    /* Stats */
     ship->hit = json_get_int_default(json, "hit", 100);
     ship->guns = json_get_int_default(json, "guns", 0);
     ship->min_crew = json_get_int_default(json, "min_crew", 0);
@@ -2731,10 +2790,10 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
     ship->armor = json_get_int_default(json, "armor", 0);
     ship->oars = json_get_int_default(json, "oars", 0);
     
-    // Special keys - handle widevnum strings or legacy integers
+    /* Special keys - handle widevnum strings or legacy integers
+     * new_ship_index() already created the special_keys list, just append */
     json_t *special_keys = json_object_get(json, "special_keys");
     if (special_keys && json_is_array(special_keys)) {
-        ship->special_keys = list_create(false);
         size_t index;
         json_t *key_val;
 
@@ -2782,10 +2841,144 @@ SHIP_INDEX_DATA *json_area_deserialize_ship(json_t *json, AREA_DATA *area)
                     wload.vnum);
             }
         }
-    } else {
-        ship->special_keys = list_create(false);
     }
-    
+
+    /* Hardpoint definitions - new_ship_index() already created the list, just append */
+    json_t *hardpoints = json_object_get(json, "hardpoints");
+    if (hardpoints && json_is_array(hardpoints)) {
+        size_t hp_idx;
+        json_t *hp_json;
+        json_array_foreach(hardpoints, hp_idx, hp_json) {
+            SHIP_HARDPOINT_DEF *hp = new_ship_hardpoint_def();
+            hp->slot_id = json_get_int_default(hp_json, "slot_id", 0);
+            free_string(hp->name);
+            hp->name = str_dup(json_get_string_default(hp_json, "name", ""));
+            hp->type = json_get_int_default(hp_json, "type", 0);
+            hp->size = json_get_int_default(hp_json, "size", 0);
+            hp->domain_flags = json_get_int_default(hp_json, "domain_flags", DOMAIN_AQUATIC | DOMAIN_AERIAL | DOMAIN_TERRESTRIAL);
+            hp->flags = json_get_int_default(hp_json, "flags", 0);
+            list_appendlink(ship->hardpoints, hp);
+        }
+    }
+
+    /* Module weight budget */
+    ship->max_module_weight = json_get_int_default(json, "max_module_weight", 0);
+
+    /* Captain mob reference - widevnum string or legacy integer */
+    json_t *captain_ref = json_object_get(json, "captain_mob");
+    if (captain_ref) {
+        if (json_is_string(captain_ref)) {
+            WNUM_LOAD wload;
+            if (parse_widevnum_load(json_string_value(captain_ref), &wload)) {
+                ship->captain_ref.load.auid = wload.auid;
+                ship->captain_ref.load.vnum = wload.vnum;
+            }
+        } else if (json_is_integer(captain_ref)) {
+            ship->captain_ref.load.auid = area->uid;
+            ship->captain_ref.load.vnum = json_integer_value(captain_ref);
+        }
+    }
+    ship->captain = NULL;  /* Will be resolved in fix pass */
+
+    /* Crew mob definitions - new_ship_index() already created the list */
+    json_t *crew_defs = json_object_get(json, "crew_defs");
+    if (crew_defs && json_is_array(crew_defs)) {
+        size_t cd_idx;
+        json_t *cd_json;
+        json_array_foreach(crew_defs, cd_idx, cd_json) {
+            SHIP_CREW_DEF *cd = new_ship_crew_def();
+
+            json_t *mob_ref = json_object_get(cd_json, "mob");
+            if (mob_ref) {
+                if (json_is_string(mob_ref)) {
+                    WNUM_LOAD wload;
+                    if (parse_widevnum_load(json_string_value(mob_ref), &wload)) {
+                        cd->mob_ref.load.auid = wload.auid;
+                        cd->mob_ref.load.vnum = wload.vnum;
+                    }
+                } else if (json_is_integer(mob_ref)) {
+                    cd->mob_ref.load.auid = area->uid;
+                    cd->mob_ref.load.vnum = json_integer_value(mob_ref);
+                }
+            }
+
+            cd->count = json_get_int_default(cd_json, "count", 1);
+            cd->mob = NULL;  /* Will be resolved in fix pass */
+
+            list_appendlink(ship->crew_defs, cd);
+        }
+    }
+
+    /* NPC type */
+    ship->npc_type = json_get_int_default(json, "npc_type", NPC_SHIP_COAST_GUARD);
+
+    /* Faction allegiance reference - widevnum string or legacy integer */
+    json_t *faction_ref = json_object_get(json, "faction");
+    if (faction_ref) {
+        if (json_is_string(faction_ref)) {
+            WNUM_LOAD wload;
+            if (parse_widevnum_load(json_string_value(faction_ref), &wload)) {
+                ship->faction_ref.load.auid = wload.auid;
+                ship->faction_ref.load.vnum = wload.vnum;
+            }
+        } else if (json_is_integer(faction_ref)) {
+            ship->faction_ref.load.auid = area->uid;
+            ship->faction_ref.load.vnum = json_integer_value(faction_ref);
+        }
+    }
+    ship->faction = NULL;  /* Will be resolved in fix pass */
+    ship->faction_rank = json_get_int_default(json, "faction_rank", 0);
+
+    /* Transport schedule */
+    ship->schedule_loop = json_get_bool_default(json, "schedule_loop", true);
+    json_t *sched_arr = json_object_get(json, "schedule_stops");
+    if (sched_arr && json_is_array(sched_arr)) {
+        size_t si;
+        json_t *stop_json;
+        json_array_foreach(sched_arr, si, stop_json) {
+            SHIP_SCHEDULE_STOP *stop = new_ship_schedule_stop();
+
+            stop->stop_id = (int16_t)json_get_int_default(stop_json, "id", (int)(si + 1));
+            free_string(stop->name);
+            stop->name = str_dup(json_get_string(stop_json, "name", ""));
+
+            const char *loc_type_str = json_get_string(stop_json, "location_type", "wilderness");
+            if (loc_type_str && !str_cmp(loc_type_str, "room"))
+                stop->location_type = STOP_LOC_ROOM;
+            else
+                stop->location_type = STOP_LOC_WILDERNESS;
+
+            if (stop->location_type == STOP_LOC_WILDERNESS) {
+                stop->wilds_uid = json_get_int_default(stop_json, "wilds_uid", 0);
+                stop->loc_x = json_get_int_default(stop_json, "x", 0);
+                stop->loc_y = json_get_int_default(stop_json, "y", 0);
+            } else {
+                json_t *room_ref_json = json_object_get(stop_json, "room");
+                if (room_ref_json && json_is_string(room_ref_json)) {
+                    WNUM_LOAD wload;
+                    if (parse_widevnum_load(json_string_value(room_ref_json), &wload)) {
+                        stop->room_ref.load.auid = wload.auid;
+                        stop->room_ref.load.vnum = wload.vnum;
+                    }
+                } else if (room_ref_json && json_is_integer(room_ref_json)) {
+                    stop->room_ref.load.auid = area->uid;
+                    stop->room_ref.load.vnum = json_integer_value(room_ref_json);
+                }
+                stop->dock_room = NULL;  /* Will be resolved in fix pass */
+            }
+
+            stop->arrive_hour = json_get_int_default(stop_json, "arrive_hour", -1);
+            stop->depart_hour = json_get_int_default(stop_json, "depart_hour", -1);
+            stop->dwell_ticks = json_get_int_default(stop_json, "dwell_ticks",
+                SHIP_SCHEDULE_DWELL_DEFAULT);
+
+            stop->dock_exit_dir = json_get_int_default(stop_json, "exit_dir", -1);
+            stop->dock_exit_type = json_get_int_default(stop_json, "exit_type", DOCK_EXIT_NONE);
+
+            list_appendlink(ship->schedule_stops, stop);
+        }
+    }
+
     return ship;
 }
 
@@ -3370,7 +3563,7 @@ AREA_DATA *json_area_load(const char *filename)
         }
     }
     
-    /* Deserialize blueprint sections */
+    /* Deserialize blueprint sections (skip duplicates by vnum) */
     json_t *sections = json_object_get(root, "blueprint_sections");
     if (sections && json_is_array(sections)) {
         size_t index;
@@ -3378,10 +3571,25 @@ AREA_DATA *json_area_load(const char *filename)
         json_array_foreach(sections, index, section_json) {
             BLUEPRINT_SECTION *section = json_area_deserialize_blueprint_section(section_json, area);
             if (section && section->vnum) {
-                /* Add to area's blueprint section hash table */
                 int hash = section->vnum % MAX_KEY_HASH;
-                section->next = area->blueprint_section_hash[hash];
-                area->blueprint_section_hash[hash] = section;
+
+                /* Check for duplicate vnum in this area's hash */
+                bool duplicate = false;
+                for (BLUEPRINT_SECTION *existing = area->blueprint_section_hash[hash]; existing; existing = existing->next) {
+                    if (existing->vnum == section->vnum) {
+                        duplicate = true;
+                        break;
+                    }
+                }
+
+                if (!duplicate) {
+                    section->next = area->blueprint_section_hash[hash];
+                    area->blueprint_section_hash[hash] = section;
+                } else {
+                    log_message_f(LOG_LEVEL_INFO, LOG_INIT,
+                        "Skipping duplicate blueprint section vnum %ld in area '%s'",
+                        section->vnum, area->name);
+                }
             }
         }
     }
@@ -3921,12 +4129,15 @@ bool json_area_save(AREA_DATA *area)
     else
         json_decref(blueprints);
     
-    /* Serialize blueprint sections */
+    /* Serialize blueprint sections (deduplicated by vnum) */
     json_t *blueprint_sections = json_array();
     // Always iterate through all hash buckets to catch widevnum entities
     for (int j = 0; j < MAX_KEY_HASH; j++) {
         for (BLUEPRINT_SECTION *section = area->blueprint_section_hash[j]; section; section = section->next) {
             if (section->vnum && section->area == area) {
+                /* Skip if we already serialized this vnum */
+                if (json_script_array_has_vnum(blueprint_sections, section->vnum))
+                    continue;
                 json_t *section_json = json_area_serialize_blueprint_section(section, area);
                 if (section_json) {
                     json_array_append_new(blueprint_sections, section_json);
@@ -7784,7 +7995,127 @@ json_t *json_area_serialize_ship(SHIP_INDEX_DATA *ship, AREA_DATA *area)
             json_decref(keys_array);
         }
     }
-    
+
+    /* Hardpoint definitions */
+    if (ship->hardpoints && list_size(ship->hardpoints) > 0) {
+        json_t *hp_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, ship->hardpoints);
+        SHIP_HARDPOINT_DEF *hp;
+        while ((hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&it)) != NULL) {
+            json_t *hp_json = json_object();
+            json_object_set_new(hp_json, "slot_id", json_integer(hp->slot_id));
+            json_object_set_new(hp_json, "name", json_string(hp->name ? hp->name : ""));
+            json_object_set_new(hp_json, "type", json_integer(hp->type));
+            json_object_set_new(hp_json, "size", json_integer(hp->size));
+            json_object_set_new(hp_json, "domain_flags", json_integer(hp->domain_flags));
+            json_object_set_new(hp_json, "flags", json_integer(hp->flags));
+            json_array_append_new(hp_array, hp_json);
+        }
+        iterator_stop(&it);
+        if (json_array_size(hp_array) > 0) {
+            json_object_set_new(json, "hardpoints", hp_array);
+        } else {
+            json_decref(hp_array);
+        }
+    }
+
+    /* Module weight budget */
+    if (ship->max_module_weight > 0)
+        json_object_set_new(json, "max_module_weight", json_integer(ship->max_module_weight));
+
+    /* Captain mob reference - widevnum format */
+    if (ship->captain) {
+        json_object_set_new(json, "captain_mob", json_string(widevnum_string_mobile(ship->captain, NULL)));
+    }
+
+    /* Crew mob definitions */
+    if (ship->crew_defs && list_size(ship->crew_defs) > 0) {
+        json_t *crew_array = json_array();
+        ITERATOR it;
+        iterator_start(&it, ship->crew_defs);
+        SHIP_CREW_DEF *cd;
+        while ((cd = (SHIP_CREW_DEF *)iterator_nextdata(&it)) != NULL) {
+            json_t *cd_json = json_object();
+            if (cd->mob) {
+                json_object_set_new(cd_json, "mob", json_string(widevnum_string_mobile(cd->mob, NULL)));
+            }
+            json_object_set_new(cd_json, "count", json_integer(cd->count));
+            json_array_append_new(crew_array, cd_json);
+        }
+        iterator_stop(&it);
+        if (json_array_size(crew_array) > 0) {
+            json_object_set_new(json, "crew_defs", crew_array);
+        } else {
+            json_decref(crew_array);
+        }
+    }
+
+    /* NPC type (only saved when npc flag is set) */
+    if (IS_SET(ship->flags, SHIP_AUTONOMOUS_NPC) && ship->npc_type != NPC_SHIP_COAST_GUARD)
+        json_object_set_new(json, "npc_type", json_integer(ship->npc_type));
+
+    /* Faction allegiance (only when npc flag is set and faction assigned) */
+    if (IS_SET(ship->flags, SHIP_AUTONOMOUS_NPC) && ship->faction) {
+        WNUM fwnum = { .pArea = ship->faction->area, .vnum = ship->faction->vnum };
+        json_object_set_new(json, "faction", json_string(widevnum_string_wnum(fwnum, NULL)));
+        if (ship->faction_rank != 0)
+            json_object_set_new(json, "faction_rank", json_integer(ship->faction_rank));
+    }
+
+    /* Transport schedule stops */
+    if (IS_SET(ship->flags, SHIP_TRANSPORT) && ship->schedule_stops
+        && list_size(ship->schedule_stops) > 0) {
+
+        if (!ship->schedule_loop)
+            json_object_set_new(json, "schedule_loop", json_false());
+
+        json_t *sched_arr = json_array();
+        ITERATOR sit;
+        SHIP_SCHEDULE_STOP *stop;
+        iterator_start(&sit, ship->schedule_stops);
+        while ((stop = (SHIP_SCHEDULE_STOP *)iterator_nextdata(&sit))) {
+            json_t *sj = json_object();
+
+            json_object_set_new(sj, "id", json_integer(stop->stop_id));
+            if (stop->name[0] != '\0')
+                json_object_set_new(sj, "name", json_string(stop->name));
+
+            if (stop->location_type == STOP_LOC_ROOM) {
+                json_object_set_new(sj, "location_type", json_string("room"));
+                if (stop->dock_room) {
+                    WNUM rwnum = { .pArea = stop->dock_room->area, .vnum = stop->dock_room->vnum };
+                    json_object_set_new(sj, "room", json_string(widevnum_string_wnum(rwnum, NULL)));
+                } else if (stop->room_ref.load.vnum != 0) {
+                    char ref_buf[64];
+                    snprintf(ref_buf, sizeof(ref_buf), "%ld#%ld",
+                        stop->room_ref.load.auid, stop->room_ref.load.vnum);
+                    json_object_set_new(sj, "room", json_string(ref_buf));
+                }
+            } else {
+                json_object_set_new(sj, "location_type", json_string("wilderness"));
+                json_object_set_new(sj, "wilds_uid", json_integer(stop->wilds_uid));
+                json_object_set_new(sj, "x", json_integer(stop->loc_x));
+                json_object_set_new(sj, "y", json_integer(stop->loc_y));
+            }
+
+            if (stop->arrive_hour >= 0)
+                json_object_set_new(sj, "arrive_hour", json_integer(stop->arrive_hour));
+            if (stop->depart_hour >= 0)
+                json_object_set_new(sj, "depart_hour", json_integer(stop->depart_hour));
+            if (stop->dwell_ticks != SHIP_SCHEDULE_DWELL_DEFAULT)
+                json_object_set_new(sj, "dwell_ticks", json_integer(stop->dwell_ticks));
+            if (stop->dock_exit_dir >= 0)
+                json_object_set_new(sj, "exit_dir", json_integer(stop->dock_exit_dir));
+            if (stop->dock_exit_type != DOCK_EXIT_NONE)
+                json_object_set_new(sj, "exit_type", json_integer(stop->dock_exit_type));
+
+            json_array_append_new(sched_arr, sj);
+        }
+        iterator_stop(&sit);
+        json_object_set_new(json, "schedule_stops", sched_arr);
+    }
+
     return json;
 }
 

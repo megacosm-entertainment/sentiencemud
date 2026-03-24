@@ -22,6 +22,7 @@
 #include "../recycle.h"
 #include "../log.h"
 #include "penalty.h"
+#include "../io/json/json_common.h"
 
 /***************************************************************************
  * Type Name Tables                                                        *
@@ -55,6 +56,40 @@ const char *bonus_type_names[] = {
     "freelevels",   /* BONUS_FREE_LEVELS   */
     NULL
 };
+
+static void emit_penalty_staff_event(const char *plain_message,
+                                     const char *staff_message,
+                                     CHAR_DATA *actor,
+                                     const char *action)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = LOG_SECURITY,
+        .plain_message = plain_message ? plain_message : "penalty staff event",
+        .staff_message = staff_message,
+        .wiznet_flag = WIZ_PENALTIES,
+        .wiznet_skip_flag = WIZ_SECURE,
+        .wiznet_min_rank = 0,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
 
 const char *penalty_scope_names[] = {
     "account",      /* PENALTY_SCOPE_ACCOUNT   */
@@ -1135,25 +1170,25 @@ bool json_to_penalties(json_t *array, PENALTY_DATA **list)
     json_array_foreach(array, index, elem) {
         PENALTY_DATA *p = new_penalty();
 
-        str = json_string_value(json_object_get(elem, "type"));
+        str = json_get_string(elem, "type", "");
         if (str) p->type = penalty_type_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "scope"));
+        str = json_get_string(elem, "scope", "");
         if (str) p->scope = penalty_scope_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "reason"));
+        str = json_get_string(elem, "reason", "");
         if (str) { free_string(p->reason); p->reason = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "applied_by"));
+        str = json_get_string(elem, "applied_by", "");
         if (str) { free_string(p->applied_by); p->applied_by = str_dup(str); }
 
         p->applied_at = json_integer_value(json_object_get(elem, "applied_at"));
         p->expires_at = json_integer_value(json_object_get(elem, "expires_at"));
 
-        str = json_string_value(json_object_get(elem, "target_name"));
+        str = json_get_string(elem, "target_name", "");
         if (str) { free_string(p->target_name); p->target_name = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "extra"));
+        str = json_get_string(elem, "extra", "");
         if (str) { free_string(p->extra); p->extra = str_dup(str); }
 
         /* Append in order */
@@ -1234,16 +1269,16 @@ bool json_to_bonuses(json_t *array, BONUS_DATA **list)
     json_array_foreach(array, index, elem) {
         BONUS_DATA *b = new_bonus();
 
-        str = json_string_value(json_object_get(elem, "type"));
+        str = json_get_string(elem, "type", "");
         if (str) b->type = bonus_type_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "scope"));
+        str = json_get_string(elem, "scope", "");
         if (str) b->scope = bonus_scope_lookup(str);
 
-        str = json_string_value(json_object_get(elem, "reason"));
+        str = json_get_string(elem, "reason", "");
         if (str) { free_string(b->reason); b->reason = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "granted_by"));
+        str = json_get_string(elem, "granted_by", "");
         if (str) { free_string(b->granted_by); b->granted_by = str_dup(str); }
 
         b->granted_at = json_integer_value(json_object_get(elem, "granted_at"));
@@ -1251,10 +1286,10 @@ bool json_to_bonuses(json_t *array, BONUS_DATA **list)
         b->value      = (int)json_integer_value(json_object_get(elem, "value"));
         b->flags      = (long)json_integer_value(json_object_get(elem, "flags"));
 
-        str = json_string_value(json_object_get(elem, "target_name"));
+        str = json_get_string(elem, "target_name", "");
         if (str) { free_string(b->target_name); b->target_name = str_dup(str); }
 
-        str = json_string_value(json_object_get(elem, "extra"));
+        str = json_get_string(elem, "extra", "");
         if (str) { free_string(b->extra); b->extra = str_dup(str); }
 
         /* Append in order */
@@ -1561,7 +1596,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
         snprintf(buf, sizeof(buf),
             "$N removed %s penalty from account %s",
             penalty_type_name(p->type), account->username);
-        wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+        emit_penalty_staff_event(buf, buf, ch, "penalty_remove");
 
         snprintf(buf, sizeof(buf),
             "Removed %s penalty (#%d) from account {W%s{x.\n\r",
@@ -1703,7 +1738,7 @@ void do_penalty(CHAR_DATA *ch, char *argument)
                 "$N applied %s penalty (%s) to account %s: %s",
                 penalty_type_name(type), dur_buf,
                 account->username, argument);
-            wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+            emit_penalty_staff_event(buf, buf, ch, "penalty_add");
         }
         return;
     }
@@ -1960,7 +1995,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
         snprintf(buf, sizeof(buf),
             "$N removed %s bonus (%d) from account %s",
             bonus_type_name(b->type), b->value, account->username);
-        wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+        emit_penalty_staff_event(buf, buf, ch, "bonus_remove");
 
         snprintf(buf, sizeof(buf),
             "Removed %s bonus (#%d, value %d) from account {W%s{x.\n\r",
@@ -2101,7 +2136,7 @@ void do_bonus(CHAR_DATA *ch, char *argument)
                 "$N granted %s bonus (%d, %s) to account %s: %s",
                 bonus_type_name(type), value, dur_buf,
                 account->username, reason_buf);
-            wiznet(buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0);
+            emit_penalty_staff_event(buf, buf, ch, "bonus_add");
         }
         return;
     }

@@ -1,6 +1,6 @@
 # Backport Plan: Character Aura System
 
-**Status:** In Progress / Planned (verified 2026-02-26 docs audit)
+**Status:** In Progress (feature-complete implementation; final Stage E verification pending, 2026-03-04)
 
 
 This document defines how to backport the **generic character aura subsystem** from `src_20_dev` into `src`.
@@ -58,18 +58,18 @@ Backporting gives:
 
 Tasks:
 
-- [ ] Add `AURA_DATA` definition and `MAX_AURAS_SHOWN` constant to `merc.h`.
-- [ ] Add `LLIST *auras` to `CHAR_DATA` in `merc.h`.
-- [ ] Add function prototypes in `merc.h`:
+- [x] Add `AURA_DATA` definition and `MAX_AURAS_SHOWN` constant to `merc.h`.
+- [x] Add `LLIST *auras` to `CHAR_DATA` in `merc.h`.
+- [x] Add function prototypes in `merc.h`:
   - `find_aura_char(CHAR_DATA *ch, char *name)`
   - `add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr)`
   - `remove_aura_from_char(CHAR_DATA *ch, char *name)`
-- [ ] Add allocator signatures to `recycle.h`:
+- [x] Add allocator signatures to `recycle.h`:
   - `new_aura_data()` / `free_aura_data()`
-- [ ] Implement allocator/free-list support in `mem.c`.
-- [ ] Initialize `ch->auras` in character creation path (`new_char`).
-- [ ] Ensure aura list memory is cleaned when character memory is released.
-- [ ] Implement runtime helpers in `handler.c` (find/add/remove by unique aura name).
+- [x] Implement allocator/free-list support in `mem.c`.
+- [x] Initialize `ch->auras` in character creation path (`new_char`).
+- [x] Ensure aura list memory is cleaned when character memory is released.
+- [x] Implement runtime helpers in `handler.c` (find/add/remove by unique aura name).
 
 Acceptance criteria:
 
@@ -84,11 +84,11 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Add player save writer support in `save.c`:
-  - Emit `Aura %s~ %s~` records for each `AURA_DATA` entry.
-- [ ] Add player load parser support in `save.c`:
-  - Parse `Aura` records and call `add_aura_to_char(...)`.
-- [ ] Confirm load-order safety (auras should load after `CHAR_DATA` list initialization).
+- [x] Add player save writer support in `json_char.c`:
+  - Emit `auras` JSON array entries for each `AURA_DATA` entry.
+- [x] Add player load parser support in `json_char.c`:
+  - Parse `auras` entries and call `add_aura_to_char(...)`.
+- [x] Confirm load-order safety (auras should load after `CHAR_DATA` list initialization).
 
 Acceptance criteria:
 
@@ -103,10 +103,10 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Port aura display block into `act_info.c` character formatting path.
-- [ ] Respect `MAX_AURAS_SHOWN` cap and existing formatting conventions.
+- [x] Port aura display block into `act_info.c` character formatting path.
+- [x] Respect `MAX_AURAS_SHOWN` cap and existing formatting conventions.
 - [ ] Preserve immortal debug behavior only if desired (show aura internal name under holylight); otherwise gate behind staff visibility rules.
-- [ ] Ensure formatting is robust when aura text lacks trailing newline.
+- [x] Ensure formatting is robust when aura text lacks trailing newline.
 
 Acceptance criteria:
 
@@ -121,10 +121,10 @@ Acceptance criteria:
 
 Tasks:
 
-- [ ] Port `scriptcmd_addaura` and `scriptcmd_remaura` implementations to `script_commands.c`.
-- [ ] Register command entries in script command tables (`script_commands.c` command arrays) for all relevant contexts.
-- [ ] Validate parser behavior for long description string (`$%DESCRIPTION...`) and `%s` substitution expectations.
-- [ ] Add guardrails:
+- [x] Port `scriptcmd_addaura` and `scriptcmd_remaura` implementations to `script_commands.c`.
+- [x] Register command entries in script command tables (`script_commands.c` command arrays) for all relevant contexts.
+- [x] Validate parser behavior for long description string (`$%DESCRIPTION...`) and `%s` substitution expectations.
+- [x] Add guardrails:
   - Null/empty name rejected.
   - Null/empty description rejected for add/update.
 
@@ -147,7 +147,7 @@ Tasks:
   - `holyaura` immortal toggle
 - [ ] Verify there is no naming/semantic confusion in logs and player messaging.
 - [ ] Consider optional sanitization for `long_descr` format string safety (ensure exactly one `%s` or use safer templating helper).
-- [ ] Confirm no changes required to `CMakeLists.txt`/`Makefile` (unless files are added).
+- [x] Confirm no changes required to `CMakeLists.txt`/`Makefile` (unless files are added).
 
 Acceptance criteria:
 
@@ -178,6 +178,8 @@ Keep output compatible with existing `act`/`pers` formatting style.
 ### 5.3 Persistence Scope
 
 Primary target is player save/load persistence.
+
+Canonical persistence is JSON (`io/json/json_char.c`). Legacy pfile `Aura` records in `save.c` were removed to avoid split-brain serialization.
 
 NPC auras are expected to be script/runtime driven and ephemeral unless specifically persisted elsewhere.
 
@@ -232,3 +234,48 @@ This order minimizes risk by bringing up low-level primitives first, then surfac
 - `WORKLOG_aura_system_backport.md` (what was actually implemented)
 - Optional `TODO_aura_system_backport.md` (remaining polish items, if any)
 - Changelog entry in developer/admin docs once merged
+
+---
+
+## 10. Script Usage Examples
+
+### 10.1 Add/Update/Remove Aura
+
+```text
+addaura $n fractal_flame $%s is wreathed in fractal violet flames.{x
+
+remaura $n fractal_flame
+```
+
+Notes:
+
+- `addaura` behaves as upsert by aura name key.
+- Description must be non-empty and include exactly one `%s` placeholder.
+
+### 10.2 Aura Presence Checks
+
+```text
+if aura($n, fractal_flame)
+  // aura exists
+endif
+
+if hasaura($n, fractal_flame)
+  // synonym for aura(...)
+endif
+```
+
+### 10.3 Iterate Aura Names via `ent_mobile`
+
+`ent_mobile.auras` is exposed as an iterator list of aura names (strings):
+
+```text
+list $name in $n.auras
+  // $name is each aura key on the mobile
+endlist
+```
+
+### 10.4 Remaining Before Marking Fully Done
+
+- Stage C: decide whether to include immortal debug aura-name rendering in look/room output (currently not shown there).
+- Stage E: run gameplay regression checks for legacy aura-named mechanics (`healing_aura`, spell deflection messaging, `holyaura`).
+- Stage E: optional additional hardening if we want deeper format sanitization beyond current script guardrails.

@@ -7,6 +7,7 @@
 #include "../../log.h"
 #include "../../tables.h"
 #include "../../wilds.h"
+#include "../../requirements.h"
 
 bool string_argremove_index(char *src, int argindex, char *buf);
 bool string_argremove_phrase(char *src, char *phrase, char *buf);
@@ -15,6 +16,22 @@ char *string_lineadd(char *string, char *newstr, int line);
 char *olc_getline(char *str, char *buf);
 char *numlineas(char *string);
 bool is_valid_colour_code(const char *code);
+
+// Forward declarations for color string manipulation functions
+int strlen_no_colours(const char *str);
+char *nocolour(const char *string);
+int get_colour_width(char *text);
+int str_cmp_nocolour(const char *astr, const char *bstr);
+
+// Forward declaration for SHA256 function
+extern char *sha256_crypt(const char *pwd);
+
+// Forward declarations for bit operations functions
+extern bool is_stat(const struct flag_type *flag_table);
+extern long flag_value(const struct flag_type *flag_table, char *argument);
+extern char *flag_string(const struct flag_type *flag_table, long bits);
+extern char *flag_string_commas(const struct flag_type *flag_table, long bits);
+extern char *affect_loc_name(int location);
 
 static const struct flag_type *resolve_flag_table_for_test(const char *table_name) {
     if (!table_name) {
@@ -29,6 +46,15 @@ static const struct flag_type *resolve_flag_table_for_test(const char *table_nam
     }
     if (str_cmp(table_name, "exit_flags") == 0) {
         return exit_flags;
+    }
+    if (str_cmp(table_name, "sex_flags") == 0) {
+        return sex_flags;
+    }
+    if (str_cmp(table_name, "position_flags") == 0) {
+        return position_flags;
+    }
+    if (str_cmp(table_name, "size_flags") == 0) {
+        return size_flags;
     }
 
     return NULL;
@@ -1528,6 +1554,40 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
         return TEST_SUCCESS;
     }
 
+    if (strcmp(func_name, "one_argument_norm") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *argument_in = test_json_get_string(test_case, "argument");
+            const char *expected_first = test_json_get_string(test_case, "expected_first");
+            const char *expected_rest = test_json_get_string(test_case, "expected_rest");
+            char argument_buf[MAX_STRING_LENGTH];
+            char first[MAX_INPUT_LENGTH];
+
+            if (!argument_in || !expected_first || !expected_rest) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "one_argument_norm test case missing argument/expected_first/expected_rest");
+                return TEST_ERROR;
+            }
+
+            snprintf(argument_buf, sizeof(argument_buf), "%s", argument_in);
+            char *rest = one_argument_norm(argument_buf, first);
+
+            if (str_cmp(first, expected_first) != 0 || str_cmp(rest, expected_rest) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "one_argument_norm('%s') returned first='%s', rest='%s'; expected first='%s', rest='%s'",
+                             argument_in,
+                             first,
+                             rest,
+                             expected_first,
+                             expected_rest);
+                return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
     if (strcmp(func_name, "smash_tilde") == 0) {
         size_t index;
         json_t *test_case;
@@ -1639,6 +1699,58 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
                              actual_not_equal ? "true" : "false",
                              expected_not_equal ? "true" : "false");
                 return TEST_FAILURE;
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "str_cmp_nocolour") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *astr = test_json_get_string(test_case, "astr");
+            const char *bstr = test_json_get_string(test_case, "bstr");
+            
+            if (astr && bstr) {
+                // New format with astr/bstr and expected integer result
+                int expected = test_json_get_int(test_case, "expected");
+                int result = str_cmp_nocolour(astr, bstr);
+
+                // Normalize result to -1, 0, or 1 like expected values
+                if (result < 0) result = -1;
+                else if (result > 0) result = 1;
+
+                if (result != expected) {
+                    if (test->verbose_output) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                     "str_cmp_nocolour(\"%s\", \"%s\") = %d, expected %d",
+                                     astr, bstr, result, expected);
+                    }
+                    return TEST_FAILURE;
+                }
+            } else {
+                // Legacy format with left/right and expected_not_equal
+                const char *left = test_json_get_string(test_case, "left");
+                const char *right = test_json_get_string(test_case, "right");
+                bool expected_not_equal = test_json_get_bool(test_case, "expected_not_equal");
+
+                if (!left || !right) {
+                    log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                               "str_cmp_nocolour test case missing left/right");
+                    return TEST_ERROR;
+                }
+
+                bool actual_not_equal = str_cmp_nocolour(left, right);
+                if (actual_not_equal != expected_not_equal) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "str_cmp_nocolour('%s','%s') returned %s, expected %s",
+                                 left,
+                                 right,
+                                 actual_not_equal ? "true" : "false",
+                                 expected_not_equal ? "true" : "false");
+                    return TEST_FAILURE;
+                }
             }
         }
 
@@ -2564,6 +2676,681 @@ test_result_t run_pure_function_test_case(test_case_t *test) {
             free(wilds.map);
         }
 
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "sha256") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input_string = test_json_get_string(test_case, "input_string");
+            const char *expected_hash = test_json_get_string(test_case, "expected_hash");
+
+            if (!input_string || !expected_hash) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "sha256 test case missing input_string or expected_hash");
+                return TEST_ERROR;
+            }
+
+            char *actual_hash = sha256_crypt(input_string);
+            if (!actual_hash) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "sha256_crypt('%s') returned NULL",
+                             input_string);
+                return TEST_ERROR;
+            }
+
+            if (strcmp(actual_hash, expected_hash) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "sha256_crypt('%s') returned '%s', expected '%s'",
+                             input_string, actual_hash, expected_hash);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ sha256('%s') -> %s",
+                             input_string, actual_hash);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "is_stat") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *table_name = test_json_get_string(test_case, "table_name");
+            bool expected = test_json_get_bool(test_case, "expected");
+            const struct flag_type *flag_table = resolve_flag_table_for_test(table_name);
+            bool actual;
+
+            if (!table_name) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "is_stat test case missing table_name");
+                return TEST_ERROR;
+            }
+
+            actual = is_stat(flag_table);
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "is_stat('%s') returned %s, expected %s",
+                             table_name,
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ is_stat('%s') -> %s",
+                             table_name, actual ? "true" : "false");
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "flag_value") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *table_name = test_json_get_string(test_case, "table_name");
+            const char *argument = test_json_get_string(test_case, "argument");
+            long expected = test_json_get_int(test_case, "expected");
+            const struct flag_type *flag_table = resolve_flag_table_for_test(table_name);
+            char argument_copy[MAX_INPUT_LENGTH];
+            long actual;
+
+            if (!table_name || !argument) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "flag_value test case missing table_name or argument");
+                return TEST_ERROR;
+            }
+
+            // flag_value modifies the argument string, so we need a copy
+            strcpy(argument_copy, argument);
+            actual = flag_value(flag_table, argument_copy);
+            
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_value('%s', '%s') returned %ld, expected %ld",
+                             table_name, argument, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ flag_value('%s', '%s') -> %ld",
+                             table_name, argument, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "flag_string") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *table_name = test_json_get_string(test_case, "table_name");
+            long bits = test_json_get_int(test_case, "bits");
+            const char *expected = test_json_get_string(test_case, "expected");
+            const struct flag_type *flag_table = resolve_flag_table_for_test(table_name);
+            char *actual;
+
+            if (!table_name || !expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "flag_string test case missing table_name or expected");
+                return TEST_ERROR;
+            }
+
+            actual = flag_string(flag_table, bits);
+            if (!actual) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_string('%s', %ld) returned NULL",
+                             table_name, bits);
+                return TEST_ERROR;
+            }
+
+            if (strcmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_string('%s', %ld) returned '%s', expected '%s'",
+                             table_name, bits, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ flag_string('%s', %ld) -> '%s'",
+                             table_name, bits, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "flag_string_commas") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *table_name = test_json_get_string(test_case, "table_name");
+            long bits = test_json_get_int(test_case, "bits");
+            const char *expected = test_json_get_string(test_case, "expected");
+            const struct flag_type *flag_table = resolve_flag_table_for_test(table_name);
+            char *actual;
+
+            if (!table_name || !expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "flag_string_commas test case missing table_name or expected");
+                return TEST_ERROR;
+            }
+
+            actual = flag_string_commas(flag_table, bits);
+            if (!actual) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_string_commas('%s', %ld) returned NULL",
+                             table_name, bits);
+                return TEST_ERROR;
+            }
+
+            if (strcmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "flag_string_commas('%s', %ld) returned '%s', expected '%s'",
+                             table_name, bits, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ flag_string_commas('%s', %ld) -> '%s'",
+                             table_name, bits, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "affect_loc_name") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            long location = test_json_get_int(test_case, "location");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *actual;
+
+            if (!expected) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "affect_loc_name test case missing expected");
+                return TEST_ERROR;
+            }
+
+            actual = affect_loc_name((int)location);
+            if (!actual) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "affect_loc_name(%ld) returned NULL",
+                             location);
+                return TEST_ERROR;
+            }
+
+            if (strcmp(actual, expected) != 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "affect_loc_name(%ld) returned '%s', expected '%s'",
+                             location, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ affect_loc_name(%ld) -> '%s'",
+                             location, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "position_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "position_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = position_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "position_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ position_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "sex_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "sex_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = sex_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "sex_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ sex_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "size_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "size_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = size_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "size_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ size_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "item_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "item_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = item_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "item_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ item_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "toxin_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "toxin_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = toxin_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "toxin_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ toxin_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "damage_class_lookup") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int actual;
+
+            if (!input) {
+                log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                           "damage_class_lookup test case missing input");
+                return TEST_ERROR;
+            }
+
+            actual = damage_class_lookup(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "damage_class_lookup('%s') returned %d, expected %d",
+                             input, actual, expected);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ damage_class_lookup('%s') -> %d",
+                             input, actual);
+            }
+        }
+
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "strlen_no_colours") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int result = strlen_no_colours(input);
+
+            if (result != expected) {
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "strlen_no_colours(\"%s\") = %d, expected %d",
+                                 input ? input : "(null)", result, expected);
+                }
+                return TEST_FAILURE;
+            }
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "nocolour") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *result = nocolour(input);
+
+            if (!result || strcmp(result, expected) != 0) {
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "nocolour(\"%s\") = \"%s\", expected \"%s\"",
+                                 input ? input : "(null)",
+                                 result ? result : "(null)",
+                                 expected ? expected : "(null)");
+                }
+                if (result) free_string(result);
+                return TEST_FAILURE;
+            }
+            if (result) free_string(result);
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "get_colour_width") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            int expected = test_json_get_int(test_case, "expected");
+            int result = get_colour_width((char *)input);
+
+            if (result != expected) {
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "get_colour_width(\"%s\") = %d, expected %d",
+                                 input ? input : "(null)", result, expected);
+                }
+                return TEST_FAILURE;
+            }
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_is_hidden") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            bool expected = test_json_get_bool(test_case, "expected");
+            bool actual = requirements_is_hidden(input);
+
+            if (actual != expected) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_is_hidden('%s') returned %s, expected %s",
+                             input ? input : "(null)",
+                             actual ? "true" : "false",
+                             expected ? "true" : "false");
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_is_hidden('%s') -> %s",
+                             input ? input : "(null)",
+                             actual ? "true" : "false");
+            }
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_get_player_string") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *actual = requirements_get_player_string(input);
+
+            if ((actual == NULL && expected != NULL) ||
+                (actual != NULL && expected == NULL) ||
+                (actual != NULL && expected != NULL && strcmp(actual, expected) != 0)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_get_player_string('%s') returned '%s', expected '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)",
+                             expected ? expected : "(null)");
+                if (actual) free(actual);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_get_player_string('%s') -> '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)");
+            }
+
+            if (actual) free(actual);
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_text_to_json") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *type = test_json_get_string(test_case, "type");
+            char err_buf[1024];
+            char *actual_json_str = requirements_text_to_json(input, err_buf, sizeof(err_buf));
+
+            // Handle null input case
+            if (input == NULL) {
+                if (actual_json_str != NULL) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "requirements_text_to_json(NULL) returned non-null result");
+                    free(actual_json_str);
+                    return TEST_FAILURE;
+                }
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                                 "✓ requirements_text_to_json(NULL) -> NULL");
+                }
+                continue;
+            }
+
+            // For empty string or invalid input, expect NULL
+            if (strlen(input) == 0) {
+                if (actual_json_str != NULL) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "requirements_text_to_json('') should return NULL but returned '%s'",
+                                 actual_json_str);
+                    free(actual_json_str);
+                    return TEST_FAILURE;
+                }
+                if (test->verbose_output) {
+                    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                                 "✓ requirements_text_to_json('') -> NULL");
+                }
+                continue;
+            }
+
+            if (!actual_json_str) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_text_to_json('%s') failed: %s",
+                             input, err_buf);
+                return TEST_FAILURE;
+            }
+
+            // For json_conversion type, check that the result contains expected fields
+            if (type && strcmp(type, "json_conversion") == 0) {
+                json_t *expected_json = json_object_get(test_case, "expected_json_contains");
+                if (expected_json) {
+                    json_error_t jerr;
+                    json_t *actual_json = json_loads(actual_json_str, 0, &jerr);
+                    if (!actual_json) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                     "requirements_text_to_json('%s') produced invalid JSON: %s",
+                                     input, actual_json_str);
+                        free(actual_json_str);
+                        return TEST_FAILURE;
+                    }
+
+                    // Check that all expected fields are present with correct values
+                    const char *key;
+                    json_t *value;
+                    json_object_foreach(expected_json, key, value) {
+                        json_t *actual_value = json_object_get(actual_json, key);
+                        if (!actual_value || !json_equal(value, actual_value)) {
+                            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                         "requirements_text_to_json('%s'): expected field '%s' mismatch",
+                                         input, key);
+                            json_decref(actual_json);
+                            free(actual_json_str);
+                            return TEST_FAILURE;
+                        }
+                    }
+                    json_decref(actual_json);
+                }
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_text_to_json('%s') -> valid JSON",
+                             input);
+            }
+
+            free(actual_json_str);
+        }
+        return TEST_SUCCESS;
+    }
+
+    if (strcmp(func_name, "requirements_json_to_text") == 0) {
+        size_t index;
+        json_t *test_case;
+        json_array_foreach(test_cases, index, test_case) {
+            const char *input = test_json_get_string(test_case, "input");
+            const char *expected = test_json_get_string(test_case, "expected");
+            char *actual = requirements_json_to_text(input);
+
+            if ((actual == NULL && expected != NULL) ||
+                (actual != NULL && expected == NULL) ||
+                (actual != NULL && expected != NULL && strcmp(actual, expected) != 0)) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "requirements_json_to_text('%s') returned '%s', expected '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)",
+                             expected ? expected : "(null)");
+                if (actual) free(actual);
+                return TEST_FAILURE;
+            }
+
+            if (test->verbose_output) {
+                log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                             "✓ requirements_json_to_text('%s') -> '%s'",
+                             input ? input : "(null)",
+                             actual ? actual : "(null)");
+            }
+
+            if (actual) free(actual);
+        }
         return TEST_SUCCESS;
     }
 

@@ -1,0 +1,184 @@
+{
+  "type": "test_suite",
+  "test_suite": "requirements_pure_function_tests",
+  "description": "Unit tests for requirements system pure functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "requirements_is_hidden_tests",
+      "description": "Tests for requirements_is_hidden function",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "requirements_is_hidden",
+        "test_cases": [
+          {
+            "input": "{\"hidden\":true}",
+            "expected": true
+          },
+          {
+            "input": "{\"hidden\":false}",
+            "expected": false
+          },
+          {
+            "input": "{\"tot_level\":50}",
+            "expected": false
+          },
+          {
+            "input": null,
+            "expected": false
+          },
+          {
+            "input": "",
+            "expected": false
+          },
+          {
+            "input": "{invalid json}",
+            "expected": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "requirements_get_player_string_tests",
+      "description": "Tests for requirements_get_player_string function",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "requirements_get_player_string",
+        "test_cases": [
+          {
+            "input": "{\"player_string\":\"Level 50 required\"}",
+            "expected": "Level 50 required",
+            "type": "string"
+          },
+          {
+            "input": "{\"tot_level\":50}",
+            "expected": null,
+            "type": "string"
+          },
+          {
+            "input": null,
+            "expected": null,
+            "type": "string"
+          },
+          {
+            "input": "",
+            "expected": null,
+            "type": "string"
+          },
+          {
+            "input": "{invalid json}",
+            "expected": null,
+            "type": "string"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "requirements_text_to_json_tests",
+      "description": "Tests for requirements_text_to_json function",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "requirements_text_to_json",
+        "test_cases": [
+          {
+            "input": "tot_level 50",
+            "expected_json_contains": {
+              "tot_level": 50
+            },
+            "type": "json_conversion"
+          },
+          {
+            "input": "tot_level >= 50",
+            "expected_json_contains": {
+              "tot_level": {
+                "op": ">=",
+                "value": 50
+              }
+            },
+            "type": "json_conversion"
+          },
+          {
+            "input": "tot_level 50, Level 50 required",
+            "expected_json_contains": {
+              "tot_level": 50,
+              "player_string": "Level 50 required"
+            },
+            "type": "json_conversion"
+          },
+          {
+            "input": "tot_level 50, hidden",
+            "expected_json_contains": {
+              "tot_level": 50,
+              "hidden": true
+            },
+            "type": "json_conversion"
+          },
+          {
+            "input": null,
+            "expected": null,
+            "type": "json_conversion"
+          },
+          {
+            "input": "",
+            "expected": null,
+            "type": "json_conversion"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    },
+    {
+      "name": "requirements_json_to_text_tests",
+      "description": "Tests for requirements_json_to_text function",
+      "test_type": "pure_function_test",
+      "input": {
+        "function": "requirements_json_to_text",
+        "test_cases": [
+          {
+            "input": "{\"tot_level\":50}",
+            "expected": "tot_level 50",
+            "type": "string"
+          },
+          {
+            "input": "{\"tot_level\":{\"op\":\">=\",\"value\":50}}",
+            "expected": "tot_level >= 50",
+            "type": "string"
+          },
+          {
+            "input": "{\"tot_level\":50,\"player_string\":\"Level 50 required\"}",
+            "expected": "tot_level 50, Level 50 required",
+            "type": "string"
+          },
+          {
+            "input": "{\"tot_level\":50,\"hidden\":true}",
+            "expected": "tot_level 50, hidden",
+            "type": "string"
+          },
+          {
+            "input": null,
+            "expected": null,
+            "type": "string"
+          },
+          {
+            "input": "",
+            "expected": null,
+            "type": "string"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_cases_pass": true
+      }
+    }
+  ]
+}

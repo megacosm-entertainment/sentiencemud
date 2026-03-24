@@ -257,7 +257,7 @@ static void medit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     olc_display_string(ctx, theme, "Name:",       "name",   pMob->player_name);
     olc_display_string(ctx, theme, "Area:",        NULL,    pMob->area ? pMob->area->name : "No Area");
-    olc_display_number(ctx, theme, "Vnum:",        NULL,    pMob->vnum);
+    olc_display_string(ctx, theme, "Vnum:",        NULL,    widevnum_string_mobile(pMob, pMob->area));
     olc_display_number(ctx, theme, "Loaded:",      NULL,    pMob->count);
 
     olc_display_pair(ctx, theme,
@@ -375,14 +375,18 @@ static void medit_show_defense_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
 
     if (pMob->corpse_load.vnum) {
         OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->corpse_load.vnum);
-        olc_display_vnum(ctx, theme, "Corpse Obj:",   "corpsevnum",
-            pMob->corpse_load.vnum, obj ? obj->short_descr : NULL);
+        olc_display_widevnum(ctx, theme, "Corpse Obj:",   "corpsevnum",
+            obj ? widevnum_string_object(obj, pMob->area)
+                : formatf("%ld", pMob->corpse_load.vnum),
+            obj ? obj->short_descr : NULL);
     }
 
     if (pMob->zombie_load.vnum) {
         OBJ_INDEX_DATA *obj = get_obj_index(pMob->area, pMob->zombie_load.vnum);
-        olc_display_vnum(ctx, theme, "Zombie Obj:",   "zombievnum",
-            pMob->zombie_load.vnum, obj ? obj->short_descr : NULL);
+        olc_display_widevnum(ctx, theme, "Zombie Obj:",   "zombievnum",
+            obj ? widevnum_string_object(obj, pMob->area)
+                : formatf("%ld", pMob->zombie_load.vnum),
+            obj ? obj->short_descr : NULL);
     }
 }
 
@@ -1298,9 +1302,14 @@ MEDIT(medit_name)
 
     if (argument[0] == '\0')
     {
-    send_to_char("Syntax:  name [string]\n\r", ch);
-    return false;
+        send_to_char("Syntax:  name <text**>\n\r"
+                     "** - <text> must conform to naming restrictions.\n\r", ch);
+        return false;
     }
+
+    // Validate the input can be a name
+    if (!olc_validate_name(ch, argument))
+        return false;
 
     player_dir = resolve_game_path(PLAYER_DIR, player_dir_buf, sizeof(player_dir_buf));
     snprintf(name, sizeof(name), "%s%c/%s", player_dir, tolower(argument[0]), capitalize(argument));
@@ -1452,7 +1461,7 @@ MEDIT(medit_parent)
     pMob->parent = parent;
     pMob->parent_inherited = false;
 
-    send_to_char("Parent mobile set. Inheritance is resolved at load time.\n\r", ch);
+    send_to_char("Parent mobile set. Inheritance applied immediately.\n\r", ch);
     return true;
 }
 

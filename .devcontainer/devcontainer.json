@@ -3,10 +3,8 @@
     "image": "ghcr.io/megacosm-entertainment/sentience_trixie:latest",
     "remoteUser": "sentiencemud",
     "workspaceFolder": "/sentience/src",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/sentience/src,type=bind",
-    "mounts": [
-        "source=${localWorkspaceFolder}/../,target=/sentience/,type=bind"
-    ],
+    "workspaceMount": "source=${localWorkspaceFolder}/..,target=/sentience,type=bind",
+    "mounts": [],
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {
             "installZsh": true,
@@ -27,7 +25,6 @@
         "vscode": {
             "extensions": [
                 "ms-vscode.cpptools",
-                "ms-vscode.cmake-tools",
                 "cweijan.vscode-redis-client",
                 "eamodio.gitlens",
                 "Doppler.doppler-vscode"
@@ -38,7 +35,8 @@
                 "[c]": { "editor.tabSize": 4 },
                 "git.enableCommitSigning": true,
                 "remote.SSH.enableAgentForwarding": true,
-                "git.useConfigOnly": false
+                "git.useConfigOnly": false,
+                "terminal.integrated.cwd": "/sentience/src"
             }
         }
     },

@@ -105,7 +105,7 @@ protocol_layer_t* protocol_websocket_create(connection_t *conn, struct descripto
         PROTO_CAP_UTF8 |
         PROTO_CAP_GMCP;  // WebSocket supports GMCP but not telnet-specific MSDP
 
-    // WebSocket clients typically support colors and UTF-8 by default
+    // WebSocket UI clients can interpret native { color tokens directly.
     ws_proto->color_enabled = true;
     ws_proto->xterm_256_enabled = true;
     ws_proto->utf8_enabled = true;
@@ -193,50 +193,8 @@ static void websocket_process_input(protocol_layer_t *proto,
 }
 
 /*
- * ANSI color definitions (same as protocol.c)
- * Note: Background colors (C_BK_*) are already defined in merc.h as macros
- */
-static const char s_Clean[]       = "\033[0m";
-static const char s_DarkRed[]     = "\033[0;31m";
-static const char s_BoldRed[]     = "\033[1;31m";
-static const char s_DarkGreen[]   = "\033[0;32m";
-static const char s_BoldGreen[]   = "\033[1;32m";
-static const char s_DarkYellow[]  = "\033[0;33m";
-static const char s_BoldYellow[]  = "\033[1;33m";
-static const char s_DarkBlue[]    = "\033[0;34m";
-static const char s_BoldBlue[]    = "\033[1;34m";
-static const char s_DarkMagenta[] = "\033[0;35m";
-static const char s_BoldMagenta[] = "\033[1;35m";
-static const char s_DarkCyan[]    = "\033[0;36m";
-static const char s_BoldCyan[]    = "\033[1;36m";
-static const char s_BoldWhite[]   = "\033[1;37m";
-static const char s_DarkBlack[]   = "\033[0;30m";
-static const char s_BoldBlack[]   = "\033[1;30m";
-
-/*
- * Generate ANSI 256-color code (simplified version of ColourRGB from protocol.c)
- */
-static const char* get_xterm_256_color(char foreground_or_background, int r, int g, int b)
-{
-    static char color_buf[32];
-    int color_code;
-
-    // Convert RGB (0-5 range) to XTerm 256 color code
-    // XTerm 216-color cube: 16 + (r * 36) + (g * 6) + b
-    color_code = 16 + (r * 36) + (g * 6) + b;
-
-    if (foreground_or_background == 'f' || foreground_or_background == 'F') {
-        sprintf(color_buf, "\033[38;5;%dm", color_code);
-    } else {
-        sprintf(color_buf, "\033[48;5;%dm", color_code);
-    }
-
-    return color_buf;
-}
-
-/*
  * Process output to WebSocket connection
- * Applies ANSI colors but skips telnet-specific features (MXP, MSP, MCCP)
+ * Preserves native { color tokens for browser-side rendering.
  */
 static const char* websocket_process_output(protocol_layer_t *proto,
                                            const char *output, int *out_len)
@@ -249,107 +207,28 @@ static const char* websocket_process_output(protocol_layer_t *proto,
     if (!output)
         return output;
 
-    // If colors disabled, strip color codes
-    if (!ws_proto->color_enabled) {
-        // Simple strip - just skip color sequences
-        while (output[j] != '\0' && i < MAX_OUTPUT_BUFFER) {
-            if (output[j] == color_char) {
-                j++; // Skip color char
-                if (output[j] != '\0')
-                    j++; // Skip color code
-            } else {
-                result[i++] = output[j++];
-            }
-        }
-        result[i] = '\0';
+    // WebSocket clients handle native { color tokens themselves.
+    // Keep payload text as-is so browser clients can render using their own mapper.
+    if (ws_proto->color_enabled) {
         if (out_len)
-            *out_len = i;
-        return result;
+            *out_len = strlen(output);
+        return output;
     }
 
-    // Process color codes
+    // If colors disabled, strip color codes
+    // Simple strip - just skip color sequences
     while (output[j] != '\0' && i < MAX_OUTPUT_BUFFER) {
         if (output[j] == color_char) {
-            const char *color_seq = NULL;
             j++; // Skip color char
-
-            switch (output[j]) {
-                case '{': // Two {{ in a row = literal {
-                    result[i++] = color_char;
-                    break;
-
-                // Basic ANSI colors
-                case 'x': case 'X': case 'n': color_seq = s_Clean; break;
-                case 'r': color_seq = s_DarkRed; break;
-                case 'R': color_seq = s_BoldRed; break;
-                case 'g': color_seq = s_DarkGreen; break;
-                case 'G': color_seq = s_BoldGreen; break;
-                case 'y': color_seq = s_DarkYellow; break;
-                case 'Y': color_seq = s_BoldYellow; break;
-                case 'b': color_seq = s_DarkBlue; break;
-                case 'B': color_seq = s_BoldBlue; break;
-                case 'm': color_seq = s_DarkMagenta; break;
-                case 'M': color_seq = s_BoldMagenta; break;
-                case 'c': color_seq = s_DarkCyan; break;
-                case 'C': color_seq = s_BoldCyan; break;
-                case 'w': color_seq = s_Clean; break;
-                case 'W': color_seq = s_BoldWhite; break;
-                case 'd': color_seq = s_DarkBlack; break;
-                case 'D': color_seq = s_BoldBlack; break;
-
-                // Background colors
-                case '0': color_seq = C_BK_BLACK; break;
-                case '1': color_seq = C_BK_BLUE; break;
-                case '2': color_seq = C_BK_CYAN; break;
-                case '3': color_seq = C_BK_GREEN; break;
-                case '4': color_seq = C_BK_MAGENTA; break;
-                case '5': color_seq = C_BK_RED; break;
-                case '6': color_seq = C_BK_WHITE; break;
-                case '7': color_seq = C_BK_YELLOW; break;
-
-                // Extended colors (XTerm 256)
-                case 'a': color_seq = get_xterm_256_color('f', 0, 1, 4); break; // azure
-                case 'A': color_seq = get_xterm_256_color('f', 0, 2, 5); break;
-                case 'j': color_seq = get_xterm_256_color('f', 0, 3, 1); break; // jade
-                case 'J': color_seq = get_xterm_256_color('f', 0, 5, 2); break;
-                case 'l': color_seq = get_xterm_256_color('f', 1, 4, 0); break; // lime
-                case 'L': color_seq = get_xterm_256_color('f', 2, 5, 0); break;
-                case 'o': color_seq = get_xterm_256_color('f', 5, 2, 0); break; // orange
-                case 'O': color_seq = get_xterm_256_color('f', 5, 3, 0); break;
-                case 'p': color_seq = get_xterm_256_color('f', 3, 0, 1); break; // pink
-                case 'P': color_seq = get_xterm_256_color('f', 5, 0, 2); break;
-                case 't': color_seq = get_xterm_256_color('f', 2, 1, 0); break; // tan
-                case 'T': color_seq = get_xterm_256_color('f', 3, 2, 1); break;
-                case 'v': color_seq = get_xterm_256_color('f', 1, 0, 4); break; // violet
-                case 'V': color_seq = get_xterm_256_color('f', 2, 0, 5); break;
-
-                // Special effects
-                case 'i': color_seq = "\033[5m"; break;  // blink
-                case 'f': color_seq = "\033[7m"; break;  // reverse
-
-                default:
-                    // Unknown color code - just skip it
-                    break;
-            }
-
-            // Copy color sequence to output
-            if (color_seq) {
-                while (*color_seq && i < MAX_OUTPUT_BUFFER) {
-                    result[i++] = *color_seq++;
-                }
-            }
-
-            j++; // Move past color code character
+            if (output[j] != '\0')
+                j++; // Skip color code
         } else {
-            // Regular character - copy it
             result[i++] = output[j++];
         }
     }
-
     result[i] = '\0';
     if (out_len)
         *out_len = i;
-
     return result;
 }
 

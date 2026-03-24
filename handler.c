@@ -2097,7 +2097,11 @@ void char_from_room(CHAR_DATA *ch)
         }
 
         if (prev == NULL)
-            log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "Char_from_room: ch not found.");
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                "Char_from_room: %s not found in room %ld people list! "
+                "Character may have been in multiple rooms or removed twice.",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                ch->in_room ? ch->in_room->vnum : 0);
     }
 
     list_remlink(ch->in_room->lpeople, ch, false);
@@ -2152,6 +2156,31 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
         char_to_room(ch,room);
 
     return;
+    }
+
+    /* Safety check: if the character is already on a room's people list,
+     * remove them first. This prevents dual-room corruption where a
+     * character ends up on two rooms' people lists simultaneously.
+     * This can happen when char_to_room is called without char_from_room
+     * (e.g., during login when in_room is pre-set from save data, or
+     * via char_to_vroom which bypasses char_from_room). */
+    if (ch->in_room != NULL)
+    {
+        /* Check if ch is actually linked into the old room's people list */
+        CHAR_DATA *scan;
+        bool on_list = false;
+        for (scan = ch->in_room->people; scan; scan = scan->next_in_room)
+        {
+            if (scan == ch) { on_list = true; break; }
+        }
+        if (on_list)
+        {
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                "Char_to_room: %s already on people list of room %ld, removing first.",
+                IS_NPC(ch) ? ch->short_descr : ch->name,
+                ch->in_room->vnum);
+            char_from_room(ch);
+        }
     }
 
     if (MOUNTED(ch) && MOUNTED(ch)->in_room == ch->in_room
@@ -2897,6 +2926,26 @@ void obj_from_room(OBJ_DATA *obj)
  */
 void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 {
+    /* Safety check: if the object is already in a room's contents list,
+     * remove it first. This prevents dual-room corruption where an
+     * object ends up on two rooms' contents lists simultaneously. */
+    if (obj->in_room != NULL)
+    {
+        OBJ_DATA *scan;
+        bool on_list = false;
+        for (scan = obj->in_room->contents; scan; scan = scan->next_content)
+        {
+            if (scan == obj) { on_list = true; break; }
+        }
+        if (on_list)
+        {
+            log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                "obj_to_room: obj '%s' (vnum %ld) already on contents list of room %ld, removing first.",
+                obj->short_descr, obj->pIndexData->vnum, obj->in_room->vnum);
+            obj_from_room(obj);
+        }
+    }
+
     obj->next_content		= pRoomIndex->contents;
     pRoomIndex->contents	= obj;
     obj->in_room		= pRoomIndex;
@@ -2941,6 +2990,25 @@ void obj_to_vroom(OBJ_DATA *obj, WILDS_DATA *pWilds, int x, int y)
     if (!pWildsRoom)
         pWildsRoom = create_wilds_vroom(pWilds, x, y);
     if (pWildsRoom) {
+        /* Safety check: if the object is already in a room's contents list,
+         * remove it first to prevent dual-room corruption. */
+        if (obj->in_room != NULL)
+        {
+            OBJ_DATA *scan;
+            bool on_list = false;
+            for (scan = obj->in_room->contents; scan; scan = scan->next_content)
+            {
+                if (scan == obj) { on_list = true; break; }
+            }
+            if (on_list)
+            {
+                log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+                    "obj_to_vroom: obj '%s' (vnum %ld) already on contents list of room %ld, removing first.",
+                    obj->short_descr, obj->pIndexData->vnum, obj->in_room->vnum);
+                obj_from_room(obj);
+            }
+        }
+
         obj->in_wilds = pWilds;
         obj->in_room = pWildsRoom;
         obj->carried_by = NULL;
@@ -3237,7 +3305,6 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     ROOM_INDEX_DATA *clone, *next_clone;
     CHAR_DATA *wch;
     DESCRIPTOR_DATA *d;
-    char buf[MAX_STRING_LENGTH];
     ITERATOR it;
 
     if (ch->gc || list_hasdata(gc_mobiles, ch))
@@ -3245,8 +3312,12 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "extract_char: %s had null ch->in_room",
-             IS_NPC(ch) ? ch->short_descr : ch->name);
+        log_message_f(LOG_LEVEL_BUG, LOG_ERROR,
+            "extract_char: %s had null ch->in_room (NPC=%d, valid=%d). "
+            "Character may have already been extracted or was never placed in a room.",
+            IS_NPC(ch) ? ch->short_descr : ch->name,
+            IS_NPC(ch) ? 1 : 0,
+            IS_VALID(ch) ? 1 : 0);
     return;
     }
 
@@ -8200,7 +8271,9 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,in
 
     if(!room) room = ch->in_room;
 
-    for(obj = room->contents; obj && total < amount; obj = obj->next_content) {
+    OBJ_DATA *obj_next;
+    for(obj = room->contents; obj && total < amount; obj = obj_next) {
+        obj_next = obj->next_content;
         total2 = use_catalyst_obj(ch,room,obj,type,amount - total,min_strength,max_strength,active,show);
         if(total2 < 0) return -1;
 
@@ -8926,11 +8999,13 @@ void list_remref(LLIST *lp)
         --lp->ref;
         list_cull(lp);
 
-        if(lp->ref < 1 && !lp->valid) {
-            list_purge(lp);
-            free(lp);
-        } else if(lp->ref < 1 && lp->purge) {
-            list_destroy(lp);
+        if(lp->ref < 1) {
+            if (!lp->valid) {
+                list_purge(lp);
+                free(lp);
+            } else if (lp->purge) {
+                list_destroy(lp);
+            }
         }
     }
 }
@@ -10906,8 +10981,7 @@ void send_email(CHAR_DATA *ch, char *email, char *subject, char *message, char *
 
 // Define a structure to hold email-related data
 struct EmailData {
-    CHAR_DATA *ch;
-    ACCOUNT_DATA *acct;
+    char *recipient_name;
     char *email;
     char *subject;
     char *message;
@@ -10919,10 +10993,62 @@ struct EmailData {
 void *send_email_thread(void *arg) {
     struct EmailData *emailData = (struct EmailData *)arg;
 
-    send_email_ex(emailData->ch, emailData->acct, emailData->email, emailData->subject, emailData->message, 
-                  emailData->attachment_filename, emailData->attachment_mime_type);
+    // Build a temporary pseudo-call using only copied string data
+    {
+        char subj_buf[256];
+        char body_buf[MSL*2];
+        char body_buf_html[MSL*5];
 
-    // Clean up and exit the thread
+        extern GAME_SETTINGS_DATA game_settings;
+
+        quickmail_initialize();
+
+        if (emailData->subject[0] != '\0')
+            sprintf(subj_buf, "%s", emailData->subject);
+        else
+            sprintf(subj_buf, "Email from SentienceMUD");
+
+        quickmail mailobj = quickmail_create(game_settings.email_from_name, game_settings.email_from_addr, subj_buf);
+
+        quickmail_add_to(mailobj, emailData->email);
+
+        quickmail_add_header(mailobj, "Importance: Low");
+        quickmail_add_header(mailobj, "X-Priority: 5");
+        quickmail_add_header(mailobj, "X-MSMail-Priority: Low");
+
+        sprintf(body_buf, "Hello %s,\n\n%s\n\nSincerely,\n\nThe SentienceMUD Staff",
+                emailData->recipient_name, emailData->message);
+
+        char *src = body_buf;
+        char *dst = body_buf_html;
+        while (*src) {
+            if (*src == '\n') {
+                strcpy(dst, "<br/>");
+                dst += 5;
+            } else {
+                *dst++ = *src;
+            }
+            src++;
+        }
+        *dst = '\0';
+
+        quickmail_set_body(mailobj, body_buf);
+        quickmail_add_body_memory(mailobj, "text/html", body_buf_html, strlen(body_buf_html), 0);
+
+        if (emailData->attachment_filename && emailData->attachment_mime_type) {
+            quickmail_add_attachment_file(mailobj, emailData->attachment_filename, emailData->attachment_mime_type);
+        }
+
+        const char* errmsg;
+        if ((errmsg = quickmail_send(mailobj, game_settings.email_host, game_settings.email_port, game_settings.email_username, game_settings.email_password)) != NULL)
+            fprintf(stderr, "Error sending e-mail: %s\n", errmsg);
+        quickmail_destroy(mailobj);
+        quickmail_cleanup();
+    }
+
+    // Clean up all duplicated strings and exit the thread
+    free(emailData->recipient_name);
+    free(emailData->email);
     free(emailData->subject);
     free(emailData->message);
     if (emailData->attachment_filename)
@@ -10942,19 +11068,40 @@ void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *s
         fprintf(stderr, "Error allocating memory for email data\n");
         return;
     }
-    
-    emailData->ch = ch;
-    emailData->acct = acct;
-    emailData->email = email;
-    emailData->subject = strdup(subject); // Duplicate the subject string
+
+    // Copy the recipient name — do NOT pass live game object pointers to a thread
+    if (ch)
+        emailData->recipient_name = strdup(ch->name ? ch->name : "Adventurer");
+    else if (acct)
+        emailData->recipient_name = strdup(acct->username ? acct->username : "Adventurer");
+    else
+        emailData->recipient_name = strdup("Adventurer");
+
+    if (!emailData->recipient_name) {
+        free(emailData);
+        return;
+    }
+
+    emailData->email = strdup(email);
+    if (!emailData->email) {
+        free(emailData->recipient_name);
+        free(emailData);
+        return;
+    }
+
+    emailData->subject = strdup(subject);
     if (!emailData->subject) {
+        free(emailData->email);
+        free(emailData->recipient_name);
         free(emailData);
         return;
     }
     
-    emailData->message = strdup(message); // Duplicate the message string
+    emailData->message = strdup(message);
     if (!emailData->message) {
         free(emailData->subject);
+        free(emailData->email);
+        free(emailData->recipient_name);
         free(emailData);
         return;
     }
@@ -10967,6 +11114,8 @@ void send_email_async_ex(CHAR_DATA *ch, ACCOUNT_DATA *acct, char *email, char *s
     if (pthread_create(&emailThread, NULL, send_email_thread, emailData) != 0) {
         fprintf(stderr, "Error creating email thread\n");
         // Clean up on error
+        free(emailData->recipient_name);
+        free(emailData->email);
         free(emailData->subject);
         free(emailData->message);
         if (emailData->attachment_filename)
@@ -11005,39 +11154,6 @@ void generate_reset_code(char* str, int str_len) {
     }
     str--; // Move back to the last character
     *str = '\0'; // Add the null character at the end
-}
-
-char *sha256_crypt(const char *pwd) {
-    EVP_MD_CTX *context = EVP_MD_CTX_new();
-    static char output[65];
-    unsigned char sha256sum[32];
-    unsigned int j;
-
-    if (context == NULL) {
-        return NULL; // Handle error
-    }
-
-    if (EVP_DigestInit_ex(context, EVP_sha256(), NULL) != 1) {
-        EVP_MD_CTX_free(context);
-        return NULL; // Handle error
-    }
-
-    if (EVP_DigestUpdate(context, pwd, strlen(pwd)) != 1) {
-        EVP_MD_CTX_free(context);
-        return NULL; // Handle error
-    }
-
-    if (EVP_DigestFinal_ex(context, sha256sum, NULL) != 1) {
-        EVP_MD_CTX_free(context);
-        return NULL; // Handle error
-    }
-
-    for (j = 0; j < 32; ++j) {
-        snprintf(output + j * 2, 3, "%02x", sha256sum[j]);
-    }
-
-    EVP_MD_CTX_free(context);
-    return output;
 }
 
 char *tmp_sprintf(const char *fmt, ...)
@@ -11947,6 +12063,8 @@ bool set_encrypted_password(char **target_password_field, int *target_version_fi
 
 // Checks a plaintext password against a stored hash using tiered methods.
 password_check_status check_encrypted_password(const char *plaintext_password, const char *stored_hash, int stored_version) {
+    extern char *sha256_crypt(const char *pwd);  // Forward declaration for SHA256 function
+    
     if (!plaintext_password || !stored_hash || stored_hash[0] == '\0') {
         return PWD_CHECK_FAIL; // Cannot check against empty stored hash
     }
@@ -12828,7 +12946,7 @@ bool validate_password_uniqueness(ACCOUNT_DATA *acct, const char *plaintext_pass
 
 
 
-
+// QUERY: This isn't used anywhere?
 // For game setting lookup
 char *get_game_setting_value(char *setting_name, bool *sensitive)
 {
@@ -14297,3 +14415,4 @@ void char_set_race(CHAR_DATA *ch, RACE_DATA *new_race, long flags)
                        new_race->name ? new_race->name : "unknown");
     }
 }
+

@@ -1549,7 +1549,7 @@ void do_wiznet(CHAR_DATA *ch, char *argument)
  * @param flag_skip  Wiznet flag that blocks receiving message
  * @param min_level  Minimum staff rank required to see message
  */
-void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
+void wiznet(const char *string, CHAR_DATA *ch, OBJ_DATA *obj,
         long flag, long flag_skip, int min_level)
 {
     DESCRIPTOR_DATA *d;
@@ -1598,6 +1598,46 @@ void wiznet(char *string, CHAR_DATA *ch, OBJ_DATA *obj,
             act_new(string,d->character,ch,NULL,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
         }
     }
+}
+
+static void emit_staff_wiz_event(const char *plain_message,
+                                 const char *staff_message,
+                                 CHAR_DATA *actor,
+                                 OBJ_DATA *wiz_obj,
+                                 long wiz_flag,
+                                 long wiz_skip,
+                                 int wiz_min_rank,
+                                 const char *action,
+                                 const char *category)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = category ? category : LOG_ADMIN,
+        .plain_message = plain_message ? plain_message : "staff_wiznet_event",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .wiznet_skip_flag = wiz_skip,
+        .wiznet_min_rank = wiz_min_rank,
+        .wiznet_obj = wiz_obj,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
 }
 
 
@@ -1650,7 +1690,8 @@ void do_zot(CHAR_DATA *ch, char *argument)
         sprintf(buf, "%s zotted %s!",
             ch->name,
             IS_NPC(victim) ? victim->short_descr : victim->name);
-        wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+        emit_staff_wiz_event(buf, buf, NULL, NULL, WIZ_IMMLOG, 0, 0,
+                     "zot", LOG_ADMIN);
 
         plog(LOG_ADMIN, buf);
         }
@@ -1695,7 +1736,8 @@ void do_zot(CHAR_DATA *ch, char *argument)
     sprintf(buf, "%s zotted %s!",
         ch->name,
     IS_NPC(victim) ? victim->short_descr : victim->name);
-    wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+    emit_staff_wiz_event(buf, buf, NULL, NULL, WIZ_IMMLOG, 0, 0,
+                         "zot", LOG_ADMIN);
 
     plog(LOG_ADMIN, buf);
 }
@@ -1742,7 +1784,8 @@ void do_nochannels(CHAR_DATA *ch, char *argument)
               victim);
         send_to_char("NOCHANNELS removed.\n\r", ch);
     sprintf(buf,"$N restores channels to %s",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "nochannels", LOG_SECURITY);
     }
     else
     {
@@ -1751,7 +1794,8 @@ void do_nochannels(CHAR_DATA *ch, char *argument)
                victim);
         send_to_char("NOCHANNELS set.\n\r", ch);
     sprintf(buf,"$N revokes %s's channels.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "nochannels", LOG_SECURITY);
     }
 }
 
@@ -1876,7 +1920,8 @@ void do_deny(CHAR_DATA *ch, char *argument)
     SET_BIT(victim->act[0], PLR_DENY);
     send_to_char("You are denied access!\n\r", victim);
     sprintf(buf,"$N denies access to %s",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "deny", LOG_SECURITY);
     act("Denied access to $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     save_char_obj(victim);
     stop_fighting(victim,true);
@@ -5807,8 +5852,10 @@ void do_snoop(CHAR_DATA *ch, char *argument)
     if (victim == ch)
     {
     send_to_char("Cancelling all snoops.\n\r", ch);
-    wiznet("$N stops being such a snoop.",
-        ch,NULL,WIZ_SNOOPS,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event("$N stops being such a snoop.",
+                         "$N stops being such a snoop.",
+                         ch, NULL, WIZ_SNOOPS, WIZ_SECURE, get_staff_rank(ch),
+                         "snoop", LOG_ADMIN);
     for (d = descriptor_list; d != NULL; d = d->next)
     {
         if (d->snoop_by == ch->desc)
@@ -5851,7 +5898,8 @@ void do_snoop(CHAR_DATA *ch, char *argument)
     victim->desc->snoop_by = ch->desc;
     sprintf(buf,"$N starts snooping on %s",
     (IS_NPC(ch) ? victim->short_descr : victim->name));
-    wiznet(buf,ch,NULL,WIZ_SNOOPS,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_SNOOPS, WIZ_SECURE,
+                         get_staff_rank(ch), "snoop", LOG_ADMIN);
     act("Now snooping $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 }
 
@@ -5926,7 +5974,8 @@ void do_switch(CHAR_DATA *ch, char *argument)
     }
 
     sprintf(buf,"$N switches into %s",victim->short_descr);
-    wiznet(buf,ch,NULL,WIZ_SWITCHES,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_SWITCHES, WIZ_SECURE,
+                         get_staff_rank(ch), "switch", LOG_ADMIN);
 
     ch->desc->character = victim;
     ch->desc->original  = ch;
@@ -5980,7 +6029,10 @@ void do_return(CHAR_DATA *ch, char *argument)
     if (IS_IMMORTAL(ch))
     {
         sprintf(buf,"$N returns from %s.",ch->short_descr);
-        wiznet(buf,ch->desc->original,0,WIZ_SWITCHES,WIZ_SECURE,get_staff_rank(ch->desc->original));
+        emit_staff_wiz_event(buf, buf, ch->desc->original, NULL,
+                     WIZ_SWITCHES, WIZ_SECURE,
+                     get_staff_rank(ch->desc->original),
+                     "return", LOG_ADMIN);
     }
 
     REMOVE_BIT(ch->act[0], PLR_COLOUR);
@@ -6092,7 +6144,9 @@ void do_clone(CHAR_DATA *ch, char *argument)
 
         act("$n has created $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         act("You clone $p.", ch, NULL, NULL, clone, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        wiznet("$N clones $p.", ch, clone, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event("$N clones $p.", "$N clones $p.", ch, clone,
+                     WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch),
+                     "clone", LOG_ADMIN);
         return;
     }
     else if (mob != NULL)
@@ -6126,7 +6180,8 @@ void do_clone(CHAR_DATA *ch, char *argument)
         act("$n has created $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         act("You clone $N.", ch, clone, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "$N clones %s.", clone->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "clone", LOG_ADMIN);
         return;
     }
 }
@@ -6283,7 +6338,8 @@ void do_mload(CHAR_DATA *ch, char *argument)
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf,"$N loads %s.", victim->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "mload", LOG_ADMIN);
     }
     else
     {
@@ -6309,7 +6365,8 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.",
             amt, pMobIndex->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "mload", LOG_ADMIN);
     }
 }
 
@@ -6420,7 +6477,9 @@ void do_oload(CHAR_DATA *ch, char *argument)
         act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
         sprintf(buf, "Loaded $p (%s)", widevnum_string_object(obj->pIndexData, NULL));
         act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_staff_rank(ch));
+        emit_staff_wiz_event("$N loads $p.", "$N loads $p.", ch, obj,
+                     WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch),
+                     "oload", LOG_ADMIN);
 
         obj->loaded_by = str_dup(ch->name);
 
@@ -6454,7 +6513,8 @@ void do_oload(CHAR_DATA *ch, char *argument)
             amt, pObjIndex->short_descr, widevnum_string_object(pObjIndex, NULL));
         act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
-        wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_LOAD, WIZ_SECURE,
+                     get_staff_rank(ch), "oload", LOG_ADMIN);
     }
 }
 
@@ -6967,7 +7027,8 @@ void do_restore(CHAR_DATA *ch, char *argument)
 
 
         sprintf(buf, "$N restored room %s.", widevnum_string_room(ch->in_room, NULL));
-        wiznet(buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE, get_staff_rank(ch));
+        emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE,
+                     get_staff_rank(ch), "restore", LOG_ADMIN);
 
         send_to_char("Room restored.\n\r",ch);
         return;
@@ -7000,7 +7061,8 @@ void do_restore(CHAR_DATA *ch, char *argument)
     act("Restored $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
 
     sprintf(buf, "$N restored %s.", IS_NPC(victim) ? victim->short_descr : victim->name);
-    wiznet(buf,ch,NULL,WIZ_RESTORE,WIZ_SECURE,get_staff_rank(ch));
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_RESTORE, WIZ_SECURE,
+                         get_staff_rank(ch), "restore", LOG_ADMIN);
 
 
 }
@@ -7052,7 +7114,8 @@ void do_freeze(CHAR_DATA *ch, char *argument)
     send_to_char("You can play again.\n\r", victim);
     send_to_char("FREEZE removed.\n\r", ch);
     sprintf(buf,"$N thaws %s.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "freeze", LOG_SECURITY);
     }
     else
     {
@@ -7060,7 +7123,8 @@ void do_freeze(CHAR_DATA *ch, char *argument)
     send_to_char("You can't do ANYthing!\n\r", victim);
     send_to_char("FREEZE set.\n\r", ch);
     sprintf(buf,"$N puts %s in the deep freeze.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "freeze", LOG_SECURITY);
     }
 
     save_char_obj(victim);
@@ -7186,7 +7250,8 @@ void do_notell(CHAR_DATA *ch, char *argument)
     send_to_char("You can tell again.\n\r", victim);
     send_to_char("NOTELL removed.\n\r", ch);
     sprintf(buf,"$N restores tells to %s.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "notell", LOG_SECURITY);
     }
     else
     {
@@ -7194,7 +7259,8 @@ void do_notell(CHAR_DATA *ch, char *argument)
     send_to_char("You can't tell!\n\r", victim);
     send_to_char("NOTELL set.\n\r", ch);
     sprintf(buf,"$N revokes %s's tells.",victim->name);
-    wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
+    emit_staff_wiz_event(buf, buf, ch, NULL, WIZ_PENALTIES, WIZ_SECURE, 0,
+                         "notell", LOG_SECURITY);
     }
 }
 
@@ -7244,13 +7310,17 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
     {
         if (!game_settings.wizlock)
         {
-            wiznet("$N has wizlocked the game.",ch,NULL,0,0,0);
+            emit_staff_wiz_event("$N has wizlocked the game.",
+                                 "$N has wizlocked the game.",
+                                 ch, NULL, 0, 0, 0, "wizlock", LOG_ADMIN);
             send_to_char("Game wizlocked.\n\r", ch);
             game_settings.wizlock = true;
         }
         else
         {
-            wiznet("$N removes wizlock.",ch,NULL,0,0,0);
+            emit_staff_wiz_event("$N removes wizlock.",
+                                 "$N removes wizlock.",
+                                 ch, NULL, 0, 0, 0, "wizlock", LOG_ADMIN);
             send_to_char("Game un-wizlocked.\n\r", ch);
             game_settings.wizlock = false;
         }
@@ -7270,7 +7340,9 @@ void do_wizlock(CHAR_DATA *ch, char *argument)
             free_string(game_settings.wizlock_msg);
         }
         game_settings.wizlock_msg = str_dup(argument);
-        wiznet("$N sets wizlock message.",ch,NULL,0,0,0);
+        emit_staff_wiz_event("$N sets wizlock message.",
+                     "$N sets wizlock message.",
+                     ch, NULL, 0, 0, 0, "wizlock", LOG_ADMIN);
         send_to_char("Wizlock message set.\n\r", ch);
     }
 
@@ -7311,13 +7383,19 @@ void do_newlock(CHAR_DATA *ch, char *argument)
             {
                 if (!game_settings.new_char_lock)
                 {
-                    wiznet("$N locks out new characters.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N locks out new characters.",
+                                         "$N locks out new characters.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_char_lock", LOG_ADMIN);
                     send_to_char("New characters have been locked out.\n\r", ch);
                     game_settings.new_char_lock = true;
                 }
                 else
                 {
-                    wiznet("$N allows new characters back in.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N allows new characters back in.",
+                                         "$N allows new characters back in.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_char_lock", LOG_ADMIN);
                     send_to_char("New characters are no longer locked out.\n\r", ch);
                     game_settings.new_char_lock = false;
                 }
@@ -7337,7 +7415,10 @@ void do_newlock(CHAR_DATA *ch, char *argument)
                     free_string(game_settings.new_char_lock_msg);
                 }
                 game_settings.new_char_lock_msg = str_dup(argument);
-                wiznet("$N sets new character message.",ch,NULL,0,0,0);
+                emit_staff_wiz_event("$N sets new character message.",
+                                     "$N sets new character message.",
+                                     ch, NULL, 0, 0, 0,
+                                     "new_char_lock", LOG_ADMIN);
                 send_to_char("New character message set.\n\r", ch);
             }
         }
@@ -7347,13 +7428,19 @@ void do_newlock(CHAR_DATA *ch, char *argument)
             {
                 if (!game_settings.new_acct_lock)
                 {
-                    wiznet("$N locks out new accounts.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N locks out new accounts.",
+                                         "$N locks out new accounts.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_acct_lock", LOG_ADMIN);
                     send_to_char("New accounts have been locked out.\n\r", ch);
                     game_settings.new_acct_lock = true;
                 }
                 else
                 {
-                    wiznet("$N allows new accounts back in.",ch,NULL,0,0,0);
+                    emit_staff_wiz_event("$N allows new accounts back in.",
+                                         "$N allows new accounts back in.",
+                                         ch, NULL, 0, 0, 0,
+                                         "new_acct_lock", LOG_ADMIN);
                     send_to_char("New accounts are no longer locked out.\n\r", ch);
                     game_settings.new_acct_lock = false;
                 }
@@ -7373,7 +7460,10 @@ void do_newlock(CHAR_DATA *ch, char *argument)
                     free_string(game_settings.new_acct_lock_msg);
                 }
                 game_settings.new_acct_lock_msg = str_dup(argument);
-                wiznet("$N sets new account message.",ch,NULL,0,0,0);
+                emit_staff_wiz_event("$N sets new account message.",
+                                     "$N sets new account message.",
+                                     ch, NULL, 0, 0, 0,
+                                     "new_acct_lock", LOG_ADMIN);
                 send_to_char("New account message set.\n\r", ch);
             }
         }
@@ -7396,12 +7486,16 @@ void do_testport(CHAR_DATA *ch, char *argument)
 
     if (!game_settings.testport)
     {
-        wiznet("$N enables Test Port Mode.",ch,NULL,0,0,0);
+        emit_staff_wiz_event("$N enables Test Port Mode.",
+                     "$N enables Test Port Mode.",
+                     ch, NULL, 0, 0, 0, "testport", LOG_ADMIN);
         send_to_char("Test Port Mode enabled.\n\r", ch);
     }
     else
     {
-        wiznet("$N disables Test Port Mode.",ch,NULL,0,0,0);
+        emit_staff_wiz_event("$N disables Test Port Mode.",
+                     "$N disables Test Port Mode.",
+                     ch, NULL, 0, 0, 0, "testport", LOG_ADMIN);
         send_to_char("Test Port Mode disabled.\n\r", ch);
     }
     game_settings_write();
@@ -8214,13 +8308,14 @@ void do_accset(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg2, "flag")) {
         char flag_buf[MAX_INPUT_LENGTH];
         char *flag_name;
+        char *saveptr;
         bool found_flag = false;
 
         // Make a copy of arg3 to tokenize
         strncpy(flag_buf, arg3, sizeof(flag_buf));
         flag_buf[sizeof(flag_buf)-1] = '\0';
 
-        flag_name = strtok(flag_buf, " ");
+        flag_name = strtok_r(flag_buf, " ", &saveptr);
         while (flag_name != NULL) {
             long flagval;
             if ((flagval = flag_value(acct_flags, flag_name)) == NO_FLAG) {
@@ -8232,7 +8327,7 @@ void do_accset(CHAR_DATA *ch, char *argument)
                 TOGGLE_BIT(account->acct_flags, flagval);
                 found_flag = true;
             }
-            flag_name = strtok(NULL, " ");
+            flag_name = strtok_r(NULL, " ", &saveptr);
         }
 
         if (found_flag)
@@ -11084,81 +11179,15 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 /**
  * do_sload - Load an NPC ship (DISABLED)
  *
- * Was intended to load an NPC ship by vnum into a specified room.
- * Currently disabled via #if 0 preprocessor block. Would have supported
- * loading ships including special handling for airships.
+ * Superseded by 'ships load' which auto-detects NPC templates via
+ * the SHIP_AUTONOMOUS_NPC flag and performs full NPC setup.
  *
  * @param ch        Staff member using the command
- * @param argument  "shipvnum roomvnum"
- *
- * Triggers: None (ship loading - disabled)
+ * @param argument  Unused
  */
 void do_sload(CHAR_DATA *ch, char *argument)
 {
-#if 0
-/*
-    char arg1[MAX_INPUT_LENGTH] ,arg2[MAX_INPUT_LENGTH];
-    ROOM_INDEX_DATA *pRoom;
-    NPC_SHIP_INDEX_DATA *pShip;
-    NPC_SHIP_DATA *pNpcShip;
-    long room_vnum;
-    long ship_vnum;
-
-    argument = one_argument(argument, arg1);
-    one_argument(argument, arg2);
-
-    if (arg1[0] == '\0' || !is_number(arg1))
-    {
-    send_to_char("Syntax: load ship <vnum> <room vnum>.\n\r", ch);
-    return;
-    }
-
-    ship_vnum = atol(arg1);
-
-    if (arg2[0] != '\0')
-    {
-    if (!is_number(arg2))
-        {
-      send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-      return;
-    }
-        room_vnum = atol(arg2);
-        if ((pRoom = get_room_index(room_vnum)) == NULL)
-    {
-      send_to_char("Could not find room vnum.\n\r",ch);
-        return;
-    }
-    }
-    else {
-      send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-      return;
-    }
-
-    if ((pShip = get_npc_ship_index(ship_vnum)) == NULL)
-    {
-    send_to_char("No ship has that vnum.\n\r", ch);
-    return;
-    }
-
-    pNpcShip = create_npc_sailing_boat(ship_vnum);
-
-     If the npc airship then set airship
-    if (pShip->npc_type == NPC_SHIP_AIR_SHIP)
-    {
-        plith_airship = pNpcShip;
-    }
-
-    obj_to_room(pNpcShip->ship->ship, pRoom);
-
-    if (pNpcShip->ship->ship->in_room == NULL)
-    {
-        gecho("NULL already");
-    }
-
-    send_to_char("Ship created.\n\r", ch);
-    return;
-*/
-#endif
+    send_to_char("Use 'ships load <vnum>' instead. NPC ships are auto-detected from the template.\n\r", ch);
 }
 
 
@@ -12378,29 +12407,31 @@ void do_token(CHAR_DATA *ch, char *argument)
 /**
  * do_aload - Load an area file into memory at runtime
  *
- * Loads an area from an .are file without requiring a server reboot.
- * Uses the same loading function as boot_db. Useful for importing areas
- * built on testport to the live server. Currently only supports loading
+ * Loads an area from a JSON file without requiring a server reboot.
+ * Uses json_area_load(), the same loader as boot_db. Useful for importing
+ * areas built on testport to the live server. Currently only supports loading
  * new areas; replacing existing areas is not yet implemented.
  * WARNING: Can cause significant performance impact during load.
  *
  * @param ch        Staff member using the command
- * @param argument  Filename of the area to load
+ * @param argument  Stem name of the area to load (e.g., "limbo")
  *
  * Triggers: None (area loading utility)
  */
 void do_aload(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
-    FILE *fp;
     AREA_DATA *area;
     LLIST_AREA_DATA *link;
 
     argument = one_argument(argument, arg);
 
-    /* Check to see if the area is loaded in already. If it is, free it
-       from memory and reload it. Make sure to update all object and mob
-       pIndexData pointers and room area pointers. */
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: aload <area stem name>\n\r", ch);
+        return;
+    }
+
+    /* Check to see if the area is loaded in already. */
     for (area = area_first; area != NULL; area = area->next) {
     if (!str_cmp(area->file_name, argument))
         break;
@@ -12408,13 +12439,17 @@ void do_aload(CHAR_DATA *ch, char *argument)
 
     /* The simpler case - the area is not a current area. */
     if (area == NULL) {
-    if ((fp = fopen(arg, "r")) == NULL) {
-        send_to_char("Area file not found.\n\r", ch);
+    char json_filename[MSL + 10];
+    snprintf(json_filename, sizeof(json_filename), "%s.json", arg);
+
+    area = json_area_load(json_filename);
+    if (!area) {
+        send_to_char("Failed to load area from JSON file.\n\r", ch);
         return;
     }
 
     link = (LLIST_AREA_DATA *)alloc_mem(sizeof(LLIST_AREA_DATA));
-    if( list_appendlink(loaded_areas, link) && (area = read_area_new(fp))) {
+    if (list_appendlink(loaded_areas, link)) {
         area->next = NULL;
 
         area_last->next = area;
@@ -12425,9 +12460,9 @@ void do_aload(CHAR_DATA *ch, char *argument)
         link->uid = area->uid;
 
         act("Loaded area $T.", ch, NULL, NULL, NULL, NULL, NULL, area->name, TO_CHAR, NULL, NULL);
-    } else
-        free_mem( link, sizeof(LLIST_AREA_DATA));
-    fclose(fp);
+    } else {
+        free_mem(link, sizeof(LLIST_AREA_DATA));
+    }
     } else {
     /* Syn - will add in replacement of current area when I have time. */
     send_to_char("Area already exists.\n\r", ch);

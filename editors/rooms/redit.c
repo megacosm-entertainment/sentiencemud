@@ -253,7 +253,7 @@ static void redit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
             "VRoom at ({W%ld{x, {W%ld{x), in wilds uid ({W%ld{x) '{W%s{x'",
             pRoom->x, pRoom->y, pRoom->wilds->uid, pRoom->wilds->name);
     } else {
-        olc_display_number(ctx, theme, "Vnum:", NULL, pRoom->vnum);
+        olc_display_string(ctx, theme, "Vnum:", NULL, widevnum_string_room(pRoom, pRoom->area));
         olc_display_string(ctx, theme, "Sector:", "sector",
             sector_name(room_rs_sector_type(pRoom)));
         if (pRoom->viewwilds)
@@ -358,11 +358,9 @@ static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
 
         if (pRoom->wilds) {
             if (IS_SET(pexit->exit_info, EX_VLINK))
-                sprintf(buf, "-{W%-9s{x to {W%6ld{x, Area Uid ({W%ld{x), '{W%s{x'\n\r",
+                sprintf(buf, "-{W%-9s{x to {W%s{x\n\r",
                     capitalize(dir_name[door]),
-                    pexit->u1.to_room ? pexit->u1.to_room->vnum : 0,
-                    pexit->u1.to_room ? pexit->u1.to_room->area->uid : 0,
-                    pexit->u1.to_room ? pexit->u1.to_room->area->name : "{RERROR");
+                    pexit->u1.to_room ? widevnum_string_room(pexit->u1.to_room, NULL) : "0");
             else
                 sprintf(buf, "-{W%-9s{x to ({W%d{x,{W%d{x).\n\r",
                     capitalize(dir_name[door]),
@@ -381,9 +379,9 @@ static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
                     pArea ? pArea->uid : 0,
                     pArea ? pArea->name : "(null)");
             } else {
-                sprintf(buf, "-{W%-9s{x to {W%6ld{x\n\r",
+                sprintf(buf, "-{W%-9s{x to {W%s{x\n\r",
                     capitalize(dir_name[door]),
-                    pexit->u1.to_room ? pexit->u1.to_room->vnum : 0);
+                    pexit->u1.to_room ? widevnum_string_room(pexit->u1.to_room, NULL) : "0");
             }
         }
         add_buf(ctx->buffer, buf);
@@ -433,13 +431,19 @@ static void redit_show_exits_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit
         add_buf(ctx->buffer, buf);
 
         if (IS_SET(pexit->rs_flags, EX_ISDOOR)) {
+            const char *key_str = "0";
+            if (pexit->door.lock.key_wnum.pArea && pexit->door.lock.key_wnum.vnum > 0) {
+                OBJ_INDEX_DATA *key_obj = get_obj_index(pexit->door.lock.key_wnum.pArea, pexit->door.lock.key_wnum.vnum);
+                key_str = key_obj ? widevnum_string_object(key_obj, NULL)
+                                  : formatf("%ld#%ld", pexit->door.lock.key_wnum.pArea->uid, pexit->door.lock.key_wnum.vnum);
+            }
             sprintf(buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x]"
-                         "  Lock Flags: [{W%s{x]  Key vnum: [{W%ld{x]"
+                         "  Lock Flags: [{W%s{x]  Key: [{W%s{x]"
                          " Pick chance: [{W%d%%{x]\n\r",
                 pexit->door.material,
                 pexit->door.strength,
                 flag_string(lock_flags, pexit->door.lock.flags),
-                pexit->door.lock.key_wnum.vnum,
+                key_str,
                 pexit->door.lock.pick_chance);
             add_buf(ctx->buffer, buf);
         } else {
@@ -625,7 +629,7 @@ REDIT(redit_show)
     ctx = olc_display_new(ch, theme);
 
     olc_display_header(ctx, "REdit", pRoom->name,
-        formatf("%ld", pRoom->vnum), &redit_def);
+        formatf("%s", widevnum_string_room(pRoom, pRoom->area)), &redit_def);
 
     /* Dispatch to active tab's show function */
     tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
@@ -875,217 +879,245 @@ REDIT(redit_ed)
 
     if (command[0] == '\0' || keyword[0] == '\0')
     {
-    send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-    send_to_char("         ed edit [keyword]\n\r", ch);
-    send_to_char("         ed show [keyword]\n\r", ch);
-    send_to_char("         ed delete [keyword]\n\r", ch);
-    send_to_char("         ed format [keyword]\n\r", ch);
-    send_to_char("         ed copy existing_keyword new_keyword\n\r", ch);
-    send_to_char("         ed environment [keyword]\n\r", ch);
+        send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+        send_to_char("         ed edit [keyword]\n\r", ch);
+        send_to_char("         ed show [keyword]\n\r", ch);
+        send_to_char("         ed delete [keyword]\n\r", ch);
+        send_to_char("         ed format [keyword]\n\r", ch);
+        send_to_char("         ed copy existing_keyword new_keyword\n\r", ch);
+        send_to_char("         ed environment [keyword]\n\r", ch);
 
-    return false;
+        return false;
     }
 
     if (!str_cmp(command, "copy"))
     {
-    EXTRA_DESCR_DATA *ed2;
+        EXTRA_DESCR_DATA *ed2;
 
         if (keyword[0] == '\0' || copy_item[0] == '\0')
-    {
-       send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
-       return false;
+        {
+            send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
+            return false;
         }
 
-    for (ed = pRoom->extra_descr; ed; ed = ed->next)
-    {
-        if (is_name(keyword, ed->keyword))
-        break;
-    }
+        // Validate the inputs can be a name
+        if (!olc_validate_name(ch, keyword) || !olc_validate_name(ch, copy_item))
+            return false;
 
-    if (!ed)
-    {
-        send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
-        return false;
-    }
+        for (ed = pRoom->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+            break;
+        }
 
-    ed2			=   new_extra_descr();
-    ed2->keyword		=   str_dup(copy_item);
-    if( ed->description )
-        ed2->description		= str_dup(ed->description);
-    else
-        ed2->description		= NULL;
-    ed2->next		=   pRoom->extra_descr;
-    pRoom->extra_descr	=   ed2;
+        if (!ed)
+        {
+            send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-    send_to_char("Done.\n\r", ch);
+        ed2			=   new_extra_descr();
+        ed2->keyword		=   str_dup(copy_item);
+        if( ed->description )
+            ed2->description		= str_dup(ed->description);
+        else
+            ed2->description		= NULL;
+        ed2->next		=   pRoom->extra_descr;
+        pRoom->extra_descr	=   ed2;
 
-    return true;
+        send_to_char("Done.\n\r", ch);
+
+        return true;
     }
 
     if (!str_cmp(command, "environment"))
     {
-    if (keyword[0] == '\0')
-    {
-        send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
-        return false;
-    }
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
+            return false;
+        }
 
-    ed			=   new_extra_descr();
-    ed->keyword		=   str_dup(keyword);
-    ed->description		= NULL;
-    ed->next		=   pRoom->extra_descr;
-    pRoom->extra_descr	=   ed;
+        // Validate the input can be a name
+        if (!olc_validate_name(ch, keyword))
+            return false;
 
-    send_to_char("Enviromental extra description added.\n\r", ch);
+        ed			=   new_extra_descr();
+        ed->keyword		=   str_dup(keyword);
+        ed->description		= NULL;
+        ed->next		=   pRoom->extra_descr;
+        pRoom->extra_descr	=   ed;
 
-    return true;
+        send_to_char("Enviromental extra description added.\n\r", ch);
+
+        return true;
     }
 
     if (!str_cmp(command, "add"))
     {
-    if (keyword[0] == '\0')
-    {
-        send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-        return false;
-    }
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+            return false;
+        }
 
-    ed			=   new_extra_descr();
-    ed->keyword		=   str_dup(keyword);
-    ed->description		=   str_dup("");
-    ed->next		=   pRoom->extra_descr;
-    pRoom->extra_descr	=   ed;
+        // Validate the input can be a name
+        if (!olc_validate_name(ch, keyword))
+            return false;
 
-    string_append(ch, &ed->description);
+        ed			=   new_extra_descr();
+        ed->keyword		=   str_dup(keyword);
+        ed->description		=   str_dup("");
+        ed->next		=   pRoom->extra_descr;
+        pRoom->extra_descr	=   ed;
 
-    return true;
+        string_append(ch, &ed->description);
+
+        return true;
     }
 
 
     if (!str_cmp(command, "edit"))
     {
-    if (keyword[0] == '\0')
-    {
-        send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
-        return false;
-    }
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
+            return false;
+        }
 
-    for (ed = pRoom->extra_descr; ed; ed = ed->next)
-    {
-        if (is_name(keyword, ed->keyword))
-        break;
-    }
+        // Validate the input can be a name
+        if (!olc_validate_name(ch, keyword))
+            return false;
 
-    if (!ed)
-    {
-        send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
-        return false;
-    }
+        for (ed = pRoom->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+            break;
+        }
 
-    if( !ed->description )
-        ed->description = str_dup("");
+        if (!ed)
+        {
+            send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-    string_append(ch, &ed->description);
+        if( !ed->description )
+            ed->description = str_dup("");
 
-    return true;
+        string_append(ch, &ed->description);
+
+        return true;
     }
 
 
     if (!str_cmp(command, "delete"))
     {
-    EXTRA_DESCR_DATA *ped = NULL;
+        EXTRA_DESCR_DATA *ped = NULL;
 
-    if (keyword[0] == '\0')
-    {
-        send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
-        return false;
-    }
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
+            return false;
+        }
 
-    for (ed = pRoom->extra_descr; ed; ed = ed->next)
-    {
-        if (is_name(keyword, ed->keyword))
-        break;
-        ped = ed;
-    }
+        // Validate the input can be a name
+        if (!olc_validate_name(ch, keyword))
+            return false;
 
-    if (!ed)
-    {
-        send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
-        return false;
-    }
+        for (ed = pRoom->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+            break;
+            ped = ed;
+        }
 
-    if (!ped)
-        pRoom->extra_descr = ed->next;
-    else
-        ped->next = ed->next;
+        if (!ed)
+        {
+            send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-    free_extra_descr(ed);
+        if (!ped)
+            pRoom->extra_descr = ed->next;
+        else
+            ped->next = ed->next;
 
-    send_to_char("Extra description deleted.\n\r", ch);
-    return true;
+        free_extra_descr(ed);
+
+        send_to_char("Extra description deleted.\n\r", ch);
+        return true;
     }
 
 
     if (!str_cmp(command, "format"))
     {
-    if (keyword[0] == '\0')
-    {
-        send_to_char("Syntax:  ed format [keyword]\n\r", ch);
-        return false;
-    }
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed format [keyword]\n\r", ch);
+            return false;
+        }
 
-    for (ed = pRoom->extra_descr; ed; ed = ed->next)
-    {
-        if (is_name(keyword, ed->keyword))
-        break;
-    }
+        // Validate the input can be a name
+        if (!olc_validate_name(ch, keyword))
+            return false;
 
-    if (!ed)
-    {
-        send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
-        return false;
-    }
+        for (ed = pRoom->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+            break;
+        }
 
-    if( !ed->description )
-    {
-        send_to_char("REdit:  Extra description is an environmental extra description.\n\r", ch);
-        return false;
-    }
+        if (!ed)
+        {
+            send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-    ed->description = format_string(ed->description);
+        if( !ed->description )
+        {
+            send_to_char("REdit:  Extra description is an environmental extra description.\n\r", ch);
+            return false;
+        }
 
-    send_to_char("Extra description formatted.\n\r", ch);
-    return true;
+        ed->description = format_string(ed->description);
+
+        send_to_char("Extra description formatted.\n\r", ch);
+        return true;
     }
 
     if (!str_cmp(command, "show"))
     {
-    if (keyword[0] == '\0')
-    {
-        send_to_char("Syntax:  ed show [keyword]\n\r", ch);
-        return false;
-    }
+        if (keyword[0] == '\0')
+        {
+            send_to_char("Syntax:  ed show [keyword]\n\r", ch);
+            return false;
+        }
 
-    for (ed = pRoom->extra_descr; ed; ed = ed->next)
-    {
-        if (is_name(keyword, ed->keyword))
-        break;
-    }
+        // Validate the input can be a name
+        if (!olc_validate_name(ch, keyword))
+            return false;
 
-    if (!ed)
-    {
-        send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
-        return false;
-    }
+        for (ed = pRoom->extra_descr; ed; ed = ed->next)
+        {
+            if (is_name(keyword, ed->keyword))
+            break;
+        }
 
-    if (!ed->description)
-    {
-        send_to_char("REdit:  Cannot show environmental extra description.\n\r", ch);
-        return false;
-    }
+        if (!ed)
+        {
+            send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
+            return false;
+        }
 
-    page_to_char(ed->description, ch);
+        if (!ed->description)
+        {
+            send_to_char("REdit:  Cannot show environmental extra description.\n\r", ch);
+            return false;
+        }
 
-    return true;
+        page_to_char(ed->description, ch);
+
+        return true;
     }
 
     redit_ed(ch, "");
@@ -1668,7 +1700,7 @@ REDIT(redit_parent)
     pRoom->parent = parent;
     pRoom->parent_inherited = false;
 
-    send_to_char("Parent room set. Inheritance is resolved at load time.\n\r", ch);
+    send_to_char("Parent room set. Inheritance applied immediately.\n\r", ch);
     return true;
 }
 

@@ -2091,6 +2091,32 @@ static LLIST *script_event_runtime_list_from_refs(const EVENT_RUNTIME_REF *refs,
     return list;
 }
 
+static LLIST *script_aura_name_list_from_mobile(CHAR_DATA *ch)
+{
+    LLIST *list;
+    ITERATOR it;
+    AURA_DATA *aura;
+
+    list = list_create(false);
+    if (!list)
+        return NULL;
+
+    if (!ch || !ch->auras)
+        return list;
+
+    iterator_start(&it, ch->auras);
+    while ((aura = (AURA_DATA *)iterator_nextdata(&it)))
+    {
+        if (IS_NULLSTR(aura->name))
+            continue;
+
+        list_appendlink(list, aura->name);
+    }
+    iterator_stop(&it);
+
+    return list;
+}
+
 char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
     CHAR_DATA *self = arg->d.mob;
@@ -2260,6 +2286,10 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.list.ptr.aff = self ? &self->affected : NULL;
         arg->d.list.owner = self;
         arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_MOB_AURAS:
+        arg->type = ENT_ILLIST_AURA_STR;
+        arg->d.blist = script_aura_name_list_from_mobile(self);
         break;
     case ENTITY_MOB_MOUNT:
         arg->d.mob = arg->d.mob ? arg->d.mob->mount : NULL;
@@ -2806,6 +2836,10 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
         arg->d.list.ptr.aff = NULL;
         arg->d.list.owner = NULL;
         arg->d.list.owner_type = ENT_UNKNOWN;
+        break;
+    case ENTITY_MOB_AURAS:
+        arg->type = ENT_ILLIST_AURA_STR;
+        arg->d.blist = NULL;
         break;
     case ENTITY_MOB_MOUNT:
         arg->d.mob = NULL;

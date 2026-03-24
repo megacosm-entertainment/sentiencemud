@@ -17,6 +17,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 #include "merc.h"
 #include "tables.h"
 #include "skill_group.h"
@@ -234,7 +235,7 @@ static SKILL_GROUP *group_load_json(const char *filename)
     group = new_skill_group();
 
     /* Name */
-    str = json_string_value(json_object_get(root, "name"));
+    str = json_get_string(root, "name", "");
     if (str && str[0]) {
         free_string(group->name);
         group->name = str_dup(str);

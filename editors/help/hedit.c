@@ -759,6 +759,11 @@ HEDIT(hedit_name)
     return false;
     }
 
+
+    // Validate the input can be a name
+    if (!olc_validate_name(ch, argument))
+        return false;
+
     free_string(ch->desc->hCat->name);
     ch->desc->hCat->name = str_dup(argument);
     send_to_char("Name set.\n\r", ch);

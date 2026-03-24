@@ -1,0 +1,128 @@
+{
+  "type": "test_suite",
+  "test_suite": "spell_data_integrity",
+  "description": "Spell data integrity validation - spell table population, lookup functions, function pointers, and categorization",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 45,
+  "tests": [
+    {
+      "name": "spell_count_validation",
+      "description": "Count spells in skill table and verify reasonable population",
+      "dependencies": [],
+      "test_type": "spelldt_count_test",
+      "input": {
+        "minimum_expected": 5
+      },
+      "expected_output": {
+        "spell_count_positive": true,
+        "above_minimum": true
+      }
+    },
+    {
+      "name": "spell_lookup_by_name",
+      "description": "Test spell lookup by name for known spells",
+      "dependencies": ["spell_count_validation"],
+      "test_type": "spelldt_lookup_test",
+      "input": {
+        "test_cases": [
+          {
+            "name": "magic missile",
+            "should_exist": true,
+            "description": "Basic offensive spell"
+          },
+          {
+            "name": "cure light",
+            "should_exist": true,
+            "description": "Basic healing spell"
+          },
+          {
+            "name": "fireball",
+            "should_exist": true,
+            "description": "Fire damage spell"
+          },
+          {
+            "name": "heal",
+            "should_exist": true,
+            "description": "Major healing spell"
+          },
+          {
+            "name": "nonexistent_spell_xyz",
+            "should_exist": false,
+            "description": "Verify proper failure for non-existent spell"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true
+      }
+    },
+    {
+      "name": "spell_function_pointer_integrity",
+      "description": "Verify all spells with spell_fun have valid non-NULL function pointers",
+      "dependencies": ["spell_count_validation"],
+      "test_type": "spelldt_function_pointer_test",
+      "input": {},
+      "expected_output": {
+        "all_spell_functions_valid": true,
+        "null_pointers_acceptable": true
+      }
+    },
+    {
+      "name": "spell_level_range_validation",
+      "description": "Verify all spell levels are within reasonable bounds",
+      "dependencies": ["spell_count_validation"],
+      "test_type": "spelldt_level_range_test",
+      "input": {
+        "min_level": 1,
+        "max_level": 100,
+        "allow_special_levels": true
+      },
+      "expected_output": {
+        "all_levels_valid": true,
+        "special_levels_noted": true
+      }
+    },
+    {
+      "name": "spell_fun_name_resolution",
+      "description": "Test spell function name-to-pointer resolution",
+      "dependencies": ["spell_count_validation"],
+      "test_type": "spelldt_fun_resolution_test",
+      "input": {
+        "test_functions": [
+          {
+            "name": "spell_magic_missile",
+            "should_resolve": true
+          },
+          {
+            "name": "spell_cure_light",
+            "should_resolve": true
+          },
+          {
+            "name": "spell_fireball",
+            "should_resolve": true
+          },
+          {
+            "name": "spell_nonexistent_function",
+            "should_resolve": false
+          }
+        ]
+      },
+      "expected_output": {
+        "all_resolutions_correct": true
+      }
+    },
+    {
+      "name": "spell_categorization_integrity",
+      "description": "Verify spells are properly categorized and have consistent metadata",
+      "dependencies": ["spell_count_validation"],
+      "test_type": "spelldt_categorization_test",
+      "input": {},
+      "expected_output": {
+        "categorization_consistent": true,
+        "metadata_valid": true
+      }
+    }
+  ]
+}

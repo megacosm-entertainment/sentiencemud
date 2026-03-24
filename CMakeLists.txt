@@ -8,7 +8,6 @@ project(sent)
 # Build options
 option(BUILD_TESTS "Build unit tests" OFF)
 option(ENABLE_COVERAGE "Enable code coverage instrumentation (gcov/lcov)" OFF)
-option(ENABLE_LEGACY_AREA_READ "Enable legacy .are area reader (needed until legacy maze zones are migrated)" ON)
 option(ENABLE_LEGACY_PFILE_READ "Enable legacy text pfile reader fallback" ON)
 
 # Always generate compile_commands.json for clang-tidy and IDE integration
@@ -251,6 +250,7 @@ set(SOURCE_FILES
     io/json/json_game_settings.c
     io/json/json_gq.c
     io/json/json_instance.c
+    io/json/json_localization.c
     io/json/json_mail.c
     io/json/json_note.c
     io/json/json_obj_types.c
@@ -265,7 +265,6 @@ set(SOURCE_FILES
     io/json/json_socials.c
     io/json/json_staff.c
     save.c
-    pfile_migrate.c
     scan.c
     script_commands.c
     script_comp.c
@@ -280,6 +279,7 @@ set(SOURCE_FILES
     scripts.c
     sectors_runtime.c
     secret.c
+    sha256.c
     shoot.c
     skill_data.c
     skill_group.c
@@ -289,8 +289,12 @@ set(SOURCE_FILES
     staff.c
     stats.c
     string.c
+    utils/array.c
     utils/buffer.c
+    utils/localization.c
+    utils/strdict.c
     utils/tablefmt.c
+    utils/utf8.c
     storage.c
     tables.c
     tls.c
@@ -314,6 +318,10 @@ if(BUILD_TESTS)
         tests/unit/buffer_function_cases_core.c
         tests/unit/buffer_function_cases_permutations.c
         tests/unit/buffer_function_tests.c
+        tests/unit/memory_util_tests.c
+        tests/unit/utf8_function_tests.c
+        tests/unit/array_function_tests.c
+        tests/unit/strdict_function_tests.c
         tests/framework/test_framework.c
         tests/framework/test_loader.c
         tests/framework/test_dispatcher.c
@@ -324,17 +332,28 @@ if(BUILD_TESTS)
         tests/integration/reset_tests.c
         tests/integration/shop_stock_tests.c
         tests/integration/church_tests.c
-        tests/integration/instance_tests.c
+        tests/integration/instance_tests.c  # Re-enabled with proper blueprint and dungeon tests
         tests/integration/chat_rooms_tests.c
         tests/integration/skill_data_tests.c
+        tests/integration/spell_data_tests.c
         tests/integration/class_data_tests.c
         tests/integration/item_type_tests.c
         tests/integration/lookup_table_tests.c
         tests/integration/script_engine_tests.c
         tests/integration/channel_pubsub_tests.c
+        tests/integration/combat_telemetry_tests.c
+        tests/integration/combat_math_tests.c
         tests/integration/song_data_tests.c
         tests/integration/skill_group_tests.c
         tests/integration/trait_system_tests.c
+        tests/integration/command_table_tests.c
+        tests/integration/constants_tables_tests.c
+        tests/integration/handler_function_tests.c
+        tests/integration/quest_system_tests.c
+        tests/integration/reputation_system_tests.c
+        tests/integration/olc_framework_tests.c
+        tests/integration/wilderness_system_tests.c
+        tests/integration/update_cycle_tests.c
     )
 endif()
 
@@ -351,7 +370,6 @@ target_compile_definitions(sent PRIVATE
     VERSION="${GIT_VERSION}"
     BUILD_DATE="${CUR_BUILD_DATE}"
     COMMIT="${GIT_URL}"
-    ENABLE_LEGACY_AREA_READ=$<IF:$<BOOL:${ENABLE_LEGACY_AREA_READ}>,1,0>
     ENABLE_LEGACY_PFILE_READ=$<IF:$<BOOL:${ENABLE_LEGACY_PFILE_READ}>,1,0>
     # MUD_DEBUG enables debug features like stack trace logging
     $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:MUD_DEBUG>

@@ -271,7 +271,7 @@ GREDIT(gredit_name)
     SKILL_GROUP *group;
     EDIT_GROUP(ch, group);
     return olc_cmd_string(ch, argument, "Name", NULL, &group->name,
-        OLC_STR_DEFAULT, group, gredit_record_cb);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, group, gredit_record_cb);
 }
 
 GREDIT(gredit_add)

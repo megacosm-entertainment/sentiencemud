@@ -31,6 +31,7 @@
 #include "class_data.h"
 #include "skill_group.h"
 #include "traits.h"
+#include "utils/localization.h"
 
 /*
  * NANNY SYSTEM - LOGIN AND CHARACTER CREATION
@@ -61,6 +62,29 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
     char buf[MAX_STRING_LENGTH];
     bool found;
 
+    if (d->ws_resume_pending)
+        return;
+
+    while (ISSPACE(*argument))
+        argument++;
+
+    // WebSocket session resume command: RESUME <token>
+    if (!str_prefix("RESUME ", argument)) {
+        const char *token = argument + 7;
+        while (ISSPACE(*token))
+            token++;
+
+        if (websocket_resume_try(d, token))
+            return;
+
+        if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS)
+            write_to_buffer(d, "Core.Resume {\"event\":\"fail\",\"reason\":\"invalid_or_expired\"}\n\r", 0);
+        else
+            write_to_buffer(d, "Session resume failed or expired.\n\r", 0);
+        write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
+        return;
+    }
+
     if (!argument[0]) {
         close_socket(d);
         return;
@@ -81,24 +105,37 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
     
     // Try to load the account
     found = load_account(d, argument);
+    if (found && IS_VALID(d->account))
+        d->lang = d->account->lang;
+    else
+        d->lang = default_localization;
     
     // Check if they're banned
     if (check_ban(d->host, BAN_PERMIT)) {
-        write_to_buffer(d, "Your site has been banned from Sentience.\n\r", 0);
+        write_to_buffer(d, LTNL(d, "error.msg.login.site_ban"), 0);
         close_socket(d);
         return;
     }
-    
+
     // Check wizlock if they don't have any immortal characters
     if (game_settings.wizlock && !account_has_immortal(d->account)) {
         if (!IS_NULLSTR(game_settings.wizlock_msg))
             write_to_buffer(d, game_settings.wizlock_msg, 0);
         else
-            write_to_buffer(d, "The game is wizlocked.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.login.wizlock"), 0);
             
-        log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-        sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-        wiznet(buf, NULL, NULL, WIZ_LOGINS, 0, 0);
+        log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, LTDF("log.msg.wizlock", argument, d->host));
+        sprintf(buf, LTDF("wiznet.msg.wizlock", argument, d->host));
+        // TODO: create a wiznet that can localize to the individual receivers' language setting
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = buf,
+            .staff_message = buf,
+            .wiznet_flag = WIZ_LOGINS,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, NULL);
         close_socket(d);
         return;
     }
@@ -108,7 +145,7 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
         if (DEV_SKIP_PASSWORD) {
             // Log and proceed as if password was accepted
             ProtocolNoEcho(d, false);
-            log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "Account %s@%s has connected (dev server, password skipped).", d->account->username, d->host);
+            log_message(LOG_LEVEL_INFO, LOG_SECURITY, LTDF("log.msg.dev_skip_pwd", d->account->username, d->host));
 
             if (DEV_SKIP_MFA) {
                 d->connected = CON_ACCOUNT_MENU;
@@ -141,15 +178,15 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
             if (game_settings.new_acct_lock_msg && game_settings.new_acct_lock_msg[0])
                 write_to_buffer(d, game_settings.new_acct_lock_msg, 0);
             else
-                write_to_buffer(d, "New accounts are not being accepted at this time.\n\r", 0);
+                write_to_buffer(d, LTNL(d, "error.msg.account.newlock"), 0);
                 
-            write_to_buffer(d, "The game is newlocked.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.login.newlock"), 0);
             close_socket(d);
             return;
         }
 
         if (check_ban(d->host, BAN_NEWBIES)) {
-            write_to_buffer(d, "New accounts are not allowed from your site.\n\r", 0);
+            write_to_buffer(d, LTNL(d, "error.msg.account.new_ban"), 0);
             close_socket(d);
             return;
         }
@@ -842,8 +879,8 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     char race_buf[50];
     char class_buf[50];
     ACCOUNT_CHARACTER *ch_entry;
-    char *default_char = IS_NULLSTR(acct->default_character) ? NULL : acct->default_character;
-    ACCOUNT_CHARACTER *recent_char = find_most_recent_character(acct);
+    char *default_char;
+    ACCOUNT_CHARACTER *recent_char;
     
     d->mfa_verified = false;
 
@@ -854,25 +891,32 @@ void display_account_menu(DESCRIPTOR_DATA *d)
     int regular_count = 0;
 
     if (!acct) {
-        write_to_buffer(d, "\n\r{RERROR: Account data missing. Please reconnect or contact staff.{x\n\r", 0);
+        write_to_buffer(d, formatf("\n\r{R%s{x\n\r", LT(d, "error.msg.account.missing")), 0);
         close_socket(d);
         return;
     }
+
+    default_char = IS_NULLSTR(acct->default_character) ? NULL : acct->default_character;
+    recent_char = find_most_recent_character(acct);
     
     write_to_buffer(d, "\n\r{B=={W[ {YSENTIENCE ACCOUNT MENU {W]{B=={x\n\r\n\r", 0);
     
     sprintf(buf, "Account: {C%s{x\n\r", acct->username);
     write_to_buffer(d, buf, 0);
-    if (game_settings.enable_email){
-    if (game_settings.require_email_verif && !acct->email_verified && !IS_NULLSTR(acct->pending_email)) {
-        sprintf(buf, "Email: {C%s{x (pending: {Y%s{x)\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email, acct->pending_email);
-    } else if (game_settings.require_email_verif && !acct->email_verified && IS_NULLSTR(acct->pending_email)) {
-        sprintf(buf, "Email: {YPending verification{x\n\r\n\r");
-    } else {
-        sprintf(buf, "Email: {C%s{x\n\r\n\r", IS_NULLSTR(acct->email) ? "Not set" : acct->email);
+    if (game_settings.enable_email) {
+        if (game_settings.require_email_verif && !acct->email_verified && !IS_NULLSTR(acct->pending_email)) {
+
+            snprintf(buf, MSL-1, "%s: {C%s{x (pending: {Y%s{x)\n\r\n\r",
+                LT(d, "label.email"),
+                IS_NULLSTR(acct->email) ? LT(d, "menu.account.email.pending.not_set") : acct->email,
+                LTF(d, "menu.account.email.pending", acct->pending_email));
+        } else if (game_settings.require_email_verif && !acct->email_verified && IS_NULLSTR(acct->pending_email)) {
+            snprintf(buf, MSL-1, "%s: {Y%s{x\n\r\n\r", LT(d, "label.email"), LT(d, "error.msg.account.email.pending_verification"));
+        } else {
+            snprintf(buf, MSL-1, "%s: {C%s{x\n\r\n\r", LT(d, "label.email"), IS_NULLSTR(acct->email) ? LT(d, "error.msg.account.email.not_set") : acct->email);
+        }
+        write_to_buffer(d, buf, 0);
     }
-    write_to_buffer(d, buf, 0);
-}
 
     /* Account status summary line */
     {
@@ -1825,7 +1869,24 @@ void login_get_name(DESCRIPTOR_DATA *d, char *argument)
 
                 log_message_f(LOG_LEVEL_INFO, LOG_SECURITY, "The game is wizlocked, %s tried to connect from %s.", argument, d->host);
                 sprintf(buf, "Wizlocked: %s tried to connect from %s.", argument, d->host);
-                wiznet(buf, ch, NULL, WIZ_LOGINS, 0, 0);
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(ch) ? "npc" : "player",
+                    .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+                    .actor_uid = { ch->id[0], ch->id[1] },
+                    .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                                  ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+                    .action = "login_wizlocked",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = buf,
+                    .staff_message = buf,
+                    .wiznet_flag = WIZ_LOGINS,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, ch);
                 close_socket(d);
                 return;
             }
@@ -2255,7 +2316,26 @@ void login_get_ascii(DESCRIPTOR_DATA *d, char *argument)
         
     }
 
-    wiznet("Newbie alert!  $N sighted.", ch, NULL, WIZ_NEWBIE, 0, 0);
+    {
+        log_context_t ctx = {
+            .actor_type = IS_NPC(ch) ? "npc" : "player",
+            .actor_name = IS_NPC(ch) ? ch->short_descr : ch->name,
+            .actor_uid = { ch->id[0], ch->id[1] },
+            .actor_wnum = (IS_NPC(ch) && ch->pIndexData)
+                          ? widevnum_string_mobile(ch->pIndexData, NULL) : NULL,
+            .action = "newbie_character_creation",
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "newbie alert",
+            .staff_message = "Newbie alert!  $N sighted.",
+            .wiznet_flag = WIZ_NEWBIE,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, ch);
+    }
 
     /* Show available races (starting + account-unlocked) */
     send_to_char("\n\r{YThe following races are available to you:{x\n\r", ch);
@@ -2725,6 +2805,8 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
             // Set as playing
             d->connected = CON_PLAYING;
+            if (!IS_NPC(d->character))
+                d->lang = d->character->pcdata->lang;   // Update to the character specific language
 
             // Send reconnection message and place in room
             send_to_char("Reconnecting. Type replay to see missed tells.\n\r", existing);
@@ -2737,10 +2819,30 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
 
             // Log the reconnection
             log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", existing->name, d->host);
-            wiznet("$N has relinked.", existing, NULL, WIZ_LINKS, 0, 0);
+            {
+                log_context_t ctx = {
+                    .actor_type = IS_NPC(existing) ? "npc" : "player",
+                    .actor_name = IS_NPC(existing) ? existing->short_descr : existing->name,
+                    .actor_uid = { existing->id[0], existing->id[1] },
+                    .actor_wnum = (IS_NPC(existing) && existing->pIndexData)
+                                  ? widevnum_string_mobile(existing->pIndexData, NULL) : NULL,
+                    .action = "relink",
+                };
+                log_event_t ev = {
+                    .severity = EVENT_SEV_INFO,
+                    .category = LOG_SECURITY,
+                    .plain_message = "character relinked",
+                    .staff_message = "$N has relinked.",
+                    .wiznet_flag = WIZ_LINKS,
+                    .context = &ctx,
+                    .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+                };
+                log_emit_event(&ev, existing);
+            }
 
             // Update connection tracking
             connection_add(d);
+            websocket_resume_issue(d);
 
             // Update protocol
             MXPSendTag(d, "<VERSION>");
@@ -2934,9 +3036,30 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
     
     // Add connection to tracking list
     connection_add(d);
+    websocket_resume_issue(d);
     
     // Final login processing
-    wiznet("$N has entered the game.", d->character, NULL, WIZ_LOGINS, 0, 0);
+    {
+        CHAR_DATA *wch = d->character;
+        log_context_t ctx = {
+            .actor_type = IS_NPC(wch) ? "npc" : "player",
+            .actor_name = IS_NPC(wch) ? wch->short_descr : wch->name,
+            .actor_uid = { wch->id[0], wch->id[1] },
+            .actor_wnum = (IS_NPC(wch) && wch->pIndexData)
+                          ? widevnum_string_mobile(wch->pIndexData, NULL) : NULL,
+            .action = "enter_game",
+        };
+        log_event_t ev = {
+            .severity = EVENT_SEV_INFO,
+            .category = LOG_SECURITY,
+            .plain_message = "character entered game",
+            .staff_message = "$N has entered the game.",
+            .wiznet_flag = WIZ_LOGINS,
+            .context = &ctx,
+            .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+        };
+        log_emit_event(&ev, wch);
+    }
     notify_staff_of_notes(d);
     do_function(ch, &do_look, "auto");
     do_function(ch, &do_unread, "");
@@ -4146,6 +4269,9 @@ void proceed_to_game(DESCRIPTOR_DATA *d)
         return;
     }
 
+    if (!IS_NPC(ch))
+        d->lang = ch->pcdata->lang;
+
     log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "proceed_to_game: %s preparing to enter game", ch->name);
 
     // Load remaining character data if not fully loaded (inventory, equipment, skills, affects)
@@ -4665,12 +4791,12 @@ bool account_has_immortal(ACCOUNT_DATA *acct)
     bool has_immortal = false;
     DESCRIPTOR_DATA temp_d;
     
+    if (!acct || !acct->characters)
+        return false;
+
     // If the account can create staff, treat as staff-capable
     if (IS_SET(acct->acct_flags,ACCT_CAN_CREATE_STAFF))
         return true;
-
-    if (!acct || !acct->characters)
-        return false;
     
     iterator_start(&it, acct->characters);
     while ((ch_entry = (ACCOUNT_CHARACTER *)iterator_nextdata(&it))) {

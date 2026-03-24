@@ -371,7 +371,7 @@ RACEDIT(racedit_name)
     RACE_DATA *race;
     EDIT_RACE(ch, race);
     return olc_cmd_string(ch, argument, "Name", NULL, &race->name,
-        OLC_STR_DEFAULT, race, racedit_record_cb);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, race, racedit_record_cb);
 }
 
 

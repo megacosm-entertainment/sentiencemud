@@ -232,6 +232,25 @@ void olc_display_vnum(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
     olc_display_string(ctx, theme, label, command, val_buf);
 }
 
+void olc_display_widevnum(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
+                          const char *label, const char *command,
+                          const char *wnum_str, const char *name)
+{
+    char val_buf[MIL];
+
+    if (!wnum_str || wnum_str[0] == '\0') {
+        olc_display_string(ctx, theme, label, command, NULL);
+        return;
+    }
+
+    if (name && name[0] != '\0') {
+        snprintf(val_buf, sizeof(val_buf), "%s (%s)", wnum_str, name);
+    } else {
+        snprintf(val_buf, sizeof(val_buf), "%s", wnum_str);
+    }
+    olc_display_string(ctx, theme, label, command, val_buf);
+}
+
 void olc_display_percent(OLC_LAYOUT_CTX *ctx, const OLC_EDITOR_THEME *theme,
                          const char *label, const char *command,
                          int value, int scale)

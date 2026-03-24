@@ -257,7 +257,9 @@ SPELL_FUNC(spell_dispel_room)
     rev_pRoom = ch->in_room;
 
     // Dispel current room
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
+    OBJ_DATA *obj_next;
+    for (obj = ch->in_room->contents; obj != NULL; obj = obj_next) {
+        obj_next = obj->next_content;
         exists = false;
 
         if (obj->item_type == ITEM_ROOM_FLAME) {
@@ -297,7 +299,8 @@ SPELL_FUNC(spell_dispel_room)
         pexit = ch->in_room->exit[ index ];
         if (pexit && ((pRoom = pexit->u1.to_room)) &&
             !IS_SET(pexit->exit_info, EX_CLOSED)) {
-            for (obj = pRoom->contents; obj; obj = obj->next_content)  {
+            for (obj = pRoom->contents; obj; obj = obj_next)  {
+                obj_next = obj->next_content;
                 exists = false;
                 if (obj->item_type == ITEM_ROOM_FLAME) {
                     sprintf(buf, "{DThe flames die down and disappear.{x\n\r");
@@ -331,6 +334,7 @@ SPELL_FUNC(spell_dispel_room)
                 if (exists && !saves_dispel(ch, NULL, obj->level)) {
                     room_echo(rev_pRoom, buf2);
                     room_echo(pRoom, buf);
+                    obj_from_room(obj);
                     extract_obj(obj);
                 }
             }

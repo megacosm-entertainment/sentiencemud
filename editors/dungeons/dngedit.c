@@ -285,7 +285,7 @@ static bool dngedit_render_weighted_floor_list(CHAR_DATA *ch, DUNGEON_INDEX_DATA
     while ((weighted = (DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)iterator_nextdata(&it)))
     {
         BLUEPRINT *bp = list_nthdata(dng->floors, weighted->floor);
-        snprintf(buf, MSL - 1, "%4d   %6d     %5d     %8ld    %30.30s\n\r", ++row, weighted->weight, weighted->floor, bp->vnum, bp->name);
+        snprintf(buf, MSL - 1, "%4d   %6d     %5d     %8s    %30.30s\n\r", ++row, weighted->weight, weighted->floor, widevnum_string_blueprint(bp, dng->area), bp->name);
         buf[MSL - 1] = '\0';
         if (!dngedit_add_or_fail(ch, buffer, buf, overflow_message))
         {
@@ -887,7 +887,7 @@ DNGEDIT( dngedit_show )
     OLC_LAYOUT_CTX *ctx = olc_display_new(ch, theme);
 
     char id_buf[64];
-    sprintf(id_buf, "%ld", dng->vnum);
+    snprintf(id_buf, sizeof(id_buf), "%s", widevnum_string_dungeon(dng, dng->area));
     olc_display_header(ctx, "DNGEdit", dng->name, id_buf, &dngedit_def);
 
     /* Dispatch to active tab's show function */
@@ -920,7 +920,7 @@ static void dngedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *p
     const OLC_EDITOR_THEME *theme = dngedit_def.theme;
     char buf[MSL];
 
-    sprintf(buf, "[%5ld] %s", dng->vnum, dng->name);
+    sprintf(buf, "[%s] %s", widevnum_string_dungeon(dng, dng->area), dng->name);
     olc_display_string(ctx, theme, "Name:", "name", buf);
 
     olc_display_flags(ctx, theme, "Flags:", "flags", dungeon_flags, dng->flags);
@@ -1107,7 +1107,7 @@ static void dngedit_show_variables_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void 
                     break;
                 case VAR_ROOM:
                     if (var->_.r && var->_.r->vnum > 0)
-                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name, var->save?'Y':'N', var->_.r->name, (int)var->_.r->vnum);
+                        sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%s{R){x\n\r", var->name, var->save?'Y':'N', var->_.r->name, widevnum_string_room(var->_.r, dng->area));
                     else
                         sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r", var->name, var->save?'Y':'N');
                     break;
@@ -1227,7 +1227,7 @@ DNGEDIT( dngedit_name )
     EDIT_DUNGEON(ch, dng);
 
     return olc_cmd_string(ch, argument, "Name", NULL, &dng->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
 }
 
 DNGEDIT( dngedit_repop )

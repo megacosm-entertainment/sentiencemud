@@ -1,97 +1,73 @@
-# Testing Framework Documentation
-
-This directory contains comprehensive documentation for the Sentience MUD JSON-driven integration test framework.
-
-## Documentation Files
-
-### [TESTING_FRAMEWORK.md](TESTING_FRAMEWORK.md)
-**Complete framework documentation** including:
-- Detailed architecture overview
-- Writing test code in C with full examples
-- Creating JSON test scenarios with complete schema reference
-- Running tests with all command-line options
-- Extensive examples and best practices
-- Memory testing and advanced debugging
-- Troubleshooting guide
-
-### [TESTING_QUICK_REFERENCE.md](TESTING_QUICK_REFERENCE.md)
-**Quick developer reference** for rapid development:
-- 5-minute guide to adding new test types
-- Copy-paste code templates
-- JSON schema examples
-- Helper functions reference
-- Common gotchas and solutions
-
-### [TESTING_ROADMAP.md](TESTING_ROADMAP.md)
-**Strategic testing roadmap** for long-term planning:
-- Evolution from integration to comprehensive testing
-- Implementation phases and priorities
-- Memory testing strategy
-- CI/CD integration planning
-- Resource requirements and success metrics
+# Sentience MUD Testing Framework
 
 ## Quick Start
 
+Build the MUD with testing enabled:
 ```bash
-# Build with test support
 cd /sentience/src
 ./build tests
+```
 
-# Build with coverage analysis
-./build coverage
-
-# Run all tests
+Run all tests:
+```bash
 cd /sentience
 ./sent -test
+```
 
-# View coverage report
-$BROWSER /sentience/src/coverage_html/index.html
+Run development profile (fast tests):
+```bash
+cd /sentience
+./sent -test:profile:development
+```
 
-# Run specific test suite
-./sent -test:area_loading
+Run tests by pattern:
+```bash
+cd /sentience
+./sent -test:wnum              # All wnum-related tests
+./sent -test:area              # All area tests
+./sent -test:string            # All string tests
 ```
 
 ## Framework Overview
 
-The test framework provides:
-- **JSON-Driven Configuration**: Test scenarios in structured JSON
-- **Conditional Compilation**: Zero production overhead
-- **Dependency Management**: Test ordering and prerequisites  
-- **Real MUD Environment**: Integration testing against actual systems
-- **Console & Log Output**: Real-time results and detailed logging
-- **Code Coverage Analysis**: Automated coverage reporting with gcov/lcov
-- **Memory Testing**: AddressSanitizer and Valgrind integration
+Sentience uses a JSON-driven testing framework where test definitions are stored as JSON files and dispatched to C test handlers. The framework has zero production overhead (protected by `#ifdef BUILD_TESTS`) and supports both unit and integration testing.
 
-## Test Structure
+**Current Test Coverage:**
+- **67 test definition files** (27 unit, 34 integration, 6 framework)  
+- **34 integration suites** testing game systems
+- **27 unit test suites** testing core utilities
+- **432 total tests** across all suites
 
-```
-/sentience/
-├── src/tests/                     # Framework source code
-│   ├── framework/                 # Core framework implementation
-│   ├── integration/               # Integration test handlers
-│   └── unit/                      # Unit test handlers (future)
-└── data/tests/                    # JSON test configurations
-    ├── area_loading_tests.json    # Area validation tests
-    ├── wnum_parsing_tests.json    # WNUM parsing tests
-    └── database_integrity_tests.json # Config validation tests
-```
+## Test Profiles
 
-## Current Test Suites
+| Profile | Description | Command |
+|---------|------------|---------|
+| `development` | Fast tests for development workflow | `./sent -test:profile:development` |
+| `ci` | Complete test suite for CI/CD | `./sent -test:profile:ci` |
+| `bootstrap_ci` | Bootstrap-compatible suite for CI fixture data | `./sent -test:profile:bootstrap_ci` |
+| `bootstrap_ci_redis` | Bootstrap CI plus Redis cache validation | `./sent -test:profile:bootstrap_ci_redis` |
+| `nonbootstrap_full` | Comprehensive non-bootstrap regression suite | `./sent -test:profile:nonbootstrap_full` |
+| `serialization_cycle` | Persistence and round-trip focused tests | `./sent -test:profile:serialization_cycle` |
+| `regression` | Core regression tests | `./sent -test:profile:regression` |
+| `combat_bench` | Combat telemetry baseline benchmarks | `./sent -test:profile:combat_bench` |
 
-1. **area_loading** - Validates essential areas load correctly with proper UIDs and vnum ranges
-2. **wnum_parsing** - Tests WNUM parsing functionality with different area contexts  
-3. **database_integrity** - Validates configuration files and system settings
+## Documentation Index
 
-Recent test status: 6 total tests, 5 passed, 1 failed (full MUD environment integration working).
+- **[TESTING_FRAMEWORK.md](TESTING_FRAMEWORK.md)** — Complete architecture and reference
+- **[WRITING_TESTS.md](WRITING_TESTS.md)** — How to write tests (TDD-oriented)  
+- **[TDD_WORKFLOW.md](TDD_WORKFLOW.md)** — The red-green-refactor process for MUD development
+- **[COVERAGE_STATUS.md](COVERAGE_STATUS.md)** — What's tested and what's not
 
-## Adding New Tests
+## Key Commands
 
-See [TESTING_QUICK_REFERENCE.md](TESTING_QUICK_REFERENCE.md) for step-by-step examples, or [TESTING_FRAMEWORK.md](TESTING_FRAMEWORK.md) for comprehensive documentation.
+| Command | Description |
+|---------|-------------|
+| `./sent -test` | Run all default tests |
+| `./sent -test:profile:<name>` | Run specific test profile |
+| `./sent -test:<pattern>` | Run tests matching pattern |
+| `./sent -test:summary` | Show test suite counts only |
+| `./sent -test:config` | Show configuration and available profiles |
+| `./sent -test:registry` | Show all available test suites |
 
-The basic process:
-1. **Implement test handler** in C code
-2. **Create JSON configuration** with test scenarios  
-3. **Update build systems** (CMakeLists.txt and Makefile)
-4. **Build and test** with framework
-
-All test code is conditionally compiled with `#ifdef BUILD_TESTS` to ensure zero overhead in production builds.
+**Build from:** `/sentience/src` with `./build tests`  
+**Run from:** `/sentience` (not `src/`) because the binary loads data from relative paths

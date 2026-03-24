@@ -37,8 +37,8 @@ void handle_account_create_character(DESCRIPTOR_DATA *d)
     ACCOUNT_DATA *acct = d->account;
 
     if (game_settings.require_email_verif && !IS_EMAIL_VERIFIED(acct)) {
-        write_to_buffer(d, "\n\rYou must verify your email address before creating characters.\n\r", 0);
-        write_to_buffer(d, "Select 'V' from the menu to verify your email address.\n\r", 0);
+        write_to_buffer(d, formatf("\n\r%s\n\r", localization_translate(d->lang, "error.msg.login.character.create.no_email")), 0);
+        write_to_buffer(d, formatf("%s\n\r", localization_translate(d->lang, "error.msg.login.character.create.no_email")), 0);
         display_account_menu(d);
         return;
     }

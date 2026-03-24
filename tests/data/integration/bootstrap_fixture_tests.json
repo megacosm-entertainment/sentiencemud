@@ -25,6 +25,18 @@
             "name": "Definitely Missing Bootstrap Fixture Area",
             "should_exist": false
           }
+        ],
+        "required_rooms": [
+          {
+            "area_name": "Bootstrap Tests",
+            "vnum": 2
+          }
+        ],
+        "required_mobiles": [
+          {
+            "area_name": "Bootstrap Tests",
+            "vnum": 103
+          }
         ]
       },
       "expected_output": {

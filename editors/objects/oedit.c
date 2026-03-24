@@ -40,6 +40,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../../utils/localization.h"
 
 extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument);
@@ -156,6 +157,7 @@ const struct olc_cmd_type oedit_table[] =
     { "seed",           oedit_seed          },
     { "sextant",        oedit_sextant       },
     { "ship",           oedit_ship          },
+    { "shipmodule",     oedit_shipmodule    },
     { "tattoo",         oedit_tattoo        },
     { "telescope",      oedit_telescope     },
     { "tool",           oedit_tool          },
@@ -289,7 +291,7 @@ static void oedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEd
         theme->label,
         theme->value,
         !pObj->area ? "No Area" : pObj->area->name);
-    olc_display_number(ctx, theme, "Vnum:", NULL, pObj->vnum);
+    olc_display_string(ctx, theme, "Vnum:", NULL, widevnum_string_object(pObj, pObj->area));
 
     /* Primary type + secondary types */
     snprintf(buf, sizeof(buf), "%s", flag_string(type_flags, pObj->item_type));
@@ -367,8 +369,9 @@ static void oedit_show_properties_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *
             ? get_obj_index(pObj->lock->key_wnum.pArea, pObj->lock->key_wnum.vnum) : NULL;
 
         olc_display_section(ctx, theme, "Lock State");
-        olc_display_vnum(ctx, theme, "Key:", "lock key",
-            pObj->lock->key_wnum.vnum,
+        olc_display_widevnum(ctx, theme, "Key:", "lock key",
+            lock_key ? widevnum_string_object(lock_key, pObj->area)
+                     : (pObj->lock->key_wnum.vnum > 0 ? formatf("%ld", pObj->lock->key_wnum.vnum) : NULL),
             lock_key ? lock_key->short_descr : NULL);
         olc_display_flags(ctx, theme, "Flags:", "lock flags", lock_flags, pObj->lock->flags);
         olc_display_percent(ctx, theme, "Pick Chance:", "lock pick", pObj->lock->pick_chance, 1);
@@ -679,7 +682,7 @@ OEDIT(oedit_show)
     ctx = olc_display_new(ch, theme);
 
     olc_display_header(ctx, "OEdit", pObj->short_descr,
-        formatf("%ld", pObj->vnum), &oedit_def);
+        formatf("%s", widevnum_string_object(pObj, pObj->area)), &oedit_def);
 
     /* Dispatch to active tab's show function */
     tab = olc_show_all_tabs_mode(ch) ? -1 : (ch->desc ? ch->desc->nEditTab : 0);
@@ -1890,7 +1893,7 @@ OEDIT(oedit_name)
     OBJ_INDEX_DATA *pObj;
     EDIT_OBJ(ch, pObj);
     bool changed = olc_cmd_string(ch, argument, "Name", NULL, &pObj->name,
-        OLC_STR_DEFAULT, NULL, NULL);
+        OLC_STR_DEFAULT | OLC_STR_UTF8_RESTRICT, NULL, NULL);
     if (changed)
         oedit_rebuild_auto_tags(pObj);
     return changed;
@@ -1998,7 +2001,7 @@ OEDIT(oedit_parent)
     pObj->parent = parent;
     pObj->parent_inherited = false;
 
-    send_to_char("Parent object set. Inheritance is resolved at load time.\n\r", ch);
+    send_to_char("Parent object set. Inheritance applied immediately.\n\r", ch);
     return true;
 }
 
@@ -2043,9 +2046,24 @@ OEDIT(oedit_short)
 
     if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
-    free_string(pObj->name);
-    pObj->name = short_to_name(pObj->short_descr);
-    send_to_char("Name keywords set.\n\r", ch);
+        char *keywords = NULL;
+        char *invalid = NULL;
+        LOCALIZATION_ERROR err = localization_short_to_keywords(pObj->short_descr, &keywords, &invalid);
+        if (err != LOC_OK || IS_NULLSTR(keywords)) {
+            send_to_char("{RNone of the short description could be applied to the name.{x\n\r", ch);
+            if (keywords) free(keywords); // Since it can't be used
+        } else {
+            free_string(pObj->name);
+            pObj->name = keywords;
+            send_to_char("Name keywords set.\n\r", ch);
+
+            // If there were any invalid words, tell the builder, in case they want to redo the whole name field
+            if (!IS_NULLSTR(invalid))
+            {
+                send_to_char(formatf("{RCould not apply the following words from the short to the name:{x\n\r{W%s{x\n\r",invalid), ch);
+            }
+        }
+        if (invalid) free(invalid);
     }
     oedit_rebuild_auto_tags(pObj);
     return true;

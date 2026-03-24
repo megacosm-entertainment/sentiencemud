@@ -17,6 +17,7 @@
 #include "db.h"
 #include "tables.h"
 #include "io/json/json_socials.h"
+#include "utils/localization.h"
 
 
 int social_count;
@@ -833,7 +834,6 @@ char *nocolour( const char *string )
             if( string[i+1] == COLOUR_CHAR )		// Double {{ becomes { when processed, but still counts as two
             {
                 buf[n++] = COLOUR_CHAR;
-                buf[n++] = COLOUR_CHAR;
             }
 
             i+=2;
@@ -865,9 +865,22 @@ char *nocolour( const char *string )
 }
 
 
-/* convert short desc to a keyword name */
+/* convert short desc to a keyword name, no feedback, errors return empty string */
 char *short_to_name( const char *short_desc )
 {
+    char *temp_desc = nocolour(short_desc);
+    char *keywords = NULL;
+
+    LOCALIZATION_ERROR err = localization_short_to_keywords(temp_desc, &keywords, NULL);
+    free_string(temp_desc);
+    if (err != LOC_OK || IS_NULLSTR(keywords)) {
+        if (keywords) free(keywords); // Since it can't be used
+        keywords = str_empty;
+    }
+
+    return keywords;
+
+#if 0
     char name[MSL];
     char arg[MIL];
     char *temp_desc;
@@ -963,6 +976,7 @@ char *short_to_name( const char *short_desc )
     free_string(temp_desc);	// temp_desc wasn't being free'd... oops
 
     return str_dup(name);
+#endif
 }
 
 

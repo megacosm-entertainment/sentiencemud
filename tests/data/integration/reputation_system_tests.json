@@ -1,0 +1,192 @@
+{
+  "type": "test_suite",
+  "test_suite": "reputation_system",
+  "description": "Reputation system validation - data loading, lookups, and rank calculations",
+  "version": "1.0",
+  "requires_mud_environment": true,
+  "dependencies": ["area_loading"],
+  "timeout_seconds": 30,
+  "tests": [
+    {
+      "name": "repsys_index_lookup_functions",
+      "description": "Test reputation index lookup by area/vnum, auid/vnum, and WNUM",
+      "dependencies": [],
+      "test_type": "repsys_idx_lkp",
+      "input": {
+        "create_test_area": true,
+        "test_vnum": 100,
+        "test_cases": [
+          {
+            "lookup_type": "area_vnum",
+            "should_find_existing": true,
+            "should_find_missing": false,
+            "description": "Test get_reputation_index with area/vnum"
+          },
+          {
+            "lookup_type": "auid_vnum",
+            "should_find_existing": true,
+            "should_find_missing": false,
+            "description": "Test get_reputation_index_auid with auid/vnum"
+          },
+          {
+            "lookup_type": "wnum",
+            "should_find_existing": true,
+            "should_find_missing": false,
+            "description": "Test get_reputation_index_wnum with WNUM"
+          }
+        ]
+      },
+      "expected_output": {
+        "all_lookups_correct": true,
+        "missing_lookups_null": true
+      }
+    },
+    {
+      "name": "repsys_rank_lookup_functions",
+      "description": "Test reputation rank lookup by ordinal and UID",
+      "dependencies": ["repsys_index_lookup_functions"],
+      "test_type": "repsys_rank_lkp",
+      "input": {
+        "test_ranks": [
+          { "uid": 1, "ordinal": 1, "name": "Neutral", "capacity": 100 },
+          { "uid": 2, "ordinal": 2, "name": "Friendly", "capacity": 200 },
+          { "uid": 3, "ordinal": 3, "name": "Ally", "capacity": 500 }
+        ]
+      },
+      "expected_output": {
+        "rank_lookup_by_ordinal": true,
+        "rank_lookup_by_uid": true,
+        "invalid_lookups_null": true
+      }
+    },
+    {
+      "name": "repsys_character_reputation_management",
+      "description": "Test character reputation creation, lookup, and modification",
+      "dependencies": ["repsys_index_lookup_functions"],
+      "test_type": "repsys_character_rep_test",
+      "input": {
+        "initial_rank": 2,
+        "initial_reputation": 150,
+        "gain_amount": 50,
+        "rank_change": {
+          "new_rank": 3,
+          "new_reputation": 300
+        }
+      },
+      "expected_output": {
+        "character_rep_created": true,
+        "reputation_gain_works": true,
+        "rank_setting_works": true,
+        "maximum_rank_tracking": true
+      }
+    },
+    {
+      "name": "repsys_reputation_calculations",
+      "description": "Test reputation level calculations and rank progression",
+      "dependencies": ["repsys_rank_lookup_functions"],
+      "test_type": "repsys_calculation_test",
+      "input": {
+        "test_scenarios": [
+          {
+            "description": "Basic reputation gain",
+            "initial_rep": 100,
+            "gain_amount": 75,
+            "expected_final": 175
+          },
+          {
+            "description": "Reputation loss (capped at zero)",
+            "initial_rep": 50,
+            "gain_amount": -100,
+            "expected_final": 0
+          },
+          {
+            "description": "Large reputation gain",
+            "initial_rep": 200,
+            "gain_amount": 500,
+            "expected_final": 700
+          }
+        ]
+      },
+      "expected_output": {
+        "all_calculations_correct": true,
+        "negative_capping_works": true
+      }
+    },
+    {
+      "name": "repsys_rank_flags_behavior",
+      "description": "Test reputation rank flag behavior (peaceful, hostile)",
+      "dependencies": ["repsys_character_reputation_management"],
+      "test_type": "repsys_flag_test",
+      "input": {
+        "peaceful_rank": {
+          "uid": 10,
+          "flags": 8,
+          "name": "Peace Keeper"
+        },
+        "hostile_rank": {
+          "uid": 11,
+          "flags": 16,
+          "name": "Enemy"
+        },
+        "neutral_rank": {
+          "uid": 12,
+          "flags": 0,
+          "name": "Neutral"
+        }
+      },
+      "expected_output": {
+        "peaceful_detection": true,
+        "hostile_detection": true,
+        "neutral_detection": true
+      }
+    },
+    {
+      "name": "repsys_paragon_system",
+      "description": "Test paragon level advancement system",
+      "dependencies": ["repsys_character_reputation_management"],
+      "test_type": "repsys_paragon_test",
+      "input": {
+        "initial_paragon": 0,
+        "advancement_count": 3
+      },
+      "expected_output": {
+        "paragon_advancement": true,
+        "paragon_level_tracking": true
+      }
+    },
+    {
+      "name": "repsys_data_validation",
+      "description": "Test reputation data structure validation and integrity",
+      "dependencies": ["repsys_index_lookup_functions"],
+      "test_type": "repsys_validation_test",
+      "input": {
+        "check_memory_allocation": true,
+        "check_string_fields": true,
+        "check_numeric_bounds": true
+      },
+      "expected_output": {
+        "memory_safety": true,
+        "field_integrity": true,
+        "bounds_checking": true
+      }
+    },
+    {
+      "name": "repsys_reputation_listing",
+      "description": "Test character reputation display and listing functionality",
+      "dependencies": ["repsys_character_reputation_management"],
+      "test_type": "repsys_display_test",
+      "input": {
+        "multiple_reputations": [
+          { "name": "Test Faction 1", "rank": "Neutral", "points": 100 },
+          { "name": "Test Faction 2", "rank": "Friendly", "points": 250 },
+          { "name": "Test Faction 3", "rank": "Allied", "points": 500 }
+        ]
+      },
+      "expected_output": {
+        "reputation_list_formatted": true,
+        "rank_names_displayed": true,
+        "point_values_displayed": true
+      }
+    }
+  ]
+}

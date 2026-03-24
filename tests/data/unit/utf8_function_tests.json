@@ -1,0 +1,277 @@
+{
+  "type": "test_suite",
+  "test_suite": "utf8_function_tests",
+  "description": "Unit tests for UTF-8 string handling functions",
+  "version": "1.0",
+  "requires_mud_environment": false,
+  "test_level": "unit",
+  "tests": [
+    {
+      "name": "utf8_bytes_ascii",
+      "description": "Test utf8_bytes() with ASCII characters (1 byte)",
+      "test_type": "utf8_byte_counts",
+      "input": {
+        "scenario": "ascii_chars",
+        "test_chars": [65, 97, 48, 32]
+      }
+    },
+    {
+      "name": "utf8_bytes_2byte",
+      "description": "Test utf8_bytes() with 2-byte Unicode characters",
+      "test_type": "utf8_byte_counts",
+      "input": {
+        "scenario": "2byte_chars",
+        "test_chars": [233, 255, 2047]
+      }
+    },
+    {
+      "name": "utf8_bytes_3byte",
+      "description": "Test utf8_bytes() with 3-byte Unicode characters",
+      "test_type": "utf8_byte_counts",
+      "input": {
+        "scenario": "3byte_chars",
+        "test_chars": [2048, 28450, 65535]
+      }
+    },
+    {
+      "name": "utf8_bytes_4byte",
+      "description": "Test utf8_bytes() with 4-byte Unicode characters",
+      "test_type": "utf8_byte_counts",
+      "input": {
+        "scenario": "4byte_chars",
+        "test_chars": [65536, 128512, 1114111]
+      }
+    },
+    {
+      "name": "utf8_bytes_invalid",
+      "description": "Test utf8_bytes() with invalid codepoints",
+      "test_type": "utf8_byte_counts",
+      "input": {
+        "scenario": "invalid_chars",
+        "test_chars": [55296, 57343, 65534, 65535]
+      }
+    },
+    {
+      "name": "utf8_encode_decode_ascii",
+      "description": "Test encode/decode roundtrip with ASCII characters",
+      "test_type": "utf8_encode_decode",
+      "input": {
+        "scenario": "ascii_roundtrip",
+        "test_chars": [65, 97, 48, 32, 126]
+      }
+    },
+    {
+      "name": "utf8_encode_decode_accented",
+      "description": "Test encode/decode roundtrip with accented characters",
+      "test_type": "utf8_encode_decode",
+      "input": {
+        "scenario": "accented_roundtrip",
+        "test_chars": [233, 224, 241, 252]
+      }
+    },
+    {
+      "name": "utf8_encode_decode_cjk",
+      "description": "Test encode/decode roundtrip with CJK characters",
+      "test_type": "utf8_encode_decode",
+      "input": {
+        "scenario": "cjk_roundtrip",
+        "test_chars": [28450, 19997, 25991]
+      }
+    },
+    {
+      "name": "utf8_encode_decode_emoji",
+      "description": "Test encode/decode roundtrip with emoji",
+      "test_type": "utf8_encode_decode",
+      "input": {
+        "scenario": "emoji_roundtrip",
+        "test_chars": [128512, 128169, 127775]
+      }
+    },
+    {
+      "name": "utf8_strlen_ascii",
+      "description": "Test utf8_strlen() with ASCII string",
+      "test_type": "utf8_strlen",
+      "input": {
+        "scenario": "ascii_string",
+        "test_string": "Hello World",
+        "expected_length": 11
+      }
+    },
+    {
+      "name": "utf8_strlen_empty",
+      "description": "Test utf8_strlen() with empty string",
+      "test_type": "utf8_strlen",
+      "input": {
+        "scenario": "empty_string",
+        "test_string": "",
+        "expected_length": 0
+      }
+    },
+    {
+      "name": "utf8_strlen_mixed",
+      "description": "Test utf8_strlen() with mixed UTF-8 string",
+      "test_type": "utf8_strlen",
+      "input": {
+        "scenario": "mixed_string",
+        "test_string": "Héllo 世界!",
+        "expected_length": 9
+      }
+    },
+    {
+      "name": "utf8_strlen_multibyte",
+      "description": "Test utf8_strlen() with pure multibyte string",
+      "test_type": "utf8_strlen",
+      "input": {
+        "scenario": "multibyte_string",
+        "test_string": "世界漢字",
+        "expected_length": 4
+      }
+    },
+    {
+      "name": "utf8_validation_ascii",
+      "description": "Test is_utf8_string() with valid ASCII",
+      "test_type": "utf8_validation",
+      "input": {
+        "scenario": "valid_ascii",
+        "test_string": "Hello World",
+        "expected_valid": false
+      }
+    },
+    {
+      "name": "utf8_validation_empty",
+      "description": "Test is_utf8_string() with empty string",
+      "test_type": "utf8_validation",
+      "input": {
+        "scenario": "empty_string",
+        "test_string": "",
+        "expected_valid": false
+      }
+    },
+    {
+      "name": "utf8_validation_multibyte",
+      "description": "Test is_utf8_string() with valid multibyte UTF-8",
+      "test_type": "utf8_validation",
+      "input": {
+        "scenario": "valid_multibyte",
+        "test_string": "Héllo 世界!",
+        "expected_valid": true
+      }
+    },
+    {
+      "name": "utf8_validation_invalid",
+      "description": "Test is_utf8_string() with invalid sequences",
+      "test_type": "utf8_validation",
+      "input": {
+        "scenario": "invalid_sequences"
+      }
+    },
+    {
+      "name": "utf8_navigation_forward",
+      "description": "Test utf8_nextchar() navigation",
+      "test_type": "utf8_navigation",
+      "input": {
+        "scenario": "forward_navigation",
+        "test_string": "Hé世界"
+      }
+    },
+    {
+      "name": "utf8_navigation_backward",
+      "description": "Test utf8_prevchar() navigation",
+      "test_type": "utf8_navigation",
+      "input": {
+        "scenario": "backward_navigation",
+        "test_string": "Hé世界"
+      }
+    },
+    {
+      "name": "utf8_case_ascii",
+      "description": "Test utf8_toupper/tolower() with ASCII letters",
+      "test_type": "utf8_case_conversion",
+      "input": {
+        "scenario": "ascii_case",
+        "test_chars": [97, 98, 99, 65, 66, 67]
+      }
+    },
+    {
+      "name": "utf8_case_accented",
+      "description": "Test utf8_toupper/tolower() with accented characters",
+      "test_type": "utf8_case_conversion",
+      "input": {
+        "scenario": "accented_case",
+        "test_chars": [233, 224, 241, 252]
+      }
+    },
+    {
+      "name": "utf8_string_compare_equal",
+      "description": "Test utf8_str_cmp() equality",
+      "test_type": "utf8_string_compare",
+      "input": {
+        "scenario": "compare_equal",
+        "string_a": "Hello",
+        "string_b": "HELLO"
+      }
+    },
+    {
+      "name": "utf8_string_compare_ordering",
+      "description": "Test utf8_str_cmp() ordering",
+      "test_type": "utf8_string_compare",
+      "input": {
+        "scenario": "compare_ordering",
+        "string_a": "apple",
+        "string_b": "banana"
+      }
+    },
+    {
+      "name": "utf8_string_prefix",
+      "description": "Test utf8_str_prefix()",
+      "test_type": "utf8_string_compare",
+      "input": {
+        "scenario": "test_prefix",
+        "string_a": "Hello World",
+        "string_b": "hello"
+      }
+    },
+    {
+      "name": "utf8_string_infix",
+      "description": "Test utf8_str_infix()",
+      "test_type": "utf8_string_compare",
+      "input": {
+        "scenario": "test_infix",
+        "string_a": "o w",
+        "string_b": "Hello World"
+      }
+    },
+    {
+      "name": "utf8_string_suffix",
+      "description": "Test utf8_str_suffix()",
+      "test_type": "utf8_string_compare",
+      "input": {
+        "scenario": "test_suffix",
+        "string_a": "Hello World",
+        "string_b": "WORLD"
+      }
+    },
+    {
+      "name": "utf8_skip_len_ascii",
+      "description": "Test utf8_skip_len() with ASCII string",
+      "test_type": "utf8_skip_len",
+      "input": {
+        "scenario": "ascii_skip_len",
+        "test_string": "Hello World",
+        "expected_chars": 11,
+        "expected_bytes": 11
+      }
+    },
+    {
+      "name": "utf8_skip_len_mixed",
+      "description": "Test utf8_skip_len() with mixed UTF-8 string",
+      "test_type": "utf8_skip_len",
+      "input": {
+        "scenario": "mixed_skip_len",
+        "test_string": "Héllo 世界!",
+        "expected_chars": 9,
+        "expected_bytes": 14
+      }
+    }
+  ]
+}

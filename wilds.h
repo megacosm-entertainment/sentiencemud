@@ -53,6 +53,7 @@ bool            wilds_wildgen_enqueue_grid args ((WILDS_DATA *pWilds, const char
 bool            wilds_wildgen_check_image args ((WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size));
 bool            wilds_wildgen_export_image args ((WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size));
 bool            wilds_wildgen_export_effective_image args ((WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size));
+bool            wilds_wildgen_export_elevation args ((WILDS_DATA *pWilds, const char *png_path, char *out_buf, size_t out_buf_size));
 void            wilds_wildgen_status args ((WILDS_DATA *pWilds, char *buf, size_t buf_size));
 void            wilds_wildgen_pulse args ((void));
 void            wilds_chunk_pulse args ((void));
@@ -193,6 +194,8 @@ struct wilds_data
     int             wildgen_tile_height;
     char            *wildgen_terrain_base;
     char            *wildgen_elevation_base;
+    int             wildgen_bitdepth;    /* 0=auto, 8=force 8-bit, 16=force 16-bit */
+    int             default_elevation;   /* sea level / base elevation for the wilderness */
 };
 
 

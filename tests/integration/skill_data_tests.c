@@ -24,6 +24,8 @@ static test_result_t test_skill_name_accessor(test_case_t *test);
 static test_result_t test_skill_uid_integrity(test_case_t *test);
 static test_result_t test_skill_uid_roundtrip(test_case_t *test);
 static test_result_t test_spell_fun_lookup_test(test_case_t *test);
+static test_result_t test_skill_sn_conversion(test_case_t *test);
+static test_result_t test_skill_gsn_resolve(test_case_t *test);
 
 /**
  * Main test dispatcher for skill data tests
@@ -52,6 +54,12 @@ test_result_t run_skill_data_test_case(test_case_t *test)
     }
     else if (strcmp(test->test_type, "spell_fun_lookup_test") == 0) {
         result = test_spell_fun_lookup_test(test);
+    }
+    else if (strcmp(test->test_type, "skill_sn_check") == 0) {
+        result = test_skill_sn_conversion(test);
+    }
+    else if (strcmp(test->test_type, "skill_gsn_resolve_check") == 0) {
+        result = test_skill_gsn_resolve(test);
     }
     else {
         log_message_f(LOG_LEVEL_ERROR, LOG_ERROR,
@@ -385,6 +393,105 @@ static test_result_t test_spell_fun_lookup_test(test_case_t *test)
             if (!resolved_name || strlen(resolved_name) == 0) {
                 log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                              "spell_fun_name() returned NULL for function '%s'", name);
+                return TEST_FAILURE;
+            }
+        }
+    }
+
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test skill_sn conversion returns valid values that match UIDs
+ */
+static test_result_t test_skill_sn_conversion(test_case_t *test)
+{
+    int max_check = 10;
+    if (test && test->config) {
+        json_t *input = json_object_get(test->config, "input");
+        if (input) {
+            int cfg_max = test_json_get_int(input, "max_skills_to_check");
+            if (cfg_max > 0) max_check = cfg_max;
+        }
+    }
+
+    int checked = 0;
+    SKILL_DATA *skill;
+    for (skill = skill_first(); skill && checked < max_check; skill = skill->next) {
+        if (!skill->valid) continue;
+        checked++;
+
+        int16_t sn = skill_sn(skill);
+        
+        if (sn <= 0) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "skill_sn() returned non-positive value");
+            return TEST_FAILURE;
+        }
+        if (sn != skill->uid) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "skill_sn() does not match skill->uid");
+            return TEST_FAILURE;
+        }
+    }
+
+    log_message_f(LOG_LEVEL_INFO, LOG_UNIT_TESTS,
+                 "Checked skill_sn() for %d skills", checked);
+    return TEST_SUCCESS;
+}
+
+/**
+ * Test skill_resolve_gsn returns correct values or -1 for missing skills
+ */
+static test_result_t test_skill_gsn_resolve(test_case_t *test)
+{
+    if (!test || !test->config) {
+        return TEST_ERROR;
+    }
+
+    json_t *input = json_object_get(test->config, "input");
+    json_t *test_cases = json_object_get(input, "test_cases");
+
+    if (!test_cases || !json_is_array(test_cases)) {
+        return TEST_ERROR;
+    }
+
+    size_t index;
+    json_t *tc;
+    json_array_foreach(test_cases, index, tc) {
+        const char *name = test_json_get_string(tc, "name");
+        bool should_exist = test_json_get_bool(tc, "should_exist");
+
+        if (!name) continue;
+
+        int16_t gsn = skill_resolve_gsn(name);
+        SKILL_DATA *skill = skill_find(name);
+
+        if (should_exist) {
+            if (skill == NULL) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "skill_find() returned NULL for expected skill");
+                return TEST_FAILURE;
+            }
+            if (gsn <= 0) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "skill_resolve_gsn() returned non-positive GSN for existing skill");
+                return TEST_FAILURE;
+            }
+            if (gsn != skill->uid) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "GSN does not match skill UID");
+                return TEST_FAILURE;
+            }
+        } else {
+            if (skill != NULL) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "skill_find() returned non-NULL for non-existent skill");
+                return TEST_FAILURE;
+            }
+            if (gsn != -1) {
+                log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                             "skill_resolve_gsn() should return -1 for non-existent skill");
                 return TEST_FAILURE;
             }
         }

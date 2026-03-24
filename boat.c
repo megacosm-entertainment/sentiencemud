@@ -50,9 +50,27 @@
 #include "wilds.h"
 #include "interp.h"
 
-INSTANCE *instance_load(FILE *fp);
 void update_instance(INSTANCE *instance);
 void reset_instance(INSTANCE *instance);
+
+/* Forward declarations for ship module subcommands */
+static void do_ship_modules(CHAR_DATA *ch, char *argument);
+static void do_ship_install(CHAR_DATA *ch, char *argument);
+static void do_ship_uninstall(CHAR_DATA *ch, char *argument);
+static void do_ship_repair(CHAR_DATA *ch, char *argument);
+static void do_ship_status(CHAR_DATA *ch, char *argument);
+
+/* Forward declarations for ship combat system */
+static int ship_get_max_weapon_range(SHIP_DATA *ship);
+static int ship_distance(SHIP_DATA *a, SHIP_DATA *b);
+static void boat_fire_weapon(SHIP_DATA *attacker, SHIP_DATA *target, SHIP_MODULE *weapon);
+static void ship_apply_threshold_effects(SHIP_DATA *ship);
+static void ship_destruction_sequence(SHIP_DATA *ship);
+static void ship_combat_rep_attack(CHAR_DATA *ch, SHIP_DATA *attacker, SHIP_DATA *target);
+static void ship_combat_rep_sink(SHIP_DATA *destroyed);
+static bool npc_ship_is_valid_target(SHIP_DATA *hunter, SHIP_DATA *candidate);
+static void ship_coast_guard_alert(CHAR_DATA *ch, SHIP_DATA *attacker, SHIP_DATA *target);
+static void ship_schedule_tick(SHIP_DATA *ship);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
@@ -78,6 +96,7 @@ long top_ship_index_vnum = 0;
 LLIST *loaded_ships;
 LLIST *loaded_waypoints;
 LLIST *loaded_waypoint_paths;
+NPC_SHIP_DATA *npc_ship_list = NULL;
 
 static bool ship_is_npc_autonomous_candidate(SHIP_DATA *ship)
 {
@@ -473,6 +492,10 @@ static void ship_npc_autopilot_tick(SHIP_DATA *ship)
     int heading;
 
     if (!ship_is_npc_autonomous_candidate(ship))
+        return;
+
+    /* Transport ships are driven by ship_schedule_tick, not autopilot */
+    if (IS_SET(ship->ship_flags, SHIP_TRANSPORT))
         return;
 
     room = obj_room(ship->ship);
@@ -1283,6 +1306,20 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 
         case 'H':
             KEY("Hit", ship->hit, fread_number(fp));
+            if( !str_cmp(word, "Hardpoint") )
+            {
+                SHIP_HARDPOINT_DEF *hp = new_ship_hardpoint_def();
+                hp->slot_id = fread_number(fp);
+                free_string(hp->name);
+                hp->name = fread_string(fp);
+                hp->type = fread_number(fp);
+                hp->size = fread_number(fp);
+                hp->domain_flags = fread_number(fp);
+                hp->flags = fread_number(fp);
+                list_appendlink(ship->hardpoints, hp);
+                fMatch = true;
+                break;
+            }
             break;
 
         case 'K':
@@ -1299,6 +1336,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
         case 'M':
             KEY("MoveDelay", ship->move_delay, fread_number(fp));
             KEY("MoveSteps", ship->move_steps, fread_number(fp));
+            KEY("ModuleWeight", ship->max_module_weight, fread_number(fp));
             break;
 
         case 'N':
@@ -1426,6 +1464,9 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
     fprintf(fp, "Capacity %d\n", ship->capacity);
     fprintf(fp, "Armor %d\n", ship->armor);
 
+    if( ship->max_module_weight > 0 )
+        fprintf(fp, "ModuleWeight %d\n", ship->max_module_weight);
+
     iterator_start(&it, ship->special_keys);
     while( (obj = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
     {
@@ -1433,6 +1474,20 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
             fprintf(fp, "Key %ld\n", obj->vnum);
     }
     iterator_stop(&it);
+
+    /* Save hardpoint definitions */
+    {
+        SHIP_HARDPOINT_DEF *hp;
+        ITERATOR hit;
+        iterator_start(&hit, ship->hardpoints);
+        while( (hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&hit)) )
+        {
+            fprintf(fp, "Hardpoint %d %s~ %d %d %ld %ld\n",
+                hp->slot_id, fix_string(hp->name),
+                hp->type, hp->size, hp->domain_flags, hp->flags);
+        }
+        iterator_stop(&hit);
+    }
 
     fprintf(fp, "#-SHIP\n\n");
 }
@@ -1530,6 +1585,7 @@ SHIP_INDEX_DATA *get_ship_index_for_area(AREA_DATA *area, long vnum)
 
     return NULL;
 }
+
 
 /////////////////////////////////////////////////////////////////
 //
@@ -1713,6 +1769,9 @@ SHIP_DATA *create_ship(WNUM wnum)
     ship->max_crew = ship_index->max_crew;
 
     // Build cannons
+
+    /* Recalculate module-derived stats (in case modules were loaded from save) */
+    ship_recalc_modules(ship);
 
     list_appendlink(loaded_ships, ship);
 
@@ -2214,6 +2273,9 @@ void ship_pulse_update(SHIP_DATA *ship)
         }
     }
     iterator_stop(&it);
+
+    /* Combat update — fire/reload cycle, chase, damage ticks */
+    ship_combat_update(ship);
 }
 
 /**
@@ -2246,14 +2308,20 @@ void ships_pulse_update()
 void ship_tick_update(SHIP_DATA *ship)
 {
     // Update scuttling
-    if( ship->scuttle_time > 0 )
+    if( ship->scuttle_time > 0 && !IS_SET(ship->ship_flags, SHIP_SINKING) )
     {
         if(!--ship->scuttle_time)
         {
-            ship_echo(ship, "{R[INSERT SCUTTLE MESSAGE]{x");
-            extract_ship(ship);
+            boat_echo(ship, "{R** The vessel has been scuttled! **{x");
+            ship_destruction_sequence(ship);
             return;
         }
+    }
+
+    /* NPC AI state machine update */
+    if (ship->npc_ship && IS_SET(ship->ship_flags, SHIP_AUTONOMOUS_NPC))
+    {
+        npc_ship_state_update(ship);
     }
 }
 
@@ -2326,429 +2394,6 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 
 }
 
-/**
- * ship_route_load - Load a navigation route from file
- *
- * Reads route name and list of waypoint indices, resolving each
- * index to actual waypoints in the ship's waypoint list.
- *
- * @param fp    Open file positioned at route name
- * @param ship  Ship owning the waypoints (must have waypoints loaded first)
- * @return      New SHIP_ROUTE with loaded waypoints
- */
-SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
-{
-    SHIP_ROUTE *route;
-    char *word;
-    bool fMatch;
-
-    route = new_ship_route();
-    route->name = fread_string(fp);
-
-    while (str_cmp((word = fread_word(fp)), "#-ROUTE"))
-    {
-        fMatch = false;
-
-        switch(word[0])
-        {
-        case 'W':
-            if( !str_cmp(word, "Waypoint") )
-            {
-                int index = fread_number(fp);
-
-                WAYPOINT_DATA *wp = list_nthdata(ship->waypoints, index);
-
-                list_appendlink(route->waypoints, wp);
-
-                fMatch = true;
-                break;
-            }
-            break;
-        }
-
-        if (!fMatch) {
-            pbugf(LOG_ERROR, "ship_route_load: no match for word %.50s", word);
-        }
-    }
-
-    return route;
-}
-
-/**
- * ship_load_find_crew - Find a crew member by UID during ship loading
- *
- * Searches the ship's crew list for a mobile with matching UID.
- * Used to resolve role references (navigator, oarsman, etc.) during load.
- *
- * @param ship  Ship whose crew to search
- * @param id1   First part of UID
- * @param id2   Second part of UID
- * @return      Matching CHAR_DATA or NULL
- */
-CHAR_DATA *ship_load_find_crew(SHIP_DATA *ship, unsigned long id1, unsigned long id2)
-{
-    ITERATOR it;
-    CHAR_DATA *crew;
-
-    iterator_start(&it, ship->crew);
-    while( (crew = (CHAR_DATA *)iterator_nextdata(&it)) )
-    {
-        if( crew->id[0] == id1 && crew->id[1] == id2 )
-            break;
-    }
-    iterator_stop(&it);
-
-    return crew;
-}
-
-INSTANCE *instance_load(FILE *fp);
-OBJ_DATA *persist_load_object(FILE *fp);
-CHAR_DATA *persist_load_mobile(FILE *fp);
-CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned long id2);
-
-/**
- * ship_load - Load a complete ship instance from file
- *
- * Deserializes a saved ship including:
- * - Ship index reference (template)
- * - Interior instance (rooms, exits)
- * - Physical ship object
- * - Crew members and their roles (navigator, oarsmen, etc.)
- * - Waypoints and routes
- * - Special keys
- * - Combat state, damage, flags
- *
- * @param fp  Open file positioned at ship index vnum
- * @return    Loaded SHIP_DATA, or NULL if index not found
- */
-SHIP_DATA *ship_load(FILE *fp)
-{
-    SHIP_DATA *ship;
-    SHIP_INDEX_DATA *index = NULL;
-    char *word;
-    bool fMatch;
-    long vnum = fread_number(fp);
-    AREA_DATA *area = NULL;
-
-    ship = new_ship();
-
-    while (str_cmp((word = fread_word(fp)), "#-SHIP"))
-    {
-        fMatch = false;
-
-        switch(word[0])
-        {
-        case '#':
-            if( !str_cmp(word, "#INSTANCE") )
-            {
-                INSTANCE *instance = instance_load(fp);
-
-                if( IS_VALID(instance) )
-                {
-                    ship->instance = instance;
-                    ship->instance->ship = ship;
-                }
-
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "#MOBILE") )
-            {
-                CHAR_DATA *crew = persist_load_mobile(fp);
-
-                if( IS_VALID(crew) )
-                {
-                    list_appendlink(ship->crew, crew);
-                    char_to_room(crew, crew->in_room);
-                }
-
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "#OBJECT") )
-            {
-                OBJ_DATA *obj = persist_load_object(fp);
-
-
-                if( IS_VALID(obj) ) {
-                    ship->ship = obj;
-                    obj->ship = ship;
-                    if (obj->in_room) {
-                        obj_to_room(obj, obj->in_room);
-                    } else {
-                        log_message_f(LOG_LEVEL_ERROR, LOG_ERROR, "ship_load: loaded ship object vnum %ld, name '%s' with NULL in_room (not calling obj_to_room)", obj->pIndexData ? obj->pIndexData->vnum : -1L, obj->name ? obj->name : "(null)");
-                    }
-                }
-
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "#ROUTE") )
-            {
-                SHIP_ROUTE *route = ship_route_load(fp, ship);
-
-                list_appendlink(ship->routes, route);
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "#SPECIALKEY") )
-            {
-                SPECIAL_KEY_DATA *sk = ship_special_key_load(fp);
-
-                list_appendlink(ship->special_keys, sk);
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'A':
-            if( !str_cmp(word, "AreaUid") )
-            {
-                long area_uid = fread_number(fp);
-                area = get_area_from_uid(area_uid);
-                fMatch = true;
-                break;
-            }
-            KEY("Armor", ship->armor, fread_number(fp));
-            KEY("AttackPos", ship->attack_position, fread_number(fp));
-            break;
-
-        case 'B':
-            if( !str_cmp(word, "BoardedBy") )
-            {
-                ship->boarded_by_uid[0] = fread_number(fp);
-                ship->boarded_by_uid[1] = fread_number(fp);
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'C':
-            KEY("Cannons", ship->cannons, fread_number(fp));
-            if( !str_cmp(word, "CharAttacked") )
-            {
-                ship->char_attacked_uid[0] = fread_number(fp);
-                ship->char_attacked_uid[1] = fread_number(fp);
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "Crew") )
-            {
-                ship->min_crew = fread_number(fp);
-                ship->max_crew = fread_number(fp);
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'F':
-            if( !str_cmp(word, "FirstMate") )
-            {
-                unsigned long id1 = fread_number(fp);
-                unsigned long id2 = fread_number(fp);
-
-                ship->first_mate = ship_load_find_crew(ship, id1, id2);
-
-                fMatch = true;
-                break;
-            }
-            KEYS("Flag", ship->flag, fread_string(fp));
-            break;
-
-        case 'H':
-            KEY("Hit", ship->hit, fread_number(fp));
-            break;
-
-        case 'M':
-            if( !str_cmp(word, "MapWaypoint") )
-            {
-                WAYPOINT_DATA *wp = new_waypoint();
-
-                wp->w = fread_number(fp);
-                wp->x = fread_number(fp);
-                wp->y = fread_number(fp);
-                wp->name = fread_string(fp);
-
-                list_appendlink(ship->waypoints, wp);
-
-                fMatch = true;
-                break;
-            }
-            KEY("MoveSteps", ship->move_steps, fread_number(fp));
-            break;
-
-        case 'N':
-            KEYS("Name", ship->ship_name, fread_string(fp));
-            KEY("NpcAutonomous", ship->npc_autonomous, fread_number(fp));
-            KEY("NpcGoalCooldown", ship->npc_goal_cooldown, fread_number(fp));
-            KEY("NpcOffpath", ship->npc_offpath_active, fread_number(fp));
-            if( !str_cmp(word, "Navigator") )
-            {
-                unsigned long id1 = fread_number(fp);
-                unsigned long id2 = fread_number(fp);
-
-                ship->navigator = ship_load_find_crew(ship, id1, id2);
-
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "NpcResumePoint") )
-            {
-                long wuid = fread_number(fp);
-                ship->npc_resume_point.wilds = get_wilds_from_uid(NULL, wuid);
-                ship->npc_resume_point.w = wuid;
-                ship->npc_resume_point.x = fread_number(fp);
-                ship->npc_resume_point.y = fread_number(fp);
-
-                if( !ship->npc_resume_point.wilds )
-                {
-                    memset(&ship->npc_resume_point, 0, sizeof(ship->npc_resume_point));
-                }
-
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'O':
-            KEY("Oars", ship->oars, fread_number(fp));
-            if( !str_cmp(word, "Oarsman") )
-            {
-                unsigned long id1 = fread_number(fp);
-                unsigned long id2 = fread_number(fp);
-
-                CHAR_DATA *oarsman = ship_load_find_crew(ship, id1, id2);
-
-                if( IS_VALID(oarsman) )
-                {
-                    list_appendlink(ship->oarsmen, oarsman);
-                }
-
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "Owner") )
-            {
-                ship->owner_uid[0] = fread_number(fp);
-                ship->owner_uid[1] = fread_number(fp);
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'P':
-            KEY("PK", ship->pk, true);
-            break;
-
-        case 'S':
-            if( !str_cmp(word, "Scout") )
-            {
-                unsigned long id1 = fread_number(fp);
-                unsigned long id2 = fread_number(fp);
-
-                ship->scout = ship_load_find_crew(ship, id1, id2);
-
-                fMatch = true;
-                break;
-            }
-            KEY("ScuttleTime", ship->scuttle_time, fread_number(fp));
-            if(!str_cmp(word, "SeekPoint") )
-            {
-                long wuid = fread_number(fp);
-                ship->seek_point.wilds = get_wilds_from_uid(NULL, wuid);
-                ship->seek_point.w = wuid;
-                ship->seek_point.x = fread_number(fp);
-                ship->seek_point.y = fread_number(fp);
-
-                if( !ship->seek_point.wilds )
-                {
-                    memset(&ship->seek_point, 0, sizeof(ship->seek_point));
-                }
-
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "ShipAttacked") )
-            {
-                ship->ship_attacked_uid[0] = fread_number(fp);
-                ship->ship_attacked_uid[1] = fread_number(fp);
-                fMatch = true;
-                break;
-            }
-            if( !str_cmp(word, "ShipChased") )
-            {
-                ship->ship_chased_uid[0] = fread_number(fp);
-                ship->ship_chased_uid[1] = fread_number(fp);
-                fMatch = true;
-                break;
-            }
-            KEY("ShipFlags", ship->ship_flags, fread_number(fp));
-            KEY("ShipMove", ship->ship_move, fread_number(fp));
-            KEY("ShipType", ship->ship_type, fread_number(fp));
-            KEY("Speed", ship->ship_power, fread_number(fp));
-            if(!str_cmp(word, "Steering") )
-            {
-                ship->steering.heading = fread_number(fp);
-                ship->steering.heading_target = fread_number(fp);
-                ship->steering.turning_dir = (char)fread_number(fp);
-
-                steering_calc_heading(ship);
-
-                ship->steering.move = fread_number(fp);
-
-                fMatch = true;
-                break;
-            }
-            break;
-
-        case 'U':
-            if( !str_cmp(word, "Uid") )
-            {
-                ship->id[0] = fread_number(fp);
-                ship->id[1] = fread_number(fp);
-            }
-            break;
-
-        }
-
-        if (!fMatch) {
-            pbugf(LOG_ERROR, "ship_load: no match for word %.50s", word);
-        }
-
-    }
-
-    /* Resolve ship index - try area-scoped first, fall back to global */
-    if (area) {
-        index = get_ship_index_for_area(area, vnum);
-    }
-    if (!index) {
-        index = get_ship_index(vnum);
-    }
-
-    if (!index) {
-        log_stringf("ship_load: ship index %ld not found", vnum);
-        extract_ship(ship);
-        return NULL;
-    }
-
-    ship->index = index;
-
-    if( !IS_VALID(ship->ship) || !IS_VALID(ship->instance) )
-    {
-        extract_ship(ship);
-        return NULL;
-    }
-
-    ship->ship_name_plain = nocolour(ship->ship_name);
-    if( ship->min_crew <= 0 )
-        ship->min_crew = ship->index->min_crew;
-
-    if( ship->max_crew <= 0 )
-        ship->max_crew = ship->index->max_crew;
-
-    get_ship_id(ship);
-    return ship;
-}
 
 /**
  * save_ship_uid - Write a UID field to file if set
@@ -3438,6 +3083,17 @@ void ship_echo( SHIP_DATA *ship, char *str )
 }
 
 /**
+ * boat_echo - Alias for ship_echo
+ *
+ * @param ship  Ship to broadcast to
+ * @param str   Message string (supports color codes)
+ */
+void boat_echo(SHIP_DATA *ship, char *str)
+{
+    ship_echo(ship, str);
+}
+
+/**
  * ship_echoaround - Send a message to all players aboard except one
  *
  * Broadcasts str to every connected player aboard the ship,
@@ -3469,17 +3125,21 @@ void ship_echoaround( SHIP_DATA *ship, CHAR_DATA *ch, char *str )
 /**
  * ship_has_enough_crew - Check if ship has minimum crew for operation
  *
- * Placeholder for crew requirement check. Currently always returns true.
- * TODO: Implement actual crew counting against min_crew requirement.
+ * Checks whether the ship's crew count meets the min_crew requirement.
  *
  * @param ship  Ship to check
  * @return      true if sufficient crew, false otherwise
  */
 bool ship_has_enough_crew( SHIP_DATA *ship )
 {
-    // TODO: Implement crew
+    if (!IS_VALID(ship) || !ship->index)
+        return false;
 
-    return true;
+    if (ship->index->min_crew <= 0)
+        return true;
+
+    int crew_count = ship->crew ? list_size(ship->crew) : 0;
+    return crew_count >= ship->index->min_crew;
 }
 
 
@@ -3772,44 +3432,79 @@ void do_ships(CHAR_DATA *ch, char *argument)
                 return;
             }
 
-            ship->owner = owner;
-            if( owner )
-            {
-                ship->owner_uid[0] = owner->id[0];
-                ship->owner_uid[1] = owner->id[1];
-                if( IS_NPC(owner) )
-                    ship->npc_autonomous = true;
+            /* NPC ship auto-detection: if template has npc flag, do full NPC setup */
+            if (IS_SET(index->flags, SHIP_AUTONOMOUS_NPC)) {
+                NPC_SHIP_DATA *npc = new_npc_ship_data();
+                npc->ship = ship;
+                npc->state = NPC_SHIP_STATE_STOPPED;
+                npc->trigger_char = NULL;
+                npc->captain = NULL;
+
+                ship->npc_ship = npc;
+                ship->npc_autonomous = true;
+                ship->owner = NULL;
+
+                ship_populate_crew(ship);
+                ship_auto_assign_crew(ship);
+
+                /* Set initial heading and power */
+                if (ship->ship_power <= SHIP_SPEED_STOPPED)
+                    ship->ship_power = SHIP_SPEED_FULL_SPEED;
+                if (ship->steering.heading < 0) {
+                    int heading = number_range(0, 359);
+                    ship->steering.heading = heading;
+                    ship->steering.heading_target = heading;
+                    steering_calc_heading(ship);
+                }
+                ship_set_move_steps(ship);
+
+                npc->next = npc_ship_list;
+                npc_ship_list = npc;
+
+                send_to_char(formatf("NPC ship '%s' spawned (type: %s, crew: %d).\n\r",
+                    index->name,
+                    flag_string(npc_ship_types, index->npc_type),
+                    ship->crew ? list_size(ship->crew) : 0), ch);
+            } else {
+                ship->owner = owner;
+                if( owner )
+                {
+                    ship->owner_uid[0] = owner->id[0];
+                    ship->owner_uid[1] = owner->id[1];
+                    if( IS_NPC(owner) )
+                        ship->npc_autonomous = true;
+                }
+
+                free_string(ship->ship_name);
+                ship->ship_name = str_dup(argument);
+                ship->ship_name_plain = nocolour(ship->ship_name);
+
+                // Install ship_name
+                char *plaintext = nocolour(ship->ship_name);
+                free_string(ship->ship->name);
+                sprintf(buf, ship->ship->pIndexData->name, plaintext);
+                ship->ship->name = str_dup(buf);
+                free_string(plaintext);
+
+                free_string(ship->ship->short_descr);
+                sprintf(buf, ship->ship->pIndexData->short_descr, ship->ship_name);
+                ship->ship->short_descr = str_dup(buf);
+
+                free_string(ship->ship->description);
+                sprintf(buf, ship->ship->pIndexData->description, ship->ship_name);
+                ship->ship->description = str_dup(buf);
+
+                act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL, NULL, NULL);
             }
 
-            free_string(ship->ship_name);
-            ship->ship_name = str_dup(argument);
-            ship->ship_name_plain = nocolour(ship->ship_name);
-
-            // Install ship_name
-            char *plaintext = nocolour(ship->ship_name);
-            free_string(ship->ship->name);
-            sprintf(buf, ship->ship->pIndexData->name, plaintext);
-            ship->ship->name = str_dup(buf);
-            free_string(plaintext);
-
-            free_string(ship->ship->short_descr);
-            sprintf(buf, ship->ship->pIndexData->short_descr, ship->ship_name);
-            ship->ship->short_descr = str_dup(buf);
-
-            free_string(ship->ship->description);
-            sprintf(buf, ship->ship->pIndexData->description, ship->ship_name);
-            ship->ship->description = str_dup(buf);
-
             obj_to_room(ship->ship, ch->in_room);
-            
+
             /* Sync ship instance entrance to ship object location */
             if (IS_VALID(ship->instance) && ship->instance->entrance && ch->in_room->wilds) {
                 ship->instance->entrance->wilds = ch->in_room->wilds;
                 ship->instance->entrance->x = ch->in_room->x;
                 ship->instance->entrance->y = ch->in_room->y;
             }
-            
-            act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL, NULL, NULL);
         }
         else if( !str_prefix(arg, "unload") )
         {
@@ -4936,167 +4631,137 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
  */
 void do_ship_aim( CHAR_DATA *ch, char *argument )
 {
-#if 0
     char arg[MAX_INPUT_LENGTH];
-    char buf[MAX_STRING_LENGTH];
-    ROOM_INDEX_DATA *orig;
     SHIP_DATA *orig_ship;
-    SHIP_DATA *ship;
-    SHIP_DATA *attack;
-    CHAR_DATA *victim;
-    int x, y;
+    SHIP_DATA *target = NULL;
 
     argument = one_argument( argument, arg);
 
-    if (!ON_SHIP(ch))
-    {
-        act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    if (!ON_SHIP(ch)) {
+        send_to_char("You aren't even on a vessel.\n\r", ch);
         return;
     }
 
-    if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM))
-    {
-        act("You must be at the helm of the vessel to order an attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    orig_ship = get_room_ship(ch->in_room);
+    if (!IS_VALID(orig_ship)) {
+        send_to_char("You aren't even on a vessel.\n\r", ch);
         return;
     }
 
-    if (!IS_IMMORTAL(ch) && str_cmp(ch->name, ch->in_room->ship->owner_name))
-    {
-        act("You must be the owner to order an attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM)) {
+        send_to_char("You must be at the helm of the vessel to order an attack.\n\r", ch);
         return;
     }
 
-    if ( !ship_has_enough_crew( ch->in_room->ship ) ) {
-        send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+    if (!IS_IMMORTAL(ch) && !ship_isowner_player(orig_ship, ch)) {
+        send_to_char("You must be the owner to order an attack.\n\r", ch);
         return;
     }
 
-    if ( !str_prefix( arg, "stop" ) )
-    {
-        act("You give the order to cease the attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-        act("$n gives the order to cease the attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-        ch->in_room->ship->ship_power = SHIP_SPEED_STOPPED;
+    if (!ship_has_enough_crew(orig_ship)) {
+        send_to_char("There isn't enough crew to order that command!\n\r", ch);
         return;
     }
 
-    orig_ship = ch->in_room->ship;
+    if (arg[0] == '\0') {
+        send_to_char("Syntax: ship aim <target_ship>\n\r"
+                     "        ship aim stop\n\r", ch);
+        return;
+    }
 
-    orig = ch->in_room;
-    char_from_room(ch);
-    char_to_room(ch, orig->ship->ship->in_room);
+    /* Stop attacking */
+    if (!str_prefix(arg, "stop")) {
+        if (orig_ship->attack_position == SHIP_ATTACK_STOPPED &&
+            !IS_VALID(orig_ship->ship_attacked)) {
+            send_to_char("You aren't attacking anything.\n\r", ch);
+            return;
+        }
 
-    show_map_to_char(ch, ch, ch->wildview_bonus_x, ch->wildview_bonus_y,false);
+        act("You give the order to cease fire.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n gives the order to cease fire.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        orig_ship->attack_position = SHIP_ATTACK_STOPPED;
+        orig_ship->ship_attacked = NULL;
+        orig_ship->char_attacked = NULL;
+        return;
+    }
 
-    x = get_squares_to_show_x(ch->wildview_bonus_x);
-    y = get_squares_to_show_y(ch->wildview_bonus_y);
+    /* Must have at least one operational weapon module */
+    int max_range = ship_get_max_weapon_range(orig_ship);
+    if (max_range <= 0) {
+        send_to_char("This vessel has no operational weapons.\n\r", ch);
+        return;
+    }
 
-    attack = NULL;
-
-    victim = get_char_world( ch, arg);
-
-    if (!(victim != NULL && IN_WILDERNESS(victim) && !is_safe(ch, victim, true) &&
-                (victim->in_room->x < ch->in_room->x + x &&
-                 victim->in_room->x > ch->in_room->x - x)
-                && (victim->in_room->y < ch->in_room->y + y &&
-                    victim->in_room->y > ch->in_room->y - y)))
+    /* Find target ship — search loaded_ships by name match */
     {
-        victim = NULL;
-        /* Check for sailing ships */
-        for ( ship = ((AREA_DATA *) get_sailing_boat_area())->ship_list;
-                ship != NULL;
-                ship = ship->next)
+        ITERATOR it;
+        SHIP_DATA *ship;
+        iterator_start(&it, loaded_ships);
+        while ((ship = (SHIP_DATA *)iterator_nextdata(&it))) {
+            if (ship == orig_ship) continue;
+            if (!IS_VALID(ship) || !IS_VALID(ship->ship) ||
+                !ship->ship->in_room) continue;
 
-            if ( orig_ship != ship
-                    && (ship->ship->in_room->x < ch->in_room->x + x &&
-                        ship->ship->in_room->x > ch->in_room->x - x)
-                    && (ship->ship->in_room->y < ch->in_room->y + y &&
-                        ship->ship->in_room->y > ch->in_room->y - y) &&
-                    (!str_prefix( ship->owner_name, arg)
-                     || !str_prefix( ship->ship_name, arg)))
-            {
-                attack = ship;
+            /* Match by ship name */
+            if (ship->ship_name && !str_prefix(arg, ship->ship_name_plain ? ship->ship_name_plain : ship->ship_name)) {
+                target = ship;
+                break;
             }
+        }
+        iterator_stop(&it);
     }
 
-    if (attack == NULL && victim == NULL)
-    {
-        send_to_char("That person or ship is not in range.\n\r", ch);
-        char_from_room(ch);
-        char_to_room(ch, orig);
+    if (!target) {
+        send_to_char("That ship is not visible.\n\r", ch);
         return;
     }
 
-    /* Make sure the enemey ship isn't in a safe zone */
-    if ( attack != NULL && is_boat_safe( ch, orig_ship, attack ) )
-    {
-        char_from_room(ch);
-        char_to_room(ch, orig);
+    /* Range check */
+    int dist = ship_distance(orig_ship, target);
+    if (dist > max_range) {
+        send_to_char(formatf("That ship is out of weapon range (%d tiles away, max range %d).\n\r",
+            dist, max_range), ch);
         return;
     }
 
-    char_from_room(ch);
-    char_to_room(ch, orig);
+    /* Safe zone check */
+    if (is_ship_safe(ch, orig_ship, target)) {
+        return;
+    }
 
-    act("You give the order to fire the cannons.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act("$n gives the order to fire the cannons.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    /* Engage! */
+    act("You give the order to target $t!", ch, NULL, NULL, NULL, NULL, target->ship_name ? target->ship_name : "the enemy vessel", NULL, TO_CHAR, NULL, NULL);
+    act("$n gives the order to target the enemy vessel!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
     SHIP_ATTACK_STATE(ch, 8);
 
-    ch->in_room->ship->attack_position = SHIP_ATTACK_LOADING;
-    ch->in_room->ship->ship_attacked = attack;
-    ch->in_room->ship->char_attacked = victim;
+    orig_ship->attack_position = SHIP_ATTACK_LOADING;
+    orig_ship->ship_attacked = target;
+    orig_ship->char_attacked = NULL;
 
-    sprintf(buf, "{W%s's sailing boat is turning to aim at you!{x", ch->in_room->ship->owner_name);
+    /* Reputation: penalize for attacking a faction NPC ship */
+    ship_combat_rep_attack(ch, orig_ship, target);
 
-    if (attack != NULL)
-    {
-        boat_echo(attack, buf);
+    /* Coast guard proximity: alert nearby coast guard ships */
+    ship_coast_guard_alert(ch, orig_ship, target);
 
-        /*  If you are in range of coast guard or attacking coast guard then pirate */
-        if (IS_NPC_SHIP(attack) && attack->npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA) {
-            /* set_pirate_status(ch, CONT_SERALIA, ch->tot_level * 1000); */
-        }
-        else
-            if (IS_NPC_SHIP(attack) && attack->npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_ATHEMIA) {
-            /*	set_pirate_status(ch, CONT_ATHEMIA, ch->tot_level * 1000); */
+    /* Start all weapon modules reloading */
+    if (orig_ship->modules) {
+        ITERATOR it;
+        SHIP_MODULE *mod;
+        iterator_start(&it, orig_ship->modules);
+        while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+            if (mod->obj && SHIP_MOD_DATA(mod)->type == HARDPOINT_WEAPON &&
+                mod->operational && mod->reload_countdown <= 0) {
+                mod->reload_countdown = SHIP_MOD_DATA(mod)->reload_time;
             }
-            else {
-                NPC_SHIP_DATA *npc_ship;
-                int distance = 0;
-
-                for (npc_ship = npc_ship_list; npc_ship != NULL; npc_ship = npc_ship->next)
-                {
-                    if (npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA ||
-                            npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_ATHEMIA) {
-
-                        /* get distance between coast guard and ship to attack */
-                        distance = (int) sqrt( 					\
-                                ( npc_ship->ship->ship->in_room->x - ch->in_room->ship->ship->in_room->x ) *	\
-                                ( npc_ship->ship->ship->in_room->x - ch->in_room->ship->ship->in_room->x ) +	\
-                                ( npc_ship->ship->ship->in_room->y - ch->in_room->ship->ship->in_room->y ) *	\
-                                ( npc_ship->ship->ship->in_room->y - ch->in_room->ship->ship->in_room->y ) );
-
-                        if (distance < 6) {
-                            break;
-                        }
-                    }
-                }
-/*
-                 coast guard ship saw attack
-                if (npc_ship != NULL) {
-                    set_pirate_status(ch, npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA ? CONT_SERALIA : CONT_ATHEMIA, ch->tot_level * 1000);
-
-                }*/
         }
+        iterator_stop(&it);
+    }
 
-    }
-    else
-    {
-        act(buf, victim, NULL, NULL, TO_CHAR);
-    }
-#else
-    send_to_char("Not implemented yet.\n\r", ch);
-#endif
+    /* Warn the target */
+    boat_echo(target, formatf("{W%s is targeting your vessel!{x",
+        orig_ship->ship_name ? orig_ship->ship_name : "An enemy vessel"));
 }
 
 /**
@@ -6263,16 +5928,103 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 }
 
 /**
- * do_ship_chase - Chase another ship (NYI)
+ * do_ship_chase - Chase another ship
  *
- * Placeholder for ship pursuit/chase mechanics. Not yet implemented.
+ * Sets the ship to auto-pursue a target ship, matching heading.
+ * Speed advantage determines if chaser closes or target escapes.
+ * Disengages after target exceeds max weapon range × 3.
  *
  * @param ch        Character issuing chase command
- * @param argument  Target ship identifier
+ * @param argument  Target ship identifier or "stop"
  */
 void do_ship_chase(CHAR_DATA *ch, char *argument)
 {
-    send_to_char("Not yet implemented.\n\r", ch);
+    char arg[MIL];
+    SHIP_DATA *ship;
+
+    argument = one_argument(argument, arg);
+
+    ship = get_room_ship(ch->in_room);
+    if (!IS_VALID(ship)) {
+        send_to_char("You aren't on a vessel.\n\r", ch);
+        return;
+    }
+
+    if (!IS_SET(ch->in_room->room_flag[0], ROOM_SHIP_HELM)) {
+        send_to_char("You must be at the helm to give chase orders.\n\r", ch);
+        return;
+    }
+
+    if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch)) {
+        send_to_char("You must be the owner to give chase orders.\n\r", ch);
+        return;
+    }
+
+    if (arg[0] == '\0') {
+        if (IS_VALID(ship->ship_chased))
+            send_to_char(formatf("Currently chasing: %s\n\r",
+                ship->ship_chased->ship_name ? ship->ship_chased->ship_name : "unknown vessel"), ch);
+        else
+            send_to_char("Not currently chasing anyone.\n\r"
+                         "Syntax: ship chase <target>\n\r"
+                         "        ship chase stop\n\r", ch);
+        return;
+    }
+
+    if (!str_prefix(arg, "stop")) {
+        if (!IS_VALID(ship->ship_chased)) {
+            send_to_char("You aren't chasing anyone.\n\r", ch);
+            return;
+        }
+        ship->ship_chased = NULL;
+        act("You give the order to break off pursuit.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+        act("$n gives the order to break off pursuit.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+        return;
+    }
+
+    if (!ship_has_enough_crew(ship)) {
+        send_to_char("There isn't enough crew to pursue!\n\r", ch);
+        return;
+    }
+
+    /* Find target */
+    SHIP_DATA *target = NULL;
+    {
+        ITERATOR it;
+        SHIP_DATA *s;
+        iterator_start(&it, loaded_ships);
+        while ((s = (SHIP_DATA *)iterator_nextdata(&it))) {
+            if (s == ship) continue;
+            if (!IS_VALID(s) || !IS_VALID(s->ship) || !s->ship->in_room) continue;
+            if (s->ship_name && !str_prefix(arg, s->ship_name_plain ? s->ship_name_plain : s->ship_name)) {
+                target = s;
+                break;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    if (!target) {
+        send_to_char("That ship is not visible.\n\r", ch);
+        return;
+    }
+
+    int dist = ship_distance(ship, target);
+    int max_range = ship_get_max_weapon_range(ship);
+    int chase_range = max_range > 0 ? max_range * 3 : 30;
+
+    if (dist > chase_range) {
+        send_to_char("That ship is too far away to chase.\n\r", ch);
+        return;
+    }
+
+    ship->ship_chased = target;
+    act("You give the order to pursue $t!", ch, NULL, NULL, NULL, NULL,
+        target->ship_name ? target->ship_name : "the target vessel",
+        NULL, TO_CHAR, NULL, NULL);
+    act("$n gives the order to pursue an enemy vessel!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
+    boat_echo(target, formatf("{W%s is giving chase!{x",
+        ship->ship_name ? ship->ship_name : "An enemy vessel"));
 }
 
 /**
@@ -8096,7 +7848,8 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
                      "         ship crew info <#>\n\r"
                      "         ship crew remove <#>\n\r"
                      "         ship crew assign <#> <role>\n\r"
-                     "         ship crew unassign <role>\n\r", ch);
+                     "         ship crew unassign <role>\n\r"
+                     "         ship crew roster\n\r", ch);
         return;
     }
 
@@ -8178,6 +7931,135 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    if( !str_prefix(arg, "roster") )
+    {
+        /* Full crew roster with module + role assignments */
+        BUFFER *buffer = new_buf();
+
+        add_buf(buffer, "{W=== Crew Roster ==={x\n\r\n\r");
+
+        /* Traditional roles */
+        add_buf(buffer, "{CTraditional Roles:{x\n\r");
+        char buf[MSL];
+
+        if (IS_VALID(ship->first_mate))
+            sprintf(buf, "  {YFirst Mate:{x  %s\n\r", ship->first_mate->short_descr);
+        else
+            sprintf(buf, "  {YFirst Mate:{x  {D(vacant){x\n\r");
+        add_buf(buffer, buf);
+
+        if (IS_VALID(ship->navigator))
+            sprintf(buf, "  {YNavigator:{x   %s\n\r", ship->navigator->short_descr);
+        else
+            sprintf(buf, "  {YNavigator:{x   {D(vacant){x\n\r");
+        add_buf(buffer, buf);
+
+        if (IS_VALID(ship->scout))
+            sprintf(buf, "  {YScout:{x       %s\n\r", ship->scout->short_descr);
+        else
+            sprintf(buf, "  {YScout:{x       {D(vacant){x\n\r");
+        add_buf(buffer, buf);
+
+        int oarsmen_count = ship->oarsmen ? list_size(ship->oarsmen) : 0;
+        sprintf(buf, "  {YOarsmen:{x     {W%d{x assigned\n\r", oarsmen_count);
+        add_buf(buffer, buf);
+
+        /* Module assignments */
+        if (ship->modules && list_size(ship->modules) > 0) {
+            add_buf(buffer, "\n\r{CModule Stations:{x\n\r");
+            add_buf(buffer, "{C Slot  Module                     Operators   Status{x\n\r");
+            add_buf(buffer, "{C==========================================================={x\n\r");
+
+            ITERATOR it;
+            SHIP_MODULE *mod;
+            iterator_start(&it, ship->modules);
+            while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+                if (!mod->obj) continue;
+
+                int assigned = mod->assigned_crew ? list_size(mod->assigned_crew) : 0;
+                const char *status;
+                if (!mod->active)
+                    status = "{DDisabled{x";
+                else if (mod->condition <= 0)
+                    status = "{RDestroyed{x";
+                else if (!mod->operational)
+                    status = "{YOffline{x";
+                else
+                    status = "{GOnline{x";
+
+                sprintf(buf, " {W%3d  {Y%-25s  {W%d{x/{W%d{x        %s\n\r",
+                    mod->slot_id,
+                    SHIP_MOD_NAME(mod),
+                    assigned, SHIP_MOD_DATA(mod)->operators,
+                    status);
+                add_buf(buffer, buf);
+
+                /* List assigned crew */
+                if (assigned > 0) {
+                    ITERATOR crew_it;
+                    CHAR_DATA *crew;
+                    iterator_start(&crew_it, mod->assigned_crew);
+                    while ((crew = (CHAR_DATA *)iterator_nextdata(&crew_it))) {
+                        sprintf(buf, "        {C-{x %s\n\r", crew->short_descr);
+                        add_buf(buffer, buf);
+                    }
+                    iterator_stop(&crew_it);
+                }
+            }
+            iterator_stop(&it);
+        }
+
+        /* Unassigned crew */
+        if (ship->crew && list_size(ship->crew) > 0) {
+            int unassigned = 0;
+            BUFFER *ubuf = new_buf();
+            ITERATOR it;
+            CHAR_DATA *crew;
+            int idx = 0;
+
+            iterator_start(&it, ship->crew);
+            while ((crew = (CHAR_DATA *)iterator_nextdata(&it))) {
+                idx++;
+                bool has_role = false;
+
+                if (ship->first_mate == crew || ship->navigator == crew ||
+                    ship->scout == crew || list_hasdata(ship->oarsmen, crew))
+                    has_role = true;
+
+                if (!has_role && ship->modules) {
+                    ITERATOR mod_it;
+                    SHIP_MODULE *mod;
+                    iterator_start(&mod_it, ship->modules);
+                    while ((mod = (SHIP_MODULE *)iterator_nextdata(&mod_it))) {
+                        if (mod->assigned_crew && list_hasdata(mod->assigned_crew, crew)) {
+                            has_role = true;
+                            break;
+                        }
+                    }
+                    iterator_stop(&mod_it);
+                }
+
+                if (!has_role) {
+                    sprintf(buf, "  {C%2d){x %s\n\r", idx, crew->short_descr);
+                    add_buf(ubuf, buf);
+                    unassigned++;
+                }
+            }
+            iterator_stop(&it);
+
+            if (unassigned > 0) {
+                add_buf(buffer, formatf("\n\r{CUnassigned Crew ({W%d{C):{x\n\r", unassigned));
+                add_buf(buffer, buf_string(ubuf));
+            }
+            free_buf(ubuf);
+        }
+
+        add_buf(buffer, "\n\r");
+        page_to_char(buf_string(buffer), ch);
+        free_buf(buffer);
+        return;
+    }
+
     if( !str_prefix(arg, "info") )
     {
         if( !is_number(argument) )
@@ -8250,6 +8132,24 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
         if( list_hasdata(ship->oarsmen, crew) )
             send_to_char("{CAssigned as an {WOARSMAN{C.{x\n\r", ch);
 
+        /* Show module assignments */
+        if (ship->modules && list_size(ship->modules) > 0) {
+            ITERATOR mod_it;
+            SHIP_MODULE *mod;
+            iterator_start(&mod_it, ship->modules);
+            while ((mod = (SHIP_MODULE *)iterator_nextdata(&mod_it))) {
+                if (mod->assigned_crew && list_hasdata(mod->assigned_crew, crew)) {
+                    SHIP_HARDPOINT_DEF *hp = ship_get_hardpoint(ship->index, mod->slot_id);
+                    sprintf(buf, "{CAssigned to module slot {W%d{C ({Y%s{C - %s).{x\n\r",
+                        mod->slot_id,
+                        hp && hp->name ? hp->name : "unnamed",
+                        SHIP_MOD_NAME(mod));
+                    send_to_char(buf, ch);
+                }
+            }
+            iterator_stop(&mod_it);
+        }
+
         return;
     }
 
@@ -8293,6 +8193,22 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
         {
             list_remlink(ship->oarsmen, crew, false);
             send_to_char("{WOarsman unassigned due to crew removal.{x\n\r", ch);
+        }
+
+        /* Remove from any module assignments */
+        if (ship->modules) {
+            ITERATOR mod_it;
+            SHIP_MODULE *mod;
+            iterator_start(&mod_it, ship->modules);
+            while ((mod = (SHIP_MODULE *)iterator_nextdata(&mod_it))) {
+                if (mod->assigned_crew && list_hasdata(mod->assigned_crew, crew)) {
+                    list_remlink(mod->assigned_crew, crew, false);
+                    send_to_char(formatf("{WModule slot %d unassigned due to crew removal.{x\n\r",
+                        mod->slot_id), ch);
+                }
+            }
+            iterator_stop(&mod_it);
+            ship_recalc_modules(ship);
         }
 
         list_remlink(ship->crew, crew, false);
@@ -8341,7 +8257,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
         if( argument[0] == '\0' )
         {
             send_to_char("Assign crew member to what role?\n\r", ch);
-            send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x, {Woarsman{x\n\r", ch);
+            send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x, {Woarsman{x, {Wmodule <slot#>{x\n\r", ch);
             send_to_char("{YNavigators and scouts are mutually exclusive.{x\n\r", ch);
             send_to_char("{YOarsmen and all other roles are mutually exclusive.{x\n\r", ch);
             return;
@@ -8462,6 +8378,52 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
             return;
         }
 
+        if( !str_prefix(argument, "module") )
+        {
+            char arg_slot[MIL];
+            one_argument(argument + 6, arg_slot); /* skip "module" prefix match */
+
+            /* Re-parse: argument after "module" should be slot# */
+            char *mod_arg = argument;
+            while (*mod_arg && !isspace(*mod_arg)) mod_arg++;
+            while (*mod_arg && isspace(*mod_arg)) mod_arg++;
+
+            if (mod_arg[0] == '\0' || !is_number(mod_arg)) {
+                send_to_char("Syntax: ship crew assign <crew#> module <slot#>\n\r", ch);
+                return;
+            }
+
+            int slot_id = atoi(mod_arg);
+            SHIP_MODULE *mod = ship_get_module_in_slot(ship, slot_id);
+            if (!mod || !mod->obj) {
+                send_to_char("No module is installed in that slot.\n\r", ch);
+                return;
+            }
+
+            if (list_hasdata(mod->assigned_crew, crew)) {
+                send_to_char("That crew member is already assigned to this module.\n\r", ch);
+                return;
+            }
+
+            if (SHIP_MOD_DATA(mod)->operators > 0 &&
+                list_size(mod->assigned_crew) >= SHIP_MOD_DATA(mod)->operators) {
+                send_to_char(formatf("That module already has its full complement of %d operators.\n\r",
+                    SHIP_MOD_DATA(mod)->operators), ch);
+                return;
+            }
+
+            list_appendlink(mod->assigned_crew, crew);
+            ship_recalc_modules(ship);
+
+            SHIP_HARDPOINT_DEF *hp = ship_get_hardpoint(ship->index, slot_id);
+            send_to_char(formatf("Crew member assigned to module slot %d (%s - %s).%s\n\r",
+                slot_id,
+                hp && hp->name ? hp->name : "unnamed",
+                SHIP_MOD_NAME(mod),
+                mod->operational ? " {GModule is now operational.{x" : ""), ch);
+            return;
+        }
+
 
         do_ship_crew(ch, "assign");
         return;
@@ -8472,7 +8434,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
         if( argument[0] == '\0' )
         {
             send_to_char("Remove what role?\n\r", ch);
-            send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x, {Woarsman <#>{x\n\r", ch);
+            send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x, {Woarsman <#>{x, {Wmodule <slot#>{x\n\r", ch);
             return;
         }
 
@@ -8546,6 +8508,51 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
             return;
         }
 
+        if( !str_prefix(arg2, "module") )
+        {
+            if (!is_number(argument)) {
+                send_to_char("Syntax: ship crew unassign module <slot#> [crew#]\n\r", ch);
+                return;
+            }
+
+            char arg3[MIL];
+            argument = one_argument(argument, arg3);
+            int slot_id = atoi(arg3);
+
+            SHIP_MODULE *mod = ship_get_module_in_slot(ship, slot_id);
+            if (!mod || !mod->obj) {
+                send_to_char("No module is installed in that slot.\n\r", ch);
+                return;
+            }
+
+            if (list_size(mod->assigned_crew) == 0) {
+                send_to_char("No crew is assigned to that module.\n\r", ch);
+                return;
+            }
+
+            /* If crew# given, remove specific; otherwise remove all */
+            if (is_number(argument)) {
+                int crew_idx = atoi(argument);
+                if (crew_idx < 1 || crew_idx > list_size(ship->crew)) {
+                    send_to_char("That is not a valid crew member.\n\r", ch);
+                    return;
+                }
+                CHAR_DATA *crew = (CHAR_DATA *)list_nthdata(ship->crew, crew_idx);
+                if (!list_hasdata(mod->assigned_crew, crew)) {
+                    send_to_char("That crew member is not assigned to this module.\n\r", ch);
+                    return;
+                }
+                list_remlink(mod->assigned_crew, crew, false);
+                send_to_char(formatf("Crew member unassigned from module slot %d.\n\r", slot_id), ch);
+            } else {
+                list_clear(mod->assigned_crew);
+                send_to_char(formatf("All crew unassigned from module slot %d.\n\r", slot_id), ch);
+            }
+
+            ship_recalc_modules(ship);
+            return;
+        }
+
         do_ship_crew(ch, "unassign");
         return;
     }
@@ -8596,16 +8603,21 @@ void do_ship(CHAR_DATA *ch, char *argument)
                      "         ship crew[ <actions>]\n\r"
                      "         ship engines[ <level>] {W(airship only){x\n\r"
                      "         ship flag[ <flag>]\n\r"
+                     "         ship install <module_vnum> <slot#>\n\r"
                      "         ship keys[ <actions>]\n\r"
                      "         ship land {W(airship only){x\n\r"
                      "         ship launch {W(airship only){x\n\r"
                      "         ship list\n\r"
+                     "         ship modules\n\r"
                      "         ship navigate[ <action>]\n\r"
                      "         ship oars[ <oars>]\n\r"
+                     "         ship repair <slot#>\n\r"
                      "         ship routes[ <action>]\n\r"
                      "         ship sails[ <level>] {W(sailboat only){x\n\r"
                      "         ship scuttle\n\r"
+                     "         ship status\n\r"
                      "         ship steer[ <heading>[ <turn direction>]]\n\r"
+                     "         ship uninstall <slot#>\n\r"
                      "         ship waypoints[ <action>]\n\r", ch);
 
         return;
@@ -8648,6 +8660,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    if( !str_prefix(arg, "install") )
+    {
+        do_ship_install(ch, argument);
+        return;
+    }
+
     if( !str_prefix(arg, "keys") )
     {
         do_ship_keys(ch, argument);
@@ -8672,6 +8690,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    if( !str_prefix(arg, "modules") )
+    {
+        do_ship_modules(ch, argument);
+        return;
+    }
+
     if( !str_prefix(arg, "navigate") )
     {
         do_ship_navigate(ch, argument);
@@ -8681,6 +8705,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
     if( !str_prefix(arg, "oars") )
     {
         do_ship_oars(ch, argument);
+        return;
+    }
+
+    if( !str_prefix(arg, "repair") )
+    {
+        do_ship_repair(ch, argument);
         return;
     }
 
@@ -8703,9 +8733,21 @@ void do_ship(CHAR_DATA *ch, char *argument)
         return;
     }
 
+    if( !str_prefix(arg, "status") )
+    {
+        do_ship_status(ch, argument);
+        return;
+    }
+
     if( !str_prefix(arg, "steer") )
     {
         do_ship_steer(ch, argument);
+        return;
+    }
+
+    if( !str_prefix(arg, "uninstall") )
+    {
+        do_ship_uninstall(ch, argument);
         return;
     }
 
@@ -9143,7 +9185,2508 @@ void do_shlist(CHAR_DATA *ch, char *argument)
 /* do_shshow() moved to editors/ships/shedit.c */
 
 
+/***************************************************************************
+ * Module System — Core Logic                                              *
+ ***************************************************************************/
+
+/**
+ * ship_module_is_operational - Check if an installed module is operational
+ *
+ * A module is operational when:
+ * - It is valid and active
+ * - Its condition is above 0
+ * - It has enough assigned crew meeting minimum skill thresholds
+ *
+ * Updates the module's cached 'operational' flag.
+ *
+ * @param mod   Module instance to check
+ * @return      true if module is operational
+ */
+bool ship_module_is_operational(SHIP_MODULE *mod)
+{
+    if (!IS_VALID(mod) || !mod->obj)
+        return (mod->operational = false);
+
+    if (!mod->active || mod->condition <= 0)
+        return (mod->operational = false);
+
+    /* Check crew count */
+    int crew_count = mod->assigned_crew ? list_size(mod->assigned_crew) : 0;
+    if (crew_count < SHIP_MOD_DATA(mod)->operators)
+        return (mod->operational = false);
+
+    /* Check crew skill thresholds */
+    if (SHIP_MOD_DATA(mod)->operators > 0 && mod->assigned_crew) {
+        ITERATOR it;
+        CHAR_DATA *crew;
+        iterator_start(&it, mod->assigned_crew);
+        while ((crew = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (!crew->crew) {
+                iterator_stop(&it);
+                return (mod->operational = false);
+            }
+
+            if (SHIP_MOD_DATA(mod)->req_gunning > 0 &&
+                crew->crew->gunning < SHIP_MOD_DATA(mod)->req_gunning) {
+                iterator_stop(&it);
+                return (mod->operational = false);
+            }
+            if (SHIP_MOD_DATA(mod)->req_mechanics > 0 &&
+                crew->crew->mechanics < SHIP_MOD_DATA(mod)->req_mechanics) {
+                iterator_stop(&it);
+                return (mod->operational = false);
+            }
+            if (SHIP_MOD_DATA(mod)->req_scouting > 0 &&
+                crew->crew->scouting < SHIP_MOD_DATA(mod)->req_scouting) {
+                iterator_stop(&it);
+                return (mod->operational = false);
+            }
+            if (SHIP_MOD_DATA(mod)->req_navigation > 0 &&
+                crew->crew->navigation < SHIP_MOD_DATA(mod)->req_navigation) {
+                iterator_stop(&it);
+                return (mod->operational = false);
+            }
+            if (SHIP_MOD_DATA(mod)->req_oarring > 0 &&
+                crew->crew->oarring < SHIP_MOD_DATA(mod)->req_oarring) {
+                iterator_stop(&it);
+                return (mod->operational = false);
+            }
+            if (SHIP_MOD_DATA(mod)->req_leadership > 0 &&
+                crew->crew->leadership < SHIP_MOD_DATA(mod)->req_leadership) {
+                iterator_stop(&it);
+                return (mod->operational = false);
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return (mod->operational = true);
+}
+
+/**
+ * ship_recalc_modules - Recalculate ship stats from base template + modules
+ *
+ * Resets runtime stats to base template values, then adds bonuses from
+ * all operational modules. Called after install/remove/repair/crew changes.
+ *
+ * Affected stats: hit, armor, max_crew, total_module_weight.
+ * Speed/turning/cargo are not runtime fields yet, so bonuses are tracked
+ * but applied at point-of-use via ship_get_effective_* helpers.
+ *
+ * @param ship  Ship to recalculate
+ */
+void ship_recalc_modules(SHIP_DATA *ship)
+{
+    if (!IS_VALID(ship) || !ship->index)
+        return;
+
+    SHIP_INDEX_DATA *idx = ship->index;
+
+    /* Reset to base template values */
+    long base_hit = idx->hit;
+    long base_armor = idx->armor;
+    int base_max_crew = idx->max_crew;
+
+    int total_weight = 0;
+
+    /* First pass: update operational status for every module */
+    if (ship->modules) {
+        ITERATOR it;
+        SHIP_MODULE *mod;
+        iterator_start(&it, ship->modules);
+        while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+            ship_module_is_operational(mod);
+            if (mod->obj)
+                total_weight += SHIP_MOD_DATA(mod)->weight;
+        }
+        iterator_stop(&it);
+    }
+
+    ship->total_module_weight = total_weight;
+
+    /* Second pass: accumulate bonuses from operational modules */
+    if (ship->modules) {
+        ITERATOR it;
+        SHIP_MODULE *mod;
+        iterator_start(&it, ship->modules);
+        while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+            if (!mod->operational || !mod->obj)
+                continue;
+
+            base_hit   += SHIP_MOD_DATA(mod)->hit_bonus;
+            base_armor += SHIP_MOD_DATA(mod)->armor_bonus;
+            base_max_crew += SHIP_MOD_DATA(mod)->crew_bonus;
+        }
+        iterator_stop(&it);
+    }
+
+    /* Clamp and apply */
+    ship->hit = UMAX(1, base_hit);
+    ship->armor = UMAX(0, base_armor);
+    ship->max_crew = (int16_t)UMAX(0, base_max_crew);
+}
+
+/**
+ * ship_get_effective_speed - Get ship speed including module bonuses
+ *
+ * Calculates the effective speed modifier from all operational modules.
+ * Returns the total speed bonus percentage (positive = faster).
+ *
+ * @param ship  Ship to check
+ * @return      Speed bonus percentage (e.g. 30 = +30% speed)
+ */
+int ship_get_effective_speed(SHIP_DATA *ship)
+{
+    int bonus = 0;
+
+    if (!IS_VALID(ship) || !ship->modules)
+        return 0;
+
+    ITERATOR it;
+    SHIP_MODULE *mod;
+    iterator_start(&it, ship->modules);
+    while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+        if (mod->operational && mod->obj)
+            bonus += SHIP_MOD_DATA(mod)->speed_bonus;
+    }
+    iterator_stop(&it);
+
+    return bonus;
+}
+
+/**
+ * ship_get_effective_turning - Get ship turning including module bonuses
+ *
+ * @param ship  Ship to check
+ * @return      Turning bonus (added to base turning degrees)
+ */
+int ship_get_effective_turning(SHIP_DATA *ship)
+{
+    int bonus = 0;
+
+    if (!IS_VALID(ship) || !ship->modules)
+        return 0;
+
+    ITERATOR it;
+    SHIP_MODULE *mod;
+    iterator_start(&it, ship->modules);
+    while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+        if (mod->operational && mod->obj)
+            bonus += SHIP_MOD_DATA(mod)->turning_bonus;
+    }
+    iterator_stop(&it);
+
+    return bonus;
+}
+
+/**
+ * ship_get_module_in_slot - Find installed module in a hardpoint slot
+ *
+ * @param ship     Ship to search
+ * @param slot_id  Hardpoint slot number
+ * @return         Module in that slot, or NULL
+ */
+SHIP_MODULE *ship_get_module_in_slot(SHIP_DATA *ship, int slot_id)
+{
+    if (!IS_VALID(ship) || !ship->modules)
+        return NULL;
+
+    ITERATOR it;
+    SHIP_MODULE *mod;
+    iterator_start(&it, ship->modules);
+    while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+        if (mod->slot_id == slot_id) {
+            iterator_stop(&it);
+            return mod;
+        }
+    }
+    iterator_stop(&it);
+    return NULL;
+}
+
+/**
+ * ship_get_hardpoint - Find a hardpoint definition on a ship template
+ *
+ * @param idx      Ship index data
+ * @param slot_id  Slot number to find
+ * @return         Hardpoint definition, or NULL
+ */
+SHIP_HARDPOINT_DEF *ship_get_hardpoint(SHIP_INDEX_DATA *idx, int slot_id)
+{
+    if (!idx || !idx->hardpoints)
+        return NULL;
+
+    ITERATOR it;
+    SHIP_HARDPOINT_DEF *hp;
+    iterator_start(&it, idx->hardpoints);
+    while ((hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&it))) {
+        if (hp->slot_id == slot_id) {
+            iterator_stop(&it);
+            return hp;
+        }
+    }
+    iterator_stop(&it);
+    return NULL;
+}
+
+/***************************************************************************
+ * Player Ship Module Commands                                             *
+ ***************************************************************************/
+
+/**
+ * do_ship_modules - Display installed modules and hardpoint status
+ *
+ * Shows a table of all hardpoint slots on the ship, what module (if any)
+ * is installed in each, and the module's condition and operational status.
+ *
+ * @param ch        Player viewing
+ * @param argument  Unused
+ */
+void do_ship_modules(CHAR_DATA *ch, char *argument)
+{
+    SHIP_DATA *ship = get_room_ship(ch->in_room);
+    BUFFER *buffer;
+
+    if (!IS_VALID(ship)) {
+        send_to_char("You aren't on a vessel.\n\r", ch);
+        return;
+    }
+
+    if (!ship->index || !ship->index->hardpoints ||
+        list_size(ship->index->hardpoints) == 0) {
+        send_to_char("This vessel has no hardpoint slots.\n\r", ch);
+        return;
+    }
+
+    buffer = new_buf();
+    char buf[MSL];
+
+    sprintf(buf, "{WModule Loadout for %s{x  (Weight: {Y%d{x/{W%d{x)\n\r",
+        ship->ship_name ? ship->ship_name : ship->index->name,
+        ship->total_module_weight, ship->index->max_module_weight);
+    add_buf(buffer, buf);
+
+    add_buf(buffer, "{C Slot  Hardpoint Name         Type        Size     Module                    Cond   Status{x\n\r");
+    add_buf(buffer, "{C=============================================================================================={x\n\r");
+
+    ITERATOR it;
+    SHIP_HARDPOINT_DEF *hp;
+    iterator_start(&it, ship->index->hardpoints);
+    while ((hp = (SHIP_HARDPOINT_DEF *)iterator_nextdata(&it))) {
+        SHIP_MODULE *mod = ship_get_module_in_slot(ship, hp->slot_id);
+
+        const char *type_str = flag_string(hardpoint_types, hp->type);
+        const char *size_str = flag_string(hardpoint_sizes, hp->size);
+
+        if (mod && mod->obj) {
+            const char *status;
+            if (!mod->active)
+                status = "{DDisabled{x";
+            else if (mod->condition <= 0)
+                status = "{RDestroyed{x";
+            else if (!mod->operational)
+                status = "{YOffline{x";
+            else
+                status = "{GOnline{x";
+
+            sprintf(buf, " {W%3d  {Y%-20s {C%-10s {M%-8s {G%-25s {W%3d%%  %s{x\n\r",
+                hp->slot_id,
+                hp->name ? hp->name : "(unnamed)",
+                type_str, size_str,
+                SHIP_MOD_NAME(mod),
+                mod->max_condition > 0 ? (mod->condition * 100) / mod->max_condition : 0,
+                status);
+        } else {
+            sprintf(buf, " {W%3d  {Y%-20s {C%-10s {M%-8s {D%-25s  ---  ---{x\n\r",
+                hp->slot_id,
+                hp->name ? hp->name : "(unnamed)",
+                type_str, size_str,
+                IS_SET(hp->flags, HARDPOINT_REQUIRED) ? "(REQUIRED - empty)" : "(empty)");
+        }
+        add_buf(buffer, buf);
+    }
+    iterator_stop(&it);
+
+    add_buf(buffer, "{C=============================================================================================={x\n\r");
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+}
+
+/**
+ * do_ship_install - Install a module into a hardpoint slot
+ *
+ * Requires the ship to be in safe harbor. The module is specified by
+ * its vnum and the target hardpoint slot number.
+ *
+ * Validates: type match, size compatibility, domain compatibility,
+ * weight budget, and slot availability.
+ *
+ * Syntax: ship install <module_vnum> <slot#>
+ *
+ * @param ch        Ship owner
+ * @param argument  "<module_vnum> <slot#>"
+ */
+void do_ship_install(CHAR_DATA *ch, char *argument)
+{
+    SHIP_DATA *ship = get_room_ship(ch->in_room);
+    char arg_name[MIL], arg_slot[MIL];
+
+    if (!IS_VALID(ship)) {
+        send_to_char("You aren't on a vessel.\n\r", ch);
+        return;
+    }
+
+    if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch)) {
+        send_to_char("This isn't your vessel.\n\r", ch);
+        return;
+    }
+
+    /* Must be in safe harbor */
+    if (!IS_IMMORTAL(ch) && !is_ship_safe(ch, ship, NULL)) {
+        send_to_char("You can only install modules while in safe harbor.\n\r", ch);
+        return;
+    }
+
+    argument = one_argument(argument, arg_name);
+    argument = one_argument(argument, arg_slot);
+
+    if (arg_name[0] == '\0' || arg_slot[0] == '\0') {
+        send_to_char("Syntax: ship install <module_keyword> <slot#>\n\r", ch);
+        return;
+    }
+
+    /* Find the module object in player inventory */
+    OBJ_DATA *obj = get_obj_carry(ch, arg_name, ch);
+    if (!obj) {
+        send_to_char("You aren't carrying that.\n\r", ch);
+        return;
+    }
+
+    if (!IS_SHIP_MODULE(obj->pIndexData)) {
+        send_to_char("That is not a ship module.\n\r", ch);
+        return;
+    }
+
+    SHIP_MODULE_DATA *mod_data = SHIP_MODULE_TYPE(obj->pIndexData);
+
+    if (!is_number(arg_slot)) {
+        send_to_char("Slot must be a number.\n\r", ch);
+        return;
+    }
+
+    int slot_id = atoi(arg_slot);
+    SHIP_HARDPOINT_DEF *hp = ship_get_hardpoint(ship->index, slot_id);
+    if (!hp) {
+        send_to_char("That hardpoint slot does not exist on this vessel.\n\r", ch);
+        return;
+    }
+
+    /* Type must match */
+    if (mod_data->type != hp->type) {
+        send_to_char(formatf("Module type (%s) does not match hardpoint type (%s).\n\r",
+            flag_string(hardpoint_types, mod_data->type),
+            flag_string(hardpoint_types, hp->type)), ch);
+        return;
+    }
+
+    /* Size must fit */
+    if (mod_data->size > hp->size) {
+        send_to_char(formatf("Module is too large (%s) for this slot (%s).\n\r",
+            flag_string(hardpoint_sizes, mod_data->size),
+            flag_string(hardpoint_sizes, hp->size)), ch);
+        return;
+    }
+
+    /* Domain compatibility */
+    if (hp->domain_flags && mod_data->domain_flags &&
+        !(hp->domain_flags & mod_data->domain_flags)) {
+        send_to_char("This module is not compatible with this slot's domain.\n\r", ch);
+        return;
+    }
+
+    /* Slot must be empty */
+    if (ship_get_module_in_slot(ship, slot_id)) {
+        send_to_char("That hardpoint slot already has a module installed. Uninstall it first.\n\r", ch);
+        return;
+    }
+
+    /* Weight budget check */
+    if (ship->total_module_weight + mod_data->weight > ship->index->max_module_weight) {
+        send_to_char(formatf("Not enough weight budget. Module: %d, Available: %d.\n\r",
+            mod_data->weight,
+            ship->index->max_module_weight - ship->total_module_weight), ch);
+        return;
+    }
+
+    /* Stash the object: remove from inventory but keep alive */
+    obj_from_char(obj);
+
+    /* Create and install the module */
+    SHIP_MODULE *mod = new_ship_module();
+    mod->obj = obj;
+    mod->slot_id = (int16_t)slot_id;
+    mod->condition = obj->condition;
+    mod->max_condition = 100;
+    mod->active = true;
+
+    /* Set initial ammo if weapon with ammo */
+    if (mod_data->ammo && IS_SET(mod_data->flags, MODULE_REQUIRES_AMMO)) {
+        mod->ammo_count = 0; /* Player must load ammo separately */
+    }
+
+    list_appendlink(ship->modules, mod);
+
+    ship_recalc_modules(ship);
+
+    send_to_char(formatf("{G%s{x installed in slot {W%d{x ({Y%s{x).\n\r",
+        obj->pIndexData->short_descr, slot_id,
+        hp->name ? hp->name : "unnamed"), ch);
+}
+
+/**
+ * do_ship_uninstall - Remove a module from a hardpoint slot
+ *
+ * Requires safe harbor. Removes the module and recalculates stats.
+ *
+ * Syntax: ship uninstall <slot#>
+ *
+ * @param ch        Ship owner
+ * @param argument  Slot number
+ */
+void do_ship_uninstall(CHAR_DATA *ch, char *argument)
+{
+    SHIP_DATA *ship = get_room_ship(ch->in_room);
+
+    if (!IS_VALID(ship)) {
+        send_to_char("You aren't on a vessel.\n\r", ch);
+        return;
+    }
+
+    if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch)) {
+        send_to_char("This isn't your vessel.\n\r", ch);
+        return;
+    }
+
+    if (!IS_IMMORTAL(ch) && !is_ship_safe(ch, ship, NULL)) {
+        send_to_char("You can only uninstall modules while in safe harbor.\n\r", ch);
+        return;
+    }
+
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax: ship uninstall <slot#>\n\r", ch);
+        return;
+    }
+
+    int slot_id = atoi(argument);
+    SHIP_MODULE *mod = ship_get_module_in_slot(ship, slot_id);
+    if (!mod) {
+        send_to_char("No module is installed in that slot.\n\r", ch);
+        return;
+    }
+
+    SHIP_HARDPOINT_DEF *hp = ship_get_hardpoint(ship->index, slot_id);
+
+    const char *mod_name = SHIP_MOD_NAME(mod);
+
+    /* Persist condition back to the object before returning it */
+    if (mod->obj) {
+        mod->obj->condition = (int16_t)mod->condition;
+    }
+
+    /* Remove crew assignments */
+    if (mod->assigned_crew && list_size(mod->assigned_crew) > 0) {
+        list_clear(mod->assigned_crew);
+    }
+
+    /* Unstash: return the module object to the player's inventory */
+    if (mod->obj) {
+        obj_to_char(mod->obj, ch);
+        mod->obj = NULL;	/* detach before freeing the runtime struct */
+    }
+
+    list_remlink(ship->modules, mod, true);
+
+    ship_recalc_modules(ship);
+
+    send_to_char(formatf("{Y%s{x removed from slot {W%d{x ({Y%s{x).\n\r",
+        mod_name, slot_id,
+        (hp && hp->name) ? hp->name : "unnamed"), ch);
+}
+
+/**
+ * do_ship_repair - Repair a damaged module
+ *
+ * Requires a crew member with mechanics skill assigned to the module
+ * (or any crew with mechanics if no one is assigned). Repairs a fixed
+ * amount of condition per use. Cannot repair destroyed modules (condition 0)
+ * without a repair station utility module.
+ *
+ * Syntax: ship repair <slot#>
+ *
+ * @param ch        Ship owner or crew manager
+ * @param argument  Slot number
+ */
+void do_ship_repair(CHAR_DATA *ch, char *argument)
+{
+    SHIP_DATA *ship = get_room_ship(ch->in_room);
+
+    if (!IS_VALID(ship)) {
+        send_to_char("You aren't on a vessel.\n\r", ch);
+        return;
+    }
+
+    if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch)) {
+        send_to_char("This isn't your vessel.\n\r", ch);
+        return;
+    }
+
+    if (argument[0] == '\0' || !is_number(argument)) {
+        send_to_char("Syntax: ship repair <slot#>\n\r", ch);
+        return;
+    }
+
+    int slot_id = atoi(argument);
+    SHIP_MODULE *mod = ship_get_module_in_slot(ship, slot_id);
+    if (!mod || !mod->obj) {
+        send_to_char("No module is installed in that slot.\n\r", ch);
+        return;
+    }
+
+    if (mod->condition >= mod->max_condition) {
+        send_to_char("That module is already at full condition.\n\r", ch);
+        return;
+    }
+
+    /* Find a mechanic crew member */
+    bool has_mechanic = false;
+    int best_mechanics = 0;
+
+    if (ship->crew) {
+        ITERATOR it;
+        CHAR_DATA *crew;
+        iterator_start(&it, ship->crew);
+        while ((crew = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (crew->crew && crew->crew->mechanics > 0) {
+                has_mechanic = true;
+                if (crew->crew->mechanics > best_mechanics)
+                    best_mechanics = crew->crew->mechanics;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    if (!has_mechanic && !IS_IMMORTAL(ch)) {
+        send_to_char("You need a crew member with mechanics skill to repair modules.\n\r", ch);
+        return;
+    }
+
+    /* Repair amount: base 10 + mechanics skill */
+    int repair_amount = 10 + best_mechanics * 2;
+    mod->condition = UMIN(mod->max_condition, mod->condition + repair_amount);
+
+    ship_recalc_modules(ship);
+
+    send_to_char(formatf("{G%s{x repaired to {W%d%%{x condition.\n\r",
+        SHIP_MOD_NAME(mod),
+        mod->max_condition > 0 ? (mod->condition * 100) / mod->max_condition : 0), ch);
+}
+
+/**
+ * do_ship_status - Display comprehensive ship status
+ *
+ * Shows hull HP, armor, combat state, module summary, crew, and
+ * weight/capacity information.
+ *
+ * @param ch        Player viewing
+ * @param argument  Unused
+ */
+void do_ship_status(CHAR_DATA *ch, char *argument)
+{
+    SHIP_DATA *ship = get_room_ship(ch->in_room);
+    BUFFER *buffer;
+
+    if (!IS_VALID(ship)) {
+        send_to_char("You aren't on a vessel.\n\r", ch);
+        return;
+    }
+
+    buffer = new_buf();
+    char buf[MSL];
+
+    sprintf(buf, "\n\r{W=== Ship Status: %s ==={x\n\r\n\r",
+        ship->ship_name ? ship->ship_name : ship->index->name);
+    add_buf(buffer, buf);
+
+    /* Hull & Defense */
+    int hp_pct = (ship->index->hit > 0) ? (int)((ship->hit * 100) / ship->index->hit) : 100;
+    const char *hp_color = (hp_pct > 75) ? "{G" : (hp_pct > 50) ? "{Y" : (hp_pct > 25) ? "{y" : "{R";
+    sprintf(buf, "  {CHull:{x     %s%ld{x / {W%d{x  (%s%d%%{x)\n\r",
+        hp_color, ship->hit, ship->index->hit, hp_color, hp_pct);
+    add_buf(buffer, buf);
+
+    sprintf(buf, "  {CArmor:{x    {W%ld{x (base: %d)\n\r", ship->armor, ship->index->armor);
+    add_buf(buffer, buf);
+
+    sprintf(buf, "  {CSpeed:{x    {W%d{x power (module bonus: {Y%+d%%{x)\n\r",
+        ship->ship_power + ship->oar_power, ship_get_effective_speed(ship));
+    add_buf(buffer, buf);
+
+    sprintf(buf, "  {CTurning:{x  {W%d{x deg/step (module bonus: {Y%+d{x)\n\r",
+        ship->index->turning, ship_get_effective_turning(ship));
+    add_buf(buffer, buf);
+
+    /* Crew */
+    int crew_count = ship->crew ? list_size(ship->crew) : 0;
+    sprintf(buf, "  {CCrew:{x     {W%d{x / %d-%d\n\r",
+        crew_count, ship->min_crew, ship->max_crew);
+    add_buf(buffer, buf);
+
+    /* Module summary */
+    if (ship->modules && list_size(ship->modules) > 0) {
+        int total = list_size(ship->modules);
+        int operational = 0;
+        int weapons = 0;
+        int weapons_ready = 0;
+
+        ITERATOR it;
+        SHIP_MODULE *mod;
+        iterator_start(&it, ship->modules);
+        while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+            if (mod->operational) operational++;
+            if (mod->obj && SHIP_MOD_DATA(mod)->type == HARDPOINT_WEAPON) {
+                weapons++;
+                if (mod->operational && mod->reload_countdown <= 0)
+                    weapons_ready++;
+            }
+        }
+        iterator_stop(&it);
+
+        sprintf(buf, "  {CModules:{x  {W%d{x installed, {G%d{x operational (weight: {Y%d{x/{W%d{x)\n\r",
+            total, operational, ship->total_module_weight,
+            ship->index->max_module_weight);
+        add_buf(buffer, buf);
+
+        if (weapons > 0) {
+            sprintf(buf, "  {CWeapons:{x {W%d{x mounted, {G%d{x ready to fire\n\r",
+                weapons, weapons_ready);
+            add_buf(buffer, buf);
+        }
+    } else {
+        add_buf(buffer, "  {CModules:{x  None installed\n\r");
+    }
+
+    /* Combat state */
+    if (IS_VALID(ship->ship_attacked)) {
+        sprintf(buf, "  {RTarget:{x   %s\n\r",
+            ship->ship_attacked->ship_name ? ship->ship_attacked->ship_name : "Unknown vessel");
+        add_buf(buffer, buf);
+    }
+
+    if (IS_VALID(ship->ship_chased)) {
+        sprintf(buf, "  {YChasing:{x  %s\n\r",
+            ship->ship_chased->ship_name ? ship->ship_chased->ship_name : "Unknown vessel");
+        add_buf(buffer, buf);
+    }
+
+    /* Ship flags */
+    if (IS_SET(ship->ship_flags, SHIP_SINKING))
+        add_buf(buffer, "  {R** VESSEL IS SINKING **{x\n\r");
+    if (IS_SET(ship->ship_flags, SHIP_ON_FIRE))
+        add_buf(buffer, "  {R** VESSEL IS ON FIRE **{x\n\r");
+    if (IS_SET(ship->ship_flags, SHIP_DISABLED))
+        add_buf(buffer, "  {R** VESSEL IS DISABLED **{x\n\r");
+
+    add_buf(buffer, "\n\r");
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+}
+
+
+/***************************************************************************
+ * Ship Combat System                                                      *
+ ***************************************************************************/
+
+/**
+ * ship_distance - Calculate distance between two ships in wilderness tiles
+ *
+ * Uses Euclidean distance between ship object positions in the wilderness.
+ * Both ships must have valid positions for a meaningful result.
+ *
+ * @param a  First ship
+ * @param b  Second ship
+ * @return   Distance in tiles, or INT_MAX if positions invalid
+ */
+static int ship_distance(SHIP_DATA *a, SHIP_DATA *b)
+{
+    if (!IS_VALID(a) || !IS_VALID(b)) return INT_MAX;
+    if (!a->ship || !a->ship->in_room || !b->ship || !b->ship->in_room)
+        return INT_MAX;
+
+    int dx = a->ship->in_room->x - b->ship->in_room->x;
+    int dy = a->ship->in_room->y - b->ship->in_room->y;
+
+    return (int)sqrt((double)(dx * dx + dy * dy));
+}
+
+/**
+ * ship_get_max_weapon_range - Get the maximum weapon range across all operational weapons
+ *
+ * @param ship  Ship to check
+ * @return      Maximum range in tiles, 0 if no operational weapons
+ */
+static int ship_get_max_weapon_range(SHIP_DATA *ship)
+{
+    if (!IS_VALID(ship) || !ship->modules) return 0;
+
+    int max_range = 0;
+    ITERATOR it;
+    SHIP_MODULE *mod;
+
+    iterator_start(&it, ship->modules);
+    while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+        if (!mod->obj || SHIP_MOD_DATA(mod)->type != HARDPOINT_WEAPON) continue;
+        if (!mod->operational) continue;
+        if (SHIP_MOD_DATA(mod)->range > max_range)
+            max_range = SHIP_MOD_DATA(mod)->range;
+    }
+    iterator_stop(&it);
+
+    return max_range;
+}
+
+/**
+ * boat_damage - Apply damage to a ship with module-aware distribution
+ *
+ * Incoming damage is reduced by armor. Primary hull HP is reduced.
+ * There is a chance for each hit to damage installed modules and crew.
+ * Threshold effects trigger at 75%, 50%, and 25% hull HP.
+ *
+ * @param ship    Target ship
+ * @param amount  Raw damage before armor
+ * @param type    SHIP_DAMAGE_GRIND or SHIP_DAMAGE_FIRE
+ */
+void boat_damage(SHIP_DATA *ship, long amount, int type)
+{
+    if (!IS_VALID(ship) || !ship->index) return;
+
+    /* Armor reduces damage (minimum 1) */
+    long effective = amount - ship->armor;
+    if (effective < 1) effective = 1;
+
+    ship->hit -= effective;
+
+    boat_echo(ship, formatf("{R** The vessel takes {W%ld{R damage! **{x", effective));
+
+    /* Fire damage: ongoing DoT to crew */
+    if (type == SHIP_DAMAGE_FIRE && !IS_SET(ship->ship_flags, SHIP_ON_FIRE)) {
+        SET_BIT(ship->ship_flags, SHIP_ON_FIRE);
+        boat_echo(ship, "{R** Flames erupt across the deck! **{x");
+    }
+
+    /* Random chance to damage an installed module */
+    if (ship->modules && list_size(ship->modules) > 0 &&
+        number_percent() <= SHIP_MODULE_HIT_CHANCE) {
+        int mod_count = list_size(ship->modules);
+        int target_idx = number_range(1, mod_count);
+        SHIP_MODULE *mod = (SHIP_MODULE *)list_nthdata(ship->modules, target_idx);
+        if (mod && mod->condition > 0) {
+            int mod_dmg = UMAX(1, (int)(effective * number_range(10, 30) / 100));
+            mod->condition -= mod_dmg;
+            if (mod->condition <= 0) {
+                mod->condition = 0;
+                mod->operational = false;
+                boat_echo(ship, formatf("{R** Module '%s' in slot %d has been destroyed! **{x",
+                    SHIP_MOD_NAME(mod), mod->slot_id));
+            } else {
+                boat_echo(ship, formatf("{Y** Module '%s' in slot %d damaged! (%d%% condition) **{x",
+                    SHIP_MOD_NAME(mod), mod->slot_id,
+                    mod->max_condition > 0 ? (mod->condition * 100) / mod->max_condition : 0));
+            }
+            ship_recalc_modules(ship);
+        }
+    }
+
+    /* Anti-crew weapons: chance to injure crew */
+    /* (Handled per-weapon in boat_fire_weapon, but fire damage hurts all) */
+    if (type == SHIP_DAMAGE_FIRE && ship->crew && list_size(ship->crew) > 0) {
+        ITERATOR it;
+        CHAR_DATA *crew;
+        iterator_start(&it, ship->crew);
+        while ((crew = (CHAR_DATA *)iterator_nextdata(&it))) {
+            if (number_percent() <= 10) {
+                int fire_dmg = number_range(10, 30);
+                if (crew->hit > fire_dmg) {
+                    crew->hit -= fire_dmg;
+                } else {
+                    /* Crew member killed by fire */
+                    boat_echo(ship, formatf("{R** %s has been killed in the blaze! **{x",
+                        crew->short_descr));
+                    iterator_remcurrent(&it);
+                    list_remlink(ship->crew, crew, false);
+                    crew->belongs_to_ship = NULL;
+                    extract_char(crew, true);
+                }
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    /* Threshold effects */
+    ship_apply_threshold_effects(ship);
+
+    /* Check for destruction */
+    if (ship->hit <= 0) {
+        ship->hit = 0;
+        if (!IS_SET(ship->ship_flags, SHIP_SINKING)) {
+            SET_BIT(ship->ship_flags, SHIP_SINKING);
+            ship->scuttle_time = SHIP_SINK_COUNTDOWN;
+
+            if (ship->ship_type == SHIP_AIR_SHIP) {
+                boat_echo(ship, "{R** THE AIRSHIP IS GOING DOWN! ABANDON SHIP! **{x");
+            } else if (ship->ship_type == SHIP_LAND_VESSEL) {
+                boat_echo(ship, "{R** THE VESSEL IS BREAKING APART! ABANDON SHIP! **{x");
+            } else {
+                boat_echo(ship, "{R** THE VESSEL IS SINKING! ABANDON SHIP! **{x");
+            }
+        }
+    }
+}
+
+/**
+ * ship_apply_threshold_effects - Apply damage threshold effects
+ *
+ * At various hull HP percentages, the ship suffers escalating penalties:
+ * - 75%: cosmetic smoke/flooding
+ * - 50%: propulsion damage, fires likely
+ * - 25%: critical — crew casualties, module failures
+ *
+ * @param ship  Ship to check
+ */
+static void ship_apply_threshold_effects(SHIP_DATA *ship)
+{
+    if (!IS_VALID(ship) || !ship->index || ship->index->hit <= 0) return;
+
+    int hp_pct = (int)((ship->hit * 100) / ship->index->hit);
+
+    /* 25% — Critical */
+    if (hp_pct <= SHIP_DAMAGE_THRESHOLD_CRIT) {
+        SET_BIT(ship->ship_flags, SHIP_DISABLED);
+
+        /* Random module failure */
+        if (ship->modules && list_size(ship->modules) > 0 && number_percent() <= 30) {
+            int idx = number_range(1, list_size(ship->modules));
+            SHIP_MODULE *mod = (SHIP_MODULE *)list_nthdata(ship->modules, idx);
+            if (mod && mod->operational) {
+                mod->active = false;
+                mod->operational = false;
+                boat_echo(ship, formatf("{R** Critical failure: '%s' has gone offline! **{x",
+                    SHIP_MOD_NAME(mod)));
+                ship_recalc_modules(ship);
+            }
+        }
+    }
+    /* 50% — Major */
+    else if (hp_pct <= SHIP_DAMAGE_THRESHOLD_MAJOR) {
+        /* Speed halved if not already disabled */
+        if (!IS_SET(ship->ship_flags, SHIP_ON_FIRE) && number_percent() <= 20) {
+            SET_BIT(ship->ship_flags, SHIP_ON_FIRE);
+            boat_echo(ship, "{R** Fire breaks out from the damage! **{x");
+        }
+    }
+    /* 75% — Minor */
+    else if (hp_pct <= SHIP_DAMAGE_THRESHOLD_MINOR) {
+        /* Cosmetic only — message on first crossing */
+        if (ship->ship_type == SHIP_SAILING_BOAT) {
+            boat_echo(ship, "{Y** Water seeps through cracks in the hull. **{x");
+        } else if (ship->ship_type == SHIP_AIR_SHIP) {
+            boat_echo(ship, "{Y** Smoke billows from the damaged hull. **{x");
+        } else {
+            boat_echo(ship, "{Y** The vessel groans under the strain. **{x");
+        }
+    }
+}
+
+/**
+ * ship_combat_rep_attack - Apply reputation penalty when a player attacks a faction ship
+ *
+ * Called when a player initiates combat against an NPC ship that has a faction.
+ * Applies a small negative reputation change to the attacking player against
+ * the target ship's faction.  Uses the captain's MOB_REPUTATION_DATA if present
+ * for the base point amount, otherwise a flat default penalty.
+ *
+ * @param ch        Player who initiated the attack
+ * @param attacker  Ship the player commands
+ * @param target    NPC ship being attacked
+ */
+static void ship_combat_rep_attack(CHAR_DATA *ch, SHIP_DATA *attacker, SHIP_DATA *target)
+{
+    (void)attacker;
+
+    if (!ch || IS_NPC(ch))
+        return;
+
+    if (!IS_VALID(target) || !target->index || !target->index->faction)
+        return;
+
+    REPUTATION_INDEX_DATA *faction = target->index->faction;
+    long penalty = -50;  /* Default small penalty */
+
+    /* Check captain's mob_reputation entries for a specific point value */
+    if (target->npc_ship && target->npc_ship->captain &&
+        IS_NPC(target->npc_ship->captain)) {
+        MOB_INDEX_DATA *cap_idx = target->npc_ship->captain->pIndexData;
+        if (cap_idx) {
+            for (MOB_REPUTATION_DATA *mr = cap_idx->mob_reputations; mr; mr = mr->next) {
+                if (mr->reputation == faction) {
+                    penalty = -(mr->points / 4);  /* Quarter of kill value for attack */
+                    if (penalty > -10) penalty = -10;
+                    break;
+                }
+            }
+        }
+    }
+
+    gain_reputation(ch, faction, penalty, NULL, NULL, true);
+    printf_to_char(ch, "{YYour reputation with {W%s{Y has decreased.{x\n\r", faction->name);
+}
+
+/**
+ * ship_combat_rep_sink - Apply reputation changes when an NPC ship is destroyed
+ *
+ * Called during ship_destruction_sequence for NPC ships with factions.
+ * Finds all player-owned ships that were attacking the destroyed ship and
+ * applies a large negative reputation change against the victim's faction.
+ * Also checks nearby observer ships — if a faction ship witnessed its enemy
+ * destroyed, grant the attacker positive reputation with the observer's faction.
+ *
+ * @param destroyed  NPC ship that was just destroyed
+ */
+static void ship_combat_rep_sink(SHIP_DATA *destroyed)
+{
+    if (!IS_VALID(destroyed) || !destroyed->index)
+        return;
+
+    REPUTATION_INDEX_DATA *victim_faction = destroyed->index->faction;
+    long sink_penalty = -200;  /* Default large penalty */
+
+    /* Get specific penalty from captain's MOB_REPUTATION_DATA if available */
+    if (victim_faction && destroyed->npc_ship && destroyed->npc_ship->captain &&
+        IS_NPC(destroyed->npc_ship->captain)) {
+        MOB_INDEX_DATA *cap_idx = destroyed->npc_ship->captain->pIndexData;
+        if (cap_idx) {
+            for (MOB_REPUTATION_DATA *mr = cap_idx->mob_reputations; mr; mr = mr->next) {
+                if (mr->reputation == victim_faction) {
+                    sink_penalty = -(mr->points);  /* Full kill value for sinking */
+                    if (sink_penalty > -50) sink_penalty = -50;
+                    break;
+                }
+            }
+        }
+    }
+
+    /* Find all player-owned ships that were attacking the destroyed ship */
+    ITERATOR it;
+    SHIP_DATA *attacker;
+    iterator_start(&it, loaded_ships);
+    while ((attacker = (SHIP_DATA *)iterator_nextdata(&it))) {
+        if (attacker->ship_attacked != destroyed)
+            continue;
+
+        CHAR_DATA *pc_owner = attacker->owner;
+        if (!pc_owner || IS_NPC(pc_owner))
+            continue;
+
+        /* Apply negative rep with victim's faction */
+        if (victim_faction) {
+            gain_reputation(pc_owner, victim_faction, sink_penalty, NULL, NULL, true);
+            printf_to_char(pc_owner, "{RYour reputation with {W%s{R has significantly decreased!{x\n\r",
+                victim_faction->name);
+        }
+
+        /* Check if any nearby NPC ships with factions consider the destroyed
+         * ship an enemy — if so, grant positive reputation with observers */
+        ITERATOR obs_it;
+        SHIP_DATA *observer;
+        iterator_start(&obs_it, loaded_ships);
+        while ((observer = (SHIP_DATA *)iterator_nextdata(&obs_it))) {
+            if (observer == attacker || observer == destroyed)
+                continue;
+            if (!IS_VALID(observer) || !observer->index || !observer->index->faction)
+                continue;
+            if (observer->index->faction == victim_faction)
+                continue;  /* Same faction as victim — no bonus */
+
+            int dist = ship_distance(observer, destroyed);
+            if (dist > SHIP_COMBAT_DETECTION_RANGE)
+                continue;  /* Too far to witness */
+
+            /* Observer's faction type determines if they consider the sunk ship an enemy */
+            bool is_enemy = false;
+            if (IS_SET(observer->index->flags, SHIP_AUTONOMOUS_NPC)) {
+                /* Coast guard considers pirates enemies, pirates consider coast guard enemies, etc. */
+                if (npc_ship_is_valid_target(observer, destroyed))
+                    is_enemy = true;
+            }
+
+            if (is_enemy) {
+                long bonus = UMAX(25, (-sink_penalty) / 4);
+                gain_reputation(pc_owner, observer->index->faction, bonus, NULL, NULL, true);
+                printf_to_char(pc_owner, "{GYour reputation with {W%s{G has increased.{x\n\r",
+                    observer->index->faction->name);
+            }
+        }
+        iterator_stop(&obs_it);
+    }
+    iterator_stop(&it);
+}
+
+/**
+ * ship_coast_guard_alert - Alert nearby coast guard ships when a player attacks
+ *
+ * Scans for coast guard NPC ships within detection range.  If any are found
+ * and the target is NOT a pirate or hostile ship, the coast guard:
+ *   - Applies negative reputation to the attacking player
+ *   - Begins targeting the attacker's ship (enters combat)
+ *   - Announces the interception
+ *
+ * This is the primary mechanism for "pirate flagging" — players who attack
+ * innocent ships in patrolled waters suffer coast guard pursuit.
+ *
+ * @param ch        Player who initiated the attack
+ * @param attacker  Ship commanded by the player
+ * @param target    Ship being attacked
+ */
+static void ship_coast_guard_alert(CHAR_DATA *ch, SHIP_DATA *attacker, SHIP_DATA *target)
+{
+    if (!ch || IS_NPC(ch))
+        return;
+
+    /* Only triggers when attacking a non-pirate NPC ship */
+    if (!IS_VALID(target) || !target->index)
+        return;
+    if (IS_SET(target->index->flags, SHIP_AUTONOMOUS_NPC) &&
+        target->index->npc_type == NPC_SHIP_PIRATE)
+        return;  /* Attacking pirates doesn't alert coast guard */
+
+    ITERATOR it;
+    SHIP_DATA *guard;
+    iterator_start(&it, loaded_ships);
+    while ((guard = (SHIP_DATA *)iterator_nextdata(&it))) {
+        if (guard == attacker || guard == target)
+            continue;
+        if (!IS_VALID(guard) || !guard->index)
+            continue;
+        if (!IS_SET(guard->index->flags, SHIP_AUTONOMOUS_NPC))
+            continue;
+        if (guard->index->npc_type != NPC_SHIP_COAST_GUARD)
+            continue;
+
+        int dist = ship_distance(guard, attacker);
+        if (dist > SHIP_COMBAT_DETECTION_RANGE)
+            continue;
+
+        /* Coast guard detected the aggression */
+        if (guard->index->faction) {
+            long penalty = -100;
+            gain_reputation(ch, guard->index->faction, penalty, NULL, NULL, true);
+            printf_to_char(ch, "{R** A coast guard vessel has witnessed your aggression! "
+                "Your reputation with {W%s{R has decreased! **{x\n\r",
+                guard->index->faction->name);
+        }
+
+        /* Coast guard engages the attacker */
+        if (!IS_VALID(guard->ship_attacked)) {
+            guard->ship_attacked = attacker;
+            guard->attack_position = SHIP_ATTACK_LOADING;
+
+            /* Start weapons reloading */
+            if (guard->modules) {
+                ITERATOR mod_it;
+                SHIP_MODULE *mod;
+                iterator_start(&mod_it, guard->modules);
+                while ((mod = (SHIP_MODULE *)iterator_nextdata(&mod_it))) {
+                    if (mod->obj && SHIP_MOD_DATA(mod)->type == HARDPOINT_WEAPON &&
+                        mod->operational && mod->reload_countdown <= 0) {
+                        mod->reload_countdown = SHIP_MOD_DATA(mod)->reload_time;
+                    }
+                }
+                iterator_stop(&mod_it);
+            }
+
+            /* Update NPC state to attacking */
+            if (guard->npc_ship)
+                guard->npc_ship->state = NPC_SHIP_STATE_ATTACKING;
+
+            boat_echo(guard, formatf("{W** Hostile vessel detected! Engaging %s! **{x",
+                attacker->ship_name ? attacker->ship_name : "unknown vessel"));
+            boat_echo(attacker, formatf("{R** %s is moving to intercept! **{x",
+                guard->ship_name ? guard->ship_name : "A coast guard vessel"));
+        }
+    }
+    iterator_stop(&it);
+}
+
+/**
+ * ship_destruction_sequence - Handle final destruction of a sinking ship
+ *
+ * Called when scuttle_time reaches 0 on a sinking ship. Domain-appropriate
+ * destruction: aquatic sinks, aerial crashes, terrestrial breaks down.
+ * All aboard are ejected/damaged. The ship is extracted.
+ *
+ * @param ship  Ship being destroyed
+ */
+static void ship_destruction_sequence(SHIP_DATA *ship)
+{
+    if (!IS_VALID(ship)) return;
+
+    if (ship->ship_type == SHIP_AIR_SHIP) {
+        boat_echo(ship, "{R** With a thunderous crash, the airship plummets to the ground! **{x");
+    } else if (ship->ship_type == SHIP_LAND_VESSEL) {
+        boat_echo(ship, "{R** The land vessel collapses into wreckage! **{x");
+    } else {
+        boat_echo(ship, "{B** With a final gurgle, the vessel slips beneath the waves! **{x");
+    }
+
+    /* Apply reputation changes for sinking an NPC faction ship
+     * (must happen before clearing combat references) */
+    ship_combat_rep_sink(ship);
+
+    /* Clear combat references to this ship */
+    {
+        ITERATOR it;
+        SHIP_DATA *other;
+        iterator_start(&it, loaded_ships);
+        while ((other = (SHIP_DATA *)iterator_nextdata(&it))) {
+            if (other->ship_attacked == ship) {
+                other->ship_attacked = NULL;
+                other->attack_position = SHIP_ATTACK_STOPPED;
+            }
+            if (other->ship_chased == ship)
+                other->ship_chased = NULL;
+            if (other->boarded_by == ship)
+                other->boarded_by = NULL;
+        }
+        iterator_stop(&it);
+    }
+
+    extract_ship(ship);
+}
+
+/**
+ * boat_fire_weapon - Fire a single weapon module at a target ship
+ *
+ * Calculates hit chance based on range, crew gunning skill, and base chance.
+ * On hit, applies damage via boat_damage(). Consumes ammo if required.
+ * Triggers crew skill improvement for gunning.
+ *
+ * @param attacker  Ship firing
+ * @param target    Target ship
+ * @param weapon    Weapon module to fire
+ */
+static void boat_fire_weapon(SHIP_DATA *attacker, SHIP_DATA *target, SHIP_MODULE *weapon)
+{
+    if (!IS_VALID(attacker) || !IS_VALID(target) || !weapon || !weapon->obj)
+        return;
+
+    SHIP_MODULE_DATA *wpn = SHIP_MOD_DATA(weapon);
+    if (!wpn) return;
+
+    const char *wpn_name = SHIP_MOD_NAME(weapon);
+
+    /* Consume ammo if required */
+    if (IS_SET(wpn->flags, MODULE_REQUIRES_AMMO)) {
+        if (weapon->ammo_count < wpn->ammo_per_shot) {
+            boat_echo(attacker, formatf("{Y** %s: Out of ammunition! **{x", wpn_name));
+            return;
+        }
+        weapon->ammo_count -= wpn->ammo_per_shot;
+    }
+
+    /* Calculate hit chance */
+    int dist = ship_distance(attacker, target);
+    int half_range = UMAX(1, wpn->range / 2);
+    int hit_chance = SHIP_COMBAT_HIT_BASE;
+
+    /* Range penalty: -5% per tile beyond half max range */
+    if (dist > half_range) {
+        hit_chance -= (dist - half_range) * SHIP_COMBAT_RANGE_PENALTY;
+    }
+
+    /* Crew gunning skill bonus */
+    if (weapon->assigned_crew && list_size(weapon->assigned_crew) > 0) {
+        CHAR_DATA *gunner = (CHAR_DATA *)list_nthdata(weapon->assigned_crew, 1);
+        if (gunner && gunner->crew) {
+            hit_chance += gunner->crew->gunning * SHIP_COMBAT_SKILL_BONUS;
+        }
+    }
+
+    /* Clamp */
+    hit_chance = URANGE(5, hit_chance, 95);
+
+    /* Roll */
+    int roll = number_percent();
+    if (roll > hit_chance) {
+        boat_echo(attacker, formatf("{C%s fires — misses!{x", wpn_name));
+        boat_echo(target, formatf("{CA volley from %s — splashes harmlessly!{x",
+            attacker->ship_name ? attacker->ship_name : "an enemy vessel"));
+    } else {
+        /* Hit! Calculate damage */
+        int damage = wpn->damage;
+
+        /* Crew gunning skill adds minor damage bonus */
+        if (weapon->assigned_crew && list_size(weapon->assigned_crew) > 0) {
+            CHAR_DATA *gunner = (CHAR_DATA *)list_nthdata(weapon->assigned_crew, 1);
+            if (gunner && gunner->crew) {
+                damage += gunner->crew->gunning; /* +1 per skill point */
+            }
+        }
+
+        /* AOE weapons do reduced damage to hull but hit more modules */
+        bool is_aoe = IS_SET(wpn->weapon_flags, MODULE_AOE);
+
+        int damage_type = IS_SET(wpn->weapon_flags, MODULE_FIRE_DAMAGE) ?
+            SHIP_DAMAGE_FIRE : SHIP_DAMAGE_GRIND;
+
+        boat_echo(attacker, formatf("{G%s fires — HIT! (%d damage){x", wpn_name, damage));
+        boat_echo(target, formatf("{R** %s struck by %s from %s! **{x",
+            target->ship_name ? target->ship_name : "Your vessel",
+            wpn_name,
+            attacker->ship_name ? attacker->ship_name : "an enemy vessel"));
+
+        boat_damage(target, damage, damage_type);
+
+        /* AOE: second module hit chance */
+        if (is_aoe && target->modules && list_size(target->modules) > 0 &&
+            number_percent() <= SHIP_MODULE_HIT_CHANCE * 2) {
+            int idx = number_range(1, list_size(target->modules));
+            SHIP_MODULE *hit_mod = (SHIP_MODULE *)list_nthdata(target->modules, idx);
+            if (hit_mod && hit_mod->condition > 0) {
+                int mod_dmg = UMAX(1, damage / 4);
+                hit_mod->condition = UMAX(0, hit_mod->condition - mod_dmg);
+                if (hit_mod->condition <= 0) {
+                    hit_mod->operational = false;
+                    boat_echo(target, formatf("{R** Module '%s' destroyed by blast! **{x",
+                        SHIP_MOD_NAME(hit_mod)));
+                }
+                ship_recalc_modules(target);
+            }
+        }
+
+        /* Anti-crew weapon: chance to injure crew */
+        if (IS_SET(wpn->weapon_flags, MODULE_ANTI_CREW) &&
+            target->crew && list_size(target->crew) > 0) {
+            ITERATOR crew_it;
+            CHAR_DATA *crew;
+            iterator_start(&crew_it, target->crew);
+            while ((crew = (CHAR_DATA *)iterator_nextdata(&crew_it))) {
+                if (number_percent() <= SHIP_CREW_HIT_CHANCE) {
+                    int crew_dmg = number_range(20, 60);
+                    if (crew->hit > crew_dmg) {
+                        crew->hit -= crew_dmg;
+                        boat_echo(target, formatf("{R** %s is wounded! **{x",
+                            crew->short_descr));
+                    } else {
+                        boat_echo(target, formatf("{R** %s has been killed! **{x",
+                            crew->short_descr));
+                        iterator_remcurrent(&crew_it);
+                        list_remlink(target->crew, crew, false);
+                        crew->belongs_to_ship = NULL;
+                        extract_char(crew, true);
+                    }
+                }
+            }
+            iterator_stop(&crew_it);
+        }
+    }
+
+    /* Reset reload countdown */
+    weapon->reload_countdown = wpn->reload_time;
+
+    /* Crew skill improvement for all assigned crew (gunning) */
+    if (weapon->assigned_crew) {
+        ITERATOR crew_it;
+        CHAR_DATA *crew;
+        iterator_start(&crew_it, weapon->assigned_crew);
+        while ((crew = (CHAR_DATA *)iterator_nextdata(&crew_it))) {
+            crew_skill_improve(crew, CREW_SKILL_GUNNING);
+        }
+        iterator_stop(&crew_it);
+    }
+}
+
+/**
+ * ship_combat_update - Per-pulse combat update for a single ship
+ *
+ * Handles:
+ * - Weapon reload countdown (each weapon counts down independently)
+ * - Firing ready weapons at current target
+ * - Auto-disengage if target out of range or destroyed
+ * - Fire damage ticks
+ * - Sinking countdown
+ * - Chase heading updates
+ *
+ * @param ship  Ship to update
+ */
+void ship_combat_update(SHIP_DATA *ship)
+{
+    if (!IS_VALID(ship)) return;
+
+    /* --- Sinking countdown --- */
+    if (IS_SET(ship->ship_flags, SHIP_SINKING)) {
+        if (ship->scuttle_time > 0) {
+            ship->scuttle_time--;
+            if (ship->scuttle_time <= 0) {
+                ship_destruction_sequence(ship);
+                return; /* Ship is gone */
+            }
+            if (ship->scuttle_time <= 3) {
+                boat_echo(ship, formatf("{R** %d ticks until the vessel is lost! **{x",
+                    ship->scuttle_time));
+            }
+        }
+        return; /* No other combat actions while sinking */
+    }
+
+    /* --- Fire damage tick --- */
+    if (IS_SET(ship->ship_flags, SHIP_ON_FIRE)) {
+        /* Fire does 2-5% of max hull per tick */
+        long fire_dmg = UMAX(1, ship->index->hit * number_range(2, 5) / 100);
+        boat_damage(ship, fire_dmg, SHIP_DAMAGE_FIRE);
+
+        /* Mechanics crew can extinguish — check for any crew with mechanics skill */
+        bool has_mechanics = false;
+        if (ship->modules) {
+            ITERATOR it;
+            SHIP_MODULE *mod;
+            iterator_start(&it, ship->modules);
+            while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+                if (mod->assigned_crew && list_size(mod->assigned_crew) > 0) {
+                    ITERATOR crew_it;
+                    CHAR_DATA *crew;
+                    iterator_start(&crew_it, mod->assigned_crew);
+                    while ((crew = (CHAR_DATA *)iterator_nextdata(&crew_it))) {
+                        if (crew->crew && crew->crew->mechanics >= 3) {
+                            has_mechanics = true;
+                            crew_skill_improve(crew, CREW_SKILL_MECHANICS);
+                            break;
+                        }
+                    }
+                    iterator_stop(&crew_it);
+                }
+                if (has_mechanics) break;
+            }
+            iterator_stop(&it);
+        }
+
+        /* 25% chance per tick to extinguish if mechanics crew available */
+        if (has_mechanics && number_percent() <= 25) {
+            REMOVE_BIT(ship->ship_flags, SHIP_ON_FIRE);
+            boat_echo(ship, "{G** The crew has extinguished the fires! **{x");
+        }
+    }
+
+    /* --- Chase logic --- */
+    if (IS_VALID(ship->ship_chased)) {
+        /* Check if target is still valid and in range */
+        int max_range = ship_get_max_weapon_range(ship);
+        int chase_range = max_range > 0 ? max_range * 3 : 30;
+        int dist = ship_distance(ship, ship->ship_chased);
+
+        if (dist > chase_range || !IS_VALID(ship->ship_chased->ship) ||
+            !ship->ship_chased->ship->in_room) {
+            boat_echo(ship, "{Y** Target has escaped pursuit. **{x");
+            ship->ship_chased = NULL;
+        } else if (ship->ship && ship->ship->in_room &&
+                   ship->ship_chased->ship && ship->ship_chased->ship->in_room) {
+            /* Calculate heading toward target */
+            int dx = ship->ship_chased->ship->in_room->x - ship->ship->in_room->x;
+            int dy = ship->ship_chased->ship->in_room->y - ship->ship->in_room->y;
+
+            if (dx != 0 || dy != 0) {
+                int target_heading = (int)(atan2((double)dx, (double)-dy) * 180.0 / M_PI);
+                if (target_heading < 0) target_heading += 360;
+                steering_set_heading(ship, target_heading);
+                steering_calc_heading(ship);
+            }
+
+            /* Auto speed: full speed in pursuit */
+            if (ship->ship_power < SHIP_SPEED_FULL_SPEED)
+                ship->ship_power = SHIP_SPEED_FULL_SPEED;
+        }
+    }
+
+    /* --- Weapon fire/reload cycle --- */
+    if (ship->attack_position == SHIP_ATTACK_STOPPED) return;
+    if (!IS_VALID(ship->ship_attacked)) {
+        /* Target no longer valid */
+        ship->attack_position = SHIP_ATTACK_STOPPED;
+        ship->ship_attacked = NULL;
+        ship->char_attacked = NULL;
+        return;
+    }
+
+    /* Check if target is still in range of any weapon */
+    int dist = ship_distance(ship, ship->ship_attacked);
+    int max_range = ship_get_max_weapon_range(ship);
+
+    if (max_range <= 0 || dist > max_range) {
+        boat_echo(ship, "{Y** Target is out of weapon range. Ceasing fire. **{x");
+        ship->attack_position = SHIP_ATTACK_STOPPED;
+        ship->ship_attacked = NULL;
+        return;
+    }
+
+    /* Iterate weapon modules: count down reload, fire when ready */
+    if (ship->modules) {
+        ITERATOR it;
+        SHIP_MODULE *mod;
+        bool any_fired = false;
+
+        iterator_start(&it, ship->modules);
+        while ((mod = (SHIP_MODULE *)iterator_nextdata(&it))) {
+            if (!mod->obj || SHIP_MOD_DATA(mod)->type != HARDPOINT_WEAPON) continue;
+            if (!mod->operational) continue;
+
+            /* Check individual weapon range */
+            if (dist > SHIP_MOD_DATA(mod)->range) continue;
+
+            if (mod->reload_countdown > 0) {
+                mod->reload_countdown--;
+
+                /* Gunning skill can speed reload slightly */
+                if (mod->assigned_crew && list_size(mod->assigned_crew) > 0) {
+                    CHAR_DATA *gunner = (CHAR_DATA *)list_nthdata(mod->assigned_crew, 1);
+                    if (gunner && gunner->crew && gunner->crew->gunning >= 5 &&
+                        number_percent() <= 10) {
+                        mod->reload_countdown--; /* Skilled gunners reload faster */
+                    }
+                }
+            }
+
+            if (mod->reload_countdown <= 0) {
+                /* FIRE! */
+                boat_fire_weapon(ship, ship->ship_attacked, mod);
+                any_fired = true;
+            }
+        }
+        iterator_stop(&it);
+
+        /* Update attack phase display */
+        if (any_fired) {
+            ship->attack_position = SHIP_ATTACK_FIRED;
+        } else {
+            ship->attack_position = SHIP_ATTACK_LOADING;
+        }
+    }
+}
+
+
 /////////////////////////////////////////////////////////////////
 //
-// NPC SHip Edit
+// NPC Ship Creation & Management
 //
+
+/**
+ * ship_find_helm_room - Find the helm room in a ship's blueprint instance
+ *
+ * Iterates through instance sections and their rooms looking for a room
+ * with the ROOM_SHIP_HELM flag set. Returns the first matching room,
+ * or the instance entrance as a fallback.
+ *
+ * @param ship  Ship to search
+ * @return      Helm room, or instance entrance, or NULL
+ */
+static ROOM_INDEX_DATA *ship_find_helm_room(SHIP_DATA *ship)
+{
+    ITERATOR sec_it, room_it;
+    INSTANCE_SECTION *section;
+    ROOM_INDEX_DATA *room;
+
+    if (!IS_VALID(ship) || !IS_VALID(ship->instance))
+        return NULL;
+
+    iterator_start(&sec_it, ship->instance->sections);
+    while ((section = (INSTANCE_SECTION *)iterator_nextdata(&sec_it)) != NULL) {
+        if (!section->rooms)
+            continue;
+        iterator_start(&room_it, section->rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&room_it)) != NULL) {
+            if (IS_SET(room->room_flag[0], ROOM_SHIP_HELM)) {
+                iterator_stop(&room_it);
+                iterator_stop(&sec_it);
+                return room;
+            }
+        }
+        iterator_stop(&room_it);
+    }
+    iterator_stop(&sec_it);
+
+    return ship->instance->entrance;
+}
+
+/**
+ * ship_get_random_interior_room - Get a random room inside a ship instance
+ *
+ * Collects all rooms from all instance sections and picks one at random.
+ * Used for placing crew members in varied locations throughout the ship.
+ *
+ * @param ship  Ship to pick a room from
+ * @return      Random interior room, or instance entrance, or NULL
+ */
+static ROOM_INDEX_DATA *ship_get_random_interior_room(SHIP_DATA *ship)
+{
+    ITERATOR sec_it, room_it;
+    INSTANCE_SECTION *section;
+    ROOM_INDEX_DATA *room;
+    int total = 0;
+    int pick;
+
+    if (!IS_VALID(ship) || !IS_VALID(ship->instance))
+        return NULL;
+
+    /* Count total rooms */
+    iterator_start(&sec_it, ship->instance->sections);
+    while ((section = (INSTANCE_SECTION *)iterator_nextdata(&sec_it)) != NULL) {
+        if (section->rooms)
+            total += list_size(section->rooms);
+    }
+    iterator_stop(&sec_it);
+
+    if (total <= 0)
+        return ship->instance->entrance;
+
+    pick = number_range(1, total);
+    total = 0;
+
+    iterator_start(&sec_it, ship->instance->sections);
+    while ((section = (INSTANCE_SECTION *)iterator_nextdata(&sec_it)) != NULL) {
+        if (!section->rooms)
+            continue;
+        iterator_start(&room_it, section->rooms);
+        while ((room = (ROOM_INDEX_DATA *)iterator_nextdata(&room_it)) != NULL) {
+            if (++total == pick) {
+                iterator_stop(&room_it);
+                iterator_stop(&sec_it);
+                return room;
+            }
+        }
+        iterator_stop(&room_it);
+    }
+    iterator_stop(&sec_it);
+
+    return ship->instance->entrance;
+}
+
+/**
+ * ship_populate_crew - Spawn crew mobs from template definitions onto a ship
+ *
+ * Creates mobile instances from the ship's SHIP_INDEX_DATA crew_defs list
+ * and captain definition. The captain is placed at the helm room, crew
+ * members are distributed across ship interior rooms. All spawned mobs
+ * are added to ship->crew LLIST and have belongs_to_ship set.
+ *
+ * Works for both NPC and player-owned ships (e.g., hired crew from a template).
+ *
+ * @param ship  Ship to populate (must have valid index and instance)
+ * @return      Number of crew members spawned (including captain)
+ */
+int ship_populate_crew(SHIP_DATA *ship)
+{
+    SHIP_INDEX_DATA *idx;
+    ROOM_INDEX_DATA *helm_room;
+    ITERATOR it;
+    SHIP_CREW_DEF *cd;
+    CHAR_DATA *mob;
+    int spawned = 0;
+
+    if (!IS_VALID(ship) || !ship->index)
+        return 0;
+
+    idx = ship->index;
+
+    if (!IS_VALID(ship->instance))
+        return 0;
+
+    helm_room = ship_find_helm_room(ship);
+
+    /* Spawn the captain at the helm */
+    if (idx->captain) {
+        mob = create_mobile(idx->captain, false);
+        if (mob) {
+            if (helm_room)
+                char_to_room(mob, helm_room);
+            else if (ship->instance->entrance)
+                char_to_room(mob, ship->instance->entrance);
+
+            list_appendlink(ship->crew, mob);
+            mob->belongs_to_ship = ship;
+            spawned++;
+
+            /* If this ship has NPC_SHIP_DATA, reference the captain there too */
+            if (ship->npc_ship)
+                ship->npc_ship->captain = mob;
+        }
+    }
+
+    /* Spawn crew from definitions */
+    if (idx->crew_defs && list_size(idx->crew_defs) > 0) {
+        iterator_start(&it, idx->crew_defs);
+        while ((cd = (SHIP_CREW_DEF *)iterator_nextdata(&it)) != NULL) {
+            if (!cd->mob)
+                continue;
+
+            for (int i = 0; i < cd->count; i++) {
+                mob = create_mobile(cd->mob, false);
+                if (!mob)
+                    continue;
+
+                ROOM_INDEX_DATA *target = ship_get_random_interior_room(ship);
+                if (target)
+                    char_to_room(mob, target);
+                else if (ship->instance->entrance)
+                    char_to_room(mob, ship->instance->entrance);
+
+                list_appendlink(ship->crew, mob);
+                mob->belongs_to_ship = ship;
+                spawned++;
+            }
+        }
+        iterator_stop(&it);
+    }
+
+    return spawned;
+}
+
+/**
+ * ship_auto_assign_crew - Assign crew members to modules that need operators
+ *
+ * Iterates installed modules and assigns unassigned crew members to modules
+ * missing operators. For NPC ships, crew are always considered qualified.
+ * For player ships, this checks skill requirements against SHIP_CREW_DATA.
+ *
+ * Crew members can only be assigned to one module at a time. The captain
+ * (from NPC_SHIP_DATA) is excluded from module assignment.
+ *
+ * @param ship  Ship whose crew to assign to modules
+ */
+void ship_auto_assign_crew(SHIP_DATA *ship)
+{
+    ITERATOR mod_it, crew_it;
+    SHIP_MODULE *mod;
+    CHAR_DATA *crew;
+
+    if (!IS_VALID(ship))
+        return;
+
+    if (!ship->modules || !ship->crew)
+        return;
+
+    /* Build a simple list of unassigned crew members */
+    /* A crew member is "unassigned" if they appear in no module's assigned_crew */
+    iterator_start(&mod_it, ship->modules);
+    while ((mod = (SHIP_MODULE *)iterator_nextdata(&mod_it)) != NULL) {
+        if (!IS_VALID(mod) || !mod->obj || !mod->active)
+            continue;
+
+        int needed = SHIP_MOD_DATA(mod)->operators;
+        int have = mod->assigned_crew ? list_size(mod->assigned_crew) : 0;
+
+        if (have >= needed)
+            continue;
+
+        /* Need (needed - have) more crew for this module */
+        int slots_open = needed - have;
+
+        iterator_start(&crew_it, ship->crew);
+        while ((crew = (CHAR_DATA *)iterator_nextdata(&crew_it)) != NULL && slots_open > 0) {
+            /* Skip the captain — they command, not operate */
+            if (ship->npc_ship && ship->npc_ship->captain == crew)
+                continue;
+
+            /* Skip crew already assigned to a module */
+            bool already_assigned = false;
+            ITERATOR check_it;
+            SHIP_MODULE *check_mod;
+            iterator_start(&check_it, ship->modules);
+            while ((check_mod = (SHIP_MODULE *)iterator_nextdata(&check_it)) != NULL) {
+                if (check_mod->assigned_crew &&
+                    list_hasdata(check_mod->assigned_crew, crew)) {
+                    already_assigned = true;
+                    break;
+                }
+            }
+            iterator_stop(&check_it);
+
+            if (already_assigned)
+                continue;
+
+            /* For NPC crew without SHIP_CREW_DATA, assume qualified */
+            bool qualified = true;
+            if (crew->crew && mod->obj) {
+                if (SHIP_MOD_DATA(mod)->req_gunning > 0 &&
+                    crew->crew->gunning < SHIP_MOD_DATA(mod)->req_gunning)
+                    qualified = false;
+                if (SHIP_MOD_DATA(mod)->req_mechanics > 0 &&
+                    crew->crew->mechanics < SHIP_MOD_DATA(mod)->req_mechanics)
+                    qualified = false;
+                if (SHIP_MOD_DATA(mod)->req_scouting > 0 &&
+                    crew->crew->scouting < SHIP_MOD_DATA(mod)->req_scouting)
+                    qualified = false;
+                if (SHIP_MOD_DATA(mod)->req_navigation > 0 &&
+                    crew->crew->navigation < SHIP_MOD_DATA(mod)->req_navigation)
+                    qualified = false;
+                if (SHIP_MOD_DATA(mod)->req_oarring > 0 &&
+                    crew->crew->oarring < SHIP_MOD_DATA(mod)->req_oarring)
+                    qualified = false;
+                if (SHIP_MOD_DATA(mod)->req_leadership > 0 &&
+                    crew->crew->leadership < SHIP_MOD_DATA(mod)->req_leadership)
+                    qualified = false;
+            }
+
+            if (!qualified)
+                continue;
+
+            /* Assign this crew member to the module */
+            if (!mod->assigned_crew)
+                mod->assigned_crew = list_create(false);
+
+            list_appendlink(mod->assigned_crew, crew);
+            slots_open--;
+        }
+        iterator_stop(&crew_it);
+    }
+    iterator_stop(&mod_it);
+
+    /* Recalculate operational status for all modules */
+    ship_recalc_modules(ship);
+}
+
+/**
+ * create_npc_sailing_boat - Create a fully-operational NPC ship from a template
+ *
+ * Creates a ship via create_ship(), spawns crew from template definitions,
+ * attaches NPC_SHIP_DATA for AI behavior, and marks the ship as autonomous.
+ * The resulting ship is ready to be placed in the world and will be driven
+ * by the NPC autopilot tick.
+ *
+ * @param ship_index  Ship template to instantiate
+ * @return            NPC_SHIP_DATA for the new ship, or NULL on failure
+ */
+NPC_SHIP_DATA *create_npc_sailing_boat(SHIP_INDEX_DATA *ship_index)
+{
+    SHIP_DATA *ship;
+    NPC_SHIP_DATA *npc;
+    WNUM wnum;
+
+    if (!ship_index)
+        return NULL;
+
+    /* Build the WNUM from the ship index */
+    wnum.pArea = ship_index->area;
+    wnum.vnum = ship_index->vnum;
+
+    ship = create_ship(wnum);
+    if (!IS_VALID(ship))
+        return NULL;
+
+    /* Create and attach NPC runtime data */
+    npc = new_npc_ship_data();
+    npc->ship = ship;
+    npc->state = NPC_SHIP_STATE_STOPPED;
+    npc->trigger_char = NULL;
+    npc->captain = NULL;
+
+    ship->npc_ship = npc;
+    ship->npc_autonomous = true;
+    ship->owner = NULL;
+
+    /* Copy NPC type from template */
+    /* (npc_type on SHIP_INDEX_DATA drives AI behavior) */
+
+    /* Populate crew from template definitions */
+    ship_populate_crew(ship);
+
+    /* Assign crew to installed modules */
+    ship_auto_assign_crew(ship);
+
+    /* Set initial ship power so autopilot can begin moving */
+    if (ship->ship_power <= SHIP_SPEED_STOPPED)
+        ship->ship_power = SHIP_SPEED_FULL_SPEED;
+
+    /* Set initial heading */
+    if (ship->steering.heading < 0) {
+        int heading = number_range(0, 359);
+        ship->steering.heading = heading;
+        ship->steering.heading_target = heading;
+        steering_calc_heading(ship);
+    }
+
+    ship_set_move_steps(ship);
+
+    /* Add to the NPC ship linked list */
+    npc->next = npc_ship_list;
+    npc_ship_list = npc;
+
+    return npc;
+}
+
+/**
+ * npc_ship_is_valid_target - Check if a candidate ship is targetable by an NPC
+ *
+ * Applies type-based targeting rules:
+ *   - PIRATE: targets player ships and traders, avoids other pirates
+ *   - COAST_GUARD: targets pirates only
+ *   - BOUNTY_HUNTER: targets trigger_char's ship, or pirates
+ *   - TRADER: never initiates combat
+ *   - ADVENTURER: targets pirates if provoked
+ *   - AIR_SHIP: never initiates combat (transport only)
+ *
+ * Protected ships and fellow NPC ships of the same type are always skipped.
+ *
+ * @param hunter     NPC ship doing the scanning
+ * @param candidate  Potential target ship
+ * @return           true if candidate is a valid target
+ */
+static bool npc_ship_is_valid_target(SHIP_DATA *hunter, SHIP_DATA *candidate)
+{
+    int hunter_type;
+    int candidate_type;
+
+    if (!IS_VALID(hunter) || !IS_VALID(candidate))
+        return false;
+
+    /* Never target yourself */
+    if (hunter == candidate)
+        return false;
+
+    /* Never target protected ships */
+    if (IS_SET(candidate->ship_flags, SHIP_PROTECTED))
+        return false;
+
+    /* Never target sinking ships */
+    if (IS_SET(candidate->ship_flags, SHIP_SINKING))
+        return false;
+
+    if (!hunter->index)
+        return false;
+
+    hunter_type = hunter->index->npc_type;
+
+    /* Determine candidate's NPC type (-1 means player-owned) */
+    candidate_type = -1;
+    if (candidate->npc_ship && candidate->index &&
+        IS_SET(candidate->ship_flags, SHIP_AUTONOMOUS_NPC)) {
+        candidate_type = candidate->index->npc_type;
+    }
+
+    switch (hunter_type) {
+        case NPC_SHIP_PIRATE:
+            /* Pirates attack player ships and traders, leave other pirates alone */
+            if (candidate_type == NPC_SHIP_PIRATE)
+                return false;
+            if (candidate_type == NPC_SHIP_COAST_GUARD)
+                return (number_percent() < 20);  /* Rarely pick fights with coast guard */
+            return true;  /* Attack players, traders, adventurers */
+
+        case NPC_SHIP_COAST_GUARD:
+            /* Coast guard only attacks pirates */
+            return (candidate_type == NPC_SHIP_PIRATE);
+
+        case NPC_SHIP_BOUNTY_HUNTER:
+            /* Bounty hunters target trigger_char's ship first, then pirates */
+            if (hunter->npc_ship && hunter->npc_ship->trigger_char) {
+                if (IS_VALID(candidate->owner) &&
+                    candidate->owner == hunter->npc_ship->trigger_char)
+                    return true;
+            }
+            return (candidate_type == NPC_SHIP_PIRATE);
+
+        case NPC_SHIP_TRADER:
+            /* Traders never initiate combat */
+            return false;
+
+        case NPC_SHIP_ADVENTURER:
+            /* Adventurers only attack pirates */
+            return (candidate_type == NPC_SHIP_PIRATE);
+
+        case NPC_SHIP_AIR_SHIP:
+            /* Air ships never initiate combat */
+            return false;
+
+        default:
+            return false;
+    }
+}
+
+/**
+ * npc_ship_scan_for_target - Scan nearby ships for a valid combat target
+ *
+ * Iterates loaded_ships looking for candidates within detection range.
+ * Detection range is based on the ship's max weapon range, or a default
+ * of 15 tiles. Only considers ships in the same wilderness.
+ *
+ * Returns the closest valid target, or NULL if none found.
+ *
+ * @param ship  NPC ship doing the scanning
+ * @return      Best target ship, or NULL
+ */
+static SHIP_DATA *npc_ship_scan_for_target(SHIP_DATA *ship)
+{
+    ITERATOR it;
+    SHIP_DATA *candidate;
+    SHIP_DATA *best = NULL;
+    int best_dist = INT_MAX;
+    int detect_range;
+    ROOM_INDEX_DATA *our_room;
+
+    if (!IS_VALID(ship) || !IS_VALID(ship->ship))
+        return NULL;
+
+    our_room = ship->ship->in_room;
+    if (!our_room || !IS_WILDERNESS(our_room))
+        return NULL;
+
+    detect_range = ship_get_max_weapon_range(ship);
+    if (detect_range <= 0)
+        detect_range = 15;
+    else
+        detect_range = UMAX(detect_range, 10);  /* Minimum 10 tile detection */
+
+    iterator_start(&it, loaded_ships);
+    while ((candidate = (SHIP_DATA *)iterator_nextdata(&it)) != NULL) {
+        if (!IS_VALID(candidate->ship) || !candidate->ship->in_room)
+            continue;
+
+        /* Must be in the same wilderness */
+        if (!IS_WILDERNESS(candidate->ship->in_room))
+            continue;
+        if (candidate->ship->in_room->wilds != our_room->wilds)
+            continue;
+
+        int dist = ship_distance(ship, candidate);
+        if (dist > detect_range)
+            continue;
+
+        if (!npc_ship_is_valid_target(ship, candidate))
+            continue;
+
+        if (dist < best_dist) {
+            best = candidate;
+            best_dist = dist;
+        }
+    }
+    iterator_stop(&it);
+
+    return best;
+}
+
+/***************************************************************************
+ * Transport Schedule System                                               *
+ ***************************************************************************/
+
+/**
+ * ship_schedule_find_stop - Look up a stop by index in the schedule list
+ *
+ * @param ship   Ship index with schedule_stops list
+ * @param idx    0-based index
+ * @return       Pointer to stop, or NULL if out of range
+ */
+static SHIP_SCHEDULE_STOP *ship_schedule_find_stop(SHIP_INDEX_DATA *idx, int stop_idx)
+{
+    if (!idx || !idx->schedule_stops)
+        return NULL;
+
+    return (SHIP_SCHEDULE_STOP *)list_nthdata(idx->schedule_stops, stop_idx + 1);
+}
+
+/**
+ * ship_schedule_create_dock_exit - Create a temporary exit from dock to ship
+ *
+ * Creates a one-way exit from the dock room (or wilderness vroom) into
+ * the ship's instance entrance room upon docking.
+ *
+ * For DOCK_EXIT_ROOM: creates exit on dock_room in direction dock_exit_dir
+ * For DOCK_EXIT_VLINK: handled externally (vlinks are managed differently)
+ * For DOCK_EXIT_INSTANCE: syncs instance entrance to dock location
+ *
+ * @param ship   Ship data
+ * @param stop   Schedule stop being docked at
+ */
+static void ship_schedule_create_dock_exit(SHIP_DATA *ship, SHIP_SCHEDULE_STOP *stop)
+{
+    if (!ship || !stop || stop->dock_exit_type == DOCK_EXIT_NONE)
+        return;
+
+    if (stop->dock_exit_dir < 0 || stop->dock_exit_dir >= MAX_DIR)
+        return;
+
+    ROOM_INDEX_DATA *entry_room = NULL;
+    if (IS_VALID(ship->instance) && ship->instance->entrance)
+        entry_room = ship->instance->entrance;
+
+    if (!entry_room)
+        return;
+
+    switch (stop->dock_exit_type) {
+        case DOCK_EXIT_ROOM: {
+            /* Create a temporary exit from the dock room into the ship */
+            ROOM_INDEX_DATA *dock = stop->dock_room;
+            if (!dock)
+                return;
+
+            /* Don't overwrite an existing exit */
+            if (dock->exit[stop->dock_exit_dir] != NULL)
+                return;
+
+            EXIT_DATA *ex = new_exit();
+            ex->u1.to_room = entry_room;
+            ex->from_room = dock;
+            ex->orig_door = stop->dock_exit_dir;
+            free_string(ex->keyword);
+            ex->keyword = str_dup("gangway plank");
+            free_string(ex->short_desc);
+            ex->short_desc = str_dup("the gangway");
+
+            dock->exit[stop->dock_exit_dir] = ex;
+            ship->schedule_dock_exit = ex;
+            ship->schedule_dock_from = dock;
+            break;
+        }
+
+        case DOCK_EXIT_INSTANCE: {
+            /* Sync instance entrance location to the stop */
+            if (stop->location_type == STOP_LOC_ROOM && stop->dock_room) {
+                /* For zone-room stops, set entrance environ to dock room */
+                ship->instance->environ = stop->dock_room;
+            } else if (stop->location_type == STOP_LOC_WILDERNESS) {
+                WILDS_DATA *wilds = get_wilds_from_uid(NULL, stop->wilds_uid);
+                if (wilds && ship->instance->entrance) {
+                    ship->instance->entrance->wilds = wilds;
+                    ship->instance->entrance->x = stop->loc_x;
+                    ship->instance->entrance->y = stop->loc_y;
+                }
+            }
+            break;
+        }
+
+        case DOCK_EXIT_VLINK:
+            /* VLinks are static/persistent — not dynamically created here.
+             * The schedule stop should align with an existing vlink at the
+             * wilderness coords. Future: could create temporary vlinks. */
+            break;
+    }
+}
+
+/**
+ * ship_schedule_remove_dock_exit - Remove the temporary dock exit
+ *
+ * Cleans up exits created by ship_schedule_create_dock_exit when the
+ * ship departs from a stop.
+ *
+ * @param ship  Ship data with dock exit references
+ */
+static void ship_schedule_remove_dock_exit(SHIP_DATA *ship)
+{
+    if (!ship)
+        return;
+
+    if (ship->schedule_dock_exit && ship->schedule_dock_from) {
+        int dir = ship->schedule_dock_exit->orig_door;
+        if (dir >= 0 && dir < MAX_DIR
+            && ship->schedule_dock_from->exit[dir] == ship->schedule_dock_exit) {
+            free_exit(ship->schedule_dock_exit);
+            ship->schedule_dock_from->exit[dir] = NULL;
+        }
+    }
+
+    ship->schedule_dock_exit = NULL;
+    ship->schedule_dock_from = NULL;
+}
+
+/**
+ * ship_schedule_tick - Per-tick update for transport schedule ships
+ *
+ * Manages the schedule state machine:
+ *
+ * IDLE     -> Look at clock, pick first/next stop, begin traveling
+ * TRAVELING -> Ship is navigating via seek_point; check if arrived
+ * ARRIVING  -> Arrived at stop, create dock exits → DOCKED
+ * DOCKED    -> Count down dwell timer or wait for depart_hour → DEPARTING
+ * DEPARTING -> Remove dock exits, advance to next stop → TRAVELING
+ *
+ * Called from npc_ship_state_update when state is NPC_SHIP_STATE_TRANSPORT.
+ *
+ * @param ship  Ship with SHIP_TRANSPORT flag and schedule_stops
+ */
+static void ship_schedule_tick(SHIP_DATA *ship)
+{
+    SHIP_INDEX_DATA *idx;
+    int num_stops;
+
+    if (!ship || !ship->index)
+        return;
+
+    idx = ship->index;
+
+    if (!idx->schedule_stops)
+        return;
+
+    num_stops = list_size(idx->schedule_stops);
+    if (num_stops == 0)
+        return;
+
+    switch (ship->schedule_state) {
+        case SCHEDULE_STATE_IDLE: {
+            /* Initialize: pick the first stop and start traveling */
+            ship->schedule_stop_idx = 0;
+            ship->schedule_current_stop = ship_schedule_find_stop(idx, 0);
+            if (!ship->schedule_current_stop) {
+                return;  /* No valid stops */
+            }
+            ship->schedule_state = SCHEDULE_STATE_TRAVELING;
+
+            /* Set navigation target */
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+            if (stop->location_type == STOP_LOC_WILDERNESS) {
+                WILDS_DATA *wilds = get_wilds_from_uid(NULL, stop->wilds_uid);
+                if (wilds) {
+                    ship_npc_set_seek_goal(ship, wilds, stop->loc_x, stop->loc_y);
+                    ship->seek_navigator = false;
+
+                    if (ship->ship_power <= SHIP_SPEED_STOPPED) {
+                        ship->ship_power = SHIP_SPEED_FULL_SPEED;
+                        ship_set_move_steps(ship);
+                        if (ship->ship_move <= 0)
+                            ship->ship_move = UMAX(1, idx->move_delay);
+                    }
+                }
+            }
+            /* For STOP_LOC_ROOM: airship-style, would teleport or fly.
+             * For now, room-based stops should also have wilds coords
+             * as approach points, or be handled by landing logic. */
+            break;
+        }
+
+        case SCHEDULE_STATE_TRAVELING: {
+            /* Check if we've arrived at the target stop */
+            ROOM_INDEX_DATA *room = ship->ship ? obj_room(ship->ship) : NULL;
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+
+            if (!room || !stop)
+                break;
+
+            if (stop->location_type == STOP_LOC_WILDERNESS && IS_WILDERNESS(room)) {
+                int dx = room->x - stop->loc_x;
+                int dy = room->y - stop->loc_y;
+                int distSq = dx * dx + dy * dy;
+
+                if (distSq <= 6) {
+                    /* Arrived! */
+                    ship->schedule_state = SCHEDULE_STATE_ARRIVING;
+                }
+            } else if (stop->location_type == STOP_LOC_ROOM && stop->dock_room) {
+                /* For room-type stops on airships, check if we've stopped */
+                /* (Airship landing is handled by direct placement) */
+                ship->schedule_state = SCHEDULE_STATE_ARRIVING;
+            }
+
+            /* Ensure ship keeps moving toward target */
+            if (ship->ship_power <= SHIP_SPEED_STOPPED
+                && ship->schedule_state == SCHEDULE_STATE_TRAVELING) {
+                if (ship->ship_type == SHIP_AIR_SHIP && ship->ship_power == SHIP_SPEED_LANDED)
+                    ship->ship_power = SHIP_SPEED_HALF_SPEED;
+                else
+                    ship->ship_power = SHIP_SPEED_FULL_SPEED;
+
+                ship_set_move_steps(ship);
+                if (ship->ship_move <= 0)
+                    ship->ship_move = UMAX(1, idx->move_delay);
+            }
+            break;
+        }
+
+        case SCHEDULE_STATE_ARRIVING: {
+            /* Stop the ship and open dock exits */
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+            if (!stop)
+                break;
+
+            /* Stop ship at dock */
+            if (ship->ship_type == SHIP_AIR_SHIP)
+                ship->ship_power = SHIP_SPEED_LANDED;
+            else
+                ship->ship_power = SHIP_SPEED_STOPPED;
+
+            ship->steering.turning_dir = 0;
+            ship->move_steps = 0;
+            ship->ship_move = 0;
+
+            /* Clear navigation target */
+            memset(&ship->seek_point, 0, sizeof(ship->seek_point));
+
+            /* Create dock exits */
+            ship_schedule_create_dock_exit(ship, stop);
+
+            /* Initialize dwell timer */
+            ship->schedule_dwell = stop->dwell_ticks;
+
+            /* Announce arrival */
+            if (stop->name[0] != '\0')
+                boat_echo(ship, formatf("{YThe vessel has arrived at %s.{x", stop->name));
+            else
+                boat_echo(ship, "{YThe vessel has arrived at its destination.{x");
+
+            ship->schedule_state = SCHEDULE_STATE_DOCKED;
+            break;
+        }
+
+        case SCHEDULE_STATE_DOCKED: {
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+            if (!stop)
+                break;
+
+            /* Check departure conditions */
+            bool should_depart = false;
+
+            /* Hour-based departure */
+            if (stop->depart_hour >= 0) {
+                if (time_info.hour == stop->depart_hour)
+                    should_depart = true;
+            }
+
+            /* Dwell-based departure */
+            if (stop->dwell_ticks > 0) {
+                ship->schedule_dwell--;
+                if (ship->schedule_dwell <= 0)
+                    should_depart = true;
+            }
+
+            if (should_depart)
+                ship->schedule_state = SCHEDULE_STATE_DEPARTING;
+            break;
+        }
+
+        case SCHEDULE_STATE_DEPARTING: {
+            SHIP_SCHEDULE_STOP *stop = ship->schedule_current_stop;
+
+            /* Announce departure */
+            if (stop && stop->name[0] != '\0')
+                boat_echo(ship, formatf("{YThe vessel departs from %s.{x", stop->name));
+            else
+                boat_echo(ship, "{YThe vessel departs.{x");
+
+            /* Remove dock exits */
+            ship_schedule_remove_dock_exit(ship);
+
+            /* Advance to next stop */
+            int next_idx = ship->schedule_stop_idx + 1;
+
+            if (next_idx >= num_stops) {
+                if (idx->schedule_loop) {
+                    next_idx = 0;
+                } else {
+                    /* Ping-pong: reverse the schedule.
+                     * For simplicity, wrap to last stop and go backward.
+                     * We'll handle reverse by just resetting to 0 for now
+                     * (a full reverse would require tracking direction). */
+                    next_idx = 0;
+                }
+            }
+
+            ship->schedule_stop_idx = next_idx;
+            ship->schedule_current_stop = ship_schedule_find_stop(idx, next_idx);
+
+            if (!ship->schedule_current_stop) {
+                ship->schedule_state = SCHEDULE_STATE_IDLE;
+                break;
+            }
+
+            /* Navigate to next stop */
+            SHIP_SCHEDULE_STOP *next_stop = ship->schedule_current_stop;
+            if (next_stop->location_type == STOP_LOC_WILDERNESS) {
+                WILDS_DATA *wilds = get_wilds_from_uid(NULL, next_stop->wilds_uid);
+                if (wilds) {
+                    ship_npc_set_seek_goal(ship, wilds,
+                        next_stop->loc_x, next_stop->loc_y);
+                    ship->seek_navigator = false;
+                }
+            }
+
+            /* Start moving */
+            if (ship->ship_type == SHIP_AIR_SHIP)
+                ship->ship_power = SHIP_SPEED_HALF_SPEED;
+            else
+                ship->ship_power = SHIP_SPEED_FULL_SPEED;
+
+            ship_set_move_steps(ship);
+            if (ship->ship_move <= 0)
+                ship->ship_move = UMAX(1, idx->move_delay);
+
+            if (ship->steering.heading < 0) {
+                int heading = number_range(0, 359);
+                ship->steering.heading = heading;
+                ship->steering.heading_target = heading;
+                steering_calc_heading(ship);
+            }
+
+            ship->schedule_state = SCHEDULE_STATE_TRAVELING;
+            break;
+        }
+    }
+}
+
+/**
+ * npc_ship_state_update - Per-ship NPC AI state machine tick
+ *
+ * Called once per tick for each NPC-flagged ship. Drives behavior
+ * transitions based on the current state and NPC type:
+ *
+ * States: STOPPED -> SAILING -> CHASING -> ATTACKING -> FLEEING
+ *
+ * NPC type influences aggression and flee thresholds:
+ *   - PIRATE: aggressive, attacks traders/weaker ships
+ *   - COAST_GUARD: attacks pirates, protects traders
+ *   - BOUNTY_HUNTER: attacks specific trigger targets
+ *   - TRADER: non-aggressive, flees when attacked
+ *   - ADVENTURER: mild aggression, explores
+ *
+ * @param ship  Ship to update (must have npc_ship attached)
+ */
+void npc_ship_state_update(SHIP_DATA *ship)
+{
+    NPC_SHIP_DATA *npc;
+    int npc_type;
+
+    if (!IS_VALID(ship) || !ship->npc_ship || !ship->index)
+        return;
+
+    npc = ship->npc_ship;
+    npc_type = ship->index->npc_type;
+
+    /* Transport ships use the schedule system exclusively */
+    if (IS_SET(ship->ship_flags, SHIP_TRANSPORT)
+        && ship->index->schedule_stops
+        && list_size(ship->index->schedule_stops) > 0) {
+        /* Auto-initialize transport state on first tick */
+        if (npc->state != NPC_SHIP_STATE_TRANSPORT)
+            npc->state = NPC_SHIP_STATE_TRANSPORT;
+        ship_schedule_tick(ship);
+        return;
+    }
+
+    /* Flee check: if health drops below threshold, enter flee state */
+    if (ship->hit > 0 && ship->index->hit > 0) {
+        int health_pct = (ship->hit * 100) / ship->index->hit;
+        int flee_threshold;
+
+        switch (npc_type) {
+            case NPC_SHIP_TRADER:        flee_threshold = 60; break;
+            case NPC_SHIP_ADVENTURER:    flee_threshold = 40; break;
+            case NPC_SHIP_COAST_GUARD:   flee_threshold = 25; break;
+            case NPC_SHIP_BOUNTY_HUNTER: flee_threshold = 20; break;
+            case NPC_SHIP_PIRATE:        flee_threshold = 15; break;
+            default:                     flee_threshold = 30; break;
+        }
+
+        if (health_pct <= flee_threshold && npc->state != NPC_SHIP_STATE_FLEEING) {
+            npc->state = NPC_SHIP_STATE_FLEEING;
+            npc->trigger_char = NULL;
+
+            /* Break off combat */
+            ship->ship_attacked = NULL;
+            ship->char_attacked = NULL;
+
+            /* Set random flee heading away from current direction */
+            int flee_heading = (ship->steering.heading + 180 + number_range(-45, 45)) % 360;
+            steering_set_heading(ship, flee_heading);
+
+            if (ship->ship_power < SHIP_SPEED_FULL_SPEED)
+                ship->ship_power = SHIP_SPEED_FULL_SPEED;
+
+            return;
+        }
+    }
+
+    switch (npc->state) {
+        case NPC_SHIP_STATE_STOPPED:
+            /* Transition to sailing — autopilot handles movement */
+            npc->state = NPC_SHIP_STATE_SAILING;
+            break;
+
+        case NPC_SHIP_STATE_SAILING:
+            /* Autopilot handles movement; scan for targets */
+            if (ship->npc_goal_cooldown <= 0) {
+                SHIP_DATA *target = npc_ship_scan_for_target(ship);
+                if (target) {
+                    /* Engage: begin chasing */
+                    ship->ship_chased = target;
+                    memcpy(ship->ship_chased_uid, target->id, sizeof(target->id));
+                    npc->state = NPC_SHIP_STATE_CHASING;
+
+                    /* Set seek point toward target */
+                    if (target->ship && target->ship->in_room) {
+                        ship_npc_set_seek_goal(ship,
+                            target->ship->in_room->wilds,
+                            target->ship->in_room->x,
+                            target->ship->in_room->y);
+                        ship->seek_navigator = false;
+                    }
+                }
+            }
+            break;
+
+        case NPC_SHIP_STATE_CHASING:
+            /* Pursuing a target — check if in weapon range to engage */
+            if (!IS_VALID(ship->ship_chased)) {
+                npc->state = NPC_SHIP_STATE_SAILING;
+                ship->ship_chased = NULL;
+            } else {
+                int dist = ship_distance(ship, ship->ship_chased);
+                int max_range = ship_get_max_weapon_range(ship);
+
+                if (max_range > 0 && dist <= max_range) {
+                    /* In range — open fire */
+                    ship->ship_attacked = ship->ship_chased;
+                    memcpy(ship->ship_attacked_uid, ship->ship_chased_uid,
+                        sizeof(ship->ship_chased_uid));
+                    ship->attack_position = SHIP_ATTACK_LOADING;
+                    npc->state = NPC_SHIP_STATE_ATTACKING;
+
+                    boat_echo(ship->ship_chased,
+                        formatf("{R** %s opens fire on your vessel! **{x",
+                            ship->ship_name ? ship->ship_name : "A ship"));
+                } else if (ship->ship_chased->ship &&
+                           ship->ship_chased->ship->in_room) {
+                    /* Update seek point to follow moving target */
+                    ship_npc_set_seek_goal(ship,
+                        ship->ship_chased->ship->in_room->wilds,
+                        ship->ship_chased->ship->in_room->x,
+                        ship->ship_chased->ship->in_room->y);
+                }
+            }
+            break;
+
+        case NPC_SHIP_STATE_ATTACKING:
+            /* In combat — handled by ship_combat_update */
+            if (!IS_VALID(ship->ship_attacked)) {
+                npc->state = NPC_SHIP_STATE_SAILING;
+                ship->ship_attacked = NULL;
+                ship->char_attacked = NULL;
+            }
+            break;
+
+        case NPC_SHIP_STATE_FLEEING:
+            /* Keep fleeing until health recovers or safe */
+            if (ship->hit > 0 && ship->index->hit > 0) {
+                int health_pct = (ship->hit * 100) / ship->index->hit;
+                if (health_pct > 50) {
+                    npc->state = NPC_SHIP_STATE_SAILING;
+                }
+            }
+            break;
+
+        case NPC_SHIP_STATE_BOARDING:
+            /* Boarding actions — future implementation */
+            break;
+    }
+}

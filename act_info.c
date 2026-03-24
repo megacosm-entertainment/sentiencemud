@@ -415,28 +415,37 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
         strcat(buf, "{y(Buried){w ");
     if (fShort)
     {
-    if (obj->short_descr != NULL)
-        strcat(buf, obj->short_descr);
-    strcat(buf, " ");
+        if (obj->short_descr != NULL)
+            strcat(buf, obj->short_descr);
+        if (obj->item_type == ITEM_WEAPON)
+        {
+            if (obj->condition == 0)
+                strcat(buf, " {y(Broken){x");
+        }
+        else
+        {
+            strcat(buf, object_damage_table[URANGE
+                (0, 9 - (int) (((float) obj->condition)/10),9)].name);
+        }
 
-    if (obj->item_type == ITEM_WEAPON)
-    {
-        if (obj->condition == 0)
-        strcat(buf, "{y(Broken){x");
-    }
-    else
-    {
-        strcat(buf, object_damage_table[URANGE
-            (0, 9 - (int) (((float) obj->condition)/10),9)].name);
-    }
+        /* Show trade class if a commodity */
+        if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
+        {
+            strcat(buf, " {Y(");
+            strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
+            strcat(buf, "){x");
+        }
 
-    /* Show trade class if a commodity */
-    if (obj->item_type == ITEM_TRADE_TYPE && TRADE(obj)->trade_type != -1)
-    {
-        strcat(buf, "{Y(");
-        strcat(buf, trade_table[ TRADE(obj)->trade_type ].name);
-        strcat(buf, "){x");
-    }
+        if (!IS_NPC(ch) && IS_SET(ch->act[1], PLR_SHOW_RESTRINGS))
+        {
+            // If either is changed, show it.
+            if (obj->old_name != NULL || obj->old_short_descr != NULL)
+            {
+                strcat(buf, " {W(");
+                strcat(buf, obj->name);
+                strcat(buf, "){x");
+            }
+        }
     }
     else
     {
@@ -760,66 +769,66 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     }
     }
 
-    if (!append_ok)
-    goto show_list_cleanup;
-
+    if (append_ok)
+    {
     /*
      * Output the formatted list.
      */
     for (iShow = 0; iShow < nShow; iShow++)
     {
-    if (prgpstrShow[iShow][0] == '\0') {
+        if (prgpstrShow[iShow][0] == '\0') {
         free_string(prgpstrShow[iShow]);
         continue;
-    }
+        }
 
-    if (prgnShow[iShow] != 1) {
+        if (prgnShow[iShow] != 1) {
         sprintf(buf, "{Y({G%2d{Y) {x", prgnShow[iShow]);
         if (!add_buf(output, buf))
         {
-        perrf(LOG_ERROR, "Addbuf, combine failed");
-        append_ok = false;
-        break;
+            perrf(LOG_ERROR, "Addbuf, combine failed");
+            append_ok = false;
+            break;
         }
-    } else {
+        } else {
         if (!add_buf(output, "     "))
         {
-        perrf(LOG_ERROR, "Addbuf, combine failed");
-        append_ok = false;
-        break;
+            perrf(LOG_ERROR, "Addbuf, combine failed");
+            append_ok = false;
+            break;
         }
-    }
+        }
 
-    if (!add_buf(output, "{x")
-    ||  !add_buf(output, prgpstrShow[iShow])
-    ||  !add_buf(output, "\n\r{x"))
-    {
+        if (!add_buf(output, "{x")
+        ||  !add_buf(output, prgpstrShow[iShow])
+        ||  !add_buf(output, "\n\r{x"))
+        {
         perrf(LOG_ERROR, "Addbuf, item line failed");
         append_ok = false;
         break;
+        }
+        free_string(prgpstrShow[iShow]);
+        prgpstrShow[iShow] = NULL;
     }
-    free_string(prgpstrShow[iShow]);
-    prgpstrShow[iShow] = NULL;
     }
 
     if (!append_ok)
     {
     send_to_char("Object list output exceeded buffer limits.\n\r", ch);
-    goto show_list_cleanup;
     }
-
+    else
+    {
     if (fShowNothing && nShow == 0)
     {
-    /* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
-    send_to_char("     ", ch);
-    send_to_char("Nothing.\n\r", ch);
+        /* if (IS_NPC(ch) || IS_SET(ch->comm, COMM_COMBINE)) */
+        send_to_char("     ", ch);
+        send_to_char("Nothing.\n\r", ch);
     }
     page_to_char(buf_string(output), ch);
+    }
 
     /*
      * Clean up.
      */
-show_list_cleanup:
     for (iShow = 0; iShow < nShow; iShow++)
     {
     if (prgpstrShow[iShow] != NULL)
@@ -1138,6 +1147,10 @@ static void append_victim_position_text(char *buf, char *message, CHAR_DATA *vic
 
 static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CHAR_DATA *ch)
 {
+    int aura_count = 0;
+    ITERATOR aurait;
+    AURA_DATA *aura;
+
     if (!IS_NPC(victim)
     && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
     (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
@@ -1162,6 +1175,32 @@ static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CH
         buf2[4] = UPPER(buf2[4]);
         strcat(buf, buf2);
     }
+
+    if (victim->auras != NULL)
+    {
+        iterator_start(&aurait, victim->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            size_t len;
+
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            if (IS_NULLSTR(aura->long_descr))
+                continue;
+
+            snprintf(buf2, MAX_STRING_LENGTH, "\n\r%s",
+                string_replace_static(aura->long_descr, "%s", pers(victim, ch)));
+
+            len = strlen(buf2);
+            if (len < 2 || strcmp(buf2 + len - 2, "\n\r"))
+                strcat(buf2, "\n\r");
+
+            strcat(buf, buf2);
+            aura_count++;
+        }
+        iterator_stop(&aurait);
+    }
     }
     else
     {
@@ -1184,6 +1223,32 @@ static void append_victim_aura_text(char *buf, char *buf2, CHAR_DATA *victim, CH
         sprintf(buf2, "{W%s is surrounded with an aura of sanctuary.{x\n\r", pers(victim, ch));
         buf2[2] = UPPER(buf2[2]);
         strcat(buf, buf2);
+    }
+
+    if (victim->auras != NULL)
+    {
+        iterator_start(&aurait, victim->auras);
+        while ((aura = (AURA_DATA *)iterator_nextdata(&aurait)) != NULL)
+        {
+            size_t len;
+
+            if (aura_count >= MAX_AURAS_SHOWN)
+                break;
+
+            if (IS_NULLSTR(aura->long_descr))
+                continue;
+
+            snprintf(buf2, MAX_STRING_LENGTH, "%s",
+                string_replace_static(aura->long_descr, "%s", pers(victim, ch)));
+
+            len = strlen(buf2);
+            if (len < 2 || strcmp(buf2 + len - 2, "\n\r"))
+                strcat(buf2, "\n\r");
+
+            strcat(buf, buf2);
+            aura_count++;
+        }
+        iterator_stop(&aurait);
     }
     }
 }
@@ -5221,6 +5286,17 @@ iterator_stop(&it);
     else {
         CLASS_DATA *who_class = get_current_class(wch);
         strcpy(classstr, who_class ? class_who_ch(who_class, wch) : "Adventurer");
+    }
+
+    {
+        int vis = strlen_no_colours(classstr);
+        if (vis < 12) {
+            size_t raw = strlen(classstr);
+            int pad = 12 - vis;
+            for (int i = 0; i < pad; i++)
+                classstr[raw + i] = ' ';
+            classstr[raw + pad] = '\0';
+        }
     }
 
     if (!wch->race || !wch->race->who_name || !wch->race->who_name[0])

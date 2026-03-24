@@ -217,4 +217,6 @@ void olc_buffer_show_string(CHAR_DATA *ch, BUFFER *buffer, const char *value,
 
 void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names);
 
+bool olc_validate_name(CHAR_DATA *ch, const char *str);
+
 #endif /* !def __OLC_COMMON_H__ */

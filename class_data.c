@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <jansson.h>
+#include "io/json/json_common.h"
 #include "merc.h"
 #include "tables.h"
 #include "class_data.h"
@@ -1267,7 +1268,7 @@ static CLASS_DATA *class_load_json(const char *filename)
     }
 
     /* Validate format */
-    str = json_string_value(json_object_get(root, "_format"));
+    str = json_get_string(root, "_format", "");
     if (!str || str_cmp(str, "class_data")) {
         log_stringf("class_load_json: Invalid format in %s", filename);
         json_decref(root);
@@ -1277,23 +1278,23 @@ static CLASS_DATA *class_load_json(const char *filename)
     clazz = new_class_data();
 
     /* Identity */
-    str = json_string_value(json_object_get(root, "name"));
+    str = json_get_string(root, "name", "");
     free_string(clazz->name);
     clazz->name = str_dup(str ? str : "unknown");
 
     val = json_object_get(root, "uid");
     clazz->uid = val ? (int16_t)json_integer_value(val) : -1;
 
-    str = json_string_value(json_object_get(root, "description"));
+    str = json_get_string(root, "description", "");
     free_string(clazz->description);
     clazz->description = str ? str_dup(str) : str_dup("");
 
-    str = json_string_value(json_object_get(root, "comments"));
+    str = json_get_string(root, "comments", "");
     free_string(clazz->comments);
     clazz->comments = str ? str_dup(str) : str_dup("");
 
     /* Type */
-    str = json_string_value(json_object_get(root, "type"));
+    str = json_get_string(root, "type", "");
     clazz->type = class_type_from_string(str);
 
     /* Flags */
@@ -1339,7 +1340,7 @@ static CLASS_DATA *class_load_json(const char *filename)
         clazz->xp_accept_mask = class_default_xp_accept_mask(clazz);
 
     /* Named XP curve id (optional) */
-    str = json_string_value(json_object_get(root, "xp_curve"));
+    str = json_get_string(root, "xp_curve", "");
     if (str && str[0]) {
         free_string(clazz->xp_curve_id);
         clazz->xp_curve_id = str_dup(str);
@@ -1348,26 +1349,26 @@ static CLASS_DATA *class_load_json(const char *filename)
     /* Display names (body-type-aware) */
     obj = json_object_get(root, "display");
     if (obj && json_is_object(obj)) {
-        str = json_string_value(json_object_get(obj, "neutral"));
+        str = json_get_string(obj, "neutral", "");
         if (str) { free_string(clazz->display[BODY_TYPE_NEUTRAL]); clazz->display[BODY_TYPE_NEUTRAL] = str_dup(str); }
-        str = json_string_value(json_object_get(obj, "male"));
+        str = json_get_string(obj, "male", "");
         if (str) { free_string(clazz->display[BODY_TYPE_MALE]); clazz->display[BODY_TYPE_MALE] = str_dup(str); }
-        str = json_string_value(json_object_get(obj, "female"));
+        str = json_get_string(obj, "female", "");
         if (str) { free_string(clazz->display[BODY_TYPE_FEMALE]); clazz->display[BODY_TYPE_FEMALE] = str_dup(str); }
-        str = json_string_value(json_object_get(obj, "other"));
+        str = json_get_string(obj, "other", "");
         if (str) { free_string(clazz->display[BODY_TYPE_OTHER]); clazz->display[BODY_TYPE_OTHER] = str_dup(str); }
     }
 
     /* Who names */
     obj = json_object_get(root, "who");
     if (obj && json_is_object(obj)) {
-        str = json_string_value(json_object_get(obj, "neutral"));
+        str = json_get_string(obj, "neutral", "");
         if (str) { free_string(clazz->who[BODY_TYPE_NEUTRAL]); clazz->who[BODY_TYPE_NEUTRAL] = str_dup(str); }
-        str = json_string_value(json_object_get(obj, "male"));
+        str = json_get_string(obj, "male", "");
         if (str) { free_string(clazz->who[BODY_TYPE_MALE]); clazz->who[BODY_TYPE_MALE] = str_dup(str); }
-        str = json_string_value(json_object_get(obj, "female"));
+        str = json_get_string(obj, "female", "");
         if (str) { free_string(clazz->who[BODY_TYPE_FEMALE]); clazz->who[BODY_TYPE_FEMALE] = str_dup(str); }
-        str = json_string_value(json_object_get(obj, "other"));
+        str = json_get_string(obj, "other", "");
         if (str) { free_string(clazz->who[BODY_TYPE_OTHER]); clazz->who[BODY_TYPE_OTHER] = str_dup(str); }
     }
 
@@ -1380,13 +1381,13 @@ static CLASS_DATA *class_load_json(const char *filename)
 
             CLASS_TITLE *title = new_class_title();
 
-            str = json_string_value(json_object_get(val, "keyword"));
+            str = json_get_string(val, "keyword", "");
             title->keyword = str_dup(str ? str : "");
 
-            str = json_string_value(json_object_get(val, "display"));
+            str = json_get_string(val, "display", "");
             title->display = str_dup(str ? str : "");
 
-            str = json_string_value(json_object_get(val, "who_name"));
+            str = json_get_string(val, "who_name", "");
             title->who_name = str_dup(str ? str : "");
 
             json_t *jdef = json_object_get(val, "default");
@@ -1397,7 +1398,7 @@ static CLASS_DATA *class_load_json(const char *filename)
     }
 
     /* Progression */
-    str = json_string_value(json_object_get(root, "primary_stat"));
+    str = json_get_string(root, "primary_stat", "");
     clazz->primary_stat = stat_from_string(str);
 
     val = json_object_get(root, "max_level");
@@ -1457,7 +1458,7 @@ static CLASS_DATA *class_load_json(const char *filename)
             json_t *jlevel = json_object_get(val, "level");
             reward->level = jlevel ? (int16_t)json_integer_value(jlevel) : 1;
 
-            str = json_string_value(json_object_get(val, "type"));
+            str = json_get_string(val, "type", "");
             reward->type = (int16_t)reward_type_from_string(str);
             if (reward->type < 0) {
                 log_stringf("class_load_json: Unknown reward type '%s' in %s",
@@ -1466,7 +1467,7 @@ static CLASS_DATA *class_load_json(const char *filename)
                 continue;
             }
 
-            str = json_string_value(json_object_get(val, "name"));
+            str = json_get_string(val, "name", "");
             if (str && str[0])
                 reward->name = str_dup(str);
 
@@ -1475,7 +1476,7 @@ static CLASS_DATA *class_load_json(const char *filename)
                 reward->value = (int)json_integer_value(jvalue);
 
             /* Scope (cross-class availability) */
-            str = json_string_value(json_object_get(val, "scope"));
+            str = json_get_string(val, "scope", "");
             reward->scope = (int16_t)reward_scope_from_string(str);
 
             /* Flags */
@@ -1512,10 +1513,10 @@ static CLASS_DATA *class_load_json(const char *filename)
     }
 
     /* Callbacks (stored as function name strings, resolved later) */
-    str = json_string_value(json_object_get(root, "enter_function"));
+    str = json_get_string(root, "enter_function", "");
     if (str && str[0]) clazz->enter_fun_name = str_dup(str);
 
-    str = json_string_value(json_object_get(root, "leave_function"));
+    str = json_get_string(root, "leave_function", "");
     if (str && str[0]) clazz->leave_fun_name = str_dup(str);
 
     /* Sync legacy class fields to trait values as fallbacks.
@@ -2215,7 +2216,7 @@ static void class_load_xp_curves(void)
         xp_curve_list = curve;
     }
 
-    default_name = json_string_value(json_object_get(root, "default_curve"));
+    default_name = json_get_string(root, "default_curve", "");
     if (default_name && default_name[0])
         xp_default_curve = xp_curve_find(default_name);
 

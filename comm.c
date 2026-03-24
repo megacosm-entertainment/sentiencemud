@@ -68,16 +68,55 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <zlib.h>
 
 #include "log.h"
+#include "merc.h"
+#include "io/cache/redis_cache.h"
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+static void emit_comm_wiz_event(const char *plain_message,
+                                const char *staff_message,
+                                CHAR_DATA *actor,
+                                long wiz_flag,
+                                long wiz_skip,
+                                int wiz_min_rank,
+                                const char *action,
+                                const char *category)
+{
+    log_context_t ctx = {0};
+    const log_context_t *ctx_ptr = NULL;
+
+    if (actor) {
+        ctx.actor_type = IS_NPC(actor) ? "npc" : "player";
+        ctx.actor_name = IS_NPC(actor) ? actor->short_descr : actor->name;
+        ctx.actor_uid[0] = actor->id[0];
+        ctx.actor_uid[1] = actor->id[1];
+        ctx.actor_wnum = (IS_NPC(actor) && actor->pIndexData)
+                       ? widevnum_string_mobile(actor->pIndexData, NULL) : NULL;
+        ctx.action = action;
+        ctx_ptr = &ctx;
+    }
+
+    log_event_t ev = {
+        .severity = EVENT_SEV_INFO,
+        .category = category ? category : LOG_INFO,
+        .plain_message = plain_message ? plain_message : "comm wiznet event",
+        .staff_message = staff_message,
+        .wiznet_flag = wiz_flag,
+        .wiznet_skip_flag = wiz_skip,
+        .wiznet_min_rank = wiz_min_rank,
+        .context = ctx_ptr,
+        .source_file = __FILE__, .source_line = __LINE__, .source_func = __func__,
+    };
+
+    log_emit_event(&ev, actor);
+}
 
 #include "strings.h"
-#include "merc.h"
 #include "interp.h"
 #include "recycle.h"
 #include "scripts.h"
@@ -167,6 +206,709 @@ time_t last_ssl_error = 0;              /**< Timestamp of last SSL error */
 LLIST *ssl_ctx_cleanup_queue = NULL;    /**< Queue of old SSL contexts awaiting cleanup */
 bool it_debug = false;                  /**< Integration test debug mode */
 /** @} */
+
+#define WS_RESUME_TOKEN_LEN 40
+#define WS_RESUME_TOKEN_HASH_LEN 64
+#define WS_RESUME_TTL_SECONDS 180
+#define WS_RESUME_REDIS_ACTIVE_TTL_SECONDS (7 * 24 * 3600)
+#define WS_AUTH_PENDING_TIMEOUT_SECONDS 15
+
+typedef struct websocket_resume_session_data {
+    char token_hash[WS_RESUME_TOKEN_HASH_LEN + 1];
+    unsigned long player_id0;
+    unsigned long player_id1;
+    time_t expires_at;
+    struct websocket_resume_session_data *next;
+} websocket_resume_session_t;
+
+static websocket_resume_session_t *ws_resume_sessions = NULL;
+
+typedef enum {
+    WS_AUTH_JOB_RESUME_CONSUME = 1,
+    WS_AUTH_JOB_RESUME_STORE,
+    WS_AUTH_JOB_RESUME_DROP_PLAYER,
+    WS_AUTH_JOB_RESUME_ARM_TTL,
+    WS_AUTH_JOB_OAUTH_VERIFY
+} ws_auth_job_type_t;
+
+typedef enum {
+    WS_AUTH_RESULT_RESUME_CONSUME = 1,
+    WS_AUTH_RESULT_OAUTH_VERIFY
+} ws_auth_result_type_t;
+
+typedef struct ws_resume_lookup_job_data {
+    ws_auth_job_type_t type;
+    unsigned long request_id;
+    char token_hash[WS_RESUME_TOKEN_HASH_LEN + 1];
+    unsigned long player_id0;
+    unsigned long player_id1;
+    int ttl_seconds;
+    struct ws_resume_lookup_job_data *next;
+} ws_resume_lookup_job_t;
+
+typedef struct ws_resume_lookup_result_data {
+    ws_auth_result_type_t type;
+    unsigned long request_id;
+    bool success;
+    unsigned long player_id0;
+    unsigned long player_id1;
+    struct ws_resume_lookup_result_data *next;
+} ws_resume_lookup_result_t;
+
+static pthread_t ws_resume_lookup_thread;
+static pthread_mutex_t ws_resume_lookup_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t ws_resume_lookup_cond = PTHREAD_COND_INITIALIZER;
+static bool ws_resume_lookup_running = false;
+static bool ws_resume_lookup_stop = false;
+static ws_resume_lookup_job_t *ws_resume_lookup_jobs_head = NULL;
+static ws_resume_lookup_job_t *ws_resume_lookup_jobs_tail = NULL;
+static ws_resume_lookup_result_t *ws_resume_lookup_results_head = NULL;
+static ws_resume_lookup_result_t *ws_resume_lookup_results_tail = NULL;
+static unsigned long ws_resume_next_request_id = 1;
+
+static bool ws_resume_lookup_enqueue_job(ws_auth_job_type_t type,
+                                         unsigned long request_id,
+                                         const char *token_hash,
+                                         unsigned long id0,
+                                         unsigned long id1,
+                                         int ttl_seconds);
+static bool ws_resume_lookup_enqueue_consume(unsigned long request_id, const char *token_hash);
+static bool ws_resume_lookup_enqueue_store(unsigned long id0, unsigned long id1, const char *token_hash);
+static bool ws_resume_lookup_enqueue_drop_player(unsigned long id0, unsigned long id1);
+static bool ws_resume_lookup_enqueue_arm_ttl(unsigned long id0, unsigned long id1, int ttl_seconds);
+
+static void ws_resume_redis_token_key(char *out, size_t out_sz, const char *token_hash)
+{
+    snprintf(out, out_sz, "ws:resume:token:%s", token_hash);
+}
+
+static void ws_resume_redis_player_key(char *out, size_t out_sz, unsigned long id0, unsigned long id1)
+{
+    snprintf(out, out_sz, "ws:resume:player:%lu:%lu", id0, id1);
+}
+
+static void ws_resume_redis_drop_player(unsigned long id0, unsigned long id1)
+{
+    redisContext *ctx;
+    redisReply *reply;
+    char player_key[128];
+
+    if (!redis_is_available())
+        return;
+
+    ctx = redis_new_context();
+    if (!ctx)
+        return;
+
+    ws_resume_redis_player_key(player_key, sizeof(player_key), id0, id1);
+
+    reply = (redisReply *)redisCommand(ctx, "GET %s", player_key);
+    if (reply && reply->type == REDIS_REPLY_STRING && !IS_NULLSTR(reply->str)) {
+        char token_key[192];
+        ws_resume_redis_token_key(token_key, sizeof(token_key), reply->str);
+        redisReply *del_token = (redisReply *)redisCommand(ctx, "DEL %s", token_key);
+        if (del_token)
+            freeReplyObject(del_token);
+    }
+    if (reply)
+        freeReplyObject(reply);
+
+    reply = (redisReply *)redisCommand(ctx, "DEL %s", player_key);
+    if (reply)
+        freeReplyObject(reply);
+
+    redisFree(ctx);
+}
+
+static void ws_resume_redis_store(unsigned long id0, unsigned long id1, const char *token_hash)
+{
+    redisContext *ctx;
+    redisReply *reply;
+    char player_key[128];
+    char token_key[192];
+    char ids_value[64];
+
+    if (!redis_is_available() || IS_NULLSTR(token_hash))
+        return;
+
+    ctx = redis_new_context();
+    if (!ctx)
+        return;
+
+    ws_resume_redis_player_key(player_key, sizeof(player_key), id0, id1);
+    ws_resume_redis_token_key(token_key, sizeof(token_key), token_hash);
+    snprintf(ids_value, sizeof(ids_value), "%lu:%lu", id0, id1);
+
+    // Drop prior token mapping for this player, then store fresh mapping.
+    reply = (redisReply *)redisCommand(ctx, "GET %s", player_key);
+    if (reply && reply->type == REDIS_REPLY_STRING && !IS_NULLSTR(reply->str)) {
+        char old_token_key[192];
+        ws_resume_redis_token_key(old_token_key, sizeof(old_token_key), reply->str);
+        redisReply *del_old = (redisReply *)redisCommand(ctx, "DEL %s", old_token_key);
+        if (del_old)
+            freeReplyObject(del_old);
+    }
+    if (reply)
+        freeReplyObject(reply);
+
+    reply = (redisReply *)redisCommand(ctx, "SET %s %s EX %d", player_key, token_hash,
+                                       WS_RESUME_REDIS_ACTIVE_TTL_SECONDS);
+    if (reply)
+        freeReplyObject(reply);
+
+    reply = (redisReply *)redisCommand(ctx, "SET %s %s EX %d", token_key, ids_value,
+                                       WS_RESUME_REDIS_ACTIVE_TTL_SECONDS);
+    if (reply)
+        freeReplyObject(reply);
+
+    redisFree(ctx);
+}
+
+static void ws_resume_redis_arm_ttl(unsigned long id0, unsigned long id1, int ttl_seconds)
+{
+    redisContext *ctx;
+    redisReply *reply;
+    char player_key[128];
+
+    if (!redis_is_available())
+        return;
+
+    ctx = redis_new_context();
+    if (!ctx)
+        return;
+
+    ws_resume_redis_player_key(player_key, sizeof(player_key), id0, id1);
+
+    reply = (redisReply *)redisCommand(ctx, "EXPIRE %s %d", player_key, ttl_seconds);
+    if (reply)
+        freeReplyObject(reply);
+
+    reply = (redisReply *)redisCommand(ctx, "GET %s", player_key);
+    if (reply && reply->type == REDIS_REPLY_STRING && !IS_NULLSTR(reply->str)) {
+        char token_key[192];
+        ws_resume_redis_token_key(token_key, sizeof(token_key), reply->str);
+        redisReply *exp_token = (redisReply *)redisCommand(ctx, "EXPIRE %s %d", token_key, ttl_seconds);
+        if (exp_token)
+            freeReplyObject(exp_token);
+    }
+    if (reply)
+        freeReplyObject(reply);
+
+    redisFree(ctx);
+}
+
+static bool ws_resume_redis_consume(const char *token_hash, unsigned long *out_id0, unsigned long *out_id1)
+{
+    redisContext *ctx;
+    redisReply *reply;
+    char token_key[192];
+    unsigned long id0 = 0, id1 = 0;
+    bool ok = false;
+
+    if (!redis_is_available() || IS_NULLSTR(token_hash) || !out_id0 || !out_id1)
+        return false;
+
+    ctx = redis_new_context();
+    if (!ctx)
+        return false;
+
+    ws_resume_redis_token_key(token_key, sizeof(token_key), token_hash);
+    reply = (redisReply *)redisCommand(ctx, "GET %s", token_key);
+    if (reply && reply->type == REDIS_REPLY_STRING && !IS_NULLSTR(reply->str)) {
+        if (sscanf(reply->str, "%lu:%lu", &id0, &id1) == 2) {
+            char player_key[128];
+            redisReply *del_reply;
+
+            ws_resume_redis_player_key(player_key, sizeof(player_key), id0, id1);
+            del_reply = (redisReply *)redisCommand(ctx, "DEL %s", token_key);
+            if (del_reply)
+                freeReplyObject(del_reply);
+
+            del_reply = (redisReply *)redisCommand(ctx, "DEL %s", player_key);
+            if (del_reply)
+                freeReplyObject(del_reply);
+
+            *out_id0 = id0;
+            *out_id1 = id1;
+            ok = true;
+        }
+    }
+    if (reply)
+        freeReplyObject(reply);
+
+    redisFree(ctx);
+    return ok;
+}
+
+static void *ws_resume_lookup_worker(void *arg)
+{
+    (void)arg;
+
+    for (;;) {
+        ws_resume_lookup_job_t *job = NULL;
+
+        pthread_mutex_lock(&ws_resume_lookup_mutex);
+        while (!ws_resume_lookup_stop && ws_resume_lookup_jobs_head == NULL)
+            pthread_cond_wait(&ws_resume_lookup_cond, &ws_resume_lookup_mutex);
+
+        if (ws_resume_lookup_stop && ws_resume_lookup_jobs_head == NULL) {
+            pthread_mutex_unlock(&ws_resume_lookup_mutex);
+            break;
+        }
+
+        job = ws_resume_lookup_jobs_head;
+        ws_resume_lookup_jobs_head = job->next;
+        if (ws_resume_lookup_jobs_head == NULL)
+            ws_resume_lookup_jobs_tail = NULL;
+        pthread_mutex_unlock(&ws_resume_lookup_mutex);
+
+        if (job) {
+            if (job->type == WS_AUTH_JOB_RESUME_CONSUME) {
+                unsigned long id0 = 0, id1 = 0;
+                bool found = ws_resume_redis_consume(job->token_hash, &id0, &id1);
+                ws_resume_lookup_result_t *res = malloc(sizeof(*res));
+                if (res) {
+                    memset(res, 0, sizeof(*res));
+                    res->type = WS_AUTH_RESULT_RESUME_CONSUME;
+                    res->request_id = job->request_id;
+                    res->success = found;
+                    res->player_id0 = id0;
+                    res->player_id1 = id1;
+
+                    pthread_mutex_lock(&ws_resume_lookup_mutex);
+                    if (ws_resume_lookup_results_tail)
+                        ws_resume_lookup_results_tail->next = res;
+                    else
+                        ws_resume_lookup_results_head = res;
+                    ws_resume_lookup_results_tail = res;
+                    pthread_mutex_unlock(&ws_resume_lookup_mutex);
+                }
+            } else if (job->type == WS_AUTH_JOB_RESUME_STORE) {
+                ws_resume_redis_store(job->player_id0, job->player_id1, job->token_hash);
+            } else if (job->type == WS_AUTH_JOB_RESUME_DROP_PLAYER) {
+                ws_resume_redis_drop_player(job->player_id0, job->player_id1);
+            } else if (job->type == WS_AUTH_JOB_RESUME_ARM_TTL) {
+                ws_resume_redis_arm_ttl(job->player_id0, job->player_id1, job->ttl_seconds);
+            } else if (job->type == WS_AUTH_JOB_OAUTH_VERIFY) {
+                // Patch-B scaffolding: reserve async auth job type for OAuth verification.
+            }
+
+            free(job);
+        }
+    }
+
+    return NULL;
+}
+
+static bool ws_resume_lookup_start(void)
+{
+    if (ws_resume_lookup_running)
+        return true;
+
+    ws_resume_lookup_stop = false;
+    if (pthread_create(&ws_resume_lookup_thread, NULL, ws_resume_lookup_worker, NULL) != 0)
+        return false;
+
+    ws_resume_lookup_running = true;
+    return true;
+}
+
+static void ws_resume_lookup_stop_worker(void)
+{
+    ws_resume_lookup_job_t *job;
+    ws_resume_lookup_result_t *res;
+
+    if (!ws_resume_lookup_running)
+        return;
+
+    pthread_mutex_lock(&ws_resume_lookup_mutex);
+    ws_resume_lookup_stop = true;
+    pthread_cond_signal(&ws_resume_lookup_cond);
+    pthread_mutex_unlock(&ws_resume_lookup_mutex);
+
+    pthread_join(ws_resume_lookup_thread, NULL);
+    ws_resume_lookup_running = false;
+
+    pthread_mutex_lock(&ws_resume_lookup_mutex);
+    while ((job = ws_resume_lookup_jobs_head) != NULL) {
+        ws_resume_lookup_jobs_head = job->next;
+        free(job);
+    }
+    ws_resume_lookup_jobs_tail = NULL;
+
+    while ((res = ws_resume_lookup_results_head) != NULL) {
+        ws_resume_lookup_results_head = res->next;
+        free(res);
+    }
+    ws_resume_lookup_results_tail = NULL;
+    pthread_mutex_unlock(&ws_resume_lookup_mutex);
+}
+
+static bool ws_resume_lookup_enqueue_job(ws_auth_job_type_t type,
+                                         unsigned long request_id,
+                                         const char *token_hash,
+                                         unsigned long id0,
+                                         unsigned long id1,
+                                         int ttl_seconds)
+{
+    ws_resume_lookup_job_t *job;
+
+    if (type == WS_AUTH_JOB_RESUME_CONSUME || type == WS_AUTH_JOB_RESUME_STORE) {
+        if (IS_NULLSTR(token_hash))
+            return false;
+    }
+
+    if (!ws_resume_lookup_running)
+        return false;
+
+    job = malloc(sizeof(*job));
+    if (!job)
+        return false;
+
+    memset(job, 0, sizeof(*job));
+    job->type = type;
+    job->request_id = request_id;
+    job->player_id0 = id0;
+    job->player_id1 = id1;
+    job->ttl_seconds = ttl_seconds;
+    if (!IS_NULLSTR(token_hash))
+        memcpy(job->token_hash, token_hash, WS_RESUME_TOKEN_HASH_LEN + 1);
+
+    pthread_mutex_lock(&ws_resume_lookup_mutex);
+    if (ws_resume_lookup_jobs_tail)
+        ws_resume_lookup_jobs_tail->next = job;
+    else
+        ws_resume_lookup_jobs_head = job;
+    ws_resume_lookup_jobs_tail = job;
+    pthread_cond_signal(&ws_resume_lookup_cond);
+    pthread_mutex_unlock(&ws_resume_lookup_mutex);
+
+    return true;
+}
+
+static bool ws_resume_lookup_enqueue_consume(unsigned long request_id, const char *token_hash)
+{
+    return ws_resume_lookup_enqueue_job(WS_AUTH_JOB_RESUME_CONSUME,
+                                        request_id,
+                                        token_hash,
+                                        0,
+                                        0,
+                                        0);
+}
+
+static bool ws_resume_lookup_enqueue_store(unsigned long id0, unsigned long id1, const char *token_hash)
+{
+    return ws_resume_lookup_enqueue_job(WS_AUTH_JOB_RESUME_STORE,
+                                        0,
+                                        token_hash,
+                                        id0,
+                                        id1,
+                                        0);
+}
+
+static bool ws_resume_lookup_enqueue_drop_player(unsigned long id0, unsigned long id1)
+{
+    return ws_resume_lookup_enqueue_job(WS_AUTH_JOB_RESUME_DROP_PLAYER,
+                                        0,
+                                        NULL,
+                                        id0,
+                                        id1,
+                                        0);
+}
+
+static bool ws_resume_lookup_enqueue_arm_ttl(unsigned long id0, unsigned long id1, int ttl_seconds)
+{
+    return ws_resume_lookup_enqueue_job(WS_AUTH_JOB_RESUME_ARM_TTL,
+                                        0,
+                                        NULL,
+                                        id0,
+                                        id1,
+                                        ttl_seconds);
+}
+
+static void ws_resume_apply_failure(DESCRIPTOR_DATA *d)
+{
+    d->ws_resume_pending = false;
+    d->ws_resume_request_id = 0;
+    d->ws_resume_pending_since = 0;
+    write_to_buffer(d, "Core.Resume {\"event\":\"fail\",\"reason\":\"invalid_or_expired\"}\n\r", 0);
+    write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
+}
+
+static bool ws_resume_attach_character(DESCRIPTOR_DATA *d, unsigned long id0, unsigned long id1)
+{
+    CHAR_DATA *ch = idfind_player(id0, id1);
+
+    if (!ch || IS_NPC(ch) || ch->desc != NULL || ch->in_room == NULL)
+        return false;
+
+    write_to_buffer(d, "Core.Resume {\"event\":\"ok\"}\n\r", 0);
+
+    d->ws_resume_pending = false;
+    d->ws_resume_request_id = 0;
+    d->ws_resume_pending_since = 0;
+    d->character = ch;
+    ch->desc = d;
+    d->connected = CON_PLAYING;
+    d->reconnecting = false;
+    d->reconnect_ch = NULL;
+
+    reconnect_char(d);
+    do_function(ch, &do_look, "auto");
+    return true;
+}
+
+static void ws_resume_poll_results(void)
+{
+    ws_resume_lookup_result_t *results = NULL;
+
+    pthread_mutex_lock(&ws_resume_lookup_mutex);
+    results = ws_resume_lookup_results_head;
+    ws_resume_lookup_results_head = NULL;
+    ws_resume_lookup_results_tail = NULL;
+    pthread_mutex_unlock(&ws_resume_lookup_mutex);
+
+    while (results) {
+        ws_resume_lookup_result_t *next = results->next;
+        DESCRIPTOR_DATA *d;
+
+        for (d = descriptor_list; d; d = d->next) {
+            if (d->ws_resume_pending && d->ws_resume_request_id == results->request_id)
+                break;
+        }
+
+        if (d) {
+            if (results->type == WS_AUTH_RESULT_RESUME_CONSUME) {
+                if (!results->success || !ws_resume_attach_character(d, results->player_id0, results->player_id1))
+                    ws_resume_apply_failure(d);
+            }
+        }
+
+        free(results);
+        results = next;
+    }
+}
+
+static void ws_resume_poll_timeouts(void)
+{
+    DESCRIPTOR_DATA *d;
+
+    for (d = descriptor_list; d; d = d->next) {
+        if (!d->ws_resume_pending)
+            continue;
+
+        if (d->ws_resume_pending_since <= 0)
+            continue;
+
+        if ((current_time - d->ws_resume_pending_since) >= WS_AUTH_PENDING_TIMEOUT_SECONDS)
+            ws_resume_apply_failure(d);
+    }
+}
+
+static bool descriptor_is_websocket(const DESCRIPTOR_DATA *d)
+{
+    return d && d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS;
+}
+
+static void ws_resume_purge_expired(void)
+{
+    websocket_resume_session_t *cur = ws_resume_sessions;
+    websocket_resume_session_t *prev = NULL;
+
+    while (cur) {
+        websocket_resume_session_t *next = cur->next;
+        if (cur->expires_at <= current_time) {
+            CHAR_DATA *owner = idfind_player(cur->player_id0, cur->player_id1);
+
+            if (owner && owner->desc && descriptor_is_websocket(owner->desc)) {
+                // Keep active websocket sessions resumable; arm TTL from disconnect.
+                cur->expires_at = current_time + WS_RESUME_TTL_SECONDS;
+                prev = cur;
+                cur = next;
+                continue;
+            }
+
+            if (prev)
+                prev->next = next;
+            else
+                ws_resume_sessions = next;
+            free(cur);
+        } else {
+            prev = cur;
+        }
+        cur = next;
+    }
+}
+
+static void ws_resume_arm_on_disconnect(CHAR_DATA *ch)
+{
+    websocket_resume_session_t *cur;
+
+    if (!ch || IS_NPC(ch))
+        return;
+
+    for (cur = ws_resume_sessions; cur; cur = cur->next) {
+        if (cur->player_id0 == ch->id[0] && cur->player_id1 == ch->id[1]) {
+            cur->expires_at = current_time + WS_RESUME_TTL_SECONDS;
+            if (!ws_resume_lookup_enqueue_arm_ttl(ch->id[0], ch->id[1], WS_RESUME_TTL_SECONDS))
+                log_message(LOG_LEVEL_WARN, LOG_WARN, "ws_resume_arm_on_disconnect: failed to enqueue redis ttl arm");
+            return;
+        }
+    }
+
+    if (!ws_resume_lookup_enqueue_arm_ttl(ch->id[0], ch->id[1], WS_RESUME_TTL_SECONDS))
+        log_message(LOG_LEVEL_WARN, LOG_WARN, "ws_resume_arm_on_disconnect: failed to enqueue redis ttl arm");
+}
+
+static void ws_resume_drop_for_player(unsigned long id0, unsigned long id1)
+{
+    websocket_resume_session_t *cur = ws_resume_sessions;
+    websocket_resume_session_t *prev = NULL;
+
+    while (cur) {
+        websocket_resume_session_t *next = cur->next;
+        if (cur->player_id0 == id0 && cur->player_id1 == id1) {
+            if (prev)
+                prev->next = next;
+            else
+                ws_resume_sessions = next;
+            free(cur);
+        } else {
+            prev = cur;
+        }
+        cur = next;
+    }
+
+    if (!ws_resume_lookup_enqueue_drop_player(id0, id1))
+        log_message(LOG_LEVEL_WARN, LOG_WARN, "ws_resume_drop_for_player: failed to enqueue redis drop");
+}
+
+static void ws_resume_make_token(char out_token[WS_RESUME_TOKEN_LEN + 1])
+{
+    static const char alphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    size_t i;
+    int alpha_len = (int)(sizeof(alphabet) - 1);
+
+    for (i = 0; i < WS_RESUME_TOKEN_LEN; i++) {
+        out_token[i] = alphabet[number_range(0, alpha_len - 1)];
+    }
+    out_token[WS_RESUME_TOKEN_LEN] = '\0';
+}
+
+static bool ws_resume_hash_token(const char *token, char out_hash[WS_RESUME_TOKEN_HASH_LEN + 1])
+{
+    char *hash;
+
+    if (IS_NULLSTR(token) || !out_hash)
+        return false;
+
+    hash = sha256_crypt(token);
+    if (IS_NULLSTR(hash) || strlen(hash) != WS_RESUME_TOKEN_HASH_LEN)
+        return false;
+
+    memcpy(out_hash, hash, WS_RESUME_TOKEN_HASH_LEN + 1);
+    return true;
+}
+
+void websocket_resume_issue(DESCRIPTOR_DATA *d)
+{
+    websocket_resume_session_t *session;
+    char token[WS_RESUME_TOKEN_LEN + 1];
+    char token_hash[WS_RESUME_TOKEN_HASH_LEN + 1];
+    char buf[128];
+    CHAR_DATA *ch;
+
+    if (!descriptor_is_websocket(d))
+        return;
+
+    ch = d->original ? d->original : d->character;
+    if (!ch || IS_NPC(ch))
+        return;
+
+    ws_resume_purge_expired();
+    ws_resume_drop_for_player(ch->id[0], ch->id[1]);
+    ws_resume_make_token(token);
+
+    if (!ws_resume_hash_token(token, token_hash)) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "websocket_resume_issue: failed to hash resume token");
+        return;
+    }
+
+    session = malloc(sizeof(*session));
+    if (!session) {
+        log_message(LOG_LEVEL_ERROR, LOG_ERROR, "websocket_resume_issue: out of memory");
+        return;
+    }
+
+    memset(session, 0, sizeof(*session));
+    memcpy(session->token_hash, token_hash, WS_RESUME_TOKEN_HASH_LEN + 1);
+    session->player_id0 = ch->id[0];
+    session->player_id1 = ch->id[1];
+    session->expires_at = current_time + WS_RESUME_TTL_SECONDS;
+    session->next = ws_resume_sessions;
+    ws_resume_sessions = session;
+
+    if (!ws_resume_lookup_enqueue_store(ch->id[0], ch->id[1], token_hash))
+        log_message(LOG_LEVEL_WARN, LOG_WARN, "websocket_resume_issue: failed to enqueue redis store");
+
+    snprintf(buf, sizeof(buf),
+             "Core.Resume {\"event\":\"token\",\"token\":\"%s\",\"ttl\":%d}\n\r",
+             token, WS_RESUME_TTL_SECONDS);
+    write_to_buffer(d, buf, 0);
+}
+
+bool websocket_resume_try(DESCRIPTOR_DATA *d, const char *token)
+{
+    websocket_resume_session_t *cur;
+    websocket_resume_session_t *prev;
+    char token_hash[WS_RESUME_TOKEN_HASH_LEN + 1];
+    unsigned long request_id;
+
+    if (!descriptor_is_websocket(d) || IS_NULLSTR(token))
+        return false;
+
+    if (!ws_resume_hash_token(token, token_hash))
+        return false;
+
+    ws_resume_purge_expired();
+
+    prev = NULL;
+    cur = ws_resume_sessions;
+    while (cur) {
+        if (!str_cmp(cur->token_hash, token_hash))
+            break;
+        prev = cur;
+        cur = cur->next;
+    }
+
+    if (cur) {
+        bool attached;
+        if (prev)
+            prev->next = cur->next;
+        else
+            ws_resume_sessions = cur->next;
+
+        attached = ws_resume_attach_character(d, cur->player_id0, cur->player_id1);
+        free(cur);
+        return attached;
+    }
+
+    // Miss in local cache: queue Redis lookup without blocking game loop.
+    pthread_mutex_lock(&ws_resume_lookup_mutex);
+    request_id = ws_resume_next_request_id++;
+    pthread_mutex_unlock(&ws_resume_lookup_mutex);
+
+    if (!ws_resume_lookup_enqueue_consume(request_id, token_hash))
+        return false;
+
+    d->ws_resume_pending = true;
+    d->ws_resume_request_id = request_id;
+    d->ws_resume_pending_since = current_time;
+    write_to_buffer(d, "Core.Resume {\"event\":\"pending\"}\n\r", 0);
+    return true;
+}
+
 /*
  * OS-dependent local functions.
  */
@@ -921,6 +1663,14 @@ int main(int argc, char **argv)
             if (!json_persist_worker_start()) {
                 log_message(LOG_LEVEL_WARN, LOG_WARN, "Persist worker failed to start - using synchronous writes");
             }
+
+            // Start async log stream worker (writes structured JSON events to Redis Stream)
+            if (game_settings.log_stream_enabled) {
+                if (!log_stream_init()) {
+                    log_message(LOG_LEVEL_WARN, LOG_WARN, "Log stream worker failed to start - stream logging disabled");
+                    game_settings.log_stream_enabled = false;
+                }
+            }
         }
 
         // Initialize async cache system for background dump/load operations
@@ -934,6 +1684,10 @@ int main(int argc, char **argv)
 
         if (!wilderness_storage_init()) {
             log_message(LOG_LEVEL_WARN, LOG_WARN, "Wilderness storage system failed to initialize");
+        }
+
+        if (!ws_resume_lookup_start()) {
+            log_message(LOG_LEVEL_WARN, LOG_WARN, "WebSocket resume lookup worker failed to start - resume lookups may block");
         }
 
         log_message_f(LOG_LEVEL_INFO, LOG_INIT, "Sentience is up on port %d.", telnet_port);
@@ -1033,6 +1787,12 @@ int main(int argc, char **argv)
 
     // Shutdown channel service transport layer
     channel_service_shutdown();
+
+    // Flush and stop log stream worker before Redis goes away
+    log_stream_shutdown();
+
+    // Stop async websocket resume lookup worker
+    ws_resume_lookup_stop_worker();
 
     // Shutdown Redis connection
     redis_shutdown();
@@ -1238,6 +1998,10 @@ void game_loop(int control_telnet, int control_tls, int control_websocket)
         fd_set exc_set;
         int maxdesc = 0;
 
+        // Apply completed async resume lookups to matching pending descriptors.
+        ws_resume_poll_results();
+        ws_resume_poll_timeouts();
+
 #if defined(MALLOC_DEBUG)
         if (malloc_verify() != 1)
             abort();
@@ -1335,8 +2099,11 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
 
             // Check for handshake timeouts (5 seconds to prevent slowloris attacks)
             if (current_time - d->conn->last_activity > 5) {
-                log_message_f(LOG_LEVEL_WARN, LOG_WARN, "Closing stalled %s handshake connection",
-                           connection_get_protocol_name(d->conn));
+                if (game_settings.dev_server) {
+                    log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG,
+                                  "Closing stalled %s handshake connection",
+                                  connection_get_protocol_name(d->conn));
+                }
                 close_socket(d);
                 continue;
             }
@@ -1370,7 +2137,10 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
                         }
                         else
                         {
-                            write_to_buffer(d, "By what name do you wish to be known? ", 0);
+                            if (descriptor_is_websocket(d))
+                                write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
+                            else
+                                write_to_buffer(d, "By what name do you wish to be known? ", 0);
                         }
                     }
 
@@ -1381,8 +2151,10 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
                 } else {
                     // Check if handshake failed (vs still in progress)
                     if (d->conn->state != CONN_STATE_CONNECTING) {
-                        log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s handshake failed",
-                                   connection_get_protocol_name(d->conn));
+                        if (d->conn->state != CONN_STATE_CLOSED && d->conn->state != CONN_STATE_CLOSING) {
+                            log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s handshake failed",
+                                          connection_get_protocol_name(d->conn));
+                        }
                         close_socket(d);
                         continue;
                     }
@@ -1515,16 +2287,7 @@ log_message_f(LOG_LEVEL_BUG, LOG_ERROR, "A non-blocked signal was caught.");
          */
         for (d = descriptor_list; d != NULL; d = d_next) {
             d_next = d->next;
-            
-            // Close connections with stalled handshakes (5 seconds to prevent slowloris)
-            if (d->conn && d->conn->handshake_in_progress &&
-                current_time - d->conn->last_activity > 5) {
-                log_message_f(LOG_LEVEL_WARN, LOG_WARN, "Closing stalled %s handshake connection",
-                           connection_get_protocol_name(d->conn));
-                close_socket(d);
-                continue;
-            }
-            
+
             // Only timeout normal connections if not fully logged in
             if ((d->connected == CON_GET_ACCOUNT_NAME || d->connected == CON_GET_OLD_PASSWORD) && 
                 current_time - d->last_activity > 120 && 
@@ -1648,6 +2411,9 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
     dnew = new_descriptor();
     dnew->last_activity = current_time;
     dnew->healthcheck = false;
+    dnew->ws_resume_pending = false;
+    dnew->ws_resume_request_id = 0;
+    dnew->ws_resume_pending_since = 0;
     dnew->descriptor = desc;
 
     // Create connection object based on which control socket accepted it
@@ -1736,11 +2502,11 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
     // For WebSocket connections, defer greeting until after WebSocket handshake completes
     // For telnet/TLS, send greeting immediately
     if (conn->type != CONN_TYPE_WEBSOCKET_TLS) {
-        ProtocolNegotiate(dnew);
-
-        // Negotiate protocol capabilities through new protocol layer
+        // Negotiate via protocol layer when available; fall back to legacy.
         if (dnew->proto) {
             protocol_negotiate(dnew->proto);
+        } else {
+            ProtocolNegotiate(dnew);
         }
 
         write_to_buffer(dnew, compress_will, 0);
@@ -1763,7 +2529,10 @@ void init_descriptor(int control, int control_telnet, int control_tls, int contr
         }
         else
         {
-            write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
+            if (descriptor_is_websocket(dnew))
+                write_to_buffer(dnew, "Account name (or RESUME <token>): ", 0);
+            else
+                write_to_buffer(dnew, "By what name do you wish to be known? ", 0);
         }
     }
 }
@@ -1790,6 +2559,10 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 {
     CHAR_DATA *ch;
 
+    dclose->ws_resume_pending = false;
+    dclose->ws_resume_request_id = 0;
+    dclose->ws_resume_pending_since = 0;
+
     if (dclose->outtop > 0)
         process_output(dclose, false);
 
@@ -1799,9 +2572,15 @@ void close_socket(DESCRIPTOR_DATA *dclose)
         /* cut down on wiznet spam when rebooting */
         if (dclose->connected == CON_PLAYING && !merc_down)
         {
+            if (descriptor_is_websocket(dclose)) {
+                CHAR_DATA *session_owner = dclose->original ? dclose->original : ch;
+                ws_resume_arm_on_disconnect(session_owner);
+            }
+
             if (ch->invis_level < STAFF_IMMORTAL)
                 act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-            wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
+            emit_comm_wiz_event("link lost", "$N has lost $S link.",
+                                ch, WIZ_LINKS, 0, 0, "link_lost", LOG_SECURITY);
 
             ch->desc = NULL;
         }
@@ -2007,7 +2786,11 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 
     if (iStart > 0) {
         read_buf[iStart] = '\0';
-        ProtocolInput(d, read_buf, iStart, d->inbuf);
+        if (d->proto) {
+            protocol_process_input(d->proto, read_buf, iStart, d->inbuf, sizeof(d->inbuf));
+        } else {
+            ProtocolInput(d, read_buf, iStart, d->inbuf);
+        }
     }
     return true;
 }
@@ -2070,7 +2853,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 
     if (d->inbuf[i] == '\b' && k > 0)
         --k;
-    else if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
+    else // if (ISASCII(d->inbuf[i]) && ISPRINT(d->inbuf[i]))
         d->incomm[k++] = d->inbuf[i];
     /*    else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
@@ -2121,14 +2904,19 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
         {
         log_message_f(LOG_LEVEL_WARN, LOG_WARN, "%s input spamming!", d->host);
 
-        wiznet("Spam spam spam $N spam spam spam!",
-               d->character,NULL,WIZ_SPAM,0,get_staff_rank(d->character));
+        emit_comm_wiz_event("input spam detected", "Spam spam spam $N spam spam spam!",
+                            d->character, WIZ_SPAM, 0, get_staff_rank(d->character),
+                            "input_spam", LOG_SECURITY);
         if (d->incomm[0] == '!')
-            wiznet(d->inlast,d->character,NULL,WIZ_SPAM,0,
-            get_staff_rank(d->character));
+            emit_comm_wiz_event(d->inlast, d->inlast,
+                                d->character, WIZ_SPAM, 0,
+                                get_staff_rank(d->character),
+                                "input_spam_payload", LOG_SECURITY);
         else
-            wiznet(d->incomm,d->character,NULL,WIZ_SPAM,0,
-            get_staff_rank(d->character));
+            emit_comm_wiz_event(d->incomm, d->incomm,
+                                d->character, WIZ_SPAM, 0,
+                                get_staff_rank(d->character),
+                                "input_spam_payload", LOG_SECURITY);
 
         d->repeat = 0;
 
@@ -2178,6 +2966,10 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 {
     extern bool merc_down;
+    bool has_telnet_iac = false;
+
+    if (d->proto)
+        has_telnet_iac = protocol_has_capability(d->proto, PROTO_CAP_TELNET_IAC);
 
     if (d->pProtocol->WriteOOB)
     {
@@ -2188,14 +2980,14 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
         if (d->showstr_point)
         {
             write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
-            if (!d->pProtocol->bSGA)
+            if (!d->pProtocol->bSGA && has_telnet_iac)
                 write_to_buffer(d, GoAheadStr, 0);
 
         }
         else if (fPrompt && d->pString && d->connected == CON_PLAYING)
         {
             write_to_buffer(d, "> ", 2);
-            if (!d->pProtocol->bSGA)
+            if (!d->pProtocol->bSGA && has_telnet_iac)
                 write_to_buffer(d, GoAheadStr, 0);
         }
         else if (fPrompt && d->connected == CON_PLAYING)
@@ -2257,10 +3049,10 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
             if (IS_SET(ch->comm, COMM_PROMPT))
                 bust_a_prompt(d->character);
 
-            if (!d->pProtocol->bSGA)
+            if (!d->pProtocol->bSGA && has_telnet_iac)
                 write_to_buffer(d, GoAheadStr, 0);
 
-            if (IS_SET(ch->comm, COMM_TELNET_GA))
+            if (IS_SET(ch->comm, COMM_TELNET_GA) && has_telnet_iac)
                 write_to_buffer(d, go_ahead_str, 0);
         }
 else if (fPrompt && !d->showstr_point && !d->pString)
@@ -2349,7 +3141,7 @@ else if (fPrompt && !d->showstr_point && !d->pString)
     }
     
     // Add telnet GA for relevant states
-    if (d->connected != CON_PLAYING && 
+    if (has_telnet_iac && d->connected != CON_PLAYING && 
         d->connected != CON_READ_MOTD &&
         d->connected != CON_READ_IMOTD) {
         write_to_buffer(d, go_ahead_str, 0);
@@ -2767,7 +3559,11 @@ void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
 {
     if( d->muted > 0 ) return;
 
-    txt = ProtocolOutput(d,txt,&length);
+    if (d->proto) {
+        txt = protocol_process_output(d->proto, txt, &length);
+    } else {
+        txt = ProtocolOutput(d, txt, &length);
+    }
     if (d->pProtocol->WriteOOB > 0)
         --d->pProtocol->WriteOOB;
     /*
@@ -3051,58 +3847,71 @@ bool check_parse_name(char *name)
     DESCRIPTOR_DATA *d, *dnext;
     int count = 0;
 
+    NAME_VALIDATION_RESULT nvr;
+    nvr.result = NV_MAX;
+
+    if (!can_be_name(name, &nvr) || nvr.result != NV_OK)
+    {
+        return false;
+    }
+
     /*
      * Reserved words.
      */
-    if (is_exact_name(name,
-    "sentience all auto her his immortal its self somebody someone something the you your loner"))
+    if (is_exact_name(name, "sentience all auto her his immortal its self somebody someone something the you your loner"))
     {
-    return false;
+        return false;
     }
 
     /*
      * Length restrictions.
      */
-    if (strlen(name) <  3)
-    return false;
+    if (utf8_strlen(name) <  3)
+        return false;
 
-    if (strlen(name) > 12)
-    return false;
+    if (utf8_strlen(name) > 12)
+        return false;
 
     /*
-     * Alphanumerics only.
      * Lock out IllIll twits.
      */
     {
-    char *pc;
-    bool fIll,adjcaps = false,cleancaps = false;
-     int total_caps = 0;
+        const char *pc;
+        bool fIll,adjcaps = false,cleancaps = false;
+        int total_caps = 0;
 
-    fIll = true;
-    for (pc = name; *pc != '\0'; pc++)
-    {
-        if (!ISALPHA(*pc))
-        return false;
-
-        if (ISUPPER(*pc)) /* ugly anti-caps hack */
+        fIll = true;
+        for (pc = name; *pc != '\0'; pc = utf8_nextchar(pc))
         {
-        if (adjcaps)
-            cleancaps = true;
-        total_caps++;
-        adjcaps = true;
+            unichar_t ch = utf8_getchar(pc);
+            if (ch < 0) // Invalid UTF-8 code
+                return false;
+
+            /*
+             * TODO: Need to add in character filtering so any "letter", not just ASCII letters, pass.
+             */
+            // if (!ISALPHA(ch))
+            //     return false;
+
+            if (ISUPPER(ch)) /* ugly anti-caps hack */
+            {
+                if (adjcaps)
+                    cleancaps = true;
+                total_caps++;
+                adjcaps = true;
+            }
+            else
+                adjcaps = false;
+
+            if (LOWER(ch) != 'i' && LOWER(ch) != 'l')
+                fIll = false;
         }
-        else
-        adjcaps = false;
 
-        if (LOWER(*pc) != 'i' && LOWER(*pc) != 'l')
-        fIll = false;
-    }
+        if (fIll)
+            return false;
 
-    if (fIll)
-        return false;
-
-    if (cleancaps || (total_caps > (strlen(name)) / 2 && strlen(name) < 3))
-        return false;
+        if (cleancaps || (total_caps > (strlen(name)) / 2 && strlen(name) < 3))
+            return false;
     }
 
    /*
@@ -3145,7 +3954,9 @@ bool check_parse_name(char *name)
         if (count)
     {
             sprintf(log_buf,"Double newbie alert (%s)",name);
-            wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,0);
+            emit_comm_wiz_event(log_buf, log_buf, NULL,
+                                WIZ_LOGINS, 0, 0,
+                                "double_newbie_alert", LOG_SECURITY);
 
             return false;
         }
@@ -3340,6 +4151,8 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     
     // Set playing state
     d->connected = CON_PLAYING;
+    if(!IS_NPC(ch))
+        d->lang = ch->pcdata->lang;
     
     // Notify player of reconnection
     send_to_char("\n\r{GReconnecting to game...{x\n\r", ch);
@@ -3358,7 +4171,8 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     
     // Log the reconnection
     log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", ch->name, d->host);
-    wiznet("$N has reconnected.", ch, NULL, WIZ_LINKS, 0, 0);
+    emit_comm_wiz_event("character reconnected", "$N has reconnected.",
+                        ch, WIZ_LINKS, 0, 0, "reconnect", LOG_SECURITY);
     
     // Update protocol
     MXPSendTag(d, "<VERSION>");
@@ -3366,6 +4180,7 @@ void complete_reconnect(DESCRIPTOR_DATA *d)
     // Show room to player
     do_function(ch, &do_look, "auto");
     event_notify_active_events_for_char(ch, true);
+    websocket_resume_issue(d);
 }
 
 /**
@@ -3434,13 +4249,17 @@ if (ch && ch->desc) {
     
     // Log the reconnection
     log_message_f(LOG_LEVEL_INFO, LOG_INFO, "%s@%s reconnected.", ch->name, d->host);
-    wiznet("$N has relinked.", ch, NULL, WIZ_LINKS, 0, 0);
+    emit_comm_wiz_event("character relinked", "$N has relinked.",
+                        ch, WIZ_LINKS, 0, 0, "relink", LOG_SECURITY);
     
     // Update protocol settings
     MXPSendTag(d, "<VERSION>");
     
     // Add connection to tracking
     connection_add(d);
+
+    // Issue/rotate websocket resume token after successful relink.
+    websocket_resume_issue(d);
 }
 
 /**
@@ -3726,7 +4545,10 @@ void page_to_char_bw(const char *txt, CHAR_DATA *ch)
     return;
     }
 
+    if (ch->desc->showstr_head)
+        free(ch->desc->showstr_head);
     ch->desc->showstr_head = malloc(strlen(txt) + 1);
+    if (!ch->desc->showstr_head) return;
     strcpy(ch->desc->showstr_head,txt);
     ch->desc->showstr_point = ch->desc->showstr_head;
     show_string(ch->desc,"");
@@ -3751,11 +4573,14 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 
     if (ch->lines == 0)
     {
-    send_to_char(txt,ch);
-    return;
+        send_to_char(txt,ch);
+        return;
     }
 
+    if (ch->desc->showstr_head)
+        free(ch->desc->showstr_head);
     ch->desc->showstr_head = malloc(strlen(txt) + 1);
+    if (!ch->desc->showstr_head) return;
     strcpy(ch->desc->showstr_head,txt);
     ch->desc->showstr_point = ch->desc->showstr_head;
 
@@ -3886,9 +4711,9 @@ void show_string(struct descriptor_data *d, char *input)
         if (d->showstr_head)
         {
             free(d->showstr_head);
-            d->showstr_head = 0;
+            d->showstr_head = NULL;
         }
-        d->showstr_point  = 0;
+        d->showstr_point  = NULL;
         return;
     }
 
@@ -3897,6 +4722,7 @@ void show_string(struct descriptor_data *d, char *input)
 
     int len = strlen(d->showstr_point);
     buffer = malloc(len + 1);
+    if (!buffer) return;
 
     if (d->character)
         show_lines = d->character->lines;
@@ -3979,7 +4805,7 @@ void show_string(struct descriptor_data *d, char *input)
  * @param min_pos    Minimum position to receive message
  * @param char_func  Filter function for TO_FUNC/TO_NOTFUNC (optional)
  */
-void act_new(char *format, CHAR_DATA *ch,
+void act_new(const char *format, CHAR_DATA *ch,
         CHAR_DATA *vch, CHAR_DATA *vch2,
         const char *ch_verb, const char *vch_verb, /* These are already const char* */
         OBJ_DATA *obj1, OBJ_DATA *obj2,
@@ -4023,8 +4849,10 @@ void act_new(char *format, CHAR_DATA *ch,
     to = vch->in_room->people;
     }
 
-    for (; to ; to = to->next_in_room)
+    CHAR_DATA *to_next;
+    for (; to ; to = to_next)
     {
+    to_next = to->next_in_room;
     if ((!IS_NPC(to) && !to->desc )
     ||   (!IS_SWITCHED(to) && IS_NPC(to) && !HAS_TRIGGER_MOB(to, TRIG_ACT))
     ||    to->position < min_pos)

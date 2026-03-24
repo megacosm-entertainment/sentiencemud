@@ -30,6 +30,7 @@ static HERB_DATA *              herb_data_free;
 static INK_DATA *               ink_data_free;
 static INSTRUMENT_DATA *        instrument_data_free;
 static ITEM_SHIP_DATA *         item_ship_data_free;
+static SHIP_MODULE_DATA *       ship_module_data_free;
 static JEWELRY_DATA *           jewelry_data_free;
 static LIGHT_DATA *             light_data_free;
 static MAP_DATA *               map_data_free;
@@ -1656,6 +1657,74 @@ void free_item_ship_data(ITEM_SHIP_DATA *data)
     INVALIDATE(data);
     data->next = item_ship_data_free;
     item_ship_data_free = data;
+}
+
+
+/* ========================================================================== */
+/*  SHIP MODULE                                                               */
+/* ========================================================================== */
+
+SHIP_MODULE_DATA *new_ship_module_data(void)
+{
+    SHIP_MODULE_DATA *data;
+
+    if (ship_module_data_free)
+    {
+        data = ship_module_data_free;
+        ship_module_data_free = ship_module_data_free->next;
+    }
+    else
+    {
+        data = alloc_mem(sizeof(SHIP_MODULE_DATA));
+    }
+
+    memset(data, 0, sizeof(SHIP_MODULE_DATA));
+    VALIDATE(data);
+    return data;
+}
+
+SHIP_MODULE_DATA *copy_ship_module_data(SHIP_MODULE_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    SHIP_MODULE_DATA *data = new_ship_module_data();
+    data->type                = src->type;
+    data->size                = src->size;
+    data->weight              = src->weight;
+    data->domain_flags        = src->domain_flags;
+    data->hit_bonus           = src->hit_bonus;
+    data->armor_bonus         = src->armor_bonus;
+    data->speed_bonus         = src->speed_bonus;
+    data->turning_bonus       = src->turning_bonus;
+    data->cargo_weight_bonus  = src->cargo_weight_bonus;
+    data->cargo_capacity_bonus = src->cargo_capacity_bonus;
+    data->crew_bonus          = src->crew_bonus;
+    data->damage              = src->damage;
+    data->range               = src->range;
+    data->reload_time         = src->reload_time;
+    data->damage_type         = src->damage_type;
+    data->weapon_flags        = src->weapon_flags;
+    data->operators           = src->operators;
+    data->req_gunning         = src->req_gunning;
+    data->req_mechanics       = src->req_mechanics;
+    data->req_scouting        = src->req_scouting;
+    data->req_navigation      = src->req_navigation;
+    data->req_oarring         = src->req_oarring;
+    data->req_leadership      = src->req_leadership;
+    data->ammo_ref            = src->ammo_ref;
+    data->ammo                = src->ammo;
+    data->ammo_per_shot       = src->ammo_per_shot;
+    data->flags               = src->flags;
+    return data;
+}
+
+void free_ship_module_data(SHIP_MODULE_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = ship_module_data_free;
+    ship_module_data_free = data;
 }
 
 
