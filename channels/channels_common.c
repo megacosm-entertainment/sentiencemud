@@ -1,5 +1,6 @@
 #include "../merc.h"
 #include "../tables.h"
+#include "../wilds.h"
 #include "channels_common.h"
 #include "channel_filter.h"
 
@@ -222,7 +223,7 @@ bool channel_build_room_scope_topic(ROOM_INDEX_DATA *room, char *topic_buf, size
         return false;
 
     if (room->wilds) {
-        wilds_uid = room->w;
+        wilds_uid = room->wilds->uid;
         if (wilds_uid <= 0)
             return false;
 
