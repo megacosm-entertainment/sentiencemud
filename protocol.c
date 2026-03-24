@@ -2491,13 +2491,13 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
             }
             else if ( PrefixString("Mudlet", pClientName) )
             {
-               /* Mudlet beta 15 and later supports 256 colours, but we can't 
-                * identify it from the mud - everything prior to 1.1 claims 
-                * to be version 1.0, so we just don't know.
-                */ 
+               /* Mudlet beta 15+ supports 256 colours; all modern Mudlet
+                * versions (1.x and later) support UTF-8 natively.
+                */
                pProtocol->b256Support = eYES;
                pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt = 1;
                pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
+               pProtocol->pVariables[eMSDP_UTF_8]->ValueInt = 1;
 
             }
             else if ( MatchString(pClientName, "EMACS-RINZAI") || MatchString(pClientName, "MUDRAMMER") )

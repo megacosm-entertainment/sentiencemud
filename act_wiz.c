@@ -62,6 +62,7 @@
 #include "traits.h"
 #include "class_data.h"
 #include "io/json/json_olc.h"
+#include "connection.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -4200,6 +4201,40 @@ void do_mstat(CHAR_DATA *ch, char *argument)
     {
         sprintf(buf, "{BSecurity:{x %d.\n\r", victim->pcdata->security);
         send_to_char(buf, ch);
+    }
+
+    if (!IS_NPC(victim) && victim->desc != NULL)
+    {
+        protocol_t *proto = victim->desc->pProtocol;
+        const char *conn_type = victim->desc->conn
+            ? connection_get_protocol_name(victim->desc->conn)
+            : "telnet";
+
+        sprintf(buf,
+            "{BProtocol:{x %s  "
+            "{BUTF-8:{x %s  "
+            "{BANSI:{x %s  "
+            "{B256-color:{x %s  "
+            "{BGMCP:{x %s  "
+            "{BMSDP:{x %s  "
+            "{BMCCP:{x %s  "
+            "{BCHARSET:{x %s\n\r",
+            conn_type,
+            (proto && proto->pVariables[eMSDP_UTF_8]->ValueInt)       ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->pVariables[eMSDP_ANSI_COLORS]->ValueInt) ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt) ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bGMCP)    ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bMSDP)    ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bMCCP)    ? "{Gyes{x" : "{Rno{x",
+            (proto && proto->bCHARSET) ? "{Gyes{x" : "{Rno{x");
+        send_to_char(buf, ch);
+
+        if (proto && proto->bNAWS)
+        {
+            sprintf(buf, "{BScreen:{x %dx%d (NAWS)\n\r",
+                proto->ScreenWidth, proto->ScreenHeight);
+            send_to_char(buf, ch);
+        }
     }
 
     if (IS_NPC(victim))
