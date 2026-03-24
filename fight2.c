@@ -90,7 +90,9 @@ void do_smite(CHAR_DATA *ch, char *argument)
     if (IS_AFFECTED(victim, AFF_FRENZY))
         chance -= 15;
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("smite")].beats);
+    { SKILL_DATA *_sk = skill_find("smite");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 
     if (number_percent() < chance) {
         act("{GYou smite $N with a powerful $t!", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_CHAR, NULL, NULL);
@@ -166,7 +168,9 @@ void do_stake(CHAR_DATA *ch, char *argument)
 
     chance += (ch->tot_level - victim->tot_level) / 3;
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("stake")].beats);
+    { SKILL_DATA *_sk = skill_find("stake");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 
     if (number_percent() < chance)
     {
@@ -212,6 +216,7 @@ void do_trample(CHAR_DATA *ch, char *argument)
     int dam, damclass;
     CHAR_DATA *victim;
     CHAR_DATA *mount;
+    SKILL_DATA *sk_trample = skill_find("trample");
 
     if (!(skill = get_skill(ch, skill_resolve_gsn("trample")))) {
         send_to_char("You have no knowledge of this skill.\n\r", ch);
@@ -290,9 +295,9 @@ void do_trample(CHAR_DATA *ch, char *argument)
         check_improve(ch, skill_resolve_gsn("trample"), true, 1);
         check_improve(ch, skill_resolve_gsn("riding"), true, 10);
         victim->position = POS_RESTING;
-        victim->bashed = skill_table[skill_resolve_gsn("trample")].beats;
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("trample")].beats);
-        WAIT_STATE(victim, skill_table[skill_resolve_gsn("trample")].beats);
+        victim->bashed = (sk_trample ? sk_trample->beats : 12);
+        WAIT_STATE(ch, (sk_trample ? sk_trample->beats : 12));
+        WAIT_STATE(victim, (sk_trample ? sk_trample->beats : 12));
 
         if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"attack_pass"))
             multi_hit(ch, victim, TYPE_UNDEFINED);
@@ -302,7 +307,7 @@ void do_trample(CHAR_DATA *ch, char *argument)
             act("{R$n charges towards you but you scramble out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
             act("{R$n charges towards $N at full speed but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
         }
-        WAIT_STATE(ch, (skill_table[skill_resolve_gsn("trample")].beats * 3)/2);
+        WAIT_STATE(ch, ((sk_trample ? sk_trample->beats : 12) * 3)/2);
         check_improve(ch, skill_resolve_gsn("trample"), false, 1);
         check_improve(ch, skill_resolve_gsn("riding"), false, 10);
 
@@ -343,7 +348,9 @@ void do_shift(CHAR_DATA *ch, char *argument)
     /* wait state is here because shift_char above is also used in log out/in routines.
        Only wait when shifting, not going back.*/
     if (ch->shifted != SHIFTED_NONE)
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("shift")].beats);
+    { SKILL_DATA *_sk = skill_find("shift");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 }
 
 
@@ -713,7 +720,9 @@ void do_behead(CHAR_DATA *ch, char *argument)
 
     chance = skill - get_curr_stat(victim, STAT_DEX) + get_curr_stat(ch, STAT_STR) + 2;
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("behead")].beats);
+    { SKILL_DATA *_sk = skill_find("behead");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 
     act("{RWith a mighty $t, $n brings $s weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_NOTVICT, NULL, NULL);
     act("{RWith a mighty $t, you bring your weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[WEAPON(wield)->damage_type].noun, NULL, TO_CHAR, NULL, NULL);
