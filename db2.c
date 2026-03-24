@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include "strings.h"
 #include "merc.h"
+#include "skill_data.h"
 #include "skill_group.h"
 #include "db.h"
 #include "tables.h"
@@ -1297,17 +1298,20 @@ void do_dump( CHAR_DATA *ch, char *argument )
                     switch(obj->item_type) {
                     case ITEM_WEAPON:
                     case ITEM_ARMOUR:
-                        fprintf(fp, "%ld	%s	%s	", obj->value[5], obj->value[6] > 0 ? skill_table[obj->value[6]].name :
-                            "none", obj->value[7] > 0 ? skill_table[obj->value[7]].name : "none");
+                        fprintf(fp, "%ld	%s	%s	", obj->value[5],
+                            obj->value[6] > 0 ? skill_name(skill_find_uid(obj->value[6])) : "none",
+                            obj->value[7] > 0 ? skill_name(skill_find_uid(obj->value[7])) : "none");
                         break;
                     case ITEM_ARTIFACT:
-                        fprintf(fp, "%ld	%s	%s	", obj->value[0], obj->value[1] > 0 ? skill_table[obj->value[1]].name :
-                            "none", obj->value[2] > 0 ? skill_table[obj->value[2]].name : "none");
+                        fprintf(fp, "%ld	%s	%s	", obj->value[0],
+                            obj->value[1] > 0 ? skill_name(skill_find_uid(obj->value[1])) : "none",
+                            obj->value[2] > 0 ? skill_name(skill_find_uid(obj->value[2])) : "none");
                         break;
 
                     case ITEM_LIGHT:
-                        fprintf(fp, "%ld	%s	%s	", obj->value[3], obj->value[4] > 0 ? skill_table[obj->value[4]].name :
-                            "none", obj->value[5] > 0 ? skill_table[obj->value[5]].name : "none");
+                        fprintf(fp, "%ld	%s	%s	", obj->value[3],
+                            obj->value[4] > 0 ? skill_name(skill_find_uid(obj->value[4])) : "none",
+                            obj->value[5] > 0 ? skill_name(skill_find_uid(obj->value[5])) : "none");
                         break;
                     }
                 } else {

@@ -989,7 +989,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     fprintf(fp, "%s '%s' '%s' %3d %3d %3d %3d %3d %10ld %10ld %d\n",
         (paf->custom_name?"Affcgn":"Affcg"),
-        (paf->custom_name?paf->custom_name:skill_table[paf->type].name),
+        (paf->custom_name?paf->custom_name:skill_name(skill_find_uid(paf->type))),
         flag_string(affgroup_mobile_flags,paf->group),
         paf->where,
         paf->level,
@@ -1574,22 +1574,23 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         continue;
 
     if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-        if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+        SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+        if(!sd_loc || !sd_loc->name) continue;
         fprintf(fp, "Affcg '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-            skill_table[paf->type].name,
+            skill_name(skill_find_uid(paf->type)),
             paf->where,
             paf->group,
             paf->level,
             paf->duration,
             paf->modifier,
             APPLY_SKILL,
-            skill_table[paf->location - APPLY_SKILL].name,
+            sd_loc->name,
             paf->bitvector,
             paf->bitvector2
         );
     } else {
         fprintf(fp, "Affcg '%s' %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-            skill_table[paf->type].name,
+            skill_name(skill_find_uid(paf->type)),
             paf->where,
             paf->group,
             paf->level,
@@ -1608,7 +1609,8 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         if (!paf->custom_name) continue;
 
     if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-        if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+        SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+        if(!sd_loc || !sd_loc->name) continue;
         fprintf(fp, "Affcgn '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
             paf->custom_name,
             paf->where,
@@ -1617,7 +1619,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
             paf->duration,
             paf->modifier,
             APPLY_SKILL,
-            skill_table[paf->location - APPLY_SKILL].name,
+            sd_loc->name,
             paf->bitvector,
             paf->bitvector2
         );
@@ -1645,7 +1647,8 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         continue;
 
     if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-        if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+        SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+        if(!sd_loc || !sd_loc->name) continue;
         fprintf(fp, "Affrg %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
             paf->where,
             paf->group,
@@ -1653,7 +1656,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
             paf->duration,
             paf->modifier,
             APPLY_SKILL,
-            skill_table[paf->location - APPLY_SKILL].name,
+            sd_loc->name,
             paf->bitvector,
             paf->bitvector2
         );
@@ -2891,15 +2894,18 @@ void fix_object(OBJ_DATA *obj)
 
                 for (i = 1; i < 4; i++)
             {
-            if ((sn = legacy_values[i]) > 0 && sn < MAX_SKILL
-            &&  skill_table[sn].spell_fun != spell_null)
+            if ((sn = legacy_values[i]) > 0 && sn < MAX_SKILL)
             {
-                spell_new = new_spell();
-                spell_new->sn = sn;
-                spell_new->level = level;
+                SKILL_DATA *sd = skill_find_uid(sn);
+                if (sd && sd->spell_fun != spell_null)
+                {
+                    spell_new = new_spell();
+                    spell_new->sn = sn;
+                    spell_new->level = level;
 
-                spell_new->next = obj->spells;
-                obj->spells = spell_new;
+                    spell_new->next = obj->spells;
+                    obj->spells = spell_new;
+                }
             }
             }
 
@@ -2911,15 +2917,18 @@ void fix_object(OBJ_DATA *obj)
             else
             level = obj->level;
 
-            if ((sn = legacy_values[3]) > 0 && sn < MAX_SKILL
-            &&   skill_table[sn].spell_fun != spell_null)
+            if ((sn = legacy_values[3]) > 0 && sn < MAX_SKILL)
             {
+                SKILL_DATA *sd = skill_find_uid(sn);
+                if (sd && sd->spell_fun != spell_null)
+                {
             spell_new = new_spell();
             spell_new->sn = sn;
             spell_new->level = level;
 
             spell_new->next = obj->spells;
             obj->spells = spell_new;
+                }
             }
 
             break;
@@ -4014,7 +4023,7 @@ void fwrite_skill(CHAR_DATA *ch, SKILL_ENTRY *entry, FILE *fp)
             fprintf(fp, "Sk %d %d %s~\n",
                 ch->pcdata->learned[entry->sn],
                 ch->pcdata->mod_learned[entry->sn],
-                skill_table[entry->sn].name);
+                skill_name(skill_find_uid(entry->sn)));
         }
 
         if( entry->song != NULL ) {
@@ -4057,7 +4066,8 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
             } else if(sn > 0) {
                 ch->pcdata->learned[sn] = rating;
                 ch->pcdata->mod_learned[sn] = mod;
-                if( skill_table[sn].spell_fun == spell_null)
+                SKILL_DATA *sd = skill_find_uid(sn);
+                if( sd && sd->spell_fun == spell_null)
                     skill_entry_addskill(ch, sn, NULL, source, flags);
                 else
                     skill_entry_addspell(ch, sn, NULL, source, flags);

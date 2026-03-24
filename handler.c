@@ -562,14 +562,15 @@ int get_skill(CHAR_DATA *ch, int sn)
 {
     int skill;
     SKILL_ENTRY *entry = NULL;
+    SKILL_DATA *sd = skill_find_uid(sn);
 
     if (!IS_NPC(ch) && sn >= 0 && sn < MAX_SKILL)
         entry = skill_entry_findsn(ch->sorted_skills, sn);
 
     // Racial skills
-    if (!IS_NPC(ch) && ch->race && sn >= 0 && sn < MAX_SKILL)
+    if (!IS_NPC(ch) && ch->race && sn >= 0 && sn < MAX_SKILL && sd)
     {
-        if (race_has_skill(ch->race, skill_table[sn].name)) {
+        if (race_has_skill(ch->race, sd->name)) {
             if (!entry)
                 return 0;
 
@@ -597,7 +598,7 @@ int get_skill(CHAR_DATA *ch, int sn)
 
     this_class = get_this_class(ch,sn);
 
-    if (had_skill(ch,sn) || ch->level >= skill_table[sn].skill_level[this_class]) {
+    if (had_skill(ch,sn) || (sd && ch->level >= sd->skill_level[this_class])) {
         if (entry)
             skill = skill_entry_rating(ch, entry);
         else
@@ -626,13 +627,13 @@ int get_skill(CHAR_DATA *ch, int sn)
      * well up to lv500  */
 
     // Account for racial skills.
-    if (skill_table[sn].race != -1 && (!ch->race || ch->race->uid != skill_table[sn].race))
+    if (sd && sd->race != NULL && (!ch->race || ch->race != sd->race))
         skill = 0;
     if (ch->tot_level < 10)
         skill = 10;
 
     /* Handle spells */
-    if (skill_table[sn].spell_fun != spell_null) {
+    if (sd && sd->spell_fun != spell_null) {
         if (ch->max_mana > 0)
             skill = 40+19 * log10(ch->tot_level)/2;
         else
@@ -700,7 +701,7 @@ int get_skill(CHAR_DATA *ch, int sn)
 
     if (ch->daze > 0)
     {
-    if (skill_table[sn].spell_fun != spell_null)
+    if (sd && sd->spell_fun != spell_null)
         skill /= 2;
     else
         skill = 2 * skill / 3;
@@ -2797,8 +2798,9 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
             if(!found) {
                 // No other worn object had this spell available
                 if (show) {
-                    if (skill_table[spell->sn].msg_off) {
-                        send_to_char(skill_table[spell->sn].msg_off, ch);
+                    SKILL_DATA *sd = skill_find_uid(spell->sn);
+                    if (sd && sd->msg_off) {
+                        send_to_char(sd->msg_off, ch);
                         send_to_char("\n\r", ch);
                     }
                 }
@@ -7759,7 +7761,8 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
          spell->level	= legacy_obj_index_value_get(obj, 0);
          spell->repop	= 100; // Assuming 100 on objects made before rand was implemented
          spell->next     = NULL;
-         if (!str_cmp(skill_table[spell->sn].name, "none"))
+         SKILL_DATA *sd = skill_find_uid(spell->sn);
+         if (!sd || !str_cmp(sd->name, "none"))
              free_spell(spell);
          else {
              if (obj->spells == NULL)
@@ -7774,7 +7777,7 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 
              log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Obj %s (%ld): Added spell %s, level %d, random %d.",
                  obj->short_descr, obj->vnum,
-                 skill_table[legacy_obj_index_value_get(obj, val)].name, spell->level, spell->repop);
+                 sd->name, spell->level, spell->repop);
          }
 
          obj->value[val] = 0; // Reset legacy slot after migration
@@ -7803,7 +7806,8 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
          spell->repop	= 100; // Assuming 100 on objects made before rand was implemented
          spell->next     = NULL;
 
-         if (!str_cmp(skill_table[spell->sn].name, "none"))
+         SKILL_DATA *sd2 = skill_find_uid(spell->sn);
+         if (!sd2 || !str_cmp(sd2->name, "none"))
              free_spell(spell);
          else {
              if (obj->spells == NULL)
@@ -7818,7 +7822,7 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 
              log_message_f(LOG_LEVEL_DEBUG, LOG_DEBUG, "Obj %s (%ld): Added spell %s, level %d, random %d.",
                  obj->short_descr, obj->vnum,
-                 skill_table[legacy_obj_index_value_get(obj, val)].name, spell->level, spell->repop);
+                 sd2->name, spell->level, spell->repop);
          }
          obj->value[val] = 0;
          }

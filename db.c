@@ -1620,44 +1620,45 @@ int get_this_class(CHAR_DATA *ch, int sn)
 {
     int this_class;
     int level;
+    SKILL_DATA *sd = skill_find_uid(sn);
 
-    if (skill_table[sn].name == NULL)
+    if (!sd || sd->name == NULL)
     return 9999;
 
     this_class = 9999;
 
     if (ch->pcdata->class_mage != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_mage]) < 31)
+        && (level = sd->skill_level[ch->pcdata->class_mage]) < 31)
     {
     this_class = ch->pcdata->class_mage;
     }
     else
     if (ch->pcdata->class_cleric != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_cleric]) < 31)
+        && (level = sd->skill_level[ch->pcdata->class_cleric]) < 31)
     {
         this_class = ch->pcdata->class_cleric;
     }
     else
         if (ch->pcdata->class_thief != -1
-            && (level = skill_table[sn].skill_level[ch->pcdata->class_thief]) < 31)
+            && (level = sd->skill_level[ch->pcdata->class_thief]) < 31)
         {
         this_class = ch->pcdata->class_thief;
         }
         else
         if (ch->pcdata->class_warrior != -1
-            && (level = skill_table[sn].skill_level[ch->pcdata->class_warrior]) < 31)
+            && (level = sd->skill_level[ch->pcdata->class_warrior]) < 31)
         {
             this_class = ch->pcdata->class_warrior;
         }
 
     if (race_get_trait_bool(ch->race, "classless_skills")) {
-    if (skill_table[sn].skill_level[0] < 31)
+    if (sd->skill_level[0] < 31)
         return 0;
-    if (skill_table[sn].skill_level[1] < 31)
+    if (sd->skill_level[1] < 31)
         return 1;
-    if (skill_table[sn].skill_level[2] < 31)
+    if (sd->skill_level[2] < 31)
         return 2;
-    if (skill_table[sn].skill_level[3] < 31)
+    if (sd->skill_level[3] < 31)
         return 3;
 
     return 0;
@@ -8394,21 +8395,22 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
             continue;
 
         if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-            if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+            SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+            if(!sd_loc || !sd_loc->name) continue;
             fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-                skill_table[paf->type].name,
+                skill_name(skill_find_uid(paf->type)),
                 paf->where,
                 paf->group,
                 paf->level,
                 paf->duration,
                 paf->modifier,
                 APPLY_SKILL,
-                skill_table[paf->location - APPLY_SKILL].name,
+                sd_loc->name,
                 paf->bitvector,
                 paf->bitvector2);	// **
         } else {
             fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-                skill_table[paf->type].name,
+                skill_name(skill_find_uid(paf->type)),
                 paf->where,
                 paf->group,
                 paf->level,
@@ -8424,7 +8426,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
         if (!paf->custom_name) continue;
 
         if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-            if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+            SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+            if(!sd_loc || !sd_loc->name) continue;
             fprintf(fp, "AffObjNm '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
                 paf->custom_name,
                 paf->where,
@@ -8433,7 +8436,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
                 paf->duration,
                 paf->modifier,
                 APPLY_SKILL,
-                skill_table[paf->location - APPLY_SKILL].name,
+                sd_loc->name,
                 paf->bitvector,
                 paf->bitvector2);	// **
         } else {
@@ -8458,7 +8461,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
             continue;
 
         if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-            if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+            SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+            if(!sd_loc || !sd_loc->name) continue;
                 fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
                     paf->where,
                     paf->group,
@@ -8466,7 +8470,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
                     paf->duration,
                     paf->modifier,
                     APPLY_SKILL,
-                    skill_table[paf->location - APPLY_SKILL].name,
+                    sd_loc->name,
                     paf->bitvector,
                     paf->bitvector2);	// **
             } else {
@@ -8673,7 +8677,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 
         fprintf(fp, "%s '%s' '%s' %3d %3d %3d %3d %3d %10ld %10ld %3d\n",
             (paf->custom_name?"Affcgn":"Affcg"),
-            (paf->custom_name?paf->custom_name:skill_table[paf->type].name),
+            (paf->custom_name?paf->custom_name:skill_name(skill_find_uid(paf->type))),
             flag_string(affgroup_mobile_flags,paf->group),
             paf->where,
             paf->level,

@@ -2385,10 +2385,13 @@ void char_update(void)
                 if (paf_next == NULL || paf_next->type != paf->type ||
                     paf_next->duration > 0)
                 {
-                    if (paf->type > 0 && skill_table[paf->type].msg_off)
-                    {
-                        send_to_char(skill_table[paf->type].msg_off, ch);
-                        send_to_char("\n\r", ch);
+                    if (paf->type > 0) {
+                        SKILL_DATA *sd = skill_find_uid(paf->type);
+                        if (sd && sd->msg_off)
+                        {
+                            send_to_char(sd->msg_off, ch);
+                            send_to_char("\n\r", ch);
+                        }
                     }
                 }
 
@@ -2522,13 +2525,16 @@ void obj_update(void)
                 // Affect wears off, send message if applicable
                 } else if (!paf->duration) {
                     if (!paf_next || paf_next->type != paf->type || paf_next->duration > 0) {
-                        if (paf->type > 0 && skill_table[paf->type].msg_obj) {
-                            if (obj->carried_by != NULL) {
-                                rch = obj->carried_by;
-                                act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-                            } else if (obj->in_room && obj->in_room->people) {
-                                rch = obj->in_room->people;
-                                act(skill_table[paf->type].msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+                        if (paf->type > 0) {
+                            SKILL_DATA *sd = skill_find_uid(paf->type);
+                            if (sd && sd->msg_obj) {
+                                if (obj->carried_by != NULL) {
+                                    rch = obj->carried_by;
+                                    act(sd->msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
+                                } else if (obj->in_room && obj->in_room->people) {
+                                    rch = obj->in_room->people;
+                                    act(sd->msg_obj, rch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL, NULL, NULL);
+                                }
                             }
                         }
                     }
@@ -4740,18 +4746,20 @@ void gmcp_update( void )
             
             for ( paf = d->character->affected; paf; paf = paf->next )
             {
+                SKILL_DATA *sd = skill_find_uid(paf->type);
+                const char *aff_name = paf->custom_name ? paf->custom_name : (sd ? sd->name : "unknown");
                 #ifndef COLOR_CODE_FIX
-                if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                if ( buf[0] == '\0' ) sprintf( buf, "[ { \"name\": \"%s\", \"duration\": \"%d\" }", aff_name, paf->duration );
                 else
                 {
-                    sprintf( buf2, ", { \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                    sprintf( buf2, ", { \"name\": \"%s\", \"duration\": \"%d\" }", aff_name, paf->duration );
                     strcat( buf, buf2 );
                 }
                 #else
-                if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                if ( buf[0] == '\0' ) sprintf( buf, "[ {{ \"name\": \"%s\", \"duration\": \"%d\" }", aff_name, paf->duration );
                 else
                 {
-                    sprintf( buf2, ", {{ \"name\": \"%s\", \"duration\": \"%d\" }", paf->custom_name ? paf->custom_name : skill_table[paf->type].name, paf->duration );
+                    sprintf( buf2, ", {{ \"name\": \"%s\", \"duration\": \"%d\" }", aff_name, paf->duration );
                     strcat( buf, buf2 );
                 }
                 #endif                
