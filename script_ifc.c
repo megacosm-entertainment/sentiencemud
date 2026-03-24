@@ -13,6 +13,7 @@
 #include "song_data.h"
 #include "traits.h"
 #include "event_types.h"
+#include "skill_data.h"
 #include <math.h>
 
 extern bool wiznet_script;
@@ -4754,7 +4755,8 @@ DECL_IFC_FUN(ifc_isspell)
         else
             return false;
 
-        *ret = sn >= 0 && sn < MAX_SKILL && skill_table[sn].spell_fun && skill_table[sn].spell_fun != spell_null;
+        SKILL_DATA *ifc_sk = skill_find_uid(sn);
+        *ret = sn >= 0 && sn < MAX_SKILL && ifc_sk && ifc_sk->spell_fun && ifc_sk->spell_fun != spell_null;
     }
 
     return true;

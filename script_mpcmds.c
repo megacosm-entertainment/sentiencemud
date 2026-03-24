@@ -947,7 +947,13 @@ SCRIPT_CMD(do_mpcast)
     default: sn = 0; break;
     }
 
-    if (sn < 1 || skill_table[sn].spell_fun == spell_null || sn > MAX_SKILL) {
+    if (sn < 1 || sn > MAX_SKILL) {
+        pbugf(LOG_SCRIPTS, "MpCast - No such spell from vnum %d.", VNUM(info->mob));
+        return;
+    }
+
+    SKILL_DATA *cast_sk = skill_find_uid(sn);
+    if (!cast_sk || cast_sk->spell_fun == spell_null) {
         pbugf(LOG_SCRIPTS, "MpCast - No such spell from vnum %d.", VNUM(info->mob));
         return;
     }
@@ -969,7 +975,7 @@ SCRIPT_CMD(do_mpcast)
         }
     }
 
-    switch (skill_table[sn].target) {
+    switch (cast_sk->target) {
     default: return;
     case TAR_IGNORE: break;
     case TAR_CHAR_OFFENSIVE:
@@ -988,7 +994,7 @@ SCRIPT_CMD(do_mpcast)
         if (!obj) return;
         to = obj;
     }
-    (*skill_table[sn].spell_fun)(skill_find_uid(sn), info->mob->level, info->mob, to, skill_table[sn].target, WEAR_NONE, INVOC_INTERNAL);
+    (*cast_sk->spell_fun)(cast_sk, info->mob->level, info->mob, to, cast_sk->target, WEAR_NONE, INVOC_INTERNAL);
     return;
 }
 

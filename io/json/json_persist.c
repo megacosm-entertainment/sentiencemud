@@ -558,14 +558,18 @@ json_t *json_persist_affect_to_json(AFFECT_DATA *paf)
     /* For skill-based locations, store skill name for readability */
     if (paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
         int skill_index = paf->location - APPLY_SKILL;
-        if (skill_table[skill_index].name) {
-            json_object_set_new(json, "skill_name", json_string(skill_table[skill_index].name));
+        SKILL_DATA *loc_sk = skill_find_uid(skill_index);
+        if (loc_sk && loc_sk->name) {
+            json_object_set_new(json, "skill_name", json_string(loc_sk->name));
         }
     }
 
     /* For skill-based types, store skill name */
-    if (paf->type >= 0 && paf->type < MAX_SKILL && skill_table[paf->type].name) {
-        json_object_set_new(json, "type_name", json_string(skill_table[paf->type].name));
+    {
+        SKILL_DATA *type_sk = skill_find_uid(paf->type);
+        if (paf->type >= 0 && paf->type < MAX_SKILL && type_sk && type_sk->name) {
+            json_object_set_new(json, "type_name", json_string(type_sk->name));
+        }
     }
 
     return json;
@@ -1633,7 +1637,8 @@ json_t *json_persist_mobile_to_json(CHAR_DATA *ch)
             if (paf->custom_name) {
                 json_object_set_new(aff, "custom_name", json_string(paf->custom_name));
             } else {
-                json_object_set_new(aff, "skill_name", json_string(skill_table[paf->type].name));
+                SKILL_DATA *aff_sk = skill_find_uid(paf->type);
+                json_object_set_new(aff, "skill_name", json_string(aff_sk ? aff_sk->name : "unknown"));
             }
             json_object_set_new(aff, "group", json_string(flag_string(affgroup_mobile_flags, paf->group)));
             json_object_set_new(aff, "where", json_integer(paf->where));

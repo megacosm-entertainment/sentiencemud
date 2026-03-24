@@ -107,10 +107,11 @@ SPELL_FUNC(spell_counter_spell)
         act("{YYour magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("{Y$n's magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
-        mana = skill_table[sn].min_mana;
+        SKILL_DATA *counter_skill = skill_find_uid(sn);
+        mana = counter_skill ? counter_skill->min_mana : 0;
 
         target = TARGET_NONE;
-        switch (skill_table[sn].target) {
+        switch (counter_skill ? counter_skill->target : TAR_IGNORE) {
         default:
             pbugf(LOG_ERROR, "Do_cast: bad target for sn %d.", sn);
             return true;
@@ -149,7 +150,8 @@ SPELL_FUNC(spell_counter_spell)
 
         victim->mana -= mana/3;
         ch->mana -= (mana * 2)/3;
-        (*skill_table[sn].spell_fun)(skill_find_uid(sn), 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE, INVOC_CAST);
+        if (counter_skill && counter_skill->spell_fun)
+            (*counter_skill->spell_fun)(counter_skill, 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE, INVOC_CAST);
     } else
         stop_casting(victim, true);
 

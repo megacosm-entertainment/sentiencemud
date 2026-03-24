@@ -8273,7 +8273,8 @@ SCRIPT_CMD(scriptcmd_grantskill)
         if( skill_entry_findsn(mob->sorted_skills, sn) )
             return;
 
-        if( skill_table[sn].spell_fun == spell_null ) {
+        SKILL_DATA *learn_sk = skill_find_uid(sn);
+        if( !learn_sk || learn_sk->spell_fun == spell_null ) {
             skill_entry_addskill(mob, sn, NULL, source, flags);
         } else {
             skill_entry_addspell(mob, sn, NULL, source, flags);
@@ -12036,7 +12037,8 @@ SCRIPT_CMD(scriptcmd_addspell)
     if(sn <= 0)
         return;
 
-    if(skill_table[sn].spell_fun == spell_null)
+    SKILL_DATA *cast_sk1 = skill_find_uid(sn);
+    if(!cast_sk1 || cast_sk1->spell_fun == spell_null)
         return;
 
     if(rest && *rest) {
@@ -12303,7 +12305,8 @@ SCRIPT_CMD(scriptcmd_remspell)
     if(sn <= 0)
         return;
 
-    if(skill_table[sn].spell_fun == spell_null)
+    SKILL_DATA *cast_sk2 = skill_find_uid(sn);
+    if(!cast_sk2 || cast_sk2->spell_fun == spell_null)
         return;
 
     if(rest && *rest) {
@@ -12380,8 +12383,9 @@ SCRIPT_CMD(scriptcmd_remspell)
 
             if(!found) {
                 if(show) {
-                    if(skill_table[sn].msg_off) {
-                        send_to_char(skill_table[sn].msg_off, target->carried_by);
+                    SKILL_DATA *strip_sk = skill_find_uid(sn);
+                    if(strip_sk && strip_sk->msg_off) {
+                        send_to_char(strip_sk->msg_off, target->carried_by);
                         send_to_char("\n\r", target->carried_by);
                     }
                 }

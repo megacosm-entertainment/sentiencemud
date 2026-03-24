@@ -3887,23 +3887,26 @@ SCRIPT_CMD(do_tpskill)
             else if( value > 100 ) value = 100;
 
             entry = skill_entry_findsn(mob->sorted_skills, sn);
-            if( value == 0 ) {
-                if( skill_table[sn].spell_fun == spell_null )
-                    skill_entry_removeskill(mob, sn, NULL);
-                else
-                    skill_entry_removespell(mob, sn, NULL);
-            } else {
-                if( !entry ) {
-                    if( skill_table[sn].spell_fun == spell_null )
-                        skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+            {
+                SKILL_DATA *mod_sk = skill_find_uid(sn);
+                if( value == 0 ) {
+                    if( !mod_sk || mod_sk->spell_fun == spell_null )
+                        skill_entry_removeskill(mob, sn, NULL);
                     else
-                        skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        skill_entry_removespell(mob, sn, NULL);
+                } else {
+                    if( !entry ) {
+                        if( !mod_sk || mod_sk->spell_fun == spell_null )
+                            skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        else
+                            skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
 
-                    entry = skill_entry_findsn(mob->sorted_skills, sn);
+                        entry = skill_entry_findsn(mob->sorted_skills, sn);
+                    }
+
+                    if( entry )
+                        entry->rating = value;
                 }
-
-                if( entry )
-                    entry->rating = value;
             }
 
             mob->pcdata->learned[sn] = value;

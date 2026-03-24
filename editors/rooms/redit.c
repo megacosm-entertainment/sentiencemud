@@ -23,6 +23,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../../skill_data.h"
 
 extern bool redit_blueprint_oncreate;
 extern bool change_exit(CHAR_DATA *ch, char *argument, int door);
@@ -2125,7 +2126,8 @@ REDIT (redit_addrprog)
         else
         {
             int sn = skill_lookup(phrase);
-            if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+            SKILL_DATA *spell_ref = skill_find_uid(sn);
+            if(sn < 0 || !spell_ref || spell_ref->spell_fun == spell_null) {
                 send_to_char("Invalid spell for trigger.\n\r",ch);
                 return false;
             }

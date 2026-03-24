@@ -652,7 +652,13 @@ SCRIPT_CMD(do_opcast)
     default: sn = 0; break;
     }
 
-    if (sn < 1 || skill_table[sn].spell_fun == spell_null || sn > MAX_SKILL) {
+    if (sn < 1 || sn > MAX_SKILL) {
+        pbugf(LOG_SCRIPTS, "OpCast - No such spell from vnum %d.", VNUM(info->obj));
+        return;
+    }
+
+    SKILL_DATA *cast_sk = skill_find_uid(sn);
+    if (!cast_sk || cast_sk->spell_fun == spell_null) {
         pbugf(LOG_SCRIPTS, "OpCast - No such spell from vnum %d.", VNUM(info->obj));
         return;
     }
@@ -690,7 +696,7 @@ SCRIPT_CMD(do_opcast)
     reagent = create_object(get_reserved_obj_index("obj_black_moonstone_shard"), 1, false);
     obj_to_char(reagent,proxy);
 
-    switch (skill_table[sn].target) {
+    switch (cast_sk->target) {
     default: pbugf(LOG_SCRIPTS, "obj_cast: bad target for sn %d.", sn); return;
     case TAR_IGNORE: to = NULL; break;
     case TAR_CHAR_OFFENSIVE:
@@ -744,7 +750,7 @@ SCRIPT_CMD(do_opcast)
     if ((target == TARGET_CHAR && !vch) ||
         (target == TARGET_OBJ  && !obj) ||
         target == TARGET_ROOM || target == TARGET_NONE)
-        (*skill_table[sn].spell_fun)(skill_find_uid(sn), info->obj->level, proxy, to, target, WEAR_NONE, INVOC_INTERNAL);
+        (*cast_sk->spell_fun)(cast_sk, info->obj->level, proxy, to, target, WEAR_NONE, INVOC_INTERNAL);
     else {
         sprintf(buf, "obj_cast: %s(%ld) couldn't find its target", info->obj->short_descr, info->obj->pIndexData->vnum);
         log_string(buf);
@@ -3700,23 +3706,26 @@ SCRIPT_CMD(do_opskill)
             else if( value > 100 ) value = 100;
 
             entry = skill_entry_findsn(mob->sorted_skills, sn);
-            if( value == 0 ) {
-                if( skill_table[sn].spell_fun == spell_null )
-                    skill_entry_removeskill(mob, sn, NULL);
-                else
-                    skill_entry_removespell(mob, sn, NULL);
-            } else {
-                if( !entry ) {
-                    if( skill_table[sn].spell_fun == spell_null )
-                        skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+            {
+                SKILL_DATA *mod_sk = skill_find_uid(sn);
+                if( value == 0 ) {
+                    if( !mod_sk || mod_sk->spell_fun == spell_null )
+                        skill_entry_removeskill(mob, sn, NULL);
                     else
-                        skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        skill_entry_removespell(mob, sn, NULL);
+                } else {
+                    if( !entry ) {
+                        if( !mod_sk || mod_sk->spell_fun == spell_null )
+                            skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        else
+                            skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
 
-                    entry = skill_entry_findsn(mob->sorted_skills, sn);
-                }
+                        entry = skill_entry_findsn(mob->sorted_skills, sn);
+                    }
 
                 if( entry )
                     entry->rating = value;
+                }
             }
 
             mob->pcdata->learned[sn] = value;

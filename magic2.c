@@ -155,13 +155,14 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
     }
 
     /* it bounces to a random person */
-    if (skill_table[sn].target != TAR_IGNORE)
+    SKILL_DATA *bounce_skill = skill_find_uid(sn);
+    if (bounce_skill && bounce_skill->target != TAR_IGNORE)
         for (attempts = 0; attempts < 6; attempts++) {
             rch = get_random_char(NULL, NULL, victim->in_room, NULL);
             if ((ch != NULL && rch == ch) ||
                 rch == victim ||
-                ((skill_table[sn].target == TAR_CHAR_OFFENSIVE ||
-                skill_table[sn].target == TAR_OBJ_CHAR_OFF) &&
+                ((bounce_skill->target == TAR_CHAR_OFFENSIVE ||
+                bounce_skill->target == TAR_OBJ_CHAR_OFF) &&
                 ch != NULL && is_safe(ch, rch, false))) {
                 rch = NULL;
                 continue;
@@ -184,7 +185,8 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
             act("{Y$n's spell bounces off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
         }
 
-        (*skill_table[sn].spell_fun)(skill_find_uid(sn), ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : rch, rch, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+        if (bounce_skill && bounce_skill->spell_fun)
+            (*bounce_skill->spell_fun)(bounce_skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : rch, rch, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     } else {
         if (ch != NULL) {
             act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);

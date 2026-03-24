@@ -361,13 +361,14 @@ void music_end( CHAR_DATA *ch )
                 if( (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) && pSong->spell1 )
                 {
                     sn = skill_lookup(pSong->spell1);
+                    SKILL_DATA *song_sk = skill_find_uid(sn);
 
-                    if( sn > 0 && sn < MAX_SKILL && skill_table[sn].spell_fun != spell_null)
+                    if( sn > 0 && sn < MAX_SKILL && song_sk && song_sk->spell_fun != spell_null)
                     {
-                        if(skill_table[sn].target == TAR_CHAR_OFFENSIVE || skill_table[sn].target == TAR_OBJ_CHAR_DEF)
+                        if(song_sk->target == TAR_CHAR_OFFENSIVE || song_sk->target == TAR_OBJ_CHAR_DEF)
                             offensive = true;
                         if (check_spell_deflection(ch, mob, sn))
-                            (*skill_table[sn].spell_fun) (skill_find_uid(sn), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*song_sk->spell_fun) (song_sk, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                 }
@@ -375,13 +376,14 @@ void music_end( CHAR_DATA *ch )
                 if( (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) && pSong->spell2 )
                 {
                     sn = skill_lookup(pSong->spell2);
+                    SKILL_DATA *song_sk = skill_find_uid(sn);
 
-                    if( sn > 0 && sn < MAX_SKILL && skill_table[sn].spell_fun != spell_null)
+                    if( sn > 0 && sn < MAX_SKILL && song_sk && song_sk->spell_fun != spell_null)
                     {
-                        if(skill_table[sn].target == TAR_CHAR_OFFENSIVE || skill_table[sn].target == TAR_OBJ_CHAR_DEF)
+                        if(song_sk->target == TAR_CHAR_OFFENSIVE || song_sk->target == TAR_OBJ_CHAR_DEF)
                             offensive = true;
                         if (check_spell_deflection(ch, mob, sn))
-                            (*skill_table[sn].spell_fun) (skill_find_uid(sn), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*song_sk->spell_fun) (song_sk, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                 }
@@ -389,13 +391,14 @@ void music_end( CHAR_DATA *ch )
                 if( (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) && pSong->spell3 )
                 {
                     sn = skill_lookup(pSong->spell3);
+                    SKILL_DATA *song_sk = skill_find_uid(sn);
 
-                    if( sn > 0 && sn < MAX_SKILL && skill_table[sn].spell_fun != spell_null)
+                    if( sn > 0 && sn < MAX_SKILL && song_sk && song_sk->spell_fun != spell_null)
                     {
-                        if(skill_table[sn].target == TAR_CHAR_OFFENSIVE || skill_table[sn].target == TAR_OBJ_CHAR_DEF)
+                        if(song_sk->target == TAR_CHAR_OFFENSIVE || song_sk->target == TAR_OBJ_CHAR_DEF)
                             offensive = true;
                         if (check_spell_deflection(ch, mob, sn))
-                            (*skill_table[sn].spell_fun) (skill_find_uid(sn), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*song_sk->spell_fun) (song_sk, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                 }
@@ -425,16 +428,18 @@ void music_end( CHAR_DATA *ch )
     else
     {
         int sn1 = -1, sn2 = -1, sn3 = -1;
+        SKILL_DATA *sk1 = NULL, *sk2 = NULL, *sk3 = NULL;
 
         if(pSong)
         {
             if( pSong->spell1 )
             {
                 sn1 = skill_lookup(pSong->spell1);
+                sk1 = skill_find_uid(sn1);
 
-                if( sn1 < 1 || sn1 >= MAX_SKILL || skill_table[sn1].spell_fun == spell_null)
-                    sn1 = -1;
-                else if(skill_table[sn1].target == TAR_CHAR_OFFENSIVE || skill_table[sn1].target == TAR_OBJ_CHAR_DEF)
+                if( sn1 < 1 || sn1 >= MAX_SKILL || !sk1 || sk1->spell_fun == spell_null)
+                    { sn1 = -1; sk1 = NULL; }
+                else if(sk1->target == TAR_CHAR_OFFENSIVE || sk1->target == TAR_OBJ_CHAR_DEF)
                     offensive = true;
 
             }
@@ -442,20 +447,22 @@ void music_end( CHAR_DATA *ch )
             if( pSong->spell2 )
             {
                 sn2 = skill_lookup(pSong->spell2);
+                sk2 = skill_find_uid(sn2);
 
-                if( sn2 < 1 || sn2 >= MAX_SKILL || skill_table[sn2].spell_fun == spell_null)
-                    sn2 = -1;
-                else if(skill_table[sn2].target == TAR_CHAR_OFFENSIVE || skill_table[sn2].target == TAR_OBJ_CHAR_DEF)
+                if( sn2 < 1 || sn2 >= MAX_SKILL || !sk2 || sk2->spell_fun == spell_null)
+                    { sn2 = -1; sk2 = NULL; }
+                else if(sk2->target == TAR_CHAR_OFFENSIVE || sk2->target == TAR_OBJ_CHAR_DEF)
                     offensive = true;
             }
 
             if( pSong->spell3 )
             {
                 sn3 = skill_lookup(pSong->spell3);
+                sk3 = skill_find_uid(sn3);
 
-                if( sn3 < 1 || sn3 >= MAX_SKILL || skill_table[sn3].spell_fun == spell_null)
-                    sn3 = -1;
-                else if(skill_table[sn3].target == TAR_CHAR_OFFENSIVE || skill_table[sn3].target == TAR_OBJ_CHAR_DEF)
+                if( sn3 < 1 || sn3 >= MAX_SKILL || !sk3 || sk3->spell_fun == spell_null)
+                    { sn3 = -1; sk3 = NULL; }
+                else if(sk3->target == TAR_CHAR_OFFENSIVE || sk3->target == TAR_OBJ_CHAR_DEF)
                     offensive = true;
             }
         }
@@ -482,19 +489,19 @@ void music_end( CHAR_DATA *ch )
                     if( sn1 > 0 )
                     {
                         if (check_spell_deflection(ch, mob, sn1))
-                            (*skill_table[sn1].spell_fun) (skill_find_uid(sn1), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                     if( sn2 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                     {
                         if (check_spell_deflection(ch, mob, sn2))
-                            (*skill_table[sn2].spell_fun) (skill_find_uid(sn2), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                     if( sn3 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                     {
                         if (check_spell_deflection(ch, mob, sn3))
-                            (*skill_table[sn3].spell_fun) (skill_find_uid(sn3), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                 }
@@ -528,17 +535,17 @@ void music_end( CHAR_DATA *ch )
 
                     if( sn1 > 0 )
                     {
-                        (*skill_table[sn1].spell_fun) (skill_find_uid(sn1), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                        (*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                     if( sn2 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                     {
-                        (*skill_table[sn2].spell_fun) (skill_find_uid(sn2), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                        (*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                     if( sn3 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                     {
-                        (*skill_table[sn3].spell_fun) (skill_find_uid(sn3), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                        (*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                 }
@@ -568,19 +575,19 @@ void music_end( CHAR_DATA *ch )
                     if( sn1 > 0 && !is_same_group(ch, mob))
                     {
                         if (check_spell_deflection(ch, mob, sn1))
-                            (*skill_table[sn1].spell_fun) (skill_find_uid(sn1), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                     if( sn2 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
                     {
                         if (check_spell_deflection(ch, mob, sn2))
-                            (*skill_table[sn2].spell_fun) (skill_find_uid(sn2), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
 
                     if( sn3 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
                     {
                         if (check_spell_deflection(ch, mob, sn3))
-                            (*skill_table[sn3].spell_fun) (skill_find_uid(sn3), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                            (*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                     }
                 }
                 else
@@ -606,17 +613,17 @@ void music_end( CHAR_DATA *ch )
 
                 if( sn1 > 0 )
                 {
-                    (*skill_table[sn1].spell_fun) (skill_find_uid(sn1), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                    (*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                 }
 
                 if( sn2 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                 {
-                    (*skill_table[sn2].spell_fun) (skill_find_uid(sn2), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                    (*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                 }
 
                 if( sn3 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                 {
-                    (*skill_table[sn3].spell_fun) (skill_find_uid(sn3), ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+                    (*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
                 }
 
             }
@@ -636,17 +643,17 @@ void music_end( CHAR_DATA *ch )
 
                 if( sn1 > 0 )
                 {
-                    (*skill_table[sn1].spell_fun) (skill_find_uid(sn1), ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE, INVOC_INTERNAL);
+                    (*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE, INVOC_INTERNAL);
                 }
 
                 if( sn2 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                 {
-                    (*skill_table[sn2].spell_fun) (skill_find_uid(sn2), ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE, INVOC_INTERNAL);
+                    (*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE, INVOC_INTERNAL);
                 }
 
                 if( sn3 > 0 && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
                 {
-                    (*skill_table[sn3].spell_fun) (skill_find_uid(sn3), ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE, INVOC_INTERNAL);
+                    (*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE, INVOC_INTERNAL);
                 }
 
             }

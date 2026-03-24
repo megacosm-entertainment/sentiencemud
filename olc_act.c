@@ -33,6 +33,7 @@
 #include "scripts.h"
 #include "wilds.h"
 #include "item_types.h"
+#include "skill_data.h"
 
 extern GLOBAL_DATA         gconfig;
 extern void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer);
@@ -276,18 +277,15 @@ void show_skill_cmds(CHAR_DATA *ch, int tar)
 
     buf1[0] = '\0';
     col = 0;
-    for (sn = 0; sn < MAX_SKILL; sn++)
+    for (SKILL_DATA *sk = skill_first(); sk; sk = sk->next)
     {
-    if (!skill_table[sn].name)
-        break;
-
-    if (!str_cmp(skill_table[sn].name, "reserved")
-      || skill_table[sn].spell_fun == spell_null)
+    if (!str_cmp(sk->name, "reserved")
+      || sk->spell_fun == spell_null)
         continue;
 
-    if (tar == -1 || skill_table[sn].target == tar)
+    if (tar == -1 || sk->target == tar)
     {
-        sprintf(buf, "%-19.18s", skill_table[sn].name);
+        sprintf(buf, "%-19.18s", sk->name);
         strcat(buf1, buf);
         if (++col % 4 == 0)
         strcat(buf1, "\n\r");
@@ -1804,7 +1802,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
         flag_string(imm_flags, HERB(obj)->immunity),
         flag_string(res_flags, HERB(obj)->resistance),
         flag_string(vuln_flags, HERB(obj)->vulnerability),
-        skill_table[HERB(obj)->spell].name);
+        (skill_find_uid(HERB(obj)->spell) ? skill_find_uid(HERB(obj)->spell)->name : "unknown"));
 
         add_buf(buffer, buf);
         break;
@@ -2417,20 +2415,24 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
                 send_to_char("Invalid vulnerability.\n\r", ch);
             break;
         case 7:
-            if ((i = skill_lookup(argument)) > 0 && skill_table[i].spell_fun != spell_null)
             {
-                send_to_char("SPELL SET.\n\r", ch);
-                HERB(pObj)->spell = i;
-            }
-            else if (i == 0)
-            {
-                send_to_char("SPELL RESET.\n\r", ch);
-                HERB(pObj)->spell = 0;
-            }
-            else
-                send_to_char("INVALID ARGUMENT.\n\r", ch);
+                i = skill_lookup(argument);
+                SKILL_DATA *herb_sk = (i > 0) ? skill_find_uid(i) : NULL;
+                if (i > 0 && herb_sk && herb_sk->spell_fun != spell_null)
+                {
+                    send_to_char("SPELL SET.\n\r", ch);
+                    HERB(pObj)->spell = i;
+                }
+                else if (i == 0)
+                {
+                    send_to_char("SPELL RESET.\n\r", ch);
+                    HERB(pObj)->spell = 0;
+                }
+                else
+                    send_to_char("INVALID ARGUMENT.\n\r", ch);
 
-            break;
+                break;
+            }
         }
 
         break;

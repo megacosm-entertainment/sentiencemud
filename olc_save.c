@@ -16,6 +16,7 @@
 #include "tables.h"
 #include "olc.h"
 #include "olc_save.h"
+#include "skill_data.h"
 #include "db.h"
 #include "scripts.h"
 #include "wilds.h"
@@ -1021,8 +1022,9 @@ void save_spell(FILE *fp, SPELL_DATA *spell)
     if (spell->next != NULL)
     save_spell(fp, spell->next);
 
+    SKILL_DATA *spell_sk = skill_find_uid(spell->sn);
     fprintf(fp, "SpellNew %s~ %d %d\n",
-    skill_table[spell->sn].name, spell->level, spell->repop);
+    spell_sk ? spell_sk->name : "unknown", spell->level, spell->repop);
 }
 
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type)
@@ -2593,8 +2595,9 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
                 spell->repop = fread_number(fp);
 
                 // Syn - clean up bad spells on objs.
-                if (!str_cmp(skill_table[sn].name, "reserved")
-                ||  !str_cmp(skill_table[sn].name, "none")) {
+                SKILL_DATA *spell_sk = skill_find_uid(sn);
+                if (!spell_sk || !str_cmp(spell_sk->name, "reserved")
+                ||  !str_cmp(spell_sk->name, "none")) {
                 sprintf(buf, "Obj %s(%ld) had spell none or reserved.",
                     obj->short_descr, obj->vnum);
                 log_string(buf);

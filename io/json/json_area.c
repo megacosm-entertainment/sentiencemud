@@ -18,6 +18,7 @@
 #include "../../scripts.h"
 #include "json_area.h"
 #include "json_obj_types.h"
+#include "../../skill_data.h"
 #include "../cache/redis_cache.h"
 #include "../../editors/common.h"
 #include "../../wilderness_storage.h"
@@ -5623,7 +5624,8 @@ json_t *json_area_serialize_object(OBJ_INDEX_DATA *obj)
         SPELL_DATA *spell;
         for (spell = obj->spells; spell; spell = spell->next) {
             json_t *sp = json_object();
-            json_object_set_new(sp, "name", json_string(skill_table[spell->sn].name));
+            SKILL_DATA *spell_sk = skill_find_uid(spell->sn);
+            json_object_set_new(sp, "name", json_string(spell_sk ? spell_sk->name : "unknown"));
             json_object_set_new(sp, "level", json_integer(spell->level));
             json_object_set_new(sp, "repop", json_integer(spell->repop));
             json_array_append_new(spell_array, sp);
@@ -5876,8 +5878,9 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
                 if (!spell_name) continue;
                 int sn = skill_lookup(spell_name);
                 if (sn < 0) continue;
-                if (!str_cmp(skill_table[sn].name, "reserved")
-                ||  !str_cmp(skill_table[sn].name, "none"))
+                SKILL_DATA *spell_sk = skill_find_uid(sn);
+                if (!spell_sk || !str_cmp(spell_sk->name, "reserved")
+                ||  !str_cmp(spell_sk->name, "none"))
                     continue;
                 SPELL_DATA *spell = new_spell();
                 spell->sn = sn;
@@ -5907,7 +5910,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         case ITEM_RANGED_WEAPON:
             if (legacy_values[5] > 0) {
                 if (legacy_values[6] > 0 && legacy_values[6] < MAX_SKILL
-                &&  skill_table[legacy_values[6]].spell_fun != spell_null) {
+                &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[6]); _sk && _sk->spell_fun != spell_null; })) {
                     SPELL_DATA *sp = new_spell();
                     sp->sn = legacy_values[6];
                     sp->level = legacy_values[5];
@@ -5916,7 +5919,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
                     obj->spells = sp;
                 }
                 if (legacy_values[7] > 0 && legacy_values[7] < MAX_SKILL
-                &&  skill_table[legacy_values[7]].spell_fun != spell_null) {
+                &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[7]); _sk && _sk->spell_fun != spell_null; })) {
                     SPELL_DATA *sp = new_spell();
                     sp->sn = legacy_values[7];
                     sp->level = legacy_values[5];
@@ -5933,7 +5936,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         case ITEM_LIGHT:
             if (legacy_values[3] > 0) {
                 if (legacy_values[4] > 0 && legacy_values[4] < MAX_SKILL
-                &&  skill_table[legacy_values[4]].spell_fun != spell_null) {
+                &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[4]); _sk && _sk->spell_fun != spell_null; })) {
                     SPELL_DATA *sp = new_spell();
                     sp->sn = legacy_values[4];
                     sp->level = legacy_values[3];
@@ -5942,7 +5945,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
                     obj->spells = sp;
                 }
                 if (legacy_values[5] > 0 && legacy_values[5] < MAX_SKILL
-                &&  skill_table[legacy_values[5]].spell_fun != spell_null) {
+                &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[5]); _sk && _sk->spell_fun != spell_null; })) {
                     SPELL_DATA *sp = new_spell();
                     sp->sn = legacy_values[5];
                     sp->level = legacy_values[3];
@@ -5959,7 +5962,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         case ITEM_ARTIFACT:
             if (legacy_values[0] > 0) {
                 if (legacy_values[1] > 0 && legacy_values[1] < MAX_SKILL
-                &&  skill_table[legacy_values[1]].spell_fun != spell_null) {
+                &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[1]); _sk && _sk->spell_fun != spell_null; })) {
                     SPELL_DATA *sp = new_spell();
                     sp->sn = legacy_values[1];
                     sp->level = legacy_values[0];
@@ -5968,7 +5971,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
                     obj->spells = sp;
                 }
                 if (legacy_values[2] > 0 && legacy_values[2] < MAX_SKILL
-                &&  skill_table[legacy_values[2]].spell_fun != spell_null) {
+                &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[2]); _sk && _sk->spell_fun != spell_null; })) {
                     SPELL_DATA *sp = new_spell();
                     sp->sn = legacy_values[2];
                     sp->level = legacy_values[0];
@@ -5988,7 +5991,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
             if (legacy_values[0] > 0) {
                 for (int vi = 1; vi <= 4; vi++) {
                     if (legacy_values[vi] > 0 && legacy_values[vi] < MAX_SKILL
-                    &&  skill_table[legacy_values[vi]].spell_fun != spell_null) {
+                    &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[vi]); _sk && _sk->spell_fun != spell_null; })) {
                         SPELL_DATA *sp = new_spell();
                         sp->sn = legacy_values[vi];
                         sp->level = legacy_values[0];
@@ -6006,7 +6009,7 @@ OBJ_INDEX_DATA *json_area_deserialize_object(json_t *json, AREA_DATA *area)
         case ITEM_STAFF:
             if (legacy_values[0] > 0) {
                 if (legacy_values[3] > 0 && legacy_values[3] < MAX_SKILL
-                &&  skill_table[legacy_values[3]].spell_fun != spell_null) {
+                &&  ({ SKILL_DATA *_sk = skill_find_uid(legacy_values[3]); _sk && _sk->spell_fun != spell_null; })) {
                     SPELL_DATA *sp = new_spell();
                     sp->sn = legacy_values[3];
                     sp->level = legacy_values[0];

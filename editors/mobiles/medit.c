@@ -38,6 +38,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../../skill_data.h"
 
 /* Forward declarations for tab show functions */
 static void medit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
@@ -3247,7 +3248,8 @@ MEDIT (medit_addmprog)
         else
         {
             int sn = skill_lookup(phrase);
-            if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+            SKILL_DATA *skill_ref = skill_find_uid(sn);
+            if(sn < 0 || !skill_ref || skill_ref->spell_fun == spell_null) {
                 send_to_char("Invalid spell for trigger.\n\r",ch);
                 return false;
             }

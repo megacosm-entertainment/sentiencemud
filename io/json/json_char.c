@@ -707,7 +707,8 @@ static json_t *skills_to_json(CHAR_DATA *ch)
             continue;
 
         int sn = entry->sn;
-        if (sn <= 0 || sn >= MAX_SKILL || !skill_table[sn].name)
+        SKILL_DATA *sk = skill_find_uid(sn);
+        if (sn <= 0 || sn >= MAX_SKILL || !sk || !sk->name)
             continue;
 
         json_t *skill_data = json_object();
@@ -759,15 +760,16 @@ static json_t *skills_to_json(CHAR_DATA *ch)
                 json_decref(sources_arr);
         }
 
-        json_object_set_new(skills, skill_table[sn].name, skill_data);
+        json_object_set_new(skills, sk->name, skill_data);
     }
 
     // Safety net: catch any skills in learned[] not represented in sorted_skills
     // This handles edge cases during migration from old format
     for (int sn = 0; sn < MAX_SKILL; sn++) {
+        SKILL_DATA *fallback_sk = skill_find_uid(sn);
         if ((ch->pcdata->learned[sn] > 0 || ch->pcdata->mod_learned[sn] != 0)
-            && skill_table[sn].name
-            && !json_object_get(skills, skill_table[sn].name)) {
+            && fallback_sk && fallback_sk->name
+            && !json_object_get(skills, fallback_sk->name)) {
 
             json_t *skill_data = json_object();
             if (ch->pcdata->learned[sn] > 0) {
@@ -778,7 +780,7 @@ static json_t *skills_to_json(CHAR_DATA *ch)
                 json_object_set_new(skill_data, "mod_rating", json_integer(ch->pcdata->mod_learned[sn]));
                 json_object_set_new(skill_data, "mod_learned", json_integer(ch->pcdata->mod_learned[sn]));
             }
-            json_object_set_new(skills, skill_table[sn].name, skill_data);
+            json_object_set_new(skills, fallback_sk->name, skill_data);
         }
     }
 
@@ -4589,10 +4591,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             }
 
             // Add to sorted_skills list so 'skills'/'spells' commands work
-            if (skill_table[sn].spell_fun == spell_null)
+            { SKILL_DATA *load_sk = skill_find_uid(sn);
+            if (!load_sk || load_sk->spell_fun == spell_null)
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
-                skill_entry_addspell(ch, sn, NULL, source, flags);
+                skill_entry_addspell(ch, sn, NULL, source, flags); }
+
 
             // Populate entry rating fields from loaded learned[] data
             entry = skill_entry_findsn(ch->sorted_skills, sn);
@@ -5144,12 +5148,18 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                     if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
                 }
             }
-
             // Add to sorted_skills list so 'skills'/'spells' commands work
-            if (skill_table[sn].spell_fun == spell_null)
+
+            { SKILL_DATA *load_sk = skill_find_uid(sn);
+            if (!load_sk || load_sk->spell_fun == spell_null)
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
-                skill_entry_addspell(ch, sn, NULL, source, flags);
+                skill_entry_addspell(ch, sn, NULL, source, flags); }
+
+
+
+
+
 
             // Populate entry rating fields from loaded learned[] data
             entry = skill_entry_findsn(ch->sorted_skills, sn);
