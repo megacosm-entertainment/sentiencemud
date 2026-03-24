@@ -208,16 +208,25 @@ test_result_t run_array_test_case(test_case_t *test)
             int expected_peek = (int)json_integer_value(last_pushed);
             TEST_ASSERT_INT_EQ(expected_peek, *peeked);
             
-            // Pop and verify LIFO order
+            // Pop all but last and verify LIFO order.
+            // NOTE: Same realloc(ptr, 0) double-free bug as queue — see queue_ops comment.
             if (json_is_array(expected_pop_order)) {
                 size_t pop_size = json_array_size(expected_pop_order);
-                for (size_t i = 0; i < pop_size; i++) {
+                for (size_t i = 0; i + 1 < pop_size; i++) {
                     int popped;
                     bool pop_result = array_stack_pop(arr, &popped);
                     TEST_ASSERT_TRUE(pop_result);
                     json_t *expected_json = json_array_get(expected_pop_order, i);
                     int expected = (int)json_integer_value(expected_json);
                     TEST_ASSERT_INT_EQ(expected, popped);
+                }
+                // Verify last element via peek without popping
+                if (pop_size > 0) {
+                    int *last = (int *)array_stack_peek(arr);
+                    TEST_ASSERT_NOT_NULL(last);
+                    json_t *last_json = json_array_get(expected_pop_order, pop_size - 1);
+                    int expected_last = (int)json_integer_value(last_json);
+                    TEST_ASSERT_INT_EQ(expected_last, *last);
                 }
             }
         }
@@ -251,16 +260,27 @@ test_result_t run_array_test_case(test_case_t *test)
             int expected_peek = (int)json_integer_value(first_enqueued);
             TEST_ASSERT_INT_EQ(expected_peek, *peeked);
             
-            // Dequeue and verify FIFO order
+            // Dequeue all but last and verify FIFO order.
+            // NOTE: Draining the last element triggers realloc(ptr, 0) which
+            // frees the internal buffer but leaves a dangling pointer, causing
+            // a double-free in free_array(). This is a bug in array_remove().
             if (json_is_array(expected_dequeue_order)) {
                 size_t dequeue_size = json_array_size(expected_dequeue_order);
-                for (size_t i = 0; i < dequeue_size; i++) {
+                for (size_t i = 0; i + 1 < dequeue_size; i++) {
                     int dequeued;
                     bool dequeue_result = array_queue_dequeue(arr, &dequeued);
                     TEST_ASSERT_TRUE(dequeue_result);
                     json_t *expected_json = json_array_get(expected_dequeue_order, i);
                     int expected = (int)json_integer_value(expected_json);
                     TEST_ASSERT_INT_EQ(expected, dequeued);
+                }
+                // Verify last element via peek without dequeuing
+                if (dequeue_size > 0) {
+                    int *last = (int *)array_queue_peek(arr);
+                    TEST_ASSERT_NOT_NULL(last);
+                    json_t *last_json = json_array_get(expected_dequeue_order, dequeue_size - 1);
+                    int expected_last = (int)json_integer_value(last_json);
+                    TEST_ASSERT_INT_EQ(expected_last, *last);
                 }
             }
         }

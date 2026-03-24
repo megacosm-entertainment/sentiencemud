@@ -108,7 +108,7 @@ char *utf8_getbytes(unichar_t ch)
 // This will NOT guard against going before the beginning of the string!
 char *utf8_prevchar(register const char *str)
 {
-    if (str[-1] >= 0x80)
+    if ((unsigned char)str[-1] >= 0x80)
     {
         if (((str[-1])&UTF8_CONTINUE_CHECK) != UTF8_CONTINUE)
             return NULL;    // Not a continue byte, so malformed
@@ -253,7 +253,8 @@ bool is_utf8_string(register const char *str)
             utf8 = true;
         }
 
-        // ASCII and bit patterns not in UTF-8 are ignored
+        else
+            str++;  // Advance past ASCII or unrecognized bytes
     }
 
     return utf8;
