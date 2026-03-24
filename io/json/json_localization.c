@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <dirent.h>
 #include <jansson.h>
 #include "../../merc.h"
@@ -190,13 +191,15 @@ static void localization_copy_fields(LOCALIZATION_DATA *dst, LOCALIZATION_DATA *
 LOCALIZATION_DATA *localization_reload(const char *iso_name)
 {
     char path[512];
+    char loc_dir_buf[256];
     LOCALIZATION_DATA *existing, *temp;
 
     if (IS_NULLSTR(iso_name))
         return NULL;
 
-    /* Build path: data/systam/localizations/<iso_name>.json */
-    snprintf(path, sizeof(path), "%s%s.json", LOCALIZATION_DIR, iso_name);
+    /* Build path: data/system/localizations/<iso_name>.json */
+    const char *loc_dir = resolve_game_path(LOCALIZATION_DIR, loc_dir_buf, sizeof(loc_dir_buf));
+    snprintf(path, sizeof(path), "%s%s.json", loc_dir, iso_name);
 
     /* Parse the JSON file */
     temp = localization_load_json(path);
@@ -234,6 +237,7 @@ bool load_localizations(void)
     DIR *dir;
     struct dirent *entry;
     char path[512];  // Increased from 256 to handle longer paths safely
+    char loc_dir_buf[256];
     LOCALIZATION_DATA *loc, *last;
 
     log_string("Loading localizations from JSON files...");
@@ -243,10 +247,14 @@ bool load_localizations(void)
     localizations_count = 0;
     default_localization = NULL;
 
+    /* Resolve path to support --data-root override in CI/test environments */
+    const char *loc_dir = resolve_game_path(LOCALIZATION_DIR, loc_dir_buf, sizeof(loc_dir_buf));
+
     /* Open localizations directory */
-    dir = opendir(LOCALIZATION_DIR);
+    dir = opendir(loc_dir);
     if (!dir) {
-        pbugf(LOG_INIT, "Could not access RACES_DIR at %s", LOCALIZATION_DIR);
+        fprintf(stderr, "Could not access localizations directory at %s: %s\n", loc_dir, strerror(errno));
+        pbugf(LOG_INIT, "Could not access localizations directory at %s", loc_dir);
         return false;
     }
 
@@ -258,7 +266,7 @@ bool load_localizations(void)
         if (str_suffix(".json", entry->d_name))
             continue;
 
-        snprintf(path, sizeof(path), "%s%s", LOCALIZATION_DIR, entry->d_name);
+        snprintf(path, sizeof(path), "%s%s", loc_dir, entry->d_name);
         loc = localization_load_json(path);
 
         if (loc) {
@@ -279,7 +287,8 @@ bool load_localizations(void)
 
     if (localizations_count == 0) {
         // I consider this an error since the game requires at least ONE localization file.
-        perrf(LOG_INIT, "No localizations loaded! Check if there are valid JSON files in %s", LOCALIZATION_DIR);
+        fprintf(stderr, "No localizations loaded! Check if there are valid JSON files in %s\n", loc_dir);
+        perrf(LOG_INIT, "No localizations loaded! Check if there are valid JSON files in %s", loc_dir);
         return false;
     }
 
