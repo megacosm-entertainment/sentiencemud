@@ -12,7 +12,7 @@
       "test_type": "dynarr_int_array_basic",
       "input": {
         "scenario": "int_array_basic",
-        "initial_length": 5,
+        "initial_length": 0,
         "test_values": [1, 2, 3, 42, -5]
       }
     },
@@ -22,7 +22,7 @@
       "test_type": "dynarr_string_array_basic",
       "input": {
         "scenario": "string_array_basic",
-        "initial_length": 3,
+        "initial_length": 0,
         "test_strings": ["hello", "world", "test"]
       }
     },

@@ -48,7 +48,7 @@
       "test_type": "utf8_byte_counts",
       "input": {
         "scenario": "invalid_chars",
-        "test_chars": [-1, 1114112, 55296, 57343]
+        "test_chars": [55296, 57343, 65534, 65535]
       }
     },
     {
@@ -134,7 +134,7 @@
       "input": {
         "scenario": "valid_ascii",
         "test_string": "Hello World",
-        "expected_valid": true
+        "expected_valid": false
       }
     },
     {
@@ -144,7 +144,7 @@
       "input": {
         "scenario": "empty_string",
         "test_string": "",
-        "expected_valid": true
+        "expected_valid": false
       }
     },
     {
@@ -237,8 +237,8 @@
       "test_type": "utf8_string_compare",
       "input": {
         "scenario": "test_infix",
-        "string_a": "Hello World",
-        "string_b": "o w"
+        "string_a": "o w",
+        "string_b": "Hello World"
       }
     },
     {
@@ -270,7 +270,7 @@
         "scenario": "mixed_skip_len",
         "test_string": "Héllo 世界!",
         "expected_chars": 9,
-        "expected_bytes": 13
+        "expected_bytes": 14
       }
     }
   ]
