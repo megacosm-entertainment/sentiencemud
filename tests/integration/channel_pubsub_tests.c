@@ -1,6 +1,7 @@
 #ifdef BUILD_TESTS
 
 #include "../../merc.h"
+#include "../../wilds.h"
 #include "../../interp.h"
 #include "channel_transport.h"
 #include "channel_service.h"
@@ -481,6 +482,7 @@ static test_result_t test_channel_effective_subscriptions_room_regular(test_case
 static test_result_t test_channel_effective_subscriptions_room_wilds(test_case_t *test)
 {
     AREA_DATA area;
+    WILDS_DATA wilds;
     ROOM_INDEX_DATA room;
     CHAR_DATA actor;
     char out[8192];
@@ -489,14 +491,15 @@ static test_result_t test_channel_effective_subscriptions_room_wilds(test_case_t
     (void)test;
 
     memset(&area, 0, sizeof(area));
+    memset(&wilds, 0, sizeof(wilds));
     memset(&room, 0, sizeof(room));
     memset(&actor, 0, sizeof(actor));
     memset(out, 0, sizeof(out));
 
     area.uid = 9292;
+    wilds.uid = 501;
     room.area = &area;
-    room.wilds = (WILDS_DATA *)1;
-    room.w = 501;
+    room.wilds = &wilds;
     room.x = 77;
     room.y = 88;
 
