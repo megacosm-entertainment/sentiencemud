@@ -1092,9 +1092,7 @@ struct olc_point_area_data {
 #define MAX_CLASS_LEVEL		30
 #define MAX_DAMAGE_MESSAGE	70		/* @@@NIB : 20070125 */
 #define MAX_GQ_PER_TYPE		200
-#define MAX_GROUP		30
 #define MAX_IN_CHAT_ROOM	50
-#define MAX_IN_GROUP		40
 #define MAX_ITEMS_IN_LOCKER	30
 #define MAX_LEVEL		155
 #define MAX_MOB_SKILL_LEVEL	1000
@@ -5891,8 +5889,7 @@ struct	pc_data
     bool		songs_unlocked[MAX_SONGS];    /* Transient: songs unlocked for rehearsal by class rewards */
     int			learned		[MAX_SKILL];
     int			mod_learned	[MAX_SKILL];
-    bool		group_known	[MAX_GROUP];  /* Legacy — kept during migration (Phase 9 removal) */
-    LLIST *		known_groups;		      /* LLIST of SKILL_GROUP * — replaces group_known[] */
+    LLIST *		known_groups;		      /* LLIST of SKILL_GROUP * */
     int			pending_free_levels;          /* Overflow levels awaiting account transfer */
     long		points;
     bool              	confirm_delete;
@@ -8600,20 +8597,8 @@ struct material_type
     int value;      	/* Value rating, 1-lowest, 10-highest(rarest) */
 };
 
-struct music_type
-{
-    char *	name;			/* Name of skill		*/
-    int         level;
-    char *	spell1;		        /* Spell pointer (for spells)	*/
-    char *	spell2;	        	/* Spell pointer (for spells)	*/
-    char *	spell3;   		/* Spell pointer (for spells)	*/
-    int16_t	beats;			/* Waiting time after use	*/
-    int16_t      mana;
-    int16_t	target;			/* Legal targets		*/
-};
-
 /*
- * Data-driven song definition — replaces music_table[] usage.
+ * Data-driven song definition loaded from JSON at boot via load_songs().
  * Loaded from JSON at boot via load_songs() in song_data.c.
  *
  * TODO (future expansion):
@@ -8638,20 +8623,13 @@ struct song_data
     void *	olc_history;		/* OLC_CHANGE_HISTORY * — lazy-allocated by soedit */
 };
 
-struct  group_type
-{
-    char *	name;
-    int16_t	rating[MAX_CLASS];
-    char *	spells[MAX_IN_GROUP];
-};
-
 /*
  * SKILL_GROUP — Named collection of skills.
  *
  * A lightweight grouping mechanism used by REWARD_GROUP to grant batches
  * of skills at once. Each group is a named list of skill name strings.
  * Groups are loaded from data/skill_groups/ or bootstrapped from the
- * legacy group_table[] on first run.
+ * Groups are loaded from data/skill_groups/ JSON files.
  */
 struct skill_group_data
 {
@@ -9528,7 +9506,6 @@ extern	const	struct	item_type	boat_table	[];
 extern	const	struct	item_type	npc_boat_table	[];
 extern  const  	struct	item_type	npc_sub_type_boat_table [];
 extern  const struct  item_type ship_state_table  [];
-extern	const	struct	music_type	music_table	[];
 extern  const   struct  item_type	item_table	[];
 extern  const   struct  item_type       token_table     [];
 extern	const	struct	player_setting_type	pc_set_table	[];
@@ -9539,7 +9516,6 @@ extern  const	struct	spec_type	spec_table	[];
 extern	const	struct	skill_type	skill_table	[MAX_SKILL];
 extern          int                     mob_skill_table [MAX_MOB_SKILL_LEVEL];
 extern  const   struct  church_command_type church_command_table [];
-extern  const   struct  group_type      group_table	[MAX_GROUP];
 extern          struct social_type      social_table	[MAX_SOCIALS];
 extern	const	struct	rep_type	rating_table	[];
 extern	const	struct	sound_type	sound_table	[];
@@ -11102,9 +11078,10 @@ void    list_group_known args( ( CHAR_DATA *ch ) );
 long 	exp_per_level	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show );
-int 	group_lookup	args( (const char *name) );
-void	gn_add		args( ( CHAR_DATA *ch, int gn) );
-void 	gn_remove	args( ( CHAR_DATA *ch, int gn) );
+SKILL_GROUP *group_lookup args( (const char *name) );
+void	gn_add		args( ( CHAR_DATA *ch, SKILL_GROUP *sg) );
+void 	gn_remove	args( ( CHAR_DATA *ch, SKILL_GROUP *sg) );
+bool    char_knows_group args( ( CHAR_DATA *ch, SKILL_GROUP *sg ) );
 void 	group_add	args( ( CHAR_DATA *ch, const char *name, bool deduct) );
 void	group_remove	args( ( CHAR_DATA *ch, const char *name) );
 bool had_skill( CHAR_DATA *ch, int sn );

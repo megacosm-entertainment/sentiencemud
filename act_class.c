@@ -333,17 +333,6 @@ static void apply_group_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
             list_appendlink(ch->pcdata->known_groups, group);
     }
 
-    /* Also set legacy group_known flag for backward compat */
-    {
-        int g;
-        for (g = 0; g < MAX_GROUP; g++) {
-            if (group_table[g].name && !str_cmp(group_table[g].name, name)) {
-                ch->pcdata->group_known[g] = true;
-                break;
-            }
-        }
-    }
-
     /* Apply each skill in the group */
     ITERATOR it;
     char *skill_name;

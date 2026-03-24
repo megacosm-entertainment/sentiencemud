@@ -4672,7 +4672,6 @@ SCRIPT_CMD(do_mpskillgroup)
 
     char *rest;
     CHAR_DATA *mob = NULL;
-    int gn;
     bool fAdd = false;
 
     if(!info || !info->mob || IS_NULLSTR(argument)) return;
@@ -4703,18 +4702,16 @@ SCRIPT_CMD(do_mpskillgroup)
 
     if(arg->type != ENT_STRING) return;
 
-    gn = group_lookup(arg->d.str);
-    if( gn != -1)
     {
-        if( fAdd )
-        {
-            if( !mob->pcdata->group_known[gn] )
-                gn_add(mob,gn);
-        }
-        else
-        {
-            if( mob->pcdata->group_known[gn] )
-                gn_remove(mob,gn);
+        SKILL_GROUP *sg = group_lookup(arg->d.str);
+        if (sg) {
+            if (fAdd) {
+                if (!char_knows_group(mob, sg))
+                    gn_add(mob, sg);
+            } else {
+                if (char_knows_group(mob, sg))
+                    gn_remove(mob, sg);
+            }
         }
     }
 

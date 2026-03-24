@@ -1415,73 +1415,97 @@ void check_improve( CHAR_DATA *ch, int sn, bool success, int multiplier )
     check_improve_show( ch, sn, success, multiplier, true );
 }
 
-int group_lookup( const char *name )
+/**
+ * group_lookup - Find a skill group by name prefix
+ *
+ * Searches loaded SKILL_GROUP entries for a prefix match.
+ *
+ * @param name  Group name or prefix to search for
+ * @return      Pointer to SKILL_GROUP, or NULL if not found
+ */
+SKILL_GROUP *group_lookup(const char *name)
 {
-    int gn;
+    if (!name || !name[0])
+        return NULL;
 
-    for ( gn = 0; gn < MAX_GROUP; gn++ )
-    {
-        if ( group_table[gn].name == NULL )
-            break;
-        if ( LOWER(name[0]) == LOWER(group_table[gn].name[0])
-        &&   !str_prefix( name, group_table[gn].name ) )
-            return gn;
-    }
-
-    return -1;
+    return skill_group_search(name);
 }
 
 
-void gn_add(CHAR_DATA *ch, int gn)
+/**
+ * char_knows_group - Check if a character knows a skill group
+ *
+ * @param ch    Character to check (must be PC with pcdata)
+ * @param sg    SKILL_GROUP to look for
+ * @return      true if the character knows this group
+ */
+bool char_knows_group(CHAR_DATA *ch, SKILL_GROUP *sg)
 {
-    int i;
+    if (!ch || !ch->pcdata || !sg)
+        return false;
 
-    ch->pcdata->group_known[gn] = true;
-
-    /* Also track in the new known_groups LLIST */
-    if (group_table[gn].name) {
-        SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
-        if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
-            list_appendlink(ch->pcdata->known_groups, sg);
-    }
-
-    for (i = 0; i < MAX_IN_GROUP; i++)
-    {
-        if (group_table[gn].spells[i] == NULL)
-            break;
-
-        group_add(ch,group_table[gn].spells[i],false);
-    }
+    return list_hasdata(ch->pcdata->known_groups, sg);
 }
 
 
-void gn_remove( CHAR_DATA *ch, int gn)
+/**
+ * gn_add - Grant a skill group to a character
+ *
+ * Adds the group to the character's known_groups list and grants
+ * all skills contained in the group via group_add().
+ *
+ * @param ch    Character to grant the group to
+ * @param sg    SKILL_GROUP to grant
+ */
+void gn_add(CHAR_DATA *ch, SKILL_GROUP *sg)
 {
-    int i;
+    ITERATOR it;
+    char *skill_name;
 
-    ch->pcdata->group_known[gn] = false;
+    if (!ch || !ch->pcdata || !sg)
+        return;
 
-    /* Also remove from known_groups LLIST */
-    if (group_table[gn].name) {
-        SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
-        if (sg)
-            list_remlink(ch->pcdata->known_groups, sg, false);
+    if (!list_hasdata(ch->pcdata->known_groups, sg))
+        list_appendlink(ch->pcdata->known_groups, sg);
+
+    iterator_start(&it, sg->contents);
+    while ((skill_name = (char *)iterator_nextdata(&it))) {
+        group_add(ch, skill_name, false);
     }
+    iterator_stop(&it);
+}
 
-    for ( i = 0; i < MAX_IN_GROUP; i ++)
-    {
-    if (group_table[gn].spells[i] == NULL)
-        break;
 
-    group_remove(ch,group_table[gn].spells[i]);
+/**
+ * gn_remove - Remove a skill group from a character
+ *
+ * Removes the group from the character's known_groups list and removes
+ * all skills contained in the group via group_remove().
+ *
+ * @param ch    Character to remove the group from
+ * @param sg    SKILL_GROUP to remove
+ */
+void gn_remove(CHAR_DATA *ch, SKILL_GROUP *sg)
+{
+    ITERATOR it;
+    char *skill_name;
+
+    if (!ch || !ch->pcdata || !sg)
+        return;
+
+    list_remlink(ch->pcdata->known_groups, sg, false);
+
+    iterator_start(&it, sg->contents);
+    while ((skill_name = (char *)iterator_nextdata(&it))) {
+        group_remove(ch, skill_name);
     }
+    iterator_stop(&it);
 }
 
 
 void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 {
     int sn;
-    int gn;
     SKILL_ENTRY *entry;
 
     if (IS_NPC(ch))
@@ -1522,13 +1546,11 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
     }
 
     /* now check groups */
-    gn = group_lookup(name);
-    if (gn != -1)
     {
-    if (ch->pcdata->group_known[gn] == false)
-        ch->pcdata->group_known[gn] = true;
-
-    gn_add(ch,gn); /* make sure all skills in the group are known */
+        SKILL_GROUP *sg = group_lookup(name);
+        if (sg) {
+            gn_add(ch, sg);
+        }
     }
 }
 
@@ -1536,7 +1558,6 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 void group_remove(CHAR_DATA *ch, const char *name)
 {
     int sn;
-    int gn;
 
     sn = skill_lookup(name);
 
@@ -1550,12 +1571,11 @@ void group_remove(CHAR_DATA *ch, const char *name)
     return;
     }
 
-    gn = group_lookup(name);
-
-    if (gn != -1 && ch->pcdata->group_known[gn] == true)
     {
-    ch->pcdata->group_known[gn] = false;
-    gn_remove(ch,gn);  /* be sure to call gn_add on all remaining groups */
+        SKILL_GROUP *sg = group_lookup(name);
+        if (sg && char_knows_group(ch, sg)) {
+            gn_remove(ch, sg);
+        }
     }
 }
 
@@ -1992,17 +2012,23 @@ bool had_skill( CHAR_DATA *ch, int sn )
 // Does *everyone* get the sn?
 bool is_global_skill( int sn )
 {
-    int i;
-
     if ( sn < 0 )
     return false;
 
-    // "global skills" is always 1st in group list
-    for (i = 0; group_table[0].spells[i] != NULL; i++)
-    {
-    if (!str_cmp(group_table[0].spells[i], skill_table[sn].name))
-        return true;
+    SKILL_GROUP *sg = skill_group_find("global skills");
+    if (!sg)
+        return false;
+
+    ITERATOR it;
+    char *skill_name;
+    iterator_start(&it, sg->contents);
+    while ((skill_name = (char *)iterator_nextdata(&it))) {
+        if (!str_cmp(skill_name, skill_table[sn].name)) {
+            iterator_stop(&it);
+            return true;
+        }
     }
+    iterator_stop(&it);
 
     return false;
 }
@@ -2051,8 +2077,6 @@ void update_skills( CHAR_DATA *ch )
 bool has_subclass_skill( int subclass, int sn )
 {
     char *skill_name;
-    int i;
-    int n;
 
     if (sn < 0)
     return false;
@@ -2068,18 +2092,17 @@ bool has_subclass_skill( int subclass, int sn )
             SKILL_GROUP *sg;
             iterator_start(&git, hss_class->groups);
             while ((sg = (SKILL_GROUP *)iterator_nextdata(&git))) {
-                for (i = 0; group_table[i].name != NULL; i++) {
-                    if (!str_cmp(sg->name, group_table[i].name))
-                        break;
-                }
-                if (group_table[i].name != NULL) {
-                    for (n = 0; group_table[i].spells[n] != NULL; n++) {
-                        if (!str_cmp(skill_name, group_table[i].spells[n])) {
-                            iterator_stop(&git);
-                            return true;
-                        }
+                ITERATOR sit;
+                char *gskill;
+                iterator_start(&sit, sg->contents);
+                while ((gskill = (char *)iterator_nextdata(&sit))) {
+                    if (!str_cmp(skill_name, gskill)) {
+                        iterator_stop(&sit);
+                        iterator_stop(&git);
+                        return true;
                     }
                 }
+                iterator_stop(&sit);
             }
             iterator_stop(&git);
             return false;
@@ -2094,8 +2117,6 @@ bool has_subclass_skill( int subclass, int sn )
 bool has_class_skill( int class, int sn )
 {
     char *group_name;
-    int i;
-    int n;
 
     if (sn < 0)
     return false;
@@ -2112,17 +2133,20 @@ bool has_class_skill( int class, int sn )
     default: 		group_name = "global skills"; break;
     }
 
-    for (i = 0; group_table[i].name != NULL; i++)
-    {
-    if (!str_cmp(group_name, group_table[i].name))
-        break;
-    }
+    SKILL_GROUP *sg = skill_group_find(group_name);
+    if (!sg)
+        return false;
 
-    for (n = 0; group_table[i].spells[n]; n++)
-    {
-    if (!str_cmp( skill_table[sn].name, group_table[i].spells[n]))
-        return true;
+    ITERATOR it;
+    char *skill_name;
+    iterator_start(&it, sg->contents);
+    while ((skill_name = (char *)iterator_nextdata(&it))) {
+        if (!str_cmp(skill_table[sn].name, skill_name)) {
+            iterator_stop(&it);
+            return true;
+        }
     }
+    iterator_stop(&it);
 
     return false;
 }

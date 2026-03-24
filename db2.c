@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include "strings.h"
 #include "merc.h"
+#include "skill_group.h"
 #include "db.h"
 #include "tables.h"
 #include "io/json/json_socials.h"
@@ -1203,19 +1204,20 @@ void do_dump( CHAR_DATA *ch, char *argument )
     }
 
     i = 0;
-    while ( group_table[i].name != NULL )
     {
-        fprintf( fp, "[%s]:\n", group_table[i].name );
-        n = 0;
-        while ( group_table[i].spells[n] != NULL )
-        {
-        fprintf( fp, "%i) %s\n", n+1, group_table[i].spells[n] );
-        n++;
+        SKILL_GROUP *sg;
+        for (sg = skill_group_first(); sg; sg = sg->next) {
+            ITERATOR it;
+            char *skill_name;
+            int n = 0;
+            fprintf(fp, "[%s]:\n", sg->name);
+            iterator_start(&it, sg->contents);
+            while ((skill_name = (char *)iterator_nextdata(&it))) {
+                fprintf(fp, "%i) %s\n", ++n, skill_name);
+            }
+            iterator_stop(&it);
+            fprintf(fp, "\n");
         }
-
-        fprintf( fp, "\n");
-
-        i++;
     }
 
     send_to_char("Skills dumped.\n\r", ch );

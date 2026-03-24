@@ -2,7 +2,6 @@
  *  Song Data System - Implementation                                      *
  *                                                                         *
  *  Data-driven song definitions loaded from JSON files.                   *
- *  Replaces the legacy static music_table[] array in const.c.             *
  *                                                                         *
  *  TODO (future expansion):                                               *
  *  - Add token/script references (presong_fun, song_fun) for             *
@@ -178,40 +177,14 @@ static void insert_song(SONG_DATA *song)
 }
 
 /***************************************************************************
- * Bootstrap: Generate from legacy music_table[]                           *
+ * Bootstrap (legacy — music_table[] removed in Phase 9)                   *
  ***************************************************************************/
 
 bool bootstrap_songs(void)
 {
-    int i;
-
-    log_string("bootstrap_songs: generating SONG_DATA from music_table[]");
-
-    if (!songs_list)
-        songs_list = list_create(false);
-
-    for (i = 0; i < MAX_SONGS && music_table[i].name; i++) {
-        SONG_DATA *song = new_song_data();
-
-        song->name   = str_dup(music_table[i].name);
-        song->uid    = i;
-        song->level  = music_table[i].level;
-        song->mana   = music_table[i].mana;
-        song->target = music_table[i].target;
-        song->beats  = music_table[i].beats;
-        song->spell1 = music_table[i].spell1 ? str_dup(music_table[i].spell1) : NULL;
-        song->spell2 = music_table[i].spell2 ? str_dup(music_table[i].spell2) : NULL;
-        song->spell3 = music_table[i].spell3 ? str_dup(music_table[i].spell3) : NULL;
-        song->flags  = SONG_NONE;
-
-        insert_song(song);
-
-        if (song->uid > top_song_uid)
-            top_song_uid = song->uid;
-    }
-
-    log_stringf("bootstrap_songs: created %d songs (top_uid=%d)", i, top_song_uid);
-    return true;
+    log_string("bootstrap_songs: ERROR — music_table[] removed in Phase 9. "
+               "Song JSON file must exist in data/songs.json.");
+    return false;
 }
 
 /***************************************************************************
@@ -294,8 +267,8 @@ bool load_songs(void)
     /* Try to load from JSON file */
     root = json_load_file(songs_file, 0, &error);
     if (!root) {
-        /* No file exists — bootstrap from music_table[] */
-        log_stringf("load_songs: %s not found, bootstrapping from music_table[]", songs_file);
+        /* No JSON file — music_table[] was removed in Phase 9 */
+        log_stringf("load_songs: %s not found, cannot bootstrap (music_table removed)", songs_file);
 
         if (!bootstrap_songs())
             return false;

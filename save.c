@@ -492,7 +492,7 @@ void save_char_obj(CHAR_DATA *ch)
 void fwrite_char(CHAR_DATA *ch, FILE *fp)
 {
     AFFECT_DATA *paf;
-    int gn, pos;
+    int pos;
     int i = 0;
     COMMAND_DATA *cmd;
 
@@ -970,34 +970,16 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
             ch->pcdata->alias_sub[pos]);
     }
 
-    /*
-    // Save song list
-    for (sn = 0; sn < MAX_SONGS && music_table[sn].name; sn++)
-        if( ch->pcdata->songs_learned[sn] )
-            fprintf(fp, "Song '%s'\n", music_table[sn].name);
-
-    for (sn = 0; sn < MAX_SKILL && skill_table[sn].name; sn++)
     {
-        if (skill_table[sn].name != NULL && ch->pcdata->learned[sn] != 0)
-        {
-        fprintf(fp, "Sk %d '%s'\n",
-            ch->pcdata->learned[sn], skill_table[sn].name);
+        ITERATOR sg_it;
+        SKILL_GROUP *sg;
+        iterator_start(&sg_it, ch->pcdata->known_groups);
+        while ((sg = (SKILL_GROUP *)iterator_nextdata(&sg_it))) {
+            if (sg->name)
+                fprintf(fp, "Gr '%s'\n", sg->name);
         }
-        if (skill_table[sn].name != NULL && ch->pcdata->mod_learned[sn] != 0)
-        {
-        fprintf(fp, "SkMod %d '%s'\n",
-            ch->pcdata->mod_learned[sn], skill_table[sn].name);
-        }
+        iterator_stop(&sg_it);
     }
-    */
-
-    for (gn = 0; gn < MAX_GROUP; gn++)
-        {
-            if (group_table[gn].name != NULL && ch->pcdata->group_known[gn])
-            {
-                fprintf(fp, "Gr '%s'\n",group_table[gn].name);
-            }
-        }
     }
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
@@ -3268,9 +3250,15 @@ void fix_character( CHAR_DATA *ch )
     ch->dam_type = 17; /*punch */
 
     // Add groups it should know
-    for(i=0;i < MAX_GROUP; i++)
-        if( ch->pcdata->group_known[i] )
-            gn_add(ch, i);
+    {
+        ITERATOR sg_it;
+        SKILL_GROUP *sg;
+        iterator_start(&sg_it, ch->pcdata->known_groups);
+        while ((sg = (SKILL_GROUP *)iterator_nextdata(&sg_it))) {
+            gn_add(ch, sg);
+        }
+        iterator_stop(&sg_it);
+    }
 
     /* make sure they have any new race skills */
     if (ch->race && ch->race->skills) {
@@ -3663,19 +3651,6 @@ void fix_character( CHAR_DATA *ch )
             }
         }
 
-        /* Bootstrap known_groups LLIST from legacy group_known[] array.
-         * The JSON load path now populates both, but characters loaded from
-         * dat or from older JSON files may only have the bool array set. */
-        if (ch->pcdata && list_size(ch->pcdata->known_groups) == 0) {
-            for (int gn = 0; gn < MAX_GROUP; gn++) {
-                if (ch->pcdata->group_known[gn] && group_table[gn].name) {
-                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
-                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
-                        list_appendlink(ch->pcdata->known_groups, sg);
-                }
-            }
-        }
-
         ch->version = VERSION_PLAYER_012;
     }
 
@@ -3744,11 +3719,11 @@ void descrew_subclasses(CHAR_DATA *ch)
     {
     pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-mage class!",
         ch->name);
-    if (ch->pcdata->group_known[group_lookup("necromancer skills")] == true)
+    if (char_knows_group(ch, skill_group_find("necromancer skills")))
         ch->pcdata->sub_class_mage = CLASS_MAGE_NECROMANCER;
-    else if (ch->pcdata->group_known[group_lookup("sorcerer skills")] == true)
+    else if (char_knows_group(ch, skill_group_find("sorcerer skills")))
         ch->pcdata->sub_class_mage = CLASS_MAGE_SORCERER;
-    else if (ch->pcdata->group_known[group_lookup("wizard skills")] == true)
+    else if (char_knows_group(ch, skill_group_find("wizard skills")))
         ch->pcdata->sub_class_mage = CLASS_MAGE_WIZARD;
 
     //sprintf(buf, "{WYou had a screwed up mage class... it has been fixed to {Y%s.{x\n\r",
@@ -3761,11 +3736,11 @@ void descrew_subclasses(CHAR_DATA *ch)
     {
     pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-cleric class!",
         ch->name);
-    if (ch->pcdata->group_known[group_lookup("witch skills")] == true)
+    if (char_knows_group(ch, skill_group_find("witch skills")))
         ch->pcdata->sub_class_cleric = CLASS_CLERIC_WITCH;
-    else if (ch->pcdata->group_known[group_lookup("druid skills")] == true)
+    else if (char_knows_group(ch, skill_group_find("druid skills")))
         ch->pcdata->sub_class_cleric = CLASS_CLERIC_DRUID;
-    else if (ch->pcdata->group_known[group_lookup("monk skills")] == true)
+    else if (char_knows_group(ch, skill_group_find("monk skills")))
         ch->pcdata->sub_class_cleric = CLASS_CLERIC_MONK;
 
 //	sprintf(buf, "{WYou had a screwed up cleric class... it has been fixed to {Y%s.{x\n\r",
@@ -3779,11 +3754,11 @@ void descrew_subclasses(CHAR_DATA *ch)
     pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-thief class!",
         ch->name);
 
-    if (ch->pcdata->group_known[group_lookup("assassin skills")] == true)
+    if (char_knows_group(ch, skill_group_find("assassin skills")))
         ch->pcdata->sub_class_thief = CLASS_THIEF_ASSASSIN;
-    if (ch->pcdata->group_known[group_lookup("rogue skills")] == true)
+    if (char_knows_group(ch, skill_group_find("rogue skills")))
         ch->pcdata->sub_class_thief = CLASS_THIEF_ROGUE;
-    if (ch->pcdata->group_known[group_lookup("bard skills")] == true)
+    if (char_knows_group(ch, skill_group_find("bard skills")))
         ch->pcdata->sub_class_thief = CLASS_THIEF_BARD;
 
 //	sprintf(buf, "{WYou had a screwed up thief class... it has been fixed to {Y%s.{x\n\r",
@@ -3796,11 +3771,11 @@ void descrew_subclasses(CHAR_DATA *ch)
     {
     pbugf(LOG_ERROR, "descrew_subclasses: %s had a non-warrior class!",
         ch->name);
-    if (ch->pcdata->group_known[group_lookup("marauder skills")] == true)
+    if (char_knows_group(ch, skill_group_find("marauder skills")))
         ch->pcdata->sub_class_warrior = CLASS_WARRIOR_MARAUDER;
-    if (ch->pcdata->group_known[group_lookup("gladiator skills")] == true)
+    if (char_knows_group(ch, skill_group_find("gladiator skills")))
         ch->pcdata->sub_class_warrior = CLASS_WARRIOR_GLADIATOR;
-    if (ch->pcdata->group_known[group_lookup("paladin skills")] == true)
+    if (char_knows_group(ch, skill_group_find("paladin skills")))
         ch->pcdata->sub_class_warrior = CLASS_WARRIOR_PALADIN;
 
 //	sprintf(buf, "{WYou had a screwed up warrior class... it has been fixed to {Y%s.{x\n\r",
@@ -3894,24 +3869,33 @@ void fix_broken_classes(CHAR_DATA *ch)
 // Find out if a player has a skill, ANY skill, which belongs to a general class.
 bool find_class_skill(CHAR_DATA *ch, int class)
 {
-    int gn;
-    int i;
+    char *group_name;
 
     switch (class)
     {
-    case CLASS_MAGE: 	gn = group_lookup("mage skills"); 	break;
-    case CLASS_CLERIC:	gn = group_lookup("cleric skills");	break;
-    case CLASS_THIEF:	gn = group_lookup("thief skills");	break;
-    case CLASS_WARRIOR:	gn = group_lookup("warrior skills");	break;
+    case CLASS_MAGE: 	group_name = "mage skills"; 	break;
+    case CLASS_CLERIC:	group_name = "cleric skills";	break;
+    case CLASS_THIEF:	group_name = "thief skills";	break;
+    case CLASS_WARRIOR:	group_name = "warrior skills";	break;
     default:
         pbugf(LOG_ERROR, "find_class_skill: bad class.");
         return false;
     }
 
-    for (i = 0; group_table[gn].spells[i] != NULL; i++) {
-    if (get_skill(ch, skill_lookup(group_table[gn].spells[i])) > 0)
-        return true;
+    SKILL_GROUP *sg = skill_group_find(group_name);
+    if (!sg)
+        return false;
+
+    ITERATOR it;
+    char *skill_name;
+    iterator_start(&it, sg->contents);
+    while ((skill_name = (char *)iterator_nextdata(&it))) {
+        if (get_skill(ch, skill_lookup(skill_name)) > 0) {
+            iterator_stop(&it);
+            return true;
+        }
     }
+    iterator_stop(&it);
 
     return false;
 }
@@ -4048,25 +4032,6 @@ void fwrite_skill(CHAR_DATA *ch, SKILL_ENTRY *entry, FILE *fp)
         if( entry->song != NULL ) {
             fprintf(fp, "Song %s~\n", entry->song->name);
         }
-/*
-    for (sn = 0; sn < MAX_SONGS && music_table[sn].name; sn++)
-        if( ch->pcdata->songs_learned[sn] )
-            fprintf(fp, "Song '%s'\n", music_table[sn].name);
-
-    for (sn = 0; sn < MAX_SKILL && skill_table[sn].name; sn++)
-    {
-        if (skill_table[sn].name != NULL && ch->pcdata->learned[sn] != 0)
-        {
-        fprintf(fp, "Sk %d '%s'\n",
-            ch->pcdata->learned[sn], skill_table[sn].name);
-        }
-        if (skill_table[sn].name != NULL && ch->pcdata->mod_learned[sn] != 0)
-        {
-        fprintf(fp, "SkMod %d '%s'\n",
-            ch->pcdata->mod_learned[sn], skill_table[sn].name);
-        }
-    }
-*/
         fprintf(fp, "End\n\n");
 }
 

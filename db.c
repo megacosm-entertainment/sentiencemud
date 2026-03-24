@@ -1303,12 +1303,10 @@ void boot_db(void)
     // On first run, bootstraps from legacy skill_table[] and saves JSON files.
     load_skill_data();
 
-    // Load skill groups from JSON files (new skill group system)
-    // On first run, bootstraps from legacy group_table[] and saves JSON files.
+    // Load skill groups from data/skill_groups/ JSON files.
     load_skill_groups();
 
-    // Load songs from JSON files (new song system)
-    // On first run, bootstraps from legacy music_table[] and saves JSON files.
+    // Load songs from data/songs.json.
     load_songs();
 
     // Load classes from JSON files (new class system)
