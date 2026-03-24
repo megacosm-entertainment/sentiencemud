@@ -265,7 +265,8 @@ static void apply_skill_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
     }
 
     /* Grant the skill */
-    if (skill_table[sn].spell_fun != spell_null) {
+    SKILL_DATA *skill = skill_find_uid(sn);
+    if (skill && skill->spell_fun != spell_null) {
         skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, 0);
     } else {
         skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, 0);
@@ -284,7 +285,7 @@ static void apply_skill_reward(CHAR_DATA *ch, CLASS_DATA *clazz,
     if (!silent) {
         char buf[MAX_STRING_LENGTH];
         sprintf(buf, "{MYou have learned {W%s{M as a %s.{x\n\r",
-                skill_table[sn].name, clazz->name);
+                skill ? skill->name : "unknown", clazz->name);
         send_to_char(buf, ch);
     }
 }
@@ -896,7 +897,8 @@ bool class_grants_skill(CLASS_DATA *clazz, int sn)
     if (!clazz || !clazz->rewards || sn < 0 || sn >= MAX_SKILL)
         return false;
 
-    skill_name = skill_table[sn].name;
+    SKILL_DATA *skill = skill_find_uid(sn);
+    skill_name = skill ? skill->name : NULL;
     if (!skill_name || !skill_name[0])
         return false;
 

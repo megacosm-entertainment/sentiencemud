@@ -1361,11 +1361,15 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     if(!IS_SET(entry->flags, SKILL_IMPROVE))
         return;
 
+    SKILL_DATA *skill = skill_find_uid(sn);
+    if (!skill)
+        return;
+
     this_class = get_this_class(ch, sn);
     rating = entry->rating;
 
     if (get_skill(ch, sn) == 0
-    ||  skill_table[sn].rating[this_class] == 0
+    ||  skill->rating[this_class] == 0
     ||  rating <= 0
     ||  rating >= 100)
     return;
@@ -1374,7 +1378,7 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
     multiplier  = UMAX(multiplier,1);
 //    multiplier  = UMIN(multiplier + 3, 8);
-    chance     /= (multiplier * skill_table[sn].rating[this_class] * 4);
+    chance     /= (multiplier * skill->rating[this_class] * 4);
     chance     += ch->level;
 
     if (number_range(1,1000) > chance)
@@ -1386,11 +1390,11 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     chance = URANGE(2, 100 - rating, 25);
     if (number_percent() < chance)
     {
-        sprintf(buf,"{WYou have become better at %s!{x\n\r", skill_table[sn].name);
+        sprintf(buf,"{WYou have become better at %s!{x\n\r", skill->name);
         send_to_char(buf,ch);
         entry->rating = UMIN(entry->rating + 1, 100);
         ch->pcdata->learned[sn] = entry->rating;
-        gain_exp(ch, NULL, 2 * skill_table[sn].rating[this_class], true);
+        gain_exp(ch, NULL, 2 * skill->rating[this_class], true);
     }
     }
     else
@@ -1400,12 +1404,12 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     {
         sprintf(buf,
         "{WYou learn from your mistakes, and your %s skill improves.{x\n\r",
-        skill_table[sn].name);
+        skill->name);
         send_to_char(buf, ch);
         entry->rating += number_range(1,3);
         entry->rating = UMIN(entry->rating,100);
         ch->pcdata->learned[sn] = entry->rating;
-        gain_exp(ch, NULL, 2 * skill_table[sn].rating[ch->pcdata->class_current], true);
+        gain_exp(ch, NULL, 2 * skill->rating[ch->pcdata->class_current], true);
     }
     }
 }
@@ -1526,7 +1530,8 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 
             if( !entry )
             {
-                if( skill_table[sn].spell_fun == spell_null ) {
+                SKILL_DATA *skill = skill_find_uid(sn);
+                if( skill && skill->spell_fun == spell_null ) {
                     skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 } else {
                     skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
@@ -1563,8 +1568,9 @@ void group_remove(CHAR_DATA *ch, const char *name)
 
     if (sn != -1)
     {
+    SKILL_DATA *skill = skill_find_uid(sn);
     ch->pcdata->learned[sn] = 0;
-    if( skill_table[sn].spell_fun == spell_null )
+    if( skill && skill->spell_fun == spell_null )
         skill_entry_removeskill(ch,sn, NULL);
     else
         skill_entry_removespell(ch,sn, NULL);
@@ -1726,7 +1732,10 @@ void do_practice( CHAR_DATA *ch, char *argument )
             return;
         }
 
-        if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill_table[sn].name))
+        SKILL_DATA *skill = skill_find_uid(sn);
+        char *sname = skill ? skill->name : "unknown";
+
+        if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, sname))
         {
             send_to_char("You can't practice that.\n\r", ch);
             return;
@@ -1734,7 +1743,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
         amount = entry->rating;
         if (amount >= rating_cap) {
-            sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", skill_table[sn].name);
+            sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", sname);
             send_to_char(buf, ch);
         } else {
             if (IS_VALID(trainer_entry) && !pay_practice_trainer_cost(ch, mob, trainer_entry))
@@ -1742,7 +1751,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 
             --ch->practice;
             ch->tempstore[0] = learn;
-            p_percent_trigger(ch, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_PRACTICE, skill_table[sn].name);
+            p_percent_trigger(ch, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_PRACTICE, sname);
             learn = ch->tempstore[0];
             if( learn < 1 ) learn = 1;	// At this point, it should be a minimum of 1 skill rating
 
@@ -1752,11 +1761,11 @@ void do_practice( CHAR_DATA *ch, char *argument )
             ch->pcdata->learned[sn] = amount;
 
             if (amount < rating_cap) {
-                act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
-                act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
+                act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, sname, TO_CHAR, NULL, NULL);
+                act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, sname, TO_ROOM, NULL, NULL);
             } else {
-                act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR, NULL, NULL);
-                act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM, NULL, NULL);
+                act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, sname, TO_CHAR, NULL, NULL);
+                act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, sname, TO_ROOM, NULL, NULL);
             }
         }
 
@@ -1772,8 +1781,10 @@ void do_practice( CHAR_DATA *ch, char *argument )
     }
 
     // If it makes it this far, it is a standard spell
+    SKILL_DATA *prac_skill = skill_find_uid(sn);
+    const char *prac_name = prac_skill ? prac_skill->name : "unknown";
 
-    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill_table[sn].name))
+    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, prac_name))
         return;
 
     if (ch->practice <= 0) {
@@ -1782,21 +1793,21 @@ void do_practice( CHAR_DATA *ch, char *argument )
     }
 
     if (ch->pcdata->learned[sn] >= 75) {
-        sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", skill_table[sn].name);
+        sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", prac_name);
         send_to_char(buf, ch);
     } else {
         this_class = get_this_class(ch, sn);
         --ch->practice;
         ch->pcdata->learned[sn] += int_app[get_curr_stat(ch, STAT_INT)].learn /
-            (skill_table[sn].rating[this_class] == 0 ? 10 : skill_table[sn].rating[this_class]);
+            (prac_skill && prac_skill->rating[this_class] != 0 ? prac_skill->rating[this_class] : 10);
 
         if (ch->pcdata->learned[sn] < 75) {
-            act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR);
-            act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM);
+            act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, prac_name, TO_CHAR);
+            act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, prac_name, TO_ROOM);
         } else {
             ch->pcdata->learned[sn] = 75;
-            act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR);
-            act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM);
+            act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, prac_name, TO_CHAR);
+            act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, prac_name, TO_ROOM);
         }
     }
 #endif
@@ -1922,7 +1933,8 @@ bool is_racial_skill(RACE_DATA *race, int sn)
     if (!race || sn < 0 || sn >= MAX_SKILL)
         return false;
 
-    return race_has_skill(race, skill_table[sn].name);
+    SKILL_DATA *skill = skill_find_uid(sn);
+    return skill ? race_has_skill(race, skill->name) : false;
 }
 
 
@@ -1944,6 +1956,7 @@ bool can_practice( CHAR_DATA *ch, int sn )
     if (!entry)
         return false;
 
+    SKILL_DATA *skill = skill_find_uid(sn);
     rating = entry->rating;
 
     // If we can't practice the skill, bail early.
@@ -1954,7 +1967,7 @@ bool can_practice( CHAR_DATA *ch, int sn )
     if (!IS_NPC(ch))
     {
     if (is_racial_skill(ch->race, sn)
-    && (ch->level >= skill_table[sn].skill_level[this_class] || had_skill(ch, sn)))
+    && ((skill && ch->level >= skill->skill_level[this_class]) || had_skill(ch, sn)))
         return true;
     }
 
@@ -1974,7 +1987,7 @@ bool can_practice( CHAR_DATA *ch, int sn )
     {
         CLASS_DATA *current = get_current_class(ch);
         if (current && class_grants_skill(current, sn)
-        &&  ch->level >= skill_table[sn].skill_level[this_class])
+        &&  skill && ch->level >= skill->skill_level[this_class])
             return true;
     }
 
@@ -2015,6 +2028,10 @@ bool is_global_skill( int sn )
     if ( sn < 0 )
     return false;
 
+    SKILL_DATA *skill = skill_find_uid(sn);
+    if (!skill)
+        return false;
+
     SKILL_GROUP *sg = skill_group_find("global skills");
     if (!sg)
         return false;
@@ -2023,7 +2040,7 @@ bool is_global_skill( int sn )
     char *skill_name;
     iterator_start(&it, sg->contents);
     while ((skill_name = (char *)iterator_nextdata(&it))) {
-        if (!str_cmp(skill_name, skill_table[sn].name)) {
+        if (!str_cmp(skill_name, skill->name)) {
             iterator_stop(&it);
             return true;
         }
@@ -2038,21 +2055,19 @@ bool is_global_skill( int sn )
 void update_skills( CHAR_DATA *ch )
 {
     char buf[MSL];
-    int sn;
     int reward = 0;
 
-
-
-    for (sn = 0; sn < MAX_SKILL && skill_table[sn].name; sn++)
+    for (SKILL_DATA *sk = skill_first(); sk; sk = sk->next)
     {
+    int sn = skill_sn(sk);
     SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, sn);
     int rating = entry ? entry->rating : 0;
 
     if (rating > 0 && !should_have_skill(ch, sn)
-    &&  str_cmp(skill_table[sn].name, "reserved"))
+    &&  str_cmp(sk->name, "reserved"))
     {
         sprintf(buf, "You shouldn't have skill %s (reward of {Y%d{x quest points)\n\r",
-            skill_table[sn].name, 7 * rating);
+            sk->name, 7 * rating);
         send_to_char(buf, ch);
         reward += (7 * rating);
 
@@ -2084,7 +2099,14 @@ bool has_subclass_skill( int subclass, int sn )
     if (subclass < CLASS_WARRIOR_MARAUDER || subclass > CLASS_THIEF_SAGE)
     return false;
 
-    skill_name = skill_table[sn].name;
+    skill_name = NULL;
+    {
+        SKILL_DATA *skill = skill_find_uid(sn);
+        if (skill)
+            skill_name = skill->name;
+    }
+    if (!skill_name)
+        return false;
     {
         CLASS_DATA *hss_class = class_from_legacy(0, subclass);
         if (hss_class && hss_class->groups) {
@@ -2137,11 +2159,15 @@ bool has_class_skill( int class, int sn )
     if (!sg)
         return false;
 
+    SKILL_DATA *skill = skill_find_uid(sn);
+    if (!skill)
+        return false;
+
     ITERATOR it;
     char *skill_name;
     iterator_start(&it, sg->contents);
     while ((skill_name = (char *)iterator_nextdata(&it))) {
-        if (!str_cmp(skill_table[sn].name, skill_name)) {
+        if (!str_cmp(skill->name, skill_name)) {
             iterator_stop(&it);
             return true;
         }
@@ -2192,7 +2218,10 @@ char *skill_entry_name (SKILL_ENTRY *entry)
     if( entry ) {
         if ( IS_VALID(entry->token) ) return entry->token->name;
 
-        if ( entry->sn > 0 ) return skill_table[entry->sn].name;
+        if ( entry->sn > 0 ) {
+            SKILL_DATA *skill = skill_find_uid(entry->sn);
+            if (skill) return skill->name;
+        }
         if ( entry->song ) return entry->song->name;
     }
 
@@ -2477,7 +2506,8 @@ int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry)
         return entry->rating;
 
     if( entry->sn > 0) {
-        if ((skill_table[entry->sn].race != -1 && (!ch->race || ch->race->uid != skill_table[entry->sn].race)) || ch->tot_level < 10)
+        SKILL_DATA *skill = skill_find_uid(entry->sn);
+        if ((skill && skill->race != NULL && (!ch->race || ch->race != skill->race)) || ch->tot_level < 10)
             return 0;
 
         return mob_skill_table[ch->tot_level];
@@ -2516,13 +2546,15 @@ int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
         // All token abilities register as level 1 (for now)
         return 1;
     } else if( entry->sn > 0) {
+        SKILL_DATA *skill = skill_find_uid(entry->sn);
+        if (!skill) return 0;
         this_class = get_this_class(ch, entry->sn);
 
         // Not ready yet
-        if( !had_skill( ch, entry->sn ) && (ch->level < skill_table[entry->sn].skill_level[this_class]) )
-            return -skill_table[entry->sn].skill_level[this_class];
+        if( !had_skill( ch, entry->sn ) && (ch->level < skill->skill_level[this_class]) )
+            return -skill->skill_level[this_class];
 
-        return skill_table[entry->sn].skill_level[this_class];
+        return skill->skill_level[this_class];
     } else if( entry->song ) {
         return entry->song->level;
     } else
@@ -2534,7 +2566,8 @@ int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry)
     if( IS_VALID(entry->token) ) {
         return token_skill_mana(entry->token);
     } else if( entry->sn >= 0) {
-        return skill_table[entry->sn].min_mana;
+        SKILL_DATA *skill = skill_find_uid(entry->sn);
+        return skill ? skill->min_mana : 0;
     } else if( entry->song) {
         return entry->song->mana;
     } else
@@ -2550,10 +2583,15 @@ int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry)
     if( IS_VALID(entry->token) ) {
         amount = entry->token->value[TOKVAL_SPELL_LEARN];
     } else if(entry->sn >= 0) {
+        SKILL_DATA *skill = skill_find_uid(entry->sn);
         int this_class = get_this_class(ch, entry->sn);
-        amount = (skill_table[entry->sn].rating[this_class] == 0 ?
-            10 :
-            skill_table[entry->sn].rating[this_class]);
+        if (skill) {
+            amount = (skill->rating[this_class] == 0 ?
+                10 :
+                skill->rating[this_class]);
+        } else {
+            amount = 10;
+        }
     }
 
     if(amount > 0)
@@ -2738,7 +2776,8 @@ void do_skillinfo(CHAR_DATA *ch, char *argument)
     }
 
     int sn = entry->sn;
-    if (sn < 0 || sn >= MAX_SKILL || skill_table[sn].name == NULL) {
+    SKILL_DATA *sd = skill_find_uid(sn);
+    if (sn < 0 || sn >= MAX_SKILL || !sd) {
         send_to_char("That skill appears to be invalid.\n\r", ch);
         return;
     }
@@ -2753,7 +2792,8 @@ void do_skillinfo(CHAR_DATA *ch, char *argument)
                             entry->isspell ? "Spell" : "Skill", name));
 
     /* Summary line */
-    SKILL_DATA *sd = entry->skill_data ? entry->skill_data : skill_find_uid(sn);
+    if (!sd)
+        sd = entry->skill_data ? entry->skill_data : skill_find_uid(sn);
     if (sd && sd->summary && sd->summary[0])
         add_buf(buffer, formatf("{Y%s{x\n\r", sd->summary));
 

@@ -30,6 +30,7 @@
 #include "nanny/nanny_menus.h"
 #include "class_data.h"
 #include "skill_group.h"
+#include "skill_data.h"
 #include "traits.h"
 #include "utils/localization.h"
 
@@ -5743,7 +5744,8 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
             SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, weapon);
 
             if (!entry) {
-                if (skill_table[weapon].spell_fun == spell_null)
+                SKILL_DATA *wskill = skill_find_uid(weapon);
+                if (wskill && wskill->spell_fun == spell_null)
                     skill_entry_addskill(ch, weapon, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 else
                     skill_entry_addspell(ch, weapon, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
