@@ -6,8 +6,7 @@ on:
       - master
       - v2_testport
       - legacy_server
-      - olc_blueprints
-      - feature/widevnum-migration
+      - legacy_testport
   workflow_dispatch:
 
 permissions:

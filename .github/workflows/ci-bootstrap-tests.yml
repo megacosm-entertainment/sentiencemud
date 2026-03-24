@@ -6,8 +6,7 @@ on:
       - master
       - v2_testport
       - legacy_server
-      - olc_blueprints
-      - feature/widevnum-migration
+      - legacy_testport
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -17,8 +16,7 @@ on:
       - master
       - v2_testport
       - legacy_server
-      - olc_blueprints
-      - feature/widevnum-migration
+      - legacy_testport
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
