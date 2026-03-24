@@ -1091,7 +1091,7 @@ static bool channel_topic_list_add_ref(CHANNEL_SUBSCRIPTION_TOPIC *topics,
         return false;
 
     for (i = 0; i < *topic_count; i++) {
-        if (!str_cmp(topics[i].topic, topic)) {
+        if (strcmp(topics[i].topic, topic) == 0) {
             topics[i].refs++;
             return true;
         }
@@ -1116,7 +1116,7 @@ static int channel_topic_list_find(CHANNEL_SUBSCRIPTION_TOPIC *topics,
         return -1;
 
     for (i = 0; i < topic_count; i++) {
-        if (!str_cmp(topics[i].topic, topic))
+        if (strcmp(topics[i].topic, topic) == 0)
             return i;
     }
 
