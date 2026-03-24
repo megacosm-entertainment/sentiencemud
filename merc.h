@@ -8468,15 +8468,10 @@ struct class_reward
 };
 
 /*
- * CLASS_DATA — New data-driven class definition.
+ * CLASS_DATA — Data-driven class definition.
  *
- * Replaces entries in the legacy class_table[] and sub_class_table[] arrays.
  * Classes are loaded from individual JSON files in data/classes/ and accessed
  * via hash table lookups (class_find/class_find_exact) instead of array indices.
- *
- * During the migration period, CLASS_DATA coexists with class_table[] and
- * sub_class_table[]. The bootstrap process creates CLASS_DATA entries from
- * sub_class_table on first run.
  */
 struct class_data
 {

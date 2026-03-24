@@ -1309,8 +1309,7 @@ void boot_db(void)
     // Load songs from data/songs.json.
     load_songs();
 
-    // Load classes from JSON files (new class system)
-    // On first run, bootstraps from legacy sub_class_table[] and saves JSON files.
+    // Load classes from JSON files
     load_class_data();
 
     // Load random string generators from JSON (rsgedit cache/persistence)

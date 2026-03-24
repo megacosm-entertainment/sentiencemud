@@ -3726,9 +3726,6 @@ void descrew_subclasses(CHAR_DATA *ch)
     else if (char_knows_group(ch, skill_group_find("wizard skills")))
         ch->pcdata->sub_class_mage = CLASS_MAGE_WIZARD;
 
-    //sprintf(buf, "{WYou had a screwed up mage class... it has been fixed to {Y%s.{x\n\r",
-    //    sub_class_table[ch->pcdata->sub_class_mage].name);
-    //send_to_char(buf, ch);
     }
 
     if (missing_class(ch) || (ch->pcdata->sub_class_cleric != -1
@@ -3743,9 +3740,6 @@ void descrew_subclasses(CHAR_DATA *ch)
     else if (char_knows_group(ch, skill_group_find("monk skills")))
         ch->pcdata->sub_class_cleric = CLASS_CLERIC_MONK;
 
-//	sprintf(buf, "{WYou had a screwed up cleric class... it has been fixed to {Y%s.{x\n\r",
-//	    sub_class_table[ch->pcdata->sub_class_cleric].name);
-//	send_to_char(buf, ch);
     }
 
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
@@ -3761,9 +3755,6 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (char_knows_group(ch, skill_group_find("bard skills")))
         ch->pcdata->sub_class_thief = CLASS_THIEF_BARD;
 
-//	sprintf(buf, "{WYou had a screwed up thief class... it has been fixed to {Y%s.{x\n\r",
-//	    sub_class_table[ch->pcdata->sub_class_thief].name);
-//	send_to_char(buf, ch);
     }
 
     if (missing_class(ch) || (ch->pcdata->sub_class_thief != -1
@@ -3778,9 +3769,6 @@ void descrew_subclasses(CHAR_DATA *ch)
     if (char_knows_group(ch, skill_group_find("paladin skills")))
         ch->pcdata->sub_class_warrior = CLASS_WARRIOR_PALADIN;
 
-//	sprintf(buf, "{WYou had a screwed up warrior class... it has been fixed to {Y%s.{x\n\r",
-//	    sub_class_table[ch->pcdata->sub_class_warrior].name);
-//	send_to_char(buf, ch);
     }
 }
 
