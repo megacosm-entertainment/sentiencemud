@@ -1052,22 +1052,29 @@ grant) to provide the same capability.
 - [ ] Remove `gsn_*` declarations from `merc.h` (272 declarations)
 - [ ] Remove `gsn_*` definitions from `db.c`
 - [x] Remove `skill_from_sn()` compatibility shim from runtime and headers
-- [ ] Remove `skill_table[]` from `const.c`
+- [x] Remove `skill_table[]` from `const.c` *(Session 19 — commit d6a3673c, -2,034 lines)*
 - [ ] Remove `pgsn` field from `SKILL_DATA`
-- [ ] Remove `int16_t sn` from `SKILL_ENTRY`
-- [ ] Remove `int16_t type` from `AFFECT_DATA`
-- [ ] Remove `learned[MAX_SKILL]` and `mod_learned[MAX_SKILL]` from `PC_DATA`
-- [ ] Remove `class_table[]` and `sub_class_table[]` from source
-- [ ] Remove legacy 16 class fields from `PC_DATA` (`class_mage`, `sub_class_mage`, etc.)
-- [ ] Remove `class_current` and `sub_class_current` from `PC_DATA`
+- [ ] Remove `int16_t sn` from `SKILL_ENTRY` *(deferred to Phase 10 — ~27 active callers)*
+- [ ] Remove `int16_t type` from `AFFECT_DATA` *(deferred to Phase 10 — ~380 active callers)*
+- [ ] Remove `learned[MAX_SKILL]` and `mod_learned[MAX_SKILL]` from `PC_DATA` *(deferred to Phase 10 — ~95 active callers)*
+- [x] Remove `class_table[]` and `sub_class_table[]` from source *(Session 19 — commit e4ca9b37)*
+- [ ] Remove legacy 16 class fields from `PC_DATA` (`class_mage`, `sub_class_mage`, etc.) *(deferred to Phase 10 — ~329 active callers)*
+- [ ] Remove `class_current` and `sub_class_current` from `PC_DATA` *(deferred to Phase 10 — ~70 active callers)*
 - [ ] Remove `CLASS_MAGE`/`CLASS_CLERIC`/`CLASS_THIEF`/`CLASS_WARRIOR` index constants (keep `CLASS_TYPE_*`)
 - [ ] Rename `get_trust()` to `get_mob_level()` and remove player authority semantics
 - [ ] Remove `IS_HERO()` and `IS_TRUSTED()` macros (replace all call sites with `IS_STAFF()`)
-- [ ] Remove `LEVEL_HERO` and `LEVEL_IMMORTAL` constants (or restrict to NPC-only contexts)
-- [ ] Remove `music_table[]` from `const.c`
-- [ ] Remove `group_table[MAX_GROUP]` from `const.c`
-- [ ] Remove `bool group_known[MAX_GROUP]` from `PC_DATA` (replaced by `LLIST *group_known`)
+- [x] Remove `LEVEL_HERO` and `LEVEL_IMMORTAL` constants (or restrict to NPC-only contexts) *(Session 19 — commit bd3f80e0, 3 player authority checks converted)*
+- [x] Remove `music_table[]` from `const.c` *(Session 19 — commit e6d91a2c)*
+- [x] Remove `group_table[MAX_GROUP]` from `const.c` *(Session 19 — commit e6d91a2c)*
+- [x] Remove `bool group_known[MAX_GROUP]` from `PC_DATA` (replaced by `LLIST *group_known`) *(Session 19 — commit e6d91a2c)*
 - [x] Remove `SEX_EITHER` and `SEX_MAX` from `merc.h` (class display uses `body_type_t` / `BODY_TYPE_MAX`)
+
+> **Phase 9 Status: MOSTLY COMPLETE (Session 19, 2026-03-24)**
+> Core static tables removed: `skill_table[]`, `struct skill_type`, `music_table[]`, `group_table[]`,
+> `group_known[]`, `class_table[]`, `sub_class_table[]`. ~320 indexed accesses migrated to SKILL_DATA API.
+> 13 AFFECT_DATA dual-write sites fixed. 3 LEVEL_IMMORTAL player checks converted. Skills now bootstrap
+> exclusively from JSON. Remaining field removals (learned[], mod_learned[], legacy class fields,
+> AFFECT_DATA.type reads, SKILL_ENTRY.sn) deferred to Phase 10 due to high active caller counts.
 
 ---
 

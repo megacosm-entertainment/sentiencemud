@@ -1,5 +1,7 @@
 # Object Multityping Phase 5: Verification & Closure Plan
 
+> **STATUS: COMPLETE (2026-03-24)** — All 3 tasks executed. 9 macros converted, Phase 5 closed as MOSTLY COMPLETE.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Verify that Phase 5 (game logic conversion from `obj->value[]` to type accessor macros) is complete, fix any remaining gaps, and close Phase 5.
@@ -30,7 +32,7 @@ Expected: Clean build, all tests pass (298+ pass, 0 fail).
 
 **Files:** All `.c` and `.h` files in `src/` and subdirectories (excluding `tests/`)
 
-- [ ] **Step 1: Search all C source files for direct value[] access**
+- [x] **Step 1: Search all C source files for direct value[] access**
 
 ```bash
 cd /sentience/src
@@ -39,7 +41,7 @@ grep -rn '->value\[' --include='*.c' . | grep -v 'tests/' | grep -v '//'
 
 Expected: Zero results in non-test, non-comment code.
 
-- [ ] **Step 2: Search all header files for macros that hide value[] access**
+- [x] **Step 2: Search all header files for macros that hide value[] access**
 
 ```bash
 cd /sentience/src
@@ -55,7 +57,7 @@ Document any additional macros found beyond these.
 
 **Note:** `token->value[]` (`TOKEN_DATA`) is a completely different system — ignore those results.
 
-- [ ] **Step 3: Check if value[]-based macros have active callers**
+- [x] **Step 3: Check if value[]-based macros have active callers**
 
 ```bash
 cd /sentience/src
@@ -64,7 +66,7 @@ grep -rn 'IS_WEAPON_STAT\|WEIGHT_MULT\|CORPSE_TYPE\|CORPSE_RESURRECT\|CORPSE_ANI
 
 If callers exist, they indirectly use `value[]` and need conversion in Task 2.
 
-- [ ] **Step 4: Check scripting layer specifically**
+- [x] **Step 4: Check scripting layer specifically**
 
 ```bash
 cd /sentience/src
@@ -74,7 +76,7 @@ grep -rn 'IS_WEAPON_STAT\|WEIGHT_MULT\|CORPSE_' script_*.c | grep -v '//'
 
 Expected: Zero direct `value[]` access (scripting was partially converted in earlier phases).
 
-- [ ] **Step 5: Record findings**
+- [x] **Step 5: Record findings**
 
 Document what was found (or confirm zero remaining access).
 
@@ -86,7 +88,7 @@ Document what was found (or confirm zero remaining access).
 
 **Skip this task entirely if Task 1 found zero issues.**
 
-- [ ] **Step 1: Convert IS_WEAPON_STAT macro**
+- [x] **Step 1: Convert IS_WEAPON_STAT macro**
 
 ```c
 // BEFORE (merc.h):
@@ -99,24 +101,24 @@ Document what was found (or confirm zero remaining access).
 **Important:** Check `item_types.h` for the actual weapon flags/stats field name before implementing.
 The IS_WEAPON guard is a behavioral change (more type-safe) — note this in the commit.
 
-- [ ] **Step 2: Convert CORPSE_* macros**
+- [x] **Step 2: Convert CORPSE_* macros**
 
 Convert `CORPSE_TYPE`, `CORPSE_RESURRECT`, `CORPSE_ANIMATE`, `CORPSE_PARTS`, `CORPSE_FLAGS`,
 `CORPSE_MOBILE`, `CORPSE_MOBILE_AUID` to use `CORPSE(obj)->field` accessors.
 Check `item_types.h` for `CORPSE_DATA` struct fields.
 
-- [ ] **Step 3: Convert WEIGHT_MULT and any other macros found in Task 1**
+- [x] **Step 3: Convert WEIGHT_MULT and any other macros found in Task 1**
 
 Apply the established pattern: `obj->value[N]` → `TYPE(obj)->field`
 Use `item_types.h` as the reference for field mappings.
 
-- [ ] **Step 3: Build and test**
+- [x] **Step 3: Build and test**
 
 ```bash
 cd /sentience/src && ./build tests && cd /sentience && ./sent -test
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A && git commit -m "fix: convert remaining value[] access to type accessors (Phase 5 cleanup)
@@ -128,11 +130,11 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 
 ### Task 3: Documentation Update
 
-- [ ] **Step 1: Update PLAN_backport_object_multityping.md**
+- [x] **Step 1: Update PLAN_backport_object_multityping.md**
 
 Mark Phase 5 as **COMPLETE** with verification note. Add a brief entry noting the audit results.
 
-- [ ] **Step 2: Commit documentation**
+- [x] **Step 2: Commit documentation**
 
 ```bash
 git add -A && git commit -m "docs: mark Object Multityping Phase 5 verified complete

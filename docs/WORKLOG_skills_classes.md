@@ -709,3 +709,44 @@ Start the deferred Phase 5 read-path migration by making core affect helper chec
 - **Phase 9:** Continue migrating remaining `paf->type` READ/comparison sites to pointer-first checks
 - Begin `gsn_*` declaration/definition retirement slices (`merc.h` / `db.c`)
 - Manual gameplay spot-check for completed skills/classes migration slices (practice/cast/scripted grant paths)
+
+---
+
+### Session 19 — 2026-03-24: Phase 9 Complete
+
+**Scope:** Full Phase 9 execution — remove all legacy skill/class globals and static tables.
+
+**Commits (13 total, 53 files changed, +1,009/-3,484 lines):**
+
+1. `e6d91a2c` — Remove music_table[], group_table[], and group_known[] (-446 lines)
+2. `e4ca9b37` — Remove class_table[] and sub_class_table[] references (-296 lines)
+3. `dbf5e0dd` — Migrate skill_table refs in skill system core (skills.c, act_class.c, nanny.c)
+4. `d6e11861` — Migrate skill_table refs in magic.c
+5. `3762c5ae` — Migrate skill_table refs in combat system (fight.c, fight2.c, shoot.c)
+6. `c7895e78` — Migrate skill_table refs in player commands (act_info/obj/obj2/move/wiz.c)
+7. `2c313eba` — Migrate skill_table refs in handlers and persistence (handler/update/save/db/db2.c)
+8. `936c4eb5` — Migrate skill_table refs in OLC, scripting, and remaining files (25 files)
+9. `d6a3673c` — Remove skill_table[] definition and struct skill_type (-2,034 lines)
+10. `802c0ed5` — Complete AFFECT_DATA.type → .skill dual-write migration (13 sites)
+11. `bd3f80e0` — Clean up LEVEL_HERO/LEVEL_IMMORTAL usage (3 player authority checks)
+12. `2685e594` — Legacy field audit and orphaned code removal
+
+**Key outcomes:**
+- skill_table[MAX_SKILL] (~1,906 lines of static data) removed from const.c
+- struct skill_type removed from merc.h
+- Bootstrap converted: skills now load exclusively from JSON (364 files in data/skills/)
+- music_table, group_table, class_table, sub_class_table all removed
+- ~320 skill_table[sn] indexed accesses converted to SKILL_DATA API across 35+ files
+- 13 missing AFFECT_DATA dual-write sites fixed
+- 3 LEVEL_IMMORTAL player authority checks converted to IS_IMMORTAL()
+
+**Deferred to Phase 10 (active callers remain):**
+- learned[MAX_SKILL] (~78 callers across 13 files)
+- mod_learned[MAX_SKILL] (~17 callers across 4 files)
+- 16 legacy class fields (~329 callers across 18 files)
+- class_current/sub_class_current (int) (~70 callers across 8 files)
+- AFFECT_DATA.type READ comparisons (~380 callers across 11 files)
+- SKILL_ENTRY.sn (~27 callers across 5 files)
+
+**Build:** Clean (both production and test builds)
+**Tests:** 279+ passing, 0 failures
