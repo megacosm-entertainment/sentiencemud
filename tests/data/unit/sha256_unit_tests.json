@@ -1,29 +1,29 @@
 {
   "type": "test_suite",
   "test_suite": "sha256_unit_tests",
-  "description": "Unit tests for custom SHA256 implementation correctness",
+  "description": "Unit tests for sha256_crypt() correctness (backed by OpenSSL EVP)",
   "version": "1.0",
   "requires_mud_environment": false,
   "test_level": "unit",
   "tests": [
     {
       "name": "sha256_known_vectors",
-      "description": "Validate SHA256 against implementation-specific test vectors",
+      "description": "Validate SHA256 against NIST known-answer test vectors",
       "test_type": "pure_function_test",
       "input": {
         "function": "sha256",
         "test_cases": [
           {
             "input_string": "",
-            "expected_hash": "64f00588447d0845d68faf4851bb5b1954e1dcfb6f5d3f7dcb43083273f5b614"
+            "expected_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
           },
           {
             "input_string": "abc",
-            "expected_hash": "bd706453f1f2dcddc9b6cddbb8f652cd0f69e3209829117cdcaaaae9dcaedc63"
+            "expected_hash": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
           },
           {
             "input_string": "hello world",
-            "expected_hash": "37316a1880dddb4b47973d4b5a58fce38338d70549029567a28767b766908cef"
+            "expected_hash": "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
           }
         ]
       },

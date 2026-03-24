@@ -11156,6 +11156,40 @@ void generate_reset_code(char* str, int str_len) {
     *str = '\0'; // Add the null character at the end
 }
 
+/**
+ * sha256_crypt - Hash a password string using SHA256 via OpenSSL EVP
+ *
+ * Returns a pointer to a static 65-byte buffer containing the lowercase
+ * hex-encoded SHA256 digest of pwd. Not thread-safe (static buffer).
+ *
+ * @param pwd  Plaintext string to hash
+ * @return     Hex string of SHA256 digest, or NULL on EVP failure
+ */
+char *sha256_crypt(const char *pwd)
+{
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    static char output[65];
+    unsigned char digest[32];
+    unsigned int j;
+
+    if (!ctx)
+        return NULL;
+
+    if (EVP_DigestInit_ex(ctx, EVP_sha256(), NULL) != 1 ||
+        EVP_DigestUpdate(ctx, pwd, strlen(pwd)) != 1 ||
+        EVP_DigestFinal_ex(ctx, digest, NULL) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return NULL;
+    }
+
+    EVP_MD_CTX_free(ctx);
+
+    for (j = 0; j < 32; ++j)
+        snprintf(output + j * 2, 3, "%02x", digest[j]);
+
+    return output;
+}
+
 char *tmp_sprintf(const char *fmt, ...)
 {
     static char buf[MAX_STRING_LENGTH];
@@ -12063,8 +12097,6 @@ bool set_encrypted_password(char **target_password_field, int *target_version_fi
 
 // Checks a plaintext password against a stored hash using tiered methods.
 password_check_status check_encrypted_password(const char *plaintext_password, const char *stored_hash, int stored_version) {
-    extern char *sha256_crypt(const char *pwd);  // Forward declaration for SHA256 function
-    
     if (!plaintext_password || !stored_hash || stored_hash[0] == '\0') {
         return PWD_CHECK_FAIL; // Cannot check against empty stored hash
     }
