@@ -643,7 +643,7 @@ typedef struct skill_entry_type {
     bool improve;		// Can this improve through use?
     bool isspell;		// Whether this is a spell;
     SKILL_DATA *skill_data;	// Pointer to master skill definition (NULL during migration)
-    int16_t sn;			// Skill Number (legacy, remove in Phase 9)
+    int16_t sn;			// Skill Number (legacy — 27 active callers at Phase 9 audit, deferred)
     SONG_DATA *song;		// Song data pointer (NULL if not a song entry)
     TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
     int rating;			// Skill percentage (0-100+), replaces learned[sn]
@@ -2564,7 +2564,7 @@ struct	affect_data
     int16_t		group;
     int16_t		where;
     SKILL_DATA *	skill;		/* Pointer to skill (NULL for custom-named/catalyst) */
-    int16_t		type;		/* Legacy: skill number for compat; remove in Phase 9 */
+    int16_t		type;		/* Legacy: skill number — ~380 active callers at Phase 9 audit, deferred */
     int16_t		level;
     int16_t		duration;
     int16_t		location;
@@ -5858,7 +5858,7 @@ struct	pc_data
     LLIST *             classes;            /* LLIST of CLASS_LEVEL */
     CLASS_LEVEL *       current_class;      /* Active class (points into classes list) */
 
-    /* Legacy class fields — kept during migration, removed in Phase 9 */
+    /* Legacy class fields — Phase 9 audit: ~500 active callers across codebase, deferred */
     int			class_current;
     int			sub_class_current;
     int			class_mage;
@@ -8357,7 +8357,7 @@ struct skill_data
 
     int16_t             difficulty;          /* Base difficulty rating */
 
-    /* Legacy class availability (for migration, kept until Phase 9) */
+    /* Legacy class availability — Phase 9 audit: ~41 active callers, deferred */
     int16_t             skill_level[MAX_CLASS]; /* Level needed by class (4 classes) */
     int16_t             rating[MAX_CLASS];      /* How hard it is to learn (4 classes) */
 
@@ -11040,7 +11040,6 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded);
 /* skills.c */
 bool 	parse_gen_groups args( ( CHAR_DATA *ch,char *argument ) );
 void 	list_group_costs args( ( CHAR_DATA *ch ) );
-void    list_group_known args( ( CHAR_DATA *ch ) );
 long 	exp_per_level	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show );

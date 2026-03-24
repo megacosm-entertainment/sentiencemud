@@ -5419,7 +5419,7 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
  *
  * Legacy class fields (class_current, sub_class_current, etc.) are left at
  * their pcdata defaults (-1 / 0). Code that reads them must gracefully handle
- * those values until they are removed in Phase 9.
+ * those values (Phase 9 audit: deferred due to ~500 active callers).
  *
  * @param d  Descriptor of the character being created
  */
