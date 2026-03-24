@@ -20,15 +20,17 @@ by `Sentience.*` GMCP packages (see `PLAN_GMCP_REWORK.md`).
 
 ## Layout Engine
 
-### Library: Golden Layout
+### Library: FlexLayout
 
-**[Golden Layout](https://golden-layout.com/)** is the recommended panel system.
+**[FlexLayout](https://github.com/nicholasmaven/FlexLayout)** is the panel layout engine.
 
+- Native React component model — each panel is a React component
 - Panels snap to a grid, can be tabbed, dragged, resized, or floated
-- Serializes/deserializes its entire state as JSON natively
+- Serializes/deserializes its entire layout model as JSON
 - MIT license, actively maintained
-- Used by Bloomberg Terminal web UI and VSCode-inspired applications
-- Framework-agnostic (works with React, Vue, or vanilla JS)
+- Used by Azure Data Studio and similar applications
+- Golden Layout v2 was evaluated but explicitly does not support React (their docs
+  direct React users to FlexLayout)
 
 Alternative considered: **React Mosaic** — simpler tiling but no floating/tabbing.
 Alternative considered: **Floating UI** — lower-level, would require building the drag
@@ -42,7 +44,7 @@ The terminal panel is special:
 - **Minimum size enforced** — e.g., no smaller than 400×300px
 - All other panels are optional and closeable
 
-Golden Layout supports `isClosable: false` and minimum size constraints per component.
+FlexLayout supports `enableClose: false` on tab nodes and minimum size constraints per component.
 
 ---
 
@@ -238,25 +240,25 @@ Mudlet behavior).
 
 ### Mechanism
 
-Golden Layout serializes its state to a plain JSON object. This is saved server-side via
+FlexLayout serializes its layout model to a plain JSON object. This is saved server-side via
 a `Sentience.Client.Layout` GMCP message:
 
 ```json
 // Client → Server (save)
 {
   "action": "save",
-  "layout": { /* Golden Layout state JSON */ }
+  "layout": { /* FlexLayout model JSON */ }
 }
 
 // Server → Client (restore on login)
 {
   "action": "restore",
-  "layout": { /* saved Golden Layout state JSON */ }
+  "layout": { /* saved FlexLayout model JSON */ }
 }
 ```
 
 Server stores this in the character JSON under `"web_client_layout"`. Maximum size: 8KB
-(prevents abuse; Golden Layout state is typically <2KB).
+(prevents abuse; FlexLayout model state is typically <2KB).
 
 ### Fallback
 
@@ -307,14 +309,14 @@ All panels must work on mobile:
 - Vitals panel always visible (pinned to top on mobile)
 - Floating panels disabled on mobile (no drag precision)
 
-Golden Layout has a responsive mode; the mobile layout is a separate simplified config
+FlexLayout supports responsive behavior; the mobile layout is a separate simplified config
 that activates below the breakpoint.
 
 ---
 
 ## Technology Stack
 
-- **Golden Layout** — panel layout engine
+- **FlexLayout** — panel layout engine (React-native docking/tabbing)
 - **xterm.js** — terminal emulator (existing, unchanged)
 - **React** — component framework (aligns with Next.js / Payload CMS stack in `PLAN_WEB_INFRASTRUCTURE.md`)
 - **CSS custom properties** — theming (dark/light mode, color scheme matching in-game colors)
@@ -341,7 +343,7 @@ Theme preference stored in character JSON alongside layout state.
 ## Implementation Phases
 
 ### Phase 1 — Foundation panels
-- [ ] Integrate Golden Layout into web client
+- [ ] Integrate FlexLayout into web client
 - [ ] Default layout: terminal (center) + vitals (right) + room info (right, tabbed)
 - [ ] Vitals panel with HP/mana/move bars, driven by `Sentience.Char.Vitals`
 - [ ] Room Info panel with exit buttons, driven by `Sentience.Room.Info`
@@ -376,8 +378,8 @@ Theme preference stored in character JSON alongside layout state.
 
 ## Open Questions
 
-1. **Golden Layout v1 vs v2**: v2 is a full rewrite (still in beta as of early 2026). v1 is
-   stable but older. Worth evaluating v2 beta stability before committing.
+1. ~~**Golden Layout v1 vs v2**~~: Resolved — switched to FlexLayout. Golden Layout v2
+   does not support React; their documentation directs React users to FlexLayout.
 
 2. **Minimap depth**: How many rooms should the client cache for the minimap? 50? 200?
    This affects memory and the usefulness of the map on long exploration sessions. The map
@@ -394,8 +396,8 @@ Theme preference stored in character JSON alongside layout state.
    character JSON) so it survives refresh/reconnect, or session-only (simpler)?
 
 6. **Layout versioning**: If the panel structure changes in a future version (e.g., a panel
-   is renamed or removed), how do we handle stale saved layouts? Probably: on load, validate
-   each panel component type against a known list; drop unknown components gracefully.
+   is renamed or removed), how do we handle stale saved layouts? Probably: on load, validate each tab type against a known list
+   in the FlexLayout model; drop unknown tab types gracefully.
 
 7. **Panel plugin model**: Should third-party panels be possible (e.g., a guild-specific
    panel defined by a builder)? Out of scope for now but worth not designing against.

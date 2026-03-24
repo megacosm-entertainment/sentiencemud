@@ -198,6 +198,21 @@ Implementation notes:
 - A QR code at scale=6 is roughly 150×150px → ~67KB PNG → ~90KB base64. Well within
   a single GMCP packet.
 
+#### Session Resume (see `PLAN_WEBSOCKET_SESSION_RESUME.md`)
+
+```
+Sentience.Auth.Resume
+  event       string   "token" | "ok" | "fail" | "pending"
+  token       string   (token event only) opaque resume token
+  ttl         int      (token event only) seconds until token expires
+  reason      string   (fail event only) e.g. "invalid_or_expired"
+```
+
+Sent to WebSocket clients for seamless session resume on page refresh. The client stores
+the token and sends `RESUME <token>` as its first message on reconnect. Previously used
+the `Core.Resume` package name; moved to `Sentience.Auth.*` namespace since `Core.*` is
+reserved for standard GMCP negotiation (`Core.Hello`, `Core.Supports.*`).
+
 #### Client Capabilities
 
 ```
@@ -290,7 +305,7 @@ internal to `mxp_links.c`. The 125 call sites need no changes.
 The web client runs at `wss://` on the dedicated websocket port. Because it's a separate
 connection type, it can receive richer data without affecting Mudlet/telnet clients.
 
-The web client uses a **dockable panel layout** (Golden Layout or equivalent) giving players
+The web client uses a **dockable panel layout** (FlexLayout) giving players
 the same moveable/resizable mini-window experience as Mudlet, with the added benefit that
 layout preferences are persisted server-side and roam across devices. See
 `PLAN_WEB_CLIENT_UI.md` for full details.
@@ -298,8 +313,8 @@ layout preferences are persisted server-side and roam across devices. See
 **Server-side layout persistence** requires a new GMCP message:
 ```
 Sentience.Client.Layout  — bidirectional
-  Client → Server: {"panels": <Golden Layout JSON state>}
-  Server → Client: {"panels": <saved state>}   (sent on login)
+  Client → Server: {"panels": <FlexLayout model JSON>}
+  Server → Client: {"panels": <saved model>}   (sent on login)
 ```
 Stored in character JSON under `"web_client_layout"`.
 
@@ -398,7 +413,7 @@ This avoids breaking any existing player setups during the transition.
 ## Track 3 note: Web Client Panel Layout
 
 The web client UI design (dockable panels, layout persistence via `Sentience.Client.Layout`
-GMCP, Golden Layout library recommendation) is detailed in `PLAN_WEB_CLIENT_UI.md`.
+GMCP, FlexLayout library) is detailed in `PLAN_WEB_CLIENT_UI.md`.
 
 The GMCP side of layout persistence is:
 - `Sentience.Client.Layout` — server stores and restores panel layout per character
