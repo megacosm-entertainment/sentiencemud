@@ -95,6 +95,7 @@ C_FILES = \
     channels/channel_registry.c \
     channels/channel_service.c \
     channels/channel_filter.c \
+    channels/channel_gmcp.c \
     channels/channel_moderation.c \
     channels/channel_review.c \
     channels/channel_transport.c \

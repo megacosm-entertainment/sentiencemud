@@ -4082,6 +4082,37 @@ void UpdateGMCPNumber( descriptor_t *apDescriptor, GMCP_VARIABLE var, const long
    return;
 }
 
+/**
+ * SendGMCPRaw - Send an ad-hoc GMCP event packet to a descriptor
+ *
+ * Sends a GMCP message in the form: package json_body, framed with
+ * IAC SB GMCP ... IAC SE.  Does nothing if the descriptor does not
+ * have GMCP negotiated.  This bypasses the state table and fires
+ * immediately (fire-and-forget events).
+ *
+ * @param apDescriptor  Target connection
+ * @param package       Full package name, e.g. "Sentience.Channel.Message"
+ * @param json_body     JSON content (already formatted), e.g. {"channel":"gossip",...}
+ */
+void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *json_body )
+{
+   char buf[MSL + 64];
+
+   if ( !apDescriptor || !apDescriptor->pProtocol || !apDescriptor->pProtocol->bGMCP )
+      return;
+
+   if ( !package || !json_body )
+      return;
+
+   snprintf( buf, sizeof(buf), "%s%s %s%s",
+             ( char * ) iac_sb_gmcp,
+             package,
+             json_body,
+             ( char * ) iac_se );
+
+   Write( apDescriptor, buf );
+}
+
 static char *OneArg( char *fStr, char *bStr )
 {
    while ( ISSPACE( *fStr ) )

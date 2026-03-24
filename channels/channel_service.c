@@ -13,6 +13,7 @@
 #include "channel_filter.h"
 #include "channel_review.h"
 #include "channels_common.h"
+#include "channel_gmcp.h"
 #include "../account/penalty.h"
 #include "../account/preferences.h"
 #include "../mxp_links.h"
@@ -3379,6 +3380,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                msg.reports_json,
                                appended_report_id,
                                sizeof(appended_report_id));
+        channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
         return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
@@ -3389,6 +3391,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
 
     if (channel_transport_backend_mode() != CHANNEL_BACKEND_LEGACY_ITERATIVE) {
         if (channel_transport_publish(topic, &msg)) {
+            channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
             return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, NULL);
         }
 
@@ -3402,6 +3405,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                msg.reports_json,
                                appended_report_id,
                                sizeof(appended_report_id));
+        channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
         return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
@@ -3414,6 +3418,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                            msg.reports_json,
                            appended_report_id,
                            sizeof(appended_report_id));
+    channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
     return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
 }
 
@@ -3537,6 +3542,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
         channel_history_set_participants(sender->id[0], sender->id[1],
                                          recipient->id[0], recipient->id[1]);
         channel_history_set_recipient_name(recipient->name);
+        channel_gmcp_send_directed(sender, recipient, channel_id, delivery_text, current_time);
         channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
@@ -3565,6 +3571,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     msg.timestamp = current_time;
 
     if (channel_transport_publish(topic, &msg)) {
+        channel_gmcp_send_directed(sender, recipient, channel_id, delivery_text, current_time);
         channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
         return true;
     }
@@ -3582,6 +3589,7 @@ bool channel_service_send_directed(CHAR_DATA *sender, const char *channel_id,
     channel_history_set_participants(sender->id[0], sender->id[1],
                                      recipient->id[0], recipient->id[1]);
     channel_history_set_recipient_name(recipient->name);
+    channel_gmcp_send_directed(sender, recipient, channel_id, delivery_text, current_time);
     channel_deliver_tell_legacy(sender, recipient, channel_id, delivery_text);
     return true;
 }
