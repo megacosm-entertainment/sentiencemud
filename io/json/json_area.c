@@ -4953,6 +4953,28 @@ json_t *json_area_serialize_mobile(MOB_INDEX_DATA *mob)
         else
             json_decref(reputation_rewards);
     }
+
+    if (mob->factions)
+    {
+        json_t *faction_array = json_array();
+        MOB_FACTION_DATA *fac;
+
+        for (fac = mob->factions; fac; fac = fac->next)
+        {
+            if (!IS_VALID(fac->faction))
+                continue;
+
+            json_array_append_new(faction_array,
+                json_string(widevnum_string(fac->faction->area,
+                                            fac->faction->vnum,
+                                            mob->area)));
+        }
+
+        if (json_array_size(faction_array) > 0)
+            json_object_set_new(json, "factions", faction_array);
+        else
+            json_decref(faction_array);
+    }
     
     // Pronouns
     if (mob->pronoun_he_she && mob->pronoun_he_she[0] != '\0')
@@ -5262,6 +5284,36 @@ MOB_INDEX_DATA *json_area_deserialize_mobile(json_t *json, AREA_DATA *area)
 
                 last = new_rep;
             }
+        }
+    }
+
+    json_t *factions_json = json_object_get(json, "factions");
+    if (json_is_array(factions_json))
+    {
+        MOB_FACTION_DATA *last_fac = NULL;
+        size_t fac_idx;
+        json_t *fac_val;
+
+        json_array_foreach(factions_json, fac_idx, fac_val)
+        {
+            const char *fac_ref = json_string_value(fac_val);
+            if (!fac_ref || !*fac_ref)
+                continue;
+
+            WNUM_LOAD fac_load;
+            if (!parse_widevnum_load(fac_ref, &fac_load))
+                continue;
+
+            MOB_FACTION_DATA *new_fac = new_mob_faction_data();
+            new_fac->faction_load = fac_load;
+            new_fac->next = NULL;
+
+            if (last_fac)
+                last_fac->next = new_fac;
+            else
+                mob->factions = new_fac;
+
+            last_fac = new_fac;
         }
     }
     
