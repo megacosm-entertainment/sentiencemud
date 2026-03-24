@@ -1,33 +1,36 @@
 # Test Coverage Status
 
 **Last Updated:** March 23, 2026  
-**Total Test Suites:** 67 (27 unit + 34 integration + 6 framework)  
-**Total Test Cases:** 432 (418 passing, 1 failing, 13 skipped)  
-**Test Source Files:** 36 (4 framework + 5 unit + 27 integration)  
-**JSON Test Definitions:** 67 files  
+**Total Test Suites:** 69 (24 unit + 39 integration + 6 framework)  
+**Total Test Cases:** 475 (461 passing, 1 failing, 13 skipped)  
+**Test Source Files:** 39 (4 framework + 8 unit + 27 integration)  
+**JSON Test Definitions:** 69 files  
 **Total Source Modules:** 136  
 
 ## Test Run Summary
 
 ```
 === Test Results ===
-Total:   432
-Passed:  418
+Total:   475
+Passed:  461
 Failed:  1
 Errors:  0
 Skipped: 13
 ==================
 ```
 
-**Known Failure:** `buffer_core_and_failure_paths` — pre-existing assertion issue in buffer uniqueness check.
+**Known Failure:** `do_func_table_unique_names` — duplicate `do_northeast` in `do_func_table[]`.
 
-**Known Skips (13):** Script system functions that trigger `p_percent_trigger()` which segfaults in the test environment (no script data initialized). Affected: `hit_gain()`, `mana_gain()`, `move_gain()`, `toxin_gain()`, and a few trait/quest tests with missing data.
+**Known Skips (13):** Script system functions that trigger `p_percent_trigger()` which segfaults in the test environment (no script data initialized). Redis not available. Missing data for some quest/reset tests.
 
 ## Module Coverage Table
 
 | Module | Source Files | Tier | Test Suites | Tests | Status |
 |--------|-------------|------|-------------|-------|--------|
-| **String Processing** | string.c | Easy | core_string, string_edit_helpers, string_editor_state, string_formatting, string_predicates, string_transform, color_* helpers, string_editor | ~65 | ✅ Good |
+| **String Processing** | string.c | Easy | core_string, string_edit_helpers, string_editor_state, string_formatting (incl. UTF-8), string_predicates, string_transform, color_* helpers, string_editor | ~65 | ✅ Good |
+| **UTF-8 Support** | utils/utf8.c | Easy | utf8_function_tests | 28 | ✅ Good |
+| **Dynamic Arrays** | utils/array.c | Easy | array_function_tests | 10 | ✅ Good |
+| **String Dictionary** | utils/strdict.c | Easy | strdict_function_tests | 5 | ✅ Good |
 | **Lookup/Tables** | lookup.c, tables.c | Easy | lookup_helpers, lookup_function, lookup_table | ~15 | ✅ Good |
 | **Bit Operations** | bit.c | Easy | bitset_helpers, bit_operations | ~10 | ✅ Good |
 | **SHA256 Crypto** | sha256.c | Easy | sha256_unit_tests | 3 | ✅ Good |

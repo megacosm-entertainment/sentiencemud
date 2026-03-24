@@ -4,6 +4,27 @@
 
 This document tracks known test failures, skips, and environment-specific issues. Update this file when test status changes.
 
+## Bugs Found by Tests
+
+### `utf8_prevchar()` — Signed char comparison (FIXED)
+
+- **Found by:** `utf8_navigation_backward` test
+- **Root Cause:** `str[-1] >= 0x80` used signed char comparison — continuation bytes (0x80-0xBF) appeared negative, causing byte-by-byte backward navigation instead of character-by-character.
+- **Fix:** Cast to `(unsigned char)` in the comparison.
+
+### `is_utf8_string()` — Infinite loop on non-multibyte input (FIXED)
+
+- **Found by:** `utf8_validation_invalid` test (caused hang blocking all subsequent tests)
+- **Root Cause:** Missing `else str++` for ASCII/invalid bytes — the while loop never advanced past non-multibyte characters.
+- **Fix:** Added `else str++` to advance past ASCII and unrecognized bytes.
+
+### `array_remove()` — Double-free via `realloc(ptr, 0)` (WORKAROUND)
+
+- **Found by:** `dynarr_array_queue_ops` and `dynarr_array_stack_ops` tests
+- **Root Cause:** When removing the last element, `realloc(arr->ptr, 0)` frees the buffer (implementation-defined) but `arr->ptr` retains the dangling pointer. Subsequent `free_array()` double-frees.
+- **Workaround:** Tests avoid fully draining stack/queue to prevent the trigger condition.
+- **Fix needed:** `array_remove()` should set `arr->ptr = NULL` when length reaches 0, or use `free()` + `NULL` assignment instead of `realloc(ptr, 0)`.
+
 ## Known Failures (1)
 
 ### `do_func_table_unique_names` — Duplicate `do_northeast`
@@ -63,14 +84,12 @@ Redis server is not running or not configured in the test environment.
 When running the full test suite, the expected baseline is:
 
 ```
-Total:   432
-Passed:  418
+Total:   475
+Passed:  461
 Failed:  1
 Errors:  0
 Skipped: 13
 ```
-
-Any deviation from these numbers should be investigated:
 - **New failures** indicate regressions — fix before merging
 - **Fewer skips** means an environment issue was resolved — update this doc
 - **More skips** means something broke in test data or environment
