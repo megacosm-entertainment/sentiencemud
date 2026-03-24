@@ -1971,7 +1971,7 @@ void char_update(void)
         }
 
         // Updates for NON-IMM players who aren't dead.
-        if (!IS_NPC(ch) && ch->tot_level < LEVEL_IMMORTAL && !IS_DEAD(ch))
+        if (!IS_NPC(ch) && !IS_IMMORTAL(ch) && !IS_DEAD(ch))
         {
             // Check for light in inventory
             if (ch->lworn) {
@@ -3427,7 +3427,7 @@ void aggr_update(void)
             }
             else
             if (!IS_NPC(vch)
-            &&  vch->level < LEVEL_IMMORTAL
+            &&  !IS_IMMORTAL(vch)
             &&  ch->level >= vch->level - 5
             &&  (!IS_SET(ch->act[0], ACT_WIMPY) || !IS_AWAKE(vch))
             &&  can_see(ch, vch))

@@ -9174,7 +9174,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (victim->tot_level < LEVEL_IMMORTAL)
+    if (!IS_IMMORTAL(victim))
     {
         send_to_char("Imm title is for imms only!\n\r", ch);
         return;
