@@ -91,6 +91,7 @@ QUEST_INDEX_DATA *quest_index_free;
 QUEST_INDEX_PART_DATA *quest_index_part_free;
 QUEST_LIST *quest_list_free;
 MOB_REPUTATION_DATA *mob_reputation_free;
+MOB_FACTION_DATA *mob_faction_free;
 AURA_DATA *aura_data_free;
 QUEST_PART_DATA *quest_part_free;
 RESET_DATA *reset_free;
@@ -840,6 +841,7 @@ CHAR_DATA *new_char( void )
     ch->lgroup			= list_create(false);
     ch->auras                   = list_createx(false, NULL, delete_aura_data);
     ch->lstache			= list_create(false);
+    ch->factions		= list_create(false);
 
     ch->deathsight_vision = 0;
     ch->in_damage_function = false;
@@ -1012,6 +1014,10 @@ void free_char( CHAR_DATA *ch )
     ch->auras = NULL;
     list_destroy(ch->lstache);
     ch->lstache = NULL;
+    list_destroy(ch->reputations);
+    ch->reputations = NULL;
+    list_destroy(ch->factions);
+    ch->factions = NULL;
 
     variable_clearfield(VAR_MOBILE, ch);
     script_clear_mobile(ch);
@@ -2564,6 +2570,16 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     free_mob_reputation_data(rep);
     }
     pMob->mob_reputations = NULL;
+
+    {
+        MOB_FACTION_DATA *fac, *fac_next;
+        for (fac = pMob->factions; fac != NULL; fac = fac_next)
+        {
+            fac_next = fac->next;
+            free_mob_faction_data(fac);
+        }
+        pMob->factions = NULL;
+    }
 
     free_questor_data( pMob->pQuestor );
     free_trainer_data( pMob->pTrainer );
@@ -4134,6 +4150,53 @@ void free_mob_reputation_data(MOB_REPUTATION_DATA *data)
     INVALIDATE(data);
     data->next = mob_reputation_free;
     mob_reputation_free = data;
+}
+
+MOB_FACTION_DATA *new_mob_faction_data(void)
+{
+    MOB_FACTION_DATA *data;
+
+    if (!mob_faction_free)
+    {
+        data = alloc_perm(sizeof(*data));
+    }
+    else
+    {
+        data = mob_faction_free;
+        mob_faction_free = mob_faction_free->next;
+    }
+
+    memset(data, 0, sizeof(*data));
+    VALIDATE(data);
+    return data;
+}
+
+MOB_FACTION_DATA *copy_mob_faction_data(MOB_FACTION_DATA *src)
+{
+    MOB_FACTION_DATA *data;
+
+    if (!IS_VALID(src))
+        return NULL;
+
+    data = new_mob_faction_data();
+    if (!data)
+        return NULL;
+
+    data->faction = src->faction;
+    data->faction_load = src->faction_load;
+    data->next = NULL;
+
+    return data;
+}
+
+void free_mob_faction_data(MOB_FACTION_DATA *data)
+{
+    if (!IS_VALID(data))
+        return;
+
+    INVALIDATE(data);
+    data->next = mob_faction_free;
+    mob_faction_free = data;
 }
 
 

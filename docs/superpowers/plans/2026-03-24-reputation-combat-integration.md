@@ -393,13 +393,34 @@ In `create_mobile()` (db.c), after the mob_reputations copy block (after line ~5
     }
 ```
 
-- [ ] **Step 3: Build to verify**
+- [ ] **Step 3: Copy factions in clone_mobile**
+
+Find `clone_mobile()` in db.c (near line ~5269). After the existing field copies, add:
+
+```c
+    // Copy faction membership from parent
+    if (parent->factions != NULL)
+    {
+        ITERATOR it;
+        REPUTATION_INDEX_DATA *repIndex;
+        iterator_start(&it, parent->factions);
+        while ((repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            list_appendlink(clone->factions, repIndex);
+        }
+        iterator_stop(&it);
+    }
+```
+
+Note: `clone_mobile()` copies a live CHAR_DATA instance, so factions is an LLIST of REPUTATION_INDEX_DATA pointers. Check the actual parameter names (may be `parent`/`clone` or `ch`/`victim` etc).
+
+- [ ] **Step 4: Build to verify**
 
 ```bash
 cd /sentience/src && ./build
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add -A && git commit -m "feat(reputation): resolve faction WNUM_LOAD and populate on mob creation"
@@ -411,14 +432,15 @@ git add -A && git commit -m "feat(reputation): resolve faction WNUM_LOAD and pop
 
 **Files:**
 - Modify: `src/editors/mobiles/medit.c`
+- Modify: `src/olc.h` (forward declarations)
 
-- [ ] **Step 1: Add forward declarations**
+- [ ] **Step 1: Add forward declarations to olc.h**
 
-At the top of medit.c (near other MEDIT declarations), add:
+In `olc.h`, find `DECLARE_OLC_FUN( medit_addreputation )` (near line ~421). Add nearby:
 
 ```c
-MEDIT(medit_addfaction);
-MEDIT(medit_delfaction);
+DECLARE_OLC_FUN( medit_addfaction );
+DECLARE_OLC_FUN( medit_delfaction );
 ```
 
 - [ ] **Step 2: Add command table entries**
@@ -541,9 +563,9 @@ MEDIT(medit_delfaction)
 }
 ```
 
-- [ ] **Step 5: Add faction display to medit show**
+- [ ] **Step 5: Add faction display to medit_show_special_tab**
 
-Find the `medit_show` function (search for reputation display, which shows mob_reputations). After that display block, add faction display:
+Find the `medit_show_special_tab()` function (search for reputation display block ending around line ~672). After the reputation rewards display block, add faction display:
 
 ```c
     if (pMob->factions)
@@ -803,7 +825,7 @@ In `is_safe()`, find the NPC victim section (around line 2250+ where other NPC-s
     {
         if (show)
         {
-            act("$N is friendly to you.", ch, NULL, victim, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("$N is friendly to you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         }
         return true;
     }
