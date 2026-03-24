@@ -99,27 +99,24 @@ These read from the legacy `value[]` array and populate the corresponding type s
 
 ## 3. Remaining Work
 
-### Phase 5: Convert Game Logic to Use Type Accessors — IN PROGRESS
+### Phase 5: Convert Game Logic to Use Type Accessors — MOSTLY COMPLETE ✓
 
-~1,100+ lines across ~35 files still read `->value[]` directly for gameplay behavior. These must be converted to use the type struct accessors (e.g., `obj->value[1]` for a weapon → `OBJ_WEAPON(obj)->damage.number`).
+Game logic conversion is complete: all `.c` files that implement gameplay behavior now use type accessors exclusively — zero direct `->value[]` access remains in game logic. **1,044 type accessor calls** are in use across the codebase.
 
-**By priority / item type frequency:**
+**Macro conversion (commit 7b16092a):** 9 `merc.h` macros that formerly accessed `->value[]` were converted to type accessors:
+- `IS_WEAPON_STAT` → uses `OBJ_WEAPON()`
+- `WEIGHT_MULT` → uses `OBJ_CONTAINER()`
+- `CORPSE_IS_NPC`, `CORPSE_NPC_VNUM`, `CORPSE_NPC_WIDEVNUM`, `CORPSE_CLAN`, `CORPSE_PC_NAME`, `CORPSE_IS_SKINNABLE`, `CORPSE_IS_CARVED` → use `OBJ_CORPSE()`
 
-| Item Type | Key Files | Estimated Lines |
-|-----------|-----------|----------------:|
-| **Portal** (`value[0-7]`) | `act_enter.c` (47), `act_move.c` (71), `handler.c`, `magic_astral.c` (20), `magic_law.c` (34) | ~200+ |
-| **Weapon** (`value[0-4]`) | `fight.c` (39), `fight2.c` (12), `shoot.c` (30), `act_obj.c`, `handler.c` | ~120+ |
-| **Container** (`value[0-4]`) | `act_obj.c`, `act_obj2.c`, `handler.c` | ~60+ |
-| **Furniture** (`value[0-5]`) | `act_move.c`, `act_info.c` | ~40+ |
-| **Drink/Fountain/Food** | `act_obj.c`, `act_obj2.c` | ~50+ |
-| **Light** (`value[2]`) | `handler.c`, `update.c` | ~15 |
-| **Money** (`value[0-1]`) | `act_obj.c`, `handler.c` | ~15 |
-| **Armor** (`value[0-3]`) | `handler.c`, `fight.c` | ~15 |
-| **Other types** | Various | ~100+ |
+**Remaining `value[]` references (deferred to future phases):**
 
-**Scripting engine** (~120 lines): `script_ifc.c` (37), `script_opcmds.c` (12), `script_tpcmds.c` (24), `script_commands.c` (13), etc. — these expose value[] to builders' scripts and will need accessor functions or migration.
+| Category | Key Files | Refs | Future Phase |
+|----------|-----------|-----:|--------------|
+| **Imm diagnostic display** | `act_wiz.c` (`ostat` command) | ~130 | Phase 6 (OLC Refactor) |
+| **Script engine** (`AlterObj`) | `script_opcmds.c` | ~40 | Phase 7 (Script Accessors) |
+| **OLC editors** | `editors/objects/oedit.c` | ~7 | Phase 6 (OLC Refactor) |
 
-**OLC editors** (~325 lines): `olc_act.c` (297), `olc.c` (19), `editors/objects/oedit.c` (7) — these display/edit value[] and will eventually need a new field-based editing interface.
+**Infrastructure code intentionally uses `value[]`:** `item_types.c` (migration logic), `db.c` (create/clone), `save.c` (legacy read), `io/json/` (serialization) — these are the canonical bridge between the legacy array and type structs, and will be removed only in Phase 8.
 
 ### Phase 6: OLC Refactor — NOT STARTED
 
