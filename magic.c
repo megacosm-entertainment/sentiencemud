@@ -54,18 +54,8 @@
  */
 const skill_t *skill_type_lookup(const char *name)
 {
-    int sn;
-
-    for (sn = 0; sn < MAX_SKILL; sn++)
-    {
-        if (skill_table[sn].name == NULL)
-            break;
-        if (LOWER(name[0]) == LOWER(skill_table[sn].name[0])
-            &&   !str_prefix(name, skill_table[sn].name))
-            return &skill_table[sn];
-    }
-
-    return NULL;
+    SKILL_DATA *sk = skill_search(name);
+    return sk ? &skill_table[sk->uid] : NULL;
 }
 
 
@@ -90,41 +80,42 @@ int find_spell(CHAR_DATA *ch, const char *name)
 
     for (sn = 0; sn < MAX_SKILL; sn++)
     {
-    if (skill_table[sn].name == NULL)
+    SKILL_DATA *sk = skill_find_uid(sn);
+    if (!sk || !sk->name)
         break;
-    if (LOWER(name[0]) == LOWER(skill_table[sn].name[0])
-    &&  !str_prefix(name,skill_table[sn].name))
+    if (LOWER(name[0]) == LOWER(sk->name[0])
+    &&  !str_prefix(name, sk->name))
     {
         if (found == -1)
         found = sn;
         this_class = 9999;
         if (ch->pcdata->class_mage != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_mage]) < 31)
+        && (level = sk->skill_level[ch->pcdata->class_mage]) < 31)
         {
                 this_class = ch->pcdata->class_mage;
         }
         else
         if (ch->pcdata->class_cleric != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_cleric]) < 31)
+        && (level = sk->skill_level[ch->pcdata->class_cleric]) < 31)
         {
                 this_class = ch->pcdata->class_cleric;
         }
         else
         if (ch->pcdata->class_thief != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_thief]) < 31)
+        && (level = sk->skill_level[ch->pcdata->class_thief]) < 31)
         {
                 this_class = ch->pcdata->class_thief;
         }
         else
         if (ch->pcdata->class_warrior != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_warrior]) < 31)
+        && (level = sk->skill_level[ch->pcdata->class_warrior]) < 31)
         {
                 this_class = ch->pcdata->class_warrior;
     }
 
         rating = get_skill(ch, sn);
 
-        if (ch->level >= skill_table[sn].skill_level[this_class]
+        if (ch->level >= sk->skill_level[this_class]
         &&  rating > 0)
             return sn;
     }
@@ -143,6 +134,7 @@ void say_spell(CHAR_DATA *ch, int sn)
     char *pName;
     int iSyl;
     int length;
+    SKILL_DATA *skill = skill_find_uid(sn);
 
     struct syl_type
     {
@@ -185,8 +177,10 @@ void say_spell(CHAR_DATA *ch, int sn)
     { "", "" }
     };
 
+    if (!skill) return;
+
     buf[0]	= '\0';
-    for (pName = skill_table[sn].name; *pName != '\0'; pName += length)
+    for (pName = skill->name; *pName != '\0'; pName += length)
     {
     for (iSyl = 0; (length = strlen(syl_table[iSyl].old)) != 0; iSyl++)
     {
@@ -202,7 +196,7 @@ void say_spell(CHAR_DATA *ch, int sn)
     }
 
     sprintf(buf2, "$n utters the words, '%s'.", buf);
-    sprintf(buf,  "$n utters the words, '%s'.", skill_table[sn].name);
+    sprintf(buf,  "$n utters the words, '%s'.", skill->name);
 
     for (rch = ch->in_room->people; rch; rch = rch->next_in_room)
     {
@@ -318,18 +312,19 @@ bool saves_spell(int level, CHAR_DATA *victim, int16_t dam_type)
 bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 {
     AFFECT_DATA *af;
+    SKILL_DATA *skill = skill_find_uid(sn);
 
     if (is_affected(victim, sn)) {
         for (af = victim->affected; af != NULL; af = af->next) {
             if (af->type == sn) {
                 if (!saves_dispel(ch, victim, af->level)) {
                     affect_strip(victim,sn);
-                    if (skill_table[sn].msg_off) {
-                        send_to_char(skill_table[sn].msg_off, victim);
+                    if (skill && skill->msg_off) {
+                        send_to_char(skill->msg_off, victim);
                         send_to_char("\n\r", victim);
                     }
-                    if (skill_table[sn].msg_disp && skill_table[sn].msg_disp[0])
-                        act(skill_table[sn].msg_disp,victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
+                    if (skill && skill->msg_disp && skill->msg_disp[0])
+                        act(skill->msg_disp,victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
 
                     return true;
                 } else
@@ -675,20 +670,28 @@ void do_cast(CHAR_DATA *ch, char *argument)
         }
 
         beats = ch->tempstore[0];
-    } else if( spell->sn > 0 && skill_table[spell->sn].spell_fun != spell_null ) {
-        int skill = get_skill( ch, spell->sn );
+    } else if( spell->sn > 0 ) {
+        SKILL_DATA *spell_skill = skill_find_uid(spell->sn);
+        int skill;
+
+        if (!spell_skill || spell_skill->spell_fun == spell_null) {
+            send_to_char("You don't know any spells by that name.\n\r", ch);
+            return;
+        }
+
+        skill = get_skill( ch, spell->sn );
 
         if ( skill < 1 ) {
             send_to_char("You don't recall how to cast that spell.\n\r", ch);
             return;
         }
 
-        if (ch->position < skill_table[spell->sn].minimum_position) {
+        if (ch->position < spell_skill->minimum_position) {
             send_to_char("You can't concentrate enough.\n\r", ch);
             return;
         }
 
-        mana = skill_table[spell->sn].min_mana;
+        mana = spell_skill->min_mana;
 
         if ((ch->mana + ch->manastore) < mana) {
             send_to_char("You don't have enough mana.\n\r", ch);
@@ -701,7 +704,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
         ch->cast_sn = spell->sn;
         ch->cast_mana = mana;
 
-        if(!validate_spell_target(ch,skill_table[spell->sn].target,arg2,&target,&victim,&obj))
+        if(!validate_spell_target(ch,spell_skill->target,arg2,&target,&victim,&obj))
             return;
 
         if(p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"check"))
@@ -718,7 +721,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
             ch->cast_successful = MAGICCAST_FAILURE;
 
 
-        beats = skill_table[spell->sn].beats;
+        beats = spell_skill->beats;
     } else {
         send_to_char("You don't know any spells by that name.\n\r", ch);
         return;
@@ -780,6 +783,7 @@ void cast_end(CHAR_DATA *ch)
     OBJ_DATA *trap;
     TOKEN_DATA *token = NULL;
     SCRIPT_DATA *script = NULL;
+    SKILL_DATA *cast_skill = NULL;
     int mana;
     void *vo;
     unsigned long id[2];
@@ -800,7 +804,8 @@ void cast_end(CHAR_DATA *ch)
     } else {
         sn = ch->cast_sn;
         ch->cast_sn = -1;
-        type = skill_table[sn].target;
+        cast_skill = skill_find_uid(sn);
+        type = cast_skill ? cast_skill->target : TAR_IGNORE;
     }
 
     mana = ch->cast_mana;
@@ -1042,9 +1047,9 @@ void cast_end(CHAR_DATA *ch)
 
         if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
             if (check_spell_deflection(ch, victim, sn))
-                (*skill_table[sn].spell_fun) (skill_find_uid(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
+                (*cast_skill->spell_fun) (cast_skill, ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
         } else
-            (*skill_table[sn].spell_fun) (skill_find_uid(sn), ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
+            (*cast_skill->spell_fun) (cast_skill, ch->tot_level, ch, vo, target, WEAR_NONE, INVOC_CAST);
 
 
         check_improve(ch,sn,!ch->casting_recovered,1);
@@ -1081,17 +1086,19 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
     void *vo;
     int target = TARGET_NONE;
     int wear_loc = obj ? obj->wear_loc : WEAR_NONE;
+    SKILL_DATA *skill;
 
     if (sn <= 0)
     return;
 
-    if (sn >= MAX_SKILL || skill_table[sn].spell_fun == 0)
+    skill = skill_find_uid(sn);
+    if (!skill || skill->spell_fun == 0)
     {
     pbugf(LOG_ERROR, "Obj_cast_spell: bad sn %d.", sn);
     return;
     }
 
-    switch (skill_table[sn].target)
+    switch (skill->target)
     {
         default:
         pbugf(LOG_ERROR, "Obj_cast_spell: bad target for sn %d.", sn);
@@ -1194,13 +1201,13 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
     if (target == TARGET_CHAR && victim != NULL)
     {
     if (check_spell_deflection(ch, victim, sn))
-        (*skill_table[sn].spell_fun) (skill_find_uid(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
+        (*skill->spell_fun) (skill, level, ch, vo, target, wear_loc, INVOC_EQUIP);
     }
     else
-        (*skill_table[sn].spell_fun) (skill_find_uid(sn), level, ch, vo, target, wear_loc, INVOC_EQUIP);
+        (*skill->spell_fun) (skill, level, ch, vo, target, wear_loc, INVOC_EQUIP);
 
-    if ((skill_table[sn].target == TAR_CHAR_OFFENSIVE
-        || (skill_table[sn].target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR))
+    if ((skill->target == TAR_CHAR_OFFENSIVE
+        || (skill->target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR))
     &&  victim != ch
     &&  victim->master != ch)
     {
@@ -1230,6 +1237,9 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     void *vo;
     int target = TARGET_NONE;
     char buf[MSL];
+    SKILL_DATA *skill = skill_find_uid(sn);
+
+    if (!skill) return;
 
     ch = create_mobile(get_reserved_mob_index("mob_objcaster"), false);
     char_to_room(ch, room);
@@ -1244,7 +1254,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     reagent = create_object(get_reserved_obj_index("obj_black_moonstone_shard"), 1, false);
     obj_to_char(reagent,ch);
 
-    switch (skill_table[sn].target)
+    switch (skill->target)
     {
         default:
         pbugf(LOG_ERROR, "obj_cast: bad target for sn %d.", sn);
@@ -1328,7 +1338,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     ||   (target == TARGET_OBJ  && target_obj != NULL)
     ||    target == TARGET_ROOM
     ||    target == TARGET_NONE)
-    (*skill_table[sn].spell_fun)(skill_find_uid(sn), obj->level, ch, vo, target, WEAR_NONE, INVOC_INTERNAL);
+    (*skill->spell_fun)(skill, obj->level, ch, vo, target, WEAR_NONE, INVOC_INTERNAL);
     else
     {
     sprintf(buf, "obj_cast: %s(%ld) couldn't find its target", obj->short_descr, obj->pIndexData->vnum);
