@@ -488,6 +488,7 @@ typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
 typedef struct reputation_index_data REPUTATION_INDEX_DATA;
 typedef struct reputation_data REPUTATION_DATA;
 typedef struct mob_reputation_data MOB_REPUTATION_DATA;
+typedef struct mob_faction_data MOB_FACTION_DATA;
 typedef struct group_data GROUP_DATA;
 typedef struct list_type LLIST;
 typedef struct list_link_type LLIST_LINK;
@@ -4258,6 +4259,7 @@ struct	mob_index_data
     QUEST_LIST *	quests;
     QUEST_V2_LIST *	quests_v2;
     MOB_REPUTATION_DATA *mob_reputations;
+    MOB_FACTION_DATA *factions;
     bool	persist;
 
     AREA_DATA *		area;
@@ -5164,6 +5166,15 @@ struct mob_reputation_data
     int16_t maximum_rank;
 
     long points;
+};
+
+struct mob_faction_data
+{
+    MOB_FACTION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *faction;
+    WNUM_LOAD faction_load;
 };
 
 /*
