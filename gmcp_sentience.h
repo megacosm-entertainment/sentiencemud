@@ -288,4 +288,8 @@ json_t *sentience_build_auth_qrcode_json(const char *purpose, const char *image,
 void sentience_send_auth_qrcode(descriptor_t *d, const char *image_data_url,
                                  const char *uri, long expires_at);
 
+#ifdef BUILD_TESTS
+bool test_layout_name_is_valid(const char *name);
+#endif
+
 #endif /* GMCP_SENTIENCE_H */

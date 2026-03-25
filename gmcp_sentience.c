@@ -555,6 +555,13 @@ static bool layout_name_is_valid(const char *name)
     return true;
 }
 
+#ifdef BUILD_TESTS
+bool test_layout_name_is_valid(const char *name)
+{
+    return layout_name_is_valid(name);
+}
+#endif
+
 static void sentience_send_layout_error(descriptor_t *d, const char *reason)
 {
     json_t *obj = json_object();

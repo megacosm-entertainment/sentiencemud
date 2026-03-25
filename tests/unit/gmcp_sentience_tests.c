@@ -21,6 +21,9 @@ static test_result_t run_gmcp_enemies_scenario(json_t *tc);
 static test_result_t run_gmcp_room_contents_scenario(json_t *tc);
 static test_result_t run_gmcp_room_map_scenario(json_t *tc);
 static test_result_t run_gmcp_channel_message_scenario(json_t *tc);
+static test_result_t run_gmcp_layout_name_validation_scenario(json_t *tc);
+static test_result_t run_gmcp_layout_storage_scenario(json_t *tc);
+static test_result_t run_gmcp_auth_qrcode_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -730,6 +733,94 @@ static test_result_t run_gmcp_channel_message_scenario(json_t *tc)
     return pass ? TEST_SUCCESS : TEST_FAILURE;
 }
 
+/* --- Layout name validation scenario --- */
+
+static test_result_t run_gmcp_layout_name_validation_scenario(json_t *tc)
+{
+    const char *name = test_json_get_string(tc, "name");
+    bool expected_valid = json_is_true(json_object_get(tc, "valid"));
+    bool actual = test_layout_name_is_valid(name);
+
+    if (actual != expected_valid) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+            "layout_name_is_valid('%s') = %s, expected %s",
+            name ? name : "(null)",
+            actual ? "true" : "false",
+            expected_valid ? "true" : "false");
+        return TEST_FAILURE;
+    }
+    return TEST_SUCCESS;
+}
+
+/* --- Layout storage helpers scenario --- */
+
+static test_result_t run_gmcp_layout_storage_scenario(json_t *tc)
+{
+    web_client_layout_t *list = NULL;
+
+    /* Initially empty */
+    TEST_ASSERT_INT_EQ(0, layout_count(list));
+    TEST_ASSERT_NULL(layout_find(list, "default"));
+
+    /* Add one entry */
+    web_client_layout_t *e1 = calloc(1, sizeof(*e1));
+    snprintf(e1->name, sizeof(e1->name), "default");
+    e1->layout = json_object();
+    json_object_set_new(e1->layout, "test", json_true());
+    e1->next = list;
+    list = e1;
+
+    TEST_ASSERT_INT_EQ(1, layout_count(list));
+    TEST_ASSERT_NOT_NULL(layout_find(list, "default"));
+    TEST_ASSERT_NULL(layout_find(list, "other"));
+
+    /* Add second entry */
+    web_client_layout_t *e2 = calloc(1, sizeof(*e2));
+    snprintf(e2->name, sizeof(e2->name), "compact");
+    e2->layout = json_object();
+    e2->next = list;
+    list = e2;
+
+    TEST_ASSERT_INT_EQ(2, layout_count(list));
+    TEST_ASSERT_NOT_NULL(layout_find(list, "compact"));
+    TEST_ASSERT_NOT_NULL(layout_find(list, "default"));
+
+    /* Free all */
+    layout_free_all(&list);
+    TEST_ASSERT_NULL(list);
+    TEST_ASSERT_INT_EQ(0, layout_count(list));
+
+    return TEST_SUCCESS;
+}
+
+/* --- Auth.QRCode builder scenario --- */
+
+static test_result_t run_gmcp_auth_qrcode_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    const char *purpose = test_json_get_string(params, "purpose");
+    const char *image = test_json_get_string(params, "image");
+    const char *uri = test_json_get_string(params, "uri");
+    long expires_at = json_integer_value(json_object_get(params, "expires_at"));
+
+    json_t *result = sentience_build_auth_qrcode_json(purpose, image, uri, expires_at);
+    if (!result) return TEST_FAILURE;
+
+    test_result_t status = json_equal(result, expected) ? TEST_SUCCESS : TEST_FAILURE;
+    if (status != TEST_SUCCESS) {
+        char *exp_str = json_dumps(expected, JSON_COMPACT | JSON_SORT_KEYS);
+        char *got_str = json_dumps(result, JSON_COMPACT | JSON_SORT_KEYS);
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "QRCode mismatch. Expected: %s Got: %s", exp_str, got_str);
+        free(exp_str);
+        free(got_str);
+    }
+
+    json_decref(result);
+    return status;
+}
+
 /*
  * Main test dispatcher — routes by function name from JSON config.
  */
@@ -798,6 +889,12 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_room_map_scenario(tc);
         } else if (strcmp(func_name, "build_channel_message") == 0) {
             result = run_gmcp_channel_message_scenario(tc);
+        } else if (strcmp(func_name, "layout_name_validation") == 0) {
+            result = run_gmcp_layout_name_validation_scenario(tc);
+        } else if (strcmp(func_name, "layout_storage_helpers") == 0) {
+            result = run_gmcp_layout_storage_scenario(tc);
+        } else if (strcmp(func_name, "build_auth_qrcode") == 0) {
+            result = run_gmcp_auth_qrcode_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);

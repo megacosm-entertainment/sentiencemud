@@ -1154,6 +1154,64 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_layout_name_validation",
+      "description": "Validates layout name rules (1-32 chars, alphanumeric + underscore + hyphen)",
+      "input": {
+        "function": "layout_name_validation",
+        "test_cases": [
+          {"scenario": "valid_default", "name": "default", "valid": true},
+          {"scenario": "valid_hyphen", "name": "my-layout", "valid": true},
+          {"scenario": "valid_underscore", "name": "compact_v2", "valid": true},
+          {"scenario": "valid_single_char", "name": "A", "valid": true},
+          {"scenario": "valid_mixed", "name": "a-b_c-D_1-2-3", "valid": true},
+          {"scenario": "invalid_empty", "name": "", "valid": false},
+          {"scenario": "invalid_space", "name": "has space", "valid": false},
+          {"scenario": "invalid_dot", "name": "has.dot", "valid": false},
+          {"scenario": "invalid_slash", "name": "has/slash", "valid": false},
+          {"scenario": "invalid_too_long", "name": "abcdefghijklmnopqrstuvwxyz1234567", "valid": false}
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_layout_storage_helpers",
+      "description": "Tests layout_find, layout_count, and layout_free_all",
+      "input": {
+        "function": "layout_storage_helpers",
+        "test_cases": [{"scenario": "basic_operations"}]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_auth_qrcode_totp",
+      "description": "Builds Sentience.Auth.QRCode JSON for TOTP setup",
+      "input": {
+        "function": "build_auth_qrcode",
+        "test_cases": [
+          {
+            "scenario": "totp_setup",
+            "params": {
+              "purpose": "totp_setup",
+              "image": "data:image/png;base64,dGVzdA==",
+              "uri": "otpauth://totp/Sentience:Tieryo?secret=ABC&issuer=Sentience",
+              "expires_at": 0
+            },
+            "expected": {
+              "_v": 1,
+              "purpose": "totp_setup",
+              "image": "data:image/png;base64,dGVzdA==",
+              "uri": "otpauth://totp/Sentience:Tieryo?secret=ABC&issuer=Sentience",
+              "expires_at": 0
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }
