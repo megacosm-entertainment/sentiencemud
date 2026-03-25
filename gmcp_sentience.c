@@ -242,6 +242,7 @@ json_t *sentience_build_client_ready_capabilities_json(void)
     json_array_append_new(packages, json_string("Sentience.Channel.Message"));
     json_array_append_new(packages, json_string("Sentience.Client.Preferences"));
     json_array_append_new(packages, json_string("Sentience.Client.Layout"));
+    json_array_append_new(packages, json_string("Sentience.Auth.QRCode"));
     json_array_append_new(packages, json_string("Sentience.Link"));
 
     json_array_append_new(features, json_string("links"));
@@ -440,6 +441,32 @@ void sentience_send_package(descriptor_t *d, const char *package, json_t *json)
     }
 
     json_decref(json);
+}
+
+/* ── Auth.QRCode builder & sender ──────────────────────────────── */
+
+json_t *sentience_build_auth_qrcode_json(const char *purpose, const char *image,
+                                          const char *uri, long expires_at)
+{
+    json_t *obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    json_object_set_new(obj, "purpose", json_string(purpose ? purpose : "totp_setup"));
+    json_object_set_new(obj, "image", json_string(image ? image : ""));
+    json_object_set_new(obj, "uri", json_string(uri ? uri : ""));
+    json_object_set_new(obj, "expires_at", json_integer(expires_at));
+
+    return obj;
+}
+
+void sentience_send_auth_qrcode(descriptor_t *d, const char *image_data_url,
+                                 const char *uri, long expires_at)
+{
+    json_t *obj = sentience_build_auth_qrcode_json("totp_setup", image_data_url,
+                                                    uri, expires_at);
+    if (obj)
+        sentience_send_package(d, "Sentience.Auth.QRCode", obj);
 }
 
 /**

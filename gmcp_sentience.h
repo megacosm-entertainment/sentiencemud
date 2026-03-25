@@ -282,4 +282,10 @@ void                 layout_free_all(web_client_layout_t **list);
 void sentience_handle_client_layout(descriptor_t *d, const char *json_str);
 void sentience_send_layout_restore(descriptor_t *d, const char *name, json_t *layout);
 
+/* Auth.QRCode builder and sender */
+json_t *sentience_build_auth_qrcode_json(const char *purpose, const char *image,
+                                          const char *uri, long expires_at);
+void sentience_send_auth_qrcode(descriptor_t *d, const char *image_data_url,
+                                 const char *uri, long expires_at);
+
 #endif /* GMCP_SENTIENCE_H */
