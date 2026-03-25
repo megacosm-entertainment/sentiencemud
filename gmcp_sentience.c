@@ -569,6 +569,67 @@ json_t *sentience_build_inventory_json(const sentience_inventory_input_t *input)
     return obj;
 }
 
+json_t *sentience_build_equipment_json(const sentience_equipment_input_t *input)
+{
+    json_t *obj, *slots_arr;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    slots_arr = json_array();
+    for (i = 0; i < input->num_slots; i++) {
+        const sentience_equipment_slot_t *slot = &input->slots[i];
+        json_t *jslot = json_object();
+
+        json_object_set_new(jslot, "slot_id", json_integer(slot->slot_id));
+        json_object_set_new(jslot, "slot_name", json_string(slot->slot_name ? slot->slot_name : ""));
+
+        if (slot->occupied) {
+            json_t *jitem = json_object();
+            json_t *id_arr, *flags_arr, *actions_arr;
+            int j;
+
+            id_arr = json_array();
+            json_array_append_new(id_arr, json_integer(slot->id[0]));
+            json_array_append_new(id_arr, json_integer(slot->id[1]));
+            json_object_set_new(jitem, "id", id_arr);
+
+            json_object_set_new(jitem, "name", json_string(slot->item_name ? slot->item_name : ""));
+            json_object_set_new(jitem, "keywords", json_string(slot->keywords ? slot->keywords : ""));
+            json_object_set_new(jitem, "item_type", json_string(slot->item_type ? slot->item_type : ""));
+            json_object_set_new(jitem, "level", json_integer(slot->level));
+            json_object_set_new(jitem, "condition", json_integer(slot->condition));
+            json_object_set_new(jitem, "condition_label", json_string(slot->condition_label ? slot->condition_label : ""));
+
+            flags_arr = json_array();
+            for (j = 0; j < slot->num_flags; j++)
+                json_array_append_new(flags_arr, json_string(slot->flags[j] ? slot->flags[j] : ""));
+            json_object_set_new(jitem, "flags", flags_arr);
+
+            actions_arr = json_array();
+            for (j = 0; j < slot->num_actions; j++) {
+                json_t *action = json_object();
+                json_object_set_new(action, "label", json_string(slot->actions[j].label ? slot->actions[j].label : ""));
+                json_object_set_new(action, "cmd", json_string(slot->actions[j].cmd ? slot->actions[j].cmd : ""));
+                json_array_append_new(actions_arr, action);
+            }
+            json_object_set_new(jitem, "actions", actions_arr);
+
+            json_object_set_new(jslot, "item", jitem);
+        } else {
+            json_object_set_new(jslot, "item", json_null());
+        }
+
+        json_array_append_new(slots_arr, jslot);
+    }
+    json_object_set_new(obj, "slots", slots_arr);
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *

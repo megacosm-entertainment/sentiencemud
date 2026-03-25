@@ -1356,6 +1356,95 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_equipment",
+      "description": "Equipment builder produces correct JSON with slot layout and actions",
+      "input": {
+        "function": "build_equipment",
+        "test_cases": [
+          {
+            "scenario": "mixed_slots",
+            "params": {
+              "slots": [
+                {
+                  "slot_id": 0,
+                  "slot_name": "<used as light>",
+                  "occupied": true,
+                  "item_name": "a glowing lantern",
+                  "keywords": "glowing lantern",
+                  "keyword": "lantern",
+                  "id": [196228330, 1],
+                  "item_type": "light",
+                  "condition": 100,
+                  "condition_label": "",
+                  "level": 5,
+                  "flags": ["glow"],
+                  "actions": [
+                    {"label": "Remove", "cmd": "remove lantern"},
+                    {"label": "Examine", "cmd": "examine lantern"}
+                  ]
+                },
+                {
+                  "slot_id": 3,
+                  "slot_name": "<worn on body>",
+                  "occupied": false
+                },
+                {
+                  "slot_id": 13,
+                  "slot_name": "<wielded>",
+                  "occupied": true,
+                  "item_name": "Vengeance",
+                  "keywords": "sword vengeance",
+                  "keyword": "vengeance",
+                  "id": [196228330, 3],
+                  "item_type": "weapon",
+                  "condition": 95,
+                  "condition_label": "",
+                  "level": 40,
+                  "flags": ["hum"],
+                  "actions": [
+                    {"label": "Remove", "cmd": "remove vengeance"},
+                    {"label": "Examine", "cmd": "examine vengeance"}
+                  ]
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "slots_count": 3,
+              "first_slot_name": "<used as light>",
+              "first_slot_occupied": true,
+              "first_item_name": "a glowing lantern",
+              "first_item_type": "light",
+              "first_item_id_0": 196228330,
+              "first_item_id_1": 1,
+              "first_item_flags_count": 1,
+              "first_item_actions_count": 2,
+              "second_slot_name": "<worn on body>",
+              "second_slot_occupied": false,
+              "third_item_name": "Vengeance"
+            }
+          },
+          {
+            "scenario": "all_empty",
+            "params": {
+              "slots": [
+                {"slot_id": 0, "slot_name": "<used as light>", "occupied": false},
+                {"slot_id": 3, "slot_name": "<worn on body>", "occupied": false}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "slots_count": 2,
+              "first_slot_occupied": false,
+              "second_slot_occupied": false
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }

@@ -26,6 +26,7 @@ static test_result_t run_gmcp_layout_storage_scenario(json_t *tc);
 static test_result_t run_gmcp_auth_qrcode_scenario(json_t *tc);
 static test_result_t run_gmcp_preferences_scenario(json_t *tc);
 static test_result_t run_gmcp_inventory_scenario(json_t *tc);
+static test_result_t run_gmcp_equipment_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -1047,6 +1048,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_preferences_scenario(tc);
         } else if (strcmp(func_name, "build_inventory") == 0) {
             result = run_gmcp_inventory_scenario(tc);
+        } else if (strcmp(func_name, "build_equipment") == 0) {
+            result = run_gmcp_equipment_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);
@@ -1241,6 +1244,193 @@ static test_result_t run_gmcp_inventory_scenario(json_t *tc)
         json_t *capacity_result = json_object_get(result, "capacity");
         TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "capacity_max_weight")),
                            json_integer_value(json_object_get(capacity_result, "max_weight")));
+    }
+
+    json_decref(result);
+    return TEST_SUCCESS;
+}
+
+/* --- Equipment scenario --- */
+
+static test_result_t run_gmcp_equipment_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    json_t *result;
+    sentience_equipment_input_t input = {0};
+    size_t i, j;
+
+    if (!params || !expected) return TEST_ERROR;
+
+    /* Parse slots array */
+    json_t *slots_arr = json_object_get(params, "slots");
+    if (slots_arr && json_is_array(slots_arr)) {
+        input.num_slots = (int)json_array_size(slots_arr);
+        if (input.num_slots > SENTIENCE_MAX_EQUIPMENT_SLOTS)
+            input.num_slots = SENTIENCE_MAX_EQUIPMENT_SLOTS;
+
+        for (i = 0; i < (size_t)input.num_slots; i++) {
+            json_t *slot = json_array_get(slots_arr, i);
+            sentience_equipment_slot_t *eq_slot = &input.slots[i];
+
+            eq_slot->slot_id = (int)json_integer_value(json_object_get(slot, "slot_id"));
+            eq_slot->slot_name = json_string_value(json_object_get(slot, "slot_name"));
+            eq_slot->occupied = json_boolean_value(json_object_get(slot, "occupied"));
+
+            if (eq_slot->occupied) {
+                eq_slot->item_name = json_string_value(json_object_get(slot, "item_name"));
+                eq_slot->keywords = json_string_value(json_object_get(slot, "keywords"));
+                eq_slot->keyword = json_string_value(json_object_get(slot, "keyword"));
+                eq_slot->item_type = json_string_value(json_object_get(slot, "item_type"));
+                eq_slot->condition = (int)json_integer_value(json_object_get(slot, "condition"));
+                eq_slot->condition_label = json_string_value(json_object_get(slot, "condition_label"));
+                eq_slot->level = (int)json_integer_value(json_object_get(slot, "level"));
+
+                /* Parse ID array */
+                json_t *id_arr = json_object_get(slot, "id");
+                if (id_arr && json_is_array(id_arr)) {
+                    eq_slot->id[0] = (unsigned long)json_integer_value(json_array_get(id_arr, 0));
+                    eq_slot->id[1] = (unsigned long)json_integer_value(json_array_get(id_arr, 1));
+                }
+
+                /* Parse flags array */
+                json_t *flags_arr = json_object_get(slot, "flags");
+                if (flags_arr && json_is_array(flags_arr)) {
+                    eq_slot->num_flags = (int)json_array_size(flags_arr);
+                    if (eq_slot->num_flags > SENTIENCE_MAX_ITEM_FLAGS)
+                        eq_slot->num_flags = SENTIENCE_MAX_ITEM_FLAGS;
+                    for (j = 0; j < (size_t)eq_slot->num_flags; j++) {
+                        eq_slot->flags[j] = json_string_value(json_array_get(flags_arr, j));
+                    }
+                }
+
+                /* Parse actions array */
+                json_t *actions_arr = json_object_get(slot, "actions");
+                if (actions_arr && json_is_array(actions_arr)) {
+                    eq_slot->num_actions = (int)json_array_size(actions_arr);
+                    if (eq_slot->num_actions > SENTIENCE_MAX_ITEM_ACTIONS)
+                        eq_slot->num_actions = SENTIENCE_MAX_ITEM_ACTIONS;
+                    for (j = 0; j < (size_t)eq_slot->num_actions; j++) {
+                        json_t *action = json_array_get(actions_arr, j);
+                        eq_slot->actions[j].label = json_string_value(json_object_get(action, "label"));
+                        eq_slot->actions[j].cmd = json_string_value(json_object_get(action, "cmd"));
+                    }
+                }
+            }
+        }
+    }
+
+    /* Call the builder function */
+    result = sentience_build_equipment_json(&input);
+    TEST_ASSERT_NOT_NULL(result);
+
+    /* Check expected values */
+    TEST_ASSERT_INT_EQ(SENTIENCE_PACKAGE_VERSION,
+                       json_integer_value(json_object_get(result, "_v")));
+
+    if (json_object_get(expected, "slots_count")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        TEST_ASSERT_NOT_NULL(slots_result);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "slots_count")),
+                           (long)json_array_size(slots_result));
+    }
+
+    if (json_object_get(expected, "first_slot_name")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_slot_name")),
+                           json_string_value(json_object_get(first_slot, "slot_name")));
+    }
+
+    if (json_object_get(expected, "first_slot_occupied")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        json_t *first_item = json_object_get(first_slot, "item");
+        bool expected_occupied = json_boolean_value(json_object_get(expected, "first_slot_occupied"));
+        if (expected_occupied) {
+            TEST_ASSERT_NOT_NULL(first_item);
+        } else {
+            TEST_ASSERT_TRUE(json_is_null(first_item));
+        }
+    }
+
+    if (json_object_get(expected, "first_item_name")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        json_t *first_item = json_object_get(first_slot, "item");
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_item_name")),
+                           json_string_value(json_object_get(first_item, "name")));
+    }
+
+    if (json_object_get(expected, "first_item_type")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        json_t *first_item = json_object_get(first_slot, "item");
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_item_type")),
+                           json_string_value(json_object_get(first_item, "item_type")));
+    }
+
+    if (json_object_get(expected, "first_item_id_0")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        json_t *first_item = json_object_get(first_slot, "item");
+        json_t *id_arr = json_object_get(first_item, "id");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_id_0")),
+                           json_integer_value(json_array_get(id_arr, 0)));
+    }
+
+    if (json_object_get(expected, "first_item_id_1")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        json_t *first_item = json_object_get(first_slot, "item");
+        json_t *id_arr = json_object_get(first_item, "id");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_id_1")),
+                           json_integer_value(json_array_get(id_arr, 1)));
+    }
+
+    if (json_object_get(expected, "first_item_flags_count")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        json_t *first_item = json_object_get(first_slot, "item");
+        json_t *flags_arr = json_object_get(first_item, "flags");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_flags_count")),
+                           (long)json_array_size(flags_arr));
+    }
+
+    if (json_object_get(expected, "first_item_actions_count")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *first_slot = json_array_get(slots_result, 0);
+        json_t *first_item = json_object_get(first_slot, "item");
+        json_t *actions_arr = json_object_get(first_item, "actions");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_actions_count")),
+                           (long)json_array_size(actions_arr));
+    }
+
+    if (json_object_get(expected, "second_slot_name")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *second_slot = json_array_get(slots_result, 1);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "second_slot_name")),
+                           json_string_value(json_object_get(second_slot, "slot_name")));
+    }
+
+    if (json_object_get(expected, "second_slot_occupied")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *second_slot = json_array_get(slots_result, 1);
+        json_t *second_item = json_object_get(second_slot, "item");
+        bool expected_occupied = json_boolean_value(json_object_get(expected, "second_slot_occupied"));
+        if (expected_occupied) {
+            TEST_ASSERT_NOT_NULL(second_item);
+        } else {
+            TEST_ASSERT_TRUE(json_is_null(second_item));
+        }
+    }
+
+    if (json_object_get(expected, "third_item_name")) {
+        json_t *slots_result = json_object_get(result, "slots");
+        json_t *third_slot = json_array_get(slots_result, 2);
+        json_t *third_item = json_object_get(third_slot, "item");
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "third_item_name")),
+                           json_string_value(json_object_get(third_item, "name")));
     }
 
     json_decref(result);

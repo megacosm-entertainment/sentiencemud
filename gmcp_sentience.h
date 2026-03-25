@@ -216,6 +216,34 @@ typedef struct {
 
 json_t *sentience_build_inventory_json(const sentience_inventory_input_t *input);
 
+#define SENTIENCE_MAX_EQUIPMENT_SLOTS 51
+
+typedef struct {
+    int slot_id;
+    const char *slot_name;      /* where_name[slot] */
+    bool occupied;
+    /* Fields below only valid if occupied == true */
+    const char *item_name;      /* short_descr */
+    const char *keywords;       /* full obj->name */
+    const char *keyword;        /* first keyword for action cmds */
+    unsigned long id[2];        /* instance ID */
+    const char *item_type;
+    int condition;              /* integer 0-100 */
+    const char *condition_label;
+    int level;
+    int num_flags;
+    const char *flags[SENTIENCE_MAX_ITEM_FLAGS];
+    int num_actions;
+    sentience_item_action_t actions[SENTIENCE_MAX_ITEM_ACTIONS];
+} sentience_equipment_slot_t;
+
+typedef struct {
+    int num_slots;
+    sentience_equipment_slot_t slots[SENTIENCE_MAX_EQUIPMENT_SLOTS];
+} sentience_equipment_input_t;
+
+json_t *sentience_build_equipment_json(const sentience_equipment_input_t *input);
+
 /*
  * Room builder input.
  */
