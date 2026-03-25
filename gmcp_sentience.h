@@ -278,4 +278,8 @@ web_client_layout_t *layout_find(web_client_layout_t *list, const char *name);
 int                  layout_count(web_client_layout_t *list);
 void                 layout_free_all(web_client_layout_t **list);
 
+/* Client.Layout handler and sender */
+void sentience_handle_client_layout(descriptor_t *d, const char *json_str);
+void sentience_send_layout_restore(descriptor_t *d, const char *name, json_t *layout);
+
 #endif /* GMCP_SENTIENCE_H */
