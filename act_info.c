@@ -358,6 +358,8 @@ int get_squares_to_show_y(ROOM_INDEX_DATA *pRoom, int bonus_view);
 */
 char determine_room_type(ROOM_INDEX_DATA *room);
 void convert_map_char(char *buf, char ch);
+bool render_area_map_to_buffer(CHAR_DATA *ch, ROOM_INDEX_DATA *room,
+                               BUFFER **out_buf, int *out_width, int *out_height);
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim);
 
 
@@ -7664,6 +7666,51 @@ int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line)
     }
 
     return counter;
+}
+
+bool render_area_map_to_buffer(CHAR_DATA *ch, ROOM_INDEX_DATA *room,
+                               BUFFER **out_buf, int *out_width, int *out_height)
+{
+    char map[101];
+    char cell[4];
+    int line, count;
+    BUFFER *buf;
+
+    if (!ch || !room || !out_buf)
+        return false;
+
+    if (IS_SET(ch->comm, COMM_NOMAP) ||
+        IS_SET(room->room_flag[0], ROOM_NOMAP) ||
+        IS_SET(room->area->area_flags, AREA_NOMAP))
+        return false;
+
+    if (room->wilds)
+        return false;
+
+    create_map(ch, room, map);
+
+    buf = new_buf();
+
+    for (line = 1; line <= 7; line++) {
+        if (line == 1 || line == 7) {
+            add_buf(buf, "{B+{b----------{B+{x");
+        } else {
+            add_buf(buf, "{b|");
+            for (count = ((line - 1) * 10); count < (line * 10); count++) {
+                convert_map_char(cell, map[count]);
+                cell[3] = '\0';
+                add_buf(buf, cell);
+            }
+            add_buf(buf, "{b|{x");
+        }
+        if (line < 7)
+            add_buf(buf, "\n\r");
+    }
+
+    *out_buf = buf;
+    if (out_width)  *out_width = 21;
+    if (out_height) *out_height = 7;
+    return true;
 }
 
 

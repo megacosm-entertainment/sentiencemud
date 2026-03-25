@@ -100,6 +100,9 @@ int             get_squares_to_show_x args (( int bonus_view ));
 int             get_squares_to_show_y args (( int bonus_view ));
 void            show_map_to_char_wyx args(( WILDS_DATA *pWilds, int wx, int wy, CHAR_DATA *to,
                                         int vx, int vy, int bonus_view_x, int bonus_view_y, bool olc ));
+bool            render_wilds_map_to_buffer args(( WILDS_DATA *pWilds, int wx, int wy,
+                                                 CHAR_DATA *ch, int bonus_view_x, int bonus_view_y,
+                                                 BUFFER **out_buf, int *out_width, int *out_height ));
 void            show_map_to_char args(( CHAR_DATA *ch, CHAR_DATA *to,
                                         int bonus_view_x, int bonus_view_y, bool olc ));
 void get_wilds_mapstring args((BUFFER *buffer, WILDS_DATA *pWilds, int wx, int wy, int vx, int vy, int bonus_view_x, int bonus_view_y, char *marker));
