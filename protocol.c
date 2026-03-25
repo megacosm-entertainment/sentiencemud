@@ -44,6 +44,27 @@ static bool descriptor_uses_telnet_iac(descriptor_t *apDescriptor)
    return apDescriptor->conn->type != CONN_TYPE_WEBSOCKET_TLS;
 }
 
+/*
+ * Send Sentience.Client.Ready.Capabilities if Sentience support is enabled.
+ */
+static void sentience_send_capabilities(descriptor_t *d)
+{
+    json_t *caps;
+    char *dump;
+
+    if (!d || !d->pProtocol || !d->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE])
+        return;
+
+    caps = sentience_build_client_ready_capabilities_json();
+    if (!caps) return;
+
+    dump = json_dumps(caps, JSON_COMPACT);
+    if (dump) {
+        SendGMCPRaw(d, "Sentience.Client.Ready.Capabilities", dump);
+        free(dump);
+    }
+    json_decref(caps);
+}
 
 static void Write( descriptor_t *apDescriptor, const char *apData )
 {
@@ -3854,6 +3875,8 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
                }
             }
          }
+
+         sentience_send_capabilities(apDescriptor);
       }
       break;
 
@@ -3878,6 +3901,8 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
                }
             }
          }
+
+         sentience_send_capabilities(apDescriptor);
       }
       break;
 

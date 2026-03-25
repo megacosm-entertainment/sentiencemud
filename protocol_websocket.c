@@ -32,6 +32,7 @@
 #include "protocol_layer.h"
 #include "protocol.h"
 #include "merc.h"
+#include "gmcp_sentience.h"
 
 /*
  * WebSocket protocol layer structure
@@ -378,6 +379,19 @@ static void websocket_negotiate(protocol_layer_t *proto)
     if (proto->descriptor && proto->descriptor->pProtocol) {
         proto->descriptor->pProtocol->bGMCP = true;
         proto->descriptor->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE] = true;
+
+        /* Send Client.Ready.Capabilities to WebSocket clients */
+        {
+            json_t *caps = sentience_build_client_ready_capabilities_json();
+            if (caps) {
+                char *dump = json_dumps(caps, JSON_COMPACT);
+                if (dump) {
+                    send_gmcp_message(proto, "Sentience.Client.Ready.Capabilities", dump);
+                    free(dump);
+                }
+                json_decref(caps);
+            }
+        }
     }
 
     log_stringf("WebSocket GMCP negotiation started (fd %d)",
