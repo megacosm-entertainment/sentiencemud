@@ -1376,7 +1376,19 @@ void login_account_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                     generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_pending_key);
                 else
                     generate_totp_qr_url(qr_url, sizeof(qr_url), acct->username, acct->mfa_key);
-                display_qr_code(d, qr_url);
+                if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+                    QRcode *qr = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+                    if (qr) {
+                        char *data_url = encode_qr_code_as_png_base64(qr, 6);
+                        if (data_url) {
+                            sentience_send_auth_qrcode(d, data_url, qr_url, 0);
+                            free(data_url);
+                        }
+                        QRcode_free(qr);
+                    }
+                } else {
+                    display_qr_code(d, qr_url);
+                }
                 display_account_mfa_key(d, acct);
             }
             display_account_mfa_menu(d, "");
@@ -5241,7 +5253,19 @@ void login_character_mfa_menu(DESCRIPTOR_DATA *d, char *argument) {
                     generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, acct_char->mfa_pending_key);
                 else
                     generate_totp_qr_url(qr_url, sizeof(qr_url), ch->name, acct_char->mfa_key);
-                display_qr_code(d, qr_url);
+                if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+                    QRcode *qr = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+                    if (qr) {
+                        char *data_url = encode_qr_code_as_png_base64(qr, 6);
+                        if (data_url) {
+                            sentience_send_auth_qrcode(d, data_url, qr_url, 0);
+                            free(data_url);
+                        }
+                        QRcode_free(qr);
+                    }
+                } else {
+                    display_qr_code(d, qr_url);
+                }
                 display_acct_char_mfa_key(d, acct_char);
             }
             display_character_mfa_menu(d, "");
