@@ -206,6 +206,14 @@ typedef struct {
     int num_doors;
 } sentience_room_contents_input_t;
 
+/* Room.Map input — pre-rendered map for GMCP delivery */
+typedef struct {
+    const char *type;       /* "area" or "wilds" */
+    const char *map_text;   /* Pre-rendered map string with MUD color codes */
+    int width;              /* Character columns */
+    int height;             /* Character rows */
+} sentience_room_map_input_t;
+
 json_t *sentience_build_room_json(const sentience_room_input_t *data);
 
 /*
@@ -217,6 +225,7 @@ json_t *sentience_build_affects_json(const sentience_affect_input_t *affects, in
 json_t *sentience_build_enemies_json(const sentience_enemy_input_t *enemies, int num_enemies,
                                       long self_hp, long self_max_hp);
 json_t *sentience_build_room_contents_json(const sentience_room_contents_input_t *data);
+json_t *sentience_build_room_map(const sentience_room_map_input_t *input);
 
 /*
  * Game-loop entry point. Called from gmcp_update() for each descriptor.

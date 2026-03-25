@@ -19,6 +19,7 @@ static test_result_t run_gmcp_client_ready_state_scenario(json_t *tc);
 static test_result_t run_gmcp_affects_scenario(json_t *tc);
 static test_result_t run_gmcp_enemies_scenario(json_t *tc);
 static test_result_t run_gmcp_room_contents_scenario(json_t *tc);
+static test_result_t run_gmcp_room_map_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -610,6 +611,83 @@ static test_result_t run_gmcp_room_contents_scenario(json_t *tc)
     return TEST_SUCCESS;
 }
 
+static test_result_t run_gmcp_room_map_scenario(json_t *test_case)
+{
+    json_t *params = json_object_get(test_case, "params");
+    json_t *expected = json_object_get(test_case, "expected");
+
+    sentience_room_map_input_t input = {
+        .type     = json_string_value(json_object_get(params, "type")),
+        .map_text = json_string_value(json_object_get(params, "map_text")),
+        .width    = json_integer_value(json_object_get(params, "width")),
+        .height   = json_integer_value(json_object_get(params, "height")),
+    };
+
+    json_t *result = sentience_build_room_map(&input);
+    if (!result) {
+        if (!expected || json_is_null(expected))
+            return TEST_SUCCESS;
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "sentience_build_room_map returned NULL");
+        return TEST_FAILURE;
+    }
+
+    test_result_t tr = TEST_SUCCESS;
+
+    if (json_object_get(expected, "_v")) {
+        int exp_v = json_integer_value(json_object_get(expected, "_v"));
+        int got_v = json_integer_value(json_object_get(result, "_v"));
+        if (exp_v != got_v) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "_v: expected %d, got %d", exp_v, got_v);
+            tr = TEST_FAILURE;
+        }
+    }
+
+    if (json_object_get(expected, "type")) {
+        const char *exp = json_string_value(json_object_get(expected, "type"));
+        const char *got = json_string_value(json_object_get(result, "type"));
+        if (!exp || !got || strcmp(exp, got) != 0) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "type: expected '%s', got '%s'", exp ? exp : "NULL", got ? got : "NULL");
+            tr = TEST_FAILURE;
+        }
+    }
+
+    if (json_object_get(expected, "width")) {
+        int exp_w = json_integer_value(json_object_get(expected, "width"));
+        int got_w = json_integer_value(json_object_get(result, "width"));
+        if (exp_w != got_w) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "width: expected %d, got %d", exp_w, got_w);
+            tr = TEST_FAILURE;
+        }
+    }
+
+    if (json_object_get(expected, "height")) {
+        int exp_h = json_integer_value(json_object_get(expected, "height"));
+        int got_h = json_integer_value(json_object_get(result, "height"));
+        if (exp_h != got_h) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "height: expected %d, got %d", exp_h, got_h);
+            tr = TEST_FAILURE;
+        }
+    }
+
+    if (json_object_get(expected, "map_text")) {
+        const char *exp = json_string_value(json_object_get(expected, "map_text"));
+        const char *got = json_string_value(json_object_get(result, "map_text"));
+        if (!exp || !got || strcmp(exp, got) != 0) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "map_text mismatch");
+            tr = TEST_FAILURE;
+        }
+    }
+
+    json_decref(result);
+    return tr;
+}
+
 /*
  * Main test dispatcher — routes by function name from JSON config.
  */
@@ -674,6 +752,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_enemies_scenario(tc);
         } else if (strcmp(func_name, "build_room_contents") == 0) {
             result = run_gmcp_room_contents_scenario(tc);
+        } else if (strcmp(func_name, "build_room_map") == 0) {
+            result = run_gmcp_room_map_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);

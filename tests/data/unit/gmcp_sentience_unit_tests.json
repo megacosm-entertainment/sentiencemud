@@ -733,6 +733,86 @@
                 ]
             },
             "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_map_area",
+            "description": "Builds Sentience.Room.Map JSON for an area minimap",
+            "input": {
+                "function": "build_room_map",
+                "test_cases": [
+                    {
+                        "scenario": "area_minimap",
+                        "params": {
+                            "type": "area",
+                            "map_text": "{b|{GO{B-{GO{B|{WS{B|   {b|",
+                            "width": 21,
+                            "height": 7
+                        },
+                        "expected": {
+                            "_v": 1,
+                            "type": "area",
+                            "width": 21,
+                            "height": 7,
+                            "map_text": "{b|{GO{B-{GO{B|{WS{B|   {b|"
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_map_wilds",
+            "description": "Builds Sentience.Room.Map JSON for a wilderness map",
+            "input": {
+                "function": "build_room_map",
+                "test_cases": [
+                    {
+                        "scenario": "wilderness_map",
+                        "params": {
+                            "type": "wilds",
+                            "map_text": "{G.{G.{Y~{G.{G.\\n\\r{G.{M@{G.{G.{G.\\n\\r{G.{G.{G.{B~{G.",
+                            "width": 33,
+                            "height": 11
+                        },
+                        "expected": {
+                            "_v": 1,
+                            "type": "wilds",
+                            "width": 33,
+                            "height": 11
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_map_empty",
+            "description": "Builds Sentience.Room.Map JSON with empty map text",
+            "input": {
+                "function": "build_room_map",
+                "test_cases": [
+                    {
+                        "scenario": "empty_map",
+                        "params": {
+                            "type": "area",
+                            "map_text": "",
+                            "width": 0,
+                            "height": 0
+                        },
+                        "expected": {
+                            "_v": 1,
+                            "type": "area",
+                            "width": 0,
+                            "height": 0,
+                            "map_text": ""
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
         }
     ]
 }

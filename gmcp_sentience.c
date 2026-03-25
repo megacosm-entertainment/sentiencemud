@@ -175,6 +175,25 @@ json_t *sentience_build_room_json(const sentience_room_input_t *data)
     return obj;
 }
 
+json_t *sentience_build_room_map(const sentience_room_map_input_t *input)
+{
+    json_t *obj;
+
+    if (!input || !input->type || !input->map_text)
+        return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "_v",       json_integer(SENTIENCE_PACKAGE_VERSION));
+    json_object_set_new(obj, "type",     json_string(input->type));
+    json_object_set_new(obj, "map_text", json_string(input->map_text));
+    json_object_set_new(obj, "width",    json_integer(input->width));
+    json_object_set_new(obj, "height",   json_integer(input->height));
+
+    return obj;
+}
+
 /* ── Phase 3: Pure JSON builders ────────────────────────────────── */
 
 json_t *sentience_build_client_ready_capabilities_json(void)
