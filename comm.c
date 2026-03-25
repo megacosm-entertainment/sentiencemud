@@ -73,6 +73,7 @@
 
 #include "log.h"
 #include "merc.h"
+#include "sentience_link.h"
 #include "io/cache/redis_cache.h"
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
@@ -3150,6 +3151,9 @@ else if (fPrompt && !d->showstr_point && !d->pString)
 
     if (d->outtop == 0)
         return true;
+
+    /* Flush pending Sentience.Link.List GMCP before writing text */
+    sentience_link_queue_flush(d);
 
     if (!write_to_descriptor(d, d->outbuf, d->outtop))
     {
