@@ -251,6 +251,488 @@
                 ]
             },
             "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_client_ready_capabilities",
+            "description": "Builds Sentience.Client.Ready.Capabilities with package list and features",
+            "input": {
+                "function": "build_client_ready_capabilities",
+                "test_cases": [
+                    {
+                        "scenario": "default_capabilities",
+                        "params": {},
+                        "expected": {
+                            "packages": [
+                                "Sentience.Char.Identity",
+                                "Sentience.Char.Vitals",
+                                "Sentience.Char.Stats",
+                                "Sentience.Char.Combat",
+                                "Sentience.Char.Worth",
+                                "Sentience.Char.Affects",
+                                "Sentience.Char.Enemies",
+                                "Sentience.Room.Info",
+                                "Sentience.Room.Contents",
+                                "Sentience.Link"
+                            ],
+                            "features": ["links", "osc8"]
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_client_ready_state",
+            "description": "Builds Sentience.Client.Ready.State with tick rate info",
+            "input": {
+                "function": "build_client_ready_state",
+                "test_cases": [
+                    {
+                        "scenario": "default_tick_rate",
+                        "params": {
+                            "tick_rate": 240,
+                            "pulse_per_second": 4
+                        },
+                        "expected": {
+                            "tick_rate": 240,
+                            "pulse_per_second": 4
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_affects_empty",
+            "description": "Builds empty affects list (combat ended / no affects)",
+            "input": {
+                "function": "build_affects",
+                "test_cases": [
+                    {
+                        "scenario": "empty_list",
+                        "params": { "affects": [] },
+                        "expected": { "affects": [] }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_affects_single",
+            "description": "Builds affects list with a single normal affect",
+            "input": {
+                "function": "build_affects",
+                "test_cases": [
+                    {
+                        "scenario": "single_affect",
+                        "params": {
+                            "affects": [
+                                {
+                                    "name": "armor",
+                                    "wnum": "1:53",
+                                    "duration": 12,
+                                    "estimated_seconds": 48,
+                                    "modifier": "-20 armor class",
+                                    "level": 25
+                                }
+                            ]
+                        },
+                        "expected": {
+                            "affects": [
+                                {
+                                    "name": "armor",
+                                    "wnum": "1:53",
+                                    "duration": 12,
+                                    "estimated_seconds": 48,
+                                    "modifier": "-20 armor class",
+                                    "level": 25
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_affects_permanent",
+            "description": "Builds affects list with a permanent affect (duration -1)",
+            "input": {
+                "function": "build_affects",
+                "test_cases": [
+                    {
+                        "scenario": "permanent_affect",
+                        "params": {
+                            "affects": [
+                                {
+                                    "name": "racial infravision",
+                                    "wnum": null,
+                                    "duration": -1,
+                                    "estimated_seconds": -1,
+                                    "modifier": null,
+                                    "level": 1
+                                }
+                            ]
+                        },
+                        "expected": {
+                            "affects": [
+                                {
+                                    "name": "racial infravision",
+                                    "wnum": null,
+                                    "duration": -1,
+                                    "estimated_seconds": -1,
+                                    "modifier": null,
+                                    "level": 1
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_affects_multiple",
+            "description": "Builds affects list with multiple mixed affects",
+            "input": {
+                "function": "build_affects",
+                "test_cases": [
+                    {
+                        "scenario": "multiple_affects",
+                        "params": {
+                            "affects": [
+                                {
+                                    "name": "armor",
+                                    "wnum": "1:53",
+                                    "duration": 12,
+                                    "estimated_seconds": 48,
+                                    "modifier": "-20 armor class",
+                                    "level": 25
+                                },
+                                {
+                                    "name": "bless",
+                                    "wnum": "1:67",
+                                    "duration": -1,
+                                    "estimated_seconds": -1,
+                                    "modifier": "+1 hitroll",
+                                    "level": 30
+                                },
+                                {
+                                    "name": "poison",
+                                    "wnum": "1:90",
+                                    "duration": 5,
+                                    "estimated_seconds": 20,
+                                    "modifier": "-2 strength",
+                                    "level": 15
+                                }
+                            ]
+                        },
+                        "expected": {
+                            "affects": [
+                                {
+                                    "name": "armor",
+                                    "wnum": "1:53",
+                                    "duration": 12,
+                                    "estimated_seconds": 48,
+                                    "modifier": "-20 armor class",
+                                    "level": 25
+                                },
+                                {
+                                    "name": "bless",
+                                    "wnum": "1:67",
+                                    "duration": -1,
+                                    "estimated_seconds": -1,
+                                    "modifier": "+1 hitroll",
+                                    "level": 30
+                                },
+                                {
+                                    "name": "poison",
+                                    "wnum": "1:90",
+                                    "duration": 5,
+                                    "estimated_seconds": 20,
+                                    "modifier": "-2 strength",
+                                    "level": 15
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_enemies_empty",
+            "description": "Builds empty enemies list (combat ended)",
+            "input": {
+                "function": "build_enemies",
+                "test_cases": [
+                    {
+                        "scenario": "no_combat",
+                        "params": { "enemies": [], "self_hp": 0, "self_max_hp": 0 },
+                        "expected": { "enemies": [], "self": null }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_enemies_single",
+            "description": "Builds enemies list with single primary target",
+            "input": {
+                "function": "build_enemies",
+                "test_cases": [
+                    {
+                        "scenario": "single_enemy",
+                        "params": {
+                            "enemies": [
+                                {
+                                    "name": "a huge troll",
+                                    "instance_id": [3, 42],
+                                    "hp_pct": 73,
+                                    "is_primary": true,
+                                    "target": "you"
+                                }
+                            ],
+                            "self_hp": 450,
+                            "self_max_hp": 600
+                        },
+                        "expected": {
+                            "enemies": [
+                                {
+                                    "name": "a huge troll",
+                                    "instance_id": [3, 42],
+                                    "hp_pct": 73,
+                                    "is_primary": true,
+                                    "target": "you"
+                                }
+                            ],
+                            "self": { "hp": 450, "max_hp": 600, "hp_pct": 75 }
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_enemies_multiple",
+            "description": "Builds enemies list with primary + secondary targets",
+            "input": {
+                "function": "build_enemies",
+                "test_cases": [
+                    {
+                        "scenario": "multiple_enemies",
+                        "params": {
+                            "enemies": [
+                                {
+                                    "name": "a huge troll",
+                                    "instance_id": [3, 42],
+                                    "hp_pct": 73,
+                                    "is_primary": true,
+                                    "target": "you"
+                                },
+                                {
+                                    "name": "a goblin warrior",
+                                    "instance_id": [3, 108],
+                                    "hp_pct": 45,
+                                    "is_primary": false,
+                                    "target": "Gandalf"
+                                }
+                            ],
+                            "self_hp": 450,
+                            "self_max_hp": 600
+                        },
+                        "expected": {
+                            "enemies": [
+                                {
+                                    "name": "a huge troll",
+                                    "instance_id": [3, 42],
+                                    "hp_pct": 73,
+                                    "is_primary": true,
+                                    "target": "you"
+                                },
+                                {
+                                    "name": "a goblin warrior",
+                                    "instance_id": [3, 108],
+                                    "hp_pct": 45,
+                                    "is_primary": false,
+                                    "target": "Gandalf"
+                                }
+                            ],
+                            "self": { "hp": 450, "max_hp": 600, "hp_pct": 75 }
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_enemies_self_hp",
+            "description": "Verifies self block hp_pct calculation edge cases",
+            "input": {
+                "function": "build_enemies",
+                "test_cases": [
+                    {
+                        "scenario": "self_full_hp",
+                        "params": {
+                            "enemies": [
+                                { "name": "a rat", "instance_id": [1, 1], "hp_pct": 100, "is_primary": true, "target": "you" }
+                            ],
+                            "self_hp": 500,
+                            "self_max_hp": 500
+                        },
+                        "expected": {
+                            "self": { "hp": 500, "max_hp": 500, "hp_pct": 100 }
+                        }
+                    },
+                    {
+                        "scenario": "self_one_hp",
+                        "params": {
+                            "enemies": [
+                                { "name": "a dragon", "instance_id": [5, 99], "hp_pct": 95, "is_primary": true, "target": "you" }
+                            ],
+                            "self_hp": 1,
+                            "self_max_hp": 1000
+                        },
+                        "expected": {
+                            "self": { "hp": 1, "max_hp": 1000, "hp_pct": 0 }
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_contents_empty",
+            "description": "Builds empty room contents (no items, NPCs, players, or doors)",
+            "input": {
+                "function": "build_room_contents",
+                "test_cases": [
+                    {
+                        "scenario": "empty_room",
+                        "params": { "items": [], "npcs": [], "players": [], "doors": [] },
+                        "expected": { "items": [], "npcs": [], "players": [], "doors": [] }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_contents_items",
+            "description": "Builds room contents with items only",
+            "input": {
+                "function": "build_room_contents",
+                "test_cases": [
+                    {
+                        "scenario": "items_only",
+                        "params": {
+                            "items": [
+                                { "name": "a gleaming sword", "instance_id": [2, 15], "short_desc": "A gleaming sword lies here." },
+                                { "name": "a leather pouch", "instance_id": [2, 30], "short_desc": "A small leather pouch has been dropped here." }
+                            ],
+                            "npcs": [],
+                            "players": [],
+                            "doors": []
+                        },
+                        "expected": {
+                            "items": [
+                                { "name": "a gleaming sword", "instance_id": [2, 15], "short_desc": "A gleaming sword lies here." },
+                                { "name": "a leather pouch", "instance_id": [2, 30], "short_desc": "A small leather pouch has been dropped here." }
+                            ],
+                            "npcs": [],
+                            "players": [],
+                            "doors": []
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_contents_mixed",
+            "description": "Builds room contents with all entity types and doors",
+            "input": {
+                "function": "build_room_contents",
+                "test_cases": [
+                    {
+                        "scenario": "mixed_contents",
+                        "params": {
+                            "items": [
+                                { "name": "a gleaming sword", "instance_id": [2, 15], "short_desc": "A gleaming sword lies here." }
+                            ],
+                            "npcs": [
+                                { "name": "a huge troll", "instance_id": [3, 42], "short_desc": "A huge troll stands here, looking mean." }
+                            ],
+                            "players": [
+                                { "name": "Gandalf", "instance_id": [0, 0], "short_desc": null }
+                            ],
+                            "doors": [
+                                { "direction": "north", "state": "closed", "is_locked": false },
+                                { "direction": "east", "state": "open", "is_locked": false }
+                            ]
+                        },
+                        "expected": {
+                            "items": [
+                                { "name": "a gleaming sword", "instance_id": [2, 15], "short_desc": "A gleaming sword lies here." }
+                            ],
+                            "npcs": [
+                                { "name": "a huge troll", "instance_id": [3, 42], "short_desc": "A huge troll stands here, looking mean." }
+                            ],
+                            "players": [
+                                { "name": "Gandalf" }
+                            ],
+                            "doors": [
+                                { "direction": "north", "state": "closed", "is_locked": false },
+                                { "direction": "east", "state": "open", "is_locked": false }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_contents_doors",
+            "description": "Builds room contents with various door states",
+            "input": {
+                "function": "build_room_contents",
+                "test_cases": [
+                    {
+                        "scenario": "door_states",
+                        "params": {
+                            "items": [],
+                            "npcs": [],
+                            "players": [],
+                            "doors": [
+                                { "direction": "north", "state": "open", "is_locked": false },
+                                { "direction": "south", "state": "closed", "is_locked": false },
+                                { "direction": "west", "state": "locked", "is_locked": true }
+                            ]
+                        },
+                        "expected": {
+                            "doors": [
+                                { "direction": "north", "state": "open", "is_locked": false },
+                                { "direction": "south", "state": "closed", "is_locked": false },
+                                { "direction": "west", "state": "locked", "is_locked": true }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
         }
     ]
 }
