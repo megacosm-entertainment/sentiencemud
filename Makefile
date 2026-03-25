@@ -310,6 +310,7 @@ ifdef BUILD_TESTS
                tests/unit/array_function_tests.c \
                tests/unit/strdict_function_tests.c \
                tests/unit/gmcp_sentience_tests.c \
+               tests/unit/sentience_link_tests.c \
                tests/unit/pure_function_tests.c \
                tests/integration/wnum_tests.c \
                tests/integration/string_editor_tests.c \

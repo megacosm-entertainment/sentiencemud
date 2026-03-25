@@ -53,6 +53,7 @@ test_result_t run_update_cycle_test_case(test_case_t *test);
 test_result_t run_array_test_case(test_case_t *test);
 test_result_t run_strdict_test_case(test_case_t *test);
 test_result_t run_gmcp_sentience_test_case(test_case_t *test);
+test_result_t run_sentience_link_test_case(test_case_t *test);
 
 #endif /* BUILD_TESTS */
 
