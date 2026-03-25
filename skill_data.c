@@ -271,6 +271,7 @@ SKILL_DATA *new_skill_data(void)
     skill->valid = true;
     skill->uid = -1;
     skill->difficulty = 1;
+    skill->spell_fun = spell_null;
 
     /* Initialize legacy class arrays to "not available" */
     for (int i = 0; i < MAX_CLASS; i++) {
