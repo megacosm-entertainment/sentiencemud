@@ -51,6 +51,7 @@ const char *pref_category_names[] = {
     "channel",      /* PREF_CAT_CHANNEL  */
     "prompt",       /* PREF_CAT_PROMPT   */
     "display",      /* PREF_CAT_DISPLAY  */
+    "gmcp",         /* PREF_CAT_GMCP     */
     NULL
 };
 

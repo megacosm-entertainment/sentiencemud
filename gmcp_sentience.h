@@ -158,6 +158,26 @@ typedef struct {
 
 json_t *sentience_build_identity_json(const sentience_identity_input_t *data);
 
+#define SENTIENCE_MAX_PREFERENCES 64
+
+typedef struct {
+    const char *key;
+    const char *category;   /* "toggle", "channel", "prompt", "display", "gmcp" */
+    const char *type;       /* "bool", "int", "string", "bitfield" */
+    const char *source;     /* "default", "account", "character" */
+    const char *label;      /* human-readable display label */
+    bool value_bool;
+    int value_int;
+    const char *value_string;
+} sentience_pref_entry_t;
+
+typedef struct {
+    int num_prefs;
+    sentience_pref_entry_t prefs[SENTIENCE_MAX_PREFERENCES];
+} sentience_preferences_input_t;
+
+json_t *sentience_build_preferences_json(const sentience_preferences_input_t *input);
+
 /*
  * Room builder input.
  */

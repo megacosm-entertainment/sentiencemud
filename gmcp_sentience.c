@@ -469,6 +469,41 @@ void sentience_send_auth_qrcode(descriptor_t *d, const char *image_data_url,
         sentience_send_package(d, "Sentience.Auth.QRCode", obj);
 }
 
+json_t *sentience_build_preferences_json(const sentience_preferences_input_t *input)
+{
+    json_t *obj, *prefs;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    prefs = json_array();
+    for (i = 0; i < input->num_prefs; i++) {
+        const sentience_pref_entry_t *p = &input->prefs[i];
+        json_t *entry = json_object();
+
+        json_object_set_new(entry, "key",      json_string(p->key ? p->key : ""));
+        json_object_set_new(entry, "category", json_string(p->category ? p->category : ""));
+        json_object_set_new(entry, "type",     json_string(p->type ? p->type : "bool"));
+        json_object_set_new(entry, "source",   json_string(p->source ? p->source : "default"));
+        json_object_set_new(entry, "label",    json_string(p->label ? p->label : ""));
+
+        if (p->type && !strcmp(p->type, "int"))
+            json_object_set_new(entry, "value", json_integer(p->value_int));
+        else if (p->type && !strcmp(p->type, "string"))
+            json_object_set_new(entry, "value", json_string(p->value_string ? p->value_string : ""));
+        else
+            json_object_set_new(entry, "value", p->value_bool ? json_true() : json_false());
+
+        json_array_append_new(prefs, entry);
+    }
+    json_object_set_new(obj, "preferences", prefs);
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *
@@ -477,24 +512,79 @@ void sentience_send_auth_qrcode(descriptor_t *d, const char *image_data_url,
  */
 void sentience_send_client_preferences(descriptor_t *d)
 {
-    json_t *obj;
     CHAR_DATA *ch;
+    ACCOUNT_DATA *account = NULL;
+    bool account_loaded = false;
+    sentience_preferences_input_t input = {0};
+    int i;
 
     if (!d || !d->character)
         return;
 
     ch = d->character;
+    if (ch->pcdata && ch->pcdata->account_name[0]) {
+        account = get_account_online_or_offline(ch->pcdata->account_name, &account_loaded);
+    }
 
-    obj = json_object();
-    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
-    json_object_set_new(obj, "gmcp_channels",
-                        json_boolean(pref_gmcp_channels(ch)));
-    json_object_set_new(obj, "gmcp_suppress_channels",
-                        json_boolean(pref_gmcp_suppress_channels(ch)));
-    json_object_set_new(obj, "gmcp_suppress_minimap",
-                        json_boolean(pref_gmcp_suppress_minimap(ch)));
+    /* Walk pc_set_table[] for toggle preferences */
+    for (i = 0; pc_set_table[i].name && input.num_prefs < SENTIENCE_MAX_PREFERENCES; i++) {
+        sentience_pref_entry_t *entry = &input.prefs[input.num_prefs];
 
-    sentience_send_package(d, "Sentience.Client.Preferences", obj);
+        entry->key = pc_set_table[i].name;
+        entry->category = "toggle";
+        entry->type = "bool";
+        entry->label = pc_set_table[i].name; /* Use the key as label for now */
+
+        entry->source = pref_source_name(pref_get_source(account, ch, pc_set_table[i].name));
+        entry->value_bool = pref_get_bool(account, ch, pc_set_table[i].name, 
+                                         pc_set_table[i].default_state == SETTING_ON);
+
+        input.num_prefs++;
+    }
+
+    /* Walk game_settings.pref_defaults for non-toggle preferences */
+    PREF_ENTRY *pref;
+    for (pref = game_settings.pref_defaults; pref && input.num_prefs < SENTIENCE_MAX_PREFERENCES; pref = pref->next) {
+        /* Skip toggles already handled above */
+        if (pref->category == PREF_CAT_TOGGLE)
+            continue;
+
+        sentience_pref_entry_t *entry = &input.prefs[input.num_prefs];
+
+        entry->key = pref->key;
+        entry->category = pref_category_name(pref->category);
+        entry->type = pref_type_name(pref->type);
+        entry->label = pref->key; /* For now, use key as label */
+        entry->source = pref_source_name(pref_get_source(account, ch, pref->key));
+
+        switch (pref->type) {
+            case PREF_TYPE_BOOL:
+                entry->value_bool = pref_get_bool(account, ch, pref->key, pref->val.b);
+                break;
+            case PREF_TYPE_INT:
+                entry->value_int = pref_get_int(account, ch, pref->key, pref->val.i);
+                break;
+            case PREF_TYPE_STRING:
+                entry->value_string = pref_get_string(account, ch, pref->key, pref->val.str);
+                break;
+            case PREF_TYPE_BITFIELD:
+                entry->value_int = (int) pref_get_bitfield(account, ch, pref->key, pref->val.bits);
+                break;
+        }
+
+        input.num_prefs++;
+    }
+
+    /* Build and send JSON */
+    json_t *obj = sentience_build_preferences_json(&input);
+    if (obj) {
+        sentience_send_package(d, "Sentience.Client.Preferences", obj);
+    }
+
+    /* Cleanup account if we loaded it */
+    if (account_loaded && account) {
+        free_account(account);
+    }
 }
 
 /*

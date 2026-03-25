@@ -24,6 +24,7 @@ static test_result_t run_gmcp_channel_message_scenario(json_t *tc);
 static test_result_t run_gmcp_layout_name_validation_scenario(json_t *tc);
 static test_result_t run_gmcp_layout_storage_scenario(json_t *tc);
 static test_result_t run_gmcp_auth_qrcode_scenario(json_t *tc);
+static test_result_t run_gmcp_preferences_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -821,6 +822,152 @@ static test_result_t run_gmcp_auth_qrcode_scenario(json_t *tc)
     return status;
 }
 
+/* --- Preferences scenario --- */
+
+static test_result_t run_gmcp_preferences_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    if (!params || !expected) return TEST_ERROR;
+
+    json_t *preferences_array = json_object_get(params, "preferences");
+    if (!preferences_array || !json_is_array(preferences_array)) return TEST_ERROR;
+
+    /* Populate the input struct from the JSON array */
+    sentience_preferences_input_t input = {0};
+    input.num_prefs = json_array_size(preferences_array);
+
+    if (input.num_prefs > SENTIENCE_MAX_PREFERENCES) {
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Too many preferences: %d", input.num_prefs);
+        return TEST_ERROR;
+    }
+
+    for (int i = 0; i < input.num_prefs; i++) {
+        json_t *pref = json_array_get(preferences_array, i);
+        sentience_pref_entry_t *entry = &input.prefs[i];
+
+        entry->key = json_string_value(json_object_get(pref, "key"));
+        entry->category = json_string_value(json_object_get(pref, "category"));
+        entry->type = json_string_value(json_object_get(pref, "type"));
+        entry->source = json_string_value(json_object_get(pref, "source"));
+        entry->label = json_string_value(json_object_get(pref, "label"));
+        entry->value_bool = json_boolean_value(json_object_get(pref, "value_bool"));
+        entry->value_int = json_integer_value(json_object_get(pref, "value_int"));
+        entry->value_string = json_string_value(json_object_get(pref, "value_string"));
+    }
+
+    /* Call the builder */
+    json_t *result = sentience_build_preferences_json(&input);
+    if (!result) {
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "sentience_build_preferences_json returned NULL");
+        return TEST_FAILURE;
+    }
+
+    /* Check expected fields */
+    if (json_object_get(expected, "_v")) {
+        int exp_v = json_integer_value(json_object_get(expected, "_v"));
+        int got_v = json_integer_value(json_object_get(result, "_v"));
+        if (exp_v != got_v) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "_v: expected %d, got %d", exp_v, got_v);
+            json_decref(result);
+            return TEST_FAILURE;
+        }
+    }
+
+    if (json_object_get(expected, "preferences_count")) {
+        json_t *prefs_array = json_object_get(result, "preferences");
+        if (!prefs_array || !json_is_array(prefs_array)) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                       "Missing or invalid preferences array");
+            json_decref(result);
+            return TEST_FAILURE;
+        }
+        int exp_count = json_integer_value(json_object_get(expected, "preferences_count"));
+        int got_count = json_array_size(prefs_array);
+        if (exp_count != got_count) {
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "preferences count: expected %d, got %d", exp_count, got_count);
+            json_decref(result);
+            return TEST_FAILURE;
+        }
+    }
+
+    if (json_object_get(expected, "has_key_brief")) {
+        json_t *prefs_array = json_object_get(result, "preferences");
+        bool found_brief = false;
+        for (size_t i = 0; i < json_array_size(prefs_array); i++) {
+            json_t *pref = json_array_get(prefs_array, i);
+            const char *key = json_string_value(json_object_get(pref, "key"));
+            if (key && !strcmp(key, "brief")) {
+                found_brief = true;
+                /* Check specific values for brief if specified */
+                if (json_object_get(expected, "brief_source")) {
+                    const char *exp_source = json_string_value(json_object_get(expected, "brief_source"));
+                    const char *got_source = json_string_value(json_object_get(pref, "source"));
+                    if (!got_source || strcmp(exp_source, got_source)) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                     "brief source: expected '%s', got '%s'", 
+                                     exp_source, got_source ? got_source : "NULL");
+                        json_decref(result);
+                        return TEST_FAILURE;
+                    }
+                }
+                if (json_object_get(expected, "brief_value")) {
+                    bool exp_value = json_boolean_value(json_object_get(expected, "brief_value"));
+                    bool got_value = json_boolean_value(json_object_get(pref, "value"));
+                    if (exp_value != got_value) {
+                        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                     "brief value: expected %s, got %s", 
+                                     exp_value ? "true" : "false",
+                                     got_value ? "true" : "false");
+                        json_decref(result);
+                        return TEST_FAILURE;
+                    }
+                }
+                break;
+            }
+        }
+        if (!found_brief) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Expected key 'brief' not found");
+            json_decref(result);
+            return TEST_FAILURE;
+        }
+    }
+
+    if (json_object_get(expected, "compact_source")) {
+        json_t *prefs_array = json_object_get(result, "preferences");
+        bool found_compact = false;
+        for (size_t i = 0; i < json_array_size(prefs_array); i++) {
+            json_t *pref = json_array_get(prefs_array, i);
+            const char *key = json_string_value(json_object_get(pref, "key"));
+            if (key && !strcmp(key, "compact")) {
+                found_compact = true;
+                const char *exp_source = json_string_value(json_object_get(expected, "compact_source"));
+                const char *got_source = json_string_value(json_object_get(pref, "source"));
+                if (!got_source || strcmp(exp_source, got_source)) {
+                    log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                                 "compact source: expected '%s', got '%s'", 
+                                 exp_source, got_source ? got_source : "NULL");
+                    json_decref(result);
+                    return TEST_FAILURE;
+                }
+                break;
+            }
+        }
+        if (!found_compact) {
+            log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS, "Expected key 'compact' not found");
+            json_decref(result);
+            return TEST_FAILURE;
+        }
+    }
+
+    json_decref(result);
+    return TEST_SUCCESS;
+}
+
 /*
  * Main test dispatcher — routes by function name from JSON config.
  */
@@ -895,6 +1042,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_layout_storage_scenario(tc);
         } else if (strcmp(func_name, "build_auth_qrcode") == 0) {
             result = run_gmcp_auth_qrcode_scenario(tc);
+        } else if (strcmp(func_name, "build_preferences") == 0) {
+            result = run_gmcp_preferences_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);

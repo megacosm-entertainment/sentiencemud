@@ -1212,6 +1212,35 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_preferences",
+      "description": "Preferences builder produces correct JSON structure",
+      "input": {
+        "function": "build_preferences",
+        "test_cases": [
+          {
+            "scenario": "typical_preferences",
+            "params": {
+              "preferences": [
+                {"key": "brief", "category": "toggle", "type": "bool", "value_bool": true, "source": "character", "label": "Brief"},
+                {"key": "compact", "category": "toggle", "type": "bool", "value_bool": false, "source": "default", "label": "Compact"},
+                {"key": "prompt_hp", "category": "prompt", "type": "bool", "value_bool": true, "source": "account", "label": "Show HP in Prompt"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "preferences_count": 3,
+              "has_key_brief": true,
+              "brief_source": "character",
+              "brief_value": true,
+              "compact_source": "default"
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }
