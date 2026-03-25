@@ -38,7 +38,8 @@ typedef struct descriptor_data DESCRIPTOR_DATA;
 #define PREF_CAT_CHANNEL      1  /* Channel on/off and display flags         */
 #define PREF_CAT_PROMPT       2  /* Prompt string                            */
 #define PREF_CAT_DISPLAY      3  /* Display settings (future: colours, etc.) */
-#define PREF_CAT_MAX          4  /* Sentinel — keep last                     */
+#define PREF_CAT_GMCP         4  /* GMCP delivery and suppression controls   */
+#define PREF_CAT_MAX          5  /* Sentinel — keep last                     */
 
 /***************************************************************************
  * Preference Value Types                                                  *
@@ -418,6 +419,27 @@ bool pref_check(CHAR_DATA *ch, const char *key);
  * @return         true if the channel is enabled
  */
 bool pref_check_channel(CHAR_DATA *ch, const char *channel);
+
+/**
+ * GMCP preference accessors — convenience wrappers for PREF_CAT_GMCP bools
+ *
+ * These check the full inheritance chain (char → account → game default)
+ * and return the effective boolean value.
+ */
+bool pref_gmcp_channels(CHAR_DATA *ch);
+bool pref_gmcp_suppress_channels(CHAR_DATA *ch);
+bool pref_gmcp_suppress_minimap(CHAR_DATA *ch);
+
+/**
+ * pref_apply_gmcp_defaults - Seed GMCP prefs based on connection type
+ *
+ * Called at login. If no GMCP preference exists anywhere in the inheritance
+ * chain, sets a character-level override based on the descriptor's connection
+ * type: WebSocket = true, telnet/TLS = false.
+ *
+ * @param ch  Character entering the game (must have ch->desc set)
+ */
+void pref_apply_gmcp_defaults(CHAR_DATA *ch);
 
 /***************************************************************************
  * Player / Staff Commands                                                 *

@@ -14,6 +14,7 @@
 #include <ctype.h>
 
 #include "../merc.h"
+#include "../connection.h"
 #include "../interp.h"
 #include "../tables.h"
 #include "../io/json/json_game_settings.h"
@@ -2093,6 +2094,73 @@ bool pref_check_channel(CHAR_DATA *ch, const char *channel)
     }
 
     return true;
+}
+
+/*
+ * GMCP preference accessors
+ */
+
+static bool pref_gmcp_get(CHAR_DATA *ch, const char *key)
+{
+    ACCOUNT_DATA *account;
+
+    if (!ch || IS_NPC(ch))
+        return false;
+
+    account = ch->desc ? ch->desc->account : NULL;
+    return pref_get_bool(account, ch, key, false);
+}
+
+bool pref_gmcp_channels(CHAR_DATA *ch)
+{
+    return pref_gmcp_get(ch, "gmcp_channels");
+}
+
+bool pref_gmcp_suppress_channels(CHAR_DATA *ch)
+{
+    return pref_gmcp_get(ch, "gmcp_suppress_channels");
+}
+
+bool pref_gmcp_suppress_minimap(CHAR_DATA *ch)
+{
+    return pref_gmcp_get(ch, "gmcp_suppress_minimap");
+}
+
+/**
+ * pref_apply_gmcp_defaults - Seed GMCP prefs based on connection type
+ */
+void pref_apply_gmcp_defaults(CHAR_DATA *ch)
+{
+    static const char *gmcp_keys[] = {
+        "gmcp_channels",
+        "gmcp_suppress_channels",
+        "gmcp_suppress_minimap",
+        NULL
+    };
+    ACCOUNT_DATA *account;
+    bool is_websocket;
+    int i;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata || !ch->desc)
+        return;
+
+    account = ch->desc->account;
+    is_websocket = (ch->desc->conn
+                    && ch->desc->conn->type == CONN_TYPE_WEBSOCKET_TLS);
+
+    for (i = 0; gmcp_keys[i]; i++) {
+        /* If a value exists anywhere in the chain, don't override */
+        if (ch->pcdata->preferences
+            && pref_find(ch->pcdata->preferences, gmcp_keys[i]))
+            continue;
+        if (account && account->preferences
+            && pref_find(account->preferences, gmcp_keys[i]))
+            continue;
+
+        /* No value anywhere — seed from connection type */
+        pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP,
+                      gmcp_keys[i], is_websocket);
+    }
 }
 
 /**
