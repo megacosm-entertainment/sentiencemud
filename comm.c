@@ -3640,6 +3640,20 @@ bool write_to_descriptor_2(DESCRIPTOR_DATA *d, char *txt, int length)
     if (d->out_compress)
         return writeCompressed(d, txt, length);
 
+    /*
+     * WebSocket: send entire buffer as one connection_write() call so
+     * it becomes a single WebSocket frame.  Chunking would create
+     * multiple FIN=1 frames that split mid-line / mid-escape.
+     * The ws_write/wss_write functions handle partial writes internally.
+     */
+    if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+        int bytes_written;
+        if (!connection_write(d->conn, txt, length, &bytes_written))
+            return false;
+        return true;
+    }
+
+    /* TCP / TLS: write in 4KB blocks to avoid large single writes */
     for (iStart = 0; iStart < length; iStart += nWrite)
     {
         nBlock = UMIN(length - iStart, 4096);
