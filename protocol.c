@@ -28,6 +28,7 @@
 
 #include "protocol.h"
 #include "gmcp_sentience.h"
+#include "account/preferences.h"
 
 /******************************************************************************
  The following section is for Diku/Merc derivatives.  Replace as needed.
@@ -3368,6 +3369,7 @@ const struct gmcp_receive_struct GMCPReceiveTable[GMCP_RECEIVE_MAX+1] =
    { GMCP_CORE_SUPPORTS_REMOVE,		"Core.Supports.Remove"				},
    { GMCP_EXTERNAL_DISCORD_HELLO,		"External.Discord.Hello"			},
    { GMCP_EXTERNAL_DISCORD_GET,		"External.Discord.Get"				},
+   { GMCP_SENTIENCE_CLIENT_PREFERENCES,	"Sentience.Client.Preferences"		},
 
    { GMCP_RECEIVE_MAX,					"",									}
 };
@@ -3971,6 +3973,47 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
          #else
          #endif
          Write( apDescriptor, buf );
+      }
+      break;
+
+      case GMCP_SENTIENCE_CLIENT_PREFERENCES:
+      {
+         /* Client sends partial updates: {"gmcp_channels": true, ...}
+          * Validate each key, apply as character override, echo back full state. */
+         static const char *valid_keys[] = {
+             "gmcp_channels", "gmcp_suppress_channels", "gmcp_suppress_minimap", NULL
+         };
+         CHAR_DATA *ch = apDescriptor->character;
+
+         if (!ch || IS_NPC(ch) || !ch->pcdata)
+             break;
+
+         if (t[1].type == JSMN_OBJECT) {
+             for (i = 2; i < tokens; i += 2) {
+                 int k;
+                 bool valid = false;
+
+                 key = PullJSONString(t[i].start, t[i].end, string);
+
+                 for (k = 0; valid_keys[k]; k++) {
+                     if (!strcmp(key, valid_keys[k])) {
+                         valid = true;
+                         break;
+                     }
+                 }
+                 if (!valid)
+                     continue;
+
+                 if (i + 1 < tokens) {
+                     char *val_str = PullJSONString(t[i + 1].start, t[i + 1].end, string);
+                     bool val = (!strcmp(val_str, "true") || !strcmp(val_str, "1"));
+                     pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP,
+                                   key, val);
+                 }
+             }
+             save_char_obj(ch);
+             sentience_send_client_preferences(apDescriptor);
+         }
       }
       break;
    }

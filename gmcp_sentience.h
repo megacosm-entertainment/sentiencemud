@@ -246,6 +246,12 @@ json_t *sentience_build_channel_message(const sentience_channel_message_input_t 
 void sentience_send_package(descriptor_t *d, const char *package, json_t *json);
 
 /*
+ * Send current GMCP preference state to the client.
+ * Called on login and after preference updates from Sentience.Client.Preferences.
+ */
+void sentience_send_client_preferences(descriptor_t *d);
+
+/*
  * Game-loop entry point. Called from gmcp_update() for each descriptor.
  * Compares current character state with cache, sends dirty packages.
  */

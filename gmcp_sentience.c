@@ -15,6 +15,7 @@
 #include "protocol.h"
 #include "class_data.h"
 #include "log.h"
+#include "account/preferences.h"
 #include "utils/buffer.h"
 
 /* ── Pure JSON builders ─────────────────────────────────────────────
@@ -439,6 +440,34 @@ void sentience_send_package(descriptor_t *d, const char *package, json_t *json)
     json_decref(json);
 }
 
+/**
+ * sentience_send_client_preferences - Send current GMCP prefs to client
+ *
+ * Sends Sentience.Client.Preferences with the current effective values.
+ * Called on login and after a client preference update.
+ */
+void sentience_send_client_preferences(descriptor_t *d)
+{
+    json_t *obj;
+    CHAR_DATA *ch;
+
+    if (!d || !d->character)
+        return;
+
+    ch = d->character;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    json_object_set_new(obj, "gmcp_channels",
+                        json_boolean(pref_gmcp_channels(ch)));
+    json_object_set_new(obj, "gmcp_suppress_channels",
+                        json_boolean(pref_gmcp_suppress_channels(ch)));
+    json_object_set_new(obj, "gmcp_suppress_minimap",
+                        json_boolean(pref_gmcp_suppress_minimap(ch)));
+
+    sentience_send_package(d, "Sentience.Client.Preferences", obj);
+}
+
 /*
  * Safe string copy helper for cache fields.
  */
@@ -479,6 +508,7 @@ void sentience_gmcp_update(descriptor_t *d)
     if (!cache->initialized) {
         sentience_send_package(d, "Sentience.Client.Ready.State",
             sentience_build_client_ready_state_json(PULSE_TICK, PULSE_PER_SECOND));
+        sentience_send_client_preferences(d);
     }
 
     /* ── Detect changes ─────────────────────────────────────────── */
