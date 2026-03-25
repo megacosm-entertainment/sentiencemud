@@ -837,6 +837,44 @@ json_t *sentience_build_reputations_json(const sentience_reputations_input_t *in
     return obj;
 }
 
+json_t *sentience_build_church_json(const sentience_church_input_t *input)
+{
+    json_t *obj;
+    json_t *actions;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "is_member", input->is_member ? json_true() : json_false());
+
+    if (input->is_member) {
+        json_object_set_new(obj, "church_name", json_string(input->church_name ? input->church_name : ""));
+        json_object_set_new(obj, "church_flag", json_string(input->church_flag ? input->church_flag : ""));
+        json_object_set_new(obj, "alignment",   json_string(input->alignment ? input->alignment : ""));
+        json_object_set_new(obj, "size",        json_string(input->size ? input->size : ""));
+        json_object_set_new(obj, "pk",          input->pk ? json_true() : json_false());
+        json_object_set_new(obj, "rank_name",   json_string(input->rank_name ? input->rank_name : ""));
+        json_object_set_new(obj, "rank_type",   json_string(input->rank_type ? input->rank_type : ""));
+        json_object_set_new(obj, "rank_title",  json_string(input->rank_title ? input->rank_title : ""));
+
+        actions = json_array();
+        for (i = 0; i < input->num_actions; i++) {
+            json_t *act = json_object();
+            json_object_set_new(act, "label", json_string(input->actions[i].label ? input->actions[i].label : ""));
+            json_object_set_new(act, "cmd",   json_string(input->actions[i].cmd ? input->actions[i].cmd : ""));
+            json_array_append_new(actions, act);
+        }
+        json_object_set_new(obj, "actions", actions);
+    }
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *

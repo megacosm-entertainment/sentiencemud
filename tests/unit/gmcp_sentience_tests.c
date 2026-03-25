@@ -30,6 +30,7 @@ static test_result_t run_gmcp_inventory_scenario(json_t *tc);
 static test_result_t run_gmcp_equipment_scenario(json_t *tc);
 static test_result_t run_gmcp_abilities_scenario(json_t *tc);
 static test_result_t run_gmcp_reputations_scenario(json_t *tc);
+static test_result_t run_gmcp_church_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -1270,6 +1271,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_abilities_scenario(tc);
         } else if (strcmp(func_name, "build_reputations") == 0) {
             result = run_gmcp_reputations_scenario(tc);
+        } else if (strcmp(func_name, "build_church") == 0) {
+            result = run_gmcp_church_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);
@@ -1887,6 +1890,121 @@ static test_result_t run_gmcp_reputations_scenario(json_t *tc)
         json_t *second_rep = json_array_get(reputations_result, 1);
         TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "second_rep_points")),
                            json_integer_value(json_object_get(second_rep, "points")));
+    }
+
+    json_decref(result);
+    return TEST_SUCCESS;
+}
+
+static test_result_t run_gmcp_church_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    json_t *result;
+    sentience_church_input_t input;
+    size_t i;
+
+    if (!params || !expected) return TEST_ERROR;
+
+    /* Initialize input struct */
+    memset(&input, 0, sizeof(input));
+
+    /* Parse is_member */
+    input.is_member = json_is_true(json_object_get(params, "is_member"));
+
+    if (input.is_member) {
+        /* Parse church details */
+        input.church_name = json_string_value(json_object_get(params, "church_name"));
+        input.church_flag = json_string_value(json_object_get(params, "church_flag"));
+        input.alignment = json_string_value(json_object_get(params, "alignment"));
+        input.size = json_string_value(json_object_get(params, "size"));
+        input.pk = json_is_true(json_object_get(params, "pk"));
+        input.rank_name = json_string_value(json_object_get(params, "rank_name"));
+        input.rank_type = json_string_value(json_object_get(params, "rank_type"));
+        input.rank_title = json_string_value(json_object_get(params, "rank_title"));
+
+        /* Parse actions array */
+        json_t *actions_arr = json_object_get(params, "actions");
+        if (actions_arr && json_is_array(actions_arr)) {
+            input.num_actions = (int)json_array_size(actions_arr);
+            if (input.num_actions > SENTIENCE_MAX_CHURCH_ACTIONS)
+                input.num_actions = SENTIENCE_MAX_CHURCH_ACTIONS;
+
+            for (i = 0; i < (size_t)input.num_actions; i++) {
+                json_t *action = json_array_get(actions_arr, i);
+                sentience_item_action_t *act = &input.actions[i];
+
+                act->label = json_string_value(json_object_get(action, "label"));
+                act->cmd = json_string_value(json_object_get(action, "cmd"));
+            }
+        }
+    }
+
+    /* Call the builder function */
+    result = sentience_build_church_json(&input);
+    TEST_ASSERT_NOT_NULL(result);
+
+    /* Check expected values */
+    TEST_ASSERT_INT_EQ(SENTIENCE_PACKAGE_VERSION,
+                       json_integer_value(json_object_get(result, "_v")));
+
+    /* Check is_member field */
+    if (json_object_get(expected, "is_member")) {
+        bool expected_is_member = json_is_true(json_object_get(expected, "is_member"));
+        bool result_is_member = json_is_true(json_object_get(result, "is_member"));
+        TEST_ASSERT_TRUE(expected_is_member == result_is_member);
+    }
+
+    /* For non-member scenario, verify no church data fields exist */
+    if (json_object_get(expected, "no_church_data")) {
+        TEST_ASSERT_NULL(json_object_get(result, "church_name"));
+        TEST_ASSERT_NULL(json_object_get(result, "church_flag"));
+        TEST_ASSERT_NULL(json_object_get(result, "alignment"));
+        TEST_ASSERT_NULL(json_object_get(result, "size"));
+        TEST_ASSERT_NULL(json_object_get(result, "pk"));
+        TEST_ASSERT_NULL(json_object_get(result, "rank_name"));
+        TEST_ASSERT_NULL(json_object_get(result, "rank_type"));
+        TEST_ASSERT_NULL(json_object_get(result, "rank_title"));
+        TEST_ASSERT_NULL(json_object_get(result, "actions"));
+    }
+
+    /* Check member-specific fields */
+    if (json_object_get(expected, "church_name")) {
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "church_name")),
+                           json_string_value(json_object_get(result, "church_name")));
+    }
+
+    if (json_object_get(expected, "church_flag")) {
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "church_flag")),
+                           json_string_value(json_object_get(result, "church_flag")));
+    }
+
+    if (json_object_get(expected, "alignment")) {
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "alignment")),
+                           json_string_value(json_object_get(result, "alignment")));
+    }
+
+    if (json_object_get(expected, "pk") != NULL) {
+        bool expected_pk = json_is_true(json_object_get(expected, "pk"));
+        bool result_pk = json_is_true(json_object_get(result, "pk"));
+        TEST_ASSERT_TRUE(expected_pk == result_pk);
+    }
+
+    if (json_object_get(expected, "rank_name")) {
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "rank_name")),
+                           json_string_value(json_object_get(result, "rank_name")));
+    }
+
+    if (json_object_get(expected, "rank_type")) {
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "rank_type")),
+                           json_string_value(json_object_get(result, "rank_type")));
+    }
+
+    if (json_object_get(expected, "actions_count")) {
+        json_t *actions_result = json_object_get(result, "actions");
+        TEST_ASSERT_NOT_NULL(actions_result);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "actions_count")),
+                           (long)json_array_size(actions_result));
     }
 
     json_decref(result);

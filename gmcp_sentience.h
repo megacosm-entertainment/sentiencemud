@@ -354,6 +354,30 @@ typedef struct {
 json_t *sentience_build_reputations_json(const sentience_reputations_input_t *input);
 
 /*
+ * Church builder input — church membership info.
+ */
+#define SENTIENCE_MAX_CHURCH_ACTIONS 12
+
+typedef struct {
+    bool is_member;
+    /* Church info (only valid if is_member) */
+    const char *church_name;
+    const char *church_flag;
+    const char *alignment;      /* "good", "evil", "neutral" */
+    const char *size;           /* "band", "cult", "order", "church" */
+    bool pk;
+    /* Rank info */
+    const char *rank_name;
+    const char *rank_type;      /* "member", "officer", "leader" */
+    const char *rank_title;
+    /* Actions */
+    int num_actions;
+    sentience_item_action_t actions[SENTIENCE_MAX_CHURCH_ACTIONS];
+} sentience_church_input_t;
+
+json_t *sentience_build_church_json(const sentience_church_input_t *input);
+
+/*
  * Room builder input.
  */
 typedef struct {

@@ -1678,6 +1678,69 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_church_member",
+      "description": "Church builder for a church member",
+      "input": {
+        "function": "build_church",
+        "test_cases": [
+          {
+            "scenario": "church_member",
+            "params": {
+              "is_member": true,
+              "church_name": "Knights of Valor",
+              "church_flag": "KoV",
+              "alignment": "good",
+              "size": "order",
+              "pk": false,
+              "rank_name": "Templar",
+              "rank_type": "officer",
+              "rank_title": "Holy Templar",
+              "actions": [
+                {"label": "Church Info", "cmd": "church info"},
+                {"label": "Church Who", "cmd": "church who"},
+                {"label": "Church Roster", "cmd": "church roster"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "is_member": true,
+              "church_name": "Knights of Valor",
+              "church_flag": "KoV",
+              "alignment": "good",
+              "pk": false,
+              "rank_name": "Templar",
+              "rank_type": "officer",
+              "actions_count": 3
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_church_non_member",
+      "description": "Church builder for non-member",
+      "input": {
+        "function": "build_church",
+        "test_cases": [
+          {
+            "scenario": "non_member",
+            "params": {
+              "is_member": false
+            },
+            "expected": {
+              "_v": 1,
+              "is_member": false,
+              "no_church_data": true
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }
