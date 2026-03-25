@@ -1299,20 +1299,16 @@ void boot_db(void)
     // Load races from JSON files (new race system)
     load_races();
 
-    // Load skills from JSON files (new skill system)
-    // On first run, bootstraps from legacy skill_table[] and saves JSON files.
+    // Load skills from JSON files.
     load_skill_data();
 
-    // Load skill groups from JSON files (new skill group system)
-    // On first run, bootstraps from legacy group_table[] and saves JSON files.
+    // Load skill groups from data/skill_groups/ JSON files.
     load_skill_groups();
 
-    // Load songs from JSON files (new song system)
-    // On first run, bootstraps from legacy music_table[] and saves JSON files.
+    // Load songs from data/songs.json.
     load_songs();
 
-    // Load classes from JSON files (new class system)
-    // On first run, bootstraps from legacy sub_class_table[] and saves JSON files.
+    // Load classes from JSON files
     load_class_data();
 
     // Load random string generators from JSON (rsgedit cache/persistence)
@@ -1623,44 +1619,45 @@ int get_this_class(CHAR_DATA *ch, int sn)
 {
     int this_class;
     int level;
+    SKILL_DATA *sd = skill_find_uid(sn);
 
-    if (skill_table[sn].name == NULL)
+    if (!sd || sd->name == NULL)
     return 9999;
 
     this_class = 9999;
 
     if (ch->pcdata->class_mage != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_mage]) < 31)
+        && (level = sd->skill_level[ch->pcdata->class_mage]) < 31)
     {
     this_class = ch->pcdata->class_mage;
     }
     else
     if (ch->pcdata->class_cleric != -1
-        && (level = skill_table[sn].skill_level[ch->pcdata->class_cleric]) < 31)
+        && (level = sd->skill_level[ch->pcdata->class_cleric]) < 31)
     {
         this_class = ch->pcdata->class_cleric;
     }
     else
         if (ch->pcdata->class_thief != -1
-            && (level = skill_table[sn].skill_level[ch->pcdata->class_thief]) < 31)
+            && (level = sd->skill_level[ch->pcdata->class_thief]) < 31)
         {
         this_class = ch->pcdata->class_thief;
         }
         else
         if (ch->pcdata->class_warrior != -1
-            && (level = skill_table[sn].skill_level[ch->pcdata->class_warrior]) < 31)
+            && (level = sd->skill_level[ch->pcdata->class_warrior]) < 31)
         {
             this_class = ch->pcdata->class_warrior;
         }
 
     if (race_get_trait_bool(ch->race, "classless_skills")) {
-    if (skill_table[sn].skill_level[0] < 31)
+    if (sd->skill_level[0] < 31)
         return 0;
-    if (skill_table[sn].skill_level[1] < 31)
+    if (sd->skill_level[1] < 31)
         return 1;
-    if (skill_table[sn].skill_level[2] < 31)
+    if (sd->skill_level[2] < 31)
         return 2;
-    if (skill_table[sn].skill_level[3] < 31)
+    if (sd->skill_level[3] < 31)
         return 3;
 
     return 0;
@@ -1937,6 +1934,26 @@ void fix_area_fields(void)
                     else
                     {
                         rep->reputation = NULL;
+                    }
+                }
+
+                for (MOB_FACTION_DATA *fac = mob->factions; fac != NULL; fac = fac->next)
+                {
+                    if (fac->faction_load.vnum > 0)
+                    {
+                        fac->faction = get_reputation_index_auid(fac->faction_load.auid, fac->faction_load.vnum);
+                        if (!IS_VALID(fac->faction))
+                        {
+                            pbugf(LOG_ERROR,
+                                  "fix_area_fields: mob %s has invalid faction %ld#%ld",
+                                  widevnum_string(mob->area, mob->vnum, NULL),
+                                  fac->faction_load.auid,
+                                  fac->faction_load.vnum);
+                        }
+                    }
+                    else
+                    {
+                        fac->faction = NULL;
                     }
                 }
             }
@@ -5265,6 +5282,15 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
         }
     }
 
+    // Populate faction membership list from prototype
+    for (MOB_FACTION_DATA *fac = pMobIndex->factions; fac != NULL; fac = fac->next)
+    {
+        if (IS_VALID(fac->faction))
+        {
+            list_appendlink(mob->factions, fac->faction);
+        }
+    }
+
     return mob;
 }
 
@@ -5363,6 +5389,19 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 
     if(parent->persist && !clone->persist)
         persist_addmobile(clone);
+
+    // Copy faction membership from parent (may differ from prototype)
+    list_clear(clone->factions);
+    {
+        ITERATOR it;
+        REPUTATION_INDEX_DATA *repIndex;
+        iterator_start(&it, parent->factions);
+        while ((repIndex = (REPUTATION_INDEX_DATA *)iterator_nextdata(&it)))
+        {
+            list_appendlink(clone->factions, repIndex);
+        }
+        iterator_stop(&it);
+    }
 
     return clone;
 }
@@ -8397,21 +8436,22 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
             continue;
 
         if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-            if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+            SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+            if(!sd_loc || !sd_loc->name) continue;
             fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-                skill_table[paf->type].name,
+                skill_name(skill_find_uid(paf->type)),
                 paf->where,
                 paf->group,
                 paf->level,
                 paf->duration,
                 paf->modifier,
                 APPLY_SKILL,
-                skill_table[paf->location - APPLY_SKILL].name,
+                sd_loc->name,
                 paf->bitvector,
                 paf->bitvector2);	// **
         } else {
             fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-                skill_table[paf->type].name,
+                skill_name(skill_find_uid(paf->type)),
                 paf->where,
                 paf->group,
                 paf->level,
@@ -8427,7 +8467,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
         if (!paf->custom_name) continue;
 
         if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-            if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+            SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+            if(!sd_loc || !sd_loc->name) continue;
             fprintf(fp, "AffObjNm '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
                 paf->custom_name,
                 paf->where,
@@ -8436,7 +8477,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
                 paf->duration,
                 paf->modifier,
                 APPLY_SKILL,
-                skill_table[paf->location - APPLY_SKILL].name,
+                sd_loc->name,
                 paf->bitvector,
                 paf->bitvector2);	// **
         } else {
@@ -8461,7 +8502,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
             continue;
 
         if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-            if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+            SKILL_DATA *sd_loc = skill_find_uid(paf->location - APPLY_SKILL);
+            if(!sd_loc || !sd_loc->name) continue;
                 fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
                     paf->where,
                     paf->group,
@@ -8469,7 +8511,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
                     paf->duration,
                     paf->modifier,
                     APPLY_SKILL,
-                    skill_table[paf->location - APPLY_SKILL].name,
+                    sd_loc->name,
                     paf->bitvector,
                     paf->bitvector2);	// **
             } else {
@@ -8676,7 +8718,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 
         fprintf(fp, "%s '%s' '%s' %3d %3d %3d %3d %3d %10ld %10ld %3d\n",
             (paf->custom_name?"Affcgn":"Affcg"),
-            (paf->custom_name?paf->custom_name:skill_table[paf->type].name),
+            (paf->custom_name?paf->custom_name:skill_name(skill_find_uid(paf->type))),
             flag_string(affgroup_mobile_flags,paf->group),
             paf->where,
             paf->level,

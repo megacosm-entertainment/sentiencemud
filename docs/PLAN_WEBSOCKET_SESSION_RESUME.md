@@ -56,10 +56,10 @@ Issue a resume token when a WebSocket descriptor enters/returns to play state.
 Transport to client:
 
 - GMCP-style control message in WebSocket stream:
-  - Core.Resume {"event":"token","token":"...","ttl":180}
+  - Sentience.Auth.Resume {"event":"token","token":"...","ttl":180}
 - Explicit resume ACK control messages:
-  - Core.Resume {"event":"ok"}
-  - Core.Resume {"event":"fail","reason":"invalid_or_expired"}
+  - Sentience.Auth.Resume {"event":"ok"}
+  - Sentience.Auth.Resume {"event":"fail","reason":"invalid_or_expired"}
 
 ### Resume handshake
 
@@ -108,17 +108,32 @@ The browser client should:
 2. Store token in localStorage (or sessionStorage if preferred).
 3. On socket open, if token exists, send RESUME <token> first.
 4. If resume fails, fall back to normal login UX.
-5. On receiving a newer Core.Resume token event, replace stored token.
+5. On receiving a newer Sentience.Auth.Resume token event, replace stored token.
 6. Clear token on explicit logout/quit flow.
 
 ## Wire Examples
 
 Server -> client:
 
-Core.Resume {"event":"token","token":"d6v4Q6F6I4Qh0wHegLJ6v0m6XWf3D0w4qA6E8nH3","ttl":180}
-Core.Resume {"event":"ok"}
-Core.Resume {"event":"fail","reason":"invalid_or_expired"}
+Sentience.Auth.Resume {"event":"token","token":"d6v4Q6F6I4Qh0wHegLJ6v0m6XWf3D0w4qA6E8nH3","ttl":180}
+Sentience.Auth.Resume {"event":"ok"}
+Sentience.Auth.Resume {"event":"fail","reason":"invalid_or_expired"}
 
 Client -> server (first message after connect):
 
 RESUME d6v4Q6F6I4Qh0wHegLJ6v0m6XWf3D0w4qA6E8nH3
+
+## Migration Note: Core.Resume → Sentience.Auth.Resume
+
+The GMCP package was renamed from `Core.Resume` to `Sentience.Auth.Resume` to respect
+the convention that `Core.*` is reserved for standard GMCP negotiation (`Core.Hello`,
+`Core.Supports.*`). Since resume is a Sentience-specific extension, it belongs in the
+`Sentience.Auth.*` namespace alongside `Sentience.Auth.QRCode`.
+
+**Code changes required:**
+- `comm.c`: ~4 `SendGMCPRaw()` calls referencing `"Core.Resume"` → `"Sentience.Auth.Resume"`
+- `nanny.c`: ~1 `SendGMCPRaw()` call referencing `"Core.Resume"` → `"Sentience.Auth.Resume"`
+
+**Client impact:** The `RESUME <token>` command (client → server) is unchanged. Only the
+server → client GMCP package name changes. Existing web clients will need to update their
+GMCP message parsing to look for `Sentience.Auth.Resume` instead of `Core.Resume`.

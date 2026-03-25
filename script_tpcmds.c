@@ -2877,6 +2877,7 @@ SCRIPT_CMD(do_tpaddaffectname)
     af.group	= group;
     af.where     = where;
     af.type      = -1;
+    af.skill     = NULL;
     af.location  = loc;
     af.modifier  = mod;
     af.level     = level;
@@ -3887,23 +3888,26 @@ SCRIPT_CMD(do_tpskill)
             else if( value > 100 ) value = 100;
 
             entry = skill_entry_findsn(mob->sorted_skills, sn);
-            if( value == 0 ) {
-                if( skill_table[sn].spell_fun == spell_null )
-                    skill_entry_removeskill(mob, sn, NULL);
-                else
-                    skill_entry_removespell(mob, sn, NULL);
-            } else {
-                if( !entry ) {
-                    if( skill_table[sn].spell_fun == spell_null )
-                        skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+            {
+                SKILL_DATA *mod_sk = skill_find_uid(sn);
+                if( value == 0 ) {
+                    if( !mod_sk || mod_sk->spell_fun == spell_null )
+                        skill_entry_removeskill(mob, sn, NULL);
                     else
-                        skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        skill_entry_removespell(mob, sn, NULL);
+                } else {
+                    if( !entry ) {
+                        if( !mod_sk || mod_sk->spell_fun == spell_null )
+                            skill_entry_addskill(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
+                        else
+                            skill_entry_addspell(mob, sn, NULL, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
 
-                    entry = skill_entry_findsn(mob->sorted_skills, sn);
+                        entry = skill_entry_findsn(mob->sorted_skills, sn);
+                    }
+
+                    if( entry )
+                        entry->rating = value;
                 }
-
-                if( entry )
-                    entry->rating = value;
             }
 
             mob->pcdata->learned[sn] = value;
@@ -3956,7 +3960,6 @@ SCRIPT_CMD(do_tpskillgroup)
 
     char *rest;
     CHAR_DATA *mob = NULL;
-    int gn;
     bool fAdd = false;
 
     if(!info || !info->token || IS_NULLSTR(argument)) return;
@@ -3989,18 +3992,16 @@ SCRIPT_CMD(do_tpskillgroup)
 
     if(arg->type != ENT_STRING) return;
 
-    gn = group_lookup(arg->d.str);
-    if( gn != -1)
     {
-        if( fAdd )
-        {
-            if( !mob->pcdata->group_known[gn] )
-                gn_add(mob,gn);
-        }
-        else
-        {
-            if( mob->pcdata->group_known[gn] )
-                gn_remove(mob,gn);
+        SKILL_GROUP *sg = group_lookup(arg->d.str);
+        if (sg) {
+            if (fAdd) {
+                if (!char_knows_group(mob, sg))
+                    gn_add(mob, sg);
+            } else {
+                if (char_knows_group(mob, sg))
+                    gn_remove(mob, sg);
+            }
         }
     }
 

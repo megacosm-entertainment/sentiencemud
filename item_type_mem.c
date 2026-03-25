@@ -1546,6 +1546,7 @@ CORPSE_DATA *copy_corpse_data(CORPSE_DATA *src)
     data->resurrection = src->resurrection;
     data->animation    = src->animation;
     data->body_parts   = src->body_parts;
+    data->flags        = src->flags;
     data->mobile_vnum  = src->mobile_vnum;
     data->mobile_area_uid = src->mobile_area_uid;
     return data;

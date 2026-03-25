@@ -36,6 +36,7 @@
 #include "../common/olc_editor.h"
 #include "../common/olc_display.h"
 #include "../common/olc_commands.h"
+#include "../../skill_data.h"
 
 /* Forward declarations */
 static void tedit_show_general_tab(CHAR_DATA *ch, OLC_LAYOUT_CTX *ctx, void *pEdit);
@@ -889,7 +890,8 @@ TEDIT (tedit_addtprog)
         else
         {
             int sn = skill_lookup(phrase);
-            if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+            SKILL_DATA *spell_ref = skill_find_uid(sn);
+            if(sn < 0 || !spell_ref || spell_ref->spell_fun == spell_null) {
                 send_to_char("Invalid spell for trigger.\n\r",ch);
                 return false;
             }

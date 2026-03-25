@@ -2773,14 +2773,20 @@ void do_envenom(CHAR_DATA *ch, char *argument)
             FLUID_CON(obj)->poison = 1;
         check_improve(ch,skill_resolve_gsn("envenom"),true,4);
         }
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+        {
+            SKILL_DATA *sk = skill_find("envenom");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
         return;
     }
 
     act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
     if (!((obj->item_type == ITEM_FOOD) ? FOOD(obj)->poison : FLUID_CON(obj)->poison))
         check_improve(ch,skill_resolve_gsn("envenom"),false,4);
-    WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+    {
+        SKILL_DATA *sk = skill_find("envenom");
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
     return;
      }
 
@@ -2839,14 +2845,20 @@ memset(&af,0,sizeof(af));
         act("$n coats $p with deadly venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         act("You coat $p with venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("envenom"),true,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+        {
+            SKILL_DATA *sk = skill_find("envenom");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
             return;
         }
     else
     {
         act("You fail to envenom $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("envenom"),false,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("envenom")].beats);
+        {
+            SKILL_DATA *sk = skill_find("envenom");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
         return;
     }
     }
@@ -4761,7 +4773,12 @@ void do_brandish(CHAR_DATA *ch, char *argument)
                 for (spell = staff->spells; spell != NULL; spell = spell->next)
         {
             sn = spell->sn;
-            switch (skill_table[sn].target)
+            SKILL_DATA *sk = skill_find_uid(sn);
+            if (!sk) {
+                pbugf(LOG_ERROR, "Do_brandish: unknown skill for sn %d.", sn);
+                return;
+            }
+            switch (sk->target)
             {
             default:
             pbugf(LOG_ERROR, "Do_brandish: bad target for sn %d.", sn);
@@ -4995,7 +5012,10 @@ void do_steal(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("steal")].beats);
+    {
+        SKILL_DATA *sk = skill_find("steal");
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
     percent  = number_percent();
 
     if (!IS_AWAKE(victim))
@@ -8035,7 +8055,10 @@ void do_turn(CHAR_DATA *ch, char *argument)
 
         act("{WYou feel a powerful divine presence pass through you!{x",ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
 
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("turn undead")].beats);
+        {
+            SKILL_DATA *sk = skill_find("turn undead");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
 
         if (IS_UNDEAD(vch)) {
             chance = (ch->tot_level - vch->tot_level) + skill / 5;
@@ -8321,8 +8344,9 @@ void do_brew(CHAR_DATA *ch, char *argument)
 
     sn = find_spell(ch, arg);
 
+    SKILL_DATA *sk = skill_find_uid(sn);
     if ((sn) < 1
-    || skill_table[sn].spell_fun == spell_null
+    || !sk || sk->spell_fun == spell_null
     || get_skill(ch, sn) == 0)
     {
         send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8332,7 +8356,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
     mana = 0;
     if (sn > 0)
     {
-        mana += skill_table[sn].min_mana;
+        mana += sk->min_mana;
         mana = mana * 2 / 3;
     }
 
@@ -8353,11 +8377,11 @@ void do_brew(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (skill_table[sn].target != TAR_CHAR_DEFENSIVE
-    &&   skill_table[sn].target != TAR_CHAR_SELF
-    &&   skill_table[sn].target != TAR_OBJ_CHAR_DEF
-    &&   skill_table[sn].target != TAR_CHAR_OFFENSIVE
-    &&   skill_table[sn].target != TAR_OBJ_CHAR_OFF)
+    if (sk->target != TAR_CHAR_DEFENSIVE
+    &&   sk->target != TAR_CHAR_SELF
+    &&   sk->target != TAR_OBJ_CHAR_DEF
+    &&   sk->target != TAR_CHAR_OFFENSIVE
+    &&   sk->target != TAR_OBJ_CHAR_OFF)
     {
         send_to_char("You may only brew potions of spells which you can cast on people.\n\r", ch);
         return;
@@ -8420,7 +8444,7 @@ void brew_end(CHAR_DATA *ch, int16_t sn)
     return;
     }
 
-    sprintf(potion_name, "%s", skill_table[sn].name);
+    sprintf(potion_name, "%s", skill_name(skill_find_uid(sn)));
 
     sprintf(buf, "You brew a potion of %s.", potion_name);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
@@ -8576,7 +8600,10 @@ void do_hands(CHAR_DATA *ch, char *argument)
     act("$n places $s hands over $s heart.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("healing hands")].beats);
+    {
+        SKILL_DATA *sk = skill_find("healing hands");
+        if (sk) WAIT_STATE(ch, sk->beats);
+    }
 
     if (number_percent() > get_skill(ch, skill_resolve_gsn("healing hands")))
     {
@@ -8679,7 +8706,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     sn1 = find_spell(ch, arg1);
 
-    if ((sn1) < 1 || skill_table[sn1].spell_fun == spell_null ||
+    SKILL_DATA *sk1 = skill_find_uid(sn1);
+    if ((sn1) < 1 || !sk1 || sk1->spell_fun == spell_null ||
         get_skill(ch, sn1) == 0)
     {
         send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8690,7 +8718,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     {
         sn2 = find_spell(ch, arg2);
 
-        if ((sn2) < 1 || skill_table[sn2].spell_fun == spell_null ||
+        SKILL_DATA *sk2 = skill_find_uid(sn2);
+        if ((sn2) < 1 || !sk2 || sk2->spell_fun == spell_null ||
             get_skill(ch, sn2) == 0)
         {
             send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8702,7 +8731,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     {
         sn3 = find_spell(ch, arg3);
 
-        if ((sn3) < 1 || skill_table[sn3].spell_fun == spell_null ||
+        SKILL_DATA *sk3 = skill_find_uid(sn3);
+        if ((sn3) < 1 || !sk3 || sk3->spell_fun == spell_null ||
             get_skill(ch, sn3) == 0)
         {
             send_to_char("You don't know any spells of that name.\n\r", ch);
@@ -8711,9 +8741,9 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     }
 
     mana = 0;
-    if (sn1 > 0) mana += skill_table[sn1].min_mana;
-    if (sn2 > 0) mana += skill_table[sn2].min_mana;
-    if (sn3 > 0) mana += skill_table[sn3].min_mana;
+    if (sn1 > 0 && sk1) mana += sk1->min_mana;
+    if (sn2 > 0) { SKILL_DATA *sk = skill_find_uid(sn2); if (sk) mana += sk->min_mana; }
+    if (sn3 > 0) { SKILL_DATA *sk = skill_find_uid(sn3); if (sk) mana += sk->min_mana; }
 
     if (mana > 200)
     {
@@ -8825,14 +8855,17 @@ void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
         return;
     }
 
+    SKILL_DATA *sk_sn = skill_find_uid(sn);
+    SKILL_DATA *sk_sn2 = sn2 ? skill_find_uid(sn2) : NULL;
+    SKILL_DATA *sk_sn3 = sn3 ? skill_find_uid(sn3) : NULL;
     if (sn2 == 0)
-    sprintf(scroll_name, "%s", skill_table[sn].name);
+    sprintf(scroll_name, "%s", skill_name(sk_sn));
     else
     {
         if (sn3 == 0)
-            sprintf(scroll_name, "%s, %s", skill_table[sn].name, skill_table[sn2].name);
+            sprintf(scroll_name, "%s, %s", skill_name(sk_sn), skill_name(sk_sn2));
         else
-            sprintf(scroll_name, "%s, %s, %s", skill_table[sn].name, skill_table[sn2].name, skill_table[sn3].name);
+            sprintf(scroll_name, "%s, %s, %s", skill_name(sk_sn), skill_name(sk_sn2), skill_name(sk_sn3));
     }
 
     sprintf(buf, "You create a scroll of %s.", scroll_name);
@@ -9194,14 +9227,20 @@ memset(&af,0,sizeof(af));
             act("$n carefully infuses $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM, NULL, NULL);
         act("You carefully infuse $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("infuse"),true,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("infuse")].beats);
+        {
+            SKILL_DATA *sk = skill_find("infuse");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
             return;
         }
     else
     {
         act("You fail to infuse $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("infuse"),false,3);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("infuse")].beats);
+        {
+            SKILL_DATA *sk = skill_find("infuse");
+            if (sk) WAIT_STATE(ch, sk->beats);
+        }
         return;
     }
     }

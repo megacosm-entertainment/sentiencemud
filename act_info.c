@@ -4509,7 +4509,7 @@ void do_affects(CHAR_DATA * ch, char *argument)
                 sprintf(buf, "                           ");
             else
                 sprintf(buf, "{BSpell: {G%-20s{x",
-            paf->type == skill_resolve_gsn("improved invisibility") ? "improved invis" : skill_table[paf->type].name);
+            paf->type == skill_resolve_gsn("improved invisibility") ? "improved invis" : skill_name(skill_find_uid(paf->type)));
 
             send_to_char(buf, ch);
 

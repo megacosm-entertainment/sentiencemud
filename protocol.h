@@ -7,8 +7,12 @@
  purpose, without any conditions, unless such conditions are required by law.
  ******************************************************************************/
 #include <stdbool.h>
+#include <stdint.h>
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
+
+#include "gmcp_sentience.h"
+#include "sentience_link.h"
 
 /******************************************************************************
  Set your MUD_NAME, and change descriptor_t if necessary.
@@ -317,6 +321,7 @@ typedef enum
    
    GMCP_SUPPORT_CHAR,
    GMCP_SUPPORT_ROOM,
+   GMCP_SUPPORT_SENTIENCE,
    GMCP_SUPPORT_MAX
 } GMCP_SUPPORT;
 
@@ -492,6 +497,9 @@ typedef struct
    bool	bGMCPSupport[GMCP_SUPPORT_MAX]; /* The client supports specific modules */
    bool	bGMCPUpdatePackage[GMCP_PACKAGE_MAX]; /* Send these packages to the client. */
    char	*GMCPVariable[GMCP_MAX]; /* The message for each variable */
+   uint32_t              sentience_dirty;     /* Sentience.* dirty bitmask */
+   sentience_gmcp_cache_t sentience_cache;    /* Cached values for dirty tracking */
+   sentience_link_queue_t sentience_link_queue;
    /*************** END GMCP ***************/
 
 } protocol_t;

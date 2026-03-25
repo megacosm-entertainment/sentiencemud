@@ -230,6 +230,10 @@ MOB_REPUTATION_DATA *new_mob_reputation_data();
 MOB_REPUTATION_DATA *copy_mob_reputation_data(MOB_REPUTATION_DATA *src);
 void free_mob_reputation_data(MOB_REPUTATION_DATA *data);
 
+MOB_FACTION_DATA *new_mob_faction_data(void);
+MOB_FACTION_DATA *copy_mob_faction_data(MOB_FACTION_DATA *src);
+void free_mob_faction_data(MOB_FACTION_DATA *data);
+
 AURA_DATA *new_aura_data();
 void free_aura_data(AURA_DATA *aura);
 

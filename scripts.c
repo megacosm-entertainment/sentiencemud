@@ -6326,7 +6326,7 @@ bool script_get_spell_availability(const CHAR_DATA *mob, const char *spell_name,
     if (sn < 0 || sn >= MAX_SKILL)
         return false;
 
-    if (!skill_table[sn].spell_fun || skill_table[sn].spell_fun == spell_null)
+    if (!skill->spell_fun || skill->spell_fun == spell_null)
         return false;
 
     if (available_now)
@@ -7511,7 +7511,8 @@ char *trigger_phrase(int type, char *phrase)
         if(type == TRIG_SPELLCAST) {
             sn = atoi(phrase);
             if(sn < 0) return "reserved";
-            return skill_table[sn].name;
+            SKILL_DATA *trig_sk = skill_find_uid(sn);
+            return trig_sk ? trig_sk->name : "unknown";
         }
     }
 
@@ -7532,7 +7533,8 @@ char *trigger_phrase_olcshow(int type, char *phrase, bool is_rprog, bool is_tpro
         if(type == TRIG_SPELLCAST) {
             sn = atoi(phrase);
             if(sn < 0) return "reserved";
-            return skill_table[sn].name;
+            SKILL_DATA *trig_sk = skill_find_uid(sn);
+            return trig_sk ? trig_sk->name : "unknown";
         }
 
         if(	type == TRIG_EXIT ||

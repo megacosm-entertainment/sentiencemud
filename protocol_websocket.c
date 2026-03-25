@@ -150,6 +150,14 @@ static void process_gmcp_input(protocol_websocket_t *ws_proto, const char *input
             ws_proto->supports_room = true;
             log_string("WebSocket client supports Room.* GMCP packages");
         }
+        if (strstr(input, "Sentience")) {
+            ws_proto->supports_char = true;
+            ws_proto->supports_room = true;
+            if (ws_proto->base.descriptor && ws_proto->base.descriptor->pProtocol) {
+                ws_proto->base.descriptor->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE] = true;
+            }
+            log_string("WebSocket client supports Sentience.* GMCP packages");
+        }
     }
     // Handle Core.Hello from client
     else if (strstr(package, "Core.Hello")) {
@@ -275,6 +283,11 @@ static void websocket_negotiate(protocol_layer_t *proto)
 
     send_gmcp_message(proto, "Core.Hello", hello_msg);
 
+    /* WebSocket clients always get Sentience.* packages */
+    if (proto->descriptor && proto->descriptor->pProtocol) {
+        proto->descriptor->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE] = true;
+    }
+
     log_stringf("WebSocket GMCP negotiation started (fd %d)",
                proto->descriptor ? proto->descriptor->descriptor : -1);
 }
@@ -287,23 +300,13 @@ static void websocket_send_mxp_variable(protocol_layer_t *proto,
                                        const char *variable, const char *value,
                                        bool is_number)
 {
-    protocol_websocket_t *ws_proto = (protocol_websocket_t*)proto;
-    char json_data[1024];
-
-    if (!ws_proto->gmcp_enabled)
-        return;
-
-    // Format as simple JSON: {variable: value}
-    if (is_number) {
-        snprintf(json_data, sizeof(json_data), "{\"%s\":%s}", variable, value);
-    } else {
-        // Escape quotes in string values
-        snprintf(json_data, sizeof(json_data), "{\"%s\":\"%s\"}", variable, value);
-    }
-
-    // Send via appropriate GMCP package (Char.Vitals, Char.Status, etc.)
-    // For now, use a generic package
-    send_gmcp_message(proto, "Char.Status", json_data);
+    /* No-op: Sentience.* GMCP packages (sent via sentience_gmcp_update)
+     * now handle all WebSocket GMCP data.  The legacy per-variable path
+     * through this function is no longer used. */
+    (void)proto;
+    (void)variable;
+    (void)value;
+    (void)is_number;
 }
 
 /*

@@ -2,7 +2,6 @@
  *  Class Data System - Public API                                         *
  *                                                                         *
  *  Data-driven class definitions loaded from JSON files.                  *
- *  Replaces the legacy static class_table[] and sub_class_table[] arrays. *
  ***************************************************************************/
 
 #ifndef CLASS_DATA_H

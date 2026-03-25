@@ -73,6 +73,7 @@
 
 #include "log.h"
 #include "merc.h"
+#include "sentience_link.h"
 #include "io/cache/redis_cache.h"
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
@@ -631,7 +632,7 @@ static void ws_resume_apply_failure(DESCRIPTOR_DATA *d)
     d->ws_resume_pending = false;
     d->ws_resume_request_id = 0;
     d->ws_resume_pending_since = 0;
-    write_to_buffer(d, "Core.Resume {\"event\":\"fail\",\"reason\":\"invalid_or_expired\"}\n\r", 0);
+    write_to_buffer(d, "Sentience.Auth.Resume {\"event\":\"fail\",\"reason\":\"invalid_or_expired\"}\n\r", 0);
     write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
 }
 
@@ -642,7 +643,7 @@ static bool ws_resume_attach_character(DESCRIPTOR_DATA *d, unsigned long id0, un
     if (!ch || IS_NPC(ch) || ch->desc != NULL || ch->in_room == NULL)
         return false;
 
-    write_to_buffer(d, "Core.Resume {\"event\":\"ok\"}\n\r", 0);
+    write_to_buffer(d, "Sentience.Auth.Resume {\"event\":\"ok\"}\n\r", 0);
 
     d->ws_resume_pending = false;
     d->ws_resume_request_id = 0;
@@ -853,7 +854,7 @@ void websocket_resume_issue(DESCRIPTOR_DATA *d)
         log_message(LOG_LEVEL_WARN, LOG_WARN, "websocket_resume_issue: failed to enqueue redis store");
 
     snprintf(buf, sizeof(buf),
-             "Core.Resume {\"event\":\"token\",\"token\":\"%s\",\"ttl\":%d}\n\r",
+             "Sentience.Auth.Resume {\"event\":\"token\",\"token\":\"%s\",\"ttl\":%d}\n\r",
              token, WS_RESUME_TTL_SECONDS);
     write_to_buffer(d, buf, 0);
 }
@@ -905,7 +906,7 @@ bool websocket_resume_try(DESCRIPTOR_DATA *d, const char *token)
     d->ws_resume_pending = true;
     d->ws_resume_request_id = request_id;
     d->ws_resume_pending_since = current_time;
-    write_to_buffer(d, "Core.Resume {\"event\":\"pending\"}\n\r", 0);
+    write_to_buffer(d, "Sentience.Auth.Resume {\"event\":\"pending\"}\n\r", 0);
     return true;
 }
 
@@ -3150,6 +3151,9 @@ else if (fPrompt && !d->showstr_point && !d->pString)
 
     if (d->outtop == 0)
         return true;
+
+    /* Flush pending Sentience.Link.List GMCP before writing text */
+    sentience_link_queue_flush(d);
 
     if (!write_to_descriptor(d, d->outbuf, d->outtop))
     {

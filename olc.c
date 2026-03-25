@@ -23,6 +23,7 @@
 #include "editors/common/olc_editor.h"
 #include "traits.h"
 #include "class_data.h"
+#include "skill_data.h"
 #include "utils/utf8.h"
 
 extern const char *medit_tab_names[];
@@ -1760,6 +1761,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     new_af->modifier = af->modifier;
     new_af->where = af->where;
     new_af->type  = af->type;
+    new_af->skill = af->skill;
     new_af->duration = af->duration;
     new_af->bitvector = af->bitvector;
     new_af->level	 = af->level;

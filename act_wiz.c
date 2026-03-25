@@ -63,6 +63,7 @@
 #include "class_data.h"
 #include "io/json/json_olc.h"
 #include "connection.h"
+#include "skill_data.h"
 
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
@@ -4286,7 +4287,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
     {
         sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
                      paf->level,
-                     skill_table[(int) paf->type].name,
+                     skill_name(skill_find_uid(paf->type)),
                      affect_loc_name(paf->location),
                      paf->modifier,
                      paf->duration,
@@ -8562,15 +8563,16 @@ void do_sset(CHAR_DATA *ch, char *argument)
         {
             SKILL_ENTRY *entry;
 
-            if (skill_table[sn].name != NULL && str_cmp(skill_table[sn].name, "none")) {
+            SKILL_DATA *sk = skill_find_uid(sn);
+            if (sk && sk->name != NULL && str_cmp(sk->name, "none")) {
                 if( value == 0 ) {
-                    if( skill_table[sn].spell_fun == spell_null )
+                    if( sk->spell_fun == spell_null )
                         skill_entry_removeskill(victim,sn, NULL);
                     else
                         skill_entry_removespell(victim,sn, NULL);
                 } else {
                     if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-                        if( skill_table[sn].spell_fun == spell_null ) {
+                        if( sk->spell_fun == spell_null ) {
                             skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                         } else {
                             skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
@@ -8588,14 +8590,15 @@ void do_sset(CHAR_DATA *ch, char *argument)
     else {
         SKILL_ENTRY *entry;
 
+        SKILL_DATA *sk = skill_find_uid(sn);
         if( value == 0 ) {
-            if( skill_table[sn].spell_fun == spell_null )
+            if( sk && sk->spell_fun == spell_null )
                 skill_entry_removeskill(victim,sn, NULL);
             else
                 skill_entry_removespell(victim,sn, NULL);
         } else {
             if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-                if( skill_table[sn].spell_fun == spell_null ) {
+                if( sk && sk->spell_fun == spell_null ) {
                     skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 } else {
                     skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
@@ -8610,7 +8613,7 @@ void do_sset(CHAR_DATA *ch, char *argument)
     }
 
     if (!fAll)
-    sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill_table[sn].name, value);
+    sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill_name(skill_find_uid(sn)), value);
     else
     sprintf(buf, "Set all of %s's skills to %d%%\n\r", victim->name, value);
 
@@ -9171,7 +9174,7 @@ void do_mset(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (victim->tot_level < LEVEL_IMMORTAL)
+    if (!IS_IMMORTAL(victim))
     {
         send_to_char("Imm title is for imms only!\n\r", ch);
         return;
@@ -10713,281 +10716,6 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
     }
 
     remort_player(victim);
-
-#if 0
-    sprintf(argument, "%s", sub_class_table[i].name[0]);
-
-    i = 0;
-    victim->race = get_remort_race(victim);
-    sprintf(buf2, "%s", victim->race ? victim->race->name : "Unknown");
-    while (buf2[i] != '\0')
-    {
-    buf2[i] = UPPER(buf2[i]);
-    i++;
-    }
-
-    if (victim->alignment < 0)
-    {
-        sprintf(buf, "{RHoly statues cry tears of blood and the sillhouettes "
-              "of winged horrors appear in the sky.{X\n\r{RA new %s has been born!{x\n\r", buf2);
-
-    victim->alignment = -1000;
-
-    send_to_char("Your mortal essence crumbles as you embrace your fate.\n\r", victim);
-    send_to_char("You welcome the dark power as it flows through your divine veins.\n\r", victim);
-    send_to_char("A dark influence clouds all that you once knew; your lifeless body\n\r", victim);
-    send_to_char("lies slouched in front of you as part of you is torn into the Abyss.\n\r", victim);
-    send_to_char("You feel complete, and wielding unfathomable power, you know you can\n\r", victim);
-    send_to_char("manipulate it to suit your darkest desires.\n\r", victim);
-    }
-    else if (victim->alignment > 0)
-    {
-    sprintf(buf, "{WBrilliant white light radiates down from the heavens and thunder rolls through the valleys.\n\r"
-                 "{WA new %s has been born!{x\n\r", buf2);
-
-    victim->alignment = 1000;
-
-     send_to_char("Your mortal essence shines brightly, blinding your eyes.\n\r", victim);
-    send_to_char("Images flash before you: sadness, grief, terror and hatred.\n\r", victim);
-    send_to_char("Your life is played to you, from the beginning to the present.\n\r", victim);
-    send_to_char("Your veins flow with the divine influence as you stand before your\n\r", victim);
-    send_to_char("lifeless mortal vessel. It becomes clear to you that you have been\n\r", victim);
-    send_to_char("reborn a divine power.\n\r", victim);
-    }
-    else
-    {
-    sprintf(buf, "{CThe cosmic energies of the world shift and the clouds speed overhead.{x\n\r"
-                 "{CA new %s has been born!{x\n\r", buf2);
-
-    victim->alignment = 0;
-    }
-
-    gecho(buf);
-
-    /* take off equipment*/
-    for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc != WEAR_NONE)
-            unequip_char(victim, obj, false);
-    }
-
-    /* take off remaining affects*/
-    while (victim->affected)
-        affect_remove(victim, victim->affected);
-
-    /* lower their stats significantly*/
-    for (i = 0; i < MAX_STATS; i++) {
-        int val = victim->perm_stat[i] - number_range(4,6);
-        set_perm_stat(victim, i, UMAX(val, 13));
-    }
-
-    victim->affected_by_perm[0] = victim->race ? victim->race->aff[0] : 0;
-    victim->affected_by_perm[1] = victim->race ? victim->race->aff[1] : 0;
-    victim->imm_flags_perm = victim->race ? victim->race->imm : 0;
-    victim->res_flags_perm = victim->race ? victim->race->res : 0;
-    victim->vuln_flags_perm = victim->race ? victim->race->vuln : 0;
-
-    victim->form        = victim->race ? victim->race->form : 0;
-    victim->parts       = victim->race ? victim->race->parts : 0;
-    victim->lostparts	= 0;	// Restore anything lost
-
-    /* add skills for remort race*/
-    if (victim->race && victim->race->skills) {
-        ITERATOR it;
-        char *skill;
-        iterator_start(&it, victim->race->skills);
-        while ((skill = (char *)iterator_nextdata(&it)))
-            group_add(victim, skill, false);
-        iterator_stop(&it);
-    }
-
-    victim->pcdata->hit_before  = victim->pcdata->perm_hit;
-    victim->pcdata->mana_before = victim->pcdata->perm_mana;
-    victim->pcdata->move_before = victim->pcdata->perm_move;
-
-    victim->pcdata->perm_hit  = 20;
-    victim->pcdata->perm_mana = 20;
-    victim->pcdata->perm_move = 20;
-
-    victim->max_hit  = 20;
-    victim->max_mana = 20;
-    victim->max_move = 20;
-
-    victim->hit  = 20;
-    victim->mana = 20;
-    victim->move = 20;
-
-    victim->tot_level = 1;
-    victim->level = 1;
-
-    // Reset base affects - will reset affected_by, affected_by2, imm_flags, res_flags and vuln_flags
-    affect_fix_char(victim);
-
-    char_from_room(victim);
-    {
-        ROOM_INDEX_DATA *school_room = get_reserved_room_index("room_begin_new_character");
-        if (!school_room)
-            school_room = get_reserved_room_index("room_limbo");
-        if (!school_room) {
-            send_to_char("School/limbo room is not reserved.\n\r", ch);
-            return;
-        }
-        char_to_room(victim, school_room);
-    }
-
-    /* mages*/
-    if (!str_cmp("archmage", argument)
-    ||  !str_cmp("geomancer", argument)
-    ||  !str_cmp("illusionist", argument))
-    {
-    victim->pcdata->class_current = CLASS_MAGE;
-    victim->pcdata->second_class_mage = CLASS_MAGE;
-
-    if (!str_cmp("archmage", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_MAGE_ARCHMAGE;
-        victim->pcdata->second_sub_class_mage = CLASS_MAGE_ARCHMAGE;
-    }
-
-    if (!str_cmp("geomancer", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_MAGE_GEOMANCER;
-        victim->pcdata->second_sub_class_mage = CLASS_MAGE_GEOMANCER;
-    }
-
-    if (!str_cmp("illusionist", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_MAGE_ILLUSIONIST;
-        victim->pcdata->second_sub_class_mage = CLASS_MAGE_ILLUSIONIST;
-    }
-    }
-
-    /* clerics*/
-    if (!str_cmp("alchemist", argument)
-    ||  !str_cmp("ranger", argument)
-    ||  !str_cmp("adept", argument))
-    {
-    victim->pcdata->class_current = CLASS_CLERIC;
-    victim->pcdata->second_class_cleric = CLASS_CLERIC;
-
-    if (!str_cmp("alchemist", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_CLERIC_ALCHEMIST;
-        victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_ALCHEMIST;
-    }
-
-    if (!str_cmp("ranger", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_CLERIC_RANGER;
-        victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_RANGER;
-    }
-
-    if (!str_cmp("adept", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_CLERIC_ADEPT;
-        victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_ADEPT;
-    }
-    }
-
-    /* thieves*/
-    if (!str_cmp("highwayman", argument)
-    ||  !str_cmp("ninja", argument)
-    ||  !str_cmp("sage", argument))
-    {
-    victim->pcdata->class_current = CLASS_THIEF;
-    victim->pcdata->second_class_thief = CLASS_THIEF;
-
-    if (!str_cmp("highwayman", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_THIEF_HIGHWAYMAN;
-        victim->pcdata->second_sub_class_thief = CLASS_THIEF_HIGHWAYMAN;
-    }
-
-    if (!str_cmp("ninja", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_THIEF_NINJA;
-        victim->pcdata->second_sub_class_thief = CLASS_THIEF_NINJA;
-    }
-
-    if (!str_cmp("sage", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_THIEF_SAGE;
-        victim->pcdata->second_sub_class_thief = CLASS_THIEF_SAGE;
-    }
-    }
-
-    /* warriors*/
-    if (!str_cmp("warlord", argument)
-    || !str_cmp("destroyer", argument)
-    || !str_cmp("crusader", argument))
-    {
-    victim->pcdata->class_current = CLASS_WARRIOR;
-    victim->pcdata->second_class_warrior = CLASS_WARRIOR;
-
-    if (!str_cmp("warlord", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_WARRIOR_WARLORD;
-        victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_WARLORD;
-    }
-
-    if (!str_cmp("destroyer", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_WARRIOR_DESTROYER;
-        victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_DESTROYER;
-    }
-
-    if (!str_cmp("crusader", argument))
-    {
-        victim->pcdata->sub_class_current = CLASS_WARRIOR_CRUSADER;
-        victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_CRUSADER;
-    }
-    }
-
-    {
-        CLASS_DATA *fr_base = class_from_legacy(victim->pcdata->class_current, -1);
-        CLASS_DATA *fr_sub = class_from_legacy(0, victim->pcdata->sub_class_current);
-
-        if (fr_base) {
-            ITERATOR git;
-            SKILL_GROUP *sg;
-            iterator_start(&git, fr_base->groups);
-            while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
-                group_add(victim, sg->name, true);
-            iterator_stop(&git);
-        } else {
-            pbugf(LOG_INIT,
-                "forceremort: unable to map legacy base class %d for %s",
-                victim->pcdata->class_current,
-                victim->name ? victim->name : "(unknown)");
-        }
-
-        if (fr_sub) {
-            ITERATOR git;
-            SKILL_GROUP *sg;
-            iterator_start(&git, fr_sub->groups);
-            while ((sg = (SKILL_GROUP *)iterator_nextdata(&git)))
-                group_add(victim, sg->name, true);
-            iterator_stop(&git);
-        } else {
-            pbugf(LOG_INIT,
-                "forceremort: unable to map legacy subclass %d for %s",
-                victim->pcdata->sub_class_current,
-                victim->name ? victim->name : "(unknown)");
-        }
-    }
-    victim->exp = 0;
-
-    {
-        CLASS_DATA *fr_class = get_current_class(victim);
-        sprintf(buf2, "%s", fr_class ? class_display_ch(fr_class, victim) : "Adventurer");
-    }
-    buf2[0] = UPPER(buf2[0]);
-    sprintf(buf, "All congratulate %s, who is now a%s %s!",
-        victim->name, (buf2[0] == 'A' || buf2[0] == 'I' || buf2[0] == 'E' || buf2[0] == 'U'
-        || buf2[0] == 'O') ? "n" : "", buf2);
-    crier_announce(buf);
-    double_xp(victim);
-#endif
 }
 
 
@@ -12887,7 +12615,7 @@ void print_live_obj_values(OBJ_DATA *obj, BUFFER *buffer)
         (herb_immunity == obj->pIndexData->value[4]) ? "B" : "Y", flag_string(imm_flags, herb_immunity),
         (herb_resistance == obj->pIndexData->value[5]) ? "B" : "Y", flag_string(res_flags, herb_resistance),
         (herb_vulnerability == obj->pIndexData->value[6]) ? "B" : "Y", flag_string(vuln_flags, herb_vulnerability),
-        (herb_spell == obj->pIndexData->value[7]) ? "B" : "Y", skill_table[herb_spell].name);
+        (herb_spell == obj->pIndexData->value[7]) ? "B" : "Y", skill_name(skill_find_uid(herb_spell)));
 
         add_buf(buffer, buf);
         break;

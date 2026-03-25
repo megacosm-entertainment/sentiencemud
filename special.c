@@ -323,7 +323,9 @@ bool dragon( CHAR_DATA *ch, char *spell_name )
 
     if ( ( sn = skill_lookup( spell_name ) ) < 0 )
     return false;
-    (*skill_table[sn].spell_fun)(skill_find_uid(sn), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    SKILL_DATA *skill = skill_find_uid(sn);
+    if (skill && skill->spell_fun)
+        (*skill->spell_fun)(skill, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 
@@ -384,7 +386,9 @@ bool spec_breath_gas( CHAR_DATA *ch )
 
     if ( ( sn = skill_lookup( "gas breath" ) ) < 0 )
     return false;
-    (*skill_table[sn].spell_fun)(skill_find_uid(sn), ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
+    SKILL_DATA *skill = skill_find_uid(sn);
+    if (skill && skill->spell_fun)
+        (*skill->spell_fun)(skill, ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
     return true;
 }
 

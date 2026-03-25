@@ -1,0 +1,256 @@
+{
+    "type": "test_suite",
+    "test_suite": "gmcp_sentience_unit_tests",
+    "description": "Unit tests for Sentience.* GMCP JSON builders",
+    "version": "1.0",
+    "requires_mud_environment": false,
+    "test_level": "unit",
+    "tests": [
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_vitals_typical",
+            "description": "Builds Sentience.Vitals JSON with typical mid-level values",
+            "input": {
+                "function": "build_vitals",
+                "test_cases": [
+                    {
+                        "scenario": "typical_values",
+                        "params": {
+                            "hp": 350, "max_hp": 500,
+                            "mana": 200, "max_mana": 400,
+                            "move": 100, "max_move": 300
+                        },
+                        "expected": {
+                            "hp": 350, "hp_max": 500,
+                            "mana": 200, "mana_max": 400,
+                            "move": 100, "move_max": 300
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_vitals_zero",
+            "description": "Builds Sentience.Vitals JSON with zero HP (dead character)",
+            "input": {
+                "function": "build_vitals",
+                "test_cases": [
+                    {
+                        "scenario": "zero_hp",
+                        "params": {
+                            "hp": 0, "max_hp": 100,
+                            "mana": 0, "max_mana": 50,
+                            "move": 0, "max_move": 75
+                        },
+                        "expected": {
+                            "hp": 0, "hp_max": 100,
+                            "mana": 0, "mana_max": 50,
+                            "move": 0, "move_max": 75
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_vitals_negative",
+            "description": "Builds Sentience.Vitals JSON with negative HP (mortal wound)",
+            "input": {
+                "function": "build_vitals",
+                "test_cases": [
+                    {
+                        "scenario": "negative_hp",
+                        "params": {
+                            "hp": -50, "max_hp": 100,
+                            "mana": 10, "max_mana": 200,
+                            "move": 5, "max_move": 150
+                        },
+                        "expected": {
+                            "hp": -50, "hp_max": 100,
+                            "mana": 10, "mana_max": 200,
+                            "move": 5, "move_max": 150
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_stats_typical",
+            "description": "Builds Sentience.Stats JSON with typical attribute values",
+            "input": {
+                "function": "build_stats",
+                "test_cases": [
+                    {
+                        "scenario": "typical_stats",
+                        "params": {
+                            "str": 20, "int": 18, "wis": 16, "dex": 22, "con": 19,
+                            "str_perm": 18, "int_perm": 18, "wis_perm": 16, "dex_perm": 20, "con_perm": 18,
+                            "hitroll": 15, "damroll": 12, "wimpy": 50
+                        },
+                        "expected": {
+                            "str": 20, "str_base": 18,
+                            "int": 18, "int_base": 18,
+                            "hitroll": 15, "damroll": 12, "wimpy": 50
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_combat_typical",
+            "description": "Builds Sentience.Combat JSON with typical AC values",
+            "input": {
+                "function": "build_combat",
+                "test_cases": [
+                    {
+                        "scenario": "typical_ac",
+                        "params": {
+                            "ac_pierce": -120, "ac_bash": -100,
+                            "ac_slash": -110, "ac_exotic": -80
+                        },
+                        "expected": {
+                            "ac_pierce": -120, "ac_bash": -100,
+                            "ac_slash": -110, "ac_exotic": -80
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_worth_typical",
+            "description": "Builds Sentience.Worth JSON with typical values",
+            "input": {
+                "function": "build_worth",
+                "test_cases": [
+                    {
+                        "scenario": "typical_worth",
+                        "params": {
+                            "alignment": 750,
+                            "xp": 125000,
+                            "xp_tnl": 50000,
+                            "practices": 42,
+                            "gold": 9876543
+                        },
+                        "expected": {
+                            "alignment": 750,
+                            "xp": 125000,
+                            "xp_tnl": 50000,
+                            "practices": 42,
+                            "gold": 9876543
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_identity_multiclass",
+            "description": "Builds Sentience.Identity JSON with multiclass character",
+            "input": {
+                "function": "build_identity",
+                "test_cases": [
+                    {
+                        "scenario": "multiclass",
+                        "params": {
+                            "name": "Arthan",
+                            "race_wnum": "0:1",
+                            "race_name": "Human",
+                            "body_type": "masculine",
+                            "level": 30,
+                            "tot_level": 60,
+                            "title": "the Grand Wizard",
+                            "classes": [
+                                { "id": "0:1", "name": "Warrior", "level": 30, "is_primary": true },
+                                { "id": "0:2", "name": "Mage", "level": 30, "is_primary": false }
+                            ]
+                        },
+                        "expected": {
+                            "name": "Arthan",
+                            "race": "Human",
+                            "level": 30,
+                            "tot_level": 60,
+                            "classes": [
+                                { "id": "0:1", "name": "Warrior", "level": 30, "is_primary": true },
+                                { "id": "0:2", "name": "Mage", "level": 30, "is_primary": false }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_standard",
+            "description": "Builds Sentience.Room JSON for a standard room with exits",
+            "input": {
+                "function": "build_room",
+                "test_cases": [
+                    {
+                        "scenario": "standard_room",
+                        "params": {
+                            "wnum": "3:1024",
+                            "name": "The Town Square",
+                            "area_name": "Midgaard",
+                            "area_wnum": "3:0",
+                            "sector": "city",
+                            "is_wilds": false,
+                            "wilds_uid": 0,
+                            "wilds_x": 0,
+                            "wilds_y": 0,
+                            "exits": [
+                                { "dir": "north", "wnum": "3:1025", "name": "", "is_door": false, "is_closed": false, "is_locked": false },
+                                { "dir": "east",  "wnum": "3:1026", "name": "gate", "is_door": true, "is_closed": true, "is_locked": false }
+                            ]
+                        },
+                        "expected": {
+                            "wnum": "3:1024",
+                            "name": "The Town Square"
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        },
+        {
+            "test_type": "gmcp_sentience_",
+            "name": "gmcp_build_room_wilderness",
+            "description": "Builds Sentience.Room JSON for a wilderness location",
+            "input": {
+                "function": "build_room",
+                "test_cases": [
+                    {
+                        "scenario": "wilderness_room",
+                        "params": {
+                            "wnum": "0:0",
+                            "name": "A Rolling Grassland",
+                            "area_name": "The Wilderness",
+                            "area_wnum": "5:0",
+                            "sector": "field",
+                            "is_wilds": true,
+                            "wilds_uid": 42,
+                            "wilds_x": 150,
+                            "wilds_y": 275,
+                            "exits": []
+                        },
+                        "expected": {
+                            "wnum": "0:0",
+                            "name": "A Rolling Grassland"
+                        }
+                    }
+                ]
+            },
+            "expected_result": "pass"
+        }
+    ]
+}

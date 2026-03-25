@@ -134,7 +134,11 @@ SPELL_FUNC(spell_cure_blindness)
         affect_strip(victim, skill_lookup("blindness"));
         affect_strip(victim, skill_lookup("fire breath"));
         REMOVE_BIT(victim->affected_by[0], AFF_BLIND);
-        send_to_char(skill_table[skill_lookup("blindness")].msg_off, victim);
+        {
+            SKILL_DATA *blind_skill = skill_find_uid(skill_lookup("blindness"));
+            if (blind_skill && blind_skill->msg_off)
+                send_to_char(blind_skill->msg_off, victim);
+        }
         send_to_char("\n\r", victim);
         act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
     }
@@ -183,7 +187,9 @@ SPELL_FUNC(spell_cure_disease)
         affect_strip(victim, skill_resolve_gsn("plague"));
         // @@@NIB : 20070127 : added in case the poison is from toxic fumes as well
         if (!IS_AFFECTED(victim, AFF_PLAGUE)) {
-            send_to_char(skill_table[skill_resolve_gsn("plague")].msg_off, victim);
+            SKILL_DATA *plague_skill = skill_find_uid(skill_resolve_gsn("plague"));
+            if (plague_skill && plague_skill->msg_off)
+                send_to_char(plague_skill->msg_off, victim);
             send_to_char("\n\r", victim);
             act("$n looks relieved as $s sores vanish.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
         } else if (victim == ch)
@@ -235,7 +241,9 @@ SPELL_FUNC(spell_cure_poison)
         affect_strip(victim, skill_resolve_gsn("poison"));
         // @@@NIB : 20070127 : added in case the poison is from toxic fumes as well
         if (!IS_AFFECTED(victim, AFF_POISON)) {
-            send_to_char(skill_table[skill_resolve_gsn("poison")].msg_off, victim);
+            SKILL_DATA *poison_skill = skill_find_uid(skill_resolve_gsn("poison"));
+            if (poison_skill && poison_skill->msg_off)
+                send_to_char(poison_skill->msg_off, victim);
             send_to_char("\n\r", victim);
             act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
         } else if (victim == ch)
@@ -288,7 +296,11 @@ SPELL_FUNC(spell_cure_toxic)
             !room_sector_has_flag(victim->in_room, SECTOR_TOXIC) &&
             !room_in_sector(victim->in_room, SECT_TOXIC_BOG))) {
             affect_strip(victim, skill_resolve_gsn("toxic fumes"));
-            send_to_char(skill_table[skill_resolve_gsn("toxic fumes")].msg_off, victim);
+            {
+                SKILL_DATA *toxic_skill = skill_find_uid(skill_resolve_gsn("toxic fumes"));
+                if (toxic_skill && toxic_skill->msg_off)
+                    send_to_char(toxic_skill->msg_off, victim);
+            }
             send_to_char("\n\r", victim);
             act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM, NULL, NULL);
         } else {

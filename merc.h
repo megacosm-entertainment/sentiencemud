@@ -488,6 +488,7 @@ typedef struct reputation_index_rank_data REPUTATION_INDEX_RANK_DATA;
 typedef struct reputation_index_data REPUTATION_INDEX_DATA;
 typedef struct reputation_data REPUTATION_DATA;
 typedef struct mob_reputation_data MOB_REPUTATION_DATA;
+typedef struct mob_faction_data MOB_FACTION_DATA;
 typedef struct group_data GROUP_DATA;
 typedef struct list_type LLIST;
 typedef struct list_link_type LLIST_LINK;
@@ -643,7 +644,7 @@ typedef struct skill_entry_type {
     bool improve;		// Can this improve through use?
     bool isspell;		// Whether this is a spell;
     SKILL_DATA *skill_data;	// Pointer to master skill definition (NULL during migration)
-    int16_t sn;			// Skill Number (legacy, remove in Phase 9)
+    int16_t sn;			// Skill Number (legacy — 27 active callers at Phase 9 audit, deferred)
     SONG_DATA *song;		// Song data pointer (NULL if not a song entry)
     TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
     int rating;			// Skill percentage (0-100+), replaces learned[sn]
@@ -1058,8 +1059,8 @@ struct olc_point_area_data {
 };
 
 
-
-#define SKILL_NAME(sn) (((sn) > 0 && (sn) < MAX_SKILL) ? skill_table[(sn)].name : "")
+const char *skill_name_by_uid(int16_t uid);
+#define SKILL_NAME(sn) skill_name_by_uid((int16_t)(sn))
 
 /*
  * This is used for fight.c in defences. The game will only look at a max
@@ -1092,9 +1093,7 @@ struct olc_point_area_data {
 #define MAX_CLASS_LEVEL		30
 #define MAX_DAMAGE_MESSAGE	70		/* @@@NIB : 20070125 */
 #define MAX_GQ_PER_TYPE		200
-#define MAX_GROUP		30
 #define MAX_IN_CHAT_ROOM	50
-#define MAX_IN_GROUP		40
 #define MAX_ITEMS_IN_LOCKER	30
 #define MAX_LEVEL		155
 #define MAX_MOB_SKILL_LEVEL	1000
@@ -2566,7 +2565,7 @@ struct	affect_data
     int16_t		group;
     int16_t		where;
     SKILL_DATA *	skill;		/* Pointer to skill (NULL for custom-named/catalyst) */
-    int16_t		type;		/* Legacy: skill number for compat; remove in Phase 9 */
+    int16_t		type;		/* Legacy: skill number — ~380 active callers at Phase 9 audit, deferred */
     int16_t		level;
     int16_t		duration;
     int16_t		location;
@@ -4086,6 +4085,7 @@ enum {
 #define COMM_NOHELPER           (G)
 #define COMM_NOCT		(H)
 #define COMM_MXP		(I) // MXP is a protocol for enhanced mud clients.
+#define COMM_LINKS		COMM_MXP // Unified link preference (alias for COMM_MXP)
 #define COMM_NOTIFY		(J)
 #define COMM_NOHINTS		(K)
 #define COMM_COMPACT		(L)
@@ -4260,6 +4260,7 @@ struct	mob_index_data
     QUEST_LIST *	quests;
     QUEST_V2_LIST *	quests_v2;
     MOB_REPUTATION_DATA *mob_reputations;
+    MOB_FACTION_DATA *factions;
     bool	persist;
 
     AREA_DATA *		area;
@@ -5168,6 +5169,15 @@ struct mob_reputation_data
     long points;
 };
 
+struct mob_faction_data
+{
+    MOB_FACTION_DATA *next;
+    bool valid;
+
+    REPUTATION_INDEX_DATA *faction;
+    WNUM_LOAD faction_load;
+};
+
 /*
  * One character (PC or NPC).
  */
@@ -5860,7 +5870,7 @@ struct	pc_data
     LLIST *             classes;            /* LLIST of CLASS_LEVEL */
     CLASS_LEVEL *       current_class;      /* Active class (points into classes list) */
 
-    /* Legacy class fields — kept during migration, removed in Phase 9 */
+    /* Legacy class fields — Phase 9 audit: ~500 active callers across codebase, deferred */
     int			class_current;
     int			sub_class_current;
     int			class_mage;
@@ -5891,8 +5901,7 @@ struct	pc_data
     bool		songs_unlocked[MAX_SONGS];    /* Transient: songs unlocked for rehearsal by class rewards */
     int			learned		[MAX_SKILL];
     int			mod_learned	[MAX_SKILL];
-    bool		group_known	[MAX_GROUP];  /* Legacy — kept during migration (Phase 9 removal) */
-    LLIST *		known_groups;		      /* LLIST of SKILL_GROUP * — replaces group_known[] */
+    LLIST *		known_groups;		      /* LLIST of SKILL_GROUP * */
     int			pending_free_levels;          /* Overflow levels awaiting account transfer */
     long		points;
     bool              	confirm_delete;
@@ -8331,41 +8340,13 @@ extern long gc_max_time;
 
 
 /*
- * Skills include spells as a particular case.
- */
-typedef struct skill_type skill_t;
-
-struct	skill_type
-{
-    char *	name;			/* Name of skill		*/
-    int16_t	skill_level[MAX_CLASS];	/* Level needed by class	*/
-    int16_t	rating[MAX_CLASS];	/* How hard it is to learn	*/
-    SPELL_FUN *	spell_fun;		/* Spell pointer (for spells)	*/
-    int16_t	target;			/* Legal targets		*/
-    int16_t	minimum_position;	/* Position for caster / user	*/
-    /* int16_t	slot;		 	Syn- reusing this as a racial skill toggle. */
-    int 	race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
-                       This doesn't apply for skills that can be gotten from classes, like archery. */
-
-    int16_t	min_mana;		/* Minimum mana used		*/
-    int16_t	beats;			/* Waiting time after use	*/
-    char *	noun_damage;		/* Damage message		*/
-    char *	msg_off;		/* Wear off message		*/
-    char *	msg_obj;		/* Wear off message for obects	*/
-    char *	msg_disp;
-    int		inks[3][2];
-};
-
-/*
- * SKILL_DATA — New data-driven skill definition.
+ * SKILL_DATA — Data-driven skill definition.
  *
- * Replaces entries in the legacy skill_table[] array. Skills are loaded
- * from individual JSON files in data/skills/ and accessed via hash table
- * lookups (skill_find/skill_search) instead of gsn_* global indices.
+ * Skills are loaded from individual JSON files in data/skills/ and accessed
+ * via hash table lookups (skill_find/skill_search) instead of gsn_* globals.
  *
- * During the migration period, SKILL_DATA coexists with skill_table[].
- * The bootstrap process assigns uid values matching the original skill_table
- * array indices, so existing saved data (which uses sn) continues to work.
+ * UIDs match the original skill_table array indices, so existing saved data
+ * (which uses sn) continues to work.
  */
 #define MAX_SKILL_VALUES        8
 
@@ -8388,7 +8369,7 @@ struct skill_data
 
     int16_t             difficulty;          /* Base difficulty rating */
 
-    /* Legacy class availability (for migration, kept until Phase 9) */
+    /* Legacy class availability — Phase 9 audit: ~41 active callers, deferred */
     int16_t             skill_level[MAX_CLASS]; /* Level needed by class (4 classes) */
     int16_t             rating[MAX_CLASS];      /* How hard it is to learn (4 classes) */
 
@@ -8471,15 +8452,10 @@ struct class_reward
 };
 
 /*
- * CLASS_DATA — New data-driven class definition.
+ * CLASS_DATA — Data-driven class definition.
  *
- * Replaces entries in the legacy class_table[] and sub_class_table[] arrays.
  * Classes are loaded from individual JSON files in data/classes/ and accessed
  * via hash table lookups (class_find/class_find_exact) instead of array indices.
- *
- * During the migration period, CLASS_DATA coexists with class_table[] and
- * sub_class_table[]. The bootstrap process creates CLASS_DATA entries from
- * sub_class_table on first run.
  */
 struct class_data
 {
@@ -8570,7 +8546,7 @@ int	get_weapon_skill	( CHAR_DATA *ch, int sn );
 int	get_adept_level		( CHAR_DATA *ch, int sn );
 int	mana_cost		( CHAR_DATA *ch, int min_mana, int level );
 int	skill_lookup		( const char *name );
-const skill_t *skill_type_lookup( const char *name );
+
 SKILL_DATA *skill_find		( const char *name );
 int16_t	skill_resolve_gsn	( const char *name );
 int16_t	skill_sn		( SKILL_DATA *skill );
@@ -8600,20 +8576,8 @@ struct material_type
     int value;      	/* Value rating, 1-lowest, 10-highest(rarest) */
 };
 
-struct music_type
-{
-    char *	name;			/* Name of skill		*/
-    int         level;
-    char *	spell1;		        /* Spell pointer (for spells)	*/
-    char *	spell2;	        	/* Spell pointer (for spells)	*/
-    char *	spell3;   		/* Spell pointer (for spells)	*/
-    int16_t	beats;			/* Waiting time after use	*/
-    int16_t      mana;
-    int16_t	target;			/* Legal targets		*/
-};
-
 /*
- * Data-driven song definition — replaces music_table[] usage.
+ * Data-driven song definition loaded from JSON at boot via load_songs().
  * Loaded from JSON at boot via load_songs() in song_data.c.
  *
  * TODO (future expansion):
@@ -8638,20 +8602,13 @@ struct song_data
     void *	olc_history;		/* OLC_CHANGE_HISTORY * — lazy-allocated by soedit */
 };
 
-struct  group_type
-{
-    char *	name;
-    int16_t	rating[MAX_CLASS];
-    char *	spells[MAX_IN_GROUP];
-};
-
 /*
  * SKILL_GROUP — Named collection of skills.
  *
  * A lightweight grouping mechanism used by REWARD_GROUP to grant batches
  * of skills at once. Each group is a named list of skill name strings.
  * Groups are loaded from data/skill_groups/ or bootstrapped from the
- * legacy group_table[] on first run.
+ * Groups are loaded from data/skill_groups/ JSON files.
  */
 struct skill_group_data
 {
@@ -9424,16 +9381,16 @@ struct log_entry_data
 #define CAN_WEAR(obj, part)	(IS_SET((obj)->wear_flags,  (part)))
 #define IS_OBJ_STAT(obj, stat)	(IS_SET((obj)->extra[0],(stat)))
 #define IS_OBJ2_STAT(obj,stat)  (IS_SET((obj)->extra[1],(stat)))
-#define IS_WEAPON_STAT(obj,stat)(IS_SET((obj)->value[4],(stat)))
-#define WEIGHT_MULT(obj)	((obj)->item_type == ITEM_CONTAINER ? \
-    (obj)->value[4] : 100)
-#define CORPSE_TYPE(obj)	((obj)->value[0])
-#define CORPSE_RESURRECT(obj)	((obj)->value[1])
-#define CORPSE_ANIMATE(obj)	((obj)->value[2])
-#define CORPSE_PARTS(obj)	((obj)->value[3])
-#define CORPSE_FLAGS(obj)	((obj)->value[4])
-#define CORPSE_MOBILE(obj)	((obj)->value[5])
-#define CORPSE_MOBILE_AUID(obj)	((obj)->value[6])
+#define IS_WEAPON_STAT(obj,stat)(IS_WEAPON(obj) && IS_SET(WEAPON(obj)->flags,(stat)))
+#define WEIGHT_MULT(obj)	(IS_CONTAINER(obj) ? \
+    CONTAINER(obj)->weight_multiplier : 100)
+#define CORPSE_TYPE(obj)	(CORPSE(obj)->corpse_type)
+#define CORPSE_RESURRECT(obj)	(CORPSE(obj)->resurrection)
+#define CORPSE_ANIMATE(obj)	(CORPSE(obj)->animation)
+#define CORPSE_PARTS(obj)	(CORPSE(obj)->body_parts)
+#define CORPSE_FLAGS(obj)	(CORPSE(obj)->flags)
+#define CORPSE_MOBILE(obj)	(CORPSE(obj)->mobile_vnum)
+#define CORPSE_MOBILE_AUID(obj)	(CORPSE(obj)->mobile_area_uid)
 
 /*
  * Description macros.
@@ -9528,7 +9485,6 @@ extern	const	struct	item_type	boat_table	[];
 extern	const	struct	item_type	npc_boat_table	[];
 extern  const  	struct	item_type	npc_sub_type_boat_table [];
 extern  const struct  item_type ship_state_table  [];
-extern	const	struct	music_type	music_table	[];
 extern  const   struct  item_type	item_table	[];
 extern  const   struct  item_type       token_table     [];
 extern	const	struct	player_setting_type	pc_set_table	[];
@@ -9536,10 +9492,8 @@ extern	const	struct	wiznet_type	wiznet_table	[];
 extern	const	struct	attack_type	attack_table	[];
 //extern  const   struct  cmd_type    cmd_table   [];
 extern  const	struct	spec_type	spec_table	[];
-extern	const	struct	skill_type	skill_table	[MAX_SKILL];
 extern          int                     mob_skill_table [MAX_MOB_SKILL_LEVEL];
 extern  const   struct  church_command_type church_command_table [];
-extern  const   struct  group_type      group_table	[MAX_GROUP];
 extern          struct social_type      social_table	[MAX_SOCIALS];
 extern	const	struct	rep_type	rating_table	[];
 extern	const	struct	sound_type	sound_table	[];
@@ -11098,13 +11052,13 @@ ACCOUNT_DATA *get_account_by_identifier(const char *identifier, bool *loaded);
 /* skills.c */
 bool 	parse_gen_groups args( ( CHAR_DATA *ch,char *argument ) );
 void 	list_group_costs args( ( CHAR_DATA *ch ) );
-void    list_group_known args( ( CHAR_DATA *ch ) );
 long 	exp_per_level	args( ( CHAR_DATA *ch, CLASS_DATA *clazz, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show );
-int 	group_lookup	args( (const char *name) );
-void	gn_add		args( ( CHAR_DATA *ch, int gn) );
-void 	gn_remove	args( ( CHAR_DATA *ch, int gn) );
+SKILL_GROUP *group_lookup args( (const char *name) );
+void	gn_add		args( ( CHAR_DATA *ch, SKILL_GROUP *sg) );
+void 	gn_remove	args( ( CHAR_DATA *ch, SKILL_GROUP *sg) );
+bool    char_knows_group args( ( CHAR_DATA *ch, SKILL_GROUP *sg ) );
 void 	group_add	args( ( CHAR_DATA *ch, const char *name, bool deduct) );
 void	group_remove	args( ( CHAR_DATA *ch, const char *name) );
 bool had_skill( CHAR_DATA *ch, int sn );

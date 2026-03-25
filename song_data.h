@@ -2,7 +2,6 @@
  *  Song Data System - Public API                                          *
  *                                                                         *
  *  Data-driven song definitions loaded from JSON files.                   *
- *  Replaces the legacy static music_table[] array.                        *
  ***************************************************************************/
 
 #ifndef SONG_DATA_H
@@ -68,9 +67,8 @@ LLIST *song_get_list(void);
 /**
  * load_songs - Load song definitions from JSON
  *
- * Loads songs from SONGS_FILE. If the file does not exist, calls
- * bootstrap_songs() to generate initial data from the legacy
- * music_table[] and saves it.
+ * Loads songs from SONGS_FILE. If the file does not exist, logs an error
+ * (music_table[] was removed in Phase 9).
  *
  * Called during boot sequence in db.c.
  *
@@ -88,12 +86,12 @@ bool load_songs(void);
 bool save_songs(void);
 
 /**
- * bootstrap_songs - Generate SONG_DATA from legacy music_table[]
+ * bootstrap_songs - Stub (music_table[] removed in Phase 9)
  *
- * Creates SONG_DATA entries from the static music_table[] array
- * in const.c. Only called when no JSON file exists yet.
+ * Previously generated SONG_DATA entries from the static music_table[].
+ * Now logs an error since the table no longer exists.
  *
- * @return  true on success, false on error
+ * @return  false always
  */
 bool bootstrap_songs(void);
 

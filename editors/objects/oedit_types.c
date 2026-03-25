@@ -13,6 +13,7 @@
 #include "../../item_types.h"
 #include "../../recycle.h"
 #include <string.h>
+#include "../../skill_data.h"
 
 /* Forward declarations for helpers used by type commands */
 extern void set_weapon_dice(OBJ_INDEX_DATA *objIndex);
@@ -757,7 +758,8 @@ OEDIT(oedit_herb)
         if (!str_prefix(field, "spell")) {
             if (argument[0] == '\0') { send_to_char("Syntax: herb spell <spell_name>\n\r", ch); return false; }
             int sn = skill_lookup(argument);
-            if (sn > 0 && skill_table[sn].spell_fun != spell_null) {
+            SKILL_DATA *spell_ref = skill_find_uid(sn);
+            if (sn > 0 && spell_ref && spell_ref->spell_fun != spell_null) {
                 HERB(pObj)->spell = sn;
                 send_to_char("Spell set.\n\r", ch);
                 return true;
@@ -790,7 +792,7 @@ OEDIT(oedit_herb)
         flag_string(imm_flags, HERB(pObj)->immunity),
         flag_string(res_flags, HERB(pObj)->resistance),
         flag_string(vuln_flags, HERB(pObj)->vulnerability),
-        HERB(pObj)->spell > 0 ? skill_table[HERB(pObj)->spell].name : "none");
+        HERB(pObj)->spell > 0 ? (skill_find_uid(HERB(pObj)->spell) ? skill_find_uid(HERB(pObj)->spell)->name : "unknown") : "none");
     send_to_char(buf, ch);
     return false;
 }
@@ -2615,7 +2617,7 @@ void oedit_show_type_data(OBJ_INDEX_DATA *pObj, BUFFER *buffer)
             flag_string(imm_flags, HERB(pObj)->immunity),
             flag_string(res_flags, HERB(pObj)->resistance),
             flag_string(vuln_flags, HERB(pObj)->vulnerability),
-            HERB(pObj)->spell > 0 ? skill_table[HERB(pObj)->spell].name : "none");
+            HERB(pObj)->spell > 0 ? (skill_find_uid(HERB(pObj)->spell) ? skill_find_uid(HERB(pObj)->spell)->name : "unknown") : "none");
         add_buf(buffer, buf);
     }
 

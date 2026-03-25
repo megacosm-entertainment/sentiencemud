@@ -30,6 +30,7 @@
 #include "nanny/nanny_menus.h"
 #include "class_data.h"
 #include "skill_group.h"
+#include "skill_data.h"
 #include "traits.h"
 #include "utils/localization.h"
 
@@ -78,7 +79,7 @@ void login_get_account(DESCRIPTOR_DATA *d, char *argument)
             return;
 
         if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS)
-            write_to_buffer(d, "Core.Resume {\"event\":\"fail\",\"reason\":\"invalid_or_expired\"}\n\r", 0);
+            write_to_buffer(d, "Sentience.Auth.Resume {\"event\":\"fail\",\"reason\":\"invalid_or_expired\"}\n\r", 0);
         else
             write_to_buffer(d, "Session resume failed or expired.\n\r", 0);
         write_to_buffer(d, "Account name (or RESUME <token>): ", 0);
@@ -5418,7 +5419,7 @@ void login_character_mfa_verify_for_settings(DESCRIPTOR_DATA *d, char *argument)
  *
  * Legacy class fields (class_current, sub_class_current, etc.) are left at
  * their pcdata defaults (-1 / 0). Code that reads them must gracefully handle
- * those values until they are removed in Phase 9.
+ * those values (Phase 9 audit: deferred due to ~500 active callers).
  *
  * @param d  Descriptor of the character being created
  */
@@ -5743,7 +5744,8 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
             SKILL_ENTRY *entry = skill_entry_findsn(ch->sorted_skills, weapon);
 
             if (!entry) {
-                if (skill_table[weapon].spell_fun == spell_null)
+                SKILL_DATA *wskill = skill_find_uid(weapon);
+                if (wskill && wskill->spell_fun == spell_null)
                     skill_entry_addskill(ch, weapon, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
                 else
                     skill_entry_addspell(ch, weapon, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);

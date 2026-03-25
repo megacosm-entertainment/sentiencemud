@@ -707,7 +707,8 @@ static json_t *skills_to_json(CHAR_DATA *ch)
             continue;
 
         int sn = entry->sn;
-        if (sn <= 0 || sn >= MAX_SKILL || !skill_table[sn].name)
+        SKILL_DATA *sk = skill_find_uid(sn);
+        if (sn <= 0 || sn >= MAX_SKILL || !sk || !sk->name)
             continue;
 
         json_t *skill_data = json_object();
@@ -759,15 +760,16 @@ static json_t *skills_to_json(CHAR_DATA *ch)
                 json_decref(sources_arr);
         }
 
-        json_object_set_new(skills, skill_table[sn].name, skill_data);
+        json_object_set_new(skills, sk->name, skill_data);
     }
 
     // Safety net: catch any skills in learned[] not represented in sorted_skills
     // This handles edge cases during migration from old format
     for (int sn = 0; sn < MAX_SKILL; sn++) {
+        SKILL_DATA *fallback_sk = skill_find_uid(sn);
         if ((ch->pcdata->learned[sn] > 0 || ch->pcdata->mod_learned[sn] != 0)
-            && skill_table[sn].name
-            && !json_object_get(skills, skill_table[sn].name)) {
+            && fallback_sk && fallback_sk->name
+            && !json_object_get(skills, fallback_sk->name)) {
 
             json_t *skill_data = json_object();
             if (ch->pcdata->learned[sn] > 0) {
@@ -778,7 +780,7 @@ static json_t *skills_to_json(CHAR_DATA *ch)
                 json_object_set_new(skill_data, "mod_rating", json_integer(ch->pcdata->mod_learned[sn]));
                 json_object_set_new(skill_data, "mod_learned", json_integer(ch->pcdata->mod_learned[sn]));
             }
-            json_object_set_new(skills, skill_table[sn].name, skill_data);
+            json_object_set_new(skills, fallback_sk->name, skill_data);
         }
     }
 
@@ -967,7 +969,6 @@ static json_t *aliases_to_json(CHAR_DATA *ch)
 static json_t *groups_to_json(CHAR_DATA *ch)
 {
     json_t *groups;
-    int gn;
 
     if (!ch->pcdata) {
         return json_array();
@@ -975,8 +976,6 @@ static json_t *groups_to_json(CHAR_DATA *ch)
 
     groups = json_array();
 
-    // Save known skill groups from the new LLIST if populated, otherwise fall
-    // back to the legacy bool array so existing characters still serialize.
     if (ch->pcdata->known_groups && list_size(ch->pcdata->known_groups) > 0) {
         ITERATOR sg_it;
         SKILL_GROUP *sg;
@@ -984,22 +983,12 @@ static json_t *groups_to_json(CHAR_DATA *ch)
         while ((sg = (SKILL_GROUP *)iterator_nextdata(&sg_it))) {
             if (sg->name) {
                 json_t *group_data = json_object();
-                int gn = group_lookup(sg->name);
-                json_object_set_new(group_data, "id", json_integer(gn >= 0 ? gn : -1));
+                json_object_set_new(group_data, "id", json_integer(-1));
                 json_object_set_new(group_data, "name", json_string(sg->name));
                 json_array_append_new(groups, group_data);
             }
         }
         iterator_stop(&sg_it);
-    } else {
-        for (gn = 0; gn < MAX_GROUP; gn++) {
-            if (ch->pcdata->group_known[gn] && group_table[gn].name) {
-                json_t *group_data = json_object();
-                json_object_set_new(group_data, "id", json_integer(gn));
-                json_object_set_new(group_data, "name", json_string(group_table[gn].name));
-                json_array_append_new(groups, group_data);
-            }
-        }
     }
 
     return groups;
@@ -4602,10 +4591,12 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
             }
 
             // Add to sorted_skills list so 'skills'/'spells' commands work
-            if (skill_table[sn].spell_fun == spell_null)
+            { SKILL_DATA *load_sk = skill_find_uid(sn);
+            if (!load_sk || load_sk->spell_fun == spell_null)
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
-                skill_entry_addspell(ch, sn, NULL, source, flags);
+                skill_entry_addspell(ch, sn, NULL, source, flags); }
+
 
             // Populate entry rating fields from loaded learned[] data
             entry = skill_entry_findsn(ch->sorted_skills, sn);
@@ -4689,25 +4680,11 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
     json_t *skill_groups = json_object_get(root, "skill_groups");
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
-            /* Try name-based resolution first, fall back to integer id */
             const char *gname = json_get_string(array_elem, "name", "");
-            int gn = -1;
-
-            if (gname && gname[0])
-                gn = group_lookup(gname);
-
-            if (gn < 0)
-                gn = json_integer_value(json_object_get(array_elem, "id"));
-
-            if (gn >= 0 && gn < MAX_GROUP) {
-                ch->pcdata->group_known[gn] = true;
-
-                /* Also populate known_groups LLIST */
-                if (group_table[gn].name) {
-                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
-                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
-                        list_appendlink(ch->pcdata->known_groups, sg);
-                }
+            if (gname && gname[0]) {
+                SKILL_GROUP *sg = skill_group_find(gname);
+                if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                    list_appendlink(ch->pcdata->known_groups, sg);
             }
         }
     }
@@ -5171,12 +5148,18 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
                     if (flags == NO_FLAG) flags = SKILL_AUTOMATIC;
                 }
             }
-
             // Add to sorted_skills list so 'skills'/'spells' commands work
-            if (skill_table[sn].spell_fun == spell_null)
+
+            { SKILL_DATA *load_sk = skill_find_uid(sn);
+            if (!load_sk || load_sk->spell_fun == spell_null)
                 skill_entry_addskill(ch, sn, NULL, source, flags);
             else
-                skill_entry_addspell(ch, sn, NULL, source, flags);
+                skill_entry_addspell(ch, sn, NULL, source, flags); }
+
+
+
+
+
 
             // Populate entry rating fields from loaded learned[] data
             entry = skill_entry_findsn(ch->sorted_skills, sn);
@@ -5235,25 +5218,11 @@ bool json_read_char_remaining_from_json(CHAR_DATA *ch, json_t *root)
     json_t *skill_groups = json_object_get(root, "skill_groups");
     if (skill_groups && json_is_array(skill_groups)) {
         json_array_foreach(skill_groups, index, array_elem) {
-            /* Try name-based resolution first, fall back to integer id */
             const char *gname = json_get_string(array_elem, "name", "");
-            int gn = -1;
-
-            if (gname && gname[0])
-                gn = group_lookup(gname);
-
-            if (gn < 0)
-                gn = json_integer_value(json_object_get(array_elem, "id"));
-
-            if (gn >= 0 && gn < MAX_GROUP) {
-                ch->pcdata->group_known[gn] = true;
-
-                /* Also populate known_groups LLIST */
-                if (group_table[gn].name) {
-                    SKILL_GROUP *sg = skill_group_find(group_table[gn].name);
-                    if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
-                        list_appendlink(ch->pcdata->known_groups, sg);
-                }
+            if (gname && gname[0]) {
+                SKILL_GROUP *sg = skill_group_find(gname);
+                if (sg && !list_hasdata(ch->pcdata->known_groups, sg))
+                    list_appendlink(ch->pcdata->known_groups, sg);
             }
         }
     }

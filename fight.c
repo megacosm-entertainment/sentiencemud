@@ -4675,7 +4675,7 @@ void dam_message(CHAR_DATA *ch, CHAR_DATA *victim, int dam,int dt,bool immune)
     else
     {
     if (dt >= 0 && dt < MAX_SKILL)
-        attack	= skill_table[dt].noun_damage;
+        { SKILL_DATA *_sk = skill_find_uid(dt); attack = _sk ? _sk->noun_damage : "hit"; }
     else if (dt >= TYPE_HIT
     && dt < TYPE_HIT + MAX_DAMAGE_MESSAGE)
         attack	= attack_table[dt - TYPE_HIT].noun;
@@ -4872,7 +4872,9 @@ void do_circle(CHAR_DATA *ch, char *argument)
         p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"pretest"))
         return;
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("circle")].beats);
+    { SKILL_DATA *_sk = skill_find("circle");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
     deduct_move(ch, 50);
 
     decept = get_skill(victim, skill_resolve_gsn("deception"));
@@ -5006,7 +5008,9 @@ void do_charge(CHAR_DATA *ch, char *argument)
 
     send_to_char("{YYou charge into the fray!{x\n\r", ch);
     act("{Y$n charges into the fray!{x\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("charge")].beats);
+    { SKILL_DATA *_sk = skill_find("charge");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 
     // modifiers
     for (rch = ch->in_room->people; rch != NULL; rch = rch_next)
@@ -5050,6 +5054,7 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
     int chance;
+    SKILL_DATA *sk_intimidate = skill_find("intimidate");
 
     argument = one_argument(argument, arg);
 
@@ -5105,7 +5110,7 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
             act("$N laughs at $n mercilessly.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_NOTVICT, NULL, NULL);
         }
 
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("intimidate")].beats);
+        WAIT_STATE(ch,(sk_intimidate ? sk_intimidate->beats : 12));
         return;
     }
 
@@ -5116,7 +5121,7 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
     check_improve(ch,skill_resolve_gsn("intimidate"),true,1);
     do_function(victim, &do_flee, "anyway");
     DAZE_STATE(victim, 3 * PULSE_VIOLENCE);
-    WAIT_STATE(ch,skill_table[skill_resolve_gsn("intimidate")].beats);
+    WAIT_STATE(ch,(sk_intimidate ? sk_intimidate->beats : 12));
 }
 
 
@@ -5128,6 +5133,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
     int door;
     int dam;
     int ret;
+    SKILL_DATA *sk_bash = skill_find("bash");
 
     if (is_dead(ch))
     return;
@@ -5378,7 +5384,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 
         if(p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "premount")) return;
 
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("bash")].beats);
+        WAIT_STATE(ch, (sk_bash ? sk_bash->beats : 12));
         act("You dig your heels into $N's flanks and charge!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
         act("$n digs $s heels into $N's flanks and charges!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
 
@@ -5522,7 +5528,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
         check_improve(ch,skill_resolve_gsn("bash"),false,5);
     }
 
-    WAIT_STATE(ch,skill_table[skill_resolve_gsn("bash")].beats * 3/2);
+    WAIT_STATE(ch,(sk_bash ? sk_bash->beats : 12) * 3/2);
     deduct_move(ch, 75);
 }
 
@@ -5537,6 +5543,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
     int liquid;
     int amount, dam;
     int i;
+    SKILL_DATA *sk_bite = skill_find("bite");
 
     argument = one_argument(argument,arg);
     argument = one_argument(argument,arg2);
@@ -5601,7 +5608,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
 
     if (number_percent() < chance) {	// Success
         DAZE_STATE(victim, 2 * PULSE_VIOLENCE);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("bite")].beats);
+        WAIT_STATE(ch,(sk_bite ? sk_bite->beats : 12));
 
         // Vamp bite
         if (race_get_trait_bool(ch->race, "blood_feeding")) {
@@ -5757,7 +5764,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
         act("$n misses $N's neck.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
         act("You evade $n's bite.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
         check_improve(ch,skill_resolve_gsn("bite"),false,1);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("bite")].beats * 3/2);
+        WAIT_STATE(ch,(sk_bite ? sk_bite->beats : 12) * 3/2);
     }
 }
 
@@ -5786,6 +5793,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
     int chance, decept;
+    SKILL_DATA *sk_dirt = skill_find("dirt");
 
     one_argument(argument,arg);
 
@@ -5901,7 +5909,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
 //		damage(ch,victim,number_range(2,5),skill_resolve_gsn("dirt"),DAM_NONE,false);
         send_to_char("{DYou can't see a thing!\n\r{x",victim);
         check_improve(ch,skill_resolve_gsn("dirt"),true,2);
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("dirt")].beats);
+        WAIT_STATE(ch,(sk_dirt ? sk_dirt->beats : 12));
 
         af.where	= TO_AFFECTS;
         af.group     = AFFGROUP_PHYSICAL;
@@ -5931,7 +5939,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
             act("What a fool! $n has managed to kick dirt into $s OWN eyes!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
             damage(ch,ch,number_range(2,5),skill_resolve_gsn("dirt"),DAM_NONE,false);
             send_to_char("{DYou can't see a thing!\n\r{x",ch);
-            WAIT_STATE(ch,skill_table[skill_resolve_gsn("dirt")].beats);
+            WAIT_STATE(ch,(sk_dirt ? sk_dirt->beats : 12));
 
             af.where	= TO_AFFECTS;
             af.group     = AFFGROUP_PHYSICAL;
@@ -5953,7 +5961,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
         if( is_char_stillvalid(ch, cid) )
         {
             check_improve(ch,skill_resolve_gsn("dirt"),false,2);
-            WAIT_STATE(ch,skill_table[skill_resolve_gsn("dirt")].beats);
+            WAIT_STATE(ch,(sk_dirt ? sk_dirt->beats : 12));
 
             if( is_char_stillvalid(victim, vid) )
                 p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"attack_fail");
@@ -6051,7 +6059,9 @@ void do_breathe(CHAR_DATA *ch, char *argument)
         ch->move -= mov;
     }
 
-    WAIT_STATE(ch,skill_table[skill_resolve_gsn("breath")].beats);
+    { SKILL_DATA *_sk = skill_find("breath");
+    WAIT_STATE(ch,(_sk ? _sk->beats : 12));
+    }
 
     (*breath_fun[i])(skill_find(breath_skill_names[i]), ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE, INVOC_INTERNAL);
 
@@ -6069,6 +6079,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
     int skill, skill2, chance;
     OBJ_DATA *wield;
     bool failed = false;
+    SKILL_DATA *sk_backstab = skill_find("backstab");
 
     one_argument(argument, arg);
 
@@ -6107,7 +6118,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
         return;
     } else if (!(victim = get_char_room(ch, NULL, arg))) {
         send_to_char("They aren't here.\n\r",ch);
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("backstab")].beats);
+        WAIT_STATE(ch, (sk_backstab ? sk_backstab->beats : 12));
         return;
     }
 
@@ -6126,7 +6137,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 
     if (victim->position > POS_SLEEPING && (victim->hit < (3 * victim->max_hit / 4))) {
         act("$N is hurt and suspicious ... you can't sneak up.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("backstab")].beats);
+        WAIT_STATE(ch, (sk_backstab ? sk_backstab->beats : 12));
         return;
     }
 
@@ -6174,7 +6185,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
         p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BACKSTAB,"pretest"))
         return;
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("backstab")].beats);
+    WAIT_STATE(ch, (sk_backstab ? sk_backstab->beats : 12));
 
     dam = 0;
     if (number_percent() < skill || (skill >= 2 && !IS_AWAKE(victim))) {
@@ -6413,6 +6424,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
     OBJ_DATA *helmet, *weapon;
     int chance, skill;
     long cid[2], vid[2];
+    SKILL_DATA *sk_blackjack = skill_find("blackjack");
 
     one_argument(argument, arg);
 
@@ -6440,7 +6452,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 
     if ((victim = get_char_room(ch,NULL, arg)) == NULL) {
         send_to_char("They aren't here.\n\r", ch);
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("blackjack")].beats);
+        WAIT_STATE(ch, (sk_blackjack ? sk_blackjack->beats : 12));
         return;
     }
 
@@ -6477,7 +6489,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
         act("Your helmet protects you from $n's blackjack!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
         multi_hit(victim, ch, TYPE_UNDEFINED);
         if( is_char_stillvalid(ch, cid) )
-            WAIT_STATE(ch, skill_table[skill_resolve_gsn("blackjack")].beats);
+            WAIT_STATE(ch, (sk_blackjack ? sk_blackjack->beats : 12));
         return;
     }
 
@@ -6487,7 +6499,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
         act("While in $S relaxed state, $N notices $n's attempted blackjack!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT, NULL, NULL);
         multi_hit(victim, ch, TYPE_UNDEFINED);
         if( is_char_stillvalid(ch, cid) )
-            WAIT_STATE(ch, skill_table[skill_resolve_gsn("blackjack")].beats);
+            WAIT_STATE(ch, (sk_blackjack ? sk_blackjack->beats : 12));
         return;
     }
 
@@ -6586,7 +6598,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
         }
     }
     if( is_char_stillvalid(ch, cid) )
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("blackjack")].beats);
+        WAIT_STATE(ch, (sk_blackjack ? sk_blackjack->beats : 12));
 }
 
 
@@ -6867,7 +6879,9 @@ void do_rescue(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("rescue")].beats);
+    { SKILL_DATA *_sk = skill_find("rescue");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
     if (number_percent() > get_skill(ch,skill_resolve_gsn("rescue")))
     {
     send_to_char("You fail the rescue.\n\r", ch);
@@ -6936,7 +6950,9 @@ void do_tail_kick(CHAR_DATA *ch, char *argument)
         p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"pretest"))
         return;
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("tail kick")].beats);
+    { SKILL_DATA *_sk = skill_find("tail kick");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
     char_id(ch, cid);
     char_id(victim, vid);
 
@@ -7007,7 +7023,9 @@ void do_kick(CHAR_DATA *ch, char *argument)
     char_id(ch, cid);
     char_id(victim, vid);
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("kick")].beats);
+    { SKILL_DATA *_sk = skill_find("kick");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 
     if (skill > number_percent()) {
         int dam = 0;
@@ -7049,6 +7067,7 @@ void do_disarm(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     char buf[MAX_INPUT_LENGTH];
     int chance,hth,ch_weapon,vict_weapon,ch_vict_weapon;
+    SKILL_DATA *sk_disarm = skill_find("disarm");
 
     hth = 0;
 
@@ -7109,14 +7128,14 @@ void do_disarm(CHAR_DATA *ch, char *argument)
 
     /* and now the attack */
     if (number_percent() < chance && number_percent() > (3 * get_skill(victim, skill_resolve_gsn("deception")) / 4)) {
-        WAIT_STATE(ch, skill_table[skill_resolve_gsn("disarm")].beats);
+        WAIT_STATE(ch, (sk_disarm ? sk_disarm->beats : 12));
         obj = disarm(ch, victim);
         if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass") &&
             !p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass") && obj)
             p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass");
         check_improve(ch,skill_resolve_gsn("disarm"),true,1);
     } else {
-        WAIT_STATE(ch,skill_table[skill_resolve_gsn("disarm")].beats);
+        WAIT_STATE(ch,(sk_disarm ? sk_disarm->beats : 12));
         if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"message_fail") &&
             !p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_fail") &&
             !p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"message_fail")) {
@@ -7406,7 +7425,9 @@ void do_feign(CHAR_DATA *ch, char *argument)
 
     check_improve(ch,skill_resolve_gsn("feign"),true,6);
 
-    WAIT_STATE(ch,skill_table[skill_resolve_gsn("feign")].beats);
+    { SKILL_DATA *_sk = skill_find("feign");
+    WAIT_STATE(ch,(_sk ? _sk->beats : 12));
+    }
 }
 
 
@@ -7983,6 +8004,7 @@ void do_holdup(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
     int chance;
+    SKILL_DATA *sk_holdup = skill_find("holdup");
 
     one_argument(argument, arg);
 
@@ -8059,7 +8081,7 @@ void do_holdup(CHAR_DATA *ch, char *argument)
     act("{Y$n jumps out of nowhere catching $N by surprise! Looks like it's a holdup!{X", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     victim->position = POS_HELDUP;
     ch->heldup = victim;
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("holdup")].beats);
+    WAIT_STATE(ch, (sk_holdup ? sk_holdup->beats : 12));
     check_improve(ch, skill_resolve_gsn("holdup"), true, 1);
     }
     else
@@ -8068,7 +8090,7 @@ void do_holdup(CHAR_DATA *ch, char *argument)
     act("{YYou notice $n attempt a holdup, but you spot it first!{X", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT, NULL, NULL);
     act("{Y$n fumbles $s holdup of $N!{X", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM, NULL, NULL);
     multi_hit(victim, ch, TYPE_UNDEFINED);
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("holdup")].beats);
+    WAIT_STATE(ch, (sk_holdup ? sk_holdup->beats : 12));
     check_improve(ch, skill_resolve_gsn("holdup"), false, 1);
     }
 }
@@ -8354,7 +8376,9 @@ void do_weave(CHAR_DATA *ch, char *argument)
     return;
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("weaving")].beats);
+    { SKILL_DATA *_sk = skill_find("weaving");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
     if (number_percent() > get_skill(ch,skill_resolve_gsn("weaving")))
     {
     send_to_char("You fail to weave to your victim.\n\r", ch);
@@ -8424,7 +8448,9 @@ void do_rack(CHAR_DATA *ch, char *argument)
     }
     if (!is_safe(ch,victim,true))
     {
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("spirit rack")].beats);
+    { SKILL_DATA *_sk = skill_find("spirit rack");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 
     if (number_percent() < get_skill(ch, skill_resolve_gsn("spirit rack")))
     {
@@ -8486,7 +8512,9 @@ void do_warcry(CHAR_DATA *ch, char *argument)
             act("{RYour heart speeds up a little, but nothing else happens.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR, NULL, NULL);
     }
 
-    WAIT_STATE(ch, skill_table[skill_resolve_gsn("warcry")].beats);
+    { SKILL_DATA *_sk = skill_find("warcry");
+    WAIT_STATE(ch, (_sk ? _sk->beats : 12));
+    }
 
     memset(&af,0,sizeof(af));
     af.where     = TO_AFFECTS;

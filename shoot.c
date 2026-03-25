@@ -12,6 +12,7 @@
 #include "merc.h"
 #include "interp.h"
 #include "traits.h"
+#include "skill_data.h"
 
 static CHAR_DATA *find_ranged_target_in_room(CHAR_DATA *viewer, ROOM_INDEX_DATA *room, char *argument)
 {
@@ -482,7 +483,7 @@ void ranged_end( CHAR_DATA *ch )
     case RANGED_WEAPON_BLOWGUN:		sn = skill_resolve_gsn("blowgun"); break;
     }
     skill = get_skill(ch, sn);
-    beats = skill_table[sn].beats;
+    { SKILL_DATA *_sk = skill_find_uid(sn); beats = _sk ? _sk->beats : 12; }
     // @@@NIB : 20070128 ----------
 
     sprintf( buf, "%s gets %d%% from skill, ", ch->name, skill );
@@ -938,7 +939,9 @@ void do_throw( CHAR_DATA *ch, char *argument )
     if ( is_safe( ch, victim, true ) )
     return;
 
-    WAIT_STATE( ch, skill_table[skill_resolve_gsn("throw")].beats );
+    { SKILL_DATA *_sk = skill_find("throw");
+    WAIT_STATE( ch, (_sk ? _sk->beats : 12) );
+    }
 
     /* we have a victim and a dir.  start the missile off. */
     skill = get_skill(ch, skill_resolve_gsn("throw"));

@@ -15,8 +15,8 @@
   - Account name (or RESUME <token>):
 - Added token issuance at successful play-state entry and relink paths.
 - Added explicit control ACK lines for resume flow:
-  - success: Core.Resume {"event":"ok"}
-  - failure: Core.Resume {"event":"fail","reason":"invalid_or_expired"}
+  - success: Sentience.Auth.Resume {"event":"ok"}
+  - failure: Sentience.Auth.Resume {"event":"fail","reason":"invalid_or_expired"}
 - Removed user-facing resume failure prose in login flow; failure is now machine-readable control output.
 - Adjusted token expiry behavior so active websocket sessions keep/refresh resume entries;
   TTL is effectively enforced from disconnect time.
@@ -44,7 +44,7 @@
 ### Notes
 
 - Current token transport is text control line:
-  - Core.Resume {"event":"token","token":"...","ttl":180}
+  - Sentience.Auth.Resume {"event":"token","token":"...","ttl":180}
 - Tokens are short-lived and rotated on successful resume.
 - This is intentionally process-local for the first cut.
 
