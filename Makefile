@@ -114,6 +114,7 @@ C_FILES = \
     protocol_telnet.c \
     protocol_websocket.c \
     gmcp_sentience.c \
+    sentience_link.c \
     db.c \
     db2.c \
     drunk.c \

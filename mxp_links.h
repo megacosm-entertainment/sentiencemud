@@ -14,9 +14,10 @@
 
 #include "merc.h"
 
-typedef struct {
+typedef struct mxp_cmd_hint {
     const char *cmd;
     const char *hint;
+    bool staff_only;   /* If true, only shown to IS_IMMORTAL characters */
 } mxp_cmd_hint_t;
 
 /**
