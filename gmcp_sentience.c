@@ -332,6 +332,7 @@ json_t *sentience_build_room_map(const sentience_room_map_input_t *input)
 json_t *sentience_build_channel_message(const sentience_channel_message_input_t *input)
 {
     json_t *obj;
+    int i;
 
     if (!input || !input->channel || !input->text)
         return NULL;
@@ -345,6 +346,20 @@ json_t *sentience_build_channel_message(const sentience_channel_message_input_t 
 
     if (input->tell_target)
         json_object_set_new(obj, "tell_target", json_string(input->tell_target));
+
+    if (input->report_id)
+        json_object_set_new(obj, "report_id", json_string(input->report_id));
+
+    if (input->num_actions > 0) {
+        json_t *actions = json_array();
+        for (i = 0; i < input->num_actions; i++) {
+            json_t *act = json_object();
+            json_object_set_new(act, "label", json_string(input->actions[i].label ? input->actions[i].label : ""));
+            json_object_set_new(act, "cmd",   json_string(input->actions[i].cmd ? input->actions[i].cmd : ""));
+            json_array_append_new(actions, act);
+        }
+        json_object_set_new(obj, "actions", actions);
+    }
 
     return obj;
 }

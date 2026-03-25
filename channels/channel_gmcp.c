@@ -94,10 +94,12 @@ static bool channel_gmcp_recipient_in_scope(const CHANNEL_DEF_DATA *def,
  * @param timestamp    Unix timestamp for the message
  */
 void channel_gmcp_broadcast(const CHANNEL_DEF_DATA *def, CHAR_DATA *sender,
-                            const char *plain_text, time_t timestamp)
+                            const char *plain_text, time_t timestamp,
+                            const char *report_id)
 {
     DESCRIPTOR_DATA *d;
     char stripped[MSL];
+    char report_cmd[256];
     const char *nc;
 
     if (!def || !sender || !plain_text)
@@ -108,6 +110,9 @@ void channel_gmcp_broadcast(const CHANNEL_DEF_DATA *def, CHAR_DATA *sender,
     stripped[sizeof(stripped) - 1] = '\0';
 
     for (d = descriptor_list; d != NULL; d = d->next) {
+        int action_count = 0;
+        sentience_item_action_t msg_actions[SENTIENCE_MAX_CHANNEL_ACTIONS];
+
         if (!d->character)
             continue;
         if (!d->pProtocol || !d->pProtocol->bGMCP)
@@ -121,13 +126,31 @@ void channel_gmcp_broadcast(const CHANNEL_DEF_DATA *def, CHAR_DATA *sender,
         if (!channel_gmcp_recipient_in_scope(def, sender, d->character))
             continue;
 
+        memset(msg_actions, 0, sizeof(msg_actions));
+
+        /* Info action — always present */
+        msg_actions[action_count].label = "Info";
+        msg_actions[action_count].cmd = "chinfo";
+        action_count++;
+
+        /* Report action — only if report_id present */
+        if (report_id && *report_id) {
+            snprintf(report_cmd, sizeof(report_cmd), "report %s", report_id);
+            msg_actions[action_count].label = "Report";
+            msg_actions[action_count].cmd = report_cmd;
+            action_count++;
+        }
+
         sentience_channel_message_input_t input = {
             .channel     = def->id,
             .sender      = sender->name,
             .text        = stripped,
             .timestamp   = (long)timestamp,
             .tell_target = NULL,
+            .report_id   = report_id,
+            .num_actions = action_count,
         };
+        memcpy(input.actions, msg_actions, sizeof(msg_actions));
 
         sentience_send_package(d, "Sentience.Channel.Message",
             sentience_build_channel_message(&input));
@@ -148,10 +171,11 @@ void channel_gmcp_broadcast(const CHANNEL_DEF_DATA *def, CHAR_DATA *sender,
  */
 void channel_gmcp_send_directed(CHAR_DATA *sender, CHAR_DATA *recipient,
                                 const char *channel_id, const char *plain_text,
-                                time_t timestamp)
+                                time_t timestamp, const char *report_id)
 {
     DESCRIPTOR_DATA *d;
     char stripped[MSL];
+    char report_cmd[256];
     const char *nc;
 
     if (!sender || !recipient || !channel_id || !plain_text)
@@ -162,6 +186,9 @@ void channel_gmcp_send_directed(CHAR_DATA *sender, CHAR_DATA *recipient,
     stripped[sizeof(stripped) - 1] = '\0';
 
     for (d = descriptor_list; d != NULL; d = d->next) {
+        int action_count = 0;
+        sentience_item_action_t msg_actions[SENTIENCE_MAX_CHANNEL_ACTIONS];
+
         if (!d->character)
             continue;
         if (d->character != sender && d->character != recipient)
@@ -173,13 +200,36 @@ void channel_gmcp_send_directed(CHAR_DATA *sender, CHAR_DATA *recipient,
         if (!pref_gmcp_channels(d->character))
             continue;
 
+        memset(msg_actions, 0, sizeof(msg_actions));
+
+        /* Info action — always present */
+        msg_actions[action_count].label = "Info";
+        msg_actions[action_count].cmd = "chinfo";
+        action_count++;
+
+        /* Report action — only if report_id present */
+        if (report_id && *report_id) {
+            snprintf(report_cmd, sizeof(report_cmd), "report %s", report_id);
+            msg_actions[action_count].label = "Report";
+            msg_actions[action_count].cmd = report_cmd;
+            action_count++;
+        }
+
+        /* Reply action for directed messages */
+        msg_actions[action_count].label = "Reply";
+        msg_actions[action_count].cmd = "reply";
+        action_count++;
+
         sentience_channel_message_input_t input = {
             .channel     = channel_id,
             .sender      = sender->name,
             .text        = stripped,
             .timestamp   = (long)timestamp,
             .tell_target = recipient->name,
+            .report_id   = report_id,
+            .num_actions = action_count,
         };
+        memcpy(input.actions, msg_actions, sizeof(msg_actions));
 
         sentience_send_package(d, "Sentience.Channel.Message",
             sentience_build_channel_message(&input));

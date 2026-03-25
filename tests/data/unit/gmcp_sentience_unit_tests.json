@@ -1248,6 +1248,84 @@
     },
     {
       "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_channel_message_with_report",
+      "description": "Channel message with report_id and actions",
+      "input": {
+        "function": "build_channel_message",
+        "test_cases": [
+          {
+            "scenario": "message_with_report",
+            "params": {
+              "channel": "gossip",
+              "sender": "Tieryo",
+              "text": "Hello world!",
+              "timestamp": 1711396823,
+              "tell_target": null,
+              "report_id": "local-42",
+              "actions": [
+                {"label": "Info", "cmd": "chinfo"},
+                {"label": "Report", "cmd": "report local-42"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "channel": "gossip",
+              "sender": "Tieryo",
+              "text": "Hello world!",
+              "timestamp": 1711396823,
+              "report_id": "local-42",
+              "actions_count": 2,
+              "first_action_label": "Info",
+              "second_action_label": "Report",
+              "no_tell_target": true
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_channel_message_directed_reply",
+      "description": "Directed channel message with reply action",
+      "input": {
+        "function": "build_channel_message",
+        "test_cases": [
+          {
+            "scenario": "directed_with_reply",
+            "params": {
+              "channel": "tell",
+              "sender": "Tieryo",
+              "text": "Hey there!",
+              "timestamp": 1711396824,
+              "tell_target": "Solara",
+              "report_id": "local-43",
+              "actions": [
+                {"label": "Info", "cmd": "chinfo"},
+                {"label": "Report", "cmd": "report local-43"},
+                {"label": "Reply", "cmd": "reply"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "channel": "tell",
+              "sender": "Tieryo",
+              "text": "Hey there!",
+              "timestamp": 1711396824,
+              "tell_target": "Solara",
+              "report_id": "local-43",
+              "actions_count": 3,
+              "first_action_label": "Info",
+              "second_action_label": "Report",
+              "third_action_label": "Reply"
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
       "name": "gmcp_layout_name_validation",
       "description": "Validates layout name rules (1-32 chars, alphanumeric + underscore + hyphen)",
       "input": {

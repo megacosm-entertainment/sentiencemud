@@ -918,6 +918,9 @@ static test_result_t run_gmcp_channel_message_scenario(json_t *tc)
     json_t *params = json_object_get(tc, "params");
     json_t *expected = json_object_get(tc, "expected");
     json_t *tell_target_val = json_object_get(params, "tell_target");
+    json_t *report_id_val = json_object_get(params, "report_id");
+    json_t *actions_val = json_object_get(params, "actions");
+    int i;
 
     sentience_channel_message_input_t input = {
         .channel     = json_string_value(json_object_get(params, "channel")),
@@ -927,7 +930,24 @@ static test_result_t run_gmcp_channel_message_scenario(json_t *tc)
         .tell_target = (tell_target_val && !json_is_null(tell_target_val))
                      ? json_string_value(tell_target_val)
                      : NULL,
+        .report_id   = (report_id_val && !json_is_null(report_id_val))
+                     ? json_string_value(report_id_val)
+                     : NULL,
+        .num_actions = 0,
     };
+
+    /* Parse actions array if present */
+    if (actions_val && json_is_array(actions_val)) {
+        input.num_actions = (int)json_array_size(actions_val);
+        if (input.num_actions > SENTIENCE_MAX_CHANNEL_ACTIONS)
+            input.num_actions = SENTIENCE_MAX_CHANNEL_ACTIONS;
+
+        for (i = 0; i < input.num_actions; i++) {
+            json_t *action = json_array_get(actions_val, i);
+            input.actions[i].label = json_string_value(json_object_get(action, "label"));
+            input.actions[i].cmd = json_string_value(json_object_get(action, "cmd"));
+        }
+    }
 
     json_t *result = sentience_build_channel_message(&input);
     if (!result) {
@@ -938,14 +958,85 @@ static test_result_t run_gmcp_channel_message_scenario(json_t *tc)
         return TEST_FAILURE;
     }
 
-    bool pass = json_equal(result, expected);
-    if (!pass) {
-        char *r = json_dumps(result, JSON_COMPACT | JSON_SORT_KEYS);
-        char *e = json_dumps(expected, JSON_COMPACT | JSON_SORT_KEYS);
-        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
-                     "Channel.Message JSON mismatch:\n  got:    %s\n  expect: %s",
-                     r ? r : "NULL", e ? e : "NULL");
-        free(r); free(e);
+    /* Check specific expectations instead of json_equal for new fields */
+    bool pass = true;
+
+    /* Standard field checks */
+    TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "_v")),
+                       json_integer_value(json_object_get(result, "_v")));
+    TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "channel")),
+                       json_string_value(json_object_get(result, "channel")));
+    TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "sender")),
+                       json_string_value(json_object_get(result, "sender")));
+    TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "text")),
+                       json_string_value(json_object_get(result, "text")));
+    TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "timestamp")),
+                       json_integer_value(json_object_get(result, "timestamp")));
+
+    /* tell_target check - handle explicit expected presence/absence */
+    json_t *exp_tell_target = json_object_get(expected, "tell_target");
+    json_t *res_tell_target = json_object_get(result, "tell_target");
+    if (json_object_get(expected, "no_tell_target") && json_is_true(json_object_get(expected, "no_tell_target"))) {
+        /* Expected to NOT have tell_target */
+        TEST_ASSERT_NULL(res_tell_target);
+    } else if (exp_tell_target) {
+        TEST_ASSERT_STR_EQ(json_string_value(exp_tell_target),
+                           json_string_value(res_tell_target));
+    }
+
+    /* report_id check */
+    json_t *exp_report_id = json_object_get(expected, "report_id");
+    json_t *res_report_id = json_object_get(result, "report_id");
+    if (exp_report_id) {
+        TEST_ASSERT_STR_EQ(json_string_value(exp_report_id),
+                           json_string_value(res_report_id));
+    }
+
+    /* actions check */
+    json_t *exp_actions_count = json_object_get(expected, "actions_count");
+    if (exp_actions_count) {
+        json_t *res_actions = json_object_get(result, "actions");
+        TEST_ASSERT_NOT_NULL(res_actions);
+        TEST_ASSERT_INT_EQ(json_integer_value(exp_actions_count),
+                           (long)json_array_size(res_actions));
+
+        /* Check individual action labels if specified */
+        json_t *first_action_label = json_object_get(expected, "first_action_label");
+        if (first_action_label) {
+            json_t *first_action = json_array_get(res_actions, 0);
+            TEST_ASSERT_STR_EQ(json_string_value(first_action_label),
+                               json_string_value(json_object_get(first_action, "label")));
+        }
+
+        json_t *second_action_label = json_object_get(expected, "second_action_label");
+        if (second_action_label) {
+            json_t *second_action = json_array_get(res_actions, 1);
+            TEST_ASSERT_STR_EQ(json_string_value(second_action_label),
+                               json_string_value(json_object_get(second_action, "label")));
+        }
+
+        json_t *third_action_label = json_object_get(expected, "third_action_label");
+        if (third_action_label) {
+            json_t *third_action = json_array_get(res_actions, 2);
+            TEST_ASSERT_STR_EQ(json_string_value(third_action_label),
+                               json_string_value(json_object_get(third_action, "label")));
+        }
+    }
+
+    /* For backward compatibility, if none of the new field expectations are set, 
+       use the old json_equal method */
+    if (!json_object_get(expected, "actions_count") && 
+        !json_object_get(expected, "report_id") && 
+        !json_object_get(expected, "no_tell_target")) {
+        pass = json_equal(result, expected);
+        if (!pass) {
+            char *r = json_dumps(result, JSON_COMPACT | JSON_SORT_KEYS);
+            char *e = json_dumps(expected, JSON_COMPACT | JSON_SORT_KEYS);
+            log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                         "Channel.Message JSON mismatch:\n  got:    %s\n  expect: %s",
+                         r ? r : "NULL", e ? e : "NULL");
+            free(r); free(e);
+        }
     }
 
     json_decref(result);

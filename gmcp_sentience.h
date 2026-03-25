@@ -475,12 +475,18 @@ json_t *sentience_build_room_map(const sentience_room_map_input_t *input);
 
 /* ── Channel.Message ──────────────────────────────────────────────── */
 
+#define SENTIENCE_MAX_CHANNEL_ACTIONS 4
+
 typedef struct {
     const char *channel;      /* Channel ID (e.g. "gossip", "say") */
     const char *sender;       /* Sender name ("" for system messages) */
     const char *text;         /* Message text (color-stripped) */
     long        timestamp;    /* Unix timestamp */
     const char *tell_target;  /* Recipient name (NULL if not directed) */
+    /* New fields */
+    const char *report_id;
+    int num_actions;
+    sentience_item_action_t actions[SENTIENCE_MAX_CHANNEL_ACTIONS];
 } sentience_channel_message_input_t;
 
 json_t *sentience_build_channel_message(const sentience_channel_message_input_t *input);
