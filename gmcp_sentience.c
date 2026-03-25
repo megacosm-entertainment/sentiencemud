@@ -836,7 +836,7 @@ void sentience_gmcp_update(descriptor_t *d)
 
     /* On first send, mark everything dirty */
     if (!cache->initialized)
-        dirty = 0xFF;
+        dirty = SENTIENCE_DIRTY_ALL;
 
     /* Vitals */
     if (ch->hit != cache->hp || ch->max_hit != cache->max_hp

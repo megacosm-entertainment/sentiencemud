@@ -30,7 +30,15 @@ typedef enum {
     SENTIENCE_DIRTY_ROOM      = (1 << 5),
     SENTIENCE_DIRTY_AFFECTS   = (1 << 6),
     SENTIENCE_DIRTY_ENEMIES   = (1 << 7),
+    SENTIENCE_DIRTY_INVENTORY   = (1 << 8),
+    SENTIENCE_DIRTY_EQUIPMENT   = (1 << 9),
+    SENTIENCE_DIRTY_ABILITIES   = (1 << 10),
+    SENTIENCE_DIRTY_REPUTATIONS = (1 << 11),
+    SENTIENCE_DIRTY_CHURCH      = (1 << 12),
+    SENTIENCE_DIRTY_RACE        = (1 << 13),
 } sentience_dirty_t;
+
+#define SENTIENCE_DIRTY_ALL  0x3FFF
 
 #define SENTIENCE_PACKAGE_VERSION 1
 
@@ -87,6 +95,23 @@ typedef struct {
 
     /* Phase 3: Combat transition detection */
     bool was_fighting;
+
+    /* Phase 4: Inventory/Equipment fingerprint */
+    int inventory_count;
+    int equipment_count;
+
+    /* Phase 4: Abilities fingerprint (set to -1 to force rebuild) */
+    int abilities_count;
+
+    /* Phase 4: Reputations fingerprint (set to -1 to force rebuild) */
+    int reputation_count;
+
+    /* Phase 4: Church change detection */
+    bool has_church;
+    long church_uid;
+
+    /* Phase 4: Race change detection */
+    int16_t race_uid;
 
     /* Tracks which packages have been sent at least once */
     bool initialized;
