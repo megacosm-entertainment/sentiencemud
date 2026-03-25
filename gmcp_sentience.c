@@ -504,6 +504,71 @@ json_t *sentience_build_preferences_json(const sentience_preferences_input_t *in
     return obj;
 }
 
+json_t *sentience_build_inventory_json(const sentience_inventory_input_t *input)
+{
+    json_t *obj, *items_arr, *capacity;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    items_arr = json_array();
+    for (i = 0; i < input->num_items; i++) {
+        const sentience_inventory_item_t *item = &input->items[i];
+        json_t *jitem = json_object();
+        json_t *id_arr, *flags_arr, *actions_arr;
+        int j;
+
+        /* ID as 2-element array */
+        id_arr = json_array();
+        json_array_append_new(id_arr, json_integer(item->id[0]));
+        json_array_append_new(id_arr, json_integer(item->id[1]));
+        json_object_set_new(jitem, "id", id_arr);
+
+        json_object_set_new(jitem, "name", json_string(item->name ? item->name : ""));
+        json_object_set_new(jitem, "keywords", json_string(item->keywords ? item->keywords : ""));
+        json_object_set_new(jitem, "keyword", json_string(item->keyword ? item->keyword : ""));
+        json_object_set_new(jitem, "item_type", json_string(item->item_type ? item->item_type : ""));
+        json_object_set_new(jitem, "level", json_integer(item->level));
+        json_object_set_new(jitem, "weight", json_integer(item->weight));
+        json_object_set_new(jitem, "condition", json_integer(item->condition));
+        json_object_set_new(jitem, "condition_label", json_string(item->condition_label ? item->condition_label : ""));
+        json_object_set_new(jitem, "item_count", json_integer(item->item_count));
+
+        /* Flags array */
+        flags_arr = json_array();
+        for (j = 0; j < item->num_flags; j++)
+            json_array_append_new(flags_arr, json_string(item->flags[j] ? item->flags[j] : ""));
+        json_object_set_new(jitem, "flags", flags_arr);
+
+        /* Actions array */
+        actions_arr = json_array();
+        for (j = 0; j < item->num_actions; j++) {
+            json_t *action = json_object();
+            json_object_set_new(action, "label", json_string(item->actions[j].label ? item->actions[j].label : ""));
+            json_object_set_new(action, "cmd", json_string(item->actions[j].cmd ? item->actions[j].cmd : ""));
+            json_array_append_new(actions_arr, action);
+        }
+        json_object_set_new(jitem, "actions", actions_arr);
+
+        json_array_append_new(items_arr, jitem);
+    }
+    json_object_set_new(obj, "items", items_arr);
+
+    /* Capacity object */
+    capacity = json_object();
+    json_object_set_new(capacity, "items", json_integer(input->capacity_current_items));
+    json_object_set_new(capacity, "max_items", json_integer(input->capacity_max_items));
+    json_object_set_new(capacity, "weight", json_integer(input->capacity_current_weight));
+    json_object_set_new(capacity, "max_weight", json_integer(input->capacity_max_weight));
+    json_object_set_new(capacity, "coin_weight", json_integer(input->capacity_coin_weight));
+    json_object_set_new(obj, "capacity", capacity);
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *
@@ -516,6 +581,8 @@ void sentience_send_client_preferences(descriptor_t *d)
     ACCOUNT_DATA *account = NULL;
     bool account_loaded = false;
     sentience_preferences_input_t input = {0};
+    PREF_ENTRY *pref;
+    json_t *obj;
     int i;
 
     if (!d || !d->character)
@@ -533,7 +600,7 @@ void sentience_send_client_preferences(descriptor_t *d)
         entry->key = pc_set_table[i].name;
         entry->category = "toggle";
         entry->type = "bool";
-        entry->label = pc_set_table[i].name; /* Use the key as label for now */
+        entry->label = pc_set_table[i].name;
 
         entry->source = pref_source_name(pref_get_source(account, ch, pc_set_table[i].name));
         entry->value_bool = pref_get_bool(account, ch, pc_set_table[i].name, 
@@ -543,18 +610,19 @@ void sentience_send_client_preferences(descriptor_t *d)
     }
 
     /* Walk game_settings.pref_defaults for non-toggle preferences */
-    PREF_ENTRY *pref;
     for (pref = game_settings.pref_defaults; pref && input.num_prefs < SENTIENCE_MAX_PREFERENCES; pref = pref->next) {
+        sentience_pref_entry_t *entry;
+
         /* Skip toggles already handled above */
         if (pref->category == PREF_CAT_TOGGLE)
             continue;
 
-        sentience_pref_entry_t *entry = &input.prefs[input.num_prefs];
+        entry = &input.prefs[input.num_prefs];
 
         entry->key = pref->key;
         entry->category = pref_category_name(pref->category);
         entry->type = pref_type_name(pref->type);
-        entry->label = pref->key; /* For now, use key as label */
+        entry->label = pref->key;
         entry->source = pref_source_name(pref_get_source(account, ch, pref->key));
 
         switch (pref->type) {
@@ -570,13 +638,15 @@ void sentience_send_client_preferences(descriptor_t *d)
             case PREF_TYPE_BITFIELD:
                 entry->value_int = (int) pref_get_bitfield(account, ch, pref->key, pref->val.bits);
                 break;
+            default:
+                break;
         }
 
         input.num_prefs++;
     }
 
     /* Build and send JSON */
-    json_t *obj = sentience_build_preferences_json(&input);
+    obj = sentience_build_preferences_json(&input);
     if (obj) {
         sentience_send_package(d, "Sentience.Client.Preferences", obj);
     }

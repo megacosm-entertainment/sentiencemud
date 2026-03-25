@@ -178,6 +178,44 @@ typedef struct {
 
 json_t *sentience_build_preferences_json(const sentience_preferences_input_t *input);
 
+#define SENTIENCE_MAX_INVENTORY    128
+#define SENTIENCE_MAX_ITEM_ACTIONS 8
+#define SENTIENCE_MAX_ITEM_FLAGS   8
+
+typedef struct {
+    const char *label;
+    const char *cmd;
+} sentience_item_action_t;
+
+typedef struct {
+    const char *name;           /* short_descr */
+    const char *keywords;       /* full obj->name string for display */
+    const char *keyword;        /* first keyword with N. prefix if needed */
+    unsigned long id[2];        /* instance ID — emitted as JSON array [id0, id1] */
+    const char *item_type;      /* item_type_info name */
+    int condition;              /* integer 0-100 */
+    const char *condition_label;/* damage table name string */
+    int level;
+    int weight;
+    int item_count;             /* container: number of visible items inside, else 0 */
+    int num_flags;
+    const char *flags[SENTIENCE_MAX_ITEM_FLAGS];
+    int num_actions;
+    sentience_item_action_t actions[SENTIENCE_MAX_ITEM_ACTIONS];
+} sentience_inventory_item_t;
+
+typedef struct {
+    int num_items;
+    sentience_inventory_item_t items[SENTIENCE_MAX_INVENTORY];
+    int capacity_max_weight;
+    int capacity_current_weight;
+    int capacity_max_items;
+    int capacity_current_items;
+    int capacity_coin_weight;
+} sentience_inventory_input_t;
+
+json_t *sentience_build_inventory_json(const sentience_inventory_input_t *input);
+
 /*
  * Room builder input.
  */

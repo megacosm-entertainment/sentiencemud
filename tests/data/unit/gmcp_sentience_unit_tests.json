@@ -1241,6 +1241,121 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_inventory",
+      "description": "Inventory builder produces correct JSON structure with actions and disambiguation",
+      "input": {
+        "function": "build_inventory",
+        "test_cases": [
+          {
+            "scenario": "basic_inventory",
+            "params": {
+              "items": [
+                {
+                  "name": "a sharp sword",
+                  "keywords": "sharp sword",
+                  "keyword": "sword",
+                  "id": [196228330, 1],
+                  "item_type": "weapon",
+                  "condition": 85,
+                  "condition_label": "Used",
+                  "level": 15,
+                  "weight": 5,
+                  "item_count": 0,
+                  "flags": ["glow", "magic"],
+                  "actions": [
+                    {"label": "Wear", "cmd": "wear sword"},
+                    {"label": "Drop", "cmd": "drop sword"},
+                    {"label": "Examine", "cmd": "examine sword"}
+                  ]
+                },
+                {
+                  "name": "a healing potion",
+                  "keywords": "healing potion",
+                  "keyword": "potion",
+                  "id": [196228330, 5],
+                  "item_type": "potion",
+                  "condition": 100,
+                  "condition_label": "",
+                  "level": 10,
+                  "weight": 1,
+                  "item_count": 0,
+                  "flags": ["magic"],
+                  "actions": [
+                    {"label": "Quaff", "cmd": "quaff potion"},
+                    {"label": "Drop", "cmd": "drop potion"},
+                    {"label": "Examine", "cmd": "examine potion"}
+                  ]
+                },
+                {
+                  "name": "a healing potion",
+                  "keywords": "healing potion",
+                  "keyword": "2.potion",
+                  "id": [196228330, 6],
+                  "item_type": "potion",
+                  "condition": 100,
+                  "condition_label": "",
+                  "level": 10,
+                  "weight": 1,
+                  "item_count": 0,
+                  "flags": ["magic"],
+                  "actions": [
+                    {"label": "Quaff", "cmd": "quaff 2.potion"},
+                    {"label": "Drop", "cmd": "drop 2.potion"},
+                    {"label": "Examine", "cmd": "examine 2.potion"}
+                  ]
+                }
+              ],
+              "capacity": {
+                "items": 3,
+                "max_items": 30,
+                "weight": 11,
+                "max_weight": 200,
+                "coin_weight": 3
+              }
+            },
+            "expected": {
+              "_v": 1,
+              "items_count": 3,
+              "first_item_name": "a sharp sword",
+              "first_item_type": "weapon",
+              "first_item_condition": 85,
+              "first_item_id_0": 196228330,
+              "first_item_id_1": 1,
+              "first_item_flags_count": 2,
+              "first_item_actions_count": 3,
+              "second_item_keyword": "potion",
+              "third_item_keyword": "2.potion",
+              "capacity_items": 3,
+              "capacity_max_items": 30,
+              "capacity_weight": 11,
+              "capacity_max_weight": 200
+            }
+          },
+          {
+            "scenario": "empty_inventory",
+            "params": {
+              "items": [],
+              "capacity": {
+                "items": 0,
+                "max_items": 30,
+                "weight": 0,
+                "max_weight": 200,
+                "coin_weight": 0
+              }
+            },
+            "expected": {
+              "_v": 1,
+              "items_count": 0,
+              "capacity_items": 0,
+              "capacity_max_items": 30
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }

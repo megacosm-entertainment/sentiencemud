@@ -25,6 +25,7 @@ static test_result_t run_gmcp_layout_name_validation_scenario(json_t *tc);
 static test_result_t run_gmcp_layout_storage_scenario(json_t *tc);
 static test_result_t run_gmcp_auth_qrcode_scenario(json_t *tc);
 static test_result_t run_gmcp_preferences_scenario(json_t *tc);
+static test_result_t run_gmcp_inventory_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -1044,6 +1045,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_auth_qrcode_scenario(tc);
         } else if (strcmp(func_name, "build_preferences") == 0) {
             result = run_gmcp_preferences_scenario(tc);
+        } else if (strcmp(func_name, "build_inventory") == 0) {
+            result = run_gmcp_inventory_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);
@@ -1054,6 +1057,193 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             return result;
     }
 
+    return TEST_SUCCESS;
+}
+
+/* --- Inventory scenario --- */
+
+static test_result_t run_gmcp_inventory_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    json_t *result;
+    sentience_inventory_input_t input = {0};
+    size_t i, j;
+
+    if (!params || !expected) return TEST_ERROR;
+
+    /* Parse items array */
+    json_t *items_arr = json_object_get(params, "items");
+    if (items_arr && json_is_array(items_arr)) {
+        input.num_items = (int)json_array_size(items_arr);
+        if (input.num_items > SENTIENCE_MAX_INVENTORY)
+            input.num_items = SENTIENCE_MAX_INVENTORY;
+
+        for (i = 0; i < (size_t)input.num_items; i++) {
+            json_t *item = json_array_get(items_arr, i);
+            sentience_inventory_item_t *inv_item = &input.items[i];
+
+            inv_item->name = json_string_value(json_object_get(item, "name"));
+            inv_item->keywords = json_string_value(json_object_get(item, "keywords"));
+            inv_item->keyword = json_string_value(json_object_get(item, "keyword"));
+            inv_item->item_type = json_string_value(json_object_get(item, "item_type"));
+            inv_item->condition = (int)json_integer_value(json_object_get(item, "condition"));
+            inv_item->condition_label = json_string_value(json_object_get(item, "condition_label"));
+            inv_item->level = (int)json_integer_value(json_object_get(item, "level"));
+            inv_item->weight = (int)json_integer_value(json_object_get(item, "weight"));
+            inv_item->item_count = (int)json_integer_value(json_object_get(item, "item_count"));
+
+            /* Parse ID array */
+            json_t *id_arr = json_object_get(item, "id");
+            if (id_arr && json_is_array(id_arr)) {
+                inv_item->id[0] = (unsigned long)json_integer_value(json_array_get(id_arr, 0));
+                inv_item->id[1] = (unsigned long)json_integer_value(json_array_get(id_arr, 1));
+            }
+
+            /* Parse flags array */
+            json_t *flags_arr = json_object_get(item, "flags");
+            if (flags_arr && json_is_array(flags_arr)) {
+                inv_item->num_flags = (int)json_array_size(flags_arr);
+                if (inv_item->num_flags > SENTIENCE_MAX_ITEM_FLAGS)
+                    inv_item->num_flags = SENTIENCE_MAX_ITEM_FLAGS;
+                for (j = 0; j < (size_t)inv_item->num_flags; j++) {
+                    inv_item->flags[j] = json_string_value(json_array_get(flags_arr, j));
+                }
+            }
+
+            /* Parse actions array */
+            json_t *actions_arr = json_object_get(item, "actions");
+            if (actions_arr && json_is_array(actions_arr)) {
+                inv_item->num_actions = (int)json_array_size(actions_arr);
+                if (inv_item->num_actions > SENTIENCE_MAX_ITEM_ACTIONS)
+                    inv_item->num_actions = SENTIENCE_MAX_ITEM_ACTIONS;
+                for (j = 0; j < (size_t)inv_item->num_actions; j++) {
+                    json_t *action = json_array_get(actions_arr, j);
+                    inv_item->actions[j].label = json_string_value(json_object_get(action, "label"));
+                    inv_item->actions[j].cmd = json_string_value(json_object_get(action, "cmd"));
+                }
+            }
+        }
+    }
+
+    /* Parse capacity object */
+    json_t *capacity = json_object_get(params, "capacity");
+    if (capacity) {
+        input.capacity_current_items = (int)json_integer_value(json_object_get(capacity, "items"));
+        input.capacity_max_items = (int)json_integer_value(json_object_get(capacity, "max_items"));
+        input.capacity_current_weight = (int)json_integer_value(json_object_get(capacity, "weight"));
+        input.capacity_max_weight = (int)json_integer_value(json_object_get(capacity, "max_weight"));
+        input.capacity_coin_weight = (int)json_integer_value(json_object_get(capacity, "coin_weight"));
+    }
+
+    /* Call the builder function */
+    result = sentience_build_inventory_json(&input);
+    TEST_ASSERT_NOT_NULL(result);
+
+    /* Check expected values */
+    TEST_ASSERT_INT_EQ(SENTIENCE_PACKAGE_VERSION,
+                       json_integer_value(json_object_get(result, "_v")));
+
+    if (json_object_get(expected, "items_count")) {
+        json_t *items_result = json_object_get(result, "items");
+        TEST_ASSERT_NOT_NULL(items_result);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "items_count")),
+                           (long)json_array_size(items_result));
+    }
+
+    if (json_object_get(expected, "first_item_name")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *first_item = json_array_get(items_result, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_item_name")),
+                           json_string_value(json_object_get(first_item, "name")));
+    }
+
+    if (json_object_get(expected, "first_item_type")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *first_item = json_array_get(items_result, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_item_type")),
+                           json_string_value(json_object_get(first_item, "item_type")));
+    }
+
+    if (json_object_get(expected, "first_item_condition")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *first_item = json_array_get(items_result, 0);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_condition")),
+                           json_integer_value(json_object_get(first_item, "condition")));
+    }
+
+    if (json_object_get(expected, "first_item_id_0")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *first_item = json_array_get(items_result, 0);
+        json_t *id_arr = json_object_get(first_item, "id");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_id_0")),
+                           json_integer_value(json_array_get(id_arr, 0)));
+    }
+
+    if (json_object_get(expected, "first_item_id_1")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *first_item = json_array_get(items_result, 0);
+        json_t *id_arr = json_object_get(first_item, "id");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_id_1")),
+                           json_integer_value(json_array_get(id_arr, 1)));
+    }
+
+    if (json_object_get(expected, "first_item_flags_count")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *first_item = json_array_get(items_result, 0);
+        json_t *flags_arr = json_object_get(first_item, "flags");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_flags_count")),
+                           (long)json_array_size(flags_arr));
+    }
+
+    if (json_object_get(expected, "first_item_actions_count")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *first_item = json_array_get(items_result, 0);
+        json_t *actions_arr = json_object_get(first_item, "actions");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_item_actions_count")),
+                           (long)json_array_size(actions_arr));
+    }
+
+    if (json_object_get(expected, "second_item_keyword")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *second_item = json_array_get(items_result, 1);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "second_item_keyword")),
+                           json_string_value(json_object_get(second_item, "keyword")));
+    }
+
+    if (json_object_get(expected, "third_item_keyword")) {
+        json_t *items_result = json_object_get(result, "items");
+        json_t *third_item = json_array_get(items_result, 2);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "third_item_keyword")),
+                           json_string_value(json_object_get(third_item, "keyword")));
+    }
+
+    /* Check capacity values */
+    if (json_object_get(expected, "capacity_items")) {
+        json_t *capacity_result = json_object_get(result, "capacity");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "capacity_items")),
+                           json_integer_value(json_object_get(capacity_result, "items")));
+    }
+
+    if (json_object_get(expected, "capacity_max_items")) {
+        json_t *capacity_result = json_object_get(result, "capacity");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "capacity_max_items")),
+                           json_integer_value(json_object_get(capacity_result, "max_items")));
+    }
+
+    if (json_object_get(expected, "capacity_weight")) {
+        json_t *capacity_result = json_object_get(result, "capacity");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "capacity_weight")),
+                           json_integer_value(json_object_get(capacity_result, "weight")));
+    }
+
+    if (json_object_get(expected, "capacity_max_weight")) {
+        json_t *capacity_result = json_object_get(result, "capacity");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "capacity_max_weight")),
+                           json_integer_value(json_object_get(capacity_result, "max_weight")));
+    }
+
+    json_decref(result);
     return TEST_SUCCESS;
 }
 
