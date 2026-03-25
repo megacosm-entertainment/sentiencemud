@@ -28,6 +28,7 @@ static test_result_t run_gmcp_auth_qrcode_scenario(json_t *tc);
 static test_result_t run_gmcp_preferences_scenario(json_t *tc);
 static test_result_t run_gmcp_inventory_scenario(json_t *tc);
 static test_result_t run_gmcp_equipment_scenario(json_t *tc);
+static test_result_t run_gmcp_abilities_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -1264,6 +1265,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_inventory_scenario(tc);
         } else if (strcmp(func_name, "build_equipment") == 0) {
             result = run_gmcp_equipment_scenario(tc);
+        } else if (strcmp(func_name, "build_abilities") == 0) {
+            result = run_gmcp_abilities_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);
@@ -1645,6 +1648,155 @@ static test_result_t run_gmcp_equipment_scenario(json_t *tc)
         json_t *third_item = json_object_get(third_slot, "item");
         TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "third_item_name")),
                            json_string_value(json_object_get(third_item, "name")));
+    }
+
+    json_decref(result);
+    return TEST_SUCCESS;
+}
+
+static test_result_t run_gmcp_abilities_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    json_t *result;
+    sentience_abilities_input_t input = {0};
+    size_t i, j;
+
+    if (!params || !expected) return TEST_ERROR;
+
+    /* Parse abilities array */
+    json_t *abilities_arr = json_object_get(params, "abilities");
+    if (abilities_arr && json_is_array(abilities_arr)) {
+        input.num_abilities = (int)json_array_size(abilities_arr);
+        if (input.num_abilities > SENTIENCE_MAX_ABILITIES)
+            input.num_abilities = SENTIENCE_MAX_ABILITIES;
+
+        for (i = 0; i < (size_t)input.num_abilities; i++) {
+            json_t *ability = json_array_get(abilities_arr, i);
+            sentience_ability_t *ab = &input.abilities[i];
+
+            ab->name = json_string_value(json_object_get(ability, "name"));
+            ab->type = json_string_value(json_object_get(ability, "type"));
+            ab->available = json_boolean_value(json_object_get(ability, "available"));
+            ab->rating = (int)json_integer_value(json_object_get(ability, "rating"));
+            ab->modifier = (int)json_integer_value(json_object_get(ability, "modifier"));
+            ab->mana = (int)json_integer_value(json_object_get(ability, "mana"));
+            ab->level = (int)json_integer_value(json_object_get(ability, "level"));
+            ab->target = json_string_value(json_object_get(ability, "target"));
+            ab->can_practice = json_boolean_value(json_object_get(ability, "can_practice"));
+            ab->learn_rate = (int)json_integer_value(json_object_get(ability, "learn_rate"));
+
+            /* Parse actions array */
+            json_t *actions_arr = json_object_get(ability, "actions");
+            if (actions_arr && json_is_array(actions_arr)) {
+                ab->num_actions = (int)json_array_size(actions_arr);
+                if (ab->num_actions > 2)
+                    ab->num_actions = 2;
+                for (j = 0; j < (size_t)ab->num_actions; j++) {
+                    json_t *action = json_array_get(actions_arr, j);
+                    ab->actions[j].label = json_string_value(json_object_get(action, "label"));
+                    ab->actions[j].cmd = json_string_value(json_object_get(action, "cmd"));
+                }
+            }
+        }
+    }
+
+    /* Call the builder function */
+    result = sentience_build_abilities_json(&input);
+    TEST_ASSERT_NOT_NULL(result);
+
+    /* Check expected values */
+    TEST_ASSERT_INT_EQ(SENTIENCE_PACKAGE_VERSION,
+                       json_integer_value(json_object_get(result, "_v")));
+
+    if (json_object_get(expected, "abilities_count")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        TEST_ASSERT_NOT_NULL(abilities_result);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "abilities_count")),
+                           (long)json_array_size(abilities_result));
+    }
+
+    if (json_object_get(expected, "first_ability_name")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *first_ability = json_array_get(abilities_result, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_ability_name")),
+                           json_string_value(json_object_get(first_ability, "name")));
+    }
+
+    if (json_object_get(expected, "first_ability_type")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *first_ability = json_array_get(abilities_result, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_ability_type")),
+                           json_string_value(json_object_get(first_ability, "type")));
+    }
+
+    if (json_object_get(expected, "first_ability_available")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *first_ability = json_array_get(abilities_result, 0);
+        bool expected_available = json_boolean_value(json_object_get(expected, "first_ability_available"));
+        bool actual_available = json_boolean_value(json_object_get(first_ability, "available"));
+        TEST_ASSERT_TRUE(expected_available == actual_available);
+    }
+
+    if (json_object_get(expected, "first_ability_rating")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *first_ability = json_array_get(abilities_result, 0);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_ability_rating")),
+                           json_integer_value(json_object_get(first_ability, "rating")));
+    }
+
+    if (json_object_get(expected, "first_ability_mana")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *first_ability = json_array_get(abilities_result, 0);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_ability_mana")),
+                           json_integer_value(json_object_get(first_ability, "mana")));
+    }
+
+    if (json_object_get(expected, "first_ability_actions_count")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *first_ability = json_array_get(abilities_result, 0);
+        json_t *actions_arr = json_object_get(first_ability, "actions");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_ability_actions_count")),
+                           (long)json_array_size(actions_arr));
+    }
+
+    if (json_object_get(expected, "first_ability_action_label")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *first_ability = json_array_get(abilities_result, 0);
+        json_t *actions_arr = json_object_get(first_ability, "actions");
+        json_t *first_action = json_array_get(actions_arr, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_ability_action_label")),
+                           json_string_value(json_object_get(first_action, "label")));
+    }
+
+    if (json_object_get(expected, "second_ability_target")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *second_ability = json_array_get(abilities_result, 1);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "second_ability_target")),
+                           json_string_value(json_object_get(second_ability, "target")));
+    }
+
+    if (json_object_get(expected, "second_ability_actions_count")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *second_ability = json_array_get(abilities_result, 1);
+        json_t *actions_arr = json_object_get(second_ability, "actions");
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "second_ability_actions_count")),
+                           (long)json_array_size(actions_arr));
+    }
+
+    if (json_object_get(expected, "third_ability_type")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *third_ability = json_array_get(abilities_result, 2);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "third_ability_type")),
+                           json_string_value(json_object_get(third_ability, "type")));
+    }
+
+    if (json_object_get(expected, "fourth_ability_available")) {
+        json_t *abilities_result = json_object_get(result, "abilities");
+        json_t *fourth_ability = json_array_get(abilities_result, 3);
+        bool expected_available = json_boolean_value(json_object_get(expected, "fourth_ability_available"));
+        bool actual_available = json_boolean_value(json_object_get(fourth_ability, "available"));
+        TEST_ASSERT_TRUE(expected_available == actual_available);
     }
 
     json_decref(result);

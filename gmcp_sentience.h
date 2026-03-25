@@ -306,6 +306,33 @@ typedef struct {
 json_t *sentience_build_equipment_json(const sentience_equipment_input_t *input);
 
 /*
+ * Abilities builder input — unified skills, spells, and songs.
+ */
+#define SENTIENCE_MAX_ABILITIES 256
+
+typedef struct {
+    const char *name;
+    const char *type;           /* "skill", "spell", "song" */
+    bool available;
+    int rating;
+    int modifier;
+    int mana;
+    int level;
+    const char *target;         /* "offensive", "defensive", "self", "object", "passive", "ignore" */
+    bool can_practice;
+    int learn_rate;
+    int num_actions;
+    sentience_item_action_t actions[2];  /* Cast/Play/Use at most */
+} sentience_ability_t;
+
+typedef struct {
+    int num_abilities;
+    sentience_ability_t abilities[SENTIENCE_MAX_ABILITIES];
+} sentience_abilities_input_t;
+
+json_t *sentience_build_abilities_json(const sentience_abilities_input_t *input);
+
+/*
  * Room builder input.
  */
 typedef struct {

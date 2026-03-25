@@ -1536,6 +1536,84 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_abilities_mixed",
+      "description": "Abilities builder with skills, spells, songs, and passives",
+      "input": {
+        "function": "build_abilities",
+        "test_cases": [
+          {
+            "scenario": "mixed_abilities",
+            "params": {
+              "abilities": [
+                {
+                  "name": "fireball", "type": "spell", "available": true,
+                  "rating": 85, "modifier": 10, "mana": 25, "level": 15,
+                  "target": "offensive", "can_practice": true, "learn_rate": 5,
+                  "actions": [{"label": "Cast", "cmd": "cast 'fireball'"}]
+                },
+                {
+                  "name": "dodge", "type": "skill", "available": true,
+                  "rating": 72, "modifier": 0, "mana": 0, "level": 1,
+                  "target": "passive", "can_practice": true, "learn_rate": 3,
+                  "actions": []
+                },
+                {
+                  "name": "battle hymn", "type": "song", "available": true,
+                  "rating": 60, "modifier": 5, "mana": 30, "level": 20,
+                  "target": "defensive", "can_practice": false, "learn_rate": 0,
+                  "actions": [{"label": "Play", "cmd": "play 'battle hymn'"}]
+                },
+                {
+                  "name": "meteor swarm", "type": "spell", "available": false,
+                  "rating": 0, "modifier": 0, "mana": 50, "level": 45,
+                  "target": "offensive", "can_practice": false, "learn_rate": 0,
+                  "actions": []
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "abilities_count": 4,
+              "first_ability_name": "fireball",
+              "first_ability_type": "spell",
+              "first_ability_available": true,
+              "first_ability_rating": 85,
+              "first_ability_mana": 25,
+              "first_ability_actions_count": 1,
+              "first_ability_action_label": "Cast",
+              "second_ability_target": "passive",
+              "second_ability_actions_count": 0,
+              "third_ability_type": "song",
+              "fourth_ability_available": false
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_abilities_empty",
+      "description": "Abilities builder with no abilities",
+      "input": {
+        "function": "build_abilities",
+        "test_cases": [
+          {
+            "scenario": "empty_abilities",
+            "params": {
+              "abilities": []
+            },
+            "expected": {
+              "_v": 1,
+              "abilities_count": 0
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }

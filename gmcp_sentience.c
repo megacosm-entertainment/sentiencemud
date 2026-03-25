@@ -760,6 +760,51 @@ json_t *sentience_build_equipment_json(const sentience_equipment_input_t *input)
     return obj;
 }
 
+json_t *sentience_build_abilities_json(const sentience_abilities_input_t *input)
+{
+    json_t *obj;
+    json_t *abilities;
+    int i, j;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    abilities = json_array();
+    for (i = 0; i < input->num_abilities; i++) {
+        const sentience_ability_t *a = &input->abilities[i];
+        json_t *ability = json_object();
+
+        json_object_set_new(ability, "name",         json_string(a->name ? a->name : ""));
+        json_object_set_new(ability, "type",         json_string(a->type ? a->type : "skill"));
+        json_object_set_new(ability, "available",    a->available ? json_true() : json_false());
+        json_object_set_new(ability, "rating",       json_integer(a->rating));
+        json_object_set_new(ability, "modifier",     json_integer(a->modifier));
+        json_object_set_new(ability, "mana",         json_integer(a->mana));
+        json_object_set_new(ability, "level",        json_integer(a->level));
+        json_object_set_new(ability, "target",       json_string(a->target ? a->target : ""));
+        json_object_set_new(ability, "can_practice", a->can_practice ? json_true() : json_false());
+        json_object_set_new(ability, "learn_rate",   json_integer(a->learn_rate));
+
+        json_t *actions = json_array();
+        for (j = 0; j < a->num_actions; j++) {
+            json_t *act = json_object();
+            json_object_set_new(act, "label", json_string(a->actions[j].label ? a->actions[j].label : ""));
+            json_object_set_new(act, "cmd",   json_string(a->actions[j].cmd ? a->actions[j].cmd : ""));
+            json_array_append_new(actions, act);
+        }
+        json_object_set_new(ability, "actions", actions);
+
+        json_array_append_new(abilities, ability);
+    }
+
+    json_object_set_new(obj, "abilities", abilities);
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *
