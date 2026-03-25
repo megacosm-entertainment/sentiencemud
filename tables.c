@@ -907,6 +907,7 @@ const struct flag_type comm_flags[] =
     {   "nomusic",		COMM_NOMUSIC,		true	},
     {   "noclan",		COMM_NOCT,		true	},
     {   "mxp",			COMM_MXP,		true	},
+    {   "links",			COMM_LINKS,		true	},
     {   "notify",		COMM_NOTIFY,		true	},
     {   "compact",		COMM_COMPACT,		true	},
     {   "brief",		COMM_BRIEF,		true	},

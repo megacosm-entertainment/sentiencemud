@@ -4085,6 +4085,7 @@ enum {
 #define COMM_NOHELPER           (G)
 #define COMM_NOCT		(H)
 #define COMM_MXP		(I) // MXP is a protocol for enhanced mud clients.
+#define COMM_LINKS		COMM_MXP // Unified link preference (alias for COMM_MXP)
 #define COMM_NOTIFY		(J)
 #define COMM_NOHINTS		(K)
 #define COMM_COMPACT		(L)

@@ -12,6 +12,7 @@
 #define PROTOCOL_H
 
 #include "gmcp_sentience.h"
+#include "sentience_link.h"
 
 /******************************************************************************
  Set your MUD_NAME, and change descriptor_t if necessary.
@@ -498,6 +499,7 @@ typedef struct
    char	*GMCPVariable[GMCP_MAX]; /* The message for each variable */
    uint32_t              sentience_dirty;     /* Sentience.* dirty bitmask */
    sentience_gmcp_cache_t sentience_cache;    /* Cached values for dirty tracking */
+   sentience_link_queue_t sentience_link_queue;
    /*************** END GMCP ***************/
 
 } protocol_t;

@@ -497,6 +497,7 @@ protocol_t *ProtocolCreate( void )
    /* Sentience GMCP cache */
    pProtocol->sentience_dirty = 0;
    sentience_gmcp_cache_reset(&pProtocol->sentience_cache);
+   sentience_link_queue_init(&pProtocol->sentience_link_queue);
    /*************** END GMCP ***************/
 
    return pProtocol;
@@ -521,6 +522,7 @@ void ProtocolDestroy( protocol_t *apProtocol )
       free( apProtocol->GMCPVariable[i] );
    /*************** END GMCP ***************/
 
+   sentience_link_queue_free(&apProtocol->sentience_link_queue);
    free(apProtocol);
 }
 
