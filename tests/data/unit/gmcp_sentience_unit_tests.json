@@ -1614,6 +1614,70 @@
         ]
       },
       "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_reputations_mixed",
+      "description": "Reputations builder with multiple factions",
+      "input": {
+        "function": "build_reputations",
+        "test_cases": [
+          {
+            "scenario": "mixed_reputations",
+            "params": {
+              "reputations": [
+                {
+                  "name": "Guardians of the Flame",
+                  "rank": "Honored",
+                  "rank_color": "{Y",
+                  "points": 4500,
+                  "paragon_level": 0,
+                  "max_rank": "Exalted"
+                },
+                {
+                  "name": "Shadow Covenant",
+                  "rank": "Hated",
+                  "rank_color": "{R",
+                  "points": -8000,
+                  "paragon_level": 0,
+                  "max_rank": "Neutral"
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "reputations_count": 2,
+              "first_rep_name": "Guardians of the Flame",
+              "first_rep_rank": "Honored",
+              "first_rep_points": 4500,
+              "second_rep_name": "Shadow Covenant",
+              "second_rep_points": -8000
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_reputations_empty",
+      "description": "Reputations builder with no factions",
+      "input": {
+        "function": "build_reputations",
+        "test_cases": [
+          {
+            "scenario": "empty_reputations",
+            "params": {
+              "reputations": []
+            },
+            "expected": {
+              "_v": 1,
+              "reputations_count": 0
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
     }
   ]
 }

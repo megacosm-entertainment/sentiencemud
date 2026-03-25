@@ -29,6 +29,7 @@ static test_result_t run_gmcp_preferences_scenario(json_t *tc);
 static test_result_t run_gmcp_inventory_scenario(json_t *tc);
 static test_result_t run_gmcp_equipment_scenario(json_t *tc);
 static test_result_t run_gmcp_abilities_scenario(json_t *tc);
+static test_result_t run_gmcp_reputations_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -1267,6 +1268,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_equipment_scenario(tc);
         } else if (strcmp(func_name, "build_abilities") == 0) {
             result = run_gmcp_abilities_scenario(tc);
+        } else if (strcmp(func_name, "build_reputations") == 0) {
+            result = run_gmcp_reputations_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);
@@ -1797,6 +1800,93 @@ static test_result_t run_gmcp_abilities_scenario(json_t *tc)
         bool expected_available = json_boolean_value(json_object_get(expected, "fourth_ability_available"));
         bool actual_available = json_boolean_value(json_object_get(fourth_ability, "available"));
         TEST_ASSERT_TRUE(expected_available == actual_available);
+    }
+
+    json_decref(result);
+    return TEST_SUCCESS;
+}
+
+static test_result_t run_gmcp_reputations_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    json_t *result;
+    sentience_reputations_input_t input;
+    size_t i;
+
+    if (!params || !expected) return TEST_ERROR;
+
+    /* Initialize input struct */
+    memset(&input, 0, sizeof(input));
+
+    /* Parse reputations array */
+    json_t *reputations_arr = json_object_get(params, "reputations");
+    if (reputations_arr && json_is_array(reputations_arr)) {
+        input.num_reputations = (int)json_array_size(reputations_arr);
+        if (input.num_reputations > SENTIENCE_MAX_REPUTATIONS)
+            input.num_reputations = SENTIENCE_MAX_REPUTATIONS;
+
+        for (i = 0; i < (size_t)input.num_reputations; i++) {
+            json_t *reputation = json_array_get(reputations_arr, i);
+            sentience_reputation_t *rep = &input.reputations[i];
+
+            rep->name = json_string_value(json_object_get(reputation, "name"));
+            rep->rank = json_string_value(json_object_get(reputation, "rank"));
+            rep->rank_color = json_string_value(json_object_get(reputation, "rank_color"));
+            rep->points = (int)json_integer_value(json_object_get(reputation, "points"));
+            rep->paragon_level = (int)json_integer_value(json_object_get(reputation, "paragon_level"));
+            rep->max_rank = json_string_value(json_object_get(reputation, "max_rank"));
+        }
+    }
+
+    /* Call the builder function */
+    result = sentience_build_reputations_json(&input);
+    TEST_ASSERT_NOT_NULL(result);
+
+    /* Check expected values */
+    TEST_ASSERT_INT_EQ(SENTIENCE_PACKAGE_VERSION,
+                       json_integer_value(json_object_get(result, "_v")));
+
+    if (json_object_get(expected, "reputations_count")) {
+        json_t *reputations_result = json_object_get(result, "reputations");
+        TEST_ASSERT_NOT_NULL(reputations_result);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "reputations_count")),
+                           (long)json_array_size(reputations_result));
+    }
+
+    if (json_object_get(expected, "first_rep_name")) {
+        json_t *reputations_result = json_object_get(result, "reputations");
+        json_t *first_rep = json_array_get(reputations_result, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_rep_name")),
+                           json_string_value(json_object_get(first_rep, "name")));
+    }
+
+    if (json_object_get(expected, "first_rep_rank")) {
+        json_t *reputations_result = json_object_get(result, "reputations");
+        json_t *first_rep = json_array_get(reputations_result, 0);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "first_rep_rank")),
+                           json_string_value(json_object_get(first_rep, "rank")));
+    }
+
+    if (json_object_get(expected, "first_rep_points")) {
+        json_t *reputations_result = json_object_get(result, "reputations");
+        json_t *first_rep = json_array_get(reputations_result, 0);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "first_rep_points")),
+                           json_integer_value(json_object_get(first_rep, "points")));
+    }
+
+    if (json_object_get(expected, "second_rep_name")) {
+        json_t *reputations_result = json_object_get(result, "reputations");
+        json_t *second_rep = json_array_get(reputations_result, 1);
+        TEST_ASSERT_STR_EQ(json_string_value(json_object_get(expected, "second_rep_name")),
+                           json_string_value(json_object_get(second_rep, "name")));
+    }
+
+    if (json_object_get(expected, "second_rep_points")) {
+        json_t *reputations_result = json_object_get(result, "reputations");
+        json_t *second_rep = json_array_get(reputations_result, 1);
+        TEST_ASSERT_INT_EQ(json_integer_value(json_object_get(expected, "second_rep_points")),
+                           json_integer_value(json_object_get(second_rep, "points")));
     }
 
     json_decref(result);

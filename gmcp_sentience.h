@@ -333,6 +333,27 @@ typedef struct {
 json_t *sentience_build_abilities_json(const sentience_abilities_input_t *input);
 
 /*
+ * Reputations builder input — faction standings.
+ */
+#define SENTIENCE_MAX_REPUTATIONS 32
+
+typedef struct {
+    const char *name;
+    const char *rank;
+    const char *rank_color;
+    int points;
+    int paragon_level;
+    const char *max_rank;
+} sentience_reputation_t;
+
+typedef struct {
+    int num_reputations;
+    sentience_reputation_t reputations[SENTIENCE_MAX_REPUTATIONS];
+} sentience_reputations_input_t;
+
+json_t *sentience_build_reputations_json(const sentience_reputations_input_t *input);
+
+/*
  * Room builder input.
  */
 typedef struct {

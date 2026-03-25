@@ -805,6 +805,38 @@ json_t *sentience_build_abilities_json(const sentience_abilities_input_t *input)
     return obj;
 }
 
+json_t *sentience_build_reputations_json(const sentience_reputations_input_t *input)
+{
+    json_t *obj;
+    json_t *reps;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    reps = json_array();
+    for (i = 0; i < input->num_reputations; i++) {
+        const sentience_reputation_t *r = &input->reputations[i];
+        json_t *rep = json_object();
+
+        json_object_set_new(rep, "name",          json_string(r->name ? r->name : ""));
+        json_object_set_new(rep, "rank",          json_string(r->rank ? r->rank : ""));
+        json_object_set_new(rep, "rank_color",    json_string(r->rank_color ? r->rank_color : ""));
+        json_object_set_new(rep, "points",        json_integer(r->points));
+        json_object_set_new(rep, "paragon_level", json_integer(r->paragon_level));
+        json_object_set_new(rep, "max_rank",      json_string(r->max_rank ? r->max_rank : ""));
+
+        json_array_append_new(reps, rep);
+    }
+
+    json_object_set_new(obj, "reputations", reps);
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *
