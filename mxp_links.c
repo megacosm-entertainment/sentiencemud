@@ -388,7 +388,7 @@ void mxp_player_link(descriptor_t *d, BUFFER *buf, const char *name,
     char c1[256];
 
     if (!name) { add_buf(buf, (text ? text : "")); return; }
-    if (!text) text = name;
+    if (!text || !text[0]) text = name;
 
     mode = link_mode(d);
     if (mode == LINK_NONE) { add_buf(buf, text); return; }

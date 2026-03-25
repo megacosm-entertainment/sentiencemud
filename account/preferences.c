@@ -14,6 +14,7 @@
 #include <ctype.h>
 
 #include "../merc.h"
+#include "../connection.h"
 #include "../interp.h"
 #include "../tables.h"
 #include "../io/json/json_game_settings.h"
@@ -2095,6 +2096,73 @@ bool pref_check_channel(CHAR_DATA *ch, const char *channel)
     return true;
 }
 
+/*
+ * GMCP preference accessors
+ */
+
+static bool pref_gmcp_get(CHAR_DATA *ch, const char *key)
+{
+    ACCOUNT_DATA *account;
+
+    if (!ch || IS_NPC(ch))
+        return false;
+
+    account = ch->desc ? ch->desc->account : NULL;
+    return pref_get_bool(account, ch, key, false);
+}
+
+bool pref_gmcp_channels(CHAR_DATA *ch)
+{
+    return pref_gmcp_get(ch, "gmcp_channels");
+}
+
+bool pref_gmcp_suppress_channels(CHAR_DATA *ch)
+{
+    return pref_gmcp_get(ch, "gmcp_suppress_channels");
+}
+
+bool pref_gmcp_suppress_minimap(CHAR_DATA *ch)
+{
+    return pref_gmcp_get(ch, "gmcp_suppress_minimap");
+}
+
+/**
+ * pref_apply_gmcp_defaults - Seed GMCP prefs based on connection type
+ */
+void pref_apply_gmcp_defaults(CHAR_DATA *ch)
+{
+    static const char *gmcp_keys[] = {
+        "gmcp_channels",
+        "gmcp_suppress_channels",
+        "gmcp_suppress_minimap",
+        NULL
+    };
+    ACCOUNT_DATA *account;
+    bool is_websocket;
+    int i;
+
+    if (!ch || IS_NPC(ch) || !ch->pcdata || !ch->desc)
+        return;
+
+    account = ch->desc->account;
+    is_websocket = (ch->desc->conn
+                    && ch->desc->conn->type == CONN_TYPE_WEBSOCKET_TLS);
+
+    for (i = 0; gmcp_keys[i]; i++) {
+        /* If a value exists anywhere in the chain, don't override */
+        if (ch->pcdata->preferences
+            && pref_find(ch->pcdata->preferences, gmcp_keys[i]))
+            continue;
+        if (account && account->preferences
+            && pref_find(account->preferences, gmcp_keys[i]))
+            continue;
+
+        /* No value anywhere — seed from connection type */
+        pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP,
+                      gmcp_keys[i], is_websocket);
+    }
+}
+
 /**
  * pref_check_index - Get the current boolean state of a pc_set_table entry
  *
@@ -2275,6 +2343,43 @@ static void show_prompt_settings(CHAR_DATA *ch)
     send_to_char(buf, ch);
 }
 
+static void show_gmcp_settings(CHAR_DATA *ch)
+{
+    static const struct {
+        const char *key;
+        const char *label;
+    } gmcp_prefs[] = {
+        { "gmcp_channels",          "GMCP Channel Data"        },
+        { "gmcp_suppress_channels", "Suppress Inline Channels" },
+        { "gmcp_suppress_minimap",  "Suppress Inline Minimap"  },
+        { NULL, NULL }
+    };
+    char buf[MAX_STRING_LENGTH];
+    ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
+    int i;
+
+    send_to_char("\n\r{C--- GMCP ---{x\n\r", ch);
+
+    for (i = 0; gmcp_prefs[i].key; i++) {
+        bool val = pref_get_bool(acct, ch, gmcp_prefs[i].key, false);
+        const char *source = "{D(def)";
+
+        if (ch->pcdata->preferences
+            && pref_find(ch->pcdata->preferences, gmcp_prefs[i].key))
+            source = "{Y(char)";
+        else if (acct && acct->preferences
+                 && pref_find(acct->preferences, gmcp_prefs[i].key))
+            source = "{C(acct)";
+
+        sprintf(buf, "  %-26s %s%-3s{x  %s{x\n\r",
+                gmcp_prefs[i].label,
+                val ? "{G" : "{R",
+                val ? "ON" : "OFF",
+                source);
+        send_to_char(buf, ch);
+    }
+}
+
 static void show_filter_settings(CHAR_DATA *ch)
 {
     ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
@@ -2429,6 +2534,7 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         show_channel_settings(ch);
         show_prompt_settings(ch);
         show_filter_settings(ch);
+        show_gmcp_settings(ch);
 
         /* Show override summary */
         int char_overrides = ch->pcdata->preferences
@@ -2684,6 +2790,39 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         }
 
         send_to_char("Syntax: prefs filter <simple|regex|clear> ...\n\r", ch);
+        return;
+    }
+
+    /* GMCP preference toggle */
+    if (!str_prefix("gmcp_", arg)) {
+        static const char *valid_gmcp_keys[] = {
+            "gmcp_channels", "gmcp_suppress_channels", "gmcp_suppress_minimap", NULL
+        };
+        int i;
+        bool found = false;
+
+        for (i = 0; valid_gmcp_keys[i]; i++) {
+            if (!str_cmp(arg, valid_gmcp_keys[i])) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            send_to_char("Unknown GMCP preference. Valid: gmcp_channels, "
+                         "gmcp_suppress_channels, gmcp_suppress_minimap\n\r", ch);
+            return;
+        }
+
+        {
+            ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
+            bool current = pref_get_bool(acct, ch, arg, false);
+            pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP, arg, !current);
+            save_char_obj(ch);
+
+            sprintf(buf, "%s is now %s{x.\n\r", arg, !current ? "{GON" : "{ROFF");
+            send_to_char(buf, ch);
+        }
         return;
     }
 

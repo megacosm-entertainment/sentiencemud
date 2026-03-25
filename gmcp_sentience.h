@@ -78,6 +78,16 @@ typedef struct {
     /* Room */
     long room_id0, room_id1;
 
+    /* Phase 3: Room contents fingerprint (separate from Phase 1 room_id0/room_id1) */
+    long contents_room_id[2];
+    int contents_count;
+
+    /* Phase 3: Affects transition detection */
+    bool had_affects;
+
+    /* Phase 3: Combat transition detection */
+    bool was_fighting;
+
     /* Tracks which packages have been sent at least once */
     bool initialized;
 } sentience_gmcp_cache_t;
@@ -147,7 +157,99 @@ typedef struct {
     } exits[10]; /* N,E,S,W,U,D + diagonals */
 } sentience_room_input_t;
 
+/*
+ * Phase 3 input structs — Affects, Enemies, Room Contents
+ */
+
+/* Char.Affects input — one per active affect */
+typedef struct {
+    const char *name;           /* af->skill->name or af->custom_name */
+    const char *wnum;           /* af->skill wnum string, NULL if none */
+    int duration;               /* remaining ticks, -1 for permanent */
+    int estimated_seconds;      /* duration * PULSE_TICK / PULSE_PER_SECOND, -1 if permanent */
+    const char *modifier;       /* human-readable, e.g. "+2 strength"; NULL if APPLY_NONE/0 */
+    int level;
+} sentience_affect_input_t;
+
+/* Char.Enemies input — one per enemy in combat */
+typedef struct {
+    const char *name;           /* short_descr for NPCs, name for players */
+    unsigned long instance_id[2];
+    int hp_pct;                 /* 0-100 */
+    bool is_primary;            /* true if this is ch->fighting */
+    const char *target;         /* "you" or target name */
+} sentience_enemy_input_t;
+
+/* Room.Contents entity (item, NPC, or player) */
+typedef struct {
+    const char *name;
+    unsigned long instance_id[2];
+    const char *short_desc;     /* NULL for players */
+} sentience_room_entity_input_t;
+
+/* Room.Contents door */
+typedef struct {
+    const char *direction;
+    const char *state;          /* "open", "closed", "locked" */
+    bool is_locked;
+} sentience_room_door_input_t;
+
+/* Room.Contents full snapshot */
+typedef struct {
+    const sentience_room_entity_input_t *items;
+    int num_items;
+    const sentience_room_entity_input_t *npcs;
+    int num_npcs;
+    const sentience_room_entity_input_t *players;
+    int num_players;
+    const sentience_room_door_input_t *doors;
+    int num_doors;
+} sentience_room_contents_input_t;
+
+/* Room.Map input — pre-rendered map for GMCP delivery */
+typedef struct {
+    const char *type;       /* "area" or "wilds" */
+    const char *map_text;   /* Pre-rendered map string with MUD color codes */
+    int width;              /* Character columns */
+    int height;             /* Character rows */
+} sentience_room_map_input_t;
+
 json_t *sentience_build_room_json(const sentience_room_input_t *data);
+
+/*
+ * Phase 3 JSON builder functions.
+ */
+json_t *sentience_build_client_ready_capabilities_json(void);
+json_t *sentience_build_client_ready_state_json(int tick_rate, int pulse_per_second);
+json_t *sentience_build_affects_json(const sentience_affect_input_t *affects, int num_affects);
+json_t *sentience_build_enemies_json(const sentience_enemy_input_t *enemies, int num_enemies,
+                                      long self_hp, long self_max_hp);
+json_t *sentience_build_room_contents_json(const sentience_room_contents_input_t *data);
+json_t *sentience_build_room_map(const sentience_room_map_input_t *input);
+
+/* ── Channel.Message ──────────────────────────────────────────────── */
+
+typedef struct {
+    const char *channel;      /* Channel ID (e.g. "gossip", "say") */
+    const char *sender;       /* Sender name ("" for system messages) */
+    const char *text;         /* Message text (color-stripped) */
+    long        timestamp;    /* Unix timestamp */
+    const char *tell_target;  /* Recipient name (NULL if not directed) */
+} sentience_channel_message_input_t;
+
+json_t *sentience_build_channel_message(const sentience_channel_message_input_t *input);
+
+/*
+ * Send a pre-built JSON object as a named GMCP package to a descriptor.
+ * Takes ownership of the json_t (decrefs after sending).
+ */
+void sentience_send_package(descriptor_t *d, const char *package, json_t *json);
+
+/*
+ * Send current GMCP preference state to the client.
+ * Called on login and after preference updates from Sentience.Client.Preferences.
+ */
+void sentience_send_client_preferences(descriptor_t *d);
 
 /*
  * Game-loop entry point. Called from gmcp_update() for each descriptor.

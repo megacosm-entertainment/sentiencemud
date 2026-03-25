@@ -155,7 +155,8 @@ static void wiz_append_room_location_link(CHAR_DATA *ch, BUFFER *buffer, ROOM_IN
         return;
     }
 
-    mxp_room_link(ch->desc, buffer, room, widevnum_string_room(room, NULL));
+    mxp_room_link(ch->desc, buffer, room,
+        formatf("%s %s", widevnum_string_room(room, NULL), room->name));
 }
 
 static const char *quest_runtime_status_name(int status)

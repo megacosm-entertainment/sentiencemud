@@ -2,20 +2,21 @@
 #define CHANNEL_GMCP_H
 
 #include "../merc.h"
+#include "channel_registry.h"
 #include <time.h>
 
 /**
- * channel_gmcp_broadcast - Fire Sentience.Channel.Message to all GMCP-capable descriptors
+ * channel_gmcp_broadcast - Fire Sentience.Channel.Message to GMCP-capable descriptors
  *
- * Sends a GMCP event to every connected descriptor that has GMCP negotiated.
- * Colour codes are stripped from plain_text before embedding in the JSON body.
+ * Sends a GMCP event to descriptors that have GMCP negotiated and are within
+ * the channel's scope (room, area, global, etc.) relative to the sender.
  *
- * @param channel_id   Channel identifier string (e.g. "gossip")
- * @param sender_name  Name of the sending character
+ * @param def          Channel definition (for scope filtering)
+ * @param sender       Sending character (for scope context)
  * @param plain_text   Message text (may contain internal colour codes)
  * @param timestamp    Unix timestamp for the message
  */
-void channel_gmcp_broadcast(const char *channel_id, const char *sender_name,
+void channel_gmcp_broadcast(const CHANNEL_DEF_DATA *def, CHAR_DATA *sender,
                             const char *plain_text, time_t timestamp);
 
 /**
