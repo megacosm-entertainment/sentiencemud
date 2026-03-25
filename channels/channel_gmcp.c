@@ -3,41 +3,12 @@
 #include <time.h>
 #include "../merc.h"
 #include "../protocol.h"
+#include "../gmcp_sentience.h"
+#include "../account/preferences.h"
 #include "channel_gmcp.h"
 #include "channel_registry.h"
 
 extern char *nocolour(const char *string);
-
-/*
- * json_escape_str - Copy src into dst with JSON string escaping
- *
- * Escapes double-quotes and backslashes; strips ASCII control characters.
- * Writes at most dsz-1 chars plus a NUL terminator.
- *
- * @param src  Source string
- * @param dst  Destination buffer
- * @param dsz  Size of destination buffer (including NUL)
- */
-static void json_escape_str(const char *src, char *dst, size_t dsz)
-{
-    size_t i = 0, j = 0;
-
-    while (src[i] && j + 3 < dsz) {
-        if (src[i] == '"') {
-            dst[j++] = '\\';
-            dst[j++] = '"';
-        } else if (src[i] == '\\') {
-            dst[j++] = '\\';
-            dst[j++] = '\\';
-        } else if ((unsigned char)src[i] < 0x20) {
-            /* skip control characters */
-        } else {
-            dst[j++] = src[i];
-        }
-        i++;
-    }
-    dst[j] = '\0';
-}
 
 /**
  * channel_gmcp_recipient_in_scope - Check if recipient is within channel scope of sender
@@ -127,10 +98,6 @@ void channel_gmcp_broadcast(const CHANNEL_DEF_DATA *def, CHAR_DATA *sender,
 {
     DESCRIPTOR_DATA *d;
     char stripped[MSL];
-    char esc_channel[MSL];
-    char esc_sender[MSL];
-    char esc_text[MSL];
-    char json_body[MSL + 128];
     const char *nc;
 
     if (!def || !sender || !plain_text)
@@ -140,22 +107,30 @@ void channel_gmcp_broadcast(const CHANNEL_DEF_DATA *def, CHAR_DATA *sender,
     strncpy(stripped, nc ? nc : plain_text, sizeof(stripped) - 1);
     stripped[sizeof(stripped) - 1] = '\0';
 
-    json_escape_str(def->id,        esc_channel, sizeof(esc_channel));
-    json_escape_str(sender->name,   esc_sender,  sizeof(esc_sender));
-    json_escape_str(stripped,        esc_text,    sizeof(esc_text));
-
-    snprintf(json_body, sizeof(json_body),
-             "{\"channel\":\"%s\",\"sender\":\"%s\",\"text\":\"%s\",\"timestamp\":%ld}",
-             esc_channel, esc_sender, esc_text, (long)timestamp);
-
     for (d = descriptor_list; d != NULL; d = d->next) {
         if (!d->character)
             continue;
         if (!d->pProtocol || !d->pProtocol->bGMCP)
             continue;
+        if (!d->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE])
+            continue;
+        if (!pref_gmcp_channels(d->character))
+            continue;
+        if (!pref_check_channel(d->character, def->id))
+            continue;
         if (!channel_gmcp_recipient_in_scope(def, sender, d->character))
             continue;
-        SendGMCPRaw(d, "Sentience.Channel.Message", json_body);
+
+        sentience_channel_message_input_t input = {
+            .channel     = def->id,
+            .sender      = sender->name,
+            .text        = stripped,
+            .timestamp   = (long)timestamp,
+            .tell_target = NULL,
+        };
+
+        sentience_send_package(d, "Sentience.Channel.Message",
+            sentience_build_channel_message(&input));
     }
 }
 
@@ -177,11 +152,6 @@ void channel_gmcp_send_directed(CHAR_DATA *sender, CHAR_DATA *recipient,
 {
     DESCRIPTOR_DATA *d;
     char stripped[MSL];
-    char esc_channel[MSL];
-    char esc_sender[MSL];
-    char esc_text[MSL];
-    char esc_target[MSL];
-    char json_body[MSL + 256];
     const char *nc;
 
     if (!sender || !recipient || !channel_id || !plain_text)
@@ -191,22 +161,27 @@ void channel_gmcp_send_directed(CHAR_DATA *sender, CHAR_DATA *recipient,
     strncpy(stripped, nc ? nc : plain_text, sizeof(stripped) - 1);
     stripped[sizeof(stripped) - 1] = '\0';
 
-    json_escape_str(channel_id,      esc_channel, sizeof(esc_channel));
-    json_escape_str(sender->name,    esc_sender,  sizeof(esc_sender));
-    json_escape_str(stripped,        esc_text,    sizeof(esc_text));
-    json_escape_str(recipient->name, esc_target,  sizeof(esc_target));
-
-    snprintf(json_body, sizeof(json_body),
-             "{\"channel\":\"%s\",\"sender\":\"%s\",\"text\":\"%s\",\"timestamp\":%ld,\"tell_target\":\"%s\"}",
-             esc_channel, esc_sender, esc_text, (long)timestamp, esc_target);
-
     for (d = descriptor_list; d != NULL; d = d->next) {
         if (!d->character)
             continue;
-        if (!d->pProtocol || !d->pProtocol->bGMCP)
-            continue;
         if (d->character != sender && d->character != recipient)
             continue;
-        SendGMCPRaw(d, "Sentience.Channel.Message", json_body);
+        if (!d->pProtocol || !d->pProtocol->bGMCP)
+            continue;
+        if (!d->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE])
+            continue;
+        if (!pref_gmcp_channels(d->character))
+            continue;
+
+        sentience_channel_message_input_t input = {
+            .channel     = channel_id,
+            .sender      = sender->name,
+            .text        = stripped,
+            .timestamp   = (long)timestamp,
+            .tell_target = recipient->name,
+        };
+
+        sentience_send_package(d, "Sentience.Channel.Message",
+            sentience_build_channel_message(&input));
     }
 }
