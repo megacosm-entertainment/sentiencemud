@@ -626,7 +626,19 @@ bool setup_mfa_for_char(CHAR_DATA *ch, bool has_email)
         
         // Display QR code in the terminal first
         write_to_buffer(ch->desc, "{WQR Code:{x\n\r", 0);
-        display_qr_code(ch->desc, qr_url);
+        if (ch->desc->conn && ch->desc->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+            QRcode *qr = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+            if (qr) {
+                char *data_url = encode_qr_code_as_png_base64(qr, 6);
+                if (data_url) {
+                    sentience_send_auth_qrcode(ch->desc, data_url, qr_url, 0);
+                    free(data_url);
+                }
+                QRcode_free(qr);
+            }
+        } else {
+            display_qr_code(ch->desc, qr_url);
+        }
         write_to_buffer(ch->desc, "\n\r", 0);
         
         // Now display the secret key after the QR code (plaintext for user setup)
@@ -682,7 +694,19 @@ bool setup_mfa_for_account(DESCRIPTOR_DATA *d, bool has_email)
     
     // First display QR code
     write_to_buffer(d, "{WQR Code:{x\n\r", 0);
-    display_qr_code(d, qr_url);
+    if (d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+        QRcode *qr = QRcode_encodeString(qr_url, 0, QR_ECLEVEL_L, QR_MODE_8, 1);
+        if (qr) {
+            char *data_url = encode_qr_code_as_png_base64(qr, 6);
+            if (data_url) {
+                sentience_send_auth_qrcode(d, data_url, qr_url, 0);
+                free(data_url);
+            }
+            QRcode_free(qr);
+        }
+    } else {
+        display_qr_code(d, qr_url);
+    }
     write_to_buffer(d, "\n\r", 0);
     
     // Then display the secret key after the QR code

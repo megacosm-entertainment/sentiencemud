@@ -105,7 +105,7 @@ json_t *sentience_build_identity_json(const sentience_identity_input_t *data)
 {
     json_t *obj;
     json_t *classes;
-    int i;
+    int i, j;
 
     if (!data) return NULL;
 
@@ -122,14 +122,144 @@ json_t *sentience_build_identity_json(const sentience_identity_input_t *data)
 
     classes = json_array();
     for (i = 0; i < data->num_classes; i++) {
+        const sentience_identity_class_t *c = &data->classes[i];
         json_t *cls = json_object();
-        json_object_set_new(cls, "id",         json_string(data->classes[i].id ? data->classes[i].id : ""));
-        json_object_set_new(cls, "name",       json_string(data->classes[i].name ? data->classes[i].name : ""));
-        json_object_set_new(cls, "level",      json_integer(data->classes[i].level));
-        json_object_set_new(cls, "is_primary", data->classes[i].is_primary ? json_true() : json_false());
+        
+        /* Original fields (preserve backward compatibility) */
+        json_object_set_new(cls, "id",         json_string(c->id ? c->id : ""));
+        json_object_set_new(cls, "name",       json_string(c->name ? c->name : ""));
+        json_object_set_new(cls, "level",      json_integer(c->level));
+        json_object_set_new(cls, "is_primary", c->is_primary ? json_true() : json_false());
+        
+        /* Extended fields */
+        json_object_set_new(cls, "max_level",    json_integer(c->max_level));
+        json_object_set_new(cls, "type",         json_string(c->type ? c->type : ""));
+        json_object_set_new(cls, "flags",        json_string(c->flags ? c->flags : ""));
+        json_object_set_new(cls, "primary_stat", json_string(c->primary_stat ? c->primary_stat : ""));
+
+        json_t *hp_range = json_array();
+        json_array_append_new(hp_range, json_integer(c->hp_min));
+        json_array_append_new(hp_range, json_integer(c->hp_max));
+        json_object_set_new(cls, "hp_range", hp_range);
+
+        json_object_set_new(cls, "gains_mana",   c->gains_mana ? json_true() : json_false());
+        json_object_set_new(cls, "description",  json_string(c->description ? c->description : ""));
+        json_object_set_new(cls, "xp",           json_integer(c->xp));
+        json_object_set_new(cls, "active_title", c->active_title ? json_string(c->active_title) : json_null());
+
+        /* available_titles */
+        json_t *titles_arr = json_array();
+        for (j = 0; j < c->num_titles; j++) {
+            json_t *t = json_object();
+            json_object_set_new(t, "keyword", json_string(c->titles[j].keyword ? c->titles[j].keyword : ""));
+            json_object_set_new(t, "display", json_string(c->titles[j].display ? c->titles[j].display : ""));
+            json_object_set_new(t, "is_default", c->titles[j].is_default ? json_true() : json_false());
+            json_array_append_new(titles_arr, t);
+        }
+        json_object_set_new(cls, "available_titles", titles_arr);
+
+        /* action — null for primary, object for secondary */
+        if (c->action_label && c->action_cmd) {
+            json_t *action = json_object();
+            json_object_set_new(action, "label", json_string(c->action_label));
+            json_object_set_new(action, "cmd", json_string(c->action_cmd));
+            json_object_set_new(cls, "action", action);
+        } else {
+            json_object_set_new(cls, "action", json_null());
+        }
+        
         json_array_append_new(classes, cls);
     }
     json_object_set_new(obj, "classes", classes);
+
+    /* traits array */
+    json_t *traits_arr = json_array();
+    for (i = 0; i < data->num_traits; i++) {
+        const sentience_trait_t *tr = &data->traits[i];
+        json_t *jtrait = json_object();
+        json_object_set_new(jtrait, "id", json_string(tr->id ? tr->id : ""));
+        json_object_set_new(jtrait, "name", json_string(tr->name ? tr->name : ""));
+        json_object_set_new(jtrait, "description", json_string(tr->description ? tr->description : ""));
+        json_object_set_new(jtrait, "category", json_string(tr->category ? tr->category : ""));
+        json_object_set_new(jtrait, "type", json_string(tr->type ? tr->type : "bool"));
+        json_object_set_new(jtrait, "source", json_string(tr->source ? tr->source : ""));
+        /* value: typed based on tr->type */
+        if (tr->type && !strcmp(tr->type, "int"))
+            json_object_set_new(jtrait, "value", json_integer(tr->value_int));
+        else if (tr->type && !strcmp(tr->type, "string"))
+            json_object_set_new(jtrait, "value", json_string(tr->value_string ? tr->value_string : ""));
+        else
+            json_object_set_new(jtrait, "value", tr->value_bool ? json_true() : json_false());
+        json_array_append_new(traits_arr, jtrait);
+    }
+    json_object_set_new(obj, "traits", traits_arr);
+
+    /* race_info object */
+    json_t *race_info = json_object();
+    const sentience_race_info_t *ri = &data->race_info;
+    json_object_set_new(race_info, "id", json_string(ri->id ? ri->id : ""));
+    json_object_set_new(race_info, "name", json_string(ri->name ? ri->name : ""));
+    json_object_set_new(race_info, "description", json_string(ri->description ? ri->description : ""));
+    json_object_set_new(race_info, "playable", ri->playable ? json_true() : json_false());
+    json_object_set_new(race_info, "starting", ri->starting ? json_true() : json_false());
+    json_object_set_new(race_info, "size", json_string(ri->size ? ri->size : "medium"));
+
+    /* stats object */
+    json_t *stats = json_object();
+    json_object_set_new(stats, "str", json_integer(ri->stats[0]));
+    json_object_set_new(stats, "int", json_integer(ri->stats[1]));
+    json_object_set_new(stats, "wis", json_integer(ri->stats[2]));
+    json_object_set_new(stats, "dex", json_integer(ri->stats[3]));
+    json_object_set_new(stats, "con", json_integer(ri->stats[4]));
+    json_object_set_new(race_info, "stats", stats);
+
+    /* max_stats object */
+    json_t *max_stats = json_object();
+    json_object_set_new(max_stats, "str", json_integer(ri->max_stats[0]));
+    json_object_set_new(max_stats, "int", json_integer(ri->max_stats[1]));
+    json_object_set_new(max_stats, "wis", json_integer(ri->max_stats[2]));
+    json_object_set_new(max_stats, "dex", json_integer(ri->max_stats[3]));
+    json_object_set_new(max_stats, "con", json_integer(ri->max_stats[4]));
+    json_object_set_new(race_info, "max_stats", max_stats);
+
+    /* max_vitals object */
+    json_t *max_vitals = json_object();
+    json_object_set_new(max_vitals, "hp", json_integer(ri->max_vitals[0]));
+    json_object_set_new(max_vitals, "mana", json_integer(ri->max_vitals[1]));
+    json_object_set_new(max_vitals, "move", json_integer(ri->max_vitals[2]));
+    json_object_set_new(race_info, "max_vitals", max_vitals);
+
+    /* skills array */
+    json_t *skills_arr = json_array();
+    for (i = 0; i < ri->num_skills; i++)
+        json_array_append_new(skills_arr, json_string(ri->skills[i] ? ri->skills[i] : ""));
+    json_object_set_new(race_info, "skills", skills_arr);
+
+    json_object_set_new(race_info, "resistances", json_string(ri->resistances ? ri->resistances : ""));
+    json_object_set_new(race_info, "vulnerabilities", json_string(ri->vulnerabilities ? ri->vulnerabilities : ""));
+    json_object_set_new(race_info, "immunities", json_string(ri->immunities ? ri->immunities : ""));
+    json_object_set_new(race_info, "affects", json_string(ri->affects ? ri->affects : ""));
+    json_object_set_new(race_info, "remort_into", ri->remort_into ? json_string(ri->remort_into) : json_null());
+
+    /* race traits */
+    json_t *race_traits_arr = json_array();
+    for (i = 0; i < ri->num_traits; i++) {
+        const sentience_trait_t *rt = &ri->traits[i];
+        json_t *rtrait = json_object();
+        json_object_set_new(rtrait, "id", json_string(rt->id ? rt->id : ""));
+        json_object_set_new(rtrait, "name", json_string(rt->name ? rt->name : ""));
+        json_object_set_new(rtrait, "type", json_string(rt->type ? rt->type : "bool"));
+        if (rt->type && !strcmp(rt->type, "int"))
+            json_object_set_new(rtrait, "value", json_integer(rt->value_int));
+        else if (rt->type && !strcmp(rt->type, "string"))
+            json_object_set_new(rtrait, "value", json_string(rt->value_string ? rt->value_string : ""));
+        else
+            json_object_set_new(rtrait, "value", rt->value_bool ? json_true() : json_false());
+        json_array_append_new(race_traits_arr, rtrait);
+    }
+    json_object_set_new(race_info, "traits", race_traits_arr);
+
+    json_object_set_new(obj, "race_info", race_info);
     json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
 
     return obj;
@@ -202,6 +332,7 @@ json_t *sentience_build_room_map(const sentience_room_map_input_t *input)
 json_t *sentience_build_channel_message(const sentience_channel_message_input_t *input)
 {
     json_t *obj;
+    int i;
 
     if (!input || !input->channel || !input->text)
         return NULL;
@@ -215,6 +346,20 @@ json_t *sentience_build_channel_message(const sentience_channel_message_input_t 
 
     if (input->tell_target)
         json_object_set_new(obj, "tell_target", json_string(input->tell_target));
+
+    if (input->report_id)
+        json_object_set_new(obj, "report_id", json_string(input->report_id));
+
+    if (input->num_actions > 0) {
+        json_t *actions = json_array();
+        for (i = 0; i < input->num_actions; i++) {
+            json_t *act = json_object();
+            json_object_set_new(act, "label", json_string(input->actions[i].label ? input->actions[i].label : ""));
+            json_object_set_new(act, "cmd",   json_string(input->actions[i].cmd ? input->actions[i].cmd : ""));
+            json_array_append_new(actions, act);
+        }
+        json_object_set_new(obj, "actions", actions);
+    }
 
     return obj;
 }
@@ -241,7 +386,15 @@ json_t *sentience_build_client_ready_capabilities_json(void)
     json_array_append_new(packages, json_string("Sentience.Room.Map"));
     json_array_append_new(packages, json_string("Sentience.Channel.Message"));
     json_array_append_new(packages, json_string("Sentience.Client.Preferences"));
+    json_array_append_new(packages, json_string("Sentience.Client.Layout"));
+    json_array_append_new(packages, json_string("Sentience.Auth.QRCode"));
     json_array_append_new(packages, json_string("Sentience.Link"));
+    json_array_append_new(packages, json_string("Sentience.Char.Inventory"));
+    json_array_append_new(packages, json_string("Sentience.Char.Equipment"));
+    json_array_append_new(packages, json_string("Sentience.Char.Abilities"));
+    json_array_append_new(packages, json_string("Sentience.Char.Reputations"));
+    json_array_append_new(packages, json_string("Sentience.Char.Church"));
+    json_array_append_new(packages, json_string("Sentience.Char.Race"));
 
     json_array_append_new(features, json_string("links"));
     json_array_append_new(features, json_string("osc8"));
@@ -441,6 +594,421 @@ void sentience_send_package(descriptor_t *d, const char *package, json_t *json)
     json_decref(json);
 }
 
+/* ── Auth.QRCode builder & sender ──────────────────────────────── */
+
+json_t *sentience_build_auth_qrcode_json(const char *purpose, const char *image,
+                                          const char *uri, long expires_at)
+{
+    json_t *obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    json_object_set_new(obj, "purpose", json_string(purpose ? purpose : "totp_setup"));
+    json_object_set_new(obj, "image", json_string(image ? image : ""));
+    json_object_set_new(obj, "uri", json_string(uri ? uri : ""));
+    json_object_set_new(obj, "expires_at", json_integer(expires_at));
+
+    return obj;
+}
+
+void sentience_send_auth_qrcode(descriptor_t *d, const char *image_data_url,
+                                 const char *uri, long expires_at)
+{
+    json_t *obj = sentience_build_auth_qrcode_json("totp_setup", image_data_url,
+                                                    uri, expires_at);
+    if (obj)
+        sentience_send_package(d, "Sentience.Auth.QRCode", obj);
+}
+
+json_t *sentience_build_preferences_json(const sentience_preferences_input_t *input)
+{
+    json_t *obj, *prefs;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    prefs = json_array();
+    for (i = 0; i < input->num_prefs; i++) {
+        const sentience_pref_entry_t *p = &input->prefs[i];
+        json_t *entry = json_object();
+
+        json_object_set_new(entry, "key",      json_string(p->key ? p->key : ""));
+        json_object_set_new(entry, "category", json_string(p->category ? p->category : ""));
+        json_object_set_new(entry, "type",     json_string(p->type ? p->type : "bool"));
+        json_object_set_new(entry, "source",   json_string(p->source ? p->source : "default"));
+        json_object_set_new(entry, "label",    json_string(p->label ? p->label : ""));
+
+        if (p->type && !strcmp(p->type, "int"))
+            json_object_set_new(entry, "value", json_integer(p->value_int));
+        else if (p->type && !strcmp(p->type, "string"))
+            json_object_set_new(entry, "value", json_string(p->value_string ? p->value_string : ""));
+        else
+            json_object_set_new(entry, "value", p->value_bool ? json_true() : json_false());
+
+        json_array_append_new(prefs, entry);
+    }
+    json_object_set_new(obj, "preferences", prefs);
+
+    return obj;
+}
+
+json_t *sentience_build_inventory_json(const sentience_inventory_input_t *input)
+{
+    json_t *obj, *items_arr, *capacity;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    items_arr = json_array();
+    for (i = 0; i < input->num_items; i++) {
+        const sentience_inventory_item_t *item = &input->items[i];
+        json_t *jitem = json_object();
+        json_t *id_arr, *flags_arr, *actions_arr;
+        int j;
+
+        /* ID as 2-element array */
+        id_arr = json_array();
+        json_array_append_new(id_arr, json_integer(item->id[0]));
+        json_array_append_new(id_arr, json_integer(item->id[1]));
+        json_object_set_new(jitem, "id", id_arr);
+
+        json_object_set_new(jitem, "name", json_string(item->name ? item->name : ""));
+        json_object_set_new(jitem, "keywords", json_string(item->keywords ? item->keywords : ""));
+        json_object_set_new(jitem, "keyword", json_string(item->keyword ? item->keyword : ""));
+        json_object_set_new(jitem, "item_type", json_string(item->item_type ? item->item_type : ""));
+        json_object_set_new(jitem, "level", json_integer(item->level));
+        json_object_set_new(jitem, "weight", json_integer(item->weight));
+        json_object_set_new(jitem, "condition", json_integer(item->condition));
+        json_object_set_new(jitem, "condition_label", json_string(item->condition_label ? item->condition_label : ""));
+        json_object_set_new(jitem, "item_count", json_integer(item->item_count));
+
+        /* Flags array */
+        flags_arr = json_array();
+        for (j = 0; j < item->num_flags; j++)
+            json_array_append_new(flags_arr, json_string(item->flags[j] ? item->flags[j] : ""));
+        json_object_set_new(jitem, "flags", flags_arr);
+
+        /* Actions array */
+        actions_arr = json_array();
+        for (j = 0; j < item->num_actions; j++) {
+            json_t *action = json_object();
+            json_object_set_new(action, "label", json_string(item->actions[j].label ? item->actions[j].label : ""));
+            json_object_set_new(action, "cmd", json_string(item->actions[j].cmd ? item->actions[j].cmd : ""));
+            json_array_append_new(actions_arr, action);
+        }
+        json_object_set_new(jitem, "actions", actions_arr);
+
+        json_array_append_new(items_arr, jitem);
+    }
+    json_object_set_new(obj, "items", items_arr);
+
+    /* Capacity object */
+    capacity = json_object();
+    json_object_set_new(capacity, "items", json_integer(input->capacity_current_items));
+    json_object_set_new(capacity, "max_items", json_integer(input->capacity_max_items));
+    json_object_set_new(capacity, "weight", json_integer(input->capacity_current_weight));
+    json_object_set_new(capacity, "max_weight", json_integer(input->capacity_max_weight));
+    json_object_set_new(capacity, "coin_weight", json_integer(input->capacity_coin_weight));
+    json_object_set_new(obj, "capacity", capacity);
+
+    return obj;
+}
+
+json_t *sentience_build_equipment_json(const sentience_equipment_input_t *input)
+{
+    json_t *obj, *slots_arr;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    slots_arr = json_array();
+    for (i = 0; i < input->num_slots; i++) {
+        const sentience_equipment_slot_t *slot = &input->slots[i];
+        json_t *jslot = json_object();
+
+        json_object_set_new(jslot, "slot_id", json_integer(slot->slot_id));
+        json_object_set_new(jslot, "slot_name", json_string(slot->slot_name ? slot->slot_name : ""));
+
+        if (slot->occupied) {
+            json_t *jitem = json_object();
+            json_t *id_arr, *flags_arr, *actions_arr;
+            int j;
+
+            id_arr = json_array();
+            json_array_append_new(id_arr, json_integer(slot->id[0]));
+            json_array_append_new(id_arr, json_integer(slot->id[1]));
+            json_object_set_new(jitem, "id", id_arr);
+
+            json_object_set_new(jitem, "name", json_string(slot->item_name ? slot->item_name : ""));
+            json_object_set_new(jitem, "keywords", json_string(slot->keywords ? slot->keywords : ""));
+            json_object_set_new(jitem, "item_type", json_string(slot->item_type ? slot->item_type : ""));
+            json_object_set_new(jitem, "level", json_integer(slot->level));
+            json_object_set_new(jitem, "condition", json_integer(slot->condition));
+            json_object_set_new(jitem, "condition_label", json_string(slot->condition_label ? slot->condition_label : ""));
+
+            flags_arr = json_array();
+            for (j = 0; j < slot->num_flags; j++)
+                json_array_append_new(flags_arr, json_string(slot->flags[j] ? slot->flags[j] : ""));
+            json_object_set_new(jitem, "flags", flags_arr);
+
+            actions_arr = json_array();
+            for (j = 0; j < slot->num_actions; j++) {
+                json_t *action = json_object();
+                json_object_set_new(action, "label", json_string(slot->actions[j].label ? slot->actions[j].label : ""));
+                json_object_set_new(action, "cmd", json_string(slot->actions[j].cmd ? slot->actions[j].cmd : ""));
+                json_array_append_new(actions_arr, action);
+            }
+            json_object_set_new(jitem, "actions", actions_arr);
+
+            json_object_set_new(jslot, "item", jitem);
+        } else {
+            json_object_set_new(jslot, "item", json_null());
+        }
+
+        json_array_append_new(slots_arr, jslot);
+    }
+    json_object_set_new(obj, "slots", slots_arr);
+
+    return obj;
+}
+
+json_t *sentience_build_abilities_json(const sentience_abilities_input_t *input)
+{
+    json_t *obj;
+    json_t *abilities;
+    int i, j;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    abilities = json_array();
+    for (i = 0; i < input->num_abilities; i++) {
+        const sentience_ability_t *a = &input->abilities[i];
+        json_t *ability = json_object();
+
+        json_object_set_new(ability, "name",         json_string(a->name ? a->name : ""));
+        json_object_set_new(ability, "type",         json_string(a->type ? a->type : "skill"));
+        json_object_set_new(ability, "available",    a->available ? json_true() : json_false());
+        json_object_set_new(ability, "rating",       json_integer(a->rating));
+        json_object_set_new(ability, "modifier",     json_integer(a->modifier));
+        json_object_set_new(ability, "mana",         json_integer(a->mana));
+        json_object_set_new(ability, "level",        json_integer(a->level));
+        json_object_set_new(ability, "target",       json_string(a->target ? a->target : ""));
+        json_object_set_new(ability, "can_practice", a->can_practice ? json_true() : json_false());
+        json_object_set_new(ability, "learn_rate",   json_integer(a->learn_rate));
+
+        json_t *actions = json_array();
+        for (j = 0; j < a->num_actions; j++) {
+            json_t *act = json_object();
+            json_object_set_new(act, "label", json_string(a->actions[j].label ? a->actions[j].label : ""));
+            json_object_set_new(act, "cmd",   json_string(a->actions[j].cmd ? a->actions[j].cmd : ""));
+            json_array_append_new(actions, act);
+        }
+        json_object_set_new(ability, "actions", actions);
+
+        json_array_append_new(abilities, ability);
+    }
+
+    json_object_set_new(obj, "abilities", abilities);
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
+json_t *sentience_build_reputations_json(const sentience_reputations_input_t *input)
+{
+    json_t *obj;
+    json_t *reps;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    reps = json_array();
+    for (i = 0; i < input->num_reputations; i++) {
+        const sentience_reputation_t *r = &input->reputations[i];
+        json_t *rep = json_object();
+
+        json_object_set_new(rep, "name",          json_string(r->name ? r->name : ""));
+        json_object_set_new(rep, "rank",          json_string(r->rank ? r->rank : ""));
+        json_object_set_new(rep, "rank_color",    json_string(r->rank_color ? r->rank_color : ""));
+        json_object_set_new(rep, "points",        json_integer(r->points));
+        json_object_set_new(rep, "paragon_level", json_integer(r->paragon_level));
+        json_object_set_new(rep, "max_rank",      json_string(r->max_rank ? r->max_rank : ""));
+
+        json_array_append_new(reps, rep);
+    }
+
+    json_object_set_new(obj, "reputations", reps);
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
+json_t *sentience_build_church_json(const sentience_church_input_t *input)
+{
+    json_t *obj;
+    json_t *actions;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "is_member", input->is_member ? json_true() : json_false());
+
+    if (input->is_member) {
+        json_object_set_new(obj, "church_name", json_string(input->church_name ? input->church_name : ""));
+        json_object_set_new(obj, "church_flag", json_string(input->church_flag ? input->church_flag : ""));
+        json_object_set_new(obj, "alignment",   json_string(input->alignment ? input->alignment : ""));
+        json_object_set_new(obj, "size",        json_string(input->size ? input->size : ""));
+        json_object_set_new(obj, "pk",          input->pk ? json_true() : json_false());
+        json_object_set_new(obj, "rank_name",   json_string(input->rank_name ? input->rank_name : ""));
+        json_object_set_new(obj, "rank_type",   json_string(input->rank_type ? input->rank_type : ""));
+        json_object_set_new(obj, "rank_title",  json_string(input->rank_title ? input->rank_title : ""));
+
+        actions = json_array();
+        for (i = 0; i < input->num_actions; i++) {
+            json_t *act = json_object();
+            json_object_set_new(act, "label", json_string(input->actions[i].label ? input->actions[i].label : ""));
+            json_object_set_new(act, "cmd",   json_string(input->actions[i].cmd ? input->actions[i].cmd : ""));
+            json_array_append_new(actions, act);
+        }
+        json_object_set_new(obj, "actions", actions);
+    }
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
+static json_t *split_to_json_array(const char *space_separated)
+{
+    json_t *arr;
+    const char *p;
+    const char *start;
+
+    arr = json_array();
+    if (!space_separated || !*space_separated)
+        return arr;
+
+    p = space_separated;
+    while (*p) {
+        while (*p == ' ') p++;
+        if (!*p) break;
+        start = p;
+        while (*p && *p != ' ') p++;
+        {
+            char buf[256];
+            int len = (int)(p - start);
+            if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
+            memcpy(buf, start, len);
+            buf[len] = '\0';
+            json_array_append_new(arr, json_string(buf));
+        }
+    }
+
+    return arr;
+}
+
+json_t *sentience_build_race_json(const sentience_race_info_t *input)
+{
+    json_t *obj;
+    json_t *stats;
+    json_t *max_stats;
+    json_t *max_vitals;
+    json_t *skills;
+    json_t *traits_arr;
+    int i;
+
+    if (!input) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "id",          json_string(input->id ? input->id : ""));
+    json_object_set_new(obj, "name",        json_string(input->name ? input->name : ""));
+    json_object_set_new(obj, "description", json_string(input->description ? input->description : ""));
+    json_object_set_new(obj, "playable",    input->playable ? json_true() : json_false());
+    json_object_set_new(obj, "starting",    input->starting ? json_true() : json_false());
+    json_object_set_new(obj, "size",        json_string(input->size ? input->size : "medium"));
+
+    /* stats object */
+    stats = json_object();
+    json_object_set_new(stats, "str", json_integer(input->stats[0]));
+    json_object_set_new(stats, "int", json_integer(input->stats[1]));
+    json_object_set_new(stats, "wis", json_integer(input->stats[2]));
+    json_object_set_new(stats, "dex", json_integer(input->stats[3]));
+    json_object_set_new(stats, "con", json_integer(input->stats[4]));
+    json_object_set_new(obj, "stats", stats);
+
+    /* max_stats object */
+    max_stats = json_object();
+    json_object_set_new(max_stats, "str", json_integer(input->max_stats[0]));
+    json_object_set_new(max_stats, "int", json_integer(input->max_stats[1]));
+    json_object_set_new(max_stats, "wis", json_integer(input->max_stats[2]));
+    json_object_set_new(max_stats, "dex", json_integer(input->max_stats[3]));
+    json_object_set_new(max_stats, "con", json_integer(input->max_stats[4]));
+    json_object_set_new(obj, "max_stats", max_stats);
+
+    /* max_vitals object */
+    max_vitals = json_object();
+    json_object_set_new(max_vitals, "hp",   json_integer(input->max_vitals[0]));
+    json_object_set_new(max_vitals, "mana", json_integer(input->max_vitals[1]));
+    json_object_set_new(max_vitals, "move", json_integer(input->max_vitals[2]));
+    json_object_set_new(obj, "max_vitals", max_vitals);
+
+    /* skills array */
+    skills = json_array();
+    for (i = 0; i < input->num_skills; i++)
+        json_array_append_new(skills, json_string(input->skills[i] ? input->skills[i] : ""));
+    json_object_set_new(obj, "skills", skills);
+
+    /* Split space-separated flags into arrays */
+    json_object_set_new(obj, "resistances",     split_to_json_array(input->resistances));
+    json_object_set_new(obj, "vulnerabilities",  split_to_json_array(input->vulnerabilities));
+    json_object_set_new(obj, "immunities",       split_to_json_array(input->immunities));
+    json_object_set_new(obj, "affects",          split_to_json_array(input->affects));
+
+    json_object_set_new(obj, "remort_into", input->remort_into ? json_string(input->remort_into) : json_null());
+
+    /* traits array */
+    traits_arr = json_array();
+    for (i = 0; i < input->num_traits; i++) {
+        const sentience_trait_t *t = &input->traits[i];
+        json_t *trait = json_object();
+        json_object_set_new(trait, "id",   json_string(t->id ? t->id : ""));
+        json_object_set_new(trait, "name", json_string(t->name ? t->name : ""));
+        json_object_set_new(trait, "type", json_string(t->type ? t->type : "bool"));
+        if (t->type && !strcmp(t->type, "int"))
+            json_object_set_new(trait, "value", json_integer(t->value_int));
+        else if (t->type && !strcmp(t->type, "string"))
+            json_object_set_new(trait, "value", json_string(t->value_string ? t->value_string : ""));
+        else
+            json_object_set_new(trait, "value", t->value_bool ? json_true() : json_false());
+        json_array_append_new(traits_arr, trait);
+    }
+    json_object_set_new(obj, "traits", traits_arr);
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
 /**
  * sentience_send_client_preferences - Send current GMCP prefs to client
  *
@@ -449,24 +1017,84 @@ void sentience_send_package(descriptor_t *d, const char *package, json_t *json)
  */
 void sentience_send_client_preferences(descriptor_t *d)
 {
-    json_t *obj;
     CHAR_DATA *ch;
+    ACCOUNT_DATA *account = NULL;
+    bool account_loaded = false;
+    sentience_preferences_input_t input = {0};
+    PREF_ENTRY *pref;
+    json_t *obj;
+    int i;
 
     if (!d || !d->character)
         return;
 
     ch = d->character;
+    if (ch->pcdata && ch->pcdata->account_name[0]) {
+        account = get_account_online_or_offline(ch->pcdata->account_name, &account_loaded);
+    }
 
-    obj = json_object();
-    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
-    json_object_set_new(obj, "gmcp_channels",
-                        json_boolean(pref_gmcp_channels(ch)));
-    json_object_set_new(obj, "gmcp_suppress_channels",
-                        json_boolean(pref_gmcp_suppress_channels(ch)));
-    json_object_set_new(obj, "gmcp_suppress_minimap",
-                        json_boolean(pref_gmcp_suppress_minimap(ch)));
+    /* Walk pc_set_table[] for toggle preferences */
+    for (i = 0; pc_set_table[i].name && input.num_prefs < SENTIENCE_MAX_PREFERENCES; i++) {
+        sentience_pref_entry_t *entry = &input.prefs[input.num_prefs];
 
-    sentience_send_package(d, "Sentience.Client.Preferences", obj);
+        entry->key = pc_set_table[i].name;
+        entry->category = "toggle";
+        entry->type = "bool";
+        entry->label = pc_set_table[i].name;
+
+        entry->source = pref_source_name(pref_get_source(account, ch, pc_set_table[i].name));
+        entry->value_bool = pref_get_bool(account, ch, pc_set_table[i].name, 
+                                         pc_set_table[i].default_state == SETTING_ON);
+
+        input.num_prefs++;
+    }
+
+    /* Walk game_settings.pref_defaults for non-toggle preferences */
+    for (pref = game_settings.pref_defaults; pref && input.num_prefs < SENTIENCE_MAX_PREFERENCES; pref = pref->next) {
+        sentience_pref_entry_t *entry;
+
+        /* Skip toggles already handled above */
+        if (pref->category == PREF_CAT_TOGGLE)
+            continue;
+
+        entry = &input.prefs[input.num_prefs];
+
+        entry->key = pref->key;
+        entry->category = pref_category_name(pref->category);
+        entry->type = pref_type_name(pref->type);
+        entry->label = pref->key;
+        entry->source = pref_source_name(pref_get_source(account, ch, pref->key));
+
+        switch (pref->type) {
+            case PREF_TYPE_BOOL:
+                entry->value_bool = pref_get_bool(account, ch, pref->key, pref->val.b);
+                break;
+            case PREF_TYPE_INT:
+                entry->value_int = pref_get_int(account, ch, pref->key, pref->val.i);
+                break;
+            case PREF_TYPE_STRING:
+                entry->value_string = pref_get_string(account, ch, pref->key, pref->val.str);
+                break;
+            case PREF_TYPE_BITFIELD:
+                entry->value_int = (int) pref_get_bitfield(account, ch, pref->key, pref->val.bits);
+                break;
+            default:
+                break;
+        }
+
+        input.num_prefs++;
+    }
+
+    /* Build and send JSON */
+    obj = sentience_build_preferences_json(&input);
+    if (obj) {
+        sentience_send_package(d, "Sentience.Client.Preferences", obj);
+    }
+
+    /* Cleanup account if we loaded it */
+    if (account_loaded && account) {
+        free_account(account);
+    }
 }
 
 /*
@@ -527,6 +1155,13 @@ static bool layout_name_is_valid(const char *name)
     return true;
 }
 
+#ifdef BUILD_TESTS
+bool test_layout_name_is_valid(const char *name)
+{
+    return layout_name_is_valid(name);
+}
+#endif
+
 static void sentience_send_layout_error(descriptor_t *d, const char *reason)
 {
     json_t *obj = json_object();
@@ -558,7 +1193,7 @@ void sentience_send_layout_restore(descriptor_t *d, const char *name, json_t *la
 {
     json_t *obj = json_object();
     json_object_set_new(obj, "action", json_string("restore"));
-    json_object_set(obj, "layout", layout);  /* borrowed ref */
+    json_object_set_new(obj, "layout", json_incref(layout));
     json_object_set_new(obj, "name", json_string(name));
     json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
     sentience_send_package(d, "Sentience.Client.Layout", obj);
@@ -776,7 +1411,7 @@ void sentience_gmcp_update(descriptor_t *d)
         return;
 
     ch = d->character;
-    if (!ch || !ch->in_room)
+    if (!ch || !ch->in_room || d->connected != CON_PLAYING)
         return;
 
     cache = &proto->sentience_cache;
@@ -786,13 +1421,22 @@ void sentience_gmcp_update(descriptor_t *d)
         sentience_send_package(d, "Sentience.Client.Ready.State",
             sentience_build_client_ready_state_json(PULSE_TICK, PULSE_PER_SECOND));
         sentience_send_client_preferences(d);
+
+        /* Restore active layout for WebSocket clients */
+        if (ch->pcdata && ch->pcdata->active_layout[0]
+            && d->conn && d->conn->type == CONN_TYPE_WEBSOCKET_TLS) {
+            web_client_layout_t *active = layout_find(
+                ch->pcdata->web_client_layouts, ch->pcdata->active_layout);
+            if (active && active->layout)
+                sentience_send_layout_restore(d, active->name, active->layout);
+        }
     }
 
     /* ── Detect changes ─────────────────────────────────────────── */
 
     /* On first send, mark everything dirty */
     if (!cache->initialized)
-        dirty = 0xFF;
+        dirty = SENTIENCE_DIRTY_ALL;
 
     /* Vitals */
     if (ch->hit != cache->hp || ch->max_hit != cache->max_hp
@@ -855,6 +1499,86 @@ void sentience_gmcp_update(descriptor_t *d)
         if (rid0 != cache->room_id0 || rid1 != cache->room_id1)
             dirty |= SENTIENCE_DIRTY_ROOM;
     }
+
+    /* Inventory — count visible carried items */
+    {
+        int cur_count = 0;
+        ITERATOR it;
+        OBJ_DATA *obj;
+
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            if (can_see_obj(ch, obj))
+                cur_count++;
+        }
+        iterator_stop(&it);
+
+        if (cur_count != cache->inventory_count)
+            dirty |= SENTIENCE_DIRTY_INVENTORY;
+    }
+
+    /* Equipment — count worn items */
+    {
+        int cur_count = 0;
+        ITERATOR it;
+        OBJ_DATA *obj;
+
+        iterator_start(&it, ch->lworn);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            cur_count++;
+        }
+        iterator_stop(&it);
+
+        if (cur_count != cache->equipment_count)
+            dirty |= SENTIENCE_DIRTY_EQUIPMENT;
+    }
+
+    /* Abilities — count skills + songs (cached; -1 forces rebuild) */
+    {
+        int cur_count = 0;
+        SKILL_ENTRY *entry;
+
+        for (entry = ch->sorted_skills; entry; entry = entry->next)
+            cur_count++;
+        for (entry = ch->sorted_songs; entry; entry = entry->next)
+            cur_count++;
+
+        if (cur_count != cache->abilities_count)
+            dirty |= SENTIENCE_DIRTY_ABILITIES;
+    }
+
+    /* Reputations — count factions (-1 forces rebuild) */
+    {
+        int cur_count = 0;
+
+        if (ch->reputations) {
+            ITERATOR it;
+            REPUTATION_DATA *rep;
+
+            iterator_start(&it, ch->reputations);
+            while ((rep = (REPUTATION_DATA *)iterator_nextdata(&it)) != NULL) {
+                if (rep->pIndexData && !IS_SET(rep->pIndexData->flags, REPUTATION_HIDDEN))
+                    cur_count++;
+            }
+            iterator_stop(&it);
+        }
+
+        if (cur_count != cache->reputation_count)
+            dirty |= SENTIENCE_DIRTY_REPUTATIONS;
+    }
+
+    /* Church — check membership and church uid */
+    {
+        bool cur_has_church = (ch->church != NULL && ch->church_member != NULL);
+        long cur_church_uid = cur_has_church ? ch->church->uid : 0;
+
+        if (cur_has_church != cache->has_church || cur_church_uid != cache->church_uid)
+            dirty |= SENTIENCE_DIRTY_CHURCH;
+    }
+
+    /* Race — check race uid */
+    if (ch->race && ch->race->uid != cache->race_uid)
+        dirty |= SENTIENCE_DIRTY_RACE;
 
     if (dirty == 0)
         return;
@@ -1213,7 +1937,448 @@ void sentience_gmcp_update(descriptor_t *d)
         }
     }
 
+    /* ── Phase 4: Char.Inventory ───────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_INVENTORY) {
+        sentience_inventory_input_t inv_data;
+        int vis_count = 0;
+        ITERATOR it;
+        OBJ_DATA *obj;
+
+        memset(&inv_data, 0, sizeof(inv_data));
+
+        inv_data.capacity_max_items = can_carry_n(ch);
+        inv_data.capacity_max_weight = can_carry_w(ch);
+        inv_data.capacity_current_weight = (int)ch->carry_weight;
+
+        iterator_start(&it, ch->lcarrying);
+        while ((obj = (OBJ_DATA *)iterator_nextdata(&it))) {
+            sentience_inventory_item_t *item;
+
+            if (!can_see_obj(ch, obj))
+                continue;
+            if (inv_data.num_items >= SENTIENCE_MAX_INVENTORY)
+                break;
+
+            item = &inv_data.items[inv_data.num_items];
+            item->name = obj->short_descr ? obj->short_descr : "something";
+            item->keyword = obj->name ? obj->name : "";
+            item->id[0] = obj->id[0];
+            item->id[1] = obj->id[1];
+            item->item_type = item_type_info[obj->item_type].name;
+            item->level = obj->level;
+            item->weight = obj->weight;
+            item->condition_label = object_damage_table[URANGE(0, 9 - (int)(((float)obj->condition)/10), 9)].name;
+
+            /* Actions */
+            item->num_actions = 0;
+            if (CAN_WEAR(obj, ITEM_WEAR_BODY) || CAN_WEAR(obj, ITEM_WEAR_HEAD)
+                || CAN_WEAR(obj, ITEM_WEAR_LEGS) || CAN_WEAR(obj, ITEM_WEAR_FEET)
+                || CAN_WEAR(obj, ITEM_WEAR_HANDS) || CAN_WEAR(obj, ITEM_WEAR_ARMS)
+                || CAN_WEAR(obj, ITEM_WEAR_ABOUT) || CAN_WEAR(obj, ITEM_WEAR_WAIST)
+                || CAN_WEAR(obj, ITEM_WEAR_WRIST) || CAN_WEAR(obj, ITEM_WEAR_SHIELD)
+                || CAN_WEAR(obj, ITEM_WIELD) || CAN_WEAR(obj, ITEM_HOLD)
+                || CAN_WEAR(obj, ITEM_WEAR_FLOAT) || CAN_WEAR(obj, ITEM_WEAR_NECK)
+                || CAN_WEAR(obj, ITEM_WEAR_FINGER) || CAN_WEAR(obj, ITEM_WEAR_EAR)) {
+                item->actions[item->num_actions].label = "Wear";
+                item->actions[item->num_actions].cmd = "wear";
+                item->num_actions++;
+            }
+            if (item->num_actions < SENTIENCE_MAX_ITEM_ACTIONS) {
+                item->actions[item->num_actions].label = "Drop";
+                item->actions[item->num_actions].cmd = "drop";
+                item->num_actions++;
+            }
+            if (item->num_actions < SENTIENCE_MAX_ITEM_ACTIONS) {
+                item->actions[item->num_actions].label = "Examine";
+                item->actions[item->num_actions].cmd = "examine";
+                item->num_actions++;
+            }
+
+            vis_count++;
+            inv_data.num_items++;
+        }
+        iterator_stop(&it);
+
+        sentience_send_package(d, "Sentience.Char.Inventory",
+            sentience_build_inventory_json(&inv_data));
+        cache->inventory_count = vis_count;
+    }
+
+    /* ── Phase 4: Char.Equipment ───────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_EQUIPMENT) {
+        sentience_equipment_input_t eq_data;
+        char *slot_names[SENTIENCE_MAX_EQUIPMENT_SLOTS];
+        int worn_count = 0;
+        int slot;
+        int i;
+
+        memset(&eq_data, 0, sizeof(eq_data));
+        memset(slot_names, 0, sizeof(slot_names));
+
+        for (slot = 0; slot < MAX_WEAR && eq_data.num_slots < SENTIENCE_MAX_EQUIPMENT_SLOTS; slot++) {
+            sentience_equipment_slot_t *s = &eq_data.slots[eq_data.num_slots];
+            OBJ_DATA *worn = get_eq_char(ch, slot);
+
+            slot_names[eq_data.num_slots] = nocolour(where_name[slot]);
+            s->slot_name = slot_names[eq_data.num_slots];
+            s->slot_id = slot;
+
+            if (worn) {
+                s->occupied = true;
+                s->item_name = worn->short_descr ? worn->short_descr : "something";
+                s->keywords = worn->name ? worn->name : "";
+                s->keyword = worn->name ? worn->name : "";
+                s->id[0] = worn->id[0];
+                s->id[1] = worn->id[1];
+                s->item_type = item_type_info[worn->item_type].name;
+                s->level = worn->level;
+                s->condition_label = object_damage_table[URANGE(0, 9 - (int)(((float)worn->condition)/10), 9)].name;
+
+                s->num_actions = 0;
+                s->actions[s->num_actions].label = "Remove";
+                s->actions[s->num_actions].cmd = "remove";
+                s->num_actions++;
+                if (s->num_actions < SENTIENCE_MAX_ITEM_ACTIONS) {
+                    s->actions[s->num_actions].label = "Examine";
+                    s->actions[s->num_actions].cmd = "examine";
+                    s->num_actions++;
+                }
+                worn_count++;
+            } else {
+                s->occupied = false;
+            }
+
+            eq_data.num_slots++;
+        }
+
+        sentience_send_package(d, "Sentience.Char.Equipment",
+            sentience_build_equipment_json(&eq_data));
+        cache->equipment_count = worn_count;
+
+        /* Free stripped slot name strings */
+        for (i = 0; i < eq_data.num_slots; i++) {
+            if (slot_names[i])
+                free_string(slot_names[i]);
+        }
+    }
+
+    /* ── Phase 4: Char.Abilities ───────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_ABILITIES) {
+        sentience_abilities_input_t ab_data;
+        SKILL_ENTRY *entry;
+
+        memset(&ab_data, 0, sizeof(ab_data));
+
+        /* Skills and spells from sorted_skills */
+        for (entry = ch->sorted_skills; entry; entry = entry->next) {
+            sentience_ability_t *ab;
+            int rating;
+
+            if (ab_data.num_abilities >= SENTIENCE_MAX_ABILITIES)
+                break;
+
+            rating = skill_entry_rating(ch, entry);
+            if (rating < 1)
+                continue;
+
+            ab = &ab_data.abilities[ab_data.num_abilities];
+            ab->name = skill_entry_name(entry);
+            ab->type = entry->isspell ? "spell" : "skill";
+            ab->available = skill_entry_is_usable_now(ch, entry);
+            ab->rating = rating;
+            ab->modifier = skill_entry_mod(ch, entry);
+            ab->level = skill_entry_level(ch, entry);
+            ab->mana = entry->isspell ? skill_entry_mana(ch, entry) : 0;
+            ab->can_practice = entry->practice;
+            ab->learn_rate = skill_entry_learn(ch, entry);
+
+            /* Target type */
+            if (entry->skill_data) {
+                switch (entry->skill_data->target) {
+                case TAR_CHAR_OFFENSIVE:
+                    ab->target = "offensive";
+                    break;
+                case TAR_CHAR_DEFENSIVE:
+                case TAR_OBJ_CHAR_DEF:
+                case TAR_IGNORE_CHAR_DEF:
+                    ab->target = "defensive";
+                    break;
+                case TAR_CHAR_SELF:
+                    ab->target = "self";
+                    break;
+                case TAR_OBJ_INV:
+                case TAR_OBJ_GROUND:
+                    ab->target = "object";
+                    break;
+                case TAR_OBJ_CHAR_OFF:
+                case TAR_CHAR_FORMATION:
+                    ab->target = "offensive";
+                    break;
+                default:
+                    ab->target = entry->isspell ? "ignore" : "passive";
+                    break;
+                }
+            } else {
+                ab->target = entry->isspell ? "ignore" : "passive";
+            }
+
+            /* Actions */
+            ab->num_actions = 0;
+            if (entry->isspell && ab->available) {
+                ab->actions[ab->num_actions].label = "Cast";
+                ab->actions[ab->num_actions].cmd = "cast";
+                ab->num_actions++;
+            } else if (!entry->isspell && ab->available) {
+                ab->actions[ab->num_actions].label = "Use";
+                ab->actions[ab->num_actions].cmd = ab->name;
+                ab->num_actions++;
+            }
+
+            ab_data.num_abilities++;
+        }
+
+        /* Songs from sorted_songs */
+        for (entry = ch->sorted_songs; entry; entry = entry->next) {
+            sentience_ability_t *ab;
+            int rating;
+
+            if (ab_data.num_abilities >= SENTIENCE_MAX_ABILITIES)
+                break;
+
+            rating = skill_entry_rating(ch, entry);
+            if (rating < 1)
+                continue;
+
+            ab = &ab_data.abilities[ab_data.num_abilities];
+            ab->name = skill_entry_name(entry);
+            ab->type = "song";
+            ab->available = skill_entry_is_usable_now(ch, entry);
+            ab->rating = rating;
+            ab->modifier = skill_entry_mod(ch, entry);
+            ab->level = skill_entry_level(ch, entry);
+            ab->mana = skill_entry_mana(ch, entry);
+            ab->can_practice = entry->practice;
+            ab->learn_rate = skill_entry_learn(ch, entry);
+            ab->target = "ignore";
+
+            ab->num_actions = 0;
+            if (ab->available) {
+                ab->actions[ab->num_actions].label = "Play";
+                ab->actions[ab->num_actions].cmd = "play";
+                ab->num_actions++;
+            }
+
+            ab_data.num_abilities++;
+        }
+
+        sentience_send_package(d, "Sentience.Char.Abilities",
+            sentience_build_abilities_json(&ab_data));
+        cache->abilities_count = ab_data.num_abilities;
+    }
+
+    /* ── Phase 4: Char.Reputations ─────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_REPUTATIONS) {
+        sentience_reputations_input_t rep_data;
+
+        memset(&rep_data, 0, sizeof(rep_data));
+
+        if (ch->reputations) {
+            ITERATOR it;
+            REPUTATION_DATA *rep;
+
+            iterator_start(&it, ch->reputations);
+            while ((rep = (REPUTATION_DATA *)iterator_nextdata(&it)) != NULL) {
+                sentience_reputation_t *r;
+                REPUTATION_INDEX_RANK_DATA *rank;
+                REPUTATION_INDEX_RANK_DATA *max_rank;
+
+                if (rep_data.num_reputations >= SENTIENCE_MAX_REPUTATIONS)
+                    break;
+                if (!rep->pIndexData || IS_SET(rep->pIndexData->flags, REPUTATION_HIDDEN))
+                    continue;
+
+                r = &rep_data.reputations[rep_data.num_reputations];
+                r->name = rep->pIndexData->name ? rep->pIndexData->name : "(unknown)";
+
+                rank = get_reputation_rank(rep->pIndexData, rep->current_rank);
+                r->rank = (rank && rank->name) ? rank->name : "(none)";
+                r->rank_color = "";
+                if (rank) {
+                    /* Convert color char to color name string */
+                    switch (rank->color) {
+                    case 'R': r->rank_color = "red"; break;
+                    case 'G': r->rank_color = "green"; break;
+                    case 'B': r->rank_color = "blue"; break;
+                    case 'Y': r->rank_color = "yellow"; break;
+                    case 'M': r->rank_color = "magenta"; break;
+                    case 'C': r->rank_color = "cyan"; break;
+                    case 'W': r->rank_color = "white"; break;
+                    case 'D': r->rank_color = "dark"; break;
+                    default: r->rank_color = "white"; break;
+                    }
+                }
+
+                r->points = (int)rep->reputation;
+                r->paragon_level = rep->paragon_level;
+
+                max_rank = get_reputation_rank(rep->pIndexData, rep->maximum_rank);
+                r->max_rank = (max_rank && max_rank->name) ? max_rank->name : "(none)";
+
+                rep_data.num_reputations++;
+            }
+            iterator_stop(&it);
+        }
+
+        sentience_send_package(d, "Sentience.Char.Reputations",
+            sentience_build_reputations_json(&rep_data));
+        cache->reputation_count = rep_data.num_reputations;
+    }
+
+    /* ── Phase 4: Char.Church ──────────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_CHURCH) {
+        sentience_church_input_t church_data;
+
+        memset(&church_data, 0, sizeof(church_data));
+
+        if (ch->church && ch->church_member) {
+            CHURCH_DATA *church = ch->church;
+            CHURCH_PLAYER_DATA *member = ch->church_member;
+
+            church_data.is_member = true;
+            church_data.church_name = church->name ? church->name : "(unnamed)";
+            church_data.church_flag = church->flag ? church->flag : "";
+            church_data.pk = church->pk;
+
+            /* Alignment */
+            switch (church->alignment) {
+            case CHURCH_GOOD:    church_data.alignment = "good"; break;
+            case CHURCH_EVIL:    church_data.alignment = "evil"; break;
+            default:             church_data.alignment = "neutral"; break;
+            }
+
+            /* Size */
+            switch (church->size) {
+            case CHURCH_SIZE_BAND:   church_data.size = "band"; break;
+            case CHURCH_SIZE_CULT:   church_data.size = "cult"; break;
+            case CHURCH_SIZE_ORDER:  church_data.size = "order"; break;
+            case CHURCH_SIZE_CHURCH: church_data.size = "church"; break;
+            default:                 church_data.size = "band"; break;
+            }
+
+            /* Rank info */
+            if (member->rank) {
+                church_data.rank_name = member->rank->rank_name ? member->rank->rank_name : "(none)";
+
+                switch (member->rank->rank_type) {
+                case RANK_TYPE_OFFICER: church_data.rank_type = "officer"; break;
+                case RANK_TYPE_LEADER:  church_data.rank_type = "leader"; break;
+                default:                church_data.rank_type = "member"; break;
+                }
+
+                /* Use gender-appropriate title */
+                if (ch->sex == SEX_FEMALE && member->rank->title_female)
+                    church_data.rank_title = member->rank->title_female;
+                else if (ch->sex == SEX_MALE && member->rank->title_male)
+                    church_data.rank_title = member->rank->title_male;
+                else if (member->rank->title_neutral)
+                    church_data.rank_title = member->rank->title_neutral;
+                else
+                    church_data.rank_title = member->rank->rank_name ? member->rank->rank_name : "";
+            } else {
+                church_data.rank_name = "(none)";
+                church_data.rank_type = "member";
+                church_data.rank_title = "";
+            }
+
+            cache->has_church = true;
+            cache->church_uid = church->uid;
+        } else {
+            church_data.is_member = false;
+            cache->has_church = false;
+            cache->church_uid = 0;
+        }
+
+        sentience_send_package(d, "Sentience.Char.Church",
+            sentience_build_church_json(&church_data));
+    }
+
+    /* ── Phase 4: Char.Race ────────────────────────────────────── */
+    if (dirty & SENTIENCE_DIRTY_RACE) {
+        if (ch->race) {
+            sentience_race_info_t race_data;
+            int s;
+
+            memset(&race_data, 0, sizeof(race_data));
+
+            race_data.id = ch->race->id ? ch->race->id : "";
+            race_data.name = ch->race->name ? ch->race->name : "";
+            race_data.description = ch->race->description ? ch->race->description : "";
+            race_data.playable = ch->race->playable;
+            race_data.starting = ch->race->starting;
+            race_data.size = size_table[URANGE(0, ch->race->min_size, SIZE_GIANT)].name;
+
+            /* Stats */
+            for (s = 0; s < 5 && s < MAX_STATS; s++) {
+                race_data.stats[s] = ch->race->stats[s];
+                race_data.max_stats[s] = ch->race->max_stats[s];
+            }
+
+            /* Max vitals */
+            race_data.max_vitals[0] = ch->race->max_vitals[0];
+            race_data.max_vitals[1] = ch->race->max_vitals[1];
+            race_data.max_vitals[2] = ch->race->max_vitals[2];
+
+            /* Resistances, vulnerabilities, immunities, affects */
+            race_data.resistances = ch->race->res ? flag_string(res_flags, ch->race->res) : "";
+            race_data.vulnerabilities = ch->race->vuln ? flag_string(vuln_flags, ch->race->vuln) : "";
+            race_data.immunities = ch->race->imm ? flag_string(imm_flags, ch->race->imm) : "";
+            race_data.affects = ch->race->aff[0] ? flag_string(affect_flags, ch->race->aff[0]) : "";
+
+            /* Remort destination */
+            race_data.remort_into = ch->race->remort_into_id;
+
+            /* Racial skills */
+            race_data.num_skills = 0;
+            if (ch->race->skills) {
+                ITERATOR it;
+                char *skill_name;
+
+                iterator_start(&it, ch->race->skills);
+                while ((skill_name = (char *)iterator_nextdata(&it)) != NULL) {
+                    if (race_data.num_skills >= SENTIENCE_MAX_RACE_SKILLS)
+                        break;
+                    race_data.skills[race_data.num_skills] = skill_name;
+                    race_data.num_skills++;
+                }
+                iterator_stop(&it);
+            }
+
+            sentience_send_package(d, "Sentience.Char.Race",
+                sentience_build_race_json(&race_data));
+        }
+        cache->race_uid = ch->race ? ch->race->uid : 0;
+    }
+
     cache->initialized = true;
+}
+
+void sentience_invalidate_cache(CHAR_DATA *ch, unsigned int flags)
+{
+    descriptor_t *d;
+
+    if (!ch || !(d = ch->desc))
+        return;
+    if (!d->pProtocol || !d->pProtocol->bGMCP)
+        return;
+
+    if (flags & SENTIENCE_DIRTY_ABILITIES)
+        d->pProtocol->sentience_cache.abilities_count = -1;
+    if (flags & SENTIENCE_DIRTY_REPUTATIONS)
+        d->pProtocol->sentience_cache.reputation_count = -1;
+    if (flags & SENTIENCE_DIRTY_INVENTORY)
+        d->pProtocol->sentience_cache.inventory_count = -1;
+    if (flags & SENTIENCE_DIRTY_EQUIPMENT)
+        d->pProtocol->sentience_cache.equipment_count = -1;
 }
 
 /*

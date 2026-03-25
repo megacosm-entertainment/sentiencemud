@@ -247,6 +247,97 @@
     },
     {
       "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_identity_extended",
+      "description": "Extended identity builder with classes, traits, and race info",
+      "input": {
+        "function": "build_identity_extended",
+        "test_cases": [
+          {
+            "scenario": "extended_identity",
+            "params": {
+              "name": "Tieryo",
+              "race_wnum": "0:50",
+              "race_name": "Human",
+              "body_type": "male",
+              "level": 40,
+              "tot_level": 120,
+              "title": "the Archmage",
+              "classes": [
+                {
+                  "id": "mage", "name": "Mage", "level": 40, "is_primary": true,
+                  "max_level": 60, "type": "mage", "flags": "combative caster",
+                  "primary_stat": "intelligence", "hp_min": 6, "hp_max": 8,
+                  "gains_mana": true, "description": "Masters of the arcane arts.",
+                  "xp": 185200, "active_title": "default",
+                  "titles": [
+                    {"keyword": "default", "display": "Wizard", "is_default": true},
+                    {"keyword": "archmage", "display": "Archmage", "is_default": false}
+                  ],
+                  "action_label": null, "action_cmd": null
+                },
+                {
+                  "id": "warrior", "name": "Warrior", "level": 35, "is_primary": false,
+                  "max_level": 60, "type": "warrior", "flags": "combative",
+                  "primary_stat": "strength", "hp_min": 10, "hp_max": 14,
+                  "gains_mana": false, "description": "Skilled fighters.",
+                  "xp": 120500, "active_title": null,
+                  "titles": [
+                    {"keyword": "default", "display": "Warrior", "is_default": true}
+                  ],
+                  "action_label": "Switch to Warrior", "action_cmd": "setclass warrior"
+                }
+              ],
+              "traits": [
+                {
+                  "id": "cosmic_projection", "name": "Cosmic Projection",
+                  "description": "Can project consciousness.", "category": "ability",
+                  "type": "bool", "source": "race", "value_bool": true
+                },
+                {
+                  "id": "breath_damage_bonus", "name": "Breath Damage Bonus",
+                  "description": "Bonus to breath damage.", "category": "combat",
+                  "type": "int", "source": "personal", "value_int": 25
+                }
+              ],
+              "race_info": {
+                "id": "human", "name": "Human",
+                "description": "Versatile and adaptive.", "playable": true,
+                "starting": true, "size": "medium",
+                "stats": [13, 13, 13, 13, 13],
+                "max_stats": [20, 20, 20, 20, 20],
+                "max_vitals": [2500, 2500, 2500],
+                "skills": ["sword", "fast healing"],
+                "resistances": "", "vulnerabilities": "", "immunities": "",
+                "affects": "", "remort_into": null, "traits": []
+              }
+            },
+            "expected": {
+              "_v": 1,
+              "name": "Tieryo",
+              "classes_count": 2,
+              "first_class_max_level": 60,
+              "first_class_type": "mage",
+              "first_class_gains_mana": true,
+              "first_class_xp": 185200,
+              "first_class_titles_count": 2,
+              "first_class_action_null": true,
+              "second_class_action_label": "Switch to Warrior",
+              "traits_count": 2,
+              "first_trait_id": "cosmic_projection",
+              "first_trait_source": "race",
+              "second_trait_value_int": 25,
+              "race_info_id": "human",
+              "race_info_playable": true,
+              "race_info_skills_count": 2,
+              "race_info_stats_str": 13
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
       "name": "gmcp_build_room_standard",
       "description": "Builds Sentience.Room JSON for a standard room with exits",
       "input": {
@@ -346,7 +437,15 @@
                 "Sentience.Room.Map",
                 "Sentience.Channel.Message",
                 "Sentience.Client.Preferences",
-                "Sentience.Link"
+                "Sentience.Client.Layout",
+                "Sentience.Auth.QRCode",
+                "Sentience.Link",
+                "Sentience.Char.Inventory",
+                "Sentience.Char.Equipment",
+                "Sentience.Char.Abilities",
+                "Sentience.Char.Reputations",
+                "Sentience.Char.Church",
+                "Sentience.Char.Race"
               ],
               "features": [
                 "links",
@@ -1147,6 +1246,674 @@
               "sender": "",
               "text": "Server restart in 5 minutes.",
               "timestamp": 1711353600
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_channel_message_with_report",
+      "description": "Channel message with report_id and actions",
+      "input": {
+        "function": "build_channel_message",
+        "test_cases": [
+          {
+            "scenario": "message_with_report",
+            "params": {
+              "channel": "gossip",
+              "sender": "Tieryo",
+              "text": "Hello world!",
+              "timestamp": 1711396823,
+              "tell_target": null,
+              "report_id": "local-42",
+              "actions": [
+                {"label": "Info", "cmd": "chinfo"},
+                {"label": "Report", "cmd": "report local-42"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "channel": "gossip",
+              "sender": "Tieryo",
+              "text": "Hello world!",
+              "timestamp": 1711396823,
+              "report_id": "local-42",
+              "actions_count": 2,
+              "first_action_label": "Info",
+              "second_action_label": "Report",
+              "no_tell_target": true
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_channel_message_directed_reply",
+      "description": "Directed channel message with reply action",
+      "input": {
+        "function": "build_channel_message",
+        "test_cases": [
+          {
+            "scenario": "directed_with_reply",
+            "params": {
+              "channel": "tell",
+              "sender": "Tieryo",
+              "text": "Hey there!",
+              "timestamp": 1711396824,
+              "tell_target": "Solara",
+              "report_id": "local-43",
+              "actions": [
+                {"label": "Info", "cmd": "chinfo"},
+                {"label": "Report", "cmd": "report local-43"},
+                {"label": "Reply", "cmd": "reply"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "channel": "tell",
+              "sender": "Tieryo",
+              "text": "Hey there!",
+              "timestamp": 1711396824,
+              "tell_target": "Solara",
+              "report_id": "local-43",
+              "actions_count": 3,
+              "first_action_label": "Info",
+              "second_action_label": "Report",
+              "third_action_label": "Reply"
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_layout_name_validation",
+      "description": "Validates layout name rules (1-32 chars, alphanumeric + underscore + hyphen)",
+      "input": {
+        "function": "layout_name_validation",
+        "test_cases": [
+          {"scenario": "valid_default", "name": "default", "valid": true},
+          {"scenario": "valid_hyphen", "name": "my-layout", "valid": true},
+          {"scenario": "valid_underscore", "name": "compact_v2", "valid": true},
+          {"scenario": "valid_single_char", "name": "A", "valid": true},
+          {"scenario": "valid_mixed", "name": "a-b_c-D_1-2-3", "valid": true},
+          {"scenario": "invalid_empty", "name": "", "valid": false},
+          {"scenario": "invalid_space", "name": "has space", "valid": false},
+          {"scenario": "invalid_dot", "name": "has.dot", "valid": false},
+          {"scenario": "invalid_slash", "name": "has/slash", "valid": false},
+          {"scenario": "invalid_too_long", "name": "abcdefghijklmnopqrstuvwxyz1234567", "valid": false}
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_layout_storage_helpers",
+      "description": "Tests layout_find, layout_count, and layout_free_all",
+      "input": {
+        "function": "layout_storage_helpers",
+        "test_cases": [{"scenario": "basic_operations"}]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_auth_qrcode_totp",
+      "description": "Builds Sentience.Auth.QRCode JSON for TOTP setup",
+      "input": {
+        "function": "build_auth_qrcode",
+        "test_cases": [
+          {
+            "scenario": "totp_setup",
+            "params": {
+              "purpose": "totp_setup",
+              "image": "data:image/png;base64,dGVzdA==",
+              "uri": "otpauth://totp/Sentience:Tieryo?secret=ABC&issuer=Sentience",
+              "expires_at": 0
+            },
+            "expected": {
+              "_v": 1,
+              "purpose": "totp_setup",
+              "image": "data:image/png;base64,dGVzdA==",
+              "uri": "otpauth://totp/Sentience:Tieryo?secret=ABC&issuer=Sentience",
+              "expires_at": 0
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_preferences",
+      "description": "Preferences builder produces correct JSON structure",
+      "input": {
+        "function": "build_preferences",
+        "test_cases": [
+          {
+            "scenario": "typical_preferences",
+            "params": {
+              "preferences": [
+                {"key": "brief", "category": "toggle", "type": "bool", "value_bool": true, "source": "character", "label": "Brief"},
+                {"key": "compact", "category": "toggle", "type": "bool", "value_bool": false, "source": "default", "label": "Compact"},
+                {"key": "prompt_hp", "category": "prompt", "type": "bool", "value_bool": true, "source": "account", "label": "Show HP in Prompt"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "preferences_count": 3,
+              "has_key_brief": true,
+              "brief_source": "character",
+              "brief_value": true,
+              "compact_source": "default"
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_inventory",
+      "description": "Inventory builder produces correct JSON structure with actions and disambiguation",
+      "input": {
+        "function": "build_inventory",
+        "test_cases": [
+          {
+            "scenario": "basic_inventory",
+            "params": {
+              "items": [
+                {
+                  "name": "a sharp sword",
+                  "keywords": "sharp sword",
+                  "keyword": "sword",
+                  "id": [196228330, 1],
+                  "item_type": "weapon",
+                  "condition": 85,
+                  "condition_label": "Used",
+                  "level": 15,
+                  "weight": 5,
+                  "item_count": 0,
+                  "flags": ["glow", "magic"],
+                  "actions": [
+                    {"label": "Wear", "cmd": "wear sword"},
+                    {"label": "Drop", "cmd": "drop sword"},
+                    {"label": "Examine", "cmd": "examine sword"}
+                  ]
+                },
+                {
+                  "name": "a healing potion",
+                  "keywords": "healing potion",
+                  "keyword": "potion",
+                  "id": [196228330, 5],
+                  "item_type": "potion",
+                  "condition": 100,
+                  "condition_label": "",
+                  "level": 10,
+                  "weight": 1,
+                  "item_count": 0,
+                  "flags": ["magic"],
+                  "actions": [
+                    {"label": "Quaff", "cmd": "quaff potion"},
+                    {"label": "Drop", "cmd": "drop potion"},
+                    {"label": "Examine", "cmd": "examine potion"}
+                  ]
+                },
+                {
+                  "name": "a healing potion",
+                  "keywords": "healing potion",
+                  "keyword": "2.potion",
+                  "id": [196228330, 6],
+                  "item_type": "potion",
+                  "condition": 100,
+                  "condition_label": "",
+                  "level": 10,
+                  "weight": 1,
+                  "item_count": 0,
+                  "flags": ["magic"],
+                  "actions": [
+                    {"label": "Quaff", "cmd": "quaff 2.potion"},
+                    {"label": "Drop", "cmd": "drop 2.potion"},
+                    {"label": "Examine", "cmd": "examine 2.potion"}
+                  ]
+                }
+              ],
+              "capacity": {
+                "items": 3,
+                "max_items": 30,
+                "weight": 11,
+                "max_weight": 200,
+                "coin_weight": 3
+              }
+            },
+            "expected": {
+              "_v": 1,
+              "items_count": 3,
+              "first_item_name": "a sharp sword",
+              "first_item_type": "weapon",
+              "first_item_condition": 85,
+              "first_item_id_0": 196228330,
+              "first_item_id_1": 1,
+              "first_item_flags_count": 2,
+              "first_item_actions_count": 3,
+              "second_item_keyword": "potion",
+              "third_item_keyword": "2.potion",
+              "capacity_items": 3,
+              "capacity_max_items": 30,
+              "capacity_weight": 11,
+              "capacity_max_weight": 200
+            }
+          },
+          {
+            "scenario": "empty_inventory",
+            "params": {
+              "items": [],
+              "capacity": {
+                "items": 0,
+                "max_items": 30,
+                "weight": 0,
+                "max_weight": 200,
+                "coin_weight": 0
+              }
+            },
+            "expected": {
+              "_v": 1,
+              "items_count": 0,
+              "capacity_items": 0,
+              "capacity_max_items": 30
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_equipment",
+      "description": "Equipment builder produces correct JSON with slot layout and actions",
+      "input": {
+        "function": "build_equipment",
+        "test_cases": [
+          {
+            "scenario": "mixed_slots",
+            "params": {
+              "slots": [
+                {
+                  "slot_id": 0,
+                  "slot_name": "<used as light>",
+                  "occupied": true,
+                  "item_name": "a glowing lantern",
+                  "keywords": "glowing lantern",
+                  "keyword": "lantern",
+                  "id": [196228330, 1],
+                  "item_type": "light",
+                  "condition": 100,
+                  "condition_label": "",
+                  "level": 5,
+                  "flags": ["glow"],
+                  "actions": [
+                    {"label": "Remove", "cmd": "remove lantern"},
+                    {"label": "Examine", "cmd": "examine lantern"}
+                  ]
+                },
+                {
+                  "slot_id": 3,
+                  "slot_name": "<worn on body>",
+                  "occupied": false
+                },
+                {
+                  "slot_id": 13,
+                  "slot_name": "<wielded>",
+                  "occupied": true,
+                  "item_name": "Vengeance",
+                  "keywords": "sword vengeance",
+                  "keyword": "vengeance",
+                  "id": [196228330, 3],
+                  "item_type": "weapon",
+                  "condition": 95,
+                  "condition_label": "",
+                  "level": 40,
+                  "flags": ["hum"],
+                  "actions": [
+                    {"label": "Remove", "cmd": "remove vengeance"},
+                    {"label": "Examine", "cmd": "examine vengeance"}
+                  ]
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "slots_count": 3,
+              "first_slot_name": "<used as light>",
+              "first_slot_occupied": true,
+              "first_item_name": "a glowing lantern",
+              "first_item_type": "light",
+              "first_item_id_0": 196228330,
+              "first_item_id_1": 1,
+              "first_item_flags_count": 1,
+              "first_item_actions_count": 2,
+              "second_slot_name": "<worn on body>",
+              "second_slot_occupied": false,
+              "third_item_name": "Vengeance"
+            }
+          },
+          {
+            "scenario": "all_empty",
+            "params": {
+              "slots": [
+                {"slot_id": 0, "slot_name": "<used as light>", "occupied": false},
+                {"slot_id": 3, "slot_name": "<worn on body>", "occupied": false}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "slots_count": 2,
+              "first_slot_occupied": false,
+              "second_slot_occupied": false
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_abilities_mixed",
+      "description": "Abilities builder with skills, spells, songs, and passives",
+      "input": {
+        "function": "build_abilities",
+        "test_cases": [
+          {
+            "scenario": "mixed_abilities",
+            "params": {
+              "abilities": [
+                {
+                  "name": "fireball", "type": "spell", "available": true,
+                  "rating": 85, "modifier": 10, "mana": 25, "level": 15,
+                  "target": "offensive", "can_practice": true, "learn_rate": 5,
+                  "actions": [{"label": "Cast", "cmd": "cast 'fireball'"}]
+                },
+                {
+                  "name": "dodge", "type": "skill", "available": true,
+                  "rating": 72, "modifier": 0, "mana": 0, "level": 1,
+                  "target": "passive", "can_practice": true, "learn_rate": 3,
+                  "actions": []
+                },
+                {
+                  "name": "battle hymn", "type": "song", "available": true,
+                  "rating": 60, "modifier": 5, "mana": 30, "level": 20,
+                  "target": "defensive", "can_practice": false, "learn_rate": 0,
+                  "actions": [{"label": "Play", "cmd": "play 'battle hymn'"}]
+                },
+                {
+                  "name": "meteor swarm", "type": "spell", "available": false,
+                  "rating": 0, "modifier": 0, "mana": 50, "level": 45,
+                  "target": "offensive", "can_practice": false, "learn_rate": 0,
+                  "actions": []
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "abilities_count": 4,
+              "first_ability_name": "fireball",
+              "first_ability_type": "spell",
+              "first_ability_available": true,
+              "first_ability_rating": 85,
+              "first_ability_mana": 25,
+              "first_ability_actions_count": 1,
+              "first_ability_action_label": "Cast",
+              "second_ability_target": "passive",
+              "second_ability_actions_count": 0,
+              "third_ability_type": "song",
+              "fourth_ability_available": false
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_abilities_empty",
+      "description": "Abilities builder with no abilities",
+      "input": {
+        "function": "build_abilities",
+        "test_cases": [
+          {
+            "scenario": "empty_abilities",
+            "params": {
+              "abilities": []
+            },
+            "expected": {
+              "_v": 1,
+              "abilities_count": 0
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_reputations_mixed",
+      "description": "Reputations builder with multiple factions",
+      "input": {
+        "function": "build_reputations",
+        "test_cases": [
+          {
+            "scenario": "mixed_reputations",
+            "params": {
+              "reputations": [
+                {
+                  "name": "Guardians of the Flame",
+                  "rank": "Honored",
+                  "rank_color": "{Y",
+                  "points": 4500,
+                  "paragon_level": 0,
+                  "max_rank": "Exalted"
+                },
+                {
+                  "name": "Shadow Covenant",
+                  "rank": "Hated",
+                  "rank_color": "{R",
+                  "points": -8000,
+                  "paragon_level": 0,
+                  "max_rank": "Neutral"
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "reputations_count": 2,
+              "first_rep_name": "Guardians of the Flame",
+              "first_rep_rank": "Honored",
+              "first_rep_points": 4500,
+              "second_rep_name": "Shadow Covenant",
+              "second_rep_points": -8000
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_reputations_empty",
+      "description": "Reputations builder with no factions",
+      "input": {
+        "function": "build_reputations",
+        "test_cases": [
+          {
+            "scenario": "empty_reputations",
+            "params": {
+              "reputations": []
+            },
+            "expected": {
+              "_v": 1,
+              "reputations_count": 0
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_church_member",
+      "description": "Church builder for a church member",
+      "input": {
+        "function": "build_church",
+        "test_cases": [
+          {
+            "scenario": "church_member",
+            "params": {
+              "is_member": true,
+              "church_name": "Knights of Valor",
+              "church_flag": "KoV",
+              "alignment": "good",
+              "size": "order",
+              "pk": false,
+              "rank_name": "Templar",
+              "rank_type": "officer",
+              "rank_title": "Holy Templar",
+              "actions": [
+                {"label": "Church Info", "cmd": "church info"},
+                {"label": "Church Who", "cmd": "church who"},
+                {"label": "Church Roster", "cmd": "church roster"}
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "is_member": true,
+              "church_name": "Knights of Valor",
+              "church_flag": "KoV",
+              "alignment": "good",
+              "pk": false,
+              "rank_name": "Templar",
+              "rank_type": "officer",
+              "actions_count": 3
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_church_non_member",
+      "description": "Church builder for non-member",
+      "input": {
+        "function": "build_church",
+        "test_cases": [
+          {
+            "scenario": "non_member",
+            "params": {
+              "is_member": false
+            },
+            "expected": {
+              "_v": 1,
+              "is_member": false,
+              "no_church_data": true
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_race_full",
+      "description": "Standalone race builder with all data",
+      "input": {
+        "function": "build_race",
+        "test_cases": [
+          {
+            "scenario": "full_race",
+            "params": {
+              "id": "elf",
+              "name": "Elf",
+              "description": "Graceful and magical beings.",
+              "playable": true,
+              "starting": true,
+              "size": "medium",
+              "stats": [11, 16, 14, 15, 10],
+              "max_stats": [18, 23, 21, 22, 17],
+              "max_vitals": [2000, 3000, 2500],
+              "skills": ["meditation", "lore"],
+              "resistances": "charm magic",
+              "vulnerabilities": "iron cold_iron",
+              "immunities": "",
+              "affects": "infrared detect_magic",
+              "remort_into": "high_elf",
+              "traits": [
+                {
+                  "id": "mana_regen", "name": "Mana Regeneration",
+                  "type": "int", "value_int": 15
+                }
+              ]
+            },
+            "expected": {
+              "_v": 1,
+              "id": "elf",
+              "name": "Elf",
+              "playable": true,
+              "stats_int": 16,
+              "max_stats_dex": 22,
+              "skills_count": 2,
+              "resistances_count": 2,
+              "first_resistance": "charm",
+              "vulnerabilities_count": 2,
+              "immunities_count": 0,
+              "affects_count": 2,
+              "remort_into": "high_elf",
+              "traits_count": 1,
+              "first_trait_id": "mana_regen"
+            }
+          }
+        ]
+      },
+      "expected_result": "pass"
+    },
+    {
+      "test_type": "gmcp_sentience_",
+      "name": "gmcp_build_race_minimal",
+      "description": "Race builder with minimal data",
+      "input": {
+        "function": "build_race",
+        "test_cases": [
+          {
+            "scenario": "minimal_race",
+            "params": {
+              "id": "human",
+              "name": "Human",
+              "description": "Versatile.",
+              "playable": true,
+              "starting": true,
+              "size": "medium",
+              "stats": [13, 13, 13, 13, 13],
+              "max_stats": [20, 20, 20, 20, 20],
+              "max_vitals": [2500, 2500, 2500],
+              "skills": [],
+              "resistances": "",
+              "vulnerabilities": "",
+              "immunities": "",
+              "affects": "",
+              "remort_into": null,
+              "traits": []
+            },
+            "expected": {
+              "_v": 1,
+              "id": "human",
+              "skills_count": 0,
+              "resistances_count": 0,
+              "remort_into_null": true,
+              "traits_count": 0
             }
           }
         ]

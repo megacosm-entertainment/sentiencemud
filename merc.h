@@ -11555,6 +11555,7 @@ void connection_remove(DESCRIPTOR_DATA *d);
 
 /* act_info.c */
 extern int wear_params[MAX_WEAR][7];
+extern char *const where_name[];
 
 char *get_script_prompt_string(CHAR_DATA *ch, char *key);
 bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, int mana);

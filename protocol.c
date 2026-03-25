@@ -3979,41 +3979,252 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
 
       case GMCP_SENTIENCE_CLIENT_PREFERENCES:
       {
-         /* Client sends partial updates: {"gmcp_channels": true, ...}
-          * Validate each key, apply as character override, echo back full state. */
-         static const char *valid_keys[] = {
-             "gmcp_channels", "gmcp_suppress_channels", "gmcp_suppress_minimap", NULL
-         };
+         /* Client sends either:
+          * Legacy: {"gmcp_channels": true, ...}
+          * New: {"action": "set", "key": "brief", "scope": "character", "value": true}
+          *      {"action": "reset", "key": "brief", "scope": "character"} */
          CHAR_DATA *ch = apDescriptor->character;
-
+         ACCOUNT_DATA *account = NULL;
+         bool account_loaded = false;
+         bool has_action = false;
+         char action[32] = "";
+         char pref_key[64] = "";
+         char scope[32] = "";
+         
          if (!ch || IS_NPC(ch) || !ch->pcdata)
              break;
 
+         if (ch->pcdata->account_name[0]) {
+             account = get_account_online_or_offline(ch->pcdata->account_name, &account_loaded);
+         }
+
          if (t[1].type == JSMN_OBJECT) {
+             /* Check if this uses the new action-based format */
              for (i = 2; i < tokens; i += 2) {
-                 int k;
-                 bool valid = false;
-
                  key = PullJSONString(t[i].start, t[i].end, string);
+                 if (!strcmp(key, "action")) {
+                     has_action = true;
+                     strlcpy(action, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(action));
+                     break;
+                 }
+             }
 
-                 for (k = 0; valid_keys[k]; k++) {
-                     if (!strcmp(key, valid_keys[k])) {
-                         valid = true;
+             if (has_action) {
+                 /* New action-based format */
+                 json_t *error_obj = NULL;
+                 
+                 /* Parse all fields */
+                 for (i = 2; i < tokens; i += 2) {
+                     key = PullJSONString(t[i].start, t[i].end, string);
+                     if (!strcmp(key, "key")) {
+                         strlcpy(pref_key, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(pref_key));
+                     } else if (!strcmp(key, "scope")) {
+                         strlcpy(scope, PullJSONString(t[i + 1].start, t[i + 1].end, string), sizeof(scope));
+                     }
+                 }
+
+                 /* Validate action */
+                 if (strcmp(action, "set") && strcmp(action, "reset")) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_action"));
+                     json_object_set_new(error_obj, "message", json_string("Action must be 'set' or 'reset'"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 /* Validate scope */
+                 if (strcmp(scope, "character") && strcmp(scope, "account")) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_scope"));
+                     json_object_set_new(error_obj, "message", json_string("Scope must be 'character' or 'account'"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 /* Validate key exists */
+                 bool valid_key = false;
+                 for (int j = 0; pc_set_table[j].name; j++) {
+                     if (!strcmp(pref_key, pc_set_table[j].name)) {
+                         valid_key = true;
                          break;
                      }
                  }
-                 if (!valid)
-                     continue;
-
-                 if (i + 1 < tokens) {
-                     char *val_str = PullJSONString(t[i + 1].start, t[i + 1].end, string);
-                     bool val = (!strcmp(val_str, "true") || !strcmp(val_str, "1"));
-                     pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP,
-                                   key, val);
+                 if (!valid_key) {
+                     for (PREF_ENTRY *p = game_settings.pref_defaults; p; p = p->next) {
+                         if (!strcmp(pref_key, p->key)) {
+                             valid_key = true;
+                             break;
+                         }
+                     }
                  }
+                 
+                 if (!valid_key) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_key"));
+                     json_object_set_new(error_obj, "message", json_string("Unknown preference key"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 /* Get the preference list to modify */
+                 PREF_ENTRY **pref_list = NULL;
+                 if (!strcmp(scope, "character")) {
+                     pref_list = &ch->pcdata->preferences;
+                 } else if (!strcmp(scope, "account") && account) {
+                     pref_list = &account->preferences;
+                 }
+
+                 if (!pref_list) {
+                     error_obj = json_object();
+                     json_object_set_new(error_obj, "error", json_string("invalid_scope"));
+                     json_object_set_new(error_obj, "message", json_string("Cannot access account preferences"));
+                     sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                     goto cleanup_account;
+                 }
+
+                 if (!strcmp(action, "reset")) {
+                     /* Remove the preference */
+                     pref_remove(pref_list, pref_key);
+                 } else if (!strcmp(action, "set")) {
+                     /* Find preference type and set value */
+                     int pref_type = PREF_TYPE_BOOL; /* Default */
+                     int pref_category = PREF_CAT_TOGGLE; /* Default */
+                     
+                     /* Check if it's in pc_set_table (toggle) */
+                     bool is_toggle = false;
+                     for (int j = 0; pc_set_table[j].name; j++) {
+                         if (!strcmp(pref_key, pc_set_table[j].name)) {
+                             is_toggle = true;
+                             pref_category = PREF_CAT_TOGGLE;
+                             pref_type = PREF_TYPE_BOOL;
+                             break;
+                         }
+                     }
+                     
+                     /* If not in pc_set_table, check game_settings.pref_defaults */
+                     if (!is_toggle) {
+                         for (PREF_ENTRY *p = game_settings.pref_defaults; p; p = p->next) {
+                             if (!strcmp(pref_key, p->key)) {
+                                 pref_category = p->category;
+                                 pref_type = p->type;
+                                 break;
+                             }
+                         }
+                     }
+
+                     /* Find the value token */
+                     bool found_value = false;
+                     for (i = 2; i < tokens; i += 2) {
+                         key = PullJSONString(t[i].start, t[i].end, string);
+                         if (!strcmp(key, "value")) {
+                             found_value = true;
+                             char *val_str = PullJSONString(t[i + 1].start, t[i + 1].end, string);
+                             
+                             switch (pref_type) {
+                                 case PREF_TYPE_BOOL: {
+                                     if (strcmp(val_str, "true") && strcmp(val_str, "false")
+                                         && strcmp(val_str, "1") && strcmp(val_str, "0")) {
+                                         error_obj = json_object();
+                                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                                         json_object_set_new(error_obj, "message", json_string("Boolean value must be true or false"));
+                                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                                         goto cleanup_account;
+                                     }
+                                     bool val = (!strcmp(val_str, "true") || !strcmp(val_str, "1"));
+                                     pref_set_bool(pref_list, pref_category, pref_key, val);
+                                     break;
+                                 }
+                                 case PREF_TYPE_INT: {
+                                     char *endptr;
+                                     int val = (int)strtol(val_str, &endptr, 10);
+                                     if (*endptr != '\0') {
+                                         error_obj = json_object();
+                                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                                         json_object_set_new(error_obj, "message", json_string("Integer value required"));
+                                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                                         goto cleanup_account;
+                                     }
+                                     pref_set_int(pref_list, pref_category, pref_key, val);
+                                     break;
+                                 }
+                                 case PREF_TYPE_STRING: {
+                                     pref_set_string(pref_list, pref_category, pref_key, val_str);
+                                     break;
+                                 }
+                                 case PREF_TYPE_BITFIELD: {
+                                     char *endptr;
+                                     long val = strtol(val_str, &endptr, 0);
+                                     if (*endptr != '\0') {
+                                         error_obj = json_object();
+                                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                                         json_object_set_new(error_obj, "message", json_string("Numeric value required for bitfield"));
+                                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                                         goto cleanup_account;
+                                     }
+                                     pref_set_bitfield(pref_list, pref_category, pref_key, val);
+                                     break;
+                                 }
+                                 default:
+                                     break;
+                             }
+                             break;
+                         }
+                     }
+
+                     if (!found_value) {
+                         error_obj = json_object();
+                         json_object_set_new(error_obj, "error", json_string("invalid_value"));
+                         json_object_set_new(error_obj, "message", json_string("Missing 'value' field for set action"));
+                         sentience_send_package(apDescriptor, "Sentience.Client.Preferences", error_obj);
+                         goto cleanup_account;
+                     }
+                 }
+
+                 /* Save */
+                 save_char_obj(ch);
+                 if (!strcmp(scope, "account") && account) {
+                     save_account(account);
+                 }
+
+                 /* Send updated preferences */
+                 sentience_send_client_preferences(apDescriptor);
+             } else {
+                 /* Legacy format: {"gmcp_channels": true, ...} */
+                 static const char *valid_keys[] = {
+                     "gmcp_channels", "gmcp_suppress_channels", "gmcp_suppress_minimap", NULL
+                 };
+
+                 for (i = 2; i < tokens; i += 2) {
+                     int k;
+                     bool valid = false;
+
+                     key = PullJSONString(t[i].start, t[i].end, string);
+
+                     for (k = 0; valid_keys[k]; k++) {
+                         if (!strcmp(key, valid_keys[k])) {
+                             valid = true;
+                             break;
+                         }
+                     }
+                     if (!valid)
+                         continue;
+
+                     if (i + 1 < tokens) {
+                         char *val_str = PullJSONString(t[i + 1].start, t[i + 1].end, string);
+                         bool val = (!strcmp(val_str, "true") || !strcmp(val_str, "1"));
+                         pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP,
+                                       key, val);
+                     }
+                 }
+                 save_char_obj(ch);
+                 sentience_send_client_preferences(apDescriptor);
              }
-             save_char_obj(ch);
-             sentience_send_client_preferences(apDescriptor);
+         }
+
+cleanup_account:
+         /* Cleanup account if we loaded it */
+         if (account_loaded && account) {
+             free_account(account);
          }
       }
       break;
@@ -4193,6 +4404,8 @@ void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *j
    /* WebSocket: send as plain text frame (no telnet IAC framing) */
    if ( !descriptor_uses_telnet_iac(apDescriptor) )
    {
+      if ( !apDescriptor->fcommand && apDescriptor->pProtocol->WriteOOB <= 0 )
+         apDescriptor->pProtocol->WriteOOB = 2;
       snprintf( buf, sizeof(buf), "%s %s\n\r", package, json_body );
       write_to_buffer( apDescriptor, buf, 0 );
       return;

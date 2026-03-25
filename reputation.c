@@ -3,6 +3,7 @@
 #include <string.h>
 #include "merc.h"
 #include "recycle.h"
+#include "gmcp_sentience.h"
 
 static REPUTATION_INDEX_RANK_DATA *new_reputation_index_rank_data(void)
 {
@@ -430,6 +431,7 @@ bool set_reputation_rank(CHAR_DATA *ch, REPUTATION_DATA *rep, int rank_no, int r
     rep->current_rank = rank_no;
     rep->reputation = UMAX(0, rank_rep);
     rep->maximum_rank = UMAX(rep->maximum_rank, rep->current_rank);
+    sentience_invalidate_cache(ch, SENTIENCE_DIRTY_REPUTATIONS);
     return true;
 }
 
@@ -470,6 +472,7 @@ bool gain_reputation(CHAR_DATA *ch, REPUTATION_INDEX_DATA *repIndex, long amount
         *total_given = (after - before);
     }
 
+    sentience_invalidate_cache(ch, SENTIENCE_DIRTY_REPUTATIONS);
     return true;
 }
 
