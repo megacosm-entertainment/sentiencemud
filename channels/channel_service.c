@@ -3380,7 +3380,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                msg.reports_json,
                                appended_report_id,
                                sizeof(appended_report_id));
-        channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
+        channel_gmcp_broadcast(def, sender, delivery_text, current_time);
         return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
@@ -3391,7 +3391,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
 
     if (channel_transport_backend_mode() != CHANNEL_BACKEND_LEGACY_ITERATIVE) {
         if (channel_transport_publish(topic, &msg)) {
-            channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
+            channel_gmcp_broadcast(def, sender, delivery_text, current_time);
             return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, NULL);
         }
 
@@ -3405,7 +3405,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                                msg.reports_json,
                                appended_report_id,
                                sizeof(appended_report_id));
-        channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
+        channel_gmcp_broadcast(def, sender, delivery_text, current_time);
         return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
     }
 
@@ -3418,7 +3418,7 @@ bool channel_service_send(CHAR_DATA *sender, const char *channel_id, const char 
                            msg.reports_json,
                            appended_report_id,
                            sizeof(appended_report_id));
-    channel_gmcp_broadcast(channel_id, sender->name, delivery_text, current_time);
+    channel_gmcp_broadcast(def, sender, delivery_text, current_time);
     return channel_dispatch_legacy_by_id(sender, channel_id, delivery_text, appended_report_id);
 }
 
