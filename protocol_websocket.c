@@ -154,6 +154,7 @@ static void process_gmcp_input(protocol_websocket_t *ws_proto, const char *input
             ws_proto->supports_char = true;
             ws_proto->supports_room = true;
             if (ws_proto->base.descriptor && ws_proto->base.descriptor->pProtocol) {
+                ws_proto->base.descriptor->pProtocol->bGMCP = true;
                 ws_proto->base.descriptor->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE] = true;
             }
             log_string("WebSocket client supports Sentience.* GMCP packages");
@@ -285,6 +286,7 @@ static void websocket_negotiate(protocol_layer_t *proto)
 
     /* WebSocket clients always get Sentience.* packages */
     if (proto->descriptor && proto->descriptor->pProtocol) {
+        proto->descriptor->pProtocol->bGMCP = true;
         proto->descriptor->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE] = true;
     }
 
