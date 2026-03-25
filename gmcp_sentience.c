@@ -776,7 +776,7 @@ void sentience_gmcp_update(descriptor_t *d)
         return;
 
     ch = d->character;
-    if (!ch || !ch->in_room)
+    if (!ch || !ch->in_room || d->connected != CON_PLAYING)
         return;
 
     cache = &proto->sentience_cache;

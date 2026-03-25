@@ -4193,6 +4193,8 @@ void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *j
    /* WebSocket: send as plain text frame (no telnet IAC framing) */
    if ( !descriptor_uses_telnet_iac(apDescriptor) )
    {
+      if ( !apDescriptor->fcommand && apDescriptor->pProtocol->WriteOOB <= 0 )
+         apDescriptor->pProtocol->WriteOOB = 2;
       snprintf( buf, sizeof(buf), "%s %s\n\r", package, json_body );
       write_to_buffer( apDescriptor, buf, 0 );
       return;
