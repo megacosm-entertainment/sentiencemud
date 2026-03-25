@@ -20,6 +20,7 @@ static test_result_t run_gmcp_affects_scenario(json_t *tc);
 static test_result_t run_gmcp_enemies_scenario(json_t *tc);
 static test_result_t run_gmcp_room_contents_scenario(json_t *tc);
 static test_result_t run_gmcp_room_map_scenario(json_t *tc);
+static test_result_t run_gmcp_channel_message_scenario(json_t *tc);
 
 /* --- Vitals scenario --- */
 
@@ -688,6 +689,47 @@ static test_result_t run_gmcp_room_map_scenario(json_t *test_case)
     return tr;
 }
 
+/* --- Channel.Message scenario --- */
+
+static test_result_t run_gmcp_channel_message_scenario(json_t *tc)
+{
+    json_t *params = json_object_get(tc, "params");
+    json_t *expected = json_object_get(tc, "expected");
+    json_t *tell_target_val = json_object_get(params, "tell_target");
+
+    sentience_channel_message_input_t input = {
+        .channel     = json_string_value(json_object_get(params, "channel")),
+        .sender      = json_string_value(json_object_get(params, "sender")),
+        .text        = json_string_value(json_object_get(params, "text")),
+        .timestamp   = (long)json_integer_value(json_object_get(params, "timestamp")),
+        .tell_target = (tell_target_val && !json_is_null(tell_target_val))
+                     ? json_string_value(tell_target_val)
+                     : NULL,
+    };
+
+    json_t *result = sentience_build_channel_message(&input);
+    if (!result) {
+        if (!expected || json_is_null(expected))
+            return TEST_SUCCESS;
+        log_message(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                   "sentience_build_channel_message returned NULL");
+        return TEST_FAILURE;
+    }
+
+    bool pass = json_equal(result, expected);
+    if (!pass) {
+        char *r = json_dumps(result, JSON_COMPACT | JSON_SORT_KEYS);
+        char *e = json_dumps(expected, JSON_COMPACT | JSON_SORT_KEYS);
+        log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
+                     "Channel.Message JSON mismatch:\n  got:    %s\n  expect: %s",
+                     r ? r : "NULL", e ? e : "NULL");
+        free(r); free(e);
+    }
+
+    json_decref(result);
+    return pass ? TEST_SUCCESS : TEST_FAILURE;
+}
+
 /*
  * Main test dispatcher — routes by function name from JSON config.
  */
@@ -754,6 +796,8 @@ test_result_t run_gmcp_sentience_test_case(test_case_t *test)
             result = run_gmcp_room_contents_scenario(tc);
         } else if (strcmp(func_name, "build_room_map") == 0) {
             result = run_gmcp_room_map_scenario(tc);
+        } else if (strcmp(func_name, "build_channel_message") == 0) {
+            result = run_gmcp_channel_message_scenario(tc);
         } else {
             log_message_f(LOG_LEVEL_ERROR, LOG_UNIT_TESTS,
                          "Unknown GMCP function: %s", func_name);

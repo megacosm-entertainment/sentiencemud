@@ -195,6 +195,28 @@ json_t *sentience_build_room_map(const sentience_room_map_input_t *input)
     return obj;
 }
 
+/* ── Sentience.Channel.Message builder ─────────────────────────── */
+
+json_t *sentience_build_channel_message(const sentience_channel_message_input_t *input)
+{
+    json_t *obj;
+
+    if (!input || !input->channel || !input->text)
+        return NULL;
+
+    obj = json_object();
+    json_object_set_new(obj, "_v",        json_integer(SENTIENCE_PACKAGE_VERSION));
+    json_object_set_new(obj, "channel",   json_string(input->channel));
+    json_object_set_new(obj, "sender",    json_string(input->sender ? input->sender : ""));
+    json_object_set_new(obj, "text",      json_string(input->text));
+    json_object_set_new(obj, "timestamp", json_integer(input->timestamp));
+
+    if (input->tell_target)
+        json_object_set_new(obj, "tell_target", json_string(input->tell_target));
+
+    return obj;
+}
+
 /* ── Phase 3: Pure JSON builders ────────────────────────────────── */
 
 json_t *sentience_build_client_ready_capabilities_json(void)
@@ -215,6 +237,8 @@ json_t *sentience_build_client_ready_capabilities_json(void)
     json_array_append_new(packages, json_string("Sentience.Room.Info"));
     json_array_append_new(packages, json_string("Sentience.Room.Contents"));
     json_array_append_new(packages, json_string("Sentience.Room.Map"));
+    json_array_append_new(packages, json_string("Sentience.Channel.Message"));
+    json_array_append_new(packages, json_string("Sentience.Client.Preferences"));
     json_array_append_new(packages, json_string("Sentience.Link"));
 
     json_array_append_new(features, json_string("links"));
@@ -399,7 +423,7 @@ json_t *sentience_build_room_contents_json(const sentience_room_contents_input_t
 /*
  * Serialize JSON and send as a GMCP package via the protocol layer.
  */
-static void sentience_send_package(descriptor_t *d, const char *package, json_t *json)
+void sentience_send_package(descriptor_t *d, const char *package, json_t *json)
 {
     char *dump;
 

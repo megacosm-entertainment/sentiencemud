@@ -227,6 +227,24 @@ json_t *sentience_build_enemies_json(const sentience_enemy_input_t *enemies, int
 json_t *sentience_build_room_contents_json(const sentience_room_contents_input_t *data);
 json_t *sentience_build_room_map(const sentience_room_map_input_t *input);
 
+/* ── Channel.Message ──────────────────────────────────────────────── */
+
+typedef struct {
+    const char *channel;      /* Channel ID (e.g. "gossip", "say") */
+    const char *sender;       /* Sender name ("" for system messages) */
+    const char *text;         /* Message text (color-stripped) */
+    long        timestamp;    /* Unix timestamp */
+    const char *tell_target;  /* Recipient name (NULL if not directed) */
+} sentience_channel_message_input_t;
+
+json_t *sentience_build_channel_message(const sentience_channel_message_input_t *input);
+
+/*
+ * Send a pre-built JSON object as a named GMCP package to a descriptor.
+ * Takes ownership of the json_t (decrefs after sending).
+ */
+void sentience_send_package(descriptor_t *d, const char *package, json_t *json);
+
 /*
  * Game-loop entry point. Called from gmcp_update() for each descriptor.
  * Compares current character state with cache, sends dirty packages.
