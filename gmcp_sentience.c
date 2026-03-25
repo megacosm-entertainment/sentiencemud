@@ -2362,6 +2362,10 @@ void sentience_gmcp_update(descriptor_t *d)
         cache->race_uid = ch->race ? ch->race->uid : 0;
     }
 
+    /* Suppress prompt when we only sent GMCP data (no player command) */
+    if (dirty && !d->fcommand)
+        proto->WriteOOB = 2;
+
     cache->initialized = true;
 }
 
