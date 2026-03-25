@@ -71,21 +71,55 @@ void sentience_link_queue_flush(descriptor_t *d)
 
 void link_osc8_gmcp(BUFFER *buf, const char *link_id, const char *text)
 {
-    if (buf && text) add_buf(buf, text);
-    (void)link_id;
+    if (!buf || !text)
+        return;
+
+    if (!link_id || !link_id[0]) {
+        add_buf(buf, text);
+        return;
+    }
+
+    bprintf(buf, "\x1b]8;;%s\x07%s\x1b]8;;\x07", link_id, text);
 }
 
 void link_osc8_telnet(BUFFER *buf, const char *primary_cmd, const char *text)
 {
-    if (buf && text) add_buf(buf, text);
-    (void)primary_cmd;
+    char encoded[512];
+
+    if (!buf || !text)
+        return;
+
+    if (!primary_cmd || !primary_cmd[0]) {
+        add_buf(buf, text);
+        return;
+    }
+
+    link_url_encode(encoded, sizeof(encoded), primary_cmd);
+    bprintf(buf, "\x1b]8;;mud://%s\x07%s\x1b]8;;\x07", encoded, text);
 }
 
 int link_url_encode(char *dst, size_t dst_size, const char *src)
 {
-    (void)dst; (void)dst_size; (void)src;
-    if (dst && dst_size > 0) dst[0] = '\0';
-    return 0;
+    size_t di = 0;
+
+    if (!dst || !src || dst_size == 0)
+        return 0;
+
+    for (const char *s = src; *s && di + 3 < dst_size; s++) {
+        unsigned char c = (unsigned char)*s;
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~') {
+            dst[di++] = (char)c;
+        } else {
+            if (di + 3 >= dst_size) break;  /* Need space for %XX */
+            dst[di++] = '%';
+            dst[di++] = "0123456789ABCDEF"[(c >> 4) & 0xF];
+            dst[di++] = "0123456789ABCDEF"[c & 0xF];
+        }
+    }
+
+    dst[di] = '\0';
+    return (int)di;
 }
 
 int sentience_link_filter_staff(const struct mxp_cmd_hint *items, int nitems,

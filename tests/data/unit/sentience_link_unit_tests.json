@@ -16,7 +16,7 @@
                     {
                         "scenario": "simple_spaces",
                         "params": { "input": "look sword" },
-                        "expected": { "output": "look%20sword", "length": 11 }
+                        "expected": { "output": "look%20sword", "length": 12 }
                     }
                 ]
             }
