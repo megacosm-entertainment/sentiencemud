@@ -175,6 +175,204 @@ json_t *sentience_build_room_json(const sentience_room_input_t *data)
     return obj;
 }
 
+/* ── Phase 3: Pure JSON builders ────────────────────────────────── */
+
+json_t *sentience_build_client_ready_capabilities_json(void)
+{
+    json_t *obj = json_object();
+    json_t *packages = json_array();
+    json_t *features = json_array();
+
+    if (!obj) return NULL;
+
+    json_array_append_new(packages, json_string("Sentience.Char.Identity"));
+    json_array_append_new(packages, json_string("Sentience.Char.Vitals"));
+    json_array_append_new(packages, json_string("Sentience.Char.Stats"));
+    json_array_append_new(packages, json_string("Sentience.Char.Combat"));
+    json_array_append_new(packages, json_string("Sentience.Char.Worth"));
+    json_array_append_new(packages, json_string("Sentience.Char.Affects"));
+    json_array_append_new(packages, json_string("Sentience.Char.Enemies"));
+    json_array_append_new(packages, json_string("Sentience.Room.Info"));
+    json_array_append_new(packages, json_string("Sentience.Room.Contents"));
+    json_array_append_new(packages, json_string("Sentience.Link"));
+
+    json_array_append_new(features, json_string("links"));
+    json_array_append_new(features, json_string("osc8"));
+
+    json_object_set_new(obj, "packages", packages);
+    json_object_set_new(obj, "features", features);
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
+json_t *sentience_build_client_ready_state_json(int tick_rate, int pulse_per_second)
+{
+    json_t *obj = json_object();
+    if (!obj) return NULL;
+
+    json_object_set_new(obj, "tick_rate",        json_integer(tick_rate));
+    json_object_set_new(obj, "pulse_per_second", json_integer(pulse_per_second));
+    json_object_set_new(obj, "_v",               json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
+json_t *sentience_build_affects_json(const sentience_affect_input_t *affects, int num_affects)
+{
+    json_t *obj = json_object();
+    json_t *arr = json_array();
+    int i;
+
+    if (!obj) return NULL;
+
+    for (i = 0; i < num_affects; i++) {
+        json_t *af = json_object();
+
+        json_object_set_new(af, "name",
+            json_string(affects[i].name ? affects[i].name : "unknown"));
+
+        if (affects[i].wnum)
+            json_object_set_new(af, "wnum", json_string(affects[i].wnum));
+        else
+            json_object_set_new(af, "wnum", json_null());
+
+        json_object_set_new(af, "duration",          json_integer(affects[i].duration));
+        json_object_set_new(af, "estimated_seconds",  json_integer(affects[i].estimated_seconds));
+
+        if (affects[i].modifier)
+            json_object_set_new(af, "modifier", json_string(affects[i].modifier));
+        else
+            json_object_set_new(af, "modifier", json_null());
+
+        json_object_set_new(af, "level", json_integer(affects[i].level));
+
+        json_array_append_new(arr, af);
+    }
+
+    json_object_set_new(obj, "affects", arr);
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
+json_t *sentience_build_enemies_json(const sentience_enemy_input_t *enemies, int num_enemies,
+                                      long self_hp, long self_max_hp)
+{
+    json_t *obj = json_object();
+    json_t *arr = json_array();
+    int i;
+
+    if (!obj) return NULL;
+
+    for (i = 0; i < num_enemies; i++) {
+        json_t *en = json_object();
+        json_t *iid = json_array();
+
+        json_object_set_new(en, "name",
+            json_string(enemies[i].name ? enemies[i].name : "someone"));
+
+        json_array_append_new(iid, json_integer(enemies[i].instance_id[0]));
+        json_array_append_new(iid, json_integer(enemies[i].instance_id[1]));
+        json_object_set_new(en, "instance_id", iid);
+
+        json_object_set_new(en, "hp_pct",     json_integer(enemies[i].hp_pct));
+        json_object_set_new(en, "is_primary",  enemies[i].is_primary ? json_true() : json_false());
+        json_object_set_new(en, "target",
+            json_string(enemies[i].target ? enemies[i].target : "someone"));
+
+        json_array_append_new(arr, en);
+    }
+
+    json_object_set_new(obj, "enemies", arr);
+
+    if (num_enemies > 0) {
+        json_t *self = json_object();
+        long hp_pct = (self_hp * 100) / UMAX(1, self_max_hp);
+
+        json_object_set_new(self, "hp",     json_integer(self_hp));
+        json_object_set_new(self, "max_hp", json_integer(self_max_hp));
+        json_object_set_new(self, "hp_pct", json_integer(hp_pct));
+        json_object_set_new(obj, "self", self);
+    } else {
+        json_object_set_new(obj, "self", json_null());
+    }
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
+json_t *sentience_build_room_contents_json(const sentience_room_contents_input_t *data)
+{
+    json_t *obj;
+    json_t *items, *npcs_arr, *players_arr, *doors_arr;
+    int i;
+
+    if (!data) return NULL;
+
+    obj = json_object();
+    if (!obj) return NULL;
+
+    items = json_array();
+    for (i = 0; i < data->num_items; i++) {
+        json_t *it = json_object();
+        json_t *iid = json_array();
+
+        json_object_set_new(it, "name",
+            json_string(data->items[i].name ? data->items[i].name : "something"));
+        json_array_append_new(iid, json_integer(data->items[i].instance_id[0]));
+        json_array_append_new(iid, json_integer(data->items[i].instance_id[1]));
+        json_object_set_new(it, "instance_id", iid);
+        json_object_set_new(it, "short_desc",
+            json_string(data->items[i].short_desc ? data->items[i].short_desc : ""));
+        json_array_append_new(items, it);
+    }
+    json_object_set_new(obj, "items", items);
+
+    npcs_arr = json_array();
+    for (i = 0; i < data->num_npcs; i++) {
+        json_t *npc = json_object();
+        json_t *iid = json_array();
+
+        json_object_set_new(npc, "name",
+            json_string(data->npcs[i].name ? data->npcs[i].name : "someone"));
+        json_array_append_new(iid, json_integer(data->npcs[i].instance_id[0]));
+        json_array_append_new(iid, json_integer(data->npcs[i].instance_id[1]));
+        json_object_set_new(npc, "instance_id", iid);
+        json_object_set_new(npc, "short_desc",
+            json_string(data->npcs[i].short_desc ? data->npcs[i].short_desc : ""));
+        json_array_append_new(npcs_arr, npc);
+    }
+    json_object_set_new(obj, "npcs", npcs_arr);
+
+    players_arr = json_array();
+    for (i = 0; i < data->num_players; i++) {
+        json_t *pl = json_object();
+        json_object_set_new(pl, "name",
+            json_string(data->players[i].name ? data->players[i].name : "someone"));
+        json_array_append_new(players_arr, pl);
+    }
+    json_object_set_new(obj, "players", players_arr);
+
+    doors_arr = json_array();
+    for (i = 0; i < data->num_doors; i++) {
+        json_t *dr = json_object();
+        json_object_set_new(dr, "direction",
+            json_string(data->doors[i].direction ? data->doors[i].direction : "unknown"));
+        json_object_set_new(dr, "state",
+            json_string(data->doors[i].state ? data->doors[i].state : "open"));
+        json_object_set_new(dr, "is_locked",
+            data->doors[i].is_locked ? json_true() : json_false());
+        json_array_append_new(doors_arr, dr);
+    }
+    json_object_set_new(obj, "doors", doors_arr);
+
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+
+    return obj;
+}
+
 /* ── Helpers for game-loop integration ──────────────────────────── */
 
 /*
