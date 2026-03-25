@@ -19,6 +19,12 @@
    - [Sentience.Char.Worth](#sentiencecharworth)
    - [Sentience.Char.Affects](#sentiencecharaffects)
    - [Sentience.Char.Enemies](#sentiencecharenemies)
+   - [Sentience.Char.Inventory](#sentiencecharinventory)
+   - [Sentience.Char.Equipment](#sentiencecharequipment)
+   - [Sentience.Char.Abilities](#sentiencecharabilities)
+   - [Sentience.Char.Reputations](#sentiencecharreputations)
+   - [Sentience.Char.Church](#sentiencecharchurch)
+   - [Sentience.Char.Race](#sentiencecharrace)
    - [Sentience.Room.Info](#sentienceroominfo)
    - [Sentience.Room.Contents](#sentienceroomcontents)
    - [Sentience.Room.Map](#sentienceroommap)
@@ -77,6 +83,12 @@ Client                              Server
   |  <── Room.Contents ──────────────  |
   |  <── Char.Affects ───────────────  |  (if character has active affects)
   |  <── Char.Enemies ───────────────  |  (if character is in combat)
+  |  <── Char.Inventory ─────────────  |  Items carried + capacity
+  |  <── Char.Equipment ─────────────  |  All equipment slots
+  |  <── Char.Abilities ─────────────  |  Skills, spells, songs
+  |  <── Char.Reputations ───────────  |  Faction standings
+  |  <── Char.Church ────────────────  |  Church membership
+  |  <── Char.Race ──────────────────  |  Race details
   |                                    |
   |  (Ongoing game text + GMCP)        |
 ```
@@ -245,35 +257,79 @@ duration countdown timers).
 
 #### Server → Client (full state)
 
-Sent on login and after any preference change:
+Sent on login and after any preference change. Preferences are delivered as a
+structured array with metadata about each preference:
 
 ```json
 {
   "_v": 1,
-  "gmcp_channels": true,
-  "gmcp_suppress_channels": false,
-  "gmcp_suppress_minimap": false
+  "preferences": [
+    {
+      "key": "gmcp_channels",
+      "category": "gmcp",
+      "type": "bool",
+      "source": "default",
+      "label": "Enable GMCP channel delivery",
+      "value": true
+    },
+    {
+      "key": "gmcp_suppress_channels",
+      "category": "gmcp",
+      "type": "bool",
+      "source": "character",
+      "value": false,
+      "label": "Suppress inline channel text"
+    }
+  ]
 }
 ```
 
-| Field                    | Type | Default (WS) | Description                                              |
-|--------------------------|------|---------------|----------------------------------------------------------|
-| `gmcp_channels`          | bool | `true`        | Enable `Sentience.Channel.Message` delivery              |
-| `gmcp_suppress_channels` | bool | `false`       | Suppress inline channel text when GMCP channels enabled  |
-| `gmcp_suppress_minimap`  | bool | `false`       | Suppress inline ASCII minimap in room display            |
+#### Preference Object
 
-#### Client → Server (partial update)
+| Field      | Type   | Description                                              |
+|------------|--------|----------------------------------------------------------|
+| `key`      | string | Preference identifier                                    |
+| `category` | string | Grouping category (e.g., `"gmcp"`)                       |
+| `type`     | string | Value type: `"bool"`, `"int"`, or `"string"`             |
+| `source`   | string | Where the current value comes from (see below)           |
+| `label`    | string | Human-readable description for UI display                |
+| `value`    | mixed  | Current value (type matches the `type` field)            |
 
-Send only the preferences you want to change:
+#### Source Values
+
+| Source        | Description                                              |
+|---------------|----------------------------------------------------------|
+| `"default"`   | Server default — no override has been set                |
+| `"account"`   | Set at account level (shared across characters)          |
+| `"character"` | Set at character level (per-character override)           |
+
+#### Client → Server (set/reset)
+
+To change a preference, send an action:
 
 ```json
-Sentience.Client.Preferences {"gmcp_suppress_channels": true}
+Sentience.Client.Preferences {"action": "set", "key": "gmcp_suppress_channels", "value": true, "scope": "character"}
 ```
 
-The server validates against the known preference whitelist, applies changes,
-persists them, and echoes the full preference state back.
+To remove an override and fall back to the default:
 
-**Invalid keys are silently ignored.**
+```json
+Sentience.Client.Preferences {"action": "reset", "key": "gmcp_suppress_channels"}
+```
+
+| Field    | Type   | Description                                            |
+|----------|--------|--------------------------------------------------------|
+| `action` | string | `"set"` to change a value, `"reset"` to remove override |
+| `key`    | string | Preference key to modify                               |
+| `value`  | mixed  | New value (required for `"set"`, ignored for `"reset"`) |
+| `scope`  | string | `"account"` or `"character"` (required for `"set"`)     |
+
+#### Error Responses
+
+```json
+{"error": "invalid_key"}
+{"error": "invalid_value"}
+```
 
 #### Preference Behavior
 
@@ -282,7 +338,10 @@ persists them, and echoes the full preference state back.
   `true` but `gmcp_suppress_channels` is `false`, you get both GMCP and inline.
 - **`gmcp_suppress_minimap`:** When `true`, the server does not send
   `Sentience.Room.Map` and does not include inline ASCII maps in room text.
-- Preferences are persisted per-character and survive logout/reconnect.
+- **Scope precedence:** Character overrides account, account overrides default.
+  A `"reset"` action removes the override at the stored scope, falling back to
+  the next level.
+- Preferences are persisted and survive logout/reconnect.
 
 ---
 
@@ -397,7 +456,7 @@ The `active` field is the name of the last saved/loaded layout, or `null` if non
 ### Sentience.Char.Identity
 
 **Direction:** Server → Client
-**When:** Login, level change, name change, class change
+**When:** Login, level change, name change, class change, trait change
 
 ```json
 {
@@ -414,9 +473,80 @@ The `active` field is the name of the last saved/loaded layout, or `null` if non
       "id": "mage",
       "name": "Mage",
       "level": 92,
-      "is_primary": true
+      "is_primary": true,
+      "max_level": 100,
+      "type": "mage",
+      "flags": "caster",
+      "primary_stat": "int",
+      "hp_range": [6, 8],
+      "gains_mana": true,
+      "description": "Masters of arcane magic...",
+      "xp": 1234567,
+      "active_title": "archmage",
+      "available_titles": [
+        {"keyword": "archmage", "display": "the Archmage", "is_default": true},
+        {"keyword": "wizard", "display": "the Wizard", "is_default": false}
+      ],
+      "action": null
+    },
+    {
+      "id": "warrior",
+      "name": "Warrior",
+      "level": 50,
+      "is_primary": false,
+      "max_level": 100,
+      "type": "warrior",
+      "flags": "melee",
+      "primary_stat": "str",
+      "hp_range": [12, 16],
+      "gains_mana": false,
+      "description": "Masters of martial combat...",
+      "xp": 500000,
+      "active_title": null,
+      "available_titles": [],
+      "action": {"label": "Switch", "cmd": "setclass warrior"}
     }
-  ]
+  ],
+  "traits": [
+    {
+      "id": "darkvision",
+      "name": "Darkvision",
+      "description": "Can see in the dark",
+      "category": "perception",
+      "type": "bool",
+      "source": "race",
+      "value": true
+    },
+    {
+      "id": "strength_bonus",
+      "name": "Strength Bonus",
+      "description": "Bonus to strength",
+      "category": "combat",
+      "type": "int",
+      "source": "class",
+      "value": 3
+    }
+  ],
+  "race_info": {
+    "id": "human",
+    "name": "Human",
+    "description": "The most common race...",
+    "playable": true,
+    "starting": true,
+    "size": "medium",
+    "stats": {"str": 13, "int": 13, "wis": 13, "dex": 13, "con": 13},
+    "max_stats": {"str": 22, "int": 22, "wis": 22, "dex": 22, "con": 22},
+    "max_vitals": {"hp": 100, "mana": 100, "move": 100},
+    "skills": ["sword", "shield block"],
+    "resistances": "",
+    "vulnerabilities": "",
+    "immunities": "",
+    "affects": "",
+    "remort_into": null,
+    "traits": [
+      {"id": "adaptable", "name": "Adaptable", "type": "bool", "value": true}
+    ]
+  }
 }
 ```
 
@@ -429,16 +559,85 @@ The `active` field is the name of the last saved/loaded layout, or `null` if non
 | `level`     | int      | Current class level                      |
 | `tot_level` | int      | Total level across all classes           |
 | `title`     | string   | Character title                          |
-| `classes`   | object[] | Array of class objects                   |
+| `classes`   | object[] | Array of class objects (see below)       |
+| `traits`    | object[] | Character traits from race and class     |
+| `race_info` | object   | Embedded race details (see below)        |
 
 #### Class Object
 
-| Field        | Type   | Description                    |
-|--------------|--------|--------------------------------|
-| `id`         | string | Class identifier               |
-| `name`       | string | Class display name             |
-| `level`      | int    | Level in this class            |
-| `is_primary` | bool   | Whether this is the active class |
+| Field              | Type        | Description                                          |
+|--------------------|-------------|------------------------------------------------------|
+| `id`               | string      | Class identifier                                     |
+| `name`             | string      | Class display name                                   |
+| `level`            | int         | Level in this class                                  |
+| `is_primary`       | bool        | Whether this is the active class                     |
+| `max_level`        | int         | Maximum attainable level for this class              |
+| `type`             | string      | Class archetype (e.g., `"mage"`, `"warrior"`)        |
+| `flags`            | string      | Class flags (e.g., `"caster"`, `"melee"`)            |
+| `primary_stat`     | string      | Primary attribute (`"str"`, `"int"`, `"wis"`, etc.)  |
+| `hp_range`         | int[2]      | HP gain range per level `[min, max]`                 |
+| `gains_mana`       | bool        | Whether this class gains mana on level               |
+| `description`      | string      | Class description text                               |
+| `xp`               | long        | Current XP in this class                             |
+| `active_title`     | string/null | Currently selected class title keyword, or `null`    |
+| `available_titles` | object[]    | List of unlocked class titles (see below)            |
+| `action`           | object/null | Switch action for non-primary classes, or `null`     |
+
+#### Class Title Object
+
+| Field        | Type   | Description                              |
+|--------------|--------|------------------------------------------|
+| `keyword`    | string | Title keyword (used for selection)        |
+| `display`    | string | Display text (e.g., `"the Archmage"`)     |
+| `is_default` | bool   | Whether this is the default class title   |
+
+#### Class Action Object
+
+| Field   | Type   | Description                              |
+|---------|--------|------------------------------------------|
+| `label` | string | Button label (e.g., `"Switch"`)          |
+| `cmd`   | string | MUD command to execute                   |
+
+Non-primary classes include an `action` with `{"label": "Switch", "cmd": "setclass <id>"}`.
+The primary class has `action: null`.
+
+#### Trait Object
+
+| Field         | Type        | Description                                      |
+|---------------|-------------|--------------------------------------------------|
+| `id`          | string      | Trait identifier                                 |
+| `name`        | string      | Display name                                     |
+| `description` | string      | Trait description                                |
+| `category`    | string      | Trait category (e.g., `"perception"`, `"combat"`) |
+| `type`        | string      | Value type: `"bool"` or `"int"`                  |
+| `source`      | string      | Origin: `"race"` or `"class"`                    |
+| `value`       | bool/int    | Trait value (type matches the `type` field)      |
+
+#### Race Info Object (embedded)
+
+| Field             | Type     | Description                                        |
+|-------------------|----------|----------------------------------------------------|
+| `id`              | string   | Race identifier                                    |
+| `name`            | string   | Race display name                                  |
+| `description`     | string   | Race description text                              |
+| `playable`        | bool     | Whether this race is playable                      |
+| `starting`        | bool     | Whether this race is available at character creation |
+| `size`            | string   | Size category (e.g., `"medium"`, `"small"`)        |
+| `stats`           | object   | Base stats `{str, int, wis, dex, con}`             |
+| `max_stats`       | object   | Maximum stats `{str, int, wis, dex, con}`          |
+| `max_vitals`      | object   | Maximum vitals `{hp, mana, move}`                  |
+| `skills`          | string[] | Racial skill names                                 |
+| `resistances`     | string   | Space-separated resistance flags                   |
+| `vulnerabilities` | string   | Space-separated vulnerability flags                |
+| `immunities`      | string   | Space-separated immunity flags                     |
+| `affects`         | string   | Space-separated affect flags                       |
+| `remort_into`     | string/null | Remort destination race name, or `null`          |
+| `traits`          | object[] | Racial traits (same structure as trait objects above, without `description`, `category`, or `source`) |
+
+> **Note:** In the embedded `race_info`, `resistances`, `vulnerabilities`,
+> `immunities`, and `affects` are **space-separated strings**. This differs from
+> the standalone `Sentience.Char.Race` package which uses JSON arrays. See
+> [Sentience.Char.Race](#sentiencecharrace) for details.
 
 ---
 
@@ -668,6 +867,452 @@ an empty `enemies` array.
 
 ---
 
+### Sentience.Char.Inventory
+
+**Direction:** Server → Client
+**When:** Item pickup/drop, give, get, loot changes
+
+```json
+{
+  "_v": 1,
+  "items": [
+    {
+      "id": [12345, 67890],
+      "name": "a gleaming longsword",
+      "keywords": "gleaming longsword sword",
+      "keyword": "gleaming longsword sword",
+      "item_type": "weapon",
+      "level": 50,
+      "weight": 5,
+      "condition": 95,
+      "condition_label": "excellent",
+      "item_count": 1,
+      "flags": [],
+      "actions": [
+        {"label": "Wear", "cmd": "wear"},
+        {"label": "Drop", "cmd": "drop"},
+        {"label": "Examine", "cmd": "examine"}
+      ]
+    }
+  ],
+  "capacity": {
+    "items": 5,
+    "max_items": 20,
+    "weight": 25,
+    "max_weight": 200,
+    "coin_weight": 3
+  }
+}
+```
+
+| Field      | Type     | Description                            |
+|------------|----------|----------------------------------------|
+| `items`    | object[] | Array of carried items                 |
+| `capacity` | object   | Carrying capacity info                 |
+
+#### Item Object
+
+| Field             | Type     | Description                                          |
+|-------------------|----------|------------------------------------------------------|
+| `id`              | int[2]   | Unique instance ID as `[lo, hi]`                     |
+| `name`            | string   | Item short description                               |
+| `keywords`        | string   | Space-separated keywords (display use)               |
+| `keyword`         | string   | Space-separated keywords (for building commands)     |
+| `item_type`       | string   | Item type (e.g., `"weapon"`, `"armor"`, `"potion"`)  |
+| `level`           | int      | Item level                                           |
+| `weight`          | int      | Item weight                                          |
+| `condition`       | int      | Condition percentage (0–100)                         |
+| `condition_label` | string   | Human-readable condition (e.g., `"excellent"`)       |
+| `item_count`      | int      | Stack count (1 for non-stacked items)                |
+| `flags`           | string[] | Item flags                                           |
+| `actions`         | object[] | Server-determined actions based on item flags        |
+
+#### Capacity Object
+
+| Field        | Type | Description                               |
+|--------------|------|-------------------------------------------|
+| `items`      | int  | Number of items currently carried          |
+| `max_items`  | int  | Maximum number of items                    |
+| `weight`     | int  | Current total weight carried               |
+| `max_weight` | int  | Maximum carry weight                       |
+| `coin_weight`| int  | Weight contributed by coins                |
+
+#### Action Object
+
+| Field   | Type   | Description                          |
+|---------|--------|--------------------------------------|
+| `label` | string | Button/menu display text             |
+| `cmd`   | string | MUD command to execute               |
+
+**Instance IDs:** The `id` field is a 2-element array `[lo, hi]` forming a
+unique instance ID. Use `keyword` for building commands (e.g., `wear longsword`).
+
+**Duplicate items:** When multiple items share the same keyword, use the MUD's
+`N.keyword` syntax to target a specific one (e.g., `drop 2.potion`).
+
+---
+
+### Sentience.Char.Equipment
+
+**Direction:** Server → Client
+**When:** Equip/remove/wear changes
+
+```json
+{
+  "_v": 1,
+  "slots": [
+    {
+      "slot_id": 0,
+      "slot_name": "<used as light>",
+      "occupied": false,
+      "item": null
+    },
+    {
+      "slot_id": 16,
+      "slot_name": "<wielded>",
+      "occupied": true,
+      "item": {
+        "id": [12345, 67890],
+        "name": "a gleaming longsword",
+        "keywords": "gleaming longsword sword",
+        "item_type": "weapon",
+        "level": 50,
+        "condition": 95,
+        "condition_label": "excellent",
+        "flags": [],
+        "actions": [
+          {"label": "Remove", "cmd": "remove"},
+          {"label": "Examine", "cmd": "examine"}
+        ]
+      }
+    }
+  ]
+}
+```
+
+| Field   | Type     | Description                               |
+|---------|----------|-------------------------------------------|
+| `slots` | object[] | All equipment slots (occupied and empty)  |
+
+#### Slot Object
+
+| Field       | Type        | Description                                      |
+|-------------|-------------|--------------------------------------------------|
+| `slot_id`   | int         | Numeric slot identifier                          |
+| `slot_name` | string      | Human-readable wear location (color codes stripped) |
+| `occupied`  | bool        | Whether an item is equipped in this slot         |
+| `item`      | object/null | Equipped item details, or `null` if empty        |
+
+#### Equipment Item Object
+
+| Field             | Type     | Description                                          |
+|-------------------|----------|------------------------------------------------------|
+| `id`              | int[2]   | Unique instance ID as `[lo, hi]`                     |
+| `name`            | string   | Item short description                               |
+| `keywords`        | string   | Space-separated keywords                             |
+| `item_type`       | string   | Item type (e.g., `"weapon"`, `"armor"`)              |
+| `level`           | int      | Item level                                           |
+| `condition`       | int      | Condition percentage (0–100)                         |
+| `condition_label` | string   | Human-readable condition                             |
+| `flags`           | string[] | Item flags                                           |
+| `actions`         | object[] | Server-determined actions (e.g., Remove, Examine)    |
+
+**All slots are always sent** — both occupied and empty. This gives the client
+the complete equipment layout. When `occupied` is `false`, `item` is `null`.
+
+---
+
+### Sentience.Char.Abilities
+
+**Direction:** Server → Client
+**When:** Skill/spell gain, practice, level change, class switch
+
+```json
+{
+  "_v": 1,
+  "abilities": [
+    {
+      "name": "fireball",
+      "type": "spell",
+      "available": true,
+      "rating": 85,
+      "modifier": 5,
+      "mana": 25,
+      "level": 20,
+      "target": "offensive",
+      "can_practice": true,
+      "learn_rate": 4,
+      "actions": [
+        {"label": "Cast", "cmd": "cast"}
+      ]
+    },
+    {
+      "name": "sword",
+      "type": "skill",
+      "available": true,
+      "rating": 100,
+      "modifier": 0,
+      "mana": 0,
+      "level": 1,
+      "target": "passive",
+      "can_practice": false,
+      "learn_rate": 0,
+      "actions": [
+        {"label": "Use", "cmd": "sword"}
+      ]
+    },
+    {
+      "name": "ballad of heroes",
+      "type": "song",
+      "available": true,
+      "rating": 72,
+      "modifier": 0,
+      "mana": 30,
+      "level": 15,
+      "target": "ignore",
+      "can_practice": true,
+      "learn_rate": 3,
+      "actions": [
+        {"label": "Play", "cmd": "play"}
+      ]
+    }
+  ]
+}
+```
+
+| Field       | Type     | Description                                  |
+|-------------|----------|----------------------------------------------|
+| `abilities` | object[] | Array of known abilities with rating >= 1    |
+
+#### Ability Object
+
+| Field          | Type     | Description                                         |
+|----------------|----------|-----------------------------------------------------|
+| `name`         | string   | Ability name                                        |
+| `type`         | string   | `"skill"`, `"spell"`, or `"song"`                   |
+| `available`    | bool     | Whether the ability is currently usable              |
+| `rating`       | int      | Proficiency percentage (1–100)                       |
+| `modifier`     | int      | Bonus/penalty modifier                               |
+| `mana`         | int      | Mana cost (0 for passive skills)                     |
+| `level`        | int      | Level at which this ability is gained                |
+| `target`       | string   | Targeting type (see below)                           |
+| `can_practice` | bool     | Whether this ability can be practiced                |
+| `learn_rate`   | int      | Practice efficiency rating (0 if not practicable)    |
+| `actions`      | object[] | Available actions (only present when `available`)    |
+
+#### Target Types
+
+| Target        | Description                          |
+|---------------|--------------------------------------|
+| `"offensive"` | Targets an enemy                     |
+| `"defensive"` | Targets an ally                      |
+| `"self"`      | Targets self only                    |
+| `"object"`    | Targets an item                      |
+| `"passive"`   | No active targeting (passive skill)  |
+| `"ignore"`    | No target required                   |
+
+#### Ability Actions
+
+Actions are determined by ability type:
+
+| Type    | Action Label | Command                      |
+|---------|-------------|-------------------------------|
+| `spell` | `"Cast"`    | `"cast"`                      |
+| `skill` | `"Use"`     | Skill name (e.g., `"sword"`)  |
+| `song`  | `"Play"`    | `"play"`                      |
+
+Actions are only present when `available` is `true`. Only abilities with
+`rating` >= 1 are included in the list.
+
+---
+
+### Sentience.Char.Reputations
+
+**Direction:** Server → Client
+**When:** Reputation gain/loss, rank change
+
+```json
+{
+  "_v": 1,
+  "reputations": [
+    {
+      "name": "Elven Court",
+      "rank": "Honored",
+      "rank_color": "green",
+      "points": 15000,
+      "paragon_level": 0,
+      "max_rank": "Exalted"
+    }
+  ]
+}
+```
+
+| Field         | Type     | Description                          |
+|---------------|----------|--------------------------------------|
+| `reputations` | object[] | Array of visible reputation standings |
+
+#### Reputation Object
+
+| Field           | Type   | Description                                       |
+|-----------------|--------|---------------------------------------------------|
+| `name`          | string | Faction name                                      |
+| `rank`          | string | Current rank name (e.g., `"Honored"`)             |
+| `rank_color`    | string | CSS-friendly color name for the rank (see below)  |
+| `points`        | int    | Current reputation points                         |
+| `paragon_level` | int    | Paragon level (0 if not at paragon rank)          |
+| `max_rank`      | string | Highest possible rank name                        |
+
+#### Rank Colors
+
+The `rank_color` field contains a CSS-friendly color name:
+
+| Color     | Usage                |
+|-----------|----------------------|
+| `red`     | Hostile/hated        |
+| `green`   | Friendly/honored     |
+| `blue`    | Allied               |
+| `yellow`  | Cautious/neutral     |
+| `magenta` | Special              |
+| `cyan`    | Special              |
+| `white`   | Neutral/default      |
+| `dark`    | Unknown/unfriendly   |
+
+**Hidden reputations** (server-side `REPUTATION_HIDDEN` flag) are excluded from
+this list and never sent to the client.
+
+---
+
+### Sentience.Char.Church
+
+**Direction:** Server → Client
+**When:** Church join/leave, rank change, church update
+
+When the character is **not** a church member:
+
+```json
+{
+  "_v": 1,
+  "is_member": false
+}
+```
+
+When the character **is** a church member:
+
+```json
+{
+  "_v": 1,
+  "is_member": true,
+  "church_name": "Order of the Dawn",
+  "church_flag": "OtD",
+  "alignment": "good",
+  "size": "order",
+  "pk": false,
+  "rank_name": "Guardian",
+  "rank_type": "officer",
+  "rank_title": "Sir Guardian",
+  "actions": [
+    {"label": "Talk", "cmd": "chtalk"},
+    {"label": "Go Hall", "cmd": "gohall"}
+  ]
+}
+```
+
+| Field         | Type     | Presence    | Description                                    |
+|---------------|----------|-------------|------------------------------------------------|
+| `is_member`   | bool     | Always      | Whether the character belongs to a church      |
+| `church_name` | string   | Member only | Church display name                            |
+| `church_flag` | string   | Member only | Short church abbreviation                      |
+| `alignment`   | string   | Member only | `"good"`, `"evil"`, or `"neutral"`             |
+| `size`        | string   | Member only | Church size tier (see below)                   |
+| `pk`          | bool     | Member only | Whether the church is PK-enabled               |
+| `rank_name`   | string   | Member only | Character's rank name                          |
+| `rank_type`   | string   | Member only | Rank category (see below)                      |
+| `rank_title`  | string   | Member only | Gender-appropriate rank title                  |
+| `actions`     | object[] | Member only | Available church actions                       |
+
+#### Church Size Tiers
+
+| Size       | Description         |
+|------------|---------------------|
+| `"band"`   | Smallest church     |
+| `"cult"`   | Small church        |
+| `"order"`  | Medium church       |
+| `"church"` | Largest church      |
+
+#### Rank Types
+
+| Type       | Description                  |
+|------------|------------------------------|
+| `"member"` | Regular member               |
+| `"officer"`| Officer with elevated access |
+| `"leader"` | Church leader                |
+
+When `is_member` is `false`, no fields other than `_v` and `is_member` are
+present. The `rank_title` is gender-appropriate (selected from the rank
+definition's male/female/neutral title).
+
+---
+
+### Sentience.Char.Race
+
+**Direction:** Server → Client
+**When:** Race change (remort, polymorph)
+
+Sent as a standalone notification when the character's race changes. This is a
+rare event (remort, polymorph).
+
+```json
+{
+  "_v": 1,
+  "id": "elf",
+  "name": "Elf",
+  "description": "Graceful and long-lived...",
+  "playable": true,
+  "starting": true,
+  "size": "medium",
+  "stats": {"str": 11, "int": 16, "wis": 14, "dex": 15, "con": 11},
+  "max_stats": {"str": 20, "int": 25, "wis": 23, "dex": 24, "con": 20},
+  "max_vitals": {"hp": 100, "mana": 120, "move": 100},
+  "skills": ["longbow", "elven lore"],
+  "resistances": ["charm"],
+  "vulnerabilities": ["iron"],
+  "immunities": [],
+  "affects": ["infrared"],
+  "remort_into": "high elf",
+  "traits": [
+    {"id": "elven_grace", "name": "Elven Grace", "type": "bool", "value": true}
+  ]
+}
+```
+
+| Field             | Type        | Description                                        |
+|-------------------|-------------|----------------------------------------------------|
+| `id`              | string      | Race identifier                                    |
+| `name`            | string      | Race display name                                  |
+| `description`     | string      | Race description text                              |
+| `playable`        | bool        | Whether this race is playable                      |
+| `starting`        | bool        | Whether this race is available at character creation |
+| `size`            | string      | Size category (e.g., `"medium"`, `"small"`)        |
+| `stats`           | object      | Base stats `{str, int, wis, dex, con}`             |
+| `max_stats`       | object      | Maximum stats `{str, int, wis, dex, con}`          |
+| `max_vitals`      | object      | Maximum vitals `{hp, mana, move}`                  |
+| `skills`          | string[]    | Racial skill names                                 |
+| `resistances`     | string[]    | Array of resistance flag names                     |
+| `vulnerabilities` | string[]    | Array of vulnerability flag names                  |
+| `immunities`      | string[]    | Array of immunity flag names                       |
+| `affects`         | string[]    | Array of affect flag names                         |
+| `remort_into`     | string/null | Remort destination race name, or `null`            |
+| `traits`          | object[]    | Racial traits (same structure as identity traits)  |
+
+> **Note:** In this standalone package, `resistances`, `vulnerabilities`,
+> `immunities`, and `affects` are **JSON arrays** of flag name strings. This
+> differs from the embedded `race_info` in `Sentience.Char.Identity`, which uses
+> space-separated strings. The two packages use the same underlying data but
+> different serialization: Identity uses `json_string()` for compactness, while
+> this package uses `split_to_json_array()` for easier client parsing.
+
+---
+
 ### Sentience.Room.Info
 
 **Direction:** Server → Client
@@ -846,7 +1491,12 @@ package is not sent, and the inline ASCII map in room text is also suppressed.
   "channel": "gossip",
   "sender": "Tieryo",
   "text": "Hello everyone!",
-  "timestamp": 1711382400
+  "timestamp": 1711382400,
+  "report_id": "local-12345",
+  "actions": [
+    {"label": "Info", "cmd": "chinfo"},
+    {"label": "Report", "cmd": "report local-12345"}
+  ]
 }
 ```
 
@@ -858,17 +1508,42 @@ Directed message (tell):
   "sender": "Tieryo",
   "text": "Hey, are you there?",
   "timestamp": 1711382400,
-  "tell_target": "Merlin"
+  "tell_target": "Merlin",
+  "report_id": "local-12346",
+  "actions": [
+    {"label": "Info", "cmd": "chinfo"},
+    {"label": "Report", "cmd": "report local-12346"},
+    {"label": "Reply", "cmd": "reply"}
+  ]
 }
 ```
 
-| Field         | Type        | Description                                        |
-|---------------|-------------|----------------------------------------------------|
-| `channel`     | string      | Channel ID (gossip, say, tell, auction, etc.)      |
-| `sender`      | string      | Sender name (empty string for system messages)     |
-| `text`        | string      | Message text (**color codes stripped**)             |
-| `timestamp`   | long        | Unix timestamp                                     |
-| `tell_target` | string/null | Recipient name for directed messages (tells only)  |
+| Field         | Type           | Description                                        |
+|---------------|----------------|----------------------------------------------------|
+| `channel`     | string         | Channel ID (gossip, say, tell, auction, etc.)      |
+| `sender`      | string         | Sender name (empty string for system messages)     |
+| `text`        | string         | Message text (**color codes stripped**)             |
+| `timestamp`   | long           | Unix timestamp                                     |
+| `tell_target` | string/null    | Recipient name for directed messages (tells only)  |
+| `report_id`   | string/absent  | Message identifier for reporting (see below)       |
+| `actions`     | object[]/absent| Server-determined actions (see below)              |
+
+#### Report ID
+
+The `report_id` field uses the format `"local-<seq>"` where `<seq>` is a
+server-side sequence number. It is only present when a report ID was generated.
+Use this ID with the `report` command to report abusive messages.
+
+#### Message Actions
+
+| Action     | Command                  | When Present                  |
+|------------|--------------------------|-------------------------------|
+| `"Info"`   | `"chinfo"`               | Always (when actions present) |
+| `"Report"` | `"report <report_id>"`   | When `report_id` is set       |
+| `"Reply"`  | `"reply"`                | Tells and directed channels   |
+
+The `actions` array is only present when actions exist. Each action follows the
+standard `{label, cmd}` pattern used across all packages.
 
 **Color stripping:** Unlike most packages, Channel.Message text has MUD color
 codes stripped before sending. The client should render the text as-is.
@@ -1068,11 +1743,17 @@ every connected descriptor with GMCP support:
 | `SENTIENCE_DIRTY_ROOM`     | 5  | Room change (also triggers Map + Contents)       |
 | `SENTIENCE_DIRTY_AFFECTS`  | 6  | Affect list modification                         |
 | `SENTIENCE_DIRTY_ENEMIES`  | 7  | Combat state change                              |
+| `SENTIENCE_DIRTY_INVENTORY`  | 8  | Item count change in carried items             |
+| `SENTIENCE_DIRTY_EQUIPMENT`  | 9  | Worn item count change                         |
+| `SENTIENCE_DIRTY_ABILITIES`  | 10 | Skill/spell/song list change                   |
+| `SENTIENCE_DIRTY_REPUTATIONS`| 11 | Visible reputation count change                |
+| `SENTIENCE_DIRTY_CHURCH`     | 12 | Church membership or church UID change         |
+| `SENTIENCE_DIRTY_RACE`       | 13 | Race UID change                                |
 
 ### First Update (Login Burst)
 
-On first update after login, the server forces all dirty flags to `0xFF`,
-ensuring every package is sent. This includes:
+On first update after login, the server forces all dirty flags to `0x3FFF`
+(all 14 flags), ensuring every package is sent. This includes:
 
 - `Sentience.Client.Ready.State` (one-shot, never sent again)
 - `Sentience.Client.Preferences` (one-shot, echoed on changes)
@@ -1261,19 +1942,30 @@ class ResumeManager {
 ### Preference Synchronization
 
 ```javascript
-// On login, receive server preferences
-function handlePreferences(prefs) {
-  store.setGmcpChannels(prefs.gmcp_channels);
-  store.setSuppressChannels(prefs.gmcp_suppress_channels);
-  store.setSuppressMinimap(prefs.gmcp_suppress_minimap);
+// On login, receive structured preferences
+function handlePreferences(data) {
+  for (const pref of data.preferences) {
+    store.setPreference(pref.key, pref.value, pref.source);
+  }
 }
 
 // When user changes a preference in the UI
-function toggleSuppressChannels(value) {
+function setSuppressChannels(value) {
   sendGMCP('Sentience.Client.Preferences', {
-    gmcp_suppress_channels: value
+    action: 'set',
+    key: 'gmcp_suppress_channels',
+    value: value,
+    scope: 'character'
   });
-  // Server will echo back the full state
+  // Server will echo back the full preference state
+}
+
+// Reset a preference to its default
+function resetPreference(key) {
+  sendGMCP('Sentience.Client.Preferences', {
+    action: 'reset',
+    key: key
+  });
 }
 ```
 
@@ -1342,6 +2034,12 @@ function parseWnum(wnum) {
 | Char.Worth | S→C | On change | XP/gold |
 | Char.Affects | S→C | On change | Spell effects + durations |
 | Char.Enemies | S→C | On change | Combat targets |
+| Char.Inventory | S→C | On change | Items carried + capacity |
+| Char.Equipment | S→C | On change | All wear slots + items |
+| Char.Abilities | S→C | On change | Skills, spells, songs |
+| Char.Reputations | S→C | On change | Faction standings |
+| Char.Church | S→C | On change | Church membership |
+| Char.Race | S→C | On race change | Race details (rare) |
 | Room.Info | S→C | On room change | Room details + exits |
 | Room.Contents | S→C | On fingerprint change | Items/NPCs/players/doors |
 | Room.Map | S→C | On room change | Pre-rendered minimap |
