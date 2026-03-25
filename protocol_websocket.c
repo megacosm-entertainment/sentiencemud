@@ -205,6 +205,61 @@ static void websocket_process_input(protocol_layer_t *proto,
  * Process output to WebSocket connection
  * Preserves native { color tokens for browser-side rendering.
  */
+/*
+ * Strip MXP \t-prefixed sequences from output.
+ * Patterns:
+ *   \t<tag ...>   → strip entire open tag (up to and including >)
+ *   \t</tag>      → strip entire close tag
+ *   \t( and \t)   → strip (MXP link markers)
+ *   \t\t          → emit single tab
+ *   \t\x12...\x13 → strip (MXP_BEGIN_TAG..MXP_END_TAG)
+ * Text between open/close tags is preserved.
+ */
+static void strip_mxp_sequences(const char *input, char *output, int max_len, int *result_len)
+{
+    int i = 0, j = 0;
+
+    while (input[j] != '\0' && i < max_len - 1) {
+        if (input[j] == '\t') {
+            j++;
+            switch (input[j]) {
+            case '\t':
+                output[i++] = '\t';
+                j++;
+                break;
+            case '<':
+                /* Strip \t<...> tag */
+                while (input[j] != '\0' && input[j] != '>')
+                    j++;
+                if (input[j] == '>')
+                    j++;
+                break;
+            case '(':
+            case ')':
+                j++;
+                break;
+            case MXP_BEGIN_TAG:
+                while (input[j] != '\0' && input[j] != MXP_END_TAG)
+                    j++;
+                if (input[j] == MXP_END_TAG)
+                    j++;
+                break;
+            case '\0':
+                break;
+            default:
+                /* Unknown \t sequence — pass through as-is */
+                output[i++] = '\t';
+                break;
+            }
+        } else {
+            output[i++] = input[j++];
+        }
+    }
+    output[i] = '\0';
+    if (result_len)
+        *result_len = i;
+}
+
 static const char* websocket_process_output(protocol_layer_t *proto,
                                            const char *output, int *out_len)
 {
@@ -212,22 +267,57 @@ static const char* websocket_process_output(protocol_layer_t *proto,
     static char result[MAX_OUTPUT_BUFFER + 1];
     const char color_char = COLOUR_CHAR;  // '{' by default
     int i = 0, j = 0;
+    bool has_mxp;
 
     if (!output)
         return output;
 
-    // WebSocket clients handle native { color tokens themselves.
-    // Keep payload text as-is so browser clients can render using their own mapper.
+    has_mxp = (memchr(output, '\t', out_len && *out_len > 0
+                       ? (size_t)*out_len : strlen(output)) != NULL);
+
     if (ws_proto->color_enabled) {
-        if (out_len)
-            *out_len = strlen(output);
-        return output;
+        if (!has_mxp) {
+            if (out_len)
+                *out_len = strlen(output);
+            return output;
+        }
+        /* Strip MXP but preserve color codes */
+        strip_mxp_sequences(output, result, sizeof(result), out_len);
+        return result;
     }
 
-    // If colors disabled, strip color codes
-    // Simple strip - just skip color sequences
+    // If colors disabled, strip both color codes and MXP
     while (output[j] != '\0' && i < MAX_OUTPUT_BUFFER) {
-        if (output[j] == color_char) {
+        if (output[j] == '\t') {
+            j++;
+            switch (output[j]) {
+            case '\t':
+                result[i++] = '\t';
+                j++;
+                break;
+            case '<':
+                while (output[j] != '\0' && output[j] != '>')
+                    j++;
+                if (output[j] == '>')
+                    j++;
+                break;
+            case '(':
+            case ')':
+                j++;
+                break;
+            case MXP_BEGIN_TAG:
+                while (output[j] != '\0' && output[j] != MXP_END_TAG)
+                    j++;
+                if (output[j] == MXP_END_TAG)
+                    j++;
+                break;
+            case '\0':
+                break;
+            default:
+                result[i++] = '\t';
+                break;
+            }
+        } else if (output[j] == color_char) {
             j++; // Skip color char
             if (output[j] != '\0')
                 j++; // Skip color code
