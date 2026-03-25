@@ -859,28 +859,35 @@ static bool ws_write(connection_t *conn, const char *buf, int size, int *bytes_w
         return false;
     }
 
-    // Write payload
-    nwritten = write(conn->fd, buf, size);
-    if (nwritten < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            // Would block - header was sent but not payload (problematic)
-            log_string("ws_write: Payload blocked after header sent");
-            emit_ws_event(EVENT_SEV_WARN,
-                          "ws_write: Payload blocked after header sent",
-                          "ws_write_payload_blocked", conn->fd, NULL);
+    // Write payload (loop to handle partial writes)
+    int total_written = 0;
+    while (total_written < size) {
+        nwritten = write(conn->fd, buf + total_written, size - total_written);
+        if (nwritten < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                if (total_written > 0) {
+                    /* Partial payload after header — must keep retrying. */
+                    continue;
+                }
+                log_string("ws_write: Payload blocked after header sent");
+                emit_ws_event(EVENT_SEV_WARN,
+                              "ws_write: Payload blocked after header sent",
+                              "ws_write_payload_blocked", conn->fd, NULL);
+                return false;
+            }
+            log_stringf("ws_write: write(payload) failed: %s", strerror(errno));
+            {
+                char msg[MSL];
+                snprintf(msg, sizeof(msg), "ws_write: write(payload) failed: %s", strerror(errno));
+                emit_ws_event(EVENT_SEV_ERROR, msg,
+                              "ws_write_payload_failed", conn->fd, NULL);
+            }
             return false;
         }
-        log_stringf("ws_write: write(payload) failed: %s", strerror(errno));
-        {
-            char msg[MSL];
-            snprintf(msg, sizeof(msg), "ws_write: write(payload) failed: %s", strerror(errno));
-            emit_ws_event(EVENT_SEV_ERROR, msg,
-                          "ws_write_payload_failed", conn->fd, NULL);
-        }
-        return false;
+        total_written += nwritten;
     }
 
-    *bytes_written = nwritten;
+    *bytes_written = total_written;
     conn->last_activity = current_time;
 
     return true;
@@ -1410,31 +1417,39 @@ static bool wss_write(connection_t *conn, const char *buf, int size, int *bytes_
         return false;
     }
 
-    // Write payload using SSL
-    nwritten = SSL_write(ssl, buf, size);
-    if (nwritten <= 0) {
-        int ssl_error = SSL_get_error(ssl, nwritten);
-        if (ssl_error == SSL_ERROR_WANT_WRITE) {
-            // Header was sent but not payload (problematic)
-            log_string("wss_write: Payload blocked after header sent");
-            emit_ws_event(EVENT_SEV_WARN,
-                          "wss_write: Payload blocked after header sent",
-                          "wss_write_payload_blocked", conn->fd, NULL);
+    // Write payload using SSL (loop to handle partial writes)
+    int total_written = 0;
+    while (total_written < size) {
+        nwritten = SSL_write(ssl, buf + total_written, size - total_written);
+        if (nwritten <= 0) {
+            int ssl_error = SSL_get_error(ssl, nwritten);
+            if (ssl_error == SSL_ERROR_WANT_WRITE) {
+                if (total_written > 0) {
+                    /* Partial payload after header — must keep retrying to
+                     * avoid corrupting the WebSocket frame stream. */
+                    continue;
+                }
+                log_string("wss_write: Payload blocked after header sent");
+                emit_ws_event(EVENT_SEV_WARN,
+                              "wss_write: Payload blocked after header sent",
+                              "wss_write_payload_blocked", conn->fd, NULL);
+                return false;
+            }
+            log_stringf("wss_write: SSL_write(payload) failed, error %d", ssl_error);
+            {
+                char msg[MSL];
+                char extra[64];
+                snprintf(msg, sizeof(msg), "wss_write: SSL_write(payload) failed, error %d", ssl_error);
+                snprintf(extra, sizeof(extra), "{\"ssl_error\":%d}", ssl_error);
+                emit_ws_event(EVENT_SEV_ERROR, msg,
+                              "wss_write_payload_failed", conn->fd, extra);
+            }
             return false;
         }
-        log_stringf("wss_write: SSL_write(payload) failed, error %d", ssl_error);
-        {
-            char msg[MSL];
-            char extra[64];
-            snprintf(msg, sizeof(msg), "wss_write: SSL_write(payload) failed, error %d", ssl_error);
-            snprintf(extra, sizeof(extra), "{\"ssl_error\":%d}", ssl_error);
-            emit_ws_event(EVENT_SEV_ERROR, msg,
-                          "wss_write_payload_failed", conn->fd, extra);
-        }
-        return false;
+        total_written += nwritten;
     }
 
-    *bytes_written = nwritten;
+    *bytes_written = total_written;
     conn->last_activity = current_time;
 
     return true;

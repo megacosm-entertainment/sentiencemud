@@ -31,14 +31,18 @@ link_mode_t link_mode(descriptor_t *d)
     if (!d)
         return LINK_NONE;
 
-    /* WebSocket always uses GMCP links — no player toggle needed */
+    ch = d->character;
+
+    /* Respect player preference for ALL connection types */
+    if (ch && !IS_SET(ch->comm, COMM_LINKS))
+        return LINK_NONE;
+
+    /* WebSocket uses GMCP links (pre-login: no character, links enabled by default) */
     if (is_websocket_connection(d))
         return LINK_GMCP;
 
-    ch = d->character;
-
-    /* Check unified player preference */
-    if (!ch || !IS_SET(ch->comm, COMM_LINKS))
+    /* No character yet on non-WebSocket — can't check preference */
+    if (!ch)
         return LINK_NONE;
 
     /* MXP negotiated takes priority (established clients) */

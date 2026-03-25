@@ -4112,6 +4112,15 @@ void SendGMCPRaw( descriptor_t *apDescriptor, const char *package, const char *j
    if ( !package || !json_body )
       return;
 
+   /* WebSocket: send as plain text frame (no telnet IAC framing) */
+   if ( !descriptor_uses_telnet_iac(apDescriptor) )
+   {
+      snprintf( buf, sizeof(buf), "%s %s\n\r", package, json_body );
+      write_to_buffer( apDescriptor, buf, 0 );
+      return;
+   }
+
+   /* Telnet: wrap in IAC SB GMCP ... IAC SE */
    snprintf( buf, sizeof(buf), "%s%s %s%s",
              ( char * ) iac_sb_gmcp,
              package,
