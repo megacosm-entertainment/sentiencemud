@@ -222,13 +222,30 @@ void sentience_link_queue_flush(descriptor_t *d)
     if (queue->count == 0)
         return;
 
-    /* Only send GMCP for WebSocket clients with Sentience support */
+    /* Only send GMCP for WebSocket clients with GMCP support */
     if (is_websocket_connection(d) && d->pProtocol->bGMCP) {
         arr = sentience_link_queue_to_json(queue);
         if (arr) {
             dump = json_dumps(arr, JSON_COMPACT);
             if (dump) {
-                SendGMCPRaw(d, "Sentience.Link.List", dump);
+                /*
+                 * Send GMCP as a separate WebSocket frame BEFORE the text
+                 * frame, so the client has link metadata before it sees
+                 * the OSC 8 markers in the text.  Write directly to the
+                 * socket via connection_write() to avoid mixing with the
+                 * pending text in d->outbuf.
+                 */
+                char *msg;
+                int len;
+                size_t msg_size = strlen("Sentience.Link.List") + 1
+                                + strlen(dump) + 3; /* " \n\r\0" */
+                msg = alloc_mem(msg_size);
+                len = snprintf(msg, msg_size, "Sentience.Link.List %s\n\r", dump);
+                if (len > 0 && d->conn) {
+                    int bytes_written;
+                    connection_write(d->conn, msg, len, &bytes_written);
+                }
+                free_mem(msg, msg_size);
                 free(dump);
             }
             json_decref(arr);
