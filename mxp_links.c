@@ -12,75 +12,185 @@
 #include "recycle.h"
 #include "protocol.h"
 #include "mxp_links.h"
+#include "sentience_link.h"
+
+/*
+ * Central link routing — handles all 4 transport modes with trust filtering.
+ *
+ * Actions marked staff_only are excluded for non-immortal characters in ALL
+ * modes (MXP, GMCP, OSC8). If no actions remain after filtering, plain text
+ * is emitted. Delegates to sentience_link_filter_staff() for the filtering.
+ *
+ * Note: This intentionally diverges from the spec's statement that "MXP
+ * continues to emit all commands." Uniform filtering is simpler and safer —
+ * non-staff users never saw admin actions they could actually execute, and
+ * hiding them avoids confusing right-click menus with non-functional options.
+ */
+static void link_route(descriptor_t *d, BUFFER *buf, const char *text,
+                        const char *top_hint, const char *category,
+                        const mxp_cmd_hint_t *items, int nitems,
+                        link_mode_t mode)
+{
+    mxp_cmd_hint_t filtered[SENTIENCE_LINK_MAX_ACTIONS];
+    bool is_staff;
+    int nf;
+    int i;
+
+    /* Trust filter via shared helper (also unit-tested independently) */
+    is_staff = (d->character && IS_IMMORTAL(d->character));
+    nf = sentience_link_filter_staff(items, nitems, filtered,
+                                      SENTIENCE_LINK_MAX_ACTIONS, is_staff);
+
+    if (nf == 0) {
+        add_buf(buf, text);
+        return;
+    }
+
+    switch (mode) {
+    case LINK_GMCP: {
+        sentience_link_action_t actions[SENTIENCE_LINK_MAX_ACTIONS];
+        const char *id;
+
+        for (i = 0; i < nf; i++) {
+            actions[i].label = (char *)(filtered[i].hint ? filtered[i].hint : filtered[i].cmd);
+            actions[i].cmd   = (char *)filtered[i].cmd;
+            actions[i].hint  = NULL;
+        }
+
+        id = sentience_link_queue_add(
+            &d->pProtocol->sentience_link_queue,
+            text, top_hint, category, actions, nf);
+        link_osc8_gmcp(buf, id, text);
+        break;
+    }
+
+    case LINK_OSC8:
+        if (filtered[0].cmd)
+            link_osc8_telnet(buf, filtered[0].cmd, text);
+        else
+            add_buf(buf, text);
+        break;
+
+    case LINK_MXP:
+        if (nf == 1) {
+            if (filtered[0].hint && filtered[0].hint[0])
+                bprintf(buf, "\t<send href=\"%s\" hint=\"%s\">%s\t</send>",
+                        filtered[0].cmd, filtered[0].hint, text);
+            else
+                bprintf(buf, "\t<send href=\"%s\">%s\t</send>",
+                        filtered[0].cmd, text);
+        } else {
+            bool any_hint = false;
+
+            add_buf(buf, "\t<send href=\"");
+            for (i = 0; i < nf; i++) {
+                if (i) add_buf(buf, "|");
+                if (filtered[i].cmd) add_buf(buf, filtered[i].cmd);
+            }
+            add_buf(buf, "\"");
+
+            for (i = 0; i < nf; i++) {
+                if (filtered[i].hint && filtered[i].hint[0]) { any_hint = true; break; }
+            }
+            if (any_hint) {
+                add_buf(buf, " hint=\"");
+                for (i = 0; i < nf; i++) {
+                    if (i) add_buf(buf, "|");
+                    if (filtered[i].hint) add_buf(buf, filtered[i].hint);
+                }
+                add_buf(buf, "\"");
+            }
+
+            bprintf(buf, ">%s\t</send>", text);
+        }
+        break;
+
+    default:
+        add_buf(buf, text);
+        break;
+    }
+}
 
 void mxp_link(descriptor_t *d, BUFFER *buf, const char *text,
               const char *command, const char *hint)
 {
+    link_mode_t mode;
+    mxp_cmd_hint_t item;
+
     if (!text) text = "";
-    if (!command || !command[0] || !isMXP(d)) {
-        add_buf(buf, (char *)text);
+    if (!command || !command[0]) {
+        add_buf(buf, text);
         return;
     }
 
-    if (hint && hint[0])
-        bprintf(buf, "\t<send href=\"%s\" hint=\"%s\">%s\t</send>",
-                command, hint, text);
-    else
-        bprintf(buf, "\t<send href=\"%s\">%s\t</send>", command, text);
+    mode = link_mode(d);
+    if (mode == LINK_NONE) {
+        add_buf(buf, text);
+        return;
+    }
+
+    item.cmd        = command;
+    item.hint       = hint;
+    item.staff_only = false;
+    link_route(d, buf, text, hint, "cmd", &item, 1, mode);
 }
 
 void mxp_link_prompt(descriptor_t *d, BUFFER *buf, const char *text,
                      const char *command, const char *hint)
 {
+    link_mode_t mode;
+
     if (!text) text = "";
-    if (!command || !command[0] || !isMXP(d)) {
-        add_buf(buf, (char *)text);
+    if (!command || !command[0]) {
+        add_buf(buf, text);
         return;
     }
 
-    if (hint && hint[0])
-        bprintf(buf, "\t<send href=\"%s\" hint=\"%s\" prompt>%s\t</send>",
-                command, hint, text);
-    else
-        bprintf(buf, "\t<send href=\"%s\" prompt>%s\t</send>", command, text);
+    mode = link_mode(d);
+
+    /* MXP has a special prompt attribute; other modes treat it like a normal link */
+    if (mode == LINK_MXP) {
+        if (hint && hint[0])
+            bprintf(buf, "\t<send href=\"%s\" hint=\"%s\" prompt>%s\t</send>",
+                    command, hint, text);
+        else
+            bprintf(buf, "\t<send href=\"%s\" prompt>%s\t</send>", command, text);
+        return;
+    }
+
+    if (mode == LINK_NONE) {
+        add_buf(buf, text);
+        return;
+    }
+
+    /* GMCP and OSC8: treat as regular link */
+    {
+        mxp_cmd_hint_t item;
+        item.cmd        = command;
+        item.hint       = hint;
+        item.staff_only = false;
+        link_route(d, buf, text, hint, "cmd", &item, 1, mode);
+    }
 }
 
 void mxp_link_multi(descriptor_t *d, BUFFER *buf, const char *text,
                     const mxp_cmd_hint_t *items, int nitems)
 {
+    link_mode_t mode;
+
     if (!text) text = "";
-    if (!items || nitems <= 0 || !isMXP(d)) {
-        add_buf(buf, (char *)text);
+    if (!items || nitems <= 0) {
+        add_buf(buf, text);
         return;
     }
 
-    add_buf(buf, (char *)"\t<send href=\"");
-    for (int i = 0; i < nitems; i++) {
-        if (i) add_buf(buf, (char *)"|");
-        if (items[i].cmd)
-            add_buf(buf, (char *)items[i].cmd);
-    }
-    add_buf(buf, (char *)"\"");
-
-    bool any_hint = false;
-    for (int i = 0; i < nitems; i++) {
-        if (items[i].hint && items[i].hint[0]) {
-            any_hint = true;
-            break;
-        }
+    mode = link_mode(d);
+    if (mode == LINK_NONE) {
+        add_buf(buf, text);
+        return;
     }
 
-    if (any_hint) {
-        add_buf(buf, (char *)" hint=\"");
-        for (int i = 0; i < nitems; i++) {
-            if (i) add_buf(buf, (char *)"|");
-            if (items[i].hint)
-                add_buf(buf, (char *)items[i].hint);
-        }
-        add_buf(buf, (char *)"\"");
-    }
-
-    bprintf(buf, ">%s\t</send>", text);
+    link_route(d, buf, text, NULL, "cmd", items, nitems, mode);
 }
 
 void mxp_obj_link(descriptor_t *d, BUFFER *buf, OBJ_DATA *obj,

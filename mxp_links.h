@@ -13,6 +13,7 @@
 #define MXP_LINKS_H
 
 #include "merc.h"
+#include "sentience_link.h"
 
 typedef struct mxp_cmd_hint {
     const char *cmd;
