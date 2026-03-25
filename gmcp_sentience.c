@@ -481,6 +481,36 @@ static void cache_strcpy(char *dst, const char *src, size_t sz)
     dst[sz - 1] = '\0';
 }
 
+/* ----- Client.Layout storage helpers ----- */
+
+web_client_layout_t *layout_find(web_client_layout_t *list, const char *name)
+{
+    for (web_client_layout_t *l = list; l; l = l->next)
+        if (!str_cmp(l->name, name))
+            return l;
+    return NULL;
+}
+
+int layout_count(web_client_layout_t *list)
+{
+    int n = 0;
+    for (web_client_layout_t *l = list; l; l = l->next)
+        n++;
+    return n;
+}
+
+void layout_free_all(web_client_layout_t **list)
+{
+    web_client_layout_t *l = *list, *next;
+    while (l) {
+        next = l->next;
+        if (l->layout) json_decref(l->layout);
+        free(l);
+        l = next;
+    }
+    *list = NULL;
+}
+
 /* ── Game-loop entry point ──────────────────────────────────────── */
 
 void sentience_gmcp_update(descriptor_t *d)

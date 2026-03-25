@@ -262,4 +262,20 @@ void sentience_gmcp_update(descriptor_t *d);
  */
 void sentience_gmcp_cache_reset(sentience_gmcp_cache_t *cache);
 
+/* ----- Client.Layout storage ----- */
+#define LAYOUT_NAME_MAX   32
+#define LAYOUT_MAX_COUNT  5
+#define LAYOUT_MAX_SIZE   (16 * 1024)  /* 16 KB per layout blob */
+
+typedef struct web_client_layout {
+    char name[LAYOUT_NAME_MAX + 1];
+    json_t *layout;                      /* Opaque FlexLayout model JSON */
+    struct web_client_layout *next;
+} web_client_layout_t;
+
+/* Layout storage helpers (gmcp_sentience.c) */
+web_client_layout_t *layout_find(web_client_layout_t *list, const char *name);
+int                  layout_count(web_client_layout_t *list);
+void                 layout_free_all(web_client_layout_t **list);
+
 #endif /* GMCP_SENTIENCE_H */

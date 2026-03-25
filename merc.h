@@ -545,6 +545,7 @@ typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
 typedef struct dungeon_data DUNGEON;
 
 typedef struct church_log_entry CHURCH_LOG_ENTRY;
+typedef struct web_client_layout web_client_layout_t;
 
 struct special_key_data
 {
@@ -5970,6 +5971,10 @@ struct	pc_data
     char *recovery_codes[MFA_RECOVERY_CODES]; // Array of 5 recovery codes
     bool recovery_used[MFA_RECOVERY_CODES];   // Used flags
     PREF_ENTRY *preferences;                  // Character preference overrides
+
+    /* Web client layout persistence */
+    web_client_layout_t *web_client_layouts;  /* Linked list of named layouts */
+    char active_layout[33];                   /* Name of last-used layout */
 
     /* Personal trait overrides (indexed array, allocated by char_init_traits) */
     struct trait_value * trait_values;
