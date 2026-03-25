@@ -12,6 +12,7 @@
 #include "recycle.h"
 #include "protocol.h"
 #include "connection.h"
+#include "mxp_links.h"
 #include "sentience_link.h"
 
 /* ── Stub implementations — filled in by subsequent tasks ── */
@@ -33,17 +34,48 @@ bool has_osc8_support(descriptor_t *d)
     return false;
 }
 
+static void link_entry_clear(sentience_link_entry_t *entry)
+{
+    int i;
+
+    if (!entry)
+        return;
+
+    free(entry->text);
+    free(entry->hint);
+    free(entry->category);
+    for (i = 0; i < entry->num_actions; i++) {
+        free(entry->actions[i].label);
+        free(entry->actions[i].cmd);
+        free(entry->actions[i].hint);
+    }
+    memset(entry, 0, sizeof(*entry));
+}
+
 void sentience_link_queue_init(sentience_link_queue_t *queue)
 {
-    if (!queue) return;
-    memset(queue, 0, sizeof(*queue));
+    if (!queue)
+        return;
+
+    queue->count    = 0;
+    queue->capacity = SENTIENCE_LINK_QUEUE_INITIAL;
+    queue->entries  = calloc(queue->capacity, sizeof(sentience_link_entry_t));
 }
 
 void sentience_link_queue_free(sentience_link_queue_t *queue)
 {
-    if (!queue) return;
+    int i;
+
+    if (!queue || !queue->entries)
+        return;
+
+    for (i = 0; i < queue->count; i++)
+        link_entry_clear(&queue->entries[i]);
+
     free(queue->entries);
-    memset(queue, 0, sizeof(*queue));
+    queue->entries  = NULL;
+    queue->count    = 0;
+    queue->capacity = 0;
 }
 
 const char *sentience_link_queue_add(sentience_link_queue_t *queue,
@@ -53,20 +85,115 @@ const char *sentience_link_queue_add(sentience_link_queue_t *queue,
                                       const sentience_link_action_t *actions,
                                       int num_actions)
 {
-    (void)queue; (void)text; (void)hint; (void)category;
-    (void)actions; (void)num_actions;
-    return NULL;
+    sentience_link_entry_t *entry;
+    int i, nact;
+
+    if (!queue || !queue->entries || queue->count >= SENTIENCE_LINK_QUEUE_MAX)
+        return NULL;
+
+    /* Grow if needed */
+    if (queue->count >= queue->capacity) {
+        int new_cap = queue->capacity * 2;
+        sentience_link_entry_t *grown;
+
+        if (new_cap > SENTIENCE_LINK_QUEUE_MAX)
+            new_cap = SENTIENCE_LINK_QUEUE_MAX;
+
+        grown = realloc(queue->entries, new_cap * sizeof(sentience_link_entry_t));
+        if (!grown)
+            return NULL;
+
+        memset(grown + queue->capacity, 0,
+               (new_cap - queue->capacity) * sizeof(sentience_link_entry_t));
+        queue->entries  = grown;
+        queue->capacity = new_cap;
+    }
+
+    entry = &queue->entries[queue->count];
+    snprintf(entry->id, sizeof(entry->id), "lk_%d", queue->count);
+    entry->text     = strdup(text ? text : "");
+    entry->hint     = hint ? strdup(hint) : NULL;
+    entry->category = strdup(category ? category : "cmd");
+
+    nact = (num_actions > SENTIENCE_LINK_MAX_ACTIONS)
+        ? SENTIENCE_LINK_MAX_ACTIONS : num_actions;
+    entry->num_actions = nact;
+    for (i = 0; i < nact; i++) {
+        entry->actions[i].label = strdup(actions[i].label ? actions[i].label : "");
+        entry->actions[i].cmd   = strdup(actions[i].cmd ? actions[i].cmd : "");
+        entry->actions[i].hint  = actions[i].hint ? strdup(actions[i].hint) : NULL;
+    }
+
+    queue->count++;
+    return entry->id;
 }
 
 json_t *sentience_link_queue_to_json(const sentience_link_queue_t *queue)
 {
-    (void)queue;
-    return json_array();
+    json_t *arr = json_array();
+    int i, j;
+
+    if (!arr || !queue)
+        return arr;
+
+    for (i = 0; i < queue->count; i++) {
+        const sentience_link_entry_t *e = &queue->entries[i];
+        json_t *link = json_object();
+        json_t *actions = json_array();
+
+        json_object_set_new(link, "id",       json_string(e->id));
+        json_object_set_new(link, "text",     json_string(e->text ? e->text : ""));
+        if (e->hint)
+            json_object_set_new(link, "hint", json_string(e->hint));
+        json_object_set_new(link, "category", json_string(e->category ? e->category : "cmd"));
+
+        for (j = 0; j < e->num_actions; j++) {
+            json_t *act = json_object();
+            json_object_set_new(act, "label", json_string(e->actions[j].label ? e->actions[j].label : ""));
+            json_object_set_new(act, "cmd",   json_string(e->actions[j].cmd ? e->actions[j].cmd : ""));
+            if (e->actions[j].hint)
+                json_object_set_new(act, "hint", json_string(e->actions[j].hint));
+            json_array_append_new(actions, act);
+        }
+
+        json_object_set_new(link, "actions", actions);
+        json_array_append_new(arr, link);
+    }
+
+    return arr;
 }
 
 void sentience_link_queue_flush(descriptor_t *d)
 {
-    (void)d;
+    sentience_link_queue_t *queue;
+    json_t *arr;
+    char *dump;
+    int i;
+
+    if (!d || !d->pProtocol)
+        return;
+
+    queue = &d->pProtocol->sentience_link_queue;
+    if (queue->count == 0)
+        return;
+
+    /* Only send GMCP for WebSocket clients with Sentience support */
+    if (is_websocket_connection(d) && d->pProtocol->bGMCP) {
+        arr = sentience_link_queue_to_json(queue);
+        if (arr) {
+            dump = json_dumps(arr, JSON_COMPACT);
+            if (dump) {
+                SendGMCPRaw(d, "Sentience.Link.List", dump);
+                free(dump);
+            }
+            json_decref(arr);
+        }
+    }
+
+    /* Clear queue entries */
+    for (i = 0; i < queue->count; i++)
+        link_entry_clear(&queue->entries[i]);
+    queue->count = 0;
 }
 
 void link_osc8_gmcp(BUFFER *buf, const char *link_id, const char *text)
@@ -126,6 +253,17 @@ int sentience_link_filter_staff(const struct mxp_cmd_hint *items, int nitems,
                                  struct mxp_cmd_hint *out, int out_max,
                                  bool is_staff)
 {
-    (void)items; (void)nitems; (void)out; (void)out_max; (void)is_staff;
-    return 0;
+    int nf = 0;
+    int i;
+
+    if (!items || !out || out_max <= 0)
+        return 0;
+
+    for (i = 0; i < nitems && nf < out_max; i++) {
+        if (items[i].staff_only && !is_staff)
+            continue;
+        out[nf++] = items[i];
+    }
+
+    return nf;
 }
