@@ -1323,6 +1323,12 @@ bool channel_can_deliver_to_descriptor(CHAR_DATA *sender,
     if (honor_wizi && IS_IMMORTAL(sender) && sender->invis_level > victim->tot_level)
         return false;
 
+    /* GMCP inline suppression: if the recipient has both gmcp_channels ON
+     * and gmcp_suppress_channels ON, skip inline text delivery — the GMCP
+     * path handles it. */
+    if (pref_gmcp_channels(victim) && pref_gmcp_suppress_channels(victim))
+        return false;
+
     if (out_victim)
         *out_victim = victim;
 

@@ -57,6 +57,7 @@
 #include "class_data.h"
 #include "utils/tablefmt.h"
 #include "protocol.h"
+#include "account/preferences.h"
 
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
@@ -2604,9 +2605,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
             if (!IS_SET(ch->comm, COMM_NOMAP) &&
                 !IS_SET(room->room_flag[0], ROOM_NOMAP) &&
                 !IS_SET(room->area->area_flags, AREA_NOMAP) &&
-                !(ch->desc && ch->desc->pProtocol &&
-                  ch->desc->pProtocol->bGMCP &&
-                  ch->desc->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE]))
+                !pref_gmcp_suppress_minimap(ch))
                 show_map_and_description(ch, room);
             else {
 #endif
@@ -2629,9 +2628,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
         !IS_SET(ch->comm, COMM_BRIEF)))) ||
         (!automatic && !IS_NPC(ch) &&
         IS_SET(room->room_flag[1], ROOM_VIRTUAL_ROOM))) &&
-        !(ch->desc && ch->desc->pProtocol &&
-          ch->desc->pProtocol->bGMCP &&
-          ch->desc->pProtocol->bGMCPSupport[GMCP_SUPPORT_SENTIENCE])) {
+        !pref_gmcp_suppress_minimap(ch)) {
         int vp_x, vp_y;
 
         vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
