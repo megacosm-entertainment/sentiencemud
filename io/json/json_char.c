@@ -1441,7 +1441,7 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
             web_client_layout_t *l;
             for (l = ch->pcdata->web_client_layouts; l; l = l->next) {
                 if (l->layout)
-                    json_object_set(layouts_obj, l->name, l->layout); /* borrowed ref */
+                    json_object_set_new(layouts_obj, l->name, json_incref(l->layout));
             }
             json_object_set_new(basic, "web_client_layouts", layouts_obj);
         }
@@ -3592,6 +3592,7 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
                     if (!json_is_object(lval)) continue;
                     if (layout_count(ch->pcdata->web_client_layouts) >= LAYOUT_MAX_COUNT) break;
                     web_client_layout_t *entry = calloc(1, sizeof(*entry));
+                    if (!entry) break;
                     snprintf(entry->name, sizeof(entry->name), "%s", lname);
                     entry->layout = json_incref(lval);
                     entry->next = ch->pcdata->web_client_layouts;

@@ -10911,6 +10911,7 @@ void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char
 void send_recovery_codes_email_for_account(ACCOUNT_DATA *acct, const char *email);
 char *generate_totp_key(char *buffer, size_t length);
 void display_qr_code(DESCRIPTOR_DATA *d, const char *url);
+char *encode_qr_code_as_png_base64(QRcode *qrcode, int scale);
 void display_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char);
 void generate_recovery_codes(char **codes, bool *used, int count);
 char *hash_recovery_code(const char *code);
