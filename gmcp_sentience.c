@@ -558,7 +558,7 @@ void sentience_send_layout_restore(descriptor_t *d, const char *name, json_t *la
 {
     json_t *obj = json_object();
     json_object_set_new(obj, "action", json_string("restore"));
-    json_object_set(obj, "layout", layout);  /* borrowed ref */
+    json_object_set_new(obj, "layout", json_incref(layout));
     json_object_set_new(obj, "name", json_string(name));
     json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
     sentience_send_package(d, "Sentience.Client.Layout", obj);
