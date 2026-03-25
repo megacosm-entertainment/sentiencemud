@@ -2913,6 +2913,7 @@ void login_read_motd(DESCRIPTOR_DATA *d, char *argument)
         pref_apply_to_character(d->account, ch,
                                 ch->pcdata ? ch->pcdata->preferences : NULL);
     }
+    pref_apply_gmcp_defaults(ch);
 
     // Show server stats
     playernum = 0;
@@ -5470,6 +5471,7 @@ static void finalize_new_character(DESCRIPTOR_DATA *d)
     pref_apply_game_defaults(ch);
     if (d->account)
         pref_apply_to_character(d->account, ch, ch->pcdata->preferences);
+    pref_apply_gmcp_defaults(ch);
 
     ch->level     = 1;
     ch->tot_level = 0;  /* stays 0 so first-login setup block fires */
@@ -5723,6 +5725,7 @@ void login_get_sub_class(DESCRIPTOR_DATA *d, char *argument)
         pref_apply_game_defaults(ch);
         if (d->account)
             pref_apply_to_character(d->account, ch, ch->pcdata->preferences);
+        pref_apply_gmcp_defaults(ch);
 
         ch->level     = 0;
         ch->tot_level = 0;

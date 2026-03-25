@@ -2343,6 +2343,43 @@ static void show_prompt_settings(CHAR_DATA *ch)
     send_to_char(buf, ch);
 }
 
+static void show_gmcp_settings(CHAR_DATA *ch)
+{
+    static const struct {
+        const char *key;
+        const char *label;
+    } gmcp_prefs[] = {
+        { "gmcp_channels",          "GMCP Channel Data"        },
+        { "gmcp_suppress_channels", "Suppress Inline Channels" },
+        { "gmcp_suppress_minimap",  "Suppress Inline Minimap"  },
+        { NULL, NULL }
+    };
+    char buf[MAX_STRING_LENGTH];
+    ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
+    int i;
+
+    send_to_char("\n\r{C--- GMCP ---{x\n\r", ch);
+
+    for (i = 0; gmcp_prefs[i].key; i++) {
+        bool val = pref_get_bool(acct, ch, gmcp_prefs[i].key, false);
+        const char *source = "{D(def)";
+
+        if (ch->pcdata->preferences
+            && pref_find(ch->pcdata->preferences, gmcp_prefs[i].key))
+            source = "{Y(char)";
+        else if (acct && acct->preferences
+                 && pref_find(acct->preferences, gmcp_prefs[i].key))
+            source = "{C(acct)";
+
+        sprintf(buf, "  %-26s %s%-3s{x  %s{x\n\r",
+                gmcp_prefs[i].label,
+                val ? "{G" : "{R",
+                val ? "ON" : "OFF",
+                source);
+        send_to_char(buf, ch);
+    }
+}
+
 static void show_filter_settings(CHAR_DATA *ch)
 {
     ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
@@ -2497,6 +2534,7 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         show_channel_settings(ch);
         show_prompt_settings(ch);
         show_filter_settings(ch);
+        show_gmcp_settings(ch);
 
         /* Show override summary */
         int char_overrides = ch->pcdata->preferences
@@ -2752,6 +2790,39 @@ void do_prefs(CHAR_DATA *ch, char *argument)
         }
 
         send_to_char("Syntax: prefs filter <simple|regex|clear> ...\n\r", ch);
+        return;
+    }
+
+    /* GMCP preference toggle */
+    if (!str_prefix("gmcp_", arg)) {
+        static const char *valid_gmcp_keys[] = {
+            "gmcp_channels", "gmcp_suppress_channels", "gmcp_suppress_minimap", NULL
+        };
+        int i;
+        bool found = false;
+
+        for (i = 0; valid_gmcp_keys[i]; i++) {
+            if (!str_cmp(arg, valid_gmcp_keys[i])) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            send_to_char("Unknown GMCP preference. Valid: gmcp_channels, "
+                         "gmcp_suppress_channels, gmcp_suppress_minimap\n\r", ch);
+            return;
+        }
+
+        {
+            ACCOUNT_DATA *acct = ch->desc ? ch->desc->account : NULL;
+            bool current = pref_get_bool(acct, ch, arg, false);
+            pref_set_bool(&ch->pcdata->preferences, PREF_CAT_GMCP, arg, !current);
+            save_char_obj(ch);
+
+            sprintf(buf, "%s is now %s{x.\n\r", arg, !current ? "{GON" : "{ROFF");
+            send_to_char(buf, ch);
+        }
         return;
     }
 
