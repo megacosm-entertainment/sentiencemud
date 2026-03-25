@@ -338,21 +338,32 @@ static const char* websocket_process_output(protocol_layer_t *proto,
  */
 static void send_gmcp_message(protocol_layer_t *proto, const char *package, const char *json_data)
 {
-    char gmcp_msg[4096];
     int len;
+    int data_len;
 
     if (!proto->descriptor || !proto->connection)
         return;
 
-    // Format: Package.Message {data}
-    len = snprintf(gmcp_msg, sizeof(gmcp_msg), "%s %s", package, json_data);
-    if (len < 0 || len >= sizeof(gmcp_msg)) {
-        log_string("send_gmcp_message: Message too large");
-        return;
-    }
+    data_len = strlen(package) + 1 + strlen(json_data) + 1;
 
-    // Send via write_to_buffer which will use WebSocket framing
-    write_to_buffer(proto->descriptor, gmcp_msg, len);
+    /* Use stack buffer for small messages, heap for large ones */
+    if (data_len <= 4096) {
+        char gmcp_msg[4096];
+        len = snprintf(gmcp_msg, sizeof(gmcp_msg), "%s %s", package, json_data);
+        if (len < 0 || len >= (int)sizeof(gmcp_msg))
+            return;
+        write_to_buffer(proto->descriptor, gmcp_msg, len);
+    } else {
+        char *gmcp_msg = malloc(data_len);
+        if (!gmcp_msg) {
+            log_string("send_gmcp_message: malloc failed for large message");
+            return;
+        }
+        len = snprintf(gmcp_msg, data_len, "%s %s", package, json_data);
+        if (len > 0 && len < data_len)
+            write_to_buffer(proto->descriptor, gmcp_msg, len);
+        free(gmcp_msg);
+    }
 }
 
 /*

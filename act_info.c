@@ -2754,6 +2754,15 @@ void do_look(CHAR_DATA * ch, char *argument)
     if (arg1[0] == '\0')
     {
         show_room(ch,ch->in_room,false,false,false);
+
+        /* Invalidate GMCP room cache so the next pulse resends Room.Info,
+         * Room.Map, and Room.Contents for the current room. */
+        if (ch->desc && ch->desc->pProtocol) {
+            ch->desc->pProtocol->sentience_cache.room_id0 = -1;
+            ch->desc->pProtocol->sentience_cache.room_id1 = -1;
+            ch->desc->pProtocol->sentience_cache.contents_room_id[0] = -1;
+            ch->desc->pProtocol->sentience_cache.contents_room_id[1] = -1;
+        }
         return;
     }
 

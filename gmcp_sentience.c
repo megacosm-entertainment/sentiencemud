@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "merc.h"
 #include "wilds.h"
 #include "gmcp_sentience.h"
@@ -479,6 +480,282 @@ static void cache_strcpy(char *dst, const char *src, size_t sz)
     }
     strncpy(dst, src, sz - 1);
     dst[sz - 1] = '\0';
+}
+
+/* ----- Client.Layout storage helpers ----- */
+
+web_client_layout_t *layout_find(web_client_layout_t *list, const char *name)
+{
+    for (web_client_layout_t *l = list; l; l = l->next)
+        if (!str_cmp(l->name, name))
+            return l;
+    return NULL;
+}
+
+int layout_count(web_client_layout_t *list)
+{
+    int n = 0;
+    for (web_client_layout_t *l = list; l; l = l->next)
+        n++;
+    return n;
+}
+
+void layout_free_all(web_client_layout_t **list)
+{
+    web_client_layout_t *l = *list, *next;
+    while (l) {
+        next = l->next;
+        if (l->layout) json_decref(l->layout);
+        free(l);
+        l = next;
+    }
+    *list = NULL;
+}
+
+/* ── Client.Layout helpers ─────────────────────────────────────── */
+
+static bool layout_name_is_valid(const char *name)
+{
+    int len;
+    if (IS_NULLSTR(name)) return false;
+    len = strlen(name);
+    if (len < 1 || len > LAYOUT_NAME_MAX) return false;
+    for (int i = 0; i < len; i++) {
+        char c = name[i];
+        if (!isalnum((unsigned char)c) && c != '_' && c != '-') return false;
+    }
+    return true;
+}
+
+static void sentience_send_layout_error(descriptor_t *d, const char *reason)
+{
+    json_t *obj = json_object();
+    json_object_set_new(obj, "action", json_string("error"));
+    json_object_set_new(obj, "reason", json_string(reason));
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    sentience_send_package(d, "Sentience.Client.Layout", obj);
+}
+
+static void sentience_send_layout_saved(descriptor_t *d, const char *name)
+{
+    json_t *obj = json_object();
+    json_object_set_new(obj, "action", json_string("saved"));
+    json_object_set_new(obj, "name", json_string(name));
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    sentience_send_package(d, "Sentience.Client.Layout", obj);
+}
+
+static void sentience_send_layout_deleted(descriptor_t *d, const char *name)
+{
+    json_t *obj = json_object();
+    json_object_set_new(obj, "action", json_string("deleted"));
+    json_object_set_new(obj, "name", json_string(name));
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    sentience_send_package(d, "Sentience.Client.Layout", obj);
+}
+
+void sentience_send_layout_restore(descriptor_t *d, const char *name, json_t *layout)
+{
+    json_t *obj = json_object();
+    json_object_set_new(obj, "action", json_string("restore"));
+    json_object_set(obj, "layout", layout);  /* borrowed ref */
+    json_object_set_new(obj, "name", json_string(name));
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    sentience_send_package(d, "Sentience.Client.Layout", obj);
+}
+
+static void sentience_send_layout_list(descriptor_t *d, CHAR_DATA *ch)
+{
+    json_t *obj = json_object();
+    json_t *arr = json_array();
+    web_client_layout_t *l;
+
+    for (l = ch->pcdata->web_client_layouts; l; l = l->next)
+        json_array_append_new(arr, json_string(l->name));
+
+    json_object_set_new(obj, "action", json_string("list"));
+    json_object_set_new(obj, "layouts", arr);
+    json_object_set_new(obj, "active",
+        ch->pcdata->active_layout[0] ? json_string(ch->pcdata->active_layout)
+                                      : json_null());
+    json_object_set_new(obj, "_v", json_integer(SENTIENCE_PACKAGE_VERSION));
+    sentience_send_package(d, "Sentience.Client.Layout", obj);
+}
+
+/*
+ * sentience_handle_client_layout — process incoming Client.Layout messages.
+ *
+ * Actions: save, load, delete, list
+ * Uses Jansson json_loads() to parse the full JSON body from ParseGMCP.
+ */
+void sentience_handle_client_layout(descriptor_t *d, const char *json_str)
+{
+    json_error_t err;
+    json_t *root, *action_val, *name_val, *layout_val;
+    const char *action, *name;
+    CHAR_DATA *ch;
+
+    if (!d || !(ch = d->character) || IS_NPC(ch) || !ch->pcdata)
+        return;
+
+    root = json_loads(json_str, 0, &err);
+    if (!root || !json_is_object(root)) {
+        sentience_send_layout_error(d, "invalid_payload");
+        if (root) json_decref(root);
+        return;
+    }
+
+    action_val = json_object_get(root, "action");
+    if (!action_val || !json_is_string(action_val)) {
+        sentience_send_layout_error(d, "invalid_action");
+        json_decref(root);
+        return;
+    }
+    action = json_string_value(action_val);
+
+    if (!str_cmp(action, "save")) {
+        name_val = json_object_get(root, "name");
+        layout_val = json_object_get(root, "layout");
+
+        if (!name_val || !json_is_string(name_val)) {
+            sentience_send_layout_error(d, "invalid_name");
+            json_decref(root);
+            return;
+        }
+        name = json_string_value(name_val);
+
+        if (!layout_val || !json_is_object(layout_val)) {
+            sentience_send_layout_error(d, "invalid_payload");
+            json_decref(root);
+            return;
+        }
+
+        if (!layout_name_is_valid(name)) {
+            sentience_send_layout_error(d, "invalid_name");
+            json_decref(root);
+            return;
+        }
+
+        /* Validate size */
+        char *dump = json_dumps(layout_val, JSON_COMPACT);
+        if (!dump) {
+            sentience_send_layout_error(d, "invalid_payload");
+            json_decref(root);
+            return;
+        }
+        if (strlen(dump) > LAYOUT_MAX_SIZE) {
+            free(dump);
+            sentience_send_layout_error(d, "size_limit_exceeded");
+            json_decref(root);
+            return;
+        }
+        free(dump);
+
+        /* Check if updating existing or adding new */
+        web_client_layout_t *existing = layout_find(ch->pcdata->web_client_layouts, name);
+        if (!existing && layout_count(ch->pcdata->web_client_layouts) >= LAYOUT_MAX_COUNT) {
+            sentience_send_layout_error(d, "max_layouts_reached");
+            json_decref(root);
+            return;
+        }
+
+        if (existing) {
+            if (existing->layout) json_decref(existing->layout);
+            existing->layout = json_incref(layout_val);
+        } else {
+            web_client_layout_t *entry = calloc(1, sizeof(*entry));
+            if (!entry) {
+                json_decref(root);
+                return;
+            }
+            snprintf(entry->name, sizeof(entry->name), "%s", name);
+            entry->layout = json_incref(layout_val);
+            entry->next = ch->pcdata->web_client_layouts;
+            ch->pcdata->web_client_layouts = entry;
+        }
+
+        /* Set as active */
+        snprintf(ch->pcdata->active_layout, sizeof(ch->pcdata->active_layout),
+                 "%s", name);
+
+        save_char_obj(ch);
+        sentience_send_layout_saved(d, name);
+    }
+    else if (!str_cmp(action, "load")) {
+        name_val = json_object_get(root, "name");
+        if (!name_val || !json_is_string(name_val)) {
+            sentience_send_layout_error(d, "invalid_name");
+            json_decref(root);
+            return;
+        }
+        name = json_string_value(name_val);
+
+        if (!layout_name_is_valid(name)) {
+            sentience_send_layout_error(d, "invalid_name");
+            json_decref(root);
+            return;
+        }
+
+        web_client_layout_t *entry = layout_find(ch->pcdata->web_client_layouts, name);
+        if (!entry) {
+            sentience_send_layout_error(d, "not_found");
+            json_decref(root);
+            return;
+        }
+
+        snprintf(ch->pcdata->active_layout, sizeof(ch->pcdata->active_layout),
+                 "%s", name);
+        save_char_obj(ch);
+        sentience_send_layout_restore(d, entry->name, entry->layout);
+    }
+    else if (!str_cmp(action, "delete")) {
+        name_val = json_object_get(root, "name");
+        if (!name_val || !json_is_string(name_val)) {
+            sentience_send_layout_error(d, "invalid_name");
+            json_decref(root);
+            return;
+        }
+        name = json_string_value(name_val);
+
+        if (!layout_name_is_valid(name)) {
+            sentience_send_layout_error(d, "invalid_name");
+            json_decref(root);
+            return;
+        }
+
+        web_client_layout_t *prev = NULL, *cur = ch->pcdata->web_client_layouts;
+        while (cur) {
+            if (!str_cmp(cur->name, name))
+                break;
+            prev = cur;
+            cur = cur->next;
+        }
+        if (!cur) {
+            sentience_send_layout_error(d, "not_found");
+            json_decref(root);
+            return;
+        }
+
+        if (prev) prev->next = cur->next;
+        else ch->pcdata->web_client_layouts = cur->next;
+
+        if (cur->layout) json_decref(cur->layout);
+        free(cur);
+
+        if (!str_cmp(ch->pcdata->active_layout, name))
+            ch->pcdata->active_layout[0] = '\0';
+
+        save_char_obj(ch);
+        sentience_send_layout_deleted(d, name);
+    }
+    else if (!str_cmp(action, "list")) {
+        sentience_send_layout_list(d, ch);
+    }
+    else {
+        sentience_send_layout_error(d, "invalid_action");
+    }
+
+    json_decref(root);
 }
 
 /* ── Game-loop entry point ──────────────────────────────────────── */

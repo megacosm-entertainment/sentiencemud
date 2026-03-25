@@ -13,6 +13,7 @@
 #include <string.h>
 #include <time.h>
 #include "merc.h"
+#include "gmcp_sentience.h"
 #include "recycle.h"
 #include "interp.h"
 #include "scripts.h"
@@ -1253,6 +1254,10 @@ void free_pcdata(PC_DATA *pcdata)
     list_destroy(pcdata->unlocked_areas);
     list_destroy(pcdata->unlocked_dungeons);
     list_destroy(pcdata->ships);
+
+    /* Free web client layouts */
+    if (pcdata->web_client_layouts)
+        layout_free_all(&pcdata->web_client_layouts);
 
     INVALIDATE(pcdata);
     pcdata->next = pcdata_free;

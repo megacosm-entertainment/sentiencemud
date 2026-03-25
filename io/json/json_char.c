@@ -28,6 +28,7 @@
 #include "../../wilds.h"
 #include "../../skill_data.h"
 #include "../../traits.h"
+#include "../../gmcp_sentience.h"
 #include "../../class_data.h"
 #include "../../skill_group.h"
 #include "../../account/unlock.h"
@@ -1433,6 +1434,20 @@ static json_t *char_basic_to_json(CHAR_DATA *ch)
             json_object_set_new(basic, "preference_overrides",
                 prefs_to_json(ch->pcdata->preferences));
         }
+
+        /* Web client layouts */
+        if (ch->pcdata->web_client_layouts) {
+            json_t *layouts_obj = json_object();
+            web_client_layout_t *l;
+            for (l = ch->pcdata->web_client_layouts; l; l = l->next) {
+                if (l->layout)
+                    json_object_set_new(layouts_obj, l->name, json_incref(l->layout));
+            }
+            json_object_set_new(basic, "web_client_layouts", layouts_obj);
+        }
+        if (ch->pcdata->active_layout[0])
+            json_object_set_new(basic, "active_layout",
+                                json_string(ch->pcdata->active_layout));
 
         // Pronouns
         if (ch->pronoun_he_she && ch->pronoun_he_she[0] != '\0') {
@@ -3565,6 +3580,29 @@ static bool json_read_char_internal_from_json(CHAR_DATA *ch, json_t *root, bool 
         json_t *pref_overrides = json_object_get(character, "preference_overrides");
         if (pref_overrides && json_is_array(pref_overrides)) {
             json_to_prefs(pref_overrides, &ch->pcdata->preferences);
+        }
+
+        /* Web client layouts */
+        {
+            json_t *layouts_obj = json_object_get(character, "web_client_layouts");
+            if (layouts_obj && json_is_object(layouts_obj)) {
+                const char *lname;
+                json_t *lval;
+                json_object_foreach(layouts_obj, lname, lval) {
+                    if (!json_is_object(lval)) continue;
+                    if (layout_count(ch->pcdata->web_client_layouts) >= LAYOUT_MAX_COUNT) break;
+                    web_client_layout_t *entry = calloc(1, sizeof(*entry));
+                    if (!entry) break;
+                    snprintf(entry->name, sizeof(entry->name), "%s", lname);
+                    entry->layout = json_incref(lval);
+                    entry->next = ch->pcdata->web_client_layouts;
+                    ch->pcdata->web_client_layouts = entry;
+                }
+            }
+            json_t *active = json_object_get(character, "active_layout");
+            if (active && json_is_string(active))
+                snprintf(ch->pcdata->active_layout, sizeof(ch->pcdata->active_layout),
+                         "%s", json_string_value(active));
         }
 
         // Pronouns

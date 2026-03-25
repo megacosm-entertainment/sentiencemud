@@ -2706,7 +2706,7 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 
     d->last_activity = current_time;
 
-    static char read_buf[MAX_PROTOCOL_BUFFER];
+    static char read_buf[MAX_PROTOCOL_READ_BUFFER];
     read_buf[0] = '\0';
 
     if (d->incomm[0] != '\0')

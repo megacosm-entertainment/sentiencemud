@@ -3370,6 +3370,7 @@ const struct gmcp_receive_struct GMCPReceiveTable[GMCP_RECEIVE_MAX+1] =
    { GMCP_EXTERNAL_DISCORD_HELLO,		"External.Discord.Hello"			},
    { GMCP_EXTERNAL_DISCORD_GET,		"External.Discord.Get"				},
    { GMCP_SENTIENCE_CLIENT_PREFERENCES,	"Sentience.Client.Preferences"		},
+   { GMCP_SENTIENCE_CLIENT_LAYOUT,      "Sentience.Client.Layout"           },
 
    { GMCP_RECEIVE_MAX,					"",									}
 };
@@ -4014,6 +4015,15 @@ void ParseGMCP( descriptor_t *apDescriptor, char *string )
              save_char_obj(ch);
              sentience_send_client_preferences(apDescriptor);
          }
+      }
+      break;
+
+      case GMCP_SENTIENCE_CLIENT_LAYOUT:
+      {
+         if (!apDescriptor->character || IS_NPC(apDescriptor->character))
+             break;
+         if (tokens > 1 && t[1].type == JSMN_OBJECT)
+             sentience_handle_client_layout(apDescriptor, string + t[1].start);
       }
       break;
    }

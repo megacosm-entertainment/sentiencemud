@@ -545,6 +545,7 @@ typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
 typedef struct dungeon_data DUNGEON;
 
 typedef struct church_log_entry CHURCH_LOG_ENTRY;
+typedef struct web_client_layout web_client_layout_t;
 
 struct special_key_data
 {
@@ -5971,6 +5972,10 @@ struct	pc_data
     bool recovery_used[MFA_RECOVERY_CODES];   // Used flags
     PREF_ENTRY *preferences;                  // Character preference overrides
 
+    /* Web client layout persistence */
+    web_client_layout_t *web_client_layouts;  /* Linked list of named layouts */
+    char active_layout[33];                   /* Name of last-used layout */
+
     /* Personal trait overrides (indexed array, allocated by char_init_traits) */
     struct trait_value * trait_values;
 };
@@ -10906,6 +10911,7 @@ void send_qr_email_for_account(ACCOUNT_DATA *acct, const char *email, const char
 void send_recovery_codes_email_for_account(ACCOUNT_DATA *acct, const char *email);
 char *generate_totp_key(char *buffer, size_t length);
 void display_qr_code(DESCRIPTOR_DATA *d, const char *url);
+char *encode_qr_code_as_png_base64(QRcode *qrcode, int scale);
 void display_recovery_codes(DESCRIPTOR_DATA *d, ACCOUNT_CHARACTER *acct_char);
 void generate_recovery_codes(char **codes, bool *used, int count);
 char *hash_recovery_code(const char *code);
